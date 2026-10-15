@@ -1,0 +1,3 @@
+AF before=0xDFFFFFF7 after=0xDF7FFFF7
+functions=1448 unknown_libname=0 func_lib=1 unowned_heads=1715 regions=132 af=0xDF7FFFF7
+saved E:\Game\swd3\swd3-rebuild\reverse\analysis\swd32.i64

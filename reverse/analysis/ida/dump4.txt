@@ -1,0 +1,66 @@
+==== 00498400-00499000
+00498400 004983FB C                          jmp     sub_489740                                           
+00498405 -------- D                          align 10h                                                    
+00498410 00498410 C sub_498410               mov     ecx, [ebp-10h]                                       
+00498413 00498410 C                          jmp     sub_438030                                           
+00498418 00498418 C SEH_485960               mov     eax, offset unk_49CA68                               00485962:Data_O
+0049841D 00498418 C                          jmp     sub_489740                                           
+00498422 -------- D                          align 1000h                                                  
+==== 0044A220-0044A260
+0044A220 0044A1D0 U                          mov     edx, dword_4AB784                                    
+0044A223 0044A1D0 C                          push    edx                                                  
+0044A224 0044A1D0 C                          push    107h                                                 
+0044A229 0044A1D0 C                          call    sub_485610                                           
+0044A22E 0044A1D0 C                          add     esp, 8                                               
+0044A231 0044A1D0 C                          pop     esi                                                  
+0044A232 0044A1D0 C                          retn                                                         
+0044A233 -------- D                          align 10h                                                    
+0044A240 0044A240 C nullsub_1                retn                                                         004030EC:Code_N,00403105:Code_N,004032B9:Code_N,0040336F:Code_N,004034DC:Code_N,004037B7:Code_N,0040380C:Code_N,0040386D
+0044A241 -------- D                          align 10h                                                    
+0044A250 0044A250 C sub_44A250               call    sub_44A030                                           0044A0C8:Code_N,0043B688:Data_O
+0044A255 0044A250 C                          dec     word_4FC900                                          
+0044A25C 0044A250 C                          jnz     short loc_44A268                                     
+0044A25E 0044A250 C                          mov     dword_4B8740, 0                                      
+==== 00489F40-00489F90
+00489F40 00489EB0 C                          rep movsd                                                    
+00489F42 00489EB0 C                          jmp     ds:jpt_489EE5[edx*4]; switch 4 cases                 
+00489F49 00489EB0 D                          align 4                                                      
+00489F4C 00489EB0 C loc_489F4C               and     edx, ecx                                             00489F18:Data_O
+00489F4E 00489EB0 C                          mov     al, [esi]                                            
+00489F50 00489EB0 C                          mov     [edi], al                                            
+00489F52 00489EB0 C                          mov     al, [esi+1]                                          
+00489F55 00489EB0 C                          shr     ecx, 2                                               
+00489F58 00489EB0 C                          mov     [edi+1], al                                          
+00489F5B 00489EB0 C                          add     esi, 2                                               
+00489F5E 00489EB0 C                          add     edi, 2                                               
+00489F61 00489EB0 C                          cmp     ecx, 8                                               
+00489F64 00489EB0 C                          jb      short loc_489F0C                                     
+00489F66 00489EB0 C                          rep movsd                                                    
+00489F68 00489EB0 C                          jmp     ds:jpt_489EE5[edx*4]; switch 4 cases                 
+00489F6F 00489EB0 D                          align 10h                                                    
+00489F70 00489EB0 C loc_489F70               and     edx, ecx                                             00489F1C:Data_O
+00489F72 00489EB0 C                          mov     al, [esi]                                            
+00489F74 00489EB0 C                          mov     [edi], al                                            
+00489F76 00489EB0 C                          inc     esi                                                  
+00489F77 00489EB0 C                          shr     ecx, 2                                               
+00489F7A 00489EB0 C                          inc     edi                                                  
+00489F7B 00489EB0 C                          cmp     ecx, 8                                               
+00489F7E 00489EB0 C                          jb      short loc_489F0C                                     
+00489F80 00489EB0 C                          rep movsd                                                    
+00489F82 00489EB0 C                          jmp     ds:jpt_489EE5[edx*4]; switch 4 cases                 
+00489F89 00489EB0 D                          align 4                                                      
+00489F8C 00489EB0 D jpt_489F0C               dd offset loc_489FEF; jump table for switch statement        00489F0C:Data_R
+==== 004342C0-004342E0
+004342C0 00433F70 C                          add     esp, 4                                               
+004342C3 00433F70 C def_433FC7               pop     edi; jumptable 00433FC7 default case                 00433F7D:Code_N,00433F8C:Code_N,00433FB4:Code_N,00433FC1:Code_N
+004342C4 00433F70 C                          pop     esi                                                  
+004342C5 00433F70 C                          pop     ebp                                                  
+004342C6 00433F70 C                          pop     ebx                                                  
+004342C7 00433F70 C                          add     esp, 14h                                             
+004342CA 00433F70 C                          retn    0Ch                                                  
+004342CD -------- D                          align 10h                                                    
+004342D0 -------- D jpt_433FC7               dd offset loc_433FCE; jump table for switch statement        00433FC7:Data_R
+==== 0042D7F0-0042D810
+0042D7F0 -------- U                          dd offset loc_42B3B0, offset loc_42B43B, offset loc_42C567;  
+0042D7F4 -------- D jpt_42B0E4               dd offset loc_42B0EB; jump table for switch statement        0042B0E4:Data_R
+0042D80C -------- D byte_42D80C              db      0,     1,     2,     3; indirect table for switch st 0042B0DE:Data_R

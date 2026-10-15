@@ -1,0 +1,7 @@
+del_func 0x004876E4 (byte inside c_dfDIKeyboard DIOBJECTDATAFORMAT table)
+del_func 0x004876F4 (byte inside c_dfDIKeyboard DIOBJECTDATAFORMAT table)
+del_func 0x00487764 (byte inside c_dfDIKeyboard DIOBJECTDATAFORMAT table)
+del_func 0x00487774 (byte inside c_dfDIKeyboard DIOBJECTDATAFORMAT table)
+OK   c_dfDIKeyboard 0x00486AC0-0x00487AD8 is data only (code bytes=0 func bytes=0)
+functions 1626
+saved

@@ -1,0 +1,78 @@
+==== 00486AA0-00486B20
+00486AA0 00486A70 U                          retn    4                                                    
+00486AA1 00486A70 C loc_486AA1               mov     eax, esi                                             00486A90:Code_N
+00486AA3 00486A70 C                          pop     edi                                                  
+00486AA4 00486A70 C                          pop     esi                                                  
+00486AA5 00486A70 C                          pop     ebx                                                  
+00486AA6 00486A70 C                          retn    4                                                    
+00486AA9 -------- D                          align 10h                                                    
+00486AB0 00486AB0 C DirectDrawCreate         jmp     ds:__imp_DirectDrawCreate                            00437625:Code_N
+00486AB6 -------- D                          align 10h                                                    
+00486AC0 -------- D                          dd offset unk_49A798                                         
+00486AC4 -------- D                          align 8                                                      
+00486AC8 -------- D                          dd 8000000Ch, 0                                              
+00486AD0 -------- D                          dd offset unk_49A798                                         
+00486AD4 -------- D                          dd 1, 8000010Ch, 0                                           
+00486AE0 -------- D                          dd offset unk_49A798                                         
+00486AE4 -------- D                          dd 2, 8000020Ch, 0                                           
+00486AF0 -------- D                          dd offset unk_49A798                                         
+00486AF4 -------- D                          dd 3, 8000030Ch, 0                                           
+00486B00 -------- D                          dd offset unk_49A798                                         
+00486B04 -------- D                          dd 4, 8000040Ch, 0                                           
+00486B10 -------- D                          dd offset unk_49A798                                         
+00486B14 -------- D                          dd 5, 8000050Ch, 0                                           
+==== 004876D0-00487780
+004876D0 -------- D                          dd offset unk_49A798                                         
+004876D4 -------- D                          dd 0C1h, 8000C10Ch, 0                                        
+004876E0 -------- D                          dd offset unk_49A798                                         
+004876E4 004876E4 C nullsub_2                retn    0                                                    
+004876E7 -------- D                          align 4                                                      
+004876E8 -------- D                          dd 8000C20Ch, 0                                              
+004876F0 -------- D                          dd offset unk_49A798                                         
+004876F4 004876F4 C nullsub_3                retn                                                         
+004876F5 -------- D                          align 4                                                      
+004876F8 -------- D                          dd 8000C30Ch, 0                                              
+00487700 -------- D                          dd offset unk_49A798                                         
+00487704 -------- D                          dd 0C4h, 8000C40Ch, 0                                        
+00487710 -------- D                          dd offset unk_49A798                                         
+00487714 -------- D                          dd 0C5h, 8000C50Ch, 0                                        
+00487720 -------- D                          dd offset unk_49A798                                         
+00487724 -------- D                          dd 0C6h, 8000C60Ch, 0                                        
+00487730 -------- D                          dd offset unk_49A798                                         
+00487734 -------- D                          dd 0C7h, 8000C70Ch, 0                                        
+00487740 -------- D                          dd offset unk_49A798                                         
+00487744 -------- D                          dd 0C8h, 8000C80Ch, 0                                        
+00487750 -------- D                          dd offset unk_49A798                                         
+00487754 -------- D                          dd 0C9h, 8000C90Ch, 0                                        
+00487760 -------- D                          dd offset unk_49A798                                         
+00487764 00487764 C nullsub_4                retf    0                                                    
+00487767 -------- D                          align 4                                                      
+00487768 -------- D                          dd 8000CA0Ch, 0                                              
+00487770 -------- D                          dd offset unk_49A798                                         
+00487774 00487774 C nullsub_5                retf                                                         
+00487775 -------- D                          align 4                                                      
+00487778 -------- D                          dd 8000CB0Ch, 0                                              
+==== 00487A90-00487AF0
+00487A90 -------- D                          dd offset unk_49A798                                         
+00487A94 -------- D                          dd 0FDh, 8000FD0Ch, 0                                        
+00487AA0 -------- D                          dd offset unk_49A798                                         
+00487AA4 -------- D                          dd 0FEh, 8000FE0Ch, 0                                        
+00487AB0 -------- D                          dd offset unk_49A798                                         
+00487AB4 -------- D                          dd 0FFh, 8000FF0Ch, 0                                        
+00487AC0 -------- D dword_487AC0             dd 18h, 10h, 2, 2 dup(100h), 486AC0h                         004370C2:Data_O
+00487AD8 00487AD8 C DirectInputCreateA       jmp     ds:__imp_DirectInputCreateA                          00437078:Code_N
+00487ADE 00487ADE C ImmIsIME                 jmp     ds:__imp_ImmIsIME                                    00438C5C:Code_N
+00487AE4 -------- D                          align 10h                                                    
+==== 0042D4F0-0042D530
+0042D4F0 00427920 C                          add     esp, 50h                                             
+0042D4F3 00427920 C                          retn                                                         
+0042D4F4 -------- D jpt_427B88               dd offset loc_427B8F, offset loc_427B8F, offset loc_427B8F;  00427B88:Data_R
+==== 00455CD0-00455D00
+00455CD0 -------- D jpt_453A4C               dd offset loc_453A53; jump table for switch statement        00453A4C:Data_R
+==== 0048F720-0048F760
+0048F720 0048EB00 C                          mov     esp, ebp                                             
+0048F722 0048EB00 C                          pop     ebp                                                  
+0048F723 0048EB00 C                          retn                                                         
+0048F724 -------- D jpt_48EBB9               dd offset loc_48EBC0; jump table for switch statement        0048EBB9:Data_R
+0048F744 -------- D jpt_48ECCC               dd offset loc_48ECE8; jump table for switch statement        0048ECCC:Data_R
+0048F75C -------- D byte_48F75C              db      0,     5,     5,     1; indirect table for switch st 0048ECC6:Data_R

@@ -1,0 +1,4 @@
+OK   reattach 0x00490A00-0x00490A05 to 0x00490A10 (shared epilogue: pop ebx without push, reached only from 0x490A2D inside sub_490A10)
+sp_audit nonzero-ret functions=17 sites=22
+functions 1630
+saved

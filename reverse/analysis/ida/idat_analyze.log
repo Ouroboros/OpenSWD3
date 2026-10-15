@@ -1,0 +1,54 @@
+Possible file format: MS-DOS executable (EXE) (D:\Dev\Crack\IDA\loaders\dos.dll)
+Possible file format: Portable executable for 80386 (PE) (D:\Dev\Crack\IDA\loaders\pe.dll)
+
+  bytes   pages size description
+--------- ----- ---- --------------------------------------------
+  4489216   548 8192 allocating memory for b-tree...
+  4489216   548 8192 allocating memory for virtual array...
+   262144    32 8192 allocating memory for name pointers...
+-----------------------------------------------------------------
+  9240576            total memory allocated
+
+Loading file 'E:\Game\swd3\swd3-rebuild\reverse\analysis\work\swd32.exe' into database...
+Detected file format: Portable executable for 80386 (PE)
+
+LoadLibrary(D:\Dev\Crack\IDA\procs\mc6864.dll) error: The specified module could not be found.
+Loading processor module D:\Dev\Crack\IDA\procs\pc.dll for metapc...OK
+Autoanalysis subsystem has been initialized.
+Assuming __cdecl calling convention by default
+  0. Creating a new segment  (00401000-00499000) ... ... OK
+  1. Creating a new segment  (00499000-0049E000) ... ... OK
+  2. Creating a new segment  (0049E000-0053F000) ... ... OK
+Reading imports directory...
+  3. Creating a new segment  (00499344-0049E000) ... ... OK
+Plan  FLIRT signature: Microsoft VisualC 2-14/net runtime
+autoload.cfg: vc32rtf.sig autoloads mssdk_win7.til
+Type library 'mssdk_win7' loaded. Applying types...
+Types applied to 136 names.
+main() function at 409EC0, named "_WinMain@16"
+Plan  FLIRT signature: SEH for vc7-14
+Marking typical code sequences...
+Flushing buffers, please wait...ok
+File 'E:\Game\swd3\swd3-rebuild\reverse\analysis\work\swd32.exe' has been successfully loaded into the database.
+Flushing buffers, please wait...ok
+Hex-Rays Decompiler plugin has been loaded (v9.3.0.260213)
+  The hotkeys are F5: decompile, Ctrl-F5: decompile all.
+
+  Please check the Edit/Plugins menu for more information.
+Hex-rays version 9.3.0.260213 has been detected, gooMBA plugin ready to use
+Using type parser: legacy
+IDA is analysing the input file...
+You may start to explore the input file right now.
+[analyze] AF before=0xDFFFFFF7 after=0xDF7FFFF7
+Using FLIRT signature: Microsoft VisualC 2-14/net runtime
+Using FLIRT signature: SEH for vc7-14
+Propagating type information...
+Function argument information has been propagated
+The initial autoanalysis has been finished.
+[Patching] Loaded v0.2.0 - (c) Markus Gaasedelen - 2024
+[analyze] functions=1448 unknown_libname=0 func_lib=1 unowned_heads=1715 regions=132 af=0xDF7FFFF7
+Flushing buffers, please wait...ok
+[analyze] saved E:\Game\swd3\swd3-rebuild\reverse\analysis\swd32.i64
+Flushing buffers, please wait...ok
+[Patching] Unloading v0.2.0...
+Unloading IDP module D:\Dev\Crack\IDA\procs\pc.dll...

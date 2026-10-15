@@ -1,0 +1,889 @@
+ea	kind	optype	switch	func	disasm	resolved_targets
+0x00404674	jmp	2	switch	0x00404610	jmp     ds:jpt_404674[ecx*4]; switch jump	0x0040467B,0x00404745,0x00404751,0x004047B8,0x004048A6,0x00404911,0x00404987,0x00404A74,0x00404AE5
+0x00404CA6	jmp	2	switch	0x00404C00	jmp     ds:jpt_404CA6[ecx*4]; switch jump	0x00404CAD,0x00404CFF,0x00404D51,0x00404DA2,0x00404E02,0x00404E61,0x00404EB3,0x00404F0F,0x00404F53
+0x00405567	jmp	2	switch	0x00405500	jmp     ds:jpt_405567[eax*4]; switch jump	0x0040556E,0x0040557B,0x0040559F,0x004055EF,0x00405660,0x0040568B,0x004056B6,0x004056D1,0x0040572C,0x0040578D,0x004057EE,0x00405831,0x004059BE,0x00405B6A,0x00405BC2,0x00405BE1,0x00405C37,0x00405C7D,0x00405E7E,0x00405EAD,0x00405EB1,0x00405EBC,0x00405F15,0x00405F6E,0x00405F93,0x00406026,0x004060D6,0x00406109,0x0040618F,0x004061E5
+0x00405898	jmp	2	switch	0x00405500	jmp     ds:jpt_405898[ecx*4]; switch jump	0x0040589F,0x004058BC,0x004058F3,0x00405927,0x0040595B
+0x00405CFC	jmp	2	switch	0x00405500	jmp     ds:jpt_405CFC[edx*4]; switch jump	0x00405D03,0x00405D0B,0x00405D17,0x00405D23,0x00405D2E,0x00405D3F,0x00405D4D,0x00405D5B
+0x00406EF3	call	1		0x00406EB0	call    esi ; Sleep	0x00499174
+0x00406F1D	call	1		0x00406EB0	call    esi ; Sleep	0x00499174
+0x004079F6	call	1		0x004070A0	call    ebx ; wsprintfA	0x004991B0
+0x00407A8C	call	1		0x004070A0	call    ebx ; wsprintfA	0x004991B0
+0x00408276	call	4		0x004070A0	call    dword ptr [edx+14h]	
+0x004082DB	call	1		0x004070A0	call    ebx ; wsprintfA	0x004991B0
+0x00408D5E	call	4		0x00408CF0	call    dword ptr [edx+14h]	
+0x0040954C	jmp	2	switch	0x00409540	jmp     ds:jpt_40954C[eax*4]; switch jump	0x00409553,0x00409573,0x00409592,0x004095A8
+0x00409693	call	1		0x00409600	call    esi ; lstrcpyA	0x00499168
+0x004096F3	call	1		0x00409600	call    esi ; lstrcpyA	0x00499168
+0x004098E4	call	1		0x00409600	call    edi ; lstrcatA	0x0049915C
+0x0040991D	call	1		0x00409600	call    edi ; lstrcatA	0x0049915C
+0x0040994A	call	1		0x00409600	call    edi ; lstrcatA	0x0049915C
+0x00409A62	call	1		0x00409A10	call    ebx ; wsprintfA	0x004991B0
+0x00409C5E	call	1		0x00409C10	call    ebx ; wsprintfA	0x004991B0
+0x00409F47	call	1		0x00409EC0	call    edi ; LoadIconA	0x004991A4
+0x00409F50	call	1		0x00409EC0	call    edi ; LoadIconA	0x004991A4
+0x0040A04B	call	1		0x00409EC0	call    edi ; PeekMessageA	0x004991BC
+0x0040A059	call	1		0x00409EC0	call    ebx ; GetMessageA	0x004991C4
+0x0040A09C	call	1		0x00409EC0	call    esi ; Sleep	0x00499174
+0x0040A163	jmp	2	switch	0x0040A0D0	jmp     ds:jpt_40A163[ecx*4]; switch jump	0x0040A16A,0x0040A1B1,0x0040A1D7,0x0040A1FA,0x0040A514
+0x0040A2E8	call	1		0x0040A0D0	call    ebp ; wsprintfA	0x004991B0
+0x0040A896	call	1		0x0040A570	call    esi ; GetSystemMetrics	0x00499214
+0x0040A89A	call	1		0x0040A570	call    esi ; GetSystemMetrics	0x00499214
+0x0040A8B3	call	1		0x0040A570	call    esi ; GetSystemMetrics	0x00499214
+0x0040A8B7	call	1		0x0040A570	call    esi ; GetSystemMetrics	0x00499214
+0x0040A8D0	call	1		0x0040A570	call    esi ; GetSystemMetrics	0x00499214
+0x0040A8D4	call	1		0x0040A570	call    esi ; GetSystemMetrics	0x00499214
+0x0040AAFB	jmp	2	switch	0x0040A570	jmp     ds:jpt_40AAFB[eax*4]; switch jump	0x0040AB02,0x0040AB09
+0x0040AC28	call	4		0x0040AB50	call    dword ptr [ecx+6Ch]	
+0x0040AC33	call	4		0x0040AB50	call    dword ptr [edx+6Ch]	
+0x0040AC53	call	1		0x0040AB50	call    esi ; GetSystemMetrics	0x00499214
+0x0040AC58	call	1		0x0040AB50	call    esi ; GetSystemMetrics	0x00499214
+0x0040AC71	call	1		0x0040AB50	call    esi ; GetSystemMetrics	0x00499214
+0x0040AC76	call	1		0x0040AB50	call    esi ; GetSystemMetrics	0x00499214
+0x0040AC8F	call	1		0x0040AB50	call    esi ; GetSystemMetrics	0x00499214
+0x0040AC94	call	1		0x0040AB50	call    esi ; GetSystemMetrics	0x00499214
+0x0040ACD0	call	4		0x0040AB50	call    dword ptr [ecx+38h]	
+0x0040B982	call	1		0x0040B7F0	call    edi ; lstrlenA	0x00499160
+0x0040B98D	call	1		0x0040B7F0	call    edi ; lstrlenA	0x00499160
+0x0040BAD1	call	1		0x0040BAA0	call    ebx ; lstrlenA	0x00499160
+0x0040BAD4	call	1		0x0040BAA0	call    ebx ; lstrlenA	0x00499160
+0x0040BAD7	call	1		0x0040BAA0	call    ebx ; lstrlenA	0x00499160
+0x0040EB99	call	1		0x0040EB60	call    ebp ; lstrcatA	0x0049915C
+0x0040EBDA	call	1		0x0040EB60	call    ebp ; lstrcatA	0x0049915C
+0x0040EFAE	call	4		0x0040ED60	call    dword ptr [edx+14h]	
+0x0040F05E	call	1		0x0040F040	call    esi ; wsprintfA	0x004991B0
+0x0040F0A8	call	1		0x0040F040	call    esi ; wsprintfA	0x004991B0
+0x0040F10C	call	1		0x0040F040	call    esi ; wsprintfA	0x004991B0
+0x0040F361	call	1		0x0040F340	call    edi ; GetSystemMetrics	0x00499214
+0x0040F366	call	1		0x0040F340	call    edi ; GetSystemMetrics	0x00499214
+0x0040F8D5	jmp	2	switch	0x0040F890	jmp     ds:jpt_40F8D5[ecx*4]; switch jump	0x0040F8DC,0x0040F905,0x0040F9DD,0x0040FA9F,0x0040FD1B,0x00410348
+0x0040F948	jmp	2	switch	0x0040F890	jmp     ds:jpt_40F948[eax*4]; switch jump	0x0040F94F,0x00410348
+0x0040FA1F	jmp	2	switch	0x0040F890	jmp     ds:jpt_40FA1F[ecx*4]; switch jump	0x0040FA26,0x0040FA2D,0x0040FA35,0x0040FA3D,0x0040FA45
+0x0040FACB	call	1		0x0040F890	call    edi ; GetDlgItemTextA	0x00499208
+0x0040FAFC	jmp	2	switch	0x0040F890	jmp     ds:jpt_40FAFC[eax*4]; switch jump	0x0040FB03,0x0040FB0D,0x0040FB19,0x0040FB21,0x0040FB2D
+0x0040FB70	call	1		0x0040F890	call    edi ; GetDlgItemTextA	0x00499208
+0x0040FB9E	call	1		0x0040F890	call    edi ; GetDlgItemTextA	0x00499208
+0x0040FCC4	call	1		0x0040F890	call    edi ; GetDlgItem	0x00499204
+0x0040FCD8	call	1		0x0040F890	call    edi ; GetDlgItem	0x00499204
+0x0040FCE6	call	1		0x0040F890	call    ebp ; SendMessageA	0x004991CC
+0x0040FCEE	call	1		0x0040F890	call    edi ; GetDlgItem	0x00499204
+0x0040FCF6	call	1		0x0040F890	call    ebp ; SendMessageA	0x004991CC
+0x0040FCFE	call	1		0x0040F890	call    edi ; GetDlgItem	0x00499204
+0x0040FD06	call	1		0x0040F890	call    ebp ; SendMessageA	0x004991CC
+0x0040FD44	call	1		0x0040F890	call    ebx ; GetDlgItemTextA	0x00499208
+0x0040FD81	call	1		0x0040F890	call    ebx ; GetDlgItemTextA	0x00499208
+0x0040FDC5	call	1		0x0040F890	call    ebx ; GetDlgItemTextA	0x00499208
+0x0040FE1F	call	1		0x0040F890	call    ebx ; GetDlgItemTextA	0x00499208
+0x0040FE5C	call	1		0x0040F890	call    ebx ; GetDlgItemTextA	0x00499208
+0x0040FF3B	call	1		0x0040F890	call    ebx ; GetDlgItemTextA	0x00499208
+0x0040FF78	call	1		0x0040F890	call    ebx ; GetDlgItemTextA	0x00499208
+0x0040FFBC	call	1		0x0040F890	call    ebx ; GetDlgItem	0x00499204
+0x0040FFD0	call	1		0x0040F890	call    ebx ; GetDlgItem	0x00499204
+0x0040FFDE	call	1		0x0040F890	call    ebp ; SendMessageA	0x004991CC
+0x0040FFE6	call	1		0x0040F890	call    ebx ; GetDlgItem	0x00499204
+0x0040FFEE	call	1		0x0040F890	call    ebp ; SendMessageA	0x004991CC
+0x0040FFF6	call	1		0x0040F890	call    ebx ; GetDlgItem	0x00499204
+0x0040FFFE	call	1		0x0040F890	call    ebp ; SendMessageA	0x004991CC
+0x0041004C	call	1		0x0040F890	call    esi ; SendMessageA	0x004991CC
+0x00410063	call	1		0x0040F890	call    ebx ; wsprintfA	0x004991B0
+0x0041007D	call	1		0x0040F890	call    esi ; SendMessageA	0x004991CC
+0x0041008E	call	1		0x0040F890	call    ebx ; wsprintfA	0x004991B0
+0x004100A8	call	1		0x0040F890	call    esi ; SendMessageA	0x004991CC
+0x004100B9	call	1		0x0040F890	call    ebx ; wsprintfA	0x004991B0
+0x004100D3	call	1		0x0040F890	call    esi ; SendMessageA	0x004991CC
+0x004100E4	call	1		0x0040F890	call    ebx ; wsprintfA	0x004991B0
+0x004100FE	call	1		0x0040F890	call    esi ; SendMessageA	0x004991CC
+0x0041010F	call	1		0x0040F890	call    ebx ; wsprintfA	0x004991B0
+0x00410129	call	1		0x0040F890	call    esi ; SendMessageA	0x004991CC
+0x0041013A	call	1		0x0040F890	call    ebx ; wsprintfA	0x004991B0
+0x00410154	call	1		0x0040F890	call    esi ; SendMessageA	0x004991CC
+0x00410165	call	1		0x0040F890	call    ebx ; wsprintfA	0x004991B0
+0x0041017F	call	1		0x0040F890	call    esi ; SendMessageA	0x004991CC
+0x00410190	call	1		0x0040F890	call    ebx ; wsprintfA	0x004991B0
+0x004101AA	call	1		0x0040F890	call    esi ; SendMessageA	0x004991CC
+0x004101B6	call	1		0x0040F890	call    ebx ; wsprintfA	0x004991B0
+0x004101D0	call	1		0x0040F890	call    esi ; SendMessageA	0x004991CC
+0x004101E8	call	1		0x0040F890	call    ebx ; GetDlgItem	0x00499204
+0x004101FF	call	1		0x0040F890	call    esi ; SendMessageA	0x004991CC
+0x00410210	call	1		0x0040F890	call    ebx ; GetDlgItem	0x00499204
+0x0041021C	call	1		0x0040F890	call    esi ; SendMessageA	0x004991CC
+0x00410224	call	1		0x0040F890	call    ebx ; GetDlgItem	0x00499204
+0x00410230	call	1		0x0040F890	call    esi ; SendMessageA	0x004991CC
+0x00410238	call	1		0x0040F890	call    ebx ; GetDlgItem	0x00499204
+0x00410244	call	1		0x0040F890	call    esi ; SendMessageA	0x004991CC
+0x00410274	call	1		0x0040F890	call    edi ; GetDlgItem	0x00499204
+0x0041028B	call	1		0x0040F890	call    ebp ; SendMessageA	0x004991CC
+0x0041029C	call	1		0x0040F890	call    ebp ; SendMessageA	0x004991CC
+0x004102A8	call	1		0x0040F890	call    ebp ; SendMessageA	0x004991CC
+0x004102B4	call	1		0x0040F890	call    ebp ; SendMessageA	0x004991CC
+0x004102C0	call	1		0x0040F890	call    ebp ; SendMessageA	0x004991CC
+0x004102D7	call	1		0x0040F890	call    edi ; GetDlgItem	0x00499204
+0x004102E2	call	1		0x0040F890	call    ebx ; EnableWindow	0x00499200
+0x004102EA	call	1		0x0040F890	call    edi ; GetDlgItem	0x00499204
+0x004102EF	call	1		0x0040F890	call    ebx ; EnableWindow	0x00499200
+0x004102F7	call	1		0x0040F890	call    edi ; GetDlgItem	0x00499204
+0x004102FC	call	1		0x0040F890	call    ebx ; EnableWindow	0x00499200
+0x00410304	call	1		0x0040F890	call    edi ; GetDlgItem	0x00499204
+0x00410309	call	1		0x0040F890	call    ebx ; EnableWindow	0x00499200
+0x0041031A	call	1		0x0040F890	call    edi ; GetDlgItem	0x00499204
+0x0041031F	call	1		0x0040F890	call    ebx ; EnableWindow	0x00499200
+0x00410327	call	1		0x0040F890	call    edi ; GetDlgItem	0x00499204
+0x0041032C	call	1		0x0040F890	call    ebx ; EnableWindow	0x00499200
+0x00410334	call	1		0x0040F890	call    edi ; GetDlgItem	0x00499204
+0x00410339	call	1		0x0040F890	call    ebx ; EnableWindow	0x00499200
+0x00410341	call	1		0x0040F890	call    edi ; GetDlgItem	0x00499204
+0x00410346	call	1		0x0040F890	call    ebx ; EnableWindow	0x00499200
+0x00410469	call	1		0x004103C0	call    ebp ; SendMessageA	0x004991CC
+0x004104DB	call	1		0x00410490	call    ebx ; SendMessageA	0x004991CC
+0x00410501	call	1		0x00410490	call    ebx ; SendMessageA	0x004991CC
+0x0041052F	call	1		0x00410490	call    ebx ; SendMessageA	0x004991CC
+0x0041055D	call	1		0x00410490	call    ebx ; SendMessageA	0x004991CC
+0x004105DF	call	1		0x00410490	call    ebx ; SendMessageA	0x004991CC
+0x00410656	call	1		0x00410600	call    edi ; wsprintfA	0x004991B0
+0x00410684	call	1		0x00410600	call    edi ; wsprintfA	0x004991B0
+0x004106C4	call	1		0x00410600	call    edi ; wsprintfA	0x004991B0
+0x004106DC	call	1		0x00410600	call    edi ; wsprintfA	0x004991B0
+0x004106F5	call	1		0x00410600	call    edi ; wsprintfA	0x004991B0
+0x00410765	jmp	2	switch	0x00410730	jmp     ds:jpt_410765[edx*4]; switch jump	0x0041076C,0x00410774,0x0041077D,0x00410787,0x00410790
+0x0041103E	jmp	2	switch	0x00411030	jmp     ds:jpt_41103E[eax*4]; switch jump	0x00411045,0x00411063,0x00411081,0x0041109F,0x004110BD,0x004110DB,0x004110F9,0x00411117,0x00411135,0x00411153,0x00411171,0x0041118F,0x004111AD,0x004111CB,0x004111E9,0x00411205,0x00411221
+0x004112BD	jmp	2	switch	0x004112B0	jmp     ds:jpt_4112BD[eax*4]; switch jump	0x004112C4,0x004112DA,0x004112F0,0x00411306,0x0041131C,0x00411332,0x00411348,0x00411360,0x00411378,0x00411390,0x004113A8,0x004113C0,0x004113D8,0x004113F0,0x00411408,0x0041141D,0x00411432
+0x00411991	call	1		0x004118B0	call    esi ; wsprintfA	0x004991B0
+0x00411A44	call	1		0x004118B0	call    esi	
+0x00411A4E	call	1		0x004118B0	call    ebp	
+0x00411A97	call	1		0x004118B0	call    esi	
+0x00411AA1	call	1		0x004118B0	call    ebp	
+0x00411B05	call	4		0x004118B0	call    dword ptr [ecx+14h]	
+0x00411B80	call	1		0x004118B0	call    esi	
+0x00411B8A	call	1		0x004118B0	call    ebp	
+0x00411C02	call	4		0x004118B0	call    dword ptr [ecx+14h]	
+0x00411DDA	call	1		0x00411D90	call    ebx	
+0x00412046	call	4		0x00411FA0	call    dword ptr [ecx+14h]	
+0x00412716	call	4		0x004120B0	call    dword ptr [ecx+14h]	
+0x00415442	call	1		0x004153D0	call    ebx ; lstrlenA	0x00499160
+0x00415DDD	jmp	2	switch	0x00415B70	jmp     ds:jpt_415DDD[eax*4]; switch jump	0x00415DE4,0x00415E27,0x00415E4A,0x00415E82
+0x00416F3E	call	4		0x00416F10	call    dword ptr [ecx+64h]	
+0x00416F6C	call	4		0x00416F60	call    dword ptr [ecx+80h]	
+0x0041748A	call	2		0x004170E0	call    dword_4CD318[ebx*4]	
+0x00417A81	jmp	1		0x00417950	jmp     ebx	
+0x00417FE8	jmp	1		0x00417EC0	jmp     ebx	
+0x004199F2	jmp	1		0x00419570	jmp     ebx	
+0x00419C17	jmp	1		0x00419570	jmp     ebx	
+0x00419E04	jmp	1		0x00419570	jmp     ebx	
+0x0041A027	jmp	1		0x00419570	jmp     ebx	
+0x0041A854	jmp	1		0x0041A3B0	jmp     ebx	
+0x0041AA79	jmp	1		0x0041A3B0	jmp     ebx	
+0x0041AC8D	jmp	1		0x0041A3B0	jmp     ebx	
+0x0041AEC9	jmp	1		0x0041A3B0	jmp     ebx	
+0x0041BEA6	jmp	1		0x0041B9F0	jmp     ebx	
+0x0041C1F9	jmp	1		0x0041B9F0	jmp     ebx	
+0x0041C536	jmp	1		0x0041B9F0	jmp     ebx	
+0x0041C86E	jmp	1		0x0041B9F0	jmp     ebx	
+0x0041D784	jmp	1		0x0041D340	jmp     ebx	
+0x0041DAD6	jmp	1		0x0041D340	jmp     ebx	
+0x0041DE12	jmp	1		0x0041D340	jmp     ebx	
+0x0041E149	jmp	1		0x0041D340	jmp     ebx	
+0x0041EA2A	jmp	1		0x0041E5C0	jmp     ebx	
+0x0041ED77	jmp	1		0x0041E5C0	jmp     ebx	
+0x0041F0B3	jmp	1		0x0041E5C0	jmp     ebx	
+0x0041F444	jmp	1		0x0041E5C0	jmp     ebx	
+0x0042343C	call	4		0x00423400	call    dword ptr [eax+64h]	
+0x00423458	call	4		0x00423400	call    dword ptr [edx+80h]	
+0x00423493	call	4		0x00423400	call    dword ptr [ecx+54h]	
+0x004236F1	jmp	2	switch	0x00423400	jmp     ds:jpt_4236F1[ebp*4]; switch 5 cases	0x004236F8,0x00423702,0x0042370C,0x00423716,0x00423720
+0x0042376B	call	2		0x00423400	call    off_4A0E6C	0x0044A240
+0x00423778	call	2		0x00423400	call    off_4A0E6C	0x0044A240
+0x00423785	call	2		0x00423400	call    off_4A0E6C	0x0044A240
+0x004238BA	call	2		0x004238B0	call    off_4A0E6C	0x0044A240
+0x004238DA	call	2		0x004238D0	call    off_4A0E70	0x0044A240
+0x00423D1C	call	1		0x00423AF0	call    ebx ; lstrlenA	0x00499160
+0x00423D37	call	1		0x00423AF0	call    ebx ; lstrlenA	0x00499160
+0x00423D41	call	1		0x00423AF0	call    ebx ; lstrlenA	0x00499160
+0x00423D5E	call	1		0x00423AF0	call    ebx ; lstrlenA	0x00499160
+0x00423D67	call	1		0x00423AF0	call    ebx ; lstrlenA	0x00499160
+0x00423D78	call	1		0x00423AF0	call    ebx ; lstrlenA	0x00499160
+0x00423D81	call	1		0x00423AF0	call    ebx ; lstrlenA	0x00499160
+0x00423D8F	call	1		0x00423AF0	call    ebx ; lstrlenA	0x00499160
+0x00423D98	call	1		0x00423AF0	call    ebx ; lstrlenA	0x00499160
+0x00424478	call	1		0x00424440	call    esi ; GetSystemMetrics	0x00499214
+0x00424487	call	1		0x00424440	call    esi ; GetSystemMetrics	0x00499214
+0x00424497	call	1		0x00424440	call    esi ; GetSystemMetrics	0x00499214
+0x0042449E	call	1		0x00424440	call    esi ; GetSystemMetrics	0x00499214
+0x004244B7	call	1		0x00424440	call    edi ; SetWindowPos	0x00499210
+0x004244D4	call	1		0x00424440	call    ebp ; GetDlgItem	0x00499204
+0x004244D7	call	1		0x00424440	call    edi ; SetWindowPos	0x00499210
+0x004244F0	call	1		0x00424440	call    ebp ; GetDlgItem	0x00499204
+0x004244F3	call	1		0x00424440	call    edi ; SetWindowPos	0x00499210
+0x0042450C	call	1		0x00424440	call    ebp ; GetDlgItem	0x00499204
+0x0042450F	call	1		0x00424440	call    edi ; SetWindowPos	0x00499210
+0x0042452B	call	1		0x00424440	call    ebp ; GetDlgItem	0x00499204
+0x0042452E	call	1		0x00424440	call    edi ; SetWindowPos	0x00499210
+0x0042454A	call	1		0x00424440	call    ebp ; GetDlgItem	0x00499204
+0x0042454D	call	1		0x00424440	call    edi ; SetWindowPos	0x00499210
+0x00424569	call	1		0x00424440	call    ebp ; GetDlgItem	0x00499204
+0x0042456C	call	1		0x00424440	call    edi ; SetWindowPos	0x00499210
+0x004245EB	jmp	2	switch	0x00424440	jmp     ds:jpt_4245EB[eax*4]; switch jump	0x004245F2,0x00424622,0x00424636,0x0042464A,0x00424687
+0x00424876	call	1		0x00424440	call    esi ; GetDlgItem	0x00499204
+0x0042487F	call	1		0x00424440	call    edi ; ShowWindow	0x004991C8
+0x0042488F	call	1		0x00424440	call    esi ; GetDlgItem	0x00499204
+0x00424892	call	1		0x00424440	call    edi ; ShowWindow	0x004991C8
+0x004248A2	call	1		0x00424440	call    esi ; GetDlgItem	0x00499204
+0x004248A5	call	1		0x00424440	call    edi ; ShowWindow	0x004991C8
+0x004248B5	call	1		0x00424440	call    esi ; GetDlgItem	0x00499204
+0x004248B8	call	1		0x00424440	call    edi ; ShowWindow	0x004991C8
+0x004248C8	call	1		0x00424440	call    esi ; GetDlgItem	0x00499204
+0x004248CB	call	1		0x00424440	call    edi ; ShowWindow	0x004991C8
+0x00424953	call	1		0x00424930	call    esi ; RegOpenKeyExA	0x00499004
+0x0042498A	call	1		0x00424930	call    ebp ; RegQueryValueExA	0x00499000
+0x00424997	call	1		0x00424930	call    edi ; RegCloseKey	0x00499008
+0x004249B9	call	1		0x00424930	call    ebx ; lstrcatA	0x0049915C
+0x004249D1	call	1		0x00424930	call    esi ; RegOpenKeyExA	0x00499004
+0x00424A02	call	1		0x00424930	call    ebp ; RegQueryValueExA	0x00499000
+0x00424A09	call	1		0x00424930	call    edi ; RegCloseKey	0x00499008
+0x00424A3A	call	1		0x00424930	call    ebx ; lstrcatA	0x0049915C
+0x00424A46	call	1		0x00424930	call    ebx ; lstrcatA	0x0049915C
+0x00424A83	call	1		0x00424A60	call    esi ; RegOpenKeyExA	0x00499004
+0x00424ABA	call	1		0x00424A60	call    ebp ; RegQueryValueExA	0x00499000
+0x00424AC7	call	1		0x00424A60	call    edi ; RegCloseKey	0x00499008
+0x00424AE9	call	1		0x00424A60	call    ebx ; lstrcatA	0x0049915C
+0x00424B01	call	1		0x00424A60	call    esi ; RegOpenKeyExA	0x00499004
+0x00424B32	call	1		0x00424A60	call    ebp ; RegQueryValueExA	0x00499000
+0x00424B39	call	1		0x00424A60	call    edi ; RegCloseKey	0x00499008
+0x00424B6A	call	1		0x00424A60	call    ebx ; lstrcatA	0x0049915C
+0x00424B76	call	1		0x00424A60	call    ebx ; lstrcatA	0x0049915C
+0x00424CDC	call	1		0x00424B90	call    edi ; GetSystemMetrics	0x00499214
+0x00424CE2	call	1		0x00424B90	call    edi ; GetSystemMetrics	0x00499214
+0x004252E8	call	4		0x004251B0	call    dword ptr [ecx+8]	
+0x00425531	call	1		0x00425470	call    ebx ; SendMessageA	0x004991CC
+0x0042553D	call	1		0x00425470	call    ebx ; SendMessageA	0x004991CC
+0x004255D0	call	1		0x00425570	call    edi ; wsprintfA	0x004991B0
+0x0042578A	call	1		0x00425570	call    edi ; wsprintfA	0x004991B0
+0x0042581F	call	1		0x00425570	call    edi ; wsprintfA	0x004991B0
+0x00425AD0	call	1		0x00425A70	call    ebx ; wsprintfA	0x004991B0
+0x00425CA4	call	1		0x00425BE0	call    edi ; wsprintfA	0x004991B0
+0x00425CC2	call	1		0x00425BE0	call    edi ; wsprintfA	0x004991B0
+0x00427B88	jmp	2	switch	0x00427920	jmp     ds:jpt_427B88[ecx*4]; switch jump	0x00427B8F,0x00427E72,0x00427E9A,0x00427EC2,0x00427ED0,0x00427FEB,0x0042811F,0x0042822A,0x0042829C,0x00428310,0x00428318,0x004283AC,0x0042845A,0x004284C2,0x00428533,0x0042857F,0x004285ED,0x0042865B,0x00428679,0x004286C5,0x00428713,0x0042890F,0x00428934,0x0042896C,0x004289BE,0x004289DE,0x00428ADC,0x00428BA0,0x00428C9F,0x00428D18,0x00428DB8,0x00428E52,0x00428F7B,0x00429066,0x00429362,0x004293AC,0x0042949D,0x004294C0,0x004295F3,0x0042967B,0x00429693,0x004296DE,0x00429A1B,0x00429AD2,0x00429AE8,0x00429B14,0x00429B62,0x00429BB5,0x00429C37,0x00429CBC,0x00429D0F,0x00429D43,0x00429D70,0x00429DA6,0x00429F7B,0x0042A0A6,0x0042A1EF,0x0042A200,0x0042A2C6,0x0042A341,0x0042A54C,0x0042A611,0x0042A673,0x0042A6CB,0x0042A727,0x0042A756,0x0042A792,0x0042A7CE,0x0042A7EE,0x0042A80E,0x0042AD3C,0x0042ADB7,0x0042B074,0x0042B1F1,0x0042B287,0x0042C7EA
+0x0042869A	call	1		0x00427920	call    edi ; wsprintfA	0x004991B0
+0x0042988E	call	1		0x00427920	call    edi ; wsprintfA	0x004991B0
+0x0042A069	call	1		0x00427920	call    edi ; wsprintfA	0x004991B0
+0x0042A658	call	4		0x00427920	call    dword ptr [ecx+14h]	
+0x0042A910	call	1		0x00427920	call    esi ; lstrcatA	0x0049915C
+0x0042A918	call	1		0x00427920	call    esi ; lstrcatA	0x0049915C
+0x0042AD00	call	4		0x00427920	call    dword ptr [ecx+14h]	
+0x0042ADB0	jmp	2	switch	0x00427920	jmp     ds:jpt_42ADB0[edx*4]; switch jump	0x0042ADB7,0x0042B070,0x0042B1F1,0x0042B287,0x0042B3B0,0x0042B43B,0x0042B47E,0x0042B4B9,0x0042B4CA,0x0042B50F,0x0042B5F2,0x0042B63C,0x0042B6A5,0x0042B70C,0x0042B723,0x0042B739,0x0042B7FC,0x0042B83A,0x0042B8E6,0x0042B9C2,0x0042BAB8,0x0042BC2C,0x0042BC3D,0x0042BC4C,0x0042BCF5,0x0042BD06,0x0042BDBC,0x0042BE8A,0x0042BEFE,0x0042BF72,0x0042C033,0x0042C234,0x0042C2C6,0x0042C3B0,0x0042C3F7,0x0042C49E,0x0042C567,0x0042C6DD,0x0042C732,0x0042C766,0x0042C79D,0x0042C7FB,0x0042C81A,0x0042C839,0x0042C858,0x0042C8F8,0x0042C936,0x0042C95B,0x0042C9CE,0x0042CA3A,0x0042CA7C,0x0042CBB0,0x0042CBCC,0x0042CBFF,0x0042CC35,0x0042CCF7,0x0042CDED,0x0042CE12,0x0042CE32,0x0042CF7C,0x0042CFBD,0x0042D041,0x0042D05C,0x0042D0D8,0x0042D170,0x0042D1AA,0x0042D1D5
+0x0042B0E4	jmp	2	switch	0x00427920	jmp     ds:jpt_42B0E4[edx*4]; switch jump	0x0042B0EB,0x0042B0F4,0x0042B0FD,0x0042B13D,0x0042B172,0x0042B1BF
+0x0042B359	call	1		0x00427920	call    edi ; wsprintfA	0x004991B0
+0x0042B393	call	1		0x00427920	call    edi ; wsprintfA	0x004991B0
+0x0042B77D	call	1		0x00427920	call    edi ; wsprintfA	0x004991B0
+0x0042BED5	call	1		0x00427920	call    edi ; wsprintfA	0x004991B0
+0x0042C0FA	call	1		0x00427920	call    ebx ; lstrcpyA	0x00499168
+0x0042C1C0	call	1		0x00427920	call    ebx ; lstrcpyA	0x00499168
+0x0042C420	call	1		0x00427920	call    edi ; wsprintfA	0x004991B0
+0x0042C489	call	1		0x00427920	call    edi ; wsprintfA	0x004991B0
+0x0042C57B	jmp	2	switch	0x00427920	jmp     ds:jpt_42C57B[edx*4]; switch jump	0x0042C582,0x0042C58C,0x0042C596,0x0042C5A0,0x0042C5AA,0x0042C5B4,0x0042C5BE,0x0042C5C8,0x0042C5D0
+0x0042C66A	call	1		0x00427920	call    edi ; wsprintfA	0x004991B0
+0x0042C71C	call	1		0x00427920	call    edi ; wsprintfA	0x004991B0
+0x0042CAFB	call	1		0x00427920	call    edi ; lstrcpyA	0x00499168
+0x0042CB03	call	1		0x00427920	call    edi ; lstrcpyA	0x00499168
+0x0042CB21	call	1		0x00427920	call    edi ; lstrcatA	0x0049915C
+0x0042CB29	call	1		0x00427920	call    edi ; lstrcatA	0x0049915C
+0x0042CB3D	call	1		0x00427920	call    edi ; lstrcatA	0x0049915C
+0x0042CB45	call	1		0x00427920	call    edi ; lstrcatA	0x0049915C
+0x0042CB59	call	1		0x00427920	call    edi ; lstrcatA	0x0049915C
+0x0042CB61	call	1		0x00427920	call    edi ; lstrcatA	0x0049915C
+0x0042D3A1	call	1		0x00427920	call    edi ; wsprintfA	0x004991B0
+0x0042FF89	call	1		0x0042ED40	call    edi ; lstrlenA	0x00499160
+0x0042FFDA	call	1		0x0042ED40	call    edi ; lstrlenA	0x00499160
+0x00430054	call	4		0x0042ED40	call    dword ptr [edx+8]	
+0x00431167	call	1		0x00431150	call    esi ; wsprintfA	0x004991B0
+0x00431180	call	1		0x00431150	call    esi ; wsprintfA	0x004991B0
+0x004312BB	jmp	2	switch	0x004311C0	jmp     ds:jpt_4312BB[ecx*4]; switch jump	0x004312C2,0x004312DA,0x004312F2,0x0043130A,0x00431322,0x0043145E
+0x00431368	jmp	2	switch	0x004311C0	jmp     ds:jpt_431368[edx*4]; switch jump	0x0043136F,0x00431387,0x0043139F,0x004313B7,0x004313CF,0x004313E7,0x004313FF,0x00431417,0x0043142F,0x00431447,0x0043145E
+0x004315EF	call	1		0x004315D0	call    esi ; lstrcpyA	0x00499168
+0x00431601	call	1		0x004315D0	call    edi ; lstrcatA	0x0049915C
+0x0043161F	call	1		0x004315D0	call    esi ; lstrcpyA	0x00499168
+0x0043162B	call	1		0x004315D0	call    edi ; lstrcatA	0x0049915C
+0x00431649	call	1		0x004315D0	call    esi ; lstrcpyA	0x00499168
+0x00431655	call	1		0x004315D0	call    edi ; lstrcatA	0x0049915C
+0x00431673	call	1		0x004315D0	call    esi ; lstrcpyA	0x00499168
+0x0043167F	call	1		0x004315D0	call    edi ; lstrcatA	0x0049915C
+0x0043169D	call	1		0x004315D0	call    esi ; lstrcpyA	0x00499168
+0x004316A9	call	1		0x004315D0	call    edi ; lstrcatA	0x0049915C
+0x004316C7	call	1		0x004315D0	call    esi ; lstrcpyA	0x00499168
+0x004316D3	call	1		0x004315D0	call    edi ; lstrcatA	0x0049915C
+0x0043177F	call	1		0x00431760	call    esi ; lstrcpyA	0x00499168
+0x00431791	call	1		0x00431760	call    edi ; lstrcatA	0x0049915C
+0x004317AF	call	1		0x00431760	call    esi ; lstrcpyA	0x00499168
+0x004317BB	call	1		0x00431760	call    edi ; lstrcatA	0x0049915C
+0x004317D9	call	1		0x00431760	call    esi ; lstrcpyA	0x00499168
+0x004317E5	call	1		0x00431760	call    edi ; lstrcatA	0x0049915C
+0x00431803	call	1		0x00431760	call    esi ; lstrcpyA	0x00499168
+0x0043180F	call	1		0x00431760	call    edi ; lstrcatA	0x0049915C
+0x0043182D	call	1		0x00431760	call    esi ; lstrcpyA	0x00499168
+0x00431839	call	1		0x00431760	call    edi ; lstrcatA	0x0049915C
+0x00431857	call	1		0x00431760	call    esi ; lstrcpyA	0x00499168
+0x00431863	call	1		0x00431760	call    edi ; lstrcatA	0x0049915C
+0x00431975	call	1		0x00431960	call    edi ; CloseHandle	0x00499140
+0x00431999	call	1		0x00431960	call    edi ; CloseHandle	0x00499140
+0x00431A73	call	1		0x00431A50	call    ebp ; SetFilePointer	0x0049905C
+0x00431B80	call	1		0x00431AA0	call    ebx ; SetFilePointer	0x0049905C
+0x00431BD9	call	1		0x00431AA0	call    ebx ; SetFilePointer	0x0049905C
+0x00431BF8	call	1		0x00431AA0	call    ebx ; SetFilePointer	0x0049905C
+0x00431C1C	call	1		0x00431AA0	call    ebx ; SetFilePointer	0x0049905C
+0x00432505	jmp	2	switch	0x004321E0	jmp     ds:jpt_432505[edx*4]; switch jump	0x00432464,0x0043250C,0x00432520,0x00432534,0x00432548,0x0043255F,0x00432577,0x0043258E
+0x00432A6F	call	1		0x00432A50	call    esi ; lstrcpyA	0x00499168
+0x00432A81	call	1		0x00432A50	call    edi ; lstrcatA	0x0049915C
+0x00432A9F	call	1		0x00432A50	call    esi ; lstrcpyA	0x00499168
+0x00432AAB	call	1		0x00432A50	call    edi ; lstrcatA	0x0049915C
+0x00432AC9	call	1		0x00432A50	call    esi ; lstrcpyA	0x00499168
+0x00432AD5	call	1		0x00432A50	call    edi ; lstrcatA	0x0049915C
+0x00432AF3	call	1		0x00432A50	call    esi ; lstrcpyA	0x00499168
+0x00432AFF	call	1		0x00432A50	call    edi ; lstrcatA	0x0049915C
+0x00432B1D	call	1		0x00432A50	call    esi ; lstrcpyA	0x00499168
+0x00432B29	call	1		0x00432A50	call    edi ; lstrcatA	0x0049915C
+0x00432B47	call	1		0x00432A50	call    esi ; lstrcpyA	0x00499168
+0x00432B53	call	1		0x00432A50	call    edi ; lstrcatA	0x0049915C
+0x00432BE0	call	1		0x00432BC0	call    esi ; lstrcpyA	0x00499168
+0x00432BF2	call	1		0x00432BC0	call    edi ; lstrcatA	0x0049915C
+0x00432C10	call	1		0x00432BC0	call    esi ; lstrcpyA	0x00499168
+0x00432C1C	call	1		0x00432BC0	call    edi ; lstrcatA	0x0049915C
+0x00432C3A	call	1		0x00432BC0	call    esi ; lstrcpyA	0x00499168
+0x00432C46	call	1		0x00432BC0	call    edi ; lstrcatA	0x0049915C
+0x00432C64	call	1		0x00432BC0	call    esi ; lstrcpyA	0x00499168
+0x00432C70	call	1		0x00432BC0	call    edi ; lstrcatA	0x0049915C
+0x00432C8E	call	1		0x00432BC0	call    esi ; lstrcpyA	0x00499168
+0x00432C9A	call	1		0x00432BC0	call    edi ; lstrcatA	0x0049915C
+0x00432CB8	call	1		0x00432BC0	call    esi ; lstrcpyA	0x00499168
+0x00432CC4	call	1		0x00432BC0	call    edi ; lstrcatA	0x0049915C
+0x00433025	call	1		0x00433010	call    edi ; CloseHandle	0x00499140
+0x004332C2	call	1		0x004332A0	call    ebx ; ReadFile	0x00499074
+0x00433305	call	1		0x004332A0	call    ebx ; ReadFile	0x00499074
+0x0043347A	call	1		0x00433380	call    ebx ; SetFilePointer	0x0049905C
+0x0043349B	call	1		0x00433380	call    ebx ; SetFilePointer	0x0049905C
+0x00433810	call	1		0x00433720	call    ebx ; SetFilePointer	0x0049905C
+0x00433831	call	1		0x00433720	call    ebx ; SetFilePointer	0x0049905C
+0x00433955	call	1		0x004338F0	call    esi ; SetFilePointer	0x0049905C
+0x00433966	call	1		0x004338F0	call    ebp ; ReadFile	0x00499074
+0x00433978	call	1		0x004338F0	call    esi ; SetFilePointer	0x0049905C
+0x004339C2	call	1		0x004338F0	call    ebp ; ReadFile	0x00499074
+0x00433FC7	jmp	2	switch	0x00433F70	jmp     ds:jpt_433FC7[eax*4]; switch jump	0x00433FCE,0x00434083,0x00434137,0x00434210
+0x0043511C	call	1		0x004350E0	call    edi ; GetSystemMetrics	0x00499214
+0x00435120	call	1		0x004350E0	call    edi ; GetSystemMetrics	0x00499214
+0x00435298	call	4		0x00435240	call    dword ptr [edx+58h]	
+0x004352CD	call	4		0x004352C0	call    dword ptr [ecx+8]	
+0x004352EA	call	4		0x004352E0	call    dword ptr [ecx+60h]	
+0x004352FA	call	4		0x004352E0	call    dword ptr [edx+6Ch]	
+0x00435315	call	4		0x004352E0	call    dword ptr [ecx+44h]	
+0x00435333	call	1		0x004352E0	call    ebx ; SelectObject	0x0049903C
+0x0043539C	call	1		0x004352E0	call    ebx ; SelectObject	0x0049903C
+0x004353AC	call	4		0x004352E0	call    dword ptr [eax+68h]	
+0x004370A3	call	4		0x00436FB0	call    dword ptr [ecx+0Ch]	
+0x004370CA	call	4		0x00436FB0	call    dword ptr [edx+2Ch]	
+0x004370F6	call	4		0x00436FB0	call    dword ptr [ecx+34h]	
+0x00437118	call	4		0x00436FB0	call    dword ptr [eax+1Ch]	
+0x00437147	call	4		0x00436FB0	call    dword ptr [ecx+0Ch]	
+0x0043716E	call	4		0x00436FB0	call    dword ptr [edx+2Ch]	
+0x0043719A	call	4		0x00436FB0	call    dword ptr [edx+34h]	
+0x004371F5	call	4		0x00436FB0	call    dword ptr [ecx+30h]	
+0x0043722D	call	4		0x00436FB0	call    dword ptr [ecx+18h]	
+0x0043725E	call	4		0x00436FB0	call    dword ptr [ecx+1Ch]	
+0x00437283	call	4		0x00436FB0	call    dword ptr [edx+24h]	
+0x004372BF	call	4		0x004372B0	call    dword ptr [edx+24h]	
+0x00437331	call	4		0x00437310	call    dword ptr [ecx+24h]	
+0x0043747A	call	4		0x00437430	call    dword ptr [ecx+24h]	
+0x004374FA	call	4		0x004374E0	call    dword ptr [ecx+20h]	
+0x00437506	call	4		0x004374E0	call    dword ptr [edx+8]	
+0x00437520	call	4		0x004374E0	call    dword ptr [ecx+20h]	
+0x0043752C	call	4		0x004374E0	call    dword ptr [edx+8]	
+0x00437542	call	4		0x004374E0	call    dword ptr [ecx+8]	
+0x00437655	call	3		0x00437610	call    dword ptr [edx]	
+0x00437667	call	4		0x00437610	call    dword ptr [ecx+8]	
+0x00437694	call	4		0x00437680	call    dword ptr [ecx+50h]	
+0x004376B2	call	4		0x00437680	call    dword ptr [edx+8]	
+0x004376EB	call	4		0x004376D0	call    dword ptr [ecx+54h]	
+0x0043770A	call	4		0x004376D0	call    dword ptr [ecx+8]	
+0x00437732	call	4		0x00437720	call    dword ptr [ecx+10h]	
+0x0043775A	call	4		0x00437720	call    dword ptr [ecx+20h]	
+0x00437775	call	4		0x00437720	call    dword ptr [edx+8]	
+0x00437783	call	4		0x00437720	call    dword ptr [ecx+70h]	
+0x0043779E	call	4		0x00437720	call    dword ptr [eax+8]	
+0x004377A7	call	4		0x00437720	call    dword ptr [ecx+8]	
+0x004377AF	call	4		0x00437720	call    dword ptr [edx+8]	
+0x0043782C	call	4		0x004377D0	call    dword ptr [ecx+18h]	
+0x0043784D	call	4		0x004377D0	call    dword ptr [ecx+8]	
+0x0043786D	call	3		0x004377D0	call    dword ptr [edx]	
+0x00437878	call	4		0x004377D0	call    dword ptr [eax+8]	
+0x0043788F	call	4		0x004377D0	call    dword ptr [ecx+8]	
+0x004378D9	call	4		0x004377D0	call    dword ptr [ecx+58h]	
+0x00437935	call	4		0x004377D0	call    dword ptr [ecx+18h]	
+0x00437941	call	4		0x004377D0	call    dword ptr [eax+8]	
+0x00437961	call	3		0x004377D0	call    dword ptr [ecx]	
+0x0043796C	call	4		0x004377D0	call    dword ptr [edx+8]	
+0x00437983	call	4		0x004377D0	call    dword ptr [ecx+8]	
+0x004379B6	call	1		0x004377D0	call    edi ; GetSystemMetrics	0x00499214
+0x004379BD	call	1		0x004377D0	call    edi ; GetSystemMetrics	0x00499214
+0x004379C4	call	1		0x004377D0	call    edi ; GetSystemMetrics	0x00499214
+0x004379C9	call	1		0x004377D0	call    edi ; GetSystemMetrics	0x00499214
+0x004379F9	call	4		0x004377D0	call    dword ptr [ecx+58h]	
+0x00437A2E	call	4		0x004377D0	call    dword ptr [edx+58h]	
+0x00437A69	call	4		0x00437A50	call    dword ptr [ecx+8]	
+0x00437A79	call	4		0x00437A50	call    dword ptr [edx+8]	
+0x00437A89	call	4		0x00437A50	call    dword ptr [ecx+8]	
+0x00437A99	call	4		0x00437A50	call    dword ptr [edx+8]	
+0x00437AA9	call	4		0x00437A50	call    dword ptr [ecx+8]	
+0x00437ABA	call	4		0x00437A50	call    dword ptr [edx+4Ch]	
+0x00437AD9	call	4		0x00437AD0	call    dword ptr [ecx+8]	
+0x00437AEF	call	4		0x00437AE0	call    dword ptr [ecx+60h]	
+0x00437AFF	call	4		0x00437AE0	call    dword ptr [edx+6Ch]	
+0x00437B0B	call	4		0x00437AE0	call    dword ptr [ecx+58h]	
+0x00437B18	call	4		0x00437AE0	call    dword ptr [edx+2Ch]	
+0x00437B39	call	4		0x00437AE0	call    dword ptr [ecx+14h]	
+0x00437B4D	call	4		0x00437AE0	call    dword ptr [ecx+6Ch]	
+0x00437B56	call	4		0x00437AE0	call    dword ptr [edx+6Ch]	
+0x00437BBA	call	4		0x00437B60	call    dword ptr [ecx+18h]	
+0x00437C32	call	4		0x00437C00	call    dword ptr [ecx+14h]	
+0x00437C6C	call	4		0x00437C40	call    dword ptr [ecx+14h]	
+0x00437CA8	call	4		0x00437C80	call    dword ptr [eax+44h]	
+0x00437CD6	call	4		0x00437C80	call    dword ptr [ecx+68h]	
+0x00437CF5	call	4		0x00437C80	call    dword ptr [eax+64h]	
+0x00437D0D	call	4		0x00437C80	call    dword ptr [edx+64h]	
+0x00437D39	call	4		0x00437C80	call    dword ptr [eax+80h]	
+0x00437D4C	call	4		0x00437C80	call    dword ptr [ecx+44h]	
+0x00437D69	call	4		0x00437C80	call    dword ptr [ecx+68h]	
+0x00437DAD	call	4		0x00437D80	call    dword ptr [ecx+30h]	
+0x00437DDE	call	4		0x00437DC0	call    dword ptr [edx+5Ch]	
+0x00437E51	call	4		0x00437E30	call    dword ptr [ecx+54h]	
+0x0043806F	call	1		0x00438030	call    edi ; CloseHandle	0x00499140
+0x00438095	call	1		0x00438030	call    edi ; CloseHandle	0x00499140
+0x0043817B	call	1		0x00438150	call    ebx ; CloseHandle	0x00499140
+0x0043818C	call	1		0x00438150	call    ebx ; CloseHandle	0x00499140
+0x004386C9	call	1		0x00438650	call    ebx ; MessageBoxA	0x00499224
+0x00438A91	call	1		0x00438A80	call    ebx ; CharNextA	0x004991FC
+0x00438AAA	call	1		0x00438A80	call    ebx ; CharNextA	0x004991FC
+0x00438B9B	jmp	2	switch	0x00438B50	jmp     ds:jpt_438B9B[ecx*4]; switch jump	0x00438BA2,0x00438BC4,0x00438BE6,0x00438C02,0x00438C11,0x00438C20,0x00438C27,0x00438C36,0x00438C41,0x00438D27
+0x0043A0CE	call	2		0x00439FD0	call    dword_4FC8B0[ecx*4]	
+0x0043A479	call	1		0x0043A470	call    eax ; dword_4FB808	
+0x0043A47C	call	2		0x0043A470	call    dword_4FC64C	
+0x0043A498	call	2		0x0043A470	call    dword_4FC838	
+0x0043A4C2	call	2		0x0043A470	call    dword_4FC838	
+0x0043A4F0	call	2		0x0043A470	call    dword_4FC83C	
+0x0043A507	call	2		0x0043A470	call    dword_4FBF7C	
+0x0043A528	call	2		0x0043A470	call    dword_4FC828	
+0x0043A549	call	2		0x0043A470	call    dword_4FC4E8	
+0x0043A56A	call	2		0x0043A470	call    dword_4FBF78	
+0x0043A58B	call	2		0x0043A470	call    dword_4FBA10	
+0x0043A5B3	call	2		0x0043A470	call    dword_4FBAC0	
+0x0043A5DB	call	2		0x0043A470	call    dword_4FC788	
+0x0043A603	call	2		0x0043A470	call    dword_4FC3C0	
+0x0043A6DB	call	2		0x0043A610	call    dword_4FBEC8	
+0x0043A854	call	4		0x0043A610	call    dword ptr [ecx+14h]	
+0x0043B1D7	jmp	2	switch	0x0043B110	jmp     ds:jpt_43B1D7[edx*4]; switch jump	0x0043B1DE,0x0043B219,0x0043B274,0x0043B2C1,0x0043B2FD,0x0043B349
+0x0043BF46	call	1		0x0043BE90	call    ebx ; lstrlenA	0x00499160
+0x0043BFF1	call	4		0x0043BFC0	call    dword ptr [ecx+14h]	
+0x0043CC33	call	1		0x0043CC20	call    ebp ; lstrcpyA	0x00499168
+0x0043CC91	call	1		0x0043CC20	call    ebp ; lstrcpyA	0x00499168
+0x0043D064	call	1		0x0043D050	call    esi ; lstrcpyA	0x00499168
+0x0043D072	call	1		0x0043D050	call    esi ; lstrcpyA	0x00499168
+0x0043D080	call	1		0x0043D050	call    esi ; lstrcpyA	0x00499168
+0x0043D08C	call	1		0x0043D050	call    esi ; lstrcpyA	0x00499168
+0x0043D098	call	1		0x0043D050	call    esi ; lstrcpyA	0x00499168
+0x0043D0A4	call	1		0x0043D050	call    esi ; lstrcpyA	0x00499168
+0x0043D0B0	call	1		0x0043D050	call    esi ; lstrcpyA	0x00499168
+0x0043D0BC	call	1		0x0043D050	call    esi ; lstrcpyA	0x00499168
+0x0043D0C8	call	1		0x0043D050	call    esi ; lstrcpyA	0x00499168
+0x0043D10A	call	1		0x0043D050	call    ebx ; wsprintfA	0x004991B0
+0x0043D12C	call	1		0x0043D050	call    ebx ; wsprintfA	0x004991B0
+0x0043D14B	call	1		0x0043D050	call    ebx ; wsprintfA	0x004991B0
+0x0043D233	call	1		0x0043D050	call    esi ; lstrcpyA	0x00499168
+0x0043D240	call	1		0x0043D050	call    esi ; lstrcpyA	0x00499168
+0x0043D24E	call	1		0x0043D050	call    esi ; lstrcpyA	0x00499168
+0x0043D29A	call	1		0x0043D050	call    esi ; lstrcpyA	0x00499168
+0x0043D2E4	call	1		0x0043D050	call    ebp ; lstrcmpA	0x00499088
+0x0043D2F2	call	1		0x0043D050	call    esi ; lstrcpyA	0x00499168
+0x0043D335	call	1		0x0043D050	call    ebp ; lstrcmpA	0x00499088
+0x0043D343	call	1		0x0043D050	call    ebp ; lstrcmpA	0x00499088
+0x0043D350	call	1		0x0043D050	call    esi ; lstrcpyA	0x00499168
+0x0043E3E0	jmp	2	switch	0x0043E3D0	jmp     ds:jpt_43E3E0[eax*4]; switch jump	0x0043E3E7,0x0043E4E7,0x0043E549,0x0043E587,0x0043E736,0x0043E740
+0x0043E77B	jmp	2	switch	0x0043E770	jmp     ds:jpt_43E77B[eax*4]; switch jump	0x0043E782,0x0043E7AC,0x0043E7CB,0x0043E7D0,0x0043E7D5
+0x0043EBC6	call	1		0x0043E800	call    ebp ; wsprintfA	0x004991B0
+0x0043EC40	call	1		0x0043E800	call    ebp ; wsprintfA	0x004991B0
+0x0043F80D	jmp	2	switch	0x0043F7C0	jmp     ds:jpt_43F80D[edx*4]; switch jump	0x0043F852,0x0043F85F
+0x0044117E	jmp	2	switch	0x00441160	jmp     ds:jpt_44117E[ecx*4]; switch jump	0x00441185,0x004411BA,0x0044151C,0x00441559,0x00441563
+0x004415A6	jmp	2	switch	0x00441590	jmp     ds:jpt_4415A6[ecx*4]; switch jump	0x004415AD,0x004415EF,0x0044161D,0x00441650,0x00441651
+0x00441DEC	call	1		0x00441680	call    ebx ; wsprintfA	0x004991B0
+0x00441E4B	call	1		0x00441680	call    ebx ; wsprintfA	0x004991B0
+0x00441E6F	call	1		0x00441680	call    ebx ; wsprintfA	0x004991B0
+0x00441E94	call	1		0x00441680	call    ebx ; wsprintfA	0x004991B0
+0x0044217B	call	1		0x00442130	call    ebx ; wsprintfA	0x004991B0
+0x004421B8	call	1		0x00442130	call    ebx ; wsprintfA	0x004991B0
+0x00442260	call	1		0x00442130	call    ebx ; wsprintfA	0x004991B0
+0x004422AC	call	1		0x00442130	call    ebx ; wsprintfA	0x004991B0
+0x004422E9	call	1		0x00442130	call    ebx ; wsprintfA	0x004991B0
+0x0044238F	call	1		0x00442130	call    ebx ; wsprintfA	0x004991B0
+0x004423D5	call	1		0x00442130	call    ebx ; wsprintfA	0x004991B0
+0x00442414	call	1		0x00442130	call    ebx ; wsprintfA	0x004991B0
+0x004424AE	call	1		0x00442130	call    ebx ; wsprintfA	0x004991B0
+0x00442536	call	1		0x00442130	call    ebx ; wsprintfA	0x004991B0
+0x0044258B	call	1		0x00442130	call    ebx ; wsprintfA	0x004991B0
+0x00443BEC	jmp	2	switch	0x00443BD0	jmp     ds:jpt_443BEC[ecx*4]; switch jump	0x00443BF3,0x00443F4F,0x00444064,0x0044407E,0x0044415A,0x00444164
+0x004441B7	jmp	2	switch	0x004441A0	jmp     ds:jpt_4441B7[ecx*4]; switch jump	0x004441BE,0x004441E8,0x00444204,0x00444219,0x00444273,0x0044427D
+0x004451BC	call	2		0x004450E0	call    dword_4FB884[edx*4]	
+0x004453CC	call	2		0x00445360	call    dword_4FC8B0[eax*4]	
+0x00445428	jmp	2		0x00445420	jmp     dword_4FBF54[eax*4]	
+0x00445CBC	jmp	2	switch	0x00445C90	jmp     ds:jpt_445CBC[ecx*4]; switch jump	0x00445CC3,0x00445D7C,0x00445DC6,0x00445DE0,0x00445E0C,0x00445E26,0x00445E4B
+0x00445EBC	jmp	2	switch	0x00445E90	jmp     ds:jpt_445EBC[ecx*4]; switch jump	0x00445EC3,0x00445F7C,0x00445FC6,0x00445FE0,0x00446007,0x00446021,0x00446046
+0x004460BC	jmp	2	switch	0x00446090	jmp     ds:jpt_4460BC[ecx*4]; switch jump	0x004460C3,0x00446168,0x004461A4,0x004461BE,0x004461D9,0x004461F3,0x00446218
+0x0044628C	jmp	2	switch	0x00446260	jmp     ds:jpt_44628C[ecx*4]; switch jump	0x00446293,0x00446336,0x00446371,0x00446389,0x004463A1,0x004463B9,0x004463DE
+0x00446733	jmp	2	switch	0x00446700	jmp     ds:jpt_446733[ecx*4]; switch jump	0x0044673A,0x00446C61,0x00446D97,0x00446DA0,0x00446E17,0x00446E20,0x00446E24,0x00446EA9,0x00446EF3
+0x00446A46	call	4		0x00446700	call    dword ptr [ecx+14h]	
+0x0044760A	call	1		0x00447100	call    ebx ; wsprintfA	0x004991B0
+0x00447652	call	1		0x00447100	call    ebx ; wsprintfA	0x004991B0
+0x00447707	call	1		0x00447100	call    ebx ; wsprintfA	0x004991B0
+0x00447C8B	call	1		0x00447100	call    esi ; wsprintfA	0x004991B0
+0x00447CA3	call	1		0x00447100	call    esi ; wsprintfA	0x004991B0
+0x00448CC3	jmp	2	switch	0x00448CA0	jmp     ds:jpt_448CC3[eax*4]; switch jump	0x00448CCA,0x00448CEC,0x00448D0C,0x00448D29,0x00448D34,0x00448D54
+0x00448DC3	jmp	2	switch	0x00448DA0	jmp     ds:jpt_448DC3[eax*4]; switch jump	0x00448DCA,0x00448DF0,0x00448E14,0x00448E33,0x00448E3E,0x00448E5A
+0x0044928A	jmp	2	switch	0x004490C0	jmp     ds:jpt_44928A[eax*4]; switch jump	0x00449291,0x004492BA,0x00449318,0x00449320
+0x00449530	call	1		0x004490C0	call    ebx ; wsprintfA	0x004991B0
+0x004495F4	call	1		0x004490C0	call    ebx ; wsprintfA	0x004991B0
+0x00449679	jmp	2	switch	0x004490C0	jmp     ds:jpt_449679[eax*4]; switch jump	0x00449680,0x00449954,0x0044995B,0x00449962,0x00449969
+0x00449D91	call	1		0x00449D80	call    esi ; lstrcmpA	0x00499088
+0x00449DC1	call	1		0x00449D80	call    esi ; lstrcmpA	0x00499088
+0x00449DF0	call	1		0x00449D80	call    esi ; lstrcmpA	0x00499088
+0x00449E1C	call	1		0x00449D80	call    esi ; lstrcmpA	0x00499088
+0x00449E40	call	1		0x00449D80	call    esi ; lstrcmpA	0x00499088
+0x00449E6D	call	1		0x00449D80	call    esi ; lstrcmpA	0x00499088
+0x00449E94	call	1		0x00449D80	call    esi ; lstrcmpA	0x00499088
+0x00449EB9	call	1		0x00449D80	call    esi ; lstrcmpA	0x00499088
+0x00449EE3	call	1		0x00449D80	call    esi ; lstrcmpA	0x00499088
+0x00449F11	call	1		0x00449D80	call    esi ; lstrcmpA	0x00499088
+0x00449F36	call	1		0x00449D80	call    esi ; lstrcmpA	0x00499088
+0x00449F5D	call	1		0x00449D80	call    esi ; lstrcmpA	0x00499088
+0x00449FA6	call	1		0x00449D80	call    esi ; lstrcmpA	0x00499088
+0x00449FC8	call	1		0x00449D80	call    esi ; lstrcmpA	0x00499088
+0x0044A43B	call	1		0x0044A280	call    edi ; wsprintfA	0x004991B0
+0x0044A47E	call	1		0x0044A280	call    edi ; wsprintfA	0x004991B0
+0x0044A4B9	call	1		0x0044A280	call    edi ; wsprintfA	0x004991B0
+0x0044A4F3	call	1		0x0044A280	call    edi ; wsprintfA	0x004991B0
+0x0044A542	call	1		0x0044A280	call    edi ; wsprintfA	0x004991B0
+0x0044A58D	call	1		0x0044A280	call    edi ; wsprintfA	0x004991B0
+0x0044A5BE	call	1		0x0044A280	call    edi ; wsprintfA	0x004991B0
+0x0044A5F5	call	1		0x0044A280	call    edi ; wsprintfA	0x004991B0
+0x0044A642	call	1		0x0044A280	call    edi ; wsprintfA	0x004991B0
+0x0044A6C1	call	1		0x0044A280	call    edi ; wsprintfA	0x004991B0
+0x0044A740	call	1		0x0044A280	call    edi ; wsprintfA	0x004991B0
+0x0044A7BF	call	1		0x0044A280	call    edi ; wsprintfA	0x004991B0
+0x0044A822	call	1		0x0044A280	call    edi ; wsprintfA	0x004991B0
+0x0044A834	jmp	2	switch	0x0044A280	jmp     ds:jpt_44A834[eax*4]; switch jump	0x0044A83B,0x0044A842,0x0044A849,0x0044A850
+0x0044AA03	call	1		0x0044A280	call    edi ; wsprintfA	0x004991B0
+0x0044AA20	call	1		0x0044A280	call    edi ; wsprintfA	0x004991B0
+0x0044AA43	call	1		0x0044A280	call    edi ; wsprintfA	0x004991B0
+0x0044AA67	call	1		0x0044A280	call    edi ; wsprintfA	0x004991B0
+0x0044B57B	jmp	2	switch	0x0044B560	jmp     ds:jpt_44B57B[eax*4]; switch jump	0x0044B582,0x0044B5A1,0x0044B673,0x0044B697,0x0044B6C1
+0x0044B6FD	jmp	2	switch	0x0044B6E0	jmp     ds:jpt_44B6FD[eax*4]; switch jump	0x0044B704,0x0044B71C,0x0044B7D4,0x0044B7F1,0x0044B818
+0x0044B85B	jmp	2	switch	0x0044B840	jmp     ds:jpt_44B85B[eax*4]; switch jump	0x0044B862,0x0044B886,0x0044B8D3,0x0044B8F4,0x0044B90E
+0x0044B94E	jmp	2	switch	0x0044B930	jmp     ds:jpt_44B94E[eax*4]; switch jump	0x0044B955,0x0044B975,0x0044B9BE,0x0044B9E3,0x0044B9F9
+0x0044BA3D	jmp	2	switch	0x0044BA20	jmp     ds:jpt_44BA3D[eax*4]; switch jump	0x0044BA44,0x0044BA69,0x0044BB57,0x0044BB74,0x0044BB9C
+0x0044BAA9	jmp	2	switch	0x0044BA20	jmp     ds:jpt_44BAA9[eax*4]; switch jump	0x0044BAB0,0x0044BAD2,0x0044BAF2,0x0044BB13,0x0044BB1E,0x0044BB3E
+0x0044BBED	jmp	2	switch	0x0044BBD0	jmp     ds:jpt_44BBED[eax*4]; switch jump	0x0044BBF4,0x0044BC20,0x0044BD24,0x0044BD48,0x0044BD6F
+0x0044BC65	jmp	2	switch	0x0044BBD0	jmp     ds:jpt_44BC65[eax*4]; switch jump	0x0044BC6C,0x0044BC92,0x0044BCB6,0x0044BCD9,0x0044BCE4,0x0044BD04
+0x0044BDBF	jmp	2	switch	0x0044BDA0	jmp     ds:jpt_44BDBF[eax*4]; switch jump	0x0044BDC6,0x0044BEB1,0x0044BF7B,0x0044BFE9,0x0044C085,0x0044C0A2,0x0044C0A8
+0x0044C0FB	jmp	2	switch	0x0044C0E0	jmp     ds:jpt_44C0FB[ecx*4]; switch jump	0x0044C102,0x0044C121,0x0044C128,0x0044C133,0x0044C13D
+0x0044C6B7	call	1		0x0044C160	call    ebx ; wsprintfA	0x004991B0
+0x0044C784	call	1		0x0044C160	call    ebx ; wsprintfA	0x004991B0
+0x0044C808	jmp	2	switch	0x0044C160	jmp     ds:jpt_44C808[eax*4]; switch jump	0x0044C80F,0x0044C816,0x0044C81D,0x0044C824,0x0044C82B
+0x0044E270	jmp	2	switch	0x0044E260	jmp     ds:jpt_44E270[eax*4]; switch jump	0x0044E277,0x0044E297,0x0044E2FA,0x0044E308
+0x0044E341	jmp	2	switch	0x0044E330	jmp     ds:jpt_44E341[eax*4]; switch jump	0x0044E348,0x0044E369,0x0044E46D,0x0044E47C
+0x0044E4B2	jmp	2	switch	0x0044E4A0	jmp     ds:jpt_44E4B2[eax*4]; switch jump	0x0044E4B9,0x0044E6BF,0x0044E6FF,0x0044E94E,0x0044E990,0x0044E99A
+0x0044E9DB	jmp	2	switch	0x0044E9D0	jmp     ds:jpt_44E9DB[eax*4]; switch jump	0x0044E9E2,0x0044E9F8,0x0044EA36,0x0044EA3D
+0x0044EE4E	call	1		0x0044EA60	call    esi ; lstrcpyA	0x00499168
+0x0044EE66	call	1		0x0044EA60	call    esi ; lstrcpyA	0x00499168
+0x0044F3DA	call	1		0x0044EA60	call    ebx ; wsprintfA	0x004991B0
+0x0044F4E6	call	1		0x0044EA60	call    ebx ; wsprintfA	0x004991B0
+0x0044F5DC	call	1		0x0044EA60	call    ebx ; wsprintfA	0x004991B0
+0x0044F654	call	1		0x0044EA60	call    ebx ; wsprintfA	0x004991B0
+0x0044F70D	call	1		0x0044EA60	call    ebx ; wsprintfA	0x004991B0
+0x0044F765	call	4		0x0044EA60	call    dword ptr [ecx+14h]	
+0x00451A9F	call	1		0x00451A90	call    edi ; GetSystemMetrics	0x00499214
+0x00451AA4	call	1		0x00451A90	call    edi ; GetSystemMetrics	0x00499214
+0x00451AEF	call	4		0x00451AE0	call    dword ptr [ecx+8]	
+0x0045283D	call	4		0x004527E0	call    dword ptr [esi+14h]	
+0x0045294B	call	4		0x004527E0	call    dword ptr [edx+14h]	
+0x00452BE7	call	4		0x004527E0	call    dword ptr [ecx+14h]	
+0x00452D2F	call	4		0x004527E0	call    dword ptr [edx+14h]	
+0x00452D6B	call	4		0x004527E0	call    dword ptr [esi+14h]	
+0x00452DBC	call	4		0x004527E0	call    dword ptr [ecx+14h]	
+0x00452DE0	call	4		0x004527E0	call    dword ptr [ecx+14h]	
+0x00452EAF	call	1		0x004527E0	call    esi ; lstrcatA	0x0049915C
+0x00452ECD	call	1		0x004527E0	call    esi ; lstrcatA	0x0049915C
+0x00452EEB	call	1		0x004527E0	call    esi ; lstrcatA	0x0049915C
+0x004530BA	call	1		0x004530A0	call    esi ; GetSystemMetrics	0x00499214
+0x004530BF	call	1		0x004530A0	call    esi ; GetSystemMetrics	0x00499214
+0x0045311C	call	4		0x004530A0	call    dword ptr [eax+14h]	
+0x004531A1	call	4		0x004530A0	call    dword ptr [edx+14h]	
+0x004531CF	call	4		0x004530A0	call    dword ptr [edx+14h]	
+0x004531EF	call	4		0x004530A0	call    dword ptr [edx+8]	
+0x0045350A	call	4		0x00453200	call    dword ptr [edx+14h]	
+0x00453808	call	4		0x00453580	call    dword ptr [edx+14h]	
+0x0045393B	call	4		0x00453580	call    dword ptr [edx+14h]	
+0x00453A4C	jmp	2	switch	0x004539B0	jmp     ds:jpt_453A4C[edi*4]; switch jump	0x00453A53,0x00453D3F,0x00453D83,0x00453D97,0x00453EC9,0x00453F99,0x00453FFA,0x0045405B,0x00454138,0x004541ED,0x00454266,0x004542E6,0x00454366,0x00454521,0x0045454D,0x0045479B,0x00454824,0x00454946,0x00454A06,0x00454BE7,0x00454CE0,0x00454E5D,0x00455006,0x004551E8,0x00455415,0x004554BA,0x004554D8,0x00455CBB
+0x00455DBA	jmp	2	switch	0x00455D60	jmp     ds:jpt_455DBA[eax*4]; switch jump	0x00455DC1,0x00455F9E,0x00456142,0x0045625E,0x0045635B,0x004563CF,0x0045641D,0x0045642B,0x004564F3,0x0045661B
+0x0045D95F	call	1		0x0045D8F0	call    ebp ; Sleep	0x00499174
+0x0045D988	call	1		0x0045D8F0	call    ebp ; Sleep	0x00499174
+0x0045D9E7	call	1		0x0045D8F0	call    ebp ; Sleep	0x00499174
+0x0045DA65	call	1		0x0045D8F0	call    ebp ; Sleep	0x00499174
+0x0045DAB5	call	1		0x0045D8F0	call    ebp ; Sleep	0x00499174
+0x0045DB0B	call	1		0x0045D8F0	call    ebp ; Sleep	0x00499174
+0x0045DB4D	call	1		0x0045D8F0	call    ebp ; Sleep	0x00499174
+0x0045DC9C	call	1		0x0045D8F0	call    ebp ; Sleep	0x00499174
+0x0045DF81	call	1		0x0045DEE0	call    esi ; wsprintfA	0x004991B0
+0x0045DFF7	call	1		0x0045DEE0	call    esi ; wsprintfA	0x004991B0
+0x0045E08A	call	1		0x0045DEE0	call    esi ; wsprintfA	0x004991B0
+0x0045E122	call	1		0x0045DEE0	call    esi ; wsprintfA	0x004991B0
+0x0045E1BF	call	1		0x0045DEE0	call    esi ; wsprintfA	0x004991B0
+0x0045E221	call	1		0x0045DEE0	call    esi ; wsprintfA	0x004991B0
+0x0045E310	call	1		0x0045DEE0	call    esi ; wsprintfA	0x004991B0
+0x0045E350	call	1		0x0045DEE0	call    esi ; wsprintfA	0x004991B0
+0x0045E3A4	call	1		0x0045DEE0	call    esi ; wsprintfA	0x004991B0
+0x0045E3EB	call	1		0x0045DEE0	call    esi ; wsprintfA	0x004991B0
+0x0045E424	call	1		0x0045DEE0	call    esi ; wsprintfA	0x004991B0
+0x0045E46F	call	1		0x0045DEE0	call    esi ; wsprintfA	0x004991B0
+0x0045E4B2	call	1		0x0045DEE0	call    esi ; wsprintfA	0x004991B0
+0x0045E4EC	call	1		0x0045DEE0	call    esi ; wsprintfA	0x004991B0
+0x0045E52B	call	1		0x0045DEE0	call    esi ; wsprintfA	0x004991B0
+0x0045E69B	jmp	2	switch	0x0045E660	jmp     ds:jpt_45E69B[edx*4]; switch jump	0x0045E6A2,0x0045E6C1,0x0045E714
+0x0045E898	call	4		0x0045E7D0	call    dword ptr [edx+14h]	
+0x0045E946	call	4		0x0045E7D0	call    dword ptr [edx+14h]	
+0x0045F209	call	1		0x0045F1B0	call    ebp ; ReadFile	0x00499074
+0x0045F27B	call	1		0x0045F1B0	call    ebp ; ReadFile	0x00499074
+0x0045FD00	jmp	2	switch	0x0045FC60	jmp     ds:jpt_45FD00[ecx*4]; switch jump	0x0045FD07,0x0045FD92,0x0045FE36,0x0045FFC9,0x00460114,0x00460270,0x004602A3,0x004602E6,0x0046036B,0x00460527
+0x00460C64	jmp	2	switch	0x00460C40	jmp     ds:jpt_460C64[ecx*4]; switch jump	0x00460C6B,0x00460CE1,0x00460D3B,0x00461049,0x004610C1,0x004610F6,0x00461138,0x0046116B,0x004611BC,0x004611F1
+0x00461264	jmp	2	switch	0x00461240	jmp     ds:jpt_461264[ecx*4]; switch jump	0x0046126B,0x004612E0,0x00461377,0x0046168B,0x00461729,0x0046175D,0x004617A3,0x004617D7,0x00461872,0x004618A3
+0x00461CB1	jmp	2	switch	0x00461C10	jmp     ds:jpt_461CB1[edx*4]; switch jump	0x00461CB8,0x00461CFB,0x00461D7F,0x00461EDC,0x00461F0E,0x00461F1D,0x00461F52,0x00461F66,0x00461FF7,0x00462077
+0x00462337	jmp	2	switch	0x00462320	jmp     ds:jpt_462337[eax*4]; switch jump	0x0046233E,0x0046234F,0x00462360,0x00462371
+0x004623B7	jmp	2	switch	0x004623A0	jmp     ds:jpt_4623B7[eax*4]; switch jump	0x004623BE,0x004623CF,0x004623E0,0x004623F1
+0x0046277E	jmp	2	switch	0x00462740	jmp     ds:jpt_46277E[ecx*4]; switch jump	0x00462785,0x00462B8A,0x00462E2A,0x0046314C,0x00463669,0x00463700,0x0046388A,0x004639CF,0x00463C02,0x00463D59,0x00463E2B,0x00463E64,0x00463E8F,0x00463F2E,0x00463F61,0x00463F8E,0x00463FA2,0x0046404C,0x0046408A,0x004640BE,0x004640EA
+0x004627FC	jmp	2	switch	0x00462740	jmp     ds:jpt_4627FC[ecx*4]; switch jump	0x00462803,0x00462824,0x00462888,0x004628DB,0x0046294E,0x004629A0,0x004629BB,0x00462A36,0x00462A42,0x00462A51,0x00462A66,0x00462A81,0x00462AB0,0x00462AD6,0x00462B55
+0x00464432	jmp	2	switch	0x00464270	jmp     ds:jpt_464432[ecx*4]; switch jump	0x00464439,0x004645E6,0x00464691,0x00464714,0x00464732,0x004647B5,0x004647EC,0x00464BE9,0x00464C03,0x00464C3A,0x00464C68
+0x00466FA2	jmp	2	switch	0x00466F70	jmp     ds:jpt_466FA2[eax*4]; switch jump	0x00466FA9,0x00466FC0,0x00467009,0x0046701D,0x004672EA,0x00467330,0x004673DF,0x00467452,0x0046746C,0x0046751F,0x004675F3,0x00467630,0x00467690,0x004676B8
+0x00467A06	call	1		0x00467710	call    esi ; wsprintfA	0x004991B0
+0x00467A48	call	1		0x00467710	call    esi ; wsprintfA	0x004991B0
+0x00467A87	call	1		0x00467710	call    esi ; wsprintfA	0x004991B0
+0x0046801E	call	1		0x00467F00	call    esi ; wsprintfA	0x004991B0
+0x00468059	call	1		0x00467F00	call    esi ; wsprintfA	0x004991B0
+0x00468096	call	1		0x00467F00	call    esi ; wsprintfA	0x004991B0
+0x004680D9	call	1		0x00467F00	call    esi ; wsprintfA	0x004991B0
+0x00468118	call	1		0x00467F00	call    esi ; wsprintfA	0x004991B0
+0x0046815A	call	1		0x00467F00	call    esi ; wsprintfA	0x004991B0
+0x0046819A	call	1		0x00467F00	call    esi ; wsprintfA	0x004991B0
+0x00468372	call	1		0x00467F00	call    esi ; wsprintfA	0x004991B0
+0x0046844F	call	1		0x00467F00	call    esi ; wsprintfA	0x004991B0
+0x00468538	call	1		0x00467F00	call    esi ; wsprintfA	0x004991B0
+0x00468628	call	1		0x00467F00	call    esi ; wsprintfA	0x004991B0
+0x00468701	call	1		0x00467F00	call    esi ; wsprintfA	0x004991B0
+0x004687E6	call	1		0x00467F00	call    esi ; wsprintfA	0x004991B0
+0x004688C8	call	1		0x00467F00	call    esi ; wsprintfA	0x004991B0
+0x00468985	call	1		0x00468930	call    ebx ; wsprintfA	0x004991B0
+0x00468995	call	1		0x00468930	call    ebp ; lstrlenA	0x00499160
+0x00468A7C	call	1		0x00468930	call    ebx ; wsprintfA	0x004991B0
+0x00468A86	call	1		0x00468930	call    ebp ; lstrlenA	0x00499160
+0x00468B41	call	1		0x00468AD0	call    ebx ; wsprintfA	0x004991B0
+0x00468B51	call	1		0x00468AD0	call    ebp ; lstrlenA	0x00499160
+0x00468C36	call	1		0x00468AD0	call    ebx ; wsprintfA	0x004991B0
+0x00468C40	call	1		0x00468AD0	call    ebp ; lstrlenA	0x00499160
+0x00468F1E	call	1		0x00468ED0	call    edi ; lstrlenA	0x00499160
+0x00468F8D	call	1		0x00468ED0	call    edi ; lstrlenA	0x00499160
+0x004697BD	call	1		0x00469650	call    ebp ; wsprintfA	0x004991B0
+0x00469800	call	1		0x00469650	call    ebp ; wsprintfA	0x004991B0
+0x00469843	call	1		0x00469650	call    ebp ; wsprintfA	0x004991B0
+0x00469D38	jmp	2	switch	0x00469D20	jmp     ds:jpt_469D38[eax*4]; switch jump	0x00469D3F,0x00469D78,0x00469E86,0x00469EB7,0x0046A0FD,0x0046A332,0x0046A606,0x0046A62C,0x0046A771,0x0046A873,0x0046A8E8,0x0046A9E2,0x0046AA05,0x0046AC13,0x0046AF10,0x0046B01D,0x0046B09E,0x0046B1AC,0x0046B26F,0x0046B300,0x0046B384,0x0046B43B,0x0046B4CD,0x0046B65D,0x0046B7FB,0x0046B967,0x0046B9EF,0x0046BB15,0x0046BBF7,0x0046BC68,0x0046BCDF,0x0046BD6C,0x0046BE7F,0x0046BF25,0x0046BF6F,0x0046BFB3,0x0046C043,0x0046C12A,0x0046C1C7,0x0046C1E2,0x0046C46D,0x0046C59C,0x0046C837,0x0046CA12,0x0046CB60,0x0046CC48,0x0046CC9E,0x0046CCAA,0x0046CCCF,0x0046CD0E,0x0046CD3C,0x0046CDCE,0x0046CE0B,0x0046CE5D,0x0046CEAB,0x0046CF0E,0x0046CF67,0x0046D14D,0x0046D196,0x0046D1B9,0x0046D2C1,0x0046D374,0x0046D4F5,0x0046D611,0x0046D647,0x0046D6F2,0x0046D790,0x0046D85B,0x0046D8F8,0x0046D91B,0x0046D952,0x0046D988,0x0046D9D1,0x0046DA54,0x0046DBB6,0x0046DD9F,0x0046DDEE,0x0046DE33,0x0046DE94,0x0046DEA3,0x0046DEB7,0x0046DF2B
+0x0046CBCA	call	1		0x00469D20	call    esi ; lstrcmpA	0x00499088
+0x0046D33B	call	1		0x00469D20	call    esi ; lstrcatA	0x0049915C
+0x0046D347	call	1		0x00469D20	call    esi ; lstrcatA	0x0049915C
+0x0046E13C	call	1		0x0046E0B0	call    esi ; SetFilePointer	0x0049905C
+0x0046E155	call	1		0x0046E0B0	call    esi ; SetFilePointer	0x0049905C
+0x0046E172	call	1		0x0046E0B0	call    ebx ; ReadFile	0x00499074
+0x0046E189	call	1		0x0046E0B0	call    esi ; SetFilePointer	0x0049905C
+0x0046E1C7	call	1		0x0046E0B0	call    ebx ; ReadFile	0x00499074
+0x0046F049	jmp	2	switch	0x0046F030	jmp     ds:jpt_46F049[eax*4]; switch jump	0x0046F050,0x0046F064,0x0046F078,0x0046F08C,0x0046F0A0,0x0046F0B4,0x0046F0C8,0x0046F13E
+0x0046F21D	jmp	2	switch	0x0046F1F0	jmp     ds:jpt_46F21D[eax*4]; switch jump	0x0046F224,0x0046F262,0x0046F28C,0x0046F2A9,0x0046F2CE,0x0046F2F8,0x0046F315,0x0046F332,0x0046F349,0x0046F366,0x0046F383,0x0046F3CE,0x0046F3E5,0x0046F3FC,0x0046F474,0x0046F4DB
+0x0047121F	call	1		0x004710D0	call    edi ; GetSystemMetrics	0x00499214
+0x00471224	call	1		0x004710D0	call    edi ; GetSystemMetrics	0x00499214
+0x00476B00	call	1		0x00476A80	call    esi ; SetFilePointer	0x0049905C
+0x00476B1D	call	1		0x00476A80	call    ebx ; ReadFile	0x00499074
+0x00476B3E	call	1		0x00476A80	call    esi ; SetFilePointer	0x0049905C
+0x00476B54	call	1		0x00476A80	call    ebx ; ReadFile	0x00499074
+0x00476B6C	call	1		0x00476A80	call    esi ; SetFilePointer	0x0049905C
+0x00476B9B	call	1		0x00476A80	call    ebx ; ReadFile	0x00499074
+0x00476BDF	jmp	2	switch	0x00476A80	jmp     ds:jpt_476BDF[edx*4]; switch jump	0x00476BC5,0x00476BE6,0x00476BF6,0x00476BFF,0x00476C05,0x00476C10,0x00476C24,0x00476C2F,0x00476C3A,0x00476C3F,0x00476C51,0x00476C5A,0x00476C67,0x00476C75,0x00476C8C,0x00476C95,0x00476C9E,0x00476CA7,0x00476CB5,0x00476CC3,0x00476CD1,0x00476CDF,0x00476CFD,0x00476D0B,0x00476D19
+0x00476E78	call	1		0x00476DB0	call    esi ; SetFilePointer	0x0049905C
+0x00476E94	call	1		0x00476DB0	call    ebp ; ReadFile	0x00499074
+0x00476EB2	call	1		0x00476DB0	call    esi ; SetFilePointer	0x0049905C
+0x00476EC8	call	1		0x00476DB0	call    ebp ; ReadFile	0x00499074
+0x00476EE0	call	1		0x00476DB0	call    esi ; SetFilePointer	0x0049905C
+0x00476F13	call	1		0x00476DB0	call    ebp ; ReadFile	0x00499074
+0x00476F5F	jmp	2	switch	0x00476DB0	jmp     ds:jpt_476F5F[eax*4]; switch jump	0x00476F34,0x00476F66,0x00476F78,0x00476F82,0x00476F8C,0x00476F96,0x00476FA0,0x00476FAA,0x00476FB7,0x00476FC4,0x00476FD1,0x00476FDE,0x00476FEB,0x00476FF8
+0x0047702D	jmp	2	switch	0x00476DB0	jmp     ds:jpt_47702D[eax*4]; switch jump	0x00476F34,0x00477034,0x004770C6,0x004770D3,0x004770E0,0x004770ED,0x004770FA,0x0047710B,0x00477118,0x00477125,0x00477134
+0x00477325	call	1		0x00477290	call    esi ; SetFilePointer	0x0049905C
+0x00477342	call	1		0x00477290	call    ebp ; ReadFile	0x00499074
+0x00477359	call	1		0x00477290	call    esi ; SetFilePointer	0x0049905C
+0x00477387	call	1		0x00477290	call    ebp ; ReadFile	0x00499074
+0x00477497	call	1		0x00477400	call    esi ; SetFilePointer	0x0049905C
+0x004774B4	call	1		0x00477400	call    ebx ; ReadFile	0x00499074
+0x004774CB	call	1		0x00477400	call    esi ; SetFilePointer	0x0049905C
+0x00477501	call	1		0x00477400	call    ebx ; ReadFile	0x00499074
+0x004776B9	call	1		0x004776A0	call    esi ; CloseHandle	0x00499140
+0x004776D4	call	1		0x004776A0	call    esi ; CloseHandle	0x00499140
+0x004799D5	jmp	2	switch	0x00479850	jmp     ds:jpt_4799D5[edx*4]; switch jump	0x004799DC,0x00479B06,0x00479CA6,0x00479EAA,0x0047A083,0x0047A1A0,0x0047A266,0x0047A5FE,0x0047A752,0x0047A80B,0x0047A815,0x0047A94D,0x0047AA7B,0x0047ABAD,0x0047AF24,0x0047B2E8,0x0047B409,0x0047B747,0x0047B83E
+0x00479C34	call	1		0x00479850	call    edi ; GetSystemMetrics	0x00499214
+0x00479C38	call	1		0x00479850	call    edi ; GetSystemMetrics	0x00499214
+0x0047A725	call	1		0x00479850	call    edi ; GetSystemMetrics	0x00499214
+0x0047A729	call	1		0x00479850	call    edi ; GetSystemMetrics	0x00499214
+0x0047B662	call	1		0x00479850	call    edi ; GetSystemMetrics	0x00499214
+0x0047B666	call	1		0x00479850	call    edi ; GetSystemMetrics	0x00499214
+0x0047DD23	jmp	2	switch	0x0047DBD0	jmp     ds:jpt_47DD23[ecx*4]; switch jump	0x0047DD2A,0x0047DD56,0x0047DD8B,0x0047DDC9,0x0047DE03,0x0047E02E
+0x0047E187	jmp	2	switch	0x0047E070	jmp     ds:jpt_47E187[eax*4]; switch jump	0x0047E18E,0x0047E19C,0x0047E1AA,0x0047E1B8,0x0047E1EC,0x0047E21F,0x0047E25E
+0x0047E1C9	call	1		0x0047E070	call    edi ; wsprintfA	0x004991B0
+0x0047E1FD	call	1		0x0047E070	call    edi ; wsprintfA	0x004991B0
+0x0047E230	call	1		0x0047E070	call    edi ; wsprintfA	0x004991B0
+0x0047E3C3	call	1		0x0047E070	call    edi ; wsprintfA	0x004991B0
+0x0047E412	call	1		0x0047E070	call    edi ; wsprintfA	0x004991B0
+0x0047E45E	call	1		0x0047E070	call    edi ; wsprintfA	0x004991B0
+0x0047E51C	jmp	2	switch	0x0047E500	jmp     ds:jpt_47E51C[ecx*4]; switch jump	0x0047E523,0x0047E52A,0x0047E531,0x0047E538,0x0047E53D
+0x0047E9BB	jmp	2	switch	0x0047E950	jmp     ds:jpt_47E9BB[ecx*4]; switch jump	0x0047E9C2,0x0047E9D7,0x0047E9EC,0x0047EA09,0x0047EA32,0x0047EF64
+0x0047EB99	call	1		0x0047E950	call    edi ; wsprintfA	0x004991B0
+0x0047EC1B	call	1		0x0047E950	call    edi ; wsprintfA	0x004991B0
+0x0047EC5F	call	1		0x0047E950	call    edi ; wsprintfA	0x004991B0
+0x0047ECAE	call	1		0x0047E950	call    edi ; wsprintfA	0x004991B0
+0x0047ED03	call	1		0x0047E950	call    edi ; wsprintfA	0x004991B0
+0x0047ED20	call	1		0x0047E950	call    edi ; wsprintfA	0x004991B0
+0x0047ED64	call	1		0x0047E950	call    edi ; wsprintfA	0x004991B0
+0x0047EE14	call	1		0x0047E950	call    edi ; wsprintfA	0x004991B0
+0x0047EE79	call	1		0x0047E950	call    edi ; wsprintfA	0x004991B0
+0x0047EED9	call	1		0x0047E950	call    edi ; wsprintfA	0x004991B0
+0x0047EF25	call	1		0x0047E950	call    edi ; wsprintfA	0x004991B0
+0x0047EF79	jmp	2	switch	0x0047E950	jmp     ds:jpt_47EF79[eax*4]; switch jump	0x0047EF80,0x0047EF8E,0x0047EF9C,0x0047EFAD,0x0047EFBB,0x0047EFC9,0x0047EFD7,0x0047F00B,0x0047F03E
+0x0047EFE8	call	1		0x0047E950	call    edi ; wsprintfA	0x004991B0
+0x0047F01C	call	1		0x0047E950	call    edi ; wsprintfA	0x004991B0
+0x0047F04F	call	1		0x0047E950	call    edi ; wsprintfA	0x004991B0
+0x004814D9	jmp	2	switch	0x00481010	jmp     ds:jpt_4814D9[edx*4]; switch jump	0x004814E0,0x004814E7,0x00481544,0x0048156D,0x004815F8
+0x00481B5E	jmp	2	switch	0x00481A40	jmp     ds:jpt_481B5E[edx*4]; switch jump	0x00481B65,0x00481B75,0x00481B85,0x00481B95,0x00481BA5,0x00481C8A
+0x00482FF5	jmp	2	switch	0x00482FC0	jmp     ds:jpt_482FF5[ecx*4]; switch jump	0x00482FFC,0x0048300A,0x00483014,0x00483027,0x00483039,0x00483049
+0x0048418B	call	1		0x00484020	call    esi ; GetSystemMetrics	0x00499214
+0x00484190	call	1		0x00484020	call    esi ; GetSystemMetrics	0x00499214
+0x00484A11	call	4		0x00484950	call    dword ptr [edx+14h]	
+0x00484AE0	jmp	2	switch	0x00484950	jmp     ds:jpt_484AE0[ecx*4]; switch jump	0x00484AE7,0x00484AFF,0x00484B10,0x00484B28,0x00484C35
+0x00484B76	jmp	2	switch	0x00484950	jmp     ds:jpt_484B76[ecx*4]; switch jump	0x00484B7D,0x00484B95,0x00484BA6,0x00484BBB,0x00484C35
+0x00484F12	call	1		0x00484ED0	call    ebp ; AIL_mem_free_lock(x); AIL_mem_free_lock(x)	0x00499314
+0x00484F15	call	1		0x00484ED0	call    ebp ; AIL_mem_free_lock(x); AIL_mem_free_lock(x)	0x00499314
+0x00484F3A	call	1		0x00484ED0	call    ebp ; AIL_mem_free_lock(x); AIL_mem_free_lock(x)	0x00499314
+0x00485218	jmp	2	switch	0x00485180	jmp     ds:jpt_485218[ecx*4]; switch jump	0x004851EE,0x0048521F,0x00485226
+0x0048530C	call	1		0x004852F0	call    edi ; AIL_sequence_user_data(x,x); AIL_sequence_user_data(x,x)	0x004992F8
+0x00485313	call	1		0x004852F0	call    edi ; AIL_sequence_user_data(x,x); AIL_sequence_user_data(x,x)	0x004992F8
+0x00485496	call	1		0x00485460	call    ebp ; AIL_mem_free_lock(x); AIL_mem_free_lock(x)	0x00499314
+0x00485AA2	call	1		0x004859B0	call    edi ; AIL_get_preference(x); AIL_get_preference(x)	0x004992D8
+0x00485B73	call	1		0x004859B0	call    edi ; AIL_get_preference(x); AIL_get_preference(x)	0x004992D8
+0x00485C55	call	1		0x00485C20	call    ebx ; AIL_end_sample(x); AIL_end_sample(x)	0x004992C4
+0x00485C5A	call	1		0x00485C20	call    ebp ; AIL_release_sample_handle(x); AIL_release_sample_handle(x)	0x004992C8
+0x00485C83	call	1		0x00485C20	call    ebx ; AIL_end_sample(x); AIL_end_sample(x)	0x004992C4
+0x00485C88	call	1		0x00485C20	call    ebp ; AIL_release_sample_handle(x); AIL_release_sample_handle(x)	0x004992C8
+0x004860E8	call	1		0x00486080	call    ebp ; AIL_set_sample_volume(x,x); AIL_set_sample_volume(x,x)	0x004992B4
+0x004861EC	call	1		0x004861D0	call    ebx ; AIL_sample_user_data(x,x); AIL_sample_user_data(x,x)	0x004992A4
+0x00486233	call	1		0x00486210	call    ebp ; AIL_sample_user_data(x,x); AIL_sample_user_data(x,x)	0x004992A4
+0x00486333	call	1		0x004862B0	call    ebp ; AIL_mem_free_lock(x); AIL_mem_free_lock(x)	0x00499314
+0x00486340	call	1		0x004862B0	call    esi ; AIL_mem_alloc_lock(x); AIL_mem_alloc_lock(x)	0x0049932C
+0x00486369	call	1		0x004862B0	call    esi ; AIL_mem_alloc_lock(x); AIL_mem_alloc_lock(x)	0x0049932C
+0x00486419	call	1		0x004862B0	call    ebp ; AIL_mem_free_lock(x); AIL_mem_free_lock(x)	0x00499314
+0x0048645A	call	1		0x00486430	call    ebx ; AIL_mem_free_lock(x); AIL_mem_free_lock(x)	0x00499314
+0x0048646E	call	1		0x00486430	call    ebx ; AIL_mem_free_lock(x); AIL_mem_free_lock(x)	0x00499314
+0x004865D6	call	1		0x004865B0	call    ebx ; AIL_mem_alloc_lock(x); AIL_mem_alloc_lock(x)	0x0049932C
+0x00486644	call	1		0x00486610	call    ebp ; AIL_mem_free_lock(x); AIL_mem_free_lock(x)	0x00499314
+0x00486650	call	1		0x00486610	call    ebp ; AIL_mem_free_lock(x); AIL_mem_free_lock(x)	0x00499314
+0x00486673	call	1		0x00486610	call    ebp ; AIL_mem_free_lock(x); AIL_mem_free_lock(x)	0x00499314
+0x0048667F	call	1		0x00486610	call    ebp ; AIL_mem_free_lock(x); AIL_mem_free_lock(x)	0x00499314
+0x00486956	call	1		0x00486900	call    ebp ; AIL_set_stream_volume(x,x); AIL_set_stream_volume(x,x)	0x00499280
+0x00486986	jmp	2	switch	0x00486900	jmp     ds:jpt_486986[ecx*4]; switch jump	0x00486958,0x0048698D,0x0048699B
+0x00486992	call	1		0x00486900	call    ebp ; AIL_set_stream_volume(x,x); AIL_set_stream_volume(x,x)	0x00499280
+0x004869A5	call	1		0x00486900	call    ebp ; AIL_set_stream_volume(x,x); AIL_set_stream_volume(x,x)	0x00499280
+0x00486A8C	call	1		0x00486A70	call    ebx ; AIL_stream_user_data(x,x); AIL_stream_user_data(x,x)	0x0049929C
+0x00487D49	call	2		0x00487CD0	call    off_4A8360	0x0048AA70
+0x00488141	call	2		0x00488080	call    off_4A8360	0x0048AA70
+0x00488620	call	2		0x004885C0	call    off_4A8360	0x0048AA70
+0x00488C0E	jmp	2	switch	0x00488BB0	jmp     ds:jpt_488C0E[eax*4]; switch jump	0x00488C15,0x00488C40,0x00488C68,0x00488C90
+0x00489336	call	2		0x00489180	call    dword_53E7D8	
+0x004896AB	jmp	1		0x00489680	jmp     eax	
+0x004896C5	jmp	1		0x004896C0	jmp     eax	
+0x004896D5	jmp	1		0x004896D0	jmp     eax	
+0x004898BA	call	2		0x00489830	call    dword_53D1D8	
+0x00489974	jmp	4		0x00489900	jmp     dword ptr [ebx+18h]	
+0x00489AB6	call	4		0x00489A62	call    dword ptr [ebx+esi*4+8]	
+0x00489EE5	jmp	2	switch	0x00489EB0	jmp     ds:jpt_489EE5[edx*4]; switch 4 cases	0x0048A008,0x0048A010,0x0048A01C,0x0048A030
+0x00489EFD	jmp	2		0x00489EB0	jmp     dword ptr ds:loc_489F0C+4[eax*4]	
+0x00489F04	jmp	2		0x00489EB0	jmp     dword ptr ds:loc_48A008[ecx*4]; jumptable 00489EE5 case 0	
+0x00489F0C	jmp	2	switch	0x00489EB0	jmp     ds:jpt_489F0C[ecx*4]; switch jump	0x00489FAC,0x00489FB4,0x00489FBC,0x00489FC4,0x00489FCC,0x00489FD4,0x00489FDC,0x00489FEF
+0x00489F42	jmp	2	switch	0x00489EB0	jmp     ds:jpt_489EE5[edx*4]; switch 4 cases	0x0048A008,0x0048A010,0x0048A01C,0x0048A030
+0x00489F68	jmp	2	switch	0x00489EB0	jmp     ds:jpt_489EE5[edx*4]; switch 4 cases	0x0048A008,0x0048A010,0x0048A01C,0x0048A030
+0x00489F82	jmp	2	switch	0x00489EB0	jmp     ds:jpt_489EE5[edx*4]; switch 4 cases	0x0048A008,0x0048A010,0x0048A01C,0x0048A030
+0x00489FEF	jmp	2	switch	0x00489EB0	jmp     ds:jpt_489EE5[edx*4]; jumptable 00489F0C case 0	0x0048A008,0x0048A010,0x0048A01C,0x0048A030
+0x0048A067	jmp	2	switch	0x00489EB0	jmp     ds:jpt_48A094[edx*4]; switch 4 cases	0x0048A1A0,0x0048A1A8,0x0048A1B8,0x0048A1CC
+0x0048A072	jmp	2	switch	0x00489EB0	jmp     ds:jpt_48A072[ecx*4]; switch 1 cases	0x0048A187
+0x0048A08D	jmp	2		0x00489EB0	jmp     dword ptr ds:loc_48A094+4[eax*4]	
+0x0048A094	jmp	2	switch	0x00489EB0	jmp     ds:jpt_48A094[ecx*4]; switch jump	0x0048A1A0,0x0048A1A8,0x0048A1B8,0x0048A1CC
+0x0048A0BE	jmp	2	switch	0x00489EB0	jmp     ds:jpt_48A094[edx*4]; switch 4 cases	0x0048A1A0,0x0048A1A8,0x0048A1B8,0x0048A1CC
+0x0048A0E8	jmp	2	switch	0x00489EB0	jmp     ds:jpt_48A094[edx*4]; switch 4 cases	0x0048A1A0,0x0048A1A8,0x0048A1B8,0x0048A1CC
+0x0048A11A	jmp	2	switch	0x00489EB0	jmp     ds:jpt_48A094[edx*4]; switch 4 cases	0x0048A1A0,0x0048A1A8,0x0048A1B8,0x0048A1CC
+0x0048A187	jmp	2	switch	0x00489EB0	jmp     ds:jpt_48A094[edx*4]; jumptable 0048A072 case 0	0x0048A1A0,0x0048A1A8,0x0048A1B8,0x0048A1CC
+0x0048A33C	call	2		0x0048A330	call    off_4A8320	0x004895D0
+0x0048A418	call	3		0x0048A3B0	call    dword ptr [eax]	
+0x0048A4A6	call	3		0x0048A490	call    dword ptr [edx]	
+0x0048A50E	call	4		0x0048A4C0	call    [ebp+arg_C]	
+0x0048A5BB	call	4		0x0048A560	call    [ebp+arg_C]	
+0x0048A658	call	4		0x0048A610	call    [ebp+arg_C]	
+0x0048A8C2	call	2		0x0048A8A0	call    off_4A8350	0x0048A390
+0x0048A916	call	4		0x0048A900	call    [ebp+var_4]	
+0x0048AB82	call	2		0x0048AA90	call    dword_53D1BC	
+0x0048ACF3	call	2		0x0048AA90	call    dword_53E7C0	
+0x0048D244	call	4		0x0048D210	call    [ebp+var_8]	
+0x0048DA76	call	4		0x0048D9C0	call    [ebp+var_4]	
+0x0048E645	call	1		0x0048E620	call    eax	
+0x0048E6AD	call	2		0x0048E670	call    dword_53D1DC	
+0x0048E73D	call	2		0x0048E700	call    off_4A85D4	0x0048E670
+0x0048EBB9	jmp	2	switch	0x0048EB00	jmp     ds:jpt_48EBB9[ecx*4]; switch jump	0x0048EBC0,0x0048EC5A,0x0048EC9C,0x0048ED0B,0x0048ED63,0x0048ED72,0x0048EDBE,0x0048EE51
+0x0048ECCC	jmp	2	switch	0x0048EB00	jmp     ds:jpt_48ECCC[eax*4]; switch jump	0x0048ECD3,0x0048ECDE,0x0048ECE8,0x0048ECF3,0x0048ECFE,0x0048ED06
+0x0048EDEE	jmp	2	switch	0x0048EB00	jmp     ds:jpt_48EDEE[eax*4]; switch jump	0x0048EDF5,0x0048EE00,0x0048EE39,0x0048EE43,0x0048EE4C
+0x0048EE85	jmp	2	switch	0x0048EB00	jmp     ds:jpt_48EE85[ecx*4]; switch jump	0x0048EE8C,0x0048EEA1,0x0048EF1B,0x0048EFB0,0x0048EFC6,0x0048F0D5,0x0048F120,0x0048F130,0x0048F22B,0x0048F243,0x0048F24F,0x0048F259,0x0048F265,0x0048F2A5,0x0048F537
+0x0048F1AD	call	2		0x0048EB00	call    off_4A85AC	0x00493730
+0x0048F1CF	call	2		0x0048EB00	call    off_4A85B8	0x00493730
+0x0048F1F1	call	2		0x0048EB00	call    off_4A85B0	0x00493730
+0x0048FEDF	jmp	2	switch	0x0048FAE0	jmp     ds:jpt_48FEDF[ecx*4]; switch jump	0x0048FEE6,0x0048FEF8,0x0048FF0A,0x0048FF1C
+0x0049096B	call	4		0x00490924	call    dword ptr [edi+ecx*4+4]	
+0x004909A7	call	4		0x00490924	call    dword ptr [edi+ecx*4+8]	
+0x00490C42	call	4		0x00490AD0	call    [ebp+var_4]	
+0x00490C63	call	4		0x00490AD0	call    [ebp+var_4]	
+0x00491964	call	2		0x00491930	call    dword_53D2F8	
+0x00492026	jmp	2	switch	0x00492000	jmp     ds:jpt_492026[edx*4]; switch jump	0x0049202D,0x0049203E,0x0049204F,0x00492060,0x00492071,0x0049208D
+0x00492143	call	4		0x00492000	call    [ebp+var_14]	
+0x0049214F	call	4		0x00492000	call    [ebp+var_14]	
+0x0049229C	call	2		0x00492220	call    dword_53D314	
+0x004922B8	call	2		0x00492220	call    dword_53D318	
+0x004922D1	call	2		0x00492220	call    dword_53D310	
+0x00492415	jmp	2	switch	0x004923E0	jmp     ds:jpt_492415[edx*4]; switch 4 cases	0x00492538,0x00492540,0x0049254C,0x00492560
+0x0049242D	jmp	2		0x004923E0	jmp     dword ptr ds:loc_49243C+4[eax*4]	
+0x00492434	jmp	2		0x004923E0	jmp     dword ptr ds:loc_492538[ecx*4]; jumptable 00492415 case 0	
+0x0049243C	jmp	2	switch	0x004923E0	jmp     ds:jpt_49243C[ecx*4]; switch jump	0x004924DC,0x004924E4,0x004924EC,0x004924F4,0x004924FC,0x00492504,0x0049250C,0x0049251F
+0x00492472	jmp	2	switch	0x004923E0	jmp     ds:jpt_492415[edx*4]; switch 4 cases	0x00492538,0x00492540,0x0049254C,0x00492560
+0x00492498	jmp	2	switch	0x004923E0	jmp     ds:jpt_492415[edx*4]; switch 4 cases	0x00492538,0x00492540,0x0049254C,0x00492560
+0x004924B2	jmp	2	switch	0x004923E0	jmp     ds:jpt_492415[edx*4]; switch 4 cases	0x00492538,0x00492540,0x0049254C,0x00492560
+0x0049251F	jmp	2	switch	0x004923E0	jmp     ds:jpt_492415[edx*4]; jumptable 0049243C case 0	0x00492538,0x00492540,0x0049254C,0x00492560
+0x00492597	jmp	2	switch	0x004923E0	jmp     ds:jpt_4925C4[edx*4]; switch 4 cases	0x004926D0,0x004926D8,0x004926E8,0x004926FC
+0x004925A2	jmp	2	switch	0x004923E0	jmp     ds:jpt_4925A2[ecx*4]; switch 1 cases	0x004926B7
+0x004925BD	jmp	2		0x004923E0	jmp     dword ptr ds:loc_4925C4+4[eax*4]	
+0x004925C4	jmp	2	switch	0x004923E0	jmp     ds:jpt_4925C4[ecx*4]; switch jump	0x004926D0,0x004926D8,0x004926E8,0x004926FC
+0x004925EE	jmp	2	switch	0x004923E0	jmp     ds:jpt_4925C4[edx*4]; switch 4 cases	0x004926D0,0x004926D8,0x004926E8,0x004926FC
+0x00492618	jmp	2	switch	0x004923E0	jmp     ds:jpt_4925C4[edx*4]; switch 4 cases	0x004926D0,0x004926D8,0x004926E8,0x004926FC
+0x0049264A	jmp	2	switch	0x004923E0	jmp     ds:jpt_4925C4[edx*4]; switch 4 cases	0x004926D0,0x004926D8,0x004926E8,0x004926FC
+0x004926B7	jmp	2	switch	0x004923E0	jmp     ds:jpt_4925C4[edx*4]; jumptable 004925A2 case 0	0x004926D0,0x004926D8,0x004926E8,0x004926FC
+0x0049378D	call	2		0x00493740	call    lpTopLevelExceptionFilter	
+0x00494EE7	jmp	2	switch	0x00494EC0	jmp     ds:jpt_494EE7[edx*4]; switch jump	0x00494EEE,0x00494EF5,0x00494EFC,0x00494F03,0x00494F0A
+0x004959E5	jmp	2	switch	0x00495910	jmp     ds:jpt_4959E5[ecx*4]; switch jump	0x004959EC,0x00495A8A,0x00495B40,0x00495BAB,0x00495CC3,0x00495DF5,0x00495E6B,0x00495EF2,0x00495F50,0x00495FA3,0x004960AF,0x00496113
+0x00495B00	jmp	2	switch	0x00495910	jmp     ds:jpt_495B00[ecx*4]; switch jump	0x00495B07,0x00495B10,0x00495B19,0x00495B2B
+0x00495C8C	jmp	2	switch	0x00495910	jmp     ds:jpt_495C8C[ecx*4]; switch jump	0x00495C93,0x00495C9C,0x00495CAE
+0x00495DBE	jmp	2	switch	0x00495910	jmp     ds:jpt_495DBE[eax*4]; switch jump	0x00495DC5,0x00495DCE,0x00495DE0

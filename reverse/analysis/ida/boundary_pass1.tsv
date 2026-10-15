@@ -1,0 +1,178 @@
+start	end	result	reason	detail	first_disasm
+0x00401000	0x0040100A	created	unowned_region_start_round0	chunks=1 last=jmp     loc_401020	call    sub_401010
+0x00401020		skip_owned	unowned_region_start_round0		push    offset sub_401030
+0x00401030		skip_owned	unowned_region_start_round0		mov     ecx, offset unk_4B6C78
+0x00401040	0x0040104A	created	unowned_region_start_round0	chunks=1 last=jmp     loc_401060	call    sub_401050
+0x00401060		skip_owned	unowned_region_start_round0		push    offset sub_401070
+0x00401070		skip_owned	unowned_region_start_round0		mov     ecx, offset unk_4A9AC8
+0x00401080	0x0040108A	created	unowned_region_start_round0	chunks=1 last=jmp     loc_4010A0	call    sub_401090
+0x004010A0		skip_owned	unowned_region_start_round0		push    offset sub_4010B0
+0x004010B0		skip_owned	unowned_region_start_round0		mov     ecx, offset unk_4C8450
+0x004010C0	0x004010CA	created	unowned_region_start_round0	chunks=1 last=jmp     loc_4010E0	call    sub_4010D0
+0x004010E0		skip_owned	unowned_region_start_round0		push    offset sub_4010F0
+0x004010F0		skip_owned	unowned_region_start_round0		mov     ecx, offset unk_4B7EB8
+0x00401100	0x0040110A	created	unowned_region_start_round0	chunks=1 last=jmp     loc_401120	call    sub_401110
+0x00401120		skip_owned	unowned_region_start_round0		push    offset sub_401130
+0x00401130		skip_owned	unowned_region_start_round0		mov     ecx, offset unk_4C9288
+0x00401140	0x0040114A	created	unowned_region_start_round0	chunks=1 last=jmp     loc_401160	call    sub_401150
+0x00401160		skip_owned	unowned_region_start_round0		push    offset sub_401170
+0x00401170		skip_owned	unowned_region_start_round0		mov     ecx, offset unk_4BA6E8
+0x00401180	0x0040118A	created	unowned_region_start_round0	chunks=1 last=jmp     loc_4011B0	call    sub_401190
+0x004011B0		skip_owned	unowned_region_start_round0		push    offset sub_4011C0
+0x004011D0	0x004011DA	created	unowned_region_start_round0	chunks=1 last=jmp     loc_4011F0	call    sub_4011E0
+0x004011F0		skip_owned	unowned_region_start_round0		push    offset sub_401200
+0x00401200		skip_owned	unowned_region_start_round0		mov     ecx, offset unk_4AB998
+0x00401210	0x0040121A	created	unowned_region_start_round0	chunks=1 last=jmp     loc_401230	call    sub_401220
+0x00401230		skip_owned	unowned_region_start_round0		push    offset sub_401240
+0x00401240		skip_owned	unowned_region_start_round0		mov     ecx, offset unk_4C9A28
+0x00401250	0x0040125A	created	unowned_region_start_round0	chunks=1 last=jmp     loc_401270	call    sub_401260
+0x00401270		skip_owned	unowned_region_start_round0		push    offset sub_401280
+0x00401280		skip_owned	unowned_region_start_round0		mov     ecx, offset unk_4A9ED0
+0x00401290	0x0040129A	created	unowned_region_start_round0	chunks=1 last=jmp     loc_4012B0	call    sub_4012A0
+0x004012B0		skip_owned	unowned_region_start_round0		push    offset sub_4012C0
+0x004012D0	0x004012DA	created	unowned_region_start_round0	chunks=1 last=jmp     loc_4012F0	call    sub_4012E0
+0x004012F0		skip_owned	unowned_region_start_round0		push    offset sub_401300
+0x00401310	0x0040131A	created	unowned_region_start_round0	chunks=1 last=jmp     loc_401330	call    sub_401320
+0x00401330		skip_owned	unowned_region_start_round0		push    offset sub_401340
+0x00401350	0x0040135A	created	unowned_region_start_round0	chunks=1 last=jmp     loc_401370	call    sub_401360
+0x00401370		skip_owned	unowned_region_start_round0		push    offset sub_401380
+0x00401390	0x0040139A	created	unowned_region_start_round0	chunks=1 last=jmp     loc_4013B0	call    sub_4013A0
+0x004013B0		skip_owned	unowned_region_start_round0		push    offset sub_4013C0
+0x004013D0	0x004013DA	created	unowned_region_start_round0	chunks=1 last=jmp     loc_4013F0	call    sub_4013E0
+0x004013F0		skip_owned	unowned_region_start_round0		push    offset sub_401400
+0x00401410	0x0040141A	created	unowned_region_start_round0	chunks=1 last=jmp     loc_401430	call    sub_401420
+0x00401430		skip_owned	unowned_region_start_round0		push    offset sub_401440
+0x00401450	0x0040145A	created	unowned_region_start_round0	chunks=1 last=jmp     loc_401470	call    sub_401460
+0x00401470		skip_owned	unowned_region_start_round0		push    offset sub_401480
+0x00401490	0x00401495	created	unowned_region_start_round0	chunks=1 last=jmp     loc_4014A0	jmp     sub_4014A0
+0x004014A0		skip_owned	unowned_region_start_round0		mov     ecx, offset unk_4AB870
+0x004014B0	0x004014BA	created	unowned_region_start_round0	chunks=1 last=jmp     loc_4014D0	call    sub_4014C0
+0x004014D0		skip_owned	unowned_region_start_round0		push    offset sub_4014E0
+0x004014E0		skip_owned	unowned_region_start_round0		mov     ecx, offset unk_4B8748
+0x00417FEA	0x00417FEF	created	unowned_region_start_round0	chunks=1 last=jmp     loc_41830E	jmp     sub_41830E
+0x00417FEF	0x00417FF4	created	unowned_region_start_round1	chunks=1 last=jmp     sub_41830E	jmp     sub_41830E
+0x00417FF4	0x0041802D	created	unowned_region_start_round2	chunks=1 last=jmp     sub_41830E	mov     eax, [edi]
+0x0041802D	0x00418066	created	unowned_region_start_round3	chunks=1 last=jmp     sub_41830E	mov     eax, [edi]
+0x00418066	0x0041809F	created	unowned_region_start_round4	chunks=1 last=jmp     sub_41830E	mov     eax, [edi]
+0x0041809F	0x004180D8	created	unowned_region_start_round5	chunks=1 last=jmp     sub_41830E	mov     eax, [edi]
+0x004272C0	0x004272CA	created	unowned_region_start_round0	chunks=1 last=jmp     loc_4272E0	call    sub_4272D0
+0x004272E0		skip_owned	unowned_region_start_round0		push    offset sub_4272F0
+0x004311B4		skip_no_boundary_before	unowned_region_start_round5	int     3; Trap to Debugger	pop     esi
+0x00435130		skip_owned	unowned_region_start_round0		push    esi
+0x00436FA0		skip_owned	unowned_region_start_round0		jmp     sub_4374E0
+0x00437560		skip_owned	unowned_region_start_round0		mov     eax, ecx
+0x004386E0		skip_owned	unowned_region_start_round0		push    ecx
+0x0043DA30	0x0043DD20	created	unowned_region_start_round0	chunks=1 last=retn	mov     eax, dword_4FCD20
+0x004439A0	0x00443A5D	created	unowned_region_start_round0	chunks=1 last=retn	mov     eax, dword_4FD078
+0x004452B0	0x00445358	created	unowned_region_start_round0	chunks=1 last=retn	push    esi
+0x00445430	0x0044559A	created	unowned_region_start_round0	chunks=1 last=retn	mov     eax, dword_4FC784
+0x004466A0	0x004466F4	created	unowned_region_start_round0	chunks=1 last=retn	mov     ax, word_4FC900
+0x00448C40	0x00448C63	created	unowned_region_start_round0	chunks=1 last=retn	mov     eax, dword_4FD2AC
+0x00448DA0	0x00448E90	created	unowned_region_start_round0	chunks=1 last=retn; jumptable 00448DC3 default case	mov     eax, dword_4FD2AC
+0x0044BBD0	0x0044BD70	created	unowned_region_start_round0	chunks=1 last=retn; jumptable 0044BBED default case, cases 3,4	mov     eax, dword_4FD3A8
+0x004517A0	0x004517AA	created	unowned_region_start_round0	chunks=1 last=jmp     loc_4517D0	call    sub_4517B0
+0x004517D0		skip_owned	unowned_region_start_round0		push    offset sub_4517E0
+0x004517E0		skip_owned	unowned_region_start_round0		push    offset sub_46E4D0
+0x00451800	0x0045180A	created	unowned_region_start_round0	chunks=1 last=jmp     loc_451830	call    sub_451810
+0x00451830		skip_owned	unowned_region_start_round0		push    offset sub_451840
+0x00451840		skip_owned	unowned_region_start_round0		push    offset sub_475590
+0x00451860	0x0045186A	created	unowned_region_start_round0	chunks=1 last=jmp     loc_451880	call    sub_451870
+0x00451880		skip_owned	unowned_region_start_round0		push    offset sub_451890
+0x004518A0	0x004518AA	created	unowned_region_start_round0	chunks=1 last=jmp     loc_4518C0	call    sub_4518B0
+0x004518C0		skip_owned	unowned_region_start_round0		push    offset sub_4518D0
+0x004518E0	0x004518E5	created	unowned_region_start_round0	chunks=1 last=jmp     loc_4518F0	jmp     sub_4518F0
+0x004518F0		skip_owned	unowned_region_start_round0		push    offset unk_53B0B8
+0x00451900	0x0045190A	created	unowned_region_start_round1	chunks=1 last=jmp     sub_451920	call    sub_451910
+0x00451920	0x0045192C	created	unowned_region_start_round0	chunks=1 last=retn	push    offset sub_451930
+0x00484DC0		skip_owned	unowned_region_start_round0		jmp     loc_484ED0
+0x00484ED0		skip_owned	unowned_region_start_round0		push    ebx
+0x00485350		skip_owned	unowned_region_start_round0		jmp     loc_4853C0
+0x004853C0		skip_owned	unowned_region_start_round0		push    esi
+0x00485440		skip_owned	unowned_region_start_round0		push    esi
+0x00485960		skip_owned	unowned_region_start_round0		push    0FFFFFFFFh
+0x004865A0		skip_owned	unowned_region_start_round0		jmp     loc_486610
+0x00486610		skip_owned	unowned_region_start_round0		push    ebx
+0x00487BC0	0x00487C0D	created	unowned_region_start_round0	chunks=1 last=retn	push    ebp
+0x004896AD	0x004896B6	created	unowned_region_start_round0	chunks=1 last=retn    8	pop     edi
+0x00489740		skip_owned	unowned_region_start_round0		push    ebp
+0x0048A87A	0x0048A897	created	unowned_region_start_round0	chunks=1 last=retn	mov     esp, [ebp-18h]
+0x0048A8F8		skip_no_boundary_before	unowned_region_start_round5	call    ds:ExitProcess	pop     ebp
+0x004907D0	0x004908F6	created	unowned_region_start_round0	chunks=1 last=retn	push    ebp
+0x00490900	0x0049091A	created	unowned_region_start_round0	chunks=1 last=retn	push    ebp
+0x0049091C		rolled_back	unowned_region_start_round5	bad_last_insn:xor	push    esi
+0x004909E1	0x004909FC	created	unowned_region_start_round0	chunks=1 last=retn    4	push    ebp
+0x004937A0	0x004937B5	created	unowned_region_start_round0	chunks=1 last=retn	push    ebp
+0x004937C0	0x004937D1	created	unowned_region_start_round0	chunks=1 last=retn	push    ebp
+0x00497390	0x004973C4	created	unowned_region_start_round0	chunks=1 last=retn    10h	mov     eax, [esp+arg_4]
+0x00497FD0	0x00497FD8	created	unowned_region_start_round0	chunks=1 last=jmp     sub_402200	lea     ecx, [ebp-58h]
+0x00497FD8	0x00497FE2	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C518
+0x00497FF0	0x00497FF8	created	unowned_region_start_round0	chunks=1 last=jmp     sub_402200	lea     ecx, [ebp-58h]
+0x00497FF8	0x00498002	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C540
+0x00498010	0x00498018	created	unowned_region_start_round0	chunks=1 last=jmp     sub_438030	lea     ecx, [ebp-70h]
+0x00498018	0x00498022	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C568
+0x00498030	0x00498038	created	unowned_region_start_round0	chunks=1 last=jmp     sub_438030	lea     ecx, [ebp-5Ch]
+0x00498038	0x00498042	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C590
+0x00498050	0x00498058	created	unowned_region_start_round0	chunks=1 last=jmp     sub_438030	lea     ecx, [ebp-5Ch]
+0x00498058	0x00498062	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C5B8
+0x00498070	0x00498078	created	unowned_region_start_round0	chunks=1 last=jmp     sub_438030	lea     ecx, [ebp-5Ch]
+0x00498078	0x00498082	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C5E0
+0x00498090	0x00498098	created	unowned_region_start_round0	chunks=1 last=jmp     sub_438030	lea     ecx, [ebp-5Ch]
+0x00498098	0x004980A2	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C608
+0x004980B0	0x004980B8	created	unowned_region_start_round0	chunks=1 last=jmp     sub_438030	lea     ecx, [ebp-5Ch]
+0x004980B8	0x004980C2	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C630
+0x004980D0	0x004980D8	created	unowned_region_start_round0	chunks=1 last=jmp     sub_438030	lea     ecx, [ebp-5Ch]
+0x004980D8	0x004980E2	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C658
+0x004980F0	0x004980F8	created	unowned_region_start_round0	chunks=1 last=jmp     sub_438030	lea     ecx, [ebp-5Ch]
+0x004980F8	0x00498102	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C680
+0x00498110	0x0049811B	created	unowned_region_start_round0	chunks=1 last=retn	mov     eax, [ebp-10h]
+0x0049811B	0x00498125	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C6A8
+0x00498130	0x0049813B	created	unowned_region_start_round0	chunks=1 last=retn	mov     eax, [ebp-14h]
+0x0049813B	0x00498145	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C6D0
+0x00498150	0x0049815B	created	unowned_region_start_round0	chunks=1 last=retn	mov     eax, [ebp-10h]
+0x0049815B	0x00498165	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C6F8
+0x00498170	0x0049817B	created	unowned_region_start_round0	chunks=1 last=retn	mov     eax, [ebp-10h]
+0x0049817B	0x00498185	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C720
+0x00498190	0x0049819B	created	unowned_region_start_round0	chunks=1 last=retn	mov     eax, [ebp-10h]
+0x0049819B	0x004981A6	created	unowned_region_start_round1	chunks=1 last=retn	mov     eax, [ebp+4]
+0x004981A6	0x004981B1	created	unowned_region_start_round2	chunks=1 last=retn	mov     eax, [ebp+4]
+0x004981B1	0x004981BB	created	unowned_region_start_round3	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C748
+0x004981C0	0x004981CB	created	unowned_region_start_round0	chunks=1 last=retn	mov     eax, [ebp-10h]
+0x004981CB	0x004981D5	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C780
+0x004981E0	0x004981EB	created	unowned_region_start_round0	chunks=1 last=retn	mov     eax, [ebp-10h]
+0x004981EB	0x004981F5	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C7A8
+0x00498200	0x0049820B	created	unowned_region_start_round0	chunks=1 last=retn	mov     eax, [ebp-10h]
+0x0049820B	0x00498215	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C7D0
+0x00498220	0x0049822B	created	unowned_region_start_round0	chunks=1 last=jmp     sub_438030	lea     ecx, [ebp-0FCh]
+0x0049822B	0x00498233	created	unowned_region_start_round1	chunks=1 last=jmp     sub_438030	lea     ecx, [ebp-5Ch]
+0x00498233	0x0049823E	created	unowned_region_start_round2	chunks=1 last=jmp     sub_438030	lea     ecx, [ebp-0ACh]
+0x0049823E	0x00498248	created	unowned_region_start_round3	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C7F8
+0x00498250	0x00498258	created	unowned_region_start_round0	chunks=1 last=jmp     sub_438030	lea     ecx, [ebp-5Ch]
+0x00498258	0x00498262	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C830
+0x00498270	0x00498278	created	unowned_region_start_round0	chunks=1 last=jmp     sub_438030	lea     ecx, [ebp-5Ch]
+0x00498278	0x00498282	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C858
+0x00498290	0x0049829B	created	unowned_region_start_round0	chunks=1 last=retn	mov     eax, [ebp-20h]
+0x0049829B	0x004982A6	created	unowned_region_start_round1	chunks=1 last=retn	mov     eax, [ebp-20h]
+0x004982A6	0x004982B0	created	unowned_region_start_round2	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C880
+0x004982B0	0x004982B8	created	unowned_region_start_round3	chunks=1 last=jmp     sub_402200	lea     ecx, [ebp-58h]
+0x004982B8	0x004982C2	created	unowned_region_start_round4	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C8B0
+0x004982D0	0x004982D8	created	unowned_region_start_round0	chunks=1 last=jmp     sub_402200	lea     ecx, [ebp-58h]
+0x004982D8	0x004982E2	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C8D8
+0x004982F0	0x004982F8	created	unowned_region_start_round0	chunks=1 last=jmp     sub_438030	lea     ecx, [ebp-5Ch]
+0x004982F8	0x00498302	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C900
+0x00498310	0x0049831B	created	unowned_region_start_round0	chunks=1 last=retn	mov     eax, [ebp-10h]
+0x0049831B	0x00498325	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C928
+0x00498330	0x0049833B	created	unowned_region_start_round0	chunks=1 last=retn	mov     eax, [ebp-10h]
+0x0049833B	0x00498345	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C950
+0x00498350	0x0049835B	created	unowned_region_start_round0	chunks=1 last=retn	mov     eax, [ebp+8]
+0x0049835B	0x00498365	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C978
+0x00498370	0x0049837B	created	unowned_region_start_round0	chunks=1 last=retn	mov     eax, [ebp+8]
+0x0049837B	0x00498385	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C9A0
+0x00498390	0x00498398	created	unowned_region_start_round0	chunks=1 last=jmp     sub_478300	mov     ecx, [ebp-10h]
+0x00498398	0x004983A2	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C9C8
+0x004983B0	0x004983B8	created	unowned_region_start_round0	chunks=1 last=jmp     sub_478300	mov     ecx, [ebp-10h]
+0x004983B8	0x004983C2	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49C9F0
+0x004983D0	0x004983DB	created	unowned_region_start_round0	chunks=1 last=retn	mov     eax, [ebp+8]
+0x004983DB	0x004983E5	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49CA18
+0x004983F0	0x004983FB	created	unowned_region_start_round0	chunks=1 last=retn	mov     eax, [ebp-10h]
+0x004983FB	0x00498405	created	unowned_region_start_round1	chunks=1 last=jmp     sub_489740	mov     eax, offset unk_49CA40
+0x00498410	0x00498418	created	unowned_region_start_round0	chunks=1 last=jmp     sub_438030	mov     ecx, [ebp-10h]

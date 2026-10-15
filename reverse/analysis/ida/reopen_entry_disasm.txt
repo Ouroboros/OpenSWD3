@@ -1,0 +1,12 @@
+0x0048A740  push    ebp
+0x0048A741  mov     ebp, esp
+0x0048A743  push    0FFFFFFFFh
+0x0048A745  push    offset stru_49BC08
+0x0048A74A  push    offset sub_490924
+0x0048A74F  mov     eax, large fs:0
+0x0048A755  push    eax
+0x0048A756  mov     large fs:0, esp
+0x0048A75D  add     esp, 0FFFFFFA4h
+0x0048A760  push    ebx
+0x0048A761  push    esi
+0x0048A762  push    edi

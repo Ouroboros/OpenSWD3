@@ -1,0 +1,1269 @@
+{
+ "tag": "reopen",
+ "idb_path": "E:\\Game\\swd3\\swd3-rebuild\\reverse\\analysis\\swd32.i64",
+ "input_path": "E:\\Game\\swd3\\swd3-rebuild\\reverse\\analysis\\work\\swd32.exe",
+ "input_sha256": "4c4c226876fd2f3169bfe62c58ede86bba59e0036b7cef4cfaf7d49475c03f2a",
+ "input_md5": "6f8a73425107e6e9d1f80f5ada9c59c5",
+ "input_size": 1122304,
+ "procname": "metapc",
+ "is_64bit": false,
+ "is_32bit": true,
+ "filetype": 11,
+ "imagebase": "0x00400000",
+ "min_ea": "0x00401000",
+ "max_ea": "0x0053F000",
+ "start_ea": "0x0048A740",
+ "af": "0xDF7FFFF7",
+ "af2": "0x0000000F",
+ "af_flirt_on": false,
+ "compiler_id": 1,
+ "function_count": 1626,
+ "unknown_libname_count": 0,
+ "func_lib": [
+  {
+   "ea": "0x0048A740",
+   "name": "start"
+  }
+ ],
+ "unowned_code_heads": 0,
+ "unowned_code_regions": 0,
+ "indirect_sites": 888,
+ "indirect_sites_switch": 130,
+ "nonfunc_gaps": 1488,
+ "segments": [
+  {
+   "name": ".text",
+   "start": "0x00401000",
+   "end": "0x00499000",
+   "perm": 5,
+   "type": 2,
+   "bitness": 1,
+   "exec": true
+  },
+  {
+   "name": ".idata",
+   "start": "0x00499000",
+   "end": "0x00499344",
+   "perm": 4,
+   "type": 1,
+   "bitness": 1,
+   "exec": false
+  },
+  {
+   "name": ".rdata",
+   "start": "0x00499344",
+   "end": "0x0049E000",
+   "perm": 4,
+   "type": 3,
+   "bitness": 1,
+   "exec": false
+  },
+  {
+   "name": ".data",
+   "start": "0x0049E000",
+   "end": "0x0053F000",
+   "perm": 6,
+   "type": 3,
+   "bitness": 1,
+   "exec": false
+  }
+ ],
+ "entries": [
+  {
+   "ordinal": 4761408,
+   "ea": "0x0048A740",
+   "name": "start"
+  }
+ ],
+ "imports": [
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499054",
+   "name": "UnmapViewOfFile",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499058",
+   "name": "MapViewOfFile",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x0049905C",
+   "name": "SetFilePointer",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499060",
+   "name": "CreateEventA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499064",
+   "name": "SetFileAttributesA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499068",
+   "name": "CreateFileMappingA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x0049906C",
+   "name": "GetFileSize",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499070",
+   "name": "DeleteFileA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499074",
+   "name": "ReadFile",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499078",
+   "name": "GetFileTime",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x0049907C",
+   "name": "HeapCreate",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499080",
+   "name": "GetSystemInfo",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499084",
+   "name": "HeapDestroy",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499088",
+   "name": "lstrcmpA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x0049908C",
+   "name": "CreateDirectoryA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499090",
+   "name": "CopyFileA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499094",
+   "name": "SetCurrentDirectoryA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499098",
+   "name": "GlobalMemoryStatus",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x0049909C",
+   "name": "GetCurrentDirectoryA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990A0",
+   "name": "WinExec",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990A4",
+   "name": "GetLastError",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990A8",
+   "name": "GetDriveTypeA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990AC",
+   "name": "CreateFileA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990B0",
+   "name": "SetEndOfFile",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990B4",
+   "name": "WriteFile",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990B8",
+   "name": "GetProcAddress",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990BC",
+   "name": "IsBadReadPtr",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990C0",
+   "name": "HeapValidate",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990C4",
+   "name": "UnhandledExceptionFilter",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990C8",
+   "name": "FreeEnvironmentStringsA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990CC",
+   "name": "RtlUnwind",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990D0",
+   "name": "WideCharToMultiByte",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990D4",
+   "name": "GetEnvironmentStrings",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990D8",
+   "name": "FreeEnvironmentStringsW",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990DC",
+   "name": "SetHandleCount",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990E0",
+   "name": "GetFileType",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990E4",
+   "name": "GetEnvironmentStringsW",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990E8",
+   "name": "MultiByteToWideChar",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990EC",
+   "name": "GetStringTypeA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990F0",
+   "name": "SetUnhandledExceptionFilter",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990F4",
+   "name": "IsBadCodePtr",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990F8",
+   "name": "GetStringTypeW",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x004990FC",
+   "name": "GetACP",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499100",
+   "name": "GetOEMCP",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499104",
+   "name": "GetCPInfo",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499108",
+   "name": "LCMapStringW",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x0049910C",
+   "name": "SetStdHandle",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499110",
+   "name": "LCMapStringA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499114",
+   "name": "RaiseException",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499118",
+   "name": "VirtualAlloc",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x0049911C",
+   "name": "FlushFileBuffers",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499120",
+   "name": "HeapFree",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499124",
+   "name": "HeapReAlloc",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499128",
+   "name": "VirtualFree",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x0049912C",
+   "name": "InterlockedIncrement",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499130",
+   "name": "OutputDebugStringA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499134",
+   "name": "GetModuleFileNameA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499138",
+   "name": "IsBadWritePtr",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x0049913C",
+   "name": "GetTimeZoneInformation",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499140",
+   "name": "CloseHandle",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499144",
+   "name": "LoadLibraryA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499148",
+   "name": "FormatMessageA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x0049914C",
+   "name": "SetEnvironmentVariableA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499150",
+   "name": "CompareStringW",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499154",
+   "name": "CompareStringA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499158",
+   "name": "FreeLibrary",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x0049915C",
+   "name": "lstrcatA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499160",
+   "name": "lstrlenA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499164",
+   "name": "GetLocalTime",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499168",
+   "name": "lstrcpyA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x0049916C",
+   "name": "GetStartupInfoA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499170",
+   "name": "GetCommandLineA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499174",
+   "name": "Sleep",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499178",
+   "name": "GetStdHandle",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x0049917C",
+   "name": "GetSystemTime",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499180",
+   "name": "ExitProcess",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499184",
+   "name": "TerminateProcess",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499188",
+   "name": "GetCurrentProcess",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x0049918C",
+   "name": "GetModuleHandleA",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499190",
+   "name": "InterlockedDecrement",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499194",
+   "name": "GetVersion",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x00499198",
+   "name": "HeapAlloc",
+   "ordinal": 0
+  },
+  {
+   "module": "KERNEL32",
+   "ea": "0x0049919C",
+   "name": "DebugBreak",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x004991A4",
+   "name": "LoadIconA",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x004991A8",
+   "name": "LoadCursorA",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x004991AC",
+   "name": "DialogBoxParamA",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x004991B0",
+   "name": "wsprintfA",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x004991B4",
+   "name": "ShowCursor",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x004991B8",
+   "name": "DispatchMessageA",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x004991BC",
+   "name": "PeekMessageA",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x004991C0",
+   "name": "TranslateMessage",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x004991C4",
+   "name": "GetMessageA",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x004991C8",
+   "name": "ShowWindow",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x004991CC",
+   "name": "SendMessageA",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x004991D0",
+   "name": "UpdateWindow",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x004991D4",
+   "name": "LoadStringA",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x004991D8",
+   "name": "CreateWindowExA",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x004991DC",
+   "name": "CharPrevA",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x004991E0",
+   "name": "SetCursorPos",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x004991E4",
+   "name": "GetWindowRect",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x004991E8",
+   "name": "SetFocus",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x004991EC",
+   "name": "SetRect",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x004991F0",
+   "name": "SetDlgItemTextA",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x004991F4",
+   "name": "EndDialog",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x004991F8",
+   "name": "IntersectRect",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x004991FC",
+   "name": "CharNextA",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x00499200",
+   "name": "EnableWindow",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x00499204",
+   "name": "GetDlgItem",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x00499208",
+   "name": "GetDlgItemTextA",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x0049920C",
+   "name": "PostQuitMessage",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x00499210",
+   "name": "SetWindowPos",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x00499214",
+   "name": "GetSystemMetrics",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x00499218",
+   "name": "FindWindowExA",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x0049921C",
+   "name": "MessageBeep",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x00499220",
+   "name": "DefWindowProcA",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x00499224",
+   "name": "MessageBoxA",
+   "ordinal": 0
+  },
+  {
+   "module": "USER32",
+   "ea": "0x00499228",
+   "name": "RegisterClassExA",
+   "ordinal": 0
+  },
+  {
+   "module": "GDI32",
+   "ea": "0x00499020",
+   "name": "GetPixel",
+   "ordinal": 0
+  },
+  {
+   "module": "GDI32",
+   "ea": "0x00499024",
+   "name": "CreateFontIndirectA",
+   "ordinal": 0
+  },
+  {
+   "module": "GDI32",
+   "ea": "0x00499028",
+   "name": "DeleteObject",
+   "ordinal": 0
+  },
+  {
+   "module": "GDI32",
+   "ea": "0x0049902C",
+   "name": "GetStockObject",
+   "ordinal": 0
+  },
+  {
+   "module": "GDI32",
+   "ea": "0x00499030",
+   "name": "SetTextColor",
+   "ordinal": 0
+  },
+  {
+   "module": "GDI32",
+   "ea": "0x00499034",
+   "name": "SetBkMode",
+   "ordinal": 0
+  },
+  {
+   "module": "GDI32",
+   "ea": "0x00499038",
+   "name": "TextOutA",
+   "ordinal": 0
+  },
+  {
+   "module": "GDI32",
+   "ea": "0x0049903C",
+   "name": "SelectObject",
+   "ordinal": 0
+  },
+  {
+   "module": "GDI32",
+   "ea": "0x00499040",
+   "name": "SetPixel",
+   "ordinal": 0
+  },
+  {
+   "module": "GDI32",
+   "ea": "0x00499044",
+   "name": "SetBkColor",
+   "ordinal": 0
+  },
+  {
+   "module": "ADVAPI32",
+   "ea": "0x00499000",
+   "name": "RegQueryValueExA",
+   "ordinal": 0
+  },
+  {
+   "module": "ADVAPI32",
+   "ea": "0x00499004",
+   "name": "RegOpenKeyExA",
+   "ordinal": 0
+  },
+  {
+   "module": "ADVAPI32",
+   "ea": "0x00499008",
+   "name": "RegCloseKey",
+   "ordinal": 0
+  },
+  {
+   "module": "ole32",
+   "ea": "0x00499338",
+   "name": "CoUninitialize",
+   "ordinal": 0
+  },
+  {
+   "module": "ole32",
+   "ea": "0x0049933C",
+   "name": "CoInitialize",
+   "ordinal": 0
+  },
+  {
+   "module": "DDRAW",
+   "ea": "0x00499010",
+   "name": "DirectDrawCreate",
+   "ordinal": 0
+  },
+  {
+   "module": "DINPUT",
+   "ea": "0x00499018",
+   "name": "DirectInputCreateA",
+   "ordinal": 0
+  },
+  {
+   "module": "IMM32",
+   "ea": "0x0049904C",
+   "name": "ImmIsIME",
+   "ordinal": 0
+  },
+  {
+   "module": "WINMM",
+   "ea": "0x00499230",
+   "name": "PlaySoundA",
+   "ordinal": 0
+  },
+  {
+   "module": "WINMM",
+   "ea": "0x00499234",
+   "name": "timeGetTime",
+   "ordinal": 0
+  },
+  {
+   "module": "binkw32",
+   "ea": "0x0049923C",
+   "name": "_BinkGetError@0",
+   "ordinal": 0
+  },
+  {
+   "module": "binkw32",
+   "ea": "0x00499240",
+   "name": "_BinkClose@4",
+   "ordinal": 0
+  },
+  {
+   "module": "binkw32",
+   "ea": "0x00499244",
+   "name": "_BinkNextFrame@4",
+   "ordinal": 0
+  },
+  {
+   "module": "binkw32",
+   "ea": "0x00499248",
+   "name": "_BinkSetSoundSystem@8",
+   "ordinal": 0
+  },
+  {
+   "module": "binkw32",
+   "ea": "0x0049924C",
+   "name": "_BinkDDSurfaceType@4",
+   "ordinal": 0
+  },
+  {
+   "module": "binkw32",
+   "ea": "0x00499250",
+   "name": "_BinkService@4",
+   "ordinal": 0
+  },
+  {
+   "module": "binkw32",
+   "ea": "0x00499254",
+   "name": "_BinkCopyToBuffer@28",
+   "ordinal": 0
+  },
+  {
+   "module": "binkw32",
+   "ea": "0x00499258",
+   "name": "_BinkDoFrame@4",
+   "ordinal": 0
+  },
+  {
+   "module": "binkw32",
+   "ea": "0x0049925C",
+   "name": "_BinkWait@4",
+   "ordinal": 0
+  },
+  {
+   "module": "binkw32",
+   "ea": "0x00499260",
+   "name": "_BinkGetSummary@8",
+   "ordinal": 0
+  },
+  {
+   "module": "binkw32",
+   "ea": "0x00499264",
+   "name": "_BinkSetVolume@8",
+   "ordinal": 0
+  },
+  {
+   "module": "binkw32",
+   "ea": "0x00499268",
+   "name": "_BinkOpenDirectSound@4",
+   "ordinal": 0
+  },
+  {
+   "module": "binkw32",
+   "ea": "0x0049926C",
+   "name": "_BinkOpenMiles@4",
+   "ordinal": 0
+  },
+  {
+   "module": "binkw32",
+   "ea": "0x00499270",
+   "name": "_BinkOpen@8",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x00499278",
+   "name": "_AIL_waveOutClose@4",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x0049927C",
+   "name": "_AIL_stream_volume@4",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x00499280",
+   "name": "_AIL_set_stream_volume@8",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x00499284",
+   "name": "_AIL_start_stream@4",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x00499288",
+   "name": "_AIL_set_stream_loop_count@8",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x0049928C",
+   "name": "_AIL_set_stream_user_data@12",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x00499290",
+   "name": "_AIL_open_stream@12",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x00499294",
+   "name": "_AIL_stream_ms_position@12",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x00499298",
+   "name": "_AIL_stream_status@4",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x0049929C",
+   "name": "_AIL_stream_user_data@8",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992A0",
+   "name": "_AIL_sample_status@4",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992A4",
+   "name": "_AIL_sample_user_data@8",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992A8",
+   "name": "_AIL_set_named_sample_file@20",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992AC",
+   "name": "_AIL_set_sample_file@12",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992B0",
+   "name": "_AIL_set_sample_user_data@12",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992B4",
+   "name": "_AIL_set_sample_volume@8",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992B8",
+   "name": "_AIL_set_sample_pan@8",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992BC",
+   "name": "_AIL_set_sample_loop_count@8",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992C0",
+   "name": "_AIL_start_sample@4",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992C4",
+   "name": "_AIL_end_sample@4",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992C8",
+   "name": "_AIL_release_sample_handle@4",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992CC",
+   "name": "_AIL_set_preference@8",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992D0",
+   "name": "_AIL_waveOutOpen@16",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992D4",
+   "name": "_AIL_digital_configuration@16",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992D8",
+   "name": "_AIL_get_preference@4",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992DC",
+   "name": "_AIL_close_stream@4",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992E0",
+   "name": "_AIL_allocate_sample_handle@4",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992E4",
+   "name": "_AIL_init_sample@4",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992E8",
+   "name": "_AIL_shutdown@0",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992EC",
+   "name": "_AIL_set_redist_directory@4",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992F0",
+   "name": "_AIL_startup@0",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992F4",
+   "name": "_AIL_serve@0",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992F8",
+   "name": "_AIL_sequence_user_data@8",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x004992FC",
+   "name": "_AIL_sequence_status@4",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x00499300",
+   "name": "_AIL_init_sequence@12",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x00499304",
+   "name": "_AIL_set_sequence_user_data@12",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x00499308",
+   "name": "_AIL_set_sequence_volume@12",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x0049930C",
+   "name": "_AIL_set_sequence_loop_count@8",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x00499310",
+   "name": "_AIL_start_sequence@4",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x00499314",
+   "name": "_AIL_mem_free_lock@4",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x00499318",
+   "name": "_AIL_end_sequence@4",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x0049931C",
+   "name": "_AIL_release_sequence_handle@4",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x00499320",
+   "name": "_AIL_midiOutClose@4",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x00499324",
+   "name": "_AIL_midiOutOpen@12",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x00499328",
+   "name": "_AIL_last_error@0",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x0049932C",
+   "name": "_AIL_mem_alloc_lock@4",
+   "ordinal": 0
+  },
+  {
+   "module": "mss32",
+   "ea": "0x00499330",
+   "name": "_AIL_allocate_sequence_handle@4",
+   "ordinal": 0
+  }
+ ],
+ "patched_bytes": 0
+}

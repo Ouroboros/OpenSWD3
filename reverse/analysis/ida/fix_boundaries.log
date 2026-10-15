@@ -1,0 +1,72 @@
+del_func 0x00417FEA
+del_func 0x00417FEF
+del_func 0x00417FF4
+del_func 0x0041802D
+del_func 0x00418066
+del_func 0x0041809F
+del_func 0x0041830E
+OK   merge 0x00417EC0 end=0x00418346 (jmp ebx dispatch blocks of sub_417EC0: block addresses stored by lea in sub_417EC0, blocks jump back to loc_417FD7/loc_417FD1) got_end=0x00418346
+OK   merge 0x00417EC0 no foreign/unowned code heads in range (0)
+del_func 0x004896AD
+OK   merge 0x00489680 end=0x004896B6 (epilogue after jmp eax matching prologue push ebx/esi/edi) got_end=0x004896B6
+OK   merge 0x00489680 no foreign/unowned code heads in range (0)
+del_func 0x0048A87A
+OK   merge 0x0048A740 end=0x0048A897 (__except handler of start using [ebp-18h]/[ebp-68h] frame slots) got_end=0x0048A897
+OK   merge 0x0048A740 no foreign/unowned code heads in range (0)
+OK   merge 0x0048A8D0 end=0x0048A8FA (epilogue after ExitProcess) got_end=0x0048A8FA
+OK   merge 0x0048A8D0 no foreign/unowned code heads in range (0)
+OK   merge 0x00431150 end=0x004311B7 (epilogue after int 3) got_end=0x004311B7
+OK   merge 0x00431150 no foreign/unowned code heads in range (0)
+OK   data 0x0049091C size 8 (VC20XC0 marker string misdefined as code)
+OK   split tail 0x00401020 parents=0x00401000 -> func end=0x0040102C last=retn refs=0x00401005
+OK   split tail 0x00401060 parents=0x00401040 -> func end=0x0040106C last=retn refs=0x00401045
+OK   split tail 0x004010A0 parents=0x00401080 -> func end=0x004010AC last=retn refs=0x00401085
+OK   split tail 0x004010E0 parents=0x004010C0 -> func end=0x004010EC last=retn refs=0x004010C5
+OK   split tail 0x00401120 parents=0x00401100 -> func end=0x0040112C last=retn refs=0x00401105
+OK   split tail 0x00401160 parents=0x00401140 -> func end=0x0040116C last=retn refs=0x00401145
+OK   split tail 0x004011B0 parents=0x00401180 -> func end=0x004011BC last=retn refs=0x00401185
+OK   split tail 0x004011F0 parents=0x004011D0 -> func end=0x004011FC last=retn refs=0x004011D5
+OK   split tail 0x00401230 parents=0x00401210 -> func end=0x0040123C last=retn refs=0x00401215
+OK   split tail 0x00401270 parents=0x00401250 -> func end=0x0040127C last=retn refs=0x00401255
+OK   split tail 0x004012B0 parents=0x00401290 -> func end=0x004012BC last=retn refs=0x00401295
+OK   split tail 0x004012F0 parents=0x004012D0 -> func end=0x004012FC last=retn refs=0x004012D5
+OK   split tail 0x00401330 parents=0x00401310 -> func end=0x0040133C last=retn refs=0x00401315
+OK   split tail 0x00401370 parents=0x00401350 -> func end=0x0040137C last=retn refs=0x00401355
+OK   split tail 0x004013B0 parents=0x00401390 -> func end=0x004013BC last=retn refs=0x00401395
+OK   split tail 0x004013F0 parents=0x004013D0 -> func end=0x004013FC last=retn refs=0x004013D5
+OK   split tail 0x00401430 parents=0x00401410 -> func end=0x0040143C last=retn refs=0x00401415
+OK   split tail 0x00401470 parents=0x00401450 -> func end=0x0040147C last=retn refs=0x00401455
+OK   split tail 0x004014D0 parents=0x004014B0 -> func end=0x004014DC last=retn refs=0x004014B5
+OK   split tail 0x004272E0 parents=0x004272C0 -> func end=0x004272EC last=retn refs=0x004272C5
+OK   split tail 0x00435130 parents=0x00401200,0x00401240,0x00401280 -> func end=0x00435158 last=retn refs=0x00401205,0x00401245,0x00401285
+OK   split tail 0x00436F70 parents=0x004014C0 -> func end=0x00436F91 last=retn refs=0x004014C5
+OK   split tail 0x00437560 parents=0x004014A0 -> func end=0x0043756D last=retn refs=0x004014A5
+OK   split tail 0x0043C2F0 parents=0x0043C3C0 -> func end=0x0043C3BC last=retn refs=0x0043C814,0x0044508A
+OK   split tail 0x0043C600 parents=0x0043C3C0,0x00446090 -> func end=0x0043C670 last=retn refs=0x0043C506,0x0044609E,0x0043B817
+OK   split tail 0x0043C6E0 parents=0x00446420 -> func end=0x0043C753 last=retn refs=0x0044642C,0x0043B803
+OK   split tail 0x0043C7E0 parents=0x0043C3C0,0x00446680,0x004466A0 -> func end=0x0043C7F6 last=retn refs=0x0043C485,0x0044668B,0x004466AC,0x0043B82B
+OK   split tail 0x0043C800 parents=0x0043C3C0,0x00446FE0 -> func end=0x0043C81A last=retn refs=0x0043C514,0x00446FEC,0x0043B83F
+OK   split tail 0x00440750 parents=0x00441590 -> func end=0x004407E5 last=retn refs=0x004415EA,0x00445058
+OK   split tail 0x00442020 parents=0x00442050 -> func end=0x00442044 last=retn refs=0x004420E4
+OK   split tail 0x00447FD0 parents=0x00448230 -> func end=0x00448018 last=retn refs=0x004482CD
+OK   split tail 0x004517D0 parents=0x004517A0 -> func end=0x004517DC last=retn refs=0x004517A5
+OK   split tail 0x00451830 parents=0x00451800 -> func end=0x0045183C last=retn refs=0x00451805
+OK   split tail 0x00451880 parents=0x00451860 -> func end=0x0045188C last=retn refs=0x00451865
+OK   split tail 0x004518C0 parents=0x004518A0 -> func end=0x004518CC last=retn refs=0x004518A5
+OK   split tail 0x0046E390 parents=0x0046E260 -> func end=0x0046E48A last=retn refs=0x0046E285
+OK   split tail 0x004846D0 parents=0x00484DA0 -> func end=0x004846E7 last=retn refs=0x00484DAD
+OK   split tail 0x00484DC0 parents=0x004010F0 -> func end=0x00484DC5 last=jmp     sub_484ED0 refs=0x004010F5
+FAIL split tail 0x00484ED0 parents=0x004010F0 -> func end=0x00484F58 last=retn refs=0x00484DC0
+OK   split tail 0x00485340 parents=0x00401050 -> func end=0x00485349 last=retn refs=0x00401055
+OK   split tail 0x00485350 parents=0x00401070 -> func end=0x00485355 last=jmp     sub_4853C0 refs=0x00401075
+FAIL split tail 0x004853C0 parents=0x00401070 -> func end=0x004853D1 last=retn refs=0x00485350
+OK   split tail 0x004853E0 parents=0x00401150 -> func end=0x00485437 last=retn refs=0x00401155
+OK   split tail 0x00485440 parents=0x00401170 -> func end=0x00485455 last=retn refs=0x00401175
+OK   split tail 0x00485930 parents=0x00401090 -> func end=0x0048595D last=retn refs=0x00401095
+OK   split tail 0x00486580 parents=0x004010D0,0x00401110 -> func end=0x004865A0 last=retn refs=0x004010D5,0x00401115
+OK   split tail 0x004865A0 parents=0x00401130 -> func end=0x004865A5 last=jmp     sub_486610 refs=0x00401135
+FAIL split tail 0x00486610 parents=0x00401130 -> func end=0x00486694 last=retn refs=0x004865A0
+OK   split tail 0x00490A00 parents=0x00490A10 -> func end=0x00490A05 last=retn refs=0x00490A2D
+split round 0 made 46
+functions 1591 -> 1631, split 46, remaining multi-chunk 0
+saved

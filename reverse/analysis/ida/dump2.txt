@@ -1,0 +1,428 @@
+==== 0043C2E0-0043C3D0
+0043C2E0 0043C0D0 U                          mov     dword_4FCA80, ebx                                    
+0043C2E2 0043C0D0 C                          pop     edi                                                  
+0043C2E3 0043C0D0 C                          pop     ebx                                                  
+0043C2E4 0043C0D0 C                          retn                                                         
+0043C2E5 -------- D                          align 10h                                                    
+0043C2F0 0043C3C0 C loc_43C2F0               mov     eax, dword_4FC918                                    0043C814:Code_N,0044508A:Data_O
+0043C2F5 0043C3C0 C                          mov     eax, [eax+0ACh]                                      
+0043C2FB 0043C3C0 C                          test    eax, eax                                             
+0043C2FD 0043C3C0 C                          jz      short loc_43C318                                     
+0043C2FF 0043C3C0 C                          push    eax                                                  
+0043C300 0043C3C0 C                          call    sub_4885A0                                           
+0043C305 0043C3C0 C                          mov     ecx, dword_4FC918                                    
+0043C30B 0043C3C0 C                          add     esp, 4                                               
+0043C30E 0043C3C0 C                          mov     dword ptr [ecx+0ACh], 0                              
+0043C318 0043C3C0 C loc_43C318               mov     edx, dword_4FC918                                    0043C2FD:Code_N
+0043C31E 0043C3C0 C                          push    edx                                                  
+0043C31F 0043C3C0 C                          call    sub_4885A0                                           
+0043C324 0043C3C0 C                          mov     eax, dword_4FCA78                                    
+0043C329 0043C3C0 C                          push    eax                                                  
+0043C32A 0043C3C0 C                          call    sub_4885A0                                           
+0043C32F 0043C3C0 C                          mov     ecx, dword_4FCA7C                                    
+0043C335 0043C3C0 C                          push    ecx                                                  
+0043C336 0043C3C0 C                          call    sub_4885A0                                           
+0043C33B 0043C3C0 C                          mov     edx, dword_4FC930                                    
+0043C341 0043C3C0 C                          push    edx                                                  
+0043C342 0043C3C0 C                          call    sub_4885A0                                           
+0043C347 0043C3C0 C                          add     esp, 10h                                             
+0043C34A 0043C3C0 C                          xor     eax, eax                                             
+0043C34C 0043C3C0 C                          mov     dword_4FC974, eax                                    
+0043C351 0043C3C0 C loc_43C351               mov     eax, dword_4FC934[eax*4]                             0043C36F:Code_N
+0043C358 0043C3C0 C                          push    eax                                                  
+0043C359 0043C3C0 C                          call    sub_4885A0                                           
+0043C35E 0043C3C0 C                          mov     eax, dword_4FC974                                    
+0043C363 0043C3C0 C                          add     esp, 4                                               
+0043C366 0043C3C0 C                          inc     eax                                                  
+0043C367 0043C3C0 C                          cmp     eax, 10h                                             
+0043C36A 0043C3C0 C                          mov     dword_4FC974, eax                                    
+0043C36F 0043C3C0 C                          jl      short loc_43C351                                     
+0043C371 0043C3C0 C                          xor     eax, eax                                             
+0043C373 0043C3C0 C                          mov     dword_4FC974, eax                                    
+0043C378 0043C3C0 C loc_43C378               mov     ecx, lpString1[eax*4]                                0043C396:Code_N
+0043C37F 0043C3C0 C                          push    ecx                                                  
+0043C380 0043C3C0 C                          call    sub_4885A0                                           
+0043C385 0043C3C0 C                          mov     eax, dword_4FC974                                    
+0043C38A 0043C3C0 C                          add     esp, 4                                               
+0043C38D 0043C3C0 C                          inc     eax                                                  
+0043C38E 0043C3C0 C                          cmp     eax, 40h ; '@'                                       
+0043C391 0043C3C0 C                          mov     dword_4FC974, eax                                    
+0043C396 0043C3C0 C                          jl      short loc_43C378                                     
+0043C398 0043C3C0 C                          mov     edx, dword_4FC91C                                    
+0043C39E 0043C3C0 C                          push    edx                                                  
+0043C39F 0043C3C0 C                          call    sub_4885A0                                           
+0043C3A4 0043C3C0 C                          add     esp, 4                                               
+0043C3A7 0043C3C0 C                          mov     dword_4FB970, 232Ah                                  
+0043C3B1 0043C3C0 C                          mov     dword_4FB978, 43h ; 'C'                              
+0043C3BB 0043C3C0 C                          retn                                                         
+0043C3BC -------- D                          align 10h                                                    
+0043C3C0 0043C3C0 C sub_43C3C0               mov     eax, dword_4A9928                                    004455F2:Code_N,0043B7E5:Data_O
+0043C3C5 0043C3C0 C                          mov     ecx, dword_4A9924                                    
+0043C3CB 0043C3C0 C                          mov     dl, byte ptr dword_4FB8AC                            
+==== 0043C510-0043C520
+0043C510 0043C3C0 U                          test    byte ptr dword_4FB8AC, 0Ch                           
+0043C512 0043C3C0 C                          jz      short locret_43C519                                  
+0043C514 0043C3C0 C                          jmp     loc_43C800                                           
+0043C519 0043C3C0 C locret_43C519            retn                                                         0043C454:Code_N,0043C461:Code_N,0043C469:Code_N,0043C4FC:Code_N,0043C504:Code_N,0043C512:Code_N
+0043C51A -------- D                          align 10h                                                    
+==== 0043C5F0-0043C680
+0043C5F0 0043C590 U                          mov     eax, dword_4AB784                                    
+0043C5F4 0043C590 C                          push    eax                                                  
+0043C5F5 0043C590 C                          push    2Eh ; '.'                                            
+0043C5F7 0043C590 C                          call    sub_485610                                           
+0043C5FC 0043C590 C                          add     esp, 2Ch                                             
+0043C5FF 0043C590 C                          retn                                                         
+0043C600 0043C3C0 C loc_43C600               push    0Fh                                                  0043C506:Code_N,0044609E:Code_N,0043B817:Data_O
+0043C602 0043C3C0 C                          push    offset dword_4FC914                                  
+0043C607 0043C3C0 C                          push    offset dword_4FC928                                  
+0043C60C 0043C3C0 C                          push    offset dword_4FC90C                                  
+0043C611 0043C3C0 C                          push    offset dword_4FC974                                  
+0043C616 0043C3C0 C                          call    sub_43BBE0                                           
+0043C61B 0043C3C0 C                          mov     eax, dword_4FC91C                                    
+0043C620 0043C3C0 C                          mov     ecx, dword_4FC90C                                    
+0043C626 0043C3C0 C                          push    offset dword_4FC920                                  
+0043C62B 0043C3C0 C                          push    eax                                                  
+0043C62C 0043C3C0 C                          push    ecx                                                  
+0043C62D 0043C3C0 C                          call    sub_43CC00                                           
+0043C632 0043C3C0 C                          call    sub_43CBD0                                           
+0043C637 0043C3C0 C                          mov     edx, dword_4FC928                                    
+0043C63D 0043C3C0 C                          mov     eax, dword_4FC90C                                    
+0043C642 0043C3C0 C                          mov     ecx, dword_4FC91C                                    
+0043C648 0043C3C0 C                          add     eax, edx                                             
+0043C64A 0043C3C0 C                          mov     edx, [ecx+eax*4]                                     
+0043C64D 0043C3C0 C                          push    edx                                                  
+0043C64E 0043C3C0 C                          call    sub_43CEF0                                           
+0043C653 0043C3C0 C                          mov     eax, dword_4FCA80                                    
+0043C658 0043C3C0 C                          or      al, 30h                                              
+0043C65A 0043C3C0 C                          mov     dword_4FCA80, eax                                    
+0043C65F 0043C3C0 C                          mov     eax, dword_4AB784                                    
+0043C664 0043C3C0 C                          push    eax                                                  
+0043C665 0043C3C0 C                          push    2Eh ; '.'                                            
+0043C667 0043C3C0 C                          call    sub_485610                                           
+0043C66C 0043C3C0 C                          add     esp, 2Ch                                             
+0043C66F 0043C3C0 C                          retn                                                         
+0043C670 0043C670 C sub_43C670               push    0Fh                                                  0043C4EC:Code_N,0044626E:Code_N,0043B821:Data_O
+0043C672 0043C670 C                          push    offset dword_4FC914                                  
+0043C677 0043C670 C                          push    offset dword_4FC928                                  
+0043C67C 0043C670 C                          push    offset dword_4FC90C                                  
+==== 0043C6D0-0043C760
+0043C6D0 0043C670 U                          mov     eax, dword_4AB784                                    
+0043C6D4 0043C670 C                          push    eax                                                  
+0043C6D5 0043C670 C                          push    2Eh ; '.'                                            
+0043C6D7 0043C670 C                          call    sub_485610                                           
+0043C6DC 0043C670 C                          add     esp, 2Ch                                             
+0043C6DF 0043C670 C                          retn                                                         
+0043C6E0 00446420 C loc_43C6E0               mov     eax, dword_4FC910                                    0044642C:Code_N,0043B803:Data_O
+0043C6E5 00446420 C                          dec     eax                                                  
+0043C6E6 00446420 C                          mov     dword_4FC910, eax                                    
+0043C6EB 00446420 C                          jns     short loc_43C6F7                                     
+0043C6ED 00446420 C                          mov     dword_4FC910, 0                                      
+0043C6F7 00446420 C loc_43C6F7               mov     eax, dword_4FC910                                    0043C6EB:Code_N
+0043C6FC 00446420 C                          mov     ecx, dword_4FC91C                                    
+0043C702 00446420 C                          push    eax                                                  
+0043C703 00446420 C                          push    ecx                                                  
+0043C704 00446420 C                          call    sub_43C9C0                                           
+0043C709 00446420 C                          mov     edx, dword_4FC91C                                    
+0043C70F 00446420 C                          mov     eax, dword_4FC90C                                    
+0043C714 00446420 C                          push    offset dword_4FC920                                  
+0043C719 00446420 C                          push    edx                                                  
+0043C71A 00446420 C                          push    eax                                                  
+0043C71B 00446420 C                          call    sub_43CC00                                           
+0043C720 00446420 C                          call    sub_43CBD0                                           
+0043C725 00446420 C                          mov     ecx, dword_4FC928                                    
+0043C72B 00446420 C                          mov     edx, dword_4FC90C                                    
+0043C731 00446420 C                          mov     eax, dword_4FC91C                                    
+0043C736 00446420 C                          add     ecx, edx                                             
+0043C738 00446420 C                          mov     ecx, [eax+ecx*4]                                     
+0043C73B 00446420 C                          push    ecx                                                  
+0043C73C 00446420 C                          call    sub_43CEF0                                           
+0043C741 00446420 C                          mov     edx, dword_4AB784                                    
+0043C747 00446420 C                          push    edx                                                  
+0043C748 00446420 C                          push    2Eh ; '.'                                            
+0043C74A 00446420 C                          call    sub_485610                                           
+0043C74F 00446420 C                          add     esp, 20h                                             
+0043C752 00446420 C                          retn                                                         
+0043C753 -------- D                          align 10h                                                    
+==== 0043C7D0-0043C820
+0043C7D0 0043C760 C                          retn                                                         
+0043C7D1 -------- D                          align 10h                                                    
+0043C7E0 0043C3C0 C loc_43C7E0               call    sub_43C760                                           0043C485:Code_N,0044668B:Code_N,004466AC:Code_N,0043B82B:Data_O
+0043C7E5 0043C3C0 C                          mov     eax, dword_4AB784                                    
+0043C7EA 0043C3C0 C                          push    eax                                                  
+0043C7EB 0043C3C0 C                          push    2Eh ; '.'                                            
+0043C7ED 0043C3C0 C                          call    sub_485610                                           
+0043C7F2 0043C3C0 C                          add     esp, 8                                               
+0043C7F5 0043C3C0 C                          retn                                                         
+0043C7F6 -------- D                          align 10h                                                    
+0043C800 0043C3C0 C loc_43C800               cmp     word_4FC900, 1F4h                                    0043C514:Code_N,00446FEC:Code_N,0043B83F:Data_O
+0043C809 0043C3C0 C                          jnz     short locret_43C819                                  
+0043C80B 0043C3C0 C                          mov     word_4FC900, 2                                       
+0043C814 0043C3C0 C                          jmp     loc_43C2F0                                           
+0043C819 0043C3C0 C locret_43C819            retn                                                         0043C809:Code_N
+0043C81A -------- D                          align 10h                                                    
+==== 00440740-004407F0
+00440740 00440630 U                          mov     dword_4FCD44, 78h ; 'x'                              
+00440741 00440630 C                          pop     esi                                                  
+00440742 00440630 C                          retn                                                         
+00440743 -------- D                          align 10h                                                    
+00440750 00441590 C loc_440750               push    esi                                                  004415EA:Code_N,00445058:Data_O
+00440751 00441590 C                          call    sub_4420F0                                           
+00440756 00441590 C                          mov     eax, dword_4FCD4C                                    
+0044075B 00441590 C                          xor     esi, esi                                             
+0044075D 00441590 C                          push    eax                                                  
+0044075E 00441590 C                          mov     dword_4FCD34, esi                                    
+00440764 00441590 C                          mov     dword_4FCD3C, esi                                    
+0044076A 00441590 C                          mov     dword_4FCF88, esi                                    
+00440770 00441590 C                          mov     dword_4FCF90, esi                                    
+00440776 00441590 C                          mov     dword_4FCD38, esi                                    
+0044077C 00441590 C                          mov     dword_4FCD54, esi                                    
+00440782 00441590 C                          mov     dword_4FCD64, esi                                    
+00440788 00441590 C                          mov     dword_4FCD70, esi                                    
+0044078E 00441590 C                          call    sub_4885A0                                           
+00440793 00441590 C                          mov     ecx, dword_4FCD50                                    
+00440799 00441590 C                          push    ecx                                                  
+0044079A 00441590 C                          call    sub_4885A0                                           
+0044079F 00441590 C                          add     esp, 8                                               
+004407A2 00441590 C                          mov     dword_4FCD4C, esi                                    
+004407A8 00441590 C                          mov     dword_4FCD50, esi                                    
+004407AE 00441590 C                          mov     eax, offset dword_4C8AD0                             
+004407B3 00441590 C                          mov     ecx, 1                                               
+004407B8 00441590 C loc_4407B8               mov     edx, [eax]                                           004407CD:Code_N
+004407BA 00441590 C                          add     eax, 4                                               
+004407BD 00441590 C                          cmp     eax, offset hmod                                     
+004407C2 00441590 C                          mov     [edx+8], cx                                          
+004407C6 00441590 C                          mov     edx, [eax-4]                                         
+004407C9 00441590 C                          mov     [edx+0Ah], si                                        
+004407CD 00441590 C                          jl      short loc_4407B8                                     
+004407CF 00441590 C                          mov     eax, dword_4FCF8C                                    
+004407D4 00441590 C                          push    eax                                                  
+004407D5 00441590 C                          call    sub_4885A0                                           
+004407DA 00441590 C                          add     esp, 4                                               
+004407DD 00441590 C                          mov     dword_4FCD48, esi                                    
+004407E3 00441590 C                          pop     esi                                                  
+004407E4 00441590 C                          retn                                                         
+004407E5 -------- D                          align 10h                                                    
+==== 00442010-00442060
+00442010 00441F70 U                          mov     ebx, [ebx]                                           
+00442011 00441F70 C loc_442011               test    esi, esi                                             00441FF4:Code_N,00442001:Code_N,0044200B:Code_N
+00442013 00441F70 C                          jnz     loc_441F94                                           
+00442019 00441F70 C                          pop     ebp                                                  
+0044201A 00441F70 C loc_44201A               pop     edi                                                  00441F8D:Code_N
+0044201B 00441F70 C                          pop     esi                                                  
+0044201C 00441F70 C                          pop     ebx                                                  
+0044201D 00441F70 C                          retn                                                         
+0044201E -------- D                          align 10h                                                    
+00442020 00442050 C loc_442020               mov     eax, dword_4FCD64                                    004420E4:Code_N
+00442025 00442050 C                          xor     ecx, ecx                                             
+00442027 00442050 C                          test    eax, eax                                             
+00442029 00442050 C                          mov     dword_4FCD34, ecx                                    
+0044202F 00442050 C                          jz      short locret_442043                                  
+00442031 00442050 C loc_442031               cmp     ecx, 0Ah                                             00442041:Code_N
+00442034 00442050 C                          jge     short locret_442043                                  
+00442036 00442050 C                          inc     ecx                                                  
+00442037 00442050 C                          mov     dword_4FCD34, ecx                                    
+0044203D 00442050 C                          mov     eax, [eax]                                           
+0044203F 00442050 C                          test    eax, eax                                             
+00442041 00442050 C                          jnz     short loc_442031                                     
+00442043 00442050 C locret_442043            retn                                                         0044202F:Code_N,00442034:Code_N
+00442044 -------- D                          align 10h                                                    
+00442050 00442050 C sub_442050               mov     eax, dword_4FCD38                                    004406B1:Code_N,00440BD8:Code_N,00440CD5:Code_N,00440DC8:Code_N,00440EB8:Code_N,00440F67:Code_N,0044101A:Code_N,004410DA
+00442055 00442050 C                          push    eax                                                  
+00442056 00442050 C                          push    offset dword_4FCD70                                  
+0044205B 00442050 C                          push    offset dword_4A9940                                  
+==== 00447FC0-00448020
+00447FC0 00447100 U                          mov     dword_4FB978, 43h ; 'C'                              
+00447FC5 00447100 C loc_447FC5               pop     ebp                                                  00447174:Code_N,00447FB9:Code_N
+00447FC6 00447100 C                          pop     ebx                                                  
+00447FC7 00447100 C                          add     esp, 34h                                             
+00447FCA 00447100 C                          retn                                                         
+00447FCB -------- D                          align 10h                                                    
+00447FD0 00448230 C loc_447FD0               xor     edx, edx                                             004482CD:Code_N
+00447FD2 00448230 C                          push    esi                                                  
+00447FD3 00448230 C                          xor     ecx, ecx                                             
+00447FD5 00448230 C                          mov     eax, offset word_4A6A00                              
+00447FDA 00448230 C loc_447FDA               lea     esi, [ecx+64h]                                       00447FE9:Code_N
+00447FDD 00448230 C                          inc     ecx                                                  
+00447FDE 00448230 C                          mov     [eax], si                                            
+00447FE1 00448230 C                          add     eax, 2                                               
+00447FE4 00448230 C                          cmp     eax, offset unk_4A6A1A                               
+00447FE9 00448230 C                          jl      short loc_447FDA                                     
+00447FEB 00448230 C                          mov     eax, dword_4FD150                                    
+00447FF0 00448230 C                          xor     ecx, ecx                                             
+00447FF2 00448230 C                          cmp     eax, edx                                             
+00447FF4 00448230 C                          mov     dword_4FD298, ecx                                    
+00447FFA 00448230 C                          pop     esi                                                  
+00447FFB 00448230 C                          jz      short loc_44800F                                     
+00447FFD 00448230 C loc_447FFD               cmp     ecx, 0Dh                                             0044800D:Code_N
+00448000 00448230 C                          jge     short loc_44800F                                     
+00448002 00448230 C                          inc     ecx                                                  
+00448003 00448230 C                          mov     dword_4FD298, ecx                                    
+00448009 00448230 C                          mov     eax, [eax]                                           
+0044800B 00448230 C                          cmp     eax, edx                                             
+0044800D 00448230 C                          jnz     short loc_447FFD                                     
+0044800F 00448230 C loc_44800F               mov     word_4A6A00[ecx*2], dx                               00447FFB:Code_N,00448000:Code_N
+00448017 00448230 C                          retn                                                         
+00448018 -------- D                          align 10h                                                    
+==== 0046E280-0046E290
+0046E280 0046E260 U                          mov     dword_53CEA8, 0                                      
+0046E285 0046E260 C                          jmp     loc_46E390                                           
+0046E28A -------- D                          align 10h                                                    
+==== 0046E380-0046E3A0
+0046E380 0046E290 C                          mov     [edx], eax                                           
+0046E382 0046E290 C                          add     esp, 58h                                             
+0046E385 0046E290 C                          retn                                                         
+0046E386 -------- D                          align 10h                                                    
+0046E390 0046E260 C loc_46E390               mov     eax, 1                                               0046E285:Code_N
+0046E395 0046E260 C                          push    esi                                                  
+0046E396 0046E260 C                          mov     dword_4A7B58, eax                                    
+0046E39B 0046E260 C                          mov     dword_4A7B5C, eax                                    
+==== 004846C0-004846F0
+004846C0 00484650 U                          call    ds:_BinkService@4; BinkService(x)                    
+004846C4 00484650 C                          mov     eax, esi                                             
+004846C6 00484650 C                          pop     edi                                                  
+004846C7 00484650 C                          pop     esi                                                  
+004846C8 00484650 C                          retn    14h                                                  
+004846CB -------- D                          align 10h                                                    
+004846D0 00484DA0 C loc_4846D0               mov     ecx, [ecx]                                           00484DAD:Code_N
+004846D2 00484DA0 C                          test    ecx, ecx                                             
+004846D4 00484DA0 C                          jz      short loc_4846E3                                     
+004846D6 00484DA0 C                          mov     eax, [ecx+0Ch]                                       
+004846D9 00484DA0 C                          mov     edx, [ecx+8]                                         
+004846DC 00484DA0 C                          cmp     eax, edx                                             
+004846DE 00484DA0 C                          jbe     short locret_4846E6                                  
+004846E0 00484DA0 C                          neg     eax                                                  
+004846E2 00484DA0 C                          retn                                                         
+004846E3 00484DA0 C loc_4846E3               or      eax, 0FFFFFFFFh                                      004846D4:Code_N
+004846E6 00484DA0 C locret_4846E6            retn                                                         004846DE:Code_N
+004846E7 -------- D                          align 10h                                                    
+==== 004909F0-00490A20
+004909F0 004909E1 C                          call    sub_489A62                                           
+004909F5 004909E1 C                          add     esp, 8                                               
+004909F8 004909E1 C                          pop     ebp                                                  
+004909F9 004909E1 C                          retn    4                                                    
+004909FC -------- D                          align 10h                                                    
+00490A00 00490A10 C loc_490A00               lea     eax, [edx-1]                                         00490A2D:Code_N
+00490A03 00490A10 C                          pop     ebx                                                  
+00490A04 00490A10 C                          retn                                                         
+00490A05 -------- D                          align 10h                                                    
+00490A10 00490A10 C sub_490A10               xor     eax, eax                                             00497F15:Code_N
+00490A12 00490A10 C                          mov     al, [esp+arg_4]                                      
+00490A16 00490A10 C loc_490A16               push    ebx                                                  0048A72E:Code_N
+00490A17 00490A10 C                          mov     ebx, eax                                             
+00490A19 00490A10 C                          shl     eax, 8                                               
+00490A1C 00490A10 C                          mov     edx, [esp+4+arg_0]                                   
+==== 00485330-00485360
+00485330 00485330 C _AIL_serve@0             jmp     ds:__imp__AIL_serve@0                                004079DB:Code_N,00407A39:Code_N,00407ACE:Code_N,00407B48:Code_N,00407E7C:Code_N,0040829B:Code_N,00409E12:Code_N,0040A2D7
+00485336 -------- D                          align 10h                                                    
+00485340 00401050 C loc_485340               mov     eax, ecx                                             00401055:Code_N
+00485342 00401050 C                          mov     dword ptr [eax], 0                                   
+00485348 00401050 C                          retn                                                         
+00485349 -------- D                          align 10h                                                    
+00485350 00401070 C loc_485350               jmp     loc_4853C0                                           00401075:Code_N
+00485355 -------- D                          align 10h                                                    
+==== 00485920-00485960
+00485920 00485910 U                          mov     eax, [esp+arg_4]                                     
+00485922 00485910 C                          mov     dword_4B74F0, eax                                    
+00485927 00485910 C locret_485927            retn                                                         0048591C:Code_N
+00485928 -------- D                          align 10h                                                    
+00485930 00401090 C loc_485930               push    esi                                                  00401095:Code_N
+00485931 00401090 C                          push    edi                                                  
+00485932 00401090 C                          mov     esi, ecx                                             
+00485934 00401090 C                          call    sub_438000                                           
+00485939 00401090 C                          xor     eax, eax                                             
+0048593B 00401090 C                          mov     ecx, 80h                                             
+00485940 00401090 C                          lea     edi, [esi+6Ch]                                       
+00485943 00401090 C                          mov     [esi+54h], eax                                       
+00485946 00401090 C                          mov     [esi+58h], eax                                       
+00485949 00401090 C                          rep stosd                                                    
+0048594B 00401090 C                          mov     ecx, 100h                                            
+00485950 00401090 C                          lea     edi, [esi+26Ch]                                      
+00485956 00401090 C                          rep stosd                                                    
+00485958 00401090 C                          mov     eax, esi                                             
+0048595A 00401090 C                          pop     edi                                                  
+0048595B 00401090 C                          pop     esi                                                  
+0048595C 00401090 C                          retn                                                         
+0048595D -------- D                          align 10h                                                    
+==== 00486570-004865B0
+00486570 00486490 C                          pop     ebx                                                  
+00486571 00486490 C                          add     esp, 8                                               
+00486574 00486490 C                          retn    4                                                    
+00486577 -------- D                          align 10h                                                    
+00486580 004010D0 C loc_486580               mov     eax, ecx                                             004010D5:Code_N,00401115:Code_N
+00486582 004010D0 C                          xor     ecx, ecx                                             
+00486584 004010D0 C                          mov     [eax], ecx                                           
+00486586 004010D0 C                          mov     [eax+8], ecx                                         
+00486589 004010D0 C                          mov     [eax+0Ch], ecx                                       
+0048658C 004010D0 C                          mov     dword ptr [eax+4], 1Eh                               
+00486593 004010D0 C                          mov     [eax+424h], ecx                                      
+00486599 004010D0 C                          mov     [eax+43Ch], ecx                                      
+0048659F 004010D0 C                          retn                                                         
+004865A0 00401130 C loc_4865A0               jmp     loc_486610                                           00401135:Code_N
+004865A5 -------- D                          align 10h                                                    
+==== 004853D0-004853F0
+004853D0 00401070 C                          retn                                                         
+004853D1 -------- D                          align 10h                                                    
+004853E0 00401150 C loc_4853E0               mov     edx, ecx                                             00401155:Code_N
+004853E2 00401150 C                          xor     eax, eax                                             
+004853E4 00401150 C                          push    edi                                                  
+004853E5 00401150 C                          mov     [edx+4], eax                                         
+004853E8 00401150 C                          mov     [edx+8], eax                                         
+004853EB 00401150 C                          mov     eax, 3                                               
+==== 00436F60-00436FA0
+00436F60 00436EA0 U                          jl      short loc_436F2B                                     
+00436F61 00436EA0 C loc_436F61               pop     edi                                                  00436F27:Code_N
+00436F62 00436EA0 C                          pop     esi                                                  
+00436F63 00436EA0 C                          pop     ebp                                                  
+00436F64 00436EA0 C                          pop     ebx                                                  
+00436F65 00436EA0 C                          pop     ecx                                                  
+00436F66 00436EA0 C                          retn    18h                                                  
+00436F69 -------- D                          align 10h                                                    
+00436F70 004014C0 C loc_436F70               mov     eax, ecx                                             004014C5:Code_N
+00436F72 004014C0 C                          xor     ecx, ecx                                             
+00436F74 004014C0 C                          mov     [eax+104h], ecx                                      
+00436F7A 004014C0 C                          mov     [eax+108h], ecx                                      
+00436F80 004014C0 C                          mov     [eax+100h], ecx                                      
+00436F86 004014C0 C                          mov     dword ptr [eax+114h], 0Ah                            
+00436F90 004014C0 C                          retn                                                         
+00436F91 -------- D                          align 10h                                                    
+==== 00437550-00437570
+00437550 004374E0 C                          retn                                                         
+00437551 -------- D                          align 10h                                                    
+00437560 004014A0 C loc_437560               mov     eax, ecx                                             004014A5:Code_N
+00437562 004014A0 C                          xor     ecx, ecx                                             
+00437564 004014A0 C                          mov     [eax], ecx                                           
+00437566 004014A0 C                          mov     [eax+4], ecx                                         
+00437569 004014A0 C                          mov     [eax+8], ecx                                         
+0043756C 004014A0 C                          retn                                                         
+0043756D -------- D                          align 10h                                                    
+==== 00435120-00435160
+00435120 004350E0 C                          call    edi ; GetSystemMetrics                               
+00435122 004350E0 C                          push    eax                                                  
+00435123 004350E0 C                          mov     ecx, esi                                             
+00435125 004350E0 C                          call    sub_4355B0                                           
+0043512A 004350E0 C                          mov     eax, esi                                             
+0043512C 004350E0 C                          pop     edi                                                  
+0043512D 004350E0 C                          pop     esi                                                  
+0043512E 004350E0 C                          pop     ebx                                                  
+0043512F 004350E0 C                          retn                                                         
+00435130 00401200 C loc_435130               push    esi                                                  00401205:Code_N,00401245:Code_N,00401285:Code_N
+00435131 00401200 C                          mov     esi, ecx                                             
+00435133 00401200 C                          call    sub_435410                                           
+00435138 00401200 C                          mov     ecx, esi                                             
+0043513A 00401200 C                          call    sub_4354D0                                           
+0043513F 00401200 C                          mov     eax, [esi+14h]                                       
+00435142 00401200 C                          test    eax, eax                                             
+00435144 00401200 C                          jz      short loc_435156                                     
+00435146 00401200 C                          push    eax                                                  
+00435147 00401200 C                          call    sub_4885A0                                           
+0043514C 00401200 C                          add     esp, 4                                               
+0043514F 00401200 C                          mov     dword ptr [esi+14h], 0                               
+00435156 00401200 C loc_435156               pop     esi                                                  00435144:Code_N
+00435157 00401200 C                          retn                                                         
+00435158 -------- D                          align 10h                                                    
+==== 00484DB0-00484DD0
+00484DB0 00484DA0 U                          jmp     loc_4846D0                                           
+00484DB2 00484DA0 C locret_484DB2            retn                                                         00484DAB:Code_N
+00484DB3 -------- D                          align 10h                                                    
+00484DC0 004010F0 C loc_484DC0               jmp     loc_484ED0                                           004010F5:Code_N
+00484DC5 -------- D                          align 10h                                                    

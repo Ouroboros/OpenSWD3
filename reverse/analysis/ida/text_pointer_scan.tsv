@@ -1,0 +1,1498 @@
+slot	segment	target	role	target_func	slot_item_name	slot_is_offset	target_disasm
+0x00401718	.text	0x00448D07	mid_instruction	0x00448CA0		0	
+0x0040492C	.text	0x00458BFF	mid_instruction	0x004582B0		0	
+0x00404A1C	.text	0x00458BFF	mid_instruction	0x004582B0		0	
+0x00404BDC	.text	0x0040467B	inside_func	0x00404610	jpt_404674	1	mov     ecx, dword_4B7930; jumptable 00404674 case -4
+0x00404BE0	.text	0x00404751	inside_func	0x00404610	jpt_404674	1	mov     eax, dword_4B7930; jumptable 00404674 case -3
+0x00404BE4	.text	0x004047B8	inside_func	0x00404610	jpt_404674	1	mov     ecx, dword_4B7930; jumptable 00404674 case -2
+0x00404BE8	.text	0x004048A6	inside_func	0x00404610	jpt_404674	1	mov     ebp, [ebp+0Ch]; jumptable 00404674 case -1
+0x00404BEC	.text	0x00404745	inside_func	0x00404610	jpt_404674	1	mov     eax, [esp+18h+var_4]; jumptable 00404674 default cas
+0x00404BF0	.text	0x00404911	inside_func	0x00404610	jpt_404674	1	mov     ebp, [ebp+0Ch]; jumptable 00404674 case 1
+0x00404BF4	.text	0x00404987	inside_func	0x00404610	jpt_404674	1	mov     ecx, dword_4B7930; jumptable 00404674 case 2
+0x00404BF8	.text	0x00404A74	inside_func	0x00404610	jpt_404674	1	mov     edx, dword_4B7930; jumptable 00404674 case 3
+0x00404BFC	.text	0x00404AE5	inside_func	0x00404610	jpt_404674	1	mov     ecx, dword_4B7930; jumptable 00404674 case 4
+0x00404FA0	.text	0x00404CAD	inside_func	0x00404C00	jpt_404CA6	1	mov     eax, 1; jumptable 00404CA6 case 0
+0x00404FA4	.text	0x00404CFF	inside_func	0x00404C00	jpt_404CA6	1	mov     eax, 1; jumptable 00404CA6 case 1
+0x00404FA8	.text	0x00404D51	inside_func	0x00404C00	jpt_404CA6	1	mov     eax, 1; jumptable 00404CA6 case 2
+0x00404FAC	.text	0x00404DA2	inside_func	0x00404C00	jpt_404CA6	1	cmp     ebp, 1; jumptable 00404CA6 case 3
+0x00404FB0	.text	0x00404F53	inside_func	0x00404C00	jpt_404CA6	1	mov     eax, [esp+1Ch+var_8]; jumptable 00404CA6 default cas
+0x00404FB4	.text	0x00404E02	inside_func	0x00404C00	jpt_404CA6	1	test    ebp, ebp; jumptable 00404CA6 case 5
+0x00404FB8	.text	0x00404E61	inside_func	0x00404C00	jpt_404CA6	1	mov     eax, 1; jumptable 00404CA6 case 6
+0x00404FBC	.text	0x00404EB3	inside_func	0x00404C00	jpt_404CA6	1	test    edx, edx; jumptable 00404CA6 case 7
+0x00404FC0	.text	0x00404F0F	inside_func	0x00404C00	jpt_404CA6	1	mov     eax, 1; jumptable 00404CA6 case 8
+0x004062C0	.text	0x00405EB1	inside_func	0x00405500	jpt_405567	1	pop     edi; jumptable 00405567 case 0
+0x004062C4	.text	0x00405EAD	inside_func	0x00405500	jpt_405567	1	mov     [ebp+1Ch], cx; jumptable 00405567 case 1
+0x004062C8	.text	0x00405EBC	inside_func	0x00405500	jpt_405567	1	mov     ebx, [ebp+18h]; jumptable 00405567 case 2
+0x004062CC	.text	0x00405F15	inside_func	0x00405500	jpt_405567	1	mov     ebx, [ebp+18h]; jumptable 00405567 case 3
+0x004062D0	.text	0x0040556E	inside_func	0x00405500	jpt_405567	1	mov     cx, [edi+2]; jumptable 00405567 case 4
+0x004062D4	.text	0x00405F6E	inside_func	0x00405500	jpt_405567	1	mov     ax, [ebp+22h]; jumptable 00405567 case 5
+0x004062D8	.text	0x00405F93	inside_func	0x00405500	jpt_405567	1	mov     ax, [ebp+22h]; jumptable 00405567 case 6
+0x004062DC	.text	0x0040557B	inside_func	0x00405500	jpt_405567	1	mov     edx, [esp+40h+arg_0]; jumptable 00405567 case 7
+0x004062E0	.text	0x0040559F	inside_func	0x00405500	jpt_405567	1	test    byte ptr [ebp+4], 0Fh; jumptable 00405567 case 8
+0x004062E4	.text	0x004055EF	inside_func	0x00405500	jpt_405567	1	mov     eax, dword_4ACDB0; jumptable 00405567 case 9
+0x004062E8	.text	0x00405660	inside_func	0x00405500	jpt_405567	1	mov     ax, word ptr dword_4ACDB0; jumptable 00405567 case 1
+0x004062EC	.text	0x0040568B	inside_func	0x00405500	jpt_405567	1	xor     eax, eax; jumptable 00405567 case 11
+0x004062F0	.text	0x004056B6	inside_func	0x00405500	jpt_405567	1	mov     edx, [edi+2]; jumptable 00405567 case 12
+0x004062F4	.text	0x004056D1	inside_func	0x00405500	jpt_405567	1	xor     ecx, ecx; jumptable 00405567 cases 13,14
+0x004062F8	.text	0x004056D1	inside_func	0x00405500	jpt_405567	1	xor     ecx, ecx; jumptable 00405567 cases 13,14
+0x004062FC	.text	0x0040572C	inside_func	0x00405500	jpt_405567	1	xor     esi, esi; jumptable 00405567 case 15
+0x00406300	.text	0x0040578D	inside_func	0x00405500	jpt_405567	1	xor     esi, esi; jumptable 00405567 case 16
+0x00406304	.text	0x004057EE	inside_func	0x00405500	jpt_405567	1	xor     eax, eax; jumptable 00405567 cases 17,18
+0x00406308	.text	0x004057EE	inside_func	0x00405500	jpt_405567	1	xor     eax, eax; jumptable 00405567 cases 17,18
+0x0040630C	.text	0x00405831	inside_func	0x00405500	jpt_405567	1	mov     si, [edi+2]; jumptable 00405567 cases 19-23
+0x00406310	.text	0x00405831	inside_func	0x00405500	jpt_405567	1	mov     si, [edi+2]; jumptable 00405567 cases 19-23
+0x00406314	.text	0x00405831	inside_func	0x00405500	jpt_405567	1	mov     si, [edi+2]; jumptable 00405567 cases 19-23
+0x00406318	.text	0x00405831	inside_func	0x00405500	jpt_405567	1	mov     si, [edi+2]; jumptable 00405567 cases 19-23
+0x0040631C	.text	0x00405831	inside_func	0x00405500	jpt_405567	1	mov     si, [edi+2]; jumptable 00405567 cases 19-23
+0x00406320	.text	0x004059BE	inside_func	0x00405500	jpt_405567	1	mov     dx, [edi+2]; jumptable 00405567 case 24
+0x00406324	.text	0x00405B6A	inside_func	0x00405500	jpt_405567	1	mov     edx, dword_4BA42C; jumptable 00405567 case 25
+0x00406328	.text	0x00405BC2	inside_func	0x00405500	jpt_405567	1	mov     edx, dword_4ACDB0; jumptable 00405567 case 26
+0x0040632C	.text	0x00405BE1	inside_func	0x00405500	jpt_405567	1	mov     cx, [edi+2]; jumptable 00405567 case 27
+0x00406330	.text	0x00405C37	inside_func	0x00405500	jpt_405567	1	mov     cx, [edi+2]; jumptable 00405567 case 28
+0x00406334	.text	0x00406026	inside_func	0x00405500	jpt_405567	1	push    ebp; jumptable 00405567 case 29
+0x00406338	.text	0x004060D6	inside_func	0x00405500	jpt_405567	1	mov     eax, [esp+40h+var_1C]; jumptable 00405567 case 30
+0x0040633C	.text	0x00406109	inside_func	0x00405500	jpt_405567	1	mov     ax, [edi+2]; jumptable 00405567 case 31
+0x00406340	.text	0x0040618F	inside_func	0x00405500	jpt_405567	1	mov     eax, [ebp+8]; jumptable 00405567 case 32
+0x00406344	.text	0x00405C7D	inside_func	0x00405500	jpt_405567	1	mov     ax, [edi+2]; jumptable 00405567 cases 33,36
+0x00406348	.text	0x004061E5	inside_func	0x00405500	jpt_405567	1	mov     eax, [ebp+38h]; jumptable 00405567 case 34
+0x0040634C	.text	0x00405E7E	inside_func	0x00405500	jpt_405567	1	mov     eax, [ebp+38h]; jumptable 00405567 case 35
+0x00406350	.text	0x00405C7D	inside_func	0x00405500	jpt_405567	1	mov     ax, [edi+2]; jumptable 00405567 cases 33,36
+0x00406354	.text	0x0040589F	inside_func	0x00405500	jpt_405898	1	and     ebx, 0FFFFh; jumptable 00405898 case 19
+0x00406358	.text	0x004058BC	inside_func	0x00405500	jpt_405898	1	and     esi, 0FFFFh; jumptable 00405898 case 20
+0x0040635C	.text	0x004058F3	inside_func	0x00405500	jpt_405898	1	and     esi, 0FFFFh; jumptable 00405898 case 21
+0x00406360	.text	0x00405927	inside_func	0x00405500	jpt_405898	1	mov     ecx, [edi+6]; jumptable 00405898 case 22
+0x00406364	.text	0x0040595B	inside_func	0x00405500	jpt_405898	1	mov     ecx, [edi+6]; jumptable 00405898 case 23
+0x00406368	.text	0x00405D03	inside_func	0x00405500	jpt_405CFC	1	mov     [esp+40h+var_24], ecx; jumptable 00405CFC case 0
+0x0040636C	.text	0x00405D5B	inside_func	0x00405500	jpt_405CFC	1	mov     eax, [esp+40h+var_24]; jumptable 00405CFC default ca
+0x00406370	.text	0x00405D0B	inside_func	0x00405500	jpt_405CFC	1	neg     eax; jumptable 00405CFC case 2
+0x00406374	.text	0x00405D17	inside_func	0x00405500	jpt_405CFC	1	neg     ecx; jumptable 00405CFC case 3
+0x00406378	.text	0x00405D23	inside_func	0x00405500	jpt_405CFC	1	lea     edx, [eax+ecx]; jumptable 00405CFC case 4
+0x0040637C	.text	0x00405D2E	inside_func	0x00405500	jpt_405CFC	1	lea     edx, [eax+ecx]; jumptable 00405CFC case 5
+0x00406380	.text	0x00405D3F	inside_func	0x00405500	jpt_405CFC	1	mov     edx, eax; jumptable 00405CFC case 6
+0x00406384	.text	0x00405D4D	inside_func	0x00405500	jpt_405CFC	1	mov     edx, ecx; jumptable 00405CFC case 7
+0x004095E8	.text	0x00409553	inside_func	0x00409540	jpt_40954C	1	xor     esi, esi; jumptable 0040954C cases 1,2
+0x004095EC	.text	0x00409553	inside_func	0x00409540	jpt_40954C	1	xor     esi, esi; jumptable 0040954C cases 1,2
+0x004095F0	.text	0x00409573	inside_func	0x00409540	jpt_40954C	1	call    sub_448700; jumptable 0040954C case 3
+0x004095F4	.text	0x00409592	inside_func	0x00409540	jpt_40954C	1	xor     esi, esi; jumptable 0040954C case 4
+0x004095F8	.text	0x004095A8	inside_func	0x00409540	jpt_40954C	1	xor     esi, esi; jumptable 0040954C case 5
+0x0040A4A8	.text	0x00424440	func_start	0x00424440		1	mov     eax, [esp+arg_4]
+0x0040A538	.text	0x0040A1D7	inside_func	0x0040A0D0	jpt_40A163	1	mov     hWnd, edi; jumptable 0040A163 case 1
+0x0040A53C	.text	0x0040A1FA	inside_func	0x0040A0D0	jpt_40A163	1	push    1; jumptable 0040A163 case 2
+0x0040A540	.text	0x0040A16A	inside_func	0x0040A0D0	jpt_40A163	1	push    1; jumptable 0040A163 case 5
+0x0040A544	.text	0x0040A1B1	inside_func	0x0040A0D0	jpt_40A163	1	push    1; jumptable 0040A163 case 28
+0x0040A548	.text	0x0040A514	inside_func	0x0040A0D0	jpt_40A163	1	mov     edx, [esp+68h+lParam]; jumptable 0040A163 default ca
+0x0040AB30	.text	0x0040AB02	inside_func	0x0040A570	jpt_40AAFB	1	call    sub_439FD0; jumptable 0040AAFB cases 1,3-6
+0x0040AB34	.text	0x0040AB09	inside_func	0x0040A570	jpt_40AAFB	1	call    sub_44EA60; jumptable 0040AAFB case 2
+0x0040AB38	.text	0x0040AB02	inside_func	0x0040A570	jpt_40AAFB	1	call    sub_439FD0; jumptable 0040AAFB cases 1,3-6
+0x0040AB3C	.text	0x0040AB02	inside_func	0x0040A570	jpt_40AAFB	1	call    sub_439FD0; jumptable 0040AAFB cases 1,3-6
+0x0040AB40	.text	0x0040AB02	inside_func	0x0040A570	jpt_40AAFB	1	call    sub_439FD0; jumptable 0040AAFB cases 1,3-6
+0x0040AB44	.text	0x0040AB02	inside_func	0x0040A570	jpt_40AAFB	1	call    sub_439FD0; jumptable 0040AAFB cases 1,3-6
+0x0040F8D8	.text	0x00410354	not_code			1	
+0x00410354	.text	0x0040F8DC	inside_func	0x0040F890	jpt_40F8D5	1	mov     edx, [esp+30h+hDlg]; jumptable 0040F8D5 case 1000
+0x00410358	.text	0x0040F905	inside_func	0x0040F890	jpt_40F8D5	1	cmp     dword_4CC2C8, 5; jumptable 0040F8D5 case 1003
+0x0041035C	.text	0x0040FA9F	inside_func	0x0040F890	jpt_40F8D5	1	cmp     dword_4CC2C8, 5; jumptable 0040F8D5 case 1004
+0x00410360	.text	0x0040F9DD	inside_func	0x0040F890	jpt_40F8D5	1	cmp     dword_4CC2C8, 5; jumptable 0040F8D5 case 1006
+0x00410364	.text	0x0040FD1B	inside_func	0x0040F890	jpt_40F8D5	1	push    20h ; ' '; jumptable 0040F8D5 case 1014
+0x00410368	.text	0x00410348	inside_func	0x0040F890	jpt_40F8D5	1	pop     edi; jumptable 0040F8D5 default case, cases 1001,100
+0x0041037C	.text	0x0040F94F	inside_func	0x0040F890	jpt_40F948	1	mov     eax, offset dword_4A9940; jumptable 0040F948 case 0
+0x00410380	.text	0x00410348	inside_func	0x0040F890	jpt_40F948	1	pop     edi; jumptable 0040F8D5 default case, cases 1001,100
+0x00410384	.text	0x00410348	inside_func	0x0040F890	jpt_40F948	1	pop     edi; jumptable 0040F8D5 default case, cases 1001,100
+0x00410388	.text	0x00410348	inside_func	0x0040F890	jpt_40F948	1	pop     edi; jumptable 0040F8D5 default case, cases 1001,100
+0x0041038C	.text	0x00410348	inside_func	0x0040F890	jpt_40F948	1	pop     edi; jumptable 0040F8D5 default case, cases 1001,100
+0x00410390	.text	0x0040FA26	inside_func	0x0040F890	jpt_40FA1F	1	mov     esi, offset dword_4A9940; jumptable 0040FA1F case 0
+0x00410394	.text	0x0040FA2D	inside_func	0x0040F890	jpt_40FA1F	1	mov     esi, dword_4A9490; jumptable 0040FA1F case 1
+0x00410398	.text	0x0040FA35	inside_func	0x0040F890	jpt_40FA1F	1	mov     esi, dword_4A9494; jumptable 0040FA1F case 2
+0x0041039C	.text	0x0040FA3D	inside_func	0x0040F890	jpt_40FA1F	1	mov     esi, dword_4A9498; jumptable 0040FA1F case 3
+0x004103A0	.text	0x0040FA45	inside_func	0x0040F890	jpt_40FA1F	1	mov     esi, dword_4A949C; jumptable 0040FA1F case 4
+0x004103A4	.text	0x0040FB03	inside_func	0x0040F890	jpt_40FAFC	1	mov     [esp+30h+hDlg], offset dword_4A9940; jumptable 0040F
+0x004103A8	.text	0x0040FB0D	inside_func	0x0040F890	jpt_40FAFC	1	mov     edx, dword_4A9490; jumptable 0040FAFC case 1
+0x004103AC	.text	0x0040FB19	inside_func	0x0040F890	jpt_40FAFC	1	mov     ecx, dword_4A9494; jumptable 0040FAFC case 2
+0x004103B0	.text	0x0040FB21	inside_func	0x0040F890	jpt_40FAFC	1	mov     edx, dword_4A9498; jumptable 0040FAFC case 3
+0x004103B4	.text	0x0040FB2D	inside_func	0x0040F890	jpt_40FAFC	1	mov     ecx, dword_4A949C; jumptable 0040FAFC case 4
+0x00410768	.text	0x00411018	not_code			1	
+0x00411018	.text	0x0041076C	inside_func	0x00410730	jpt_410765	1	mov     esi, dword_4A9940; jumptable 00410765 case 0
+0x0041101C	.text	0x00410774	inside_func	0x00410730	jpt_410765	1	mov     eax, dword_4A9490; jumptable 00410765 case 1
+0x00411020	.text	0x0041077D	inside_func	0x00410730	jpt_410765	1	mov     ecx, dword_4A9494; jumptable 00410765 case 2
+0x00411024	.text	0x00410787	inside_func	0x00410730	jpt_410765	1	mov     eax, dword_4A9498; jumptable 00410765 case 3
+0x00411028	.text	0x00410790	inside_func	0x00410730	jpt_410765	1	mov     ecx, dword_4A949C; jumptable 00410765 case 4
+0x00411260	.text	0x00411045	inside_func	0x00411030	jpt_41103E	1	mov     eax, [esp+4+arg_8]; jumptable 0041103E case 0
+0x00411264	.text	0x00411063	inside_func	0x00411030	jpt_41103E	1	mov     eax, [esp+4+arg_8]; jumptable 0041103E case 1
+0x00411268	.text	0x00411081	inside_func	0x00411030	jpt_41103E	1	mov     eax, [esp+4+arg_8]; jumptable 0041103E case 2
+0x0041126C	.text	0x0041109F	inside_func	0x00411030	jpt_41103E	1	mov     eax, [esp+4+arg_8]; jumptable 0041103E case 3
+0x00411270	.text	0x004110BD	inside_func	0x00411030	jpt_41103E	1	mov     eax, [esp+4+arg_8]; jumptable 0041103E case 4
+0x00411274	.text	0x004110DB	inside_func	0x00411030	jpt_41103E	1	mov     eax, [esp+4+arg_8]; jumptable 0041103E case 5
+0x00411278	.text	0x004110F9	inside_func	0x00411030	jpt_41103E	1	mov     eax, [esp+4+arg_8]; jumptable 0041103E case 6
+0x0041127C	.text	0x00411117	inside_func	0x00411030	jpt_41103E	1	mov     eax, [esp+4+arg_8]; jumptable 0041103E case 7
+0x00411280	.text	0x00411135	inside_func	0x00411030	jpt_41103E	1	mov     eax, [esp+4+arg_8]; jumptable 0041103E case 8
+0x00411284	.text	0x00411153	inside_func	0x00411030	jpt_41103E	1	mov     eax, [esp+4+arg_8]; jumptable 0041103E case 9
+0x00411288	.text	0x00411171	inside_func	0x00411030	jpt_41103E	1	mov     eax, [esp+4+arg_8]; jumptable 0041103E case 10
+0x0041128C	.text	0x0041118F	inside_func	0x00411030	jpt_41103E	1	mov     eax, [esp+4+arg_8]; jumptable 0041103E case 11
+0x00411290	.text	0x004111AD	inside_func	0x00411030	jpt_41103E	1	mov     eax, [esp+4+arg_8]; jumptable 0041103E case 12
+0x00411294	.text	0x004111CB	inside_func	0x00411030	jpt_41103E	1	mov     eax, [esp+4+arg_8]; jumptable 0041103E case 13
+0x00411298	.text	0x004111E9	inside_func	0x00411030	jpt_41103E	1	mov     eax, [esp+4+arg_8]; jumptable 0041103E case 14
+0x0041129C	.text	0x00411205	inside_func	0x00411030	jpt_41103E	1	mov     eax, [esp+4+arg_8]; jumptable 0041103E case 15
+0x004112A0	.text	0x00411221	inside_func	0x00411030	jpt_41103E	1	mov     eax, [esp+4+arg_8]; jumptable 0041103E case 16
+0x004112C0	.text	0x0041144C	not_code			1	
+0x0041144C	.text	0x004112C4	inside_func	0x004112B0	jpt_4112BD	1	mov     eax, [esp+arg_4]; jumptable 004112BD case 0
+0x00411450	.text	0x004112DA	inside_func	0x004112B0	jpt_4112BD	1	mov     eax, [esp+arg_4]; jumptable 004112BD case 1
+0x00411454	.text	0x004112F0	inside_func	0x004112B0	jpt_4112BD	1	mov     eax, [esp+arg_4]; jumptable 004112BD case 2
+0x00411458	.text	0x00411306	inside_func	0x004112B0	jpt_4112BD	1	mov     eax, [esp+arg_4]; jumptable 004112BD case 3
+0x0041145C	.text	0x0041131C	inside_func	0x004112B0	jpt_4112BD	1	mov     eax, [esp+arg_4]; jumptable 004112BD case 4
+0x00411460	.text	0x00411332	inside_func	0x004112B0	jpt_4112BD	1	mov     eax, [esp+arg_4]; jumptable 004112BD case 5
+0x00411464	.text	0x00411348	inside_func	0x004112B0	jpt_4112BD	1	mov     eax, [esp+arg_4]; jumptable 004112BD case 6
+0x00411468	.text	0x00411360	inside_func	0x004112B0	jpt_4112BD	1	mov     eax, [esp+arg_4]; jumptable 004112BD case 7
+0x0041146C	.text	0x00411378	inside_func	0x004112B0	jpt_4112BD	1	mov     eax, [esp+arg_4]; jumptable 004112BD case 8
+0x00411470	.text	0x00411390	inside_func	0x004112B0	jpt_4112BD	1	mov     eax, [esp+arg_4]; jumptable 004112BD case 9
+0x00411474	.text	0x004113A8	inside_func	0x004112B0	jpt_4112BD	1	mov     eax, [esp+arg_4]; jumptable 004112BD case 10
+0x00411478	.text	0x004113C0	inside_func	0x004112B0	jpt_4112BD	1	mov     eax, [esp+arg_4]; jumptable 004112BD case 11
+0x0041147C	.text	0x004113D8	inside_func	0x004112B0	jpt_4112BD	1	mov     eax, [esp+arg_4]; jumptable 004112BD case 12
+0x00411480	.text	0x004113F0	inside_func	0x004112B0	jpt_4112BD	1	mov     eax, [esp+arg_4]; jumptable 004112BD case 13
+0x00411484	.text	0x00411408	inside_func	0x004112B0	jpt_4112BD	1	mov     eax, [esp+arg_4]; jumptable 004112BD case 14
+0x00411488	.text	0x0041141D	inside_func	0x004112B0	jpt_4112BD	1	mov     eax, [esp+arg_4]; jumptable 004112BD case 15
+0x0041148C	.text	0x00411432	inside_func	0x004112B0	jpt_4112BD	1	mov     eax, [esp+arg_4]; jumptable 004112BD case 16
+0x00411D74	.text	0x0040B9AB	mid_instruction	0x0040B7F0		0	
+0x00412118	.text	0x00482024	mid_instruction	0x00481FD0		0	
+0x00415DE0	.text	0x00415ECC	not_code			1	
+0x00415ECC	.text	0x00415DE4	inside_func	0x00415B70	jpt_415DDD	1	shl     ecx, 4; jumptable 00415DDD case 0
+0x00415ED0	.text	0x00415E27	inside_func	0x00415B70	jpt_415DDD	1	shl     ecx, 4; jumptable 00415DDD case 1
+0x00415ED4	.text	0x00415E4A	inside_func	0x00415B70	jpt_415DDD	1	shl     ecx, 4; jumptable 00415DDD case 2
+0x00415ED8	.text	0x00415E82	inside_func	0x00415B70	jpt_415DDD	1	shl     ecx, 4; jumptable 00415DDD case 3
+0x00416E40	.text	0x00418840	func_start	0x00418840		0	push    ebp
+0x00416E54	.text	0x00419570	func_start	0x00419570		0	push    ebp
+0x00416E68	.text	0x0041B280	func_start	0x0041B280		0	push    ebp
+0x00416E7C	.text	0x0041CCF0	func_start	0x0041CCF0		0	push    ebp
+0x00416E90	.text	0x0041B9F0	func_start	0x0041B9F0		0	push    ebp
+0x00416EA4	.text	0x00420D70	func_start	0x00420D70		0	push    ebp
+0x00416EB8	.text	0x004223A0	func_start	0x004223A0		0	push    ebp
+0x00416ED8	.text	0x004176D0	func_start	0x004176D0		0	push    ebp
+0x00416EEC	.text	0x00417840	func_start	0x00417840		0	push    ebp
+0x00416F00	.text	0x00417EC0	func_start	0x00417EC0		0	push    ebp
+0x0041797C	.text	0x00417DA7	inside_func	0x00417950		0	dec     edx
+0x004179AC	.text	0x00417B71	inside_func	0x00417950		0	mov     eax, [edi]
+0x004179D0	.text	0x00417C1C	inside_func	0x00417950		0	mov     eax, [esi]
+0x00417A00	.text	0x00417D36	inside_func	0x00417950		0	mov     eax, [esi]
+0x00417EFC	.text	0x00417FF4	inside_func	0x00417EC0		0	mov     eax, [edi]
+0x00417F20	.text	0x0041809F	inside_func	0x00417EC0		0	mov     eax, [edi]
+0x00417F50	.text	0x004181BC	inside_func	0x00417EC0		0	mov     eax, [esi]
+0x00417F74	.text	0x00418267	inside_func	0x00417EC0		0	mov     eax, [esi]
+0x004195E0	.text	0x00419E3B	inside_func	0x00419570		0	mov     eax, [edi]
+0x00419610	.text	0x00419F04	inside_func	0x00419570		0	mov     eax, [edi]
+0x00419634	.text	0x00419F6F	inside_func	0x00419570		0	mov     eax, [edi]
+0x00419664	.text	0x00419FED	inside_func	0x00419570		0	mov     eax, [esi]
+0x0041967C	.text	0x004199F9	inside_func	0x00419570		0	mov     eax, [edi]
+0x004196A0	.text	0x00419A7C	inside_func	0x00419570		0	mov     eax, [edi]
+0x004196D0	.text	0x00419B39	inside_func	0x00419570		0	mov     eax, [edi]
+0x004196F4	.text	0x00419B92	inside_func	0x00419570		0	mov     eax, [edi]
+0x0041973C	.text	0x00419C79	inside_func	0x00419570		0	mov     eax, [edi]
+0x00419760	.text	0x00419CEF	inside_func	0x00419570		0	mov     eax, [edi]
+0x00419790	.text	0x00419D9B	inside_func	0x00419570		0	mov     eax, [edi]
+0x004197B4	.text	0x00419DC5	inside_func	0x00419570		0	mov     eax, [edi]
+0x004197CC	.text	0x0041A215	inside_func	0x00419570		0	add     edi, 2
+0x004197FC	.text	0x0041A0E1	inside_func	0x00419570		0	mov     eax, [edi]
+0x00419820	.text	0x0041A13D	inside_func	0x00419570		0	mov     eax, [edi]
+0x00419850	.text	0x0041A1E8	inside_func	0x00419570		0	mov     eax, [edi]
+0x0041A420	.text	0x0041ACC1	inside_func	0x0041A3B0		0	mov     eax, [edi]
+0x0041A450	.text	0x0041AD94	inside_func	0x0041A3B0		0	mov     eax, [edi]
+0x0041A474	.text	0x0041AE05	inside_func	0x0041A3B0		0	mov     eax, [edi]
+0x0041A4A4	.text	0x0041AE8D	inside_func	0x0041A3B0		0	mov     eax, [esi]
+0x0041A4BC	.text	0x0041A85B	inside_func	0x0041A3B0		0	mov     eax, [edi]
+0x0041A4E0	.text	0x0041A8DE	inside_func	0x0041A3B0		0	mov     eax, [edi]
+0x0041A510	.text	0x0041A99B	inside_func	0x0041A3B0		0	mov     eax, [edi]
+0x0041A534	.text	0x0041A9F4	inside_func	0x0041A3B0		0	mov     eax, [edi]
+0x0041A57C	.text	0x0041AAE0	inside_func	0x0041A3B0		0	mov     eax, [edi]
+0x0041A5A0	.text	0x0041AB56	inside_func	0x0041A3B0		0	mov     eax, [edi]
+0x0041A5D0	.text	0x0041AC05	inside_func	0x0041A3B0		0	mov     eax, [edi]
+0x0041A5F4	.text	0x0041AC4E	inside_func	0x0041A3B0		0	mov     eax, [edi]
+0x0041A60C	.text	0x0041B0B7	inside_func	0x0041A3B0		0	add     esi, 2
+0x0041A63C	.text	0x0041AF83	inside_func	0x0041A3B0		0	mov     eax, [edi]
+0x0041A660	.text	0x0041AFDF	inside_func	0x0041A3B0		0	mov     eax, [edi]
+0x0041A690	.text	0x0041B08A	inside_func	0x0041A3B0		0	mov     eax, [edi]
+0x0041BA58	.text	0x0041C843	inside_func	0x0041B9F0		0	add     edi, 4
+0x0041BA88	.text	0x0041C618	inside_func	0x0041B9F0		0	mov     eax, [edi]
+0x0041BAAC	.text	0x0041C6C0	inside_func	0x0041B9F0		0	mov     eax, [esi]
+0x0041BADC	.text	0x0041C7D5	inside_func	0x0041B9F0		0	mov     eax, [esi]
+0x0041BB18	.text	0x0041BEEB	inside_func	0x0041B9F0		0	mov     eax, [edi]
+0x0041BB48	.text	0x0041C008	inside_func	0x0041B9F0		0	mov     eax, [edi]
+0x0041BB6C	.text	0x0041C0B3	inside_func	0x0041B9F0		0	mov     eax, [esi]
+0x0041BB9C	.text	0x0041C1C7	inside_func	0x0041B9F0		0	mov     eax, [esi]
+0x0041BBB4	.text	0x0041C200	inside_func	0x0041B9F0		0	mov     eax, [edi]
+0x0041BBD8	.text	0x0041C2AB	inside_func	0x0041B9F0		0	mov     eax, [edi]
+0x0041BC08	.text	0x0041C3C8	inside_func	0x0041B9F0		0	mov     eax, [esi]
+0x0041BC2C	.text	0x0041C473	inside_func	0x0041B9F0		0	mov     eax, [esi]
+0x0041BC74	.text	0x0041C8EC	inside_func	0x0041B9F0		0	mov     eax, [edi]
+0x0041BC98	.text	0x0041C997	inside_func	0x0041B9F0		0	mov     eax, [edi]
+0x0041BCC8	.text	0x0041CAB4	inside_func	0x0041B9F0		0	mov     eax, [esi]
+0x0041BCEC	.text	0x0041CB59	inside_func	0x0041B9F0		0	mov     eax, [esi]
+0x0041D3A8	.text	0x0041DE84	inside_func	0x0041D340		0	mov     eax, [edi]
+0x0041D3CC	.text	0x0041DF2C	inside_func	0x0041D340		0	mov     eax, [edi]
+0x0041D3FC	.text	0x0041E044	inside_func	0x0041D340		0	mov     eax, [esi]
+0x0041D420	.text	0x0041E0E6	inside_func	0x0041D340		0	mov     eax, [esi]
+0x0041D438	.text	0x0041DAAA	inside_func	0x0041D340		0	add     edi, 2
+0x0041D468	.text	0x0041D874	inside_func	0x0041D340		0	mov     eax, [edi]
+0x0041D48C	.text	0x0041D91F	inside_func	0x0041D340		0	mov     eax, [esi]
+0x0041D4BC	.text	0x0041DA39	inside_func	0x0041D340		0	mov     eax, [esi]
+0x0041D4F8	.text	0x0041DB16	inside_func	0x0041D340		0	mov     eax, [edi]
+0x0041D528	.text	0x0041DC33	inside_func	0x0041D340		0	mov     eax, [edi]
+0x0041D54C	.text	0x0041DCDE	inside_func	0x0041D340		0	mov     eax, [esi]
+0x0041D57C	.text	0x0041DDF2	inside_func	0x0041D340		0	mov     eax, [esi]
+0x0041D594	.text	0x0041E155	inside_func	0x0041D340		0	mov     eax, [edi]
+0x0041D5B8	.text	0x0041E200	inside_func	0x0041D340		0	mov     eax, [edi]
+0x0041D5E8	.text	0x0041E31D	inside_func	0x0041D340		0	mov     eax, [esi]
+0x0041D60C	.text	0x0041E3C8	inside_func	0x0041D340		0	mov     eax, [esi]
+0x0041E628	.text	0x0041F12B	inside_func	0x0041E5C0		0	mov     eax, [edi]
+0x0041E64C	.text	0x0041F1E2	inside_func	0x0041E5C0		0	mov     eax, [edi]
+0x0041E67C	.text	0x0041F318	inside_func	0x0041E5C0		0	mov     eax, [esi]
+0x0041E6A0	.text	0x0041F3D5	inside_func	0x0041E5C0		0	mov     eax, [esi]
+0x0041E6B8	.text	0x0041ED4B	inside_func	0x0041E5C0		0	add     esi, 2
+0x0041E6E8	.text	0x0041EB15	inside_func	0x0041E5C0		0	mov     eax, [edi]
+0x0041E70C	.text	0x0041EBC0	inside_func	0x0041E5C0		0	mov     eax, [esi]
+0x0041E73C	.text	0x0041ECDA	inside_func	0x0041E5C0		0	mov     eax, [esi]
+0x0041E778	.text	0x0041EDB7	inside_func	0x0041E5C0		0	mov     eax, [edi]
+0x0041E7A8	.text	0x0041EED4	inside_func	0x0041E5C0		0	mov     eax, [edi]
+0x0041E7CC	.text	0x0041EF7F	inside_func	0x0041E5C0		0	mov     eax, [esi]
+0x0041E7FC	.text	0x0041F093	inside_func	0x0041E5C0		0	mov     eax, [esi]
+0x0041E814	.text	0x0041F44B	inside_func	0x0041E5C0		0	mov     eax, [edi]
+0x0041E838	.text	0x0041F4F6	inside_func	0x0041E5C0		0	mov     eax, [edi]
+0x0041E868	.text	0x0041F613	inside_func	0x0041E5C0		0	mov     eax, [esi]
+0x0041E88C	.text	0x0041F6BE	inside_func	0x0041E5C0		0	mov     eax, [esi]
+0x004234F4	.text	0x0044A240	func_start	0x0044A240		0	retn
+0x00423598	.text	0x00423920	func_start	0x00423920		0	push    ebp
+0x004236F4	.text	0x00423898	not_code			1	
+0x00423898	.text	0x004236F8	inside_func	0x00423400	jpt_4236F1	1	mov     [esp+0B0h+var_A0], offset dword_4CD788; jumptable 00
+0x0042389C	.text	0x00423702	inside_func	0x00423400	jpt_4236F1	1	mov     [esp+0B0h+var_A0], offset dword_4CD78C; jumptable 00
+0x004238A0	.text	0x0042370C	inside_func	0x00423400	jpt_4236F1	1	mov     [esp+0B0h+var_A0], offset dword_4CD790; jumptable 00
+0x004238A4	.text	0x00423716	inside_func	0x00423400	jpt_4236F1	1	mov     [esp+0B0h+var_A0], offset dword_4CD794; jumptable 00
+0x004238A8	.text	0x00423720	inside_func	0x00423400	jpt_4236F1	1	mov     [esp+0B0h+var_A0], offset unk_4CD798; jumptable 0042
+0x00424600	.text	0x00425470	func_start	0x00425470		1	mov     eax, [esp+arg_4]
+0x004248F0	.text	0x004245F2	inside_func	0x00424440	jpt_4245EB	1	mov     edx, hWnd; jumptable 004245EB case 1022
+0x004248F4	.text	0x00424636	inside_func	0x00424440	jpt_4245EB	1	push    offset aWwwSoftstarCom; jumptable 004245EB case 1023
+0x004248F8	.text	0x0042464A	inside_func	0x00424440	jpt_4245EB	1	push    400h; jumptable 004245EB case 1024
+0x004248FC	.text	0x00424687	inside_func	0x00424440	jpt_4245EB	1	mov     eax, [esp+10h+hWnd]; jumptable 004245EB case 1025
+0x00424900	.text	0x00424622	inside_func	0x00424440	jpt_4245EB	1	mov     edx, [esp+10h+hWnd]; jumptable 004245EB case 1026
+0x00425E34	.text	0x00458B2C	mid_instruction	0x004582B0		0	
+0x00428034	.text	0x004446C7	mid_instruction	0x004442B0		0	
+0x00428920	.text	0x00485D86	inside_func	0x00485CE0		0	not     ecx
+0x0042B0E0	.text	0x0042D80C	not_code			0	
+0x0042C584	.text	0x00402C24	mid_instruction	0x00402AE0	loc_42C582	0	
+0x0042D4F4	.text	0x00427B8F	inside_func	0x00427920	jpt_427B88	1	mov     [esp+60h+var_4C], 0FFFDh; jumptable 00427B88 cases 1
+0x0042D4F8	.text	0x00427B8F	inside_func	0x00427920	jpt_427B88	1	mov     [esp+60h+var_4C], 0FFFDh; jumptable 00427B88 cases 1
+0x0042D4FC	.text	0x00427B8F	inside_func	0x00427920	jpt_427B88	1	mov     [esp+60h+var_4C], 0FFFDh; jumptable 00427B88 cases 1
+0x0042D500	.text	0x00427B8F	inside_func	0x00427920	jpt_427B88	1	mov     [esp+60h+var_4C], 0FFFDh; jumptable 00427B88 cases 1
+0x0042D504	.text	0x00427B8F	inside_func	0x00427920	jpt_427B88	1	mov     [esp+60h+var_4C], 0FFFDh; jumptable 00427B88 cases 1
+0x0042D508	.text	0x00427B8F	inside_func	0x00427920	jpt_427B88	1	mov     [esp+60h+var_4C], 0FFFDh; jumptable 00427B88 cases 1
+0x0042D50C	.text	0x00427E72	inside_func	0x00427920	jpt_427B88	1	mov     edx, dword_4A1360; jumptable 00427B88 case 7
+0x0042D510	.text	0x00427E9A	inside_func	0x00427920	jpt_427B88	1	xor     edx, edx; jumptable 00427B88 case 8
+0x0042D514	.text	0x00427EC2	inside_func	0x00427920	jpt_427B88	1	mov     edx, dword_4A1360; jumptable 00427B88 case 9
+0x0042D518	.text	0x00427ED0	inside_func	0x00427920	jpt_427B88	1	mov     bx, [ebx+2]; jumptable 00427B88 case 10
+0x0042D51C	.text	0x00427FEB	inside_func	0x00427920	jpt_427B88	1	mov     bx, [ebx+2]; jumptable 00427B88 case 11
+0x0042D520	.text	0x0042811F	inside_func	0x00427920	jpt_427B88	1	mov     bx, [ebx+2]; jumptable 00427B88 case 12
+0x0042D524	.text	0x0042822A	inside_func	0x00427920	jpt_427B88	1	mov     bx, [ebx+2]; jumptable 00427B88 case 13
+0x0042D528	.text	0x0042829C	inside_func	0x00427920	jpt_427B88	1	mov     ax, [ebx+2]; jumptable 00427B88 case 14
+0x0042D52C	.text	0x00428310	inside_func	0x00427920	jpt_427B88	1	mov     ecx, [ebx+2]; jumptable 00427B88 case 15
+0x0042D530	.text	0x00428318	inside_func	0x00427920	jpt_427B88	1	mov     ax, [ebx+2]; jumptable 00427B88 case 16
+0x0042D534	.text	0x004283AC	inside_func	0x00427920	jpt_427B88	1	mov     dx, [ebx+2]; jumptable 00427B88 case 17
+0x0042D538	.text	0x0042845A	inside_func	0x00427920	jpt_427B88	1	mov     dx, [ebx+2]; jumptable 00427B88 case 18
+0x0042D53C	.text	0x004284C2	inside_func	0x00427920	jpt_427B88	1	mov     eax, dword_49E0C4; jumptable 00427B88 case 19
+0x0042D540	.text	0x0042ADB7	inside_func	0x00427920	jpt_427B88	1	mov     ax, [ebx+2]; jumptable 00427B88 case 20
+0x0042D544	.text	0x00428533	inside_func	0x00427920	jpt_427B88	1	xor     eax, eax; jumptable 00427B88 cases 21,22
+0x0042D548	.text	0x00428533	inside_func	0x00427920	jpt_427B88	1	xor     eax, eax; jumptable 00427B88 cases 21,22
+0x0042D54C	.text	0x0042857F	inside_func	0x00427920	jpt_427B88	1	xor     edi, edi; jumptable 00427B88 case 23
+0x0042D550	.text	0x004285ED	inside_func	0x00427920	jpt_427B88	1	xor     edx, edx; jumptable 00427B88 case 24
+0x0042D554	.text	0x0042865B	inside_func	0x00427920	jpt_427B88	1	xor     ecx, ecx; jumptable 00427B88 case 25
+0x0042D558	.text	0x00428679	inside_func	0x00427920	jpt_427B88	1	xor     ecx, ecx; jumptable 00427B88 case 26
+0x0042D55C	.text	0x004286C5	inside_func	0x00427920	jpt_427B88	1	xor     ecx, ecx; jumptable 00427B88 case 27
+0x0042D560	.text	0x00428713	inside_func	0x00427920	jpt_427B88	1	mov     dx, [ebx+2]; jumptable 00427B88 case 28
+0x0042D564	.text	0x0042B074	inside_func	0x00427920	jpt_427B88	1	movsx   edi, word ptr [ebx+2]; jumptable 00427B88 cases 29-3
+0x0042D568	.text	0x0042B074	inside_func	0x00427920	jpt_427B88	1	movsx   edi, word ptr [ebx+2]; jumptable 00427B88 cases 29-3
+0x0042D56C	.text	0x0042B074	inside_func	0x00427920	jpt_427B88	1	movsx   edi, word ptr [ebx+2]; jumptable 00427B88 cases 29-3
+0x0042D570	.text	0x0042B074	inside_func	0x00427920	jpt_427B88	1	movsx   edi, word ptr [ebx+2]; jumptable 00427B88 cases 29-3
+0x0042D574	.text	0x0042B074	inside_func	0x00427920	jpt_427B88	1	movsx   edi, word ptr [ebx+2]; jumptable 00427B88 cases 29-3
+0x0042D578	.text	0x0042890F	inside_func	0x00427920	jpt_427B88	1	xor     eax, eax; jumptable 00427B88 case 34
+0x0042D57C	.text	0x00428934	inside_func	0x00427920	jpt_427B88	1	mov     ecx, dword_4ACDB0; jumptable 00427B88 case 35
+0x0042D580	.text	0x0042896C	inside_func	0x00427920	jpt_427B88	1	mov     ecx, dword_4BA42C; jumptable 00427B88 case 36
+0x0042D584	.text	0x004289BE	inside_func	0x00427920	jpt_427B88	1	mov     eax, dword_4ACDB0; jumptable 00427B88 case 37
+0x0042D588	.text	0x004289DE	inside_func	0x00427920	jpt_427B88	1	mov     bx, [ebx+2]; jumptable 00427B88 case 38
+0x0042D58C	.text	0x00428ADC	inside_func	0x00427920	jpt_427B88	1	mov     bx, [ebx+2]; jumptable 00427B88 case 39
+0x0042D590	.text	0x00428BA0	inside_func	0x00427920	jpt_427B88	1	mov     dx, [ebx+2]; jumptable 00427B88 case 40
+0x0042D594	.text	0x00428C9F	inside_func	0x00427920	jpt_427B88	1	mov     eax, dword_4CAE7C; jumptable 00427B88 case 41
+0x0042D598	.text	0x00428D18	inside_func	0x00427920	jpt_427B88	1	cmp     word ptr [esp+60h+var_3C], 2Ah ; '*'; jumptable 0042
+0x0042D59C	.text	0x00428D18	inside_func	0x00427920	jpt_427B88	1	cmp     word ptr [esp+60h+var_3C], 2Ah ; '*'; jumptable 0042
+0x0042D5A0	.text	0x00428DB8	inside_func	0x00427920	jpt_427B88	1	mov     bx, [ebx+2]; jumptable 00427B88 case 44
+0x0042D5A4	.text	0x00428E52	inside_func	0x00427920	jpt_427B88	1	mov     bx, [ebx+2]; jumptable 00427B88 case 45
+0x0042D5A8	.text	0x00428F7B	inside_func	0x00427920	jpt_427B88	1	mov     dx, [ebx+2]; jumptable 00427B88 cases 46-49
+0x0042D5AC	.text	0x00428F7B	inside_func	0x00427920	jpt_427B88	1	mov     dx, [ebx+2]; jumptable 00427B88 cases 46-49
+0x0042D5B0	.text	0x00428F7B	inside_func	0x00427920	jpt_427B88	1	mov     dx, [ebx+2]; jumptable 00427B88 cases 46-49
+0x0042D5B4	.text	0x00428F7B	inside_func	0x00427920	jpt_427B88	1	mov     dx, [ebx+2]; jumptable 00427B88 cases 46-49
+0x0042D5B8	.text	0x00429066	inside_func	0x00427920	jpt_427B88	1	mov     ecx, dword_4A98C0; jumptable 00427B88 cases 50,70,73
+0x0042D5BC	.text	0x00429362	inside_func	0x00427920	jpt_427B88	1	mov     eax, dword_4A99F0; jumptable 00427B88 case 51
+0x0042D5C0	.text	0x004293AC	inside_func	0x00427920	jpt_427B88	1	movsx   ecx, word ptr [ebx+2]; jumptable 00427B88 case 52
+0x0042D5C4	.text	0x0042949D	inside_func	0x00427920	jpt_427B88	1	mov     eax, dword_4A9934; jumptable 00427B88 case 53
+0x0042D5C8	.text	0x004294C0	inside_func	0x00427920	jpt_427B88	1	mov     bx, [ebx+2]; jumptable 00427B88 case 54
+0x0042D5CC	.text	0x004295F3	inside_func	0x00427920	jpt_427B88	1	mov     bx, [ebx+2]; jumptable 00427B88 cases 55-57
+0x0042D5D0	.text	0x004295F3	inside_func	0x00427920	jpt_427B88	1	mov     bx, [ebx+2]; jumptable 00427B88 cases 55-57
+0x0042D5D4	.text	0x004295F3	inside_func	0x00427920	jpt_427B88	1	mov     bx, [ebx+2]; jumptable 00427B88 cases 55-57
+0x0042D5D8	.text	0x0042B1F1	inside_func	0x00427920	jpt_427B88	1	push    0A4h; jumptable 00427B88 case 58
+0x0042D5DC	.text	0x0042967B	inside_func	0x00427920	jpt_427B88	1	mov     eax, dword_4AB784; jumptable 00427B88 case 59
+0x0042D5E0	.text	0x00429693	inside_func	0x00427920	jpt_427B88	1	mov     ecx, dword_4C9A18; jumptable 00427B88 cases 60,61
+0x0042D5E4	.text	0x00429693	inside_func	0x00427920	jpt_427B88	1	mov     ecx, dword_4C9A18; jumptable 00427B88 cases 60,61
+0x0042D5E8	.text	0x004296DE	inside_func	0x00427920	jpt_427B88	1	mov     bx, [ebx+2]; jumptable 00427B88 case 62
+0x0042D5EC	.text	0x00429A1B	inside_func	0x00427920	jpt_427B88	1	lea     edx, [ebx+4]; jumptable 00427B88 case 63
+0x0042D5F0	.text	0x00429AD2	inside_func	0x00427920	jpt_427B88	1	mov     ecx, 20h ; ' '; jumptable 00427B88 case 64
+0x0042D5F4	.text	0x00429AE8	inside_func	0x00427920	jpt_427B88	1	mov     cx, [ebx+2]; jumptable 00427B88 case 65
+0x0042D5F8	.text	0x00429B14	inside_func	0x00427920	jpt_427B88	1	xor     eax, eax; jumptable 00427B88 case 66
+0x0042D5FC	.text	0x00429B62	inside_func	0x00427920	jpt_427B88	1	xor     eax, eax; jumptable 00427B88 case 67
+0x0042D600	.text	0x00429BB5	inside_func	0x00427920	jpt_427B88	1	mov     bx, [ebx+2]; jumptable 00427B88 case 68
+0x0042D604	.text	0x00429C37	inside_func	0x00427920	jpt_427B88	1	mov     bx, [ebx+2]; jumptable 00427B88 case 69
+0x0042D608	.text	0x00429066	inside_func	0x00427920	jpt_427B88	1	mov     ecx, dword_4A98C0; jumptable 00427B88 cases 50,70,73
+0x0042D60C	.text	0x00429CBC	inside_func	0x00427920	jpt_427B88	1	mov     dx, [ebx+2]; jumptable 00427B88 case 71
+0x0042D610	.text	0x00429D0F	inside_func	0x00427920	jpt_427B88	1	mov     dx, [ebx+2]; jumptable 00427B88 case 72
+0x0042D614	.text	0x00429066	inside_func	0x00427920	jpt_427B88	1	mov     ecx, dword_4A98C0; jumptable 00427B88 cases 50,70,73
+0x0042D618	.text	0x00429D43	inside_func	0x00427920	jpt_427B88	1	mov     dword_4A9A00, 0; jumptable 00427B88 case 74
+0x0042D61C	.text	0x00429D70	inside_func	0x00427920	jpt_427B88	1	mov     dx, [ebx+2]; jumptable 00427B88 case 75
+0x0042D620	.text	0x00429DA6	inside_func	0x00427920	jpt_427B88	1	mov     bx, [ebx+2]; jumptable 00427B88 case 76
+0x0042D624	.text	0x00429F7B	inside_func	0x00427920	jpt_427B88	1	mov     bx, [ebx+2]; jumptable 00427B88 cases 77,78
+0x0042D628	.text	0x00429F7B	inside_func	0x00427920	jpt_427B88	1	mov     bx, [ebx+2]; jumptable 00427B88 cases 77,78
+0x0042D62C	.text	0x0042A0A6	inside_func	0x00427920	jpt_427B88	1	push    0B4h; jumptable 00427B88 case 79
+0x0042D630	.text	0x0042A1EF	inside_func	0x00427920	jpt_427B88	1	mov     edx, dword_4A1360; jumptable 00427B88 case 80
+0x0042D634	.text	0x0042A200	inside_func	0x00427920	jpt_427B88	1	push    0B4h; jumptable 00427B88 case 81
+0x0042D638	.text	0x0042A2C6	inside_func	0x00427920	jpt_427B88	1	mov     eax, dword_4BA6E0; jumptable 00427B88 case 82
+0x0042D63C	.text	0x0042A341	inside_func	0x00427920	jpt_427B88	1	mov     ax, [ebx+2]; jumptable 00427B88 case 83
+0x0042D640	.text	0x0042A54C	inside_func	0x00427920	jpt_427B88	1	mov     ax, [ebx+2]; jumptable 00427B88 case 84
+0x0042D644	.text	0x0042A611	inside_func	0x00427920	jpt_427B88	1	mov     ecx, dword_4A0E7C; jumptable 00427B88 case 85
+0x0042D648	.text	0x0042A673	inside_func	0x00427920	jpt_427B88	1	mov     eax, dword_4BA6E0; jumptable 00427B88 case 86
+0x0042D64C	.text	0x0042A6CB	inside_func	0x00427920	jpt_427B88	1	xor     eax, eax; jumptable 00427B88 case 87
+0x0042D650	.text	0x0042A727	inside_func	0x00427920	jpt_427B88	1	call    sub_40F500; jumptable 00427B88 case 88
+0x0042D654	.text	0x00427B8F	inside_func	0x00427920	jpt_427B88	1	mov     [esp+60h+var_4C], 0FFFDh; jumptable 00427B88 cases 1
+0x0042D658	.text	0x00427B8F	inside_func	0x00427920	jpt_427B88	1	mov     [esp+60h+var_4C], 0FFFDh; jumptable 00427B88 cases 1
+0x0042D65C	.text	0x0042B287	inside_func	0x00427920	jpt_427B88	1	cmp     word ptr [esp+60h+var_3C], 5Bh ; '['; jumptable 0042
+0x0042D660	.text	0x0042A756	inside_func	0x00427920	jpt_427B88	1	xor     eax, eax; jumptable 00427B88 case 92
+0x0042D664	.text	0x0042A792	inside_func	0x00427920	jpt_427B88	1	xor     eax, eax; jumptable 00427B88 case 93
+0x0042D668	.text	0x0042A7CE	inside_func	0x00427920	jpt_427B88	1	mov     edx, dword_4C9A18; jumptable 00427B88 case 94
+0x0042D66C	.text	0x0042A7EE	inside_func	0x00427920	jpt_427B88	1	mov     edx, dword_4C9A18; jumptable 00427B88 case 95
+0x0042D670	.text	0x0042A80E	inside_func	0x00427920	jpt_427B88	1	mov     edx, dword_4B7BCC; jumptable 00427B88 case 96
+0x0042D674	.text	0x0042AD3C	inside_func	0x00427920	jpt_427B88	1	mov     eax, dword_4CAE8C; jumptable 00427B88 case 97
+0x0042D678	.text	0x0042C7EA	inside_func	0x00427920	jpt_427B88	1	add     ebx, 4; jumptable 00427B88 case 98
+0x0042D67C	.text	0x0042B3B0	inside_func	0x00427920	jpt_42ADB0	1	mov     si, [ebx+2]; jumptable 0042ADB0 case 100
+0x0042D680	.text	0x0042B43B	inside_func	0x00427920	jpt_42ADB0	1	mov     bx, [ebx+2]; jumptable 0042ADB0 case 101
+0x0042D684	.text	0x0042C567	inside_func	0x00427920	jpt_42ADB0	1	mov     ecx, [esp+60h+lpString2]; jumptable 0042ADB0 cases 1
+0x0042D688	.text	0x0042C567	inside_func	0x00427920	jpt_42ADB0	1	mov     ecx, [esp+60h+lpString2]; jumptable 0042ADB0 cases 1
+0x0042D68C	.text	0x0042B47E	inside_func	0x00427920	jpt_42ADB0	1	mov     edx, dword_4A1360; jumptable 0042ADB0 case 104
+0x0042D690	.text	0x0042B4B9	inside_func	0x00427920	jpt_42ADB0	1	mov     edx, dword_4A1360; jumptable 0042ADB0 case 105
+0x0042D694	.text	0x0042B4CA	inside_func	0x00427920	jpt_42ADB0	1	cmp     word ptr [esp+60h+var_3C], 9Ah; jumptable 0042ADB0 c
+0x0042D698	.text	0x0042B50F	inside_func	0x00427920	jpt_42ADB0	1	mov     bx, [ebx+2]; jumptable 0042ADB0 case 107
+0x0042D69C	.text	0x0042B5F2	inside_func	0x00427920	jpt_42ADB0	1	mov     ax, [ebx+2]; jumptable 0042ADB0 case 108
+0x0042D6A0	.text	0x0042B63C	inside_func	0x00427920	jpt_42ADB0	1	xor     eax, eax; jumptable 0042ADB0 case 109
+0x0042D6A4	.text	0x0042B6A5	inside_func	0x00427920	jpt_42ADB0	1	mov     edx, dword_49E0C4; jumptable 0042ADB0 cases 110,111
+0x0042D6A8	.text	0x0042B6A5	inside_func	0x00427920	jpt_42ADB0	1	mov     edx, dword_49E0C4; jumptable 0042ADB0 cases 110,111
+0x0042D6AC	.text	0x0042B70C	inside_func	0x00427920	jpt_42ADB0	1	mov     eax, dword_4BAB9C; jumptable 0042ADB0 case 112
+0x0042D6B0	.text	0x0042B723	inside_func	0x00427920	jpt_42ADB0	1	mov     edx, dword_4AB784; jumptable 0042ADB0 case 113
+0x0042D6B4	.text	0x0042B739	inside_func	0x00427920	jpt_42ADB0	1	mov     eax, dword_4B7380; jumptable 0042ADB0 case 114
+0x0042D6B8	.text	0x0042B7FC	inside_func	0x00427920	jpt_42ADB0	1	xor     eax, eax; jumptable 0042ADB0 case 115
+0x0042D6BC	.text	0x0042B83A	inside_func	0x00427920	jpt_42ADB0	1	xor     eax, eax; jumptable 0042ADB0 case 116
+0x0042D6C0	.text	0x0042C567	inside_func	0x00427920	jpt_42ADB0	1	mov     ecx, [esp+60h+lpString2]; jumptable 0042ADB0 cases 1
+0x0042D6C4	.text	0x0042B8E6	inside_func	0x00427920	jpt_42ADB0	1	mov     ax, [ebx+2]; jumptable 0042ADB0 case 118
+0x0042D6C8	.text	0x0042B9C2	inside_func	0x00427920	jpt_42ADB0	1	mov     di, [ebx+2]; jumptable 0042ADB0 cases 119,139
+0x0042D6CC	.text	0x0042BAB8	inside_func	0x00427920	jpt_42ADB0	1	mov     bx, [ebx+2]; jumptable 0042ADB0 case 120
+0x0042D6D0	.text	0x0042BC2C	inside_func	0x00427920	jpt_42ADB0	1	mov     edx, dword_4A1360; jumptable 0042ADB0 case 121
+0x0042D6D4	.text	0x0042BC3D	inside_func	0x00427920	jpt_42ADB0	1	mov     dword_4CAEB8, 0; jumptable 0042ADB0 case 122
+0x0042D6D8	.text	0x0042BC4C	inside_func	0x00427920	jpt_42ADB0	1	mov     si, [ebx+2]; jumptable 0042ADB0 case 123
+0x0042D6DC	.text	0x0042BCF5	inside_func	0x00427920	jpt_42ADB0	1	mov     edx, dword_4A1360; jumptable 0042ADB0 case 124
+0x0042D6E0	.text	0x0042BD06	inside_func	0x00427920	jpt_42ADB0	1	mov     eax, dword_4C99FC; jumptable 0042ADB0 case 125
+0x0042D6E4	.text	0x0042BDBC	inside_func	0x00427920	jpt_42ADB0	1	mov     bx, [ebx+2]; jumptable 0042ADB0 cases 126,127
+0x0042D6E8	.text	0x0042BDBC	inside_func	0x00427920	jpt_42ADB0	1	mov     bx, [ebx+2]; jumptable 0042ADB0 cases 126,127
+0x0042D6EC	.text	0x0042BE8A	inside_func	0x00427920	jpt_42ADB0	1	mov     ax, [ebx+4]; jumptable 0042ADB0 case 128
+0x0042D6F0	.text	0x0042BEFE	inside_func	0x00427920	jpt_42ADB0	1	mov     dx, [ebx+2]; jumptable 0042ADB0 cases 129,130,167,16
+0x0042D6F4	.text	0x0042BEFE	inside_func	0x00427920	jpt_42ADB0	1	mov     dx, [ebx+2]; jumptable 0042ADB0 cases 129,130,167,16
+0x0042D6F8	.text	0x0042BF72	inside_func	0x00427920	jpt_42ADB0	1	xor     eax, eax; jumptable 0042ADB0 case 131
+0x0042D6FC	.text	0x0042C033	inside_func	0x00427920	jpt_42ADB0	1	xor     eax, eax; jumptable 0042ADB0 case 132
+0x0042D700	.text	0x0042C234	inside_func	0x00427920	jpt_42ADB0	1	mov     edx, dword_4B7928; jumptable 0042ADB0 case 133
+0x0042D704	.text	0x0042C2C6	inside_func	0x00427920	jpt_42ADB0	1	mov     ax, [ebx+2]; jumptable 0042ADB0 case 134
+0x0042D708	.text	0x0042C3B0	inside_func	0x00427920	jpt_42ADB0	1	mov     dword_4FBAB0, 4; jumptable 0042ADB0 case 135
+0x0042D70C	.text	0x0042C567	inside_func	0x00427920	jpt_42ADB0	1	mov     ecx, [esp+60h+lpString2]; jumptable 0042ADB0 cases 1
+0x0042D710	.text	0x0042C3F7	inside_func	0x00427920	jpt_42ADB0	1	test    dword_4ACDBC, 800000h; jumptable 0042ADB0 case 137
+0x0042D714	.text	0x0042C49E	inside_func	0x00427920	jpt_42ADB0	1	mov     bx, [ebx+6]; jumptable 0042ADB0 case 138
+0x0042D718	.text	0x0042B9C2	inside_func	0x00427920	jpt_42ADB0	1	mov     di, [ebx+2]; jumptable 0042ADB0 cases 119,139
+0x0042D71C	.text	0x0042C567	inside_func	0x00427920	jpt_42ADB0	1	mov     ecx, [esp+60h+lpString2]; jumptable 0042ADB0 cases 1
+0x0042D720	.text	0x0042C6DD	inside_func	0x00427920	jpt_42ADB0	1	xor     eax, eax; jumptable 0042ADB0 case 141
+0x0042D724	.text	0x0042C732	inside_func	0x00427920	jpt_42ADB0	1	xor     ecx, ecx; jumptable 0042ADB0 case 142
+0x0042D728	.text	0x0042C766	inside_func	0x00427920	jpt_42ADB0	1	push    10h; jumptable 0042ADB0 case 143
+0x0042D72C	.text	0x0042C79D	inside_func	0x00427920	jpt_42ADB0	1	mov     ecx, 80000004h; jumptable 0042ADB0 case 144
+0x0042D730	.text	0x0042C567	inside_func	0x00427920	jpt_42ADB0	1	mov     ecx, [esp+60h+lpString2]; jumptable 0042ADB0 cases 1
+0x0042D734	.text	0x0042C567	inside_func	0x00427920	jpt_42ADB0	1	mov     ecx, [esp+60h+lpString2]; jumptable 0042ADB0 cases 1
+0x0042D738	.text	0x0042C7FB	inside_func	0x00427920	jpt_42ADB0	1	push    46h ; 'F'; jumptable 0042ADB0 case 147
+0x0042D73C	.text	0x0042C81A	inside_func	0x00427920	jpt_42ADB0	1	push    13h; jumptable 0042ADB0 case 148
+0x0042D740	.text	0x0042C839	inside_func	0x00427920	jpt_42ADB0	1	push    13h; jumptable 0042ADB0 case 149
+0x0042D744	.text	0x0042C858	inside_func	0x00427920	jpt_42ADB0	1	movsx   eax, word ptr [ebx+2]; jumptable 0042ADB0 case 150
+0x0042D748	.text	0x0042C8F8	inside_func	0x00427920	jpt_42ADB0	1	movsx   ecx, word ptr [ebx+2]; jumptable 0042ADB0 case 151
+0x0042D74C	.text	0x0042C936	inside_func	0x00427920	jpt_42ADB0	1	mov     edx, dword_4B9EF8; jumptable 0042ADB0 case 152
+0x0042D750	.text	0x0042B1F1	inside_func	0x00427920	jpt_42ADB0	1	push    0A4h; jumptable 00427B88 case 58
+0x0042D754	.text	0x0042B4CA	inside_func	0x00427920	jpt_42ADB0	1	cmp     word ptr [esp+60h+var_3C], 9Ah; jumptable 0042ADB0 c
+0x0042D758	.text	0x0042C95B	inside_func	0x00427920	jpt_42ADB0	1	mov     ecx, dword_4A9A10; jumptable 0042ADB0 case 155
+0x0042D75C	.text	0x0042C9CE	inside_func	0x00427920	jpt_42ADB0	1	mov     ecx, dword_4CAE88; jumptable 0042ADB0 case 156
+0x0042D760	.text	0x0042CA3A	inside_func	0x00427920	jpt_42ADB0	1	mov     ax, [ebx+2]; jumptable 0042ADB0 case 157
+0x0042D764	.text	0x0042CA7C	inside_func	0x00427920	jpt_42ADB0	1	xor     ecx, ecx; jumptable 0042ADB0 cases 158,159
+0x0042D768	.text	0x0042CA7C	inside_func	0x00427920	jpt_42ADB0	1	xor     ecx, ecx; jumptable 0042ADB0 cases 158,159
+0x0042D76C	.text	0x0042CBB0	inside_func	0x00427920	jpt_42ADB0	1	mov     esi, 1; jumptable 0042ADB0 case 160
+0x0042D770	.text	0x0042CBCC	inside_func	0x00427920	jpt_42ADB0	1	call    _AIL_serve@0; jumptable 0042ADB0 case 161
+0x0042D774	.text	0x0042B287	inside_func	0x00427920	jpt_42ADB0	1	cmp     word ptr [esp+60h+var_3C], 5Bh ; '['; jumptable 0042
+0x0042D778	.text	0x0042CBFF	inside_func	0x00427920	jpt_42ADB0	1	movsx   esi, word ptr [ebx+2]; jumptable 0042ADB0 cases 163,
+0x0042D77C	.text	0x0042CBFF	inside_func	0x00427920	jpt_42ADB0	1	movsx   esi, word ptr [ebx+2]; jumptable 0042ADB0 cases 163,
+0x0042D780	.text	0x0042CC35	inside_func	0x00427920	jpt_42ADB0	1	mov     [esp+60h+var_40], 0; jumptable 0042ADB0 cases 165,16
+0x0042D784	.text	0x0042CC35	inside_func	0x00427920	jpt_42ADB0	1	mov     [esp+60h+var_40], 0; jumptable 0042ADB0 cases 165,16
+0x0042D788	.text	0x0042BEFE	inside_func	0x00427920	jpt_42ADB0	1	mov     dx, [ebx+2]; jumptable 0042ADB0 cases 129,130,167,16
+0x0042D78C	.text	0x0042BEFE	inside_func	0x00427920	jpt_42ADB0	1	mov     dx, [ebx+2]; jumptable 0042ADB0 cases 129,130,167,16
+0x0042D790	.text	0x0042ADB7	inside_func	0x00427920	jpt_42ADB0	1	mov     ax, [ebx+2]; jumptable 00427B88 case 20
+0x0042D794	.text	0x0042CCF7	inside_func	0x00427920	jpt_42ADB0	1	mov     edx, [esp+60h+lpString2]; jumptable 0042ADB0 cases 1
+0x0042D798	.text	0x0042CCF7	inside_func	0x00427920	jpt_42ADB0	1	mov     edx, [esp+60h+lpString2]; jumptable 0042ADB0 cases 1
+0x0042D79C	.text	0x0042CCF7	inside_func	0x00427920	jpt_42ADB0	1	mov     edx, [esp+60h+lpString2]; jumptable 0042ADB0 cases 1
+0x0042D7A0	.text	0x0042CCF7	inside_func	0x00427920	jpt_42ADB0	1	mov     edx, [esp+60h+lpString2]; jumptable 0042ADB0 cases 1
+0x0042D7A4	.text	0x0042C567	inside_func	0x00427920	jpt_42ADB0	1	mov     ecx, [esp+60h+lpString2]; jumptable 0042ADB0 cases 1
+0x0042D7A8	.text	0x0042CDED	inside_func	0x00427920	jpt_42ADB0	1	mov     edx, dword_4B7AA0; jumptable 0042ADB0 case 175
+0x0042D7AC	.text	0x0042CE12	inside_func	0x00427920	jpt_42ADB0	1	mov     edx, dword_4B7AA0; jumptable 0042ADB0 case 176
+0x0042D7B0	.text	0x0042CE32	inside_func	0x00427920	jpt_42ADB0	1	test    ch, 80h; jumptable 0042ADB0 case 177
+0x0042D7B4	.text	0x0042CF7C	inside_func	0x00427920	jpt_42ADB0	1	mov     bx, [ebx+2]; jumptable 0042ADB0 case 178
+0x0042D7B8	.text	0x0042CFBD	inside_func	0x00427920	jpt_42ADB0	1	movsx   eax, word ptr [ebx+4]; jumptable 0042ADB0 case 179
+0x0042D7BC	.text	0x0042D041	inside_func	0x00427920	jpt_42ADB0	1	add     ebx, 2; jumptable 0042ADB0 case 180
+0x0042D7C0	.text	0x0042B070	inside_func	0x00427920	jpt_42ADB0	1	mov     edx, [esp+60h+lpString2]; jumptable 0042ADB0 cases 1
+0x0042D7C4	.text	0x0042B070	inside_func	0x00427920	jpt_42ADB0	1	mov     edx, [esp+60h+lpString2]; jumptable 0042ADB0 cases 1
+0x0042D7C8	.text	0x0042B070	inside_func	0x00427920	jpt_42ADB0	1	mov     edx, [esp+60h+lpString2]; jumptable 0042ADB0 cases 1
+0x0042D7CC	.text	0x0042B070	inside_func	0x00427920	jpt_42ADB0	1	mov     edx, [esp+60h+lpString2]; jumptable 0042ADB0 cases 1
+0x0042D7D0	.text	0x0042B070	inside_func	0x00427920	jpt_42ADB0	1	mov     edx, [esp+60h+lpString2]; jumptable 0042ADB0 cases 1
+0x0042D7D4	.text	0x0042D05C	inside_func	0x00427920	jpt_42ADB0	1	movsx   eax, word ptr [ebx+2]; jumptable 0042ADB0 cases 186,
+0x0042D7D8	.text	0x0042D05C	inside_func	0x00427920	jpt_42ADB0	1	movsx   eax, word ptr [ebx+2]; jumptable 0042ADB0 cases 186,
+0x0042D7DC	.text	0x0042D0D8	inside_func	0x00427920	jpt_42ADB0	1	movsx   eax, word ptr [ebx+2]; jumptable 0042ADB0 cases 188-
+0x0042D7E0	.text	0x0042D0D8	inside_func	0x00427920	jpt_42ADB0	1	movsx   eax, word ptr [ebx+2]; jumptable 0042ADB0 cases 188-
+0x0042D7E4	.text	0x0042D0D8	inside_func	0x00427920	jpt_42ADB0	1	movsx   eax, word ptr [ebx+2]; jumptable 0042ADB0 cases 188-
+0x0042D7E8	.text	0x0042D170	inside_func	0x00427920	jpt_42ADB0	1	mov     eax, dword_4A99F0; jumptable 0042ADB0 case 191
+0x0042D7EC	.text	0x0042D1AA	inside_func	0x00427920	jpt_42ADB0	1	cmp     dword_4B7380, 2; jumptable 0042ADB0 case 192
+0x0042D7F0	.text	0x0042D1D5	inside_func	0x00427920	jpt_42ADB0	1	call    sub_484DA0; jumptable 0042ADB0 case 193
+0x0042D7F4	.text	0x0042B0EB	inside_func	0x00427920	jpt_42B0E4	1	mov     dword_4ACBD0[edi*4], ecx; jumptable 0042B0E4 cases 2
+0x0042D7F8	.text	0x0042B0F4	inside_func	0x00427920	jpt_42B0E4	1	add     dword_4ACBD0[edi*4], ecx; jumptable 0042B0E4 cases 3
+0x0042D7FC	.text	0x0042B0FD	inside_func	0x00427920	jpt_42B0E4	1	mov     edx, dword_4ACBD0[edi*4]; jumptable 0042B0E4 cases 3
+0x0042D800	.text	0x0042B13D	inside_func	0x00427920	jpt_42B0E4	1	cmp     word ptr [esp+60h+var_3C], 21h ; '!'; jumptable 0042
+0x0042D804	.text	0x0042B172	inside_func	0x00427920	jpt_42B0E4	1	cmp     word ptr [esp+60h+var_3C], 21h ; '!'; jumptable 0042
+0x0042D808	.text	0x0042B1BF	inside_func	0x00427920	jpt_42B0E4	1	test    dword_4ACBD0, 80000000h; jumptable 0042B0E4 default 
+0x0042D8A8	.text	0x00498D04	not_code		byte_42D80C	0	
+0x0042D8AC	.text	0x0042C582	inside_func	0x00427920	jpt_42C57B	1	mov     [esp+60h+var_34], 40h ; '@'; jumptable 0042C57B case
+0x0042D8B0	.text	0x0042C58C	inside_func	0x00427920	jpt_42C57B	1	mov     [esp+60h+var_34], 20h ; ' '; jumptable 0042C57B case
+0x0042D8B4	.text	0x0042C596	inside_func	0x00427920	jpt_42C57B	1	mov     [esp+60h+var_34], 10h; jumptable 0042C57B case 117
+0x0042D8B8	.text	0x0042C5A0	inside_func	0x00427920	jpt_42C57B	1	mov     [esp+60h+var_34], 1000h; jumptable 0042C57B case 136
+0x0042D8BC	.text	0x0042C5AA	inside_func	0x00427920	jpt_42C57B	1	mov     [esp+60h+var_34], 800h; jumptable 0042C57B case 140
+0x0042D8C0	.text	0x0042C5B4	inside_func	0x00427920	jpt_42C57B	1	mov     [esp+60h+var_34], 2000h; jumptable 0042C57B case 145
+0x0042D8C4	.text	0x0042C5BE	inside_func	0x00427920	jpt_42C57B	1	mov     [esp+60h+var_34], 100h; jumptable 0042C57B case 146
+0x0042D8C8	.text	0x0042C5C8	inside_func	0x00427920	jpt_42C57B	1	mov     [esp+60h+var_34], 4000h; jumptable 0042C57B case 174
+0x0042D8CC	.text	0x0042C5D0	inside_func	0x00427920	jpt_42C57B	1	mov     bx, [ebx+2]; jumptable 0042C57B default case, cases 
+0x0043028C	.text	0x00458B14	mid_instruction	0x004582B0	loc_430289	0	
+0x00431364	.text	0x004315A0	not_code			0	
+0x00431460	.text	0x004312C2	inside_func	0x004311C0	jpt_4312BB	1	mov     edx, [esp+lpCaption]; jumptable 004312BB case -20055
+0x00431464	.text	0x004312DA	inside_func	0x004311C0	jpt_4312BB	1	mov     ecx, [esp+lpCaption]; jumptable 004312BB case -20055
+0x00431468	.text	0x004312F2	inside_func	0x004311C0	jpt_4312BB	1	mov     eax, [esp+lpCaption]; jumptable 004312BB case -20055
+0x0043146C	.text	0x0043130A	inside_func	0x004311C0	jpt_4312BB	1	mov     edx, [esp+lpCaption]; jumptable 004312BB case -20055
+0x00431470	.text	0x00431322	inside_func	0x004311C0	jpt_4312BB	1	mov     ecx, [esp+lpCaption]; jumptable 004312BB case -20055
+0x00431474	.text	0x0043145E	inside_func	0x004311C0	jpt_4312BB	1	retn; jumptable 004312BB default case, cases -2005532541--20
+0x00431574	.text	0x0043139F	inside_func	0x004311C0	jpt_431368	1	mov     ecx, [esp+lpCaption]; jumptable 00431368 case -20055
+0x00431578	.text	0x004313B7	inside_func	0x004311C0	jpt_431368	1	mov     eax, [esp+lpCaption]; jumptable 00431368 case -20055
+0x0043157C	.text	0x004313FF	inside_func	0x004311C0	jpt_431368	1	mov     eax, [esp+lpCaption]; jumptable 00431368 case -20055
+0x00431580	.text	0x004313E7	inside_func	0x004311C0	jpt_431368	1	mov     ecx, [esp+lpCaption]; jumptable 00431368 case -20055
+0x00431584	.text	0x00431447	inside_func	0x004311C0	jpt_431368	1	mov     eax, [esp+lpCaption]; jumptable 00431368 case -20055
+0x00431588	.text	0x00431387	inside_func	0x004311C0	jpt_431368	1	mov     edx, [esp+lpCaption]; jumptable 00431368 case -20055
+0x0043158C	.text	0x004313CF	inside_func	0x004311C0	jpt_431368	1	mov     edx, [esp+lpCaption]; jumptable 00431368 case -20055
+0x00431590	.text	0x0043136F	inside_func	0x004311C0	jpt_431368	1	mov     eax, [esp+lpCaption]; jumptable 00431368 case -20055
+0x00431594	.text	0x00431417	inside_func	0x004311C0	jpt_431368	1	mov     edx, [esp+lpCaption]; jumptable 00431368 case -20055
+0x00431598	.text	0x0043142F	inside_func	0x004311C0	jpt_431368	1	mov     ecx, [esp+lpCaption]; jumptable 00431368 case -20055
+0x0043159C	.text	0x0043145E	inside_func	0x004311C0	jpt_431368	1	retn; jumptable 004312BB default case, cases -2005532541--20
+0x00432508	.text	0x00432A18	not_code			1	
+0x004325E0	.text	0x004347E9	mid_instruction	0x00434790		0	
+0x00432A18	.text	0x0043255F	inside_func	0x004321E0	jpt_432505	1	xor     edx, edx; jumptable 00432505 case 16709
+0x00432A1C	.text	0x0043250C	inside_func	0x004321E0	jpt_432505	1	mov     ecx, [esi+18h]; jumptable 00432505 case 16712
+0x00432A20	.text	0x00432520	inside_func	0x004321E0	jpt_432505	1	mov     edx, [esi+18h]; jumptable 00432505 case 16717
+0x00432A24	.text	0x00432534	inside_func	0x004321E0	jpt_432505	1	mov     ecx, [esi+18h]; jumptable 00432505 case 16718
+0x00432A28	.text	0x00432548	inside_func	0x004321E0	jpt_432505	1	xor     edx, edx; jumptable 00432505 case 16724
+0x00432A2C	.text	0x00432577	inside_func	0x004321E0	jpt_432505	1	xor     edx, edx; jumptable 00432505 case 16728
+0x00432A30	.text	0x0043258E	inside_func	0x004321E0	jpt_432505	1	xor     edx, edx; jumptable 00432505 case 16729
+0x00432A34	.text	0x00432464	inside_func	0x004321E0	jpt_432505	1	mov     dx, [esi+42h]; jumptable 00432505 default case, case
+0x004342CC	.text	0x00498D00	not_code			0	
+0x004342D0	.text	0x00433FCE	inside_func	0x00433F70	jpt_433FC7	1	mov     edi, ebp; jumptable 00433FC7 case 0
+0x004342D4	.text	0x00434083	inside_func	0x00433F70	jpt_433FC7	1	mov     edi, ebp; jumptable 00433FC7 case 1
+0x004342D8	.text	0x00434137	inside_func	0x00433F70	jpt_433FC7	1	lea     edi, [ebp+ebp-6]; jumptable 00433FC7 case 2
+0x004342DC	.text	0x00434210	inside_func	0x00433F70	jpt_433FC7	1	lea     edi, [ebp+ebp-6]; jumptable 00433FC7 case 3
+0x00434CF8	.text	0x00454C89	inside_func	0x004539B0		0	call    sub_4698E0
+0x004353C4	.text	0x0046E8F1	mid_instruction	0x0046E890		0	
+0x00435510	.text	0x0040BF05	inside_func	0x0040BB50		0	mov     [esp+0BCh+var_9C], ebp
+0x00438D68	.text	0x00498D00	not_code			0	
+0x00438D6C	.text	0x00438C20	inside_func	0x00438B50	jpt_438B9B	1	mov     ecx, esi; jumptable 00438B9B case 8
+0x00438D70	.text	0x00438C36	inside_func	0x00438B50	jpt_438B9B	1	mov     [esi+14h], ebp; jumptable 00438B9B case 13
+0x00438D74	.text	0x00438C41	inside_func	0x00438B50	jpt_438B9B	1	mov     dword ptr [esi+14h], 2; jumptable 00438B9B case 27
+0x00438D78	.text	0x00438BC4	inside_func	0x00438B50	jpt_438B9B	1	mov     ecx, esi; jumptable 00438B9B case 35
+0x00438D7C	.text	0x00438BA2	inside_func	0x00438B50	jpt_438B9B	1	mov     ecx, esi; jumptable 00438B9B case 36
+0x00438D80	.text	0x00438C02	inside_func	0x00438B50	jpt_438B9B	1	mov     ecx, esi; jumptable 00438B9B case 37
+0x00438D84	.text	0x00438C11	inside_func	0x00438B50	jpt_438B9B	1	mov     ecx, esi; jumptable 00438B9B case 39
+0x00438D88	.text	0x00438BE6	inside_func	0x00438B50	jpt_438B9B	1	mov     ecx, esi; jumptable 00438B9B case 45
+0x00438D8C	.text	0x00438C27	inside_func	0x00438B50	jpt_438B9B	1	mov     ecx, esi; jumptable 00438B9B case 46
+0x00438D90	.text	0x00438D27	inside_func	0x00438B50	jpt_438B9B	1	pop     edi; jumptable 00438B9B default case, cases 9-12,14-
+0x0043A8DC	.text	0x0046BE05	mid_instruction	0x00469D20		0	
+0x0043B468	.text	0x0043B1DE	inside_func	0x0043B110	jpt_43B1D7	1	imul    ecx, edi; jumptable 0043B1D7 case 0
+0x0043B46C	.text	0x0043B219	inside_func	0x0043B110	jpt_43B1D7	1	test    esi, esi; jumptable 0043B1D7 case 1
+0x0043B470	.text	0x0043B274	inside_func	0x0043B110	jpt_43B1D7	1	imul    ecx, edi; jumptable 0043B1D7 case 2
+0x0043B474	.text	0x0043B2C1	inside_func	0x0043B110	jpt_43B1D7	1	test    esi, esi; jumptable 0043B1D7 case 3
+0x0043B478	.text	0x0043B2FD	inside_func	0x0043B110	jpt_43B1D7	1	imul    ecx, edi; jumptable 0043B1D7 case 4
+0x0043B47C	.text	0x0043B349	inside_func	0x0043B110	jpt_43B1D7	1	mov     edx, ecx; jumptable 0043B1D7 case 5
+0x0043B534	.text	0x00440B20	func_start	0x00440B20		0	mov     eax, dword_4FCD54
+0x0043B548	.text	0x00440F00	func_start	0x00440F00		0	mov     eax, dword_4FCD54
+0x0043B55C	.text	0x00440D20	func_start	0x00440D20		0	mov     eax, dword_4FCD54
+0x0043B570	.text	0x00441060	func_start	0x00441060		0	mov     eax, dword_4FCD54
+0x0043B584	.text	0x00441160	func_start	0x00441160		0	mov     eax, dword_4FCD54
+0x0043B598	.text	0x00441680	func_start	0x00441680		0	sub     esp, 18h
+0x0043B634	.text	0x0044A050	func_start	0x0044A050		0	mov     al, byte ptr dword_4FB8AC
+0x0043B648	.text	0x0044A160	func_start	0x0044A160		0	mov     ax, word ptr dword_4FBECC
+0x0043B65C	.text	0x0044A0D0	func_start	0x0044A0D0		0	mov     ax, word ptr dword_4FBECC
+0x0043B670	.text	0x0044A240	func_start	0x0044A240		0	retn
+0x0043B684	.text	0x0044A240	func_start	0x0044A240		0	retn
+0x0043B698	.text	0x0044A280	func_start	0x0044A280		0	sub     esp, 14h
+0x0043B768	.text	0x0043DD20	func_start	0x0043DD20		0	mov     eax, dword_4FCD20
+0x0043B77C	.text	0x0043E080	func_start	0x0043E080		0	mov     eax, dword_4FCD20
+0x0043B790	.text	0x0043DED0	func_start	0x0043DED0		0	mov     eax, dword_4FCD20
+0x0043B7A4	.text	0x0043E250	func_start	0x0043E250		0	mov     eax, dword_4FCD20
+0x0043B7B8	.text	0x0043E770	func_start	0x0043E770		0	mov     eax, dword_4FCD20
+0x0043B7CC	.text	0x0043E800	func_start	0x0043E800		0	sub     esp, 10h
+0x0043B868	.text	0x004450E0	func_start	0x004450E0		0	mov     eax, dword_4A9924
+0x0043B87C	.text	0x0044A240	func_start	0x0044A240		0	retn
+0x0043B890	.text	0x00445210	func_start	0x00445210		0	mov     ax, word ptr dword_4FC3C4
+0x0043B8A4	.text	0x0044A240	func_start	0x0044A240		0	retn
+0x0043B8B8	.text	0x0044A240	func_start	0x0044A240		0	retn
+0x0043B8CC	.text	0x00445360	func_start	0x00445360		0	mov     ax, word ptr dword_4FC3C4
+0x0043B8E0	.text	0x00445420	func_start	0x00445420		0	xor     eax, eax
+0x0043E744	.text	0x0043E3E7	inside_func	0x0043E3D0	jpt_43E3E0	1	push    1BB0h; jumptable 0043E3E0 case 1
+0x0043E748	.text	0x0043E4E7	inside_func	0x0043E3D0	jpt_43E3E0	1	mov     eax, dword_4FCA8C; jumptable 0043E3E0 case 2
+0x0043E74C	.text	0x0043E549	inside_func	0x0043E3D0	jpt_43E3E0	1	call    sub_4405C0; jumptable 0043E3E0 case 3
+0x0043E750	.text	0x0043E587	inside_func	0x0043E3D0	jpt_43E3E0	1	mov     ecx, dword_4FCADC; jumptable 0043E3E0 case 4
+0x0043E754	.text	0x0043E736	inside_func	0x0043E3D0	jpt_43E3E0	1	mov     dword_4FCD20, 1; jumptable 0043E3E0 cases 5,10
+0x0043E758	.text	0x0043E740	inside_func	0x0043E3D0	jpt_43E3E0	1	pop     edi; jumptable 0043E3E0 default case, cases 6-9
+0x0043E75C	.text	0x0043E740	inside_func	0x0043E3D0	jpt_43E3E0	1	pop     edi; jumptable 0043E3E0 default case, cases 6-9
+0x0043E760	.text	0x0043E740	inside_func	0x0043E3D0	jpt_43E3E0	1	pop     edi; jumptable 0043E3E0 default case, cases 6-9
+0x0043E764	.text	0x0043E740	inside_func	0x0043E3D0	jpt_43E3E0	1	pop     edi; jumptable 0043E3E0 default case, cases 6-9
+0x0043E768	.text	0x0043E736	inside_func	0x0043E3D0	jpt_43E3E0	1	mov     dword_4FCD20, 1; jumptable 0043E3E0 cases 5,10
+0x0043E7E0	.text	0x0043E782	inside_func	0x0043E770	jpt_43E77B	1	dec     word_4FC900; jumptable 0043E77B case 1
+0x0043E7E4	.text	0x0043E7AC	inside_func	0x0043E770	jpt_43E77B	1	mov     dword_4FCD20, 1; jumptable 0043E77B case 2
+0x0043E7E8	.text	0x0043E7CB	inside_func	0x0043E770	jpt_43E77B	1	jmp     sub_43E3D0; jumptable 0043E77B case 3
+0x0043E7EC	.text	0x0043E7D0	inside_func	0x0043E770	jpt_43E77B	1	jmp     sub_43E3D0; jumptable 0043E77B case 4
+0x0043E7F0	.text	0x0043E7D5	inside_func	0x0043E770	jpt_43E77B	1	mov     dword_4FCD20, 1; jumptable 0043E77B case 5
+0x0043F810	.text	0x0043F864	not_code			1	
+0x0043F864	.text	0x0043F852	inside_func	0x0043F7C0	jpt_43F80D	1	mov     ecx, [esp+4+arg_4]; jumptable 0043F80D cases 1,2,4,8
+0x0043F868	.text	0x0043F85F	inside_func	0x0043F7C0	jpt_43F80D	1	pop     esi; jumptable 0043F80D default case, cases 3,5-7,9-
+0x0044156C	.text	0x00441185	inside_func	0x00441160	jpt_44117E	1	mov     edx, dword_4FCD3C; jumptable 0044117E case 0
+0x00441570	.text	0x004411BA	inside_func	0x00441160	jpt_44117E	1	mov     ecx, dword_4FCF88; jumptable 0044117E case 1
+0x00441574	.text	0x0044151C	inside_func	0x00441160	jpt_44117E	1	mov     eax, dword_4FCD48; jumptable 0044117E case 5
+0x00441578	.text	0x00441559	inside_func	0x00441160	jpt_44117E	1	mov     dword_4FCD54, 1; jumptable 0044117E case 15
+0x0044157C	.text	0x00441563	inside_func	0x00441160	jpt_44117E	1	pop     ebp; jumptable 0044117E default case, cases 2-4,6-14
+0x00441658	.text	0x004415AD	inside_func	0x00441590	jpt_4415A6	1	dec     word_4FC900; jumptable 004415A6 case 0
+0x0044165C	.text	0x004415EF	inside_func	0x00441590	jpt_4415A6	1	mov     ecx, dword_4FCD38; jumptable 004415A6 case 1
+0x00441660	.text	0x0044161D	inside_func	0x00441590	jpt_4415A6	1	mov     edx, dword_4FCED0; jumptable 004415A6 case 5
+0x00441664	.text	0x00441651	inside_func	0x00441590	jpt_4415A6	1	jmp     sub_441160; jumptable 004415A6 case 15
+0x00441668	.text	0x00441650	inside_func	0x00441590	jpt_4415A6	1	retn; jumptable 004415A6 default case, cases 2-4,6-14
+0x00441DD4	.text	0x00458A00	inside_func	0x004582B0	loc_441DCE	0	push    eax
+0x00443BE8	.text	0x00444184	not_code			0	
+0x0044416C	.text	0x00443BF3	inside_func	0x00443BD0	jpt_443BEC	1	mov     edx, dword_4FCF98; jumptable 00443BEC case 1
+0x00444170	.text	0x00443F4F	inside_func	0x00443BD0	jpt_443BEC	1	mov     eax, dword_4FCF98; jumptable 00443BEC case 2
+0x00444174	.text	0x00444064	inside_func	0x00443BD0	jpt_443BEC	1	pop     edi; jumptable 00443BEC case 5
+0x00444178	.text	0x0044407E	inside_func	0x00443BD0	jpt_443BEC	1	mov     edx, dword_4FD070; jumptable 00443BEC case 15
+0x0044417C	.text	0x0044415A	inside_func	0x00443BD0	jpt_443BEC	1	mov     dword_4FD078, 1; jumptable 00443BEC cases 17,18
+0x00444180	.text	0x00444164	inside_func	0x00443BD0	jpt_443BEC	1	pop     edi; jumptable 00443BEC default case, cases 3,4,6-14
+0x00444280	.text	0x004441BE	inside_func	0x004441A0	jpt_4441B7	1	dec     word_4FC900; jumptable 004441B7 case 1
+0x00444284	.text	0x004441E8	inside_func	0x004441A0	jpt_4441B7	1	dec     word_4FC900; jumptable 004441B7 case 2
+0x00444288	.text	0x00444204	inside_func	0x004441A0	jpt_4441B7	1	mov     dword_4FD078, 1; jumptable 004441B7 case 5
+0x0044428C	.text	0x00444219	inside_func	0x004441A0	jpt_4441B7	1	mov     ecx, dword_4FC834; jumptable 004441B7 case 15
+0x00444290	.text	0x00444273	inside_func	0x004441A0	jpt_4441B7	1	mov     dword_4FD078, 1; jumptable 004441B7 cases 17,18
+0x00444294	.text	0x0044427D	inside_func	0x004441A0	jpt_4441B7	1	retn; jumptable 004441B7 default case, cases 3,4,6-14,16
+0x00444FC8	.text	0x00447100	func_start	0x00447100		0	sub     esp, 34h
+0x00444FDC	.text	0x004442B0	func_start	0x004442B0		0	sub     esp, 78h
+0x00444FF0	.text	0x0044C160	func_start	0x0044C160		0	sub     esp, 3Ch
+0x00445004	.text	0x0043C820	func_start	0x0043C820		0	sub     esp, 8
+0x00445018	.text	0x00440630	func_start	0x00440630		0	push    esi
+0x0044502C	.text	0x00449FF0	func_start	0x00449FF0		0	cmp     word ptr dword_4FBECC, 5
+0x00445040	.text	0x0043D530	func_start	0x0043D530		0	push    ebx
+0x00445054	.text	0x004455A0	func_start	0x004455A0		0	call    sub_4482E0
+0x00445068	.text	0x00442F10	func_start	0x00442F10		0	call    sub_444F00
+0x0044507C	.text	0x0044B010	func_start	0x0044B010		0	mov     eax, dword_4FD318
+0x00445090	.text	0x0043C2F0	func_start	0x0043C2F0		0	mov     eax, dword_4FC918
+0x00445CB8	.text	0x00445E78	not_code			0	
+0x00445E5C	.text	0x00445CC3	inside_func	0x00445C90	jpt_445CBC	1	cmp     word_4FB8A8, 1Fh; jumptable 00445CBC case 2
+0x00445E60	.text	0x00445D7C	inside_func	0x00445C90	jpt_445CBC	1	mov     eax, dword_4FD0A0; jumptable 00445CBC case 3
+0x00445E64	.text	0x00445DC6	inside_func	0x00445C90	jpt_445CBC	1	xor     ecx, ecx; jumptable 00445CBC case 5
+0x00445E68	.text	0x00445DE0	inside_func	0x00445C90	jpt_445CBC	1	mov     eax, dword_4FD0A4; jumptable 00445CBC case 10
+0x00445E6C	.text	0x00445E0C	inside_func	0x00445C90	jpt_445CBC	1	xor     ecx, ecx; jumptable 00445CBC case 11
+0x00445E70	.text	0x00445E26	inside_func	0x00445C90	jpt_445CBC	1	push    8; jumptable 00445CBC case 15
+0x00445E74	.text	0x00445E4B	inside_func	0x00445C90	jpt_445CBC	1	xor     ecx, ecx; jumptable 00445CBC default case, cases 4,6
+0x00445EB8	.text	0x00446074	not_code			0	
+0x00446058	.text	0x00445EC3	inside_func	0x00445E90	jpt_445EBC	1	cmp     word_4FB8A8, 1Fh; jumptable 00445EBC case 2
+0x0044605C	.text	0x00445F7C	inside_func	0x00445E90	jpt_445EBC	1	mov     eax, dword_4FD0A0; jumptable 00445EBC case 3
+0x00446060	.text	0x00445FC6	inside_func	0x00445E90	jpt_445EBC	1	xor     ecx, ecx; jumptable 00445EBC case 5
+0x00446064	.text	0x00445FE0	inside_func	0x00445E90	jpt_445EBC	1	mov     eax, dword_4FD0A4; jumptable 00445EBC case 10
+0x00446068	.text	0x00446007	inside_func	0x00445E90	jpt_445EBC	1	xor     ecx, ecx; jumptable 00445EBC case 11
+0x0044606C	.text	0x00446021	inside_func	0x00445E90	jpt_445EBC	1	push    8; jumptable 00445EBC case 15
+0x00446070	.text	0x00446046	inside_func	0x00445E90	jpt_445EBC	1	xor     ecx, ecx; jumptable 00445EBC default case, cases 4,6
+0x004460B8	.text	0x00446244	not_code			0	
+0x00446228	.text	0x004460C3	inside_func	0x00446090	jpt_4460BC	1	cmp     word_4FB8A8, 1Fh; jumptable 004460BC case 2
+0x0044622C	.text	0x00446168	inside_func	0x00446090	jpt_4460BC	1	mov     ecx, 4; jumptable 004460BC case 3
+0x00446230	.text	0x004461A4	inside_func	0x00446090	jpt_4460BC	1	xor     ecx, ecx; jumptable 004460BC case 5
+0x00446234	.text	0x004461BE	inside_func	0x00446090	jpt_4460BC	1	mov     eax, dword_4FD090; jumptable 004460BC case 10
+0x00446238	.text	0x004461D9	inside_func	0x00446090	jpt_4460BC	1	xor     ecx, ecx; jumptable 004460BC case 11
+0x0044623C	.text	0x004461F3	inside_func	0x00446090	jpt_4460BC	1	push    8; jumptable 004460BC case 15
+0x00446240	.text	0x00446218	inside_func	0x00446090	jpt_4460BC	1	xor     ecx, ecx; jumptable 004460BC default case, cases 4,6
+0x00446288	.text	0x00446408	not_code			0	
+0x004463EC	.text	0x00446293	inside_func	0x00446260	jpt_44628C	1	cmp     word_4FB8A8, 1Fh; jumptable 0044628C case 2
+0x004463F0	.text	0x00446336	inside_func	0x00446260	jpt_44628C	1	mov     eax, offset word_4A6A38; jumptable 0044628C case 3
+0x004463F4	.text	0x00446371	inside_func	0x00446260	jpt_44628C	1	xor     eax, eax; jumptable 0044628C case 5
+0x004463F8	.text	0x00446389	inside_func	0x00446260	jpt_44628C	1	xor     eax, eax; jumptable 0044628C case 10
+0x004463FC	.text	0x004463A1	inside_func	0x00446260	jpt_44628C	1	xor     eax, eax; jumptable 0044628C case 11
+0x00446400	.text	0x004463B9	inside_func	0x00446260	jpt_44628C	1	push    8; jumptable 0044628C case 15
+0x00446404	.text	0x004463DE	inside_func	0x00446260	jpt_44628C	1	xor     eax, eax; jumptable 0044628C default case, cases 4,6
+0x00446F9C	.text	0x0044673A	inside_func	0x00446700	jpt_446733	1	xor     ebx, ebx; jumptable 00446733 case 2
+0x00446FA0	.text	0x00446C61	inside_func	0x00446700	jpt_446733	1	xor     eax, eax; jumptable 00446733 case 3
+0x00446FA4	.text	0x00446D97	inside_func	0x00446700	jpt_446733	1	call    sub_446FE0; jumptable 00446733 case 4
+0x00446FA8	.text	0x00446DA0	inside_func	0x00446700	jpt_446733	1	mov     eax, dword_4FD144; jumptable 00446733 case 5
+0x00446FAC	.text	0x00446E24	inside_func	0x00446700	jpt_446733	1	push    0D8h; jumptable 00446733 case 10
+0x00446FB0	.text	0x00446EA9	inside_func	0x00446700	jpt_446733	1	mov     eax, dword_4FD148; jumptable 00446733 case 11
+0x00446FB4	.text	0x00446EF3	inside_func	0x00446700	jpt_446733	1	xor     ebx, ebx; jumptable 00446733 case 15
+0x00446FB8	.text	0x00446E17	inside_func	0x00446700	jpt_446733	1	mov     word_4FC900, 2; jumptable 00446733 cases 17,18
+0x00446FBC	.text	0x00446E20	inside_func	0x00446700	jpt_446733	1	pop     edi; jumptable 00446733 default case, cases 6-9,12-1
+0x00448D84	.text	0x00448CCA	inside_func	0x00448CA0	jpt_448CC3	1	mov     eax, dword_4AB784; jumptable 00448CC3 case 0
+0x00448D88	.text	0x00448CEC	inside_func	0x00448CA0	jpt_448CC3	1	mov     eax, dword_4C9A0C; jumptable 00448CC3 case 1
+0x00448D8C	.text	0x00448D0C	inside_func	0x00448CA0	jpt_448CC3	1	mov     eax, dword_4B7ACC; jumptable 00448CC3 case 2
+0x00448D90	.text	0x00448D29	inside_func	0x00448CA0	jpt_448CC3	1	push    48h ; 'H'; jumptable 00448CC3 case 3
+0x00448D94	.text	0x00448D34	inside_func	0x00448CA0	jpt_448CC3	1	mov     eax, dword_4A9ECC; jumptable 00448CC3 case 4
+0x00448D98	.text	0x00448D54	inside_func	0x00448CA0	jpt_448CC3	1	mov     eax, dword_4ACE60; jumptable 00448CC3 case 5
+0x00448E90	.text	0x00448DCA	inside_func	0x00448DA0	jpt_448DC3	1	mov     eax, dword_4AB784; jumptable 00448DC3 case 0
+0x00448E94	.text	0x00448DF0	inside_func	0x00448DA0	jpt_448DC3	1	mov     eax, dword_4C9A0C; jumptable 00448DC3 case 1
+0x00448E98	.text	0x00448E14	inside_func	0x00448DA0	jpt_448DC3	1	mov     eax, dword_4B7ACC; jumptable 00448DC3 case 2
+0x00448E9C	.text	0x00448E33	inside_func	0x00448DA0	jpt_448DC3	1	push    48h ; 'H'; jumptable 00448DC3 case 3
+0x00448EA0	.text	0x00448E3E	inside_func	0x00448DA0	jpt_448DC3	1	mov     eax, dword_4A9ECC; jumptable 00448DC3 case 4
+0x00448EA4	.text	0x00448E5A	inside_func	0x00448DA0	jpt_448DC3	1	mov     eax, dword_4ACE60; jumptable 00448DC3 case 5
+0x0044967C	.text	0x00449C1C	not_code			1	
+0x00449C0C	.text	0x00449291	inside_func	0x004490C0	jpt_44928A	1	mov     dword_4B8740, 0; jumptable 0044928A case 0
+0x00449C10	.text	0x004492BA	inside_func	0x004490C0	jpt_44928A	1	xor     ebp, ebp; jumptable 0044928A case 1
+0x00449C14	.text	0x00449318	inside_func	0x004490C0	jpt_44928A	1	mov     dword_4FD2AC, esi; jumptable 0044928A case 2
+0x00449C18	.text	0x00449320	inside_func	0x004490C0	jpt_44928A	1	mov     eax, dword_4B7A9C; jumptable 0044928A case 3
+0x00449C1C	.text	0x00449680	inside_func	0x004490C0	jpt_449679	1	push    offset unk_4A7088; jumptable 00449679 case 0
+0x00449C20	.text	0x00449954	inside_func	0x004490C0	jpt_449679	1	push    offset unk_4A7080; jumptable 00449679 case 1
+0x00449C24	.text	0x0044995B	inside_func	0x004490C0	jpt_449679	1	push    offset unk_4A7078; jumptable 00449679 case 2
+0x00449C28	.text	0x00449962	inside_func	0x004490C0	jpt_449679	1	push    offset unk_4A7070; jumptable 00449679 case 3
+0x00449C2C	.text	0x00449969	inside_func	0x004490C0	jpt_449679	1	push    offset byte_4A7068; jumptable 00449679 case 4
+0x0044AAEC	.text	0x0044A83B	inside_func	0x0044A280	jpt_44A834	1	push    offset unk_4A718C; jumptable 0044A834 case 0
+0x0044AAF0	.text	0x0044A842	inside_func	0x0044A280	jpt_44A834	1	push    offset unk_4A7188; jumptable 0044A834 case 1
+0x0044AAF4	.text	0x0044A849	inside_func	0x0044A280	jpt_44A834	1	push    offset unk_4A7184; jumptable 0044A834 case 2
+0x0044AAF8	.text	0x0044A850	inside_func	0x0044A280	jpt_44A834	1	push    offset byte_4A7180; jumptable 0044A834 case 3
+0x0044B6C4	.text	0x0044B582	inside_func	0x0044B560	jpt_44B57B	1	mov     eax, dword_4FD310; jumptable 0044B57B case 0
+0x0044B6C8	.text	0x0044B5A1	inside_func	0x0044B560	jpt_44B57B	1	mov     eax, dword_4FD310; jumptable 0044B57B case 1
+0x0044B6CC	.text	0x0044B673	inside_func	0x0044B560	jpt_44B57B	1	cmp     dword_4FD310, 4; jumptable 0044B57B case 2
+0x0044B6D0	.text	0x0044B6C1	inside_func	0x0044B560	jpt_44B57B	1	retn; jumptable 0044B57B default case, cases 3,4
+0x0044B6D4	.text	0x0044B6C1	inside_func	0x0044B560	jpt_44B57B	1	retn; jumptable 0044B57B default case, cases 3,4
+0x0044B6D8	.text	0x0044B697	inside_func	0x0044B560	jpt_44B57B	1	mov     eax, dword_4FD2F0; jumptable 0044B57B case 5
+0x0044B700	.text	0x0044B81C	not_code			1	
+0x0044B81C	.text	0x0044B704	inside_func	0x0044B6E0	jpt_44B6FD	1	mov     eax, dword_4FD310; jumptable 0044B6FD case 0
+0x0044B820	.text	0x0044B71C	inside_func	0x0044B6E0	jpt_44B6FD	1	mov     eax, dword_4FD310; jumptable 0044B6FD case 1
+0x0044B824	.text	0x0044B7D4	inside_func	0x0044B6E0	jpt_44B6FD	1	cmp     dword_4FD310, 4; jumptable 0044B6FD case 2
+0x0044B828	.text	0x0044B818	inside_func	0x0044B6E0	jpt_44B6FD	1	retn; jumptable 0044B6FD default case, cases 3,4
+0x0044B82C	.text	0x0044B818	inside_func	0x0044B6E0	jpt_44B6FD	1	retn; jumptable 0044B6FD default case, cases 3,4
+0x0044B830	.text	0x0044B7F1	inside_func	0x0044B6E0	jpt_44B6FD	1	mov     eax, dword_4FD2F0; jumptable 0044B6FD case 5
+0x0044B910	.text	0x0044B862	inside_func	0x0044B840	jpt_44B85B	1	cmp     dword_4FD310, 4; jumptable 0044B85B case 0
+0x0044B914	.text	0x0044B886	inside_func	0x0044B840	jpt_44B85B	1	mov     eax, dword_4FD310; jumptable 0044B85B case 1
+0x0044B918	.text	0x0044B8D3	inside_func	0x0044B840	jpt_44B85B	1	cmp     dword_4FD310, 4; jumptable 0044B85B case 2
+0x0044B91C	.text	0x0044B90E	inside_func	0x0044B840	jpt_44B85B	1	retn; jumptable 0044B85B default case, cases 3,4
+0x0044B920	.text	0x0044B90E	inside_func	0x0044B840	jpt_44B85B	1	retn; jumptable 0044B85B default case, cases 3,4
+0x0044B924	.text	0x0044B8F4	inside_func	0x0044B840	jpt_44B85B	1	mov     eax, dword_4AB784; jumptable 0044B85B case 5
+0x0044B9FC	.text	0x0044B955	inside_func	0x0044B930	jpt_44B94E	1	cmp     dword_4FD310, esi; jumptable 0044B94E case 0
+0x0044BA00	.text	0x0044B975	inside_func	0x0044B930	jpt_44B94E	1	mov     eax, dword_4FD310; jumptable 0044B94E case 1
+0x0044BA04	.text	0x0044B9BE	inside_func	0x0044B930	jpt_44B94E	1	cmp     dword_4FD310, 4; jumptable 0044B94E case 2
+0x0044BA08	.text	0x0044B9F9	inside_func	0x0044B930	jpt_44B94E	1	pop     esi; jumptable 0044B94E default case, cases 3,4
+0x0044BA0C	.text	0x0044B9F9	inside_func	0x0044B930	jpt_44B94E	1	pop     esi; jumptable 0044B94E default case, cases 3,4
+0x0044BA10	.text	0x0044B9E3	inside_func	0x0044B930	jpt_44B94E	1	mov     eax, dword_4AB784; jumptable 0044B94E case 5
+0x0044BA40	.text	0x0044BBA0	not_code			1	
+0x0044BAAC	.text	0x0044BBB8	not_code			1	
+0x0044BBA0	.text	0x0044BA44	inside_func	0x0044BA20	jpt_44BA3D	1	mov     eax, dword_4FD310; jumptable 0044BA3D case 0
+0x0044BBA4	.text	0x0044BA69	inside_func	0x0044BA20	jpt_44BA3D	1	mov     eax, dword_4FD310; jumptable 0044BA3D case 1
+0x0044BBA8	.text	0x0044BB57	inside_func	0x0044BA20	jpt_44BA3D	1	cmp     dword_4FD310, 4; jumptable 0044BA3D case 2
+0x0044BBAC	.text	0x0044BB9C	inside_func	0x0044BA20	jpt_44BA3D	1	retn; jumptable 0044BA3D default case, cases 3,4
+0x0044BBB0	.text	0x0044BB9C	inside_func	0x0044BA20	jpt_44BA3D	1	retn; jumptable 0044BA3D default case, cases 3,4
+0x0044BBB4	.text	0x0044BB74	inside_func	0x0044BA20	jpt_44BA3D	1	mov     eax, dword_4FD2F0; jumptable 0044BA3D case 5
+0x0044BBB8	.text	0x0044BAB0	inside_func	0x0044BA20	jpt_44BAA9	1	mov     eax, dword_4AB784; jumptable 0044BAA9 case 0
+0x0044BBBC	.text	0x0044BAD2	inside_func	0x0044BA20	jpt_44BAA9	1	mov     eax, dword_4C9A0C; jumptable 0044BAA9 case 1
+0x0044BBC0	.text	0x0044BAF2	inside_func	0x0044BA20	jpt_44BAA9	1	mov     eax, dword_4B7ACC; jumptable 0044BAA9 case 2
+0x0044BBC4	.text	0x0044BB13	inside_func	0x0044BA20	jpt_44BAA9	1	push    48h ; 'H'; jumptable 0044BAA9 case 3
+0x0044BBC8	.text	0x0044BB1E	inside_func	0x0044BA20	jpt_44BAA9	1	mov     eax, dword_4A9ECC; jumptable 0044BAA9 case 4
+0x0044BBCC	.text	0x0044BB3E	inside_func	0x0044BA20	jpt_44BAA9	1	mov     eax, dword_4ACE60; jumptable 0044BAA9 case 5
+0x0044BBF0	.text	0x0044BD70	not_code			1	
+0x0044BC68	.text	0x0044BD88	not_code			1	
+0x0044BD70	.text	0x0044BBF4	inside_func	0x0044BBD0	jpt_44BBED	1	mov     eax, dword_4FD310; jumptable 0044BBED case 0
+0x0044BD74	.text	0x0044BC20	inside_func	0x0044BBD0	jpt_44BBED	1	mov     eax, dword_4FD310; jumptable 0044BBED case 1
+0x0044BD78	.text	0x0044BD24	inside_func	0x0044BBD0	jpt_44BBED	1	cmp     dword_4FD310, 4; jumptable 0044BBED case 2
+0x0044BD7C	.text	0x0044BD6F	inside_func	0x0044BBD0	jpt_44BBED	1	retn; jumptable 0044BBED default case, cases 3,4
+0x0044BD80	.text	0x0044BD6F	inside_func	0x0044BBD0	jpt_44BBED	1	retn; jumptable 0044BBED default case, cases 3,4
+0x0044BD84	.text	0x0044BD48	inside_func	0x0044BBD0	jpt_44BBED	1	mov     eax, dword_4FD2F0; jumptable 0044BBED case 5
+0x0044BD88	.text	0x0044BC6C	inside_func	0x0044BBD0	jpt_44BC65	1	mov     eax, dword_4AB784; jumptable 0044BC65 case 0
+0x0044BD8C	.text	0x0044BC92	inside_func	0x0044BBD0	jpt_44BC65	1	mov     eax, dword_4C9A0C; jumptable 0044BC65 case 1
+0x0044BD90	.text	0x0044BCB6	inside_func	0x0044BBD0	jpt_44BC65	1	mov     eax, dword_4B7ACC; jumptable 0044BC65 case 2
+0x0044BD94	.text	0x0044BCD9	inside_func	0x0044BBD0	jpt_44BC65	1	push    48h ; 'H'; jumptable 0044BC65 case 3
+0x0044BD98	.text	0x0044BCE4	inside_func	0x0044BBD0	jpt_44BC65	1	mov     eax, dword_4A9ECC; jumptable 0044BC65 case 4
+0x0044BD9C	.text	0x0044BD04	inside_func	0x0044BBD0	jpt_44BC65	1	mov     eax, dword_4ACE60; jumptable 0044BC65 case 5
+0x0044C0AC	.text	0x0044BDC6	inside_func	0x0044BDA0	jpt_44BDBF	1	inc     eax; jumptable 0044BDBF case 0
+0x0044C0B0	.text	0x0044BEB1	inside_func	0x0044BDA0	jpt_44BDBF	1	mov     ecx, dword_4FD310; jumptable 0044BDBF case 1
+0x0044C0B4	.text	0x0044BF7B	inside_func	0x0044BDA0	jpt_44BDBF	1	cmp     dword_4FD310, 4; jumptable 0044BDBF case 2
+0x0044C0B8	.text	0x0044C0A8	inside_func	0x0044BDA0	jpt_44BDBF	1	pop     edi; jumptable 0044BDBF default case, cases 3,4,7-9
+0x0044C0BC	.text	0x0044C0A8	inside_func	0x0044BDA0	jpt_44BDBF	1	pop     edi; jumptable 0044BDBF default case, cases 3,4,7-9
+0x0044C0C0	.text	0x0044BFE9	inside_func	0x0044BDA0	jpt_44BDBF	1	mov     eax, dword_4FD2F0; jumptable 0044BDBF case 5
+0x0044C0C4	.text	0x0044C085	inside_func	0x0044BDA0	jpt_44BDBF	1	mov     eax, dword_4AB784; jumptable 0044BDBF case 6
+0x0044C0C8	.text	0x0044C0A8	inside_func	0x0044BDA0	jpt_44BDBF	1	pop     edi; jumptable 0044BDBF default case, cases 3,4,7-9
+0x0044C0CC	.text	0x0044C0A8	inside_func	0x0044BDA0	jpt_44BDBF	1	pop     edi; jumptable 0044BDBF default case, cases 3,4,7-9
+0x0044C0D0	.text	0x0044C0A8	inside_func	0x0044BDA0	jpt_44BDBF	1	pop     edi; jumptable 0044BDBF default case, cases 3,4,7-9
+0x0044C0D4	.text	0x0044C0A2	inside_func	0x0044BDA0	jpt_44BDBF	1	mov     dword_4FD2F8, esi; jumptable 0044BDBF case 10
+0x0044C140	.text	0x0044C102	inside_func	0x0044C0E0	jpt_44C0FB	1	dec     word_4FC900; jumptable 0044C0FB case 0
+0x0044C144	.text	0x0044C121	inside_func	0x0044C0E0	jpt_44C0FB	1	dec     eax; jumptable 0044C0FB cases 1,2
+0x0044C148	.text	0x0044C128	inside_func	0x0044C0E0	jpt_44C0FB	1	mov     dword_4FD2F0, 11h; jumptable 0044C0FB case 5
+0x0044C14C	.text	0x0044C133	inside_func	0x0044C0E0	jpt_44C0FB	1	mov     dword_4FD2F8, 0; jumptable 0044C0FB case 10
+0x0044C150	.text	0x0044C13D	inside_func	0x0044C0E0	jpt_44C0FB	1	retn; jumptable 0044C0FB default case, cases 3,4,6-9
+0x0044CD8C	.text	0x00448D30	inside_func	0x00448CA0		0	add     esp, 4
+0x0044CFF4	.text	0x0044C80F	inside_func	0x0044C160	jpt_44C808	1	push    offset unk_4A7088; jumptable 0044C808 case 0
+0x0044CFF8	.text	0x0044C816	inside_func	0x0044C160	jpt_44C808	1	push    offset unk_4A7080; jumptable 0044C808 case 1
+0x0044CFFC	.text	0x0044C81D	inside_func	0x0044C160	jpt_44C808	1	push    offset unk_4A7078; jumptable 0044C808 case 2
+0x0044D000	.text	0x0044C824	inside_func	0x0044C160	jpt_44C808	1	push    offset unk_4A7070; jumptable 0044C808 case 3
+0x0044D004	.text	0x0044C82B	inside_func	0x0044C160	jpt_44C808	1	push    offset byte_4A7068; jumptable 0044C808 case 4
+0x0044E318	.text	0x0044E277	inside_func	0x0044E260	jpt_44E270	1	mov     eax, dword_4FD578; jumptable 0044E270 case 1
+0x0044E31C	.text	0x0044E297	inside_func	0x0044E260	jpt_44E270	1	mov     ecx, dword_4FD420; jumptable 0044E270 case 2
+0x0044E320	.text	0x0044E2FA	inside_func	0x0044E260	jpt_44E270	1	mov     eax, dword_4FD578; jumptable 0044E270 case 3
+0x0044E324	.text	0x0044E308	inside_func	0x0044E260	jpt_44E270	1	mov     eax, dword_4FD578; jumptable 0044E270 case 4
+0x0044E344	.text	0x0044E48C	not_code			1	
+0x0044E48C	.text	0x0044E348	inside_func	0x0044E330	jpt_44E341	1	mov     eax, dword_4FD578; jumptable 0044E341 case 1
+0x0044E490	.text	0x0044E369	inside_func	0x0044E330	jpt_44E341	1	mov     eax, dword_4FD420; jumptable 0044E341 case 2
+0x0044E494	.text	0x0044E46D	inside_func	0x0044E330	jpt_44E341	1	mov     eax, dword_4FD578; jumptable 0044E341 case 3
+0x0044E498	.text	0x0044E47C	inside_func	0x0044E330	jpt_44E341	1	mov     eax, dword_4FD578; jumptable 0044E341 case 4
+0x0044E9A0	.text	0x0044E4B9	inside_func	0x0044E4A0	jpt_44E4B2	1	mov     ebp, dword_4FD414; jumptable 0044E4B2 case 1
+0x0044E9A4	.text	0x0044E6BF	inside_func	0x0044E4A0	jpt_44E4B2	1	call    sub_44F770; jumptable 0044E4B2 case 2
+0x0044E9A8	.text	0x0044E6FF	inside_func	0x0044E4A0	jpt_44E4B2	1	mov     edx, dword_4FD414; jumptable 0044E4B2 case 3
+0x0044E9AC	.text	0x0044E94E	inside_func	0x0044E4A0	jpt_44E4B2	1	mov     al, byte ptr dword_4FD578; jumptable 0044E4B2 case 4
+0x0044E9B0	.text	0x0044E99A	inside_func	0x0044E4A0	jpt_44E4B2	1	pop     edi; jumptable 0044E4B2 default case, cases 5-9
+0x0044E9B4	.text	0x0044E99A	inside_func	0x0044E4A0	jpt_44E4B2	1	pop     edi; jumptable 0044E4B2 default case, cases 5-9
+0x0044E9B8	.text	0x0044E99A	inside_func	0x0044E4A0	jpt_44E4B2	1	pop     edi; jumptable 0044E4B2 default case, cases 5-9
+0x0044E9BC	.text	0x0044E99A	inside_func	0x0044E4A0	jpt_44E4B2	1	pop     edi; jumptable 0044E4B2 default case, cases 5-9
+0x0044E9C0	.text	0x0044E99A	inside_func	0x0044E4A0	jpt_44E4B2	1	pop     edi; jumptable 0044E4B2 default case, cases 5-9
+0x0044E9C4	.text	0x0044E990	inside_func	0x0044E4A0	jpt_44E4B2	1	mov     dword_4FD414, 2; jumptable 0044E4B2 case 10
+0x0044EA48	.text	0x0044E9E2	inside_func	0x0044E9D0	jpt_44E9DB	1	dec     dword_4FD414; jumptable 0044E9DB case 1
+0x0044EA4C	.text	0x0044E9F8	inside_func	0x0044E9D0	jpt_44E9DB	1	push    esi; jumptable 0044E9DB case 2
+0x0044EA50	.text	0x0044EA36	inside_func	0x0044E9D0	jpt_44E9DB	1	dec     dword_4FD414; jumptable 0044E9DB case 3
+0x0044EA54	.text	0x0044EA3D	inside_func	0x0044E9D0	jpt_44E9DB	1	mov     dword_4FD414, 2; jumptable 0044E9DB case 4
+0x0044EF44	.text	0x0040BF00	mid_instruction	0x0040BB50		0	
+0x0044F8B4	.text	0x00458910	mid_instruction	0x004582B0		0	
+0x004508B8	.text	0x0042E800	mid_instruction	0x0042E790		0	
+0x004514F8	.text	0x00427F83	mid_instruction	0x00427920	loc_4514F7	0	
+0x00452CAC	.text	0x0040B8D0	mid_instruction	0x0040B7F0		0	
+0x00455CD0	.text	0x00453A53	inside_func	0x004539B0	jpt_453A4C	1	mov     eax, dword_53AE7C; jumptable 00453A4C case 1
+0x00455CD4	.text	0x00453D97	inside_func	0x004539B0	jpt_453A4C	1	mov     ecx, dword_53C050; jumptable 00453A4C case 2
+0x00455CD8	.text	0x00453EC9	inside_func	0x004539B0	jpt_453A4C	1	mov     ecx, dword_53C050; jumptable 00453A4C case 3
+0x00455CDC	.text	0x0045479B	inside_func	0x004539B0	jpt_453A4C	1	mov     edi, [esp+20h+arg_4]; jumptable 00453A4C case 4
+0x00455CE0	.text	0x004554BA	inside_func	0x004539B0	jpt_453A4C	1	pop     edi; jumptable 00453A4C case 5
+0x00455CE4	.text	0x0045454D	inside_func	0x004539B0	jpt_453A4C	1	mov     ax, word ptr dword_53BDE8; jumptable 00453A4C case 6
+0x00455CE8	.text	0x004554D8	inside_func	0x004539B0	jpt_453A4C	1	mov     esi, [esp+20h+arg_4]; jumptable 00453A4C case 7
+0x00455CEC	.text	0x00455CBB	inside_func	0x004539B0	jpt_453A4C	1	mov     ecx, [esp+20h+var_C]; jumptable 00453A4C default cas
+0x00455CF0	.text	0x00455CBB	inside_func	0x004539B0	jpt_453A4C	1	mov     ecx, [esp+20h+var_C]; jumptable 00453A4C default cas
+0x00455CF4	.text	0x00455CBB	inside_func	0x004539B0	jpt_453A4C	1	mov     ecx, [esp+20h+var_C]; jumptable 00453A4C default cas
+0x00455CF8	.text	0x00453D83	inside_func	0x004539B0	jpt_453A4C	1	push    esi; jumptable 00453A4C case 11
+0x00455CFC	.text	0x00453D3F	inside_func	0x004539B0	jpt_453A4C	1	mov     ecx, esi; jumptable 00453A4C case 12
+0x00455D00	.text	0x00454824	inside_func	0x004539B0	jpt_453A4C	1	cmp     word ptr dword_53BDE8, 0; jumptable 00453A4C case 13
+0x00455D04	.text	0x00454946	inside_func	0x004539B0	jpt_453A4C	1	cmp     word ptr dword_53BDE8, 0; jumptable 00453A4C case 14
+0x00455D08	.text	0x004551E8	inside_func	0x004539B0	jpt_453A4C	1	cmp     word ptr dword_53BDE8, 0; jumptable 00453A4C case 15
+0x00455D0C	.text	0x00455CBB	inside_func	0x004539B0	jpt_453A4C	1	mov     ecx, [esp+20h+var_C]; jumptable 00453A4C default cas
+0x00455D10	.text	0x00454521	inside_func	0x004539B0	jpt_453A4C	1	cmp     word ptr dword_53BF1C, 0; jumptable 00453A4C case 17
+0x00455D14	.text	0x00455CBB	inside_func	0x004539B0	jpt_453A4C	1	mov     ecx, [esp+20h+var_C]; jumptable 00453A4C default cas
+0x00455D18	.text	0x00455CBB	inside_func	0x004539B0	jpt_453A4C	1	mov     ecx, [esp+20h+var_C]; jumptable 00453A4C default cas
+0x00455D1C	.text	0x00455CBB	inside_func	0x004539B0	jpt_453A4C	1	mov     ecx, [esp+20h+var_C]; jumptable 00453A4C default cas
+0x00455D20	.text	0x00455CBB	inside_func	0x004539B0	jpt_453A4C	1	mov     ecx, [esp+20h+var_C]; jumptable 00453A4C default cas
+0x00455D24	.text	0x00454A06	inside_func	0x004539B0	jpt_453A4C	1	mov     eax, dword_53C050; jumptable 00453A4C case 22
+0x00455D28	.text	0x00454BE7	inside_func	0x004539B0	jpt_453A4C	1	mov     ecx, [esp+20h+arg_4]; jumptable 00453A4C case 23
+0x00455D2C	.text	0x00454CE0	inside_func	0x004539B0	jpt_453A4C	1	mov     ecx, [esp+20h+arg_4]; jumptable 00453A4C case 24
+0x00455D30	.text	0x00454E5D	inside_func	0x004539B0	jpt_453A4C	1	mov     cx, word_4A762C; jumptable 00453A4C case 25
+0x00455D34	.text	0x00455006	inside_func	0x004539B0	jpt_453A4C	1	cmp     word ptr dword_4FD768, bx; jumptable 00453A4C case 2
+0x00455D38	.text	0x00455415	inside_func	0x004539B0	jpt_453A4C	1	mov     edi, [esp+20h+arg_4]; jumptable 00453A4C case 27
+0x00455D3C	.text	0x00453F99	inside_func	0x004539B0	jpt_453A4C	1	push    1965h; jumptable 00453A4C case 28
+0x00455D40	.text	0x00454138	inside_func	0x004539B0	jpt_453A4C	1	mov     ecx, [esp+20h+arg_4]; jumptable 00453A4C case 29
+0x00455D44	.text	0x00455CBB	inside_func	0x004539B0	jpt_453A4C	1	mov     ecx, [esp+20h+var_C]; jumptable 00453A4C default cas
+0x00455D48	.text	0x00454366	inside_func	0x004539B0	jpt_453A4C	1	mov     eax, dword_53BDAC; jumptable 00453A4C case 31
+0x00455D4C	.text	0x00453FFA	inside_func	0x004539B0	jpt_453A4C	1	push    1965h; jumptable 00453A4C case 32
+0x00455D50	.text	0x0045405B	inside_func	0x004539B0	jpt_453A4C	1	mov     edi, [esp+20h+arg_4]; jumptable 00453A4C case 33
+0x00455D54	.text	0x004541ED	inside_func	0x004539B0	jpt_453A4C	1	push    17BAh; jumptable 00453A4C case 34
+0x00455D58	.text	0x00454266	inside_func	0x004539B0	jpt_453A4C	1	push    17BAh; jumptable 00453A4C case 35
+0x00455D5C	.text	0x004542E6	inside_func	0x004539B0	jpt_453A4C	1	push    17BAh; jumptable 00453A4C case 36
+0x00456630	.text	0x00455F9E	inside_func	0x00455D60	jpt_455DBA	1	mov     eax, dword_53AE80; jumptable 00455DBA case 1
+0x00456634	.text	0x00456142	inside_func	0x00455D60	jpt_455DBA	1	mov     ecx, dword_53C050; jumptable 00455DBA case 2
+0x00456638	.text	0x0045661B	inside_func	0x00455D60	jpt_455DBA	1	mov     ecx, [esp+1Ch+var_C]; jumptable 00455DBA default cas
+0x0045663C	.text	0x0045661B	inside_func	0x00455D60	jpt_455DBA	1	mov     ecx, [esp+1Ch+var_C]; jumptable 00455DBA default cas
+0x00456640	.text	0x0045661B	inside_func	0x00455D60	jpt_455DBA	1	mov     ecx, [esp+1Ch+var_C]; jumptable 00455DBA default cas
+0x00456644	.text	0x0045642B	inside_func	0x00455D60	jpt_455DBA	1	cmp     word ptr dword_53BDE8, 0; jumptable 00455DBA case 6
+0x00456648	.text	0x004564F3	inside_func	0x00455D60	jpt_455DBA	1	mov     esi, [esp+1Ch+arg_4]; jumptable 00455DBA case 7
+0x0045664C	.text	0x0045661B	inside_func	0x00455D60	jpt_455DBA	1	mov     ecx, [esp+1Ch+var_C]; jumptable 00455DBA default cas
+0x00456650	.text	0x0045661B	inside_func	0x00455D60	jpt_455DBA	1	mov     ecx, [esp+1Ch+var_C]; jumptable 00455DBA default cas
+0x00456654	.text	0x0045641D	inside_func	0x00455D60	jpt_455DBA	1	push    0; jumptable 00455DBA case 10
+0x00456658	.text	0x004563CF	inside_func	0x00455D60	jpt_455DBA	1	push    esi; jumptable 00455DBA case 11
+0x0045665C	.text	0x0045635B	inside_func	0x00455D60	jpt_455DBA	1	mov     ecx, esi; jumptable 00455DBA case 12
+0x00456660	.text	0x0045661B	inside_func	0x00455D60	jpt_455DBA	1	mov     ecx, [esp+1Ch+var_C]; jumptable 00455DBA default cas
+0x00456664	.text	0x0045661B	inside_func	0x00455D60	jpt_455DBA	1	mov     ecx, [esp+1Ch+var_C]; jumptable 00455DBA default cas
+0x00456668	.text	0x00455DC1	inside_func	0x00455D60	jpt_455DBA	1	mov     eax, dword_53BDE8; jumptable 00455DBA case 15
+0x0045666C	.text	0x0045661B	inside_func	0x00455D60	jpt_455DBA	1	mov     ecx, [esp+1Ch+var_C]; jumptable 00455DBA default cas
+0x00456670	.text	0x0045625E	inside_func	0x00455D60	jpt_455DBA	1	mov     ecx, esi; jumptable 00455DBA case 17
+0x0045E7A4	.text	0x0045E6A2	inside_func	0x0045E660	jpt_45E69B	1	mov     eax, dword_4A9928; jumptable 0045E69B cases 1,2,4,5,
+0x0045E7A8	.text	0x0045E6C1	inside_func	0x0045E660	jpt_45E69B	1	cmp     dword_53BFBC, 1; jumptable 0045E69B case 3
+0x0045E7AC	.text	0x0045E714	inside_func	0x0045E660	jpt_45E69B	1	test    ecx, 80000000h; jumptable 0045E69B default case, cas
+0x0045FCFC	.text	0x00460C20	not_code			0	
+0x00460BF8	.text	0x0045FD07	inside_func	0x0045FC60	jpt_45FD00	1	mov     eax, dword_53BCE0; jumptable 0045FD00 case 0
+0x00460BFC	.text	0x0045FE36	inside_func	0x0045FC60	jpt_45FD00	1	mov     edi, dword_53BD54; jumptable 0045FD00 case 1
+0x00460C00	.text	0x0045FFC9	inside_func	0x0045FC60	jpt_45FD00	1	cmp     ebp, 82h; jumptable 0045FD00 case 2
+0x00460C04	.text	0x00460527	inside_func	0x0045FC60	jpt_45FD00	1	cmp     dword_53BF88, esi; jumptable 0045FD00 case 3
+0x00460C08	.text	0x00460114	inside_func	0x0045FC60	jpt_45FD00	1	cmp     ebp, 82h; jumptable 0045FD00 case 4
+0x00460C0C	.text	0x00460270	inside_func	0x0045FC60	jpt_45FD00	1	cmp     ebx, 0C4h; jumptable 0045FD00 case 5
+0x00460C10	.text	0x004602E6	inside_func	0x0045FC60	jpt_45FD00	1	cmp     ebx, 0E0h; jumptable 0045FD00 case 8
+0x00460C14	.text	0x0046036B	inside_func	0x0045FC60	jpt_45FD00	1	mov     dx, word_53BDF4; jumptable 0045FD00 case 27
+0x00460C18	.text	0x0045FD92	inside_func	0x0045FC60	jpt_45FD00	1	xor     esi, esi; jumptable 0045FD00 case 30
+0x00460C1C	.text	0x004602A3	inside_func	0x0045FC60	jpt_45FD00	1	pop     edi; jumptable 0045FD00 default case, cases 6,7,9-26
+0x00460C60	.text	0x00461220	not_code			0	
+0x004611F8	.text	0x00460C6B	inside_func	0x00460C40	jpt_460C64	1	cmp     dword_4A7548, 8; jumptable 00460C64 case 1
+0x004611FC	.text	0x00460CE1	inside_func	0x00460C40	jpt_460C64	1	mov     eax, dword_4A7558; jumptable 00460C64 case 2
+0x00461200	.text	0x00460D3B	inside_func	0x00460C40	jpt_460C64	1	mov     eax, dword_53BF88; jumptable 00460C64 case 3
+0x00461204	.text	0x00461049	inside_func	0x00460C40	jpt_460C64	1	mov     eax, dword_4A755C; jumptable 00460C64 case 4
+0x00461208	.text	0x004610C1	inside_func	0x00460C40	jpt_460C64	1	mov     edx, dword_4AB784; jumptable 00460C64 case 5
+0x0046120C	.text	0x004610F6	inside_func	0x00460C40	jpt_460C64	1	mov     eax, dword_4AB784; jumptable 00460C64 case 7
+0x00461210	.text	0x00461138	inside_func	0x00460C40	jpt_460C64	1	mov     cl, byte_53BDF3; jumptable 00460C64 case 8
+0x00461214	.text	0x0046116B	inside_func	0x00460C40	jpt_460C64	1	mov     eax, dword_4A755C; jumptable 00460C64 case 27
+0x00461218	.text	0x004611BC	inside_func	0x00460C40	jpt_460C64	1	mov     eax, dword_4A755C; jumptable 00460C64 case 30
+0x0046121C	.text	0x004611F1	inside_func	0x00460C40	jpt_460C64	1	pop     ebp; jumptable 00460C64 default case, cases 6,9-26,2
+0x00461260	.text	0x004618D4	not_code			0	
+0x004618AC	.text	0x0046126B	inside_func	0x00461240	jpt_461264	1	cmp     dword_4A7548, 8; jumptable 00461264 case 1
+0x004618B0	.text	0x004612E0	inside_func	0x00461240	jpt_461264	1	mov     eax, dword_4A7558; jumptable 00461264 case 2
+0x004618B4	.text	0x00461377	inside_func	0x00461240	jpt_461264	1	mov     eax, dword_53BF88; jumptable 00461264 case 3
+0x004618B8	.text	0x0046168B	inside_func	0x00461240	jpt_461264	1	mov     ecx, dword_4A755C; jumptable 00461264 case 4
+0x004618BC	.text	0x00461729	inside_func	0x00461240	jpt_461264	1	mov     eax, dword_4AB784; jumptable 00461264 case 5
+0x004618C0	.text	0x0046175D	inside_func	0x00461240	jpt_461264	1	mov     ecx, dword_4AB784; jumptable 00461264 case 7
+0x004618C4	.text	0x004617A3	inside_func	0x00461240	jpt_461264	1	mov     cl, byte_53BDF3; jumptable 00461264 case 8
+0x004618C8	.text	0x004617D7	inside_func	0x00461240	jpt_461264	1	mov     ecx, dword_4A755C; jumptable 00461264 case 27
+0x004618CC	.text	0x00461872	inside_func	0x00461240	jpt_461264	1	mov     eax, dword_4A755C; jumptable 00461264 case 30
+0x004618D0	.text	0x004618A3	inside_func	0x00461240	jpt_461264	1	pop     ebp; jumptable 00461264 default case, cases 6,9-26,2
+0x00461CB4	.text	0x00462088	not_code			1	
+0x00462088	.text	0x00461CB8	inside_func	0x00461C10	jpt_461CB1	1	xor     eax, eax; jumptable 00461CB1 case 1
+0x0046208C	.text	0x00461CFB	inside_func	0x00461C10	jpt_461CB1	1	xor     ecx, ecx; jumptable 00461CB1 case 2
+0x00462090	.text	0x00461D7F	inside_func	0x00461C10	jpt_461CB1	1	cmp     word_4A762E, 0FFFFh; jumptable 00461CB1 case 3
+0x00462094	.text	0x00461EDC	inside_func	0x00461C10	jpt_461CB1	1	mov     dword_53BCEC, eax; jumptable 00461CB1 case 4
+0x00462098	.text	0x00461F0E	inside_func	0x00461C10	jpt_461CB1	1	mov     dword_53BCEC, 4; jumptable 00461CB1 case 5
+0x0046209C	.text	0x00461F1D	inside_func	0x00461C10	jpt_461CB1	1	mov     dword_53BCEC, ebx; jumptable 00461CB1 case 7
+0x004620A0	.text	0x00461F52	inside_func	0x00461C10	jpt_461CB1	1	mov     dword_53BCEC, eax; jumptable 00461CB1 case 8
+0x004620A4	.text	0x00461F66	inside_func	0x00461C10	jpt_461CB1	1	mov     dword_53BCEC, eax; jumptable 00461CB1 case 27
+0x004620A8	.text	0x00461FF7	inside_func	0x00461C10	jpt_461CB1	1	mov     ecx, dword_53BCF0; jumptable 00461CB1 case 30
+0x004620AC	.text	0x00462077	inside_func	0x00461C10	jpt_461CB1	1	mov     dword_53BD90, ebx; jumptable 00461CB1 default case, 
+0x00462384	.text	0x0046233E	inside_func	0x00462320	jpt_462337	1	push    0Bh; jumptable 00462337 case 8
+0x00462388	.text	0x0046234F	inside_func	0x00462320	jpt_462337	1	push    8; jumptable 00462337 case 9
+0x0046238C	.text	0x00462360	inside_func	0x00462320	jpt_462337	1	push    9; jumptable 00462337 case 10
+0x00462390	.text	0x00462371	inside_func	0x00462320	jpt_462337	1	push    0Ah; jumptable 00462337 case 11
+0x00462404	.text	0x004623BE	inside_func	0x004623A0	jpt_4623B7	1	push    9; jumptable 004623B7 case 8
+0x00462408	.text	0x004623CF	inside_func	0x004623A0	jpt_4623B7	1	push    0Ah; jumptable 004623B7 case 9
+0x0046240C	.text	0x004623E0	inside_func	0x004623A0	jpt_4623B7	1	push    0Bh; jumptable 004623B7 case 10
+0x00462410	.text	0x004623F1	inside_func	0x004623A0	jpt_4623B7	1	push    8; jumptable 004623B7 case 11
+0x004627F8	.text	0x0046424C	not_code			0	
+0x004640F4	.text	0x00462785	inside_func	0x00462740	jpt_46277E	1	cmp     dword_53BFB8, ebx; jumptable 0046277E case 1
+0x004640F8	.text	0x00462B8A	inside_func	0x00462740	jpt_46277E	1	mov     eax, dword_4A7578; jumptable 0046277E case 2
+0x004640FC	.text	0x00462E2A	inside_func	0x00462740	jpt_46277E	1	cmp     dword_4A754C, 0FFFFFFFFh; jumptable 0046277E case 3
+0x00464100	.text	0x0046314C	inside_func	0x00462740	jpt_46277E	1	mov     eax, dword_4A757C; jumptable 0046277E case 4
+0x00464104	.text	0x004639CF	inside_func	0x00462740	jpt_46277E	1	mov     eax, dword_53BD54; jumptable 0046277E case 5
+0x00464108	.text	0x00463C02	inside_func	0x00462740	jpt_46277E	1	mov     ecx, dword_4A756C; jumptable 0046277E case 7
+0x0046410C	.text	0x0046388A	inside_func	0x00462740	jpt_46277E	1	cmp     dword_53BFB8, ebx; jumptable 0046277E case 8
+0x00464110	.text	0x00463669	inside_func	0x00462740	jpt_46277E	1	cmp     dword_53BFB8, ebx; jumptable 0046277E case 27
+0x00464114	.text	0x00463700	inside_func	0x00462740	jpt_46277E	1	cmp     dword_53BFB8, ebx; jumptable 0046277E case 30
+0x00464118	.text	0x00463E2B	inside_func	0x00462740	jpt_46277E	1	pop     edi; jumptable 0046277E case 98
+0x0046411C	.text	0x00463E64	inside_func	0x00462740	jpt_46277E	1	cmp     dword_53BD20, 14h; jumptable 0046277E case 100
+0x00464120	.text	0x00463E8F	inside_func	0x00462740	jpt_46277E	1	mov     eax, dword_53C038; jumptable 0046277E case 101
+0x00464124	.text	0x00463F2E	inside_func	0x00462740	jpt_46277E	1	cmp     dword_53BD20, 14h; jumptable 0046277E case 102
+0x00464128	.text	0x00463F61	inside_func	0x00462740	jpt_46277E	1	cmp     dword_53BD20, 14h; jumptable 0046277E case 103
+0x0046412C	.text	0x00463F8E	inside_func	0x00462740	jpt_46277E	1	mov     dword_53BFE4, esi; jumptable 0046277E case 104
+0x00464130	.text	0x00463FA2	inside_func	0x00462740	jpt_46277E	1	mov     eax, dword_53BFFC; jumptable 0046277E case 110
+0x00464134	.text	0x0046404C	inside_func	0x00462740	jpt_46277E	1	cmp     dword_53BD20, 14h; jumptable 0046277E case 111
+0x00464138	.text	0x0046408A	inside_func	0x00462740	jpt_46277E	1	cmp     dword_53BD20, 14h; jumptable 0046277E case 112
+0x0046413C	.text	0x004640BE	inside_func	0x00462740	jpt_46277E	1	cmp     dword_53BD20, 14h; jumptable 0046277E case 113
+0x00464140	.text	0x00463D59	inside_func	0x00462740	jpt_46277E	1	mov     eax, dword_53BCE0; jumptable 0046277E case 200
+0x00464144	.text	0x004640EA	inside_func	0x00462740	jpt_46277E	1	pop     edi; jumptable 0046277E default case, cases 6,9-26,2
+0x00464210	.text	0x00462803	inside_func	0x00462740	jpt_4627FC	1	mov     edx, dword_4A7550; jumptable 004627FC case 1
+0x00464214	.text	0x00462824	inside_func	0x00462740	jpt_4627FC	1	push    0B0h; jumptable 004627FC case 2
+0x00464218	.text	0x00462888	inside_func	0x00462740	jpt_4627FC	1	push    0B0h; jumptable 004627FC case 3
+0x0046421C	.text	0x0046294E	inside_func	0x00462740	jpt_4627FC	1	push    0B0h; jumptable 004627FC case 4
+0x00464220	.text	0x004628DB	inside_func	0x00462740	jpt_4627FC	1	mov     edx, dword_53BD54; jumptable 004627FC case 5
+0x00464224	.text	0x00462A42	inside_func	0x00462740	jpt_4627FC	1	mov     dword_53BCEC, 3; jumptable 004627FC cases 6,21,23,29
+0x00464228	.text	0x004629A0	inside_func	0x00462740	jpt_4627FC	1	mov     eax, dword_53BD54; jumptable 004627FC case 17
+0x0046422C	.text	0x004629BB	inside_func	0x00462740	jpt_4627FC	1	mov     ecx, dword_53BD54; jumptable 004627FC case 22
+0x00464230	.text	0x00462A66	inside_func	0x00462740	jpt_4627FC	1	mov     dword_53BCEC, 3; jumptable 004627FC case 24
+0x00464234	.text	0x00462A36	inside_func	0x00462740	jpt_4627FC	1	mov     eax, dword_53BCDC; jumptable 004627FC case 25
+0x00464238	.text	0x00462A51	inside_func	0x00462740	jpt_4627FC	1	mov     dword_53BCEC, 3; jumptable 004627FC case 26
+0x0046423C	.text	0x00462A81	inside_func	0x00462740	jpt_4627FC	1	push    0C6h; jumptable 004627FC case 27
+0x00464240	.text	0x00462AD6	inside_func	0x00462740	jpt_4627FC	1	mov     ecx, dword_53BD54; jumptable 004627FC cases 28,32,34
+0x00464244	.text	0x00462AB0	inside_func	0x00462740	jpt_4627FC	1	push    0C6h; jumptable 004627FC case 30
+0x00464248	.text	0x00462B55	inside_func	0x00462740	jpt_4627FC	1	cmp     dword_53BFBC, ebx; jumptable 004627FC default case, 
+0x00464C70	.text	0x00464439	inside_func	0x00464270	jpt_464432	1	cmp     dword_53BD54, ebx; jumptable 00464432 case 1
+0x00464C74	.text	0x004645E6	inside_func	0x00464270	jpt_464432	1	push    7Eh ; '~'; jumptable 00464432 case 2
+0x00464C78	.text	0x004647EC	inside_func	0x00464270	jpt_464432	1	push    10h; jumptable 00464432 case 3
+0x00464C7C	.text	0x00464691	inside_func	0x00464270	jpt_464432	1	mov     edx, dword_53BD08; jumptable 00464432 case 4
+0x00464C80	.text	0x00464BE9	inside_func	0x00464270	jpt_464432	1	push    0CEh; jumptable 00464432 case 5
+0x00464C84	.text	0x00464C03	inside_func	0x00464270	jpt_464432	1	cmp     dword_53BF64, ebx; jumptable 00464432 case 6
+0x00464C88	.text	0x00464C3A	inside_func	0x00464270	jpt_464432	1	mov     edx, dword_53BD28; jumptable 00464432 case 7
+0x00464C8C	.text	0x00464714	inside_func	0x00464270	jpt_464432	1	mov     edx, dword_4A7560; jumptable 00464432 case 8
+0x00464C90	.text	0x00464732	inside_func	0x00464270	jpt_464432	1	mov     eax, dword_53BD08; jumptable 00464432 case 27
+0x00464C94	.text	0x004647B5	inside_func	0x00464270	jpt_464432	1	mov     ecx, dword_53BD08; jumptable 00464432 case 30
+0x00464C98	.text	0x00464C68	inside_func	0x00464270	jpt_464432	1	pop     edi; jumptable 00464432 default case, cases 9-26,28,
+0x004676C0	.text	0x00466FA9	inside_func	0x00466F70	jpt_466FA2	1	pop     edi; jumptable 00466FA2 case 96
+0x004676C4	.text	0x00466FC0	inside_func	0x00466F70	jpt_466FA2	1	mov     ecx, dword_53BCE4; jumptable 00466FA2 case 97
+0x004676C8	.text	0x00467009	inside_func	0x00466F70	jpt_466FA2	1	mov     dword_53BFC0, 1; jumptable 00466FA2 case 98
+0x004676CC	.text	0x0046701D	inside_func	0x00466F70	jpt_466FA2	1	mov     eax, dword_53CEAC; jumptable 00466FA2 case 99
+0x004676D0	.text	0x004672EA	inside_func	0x00466F70	jpt_466FA2	1	mov     eax, dword_53C004; jumptable 00466FA2 case 100
+0x004676D4	.text	0x00467330	inside_func	0x00466F70	jpt_466FA2	1	mov     al, byte_4A7646; jumptable 00466FA2 case 101
+0x004676D8	.text	0x004675F3	inside_func	0x00466F70	jpt_466FA2	1	cmp     word_53C498, bx; jumptable 00466FA2 case 102
+0x004676DC	.text	0x00467630	inside_func	0x00466F70	jpt_466FA2	1	mov     al, byte ptr dword_53BC24; jumptable 00466FA2 case 1
+0x004676E0	.text	0x00467690	inside_func	0x00466F70	jpt_466FA2	1	mov     eax, 1; jumptable 00466FA2 case 104
+0x004676E4	.text	0x004676B8	inside_func	0x00466F70	jpt_466FA2	1	pop     edi; jumptable 00466FA2 default case, cases 105-109
+0x004676E8	.text	0x004676B8	inside_func	0x00466F70	jpt_466FA2	1	pop     edi; jumptable 00466FA2 default case, cases 105-109
+0x004676EC	.text	0x004676B8	inside_func	0x00466F70	jpt_466FA2	1	pop     edi; jumptable 00466FA2 default case, cases 105-109
+0x004676F0	.text	0x004676B8	inside_func	0x00466F70	jpt_466FA2	1	pop     edi; jumptable 00466FA2 default case, cases 105-109
+0x004676F4	.text	0x004676B8	inside_func	0x00466F70	jpt_466FA2	1	pop     edi; jumptable 00466FA2 default case, cases 105-109
+0x004676F8	.text	0x004673DF	inside_func	0x00466F70	jpt_466FA2	1	cmp     dword_53C038, ebx; jumptable 00466FA2 case 110
+0x004676FC	.text	0x00467452	inside_func	0x00466F70	jpt_466FA2	1	push    ebx; jumptable 00466FA2 case 111
+0x00467700	.text	0x0046746C	inside_func	0x00466F70	jpt_466FA2	1	cmp     byte_4A7646, 0FFh; jumptable 00466FA2 case 112
+0x00467704	.text	0x0046751F	inside_func	0x00466F70	jpt_466FA2	1	cmp     byte_4A7646, 0FFh; jumptable 00466FA2 case 113
+0x0046DF38	.text	0x0046DEB7	inside_func	0x00469D20	jpt_469D38	1	mov     eax, dword_53BCE0; jumptable 00469D38 case -1
+0x0046DF3C	.text	0x0046DF2B	inside_func	0x00469D20	jpt_469D38	1	pop     edi; jumptable 00469D38 default case, cases 0,7,32,3
+0x0046DF40	.text	0x00469D78	inside_func	0x00469D20	jpt_469D38	1	mov     eax, dword_53CCDC; jumptable 00469D38 case 1
+0x0046DF44	.text	0x00469EB7	inside_func	0x00469D20	jpt_469D38	1	mov     eax, dword_53CE8C+2; jumptable 00469D38 case 2
+0x0046DF48	.text	0x00469E86	inside_func	0x00469D20	jpt_469D38	1	mov     dword_4A7B58, 0; jumptable 00469D38 case 3
+0x0046DF4C	.text	0x0046A606	inside_func	0x00469D20	jpt_469D38	1	movsx   eax, word ptr [esi+2]; jumptable 00469D38 case 4
+0x0046DF50	.text	0x0046A62C	inside_func	0x00469D20	jpt_469D38	1	xor     edi, edi; jumptable 00469D38 case 5
+0x0046DF54	.text	0x0046A873	inside_func	0x00469D20	jpt_469D38	1	mov     eax, dword_53CCD4; jumptable 00469D38 case 6
+0x0046DF58	.text	0x0046DF2B	inside_func	0x00469D20	jpt_469D38	1	pop     edi; jumptable 00469D38 default case, cases 0,7,32,3
+0x0046DF5C	.text	0x0046A8E8	inside_func	0x00469D20	jpt_469D38	1	add     esi, 2; jumptable 00469D38 case 8
+0x0046DF60	.text	0x0046AA05	inside_func	0x00469D20	jpt_469D38	1	mov     ax, [esi+2]; jumptable 00469D38 case 9
+0x0046DF64	.text	0x0046AF10	inside_func	0x00469D20	jpt_469D38	1	mov     eax, dword_53CE8C+2; jumptable 00469D38 case 10
+0x0046DF68	.text	0x0046B4CD	inside_func	0x00469D20	jpt_469D38	1	mov     eax, dword_53CE8C+2; jumptable 00469D38 case 11
+0x0046DF6C	.text	0x0046B43B	inside_func	0x00469D20	jpt_469D38	1	mov     edx, dword_53BCE0; jumptable 00469D38 case 12
+0x0046DF70	.text	0x0046A771	inside_func	0x00469D20	jpt_469D38	1	mov     cx, [esi+4]; jumptable 00469D38 case 13
+0x0046DF74	.text	0x0046B09E	inside_func	0x00469D20	jpt_469D38	1	xor     edx, edx; jumptable 00469D38 case 14
+0x0046DF78	.text	0x0046B1AC	inside_func	0x00469D20	jpt_469D38	1	mov     dword_4A7B58, 0; jumptable 00469D38 case 15
+0x0046DF7C	.text	0x0046B300	inside_func	0x00469D20	jpt_469D38	1	mov     ecx, dword_53CE90; jumptable 00469D38 case 16
+0x0046DF80	.text	0x0046DEA3	inside_func	0x00469D20	jpt_469D38	1	add     esi, 2; jumptable 00469D38 case 17
+0x0046DF84	.text	0x0046B26F	inside_func	0x00469D20	jpt_469D38	1	mov     ax, [esi+2]; jumptable 00469D38 case 18
+0x0046DF88	.text	0x0046B384	inside_func	0x00469D20	jpt_469D38	1	mov     dx, word ptr dword_53CE94; jumptable 00469D38 case 1
+0x0046DF8C	.text	0x0046B967	inside_func	0x00469D20	jpt_469D38	1	mov     si, [esi+2]; jumptable 00469D38 case 20
+0x0046DF90	.text	0x0046B65D	inside_func	0x00469D20	jpt_469D38	1	mov     eax, dword_53CE8C+2; jumptable 00469D38 case 21
+0x0046DF94	.text	0x0046BB15	inside_func	0x00469D20	jpt_469D38	1	mov     ax, [esi+2]; jumptable 00469D38 case 22
+0x0046DF98	.text	0x0046AC13	inside_func	0x00469D20	jpt_469D38	1	movsx   ecx, word ptr [esi+2]; jumptable 00469D38 case 23
+0x0046DF9C	.text	0x0046BBF7	inside_func	0x00469D20	jpt_469D38	1	mov     eax, dword_53BCE0; jumptable 00469D38 case 24
+0x0046DFA0	.text	0x0046BC68	inside_func	0x00469D20	jpt_469D38	1	xor     esi, esi; jumptable 00469D38 case 25
+0x0046DFA4	.text	0x0046B7FB	inside_func	0x00469D20	jpt_469D38	1	mov     eax, dword_53CE8C+2; jumptable 00469D38 case 26
+0x0046DFA8	.text	0x0046BCDF	inside_func	0x00469D20	jpt_469D38	1	mov     cx, [esi+2]; jumptable 00469D38 case 27
+0x0046DFAC	.text	0x0046BD6C	inside_func	0x00469D20	jpt_469D38	1	mov     cx, [esi+2]; jumptable 00469D38 case 28
+0x0046DFB0	.text	0x0046B01D	inside_func	0x00469D20	jpt_469D38	1	mov     si, [esi+2]; jumptable 00469D38 case 29
+0x0046DFB4	.text	0x0046BF6F	inside_func	0x00469D20	jpt_469D38	1	mov     eax, dword_4AB784; jumptable 00469D38 case 30
+0x0046DFB8	.text	0x0046BFB3	inside_func	0x00469D20	jpt_469D38	1	mov     cx, word ptr dword_53CE94+2; jumptable 00469D38 case
+0x0046DFBC	.text	0x0046DF2B	inside_func	0x00469D20	jpt_469D38	1	pop     edi; jumptable 00469D38 default case, cases 0,7,32,3
+0x0046DFC0	.text	0x0046C043	inside_func	0x00469D20	jpt_469D38	1	push    0B4h; jumptable 00469D38 case 33
+0x0046DFC4	.text	0x0046C12A	inside_func	0x00469D20	jpt_469D38	1	mov     eax, dword_4BA6E0; jumptable 00469D38 case 34
+0x0046DFC8	.text	0x0046C1C7	inside_func	0x00469D20	jpt_469D38	1	or      byte ptr dword_53CE8C, 0A0h; jumptable 00469D38 case
+0x0046DFCC	.text	0x0046C1E2	inside_func	0x00469D20	jpt_469D38	1	cmp     word ptr [esi+2], 100h; jumptable 00469D38 case 36
+0x0046DFD0	.text	0x0046C46D	inside_func	0x00469D20	jpt_469D38	1	cmp     word ptr [esi+2], 100h; jumptable 00469D38 case 37
+0x0046DFD4	.text	0x0046DF2B	inside_func	0x00469D20	jpt_469D38	1	pop     edi; jumptable 00469D38 default case, cases 0,7,32,3
+0x0046DFD8	.text	0x0046C59C	inside_func	0x00469D20	jpt_469D38	1	mov     eax, dword_53CE8C+2; jumptable 00469D38 case 39
+0x0046DFDC	.text	0x0046C837	inside_func	0x00469D20	jpt_469D38	1	mov     cx, word_53CE74; jumptable 00469D38 case 40
+0x0046DFE0	.text	0x00469D3F	inside_func	0x00469D20	jpt_469D38	1	mov     dword_53CEB0, 0; jumptable 00469D38 case 41
+0x0046DFE4	.text	0x0046CB60	inside_func	0x00469D20	jpt_469D38	1	add     esi, 2; jumptable 00469D38 case 42
+0x0046DFE8	.text	0x0046CC48	inside_func	0x00469D20	jpt_469D38	1	mov     cl, byte ptr dword_53BCE0; jumptable 00469D38 case 4
+0x0046DFEC	.text	0x0046A0FD	inside_func	0x00469D20	jpt_469D38	1	mov     cx, [esi+2]; jumptable 00469D38 case 44
+0x0046DFF0	.text	0x0046B9EF	inside_func	0x00469D20	jpt_469D38	1	mov     eax, dword_53C000; jumptable 00469D38 case 45
+0x0046DFF4	.text	0x0046CC9E	inside_func	0x00469D20	jpt_469D38	1	movsx   edx, word ptr [esi+2]; jumptable 00469D38 case 46
+0x0046DFF8	.text	0x0046CCAA	inside_func	0x00469D20	jpt_469D38	1	movsx   eax, word ptr [esi+2]; jumptable 00469D38 case 47
+0x0046DFFC	.text	0x0046CCCF	inside_func	0x00469D20	jpt_469D38	1	movsx   eax, word ptr [esi+2]; jumptable 00469D38 case 48
+0x0046E000	.text	0x0046CD0E	inside_func	0x00469D20	jpt_469D38	1	mov     byte_53BEFF, 0FFh; jumptable 00469D38 case 49
+0x0046E004	.text	0x0046CD3C	inside_func	0x00469D20	jpt_469D38	1	movsx   ecx, word ptr [esi+2]; jumptable 00469D38 case 50
+0x0046E008	.text	0x0046CDCE	inside_func	0x00469D20	jpt_469D38	1	mov     cl, [esi+4]; jumptable 00469D38 case 51
+0x0046E00C	.text	0x0046BE7F	inside_func	0x00469D20	jpt_469D38	1	mov     cx, [esi+2]; jumptable 00469D38 case 52
+0x0046E010	.text	0x0046CE0B	inside_func	0x00469D20	jpt_469D38	1	mov     cx, [esi+2]; jumptable 00469D38 case 53
+0x0046E014	.text	0x0046CF67	inside_func	0x00469D20	jpt_469D38	1	movsx   eax, word ptr [esi+2]; jumptable 00469D38 case 54
+0x0046E018	.text	0x0046CE5D	inside_func	0x00469D20	jpt_469D38	1	movsx   eax, word ptr [esi+2]; jumptable 00469D38 case 55
+0x0046E01C	.text	0x0046CEAB	inside_func	0x00469D20	jpt_469D38	1	mov     cx, [esi+2]; jumptable 00469D38 case 56
+0x0046E020	.text	0x0046D14D	inside_func	0x00469D20	jpt_469D38	1	mov     eax, dword_53BC24; jumptable 00469D38 case 57
+0x0046E024	.text	0x0046D1B9	inside_func	0x00469D20	jpt_469D38	1	cmp     word ptr [esi+2], 7; jumptable 00469D38 case 58
+0x0046E028	.text	0x0046A332	inside_func	0x00469D20	jpt_469D38	1	mov     eax, dword_53CE8C+2; jumptable 00469D38 case 59
+0x0046E02C	.text	0x0046D2C1	inside_func	0x00469D20	jpt_469D38	1	lea     ebp, [esi+2]; jumptable 00469D38 case 60
+0x0046E030	.text	0x0046D374	inside_func	0x00469D20	jpt_469D38	1	xor     edx, edx; jumptable 00469D38 case 61
+0x0046E034	.text	0x0046D4F5	inside_func	0x00469D20	jpt_469D38	1	movsx   ecx, word ptr [esi+2]; jumptable 00469D38 case 62
+0x0046E038	.text	0x0046D611	inside_func	0x00469D20	jpt_469D38	1	mov     eax, dword_520FB8; jumptable 00469D38 case 63
+0x0046E03C	.text	0x0046D647	inside_func	0x00469D20	jpt_469D38	1	mov     cx, [esi+2]; jumptable 00469D38 case 64
+0x0046E040	.text	0x0046D6F2	inside_func	0x00469D20	jpt_469D38	1	mov     ax, [esi+2]; jumptable 00469D38 case 65
+0x0046E044	.text	0x0046D790	inside_func	0x00469D20	jpt_469D38	1	mov     ax, [esi+2]; jumptable 00469D38 case 66
+0x0046E048	.text	0x0046A9E2	inside_func	0x00469D20	jpt_469D38	1	add     esi, 2; jumptable 00469D38 case 67
+0x0046E04C	.text	0x0046D85B	inside_func	0x00469D20	jpt_469D38	1	movsx   eax, word ptr [esi+2]; jumptable 00469D38 case 68
+0x0046E050	.text	0x0046D8F8	inside_func	0x00469D20	jpt_469D38	1	mov     ecx, dword_53BC24; jumptable 00469D38 case 69
+0x0046E054	.text	0x0046BF25	inside_func	0x00469D20	jpt_469D38	1	mov     cx, [esi+2]; jumptable 00469D38 case 70
+0x0046E058	.text	0x0046D91B	inside_func	0x00469D20	jpt_469D38	1	mov     ecx, dword_53BC24; jumptable 00469D38 case 71
+0x0046E05C	.text	0x0046D952	inside_func	0x00469D20	jpt_469D38	1	movsx   ecx, word ptr [esi+8]; jumptable 00469D38 case 72
+0x0046E060	.text	0x0046CA12	inside_func	0x00469D20	jpt_469D38	1	mov     ax, [esi+2]; jumptable 00469D38 case 73
+0x0046E064	.text	0x0046D988	inside_func	0x00469D20	jpt_469D38	1	mov     cx, [esi+2]; jumptable 00469D38 case 74
+0x0046E068	.text	0x0046CF0E	inside_func	0x00469D20	jpt_469D38	1	mov     cx, [esi+2]; jumptable 00469D38 case 75
+0x0046E06C	.text	0x0046D9D1	inside_func	0x00469D20	jpt_469D38	1	mov     si, [esi+2]; jumptable 00469D38 case 76
+0x0046E070	.text	0x0046D196	inside_func	0x00469D20	jpt_469D38	1	mov     ecx, dword_53BC24; jumptable 00469D38 case 77
+0x0046E074	.text	0x0046DBB6	inside_func	0x00469D20	jpt_469D38	1	xor     ebx, ebx; jumptable 00469D38 case 78
+0x0046E078	.text	0x0046DA54	inside_func	0x00469D20	jpt_469D38	1	mov     ax, [esi+2]; jumptable 00469D38 case 79
+0x0046E07C	.text	0x0046DD9F	inside_func	0x00469D20	jpt_469D38	1	mov     cx, [esi+2]; jumptable 00469D38 case 80
+0x0046E080	.text	0x0046DDEE	inside_func	0x00469D20	jpt_469D38	1	mov     ax, [esi+2]; jumptable 00469D38 case 81
+0x0046E084	.text	0x0046DE33	inside_func	0x00469D20	jpt_469D38	1	mov     ax, [esi+2]; jumptable 00469D38 case 82
+0x0046E088	.text	0x0046DE94	inside_func	0x00469D20	jpt_469D38	1	mov     ecx, dword_53BC24; jumptable 00469D38 case 83
+0x0046F04C	.text	0x0046F1D0	not_code			1	
+0x0046F1D0	.text	0x0046F050	inside_func	0x0046F030	jpt_46F049	1	mov     eax, [esi+26C8h]; jumptable 0046F049 case 50
+0x0046F1D4	.text	0x0046F13E	inside_func	0x0046F030	jpt_46F049	1	mov     dx, [edi+50h]; jumptable 0046F049 case 51
+0x0046F1D8	.text	0x0046F0C8	inside_func	0x0046F030	jpt_46F049	1	mov     ax, [edi+50h]; jumptable 0046F049 case 52
+0x0046F1DC	.text	0x0046F064	inside_func	0x0046F030	jpt_46F049	1	mov     eax, [esi+26C8h]; jumptable 0046F049 case 53
+0x0046F1E0	.text	0x0046F078	inside_func	0x0046F030	jpt_46F049	1	mov     eax, [esi+26C8h]; jumptable 0046F049 case 54
+0x0046F1E4	.text	0x0046F08C	inside_func	0x0046F030	jpt_46F049	1	mov     eax, [esi+26C8h]; jumptable 0046F049 case 55
+0x0046F1E8	.text	0x0046F0A0	inside_func	0x0046F030	jpt_46F049	1	mov     eax, [esi+26C8h]; jumptable 0046F049 case 56
+0x0046F1EC	.text	0x0046F0B4	inside_func	0x0046F030	jpt_46F049	1	mov     eax, [esi+26C8h]; jumptable 0046F049 case 57
+0x0046F220	.text	0x0046F564	not_code			1	
+0x0046F564	.text	0x0046F224	inside_func	0x0046F1F0	jpt_46F21D	1	mov     ecx, [esi+26CCh]; jumptable 0046F21D case 21
+0x0046F568	.text	0x0046F262	inside_func	0x0046F1F0	jpt_46F21D	1	mov     eax, [esi+26CCh]; jumptable 0046F21D case 22
+0x0046F56C	.text	0x0046F28C	inside_func	0x0046F1F0	jpt_46F21D	1	mov     ebx, [esi+26CCh]; jumptable 0046F21D case 23
+0x0046F570	.text	0x0046F2A9	inside_func	0x0046F1F0	jpt_46F21D	1	mov     eax, [esi+26CCh]; jumptable 0046F21D case 24
+0x0046F574	.text	0x0046F2CE	inside_func	0x0046F1F0	jpt_46F21D	1	mov     eax, [esi+26CCh]; jumptable 0046F21D case 25
+0x0046F578	.text	0x0046F2F8	inside_func	0x0046F1F0	jpt_46F21D	1	mov     ebx, [esi+26CCh]; jumptable 0046F21D case 26
+0x0046F57C	.text	0x0046F315	inside_func	0x0046F1F0	jpt_46F21D	1	mov     ebx, [esi+26CCh]; jumptable 0046F21D case 27
+0x0046F580	.text	0x0046F332	inside_func	0x0046F1F0	jpt_46F21D	1	push    1Ch; jumptable 0046F21D case 28
+0x0046F584	.text	0x0046F349	inside_func	0x0046F1F0	jpt_46F21D	1	mov     ebx, [esi+26CCh]; jumptable 0046F21D case 29
+0x0046F588	.text	0x0046F366	inside_func	0x0046F1F0	jpt_46F21D	1	mov     ebx, [esi+26CCh]; jumptable 0046F21D case 30
+0x0046F58C	.text	0x0046F383	inside_func	0x0046F1F0	jpt_46F21D	1	or      byte ptr [esi+2A87h], 4; jumptable 0046F21D case 31
+0x0046F590	.text	0x0046F3CE	inside_func	0x0046F1F0	jpt_46F21D	1	push    20h ; ' '; jumptable 0046F21D case 32
+0x0046F594	.text	0x0046F3E5	inside_func	0x0046F1F0	jpt_46F21D	1	push    21h ; '!'; jumptable 0046F21D case 33
+0x0046F598	.text	0x0046F3FC	inside_func	0x0046F1F0	jpt_46F21D	1	push    22h ; '"'; jumptable 0046F21D case 34
+0x0046F59C	.text	0x0046F474	inside_func	0x0046F1F0	jpt_46F21D	1	push    23h ; '#'; jumptable 0046F21D case 35
+0x0046F5A0	.text	0x0046F4DB	inside_func	0x0046F1F0	jpt_46F21D	1	push    24h ; '$'; jumptable 0046F21D case 36
+0x0046FC28	.text	0x00458903	mid_instruction	0x004582B0		0	
+0x00470718	.text	0x00487883	not_code			0	
+0x00475CD4	.text	0x00458903	mid_instruction	0x004582B0		0	
+0x00476D3C	.text	0x00476BE6	inside_func	0x00476A80	jpt_476BDF	1	mov     edx, [ecx]; jumptable 00476BDF case 0
+0x00476D40	.text	0x00476BC5	inside_func	0x00476A80	jpt_476BDF	1	mov     dx, [ecx]; jumptable 00476BDF default case, cases 1,
+0x00476D44	.text	0x00476BF6	inside_func	0x00476A80	jpt_476BDF	1	mov     dl, [ecx]; jumptable 00476BDF case 2
+0x00476D48	.text	0x00476BFF	inside_func	0x00476A80	jpt_476BDF	1	or      dword ptr [eax+4], 1; jumptable 00476BDF case 3
+0x00476D4C	.text	0x00476C05	inside_func	0x00476A80	jpt_476BDF	1	mov     dx, [ecx]; jumptable 00476BDF case 4
+0x00476D50	.text	0x00476BC5	inside_func	0x00476A80	jpt_476BDF	1	mov     dx, [ecx]; jumptable 00476BDF default case, cases 1,
+0x00476D54	.text	0x00476C10	inside_func	0x00476A80	jpt_476BDF	1	mov     dx, [ecx]; jumptable 00476BDF case 6
+0x00476D58	.text	0x00476C24	inside_func	0x00476A80	jpt_476BDF	1	mov     dx, [ecx]; jumptable 00476BDF case 7
+0x00476D5C	.text	0x00476C2F	inside_func	0x00476A80	jpt_476BDF	1	mov     dx, [ecx]; jumptable 00476BDF case 8
+0x00476D60	.text	0x00476C3A	inside_func	0x00476A80	jpt_476BDF	1	or      [eax+4], edi; jumptable 00476BDF case 9
+0x00476D64	.text	0x00476C3F	inside_func	0x00476A80	jpt_476BDF	1	mov     dx, [ecx]; jumptable 00476BDF case 10
+0x00476D68	.text	0x00476C51	inside_func	0x00476A80	jpt_476BDF	1	or      dword ptr [eax+4], 4; jumptable 00476BDF case 11
+0x00476D6C	.text	0x00476C5A	inside_func	0x00476A80	jpt_476BDF	1	mov     edx, [ecx]; jumptable 00476BDF case 12
+0x00476D70	.text	0x00476C67	inside_func	0x00476A80	jpt_476BDF	1	mov     dx, [ecx]; jumptable 00476BDF case 13
+0x00476D74	.text	0x00476C75	inside_func	0x00476A80	jpt_476BDF	1	mov     edx, [eax+4]; jumptable 00476BDF case 14
+0x00476D78	.text	0x00476C8C	inside_func	0x00476A80	jpt_476BDF	1	or      dword ptr [eax+4], 10h; jumptable 00476BDF case 15
+0x00476D7C	.text	0x00476C95	inside_func	0x00476A80	jpt_476BDF	1	or      dword ptr [eax+4], 20h; jumptable 00476BDF case 16
+0x00476D80	.text	0x00476C9E	inside_func	0x00476A80	jpt_476BDF	1	or      dword ptr [eax+4], 40h; jumptable 00476BDF case 17
+0x00476D84	.text	0x00476CA7	inside_func	0x00476A80	jpt_476BDF	1	mov     edx, [eax+4]; jumptable 00476BDF case 18
+0x00476D88	.text	0x00476CB5	inside_func	0x00476A80	jpt_476BDF	1	mov     edx, [eax+4]; jumptable 00476BDF case 19
+0x00476D8C	.text	0x00476CC3	inside_func	0x00476A80	jpt_476BDF	1	mov     edx, [eax+4]; jumptable 00476BDF case 20
+0x00476D90	.text	0x00476CD1	inside_func	0x00476A80	jpt_476BDF	1	mov     edx, [eax+4]; jumptable 00476BDF case 21
+0x00476D94	.text	0x00476CDF	inside_func	0x00476A80	jpt_476BDF	1	mov     edx, [eax+4]; jumptable 00476BDF case 22
+0x00476D98	.text	0x00476CFD	inside_func	0x00476A80	jpt_476BDF	1	mov     dx, [ecx]; jumptable 00476BDF case 23
+0x00476D9C	.text	0x00476D0B	inside_func	0x00476A80	jpt_476BDF	1	mov     edx, [eax+4]; jumptable 00476BDF case 24
+0x00476DA0	.text	0x00476D19	inside_func	0x00476A80	jpt_476BDF	1	mov     edx, [eax+4]; jumptable 00476BDF case 25
+0x00477030	.text	0x00477254	not_code			1	
+0x00477210	.text	0x00476F66	inside_func	0x00476DB0	jpt_476F5F	1	lea     edi, [ebx+50h]; jumptable 00476F5F case 1
+0x00477214	.text	0x00476F34	inside_func	0x00476DB0	jpt_476F5F	1	mov     ax, [ebp+0]; jumptable 00476F5F default case, cases 
+0x00477218	.text	0x00476F34	inside_func	0x00476DB0	jpt_476F5F	1	mov     ax, [ebp+0]; jumptable 00476F5F default case, cases 
+0x0047721C	.text	0x00476F34	inside_func	0x00476DB0	jpt_476F5F	1	mov     ax, [ebp+0]; jumptable 00476F5F default case, cases 
+0x00477220	.text	0x00476F34	inside_func	0x00476DB0	jpt_476F5F	1	mov     ax, [ebp+0]; jumptable 00476F5F default case, cases 
+0x00477224	.text	0x00476F78	inside_func	0x00476DB0	jpt_476F5F	1	mov     dx, [ebp+0]; jumptable 00476F5F case 6
+0x00477228	.text	0x00476F82	inside_func	0x00476DB0	jpt_476F5F	1	mov     ax, [ebp+0]; jumptable 00476F5F case 7
+0x0047722C	.text	0x00476F8C	inside_func	0x00476DB0	jpt_476F5F	1	mov     cx, [ebp+0]; jumptable 00476F5F case 8
+0x00477230	.text	0x00476F96	inside_func	0x00476DB0	jpt_476F5F	1	mov     dx, [ebp+0]; jumptable 00476F5F case 9
+0x00477234	.text	0x00476FA0	inside_func	0x00476DB0	jpt_476F5F	1	mov     ax, [ebp+0]; jumptable 00476F5F case 10
+0x00477238	.text	0x00476FAA	inside_func	0x00476DB0	jpt_476F5F	1	mov     cx, [ebp+0]; jumptable 00476F5F case 11
+0x0047723C	.text	0x00476FB7	inside_func	0x00476DB0	jpt_476F5F	1	mov     dx, [ebp+0]; jumptable 00476F5F case 12
+0x00477240	.text	0x00476FC4	inside_func	0x00476DB0	jpt_476F5F	1	mov     ax, [ebp+0]; jumptable 00476F5F case 13
+0x00477244	.text	0x00476FD1	inside_func	0x00476DB0	jpt_476F5F	1	mov     cx, [ebp+0]; jumptable 00476F5F case 14
+0x00477248	.text	0x00476FDE	inside_func	0x00476DB0	jpt_476F5F	1	mov     dx, [ebp+0]; jumptable 00476F5F case 15
+0x0047724C	.text	0x00476FEB	inside_func	0x00476DB0	jpt_476F5F	1	mov     ax, [ebp+0]; jumptable 00476F5F case 16
+0x00477250	.text	0x00476FF8	inside_func	0x00476DB0	jpt_476F5F	1	mov     cx, [ebp+0]; jumptable 00476F5F case 17
+0x00477254	.text	0x004770C6	inside_func	0x00476DB0	jpt_47702D	1	mov     cx, [ebp+0]; jumptable 0047702D case 19
+0x00477258	.text	0x004770D3	inside_func	0x00476DB0	jpt_47702D	1	mov     dx, [ebp+0]; jumptable 0047702D case 20
+0x0047725C	.text	0x004770E0	inside_func	0x00476DB0	jpt_47702D	1	mov     ax, [ebp+0]; jumptable 0047702D case 21
+0x00477260	.text	0x004770ED	inside_func	0x00476DB0	jpt_47702D	1	mov     cx, [ebp+0]; jumptable 0047702D case 22
+0x00477264	.text	0x00476F34	inside_func	0x00476DB0	jpt_47702D	1	mov     ax, [ebp+0]; jumptable 00476F5F default case, cases 
+0x00477268	.text	0x00476F34	inside_func	0x00476DB0	jpt_47702D	1	mov     ax, [ebp+0]; jumptable 00476F5F default case, cases 
+0x0047726C	.text	0x004770FA	inside_func	0x00476DB0	jpt_47702D	1	mov     edx, [ebp+2]; jumptable 0047702D case 25
+0x00477270	.text	0x0047710B	inside_func	0x00476DB0	jpt_47702D	1	mov     ax, [ebp+0]; jumptable 0047702D case 26
+0x00477274	.text	0x00477118	inside_func	0x00476DB0	jpt_47702D	1	mov     cx, [ebp+0]; jumptable 0047702D case 27
+0x00477278	.text	0x00477125	inside_func	0x00476DB0	jpt_47702D	1	mov     dl, [ebp+0]; jumptable 0047702D case 28
+0x0047727C	.text	0x00477134	inside_func	0x00476DB0	jpt_47702D	1	mov     al, [ebp+0]; jumptable 0047702D case 29
+0x00477280	.text	0x00477034	inside_func	0x00476DB0	jpt_47702D	1	xor     esi, esi; jumptable 0047702D case 30
+0x00477DDC	.text	0x00458B04	mid_instruction	0x004582B0		0	
+0x004799D8	.text	0x0047B9CC	not_code			1	
+0x0047B9CC	.text	0x004799DC	inside_func	0x00479850	jpt_4799D5	1	mov     ax, [esi+2958h]; jumptable 004799D5 case 1
+0x0047B9D0	.text	0x00479B06	inside_func	0x00479850	jpt_4799D5	1	cmp     [esi+2958h], cx; jumptable 004799D5 case 2
+0x0047B9D4	.text	0x00479CA6	inside_func	0x00479850	jpt_4799D5	1	mov     ax, [esi+2958h]; jumptable 004799D5 case 3
+0x0047B9D8	.text	0x00479EAA	inside_func	0x00479850	jpt_4799D5	1	mov     ax, [esi+2958h]; jumptable 004799D5 case 4
+0x0047B9DC	.text	0x0047A083	inside_func	0x00479850	jpt_4799D5	1	mov     ecx, [esi+2548h]; jumptable 004799D5 case 5
+0x0047B9E0	.text	0x0047A1A0	inside_func	0x00479850	jpt_4799D5	1	mov     ax, [esi+2958h]; jumptable 004799D5 case 6
+0x0047B9E4	.text	0x0047A266	inside_func	0x00479850	jpt_4799D5	1	mov     ax, [esi+2958h]; jumptable 004799D5 case 7
+0x0047B9E8	.text	0x0047A5FE	inside_func	0x00479850	jpt_4799D5	1	cmp     [esi+2958h], cx; jumptable 004799D5 case 8
+0x0047B9EC	.text	0x0047A752	inside_func	0x00479850	jpt_4799D5	1	mov     ax, [esi+2958h]; jumptable 004799D5 case 9
+0x0047B9F0	.text	0x0047A815	inside_func	0x00479850	jpt_4799D5	1	mov     ecx, [esi+2548h]; jumptable 004799D5 case 10
+0x0047B9F4	.text	0x0047A94D	inside_func	0x00479850	jpt_4799D5	1	mov     ax, [esi+2958h]; jumptable 004799D5 case 11
+0x0047B9F8	.text	0x0047AA7B	inside_func	0x00479850	jpt_4799D5	1	mov     ax, [esi+2958h]; jumptable 004799D5 case 12
+0x0047B9FC	.text	0x0047ABAD	inside_func	0x00479850	jpt_4799D5	1	mov     ax, [esi+2958h]; jumptable 004799D5 case 13
+0x0047BA00	.text	0x0047AF24	inside_func	0x00479850	jpt_4799D5	1	mov     ax, [esi+2958h]; jumptable 004799D5 case 14
+0x0047BA04	.text	0x0047B2E8	inside_func	0x00479850	jpt_4799D5	1	mov     ax, [esi+2958h]; jumptable 004799D5 case 15
+0x0047BA08	.text	0x0047B747	inside_func	0x00479850	jpt_4799D5	1	mov     ax, [esi+2958h]; jumptable 004799D5 case 50
+0x0047BA0C	.text	0x0047B83E	inside_func	0x00479850	jpt_4799D5	1	mov     ax, [esi+2958h]; jumptable 004799D5 case 51
+0x0047BA10	.text	0x0047B409	inside_func	0x00479850	jpt_4799D5	1	mov     ax, [esi+2958h]; jumptable 004799D5 case 100
+0x0047BA14	.text	0x0047A80B	inside_func	0x00479850	jpt_4799D5	1	pop     edi; jumptable 004799D5 default case, cases 16-49,52
+0x0047E03C	.text	0x0047DD56	inside_func	0x0047DBD0	jpt_47DD23	1	mov     eax, 1; jumptable 0047DD23 case 1
+0x0047E040	.text	0x0047DD8B	inside_func	0x0047DBD0	jpt_47DD23	1	mov     dword ptr [edx+4], 2AF8h; jumptable 0047DD23 case 2
+0x0047E044	.text	0x0047DD2A	inside_func	0x0047DBD0	jpt_47DD23	1	mov     ecx, [esi+26C0h]; jumptable 0047DD23 case 4
+0x0047E048	.text	0x0047DDC9	inside_func	0x0047DBD0	jpt_47DD23	1	mov     dword ptr [edx+4], 2AF8h; jumptable 0047DD23 case 8
+0x0047E04C	.text	0x0047DE03	inside_func	0x0047DBD0	jpt_47DD23	1	mov     eax, 5; jumptable 0047DD23 case 16
+0x0047E050	.text	0x0047E02E	inside_func	0x0047DBD0	jpt_47DD23	1	pop     edi; jumptable 0047DD23 default case, cases 3,5-7,9-
+0x0047E138	.text	0x00458904	inside_func	0x004582B0		0	mov     eax, 1
+0x0047E498	.text	0x0047E18E	inside_func	0x0047E070	jpt_47E187	1	mov     eax, [esi+2560h]; jumptable 0047E187 case 1
+0x0047E49C	.text	0x0047E19C	inside_func	0x0047E070	jpt_47E187	1	mov     edx, [esi+2560h]; jumptable 0047E187 case 2
+0x0047E4A0	.text	0x0047E25E	inside_func	0x0047E070	jpt_47E187	1	mov     eax, [ebx+8]; jumptable 0047E187 default case, cases
+0x0047E4A4	.text	0x0047E25E	inside_func	0x0047E070	jpt_47E187	1	mov     eax, [ebx+8]; jumptable 0047E187 default case, cases
+0x0047E4A8	.text	0x0047E1AA	inside_func	0x0047E070	jpt_47E187	1	mov     ecx, [esi+2560h]; jumptable 0047E187 case 5
+0x0047E4AC	.text	0x0047E1B8	inside_func	0x0047E070	jpt_47E187	1	mov     eax, [esi+2560h]; jumptable 0047E187 case 6
+0x0047E4B0	.text	0x0047E1EC	inside_func	0x0047E070	jpt_47E187	1	mov     edx, [esi+2560h]; jumptable 0047E187 case 7
+0x0047E4B4	.text	0x0047E25E	inside_func	0x0047E070	jpt_47E187	1	mov     eax, [ebx+8]; jumptable 0047E187 default case, cases
+0x0047E4B8	.text	0x0047E21F	inside_func	0x0047E070	jpt_47E187	1	mov     ecx, [esi+2560h]; jumptable 0047E187 case 9
+0x0047E560	.text	0x0047E523	inside_func	0x0047E500	jpt_47E51C	1	mov     edx, 1000000h; jumptable 0047E51C case 1
+0x0047E564	.text	0x0047E52A	inside_func	0x0047E500	jpt_47E51C	1	mov     edx, 800000h; jumptable 0047E51C case 2
+0x0047E568	.text	0x0047E53D	inside_func	0x0047E500	jpt_47E51C	1	cmp     edx, [eax+9Ch]; jumptable 0047E51C default case, cas
+0x0047E56C	.text	0x0047E53D	inside_func	0x0047E500	jpt_47E51C	1	cmp     edx, [eax+9Ch]; jumptable 0047E51C default case, cas
+0x0047E570	.text	0x0047E53D	inside_func	0x0047E500	jpt_47E51C	1	cmp     edx, [eax+9Ch]; jumptable 0047E51C default case, cas
+0x0047E574	.text	0x0047E531	inside_func	0x0047E500	jpt_47E51C	1	mov     edx, 400000h; jumptable 0047E51C case 6
+0x0047E578	.text	0x0047E538	inside_func	0x0047E500	jpt_47E51C	1	mov     edx, 200000h; jumptable 0047E51C case 7
+0x0047EF7C	.text	0x0047F120	not_code			1	
+0x0047F0F8	.text	0x0047E9D7	inside_func	0x0047E950	jpt_47E9BB	1	mov     ecx, [esi+26C0h]; jumptable 0047E9BB case 1
+0x0047F0FC	.text	0x0047E9EC	inside_func	0x0047E950	jpt_47E9BB	1	mov     ecx, [esi+26C0h]; jumptable 0047E9BB case 2
+0x0047F100	.text	0x0047E9C2	inside_func	0x0047E950	jpt_47E9BB	1	mov     ecx, [esi+26C0h]; jumptable 0047E9BB case 4
+0x0047F104	.text	0x0047EA09	inside_func	0x0047E950	jpt_47E9BB	1	mov     ecx, [esi+26C0h]; jumptable 0047E9BB case 8
+0x0047F108	.text	0x0047EA32	inside_func	0x0047E950	jpt_47E9BB	1	mov     ecx, [esi+26C0h]; jumptable 0047E9BB case 16
+0x0047F10C	.text	0x0047EF64	inside_func	0x0047E950	jpt_47E9BB	1	mov     edx, [ebx]; jumptable 0047E9BB default case, cases 3
+0x0047F120	.text	0x0047EF80	inside_func	0x0047E950	jpt_47EF79	1	mov     eax, [esi+2560h]; jumptable 0047EF79 case 1
+0x0047F124	.text	0x0047EF8E	inside_func	0x0047E950	jpt_47EF79	1	mov     edx, [esi+2560h]; jumptable 0047EF79 case 2
+0x0047F128	.text	0x0047EF9C	inside_func	0x0047E950	jpt_47EF79	1	mov     ecx, [esi+2560h]; jumptable 0047EF79 case 3
+0x0047F12C	.text	0x0047EFAD	inside_func	0x0047E950	jpt_47EF79	1	mov     eax, [esi+2560h]; jumptable 0047EF79 case 4
+0x0047F130	.text	0x0047EFBB	inside_func	0x0047E950	jpt_47EF79	1	mov     edx, [esi+2560h]; jumptable 0047EF79 case 5
+0x0047F134	.text	0x0047EFC9	inside_func	0x0047E950	jpt_47EF79	1	mov     ecx, [esi+2560h]; jumptable 0047EF79 case 6
+0x0047F138	.text	0x0047EFD7	inside_func	0x0047E950	jpt_47EF79	1	mov     eax, [esi+2560h]; jumptable 0047EF79 case 7
+0x0047F13C	.text	0x0047F00B	inside_func	0x0047E950	jpt_47EF79	1	mov     edx, [esi+2560h]; jumptable 0047EF79 case 8
+0x0047F140	.text	0x0047F03E	inside_func	0x0047E950	jpt_47EF79	1	mov     ecx, [esi+2560h]; jumptable 0047EF79 case 9
+0x004814DC	.text	0x00481A10	not_code			1	
+0x00481A0C	.text	0x00498D00	not_code			0	
+0x00481A10	.text	0x004814E0	inside_func	0x00481010	jpt_4814D9	1	push    7; jumptable 004814D9 case 1
+0x00481A14	.text	0x004814E7	inside_func	0x00481010	jpt_4814D9	1	mov     eax, [esp+40h+var_18]; jumptable 004814D9 case 2
+0x00481A18	.text	0x00481544	inside_func	0x00481010	jpt_4814D9	1	movsx   ecx, cx; jumptable 004814D9 case 8
+0x00481A1C	.text	0x0048156D	inside_func	0x00481010	jpt_4814D9	1	movsx   eax, cx; jumptable 004814D9 case 17
+0x00481A20	.text	0x004815F8	inside_func	0x00481010	jpt_4814D9	1	mov     eax, [esp+40h+arg_0]; jumptable 004814D9 default cas
+0x00481F8C	.text	0x00498D00	not_code			0	
+0x00481F90	.text	0x00481B65	inside_func	0x00481A40	jpt_481B5E	1	test    word ptr [esi+0DA8h], 1080h; jumptable 00481B5E case
+0x00481F94	.text	0x00481B75	inside_func	0x00481A40	jpt_481B5E	1	test    word ptr [esi+0DA8h], 10C8h; jumptable 00481B5E case
+0x00481F98	.text	0x00481B85	inside_func	0x00481A40	jpt_481B5E	1	test    word ptr [esi+0DA8h], 10E9h; jumptable 00481B5E case
+0x00481F9C	.text	0x00481B95	inside_func	0x00481A40	jpt_481B5E	1	test    word ptr [esi+0DA8h], 10EFh; jumptable 00481B5E case
+0x00481FA0	.text	0x00481BA5	inside_func	0x00481A40	jpt_481B5E	1	test    word ptr [esi+0DA8h], 12EFh; jumptable 00481B5E case
+0x00481FA4	.text	0x00481C8A	inside_func	0x00481A40	jpt_481B5E	1	mov     edi, 1; jumptable 00481B5E case 5
+0x00482FF8	.text	0x0048305C	not_code			1	
+0x0048305C	.text	0x00482FFC	inside_func	0x00482FC0	jpt_482FF5	1	mov     eax, [esi+26CCh]; jumptable 00482FF5 case 25
+0x00483060	.text	0x00483014	inside_func	0x00482FC0	jpt_482FF5	1	test    dword ptr [esi+26C0h], 80000000h; jumptable 00482FF5
+0x00483064	.text	0x00483027	inside_func	0x00482FC0	jpt_482FF5	1	mov     eax, [esi+26CCh]; jumptable 00482FF5 case 29
+0x00483068	.text	0x00483049	inside_func	0x00482FC0	jpt_482FF5	1	test    dword ptr [esi+26C0h], 4000000h; jumptable 00482FF5 
+0x0048306C	.text	0x00483039	inside_func	0x00482FC0	jpt_482FF5	1	test    byte ptr [esi+26C8h], 40h; jumptable 00482FF5 case 5
+0x00483070	.text	0x0048300A	inside_func	0x00482FC0	jpt_482FF5	1	pop     edi; jumptable 00482FF5 default case, cases 26,27,30
+0x00484ADC	.text	0x00484C8C	not_code			0	
+0x00484C78	.text	0x00484AE7	inside_func	0x00484950	jpt_484AE0	1	mov     edx, hWnd; jumptable 00484AE0 case -2005532522
+0x00484C7C	.text	0x00484AFF	inside_func	0x00484950	jpt_484AE0	1	push    0; jumptable 00484AE0 case -2005532492
+0x00484C80	.text	0x00484B10	inside_func	0x00484950	jpt_484AE0	1	mov     ecx, hWnd; jumptable 00484AE0 case -2005532467
+0x00484C84	.text	0x00484B28	inside_func	0x00484950	jpt_484AE0	1	mov     edx, hWnd; jumptable 00484AE0 case -2005532422
+0x00484C88	.text	0x00484C35	inside_func	0x00484950	jpt_484AE0	1	push    0; jumptable 00484AE0 default case, cases -200553252
+0x00484CF0	.text	0x00498D03	not_code		byte_484C8C	0	
+0x00484CF4	.text	0x00484B7D	inside_func	0x00484950	jpt_484B76	1	mov     edx, hWnd; jumptable 00484B76 case -2005532382
+0x00484CF8	.text	0x00484B95	inside_func	0x00484950	jpt_484B76	1	push    0; jumptable 00484B76 case -2005532362
+0x00484CFC	.text	0x00484BA6	inside_func	0x00484950	jpt_484B76	1	mov     ecx, hWnd; jumptable 00484B76 case -2005532332
+0x00484D00	.text	0x00484BBB	inside_func	0x00484950	jpt_484B76	1	mov     edx, hWnd; jumptable 00484B76 case -2005532242
+0x00484D04	.text	0x00484C35	inside_func	0x00484950	jpt_484B76	1	push    0; jumptable 00484AE0 default case, cases -200553252
+0x00485214	.text	0x00485274	not_code			0	
+0x00485268	.text	0x0048521F	inside_func	0x00485180	jpt_485218	1	mov     ebx, 1; jumptable 00485218 cases 1,2
+0x0048526C	.text	0x004851EE	inside_func	0x00485180	jpt_485218	1	xor     ebx, ebx; jumptable 00485218 cases 4,8,16
+0x00485270	.text	0x00485226	inside_func	0x00485180	jpt_485218	1	cmp     ebx, 1; jumptable 00485218 default case, cases 3,5-7
+0x004869F0	.text	0x0048698D	inside_func	0x00486900	jpt_486986	1	mov     edx, [esi]; jumptable 00486986 case 2
+0x004869F4	.text	0x00486958	inside_func	0x00486900	jpt_486986	1	xor     ebx, ebx; jumptable 00486986 cases 4,8,16
+0x004869F8	.text	0x0048699B	inside_func	0x00486900	jpt_486986	1	cmp     ebx, 1; jumptable 00486986 default case, cases 3,5-7
+0x00487AD4	.text	0x00486AC0	not_code			1	
+0x00489A2C	.text	0x00489A38	inside_func	0x00489A20		1	pop     ebp
+0x00489AB0	.text	0x0040E808	mid_instruction	0x0040E0B0		0	
+0x00489EE8	.text	0x00489FF8	mid_instruction	0x00489EB0		1	
+0x00489F00	.text	0x00489F10	mid_instruction	0x00489EB0		0	
+0x00489F14	.text	0x00489F20	inside_func	0x00489EB0		1	and     edx, ecx
+0x00489F18	.text	0x00489F4C	inside_func	0x00489EB0		1	and     edx, ecx
+0x00489F1C	.text	0x00489F70	inside_func	0x00489EB0		1	and     edx, ecx
+0x00489F48	.text	0x00498D00	not_code			1	
+0x00489F88	.text	0x00498D00	not_code			1	
+0x00489F8C	.text	0x00489FEF	inside_func	0x00489EB0	jpt_489F0C	1	jmp     ds:jpt_489EE5[edx*4]; jumptable 00489F0C case 0
+0x00489F90	.text	0x00489FDC	inside_func	0x00489EB0	jpt_489F0C	1	mov     eax, [esi+ecx*4-4]; jumptable 00489F0C case 1
+0x00489F94	.text	0x00489FD4	inside_func	0x00489EB0	jpt_489F0C	1	mov     eax, [esi+ecx*4-8]; jumptable 00489F0C case 2
+0x00489F98	.text	0x00489FCC	inside_func	0x00489EB0	jpt_489F0C	1	mov     eax, [esi+ecx*4-0Ch]; jumptable 00489F0C case 3
+0x00489F9C	.text	0x00489FC4	inside_func	0x00489EB0	jpt_489F0C	1	mov     eax, [esi+ecx*4-10h]; jumptable 00489F0C case 4
+0x00489FA0	.text	0x00489FBC	inside_func	0x00489EB0	jpt_489F0C	1	mov     eax, [esi+ecx*4-14h]; jumptable 00489F0C case 5
+0x00489FA4	.text	0x00489FB4	inside_func	0x00489EB0	jpt_489F0C	1	mov     eax, [esi+ecx*4-18h]; jumptable 00489F0C case 6
+0x00489FA8	.text	0x00489FAC	inside_func	0x00489EB0	jpt_489F0C	1	mov     eax, [esi+ecx*4-1Ch]; jumptable 00489F0C case 7
+0x00489FF8	.text	0x0048A008	inside_func	0x00489EB0	jpt_489EE5	1	mov     eax, [ebp+arg_0]; jumptable 00489EE5 case 0
+0x00489FFC	.text	0x0048A010	inside_func	0x00489EB0	jpt_489EE5	1	mov     al, [esi]; jumptable 00489EE5 case 1
+0x0048A000	.text	0x0048A01C	inside_func	0x00489EB0	jpt_489EE5	1	mov     al, [esi]; jumptable 00489EE5 case 2
+0x0048A004	.text	0x0048A030	inside_func	0x00489EB0	jpt_489EE5	1	mov     al, [esi]; jumptable 00489EE5 case 3
+0x0048A078	.text	0x00498D00	not_code			1	
+0x0048A090	.text	0x0048A098	mid_instruction	0x00489EB0		0	
+0x0048A0A0	.text	0x0048A0C8	inside_func	0x00489EB0		0	mov     al, [esi+3]
+0x0048A0A4	.text	0x0048A0F0	inside_func	0x00489EB0		0	mov     al, [esi+3]
+0x0048A0C4	.text	0x00498D00	not_code			1	
+0x0048A120	.text	0x00498D00	not_code			1	
+0x0048A124	.text	0x0048A144	inside_func	0x00489EB0		1	mov     eax, [esi+ecx*4+1Ch]
+0x0048A128	.text	0x0048A14C	inside_func	0x00489EB0		1	mov     eax, [esi+ecx*4+18h]
+0x0048A12C	.text	0x0048A154	inside_func	0x00489EB0		1	mov     eax, [esi+ecx*4+14h]
+0x0048A130	.text	0x0048A15C	inside_func	0x00489EB0		1	mov     eax, [esi+ecx*4+10h]
+0x0048A134	.text	0x0048A164	inside_func	0x00489EB0		1	mov     eax, [esi+ecx*4+0Ch]
+0x0048A138	.text	0x0048A16C	inside_func	0x00489EB0		1	mov     eax, [esi+ecx*4+8]
+0x0048A13C	.text	0x0048A174	inside_func	0x00489EB0		1	mov     eax, [esi+ecx*4+4]
+0x0048A140	.text	0x0048A187	inside_func	0x00489EB0	jpt_48A072	1	jmp     ds:jpt_48A094[edx*4]; jumptable 0048A072 case 0
+0x0048A190	.text	0x0048A1A0	inside_func	0x00489EB0	jpt_48A094	1	mov     eax, [ebp+arg_0]; jumptable 0048A067 case 0
+0x0048A194	.text	0x0048A1A8	inside_func	0x00489EB0	jpt_48A094	1	mov     al, [esi+3]; jumptable 0048A067 case 1
+0x0048A198	.text	0x0048A1B8	inside_func	0x00489EB0	jpt_48A094	1	mov     al, [esi+3]; jumptable 0048A067 case 2
+0x0048A19C	.text	0x0048A1CC	inside_func	0x00489EB0	jpt_48A094	1	mov     al, [esi+3]; jumptable 0048A067 case 3
+0x0048C35C	.text	0x00448144	mid_instruction	0x00448020		0	
+0x0048EBBC	.text	0x0048F724	not_code			1	
+0x0048ECC8	.text	0x0048F75C	not_code			0	
+0x0048EE88	.text	0x0048F7B0	not_code			1	
+0x0048F724	.text	0x0048EBC0	inside_func	0x0048EB00	jpt_48EBB9	1	mov     [ebp+var_1C], 0; jumptable 0048EBB9 case 0
+0x0048F728	.text	0x0048EC5A	inside_func	0x0048EB00	jpt_48EBB9	1	mov     [ebp+var_8], 0; jumptable 0048EBB9 case 1
+0x0048F72C	.text	0x0048EC9C	inside_func	0x0048EB00	jpt_48EBB9	1	movsx   ecx, byte ptr [ebp+var_28]; jumptable 0048EBB9 case 
+0x0048F730	.text	0x0048ED0B	inside_func	0x0048EB00	jpt_48EBB9	1	movsx   ecx, byte ptr [ebp+var_28]; jumptable 0048EBB9 case 
+0x0048F734	.text	0x0048ED63	inside_func	0x0048EB00	jpt_48EBB9	1	mov     [ebp+var_234], 0; jumptable 0048EBB9 case 4
+0x0048F738	.text	0x0048ED72	inside_func	0x0048EB00	jpt_48EBB9	1	movsx   edx, byte ptr [ebp+var_28]; jumptable 0048EBB9 case 
+0x0048F73C	.text	0x0048EDBE	inside_func	0x0048EB00	jpt_48EBB9	1	movsx   ecx, byte ptr [ebp+var_28]; jumptable 0048EBB9 case 
+0x0048F740	.text	0x0048EE51	inside_func	0x0048EB00	jpt_48EBB9	1	movsx   edx, byte ptr [ebp+var_28]; jumptable 0048EBB9 case 
+0x0048F744	.text	0x0048ECE8	inside_func	0x0048EB00	jpt_48ECCC	1	mov     ecx, [ebp+var_4]; jumptable 0048ECCC case 32
+0x0048F748	.text	0x0048ECF3	inside_func	0x0048EB00	jpt_48ECCC	1	mov     edx, [ebp+var_4]; jumptable 0048ECCC case 35
+0x0048F74C	.text	0x0048ECDE	inside_func	0x0048EB00	jpt_48ECCC	1	mov     eax, [ebp+var_4]; jumptable 0048ECCC case 43
+0x0048F750	.text	0x0048ECD3	inside_func	0x0048EB00	jpt_48ECCC	1	mov     edx, [ebp+var_4]; jumptable 0048ECCC case 45
+0x0048F754	.text	0x0048ECFE	inside_func	0x0048EB00	jpt_48ECCC	1	mov     eax, [ebp+var_4]; jumptable 0048ECCC case 48
+0x0048F758	.text	0x0048ED06	inside_func	0x0048EB00	jpt_48ECCC	1	jmp     def_48EBB9; jumptable 0048ECCC default case, cases 3
+0x0048F7B0	.text	0x0048EE8C	inside_func	0x0048EB00	jpt_48EE85	1	mov     eax, [ebp+var_4]; jumptable 0048EE85 case 67
+0x0048F7B4	.text	0x0048F120	inside_func	0x0048EB00	jpt_48EE85	1	mov     [ebp+var_8], 1; jumptable 0048EE85 cases 69,71
+0x0048F7B8	.text	0x0048EFB0	inside_func	0x0048EB00	jpt_48EE85	1	mov     ecx, [ebp+var_4]; jumptable 0048EE85 case 83
+0x0048F7BC	.text	0x0048F259	inside_func	0x0048EB00	jpt_48EE85	1	mov     [ebp+var_230], 7; jumptable 0048EE85 case 88
+0x0048F7C0	.text	0x0048EF1B	inside_func	0x0048EB00	jpt_48EE85	1	lea     eax, [ebp+arg_8]; jumptable 0048EE85 case 90
+0x0048F7C4	.text	0x0048EEA1	inside_func	0x0048EB00	jpt_48EE85	1	mov     edx, [ebp+var_4]; jumptable 0048EE85 case 99
+0x0048F7C8	.text	0x0048F22B	inside_func	0x0048EB00	jpt_48EE85	1	mov     ecx, [ebp+var_4]; jumptable 0048EE85 cases 100,105
+0x0048F7CC	.text	0x0048F130	inside_func	0x0048EB00	jpt_48EE85	1	mov     eax, [ebp+var_4]; jumptable 0048EE85 cases 101-103
+0x0048F7D0	.text	0x0048F0D5	inside_func	0x0048EB00	jpt_48EE85	1	lea     edx, [ebp+arg_8]; jumptable 0048EE85 case 110
+0x0048F7D4	.text	0x0048F2A5	inside_func	0x0048EB00	jpt_48EE85	1	mov     [ebp+var_238], 8; jumptable 0048EE85 case 111
+0x0048F7D8	.text	0x0048F24F	inside_func	0x0048EB00	jpt_48EE85	1	mov     [ebp+var_234], 8; jumptable 0048EE85 case 112
+0x0048F7DC	.text	0x0048EFC6	inside_func	0x0048EB00	jpt_48EE85	1	cmp     [ebp+var_234], 0FFFFFFFFh; jumptable 0048EE85 case 1
+0x0048F7E0	.text	0x0048F243	inside_func	0x0048EB00	jpt_48EE85	1	mov     [ebp+var_238], 0Ah; jumptable 0048EE85 case 117
+0x0048F7E4	.text	0x0048F265	inside_func	0x0048EB00	jpt_48EE85	1	mov     [ebp+var_230], 27h ; '''; jumptable 0048EE85 case 12
+0x0048F7E8	.text	0x0048F537	inside_func	0x0048EB00	jpt_48EE85	1	cmp     [ebp+var_23C], 0; jumptable 0048EE85 default case, c
+0x00492184	.text	0x0049202D	inside_func	0x00492000	jpt_492026	1	mov     [ebp+var_10], offset unk_53D2FC; jumptable 00492026 
+0x00492188	.text	0x00492071	inside_func	0x00492000	jpt_492026	1	mov     eax, [ebp+arg_0]; jumptable 00492026 cases 4,8,11
+0x0049218C	.text	0x00492060	inside_func	0x00492000	jpt_492026	1	mov     [ebp+var_10], offset unk_53D308; jumptable 00492026 
+0x00492190	.text	0x0049203E	inside_func	0x00492000	jpt_492026	1	mov     [ebp+var_10], offset unk_53D300; jumptable 00492026 
+0x00492194	.text	0x0049204F	inside_func	0x00492000	jpt_492026	1	mov     [ebp+var_10], offset unk_53D304; jumptable 00492026 
+0x00492198	.text	0x0049208D	inside_func	0x00492000	jpt_492026	1	or      eax, 0FFFFFFFFh; jumptable 00492026 default case, ca
+0x00492418	.text	0x00492528	mid_instruction	0x004923E0		1	
+0x00492430	.text	0x00492440	mid_instruction	0x004923E0		0	
+0x00492444	.text	0x00492450	inside_func	0x004923E0		1	and     edx, ecx
+0x00492448	.text	0x0049247C	inside_func	0x004923E0		1	and     edx, ecx
+0x0049244C	.text	0x004924A0	inside_func	0x004923E0		1	and     edx, ecx
+0x00492478	.text	0x00498D00	not_code			1	
+0x004924B8	.text	0x00498D00	not_code			1	
+0x004924BC	.text	0x0049251F	inside_func	0x004923E0	jpt_49243C	1	jmp     ds:jpt_492415[edx*4]; jumptable 0049243C case 0
+0x004924C0	.text	0x0049250C	inside_func	0x004923E0	jpt_49243C	1	mov     eax, [esi+ecx*4-4]; jumptable 0049243C case 1
+0x004924C4	.text	0x00492504	inside_func	0x004923E0	jpt_49243C	1	mov     eax, [esi+ecx*4-8]; jumptable 0049243C case 2
+0x004924C8	.text	0x004924FC	inside_func	0x004923E0	jpt_49243C	1	mov     eax, [esi+ecx*4-0Ch]; jumptable 0049243C case 3
+0x004924CC	.text	0x004924F4	inside_func	0x004923E0	jpt_49243C	1	mov     eax, [esi+ecx*4-10h]; jumptable 0049243C case 4
+0x004924D0	.text	0x004924EC	inside_func	0x004923E0	jpt_49243C	1	mov     eax, [esi+ecx*4-14h]; jumptable 0049243C case 5
+0x004924D4	.text	0x004924E4	inside_func	0x004923E0	jpt_49243C	1	mov     eax, [esi+ecx*4-18h]; jumptable 0049243C case 6
+0x004924D8	.text	0x004924DC	inside_func	0x004923E0	jpt_49243C	1	mov     eax, [esi+ecx*4-1Ch]; jumptable 0049243C case 7
+0x00492528	.text	0x00492538	inside_func	0x004923E0	jpt_492415	1	mov     eax, [ebp+arg_0]; jumptable 00492415 case 0
+0x0049252C	.text	0x00492540	inside_func	0x004923E0	jpt_492415	1	mov     al, [esi]; jumptable 00492415 case 1
+0x00492530	.text	0x0049254C	inside_func	0x004923E0	jpt_492415	1	mov     al, [esi]; jumptable 00492415 case 2
+0x00492534	.text	0x00492560	inside_func	0x004923E0	jpt_492415	1	mov     al, [esi]; jumptable 00492415 case 3
+0x004925A8	.text	0x00498D00	not_code			1	
+0x004925C0	.text	0x004925C8	mid_instruction	0x004923E0		0	
+0x004925D4	.text	0x00492620	inside_func	0x004923E0		0	mov     al, [esi+3]
+0x004925F4	.text	0x00498D00	not_code			1	
+0x00492650	.text	0x00498D00	not_code			1	
+0x00492654	.text	0x00492674	inside_func	0x004923E0		1	mov     eax, [esi+ecx*4+1Ch]
+0x00492658	.text	0x0049267C	inside_func	0x004923E0		1	mov     eax, [esi+ecx*4+18h]
+0x0049265C	.text	0x00492684	inside_func	0x004923E0		1	mov     eax, [esi+ecx*4+14h]
+0x00492660	.text	0x0049268C	inside_func	0x004923E0		1	mov     eax, [esi+ecx*4+10h]
+0x00492664	.text	0x00492694	inside_func	0x004923E0		1	mov     eax, [esi+ecx*4+0Ch]
+0x00492668	.text	0x0049269C	inside_func	0x004923E0		1	mov     eax, [esi+ecx*4+8]
+0x0049266C	.text	0x004926A4	inside_func	0x004923E0		1	mov     eax, [esi+ecx*4+4]
+0x00492670	.text	0x004926B7	inside_func	0x004923E0	jpt_4925A2	1	jmp     ds:jpt_4925C4[edx*4]; jumptable 004925A2 case 0
+0x004926C0	.text	0x004926D0	inside_func	0x004923E0	jpt_4925C4	1	mov     eax, [ebp+arg_0]; jumptable 00492597 case 0
+0x004926C4	.text	0x004926D8	inside_func	0x004923E0	jpt_4925C4	1	mov     al, [esi+3]; jumptable 00492597 case 1
+0x004926C8	.text	0x004926E8	inside_func	0x004923E0	jpt_4925C4	1	mov     al, [esi+3]; jumptable 00492597 case 2
+0x004926CC	.text	0x004926FC	inside_func	0x004923E0	jpt_4925C4	1	mov     al, [esi+3]; jumptable 00492597 case 3
+0x004937A4	.text	0x00493740	func_start	0x00493740		1	push    ebp
+0x00494F10	.text	0x00494EEE	inside_func	0x00494EC0	jpt_494EE7	1	mov     eax, 411h; jumptable 00494EE7 case 932
+0x00494F14	.text	0x00494EF5	inside_func	0x00494EC0	jpt_494EE7	1	mov     eax, 804h; jumptable 00494EE7 case 936
+0x00494F18	.text	0x00494EFC	inside_func	0x00494EC0	jpt_494EE7	1	mov     eax, 412h; jumptable 00494EE7 case 949
+0x00494F1C	.text	0x00494F03	inside_func	0x00494EC0	jpt_494EE7	1	mov     eax, 404h; jumptable 00494EE7 case 950
+0x00494F20	.text	0x00494F0A	inside_func	0x00494EC0	jpt_494EE7	1	xor     eax, eax; jumptable 00494EE7 default case, cases 933
+0x004959E8	.text	0x0049632A	not_code			1	
+0x00495AFC	.text	0x0049636A	not_code			0	
+0x00495C88	.text	0x004963B1	not_code			0	
+0x004963EC	.text	0x00495DCE	inside_func	0x00495910	jpt_495DBE	1	mov     edx, [ebp+var_4]; jumptable 00495DBE cases 43,45
+0x004963F0	.text	0x00495DC5	inside_func	0x00495910	jpt_495DBE	1	mov     [ebp+var_4C], 6; jumptable 00495DBE cases 68,69,100,
+0x004963F4	.text	0x00495DE0	inside_func	0x00495910	jpt_495DBE	1	mov     [ebp+var_4C], 0Ah; jumptable 00495DBE default case, 
+0x0049B980	.rdata	0x00444547	mid_instruction	0x004442B0	aDamaged	0	
+0x0049BBE0	.rdata	0x0048A531	inside_func	0x0048A4C0	stru_49BBD8	0	cmp     [ebp+var_20], 0
+0x0049BBF0	.rdata	0x0048A5D5	inside_func	0x0048A560	stru_49BBE8	0	cmp     [ebp+var_1C], 0
+0x0049BBFC	.rdata	0x0048A666	inside_func	0x0048A610	stru_49BBF8	0	mov     edx, [ebp+ms_exc.exc_ptr]
+0x0049BC00	.rdata	0x0048A673	inside_func	0x0048A610	stru_49BBF8	0	mov     esp, [ebp+ms_exc.old_esp]
+0x0049BC0C	.rdata	0x0048A85F	inside_func	0x0048A740	stru_49BC08	0	mov     ecx, [ebp+ms_exc.exc_ptr]
+0x0049BC10	.rdata	0x0048A87A	inside_func	0x0048A740	stru_49BC08	0	mov     esp, [ebp+ms_exc.old_esp]
+0x0049BE84	.rdata	0x0048DFC9	inside_func	0x0048DF30	stru_49BE80	0	mov     ecx, [ebp+ms_exc.exc_ptr]
+0x0049BE88	.rdata	0x0048DFD6	inside_func	0x0048DF30	stru_49BE80	0	mov     esp, [ebp+ms_exc.old_esp]
+0x0049BE98	.rdata	0x0048E1F3	inside_func	0x0048E120	stru_49BE90	0	mov     edx, [ebp+arg_4]
+0x0049BEA0	.rdata	0x0048E1B4	inside_func	0x0048E120	stru_49BE90	0	mov     eax, [ebp+ms_exc.exc_ptr]
+0x0049BEA4	.rdata	0x0048E1C1	inside_func	0x0048E120	stru_49BE90	0	mov     esp, [ebp+ms_exc.old_esp]
+0x0049BEAC	.rdata	0x0048E51C	inside_func	0x0048E2C0	stru_49BEA8	0	mov     eax, 1
+0x0049BEB0	.rdata	0x0048E522	inside_func	0x0048E2C0	stru_49BEA8	0	mov     esp, [ebp+ms_exc.old_esp]
+0x0049BEBC	.rdata	0x0048E59E	inside_func	0x0048E540	stru_49BEB8	0	mov     eax, [ebp+arg_4]
+0x0049BEC0	.rdata	0x0048E5AD	inside_func	0x0048E540	stru_49BEB8	0	mov     esp, [ebp+ms_exc.old_esp]
+0x0049BED0	.rdata	0x0048E6DA	inside_func	0x0048E670	stru_49BEC8	0	call    sub_493900
+0x0049BED8	.rdata	0x0048E6BC	inside_func	0x0048E670	stru_49BEC8	0	mov     eax, 1
+0x0049BEDC	.rdata	0x0048E6C2	inside_func	0x0048E670	stru_49BEC8	0	mov     esp, [ebp+ms_exc.old_esp]
+0x0049BEE8	.rdata	0x0048E76A	inside_func	0x0048E700	stru_49BEE0	0	call    sub_48E670
+0x0049BEF0	.rdata	0x0048E74C	inside_func	0x0048E700	stru_49BEE0	0	mov     eax, 1
+0x0049BEF4	.rdata	0x0048E752	inside_func	0x0048E700	stru_49BEE0	0	mov     esp, [ebp+ms_exc.old_esp]
+0x0049C3C4	.rdata	0x0041786F	mid_instruction	0x00417840	aMessageboxa	0	
+0x0049C3D4	.rdata	0x00492864	inside_func	0x00492720	stru_49C3D0	0	mov     eax, 1
+0x0049C3D8	.rdata	0x0049286A	inside_func	0x00492720	stru_49C3D0	0	mov     esp, [ebp+ms_exc.old_esp]
+0x0049C43C	.rdata	0x00495446	inside_func	0x00495300	stru_49C438	0	mov     eax, 1
+0x0049C440	.rdata	0x0049544C	inside_func	0x00495300	stru_49C438	0	mov     esp, [ebp+ms_exc.old_esp]
+0x0049C448	.rdata	0x0049553C	inside_func	0x00495300	stru_49C438	0	mov     eax, 1
+0x0049C44C	.rdata	0x00495542	inside_func	0x00495300	stru_49C438	0	mov     esp, [ebp+ms_exc.old_esp]
+0x0049C4F4	.rdata	0x0049793F	inside_func	0x00497660	stru_49C4F0	0	mov     eax, 1
+0x0049C4F8	.rdata	0x00497945	inside_func	0x00497660	stru_49C4F0	0	mov     esp, [ebp+ms_exc.old_esp]
+0x0049C500	.rdata	0x004979DD	inside_func	0x00497660	stru_49C4F0	0	mov     eax, 1
+0x0049C504	.rdata	0x004979E3	inside_func	0x00497660	stru_49C4F0	0	mov     esp, [ebp+ms_exc.old_esp]
+0x0049C53C	.rdata	0x00497FD0	func_start	0x00497FD0		0	lea     ecx, [ebp-58h]
+0x0049C564	.rdata	0x00497FF0	func_start	0x00497FF0		0	lea     ecx, [ebp-58h]
+0x0049C58C	.rdata	0x00498010	func_start	0x00498010		0	lea     ecx, [ebp-70h]
+0x0049C5B4	.rdata	0x00498030	func_start	0x00498030		0	lea     ecx, [ebp-5Ch]
+0x0049C5DC	.rdata	0x00498050	func_start	0x00498050		0	lea     ecx, [ebp-5Ch]
+0x0049C604	.rdata	0x00498070	func_start	0x00498070		0	lea     ecx, [ebp-5Ch]
+0x0049C62C	.rdata	0x00498090	func_start	0x00498090		0	lea     ecx, [ebp-5Ch]
+0x0049C654	.rdata	0x004980B0	func_start	0x004980B0		0	lea     ecx, [ebp-5Ch]
+0x0049C67C	.rdata	0x004980D0	func_start	0x004980D0		0	lea     ecx, [ebp-5Ch]
+0x0049C6A4	.rdata	0x004980F0	func_start	0x004980F0		0	lea     ecx, [ebp-5Ch]
+0x0049C6CC	.rdata	0x00498110	func_start	0x00498110		0	mov     eax, [ebp-10h]
+0x0049C6F4	.rdata	0x00498130	func_start	0x00498130		0	mov     eax, [ebp-14h]
+0x0049C71C	.rdata	0x00498150	func_start	0x00498150		0	mov     eax, [ebp-10h]
+0x0049C744	.rdata	0x00498170	func_start	0x00498170		0	mov     eax, [ebp-10h]
+0x0049C76C	.rdata	0x00498190	func_start	0x00498190		0	mov     eax, [ebp-10h]
+0x0049C774	.rdata	0x0049819B	func_start	0x0049819B		0	mov     eax, [ebp+4]
+0x0049C77C	.rdata	0x004981A6	func_start	0x004981A6		0	mov     eax, [ebp+4]
+0x0049C7A4	.rdata	0x004981C0	func_start	0x004981C0		0	mov     eax, [ebp-10h]
+0x0049C7CC	.rdata	0x004981E0	func_start	0x004981E0		0	mov     eax, [ebp-10h]
+0x0049C7F4	.rdata	0x00498200	func_start	0x00498200		0	mov     eax, [ebp-10h]
+0x0049C81C	.rdata	0x00498220	func_start	0x00498220		0	lea     ecx, [ebp-0FCh]
+0x0049C824	.rdata	0x0049822B	func_start	0x0049822B		0	lea     ecx, [ebp-5Ch]
+0x0049C82C	.rdata	0x00498233	func_start	0x00498233		0	lea     ecx, [ebp-0ACh]
+0x0049C854	.rdata	0x00498250	func_start	0x00498250		0	lea     ecx, [ebp-5Ch]
+0x0049C87C	.rdata	0x00498270	func_start	0x00498270		0	lea     ecx, [ebp-5Ch]
+0x0049C8A4	.rdata	0x00498290	func_start	0x00498290		0	mov     eax, [ebp-20h]
+0x0049C8AC	.rdata	0x0049829B	func_start	0x0049829B		0	mov     eax, [ebp-20h]
+0x0049C8D4	.rdata	0x004982B0	func_start	0x004982B0		0	lea     ecx, [ebp-58h]
+0x0049C8FC	.rdata	0x004982D0	func_start	0x004982D0		0	lea     ecx, [ebp-58h]
+0x0049C924	.rdata	0x004982F0	func_start	0x004982F0		0	lea     ecx, [ebp-5Ch]
+0x0049C94C	.rdata	0x00498310	func_start	0x00498310		0	mov     eax, [ebp-10h]
+0x0049C974	.rdata	0x00498330	func_start	0x00498330		0	mov     eax, [ebp-10h]
+0x0049C99C	.rdata	0x00498350	func_start	0x00498350		0	mov     eax, [ebp+8]
+0x0049C9C4	.rdata	0x00498370	func_start	0x00498370		0	mov     eax, [ebp+8]
+0x0049C9EC	.rdata	0x00498390	func_start	0x00498390		0	mov     ecx, [ebp-10h]
+0x0049CA14	.rdata	0x004983B0	func_start	0x004983B0		0	mov     ecx, [ebp-10h]
+0x0049CA3C	.rdata	0x004983D0	func_start	0x004983D0		0	mov     eax, [ebp+8]
+0x0049CA64	.rdata	0x004983F0	func_start	0x004983F0		0	mov     eax, [ebp-10h]
+0x0049CA8C	.rdata	0x00498410	func_start	0x00498410		0	mov     ecx, [ebp-10h]
+0x0049CFF8	.rdata	0x0041656C	mid_instruction	0x004163C0		0	
+0x0049D100	.rdata	0x0041786F	mid_instruction	0x00417840		0	
+0x0049D10C	.rdata	0x00416674	inside_func	0x00416590		0	call    sub_439070
+0x0049D1D4	.rdata	0x0041726F	mid_instruction	0x004170E0		0	
+0x0049D1E0	.rdata	0x00416E6F	mid_instruction	0x00416D90		0	
+0x0049D1F0	.rdata	0x00417845	mid_instruction	0x00417840		0	
+0x0049D268	.rdata	0x00417478	mid_instruction	0x004170E0		0	
+0x0049D2BC	.rdata	0x00417478	mid_instruction	0x004170E0		0	
+0x0049D300	.rdata	0x0041676E	inside_func	0x00416590		0	add     [esi-4], ax
+0x0049D334	.rdata	0x00417463	mid_instruction	0x004170E0		0	
+0x0049D7B0	.rdata	0x00420000	inside_func	0x0041FEA0		0	mov     ebx, eax
+0x0049DB58	.rdata	0x0041656E	mid_instruction	0x004163C0		0	
+0x0049DC6C	.rdata	0x00417367	mid_instruction	0x004170E0		0	
+0x0049E004	.data	0x00401000	func_start	0x00401000		0	call    sub_401010
+0x0049E008	.data	0x00401040	func_start	0x00401040		0	call    sub_401050
+0x0049E00C	.data	0x00401080	func_start	0x00401080		0	call    sub_401090
+0x0049E010	.data	0x004010C0	func_start	0x004010C0		0	call    sub_4010D0
+0x0049E014	.data	0x00401100	func_start	0x00401100		0	call    sub_401110
+0x0049E018	.data	0x00401140	func_start	0x00401140		0	call    sub_401150
+0x0049E01C	.data	0x00401180	func_start	0x00401180		0	call    sub_401190
+0x0049E020	.data	0x004011D0	func_start	0x004011D0		0	call    sub_4011E0
+0x0049E024	.data	0x00401210	func_start	0x00401210		0	call    sub_401220
+0x0049E028	.data	0x00401250	func_start	0x00401250		0	call    sub_401260
+0x0049E02C	.data	0x00401290	func_start	0x00401290		0	call    sub_4012A0
+0x0049E030	.data	0x004012D0	func_start	0x004012D0		0	call    sub_4012E0
+0x0049E034	.data	0x00401310	func_start	0x00401310		0	call    sub_401320
+0x0049E038	.data	0x00401350	func_start	0x00401350		0	call    sub_401360
+0x0049E03C	.data	0x00401390	func_start	0x00401390		0	call    sub_4013A0
+0x0049E040	.data	0x004013D0	func_start	0x004013D0		0	call    sub_4013E0
+0x0049E044	.data	0x00401410	func_start	0x00401410		0	call    sub_401420
+0x0049E048	.data	0x00401450	func_start	0x00401450		0	call    sub_401460
+0x0049E04C	.data	0x00401490	func_start	0x00401490		0	jmp     sub_4014A0
+0x0049E050	.data	0x004014B0	func_start	0x004014B0		0	call    sub_4014C0
+0x0049E054	.data	0x004272C0	func_start	0x004272C0		0	call    sub_4272D0
+0x0049E058	.data	0x004517A0	func_start	0x004517A0		0	call    sub_4517B0
+0x0049E05C	.data	0x00451800	func_start	0x00451800		0	call    sub_451810
+0x0049E060	.data	0x00451860	func_start	0x00451860		0	call    sub_451870
+0x0049E064	.data	0x004518A0	func_start	0x004518A0		0	call    sub_4518B0
+0x0049E068	.data	0x004518E0	func_start	0x004518E0		0	jmp     sub_4518F0
+0x0049E06C	.data	0x00451900	func_start	0x00451900		0	call    sub_451910
+0x0049E078	.data	0x00487BC0	func_start	0x00487BC0		0	push    ebp
+0x0049E07C	.data	0x004907D0	func_start	0x004907D0		0	push    ebp
+0x0049E080	.data	0x004952D0	func_start	0x004952D0		0	push    ebp
+0x0049E084	.data	0x004937A0	func_start	0x004937A0		0	push    ebp
+0x0049E090	.data	0x00490900	func_start	0x00490900		0	push    ebp
+0x0049E09C	.data	0x004937C0	func_start	0x004937C0		0	push    ebp
+0x0049FFF0	.data	0x0046A462	inside_func	0x00469D20		0	shl     ecx, 3
+0x004A0350	.data	0x00417845	mid_instruction	0x00417840	ProcName	0	
+0x004A0E6C	.data	0x0044A240	func_start	0x0044A240	off_4A0E6C	1	retn
+0x004A0E70	.data	0x0044A240	func_start	0x0044A240	off_4A0E70	1	retn
+0x004A70B0	.data	0x00424D64	mid_instruction	0x00424B90		0	
+0x004A7C0C	.data	0x0046FFBA	inside_func	0x0046FF00		0	mov     cx, [esi+0D64h]
+0x004A7C10	.data	0x0046FFBA	inside_func	0x0046FF00		0	mov     cx, [esi+0D64h]
+0x004A8320	.data	0x004895D0	func_start	0x004895D0	off_4A8320	1	push    ebp
+0x004A8324	.data	0x00489600	func_start	0x00489600		1	push    ebp
+0x004A8328	.data	0x00489600	func_start	0x00489600		1	push    ebp
+0x004A8350	.data	0x0048A390	func_start	0x0048A390	off_4A8350	1	push    ebp
+0x004A8360	.data	0x0048AA70	func_start	0x0048AA70	off_4A8360	1	push    ebp
+0x004A83DC	.data	0x00480020	inside_func	0x0047FC40		0	jz      loc_4800A9
+0x004A85AC	.data	0x00493730	func_start	0x00493730	off_4A85AC	1	push    ebp
+0x004A85B0	.data	0x00493730	func_start	0x00493730	off_4A85B0	1	push    ebp
+0x004A85B4	.data	0x00493730	func_start	0x00493730	off_4A85B4	1	push    ebp
+0x004A85B8	.data	0x00493730	func_start	0x00493730	off_4A85B8	1	push    ebp
+0x004A85BC	.data	0x00493730	func_start	0x00493730	off_4A85BC	1	push    ebp
+0x004A85C0	.data	0x00493730	func_start	0x00493730	off_4A85C0	1	push    ebp
+0x004A85C4	.data	0x00493740	func_start	0x00493740		1	push    ebp
+0x004A85D0	.data	0x0048E670	func_start	0x0048E670		1	push    ebp
+0x004A85D4	.data	0x0048E670	func_start	0x0048E670	off_4A85D4	1	push    ebp

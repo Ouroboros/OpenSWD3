@@ -1,0 +1,42 @@
+set(CMAKE_SYSTEM_NAME Windows)
+set(CMAKE_SYSTEM_PROCESSOR x86)
+
+set(SWD3_LLVM_ROOT "/opt/llvm" CACHE PATH "LLVM install root")
+set(SWD3_MSVC_ROOT "/mnt/c/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207" CACHE PATH "MSVC toolset root")
+set(SWD3_WINSDK_ROOT "/mnt/c/Program Files (x86)/Windows Kits/10" CACHE PATH "Windows SDK root")
+set(SWD3_WINSDK_VERSION "10.0.26100.0" CACHE STRING "Windows SDK version")
+
+get_filename_component(_swd3_root "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+set(_swd3_links "${_swd3_root}/third_party/winsdk")
+file(MAKE_DIRECTORY "${_swd3_links}")
+if(NOT EXISTS "${_swd3_links}/msvc/include")
+    file(CREATE_LINK "${SWD3_MSVC_ROOT}" "${_swd3_links}/msvc" SYMBOLIC)
+endif()
+if(NOT EXISTS "${_swd3_links}/sdk/Include")
+    file(CREATE_LINK "${SWD3_WINSDK_ROOT}" "${_swd3_links}/sdk" SYMBOLIC)
+endif()
+set(_swd3_msvc "${_swd3_links}/msvc")
+set(_swd3_sdkinc "${_swd3_links}/sdk/Include/${SWD3_WINSDK_VERSION}")
+set(_swd3_sdklib "${_swd3_links}/sdk/Lib/${SWD3_WINSDK_VERSION}")
+
+set(CMAKE_C_COMPILER "${SWD3_LLVM_ROOT}/bin/clang-cl")
+set(CMAKE_CXX_COMPILER "${SWD3_LLVM_ROOT}/bin/clang-cl")
+set(CMAKE_LINKER "${SWD3_LLVM_ROOT}/bin/lld-link")
+set(CMAKE_RC_COMPILER "${SWD3_LLVM_ROOT}/bin/llvm-rc")
+set(CMAKE_AR "${SWD3_LLVM_ROOT}/bin/llvm-lib")
+set(CMAKE_MT "${SWD3_LLVM_ROOT}/bin/llvm-mt")
+
+set(CMAKE_C_COMPILER_TARGET i686-pc-windows-msvc)
+set(CMAKE_CXX_COMPILER_TARGET i686-pc-windows-msvc)
+
+set(_swd3_inc_flags "/imsvc${_swd3_msvc}/include /imsvc${_swd3_sdkinc}/ucrt /imsvc${_swd3_sdkinc}/um /imsvc${_swd3_sdkinc}/shared /imsvc${_swd3_sdkinc}/winrt")
+set(CMAKE_C_FLAGS_INIT "${_swd3_inc_flags}")
+set(CMAKE_CXX_FLAGS_INIT "${_swd3_inc_flags} /EHsc")
+set(CMAKE_RC_FLAGS_INIT "-I${_swd3_sdkinc}/um -I${_swd3_sdkinc}/shared")
+
+set(_swd3_lib_flags "/libpath:${_swd3_msvc}/lib/x86 /libpath:${_swd3_sdklib}/ucrt/x86 /libpath:${_swd3_sdklib}/um/x86")
+set(CMAKE_EXE_LINKER_FLAGS_INIT "${_swd3_lib_flags}")
+set(CMAKE_SHARED_LINKER_FLAGS_INIT "${_swd3_lib_flags}")
+set(CMAKE_MODULE_LINKER_FLAGS_INIT "${_swd3_lib_flags}")
+
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
