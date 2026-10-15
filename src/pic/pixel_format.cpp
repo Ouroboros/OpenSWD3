@@ -128,9 +128,9 @@ int PixelFormatInit(w32::IDirectDrawSurface4* surface) {
     G.rleFillColor8 = 1;
     G.dword_4CD778 = 2;
     G.rleSkipColor8 = 3;
-    G.dword_4CD304 = 0;
-    G.dword_4CD30C = 0;
-    G.dword_4CD71C = 0;
+    G.drawOption304 = 0;
+    G.drawOption30C = 0;
+    G.drawOption71C = 0;
     std::int32_t r = 0;
     std::int32_t g = 0;
     std::int32_t b = 0;

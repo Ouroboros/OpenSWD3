@@ -265,56 +265,56 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 264	swd32.exe	0x004167B0	sub_4167B0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 265	swd32.exe	0x00416B30	sub_416B30	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 266	swd32.exe	0x00416CC0	sub_416CC0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-267	swd32.exe	0x00416D30	sub_416D30	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-268	swd32.exe	0x00416D90	sub_416D90	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-269	swd32.exe	0x00416F10	sub_416F10	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-270	swd32.exe	0x00416F60	sub_416F60	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-271	swd32.exe	0x00416F80	sub_416F80	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-272	swd32.exe	0x00416FF0	sub_416FF0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-273	swd32.exe	0x00417050	sub_417050	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-274	swd32.exe	0x004170E0	sub_4170E0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-275	swd32.exe	0x004174D0	sub_4174D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-276	swd32.exe	0x00417530	sub_417530	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-277	swd32.exe	0x004175B0	sub_4175B0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-278	swd32.exe	0x00417650	sub_417650	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-279	swd32.exe	0x004176D0	sub_4176D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-280	swd32.exe	0x004177D0	sub_4177D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-281	swd32.exe	0x00417840	sub_417840	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-282	swd32.exe	0x00417950	sub_417950	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-283	swd32.exe	0x00417DE0	sub_417DE0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-284	swd32.exe	0x00417E40	sub_417E40	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-285	swd32.exe	0x00417EC0	sub_417EC0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-286	swd32.exe	0x00418350	sub_418350	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-287	swd32.exe	0x004185C0	sub_4185C0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-288	swd32.exe	0x00418840	sub_418840	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-289	swd32.exe	0x00418EB0	sub_418EB0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-290	swd32.exe	0x00419570	sub_419570	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-291	swd32.exe	0x0041A3B0	sub_41A3B0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-292	swd32.exe	0x0041B280	sub_41B280	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-293	swd32.exe	0x0041B620	sub_41B620	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-294	swd32.exe	0x0041B9F0	sub_41B9F0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-295	swd32.exe	0x0041CCF0	sub_41CCF0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-296	swd32.exe	0x0041D010	sub_41D010	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-297	swd32.exe	0x0041D340	sub_41D340	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-298	swd32.exe	0x0041E5C0	sub_41E5C0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-299	swd32.exe	0x0041F8D0	sub_41F8D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-300	swd32.exe	0x0041FEA0	sub_41FEA0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+267	swd32.exe	0x00416D30	sub_416D30	draw	src/draw/draw.cpp:DrawInit	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+268	swd32.exe	0x00416D90	sub_416D90	draw	src/draw/draw.cpp:DrawTableInit	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+269	swd32.exe	0x00416F10	sub_416F10	draw	src/draw/draw.cpp:LockSurface	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+270	swd32.exe	0x00416F60	sub_416F60	draw	src/draw/draw.cpp:UnlockSurface	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+271	swd32.exe	0x00416F80	sub_416F80	draw	src/draw/draw.cpp:SetClipRect	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+272	swd32.exe	0x00416FF0	sub_416FF0	draw	src/draw/draw.cpp:SetClipRectClamped	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+273	swd32.exe	0x00417050	sub_417050	draw	src/draw/draw.cpp:DrawOutline	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+274	swd32.exe	0x004170E0	sub_4170E0	draw	src/draw/draw.cpp:DrawPicture	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+275	swd32.exe	0x004174D0	sub_4174D0	draw	src/draw/draw.cpp:DrawTile16	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+276	swd32.exe	0x00417530	sub_417530	draw	src/draw/draw.cpp:DrawTile16Keyed	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+277	swd32.exe	0x004175B0	sub_4175B0	draw	src/draw/draw.cpp:DrawTile8	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+278	swd32.exe	0x00417650	sub_417650	draw	src/draw/draw.cpp:DrawTile8Keyed	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+279	swd32.exe	0x004176D0	sub_4176D0	draw	src/draw/draw.cpp:BlitRawCopy	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+280	swd32.exe	0x004177D0	sub_4177D0	draw	src/draw/draw.cpp:BlitRawCopyMirror	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+281	swd32.exe	0x00417840	sub_417840	draw	src/draw/draw.cpp:BlitRawKeyed	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+282	swd32.exe	0x00417950	sub_417950	draw	src/draw/blit_blend.cpp:BlitRaw_417950	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+283	swd32.exe	0x00417DE0	sub_417DE0	draw	src/draw/draw.cpp:BlendPairs	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+284	swd32.exe	0x00417E40	sub_417E40	draw	src/draw/draw.cpp:BlitRawKeyedMirror	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+285	swd32.exe	0x00417EC0	sub_417EC0	draw	src/draw/blit_blend.cpp:BlitRaw_417EC0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+286	swd32.exe	0x00418350	sub_418350	draw	src/draw/blit_rle_copy.cpp:BlitRle_418350	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+287	swd32.exe	0x004185C0	sub_4185C0	draw	src/draw/blit_rle_copy.cpp:BlitRle_4185C0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+288	swd32.exe	0x00418840	sub_418840	draw	src/draw/blit_additive.cpp:BlitRle_418840	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+289	swd32.exe	0x00418EB0	sub_418EB0	draw	src/draw/blit_additive.cpp:BlitRle_418EB0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+290	swd32.exe	0x00419570	sub_419570	draw	src/draw/blit_alpha.cpp:BlitRle_419570	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	alpha bytes >= 0x40 or not multiple of 4 jump through unrelated stack in the original; clamped to level 15 / rounded down
+291	swd32.exe	0x0041A3B0	sub_41A3B0	draw	src/draw/blit_alpha.cpp:BlitRle_41A3B0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	alpha bytes >= 0x40 or not multiple of 4 jump through unrelated stack in the original; clamped to level 15 / rounded down
+292	swd32.exe	0x0041B280	sub_41B280	draw	src/draw/blit_shade.cpp:BlitRle_41B280	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+293	swd32.exe	0x0041B620	sub_41B620	draw	src/draw/blit_shade.cpp:BlitRle_41B620	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+294	swd32.exe	0x0041B9F0	sub_41B9F0	draw	src/draw/blit_level.cpp:BlitRle_41B9F0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	level below 0 would jump through unrelated stack in the original; unreachable with picture height lines
+295	swd32.exe	0x0041CCF0	sub_41CCF0	draw	src/draw/blit_misc.cpp:BlitRle_41CCF0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+296	swd32.exe	0x0041D010	sub_41D010	draw	src/draw/blit_misc.cpp:BlitRle_41D010	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+297	swd32.exe	0x0041D340	sub_41D340	draw	src/draw/blit_level.cpp:BlitRle_41D340	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+298	swd32.exe	0x0041E5C0	sub_41E5C0	draw	src/draw/blit_level.cpp:BlitRle_41E5C0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+299	swd32.exe	0x0041F8D0	sub_41F8D0	draw	src/draw/blit_shear.cpp:BlitRle_41F8D0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+300	swd32.exe	0x0041FEA0	sub_41FEA0	draw	src/draw/blit_shear.cpp:BlitRle_41FEA0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
 301	swd32.exe	0x00420490	sub_420490	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
 302	swd32.exe	0x00420560	sub_420560	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
 303	swd32.exe	0x00420600	sub_420600	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
 304	swd32.exe	0x004206F0	sub_4206F0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
 305	swd32.exe	0x004207E0	sub_4207E0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-306	swd32.exe	0x004208D0	sub_4208D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-307	swd32.exe	0x00420D70	sub_420D70	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-308	swd32.exe	0x00421230	sub_421230	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-309	swd32.exe	0x00421540	sub_421540	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-310	swd32.exe	0x00421850	sub_421850	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-311	swd32.exe	0x00421BE0	sub_421BE0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+306	swd32.exe	0x004208D0	sub_4208D0	draw	src/draw/blit_additive.cpp:BlitRle_4208D0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	original leaves the vertical scale remainder uninitialised (stack); starts at 0 here
+307	swd32.exe	0x00420D70	sub_420D70	draw	src/draw/blit_additive.cpp:BlitRle_420D70	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	original leaves the vertical scale remainder uninitialised (stack); starts at 0 here
+308	swd32.exe	0x00421230	sub_421230	draw	src/draw/blit_misc.cpp:BlitRle_421230	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+309	swd32.exe	0x00421540	sub_421540	draw	src/draw/blit_misc.cpp:BlitRle_421540	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+310	swd32.exe	0x00421850	sub_421850	draw	src/draw/blit_misc.cpp:BlitRle_421850	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+311	swd32.exe	0x00421BE0	sub_421BE0	draw	src/draw/blit_misc.cpp:BlitRle_421BE0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
 312	swd32.exe	0x00421FB0	sub_421FB0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-313	swd32.exe	0x00422030	sub_422030	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-314	swd32.exe	0x004223A0	sub_4223A0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-315	swd32.exe	0x00422730	sub_422730	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-316	swd32.exe	0x004229C0	sub_4229C0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+313	swd32.exe	0x00422030	sub_422030	draw	src/draw/blit_additive.cpp:BlitRle_422030	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+314	swd32.exe	0x004223A0	sub_4223A0	draw	src/draw/blit_additive.cpp:BlitRle_4223A0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+315	swd32.exe	0x00422730	sub_422730	draw	src/draw/blit_rle_copy.cpp:BlitRle_422730	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+316	swd32.exe	0x004229C0	sub_4229C0	draw	src/draw/blit_rle_copy.cpp:BlitRle_4229C0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
 317	swd32.exe	0x00422C70	sub_422C70	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 318	swd32.exe	0x00423020	sub_423020	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 319	swd32.exe	0x004233D0	sub_4233D0	pic	src/pic/pixel_format.cpp:GetColorMasks	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	

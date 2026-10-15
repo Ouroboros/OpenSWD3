@@ -110,3 +110,46 @@ addr	type	name	module	notes
 0x004CDE54	std::int32_t	shiftBlue	pic
 0x004CDE5C	std::int32_t[5]	redSteps	pic
 0x004CDE7C	std::int32_t[5]	greenSteps	pic
+0x004A06A8	std::int32_t[495]	waveOffsets	draw	15 rows of 33 per-line x offsets (bytes/2) for the wave effect
+0x004A0E64	std::int32_t	waveEnd	draw
+0x004A0E68	std::int32_t	waveStart	draw
+0x004CC2EC	std::int32_t	drawPitch	draw	destination pitch, negated for vertical flip
+0x004CC2F0	std::int32_t	drawAlpha	draw	translucency level for mode 0x14
+0x004CC2F4	std::int32_t	drawShearDir	draw
+0x004CC2F8	std::int32_t[1024]	rowOffsets	draw	y * pitch
+0x004CD2F8	std::int32_t	clipX	draw
+0x004CD2FC	std::int32_t	drawScaleUp	draw
+0x004CD300	std::int32_t	drawOption300	draw	reset after each DrawPicture
+0x004CD304	std::int32_t	drawOption304	draw	reset after each DrawPicture
+0x004CD308	std::int32_t	drawSkipBottom	draw
+0x004CD30C	std::int32_t	drawOption30C	draw	reset after each DrawPicture
+0x004CD310	std::int32_t	clipWidth	draw
+0x004CD318	code*[128]	drawRleTable	draw	blit routine per mode for RLE pictures
+0x004CD518	code*[128]	drawRawTable	draw	blit routine per mode for raw pictures
+0x004CD718	std::int32_t	drawShear	draw
+0x004CD71C	std::int32_t	drawOption71C	draw	reset after each DrawPicture
+0x004CD720	std::int32_t	clipHeight	draw
+0x004CD724	std::int32_t	waveMode	draw
+0x004CD728	std::int32_t	wavePos	draw
+0x004CD72C	std::int32_t	drawSourceSkip	draw
+0x004CD730	std::uint8_t*	drawSource	draw	picture data (RLE header or raw pixels)
+0x004CD734	std::int32_t	clipY	draw
+0x004CD738	std::int32_t	drawShearStep	draw
+0x004CD73C	std::uint8_t*	drawDestEnd	draw
+0x004CD740	std::int32_t	drawRows	draw
+0x004CD744	std::int32_t	drawScaleFrac	draw
+0x004CD748	std::int32_t	drawDitherPhase	draw	(y + 480) % 3
+0x004CD74C	std::int32_t	drawWidth	draw	visible width after clipping
+0x004CD750	std::int32_t	drawSkipLeft	draw
+0x004CD754	std::int32_t	drawSkipTop	draw
+0x004CD758	std::int32_t	wavePhase	draw
+0x004CD75C	std::int32_t	drawScaleHeight	draw
+0x004CD760	std::int32_t	drawLineSkip	draw	pitch - 2 * width
+0x004CD764	std::uint16_t*	drawPalette	draw	palette of an 8-bit raw picture, 0 for 16-bit
+0x004CD768	std::uint8_t*	drawDest	draw
+0x004CD76C	std::uint8_t*	drawSurface	draw	locked surface memory
+0x004CD770	std::uint8_t*	drawSourceLine	draw
+0x004CDBE0	std::int32_t	drawOptionBE0	draw	reset after each DrawPicture
+0x004CDE2C	std::int32_t	surfacePitchPixels	draw
+0x004CDC00	std::uint8_t*	darkenTable	draw	pixel lookup used by the 0x8000 runs of 0x0041A3B0 (index = (pixel >> 1) & ~1)
+0x004CD314	std::int32_t	drawSmearCounter	draw	cycle counter of the smear blitters 0x00422730 / 0x004229C0

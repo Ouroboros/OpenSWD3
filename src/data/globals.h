@@ -1936,10 +1936,9 @@ struct Globals {
     std::int32_t dword_4A069C;  // 0x004A069C
     std::int32_t dword_4A06A0;  // 0x004A06A0
     std::int32_t dword_4A06A4;  // 0x004A06A4
-    std::int32_t dword_4A06A8;  // 0x004A06A8
-    std::uint8_t pad_4A06AC[0x7B8];
-    std::int32_t dword_4A0E64;  // 0x004A0E64
-    std::int32_t dword_4A0E68;  // 0x004A0E68
+    std::int32_t waveOffsets[495];  // 0x004A06A8 15 rows of 33 per-line x offsets (bytes/2) for the wave effect
+    std::int32_t waveEnd;  // 0x004A0E64
+    std::int32_t waveStart;  // 0x004A0E68
     code_ptr pixelConvert;  // 0x004A0E6C converter for the display pixel format, set by 0x00423400 (initial 0x0044A240)
     code_ptr pixelConvertBack;  // 0x004A0E70 inverse converter, set by 0x00423400 (initial 0x0044A240)
     std::int32_t screenPitch;  // 0x004A0E74 lPitch of the surface given to PixelFormatInit
@@ -4183,100 +4182,43 @@ struct Globals {
     std::int32_t dword_4CC2E0;  // 0x004CC2E0
     std::int32_t dword_4CC2E4;  // 0x004CC2E4
     std::int32_t dword_4CC2E8;  // 0x004CC2E8
-    std::int32_t dword_4CC2EC;  // 0x004CC2EC
-    std::int32_t dword_4CC2F0;  // 0x004CC2F0
-    std::int32_t dword_4CC2F4;  // 0x004CC2F4
-    std::int32_t dword_4CC2F8;  // 0x004CC2F8
-    std::int32_t dword_4CC2FC;  // 0x004CC2FC
-    std::uint8_t pad_4CC300[0x2C8];
-    std::int32_t dword_4CC5C8;  // 0x004CC5C8
-    std::uint8_t pad_4CC5CC[0xD2C];
-    std::int32_t dword_4CD2F8;  // 0x004CD2F8
-    std::int32_t dword_4CD2FC;  // 0x004CD2FC
-    std::int32_t dword_4CD300;  // 0x004CD300
-    std::int32_t dword_4CD304;  // 0x004CD304
-    std::int32_t dword_4CD308;  // 0x004CD308
-    std::int32_t dword_4CD30C;  // 0x004CD30C
-    std::int32_t dword_4CD310;  // 0x004CD310
-    std::int32_t dword_4CD314;  // 0x004CD314
-    std::int32_t dword_4CD318;  // 0x004CD318
-    std::int32_t dword_4CD31C;  // 0x004CD31C
-    std::int32_t dword_4CD320;  // 0x004CD320
-    std::int32_t dword_4CD324;  // 0x004CD324
-    std::int32_t dword_4CD328;  // 0x004CD328
-    std::int32_t dword_4CD32C;  // 0x004CD32C
-    std::uint8_t pad_4CD330[0x8];
-    std::int32_t dword_4CD338;  // 0x004CD338
-    std::int32_t dword_4CD33C;  // 0x004CD33C
-    std::uint8_t pad_4CD340[0x8];
-    std::int32_t dword_4CD348;  // 0x004CD348
-    std::int32_t dword_4CD34C;  // 0x004CD34C
-    std::int32_t dword_4CD350;  // 0x004CD350
-    std::int32_t dword_4CD354;  // 0x004CD354
-    std::int32_t dword_4CD358;  // 0x004CD358
-    std::int32_t dword_4CD35C;  // 0x004CD35C
-    std::uint8_t pad_4CD360[0x8];
-    std::int32_t dword_4CD368;  // 0x004CD368
-    std::int32_t dword_4CD36C;  // 0x004CD36C
-    std::int32_t dword_4CD370;  // 0x004CD370
-    std::int32_t dword_4CD374;  // 0x004CD374
-    std::int32_t dword_4CD378;  // 0x004CD378
-    std::int32_t dword_4CD37C;  // 0x004CD37C
-    std::uint8_t pad_4CD380[0x8];
-    std::int32_t dword_4CD388;  // 0x004CD388
-    std::uint8_t pad_4CD38C[0xC];
-    std::int32_t dword_4CD398;  // 0x004CD398
-    std::int32_t dword_4CD39C;  // 0x004CD39C
-    std::uint8_t pad_4CD3A0[0x8];
-    std::int32_t dword_4CD3A8;  // 0x004CD3A8
-    std::int32_t dword_4CD3AC;  // 0x004CD3AC
-    std::int32_t dword_4CD3B0;  // 0x004CD3B0
-    std::int32_t dword_4CD3B4;  // 0x004CD3B4
-    std::int32_t dword_4CD3B8;  // 0x004CD3B8
-    std::int32_t dword_4CD3BC;  // 0x004CD3BC
-    std::int32_t dword_4CD3C0;  // 0x004CD3C0
-    std::int32_t dword_4CD3C4;  // 0x004CD3C4
-    std::int32_t dword_4CD3C8;  // 0x004CD3C8
-    std::int32_t dword_4CD3CC;  // 0x004CD3CC
-    std::uint8_t pad_4CD3D0[0x8];
-    std::int32_t dword_4CD3D8;  // 0x004CD3D8
-    std::int32_t dword_4CD3DC;  // 0x004CD3DC
-    std::int32_t dword_4CD3E0;  // 0x004CD3E0
-    std::int32_t dword_4CD3E4;  // 0x004CD3E4
-    std::uint8_t pad_4CD3E8[0x130];
-    std::int32_t dword_4CD518;  // 0x004CD518
-    std::int32_t dword_4CD51C;  // 0x004CD51C
-    std::uint8_t pad_4CD520[0x8];
-    std::int32_t dword_4CD528;  // 0x004CD528
-    std::int32_t dword_4CD52C;  // 0x004CD52C
-    std::uint8_t pad_4CD530[0x8];
-    std::int32_t dword_4CD538;  // 0x004CD538
-    std::uint8_t pad_4CD53C[0x2C];
-    std::int32_t dword_4CD568;  // 0x004CD568
-    std::uint8_t pad_4CD56C[0x1AC];
-    std::int32_t dword_4CD718;  // 0x004CD718
-    std::int32_t dword_4CD71C;  // 0x004CD71C
-    std::int32_t dword_4CD720;  // 0x004CD720
-    std::int32_t dword_4CD724;  // 0x004CD724
-    std::int32_t dword_4CD728;  // 0x004CD728
-    std::int32_t dword_4CD72C;  // 0x004CD72C
-    std::int32_t dword_4CD730;  // 0x004CD730
-    std::int32_t dword_4CD734;  // 0x004CD734
-    std::int32_t dword_4CD738;  // 0x004CD738
-    std::int32_t dword_4CD73C;  // 0x004CD73C
-    std::int32_t dword_4CD740;  // 0x004CD740
-    std::int32_t dword_4CD744;  // 0x004CD744
-    std::int32_t dword_4CD748;  // 0x004CD748
-    std::int32_t dword_4CD74C;  // 0x004CD74C
-    std::int32_t dword_4CD750;  // 0x004CD750
-    std::int32_t dword_4CD754;  // 0x004CD754
-    std::int32_t dword_4CD758;  // 0x004CD758
-    std::int32_t dword_4CD75C;  // 0x004CD75C
-    std::int32_t dword_4CD760;  // 0x004CD760
-    std::int32_t dword_4CD764;  // 0x004CD764
-    std::int32_t dword_4CD768;  // 0x004CD768
-    std::int32_t dword_4CD76C;  // 0x004CD76C
-    std::int32_t dword_4CD770;  // 0x004CD770
+    std::int32_t drawPitch;  // 0x004CC2EC destination pitch, negated for vertical flip
+    std::int32_t drawAlpha;  // 0x004CC2F0 translucency level for mode 0x14
+    std::int32_t drawShearDir;  // 0x004CC2F4
+    std::int32_t rowOffsets[1024];  // 0x004CC2F8 y * pitch
+    std::int32_t clipX;  // 0x004CD2F8
+    std::int32_t drawScaleUp;  // 0x004CD2FC
+    std::int32_t drawOption300;  // 0x004CD300 reset after each DrawPicture
+    std::int32_t drawOption304;  // 0x004CD304 reset after each DrawPicture
+    std::int32_t drawSkipBottom;  // 0x004CD308
+    std::int32_t drawOption30C;  // 0x004CD30C reset after each DrawPicture
+    std::int32_t clipWidth;  // 0x004CD310
+    std::int32_t drawSmearCounter;  // 0x004CD314 cycle counter of the smear blitters 0x00422730 / 0x004229C0
+    code_ptr drawRleTable[128];  // 0x004CD318 blit routine per mode for RLE pictures
+    code_ptr drawRawTable[128];  // 0x004CD518 blit routine per mode for raw pictures
+    std::int32_t drawShear;  // 0x004CD718
+    std::int32_t drawOption71C;  // 0x004CD71C reset after each DrawPicture
+    std::int32_t clipHeight;  // 0x004CD720
+    std::int32_t waveMode;  // 0x004CD724
+    std::int32_t wavePos;  // 0x004CD728
+    std::int32_t drawSourceSkip;  // 0x004CD72C
+    std::uint8_t* drawSource;  // 0x004CD730 picture data (RLE header or raw pixels)
+    std::int32_t clipY;  // 0x004CD734
+    std::int32_t drawShearStep;  // 0x004CD738
+    std::uint8_t* drawDestEnd;  // 0x004CD73C
+    std::int32_t drawRows;  // 0x004CD740
+    std::int32_t drawScaleFrac;  // 0x004CD744
+    std::int32_t drawDitherPhase;  // 0x004CD748 (y + 480) % 3
+    std::int32_t drawWidth;  // 0x004CD74C visible width after clipping
+    std::int32_t drawSkipLeft;  // 0x004CD750
+    std::int32_t drawSkipTop;  // 0x004CD754
+    std::int32_t wavePhase;  // 0x004CD758
+    std::int32_t drawScaleHeight;  // 0x004CD75C
+    std::int32_t drawLineSkip;  // 0x004CD760 pitch - 2 * width
+    std::uint16_t* drawPalette;  // 0x004CD764 palette of an 8-bit raw picture, 0 for 16-bit
+    std::uint8_t* drawDest;  // 0x004CD768
+    std::uint8_t* drawSurface;  // 0x004CD76C locked surface memory
+    std::uint8_t* drawSourceLine;  // 0x004CD770
     std::int32_t skipColorPair;  // 0x004CD774 rleSkipColor16 converted, duplicated in both halves
     std::int32_t dword_4CD778;  // 0x004CD778
     std::int32_t greenMaskPair;  // 0x004CD77C
@@ -4301,10 +4243,10 @@ struct Globals {
     std::int32_t shiftRed;  // 0x004CDBD4
     std::int32_t shiftGreen;  // 0x004CDBD8
     std::uint8_t pad_4CDBDC[0x4];
-    std::int32_t dword_4CDBE0;  // 0x004CDBE0
+    std::int32_t drawOptionBE0;  // 0x004CDBE0 reset after each DrawPicture
     std::uint8_t pad_4CDBE4[0x4];
     std::int32_t redHalves[6];  // 0x004CDBE8
-    std::int32_t dword_4CDC00;  // 0x004CDC00
+    std::uint8_t* darkenTable;  // 0x004CDC00 pixel lookup used by the 0x8000 runs of 0x0041A3B0 (index = (pixel >> 1) & ~1)
     std::int32_t redZero[32];  // 0x004CDC04
     std::int32_t blueRamp[32];  // 0x004CDC84
     std::int32_t blueFill[32];  // 0x004CDD04
@@ -4314,7 +4256,7 @@ struct Globals {
     std::int32_t rleSkipColor16;  // 0x004CDE20 16-bit colour encoded as 0x8000 runs
     std::int32_t blueMaskInverse;  // 0x004CDE24
     std::uint8_t pad_4CDE28[0x4];
-    std::int32_t dword_4CDE2C;  // 0x004CDE2C
+    std::int32_t surfacePitchPixels;  // 0x004CDE2C
     std::int32_t blueSteps[5];  // 0x004CDE30
     std::uint8_t pad_4CDE44[0x4];
     std::int32_t greenMaskInverse;  // 0x004CDE48
@@ -5806,6 +5748,9 @@ struct Globals {
 #pragma pack(pop)
 
 static_assert(sizeof(Globals) == image::kSize);
+static_assert(offsetof(Globals, waveOffsets) == 0x76A8);
+static_assert(offsetof(Globals, waveEnd) == 0x7E64);
+static_assert(offsetof(Globals, waveStart) == 0x7E68);
 static_assert(offsetof(Globals, pixelConvert) == 0x7E6C);
 static_assert(offsetof(Globals, pixelConvertBack) == 0x7E70);
 static_assert(offsetof(Globals, screenPitch) == 0x7E74);
@@ -5825,6 +5770,43 @@ static_assert(offsetof(Globals, file_4B9F18) == 0x20F18);
 static_assert(offsetof(Globals, mainWindow) == 0x30A1C);
 static_assert(offsetof(Globals, file_4CAA28) == 0x31A28);
 static_assert(offsetof(Globals, file_4CAD50) == 0x31D50);
+static_assert(offsetof(Globals, drawPitch) == 0x332EC);
+static_assert(offsetof(Globals, drawAlpha) == 0x332F0);
+static_assert(offsetof(Globals, drawShearDir) == 0x332F4);
+static_assert(offsetof(Globals, rowOffsets) == 0x332F8);
+static_assert(offsetof(Globals, clipX) == 0x342F8);
+static_assert(offsetof(Globals, drawScaleUp) == 0x342FC);
+static_assert(offsetof(Globals, drawOption300) == 0x34300);
+static_assert(offsetof(Globals, drawOption304) == 0x34304);
+static_assert(offsetof(Globals, drawSkipBottom) == 0x34308);
+static_assert(offsetof(Globals, drawOption30C) == 0x3430C);
+static_assert(offsetof(Globals, clipWidth) == 0x34310);
+static_assert(offsetof(Globals, drawSmearCounter) == 0x34314);
+static_assert(offsetof(Globals, drawRleTable) == 0x34318);
+static_assert(offsetof(Globals, drawRawTable) == 0x34518);
+static_assert(offsetof(Globals, drawShear) == 0x34718);
+static_assert(offsetof(Globals, drawOption71C) == 0x3471C);
+static_assert(offsetof(Globals, clipHeight) == 0x34720);
+static_assert(offsetof(Globals, waveMode) == 0x34724);
+static_assert(offsetof(Globals, wavePos) == 0x34728);
+static_assert(offsetof(Globals, drawSourceSkip) == 0x3472C);
+static_assert(offsetof(Globals, drawSource) == 0x34730);
+static_assert(offsetof(Globals, clipY) == 0x34734);
+static_assert(offsetof(Globals, drawShearStep) == 0x34738);
+static_assert(offsetof(Globals, drawDestEnd) == 0x3473C);
+static_assert(offsetof(Globals, drawRows) == 0x34740);
+static_assert(offsetof(Globals, drawScaleFrac) == 0x34744);
+static_assert(offsetof(Globals, drawDitherPhase) == 0x34748);
+static_assert(offsetof(Globals, drawWidth) == 0x3474C);
+static_assert(offsetof(Globals, drawSkipLeft) == 0x34750);
+static_assert(offsetof(Globals, drawSkipTop) == 0x34754);
+static_assert(offsetof(Globals, wavePhase) == 0x34758);
+static_assert(offsetof(Globals, drawScaleHeight) == 0x3475C);
+static_assert(offsetof(Globals, drawLineSkip) == 0x34760);
+static_assert(offsetof(Globals, drawPalette) == 0x34764);
+static_assert(offsetof(Globals, drawDest) == 0x34768);
+static_assert(offsetof(Globals, drawSurface) == 0x3476C);
+static_assert(offsetof(Globals, drawSourceLine) == 0x34770);
 static_assert(offsetof(Globals, skipColorPair) == 0x34774);
 static_assert(offsetof(Globals, greenMaskPair) == 0x3477C);
 static_assert(offsetof(Globals, rleSkipColor8) == 0x34780);
@@ -5844,7 +5826,9 @@ static_assert(offsetof(Globals, greenRamp) == 0x34A54);
 static_assert(offsetof(Globals, greenFill) == 0x34AD4);
 static_assert(offsetof(Globals, shiftRed) == 0x34BD4);
 static_assert(offsetof(Globals, shiftGreen) == 0x34BD8);
+static_assert(offsetof(Globals, drawOptionBE0) == 0x34BE0);
 static_assert(offsetof(Globals, redHalves) == 0x34BE8);
+static_assert(offsetof(Globals, darkenTable) == 0x34C00);
 static_assert(offsetof(Globals, redZero) == 0x34C04);
 static_assert(offsetof(Globals, blueRamp) == 0x34C84);
 static_assert(offsetof(Globals, blueFill) == 0x34D04);
@@ -5852,6 +5836,7 @@ static_assert(offsetof(Globals, greenHalves) == 0x34E04);
 static_assert(offsetof(Globals, blueMaskCopy) == 0x34E1C);
 static_assert(offsetof(Globals, rleSkipColor16) == 0x34E20);
 static_assert(offsetof(Globals, blueMaskInverse) == 0x34E24);
+static_assert(offsetof(Globals, surfacePitchPixels) == 0x34E2C);
 static_assert(offsetof(Globals, blueSteps) == 0x34E30);
 static_assert(offsetof(Globals, greenMaskInverse) == 0x34E48);
 static_assert(offsetof(Globals, redMaskCopy) == 0x34E4C);
