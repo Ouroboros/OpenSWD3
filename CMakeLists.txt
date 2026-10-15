@@ -20,21 +20,38 @@ list(PREPEND CMAKE_FIND_ROOT_PATH "${SWD3_DEPS_PREFIX}")
 file(GLOB_RECURSE SWD3_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c")
+if(WIN32)
+    list(FILTER SWD3_SOURCES EXCLUDE REGEX "_posix\\.c(pp)?$")
+else()
+    list(FILTER SWD3_SOURCES EXCLUDE REGEX "_win\\.c(pp)?$")
+endif()
+set(SWD3_MAIN_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/src/app/main.cpp")
+list(REMOVE_ITEM SWD3_SOURCES "${SWD3_MAIN_SOURCE}")
 
-if(SWD3_SOURCES)
+if(MSVC)
+    set(SWD3_WARNINGS /W3)
+else()
+    set(SWD3_WARNINGS -Wall -Wno-unused-parameter)
+endif()
+
+add_library(swd3_core STATIC ${SWD3_SOURCES})
+target_include_directories(swd3_core PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_compile_options(swd3_core PRIVATE ${SWD3_WARNINGS})
+if(WIN32)
+    target_compile_definitions(swd3_core PUBLIC NOMINMAX _CRT_SECURE_NO_WARNINGS)
+    target_link_libraries(swd3_core PUBLIC user32 gdi32 advapi32 ole32 winmm imm32)
+endif()
+
+if(EXISTS "${SWD3_MAIN_SOURCE}")
     find_package(SDL3 CONFIG REQUIRED COMPONENTS SDL3-static)
     include(cmake/FFmpegStatic.cmake)
-
-    add_executable(swd3 ${SWD3_SOURCES})
-    target_include_directories(swd3 PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/include"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src")
-    target_link_libraries(swd3 PRIVATE SDL3::SDL3-static swd3::ffmpeg)
+    add_executable(swd3 "${SWD3_MAIN_SOURCE}")
+    target_link_libraries(swd3 PRIVATE swd3_core SDL3::SDL3-static swd3::ffmpeg)
     if(WIN32)
         set_target_properties(swd3 PROPERTIES WIN32_EXECUTABLE ON)
     endif()
-else()
-    message(STATUS "src/ has no translation units yet; no executable target defined")
 endif()
 
 enable_testing()
@@ -42,8 +59,7 @@ file(GLOB_RECURSE SWD3_TEST_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp")
 if(SWD3_TEST_SOURCES)
     add_executable(swd3_tests ${SWD3_TEST_SOURCES})
-    target_include_directories(swd3_tests PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/include"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src")
-    add_test(NAME swd3_tests COMMAND swd3_tests)
+    target_include_directories(swd3_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests")
+    target_link_libraries(swd3_tests PRIVATE swd3_core)
+    add_test(NAME swd3_tests COMMAND swd3_tests WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 endif()

@@ -20,21 +20,21 @@
 
 ## 整体进度
 
-- 当前阶段：初步分析与脚手架已完成，等待用户START GOAL。
+- 当前阶段：第 2 阶段（还原）。
 - 已识别函数数：1626（无 FLIRT 数据库导出；函数外代码头 0）。
 - 函数总数：待确定（间接调用目标与函数指针表尚未全部核对，见 reverse/analysis/scope-and-gaps.md）。
-- 已实现／总数：0／待确定（已识别 1626）。
+- 已实现／总数：45／待确定（已识别 1626）。
 - 已验证／总数：0／待确定（已识别 1626）。
-- 待实现／待验证：1626／1626（按已识别函数计）。
+- 待实现／待验证：1581／1626（按已识别函数计）。
 - 模块初分：已归属 884，unknown 742（reverse/analysis/module_assignment.tsv）。
 
 ## 当前工作
 
-IDAT初步分析已完成，工作数据库已保存并通过重开检查，初始函数表与结构概览已准备；SDL3／FFmpeg 获取与构建脚本已建立；等待用户START GOAL，尚未开始函数实现与验证。
+按 reverse/analysis/plan.md 自底向上还原。`file`（File）、`memmgr`（MemoryManager）已实现，`crt` 中游戏直接调用的分配、rand、_ftol、difftime 已映射；Linux（i386）与 Windows x86 构建与单元测试通过。
 
 ## 下一步
 
-START GOAL 后先核对 scope-and-gaps.md 中的未闭合缺口，然后从底层公共模块 `file`（cFile，首个函数 `0x00438030`，48 处调用）开始逐函数还原，随后 `memmgr`、`res_pack`。
+`res_pack`（`all_*.tsw`／`all_*.act` 资源包读取，`0x004315D0` 起）。
 
 ## GOAL完成条件
 

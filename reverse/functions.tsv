@@ -1,8 +1,8 @@
 order	binary	address	name	module	source	status	verification_count	evidence	notes
-1	swd32.exe	0x00401000	sub_401000	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-2	swd32.exe	0x00401010	sub_401010	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-3	swd32.exe	0x00401020	sub_401020	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-4	swd32.exe	0x00401030	sub_401030	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+1	swd32.exe	0x00401000	sub_401000	memmgr	src/memmgr/memory_manager.cpp:g_memoryManager (dynamic initializer)	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+2	swd32.exe	0x00401010	sub_401010	memmgr	src/memmgr/memory_manager.cpp:g_memoryManager (constructor call)	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+3	swd32.exe	0x00401020	sub_401020	memmgr	src/memmgr/memory_manager.cpp:g_memoryManager (atexit registration)	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+4	swd32.exe	0x00401030	sub_401030	memmgr	src/memmgr/memory_manager.cpp:g_memoryManager (destructor call)	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
 5	swd32.exe	0x00401040	sub_401040	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
 6	swd32.exe	0x00401050	sub_401050	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
 7	swd32.exe	0x00401060	sub_401060	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
@@ -228,7 +228,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 227	swd32.exe	0x00411D90	sub_411D90	cdcheck		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "GetDiskFreeSpaceExA"
 228	swd32.exe	0x00411E20	sub_411E20	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 229	swd32.exe	0x00411F00	sub_411F00	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-230	swd32.exe	0x00411F90	sub_411F90	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+230	swd32.exe	0x00411F90	sub_411F90	core	src/core/debug_log.cpp:DebugLog	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 231	swd32.exe	0x00411FA0	sub_411FA0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 232	swd32.exe	0x00412050	sub_412050	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 233	swd32.exe	0x004120B0	sub_4120B0	pic_paint		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(picPaint:...)"
@@ -504,38 +504,38 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 503	swd32.exe	0x00437EF0	sub_437EF0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 504	swd32.exe	0x00437F40	sub_437F40	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 505	swd32.exe	0x00437F90	sub_437F90	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-506	swd32.exe	0x00438000	sub_438000	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-507	swd32.exe	0x00438030	sub_438030	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!UnmapViewOfFile
-508	swd32.exe	0x004380B0	sub_4380B0	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438030 and 0x00438150
-509	swd32.exe	0x00438150	sub_438150	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!UnmapViewOfFile
-510	swd32.exe	0x004381E0	sub_4381E0	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!CreateFileMappingA
-511	swd32.exe	0x00438230	sub_438230	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!UnmapViewOfFile
-512	swd32.exe	0x00438290	sub_438290	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!MapViewOfFile
-513	swd32.exe	0x004382E0	sub_4382E0	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "cFile ,CloseView Src/Dest difference "
-514	swd32.exe	0x00438340	sub_438340	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x004382E0 and 0x00438360
-515	swd32.exe	0x00438360	sub_438360	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!SetEndOfFile
-516	swd32.exe	0x00438380	sub_438380	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570
-517	swd32.exe	0x004383E0	sub_4383E0	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570
-518	swd32.exe	0x00438440	sub_438440	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570
-519	swd32.exe	0x004384A0	sub_4384A0	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570
-520	swd32.exe	0x004384B0	sub_4384B0	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570
-521	swd32.exe	0x004384C0	sub_4384C0	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570
-522	swd32.exe	0x004384D0	sub_4384D0	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570
-523	swd32.exe	0x00438520	sub_438520	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570
-524	swd32.exe	0x00438570	sub_438570	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!GetFileTime
-525	swd32.exe	0x004385A0	sub_4385A0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-526	swd32.exe	0x004385B0	sub_4385B0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-527	swd32.exe	0x004385C0	sub_4385C0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-528	swd32.exe	0x00438600	sub_438600	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-529	swd32.exe	0x00438610	sub_438610	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-530	swd32.exe	0x00438620	sub_438620	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-531	swd32.exe	0x00438640	sub_438640	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-532	swd32.exe	0x00438650	sub_438650	memmgr		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "MemMgr"
-533	swd32.exe	0x004386E0	sub_4386E0	memmgr		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "MemMgr report"
-534	swd32.exe	0x00438800	sub_438800	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-535	swd32.exe	0x00438840	sub_438840	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-536	swd32.exe	0x00438880	sub_438880	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-537	swd32.exe	0x004389A0	sub_4389A0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+506	swd32.exe	0x00438000	sub_438000	file	src/file/file.cpp:File::File	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+507	swd32.exe	0x00438030	sub_438030	file	src/file/file.cpp:File::~File	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!UnmapViewOfFile
+508	swd32.exe	0x004380B0	sub_4380B0	file	src/file/file.cpp:File::Open	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438030 and 0x00438150
+509	swd32.exe	0x00438150	sub_438150	file	src/file/file.cpp:File::Close	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!UnmapViewOfFile
+510	swd32.exe	0x004381E0	sub_4381E0	file	src/file/file.cpp:File::CreateMapping	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!CreateFileMappingA
+511	swd32.exe	0x00438230	sub_438230	file	src/file/file.cpp:File::CloseMapping	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!UnmapViewOfFile
+512	swd32.exe	0x00438290	sub_438290	file	src/file/file.cpp:File::MapView	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!MapViewOfFile
+513	swd32.exe	0x004382E0	sub_4382E0	file	src/file/file.cpp:File::UnmapView	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "cFile ,CloseView Src/Dest difference "
+514	swd32.exe	0x00438340	sub_438340	file	src/file/file.cpp:File::GetSize	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x004382E0 and 0x00438360
+515	swd32.exe	0x00438360	sub_438360	file	src/file/file.cpp:File::SetEnd	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!SetEndOfFile
+516	swd32.exe	0x00438380	sub_438380	file	src/file/file.cpp:File::Read	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570
+517	swd32.exe	0x004383E0	sub_4383E0	file	src/file/file.cpp:File::Write	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570
+518	swd32.exe	0x00438440	sub_438440	file	src/file/file.cpp:File::Seek	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570
+519	swd32.exe	0x004384A0	sub_4384A0	file	src/file/file.cpp:File::SeekCurrent	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570
+520	swd32.exe	0x004384B0	sub_4384B0	file	src/file/file.cpp:File::SeekBegin	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570
+521	swd32.exe	0x004384C0	sub_4384C0	file	src/file/file.cpp:File::SeekEnd	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570
+522	swd32.exe	0x004384D0	sub_4384D0	file	src/file/file.cpp:File::Tell	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570
+523	swd32.exe	0x00438520	sub_438520	file	src/file/file.cpp:File::WriteExact	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570
+524	swd32.exe	0x00438570	sub_438570	file	src/file/file.cpp:File::GetTime	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!GetFileTime
+525	swd32.exe	0x004385A0	sub_4385A0	file	src/file/file.cpp:File::WriteByte	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+526	swd32.exe	0x004385B0	sub_4385B0	file	src/file/file.cpp:File::WriteDword	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+527	swd32.exe	0x004385C0	sub_4385C0	file	src/file/file.cpp:File::ReadExact	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+528	swd32.exe	0x00438600	sub_438600	file	src/file/file.cpp:File::ReadByte	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+529	swd32.exe	0x00438610	sub_438610	file	src/file/file.cpp:File::ReadDword	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+530	swd32.exe	0x00438620	sub_438620	file	src/file/file.cpp:File::SetError	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+531	swd32.exe	0x00438640	sub_438640	file	src/file/file.cpp:File::ErrorText	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+532	swd32.exe	0x00438650	sub_438650	memmgr	src/memmgr/memory_manager.cpp:MemoryManager::MemoryManager	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "MemMgr"
+533	swd32.exe	0x004386E0	sub_4386E0	memmgr	src/memmgr/memory_manager.cpp:MemoryManager::~MemoryManager	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "MemMgr report"
+534	swd32.exe	0x00438800	sub_438800	memmgr	src/memmgr/memory_manager.cpp:MemoryManager::NewNode	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+535	swd32.exe	0x00438840	sub_438840	memmgr	src/memmgr/memory_manager.cpp:MemoryManager::FreeNode	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+536	swd32.exe	0x00438880	sub_438880	memmgr	src/memmgr/memory_manager.cpp:MemoryManager::FreeBlock	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+537	swd32.exe	0x004389A0	sub_4389A0	memmgr	src/memmgr/memory_manager.cpp:MemoryManager::FormatLastError	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 538	swd32.exe	0x004389D0	sub_4389D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 539	swd32.exe	0x00438A60	sub_438A60	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 540	swd32.exe	0x00438A70	sub_438A70	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
@@ -1298,7 +1298,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1297	swd32.exe	0x00487AF0	sub_487AF0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1298	swd32.exe	0x00487BA0	sub_487BA0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1299	swd32.exe	0x00487BC0	sub_487BC0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
-1300	swd32.exe	0x00487C10	sub_487C10	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
+1300	swd32.exe	0x00487C10	sub_487C10	crt	src/crt/crt.cpp:crt::malloc (host malloc + 0xCD fill)	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1301	swd32.exe	0x00487C30	sub_487C30	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1302	swd32.exe	0x00487C60	sub_487C60	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1303	swd32.exe	0x00487C80	sub_487C80	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
@@ -1306,7 +1306,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1305	swd32.exe	0x00487FF0	sub_487FF0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1306	swd32.exe	0x00488050	sub_488050	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1307	swd32.exe	0x00488080	sub_488080	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
-1308	swd32.exe	0x004885A0	sub_4885A0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
+1308	swd32.exe	0x004885A0	sub_4885A0	crt	src/crt/crt.cpp:crt::free (0xDD fill + host free)	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1309	swd32.exe	0x004885C0	sub_4885C0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1310	swd32.exe	0x004889B0	sub_4889B0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1311	swd32.exe	0x004889D0	sub_4889D0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
@@ -1322,7 +1322,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1321	swd32.exe	0x004895D0	sub_4895D0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1322	swd32.exe	0x00489600	sub_489600	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1323	swd32.exe	0x00489610	sub_489610	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
-1324	swd32.exe	0x00489654	sub_489654	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
+1324	swd32.exe	0x00489654	sub_489654	crt	src/crt/crt.cpp:crt::ftol	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1325	swd32.exe	0x00489680	sub_489680	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1326	swd32.exe	0x004896C0	sub_4896C0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings)
 1327	swd32.exe	0x004896D0	sub_4896D0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings)
@@ -1339,13 +1339,13 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1338	swd32.exe	0x00489ACA	sub_489ACA	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings)
 1339	swd32.exe	0x00489AED	sub_489AED	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings)
 1340	swd32.exe	0x00489AF6	sub_489AF6	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings)
-1341	swd32.exe	0x00489B10	sub_489B10	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
-1342	swd32.exe	0x00489B20	sub_489B20	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
-1343	swd32.exe	0x00489B50	sub_489B50	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
+1341	swd32.exe	0x00489B10	sub_489B10	crt	src/crt/crt.cpp:crt::srand	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
+1342	swd32.exe	0x00489B20	sub_489B20	crt	src/crt/crt.cpp:crt::rand	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
+1343	swd32.exe	0x00489B50	sub_489B50	crt	src/crt/crt.cpp:crt::difftime	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1344	swd32.exe	0x00489B70	sub_489B70	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
-1345	swd32.exe	0x00489D00	sub_489D00	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
+1345	swd32.exe	0x00489D00	sub_489D00	crt	src/crt/crt.cpp:crt::operator_delete (0xDD fill + host free)	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1346	swd32.exe	0x00489D90	sub_489D90	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
-1347	swd32.exe	0x00489E90	sub_489E90	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
+1347	swd32.exe	0x00489E90	sub_489E90	crt	src/crt/crt.cpp:crt::operator_new (host malloc + 0xCD fill)	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1348	swd32.exe	0x00489EB0	sub_489EB0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1349	swd32.exe	0x0048A1F0	sub_48A1F0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1350	swd32.exe	0x0048A330	sub_48A330	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME

@@ -48,6 +48,12 @@ SDL3与FFmpeg由构建脚本自行下载源码并构建，不查找或复用本�
 
 遇到必须启动原游戏、通过动态DUMP才能验证的数据，编写Frida辅助采集脚本，并提供运行方法、游戏操作步骤、采集时机和输出位置。由用户启动游戏并完成操作，Agent根据采集结果继续分析和验证；采集脚本与原始输出统一保存在reverse/下。尚未取得所需数据时，保留待验证状态，不以推测代替结果。
 
+## CRT 与命名
+
+已识别的静态链接 MSVC CRT 函数直接调用平台 CRT，不重写 MSVC 的堆、启动代码与库内部实现；只在游戏可观察到差异时保留原行为：`rand`／`srand`（MSVC LCG）、调试堆新块填 0xCD／释放填 0xDD、`_ftol` 截断与溢出值、`difftime` 的 32 位减法等，集中在src/crt/。函数表中 CRT 函数的source记录对应的平台 CRT 调用。
+
+类名、函数名和变量名不必照搬原名，使用本项目的命名风格；每个还原函数定义前写`// swd32.exe 0x<地址>`，函数表source记录`路径:符号`。
+
 ## 汇编依据与代码结构
 
 原程序的机器码、汇编和原数据是逻辑依据。IDAT用于分析，IDAPython通过IDAT执行必要查询；反编译辅助理解。名称、已有代码和测试结果不能单独证明原行为。
@@ -67,7 +73,7 @@ SDL3与FFmpeg由构建脚本自行下载源码并构建，不查找或复用本�
 ### 工作环境与平台
 
 - 日常工作环境为 WSL。
-- Linux 目标在 WSL 中构建：`cmake --preset linux`、`cmake --build --preset linux`，构建目录build/linux/；单元测试`ctest --test-dir build/linux`。
+- Linux 目标在 WSL 中构建为 i386 静态程序（与 Windows x86 相同的 32 位数据布局）：`cmake --preset linux`、`cmake --build --preset linux`，构建目录build/linux/；单元测试`ctest --preset linux`。sysroot 为`/opt/sysroot-i386`（`scripts/deps/setup_i386_sysroot.sh`生成，Ubuntu noble 的 libc6-dev-i386、lib32stdc++-13-dev 等包解压而成，不改动系统目录），工具链文件cmake/toolchain-linux-i386-clang.cmake。
 - Windows 目标使用 clang-cl／lld-link 交叉构建 x86 产物（MSVC 14.44 与 Windows SDK 10.0.26100 头文件和库）：`cmake --preset windows`、`cmake --build --preset windows`，构建目录build/windows/，工具链文件cmake/toolchain-windows-x86-clang-cl.cmake。
 - 两个平台分别使用独立的构建目录。
 

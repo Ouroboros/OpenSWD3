@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Static SDL3 build. Usage: build_sdl3.sh linux|windows
+# linux = i386 static build used for compilation and unit tests only (dummy/offscreen video, dummy audio).
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
@@ -17,29 +18,17 @@ args=(
     -DSDL_TEST_LIBRARY=OFF -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF
 )
 
-linux_optional_backends() {
-    local entry pkg opt
-    for entry in \
-        xcursor:SDL_X11_XCURSOR xi:SDL_X11_XINPUT xfixes:SDL_X11_XFIXES xrandr:SDL_X11_XRANDR \
-        xscrnsaver:SDL_X11_XSCRNSAVER xtst:SDL_X11_XTEST wayland-client:SDL_WAYLAND alsa:SDL_ALSA libpulse:SDL_PULSEAUDIO \
-        libpipewire-0.3:SDL_PIPEWIRE jack:SDL_JACK sndio:SDL_SNDIO gbm:SDL_KMSDRM libudev:SDL_LIBUDEV \
-        dbus-1:SDL_DBUS ibus-1.0:SDL_IBUS libusb-1.0:SDL_HIDAPI_LIBUSB; do
-        pkg="${entry%%:*}"
-        opt="${entry##*:}"
-        if pkg-config --exists "${pkg}"; then
-            echo "SDL3 backend ${opt}: ${pkg} found" >&2
-        else
-            echo "SDL3 backend ${opt}: ${pkg} missing, disabled" >&2
-            printf '%s\n' "-D${opt}=OFF"
-        fi
-    done
-}
-
 case "${platform}" in
 linux)
-    args+=(-DCMAKE_C_COMPILER="${SWD3_LLVM_ROOT}/bin/clang" -DCMAKE_CXX_COMPILER="${SWD3_LLVM_ROOT}/bin/clang++")
-    mapfile -t disabled < <(linux_optional_backends)
-    args+=("${disabled[@]}")
+    args+=(
+        -DCMAKE_TOOLCHAIN_FILE="${SWD3_ROOT}/cmake/toolchain-linux-i386-clang.cmake"
+        -DSDL_UNIX_CONSOLE_BUILD=ON
+        -DSDL_X11=OFF -DSDL_WAYLAND=OFF -DSDL_KMSDRM=OFF -DSDL_RPI=OFF -DSDL_VIVANTE=OFF
+        -DSDL_OPENGL=OFF -DSDL_OPENGLES=OFF -DSDL_VULKAN=OFF -DSDL_GPU=OFF
+        -DSDL_ALSA=OFF -DSDL_PULSEAUDIO=OFF -DSDL_PIPEWIRE=OFF -DSDL_JACK=OFF -DSDL_SNDIO=OFF -DSDL_OSS=OFF
+        -DSDL_HIDAPI=OFF -DSDL_LIBUDEV=OFF -DSDL_DBUS=OFF -DSDL_IBUS=OFF -DSDL_FRIBIDI=OFF -DSDL_LIBTHAI=OFF
+        -DSDL_DUMMYVIDEO=ON -DSDL_OFFSCREEN=ON -DSDL_DUMMYAUDIO=ON -DSDL_DISKAUDIO=ON
+    )
     ;;
 windows)
     args+=(-DCMAKE_TOOLCHAIN_FILE="${SWD3_ROOT}/cmake/toolchain-windows-x86-clang-cl.cmake")

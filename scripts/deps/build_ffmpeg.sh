@@ -27,13 +27,17 @@ common=(
 
 case "${platform}" in
 linux)
+    i386="--target=x86_64-linux-gnu -m32 --sysroot=${SWD3_I386_SYSROOT}"
     extra=(
+        --target-os=linux --arch=x86 --enable-cross-compile
         --cc="${SWD3_LLVM_ROOT}/bin/clang"
         --cxx="${SWD3_LLVM_ROOT}/bin/clang++"
         --ar="${SWD3_LLVM_ROOT}/bin/llvm-ar"
         --ranlib="${SWD3_LLVM_ROOT}/bin/llvm-ranlib"
         --nm="${SWD3_LLVM_ROOT}/bin/llvm-nm"
-        --enable-pic
+        --host-cc="${SWD3_LLVM_ROOT}/bin/clang"
+        --extra-cflags="${i386}"
+        --extra-ldflags="${i386} -static"
     )
     ;;
 windows)

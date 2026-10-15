@@ -13,6 +13,7 @@ FFMPEG_REPO="https://git.ffmpeg.org/ffmpeg.git"
 FFMPEG_TAG="n9.0"
 
 SWD3_LLVM_ROOT="${SWD3_LLVM_ROOT:-/opt/llvm}"
+SWD3_I386_SYSROOT="${SWD3_I386_SYSROOT:-/opt/sysroot-i386}"
 SWD3_NASM="${SWD3_NASM:-$(command -v nasm || echo /opt/nasm/usr/bin/nasm)}"
 SWD3_MSVC_ROOT="${SWD3_MSVC_ROOT:-/mnt/c/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207}"
 SWD3_WINSDK_ROOT="${SWD3_WINSDK_ROOT:-/mnt/c/Program Files (x86)/Windows Kits/10}"

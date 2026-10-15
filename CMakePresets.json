@@ -3,13 +3,12 @@
   "configurePresets": [
     {
       "name": "linux",
-      "displayName": "Linux (WSL, LLVM)",
+      "displayName": "Linux i386 (WSL, clang, static)",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/linux",
+      "toolchainFile": "${sourceDir}/cmake/toolchain-linux-i386-clang.cmake",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "CMAKE_C_COMPILER": "/opt/llvm/bin/clang",
-        "CMAKE_CXX_COMPILER": "/opt/llvm/bin/clang++"
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
       }
     },
     {
@@ -26,5 +25,8 @@
   "buildPresets": [
     { "name": "linux", "configurePreset": "linux" },
     { "name": "windows", "configurePreset": "windows" }
+  ],
+  "testPresets": [
+    { "name": "linux", "configurePreset": "linux", "output": { "outputOnFailure": true } }
   ]
 }
