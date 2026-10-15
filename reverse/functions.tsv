@@ -77,11 +77,11 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 76	swd32.exe	0x004014C0	sub_4014C0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
 77	swd32.exe	0x004014D0	sub_4014D0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
 78	swd32.exe	0x004014E0	sub_4014E0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-79	swd32.exe	0x004014F0	sub_4014F0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-80	swd32.exe	0x004019A0	sub_4019A0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-81	swd32.exe	0x00401B70	sub_401B70	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-82	swd32.exe	0x00401C70	sub_401C70	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-83	swd32.exe	0x00401E50	sub_401E50	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+79	swd32.exe	0x004014F0	sub_4014F0	pic	src/pic/rle.cpp:RleEncode	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+80	swd32.exe	0x004019A0	sub_4019A0	pic	src/pic/rle.cpp:RleDecode	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+81	swd32.exe	0x00401B70	sub_401B70	pic	src/pic/rle.cpp:RleCheck16	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+82	swd32.exe	0x00401C70	sub_401C70	pic	src/pic/rle.cpp:RleConvert8To16	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+83	swd32.exe	0x00401E50	sub_401E50	pic	src/pic/rle.cpp:RleConvertTile8To16	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 84	swd32.exe	0x00402030	sub_402030	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 85	swd32.exe	0x004020C0	sub_4020C0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 86	swd32.exe	0x00402120	sub_402120	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
@@ -319,7 +319,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 318	swd32.exe	0x00423020	sub_423020	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 319	swd32.exe	0x004233D0	sub_4233D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 320	swd32.exe	0x00423400	sub_423400	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-321	swd32.exe	0x004238B0	sub_4238B0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+321	swd32.exe	0x004238B0	sub_4238B0	pic	src/pic/pixel_format.cpp:PixelConvert	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 322	swd32.exe	0x004238D0	sub_4238D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 323	swd32.exe	0x004238F0	sub_4238F0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
 324	swd32.exe	0x00423920	sub_423920	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
@@ -560,7 +560,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 559	swd32.exe	0x00439210	sub_439210	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 560	swd32.exe	0x00439580	sub_439580	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 561	swd32.exe	0x00439670	sub_439670	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-562	swd32.exe	0x004399E0	sub_4399E0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+562	swd32.exe	0x004399E0	sub_4399E0	codec	src/codec/lzo.cpp:Lzo1xDecompress	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 563	swd32.exe	0x00439C20	sub_439C20	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 564	swd32.exe	0x00439DE0	sub_439DE0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 565	swd32.exe	0x00439FD0	sub_439FD0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
@@ -734,7 +734,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 733	swd32.exe	0x0044A0D0	sub_44A0D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 734	swd32.exe	0x0044A160	sub_44A160	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 735	swd32.exe	0x0044A1D0	sub_44A1D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-736	swd32.exe	0x0044A240	nullsub_1	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=HIDDEN
+736	swd32.exe	0x0044A240	nullsub_1	pic	src/pic/pixel_format.cpp:PixelConvertNone	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=HIDDEN
 737	swd32.exe	0x0044A250	sub_44A250	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 738	swd32.exe	0x0044A280	sub_44A280	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 739	swd32.exe	0x0044AB00	sub_44AB00	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	

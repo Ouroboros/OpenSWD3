@@ -1938,8 +1938,8 @@ struct Globals {
     std::uint8_t pad_4A06AC[0x7B8];
     std::int32_t dword_4A0E64;  // 0x004A0E64
     std::int32_t dword_4A0E68;  // 0x004A0E68
-    std::int32_t off_4A0E6C;  // 0x004A0E6C
-    std::int32_t off_4A0E70;  // 0x004A0E70
+    code_ptr pixelConvert;  // 0x004A0E6C converter for the display pixel format, set by 0x00423400 (initial 0x0044A240)
+    code_ptr pixelConvertBack;  // 0x004A0E70 inverse converter, set by 0x00423400 (initial 0x0044A240)
     std::int32_t dword_4A0E74;  // 0x004A0E74
     std::int32_t dword_4A0E78;  // 0x004A0E78
     std::int32_t dword_4A0E7C;  // 0x004A0E7C
@@ -4282,7 +4282,7 @@ struct Globals {
     std::int32_t dword_4CD774;  // 0x004CD774
     std::int32_t dword_4CD778;  // 0x004CD778
     std::int32_t dword_4CD77C;  // 0x004CD77C
-    std::int32_t dword_4CD780;  // 0x004CD780
+    std::int32_t rleSkipColor8;  // 0x004CD780 8-bit colour encoded as 0x8000 runs
     std::int32_t dword_4CD784;  // 0x004CD784
     std::int32_t dword_4CD788;  // 0x004CD788
     std::int32_t dword_4CD78C;  // 0x004CD78C
@@ -4294,7 +4294,7 @@ struct Globals {
     std::int32_t dword_4CD7A0;  // 0x004CD7A0
     std::int32_t dword_4CD7A4;  // 0x004CD7A4
     std::uint8_t pad_4CD7A8[0xC];
-    std::int32_t dword_4CD7B4;  // 0x004CD7B4
+    std::int32_t rleFillColor8;  // 0x004CD7B4 8-bit colour encoded as 0xC000 runs
     std::int32_t dword_4CD7B8;  // 0x004CD7B8
     std::int32_t dword_4CD7BC;  // 0x004CD7BC
     std::uint8_t pad_4CD7C0[0x8];
@@ -4336,7 +4336,7 @@ struct Globals {
     std::int32_t dword_4CDE14;  // 0x004CDE14
     std::uint8_t pad_4CDE18[0x4];
     std::int32_t dword_4CDE1C;  // 0x004CDE1C
-    std::int32_t dword_4CDE20;  // 0x004CDE20
+    std::int32_t rleSkipColor16;  // 0x004CDE20 16-bit colour encoded as 0x8000 runs
     std::int32_t dword_4CDE24;  // 0x004CDE24
     std::uint8_t pad_4CDE28[0x4];
     std::int32_t dword_4CDE2C;  // 0x004CDE2C
@@ -4349,8 +4349,8 @@ struct Globals {
     std::uint8_t pad_4CDE58[0x4];
     std::int32_t dword_4CDE5C;  // 0x004CDE5C
     std::uint8_t pad_4CDE60[0x14];
-    std::int32_t dword_4CDE74;  // 0x004CDE74
-    std::int32_t dword_4CDE78;  // 0x004CDE78
+    std::int32_t rleMagic;  // 0x004CDE74 RLE picture header magic (compared as a 32-bit value)
+    std::int32_t rleFillColor16;  // 0x004CDE78 16-bit colour encoded as 0xC000 runs
     std::int32_t dword_4CDE7C;  // 0x004CDE7C
     std::uint8_t pad_4CDE80[0x14];
     std::int32_t dword_4CDE94;  // 0x004CDE94
@@ -5860,6 +5860,8 @@ struct Globals {
 #pragma pack(pop)
 
 static_assert(sizeof(Globals) == image::kSize);
+static_assert(offsetof(Globals, pixelConvert) == 0x7E6C);
+static_assert(offsetof(Globals, pixelConvertBack) == 0x7E70);
 static_assert(offsetof(Globals, file_4A9380) == 0x10380);
 static_assert(offsetof(Globals, file_4A98C8) == 0x108C8);
 static_assert(offsetof(Globals, memoryManager) == 0x1DC78);
@@ -5869,6 +5871,11 @@ static_assert(offsetof(Globals, file_4B8868) == 0x1F868);
 static_assert(offsetof(Globals, file_4B9F18) == 0x20F18);
 static_assert(offsetof(Globals, file_4CAA28) == 0x31A28);
 static_assert(offsetof(Globals, file_4CAD50) == 0x31D50);
+static_assert(offsetof(Globals, rleSkipColor8) == 0x34780);
+static_assert(offsetof(Globals, rleFillColor8) == 0x347B4);
+static_assert(offsetof(Globals, rleSkipColor16) == 0x34E20);
+static_assert(offsetof(Globals, rleMagic) == 0x34E74);
+static_assert(offsetof(Globals, rleFillColor16) == 0x34E78);
 static_assert(offsetof(Globals, file_4CF6E0) == 0x366E0);
 static_assert(offsetof(Globals, file_521538) == 0x88538);
 

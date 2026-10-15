@@ -17,3 +17,10 @@ addr	type	name	module	notes
 0x004CAD50	File	file_4CAD50	file	constructed by 0x00401310
 0x004CF6E0	File	file_4CF6E0	file	constructed by 0x004272C0
 0x00521538	File	file_521538	file	constructed by 0x00451900
+0x004A0E6C	code*	pixelConvert	pic	converter for the display pixel format, set by 0x00423400 (initial 0x0044A240)
+0x004A0E70	code*	pixelConvertBack	pic	inverse converter, set by 0x00423400 (initial 0x0044A240)
+0x004CD780	std::int32_t	rleSkipColor8	pic	8-bit colour encoded as 0x8000 runs
+0x004CD7B4	std::int32_t	rleFillColor8	pic	8-bit colour encoded as 0xC000 runs
+0x004CDE20	std::int32_t	rleSkipColor16	pic	16-bit colour encoded as 0x8000 runs
+0x004CDE74	std::int32_t	rleMagic	pic	RLE picture header magic (compared as a 32-bit value)
+0x004CDE78	std::int32_t	rleFillColor16	pic	16-bit colour encoded as 0xC000 runs

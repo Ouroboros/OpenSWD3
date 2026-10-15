@@ -1,6 +1,9 @@
 #include "data/image.h"
+#include "pic/pixel_format.h"
 
 namespace swd3::image {
+
+using swd3::PixelConvertNone;
 namespace {
 
 struct CodeTarget {
@@ -10,7 +13,7 @@ struct CodeTarget {
 
 // Functions whose original address is stored in the data image (function pointer tables, callbacks).
 const CodeTarget kTargets[] = {
-    {0, nullptr},
+    {0x0044A240u, reinterpret_cast<void*>(&PixelConvertNone)},
 };
 
 [[noreturn]] void trap() { unimplementedCode(0); }
