@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-唯一行为真值为`swd3.exe.lst`。物理范围`0x00444F00..0x00444F53`，50行，无FUNCTION CHUNK。callers为已关闭442F10模式清理、43A60 party循环和43B70列表类别循环，三处均已直接回收。
+唯一行为真值为`swd3.exe.lst`。物理范围`0x00444F00..0x00444F53`，50行，无FUNCTION CHUNK。callers为`pending`的442F10模式清理、43A60 party循环和43B70列表类别循环，三处均已直接回收。
 
 只要当前record head非空，就先把head写为当前next。text index等于FFDC的缺省记录直接交给4885A0等价typed释放端口，不读party selector；普通记录按party selector低16位解析四party dummy root，再把当前记录前插到root.next。循环因此反转普通记录顺序，且FFDC永不回池。
 

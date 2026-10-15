@@ -6,7 +6,7 @@
 
 权威LST主体为`0x00468C80..0x00468CCE`，从proc到endp共245行、144条带机器码和真实助记符的实际指令、9个静态call、18个跳转、10个局部标签和1个返回点，没有外部`FUNCTION CHUNK`。9个callsite依次为组A角色完成查询1次、道具定义加载3次、道具定义临时说明释放2次、道具存在查询1次、`0xB0`字节节点分配1次和`lstrcpyA`标题复制1次。
 
-唯一静态caller位于已关闭消息阶段的消息112分支。原caller只在transition actor为`0xFF`时调用本函数；返回后重新读取actor，仍为`0xFF`才转消息113，否则继续播放、完成查询、transition分配和成长完成标题框。
+唯一静态caller位于`pending`的消息阶段的消息112分支。原caller只在transition actor为`0xFF`时调用本函数；返回后重新读取actor，仍为`0xFF`才转消息113，否则继续播放、完成查询、transition分配和成长完成标题框。
 
 ## 2. live角色扫描与资格门
 

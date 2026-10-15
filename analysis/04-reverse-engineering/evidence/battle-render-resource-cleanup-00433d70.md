@@ -12,9 +12,9 @@ ABI为thiscall：ECX是战斗绘制owner；无栈参数。
 
 - `0x004518D0`尾跳wrapper；该wrapper注册为CRT退出回调，返回值被运行库忽略；
 - `0x0045B630`普通调用，下一条owner无关读取覆盖EAX；
-- `0x0045EA30`已关闭战斗运行时销毁直接组合typed清理，后续固定对象析构覆盖尾寄存器。
+- `0x0045EA30` `pending`的战斗运行时销毁直接组合typed清理，后续固定对象析构覆盖尾寄存器。
 
-直接callee为已关闭附属缓冲释放`0x00433F00`一处，以及旧内存释放入口`0x004885A0`两处。
+直接callee为`pending`的附属缓冲释放`0x00433F00`一处，以及旧内存释放入口`0x004885A0`两处。
 
 ## 2. 完整顺序
 
@@ -30,7 +30,7 @@ ABI为thiscall：ECX是战斗绘制owner；无栈参数。
 
 ## 3. typed实现
 
-现代实现直接调用已关闭`release_legacy_battle_render_auxiliary_buffer`，不保留opaque callback。两张行表沿用已关闭重建callee建立的独立`unique_ptr<u32[]>`所有权，并按surface后主表的源码顺序分别`reset()`。
+现代实现直接调用`pending`的`release_legacy_battle_render_auxiliary_buffer`，不保留opaque callback。两张行表沿用`pending`的重建callee建立的独立`unique_ptr<u32[]>`所有权，并按surface后主表的源码顺序分别`reset()`。
 
 现代返回`LegacyBattleRenderCleanupResult`，只记录三个分支是否持有并释放资源，方便caller与测试核对。它不宣称复现原EAX残值；三个caller均不消费该值，其中运行时销毁随后固定执行10次组A与8次组B对象析构。
 
@@ -40,7 +40,7 @@ ABI为thiscall：ECX是战斗绘制owner；无栈参数。
 
 LST到C++：
 
-- `0x00433D70..0x00433D73`：保存owner并直接调用已关闭附属缓冲释放；
+- `0x00433D70..0x00433D73`：保存owner并直接调用`pending`的附属缓冲释放；
 - `0x00433D78..0x00433D80`：callee返回后读取并判断surface行表；
 - `0x00433D82..0x00433D8B`：释放surface行表，返回后清零；
 - `0x00433D95..0x00433D9D`：surface分支之后读取并判断主行表；
@@ -70,4 +70,4 @@ C++到LST：
 
 本函数不消费物理游戏资产。定向battle聚合测试与零warning目标构建通过。
 
-当前没有可用原版退出回调及两条主动清理路径的owner联合捕获后端，`original_diff_verified`为`pending`。完整35行LST、已关闭callee回收、typed顺序和固定状态已经闭环。
+当前没有可用原版退出回调及两条主动清理路径的owner联合捕获后端，`original_diff_verified`为`pending`。完整35行LST、`pending`的callee回收、typed顺序和固定状态已经闭环。

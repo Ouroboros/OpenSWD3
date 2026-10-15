@@ -4,7 +4,7 @@
 
 ## 1. LST范围与直连
 
-唯一行为真值为`swd3.exe.lst`。函数范围`0x0043E770..0x0043E7DF`，72行；DA30有两个direct call点，E3D0有一个direct call点，B480另以callback地址绑定。直接callee B480、D880和E3D0现均复用已关闭typed实现。
+唯一行为真值为`swd3.exe.lst`。函数范围`0x0043E770..0x0043E7DF`，72行；DA30有两个direct call点，E3D0有一个direct call点，B480另以callback地址绑定。直接callee B480、D880和E3D0现均复用`pending`的typed实现。
 
 新增typed owner：4FB8A8 callback primary word、B480 callback state，以及生命周期减为0时清除的4B8740 owner。cleanup通过ExitPorts暴露D880 cleanup ports适配器，不复制D880释放逻辑。
 
@@ -22,7 +22,7 @@ E3D0 phase1检测物品`0x1BB0`存在时现直接调用E770，不再经过generi
 ## 3. 其他phase
 
 - phase2：写interaction phase1及primary action `0x232A/0x3B`，保留switch index EAX1。
-- phase3/4：尾调已关闭E3D0；E3D0 typed-stop映射为E770 `commit_stopped`，DA30再传播为`database_exit_stopped`。
+- phase3/4：尾调`pending`的E3D0；E3D0 typed-stop映射为E770 `commit_stopped`，DA30再传播为`database_exit_stopped`。
 - phase5：写interaction phase1并保留EAX4。
 - 其他phase：不写owner，返回`phase-1`。
 

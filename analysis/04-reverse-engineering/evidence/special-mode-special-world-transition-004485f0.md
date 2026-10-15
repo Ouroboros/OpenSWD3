@@ -4,7 +4,7 @@
 
 唯一行为真值为`swd3.exe.lst`。物理范围`0x004485F0..0x0044863E`，35行、3个call，无FUNCTION CHUNK；末尾以jmp尾调用406D30。唯一code caller为`0x00446700`。
 
-函数先用尚未关闭的44D520分别深克隆inventory根和当前选择记录链，发布两个clone token；随后直接调用已关闭482E0清理原选择链。清理typed-stop发生时两份clone已发布，原head当前节点已弹出，且不发布转场状态、不调用共享调度。
+函数先用尚未关闭的44D520分别深克隆inventory根和当前选择记录链，发布两个clone token；随后直接调用`pending`的482E0清理原选择链。清理typed-stop发生时两份clone已发布，原head当前节点已弹出，且不发布转场状态、不调用共享调度。
 
 清理完成后依次发布mode=5、enabled=1、zero=0、layout=3，并把共享调度返回值原样返回。platform adaptation把两个全局clone根归入`LegacyStandardModeSpecialWorldTransitionRuntime`，44D520仍保持最窄clone port，待其owner独立关闭后回收。
 

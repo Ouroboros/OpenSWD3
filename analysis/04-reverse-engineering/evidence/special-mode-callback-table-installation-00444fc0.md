@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-唯一行为真值为`swd3.exe.lst`。物理范围`0x00444FC0..0x004450DD`，98行，无FUNCTION CHUNK。code callers为已关闭439DE0全局初始化和3B480回调绑定，两处均已直接回收。
+唯一行为真值为`swd3.exe.lst`。物理范围`0x00444FC0..0x004450DD`，98行，无FUNCTION CHUNK。code callers为`pending`的439DE0全局初始化和3B480回调绑定，两处均已直接回收。
 
 函数按地址顺序无条件写三张各7槽表：draw、initialization、cleanup，共21次写入。随后调用40DC50查询story flag49并保留原始i32返回。只有结果精确等于1时，分别重写三张表的槽4和槽5，共6次额外写入；非零但不等于1不能触发交换。
 

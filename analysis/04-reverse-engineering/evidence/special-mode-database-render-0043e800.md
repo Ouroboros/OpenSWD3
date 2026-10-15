@@ -6,7 +6,7 @@
 
 唯一行为真值为`swd3.exe.lst`。函数范围`0x0043E800..0x0043EFFE`，910行、29个基本块；无direct caller，由B480和后续标准模式callback表绑定。
 
-完整审计纳入2次4239D0、4次40DC50、5次40EBF0、1次AE40、1次B110、5次BAB0、8次436AD0、4次FA70、1次400A0、2次405C0及resource resolve/blit路径。已关闭AE40、FA70、4400A0和4405C0均直接复用typed实现；其他未关闭callee继续保持最小port边界，不提前计数。
+完整审计纳入2次4239D0、4次40DC50、5次40EBF0、1次AE40、1次B110、5次BAB0、8次436AD0、4次FA70、1次400A0、2次405C0及resource resolve/blit路径。`pending`的AE40、FA70、4400A0和4405C0均直接复用typed实现；其他未关闭callee继续保持最小port边界，不提前计数。
 
 新增数据库render typed API。固定文本、索引文本、物品查询、resource resolve及绘制操作均为显式port；操作请求保留坐标、尺寸、flags、比例和文本。资源解析失败在原`[eax]`解引用点typed-stop，之前所有绘制副作用保留。
 

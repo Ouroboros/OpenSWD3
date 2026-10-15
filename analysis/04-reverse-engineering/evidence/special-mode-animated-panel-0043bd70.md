@@ -54,7 +54,7 @@ formatted_text(text,
 
 坐标加减均为32位回绕。原程序在矩形call后只覆盖EAX低16位，因此边框资源精确保留矩形返回高字与共享资源低字。边框返回被忽略；函数最终返回格式化文字callee的EAX。
 
-`LegacyStandardModeAnimatedPanelPorts`按原顺序表达这三类已关闭owner。typed结果保留inactive位置返回或最终文字返回、矩形原返回、合成资源ID、是否绘制及是否边界钳制。
+`LegacyStandardModeAnimatedPanelPorts`按原顺序表达这三类`pending`的owner。typed结果保留inactive位置返回或最终文字返回、矩形原返回、合成资源ID、是否绘制及是否边界钳制。
 
 ## 5. 验证
 

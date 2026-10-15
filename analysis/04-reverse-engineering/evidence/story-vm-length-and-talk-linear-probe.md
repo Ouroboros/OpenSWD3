@@ -150,4 +150,4 @@ opcode 87 调用的 `sub_439070(count)` 先执行 `0xFFFF / count`，再以拒�
 - `inventory/story-vm-talk-cfg-edges.tsv`：137,207 条顺序/条件/无条件候选边。
 - `inventory/story-vm-talk-cfg-issues.tsv`：四个去重后的 TALK3 无效物理根。
 
-下一步继续按真实汇编拆出每个 opcode 的参数语义、状态读写、等待/让出条件和错误路径。当前候选图验证了全部枚举目标的 framing，但没有求值游戏状态，所以仍不能冒充实际运行轨迹。完成逐项语义之前，P5 仍是进行中。
+下一步继续按真实汇编拆出每个 opcode 的参数语义、状态读写、等待/让出条件和错误路径。当前候选图验证了全部枚举目标的 framing，但没有求值游戏状态，所以仍不能冒充实际运行轨迹。完成逐项语义之前，P5 状态为`pending`。

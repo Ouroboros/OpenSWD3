@@ -46,7 +46,7 @@ mode0固定资源与mode1组资源均按470FE0执行，不分支found，不使�
 
 ## 1. 完整权威范围
 
-权威LST主体为`0x00466190..0x004664FB`，从proc到endp共381行、260条带机器码和真实助记符的实际指令、20个静态call、10个跳转、7个局部/返回标签和1个`retn`，没有外部`FUNCTION CHUNK`。唯一静态caller位于已关闭选择帧message 30路径；caller按原代码多推滚动参数，但本函数cdecl签名只读取原点X、原点Y和selected cell，第四参数保持未读。
+权威LST主体为`0x00466190..0x004664FB`，从proc到endp共381行、260条带机器码和真实助记符的实际指令、20个静态call、10个跳转、7个局部/返回标签和1个`retn`，没有外部`FUNCTION CHUNK`。唯一静态caller位于`pending`的选择帧message 30路径；caller按原代码多推滚动参数，但本函数cdecl签名只读取原点X、原点Y和selected cell，第四参数保持未读。
 
 20个callsite包括动作更新、两处矩形、两处九宫格、三处标题/单元文字、
 字体模式、宽度及四处样式、两处行查询、一次次组累计、两次根发布和lstrcpyA。

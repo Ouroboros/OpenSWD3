@@ -39,7 +39,7 @@ opcode：`116` / `OP_116_BATCH_SET_ROLE_POSITIONS`
 
 本handler不测试返回值，所以ordinary miss仍读取Y/X并把index `0xFFFFFFFF`交给`sub_42DAF0`。原版随即在helper首个角色记录访问处越界。现代实现只在该原危险点以`role_not_found`停止，不把missing角色静默消费，也不伪造位置更新。
 
-合法index复用已闭环的`LegacyWorldStoryPathRuntime`：请求flags为0，三个action分量保持`-1`。正常“寻路无路径”由owner按机器合同直接移动并以completed返回；非completed状态对应typed runtime、索引、表面、空间链、路径容量或分配危险域，现代在对应helper失败处停止，不推进handler。
+合法index复用`pending`的`LegacyWorldStoryPathRuntime`：请求flags为0，三个action分量保持`-1`。正常“寻路无路径”由owner按机器合同直接移动并以completed返回；非completed状态对应typed runtime、索引、表面、空间链、路径容量或分配危险域，现代在对应helper失败处停止，不推进handler。
 
 helper的历史整数返回不参与handler流控。受检span和持有型path owner替代固定角色表、72槽、裸空间链及节点池，属于平台适配；有效输入的角色副作用、调用顺序和完成流保持不变。
 

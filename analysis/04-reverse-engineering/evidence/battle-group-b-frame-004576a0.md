@@ -75,7 +75,7 @@ reset字节像及profile重叠别名、其它父协议和完整运行仍pending�
 
 frame enable完整值不等于1时跳过主体，仍执行公共画面效果、pending effect和最终actor尾。
 
-主体入口对当前组B对象执行terminal查询。仅terminal为0且两个pending dword都为0时调用update；第二pending dword是BFC4，现与组A帧、调试快捷键共用动作状态的`selection_cache_gate_b`；结果latch是另一个地址BF5C，由`resolution_latch`独立保存。此前合并两者的结论错误，本轮修正及未完成验证见[状态区分证据](battle-selection-wait-and-result-latch-0053bfc4-0053bf5c.md)。当前对象post-update门为0时，直接复用startup enemy中的进度与共享八槽动态资源唯一owner调用已关闭`0x004755E0`；参数按原32位位形传入，EDX继承update callee。进度返回EAX精确为1且message state不等于103时，直接组合已关闭攻击顺序登记，以固定类型2把当前索引写入共享18条记录的首个全1槽。资源typed-stop保留update前缀并阻断余下角色帧；旧进度函数和攻击顺序callback token均删除。
+主体入口对当前组B对象执行terminal查询。仅terminal为0且两个pending dword都为0时调用update；第二pending dword是BFC4，现与组A帧、调试快捷键共用动作状态的`selection_cache_gate_b`；结果latch是另一个地址BF5C，由`resolution_latch`独立保存。此前合并两者的结论错误，本轮修正及未完成验证见[状态区分证据](battle-selection-wait-and-result-latch-0053bfc4-0053bf5c.md)。当前对象post-update门为0时，直接复用startup enemy中的进度与共享八槽动态资源唯一owner调用`pending`的`0x004755E0`；参数按原32位位形传入，EDX继承update callee。进度返回EAX精确为1且message state不等于103时，直接组合`pending`的攻击顺序登记，以固定类型2把当前索引写入共享18条记录的首个全1槽。资源typed-stop保留update前缀并阻断余下角色帧；旧进度函数和攻击顺序callback token均删除。
 
 随后仅检查action auxiliary dword和turn-resolution **低word**。两者均为0且实际优先角色DWORD等于当前组B索引时：
 
@@ -144,7 +144,7 @@ phase mode为0且selection initialized为0时查询selection mode。
 
 - selection mode非0，且`group_b_count-processed低byte==1`：在组A计数域随机，跳过两个AI dword任一等于1或terminal对象；
 - selection mode非0，且剩余不等于1：在组B计数域随机，跳过terminal和当前组B对象，成功后side写1；
-- selection mode为0：在组A计数域随机并跳过两个AI dword和terminal；随后直接组合已关闭`0x00476080`，按组B profile/resource与bound 10 secondary RNG判定，完整EAX等于1时side写1、随机索引改为当前组B索引。
+- selection mode为0：在组A计数域随机并跳过两个AI dword和terminal；随后直接组合`pending`的`0x00476080`，按组B profile/resource与bound 10 secondary RNG判定，完整EAX等于1时side写1、随机索引改为当前组B索引。
 
 三类随机重试都无modern上限。随机callee返回超约定索引时，只在首次AI数组或对象terminal访问点typed-stop。`0x00476080`的actor/resource typed-stop发生在随机消费后，保留此前组A目标选择并阻断side、自身索引与初始化尾。初始化正常尾固定把selection initialized写1。
 
@@ -170,7 +170,7 @@ status-action返回非0时，对当前组B对象依次发布selection 0、mode 1
 status按i16为负或bit`0x6000`任一置位时进入特殊分支：
 
 - special-selection pending等于1时，side写1并清pending；
-- signed负值直接组合已关闭`0x004761D0`，按selector/profile/resource恢复返回值与mode；结果写status action value，并写current actor低word；
+- signed负值直接组合`pending`的`0x004761D0`，按selector/profile/resource恢复返回值与mode；结果写status action value，并写current actor低word；
 - 实时bit`0x4000`发布显示mode 2、清动作值并写current actor；对象text byte非0时显示固定文本；
 - 文字后重读实时bit`0x2000`发布显示mode 6、清动作值并再次写current actor；
 - 直接读保存敌人profile BYTEbit1，真置效果协调器共享DWORD1，假保持旧值；
@@ -179,13 +179,13 @@ status按i16为负或bit`0x6000`任一置位时进入特殊分支：
 
 side为1时把随机索引解释为组B；side为0时解释为组A。两条路径若当前目标terminal，则递增共享索引：组B路径允许推进到8并在首次one-past对象查询typed-stop；组A路径以`>8`退出递增，可在公共查询访问有效索引9。最终非terminal时发布索引，组A路径另prepare target。
 
-普通status路径先查询固定status-sequence token；完整返回1后写current actor、清status misc，读保存敌人实际profile BYTEbit1，真写共享效果标记1、假保留，再可显示文本。纯属性叶不产生EDX回复；无文字时保留readiness前继EDX。随后直接组合已关闭`0x00476140`，读取组B profile `+0x08` dword bit28；未置位时再返回profile `+0x04` dword bit12。结果等于1时side写1且随机索引改为当前组B。actor typed-stop保留status-sequence或文字路径后的陈旧EAX/EDX及此前副作用，并阻断side、目标、第二次current actor、bit0读取和后缀。最后直接读保存敌人profile BYTEbit0，真置phase1并清共享效果目标计数且跳选择；假保持，只有live phase完整零时按side查询组B或组A目标，非terminal则发布索引，组A另prepare target。
+普通status路径先查询固定status-sequence token；完整返回1后写current actor、清status misc，读保存敌人实际profile BYTEbit1，真写共享效果标记1、假保留，再可显示文本。纯属性叶不产生EDX回复；无文字时保留readiness前继EDX。随后直接组合`pending`的`0x00476140`，读取组B profile `+0x08` dword bit28；未置位时再返回profile `+0x04` dword bit12。结果等于1时side写1且随机索引改为当前组B。actor typed-stop保留status-sequence或文字路径后的陈旧EAX/EDX及此前副作用，并阻断side、目标、第二次current actor、bit0读取和后缀。最后直接读保存敌人profile BYTEbit0，真置phase1并清共享效果目标计数且跳选择；假保持，只有live phase完整零时按side查询组B或组A目标，非terminal则发布索引，组A另prepare target。
 
 ## 7. 公共动作阶段与陈旧EBX
 
 到达公共动作阶段后查询当前组B对象idle：
 
-- 完整EAX等于1：原EBX固定写1；active target等于当前索引时另置action block与pending，并调用action-start；随后写current actor、查询target低word并直接调用已关闭`dispatch_legacy_battle_opponent_action`；
+- 完整EAX等于1：原EBX固定写1；active target等于当前索引时另置action block与pending，并调用action-start；随后写current actor、查询target低word并直接调用`pending`的`dispatch_legacy_battle_opponent_action`；
 - 完整EAX不等于1：action block写当前陈旧EBX。
 
 陈旧EBX不是恒1：入口先计算`group_b_index*0x2B28`，只有正数phase组A扫描和动作调用前改为1。因此未经历这两条路径的idle失败会把stride offset写入action block。反编译把该值合理化为1，权威LST明确为`mov dword_53BF68, ebx`。
@@ -194,7 +194,7 @@ side为1时把随机索引解释为组B；side为0时解释为组A。两条路�
 
 ## 8. 动作完成与组A完成值
 
-已关闭对手动作分派返回1后：
+`pending`的对手动作分派返回1后：
 
 1. 再次查询target低word；
 2. selection clear；
@@ -252,7 +252,7 @@ pending effect ID非全1时调用pending step `(source,shared_argument,index)`�
 
 ## 12. callee、测试与动态差分
 
-46个唯一callee中，已关闭对手动作分派`0x00455D60`、玩家道具双数量步进`0x0045D180`、攻击顺序登记`0x0045EDF0`、文字消息入链`0x004698E0`、组B行动进度`0x004755E0`、组B对手模式`0x00476080`、组B行动资料标记`0x00476140`、组B行动profile/mode组合`0x004761D0`、角色进度阈值同步`0x00478370`、回合完成查询`0x00478690`、空闲状态查询`0x004786A0`和启动门word查询`0x004786D0`直接typed组合；文字消息的两处调用复用启动状态唯一链头和动态节点owner，行动进度、三个组B判定/组合与阈值同步复用startup的actor/resource/profile/timing owner，回合完成查询复用共享Group-A action owner，三处空闲状态与公共效果模式启动门查询复用startup Group-B lifecycle action-execution owner。`0x004761D0`内部待审profile loader替代原整函数token进入窄端口，其余待审角色、AI、状态、文本、完成资源和效果callee继续使用共享typed token端口。
+46个唯一callee中，`pending`的对手动作分派`0x00455D60`、玩家道具双数量步进`0x0045D180`、攻击顺序登记`0x0045EDF0`、文字消息入链`0x004698E0`、组B行动进度`0x004755E0`、组B对手模式`0x00476080`、组B行动资料标记`0x00476140`、组B行动profile/mode组合`0x004761D0`、角色进度阈值同步`0x00478370`、回合完成查询`0x00478690`、空闲状态查询`0x004786A0`和启动门word查询`0x004786D0`直接typed组合；文字消息的两处调用复用启动状态唯一链头和动态节点owner，行动进度、三个组B判定/组合与阈值同步复用startup的actor/resource/profile/timing owner，回合完成查询复用共享Group-A action owner，三处空闲状态与公共效果模式启动门查询复用startup Group-B lifecycle action-execution owner。`0x004761D0`内部待审profile loader替代原整函数token进入窄端口，其余待审角色、AI、状态、文本、完成资源和效果callee继续使用共享typed token端口。
 
 定向测试覆盖：
 

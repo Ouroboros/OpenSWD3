@@ -6,7 +6,7 @@
 
 权威LST主体为`0x00462510..0x0046262D`，从proc到endp共128行、70条实际指令、4个静态call、9个跳转、9个局部/返回标签、1个`retn`，没有外部`FUNCTION CHUNK`。
 
-唯一静态caller位于已关闭逐帧输入记录5路径。四个静态call都是既有样本播放边界，固定样本号46。
+唯一静态caller位于`pending`的逐帧输入记录5路径。四个静态call都是既有样本播放边界，固定样本号46。
 
 ## 2. 公共入口与独立message重读
 
@@ -40,7 +40,7 @@ current equipment selection先u32加1并回写；signed结果大于等于4时把
 
 ## 7. caller回收与验证
 
-逐帧输入原`commit_right`槽保留相同枚举数值并改为reserved。记录5在对话为空且message为3时先执行已关闭菜单选择前进，随后直接执行本函数，普通返回后才进入正向角色动作轮转。本函数permission或equipment typed-stop会保留前缀并阻断后续轮转。
+逐帧输入原`commit_right`槽保留相同枚举数值并改为reserved。记录5在对话为空且message为3时先执行`pending`的菜单选择前进，随后直接执行本函数，普通返回后才进入正向角色动作轮转。本函数permission或equipment typed-stop会保留前缀并阻断后续轮转。
 
 定向测试覆盖未处理message、message 1允许/拒绝/权限越界、message 2回绕与负signed值、message 4缓存恢复与负索引停点、message 30夹值前EAX，以及样本回调依次把message改为2/4/30后同次执行四个分支。caller测试覆盖普通直连、reserved槽零调用与typed-stop阻断动作轮转。
 

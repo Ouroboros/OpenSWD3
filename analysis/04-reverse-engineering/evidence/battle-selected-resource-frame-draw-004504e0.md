@@ -6,7 +6,7 @@
 
 权威LST完整范围为`0x004504E0..0x00450522`，从`proc`到`endp`共37行，没有外部`FUNCTION CHUNK`。
 
-cdecl四参数依次为资源号、帧索引、目标X、目标Y。callee只有已关闭帧查询`0x004315D0`和软件blitter`0x004170E0`各一次。
+cdecl四参数依次为资源号、帧索引、目标X、目标Y。callee只有`pending`的帧查询`0x004315D0`和软件blitter`0x004170E0`各一次。
 
 四个caller位于`0x0045A30A`、`0x0045A5A8`、`0x0045A7D6`和`0x00465753`。最后一个列表内容caller已直接组合typed实现并复用选择帧内唯一资源帧state；前三个caller留到各自工作包。函数返回值均不是本函数额外定义的业务结果。
 

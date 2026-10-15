@@ -7,7 +7,7 @@
 ## mode分支
 
 - `interaction_mode==0`：以`u16(party_selector)*16+guardian_slot`读取party record pointer。现代端由最窄`resolve_guardian_party_attribute_record`表边界返回typed `LegacyStandardModeForwardNode*`；只有表读取不可用时在原`dword_4C8AD0[eax*4]`处typed-stop。
-- `interaction_mode==1`：按u32回绕计算`list_offset+local_selection`后解释为i32，直接复用已关闭的43B9A0等价链索引helper；返回节点允许为null，保持原seed值。
+- `interaction_mode==1`：按u32回绕计算`list_offset+local_selection`后解释为i32，直接复用`pending`的43B9A0等价链索引helper；返回节点允许为null，保持原seed值。
 - 其他mode：返回null seed，不触发party表或链读取。
 
 原函数返回裸record pointer；现代端在429B0→442B10→442CA0链内始终以`const LegacyStandardModeForwardNode*`传递，不降级为整数token，不暴露到用户可见结果。

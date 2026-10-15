@@ -44,7 +44,7 @@ X写入发生在全部Y侧访问之前。Y源、Y减数、Y输出指针或Y写�
 
 ## 5. REVIEW 1–3 caller回收
 
-三个已关闭效果caller各删除1处opaque `0x00478470`调用，并在原callsite直接组合typed leaf：
+三个`pending`的效果caller各删除1处opaque `0x00478470`调用，并在原callsite直接组合typed leaf：
 
 - `0x004582B0 / 0x004586E5`：绘制偏移X/Y任一低word非零时查询argument actor基准坐标，再分别按完整dword加偏移。入口EAX/EDX为X/Y输出token，flags来自实际到达路径最后一次`CMP offset,0`。typed-stop保留resource、argument mode、render flags、width与绘制偏移前缀，抑制sample、finalize、render、release和公共尾。
 - `0x00458DE0 / 0x00458EDB`：绘制偏移X/Y两个低word都非零时查询argument actor。入口EAX为Y输出token，EDX继承绘制偏移leaf残值，flags来自`CMP offset_y,0`；成功后按完整u32分别加X/Y偏移。typed-stop保留此前sample、pan清零、owner发布与绘制偏移前缀。
@@ -60,10 +60,10 @@ REVIEW 2又回收脚本case 59的两个物理站点：
 REVIEW 3最后回收目标阶段与两个动作caller：
 
 - `0x004710D0 / 0x004710F6`：目标资源查询后无条件查询显式Group-B目标的基准坐标。X输出复用原目标参数dword槽，只覆盖低16位并保留目标token高word；Y写独立零初始化local。入口EAX为Y输出指针token，EDX与flags来自`0x00478620`资源回复。任何base-coordinate typed-stop都保留资源token与X部分提交，并在`0x58`字节演出记录清零前停止。
-- `0x004717F0 / 0x0047191D`：动作十三仅在绘制偏移X/Y低word均非零时查询基准坐标，X/Y依次写原`var_8/var_C` dword local；mixed-zero继续走已关闭`0x004783B0`查询。基准查询保留X/Y输出指针token高word、目标ECX、入口CMP flags和X后Y部分提交，成功后再按原顺序叠加偏移与动作记录扣减。
+- `0x004717F0 / 0x0047191D`：动作十三仅在绘制偏移X/Y低word均非零时查询基准坐标，X/Y依次写原`var_8/var_C` dword local；mixed-zero继续走`pending`的`0x004783B0`查询。基准查询保留X/Y输出指针token高word、目标ECX、入口CMP flags和X后Y部分提交，成功后再按原顺序叠加偏移与动作记录扣减。
 - `0x00471AD0 / 0x00471BB1`：动作十四同样只在双非零路径查询，但X/Y原槽顺序为`var_C/var_8`；EAX高word保留前一绘制偏移查询装载的X输出指针token，ECX/EDX分别保留基准Y/X输出指针token。成功后继续反向raster，typed-stop抑制raster、sample、render、runtime gate推进与完成清理。
 
-7个已关闭caller中的8个现代物理callsite均已删除generic `0x00478470`调用；生产源码唯一保留的地址值是`reserved_actor_base_coordinates = 0x00478470U`，调用数为零。`0x00484020 / 0x00484046`属于`audit_order=419`，当前没有现代生产实现，待其自身工作包关闭时必须直接复用本typed接口。
+7个`pending`的caller中的8个现代物理callsite均已删除generic `0x00478470`调用；生产源码唯一保留的地址值是`reserved_actor_base_coordinates = 0x00478470U`，调用数为零。`0x00484020 / 0x00484046`属于`audit_order=419`，当前没有现代生产实现，待其自身工作包关闭时必须直接复用本typed接口。
 
 ## 6. 测试与验证
 
@@ -90,6 +90,6 @@ REVIEW 1在格式化后的最新代码上通过：
 
 REVIEW 2在最新代码上再次通过定向`1/1`、Linux core `199/199`、AddressSanitizer `199/199`和Linux app `205/205`，最终四份stderr为空；changed-range格式与`git diff --check`通过。
 
-REVIEW 3在changed-range格式后的最终代码上通过定向`1/1`、Linux core `199/199`、AddressSanitizer `199/199`和Linux app `205/205`，四份正式stderr为空；随后连续10轮完整core均为`199/199`且stderr为空。inventory由生成器连续双跑逐字节一致，关闭为`0/422 = 274 platform_adapted + 10 assembly_exact + 138 pending_audit`，SHA-256为`e945ecc6cf0c24204114f7eff9006d5d8ddbf4d0822403e40a426e459af38601`。系统TMP迁移dry-run为selected `0`、unselected suspicious `0`，14项全部识别为受管runtime。
+REVIEW 3在changed-range格式后的最终代码上通过定向`1/1`、Linux core `199/199`、AddressSanitizer `199/199`和Linux app `205/205`，四份正式stderr为空；随后连续10轮完整core均为`199/199`且stderr为空。inventory由生成器连续双跑逐字节一致，关闭为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA-256为`e945ecc6cf0c24204114f7eff9006d5d8ddbf4d0822403e40a426e459af38601`。系统TMP迁移dry-run为selected `0`、unselected suspicious `0`，14项全部识别为受管runtime。
 
 未启动原版游戏或OpenSWD3应用程序。当前缺少原版完整Group-A/Group-B actor对象、异常内存页以及9处物理callsite联合寄存器/SEH捕获后端，`original_diff_verified`登记为`pending`。

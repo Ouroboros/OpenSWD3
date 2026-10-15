@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-唯一行为真值为`swd3.exe.lst`。物理范围`0x004437C0..0x004438D4`，144行，无FUNCTION CHUNK。code caller为F40两处，3B480另绑定为动作callback；F40现已直接回收。B9A0、B9C0、B9E0、BC60与444E50已关闭并直接复用；sample46保留平台端口。
+唯一行为真值为`swd3.exe.lst`。物理范围`0x004437C0..0x004438D4`，144行，无FUNCTION CHUNK。code caller为F40两处，3B480另绑定为动作callback；F40现已直接回收。B9A0、B9C0、B9E0、BC60与444E50为`pending`并直接复用；sample46保留平台端口。
 
 ## mode1分页
 

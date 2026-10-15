@@ -89,4 +89,4 @@ build/tmp/runtime/actor-resource-release-*；来源审计脚本为check-actor-re
 五个既有测试窄化warning未扩入本批；本批13文件没有新增warning。
 未执行全量UT、Windows、实际MON、游戏运行、原版联合allocator/寄存器差分或完整SDL链。
 共享别名与原版动态fault不由固定节点验证关闭；其余父架构继续逐项迁移。
-不改变315/422、Workpack316、B11或全项目范围穷尽性false。
+不改变0/422、Workpack316、B11或全项目范围穷尽性false。

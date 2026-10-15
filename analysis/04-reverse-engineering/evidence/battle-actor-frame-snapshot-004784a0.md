@@ -8,8 +8,8 @@
 
 入口`ECX`为actor token；唯一栈参数是连续四个dword输出槽的首地址，callee清理4字节参数。函数分配并清零完整`0x98`字节临时`LegacyActionRecord`，保存并恢复ESI/EDI。两个callee依次为：
 
-1. `0x004321E0`：已关闭的`LegacyActionUpdater`；
-2. `0x004315D0`：已关闭的`LegacyFramePieceProvider`边界。
+1. `0x004321E0`：`pending`的`LegacyActionUpdater`；
+2. `0x004315D0`：`pending`的`LegacyFramePieceProvider`边界。
 
 ## 2. 前置门与临时动作记录
 
@@ -85,7 +85,7 @@ frame input原`prepare_actor_origin`、菜单前进/后退两个原点准备槽�
 
 ## 7. REVIEW计划
 
-REVIEW 1已实现typed leaf并回收`0x0045FC60`三处命中测试。它建立owner resolver、动作更新/frame查询组合、四dword共享局部块、显式provider EAX frame token提交、mirror、完整输出、寄存器/flags和逐访问typed-stop；frame coordinator把既有action、updater和provider注入frame-input路径。旧frame-input原点准备槽保留为reserved，生产零调用。
+REVIEW 1实现状态为`pending`：typed leaf并回收`0x0045FC60`三处命中测试。它建立owner resolver、动作更新/frame查询组合、四dword共享局部块、显式provider EAX frame token提交、mirror、完整输出、寄存器/flags和逐访问typed-stop；frame coordinator把既有action、updater和provider注入frame-input路径。旧frame-input原点准备槽保留为reserved，生产零调用。
 
 REVIEW 2已回收`0x00460C40`与`0x00461240`六处菜单选择路径。两函数通过input dispatch直接复用startup/action canonical actor owner、action updater和frame provider；三类路径各保留原actor token算术和入口EAX/ECX/EDX，把四项结果写入各caller共享局部块。即使菜单后缀不消费结果，动作更新、frame lookup和actor frame-token提交仍执行。正常早退保留局部块原值；typed-stop保留已提交前缀与返回寄存器/flags，并抑制选择配置、gate及输入确认后缀。旧两个菜单原点准备槽已改为reserved且生产零调用。
 

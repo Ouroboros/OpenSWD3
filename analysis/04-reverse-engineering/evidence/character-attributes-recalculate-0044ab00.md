@@ -8,10 +8,10 @@
 
 1. 先把56字节second record清零。
 2. 按mode从56字节表复制完整first base record，再把offset26/28两个bonus word清零。
-3. 对当前mode的16个贡献记录逐项直接调用已关闭的44D6E0，second record前42字节映射为21个u16目标；贡献记录携带typed模板键、门限、模式、三项资源、六项战斗属性和两个附加值。
+3. 对当前mode的16个贡献记录逐项直接调用`pending`的44D6E0，second record前42字节映射为21个u16目标；贡献记录携带typed模板键、门限、模式、三项资源、六项战斗属性和两个附加值。
 4. 把second offset4..1E的14个u16和offset26/28的2个u16，以u16回绕加到first；不回加primary、offset20..24、offset2A、level或modifier区。
 5. 对贡献0..6，按byte回绕把offset9E..9A九个signed byte直接加到first offset2D..35。
-6. 对贡献7..8，仅kind精确为33时以lookup key直接组合已关闭`0x00477B40`：先扫描固定根`0x004B8A00`，再读取并清理MON定义，以命中记录count作value、definition maximum作divisor。计算严格保持原两级整数除法：`factor=(-1000*count)/maximum/100`，每个非零source先按8位NEG取得magnitude，再加`factor*magnitude/10`的低字节。source=-128时NEG仍为-128，不修正为128。
+6. 对贡献7..8，仅kind精确为33时以lookup key直接组合`pending`的`0x00477B40`：先扫描固定根`0x004B8A00`，再读取并清理MON定义，以命中记录count作value、definition maximum作divisor。计算严格保持原两级整数除法：`factor=(-1000*count)/maximum/100`，每个非零source先按8位NEG取得magnitude，再加`factor*magnitude/10`的低字节。source=-128时NEG仍为-128，不修正为128。
 7. 完成时固定返回9。
 
 物理两个callsite在循环中最多实际执行18次：44D6E0固定16次，477B40最多2次。旧`accumulate_character_attributes_record`行为端口已删除；临时属性端口只隔离尚未关闭的476A80/4885A0资源边界。caller只按自身LST把整个44AB00计为一次调用。

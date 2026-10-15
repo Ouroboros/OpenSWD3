@@ -75,18 +75,18 @@ sentinel/control 头，其中 `+0x0C` 的 `0x1000` 位由 `sub_402F80` 消费；
 2. `[ ]` 实现 `0x00404FD0/0x004050B0` 角色格占用查询，作为碰撞的可验证底座。
 3. `[ ]` 用 B2 LMF API 建立一张真实地图会话和格表，再恢复 `0x00404610` 碰撞；
    LMF 子链和地图 22/24/500 已通过；`0x00426840..0x004272B8` 的 CM 命中、miss、
-   淘汰、生成和完整读取也已闭环，Linux `core` 110/110、Windows LLVM `app`
+   淘汰、生成和完整读取也为`pending`，Linux `core` 110/110、Windows LLVM `app`
    114/114 CTest 通过；`0x00404610` 九分支碰撞、原版异常足迹步长、事件/角色提前
    返回和受检 session grid 适配已经闭环；`0x004261CE..0x00426798` 的事件、两种
    地图角色、三组空间链，以及 `0x0040F2C1..0x0040F31B` 的受检格索引和 flags
-   投影也已闭环。地图 22/24/500 的业务角色数为 49/29/1，Linux `core` 112/112、
+   投影也为`pending`。地图 22/24/500 的业务角色数为 49/29/1，Linux `core` 112/112、
    Windows LLVM `app` 116/116 CTest 通过。
 4. `[ ]` 接入 `0x00402F80` 输入/移动、`0x004120B0` 世界更新绘制和软件 framebuffer；
    四方向输入、八方向覆盖顺序、列表重复、移动边界、动作/速度状态和
-   `0x004120F9..0x00412197` 坐标更新已实现；`0x0040BB50` 八方向占位、
-   `0x00404510` 三带可通行扫描和 `0x004040B0` 单轴绕行/对角裁剪也已闭环。
+   `0x004120F9..0x00412197` 坐标更新实现状态为`pending`；`0x0040BB50` 八方向占位、
+   `0x00404510` 三带可通行扫描和 `0x004040B0` 单轴绕行/对角裁剪也为`pending`。
    `0x00403AD7..0x00403DB6` 的两次碰撞回退、`0xD8` Talk 布局、地图事件副作用、
-   角色相向和 `0x00411E20/0x00411F00` 朝向查表也已实现。`0x0040D9E0` 的 14 字节
+   角色相向和 `0x00411E20/0x00411F00` 朝向查表实现状态也为`pending`。`0x0040D9E0` 的 14 字节
    区域源、`0x0040E672` 的 16 字节阈值组、`0x0040DA60` 两次 RNG 选择，以及
    `0x00403F43..0x0040406F` 的全部门控和立即战斗切入已经闭环；当前游戏数据 MAPS 的
    11 个阈值组、115 条区域和全部候选列表通过。Linux `core` 119/119、Windows LLVM
@@ -96,7 +96,7 @@ sentinel/control 头，其中 `+0x0C` 的 `0x1000` 位由 `sub_402F80` 消费；
    `0x947C15A53487BF9A`，Linux `core` 123/123、Windows LLVM `app` 127/127 CTest
    通过。`sub_413870` 的 group `2→0→1` 外层扫描现已独立关闭，包含 210 次固定扫描、
    无符号回绕行界、null head、post-callee gate/next 重读以及有界索引平台适配。
-   `sub_413910` 的残影/主图/颜色叠加/覆盖层/粒子/标签现已完成独立全函数闭环：修正入口
+   `sub_413910` 的残影/主图/颜色叠加/覆盖层/粒子/标签独立全函数闭环状态为`pending`：修正入口
    world/camera 快照、主图后 live 坐标字段与捕获 mode 的交叉时序，并把 SDL 单次音效、
    `LegacyAniRoleParticleEffect` 和 12 点标签从 no-op 接到真实 owner。`sub_413CA0` 距离
    音频随后也已独立闭环：保留入口距离、scheduler、start/stop、play/volume/pan 的物理
@@ -132,7 +132,7 @@ sentinel/control 头，其中 `+0x0C` 的 `0x1000` 位由 `sub_402F80` 消费；
    LLVM `app` 165/165 通过。外层门控、合成与链清理未完成前仍保留原 stage 转交，
    world-map 不接管该状态。
    `0x0041287F..0x00412923` 的地图 tile 层折返动画、单帧计数器不清零、零帧异常、
-   32 位回绕，以及选择序列结束后的条件视口恢复也已闭环。其前置 `0x004148F0` 选择
+   32 位回绕，以及选择序列结束后的条件视口恢复也为`pending`。其前置 `0x004148F0` 选择
    序列状态机也已恢复：保留入口门、游标回零、到期帧顺序、有符号增量和 countdown
    回绕，并已与帧尾恢复组合验证。Linux `core` 132/132、Windows LLVM `app` 136/136
    CTest 通过。`0x004120B0` 外层 coordinator 现已接起玩家/相机位移、选择滚动、两次
@@ -157,7 +157,7 @@ sentinel/control 头，其中 `+0x0C` 的 `0x1000` 位由 `sub_402F80` 消费；
    模式 3 UI 仍属于 B9，不在进程初始化或 SDL 层伪造快捷触发。当前游戏数据 1,371 条
    角色源中 136 条初始 Path 非零，当前命令均为五；真实数据与合成边界回归通过。
    Linux `core` 144/144、Windows LLVM `app` 148/148 CTest 通过。
-   `sub_427300` 普通世界鼠标交互现已完成全函数闭环并接入真实世界帧：cache-only TSW
+   `sub_427300` 普通世界鼠标交互全函数闭环状态为`pending`并接入真实世界帧：cache-only TSW
    命中、选择链优先消费、NPC/地图 Talk 构造、角色相向、光标覆盖、右键八方向合成和
    左键延迟复制均按 LST 保留；调用者 `0x0040A753` 的每帧光标重置也已接回。实现后已
    再次从入口到全部返回独立核对，期间纠正 TSW hover 查询不得 load-on-miss，纠正后无
@@ -185,7 +185,7 @@ sentinel/control 头，其中 `+0x0C` 的 `0x1000` 位由 `sub_402F80` 消费；
    完整应用 176/176 CTest 通过，Windows EXE 成功链接且未启动任何 EXE。
    PATH.DAT owner 随后完成全量闭环：`sub_405500` opcode `0..36`、`sub_405430`
    全部分派门、`sub_406580` 路线运动、`sub_406710` 绝对跳转和 `sub_406770` 随机游走
-   均已实现，并按原帧顺序接入同一 `step_story` 阶段。汇编—C++ 双向收敛期间补正了
+   实现状态均为`pending`，并按原帧顺序接入同一 `step_story` 阶段。汇编—C++ 双向收敛期间补正了
    目标角色不存在时 opcode 36 只推进两个 word，以及绝对跳转产生的 32 位负 word
    光标必须按有符号值寻址；真实 PATH 的 `169/170/171` 正好覆盖后一行为。动态标签的
    `malloc/free` 以 owner vector/token 隔离；opcode 36 首次使用 direction `1/default`
@@ -194,7 +194,7 @@ sentinel/control 头，其中 `+0x0C` 的 `0x1000` 位由 `sub_402F80` 消费；
    20 种 opcode、全部目标边界与 word 对齐均通过离线回归；37 个 opcode 还分别具有
    汇编独立边界 UT。原程序动态差分仍登记为 `pending`，未启动任何 EXE。
 
-   `sub_425BE0` 的完整 LMF 世界地图会话组合现已完成独立闭环：唯一调用点的两参数 cdecl
+   `sub_425BE0` 的完整 LMF 世界地图会话组合独立闭环状态为`pending`：唯一调用点的两参数 cdecl
    与 EAX 0/1、头签名中间的 progress 15、后续 `60/65/70/75/80/85`、事件和两类角色的
    分阶段构建、CM 原槽、逐索引对象解压/consumer，以及 28 个 `_AIL_serve` 静态点均经
    LST→C++→LST 多轮 REVIEW 收敛。音频维护动态次数固定为
@@ -227,7 +227,7 @@ sentinel/control 头，其中 `+0x0C` 的 `0x1000` 位由 `sub_402F80` 消费；
    `15/26/37/48`，首次 loader 为 21 次，render 总公式为
    `43 + refs + 5 * indexed_objects`。固定 malloc、全局 LMF 文件、错误路径泄漏和未检查失败
    以 RAII/checked owner 隔离，分类为 `pending`；`sub_4270F0/sub_427140` 仍保持
-   `pending_audit`。最终完整门禁为 Linux `core` 185/185、Linux `app` 191/191、Windows
+   `pending`。最终完整门禁为 Linux `core` 185/185、Linux `app` 191/191、Windows
    LLVM `app` 191/191 CTest，两端应用成功链接且未启动游戏 EXE。114 项当前关闭 0 项，
    即 `0 assembly_exact + 0 platform_adapted + 114 pending`；下一精确停点为
    `0x004270F0 sub_4270F0`。

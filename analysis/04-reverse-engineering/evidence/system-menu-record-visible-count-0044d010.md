@@ -19,7 +19,7 @@ typed目录固定为128个u16。null owner和索引越界只在原始u16读取�
 ## 2. caller回收
 
 - `0x0044BDA0`打开“记载”页时直接清光标标志、可见数量和起点，再调用typed计数；删除`prepare_record_page`命令。
-- `0x0044B560`和`0x0044B6E0`先直接调用已关闭的`0x0044D050`，按signed起点计算当前窗口指针，再调用typed计数；`rebuild_page`和`count_visible`命令均已删除。
+- `0x0044B560`和`0x0044B6E0`先直接调用`pending`的`0x0044D050`，按signed起点计算当前窗口指针，再调用typed计数；`rebuild_page`和`count_visible`命令均已删除。
 - 计数typed-stop时两个翻页caller立即返回，不继续夹scroll或OR光标低字节，保留原始停止前缀。
 
 ## 3. 验证

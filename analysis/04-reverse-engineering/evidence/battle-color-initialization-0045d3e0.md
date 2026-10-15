@@ -8,7 +8,7 @@
 
 ABI是七个dword参数的cdecl，依次为三项current signed整数、三项target signed整数和signed countdown。函数不建立普通栈帧，以plain `retn`返回，由caller清理28字节参数。
 
-三个静态call均为已关闭`0x00489654`。该callee把ST(0)向零转换为signed qword并弹栈，EAX返回低dword、EDX返回高dword。modern直接组合该语义，不保留opaque地址边界。
+三个静态call均为`pending`的`0x00489654`。该callee把ST(0)向零转换为signed qword并弹栈，EAX返回低dword、EDX返回高dword。modern直接组合该语义，不保留opaque地址边界。
 
 ## 2. 固定状态发布顺序
 
@@ -48,9 +48,9 @@ countdown为0时保留masked x87结果：正delta为正无穷，负delta为负�
 
 ## 5. 七个caller与共享门
 
-七个caller中三处已关闭并立即直连：
+七个caller中三处为`pending`并立即直连：
 
-- 战斗逐帧协调器固定传入`24,24,24,0,0,0,8`，仅在共享countdown不大于0且共享初始化门不等于1时执行，返回后把门写0；同帧随后直接执行已关闭颜色累加；
+- 战斗逐帧协调器固定传入`24,24,24,0,0,0,8`，仅在共享countdown不大于0且共享初始化门不等于1时执行，返回后把门写0；同帧随后直接执行`pending`的颜色累加；
 - 单体效果帧和群体效果帧都把record七个u16先按i16符号扩展，再依次作为七参数；初始化后清status bit `0x0400`并把同一共享门写1；
 - 单体效果保留蓝转换EDX，群体效果保留全部三项尾寄存器。
 
@@ -60,6 +60,6 @@ countdown为0时保留masked x87结果：正delta为正无穷，负delta为负�
 
 ## 6. 验证与动态差分
 
-定向测试覆盖固定逐帧参数、signed参数发布、float舍入后再取整、32位delta回绕、正负与零countdown、正负无穷和indefinite NaN位形、EAX/ECX/EDX尾值、三处已关闭caller直连、i16符号扩展、共享门0/1发布，以及全局重置保持门值。
+定向测试覆盖固定逐帧参数、signed参数发布、float舍入后再取整、32位delta回绕、正负与零countdown、正负无穷和indefinite NaN位形、EAX/ECX/EDX尾值、三处`pending`的caller直连、i16符号扩展、共享门0/1发布，以及全局重置保持门值。
 
 当前缺少原版九float、signed countdown、七个caller记录、共享门和寄存器联合捕获后端，`original_diff_verified`为`pending`。

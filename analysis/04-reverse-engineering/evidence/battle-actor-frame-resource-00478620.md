@@ -4,7 +4,7 @@
 
 ## 1. 完整LST边界与ABI
 
-权威函数为`0x00478620..0x0047866C`，共77字节、29条实际指令、2个call、1个条件分支与2个普通`retn`，没有外部`FUNCTION CHUNK`或中段入口。两个callee按顺序为已关闭动作更新`0x004321E0`与帧资源查询`0x004315D0`。
+权威函数为`0x00478620..0x0047866C`，共77字节、29条实际指令、2个call、1个条件分支与2个普通`retn`，没有外部`FUNCTION CHUNK`或中段入口。两个callee按顺序为`pending`的动作更新`0x004321E0`与帧资源查询`0x004315D0`。
 
 入口为thiscall：`ECX`是actor token。函数依次保存EBX、ESI、EDI，把EBX绑定到actor，并以`actor+0x02A0`为源、`actor+0x0CB8`为目标执行38次正向`REP MOVSD`。平台合同要求DF=0；现代typed结果显式公开DF合同停止，不能把反向复制伪装成受支持路径。
 
@@ -48,7 +48,7 @@ typed-stop独立覆盖：三次callee-saved push、38个source读、38个destina
 - `0x004607F6`：Group-A actor-order路径；返回地址`0x004607FB`；
 - `0x00460A0A`：Group-A直接逆序路径；返回地址`0x00460A0F`。
 
-三处均位于已关闭`0x004784A0` snapshot之后。`0x004605D9`与`0x00460A0A`沿用snapshot EAX/EDX/flags；`0x004607F6`在snapshot后重算`EAX=actor_index*0xBCD`，入口flags来自最后一次`actor_index*0x3F0-actor_index`，其后两条LEA不改flags，EDX仍沿用snapshot残值。三处ECX都是显式actor；EBX/ESI分别为Group-B逆序索引/actor token、actor-order槽token/1、Group-A逆序索引/actor token。Group-B和Group-A直接逆序caller的EDI为0；actor-order首次及首像素前普通miss后的EDI为0，完整8×8扫描miss后的下一候选EDI为8，现代循环显式携带这一寄存器残值。只有虚拟ESP token由caller请求注入。leaf typed-stop保留actor动作记录、动作更新和可能的frame-token前缀，阻断surface解析、镜像、像素查询、目标可用标记、发布与当前/剩余actor后缀。
+三处均位于`pending`的`0x004784A0` snapshot之后。`0x004605D9`与`0x00460A0A`沿用snapshot EAX/EDX/flags；`0x004607F6`在snapshot后重算`EAX=actor_index*0xBCD`，入口flags来自最后一次`actor_index*0x3F0-actor_index`，其后两条LEA不改flags，EDX仍沿用snapshot残值。三处ECX都是显式actor；EBX/ESI分别为Group-B逆序索引/actor token、actor-order槽token/1、Group-A逆序索引/actor token。Group-B和Group-A直接逆序caller的EDI为0；actor-order首次及首像素前普通miss后的EDI为0，完整8×8扫描miss后的下一候选EDI为8，现代循环显式携带这一寄存器残值。只有虚拟ESP token由caller请求注入。leaf typed-stop保留actor动作记录、动作更新和可能的frame-token前缀，阻断surface解析、镜像、像素查询、目标可用标记、发布与当前/剩余actor后缀。
 
 surface adapter只接收本leaf返回的frame token，不再以actor token替代资源结果。该adapter仅把现代资源对象解析成typed view，不对应原版CALL，因此不修改模拟EAX/ECX/EDX；Group-B首个mirror继续看到leaf返回EAX/EDX，Group-A对象解析后的下一mirror继续看到前一个mirror/pixel路径残值。Group-B在mirror前读取资源对象首dword；非零对象的首dword为零走普通未命中。Group-A先执行mirror，再在首个像素资源访问点读取资源对象；零token在该点typed-stop。provider返回零仍先由leaf提交零frame token，再由caller在真实对象访问点停止。
 

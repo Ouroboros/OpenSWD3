@@ -32,7 +32,7 @@ actual owner复用`LegacyWorldStoryVmState::script_variables[64]`，即完整`dw
 - opcode184：按u32比较，`variable >= threshold`时taken。
 - opcode185：按u32比较，`variable <= threshold`时taken。
 
-184/185都在比较前读取`+8 u32 target`，not-taken也必须有完整12字节。taken调用已闭环same-file window loader：先service audio，发布目标TALK offset和IP0，读取新窗口，然后回到共享尾；正常成功同调用读取目标首指令。
+184/185都在比较前读取`+8 u32 target`，not-taken也必须有完整12字节。taken调用`pending`的same-file window loader：先service audio，发布目标TALK offset和IP0，读取新窗口，然后回到共享尾；正常成功同调用读取目标首指令。
 
 所有有效index路径在操作或reload后检查`script_variables[0]`：bit31置位则完整写0。随后发布previous。181–183和not-taken 184/185按8/12字节推进并same-call；taken以IP0 same-call。若checked loader失败，仍按机器调用返回后的顺序执行variable0 clamp、previous publication，再返回`load_failed`。
 

@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-唯一行为真值为`swd3.exe.lst`。物理范围`0x0044B840..0x0044B90E`，117行、4个call，无FUNCTION CHUNK。caller为43B480和44B070；callee为485610，mode 1/page 2以尾跳进入已关闭的44B560。
+唯一行为真值为`swd3.exe.lst`。物理范围`0x0044B840..0x0044B90E`，117行、4个call，无FUNCTION CHUNK。caller为43B480和44B070；callee为485610，mode 1/page 2以尾跳进入`pending`的44B560。
 
 实现的界面行为：
 

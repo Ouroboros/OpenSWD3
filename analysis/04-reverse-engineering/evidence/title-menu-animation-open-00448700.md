@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-唯一行为真值为`swd3.exe.lst`。物理范围`0x00448700..0x00448833`，134行、8个call，无FUNCTION CHUNK。code caller为409540与已关闭43B480；446700的318物品路径也通过既有callback port复用该入口。
+唯一行为真值为`swd3.exe.lst`。物理范围`0x00448700..0x00448833`，134行、8个call，无FUNCTION CHUNK。code caller为409540与`pending`的43B480；446700的318物品路径也通过既有callback port复用该入口。
 
 函数首先把四个边界owner统一写-16，清enabled/progress/snapshot owner，velocity写-6。模式1和2均把progress改100、velocity改-120，并分配精确0x96000字节快照后复制当前framebuffer；两模式行为相同但保留两个独立if。平台快照失败在原malloc/copy边界typed-stop，保留此前边界、progress和velocity副作用，不执行尾部owner发布。
 

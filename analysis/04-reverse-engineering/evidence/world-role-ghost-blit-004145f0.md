@@ -82,7 +82,7 @@ jitter group/phase 写入之前，因此继承前一共享状态；被调 blitte
 `legacy_world_roles.cpp:draw_ghost` 拥有本函数的有效域行为。原始裸 role/frame 指针、共享
 blitter scratch globals 和函数表分派改为受检角色/帧 owner、typed request 与 draw port；
 源宽高、flags、坐标、三色、零 auxiliary 及调用顺序保持不变，因此 closure disposition
-为 `platform_adapted`。
+为 `pending`。
 
 独立 UT 固定：
 

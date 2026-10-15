@@ -80,7 +80,7 @@ removed byte以zero-extended dword与remaining做unsigned比较。达到或超�
 
 有效对象按以下顺序执行：
 
-1. 直连已关闭`0x00475870`，从共享组B资源`+0x62/+0x8A`读取两个u16，callee完整返回后才分别以u16回绕累加；actor或资源缺失在原读取点typed-stop并阻断caller累加；
+1. 直连`pending`的`0x00475870`，从共享组B资源`+0x62/+0x8A`读取两个u16，callee完整返回后才分别以u16回绕累加；actor或资源缺失在原读取点typed-stop并阻断caller累加；
 2. 描述符callee返回物理token，随后首次读取其偏移32的flag；零token在该实际访问点typed-stop，坐标副作用已保留；
 3. flag bit5置位时延迟加20，否则加3，均在u16域；
 4. 读取实际角色WORD参数、以固定根直接组合键计数链累加，再以actor index直接组合攻击顺序首匹配移除；

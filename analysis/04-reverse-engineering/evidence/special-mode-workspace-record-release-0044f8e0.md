@@ -14,7 +14,7 @@
 4. 释放当前176字节记录。
 5. 从已发布head继续。
 
-该指令序列与已关闭的`0x0044D5A0`完全同形，仅head来源不同：D5A0接收head地址参数，F8E0固定使用特殊模式工作区head。因此typed实现直接复用`release_legacy_player_item_chain`，不保留第二份逻辑或opaque端口。
+该指令序列与`pending`的`0x0044D5A0`完全同形，仅head来源不同：D5A0接收head地址参数，F8E0固定使用特殊模式工作区head。因此typed实现直接复用`release_legacy_player_item_chain`，不保留第二份逻辑或opaque端口。
 
 ## 2. typed-stop
 

@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-范围：4527A5..4527DB。B11接线，不改变B10的315/422及316 pending_audit。
+范围：4527A5..4527DB。B11接线，不改变B10的0/422及316 pending。
 独立审计保存在`build/tmp/runtime/battle-startup-tail-audit.md`。
 
 ## 指令与实现
@@ -63,4 +63,4 @@ SDL此前却在入口无条件将共享消息写0。本次删除该额外写入�
 最终core/ASan setup各1/1通过（5.15秒/7.61秒），SDL构建通过；三份
 日志无warning/error，前缀为`build/tmp/runtime/battle-entry-message-final-`。
 完整源码差异已按入口写集合和尾部跳转双向复核；唯一生产差异是删除
-额外写0，核心条件、返回和其他消息写入未改。B10仍315/422、316 pending_audit。
+额外写0，核心条件、返回和其他消息写入未改。B10仍0/422、316 pending。

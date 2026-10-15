@@ -6,7 +6,7 @@
 
 权威函数为`0x0045D490..0x0045D685`，从proc到endp完整218行、181条实际指令、7个静态call、9个分支与6个局部标签，无外部FUNCTION CHUNK。
 
-唯一caller是已关闭战斗逐帧协调器`0x00453200`。调用位于两个前置stage之后、已关闭角色metric和顺序重建之前；caller不读取正常返回寄存器。
+唯一caller是`pending`的战斗逐帧协调器`0x00453200`。调用位于两个前置stage之后、`pending`的角色metric和顺序重建之前；caller不读取正常返回寄存器。
 
 四个唯一callee尚未关闭：`0x00478330`三处、`0x0047CE80`两处、`0x0047D7D0`与`0x00481FC0`各一处。modern保留四类窄预帧端口，发布完整EAX/ECX/EDX；资格查询可同步动态组B数量。
 
@@ -20,7 +20,7 @@
 
 三道门均不写状态、不调用callee。通过后先把action execution active写1，再以`active + 2`的32位回绕索引把事件工作区槽写1。
 
-事件工作区是已关闭最终角色步进使用的同一126 dword数组。索引越界只在该首次真实store处typed-stop；action execution active已发布，其他状态不回滚。active为全1时索引回绕为1，原程序会写有效槽1，不能按signed actor范围提前拒绝。
+事件工作区是`pending`的最终角色步进使用的同一126 dword数组。索引越界只在该首次真实store处typed-stop；action execution active已发布，其他状态不回滚。active为全1时索引回绕为1，原程序会写有效槽1，不能按signed actor范围提前拒绝。
 
 ## 3. source全1短路
 
@@ -161,4 +161,4 @@ proc_6195：battle.legacy_battle_setup在core/ASan各1/1通过，分别5.37秒�
 build/tmp/runtime/battle-pre-frame-live-entry-，完整源码差异已审查。
 
 本批未改角色布局，未运行游戏，也没有新增原版动态差分。指标完整重建、
-完整战斗帧及实际续玩仍待接通；不改变B10 315/422或316 pending_audit。
+完整战斗帧及实际续玩仍待接通；不改变B10 0/422或316 pending。

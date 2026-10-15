@@ -99,4 +99,4 @@
 
 UT 覆盖 CP950/ASCII 导航、移到零却返回零、Home/End/Left/Right、Enter/Escape、Insert 恒启用、Backspace 在零删除首字符、重叠删除、插入后缀截断、IME 布局门、`0x1F` 阈值、百分号声音、低位 trail 组装、高位 trail 丢弃、锁存跨消息状态以及 `WM_IME_CHAR` 高低字节顺序和唯一零返回。
 
-Windows LLVM `core` 为 39/39 CTest；WSL 原生 Linux Clang 22.1.8 同样为 39/39 CTest。原程序尚无可运行的文本输入状态捕获后端，因此本单元继续标记 `blocked_runtime_oracle`，不能把静态复核和 UT 宣称为原程序动态差分。
+Windows LLVM `core` 为 39/39 CTest；WSL 原生 Linux Clang 22.1.8 同样为 39/39 CTest。原程序尚无可运行的文本输入状态捕获后端，因此本单元继续标记 `pending`，不能把静态复核和 UT 宣称为原程序动态差分。

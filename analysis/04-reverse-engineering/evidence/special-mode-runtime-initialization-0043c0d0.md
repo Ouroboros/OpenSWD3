@@ -18,7 +18,7 @@
 
 第一张`0x200`表入口先全部填`FF`，索引0保持`FF`。
 
-第二轮同样扫描1..500，在原call位置直接组合已关闭固定键计数查询`0x00477800`，把返回EAX低byte逐项写入第二张`0x200`表；该表入口先全部清0，索引0保持0。固定链typed-stop保留已写前缀并阻断全部初始化后缀。
+第二轮同样扫描1..500，在原call位置直接组合`pending`的固定键计数查询`0x00477800`，把返回EAX低byte逐项写入第二张`0x200`表；该表入口先全部清0，索引0保持0。固定链typed-stop保留已写前缀并阻断全部初始化后缀。
 
 ## 3. 字符串槽、entry与action
 
@@ -27,12 +27,12 @@
 - 为16个长槽和64个短槽只写首字节NUL。
 - 先把`FC920` entry alias设为64项entry表首项（typed index 0）。
 - 把`FC974` total、`FC90C` window offset、`FC928` local cursor、`FC914` visible count与`FC910` mode index五个owner清0。
-- 以mode0直接调用已关闭`0x0043C9C0`：执行signed classification与status两轮1..500扫描、文本/token生命周期，并由其清window/cursor/alias和刷新page。
+- 以mode0直接调用`pending`的`0x0043C9C0`：执行signed classification与status两轮1..500扫描、文本/token生命周期，并由其清window/cursor/alias和刷新page。
 - 共享17项action表中只写record0的action ID=`0x232A`与base variant=`0x33`，record0其他字段及records1–16保持。
 - 把entry[0]传给`0x0043CEF0`消费port，保留其EAX为函数返回。
 - 最后把mode flags清0；该mov不改变返回EAX。
 
-已关闭entry初始化`0x0043C9C0`直接复用typed helper；第二张表的旧query槽已删除。未关闭的记录加载、classification数据库查询、page刷新和entry消费callee继续由共享typed port隔离，不提前计入。
+`pending`的entry初始化`0x0043C9C0`直接复用typed helper；第二张表的旧query槽已删除。未关闭的记录加载、classification数据库查询、page刷新和entry消费callee继续由共享typed port隔离，不提前计入。
 
 ## 4. 验证
 

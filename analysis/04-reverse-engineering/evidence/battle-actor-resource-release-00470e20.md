@@ -6,7 +6,7 @@
 
 ## 1. 完整权威范围
 
-权威LST主体为`0x00470E20..0x00470F65`，proc至endp共165行、100条实际指令、3个call、19个跳转、3个返回点，没有外部`FUNCTION CHUNK`。callee为已关闭资源链头提交`0x00470900`两次，以及节点释放`0x004885A0`一次。
+权威LST主体为`0x00470E20..0x00470F65`，proc至endp共165行、100条实际指令、3个call、19个跳转、3个返回点，没有外部`FUNCTION CHUNK`。callee为`pending`的资源链头提交`0x00470900`两次，以及节点释放`0x004885A0`一次。
 
 ## 2. 定位与门控递减
 
@@ -28,7 +28,7 @@ secondary与tertiary均为零时，即使primary仍非零也销毁selected节点
 
 原typed工作包的六处静态caller位于动作dispatch两处、目标选择刷新三处、链表动作执行一处。production当时直接使用party typed状态；脚本化port测试曾以显式compat flag保留，默认关闭。后续dd7ae08f删除菜单资源compat，直接借startup.party；该时点其它caller和叶寄存器接口继续待迁移，后续回收见第6节。第199项两处固定category caller同时按权威地址纠正到message 27与message 30，而不是动作枚举槽。
 
-测试覆盖selected零的AX半寄存器行为、低byte门控先行递减、secondary优先、primary独立递减、bit13返回抑制、中间节点销毁、循环次数回放重链，以及动作dispatch、目标选择和链表动作caller集成。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 191 platform_adapted + 9 assembly_exact + 222 pending_audit`，SHA256为`981dcf48b591865cb3d92a84f30a9eacc849fbcf677e7758c87e6a2de80ad2ad`。动态差分因原版资源链节点、allocator释放和六处caller寄存器联合捕获后端缺失而登记为`pending`。
+测试覆盖selected零的AX半寄存器行为、低byte门控先行递减、secondary优先、primary独立递减、bit13返回抑制、中间节点销毁、循环次数回放重链，以及动作dispatch、目标选择和链表动作caller集成。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`981dcf48b591865cb3d92a84f30a9eacc849fbcf677e7758c87e6a2de80ad2ad`。动态差分因原版资源链节点、allocator释放和六处caller寄存器联合捕获后端缺失而登记为`pending`。
 
 ## 5. 菜单三站的实际资源消费
 
@@ -38,7 +38,7 @@ dd7ae08f删除菜单资源通用操作、兼容回复和子调用计数，借sta
 [菜单实际角色资源](battle-menu-actor-resource-release-00470e20.md)。
 叶output_word已在最终位13判断后抑制，菜单只消费该WORD；公开第四request存在默认值。
 该批当时保留默认寄存器request、结果计数/寄存器及另三caller，后续迁移见第6节。
-该批没有游戏运行、全量UT、Windows、实际资源或原版动态差分，历史200/422不是当前进度。
+该批没有游戏运行、全量UT、Windows、实际资源或原版动态差分，历史0/422不是当前进度。
 
 ## 6. 六处实际资源消费与叶协议删除
 

@@ -46,4 +46,4 @@ core setup 1/1（4.75秒）、ASan setup 1/1（7.75秒）及SDL构建通过。
 SDL缩进修正后已再次构建通过；核心源码和测试未再修改。
 日志为`build/tmp/runtime/battle-startup-empty-{core,asan,final-sdl}.log`。
 两份setup构建保留既有结局测试137行窄化警告，无新增警告或sanitizer错误。
-未启动游戏或新增原版动态差分。B10保持315/422，316 pending_audit。
+未启动游戏或新增原版动态差分。B10保持0/422，316 pending。

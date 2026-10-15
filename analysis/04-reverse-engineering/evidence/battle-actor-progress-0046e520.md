@@ -36,4 +36,4 @@ progress小于阈值时，从对象首token指向记录的`+0x16`读取u16基值
 
 纯函数测试覆盖入口bit早退、阈值完成尾、bit29正向30%、bit31 multiplier负向调整、固定4点扣除和进度dword高16位保留。组A帧回归验证达到阈值后update-ready置位、继续AI且旧token零调用；转场回归验证阈值同步后的组A调用、固定参数1、十槽后缀及两条非进度循环的原调用序列。初始关闭时定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过；第280项复核后的完整release门另见`battle-actor-progress-threshold-sync-00478370.md`。
 
-inventory生成器连续双跑逐字节一致，正式计数为`0/422 = 161 platform_adapted + 9 assembly_exact + 252 pending_audit`，SHA256为`308250c723c812ae5b277abb1241c514893dc3c6a9c3a25b9836f7134527b894`。原版完整角色对象、首记录指针、全局阈值、caller寄存器和转场/逐帧共享对象后端缺少联合捕获，`original_diff_verified`登记为`pending`。
+inventory生成器连续双跑逐字节一致，正式计数为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`308250c723c812ae5b277abb1241c514893dc3c6a9c3a25b9836f7134527b894`。原版完整角色对象、首记录指针、全局阈值、caller寄存器和转场/逐帧共享对象后端缺少联合捕获，`original_diff_verified`登记为`pending`。

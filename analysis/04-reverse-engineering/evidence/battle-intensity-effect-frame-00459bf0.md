@@ -6,7 +6,7 @@
 
 权威函数为`0x00459BF0..0x00459D04`，从proc到endp完整130行、4个静态call站点、4个`loc_`标签，无外部FUNCTION CHUNK。4个唯一callee为角色坐标查询、效果record初始化、resource owner查询和resource绘制；其中角色坐标查询已直连，余下3类继续走效果端口。
 
-唯一caller是已关闭八槽效果记录帧协调器`0x004582B0`中的`0x00458D49`。该caller关闭时曾暂留单一opaque调用；本工作包将其删除，直接组合typed子状态。
+唯一caller是`pending`的八槽效果记录帧协调器`0x004582B0`中的`0x00458D49`。该caller关闭时曾暂留单一opaque调用；本工作包将其删除，直接组合typed子状态。
 
 ## 2. 入口先后顺序
 
@@ -24,7 +24,7 @@ source-zero和阈值返回都保留caller进入时的EDX；唯一caller在call�
 
 ## 3. 坐标与record初始化
 
-强度大于-32时在`0x00459C1E`直接组合已关闭的`0x004783B0`。原始调用把arg-C地址作为第一个输出指针、arg-4地址作为第二个输出指针，因此第一输出X覆盖slot参数低word，第二输出Y覆盖source参数低word；两项参数原高word不变。入口EAX为arg-4/Y输出token，EDX保留caller装入的secondary完整dword，flags保留signed 8-bit `cmp intensity,0xE0`的大于路径。actor gate typed-stop原样返回这些入口残值；第二坐标读取typed-stop保留arg-C的第一项16-bit写入，并在任何opaque callee、record写、强度发布或递减之前停止。
+强度大于-32时在`0x00459C1E`直接组合`pending`的`0x004783B0`。原始调用把arg-C地址作为第一个输出指针、arg-4地址作为第二个输出指针，因此第一输出X覆盖slot参数低word，第二输出Y覆盖source参数低word；两项参数原高word不变。入口EAX为arg-4/Y输出token，EDX保留caller装入的secondary完整dword，flags保留signed 8-bit `cmp intensity,0xE0`的大于路径。actor gate typed-stop原样返回这些入口残值；第二坐标读取typed-stop保留arg-C的第一项16-bit写入，并在任何opaque callee、record写、强度发布或递减之前停止。
 
 坐标callee返回后才写当前槽152字节record：
 
@@ -32,7 +32,7 @@ source-zero和阈值返回都保留caller进入时的EDX；唯一caller在call�
 - `+0x08`写secondary value；
 - `+0x90`先清0，global mode完整值等于1时再写1。
 
-record物理token为`0x00524980 + slot * 0x98`。typed record现补齐为精确`0x98`物理布局：已知字段保持原offset，未命名间隔只作为物理存储。slot0前28字节同时是已关闭攻击顺序移除固定读取的一过尾七dword源；攻击顺序出队在18条顺序记录全部被跳过时也从slot0首dword继续，并仍按28字节而非`0x98`步长扫描后续物理位置。三函数直接共用本数组唯一owner，移除和出队只读且不修改强度record。全局重置的对应物理清零块同步清全部八条record。初始化callee完整EAX为0时直接返回该EAX，不查询resource、不发布强度、不绘制；返回EDX保留初始化callee完整EDX。
+record物理token为`0x00524980 + slot * 0x98`。typed record现补齐为精确`0x98`物理布局：已知字段保持原offset，未命名间隔只作为物理存储。slot0前28字节同时是`pending`的攻击顺序移除固定读取的一过尾七dword源；攻击顺序出队在18条顺序记录全部被跳过时也从slot0首dword继续，并仍按28字节而非`0x98`步长扫描后续物理位置。三函数直接共用本数组唯一owner，移除和出队只读且不修改强度record。全局重置的对应物理清零块同步清全部八条record。初始化callee完整EAX为0时直接返回该EAX，不查询resource、不发布强度、不绘制；返回EDX保留初始化callee完整EDX。
 
 ## 4. lookup陈旧高word
 

@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-唯一行为真值为`swd3.exe.lst`。物理范围`0x004442B0..0x00444D9E`，1235行，无FUNCTION CHUNK。code caller `0x00444FC0`仍独立待审；3B480另绑定为渲染callback。B9A0、B9C0与AE40已关闭并直接复用；其余平台绘制、颜色、动作装载与资源解析callee通过typed render request和最窄端口隔离。
+唯一行为真值为`swd3.exe.lst`。物理范围`0x004442B0..0x00444D9E`，1235行，无FUNCTION CHUNK。code caller `0x00444FC0`仍独立待审；3B480另绑定为渲染callback。B9A0、B9C0与AE40为`pending`并直接复用；其余平台绘制、颜色、动作装载与资源解析callee通过typed render request和最窄端口隔离。
 
 ## 数据所有权
 

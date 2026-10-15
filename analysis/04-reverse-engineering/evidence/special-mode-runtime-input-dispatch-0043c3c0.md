@@ -11,13 +11,13 @@
 - `0x0043C7E0..0x0043C7F5`：mode刷新与点击音。
 - `0x0043C800..0x0043C819`：exit counter精确500门。
 
-直接caller是`0x004455E0`。`0x0043B480`只保存函数地址，不是运行时direct call。455E0现已关闭，并在模式snapshot大于等于500时直接调用本typed helper。已关闭的`0x0043BBE0`、`0x0043C090`、`0x0043C520`、`0x0043C590`、`0x0043C670`、`0x0043C760`、`0x0043CBD0`与`0x0043CC00`直接复用typed helper；其余未关闭callee继续由窄port隔离。
+直接caller是`0x004455E0`。`0x0043B480`只保存函数地址，不是运行时direct call。455E0现为`pending`，并在模式snapshot大于等于500时直接调用本typed helper。`pending`的`0x0043BBE0`、`0x0043C090`、`0x0043C520`、`0x0043C590`、`0x0043C670`、`0x0043C760`、`0x0043CBD0`与`0x0043CC00`直接复用typed helper；其余未关闭callee继续由窄port隔离。
 
 ## 2. 第一与第二矩形
 
 入口把pointer Y装入EAX、pointer X装入ECX、输入位低字节装入DL。
 
-第一矩形使用全部unsigned严格边界：`94 < y < 454`、`18 < x < 203`且`input_bits & 3`。行号为`(y - 94) / 24`；若signed行号不小于visible count，则先改为`visible_count - 1`，随后无条件再减1并写local cursor，最后tail-call `0x0043C520`。这意味着进入callee前的钳制值是`visible_count - 2`，不能“修正”为末项；已关闭callee随后再推进cursor、重建alias、刷新、消费entry、写flags并返回sample EAX。
+第一矩形使用全部unsigned严格边界：`94 < y < 454`、`18 < x < 203`且`input_bits & 3`。行号为`(y - 94) / 24`；若signed行号不小于visible count，则先改为`visible_count - 1`，随后无条件再减1并写local cursor，最后tail-call `0x0043C520`。这意味着进入callee前的钳制值是`visible_count - 2`，不能“修正”为末项；`pending`的callee随后再推进cursor、重建alias、刷新、消费entry、写flags并返回sample EAX。
 
 第二矩形为`60 < y < 78`、`10 < x < 206`且`input_bits & 3`。signed delta为`(x - 106) / 20`，向零截断。LST的位运算精确形成：
 
@@ -30,20 +30,20 @@ refresh_mode()
 return play_sample(0x2E, sample_handle)
 ```
 
-所以负delta先把mode减2，而正delta先保持mode不变。这是原始可观察BUG，modern原样保留；随后已关闭`0x0043C760`把mode回绕递增并signed钳11，直接调用已关闭`0x0043C9C0`按classification重建entry/text/status并清window/cursor/alias、刷新page，再执行alias/第二次refresh/真实entry0消费和一次点击音；caller外置chunk再播放第二次点击音。初始mode5最终分别变为4或6。
+所以负delta先把mode减2，而正delta先保持mode不变。这是原始可观察BUG，modern原样保留；随后`pending`的`0x0043C760`把mode回绕递增并signed钳11，直接调用`pending`的`0x0043C9C0`按classification重建entry/text/status并清window/cursor/alias、刷新page，再执行alias/第二次refresh/真实entry0消费和一次点击音；caller外置chunk再播放第二次点击音。初始mode5最终分别变为4或6。
 
 ## 3. availability与顺序命中
 
-若前两矩形未命中，函数查询16字节记录15。可用时先要求unsigned `206 < x < 224`；进入后Y的后续范围全部为signed严格比较，并按顺序独立执行，不是互斥else-if。两组动态边界直接读取已关闭`0x0043C820`发布到runtime state的split-bar四输出，不再作为调用参数伪造：
+若前两矩形未命中，函数查询16字节记录15。可用时先要求unsigned `206 < x < 224`；进入后Y的后续范围全部为signed严格比较，并按顺序独立执行，不是互斥else-if。两组动态边界直接读取`pending`的`0x0043C820`发布到runtime state的split-bar四输出，不再作为调用参数伪造：
 
-1. `82 < y < 96`调用已关闭`0x0043C590`，保留后退、alias重建、刷新、entry消费、flags OR `0x03`和sample副作用后重新载入pointer Y。
-2. `452 < y < 464`调用已关闭`0x0043C520`，保留其全部状态副作用后重新载入pointer Y覆盖sample EAX。
-3. `first_lower < y < first_upper`调用已关闭`0x0043C670`，保留page retreat、alias重建、刷新、entry消费、flags OR `0x03`和sample副作用后重新载入pointer Y。
+1. `82 < y < 96`调用`pending`的`0x0043C590`，保留后退、alias重建、刷新、entry消费、flags OR `0x03`和sample副作用后重新载入pointer Y。
+2. `452 < y < 464`调用`pending`的`0x0043C520`，保留其全部状态副作用后重新载入pointer Y覆盖sample EAX。
+3. `first_lower < y < first_upper`调用`pending`的`0x0043C670`，保留page retreat、alias重建、刷新、entry消费、flags OR `0x03`和sample副作用后重新载入pointer Y。
 4. `second_lower < y < second_upper`进入翻页chunk。
 
 前三个callee返回后LST都重新把pointer Y装入EAX，因此最终未翻页路径返回Y。重叠动态范围可在同一帧依次执行upper的完整`0x0043C590`链、first dynamic的完整`0x0043C670`链，再执行翻页；每段都必须消费前一段产生的实时cursor、offset与flags。
 
-翻页chunk以step 15调用`0x0043BBE0`，随后严格执行entry alias重建、已关闭CBD0、从原entry base读取`entries[window_offset + local_cursor]`、消费entry、对mode flags低字节OR `0x30`、播放sample `0x2E`。typed实现先在CBD0原alias读取点隔离越界，再以u32回绕形成selected index并在原entry读取点独立隔离。`0x0043C0D0`同时补齐LST的`FC920 = FC91C`，typed表达为`entry_alias_index = 0`。
+翻页chunk以step 15调用`0x0043BBE0`，随后严格执行entry alias重建、`pending`的CBD0、从原entry base读取`entries[window_offset + local_cursor]`、消费entry、对mode flags低字节OR `0x30`、播放sample `0x2E`。typed实现先在CBD0原alias读取点隔离越界，再以u32回绕形成selected index并在原entry读取点独立隔离。`0x0043C0D0`同时补齐LST的`FC920 = FC91C`，typed表达为`entry_alias_index = 0`。
 
 availability不可用时EAX为0；availability可用但X严格边界失败时EAX保留X。availability表不足16项在原记录读取点typed-stop。
 

@@ -6,14 +6,14 @@
 
 权威LST完整主体为`0x0045EB40..0x0045EC5A`，从`proc`到`endp`共133行、94条实际指令、7个call、7个跳转、7个局部标签，没有外部`FUNCTION CHUNK`。
 
-函数无参数。唯一caller是已关闭逐帧画面协调器`0x00453200`；调用时点固定在角色帧顺序遍历和已关闭双方完成数协调之后、效果总协调之前。
+函数无参数。唯一caller是`pending`的逐帧画面协调器`0x00453200`；调用时点固定在角色帧顺序遍历和`pending`的双方完成数协调之后、效果总协调之前。
 
 七个静态call由四类callee组成：
 
 - 两处`0x0047CF20`按角色对象执行待执行动作前置呈现；
-- 两处已关闭`0x0045A980`查询角色ready；
+- 两处`pending`的`0x0045A980`查询角色ready；
 - 两处`0x0047E5C0`提交角色对象的待执行动作；
-- 一处已关闭攻击顺序移除从18条动作记录中移除已提交角色；记录区由攻击顺序登记/插入直接写入并与战斗启动/全局重置共享唯一owner，左移尾源直接复用物理相邻强度效果记录0。
+- 一处`pending`的攻击顺序移除从18条动作记录中移除已提交角色；记录区由攻击顺序登记/插入直接写入并与战斗启动/全局重置共享唯一owner，左移尾源直接复用物理相邻强度效果记录0。
 
 角色ready与攻击顺序移除均已直接组合；另外两类callee仍使用通用
 请求、对象token及完整EAX/ECX/EDX字段，父函数与转发层尚未迁移。
@@ -41,7 +41,7 @@ group A token = 0x005029D0 + (actor_code - 8) * 0x2F34
 - 组B：EAX=`code*0x565`，ECX=对象token，EDX=`code*0x159`；
 - 组A：EAX=`(code-8)*0x3EF`，ECX=对象token，EDX=`(code-8)*0xBCD`。
 
-callee后重新读取顺序值并直接组合角色ready。组A把前置callee返回EDX作为角色ready的caller快照；组B按已关闭callee自身规则重建EDX。ready只接受精确返回1，其他完整EAX归一为0，同时保留其内部callee的ECX/EDX供本caller后续陈旧路径使用。
+callee后重新读取顺序值并直接组合角色ready。组A把前置callee返回EDX作为角色ready的caller快照；组B按`pending`的callee自身规则重建EDX。ready只接受精确返回1，其他完整EAX归一为0，同时保留其内部callee的ECX/EDX供本caller后续陈旧路径使用。
 
 第二个提交callee再次读取live顺序。组A入口EAX/EDX仍为`0x3EF/0xBCD`倍数；组B入口EAX为`0x159`倍数，EDX在ready成功时取ready后再次读取的live顺序值，ready不成功时保留ready内部callee的EDX。提交结果也只接受完整EAX精确等于1。
 
@@ -70,7 +70,7 @@ publication越界只在原store停止，保留提交callee副作用。
 
 ready标记复用唯一战斗启动reset块；actor publication复用效果与启动共同使用的唯一18槽state。启动初始化把两者全部写`0xFFFFFFFF`，本函数不建立副本。
 
-逐帧caller直接组合已关闭双方完成数协调，并读取其正常尾EDX作为零角色早退快照，随后直接组合typed待执行动作提交。旧第二followup opaque槽保留reserved枚举值但不再调用。子typed-stop保留角色帧与完成数协调副作用，阻断效果总协调、固定帧和全部后续绘制。
+逐帧caller直接组合`pending`的双方完成数协调，并读取其正常尾EDX作为零角色早退快照，随后直接组合typed待执行动作提交。旧第二followup opaque槽保留reserved枚举值但不再调用。子typed-stop保留角色帧与完成数协调副作用，阻断效果总协调、固定帧和全部后续绘制。
 
 ## 6. 验证与动态差分
 

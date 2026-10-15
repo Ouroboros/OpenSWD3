@@ -31,7 +31,7 @@ slot越界在首次主记录complete读取typed-stop，且发生在本函数把�
 
 ## 3. offset AND门与镜像坐标
 
-argument对象的基础X/Y、特殊覆盖与镜像X由typed绘制偏移查询按X后Y有序word store写入两个既有dword local；覆盖路径保留四次重复写入，镜像只最终覆盖X。两个低word必须**同时非零**才在`0x00458EDB`直接组合已关闭的基准坐标查询`0x00478470`：owner按argument对象token从startup/action与Group-B lifecycle canonical状态解析，leaf按X后Y把`position_x-source_y_offset`与`position_y-low16(target_phase_y_adjustment)`写入两个独立零初始化dword local的低16位，再按完整u32分别加绘制偏移。入口EAX为Y输出token，EDX继承绘制偏移leaf残值，flags来自第二项低word `CMP offset_y,0`；typed-stop保留sample、pan清零、owner发布和绘制偏移前缀，X写入后的Y侧故障保留X低word并抑制argument mode、animation、render、release与公共尾。任一offset低word为0时，X/Y都保持0，不保留另一项非零offset，也不调用基准坐标leaf。
+argument对象的基础X/Y、特殊覆盖与镜像X由typed绘制偏移查询按X后Y有序word store写入两个既有dword local；覆盖路径保留四次重复写入，镜像只最终覆盖X。两个低word必须**同时非零**才在`0x00458EDB`直接组合`pending`的基准坐标查询`0x00478470`：owner按argument对象token从startup/action与Group-B lifecycle canonical状态解析，leaf按X后Y把`position_x-source_y_offset`与`position_y-low16(target_phase_y_adjustment)`写入两个独立零初始化dword local的低16位，再按完整u32分别加绘制偏移。入口EAX为Y输出token，EDX继承绘制偏移leaf残值，flags来自第二项低word `CMP offset_y,0`；typed-stop保留sample、pan清零、owner发布和绘制偏移前缀，X写入后的Y侧故障保留X低word并抑制argument mode、animation、render、release与公共尾。任一offset低word为0时，X/Y都保持0，不保留另一项非零offset，也不调用基准坐标leaf。
 
 随后读取record base offset、render flags和由render高word+width adjustment低word拼成的width value，再首次直接读取参数对象mode。
 
@@ -52,7 +52,7 @@ argument对象的基础X/Y、特殊覆盖与镜像X由typed绘制偏移查询按
 
 ## 4. collision、绘制与主记录公共尾
 
-查询animation mode。完整EAX等于1时在`0x00459090`直接组合已关闭的`0x004783B0`，通过effect coordinator持有的startup owner解析参数对象角色；入口EAX/EDX分别为X/Y输出token，flags保留`cmp eax,1`等值结果。两个输出按X后Y做16-bit写入；typed-stop保留resource、offset、镜像和共享X/Y前缀，抑制collision、render、release和公共尾。成功时X完整减base offset；当前X低word为0时改为完整`0-base offset`。随后直接组合已关闭的动画沿线横向命中函数，固定两个Y和计数槽都为0，只传两项signed X与mode低word；共享XY和八槽u16计数与单体效果共用唯一状态。子返回1时status OR 1且complete写1。
+查询animation mode。完整EAX等于1时在`0x00459090`直接组合`pending`的`0x004783B0`，通过effect coordinator持有的startup owner解析参数对象角色；入口EAX/EDX分别为X/Y输出token，flags保留`cmp eax,1`等值结果。两个输出按X后Y做16-bit写入；typed-stop保留resource、offset、镜像和共享X/Y前缀，抑制collision、render、release和公共尾。成功时X完整减base offset；当前X低word为0时改为完整`0-base offset`。随后直接组合`pending`的动画沿线横向命中函数，固定两个Y和计数槽都为0，只传两项signed X与mode低word；共享XY和八槽u16计数与单体效果共用唯一状态。子返回1时status OR 1且complete写1。
 
 resource render使用共享signed X/Y、owner u16宽高、本地render flags，最后参数固定0。resource value即使为0也调用release，随后释放owner。
 
@@ -83,7 +83,7 @@ status bit1即word bit`0x0002`置位时，alternate active先写1，随后整个
 
 - signed负值：唯一共享战斗消息/阶段写1，battle gate清零；该dword与startup、动作和预帧路径共用typed端口；
 - bit3置位且bit`0x1000`置位：先清`0x1000`。group-wide mode等于1时首次直接读取参数对象mode；mode等于1按signed组B数量逐角色调用状态发布，否则按signed组A数量；group-wide mode不等于1时只对入口actor调用一次；
-- bit3置位且bit`0x0400`置位：把record七个u16按i16符号扩展后直连已关闭颜色初始化器，恢复其EAX/ECX/EDX尾寄存器，清该bit并把共享颜色初始化门写1；
+- bit3置位且bit`0x0400`置位：把record七个u16按i16符号扩展后直连`pending`的颜色初始化器，恢复其EAX/ECX/EDX尾寄存器，清该bit并把共享颜色初始化门写1；
 - bit2即word bit`0x0004`置位：group-wide mode等于1时，group-A-special等于1选择组A，否则选择组B；非群体模式只发布入口actor。最后整个status word清零。
 
 组A status发布在caller内先读取每个角色的两个独立guard dword，任一等于1即跳过；两者都不等于1才调用eligibility，完整EAX为0才发布actor。组B只要求eligibility完整EAX为0。
@@ -133,7 +133,7 @@ final gate word按i16大于0时执行第一次gate：
 - 保留当前EAX高word；
 - 只以主记录第二lookup key覆盖AX；
 - 把final-gate latch写1；
-- 直连已关闭全角色数值步进`0x0045BD90`，参数为`(stale-EAX-with-key, primary complete)`；
+- 直连`pending`的全角色数值步进`0x0045BD90`，参数为`(stale-EAX-with-key, primary complete)`；
 - 子函数恢复入口完整ECX，返回0立即返回0，角色typed-stop阻止后续收束。
 
 随后要求主complete完整值等于1且alternate active为0，否则返回0。
@@ -149,7 +149,7 @@ final gate word仍大于0时执行第二次gate：
 
 ## 10. callee、测试与动态差分
 
-原24个唯一直接callee中的`0x0045BD90`、`0x0045D3E0`、`0x0045D810`、`0x00478400`、`0x00478470`与`0x004783B0`已关闭并直连；其余18个直接callee继续通过专用typed token端口发布完整EAX/ECX/EDX与输出。全角色步进内部两个尚未关闭actor callee复用同一端口。第八十二项已关闭唯一总协调器caller的五处调用并改为直接组合，同时把本函数与单体效果函数的公共记录、渲染字段和奖励数组收敛为同一18槽虚共享状态。相邻双对象数值转场关闭后，辅助奖励word进一步与效果协调器次反馈及该转场收敛为唯一共享port；动画横向命中的八槽u16计数与共享XY也由两类效果帧共用，旧记录状态副本已删除。
+原24个唯一直接callee中的`0x0045BD90`、`0x0045D3E0`、`0x0045D810`、`0x00478400`、`0x00478470`与`0x004783B0`为`pending`并直连；其余18个直接callee继续通过专用typed token端口发布完整EAX/ECX/EDX与输出。全角色步进内部两个尚未关闭actor callee复用同一端口。第八十二项`pending`的唯一总协调器caller的五处调用并改为直接组合，同时把本函数与单体效果函数的公共记录、渲染字段和奖励数组收敛为同一18槽虚共享状态。相邻双对象数值转场关闭后，辅助奖励word进一步与效果协调器次反馈及该转场收敛为唯一共享port；动画横向命中的八槽u16计数与共享XY也由两类效果帧共用，旧记录状态副本已删除。
 
 定向测试覆盖：
 

@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-唯一行为真值为`swd3.exe.lst`。范围`0x0043F880..0x0043F93C`，98行；六个caller为DD20、DDF0、DED0、DFA0、E080、E170。callee B980、B9A0、BB40、BC90、F160、F940均已关闭；44D5D0继续保留分配边界。
+唯一行为真值为`swd3.exe.lst`。范围`0x0043F880..0x0043F93C`，98行；六个caller为DD20、DDF0、DED0、DFA0、E080、E170。callee B980、B9A0、BB40、BC90、F160、F940均为`pending`；44D5D0继续保留分配边界。
 
 ## 控制流
 

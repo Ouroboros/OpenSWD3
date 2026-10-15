@@ -68,4 +68,4 @@ core与AddressSanitizer的setup定向测试各`1/1`通过，SDL构建通过；�
 
 历史工作包曾通过core/ASan各`188/188`、app `194/194`；这些不是当前批次结果。
 原版堆、对象及异常路径缺少联合捕获，`original_diff_verified`仍为
-`blocked_runtime_oracle`；当前迁移不升级该证据。
+`pending`；当前迁移不升级该证据。

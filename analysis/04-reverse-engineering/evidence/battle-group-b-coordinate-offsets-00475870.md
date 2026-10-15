@@ -28,6 +28,6 @@
 
 ## 5. 验证与动态阻塞
 
-战斗聚合定向测试覆盖纯函数边界和final-actor/组B帧caller，随完整core门禁通过。独立`./build-asan.sh`经公共`build.sh`完成core AddressSanitizer `188/188`，`./build.sh core`完成`188/188`，`./build.sh app`完成`194/194`；零OpenSWD3源码warning、sanitizer finding或测试失败，app仅保留既有ALSA环境提示。inventory生成器连续双跑逐字节一致，关闭进度为`0/422 = 232 platform_adapted + 9 assembly_exact + 181 pending_audit`，SHA256为`bdb2b3b42020d847ae21bc3f93054154fd8b6cb1e5a51017a7da01ca0c6c94e6`。
+战斗聚合定向测试覆盖纯函数边界和final-actor/组B帧caller，随完整core门禁通过。独立`./build-asan.sh`经公共`build.sh`完成core AddressSanitizer `188/188`，`./build.sh core`完成`188/188`，`./build.sh app`完成`194/194`；零OpenSWD3源码warning、sanitizer finding或测试失败，app仅保留既有ALSA环境提示。inventory生成器连续双跑逐字节一致，关闭进度为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`bdb2b3b42020d847ae21bc3f93054154fd8b6cb1e5a51017a7da01ca0c6c94e6`。
 
 当前缺少原版八个组B actor、动态164-byte资源、两个真实栈输出地址、入口陈旧EAX/EDX、caller共享坐标与寄存器联合捕获后端，因此`original_diff_verified`登记为`pending`。

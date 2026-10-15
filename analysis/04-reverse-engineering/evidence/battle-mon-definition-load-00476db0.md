@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-历史解析验证：`platform_adapted`、`unit_tested`、`real_asset_verified`。
+历史解析验证：`pending`。
 当前具名接口及调用方迁移的定向验证通过，范围见
 [MON接口迁移验证](battle-mon-file-runtime-binding.md#具名接口迁移验证)。
 历史门禁不代表当前差异全部通过。
@@ -37,7 +37,7 @@
 
 ## 3. tag跳表与字段投影
 
-循环先用`mov ax,[cursor]`取tag并推进2字节；tag 5直接结束，因此保留EAX高16位。其余tag执行`and eax,0xFFFF`后进入跳表。完整已实现分支为：
+循环先用`mov ax,[cursor]`取tag并推进2字节；tag 5直接结束，因此保留EAX高16位。其余tag执行`and eax,0xFFFF`后进入跳表。完整`pending`的分支为：
 
 - tag 1：从流复制`0x4D`字节到输出`+0x50`，逐字节保持首次越界故障点；
 - tag 6..22：各读一个u16，依次写输出`+0x40,+0x24,+0x26,+0x2C,+0x32,+0x46,+0x42,+0x44,+0x50,+0x28,+0x2A,+0x2E,+0x30,+0x34,+0x36,+0x38,+0x48`；每个分支按LST分别只改AX、CX或DX；
@@ -61,10 +61,10 @@ SDL的`LegacyBattleMonTextRuntime`将动态guest reservation与实际存储登�
 
 ## 5. caller回收与待审隔离
 
-权威LST共有45个直接调用站点，分布于30个过程。随`0x00477B40`工作包回收后，28个已关闭过程共40个站点已完成回收：
+权威LST共有45个直接调用站点，分布于30个过程。随`0x00477B40`工作包回收后，28个`pending`的过程共40个站点回收状态为`pending`：
 
 - 战斗caller：`0x004539B0`、`0x00455D60`、`0x0045D180`、`0x00468C80`、`0x00468FF0`、`0x0046E890`、`0x0046E9C0`、`0x004707B0`、`0x00475720`、`0x00475820`、`0x00476160`、`0x00476600`、`0x00476780`、`0x00476860`、`0x00477400`、`0x00477A20`、`0x00477B40`；
-- 先前模块已关闭caller：`0x00402F80`、`0x004070A0`、`0x0040B7F0`、`0x0043C0D0`、`0x0043C9C0`、`0x0043CEF0`、`0x0043D050`、`0x0043D530`、`0x0043F1E0`、`0x0044D0F0`、`0x0044D2D0`。
+- 先前模块`pending`的caller：`0x00402F80`、`0x004070A0`、`0x0040B7F0`、`0x0043C0D0`、`0x0043C9C0`、`0x0043CEF0`、`0x0043D050`、`0x0043D530`、`0x0043F1E0`、`0x0044D0F0`、`0x0044D2D0`。
 
 适用的战斗、物品数量、growth、group A/B、message/startup/frame和特殊模式路径全部只调用低层MON typed loader。旧whole-function虚函数和生产兼容桥已删除；测试流转换只存在于`tests/support/legacy_battle_mon_database_fixture.hpp`。`0x00402F80`对应原版隐藏调试物品遍历仍维持其既有、已记录的SDL debug-only平台跳过，不伪造不存在的旧物品链。
 
@@ -82,7 +82,7 @@ SDL的`LegacyBattleMonTextRuntime`将动态guest reservation与实际存储登�
 
 ## 7. 验证与动态差分
 
-独立definition测试覆盖open失败、共享句柄、短目录read陈旧字节、低16位索引、1024字节分配零、首tag失败、tag 1、6..22、25..30、100、1000、2000、default、全部字段偏移、说明旧块释放、空说明一字节分配、两种无终止符推进、输出/流访问typed-stop和三个返回路径。caller回归现覆盖36个已关闭站点对应的生产投影、失败前缀、说明生命周期和reserved槽稳定性；`0x00477400`另有真实LEVEL物品1501到真实MON名称的联合回归。
+独立definition测试覆盖open失败、共享句柄、短目录read陈旧字节、低16位索引、1024字节分配零、首tag失败、tag 1、6..22、25..30、100、1000、2000、default、全部字段偏移、说明旧块释放、空说明一字节分配、两种无终止符推进、输出/流访问typed-stop和三个返回路径。caller回归现覆盖36个`pending`的站点对应的生产投影、失败前缀、说明生命周期和reserved槽稳定性；`0x00477400`另有真实LEVEL物品1501到真实MON名称的联合回归。
 
 原函数审计批次的历史门禁为Linux core `189/189`、完整AddressSanitizer `189/189`、Linux app `195/195`；该批日志记录零源码warning、零测试失败和零sanitizer finding。这些历史结果不覆盖当前SDL资源接线改动。
 

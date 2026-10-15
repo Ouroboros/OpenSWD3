@@ -1,7 +1,7 @@
 # 世界角色 GUID 与 selector 查询：`0x0040C020..0x0040C125`
 
 状态：`pending`。
-`0x0040C100` 为 `assembly_exact`，`0x0040C060` 的无效索引分支为
+`0x0040C100` 为 `pending`，`0x0040C060` 的无效索引分支为
 `pending`；原程序动态差分仍为 `pending`
 
 来源：`swd3.exe.lst` 完整汇编。汇编是唯一行为真值。
@@ -31,7 +31,7 @@
 越界记录读取 GUID 格式化诊断、显示 `MessageBoxA`，随后再次读取该越界 GUID 并返回。
 该分支依赖角色数组外内存且结果不确定；现代 `legacy_world_role_guid_at` 返回
 `invalid_role_index`，不伪造 GUID，也不复现 UI 阻塞和越界读取，因此本函数整体标记为
-`platform_adapted`。
+`pending`。
 
 ## 4. 实现与验证
 

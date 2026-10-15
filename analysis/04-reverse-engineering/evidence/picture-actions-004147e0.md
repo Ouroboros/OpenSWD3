@@ -64,7 +64,7 @@ word、完成值读取、摘链和后续节点均不再越过原 unsafe point。
 
 原裸父对象/节点/帧指针、手工摘链/free 和 blitter globals 改由受检 `std::list` owner、typed
 frame piece 与 draw/audio ports 承担；有效节点的遍历、reload 和调用顺序不变，因此 closure
-disposition 为 `platform_adapted`。
+disposition 为 `pending`。
 
 独立 UT 固定 `0xA4/+0x08/+0xA0` 物理布局、更新失败仍请求并绘制、frame miss 的原解引用
 停止点、音效 word 单次清零、坐标零扩展/回绕、blit 诊断、完成值精确等一，以及 update→
@@ -74,4 +74,4 @@ synthetic/real 保持。五项定向 CTest 通过；Linux core `185/185`、Linux
 Windows LLVM app `191/191` 完整门禁通过，两端应用成功链接且未启动新版或原版 EXE。
 
 原程序动态 framebuffer 与音效调用差分仍为
-`blocked_runtime_oracle`。
+`pending`。

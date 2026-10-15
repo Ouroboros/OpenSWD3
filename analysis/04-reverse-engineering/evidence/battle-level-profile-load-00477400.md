@@ -6,7 +6,7 @@
 
 唯一行为真值为 `swd3.exe.lst`。函数主体为 `0x00477400..0x00477698`，从 `proc` 到 `endp` 共 298 个物理行、196 条带机器码和真实助记符的实际指令、14 个静态 call、15 个跳转、11 个局部标签和 3 个返回点，没有外部 `FUNCTION CHUNK`。
 
-唯一直接 caller 是已关闭的战斗升级函数 `0x00467C50`，调用点为 `0x00467D39` 和 `0x00467D4D`。两个调用分别以旧等级填充 `0x005028C0` 的 56-byte基准资料、以新等级填充 `0x00520F80` 的56-byte升级资料。此前导航把本函数称为“MON定义派生记录读取”；完整LST证明其实际职责是从共享 `LEVEL.DAT` 读取等级资料，并按记录内引用补齐对应队伍的物品定义链。
+唯一直接 caller 是`pending`的战斗升级函数 `0x00467C50`，调用点为 `0x00467D39` 和 `0x00467D4D`。两个调用分别以旧等级填充 `0x005028C0` 的 56-byte基准资料、以新等级填充 `0x00520F80` 的56-byte升级资料。此前导航把本函数称为“MON定义派生记录读取”；完整LST证明其实际职责是从共享 `LEVEL.DAT` 读取等级资料，并按记录内引用补齐对应队伍的物品定义链。
 
 14个call包括路径复制/拼接和文件打开各1次、seek/read各2次、`0x400`流分配/释放各1次、零物品诊断1次、`0xB0`物品节点分配1次、`0x00476DB0` MON定义读取1次及成长标题复制1次。
 
@@ -66,7 +66,7 @@ slot  = 0x70 + 4 * index
 
 ## 6. owner与caller回收
 
-LEVEL文件会话继续由唯一 `LegacyBattleLevelDatabaseState` owner持有；MON定义、动态说明和文件会话继续由 `LegacyBattleMonDatabasePort` owner持有；四条队伍物品链继续使用世界物品生命周期的唯一 `LegacyWorldItemListState`。profile port本身不持有独立状态，默认从已有 `LegacyWorldItemListStatePort` 定位物品owner；SDL显式继承profile port并把访问转发到唯一 `world_item_lists_`，不建立影子链或第二文件会话。后续已关闭的`0x004776A0`在战斗全局重置尾部借用这两个文件owner，按MON再LEVEL顺序关闭有效句柄并清两会话门。
+LEVEL文件会话继续由唯一 `LegacyBattleLevelDatabaseState` owner持有；MON定义、动态说明和文件会话继续由 `LegacyBattleMonDatabasePort` owner持有；四条队伍物品链继续使用世界物品生命周期的唯一 `LegacyWorldItemListState`。profile port本身不持有独立状态，默认从已有 `LegacyWorldItemListStatePort` 定位物品owner；SDL显式继承profile port并把访问转发到唯一 `world_item_lists_`，不建立影子链或第二文件会话。后续`pending`的`0x004776A0`在战斗全局重置尾部借用这两个文件owner，按MON再LEVEL顺序关闭有效句柄并清两会话门。
 
 `0x00467C50`的两处旧 `build_level_profile` opaque槽已删除生产调用，分别直连本实现，并在结果中保存基准/升级两次loader证据。任一次profile typed-stop都传播为 `level_profile_typed_stop`，阻断第二次profile、属性差值提交、音频和完成门；旧枚举数值只保留reserved身份且生产零调用。消息101既有caller继续传播升级函数的子stop。
 
@@ -74,6 +74,6 @@ LEVEL文件会话继续由唯一 `LegacyBattleLevelDatabaseState` owner持有；
 
 独立测试覆盖真实LEVEL+MON联合样本、26-byte资料与三word镜像、既有节点命中、新节点尾插、ID `0x8000`、零ID诊断与trap、共享文件缓存、打开失败、非零首word、LEVEL零分配、输出部分复制、非法party、缺失哨兵、损坏next、物品零分配、MON子stop、模式不可访问及标题越界。战斗升级测试覆盖旧/新两次直接profile调用、共享一次open及第一profile故障传播。
 
-最终验证为独立profile与战斗升级聚合定向测试、Linux core `191/191`、完整AddressSanitizer `191/191`和Linux app `197/197`全部通过；最终三份日志没有OpenSWD3源码warning、测试失败、sanitizer finding或runtime error。ASan曾在历史战斗聚合测试的单函数栈帧逼近默认8 MiB后于新增端口虚基处暴露栈耗尽；profile port移除独立状态，物品分配token并入现有世界物品owner，并只把该聚合函数首个测试块的fixture和port放到堆上，未禁用sanitizer且未改变生产行为或测试断言。inventory生成器连续双跑逐字节一致，工作包为`0/422 = 254 platform_adapted + 9 assembly_exact + 159 pending_audit`，SHA256为`164b20599ba5046ee1a87a13b145ed06907342e3d0814bb88dce4787a620f0e7`。
+最终验证为独立profile与战斗升级聚合定向测试、Linux core `191/191`、完整AddressSanitizer `191/191`和Linux app `197/197`全部通过；最终三份日志没有OpenSWD3源码warning、测试失败、sanitizer finding或runtime error。ASan曾在历史战斗聚合测试的单函数栈帧逼近默认8 MiB后于新增端口虚基处暴露栈耗尽；profile port移除独立状态，物品分配token并入现有世界物品owner，并只把该聚合函数首个测试块的fixture和port放到堆上，未禁用sanitizer且未改变生产行为或测试断言。inventory生成器连续双跑逐字节一致，工作包为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`164b20599ba5046ee1a87a13b145ed06907342e3d0814bb88dce4787a620f0e7`。
 
 当前缺少原版共享LEVEL/MON文件对象、短读后的真实陈旧缓冲、原堆token、四条队伍链原物理地址、模态诊断选择、真实caller输入及跨LEVEL/MON/caller的EAX/ECX/EDX联合捕获后端；`original_diff_verified`登记为`pending`。

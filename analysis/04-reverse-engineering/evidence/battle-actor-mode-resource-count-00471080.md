@@ -94,11 +94,11 @@ LST摘录、独立推导、双向review、production/tests及staged差异都在�
 
 3eda365b已删除471084的叶寄存器转发与提交计数，见
 [资源链头发布](battle-actor-resource-list-commit-00470900.md)。
-旧还原的core188/188、app194/194和203/422是历史门禁与进度，未用本批定向记录替代。
+旧还原的core188/188、app194/194和0/422是历史门禁与进度，未用本批定向记录替代。
 旧inventory SHA为`060968b2e3ee56d46b89501fbfa0bd0c0d15e1ff5d394634bd35b40b909b2f4d`。
 当时的脚本计数兼容分支、DWORD副本和寄存器断言已由本批实际WORD路径替代。
 
 未运行全量、Windows、真实MON、游戏或原版联合差分；动态原版资源链、输出WORD和
-寄存器联合捕获缺口继续为`blocked_runtime_oracle`。
+寄存器联合捕获缺口继续为`pending`。
 完整列表查询、字体、父参数包/寄存器/计数/Port、真实资源生产和SDL生命周期仍pending。
 全项目scope仍未穷尽，不增加验收数，不前移B10 0/422、Workpack316、B11或实际续玩。

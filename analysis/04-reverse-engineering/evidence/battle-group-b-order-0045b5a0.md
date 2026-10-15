@@ -6,7 +6,7 @@
 
 权威函数为`0x0045B5A0..0x0045B5D2`，从proc到endp完整33行、0个call站点、3个`loc_`标签，无外部FUNCTION CHUNK。
 
-共有6个静态caller站点。战斗启动一处、对手动作两处和最终角色步进两处均已关闭，全部删除opaque边界并直连typed实现；剩余一处位于尚未关闭的后续战斗函数，不提前修改。
+共有6个静态caller站点。战斗启动一处、对手动作两处和最终角色步进两处均为`pending`，全部删除opaque边界并直连typed实现；剩余一处位于尚未关闭的后续战斗函数，不提前修改。
 
 ## 2. 固定输入与扫描
 
@@ -40,10 +40,10 @@ ECX为实际复制数量；EDX为八槽输出表起点加`4 * copied`。ESI与ED
 
 八槽组B顺序表与metric、mask、18槽角色顺序表统一保存在`LegacyBattleActorMetricState`中。既有动作分派中对同一物理表的直接写已迁移到该共享存储，移除动作状态中的重复数组。
 
-五个已关闭caller均在已关闭metric重建和角色顺序重建之后直接执行组B压缩；子函数typed-stop立即阻止caller后续阶段。尚未关闭caller继续保留待其工作包独立审计。
+五个`pending`的caller均在`pending`的metric重建和角色顺序重建之后直接执行组B压缩；子函数typed-stop立即阻止caller后续阶段。尚未关闭caller继续保留待其工作包独立审计。
 
 ## 6. 测试与动态oracle
 
-定向测试覆盖signed过滤、源顺序稳定复制、达到固定数量立即返回、跳过项不推进游标、请求数量大于可复制项、数量0不早退、负dword可复制、第九次真实store停点、异常前缀保留、输出尾不清零、路径相关EAX/ECX/EDX、共享八槽物理表以及五处已关闭caller回归。
+定向测试覆盖signed过滤、源顺序稳定复制、达到固定数量立即返回、跳过项不推进游标、请求数量大于可复制项、数量0不早退、负dword可复制、第九次真实store停点、异常前缀保留、输出尾不清零、路径相关EAX/ECX/EDX、共享八槽物理表以及五处`pending`的caller回归。
 
 当前缺少原版动态group B数量、18槽角色顺序表、八槽组B顺序表及寄存器联合捕获后端，`original_diff_verified`为`pending`。

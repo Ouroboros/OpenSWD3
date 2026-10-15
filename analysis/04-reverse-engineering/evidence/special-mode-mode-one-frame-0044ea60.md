@@ -40,7 +40,7 @@ level大于1时先绘制四名存在角色及底部基础区域。level大于等
 
 ## 5. 分页条与覆盖层
 
-总记录数按i32大于13时处理frame flags：低nibble非零先减1并置overlay bit0，高nibble非零再减1并置overlay bit1，只写回原状态低16位。随后直接调用已关闭分段条：
+总记录数按i32大于13时处理frame flags：低nibble非零先减1并置overlay bit0，高nibble非零再减1并置overlay bit1，只写回原状态低16位。随后直接调用`pending`的分段条：
 
 - X=`0x1EE`，Y=`0x42`，高=`0x134`。
 - 第一比例为窗口内cursor/total。

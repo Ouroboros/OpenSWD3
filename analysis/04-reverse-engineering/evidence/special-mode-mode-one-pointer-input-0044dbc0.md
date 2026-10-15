@@ -4,7 +4,7 @@
 
 ## 1. LST锁
 
-权威范围为`swd3.exe.lst`的`0x0044DBC0..0x0044DEF0`，372行，无外部FUNCTION CHUNK。caller为`0x0044EA60`。入口先调用已关闭BA40输入状态更新；modern接收该调用后的单帧指针、低位输入和滚动区snapshot，不重读平台设备。
+权威范围为`swd3.exe.lst`的`0x0044DBC0..0x0044DEF0`，372行，无外部FUNCTION CHUNK。caller为`0x0044EA60`。入口先调用`pending`的BA40输入状态更新；modern接收该调用后的单帧指针、低位输入和滚动区snapshot，不重读平台设备。
 
 所有行为callee已经闭环，函数直接调用E9D0、DF00、DFF0、E0C0、E1B0、E260、E330和E4A0，不保留opaque边界。
 

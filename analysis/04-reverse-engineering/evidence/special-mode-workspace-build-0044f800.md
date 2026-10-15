@@ -4,13 +4,13 @@
 
 ## 1. LST锁
 
-权威范围为`swd3.exe.lst`的`0x0044F800..0x0044F8DC`，126行，无外部FUNCTION CHUNK。caller为`0x0044E4A0`；唯一callee `0x0044FF90`已关闭并直接复用typed helper。
+权威范围为`swd3.exe.lst`的`0x0044F800..0x0044F8DC`，126行，无外部FUNCTION CHUNK。caller为`0x0044E4A0`；唯一callee `0x0044FF90`为`pending`并直接复用typed helper。
 
 输入是来源链前驱哨兵，不是head值。入口先清工作区head和可见数。随后只处理哨兵next：
 
 1. 每条来源记录无条件清raw `+6`临时word。
 2. 仅当打包模式低两位精确等于1，raw `+0x52`权重为0或raw `+0x2C` bit6置位的记录留在来源链；其他低两位值不启用该过滤。
-3. 接受记录从来源链摘下，按已关闭FF90解析raw `+0x2C`得到u32键。
+3. 接受记录从来源链摘下，按`pending`的FF90解析raw `+0x2C`得到u32键。
 4. 工作区使用清零块内`+0x2C`作为首个前驱键0，寻找`previous_key < source_key <= current_key`位置；找不到则尾插。
 5. 相等键的后来记录插在既有相等键之前。
 

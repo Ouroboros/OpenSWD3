@@ -128,7 +128,7 @@ fault。非法、非对齐或越界 actor token 不在函数入口提前拒绝�
 
 ## 6. 17 个父 CALL（`pending`）
 
-完整 LST 有 9 个父函数、22 个物理 CALL。以下 7 个已关闭父函数中的 17 个 CALL
+完整 LST 有 9 个父函数、22 个物理 CALL。以下 7 个`pending`的父函数中的 17 个 CALL
 全部在原控制流位置直接组合 typed leaf：
 
 ```text
@@ -162,7 +162,7 @@ frame coordinator 的 debug、selection 和 message 继续共享同一个
 
 ## 7. 五个精确延期 CALL
 
-以下两个父函数仍为自身 inventory 的 `pending_audit`，本工作包不提前猜测其完整
+以下两个父函数仍为自身 inventory 的 `pending`，本工作包不提前猜测其完整
 控制流：
 
 ```text
@@ -191,7 +191,7 @@ Workpack305 发布时记录了完整112条指令、5个条件跳转、8个REP、
 - 最大路径 852 个访问 ordinal 全扫，四类 actor/stack stop 均实际命中；
 - RNG 结果 0/139、固定上界 140、调用次数、返回 residue 与随机 CALL stop；
 - prologue 首个栈写、非法 actor 首字段写、RNG CALL、epilogue pop 和 RET stop；
-- 17 个已关闭父 CALL 的物理 call/return 地址顺序；
+- 17 个`pending`的父 CALL 的物理 call/return 地址顺序；
 - action-dispatch、debug hotkeys、message phase、post-action 的父级 typed-stop 后缀抑制；
 - nested request offset、trace 合并和 generic/raw `0x00478850` 调用归零。
 
@@ -203,7 +203,7 @@ OpenSWD3 源码 warning、测试失败、sanitizer finding 或 runtime error。�
 OpenSWD3 游戏程序。
 
 inventory 生成器连续双跑逐字节一致；当前计数为
-`0/422 = 295 platform_adapted + 10 assembly_exact + 117 pending_audit`，
+`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，
 SHA-256 为
 `6d2e8fc6ef51963ba50ab33c8d439dd34f0eb1f29f8e62fa9e782e098feec353`。
 
@@ -214,7 +214,7 @@ Workpack305发布时没有原版完整Group-A/Group-B backing与子调用现场�
 但仍缺覆盖全部分支的输入、DF=1动态样本、异常字段页、REP中段异常页、异常栈页、
 RNG联合状态及22个caller的子调用寄存器/flags/SEH。
 整条重置函数原版差分仍不能写成 `original_diff_verified`。缺少后端也不自动证明
-所有fault前缀正确。17个已关闭CALL身份和5个延期边界仍按原范围记录。
+所有fault前缀正确。17个`pending`的CALL身份和5个延期边界仍按原范围记录。
 
 ## 10. Workpack316发现的寄存器时序修正
 

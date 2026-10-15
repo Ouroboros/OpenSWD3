@@ -80,7 +80,7 @@ bit `0x800`、alternate direct transition bit `0x8000`。普通 role、`0xFFFD`
 
 - 空链头在分配临时 surface 前直接返回；非空链复用固定 `40*11 × 11*11 = 440×121`
   的 16 位文字 surface，每帧先清零，每条消息合成后再次清零，链结束后释放借用。
-- 面板资源来自消息 `+0x00` action 当前的 `field_4a`，以 margin `0x10` 调用已闭环的
+- 面板资源来自消息 `+0x00` action 当前的 `field_4a`，以 margin `0x10` 调用`pending`的
   tiled-frame renderer；物理记录继续只保留 32 位 pointer token，64 位 live action
   owner 放在记录外，未破坏 `0x4C` ABI。
 - 正文使用 20 点字形，caption 使用 16 点字形；两套 `0x0049E0C8` 与
@@ -88,7 +88,7 @@ bit `0x800`、alternate direct transition bit `0x8000`。普通 role、`0xFFFD`
   20 点只描述 mask geometry；普通游戏循环已在 `0x0040AA6C..0x0040AA8B`
   把三套 renderer 的步进覆盖为 `22/18/16`，因此正文双字节字符按 22 前进。
   `sub_430350` 的背景 `0xFFFE`、副色、前景与 style 设置顺序保留。
-- 选择框调用已闭环的 `sub_40DE50` 动画边框；caption 先按 `sub_417DE0` 混合 15 行，
+- 选择框调用`pending`的 `sub_40DE50` 动画边框；caption 先按 `sub_417DE0` 混合 15 行，
   再绘制 action frame 和文字。临时 surface 首像素为 `0xFFFF` 时先改为 `0xFFFE`，
   避免被公共 blitter 误判为 RLE 源，保留原分支。
 - end/next 两个持久 action 均为 `0x2329`，base variant 分别为 `0x0C/0x0E`；图标位置

@@ -23,7 +23,7 @@ same-call continue
 
 该掩码只清bit25，其他31位保持。目标位已清时行为幂等。
 
-入口跳到共享`0x00427E7E`，先把计算结果写回完整dword，再在`0x00427E84`把u16 IP和物理脚本指针各加2、把ESI置1，最后进入`0x0042B0AE`发布normalized previous并同调用继续取指。没有平台所有权替换或现代兼容差异，归类`assembly_exact`。
+入口跳到共享`0x00427E7E`，先把计算结果写回完整dword，再在`0x00427E84`把u16 IP和物理脚本指针各加2、把ESI置1，最后进入`0x0042B0AE`发布normalized previous并同调用继续取指。没有平台所有权替换或现代兼容差异，归类`pending`。
 
 完整两字节记录位于窗口`0x7FFE`时，清位、IP `0x8000`和previous124均先提交；下一fetch才返回instruction out of range。
 

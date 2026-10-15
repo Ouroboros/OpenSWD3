@@ -33,9 +33,9 @@ outcome-resolution第133行整数窄化警告。
 
 三个物理caller为：
 
-- `0x0041080F`，位于已关闭的队伍对话整页填充`0x00410730`；
-- `0x00442D0A`，位于已关闭的护驾属性摘要`0x00442CA0`；
-- `0x0044ADC1`，位于已关闭的角色属性重算`0x0044AB00`。
+- `0x0041080F`，位于`pending`的队伍对话整页填充`0x00410730`；
+- `0x00442D0A`，位于`pending`的护驾属性摘要`0x00442CA0`；
+- `0x0044ADC1`，位于`pending`的角色属性重算`0x0044AB00`。
 
 ## 2. 固定链搜索与MON顺序
 
@@ -76,6 +76,6 @@ outcome-resolution第133行整数窄化警告。
 
 独立leaf测试覆盖根命中、缺键、MON说明释放、正常open失败、definition typed-stop、根/后继键访问、命中记录`+0x06`访问、两个输出写入顺序及两条分支不同的寄存器残值。caller回归覆盖队伍对话第二分类及刷新、护驾slot 7 packed结果与sentinel前缀、角色属性type-33缩放和三处typed-stop传播。
 
-发布验证为定向测试`2/2`、Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`、连续10轮完整core、changed-range clang-format、库存连续双生成和release审计；最终日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error。工作包为`0/422 = 263 platform_adapted + 10 assembly_exact + 149 pending_audit`，库存SHA256为`0dc0635f89b2702353f3c66632074833f77e09cbb1e8e217d5015eb2e8492521`。未启动原版或OpenSWD3游戏程序。
+发布验证为定向测试`2/2`、Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`、连续10轮完整core、changed-range clang-format、库存连续双生成和release审计；最终日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error。工作包为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，库存SHA256为`0dc0635f89b2702353f3c66632074833f77e09cbb1e8e217d5015eb2e8492521`。未启动原版或OpenSWD3游戏程序。
 
 原版固定链、MON文件/说明堆、两个stack输出槽及三个caller联合寄存器捕获后端缺失，`original_diff_verified`登记为`pending`。该阻塞不影响完整LST静态闭环、typed故障隔离和Linux验证。

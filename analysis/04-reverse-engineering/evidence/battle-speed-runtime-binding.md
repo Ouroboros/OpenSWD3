@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-范围：B11配置输入与SDL入战速度接线。B10仍315/422，316 pending_audit。
+范围：B11配置输入与SDL入战速度接线。B10仍0/422，316 pending。
 独立审计：`build/tmp/runtime/battle-speed-source-audit.md`。
 
 ## 原版来源

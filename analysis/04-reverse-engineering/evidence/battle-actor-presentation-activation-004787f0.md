@@ -152,7 +152,7 @@ LST 到 C++ 追溯覆盖完整 62 字节、完整 dword 参数与字段比较、
 - 连续十轮 Linux core 均通过 `199/199`；
 - 新文件全量和历史文件 changed-range clang-format 通过；
 - inventory 生成器连续双跑逐字节一致，最终为
-  `0/422 = 293 platform_adapted + 10 assembly_exact + 119 pending_audit`，
+  `0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，
   SHA-256 为
   `5f746280df63b04b8f04a04b139170ee47fb6fc9f25e5e46aa5f89c6dea699cd`；
 - 未启动原版或 OpenSWD3 游戏程序。
@@ -161,5 +161,5 @@ LST 到 C++ 追溯覆盖完整 62 字节、完整 dword 参数与字段比较、
 
 当前缺少原版完整 Group-A/Group-B actor、九个异常内存访问、异常栈页，以及七处
 caller 联合寄存器、flags 与 SEH 捕获后端。原版动态差分登记为
-`blocked_runtime_oracle`，不得写成 `original_diff_verified`。该阻塞不改变 62 字节
+`pending`，不得写成 `original_diff_verified`。该阻塞不改变 62 字节
 leaf、七处物理 CALL 身份与当前静态收敛结论。

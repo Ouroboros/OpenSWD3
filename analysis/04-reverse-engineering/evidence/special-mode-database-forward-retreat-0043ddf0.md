@@ -4,7 +4,7 @@
 
 ## 1. LST范围与caller
 
-唯一行为真值为`swd3.exe.lst`。函数范围`0x0043DDF0..0x0043DECA`，105行；DA30有两个direct call点，B480另以callback地址绑定。直接callee B9A0/BBC0/BC90/F880/F1E0均已关闭；物品查询及sample保留平台边界。
+唯一行为真值为`swd3.exe.lst`。函数范围`0x0043DDF0..0x0043DECA`，105行；DA30有两个direct call点，B480另以callback地址绑定。直接callee B9A0/BBC0/BC90/F880/F1E0均为`pending`；物品查询及sample保留平台边界。
 
 DA30命中`address_0043DDF0`时现直接调用本helper；通用地址port不再承载DDF0。input ports继承retreat专用边界，保留物品查询和sample边界；DD20/DDF0共用F880、F1E0现均为直接typed调用。
 
@@ -15,7 +15,7 @@ DA30命中`address_0043DDF0`时现直接调用本helper；通用地址port不再
 1. BBC0递减`FCBA4` local selection；负值时钳0，并仅在`FCAD0` window offset正数时递减window。
 2. B9A0按window offset从共享`FCAE0` head重建`FCD10` current head。
 3. BC90从current head最多计16项并重写`FCB98` visible count。
-4. 直接调用已关闭F880 typed helper。
+4. 直接调用`pending`的F880 typed helper。
 5. first/second inline `0xB0` records进入F1E0边界。
 6. display flags低字节`OR 0x03`，最后sample `0x2E`返回EAX。
 
@@ -39,10 +39,10 @@ UT锁定物品查询ID、query→gate→toggle→sample→清零顺序：bit0置
 
 闭环DDF0和DD20均不修改鼠标X，因此移除早期伪port通过闭环callee强改X的测试。DA30现以真实行为分别锁定：
 
-- `x=80`先直接DDF0，X仍80；重叠的两组动态strict边界继续调用已关闭DFA0和DED0，共3次callback。
+- `x=80`先直接DDF0，X仍80；重叠的两组动态strict边界继续调用`pending`的DFA0和DED0，共3次callback。
 - `x=460`先直接DD20，X仍460；重叠动态边界继续调用DFA0和DED0，共3次callback。
 
-这既验证四个caller直连，也保留DA30每次callee后重读X，而不向任何已关闭callee注入不存在的副作用。
+这既验证四个caller直连，也保留DA30每次callee后重读X，而不向任何`pending`的callee注入不存在的副作用。
 
 ## 6. 验证
 

@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-唯一行为真值为`swd3.exe.lst`。物理范围`0x00448840..0x00448BA4`，421行、9个call，无FUNCTION CHUNK。唯一code caller为已关闭43B480的callback表数据槽；typed函数供该槽runtime adapter接入。
+唯一行为真值为`swd3.exe.lst`。物理范围`0x00448840..0x00448BA4`，421行、9个call，无FUNCTION CHUNK。唯一code caller为`pending`的43B480的callback表数据槽；typed函数供该槽runtime adapter接入。
 
 progress=2时仅当velocity>=97处理。第一入口要求primary state/gate均精确为1，pointer Y严格位于101..112、X严格位于162..198，命中写selection result 1；否则paired secondary state/gate均为1时写2。
 

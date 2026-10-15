@@ -19,7 +19,7 @@ scaled = long_double(zero_extend_u16(actor.progress))
 result = x87_fistp_qword_round_toward_zero(scaled)
 ```
 
-分母是共享`0x004A74CC`，由已关闭战斗速度阈值发布器维护，初始值900；常量`0x00499D30`的IEEE-754单精度字节为`00 00 78 42`，即62.0。typed实现用分步volatile `long double`保留两次x87算术的扩展精度边界，并复用已核定的signed qword向零转换域。
+分母是共享`0x004A74CC`，由`pending`的战斗速度阈值发布器维护，初始值900；常量`0x00499D30`的IEEE-754单精度字节为`00 00 78 42`，即62.0。typed实现用分步volatile `long double`保留两次x87算术的扩展精度边界，并复用已核定的signed qword向零转换域。
 
 分母为零时不增加现代错误分支：有限非零/零分子分别形成无穷/NaN，最终都由`fistp qword`产生integer-indefinite `0x8000000000000000`，即EAX为0、EDX为`0x80000000`。负分母产生负signed qword并保留EDX符号扩展。
 

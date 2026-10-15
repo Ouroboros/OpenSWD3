@@ -105,4 +105,4 @@ Windows、实际游戏与完整SDL战斗帧未验证。
 此前函数审计曾记录定向测试和ASan各1/1、Linux core 188/188、
 Linux app 194/194及inventory 0/422。
 这些是历史门禁，不代表本批新接口、调用方或当前全仓验收结果。
-当前B10仍为315/422，Workpack316保持`pending`。
+当前B10仍为0/422，Workpack316保持`pending`。

@@ -31,7 +31,7 @@ retn
 - `EDX`和标志位不变；
 - 无参数清理、无资源操作、无x87状态变化。
 
-modern实现为`synchronize_legacy_battle_actor_progress_threshold`。阈值直接读取已关闭发布器的唯一owner `LegacyBattleStartupState::timing.action_threshold`；角色进度直接写对应`startup.party[index].progress.progress`，没有重新推导阈值或建立平行状态。
+modern实现为`synchronize_legacy_battle_actor_progress_threshold`。阈值直接读取`pending`的发布器的唯一owner `LegacyBattleStartupState::timing.action_threshold`；角色进度直接写对应`startup.party[index].progress.progress`，没有重新推导阈值或建立平行状态。
 
 ## 3. 访问顺序与typed-stop
 
@@ -51,7 +51,7 @@ modern实现为`synchronize_legacy_battle_actor_progress_threshold`。阈值直�
 
 ### `0x00452FF6`
 
-第二条低概率事件仅在随机值`27..32`时进入组A循环。caller先以角色为`ECX`调用`0x0047CE80`；完整`EAX==1`或角色`+0x2B04`完整dword等于1时跳过。否则重载角色`ECX`并调用本函数，入口`EAX/EDX`来自`0x0047CE80`。成功后以固定参数1直连已关闭`0x0046E520`，再扫描十槽数组并把首个零槽写为`party_index+8`。
+第二条低概率事件仅在随机值`27..32`时进入组A循环。caller先以角色为`ECX`调用`0x0047CE80`；完整`EAX==1`或角色`+0x2B04`完整dword等于1时跳过。否则重载角色`ECX`并调用本函数，入口`EAX/EDX`来自`0x0047CE80`。成功后以固定参数1直连`pending`的`0x0046E520`，再扫描十槽数组并把首个零槽写为`party_index+8`。
 
 modern删除原来错误分离的特殊字段投影，直接读取同一startup角色owner的`scene_identity`。阈值同步typed-stop会保留视觉、释放、音乐、随机与角色查询前缀，并阻断进度推进、十槽写入、后续敌方循环、消息节点和bit `0x80`发布。
 

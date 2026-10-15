@@ -6,7 +6,7 @@
 
 权威函数为`0x0045A980..0x0045A9F4`，从proc到endp完整64行、1个静态call站点、4个`loc_`标签，无外部FUNCTION CHUNK。唯一callee为`0x0047C1F0`。
 
-两个静态callsite都位于已关闭待执行动作提交`0x0045EB40`，现已直接组合本typed实现并删除旧地址边界。caller在两次对象callee之间分别传入live顺序索引、固定组selector与前一callee EDX。
+两个静态callsite都位于`pending`的待执行动作提交`0x0045EB40`，现已直接组合本typed实现并删除旧地址边界。caller在两次对象callee之间分别传入live顺序索引、固定组selector与前一callee EDX。
 
 ## 2. 组选择
 
@@ -39,7 +39,7 @@ group B = 0x00525508 + index * 0x2B28
 
 ## 4. 返回
 
-唯一callee完整EAX严格等于1时原样返回1；任何其他值，包括全1，都先清EAX并返回0。不布尔化为非零真值。ECX与EDX不被归一化尾修改，typed结果完整保留callee返回，供已关闭caller的组B陈旧EDX路径继续使用。
+唯一callee完整EAX严格等于1时原样返回1；任何其他值，包括全1，都先清EAX并返回0。不布尔化为非零真值。ECX与EDX不被归一化尾修改，typed结果完整保留callee返回，供`pending`的caller的组B陈旧EDX路径继续使用。
 
 ## 5. 测试与动态差分
 

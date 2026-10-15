@@ -61,7 +61,7 @@ second_split = y + trunc(height * second_ratio)
 
 ## 5. typed owner与验证
 
-`LegacyStandardModeBarPorts`隔离区域准备、矩形、动作更新、frame解析、tile blit与通用动作绘制。已关闭的动作/frame接口可直接适配；10个调用点在各自入口关闭时接入。
+`LegacyStandardModeBarPorts`隔离区域准备、矩形、动作更新、frame解析、tile blit与通用动作绘制。`pending`的动作/frame接口可直接适配；10个调用点在各自入口关闭时接入。
 
 `special_modes.legacy_initial_menu`覆盖：
 

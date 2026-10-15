@@ -8,4 +8,4 @@
 
 原函数只对商的低word加10，高word保持商的原bit；随后以unsigned word比较threshold与随机返回低word。`cmp dx,si`后的`sbb/inc`严格产生零或一，等于阈值时接受。正常返回EAX为判定值，ECX保留wrapped `70*x`，EDX保留signed商但低word已加10。
 
-测试覆盖参数零的最低阈值十、随机值等于十接受、十一拒绝、参数一百得到阈值八十并等值接受，以及全一参数乘70回绕为负七十、signed除法向零得到零、EDX低word加十和ECX回绕寄存器。production动作33 caller验证typed随机调用、接受分支、目标发布、frame刷新及旧地址零调用。定向测试与独立AddressSanitizer均通过且findings为零；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 219 platform_adapted + 9 assembly_exact + 194 pending_audit`，SHA256为`c4ae7d8ef735de6e05aa6af58103cb3c62f74a78b30a1c54393b202154c5f323`。动态差分因原版CRT随机流、百分比query与唯一caller寄存器联合捕获后端缺失而登记为`pending`。
+测试覆盖参数零的最低阈值十、随机值等于十接受、十一拒绝、参数一百得到阈值八十并等值接受，以及全一参数乘70回绕为负七十、signed除法向零得到零、EDX低word加十和ECX回绕寄存器。production动作33 caller验证typed随机调用、接受分支、目标发布、frame刷新及旧地址零调用。定向测试与独立AddressSanitizer均通过且findings为零；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`c4ae7d8ef735de6e05aa6af58103cb3c62f74a78b30a1c54393b202154c5f323`。动态差分因原版CRT随机流、百分比query与唯一caller寄存器联合捕获后端缺失而登记为`pending`。

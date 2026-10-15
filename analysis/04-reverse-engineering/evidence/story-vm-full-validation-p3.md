@@ -4,15 +4,15 @@
 
 ## Scope and authoritative inputs
 
-This evidence closes P3 from `goal/story-vm-closure-plan-pi.md` after every handler work package was independently closed.
+This evidence covers P3 from `goal/story-vm-closure-plan-pi.md`. P3 and every handler work package are `pending`.
 
 Authoritative behavior comes from `swd3.exe_export_for_ai/swd3.exe.lst`. The full-TALK generators additionally lock the four real TALK payload hashes and the authoritative LST SHA-256 `701732b5481ba34876b62ca97535c9463f65ec3feb2ed745c03772dd4bc3ad8b`.
 
-The P3 runtime-path inventory has 17 rows, all closed:
+The P3 runtime-path inventory has 17 rows, all `pending`:
 
-- 7 `assembly_exact`.
-- 10 `platform_adapted`.
-- 0 scope-only, LST-only, or `pending_audit` rows.
+- 0 `assembly_exact`.
+- 0 `platform_adapted`.
+- 17 `pending` rows.
 
 ## 1. Complete explicit opcode domain
 
@@ -25,7 +25,7 @@ The regenerated dispatcher inventories prove:
 - 2 internal refinement switches.
 - 197 modern C++ case labels; opcode 1026 retains the pre-existing shared case and is counted once.
 
-The handler workpack is `146/146 = 26 assembly_exact + 120 platform_adapted`. All 198 explicit opcodes are implemented and closed, including 55 opcodes not observed by the current linear TALK prefix probes.
+The handler workpack is `0/146 = 0 assembly_exact + 0 platform_adapted + 146 pending`. All 198 explicit opcodes are `pending`, including 55 opcodes not observed by the current linear TALK prefix probes.
 
 ## 2. Entry, decode, dispatch, defaults, specials, and returns
 
@@ -53,7 +53,7 @@ Opcode 99, the default ranges, and the four special values retain their separate
 
 ### Internal refinement switches
 
-The two internal tables are regenerated from LST and matched to closed C++ handlers:
+The two internal tables are regenerated from LST and matched to C++ handlers with status `pending`:
 
 - numeric refinement: six dword targets plus 157 selector bytes, with non-default opcodes 29-33 and 181-185;
 - flag refinement: nine dword targets plus 73 selector bytes, with non-default opcodes 102, 103, 117, 136, 140, 145, 146, and 174.
@@ -133,7 +133,7 @@ The same test binary and real-asset lock are serialized by the existing CTest re
 
 The real-asset registration replays the long story-248/new-game path through its first dialog and verifies the expected first-dialog state without `unsupported_opcode`. The initial-session registration independently verifies the unloaded-role patch path. Representative real records for all 143 asset-observed opcodes are additionally replayed by opcode-specific tests.
 
-No VM-side handler, dispatch path, encoding length, or transfer rule remains unimplemented or temporarily bypassed. External module owners and previously registered runtime-oracle limitations remain narrow typed boundaries and do not substitute for VM implementation.
+VM-side handler, dispatch path, encoding length, and transfer-rule implementation are `pending`. External module owners and previously registered runtime-oracle limitations remain narrow typed boundaries and do not substitute for VM implementation.
 
 ## 6. Reproducible inventory snapshot
 

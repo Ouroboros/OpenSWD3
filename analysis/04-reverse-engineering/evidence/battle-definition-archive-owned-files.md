@@ -88,4 +88,4 @@ battle.ffd头部及首记录逐字节比较，battle98建场继续检查敌方40
 
 Windows专属只读属性分支未在Linux运行。既有Unicode文件后端、
 Linux共享模式差异及API失败读量规则保持。原版动态差分仍为
-`blocked_runtime_oracle`，未启动游戏，不升级B11、WP316或整体验收。
+`pending`，未启动游戏，不升级B11、WP316或整体验收。

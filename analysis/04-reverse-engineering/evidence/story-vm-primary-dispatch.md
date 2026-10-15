@@ -102,10 +102,10 @@ opcode | 0xC000
 - `inventory/story-vm-dispatch-ranges.tsv`：完整 14 位域的 11 条解码/边界规则。
 - `inventory/story-vm-entry-target-groups.tsv`：146 个入口目标及其 opcode 集；默认入口用三个区间压缩表示。
 - `inventory/story-vm-internal-opcode-switches.tsv`：两个共享 handler 内部的 opcode 细分表。
-- `inventory/story-vm-handler-workpack.tsv`：P1 的 146 个唯一 handler 审计行，全部从 `pending_audit` 开始；P2 以 evidence/proof override 逐行推进。
+- `inventory/story-vm-handler-workpack.tsv`：P1 的 146 个唯一 handler 审计行，全部从 `pending` 开始；P2 以 evidence/proof override 逐行推进。
 - `inventory/story-vm-runtime-paths.tsv`：默认、特殊值、窗口、公共 join/yield 和返回路径的 17 行范围表。
 - [`story-vm-handler-workpack-p1.md`](story-vm-handler-workpack-p1.md)：LST 单源生成、导航覆盖和 P2 停止线。
 
 ## 当前结论与下一步
 
-P1 的完整 scope 已锁定，P2 当前闭环 21/146。默认非法入口、共享对话入口、bit31/bit30 清除入口、lifetime 暂存入口、role base/variant action、role position、role step、role action wait、same-file jump、unprepared/prepared role-path conditional jump、单角色/全角色 role-path release、共享 opcode20/169 role-path schedule、共享opcode21/22 global-bit conditional jump、opcode23/24 all/any-global-bits conditional jump，以及opcode25/26 global-bit set/clear入口已关闭；下一停止点为`0x004286C5`的opcode27 handler。后续仍必须从每个一级入口的真实 LST 控制流提取参数读取宽度、推进长度、状态读写、同步/异步/等待条件和错误路径，再用全部 `TALK*.DAT` 的真实命令流反向验证；任何按入口地址粗暴合并变体或继承既有 C++/文档完成状态的做法都会丢失内部细分。
+P1 的完整 scope 已锁定，P2 当前闭环 21/146。默认非法入口、共享对话入口、bit31/bit30 清除入口、lifetime 暂存入口、role base/variant action、role position、role step、role action wait、same-file jump、unprepared/prepared role-path conditional jump、单角色/全角色 role-path release、共享 opcode20/169 role-path schedule、共享opcode21/22 global-bit conditional jump、opcode23/24 all/any-global-bits conditional jump，以及opcode25/26 global-bit set/clear入口为`pending`；下一停止点为`0x004286C5`的opcode27 handler。后续仍必须从每个一级入口的真实 LST 控制流提取参数读取宽度、推进长度、状态读写、同步/异步/等待条件和错误路径，再用全部 `TALK*.DAT` 的真实命令流反向验证；任何按入口地址粗暴合并变体或继承既有 C++/文档完成状态的做法都会丢失内部细分。

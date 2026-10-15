@@ -6,7 +6,7 @@
 
 权威主体为`0x00476900..0x0047691D`，从`proc`到`endp`共15行、7条实际指令、0个call、0个跳转、0个局部标签和1个返回点。没有外部`FUNCTION CHUNK`，也没有直接callee。
 
-唯一静态caller是已关闭的对手动作分派`0x00455D60`，调用站点位于其动作15初始化路径。该caller先按组B索引形成actor token，再依次压入第二输出、第一输出，把actor token写入ECX并发布phase低word `0x8019`，随后调用本函数；返回值没有成功门，两个输出直接控制后续记录动作号和wave数量。
+唯一静态caller是`pending`的对手动作分派`0x00455D60`，调用站点位于其动作15初始化路径。该caller先按组B索引形成actor token，再依次压入第二输出、第一输出，把actor token写入ECX并发布phase低word `0x8019`，随后调用本函数；返回值没有成功门，两个输出直接控制后续记录动作号和wave数量。
 
 ## 2. 输入、owner与字段映射
 

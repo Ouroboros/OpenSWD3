@@ -60,7 +60,7 @@ EAX保持来源地址，ECX为剩余次数，EDX保持placement地址。
 因此先发布这组修正，再继续持久队伍构造、借用重置、实际SDL配置与模式计数。
 原完整初始化与续玩目标保持不变，不以本批替代其验收。
 
-`0046E730`继续为`platform_adapted`；inventory既有证据引用仍有效。
+`0046E730`继续为`pending`；inventory既有证据引用仍有效。
 B10仍为`0/422`，Workpack316保持`pending`。
 UT、真实存档解析及SDL链接不等于实际续玩或原版动态差分。
 

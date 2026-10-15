@@ -93,5 +93,5 @@ MAPS patch 的返回值也不被原调用者观察；现代 owner 即使报告 p
 - Linux `app`：186/186 CTest 通过；
 - Windows LLVM `app`：186/186 CTest 通过；
 - 真实 `MAPS.DAT` 回归包含在上述三套测试中；
-- 原程序动态差分：`blocked_runtime_oracle`；
+- 原程序动态差分：`pending`；
 - 未启动原版或重写版 EXE。

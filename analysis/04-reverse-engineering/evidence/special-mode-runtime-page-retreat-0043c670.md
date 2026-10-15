@@ -12,7 +12,7 @@ LST有两个运行时callsite、两个caller：`0x0043C3C0`在`0x0043C4EC`调用
 
 函数依次：
 
-1. 以window offset、local cursor与step `0x0F`调用已关闭`0x0043BC60`。
+1. 以window offset、local cursor与step `0x0F`调用`pending`的`0x0043BC60`。
 2. 用实时window offset、原64项entry base与entry alias owner调用`0x0043CC00`。
 3. 调用`0x0043CBD0`刷新page。
 4. u32回绕相加`window_offset + local_cursor`并从原entry base读取，调用`0x0043CEF0`。
@@ -23,7 +23,7 @@ LST有两个运行时callsite、两个caller：`0x0043C3C0`在`0x0043C4EC`调用
 
 ## 3. typed边界与caller回接
 
-`retreat_legacy_standard_mode_runtime_page`复用已关闭page-retreat helper。alias重建后直接执行已关闭CBD0并传播alias读取typed-stop；CBD0完成后selected index只在原entry读取点检查64项边界。停止保留page retreat、alias与CBD0已发布visible，不执行消费、flags或sample。
+`retreat_legacy_standard_mode_runtime_page`复用`pending`的page-retreat helper。alias重建后直接执行`pending`的CBD0并传播alias读取typed-stop；CBD0完成后selected index只在原entry读取点检查64项边界。停止保留page retreat、alias与CBD0已发布visible，不执行消费、flags或sample。
 
 `0x0043C3C0` first-dynamic caller已真实回接。重叠upper→first dynamic→page时，实时状态链为：
 

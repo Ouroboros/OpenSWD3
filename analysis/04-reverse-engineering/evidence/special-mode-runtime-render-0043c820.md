@@ -6,13 +6,13 @@
 
 唯一行为真值为`swd3.exe.lst`。函数物理范围为`0x0043C820..0x0043C9B5`，无外置chunk，直接运行时caller仅`0x00447100`的`0x004471B8`。下一workpack入口为`0x0043C9C0`。
 
-函数使用共享17项action表：`0x0043C0D0`写record0，已关闭split bar `0x0043AE40`使用records6–9。typed runtime state由此前不足的单record修正为17项数组；selected preview另用`FC650`对应的独立typed action record。
+函数使用共享17项action表：`0x0043C0D0`写record0，`pending`的split bar `0x0043AE40`使用records6–9。typed runtime state由此前不足的单record修正为17项数组；selected preview另用`FC650`对应的独立typed action record。
 
-平台render port只隔离颜色组合、已关闭split-bar owner、已关闭D470所需viewport/resource load/draw、preview动作、已关闭CC20所需的raw/formatted rendering资源和已关闭矩形效果owner。列表与D470/CC20控制流、所有owner写入及原表读取均在typed helper内。
+平台render port只隔离颜色组合、`pending`的split-bar owner、`pending`的D470所需viewport/resource load/draw、preview动作、`pending`的CC20所需的raw/formatted rendering资源和`pending`的矩形效果owner。列表与D470/CC20控制流、所有owner写入及原表读取均在typed helper内。
 
 ## 2. 双nibble衰减与bar比例
 
-入口固定请求颜色`(0x19,0x17,0x11)`，并把完整u32返回值传给已关闭CC20；此前窄port截成低16位的synthetic行为已纠正。
+入口固定请求颜色`(0x19,0x17,0x11)`，并把完整u32返回值传给`pending`的CC20；此前窄port截成低16位的synthetic行为已纠正。
 
 只有signed `total_count > 15`时执行衰减和bar：
 
@@ -40,7 +40,7 @@ D470 mode strip完成后，从typed `entry_alias_index`对应的原64项entry ba
 
 1. 若row等于local cursor，按u32回绕计算`window_offset + row`。
 2. selected绝对索引先读取short text槽首字节；非零时把对应entry写入preview action ID，只写base variant=`0x44`和variant delta=0，调用service `0x1FC`/selector `0x3C`。
-3. 直接调用已关闭CC20 typed helper：`absolute index,row,完整color,selected`；caller压入但callee未读的固定0不进入typed API。
+3. 直接调用`pending`的CC20 typed helper：`absolute index,row,完整color,selected`；caller压入但callee未读的固定0不进入typed API。
 4. selected行调用矩形效果：`(0x0E,Y,0xBD,0x18,0x14,0x0D,0,5)`。
 5. 无条件读取alias链下一项，再递增row/Y；下一项0时返回0。
 

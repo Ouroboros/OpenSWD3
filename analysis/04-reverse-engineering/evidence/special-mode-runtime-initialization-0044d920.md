@@ -6,7 +6,7 @@
 
 权威范围为`swd3.exe.lst`的`0x0044D920..0x0044DA39`，111行，无外部FUNCTION CHUNK。唯一caller `0x0044EA60`尚待其自身审计。
 
-已关闭callee直接复用：
+`pending`的callee直接复用：
 
 - `0x0040DC80/0x0040DCB0`：设置/清除故事位10。
 - `0x00412930`：世界主帧合成。

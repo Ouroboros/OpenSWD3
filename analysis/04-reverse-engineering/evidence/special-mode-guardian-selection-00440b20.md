@@ -10,7 +10,7 @@
 - mode1直接复用BB80推进`total/list_offset/local/visible=10`窗口；按新offset直接复用B9A0形成FCD64可见链头，BC90重算最多10项的visible count，再按`offset+local`直接复用B9C0/B9E0发布选择文本。随后调用4429B0、sample命令46，并仅将mode flags低字节OR 0x30；最终EAX为写回后的完整mode flags，而不是sample返回值。
 - 其他mode不调用helper，按原`mode-1`返回。
 
-FCD64已从无语义dword修正为`visible_record_head`指针owner。4420F0/442050/4429B0与485610仍由窄typed port隔离；已关闭的BB80/B9A0/BC90/B9C0/B9E0全部直接复用。链推进只在原裸`next`读取点typed-stop；允许null可见链经过BC90计数为零，再在原B9E0节点解引用点停止。dword文本表越界与B9E0失败同样保留此前副作用。
+FCD64已从无语义dword修正为`visible_record_head`指针owner。4420F0/442050/4429B0与485610仍由窄typed port隔离；`pending`的BB80/B9A0/BC90/B9C0/B9E0全部直接复用。链推进只在原裸`next`读取点typed-stop；允许null可见链经过BC90计数为零，再在原B9E0节点解引用点停止。dword文本表越界与B9E0失败同样保留此前副作用。
 
 407F0中的三处440B20调用已删除opaque invoke边界并直接调用本helper；caller通过继承selection port提供尚未闭环的平台边界，且传播typed-stop。
 

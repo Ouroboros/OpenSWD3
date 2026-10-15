@@ -50,4 +50,4 @@ B11调用方改为借用实际placement，MON加载后才读取复制内容及�
 
 纯函数测试覆盖负主系数、signed `+0x0A`、三项无符号word、无符号byte、独立次系数、低宽度回绕、全部尾部投影和EAX/ECX/EDX；同时覆盖NPC固定诊断及角色owner、零分配、源记录、调整源和基础记录五类停止顺序。startup回归覆盖普通双caller、旧槽零调用、配置源token解析、stale角色0别名从配置源切换为基础记录、无限重试路径，以及零调整源在资料和placement发布后停止。
 
-验证结果：定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning，app仅有既有ALSA提示。inventory连续双生成逐字节一致，稳定为`0/422 = 167 platform_adapted + 9 assembly_exact + 246 pending_audit`，SHA256为`3f337f7a288106bd5968dc273869d2e89f36673fb52b82ab134b68ae98df41e1`。原版组A对象、0xA4资料、mon.dat加载/动态文字释放、动态首角色调整源和caller寄存器联合捕获后端缺失，动态差分登记为`pending`。
+验证结果：定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning，app仅有既有ALSA提示。inventory连续双生成逐字节一致，稳定为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`3f337f7a288106bd5968dc273869d2e89f36673fb52b82ab134b68ae98df41e1`。原版组A对象、0xA4资料、mon.dat加载/动态文字释放、动态首角色调整源和caller寄存器联合捕获后端缺失，动态差分登记为`pending`。

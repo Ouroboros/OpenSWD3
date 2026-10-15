@@ -190,7 +190,7 @@ phase为0时先读目标code与距离，距离至少20或目标phase查询成功
 
 ### 10.1 case 13
 
-phase零时建立factor=-12、primary suppression和动画。目标动作完成后清40字节临时record、只置offset `0x19`的bit`0x20`并commit；随后清视觉phase并置fade。最后扫描当前组A角色的前8个事件word，首个0写`target+1`。前8项全非零仍返回1，不访问第9、10项。前四个角色行直接复用startup reset的唯一40-word控制表，供已关闭消息99过渡控制选择按row-major消费；后六行继续由相邻物理tail承接，不建立前40项平行副本。缺少startup owner只在前四行首次真实事件槽访问typed-stop。
+phase零时建立factor=-12、primary suppression和动画。目标动作完成后清40字节临时record、只置offset `0x19`的bit`0x20`并commit；随后清视觉phase并置fade。最后扫描当前组A角色的前8个事件word，首个0写`target+1`。前8项全非零仍返回1，不访问第9、10项。前四个角色行直接复用startup reset的唯一40-word控制表，供`pending`的消息99过渡控制选择按row-major消费；后六行继续由相邻物理tail承接，不建立前40项平行副本。缺少startup owner只在前四行首次真实事件槽访问typed-stop。
 
 ### 10.2 case 14
 
@@ -198,7 +198,7 @@ phase零时建立factor=-12、primary suppression和动画。目标动作完成�
 
 ### 10.3 case 15
 
-phase零时按battle flags bit2与packed high word<2决定是否增加召唤计数和组A数量；从每角色summon word取索引，依序执行选中、模式、首条动作记录清零、构造、动画与召唤记录建立。`0x0045529A`以`ECX=0x005029D0+index*0x2F34`直接组合已关闭`0x004786F0` typed leaf，真实返回地址为`0x0045529F`；只清零Group-A canonical第0动作记录的38个dword，生产路径不再调用原raw地址。每帧保持factor=-12和suppression；坐标完成后更新目标`index+8`、清battle bit2、summon runtime、packed lowword和角色summon word，发布终态并调用两个后续stage，返回1。
+phase零时按battle flags bit2与packed high word<2决定是否增加召唤计数和组A数量；从每角色summon word取索引，依序执行选中、模式、首条动作记录清零、构造、动画与召唤记录建立。`0x0045529A`以`ECX=0x005029D0+index*0x2F34`直接组合`pending`的`0x004786F0` typed leaf，真实返回地址为`0x0045529F`；只清零Group-A canonical第0动作记录的38个dword，生产路径不再调用原raw地址。每帧保持factor=-12和suppression；坐标完成后更新目标`index+8`、清battle bit2、summon runtime、packed lowword和角色summon word，发布终态并调用两个后续stage，返回1。
 
 004552C2已改为直接写实际召唤队员的绘制抑制1，位于帧源清除之后、镜像及分配之前。
 缺startup或残余状态数组时保留帧源清除，不执行分配；后继分配失败保留抑制写入。
@@ -209,7 +209,7 @@ phase零时按battle flags bit2与packed high word<2决定是否增加召唤计�
 
 ## 11. case 22：状态指示器与对手选择
 
-action runtime bit15未置位时，直接调用已关闭`0x00450F90`。其返回1后保存snapshot 6，并根据独立side selection word：
+action runtime bit15未置位时，直接调用`pending`的`0x00450F90`。其返回1后保存snapshot 6，并根据独立side selection word：
 
 - 统计组A或组B中terminal query不等于1的对象；
 - side A路径写side mode 1；side B路径不合理化清零旧side mode；
@@ -230,8 +230,8 @@ bit15已置时，bit0仍为0则返回0；bit0为1则置fade active并返回1。
 
 - 23：目标动作完成后查询消息code；`1..0x61A7`走名称构建/格式化与详细消息，0、`0x61A8`及更大值走两个固定文本；最终延迟300；
 - 24：目标callee返回低word；bit15置位时遍历全部组B非terminal对象，计算signed值、上夹9999、累加、刷新、发布与可选清屏；保存低15位，低word等于2才清current actor并返回1，否则清低word返回0；
-- 25：首次选择按目标准备结果显示成功/失败文本；成功保存双方索引、准备与更新目标。再次进入时更新目标status word；第一choice门非零时在原调用点直接组合已关闭组B行动对象资料，成功后才清该门；第二choice门非零时调用剩余choice操作。随后OR入`choice_cursor-1`低word并直接组合已关闭攻击顺序登记，以类型2把已选组B索引写入共享18槽首个全1记录，再清current actor并返回1。资料组合typed-stop保留choice/status前缀并阻断门清理、第二choice、攻击顺序与成功尾；
-- 26：直接调用已关闭`0x00451100`。保留scan runtime、push state、dialog word三组低word门；完成早退或目标动作成功后的共同尾按pop64、延迟300、清四项低word执行。视觉成功先发布全1 accumulator、screen mode 1、清屏与scan push `0x8000`；
+- 25：首次选择按目标准备结果显示成功/失败文本；成功保存双方索引、准备与更新目标。再次进入时更新目标status word；第一choice门非零时在原调用点直接组合`pending`的组B行动对象资料，成功后才清该门；第二choice门非零时调用剩余choice操作。随后OR入`choice_cursor-1`低word并直接组合`pending`的攻击顺序登记，以类型2把已选组B索引写入共享18槽首个全1记录，再清current actor并返回1。资料组合typed-stop保留choice/status前缀并阻断门清理、第二choice、攻击顺序与成功尾；
+- 26：直接调用`pending`的`0x00451100`。保留scan runtime、push state、dialog word三组低word门；完成早退或目标动作成功后的共同尾按pop64、延迟300、清四项低word执行。视觉成功先发布全1 accumulator、screen mode 1、清屏与scan push `0x8000`；
 - 27：目标动作完成后以固定第一参数4计算选择；可选视觉成功发布目标并清屏，随后清accumulator/current actor并返回1。
 
 ## 13. case 28/29/32
@@ -246,7 +246,7 @@ bit15已置时，bit0仍为0则返回0；bit0为1则置fade active并返回1。
 
 ## 14. case 31：倒计时与内部bit
 
-首次进入：message gate写`0x80000000`，直接初始化mode 1的5秒倒计时，即secondary ticks 150；按当前Group-B行动者token直连typed坐标查询，再直接清已关闭0x98动作record。坐标owner缺失或X/Y真实访问失败时停在查询点，保留倒计时与message gate，阻断动作record清理和Escape后缀。
+首次进入：message gate写`0x80000000`，直接初始化mode 1的5秒倒计时，即secondary ticks 150；按当前Group-B行动者token直连typed坐标查询，再直接清`pending`的0x98动作record。坐标owner缺失或X/Y真实访问失败时停在查询点，保留倒计时与message gate，阻断动作record清理和Escape后缀。
 
 随后直接读取内部bit 75。置位时按原callee清bit75、清message gate/aux、current actor写全1并返回1；第二参数仍不访问。
 
@@ -254,16 +254,16 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 
 ## 15. case 33–36
 
-- 33：先直连已关闭目标动作就绪状态机，复用当前group-A行动者owner、group-B目标token和未读取的`0x1791`；只有状态机返回一才清current actor并解析目标对象。状态机返回零或typed-stop都阻断后缀。目标零token仍在随后首次flags读取点typed-stop；flags bit`0x20`置位直接返回1，否则查询percent和属性，成功时mode 7、presentation 1、发布目标并清屏，最终返回1；
+- 33：先直连`pending`的目标动作就绪状态机，复用当前group-A行动者owner、group-B目标token和未读取的`0x1791`；只有状态机返回一才清current actor并解析目标对象。状态机返回零或typed-stop都阻断后缀。目标零token仍在随后首次flags读取点typed-stop；flags bit`0x20`置位直接返回1，否则查询percent和属性，成功时mode 7、presentation 1、发布目标并清屏，最终返回1；
 - 34：计算signed值，发布该值、视觉commit`(value,0,0)`，清signed槽；
 - 35：发布selection word、视觉commit`(0,word,0)`，清selection word；
 - 36：发布selection high word、视觉commit`(0,0,high)`，清high word。
 
 34–36都清current actor并返回1。
 
-## 16. closed callee回收与平台端口
+## 16. `pending` callee回收与平台端口
 
-已关闭callee直接复用：
+`pending`的callee直接复用：
 
 - case 6目标阶段开始前的固定键计数查询，以及完成后的固定键计数链累加；
 - mode 1五秒倒计时初始化；
@@ -318,7 +318,7 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 - 超尺寸清屏已写满前缀与refresh时机；
 - 27个有效普通case、10个有效特殊动作逐项smoke；
 - 9个稀疏switch槽和越界action只执行两个入口callee；
-- 95个原始唯一callee中80个窄端口边界全部存在，另外15个已关闭callee全部直连；
+- 95个原始唯一callee中80个窄端口边界全部存在，另外15个`pending`的callee全部直连；
 - case 3撤退提交成功、固定警告分支和旧地址调用清零；
 - case 25攻击顺序登记直连、旧地址调用清零及记录typed-stop前缀；
 - case 7攻击顺序移除直连、一过尾源读取stop传播及旧地址调用清零；

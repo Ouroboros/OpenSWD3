@@ -6,7 +6,7 @@
 
 权威LST主体为`0x00468FF0..0x0046907F`，从proc到endp共77行、46条带机器码和真实助记符的实际指令、5个静态call、6个跳转、4个局部标签和2个返回点，没有外部`FUNCTION CHUNK`。5个callsite依次为组A完成查询、法宝成长结果选择、道具定义加载、定义临时说明释放和`lstrcpyA`标题复制。
 
-唯一静态caller位于已关闭消息阶段的消息113分支。原caller只在transition actor为`0xFF`时调用本函数；返回后重新读取actor。成功选角才继续sample、组A完成查询、`8,1`分配和法宝完全成长提示框；仍无actor则转消息102并清timer。
+唯一静态caller位于`pending`的消息阶段的消息113分支。原caller只在transition actor为`0xFF`时调用本函数；返回后重新读取actor。成功选角才继续sample、组A完成查询、`8,1`分配和法宝完全成长提示框；仍无actor则转消息102并清timer。
 
 ## 2. live组A扫描与资格门
 

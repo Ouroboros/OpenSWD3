@@ -46,7 +46,7 @@ opcode111       顺序消费              重载
 6. 把物理指针换成新窗口首地址；
 7. 发布previous110/111并同调用取新窗口首指令。
 
-现代实现复用已闭环的`load_same_file_story_window`。文件、seek、短读和窗口owner以typed失败隔离；失败保留audio、target、IP零、window invalidation和previous发布等原危险点之前的副作用，因此整体分类为`pending`。
+现代实现复用`pending`的`load_same_file_story_window`。文件、seek、短读和窗口owner以typed失败隔离；失败保留audio、target、IP零、window invalidation和previous发布等原危险点之前的副作用，因此整体分类为`pending`。
 
 ## 3. 资产锁
 

@@ -44,4 +44,4 @@
 
 纯函数测试覆盖bit7早退、三项零累计、正负系数、低16位截断、零结果强制1、通道0取负、后两通道陈旧乘积高word、三种资源、0/6/12偏移、15-call顺序、活动/非活动临时word生命周期、两类typed-stop和最终寄存器。组A帧回归覆盖共享startup owner、动态源记录解析、五callee参数、旧地址零调用和缺失startup owner停止。
 
-验证结果：定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning，app仅有既有ALSA提示。inventory连续双生成逐字节一致，稳定为`0/422 = 169 platform_adapted + 9 assembly_exact + 244 pending_audit`，SHA256为`13a1a14a300298c4f9f06163ab02ad271eb544ea92b71d33987faaf521bdfc6f`。原版组A角色对象、三项live累计、动态源记录、五个callee副作用与caller寄存器联合捕获后端缺失，动态差分登记为`pending`。
+验证结果：定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning，app仅有既有ALSA提示。inventory连续双生成逐字节一致，稳定为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`13a1a14a300298c4f9f06163ab02ad271eb544ea92b71d33987faaf521bdfc6f`。原版组A角色对象、三项live累计、动态源记录、五个callee副作用与caller寄存器联合捕获后端缺失，动态差分登记为`pending`。

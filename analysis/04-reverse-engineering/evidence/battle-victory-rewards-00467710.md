@@ -4,7 +4,7 @@
 
 ## 1. 完整权威范围
 
-权威LST主体为`0x00467710..0x00467AB9`，从proc到endp共418行、249条带机器码和真实助记符的实际指令、22个静态call、18个跳转、15个局部标签和1个返回点，没有外部`FUNCTION CHUNK`。唯一静态caller是已关闭消息阶段分派的消息100路径；原caller先压入两个未被本函数读取的零参数，返回后才发布目标选择准备门和递增timer。
+权威LST主体为`0x00467710..0x00467AB9`，从proc到endp共418行、249条带机器码和真实助记符的实际指令、22个静态call、18个跳转、15个局部标签和1个返回点，没有外部`FUNCTION CHUNK`。唯一静态caller是`pending`的消息阶段分派的消息100路径；原caller先压入两个未被本函数读取的零参数，返回后才发布目标选择准备门和递增timer。
 
 22个callsite包括动作更新1次、矩形效果1次、九宫格2次、音乐渐隐1次、全部sample停止1次、sample播放1次、组B掉落选择1个静态位置、玩家道具数量2个静态位置、组A六类业务call各1次、`wsprintfA`3次和文字绘制4次。动作、画面、音频、玩家道具、组B掉落选择和格式化已直接组合typed实现或typed平台接口；其余未审组内业务callee继续由窄端口保留。
 
@@ -56,7 +56,7 @@ profile、计数或动作标签只在原首次真实访问停止；此前callee�
 
 双方循环结束后读取奖励银币word，把位15置位并写回，再清共享transition timer。入账金额只取原word低15位，按u32回绕加到世界剧情VM `script_variables[0]`，即进程期银币唯一owner。共享变量owner缺失时，typed-stop发生在置位和清timer之后。
 
-最后直连已关闭stage推进，以`base=212,target=284,divisor=2`更新共享transition stage；signed商为零、返回精确1时才使用同一64-byte局部缓冲连续执行三次signed `%d`等价格式化和文字绘制：
+最后直连`pending`的stage推进，以`base=212,target=284,divisor=2`更新共享transition stage；signed商为零、返回精确1时才使用同一64-byte局部缓冲连续执行三次signed `%d`等价格式化和文字绘制：
 
 - `每人得到經驗值:%d`，坐标`208,220`；
 - `得到銀幣:%d`，坐标`208,240`；
@@ -66,9 +66,9 @@ profile、计数或动作标签只在原首次真实访问停止；此前callee�
 
 ## 7. owner、caller回收与验证
 
-共享双方数量、动作标签、sample mix、transition stage/timer/item count、玩家道具链、世界角色资源、组B actor/resource、secondary RNG和银币均复用既有唯一owner。新增state只承接胜利面板动作记录、十项道具编号/数量/payload、四项稀疏奖励计数、两组角色跳过字段、三项奖励word和奖励完成门。等级上限`0x004A762A`由startup唯一持有，奖励经验与升级通过既有startup引用直接读取，见[剧情等级上限接线](battle-party-level-limit-runtime-binding.md)。后续已关闭战利品清单直接消费同一item count、十项payload和u16数量，不复制展示数组；战败提示继续复用同一面板动作记录。全局重置按原写集合只清编号/数量前两项、全部十项payload和三项奖励word；未写的其余槽、稀疏计数、阈值、奖励门及角色字段保持原值。
+共享双方数量、动作标签、sample mix、transition stage/timer/item count、玩家道具链、世界角色资源、组B actor/resource、secondary RNG和银币均复用既有唯一owner。新增state只承接胜利面板动作记录、十项道具编号/数量/payload、四项稀疏奖励计数、两组角色跳过字段、三项奖励word和奖励完成门。等级上限`0x004A762A`由startup唯一持有，奖励经验与升级通过既有startup引用直接读取，见[剧情等级上限接线](battle-party-level-limit-runtime-binding.md)。后续`pending`的战利品清单直接消费同一item count、十项payload和u16数量，不复制展示数组；战败提示继续复用同一面板动作记录。全局重置按原写集合只清编号/数量前两项、全部十项payload和三项奖励word；未写的其余槽、稀疏计数、阈值、奖励门及角色字段保持原值。
 
-消息100现先直连本实现，再直连已关闭升级提示面板；旧消息100 opaque枚举槽改为reserved且生产零调用。本函数子typed-stop阻断升级面板和caller全部写入；升级面板子stop则保留已完成胜利奖励与自身画面前缀，再阻断actor-retarget、双cache、target-ready、queued和timer写入。
+消息100现先直连本实现，再直连`pending`的升级提示面板；旧消息100 opaque枚举槽改为reserved且生产零调用。本函数子typed-stop阻断升级面板和caller全部写入；升级面板子stop则保留已完成胜利奖励与自身画面前缀，再阻断actor-retarget、双cache、target-ready、queued和timer写入。
 
 定向测试覆盖双面板几何与画面停止前缀、固定CP950标题、奖励位15幂等门、音乐渐隐→sample全停→播放顺序、mix level预调用EAX、组B资源道具零值不消费RNG、固定上界20、无符号阈值与相等拒绝、signed live循环和第九对象、旧query零调用、十槽命中/新增/第十一槽停止顺序、玩家道具子stop、组A两字段精确1门、第十一对象、profile阈值、奖励/准备寄存器、组B数量3双计数、共享银币owner、三行CP950格式、全局重置物理范围、消息100正常直连与子stop传播。验证：战斗聚合定向测试、完整core AddressSanitizer `188/188`、Linux core `188/188`、Linux app `194/194`全部通过。源码构建零warning；app仅保留既有ALSA开发库环境提示。
 

@@ -18,7 +18,7 @@ LST有两个运行时callsite、两个caller：`0x0043C3C0`外置chunk在`0x0043
 
 随后严格：
 
-1. 以实时mode index直接调用已关闭`0x0043C9C0`；其按固定mode→classification映射重建entry/text/status，并清window/cursor/alias后刷新page。
+1. 以实时mode index直接调用`pending`的`0x0043C9C0`；其按固定mode→classification映射重建entry/text/status，并清window/cursor/alias后刷新page。
 2. 用window offset、原entry base与entry alias owner调用`0x0043CC00`。
 3. 调用`0x0043CBD0`刷新page。
 4. u32回绕相加offset与cursor并读取entry，调用`0x0043CEF0`。

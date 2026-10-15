@@ -132,6 +132,6 @@ source checker首`proc_4663`仅错误要求独立文档的2000带0x前缀；
 这是历史还原记录，不是本轮门禁或完整INVOKE验收。
 3eda365b根发布迁移见[链头发布](battle-actor-resource-list-commit-00470900.md)。
 
-原版资源链、输出WORD和两个caller联合捕获仍`blocked_runtime_oracle`。
+原版资源链、输出WORD和两个caller联合捕获仍`pending`。
 列表/字体/父通用参数、寄存器、计数与Port继续pending，完整SDL链及续玩未验收。
-不改变B10 0/422、Workpack316 pending_audit、B11或全项目scope=false。
+不改变B10 0/422、Workpack316 `pending`、B11或全项目scope=false。

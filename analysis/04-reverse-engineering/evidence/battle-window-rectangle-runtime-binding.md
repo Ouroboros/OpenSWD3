@@ -66,4 +66,4 @@ SDL宿主窗口矩形与Win32原窗口矩形逐值相等。核心仍保留任意
 core/ASan setup与actor_frame_316各1/1、SDL构建通过。
 新消费向量加入后，setup的core/ASan再次通过（6.16秒、7.77秒）。
 日志为`build/tmp/runtime/battle-window-rectangle-*.log`。
-未启动游戏，未新增原版动态差分；B10保持315/422，316 pending_audit。
+未启动游戏，未新增原版动态差分；B10保持0/422，316 pending。

@@ -13,7 +13,7 @@
 3. 复制interface source owner，依次allocation两块0x38 storage；本函数不清这两块malloc内容。
 4. 清primary/secondary accumulator、two totals、selection、two selection values及record head，再调用442050列表准备边界。callee可改selection/head，返回后必须重读。
 5. 清action scratch与panel offset，allocation第三块0x190 storage；原函数立即对返回地址清400字节。typed端仅在该精确memset点对token0停止；成功时清零后调用4429B0属性cache准备边界。
-6. 以调用后`party_selector.low16*16 + selection`读取7×16护驾record表，取record `+4`文本ID并直接调用已关闭B9E0发布shared text。表越界和B9E0失败均在原读取/发布点typed-stop。
+6. 以调用后`party_selector.low16*16 + selection`读取7×16护驾record表，取record `+4`文本ID并直接调用`pending`的B9E0发布shared text。表越界和B9E0失败均在原读取/发布点typed-stop。
 7. 成功后才清render/双scroll owner，写viewport extent480、previous selection -1、panel X488、Y120。EAX为B9E0 formatter返回值。
 
 新增`LegacyStandardModeGuardianInitializationState`、最小allocation/list/cache ports及`initialize_legacy_standard_mode_guardian_system`。UT覆盖party low16重置且保留high16、三次allocation与两个callee顺序、前两块不清/第三块先清、FFDC文本、最终常量、第三allocation失败、record表越界及文本typed-stop。

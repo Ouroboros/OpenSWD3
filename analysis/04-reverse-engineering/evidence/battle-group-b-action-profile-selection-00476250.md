@@ -51,7 +51,7 @@ typed实现没有用未对齐`u32*`或违反别名规则的强转，而是显式
 
 纯函数测试覆盖首个`rep stosd` actor stop、40-byte profile与派生word清零顺序、资源首次读取、完整selector等于1与低word伪相等、`+0x72/+0x76`、profile loader ABI与stop、callee EAX低byte/EDX低word拼接、mode 1低word selector、mode 2输出、输出stop和寄存器线程。
 
-inventory生成器连续双跑逐字节一致，结果为`0/422 = 238 platform_adapted + 9 assembly_exact + 175 pending_audit`，SHA256为`ab7d35841c7e125acaea17efacaebf0c0aebd14233b9a0360547dc4d9efa6095`。
+inventory生成器连续双跑逐字节一致，结果为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`ab7d35841c7e125acaea17efacaebf0c0aebd14233b9a0360547dc4d9efa6095`。
 
 动作25集成测试覆盖固定selector零、32位消息输出、mode 2、共同攻击顺序后缀、loader ABI、loader stop前缀及旧地址零调用。脚本54集成测试覆盖value B actor/value A selector纠正、返回1/0对应bit15/bit14、bit 1路径清下一状态word、bit 0路径保留下一word、攻击顺序/frame/cursor后缀、loader stop及reserved整函数零调用。
 

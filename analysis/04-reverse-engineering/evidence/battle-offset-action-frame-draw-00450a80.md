@@ -8,7 +8,7 @@
 
 cdecl五参数依次为动作号、base variant、目标X、目标Y和偏移模式selector。十个caller分布在`0x0045E6B8`、`0x0045E6ED`、`0x0045E70B`、`0x0045E743`、`0x0045E77E`、`0x0045E79B`、`0x004654A9`、`0x004654E3`、`0x00465A4A`和`0x00465A84`；前六个上下文提示callsite、`0x004654A9`/`0x004654E3`列表框callsite及`0x00465A4A`/`0x00465A84`网格列表帧callsite均已由caller直接组合typed实现，并通过唯一state port复用本函数持久状态；十个静态caller现已全部回收。静态callsite都传selector 0，但调用路径可依据原栈值传入1，完整函数保留selector精确等于1的分支。`0x0045E743`是唯一立即比较返回值1的callsite。
 
-callee依次为动作更新器`0x004321E0`、帧查询`0x004315D0`和软件blitter`0x004170E0`各一次，三者均已关闭并由typed接口直连。
+callee依次为动作更新器`0x004321E0`、帧查询`0x004315D0`和软件blitter`0x004170E0`各一次，三者均为`pending`并由typed接口直连。
 
 ## 2. 单个持久动作记录与更新门
 
@@ -112,4 +112,4 @@ C++到LST反向追溯覆盖唯一持久记录、两个入口写、更新失败�
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版动作更新后EDX、持久动作记录、帧record、共享blitter状态、结果latch和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整91行LST、十个caller和三个关闭callee的固定状态闭环已经完成。
+当前没有原版动作更新后EDX、持久动作记录、帧record、共享blitter状态、结果latch和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整91行LST、十个caller和三个关闭callee的固定状态闭环状态为`pending`。

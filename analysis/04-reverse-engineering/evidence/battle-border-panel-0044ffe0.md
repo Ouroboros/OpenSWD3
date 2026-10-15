@@ -25,7 +25,7 @@ arg14 = 32位底板颜色参数
 - 通用软件blitter`0x004170E0`八处；
 - 常量色垂直渐变包装`0x00450A50`一处。
 
-三类callee均已关闭，本函数直接组合typed接口，不保留opaque callback。
+三类callee均为`pending`，本函数直接组合typed接口，不保留opaque callback。
 
 ## 2. 共享记录与源发布
 
@@ -42,7 +42,7 @@ arg14 = 32位底板颜色参数
 
 ## 3. 4号帧预取与渐变底板
 
-函数第一步查询资源的4号帧并发布其记录与源，但不读取宽高、不绘制该帧。随后调用已关闭渐变包装：
+函数第一步查询资源的4号帧并发布其记录与源，但不读取宽高、不绘制该帧。随后调用`pending`的渐变包装：
 
 ```text
 x      = left
@@ -144,9 +144,9 @@ C++到LST：
 
 - 每次provider load对应唯一静态查询点或3/5动态循环点；
 - 每次frame draw对应唯一软件blitter call；
-- 唯一color fade对应已关闭包装call；
+- 唯一color fade对应`pending`的包装call；
 - current frame/source发布顺序对应两项旧全局写；
-- 共享blitter后缀来自已关闭callee公共尾；
+- 共享blitter后缀来自`pending`的callee公共尾；
 - 没有新增center tile、统一尺寸、自动裁边、失败跳过或坐标归一化。
 
 完整正向与反向追溯未发现未解释基本块、循环、帧索引、callee、共享写或出口。

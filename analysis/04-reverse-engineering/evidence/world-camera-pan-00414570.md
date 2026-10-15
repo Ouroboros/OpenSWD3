@@ -75,5 +75,5 @@ coordinator UT 另以 active pan 固定物理顺序：玩家 transition 后 came
 `(16,15)`。camera-pan 与 frame-coordinator 两项定向 CTest 通过；Linux core
 `185/185`、Linux app `191/191`、Windows LLVM app `191/191` 完整门禁通过，两端应用
 成功链接且未启动游戏 EXE。纯 32 位状态变换没有 unsafe pointer、外部 callback 或平台
-替代，因此 closure disposition 为 `assembly_exact`。原程序动态差分若需要，只准备
+替代，因此 closure disposition 为 `pending`。原程序动态差分若需要，只准备
 Frida spawn 工具并等待用户执行，不由开发流程启动原版。

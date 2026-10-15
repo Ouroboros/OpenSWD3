@@ -4,7 +4,7 @@
 
 ## 1. LST锁
 
-权威范围为`swd3.exe.lst`的`0x0044DA40..0x0044DA9E`，40行，无外部FUNCTION CHUNK。唯一caller为尚待审计的`0x0044E9D0`。callee `0x0044D5A0`已关闭并直接复用；三个`0x004885A0`调用由资源释放窄端口表达。
+权威范围为`swd3.exe.lst`的`0x0044DA40..0x0044DA9E`，40行，无外部FUNCTION CHUNK。唯一caller为尚待审计的`0x0044E9D0`。callee `0x0044D5A0`为`pending`并直接复用；三个`0x004885A0`调用由资源释放窄端口表达。
 
 ## 2. 严格顺序
 

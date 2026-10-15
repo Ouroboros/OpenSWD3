@@ -2,11 +2,11 @@
 
 状态：`pending`。
 
-唯一行为真值为`swd3.exe.lst`。物理范围`0x00445360..0x004453E7`，65行，无FUNCTION CHUNK。code caller为已关闭450E0输入函数；3B480另把它绑定为G08动作callback。450E0已直接回收。
+唯一行为真值为`swd3.exe.lst`。物理范围`0x00445360..0x004453E7`，65行，无FUNCTION CHUNK。code caller为`pending`的450E0输入函数；3B480另把它绑定为G08动作callback。450E0已直接回收。
 
 函数先快照selection并把lifecycle写2。selection17跳过画面索引与flag查询；其他selection把画面索引写为selection加41，且只有flag49精确等于1时互换56/57。
 
-随后以lifecycle2为secondary、前一步发布的横坐标为primary直接调用已关闭3B480。选择11..17的横坐标依次为30、36、42、48、54、60、66，恰好选择G01..G07；54/60两组会在3B480内部按原规则追加一次flag49查询。重绑后以selection原值读取FC0安装的二级初始化表索引11..17并调用目标，最后以命令187和共享sample owner播放确认音效，返回音效callee结果。
+随后以lifecycle2为secondary、前一步发布的横坐标为primary直接调用`pending`的3B480。选择11..17的横坐标依次为30、36、42、48、54、60、66，恰好选择G01..G07；54/60两组会在3B480内部按原规则追加一次flag49查询。重绑后以selection原值读取FC0安装的二级初始化表索引11..17并调用目标，最后以命令187和共享sample owner播放确认音效，返回音效callee结果。
 
 selection越界只在原二级表读取点typed-stop，保留lifecycle、画面及主回调重绑副作用；目标为0或typed初始化端口拒绝时在原间接call点停止，不播放音效。result累计本函数和3B480嵌套flag查询。
 

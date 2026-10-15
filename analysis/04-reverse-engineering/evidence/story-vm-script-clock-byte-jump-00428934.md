@@ -135,7 +135,7 @@ LST→C++：`mov al`、clock低16 mask、`ja`方向、branch-only target读取�
 
 C++→LST：初始三字节与taken target的两次bounds check分别位于原始首次value/target读取；其余比较、加载、推进和继续均可反查到上述地址。没有读取`+3`，没有新增clock写入、诊断或yield。
 
-由于taken路径使用typed资源加载/audio端口，并以checked I/O failure替代原始不安全资源边界，本handler归类为`platform_adapted`：
+由于taken路径使用typed资源加载/audio端口，并以checked I/O failure替代原始不安全资源边界，本handler归类为`pending`：
 
 ```text
 assembly_exact;unit_tested;asset_absence_verified;platform_adapted;sdl_runtime_integrated

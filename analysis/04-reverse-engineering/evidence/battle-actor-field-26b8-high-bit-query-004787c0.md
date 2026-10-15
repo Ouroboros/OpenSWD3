@@ -56,7 +56,7 @@ query、high-bit clear和high-bit set resolver解析到同一物理地址。没�
 
 ## 5. 唯一物理caller
 
-机器码全局扫描只有一条`call sub_4787C0`，位于已关闭的`sub_453200`：
+机器码全局扫描只有一条`call sub_4787C0`，位于`pending`的`sub_453200`：
 
 ```text
 004533EB  mov  eax,dword_53BD54

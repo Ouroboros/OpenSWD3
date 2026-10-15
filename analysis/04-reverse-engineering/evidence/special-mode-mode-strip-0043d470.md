@@ -4,7 +4,7 @@
 
 ## 1. LST范围与边界
 
-唯一行为真值为`swd3.exe.lst`。函数物理范围为`0x0043D470..0x0043D52F`，94行，唯一caller是已关闭`0x0043C820`的`0x0043C8DA`。直接callee为两次viewport owner `0x00416FF0`、最多多次资源record owner `0x004315D0`和资源绘制owner `0x004170E0`。
+唯一行为真值为`swd3.exe.lst`。函数物理范围为`0x0043D470..0x0043D52F`，94行，唯一caller是`pending`的`0x0043C820`的`0x0043C8DA`。直接callee为两次viewport owner `0x00416FF0`、最多多次资源record owner `0x004315D0`和资源绘制owner `0x004170E0`。
 
 C820原`prepare_frame`高层占位实际吞掉了整个D470，不对应独立frame准备callee。现删除该占位，port只保留精确的viewport、resource load和resource draw边界；循环、资源ID/variant、共享handle owner、坐标和EAX均在typed helper内。
 

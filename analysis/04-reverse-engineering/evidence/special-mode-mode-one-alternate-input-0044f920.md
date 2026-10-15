@@ -4,7 +4,7 @@
 
 ## 1. LST锁
 
-权威范围为`swd3.exe.lst`的`0x0044F920..0x0044FA3B`，174行，无外部FUNCTION CHUNK。唯一caller为`0x0044EA60`。函数自身不实现业务动作，严格按优先级tail-dispatch到已关闭E9D0、DF00、DFF0、E0C0、E1B0、E260、E330和E4A0 typed入口。
+权威范围为`swd3.exe.lst`的`0x0044F920..0x0044FA3B`，174行，无外部FUNCTION CHUNK。唯一caller为`0x0044EA60`。函数自身不实现业务动作，严格按优先级tail-dispatch到`pending`的E9D0、DF00、DFF0、E0C0、E1B0、E260、E330和E4A0 typed入口。
 
 ## 2. 优先级
 
@@ -37,7 +37,7 @@ E260减少和E330增加保留原始陈旧AL行为：
 
 ## 4. typed分派与验证
 
-每条命中路径直接调用已关闭typed helper并传递MAPS、工作区、玩家链、固定槽、掩码、容量、样本owner、运行资源和属性基线；callee停止映射为`callee_stopped`，保留其已提交前缀。
+每条命中路径直接调用`pending`的typed helper并传递MAPS、工作区、玩家链、固定槽、掩码、容量、样本owner、运行资源和属性基线；callee停止映射为`callee_stopped`，保留其已提交前缀。
 
 UT覆盖退出压过前进；phase10触发DF00；phase9跳过后继续到DFF0；分页后退phase9抑制E260后落到确认；phase8允许E260；相同陈旧低位允许E330。所有断言均验证实际被调callee的状态变化，而非只检查枚举。
 

@@ -17,7 +17,7 @@ LST有三个运行时callsite、两个caller：
 
 函数无参数并使用标准模式全局owner。LST顺序固定为：
 
-1. 以`FC974` total、`FC90C` window offset、`FC928` local cursor、`FC914` visible count调用已关闭`0x0043BB80`。
+1. 以`FC974` total、`FC90C` window offset、`FC928` local cursor、`FC914` visible count调用`pending`的`0x0043BB80`。
 2. 以当前window offset、原64项entry base和`FC920` alias owner调用`0x0043CC00`。
 3. 调用`0x0043CBD0`刷新page。
 4. 以32位回绕计算`window_offset + local_cursor`，从原entry base读取u32并调用`0x0043CEF0`。

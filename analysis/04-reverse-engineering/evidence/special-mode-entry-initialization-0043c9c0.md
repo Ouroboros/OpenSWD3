@@ -55,9 +55,9 @@ class:  0 1 2 3 4 5 6 7 8 9 13 14  0  0  0
 - local cursor `FC928`。
 - entry alias设为entry base，即typed index0。
 
-mode index不由本函数改写。最后直接调用已关闭`0x0043CBD0`；CBD0从alias0重算visible count，并以`const u32*`返回当前entry/terminator指针，保持原EAX指针契约。
+mode index不由本函数改写。最后直接调用`pending`的`0x0043CBD0`；CBD0从alias0重算visible count，并以`const u32*`返回当前entry/terminator指针，保持原EAX指针契约。
 
-record loader、classification/status数据库与token release继续由共享typed port隔离；page refresh已直接复用CBD0 typed helper，表控制流、scratch、entry/text/status owner和边界均已关闭。
+record loader、classification/status数据库与token release继续由共享typed port隔离；page refresh已直接复用CBD0 typed helper，表控制流、scratch、entry/text/status owner和边界均为`pending`。
 
 ## 5. caller纠正
 

@@ -197,7 +197,7 @@ overlay、action kind 2、decimal child、sample pan 双侧、第二记录、附
 
 当前缺少原版完整 Group-A/Group-B actor backing、异常字段页、nested-record 页、六个异常
 RET 栈页，以及两个 caller 与 callee 的联合寄存器、flags 和 SEH 捕获后端。原版动态差分登记为
-`blocked_runtime_oracle`，不得写成 `original_diff_verified`。未启动原版或 OpenSWD3 游戏程序。
+`pending`，不得写成 `original_diff_verified`。未启动原版或 OpenSWD3 游戏程序。
 
 ## 10. 历史工作包验证
 
@@ -213,7 +213,7 @@ RET 栈页，以及两个 caller 与 callee 的联合寄存器、flags 和 SEH �
 - 连续十轮 Linux core `10/10`，每轮 `199/199`；
 - 31 个物理 CALL 地址 `expected=31 / actual=31 / mismatches=0`；
 - inventory 双生成逐字节一致；
-- inventory 为 `0/422 = 305 platform_adapted + 10 assembly_exact + 107 pending_audit`；
+- inventory 为 `0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`；
 - inventory SHA-256 为
   `8f70033463b588e8a32cfdea2784c7b3142872a27a64d49bedcf51c8696858c6`；
 - 新文件全量 clang-format、历史文件 changed-range clang-format 与 `git diff --check`
@@ -224,7 +224,7 @@ RET 栈页，以及两个 caller 与 callee 的联合寄存器、flags 和 SEH �
 
 最终双向 REVIEW 未发现未映射 LST 行为，也未发现无 LST 地址或未登记平台边界的 C++
 行为。本工作包最终分类为 `pending`；原版动态差分仍仅登记为
-`blocked_runtime_oracle`。
+`pending`。
 
 LST 摘录 SHA-256：
 

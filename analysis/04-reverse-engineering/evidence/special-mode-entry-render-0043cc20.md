@@ -4,11 +4,11 @@
 
 ## 1. LST范围与caller
 
-唯一行为真值为`swd3.exe.lst`。函数物理范围为`0x0043CC20..0x0043CEE2`，324行，唯一caller是`0x0043C820`的`0x0043C978`。callee为14次原始字节文字绘制`0x00436AD0`和一次已关闭格式化文字`0x004306C0`。
+唯一行为真值为`swd3.exe.lst`。函数物理范围为`0x0043CC20..0x0043CEE2`，324行，唯一caller是`0x0043C820`的`0x0043C978`。callee为14次原始字节文字绘制`0x00436AD0`和一次`pending`的格式化文字`0x004306C0`。
 
 五个stack位置中实际只读取absolute entry index、row index、color与selected；caller压入的固定0完全未读，typed API不伪造该参数。
 
-平台port只隔离已关闭rendering owner所需的字形/帧缓冲资源。名称、百分比、详情文本选择、坐标、格式化、条件和EAX控制流均在本helper内。
+平台port只隔离`pending`的rendering owner所需的字形/帧缓冲资源。名称、百分比、详情文本选择、坐标、格式化、条件和EAX控制流均在本helper内。
 
 ## 2. 名称与百分比
 
@@ -43,7 +43,7 @@ owner = detail, color = caller color, style = 4
 
 第三个X=`0xF228`看似异常但为LST原立即数，按bug-for-bug保留，不改成`0x228`。
 
-最后读取scratch `+0xAC` u32 token，调用已关闭格式化文字owner，精确参数为token、`x=0xF2`、`y=0x150`、maximum line count5、maximum width`0x168`、style4，并返回其EAX。
+最后读取scratch `+0xAC` u32 token，调用`pending`的格式化文字owner，精确参数为token、`x=0xF2`、`y=0x150`、maximum line count5、maximum width`0x168`、style4，并返回其EAX。
 
 ## 4. typed-stop与返回联合
 

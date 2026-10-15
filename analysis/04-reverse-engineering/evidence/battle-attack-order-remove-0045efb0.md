@@ -93,4 +93,4 @@ WORD到BYTE窄化警告，调用方和SDL日志无警告/错误。
 调用方验证组A编码/索引差别、无匹配继续publication及失败后缀阻断。
 
 没有原版动态联合捕获，`original_diff_verified`仍为
-`blocked_runtime_oracle`；不据此接受B11、WP316或完整游戏路径。
+`pending`；不据此接受B11、WP316或完整游戏路径。

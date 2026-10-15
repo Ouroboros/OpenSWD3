@@ -4,9 +4,9 @@
 
 ## 1. 完整权威范围
 
-权威LST主体为`0x00467C50..0x00467EF2`，从proc到endp共260行、153条带机器码和真实助记符的实际指令、5个静态call、8个跳转、5个局部标签和1个返回点，没有外部`FUNCTION CHUNK`。唯一静态caller是已关闭消息阶段分派的消息101；原caller只在过渡角色为`0xFF`时先调用本函数，返回后重读角色，仍为`0xFF`才进入既有选角。
+权威LST主体为`0x00467C50..0x00467EF2`，从proc到endp共260行、153条带机器码和真实助记符的实际指令、5个静态call、8个跳转、5个局部标签和1个返回点，没有外部`FUNCTION CHUNK`。唯一静态caller是`pending`的消息阶段分派的消息101；原caller只在过渡角色为`0xFF`时先调用本函数，返回后重读角色，仍为`0xFF`才进入既有选角。
 
-5个callsite包括升级需求查询1次、56-byte等级资料读取2次、停止sample `0x12C`一次和播放sample `0x12B`一次。升级需求及两次等级资料读取现均直连共享LEVEL typed loader；后两次还按记录引用复用唯一队伍物品链与MON定义owner。sample停止使用固定返回EAX 1的已关闭命令语义，sample播放按live signed mix level进入typed音频边界。
+5个callsite包括升级需求查询1次、56-byte等级资料读取2次、停止sample `0x12C`一次和播放sample `0x12B`一次。升级需求及两次等级资料读取现均直连共享LEVEL typed loader；后两次还按记录引用复用唯一队伍物品链与MON定义owner。sample停止使用固定返回EAX 1的`pending`的命令语义，sample播放按live signed mix level进入typed音频边界。
 
 ## 2. live组A扫描与资格门
 

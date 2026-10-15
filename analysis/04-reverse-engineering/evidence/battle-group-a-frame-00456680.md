@@ -98,7 +98,7 @@ AI协调只在全局enable等于1、两个pending门都为0时进入：
 
 计数为0或全部terminal时走对象reset。随机callee超约定结果只在首次one-based组B对象访问处typed-stop。
 
-当前角色无两个AI标记时先播放固定sample，再扫描十槽actor queue的首个0。队列已满则不写；有空槽且queue mode等于1时，直接组合已关闭角色目标准备：向唯一已提交角色、动作workspace、动作/提交门和published actor owner发布`index+8`，按processed低byte与live group-B count决定是否从secondary RNG起点跳过已完成目标。其子typed-stop阻断本角色余下流程，旧callee token零调用。queue mode不等于1时仍把`index+8`写入空槽。
+当前角色无两个AI标记时先播放固定sample，再扫描十槽actor queue的首个0。队列已满则不写；有空槽且queue mode等于1时，直接组合`pending`的角色目标准备：向唯一已提交角色、动作workspace、动作/提交门和published actor owner发布`index+8`，按processed低byte与live group-B count决定是否从secondary RNG起点跳过已完成目标。其子typed-stop阻断本角色余下流程，旧callee token零调用。queue mode不等于1时仍把`index+8`写入空槽。
 
 ## 4. 十槽actor queue
 
@@ -124,7 +124,7 @@ AI协调只在全局enable等于1、两个pending门都为0时进入：
 - queued selection word非`0xFFFF`，且`group_b_count - processed低byte <= 1`；
 - message state为99，且独立actor-start guard word为0。
 
-随后写frame started、active actor code=`index+8`，直接组合已关闭攻击顺序插入：以类型1、值`index+8`和全1位置把队员暂存数据搬入共享18条记录首空槽，并清对应源与双尾门。旧启动callee token删除；子typed-stop保留frame started和active actor发布，阻断后续AI与最终角色尾。actor-start guard位于相邻共享地址，不能与turn-resolution word合并。
+随后写frame started、active actor code=`index+8`，直接组合`pending`的攻击顺序插入：以类型1、值`index+8`和全1位置把队员暂存数据搬入共享18条记录首空槽，并清对应源与双尾门。旧启动callee token删除；子typed-stop保留frame started和active actor发布，阻断后续AI与最终角色尾。actor-start guard位于相邻共享地址，不能与turn-resolution word合并。
 
 ## 6. 角色AI执行阶段
 
@@ -163,7 +163,7 @@ selection mode为0时遍历组B：terminal对象及已映射对象计入terminal
 1. 发布两个动作门与current actor；
 2. prepare当前角色；
 3. 查询目标低word；
-4. **直接调用已关闭`dispatch_legacy_battle_action`**，不再保留`0x004539B0` opaque端口；
+4. **直接调用`pending`的`dispatch_legacy_battle_action`**，不再保留`0x004539B0` opaque端口；
 5. 合并callee端口计数、清屏次数、循环计数与typed-stop；
 6. callee返回1才进入完成尾。
 
@@ -228,13 +228,13 @@ bit`0x4000`阶段结束后会在同一次调用重读turn word，因此成功写
 
 达到阈值时显示最终文本、清十槽队列、message state写104、turn word清零、active effect target写全1并清504字节workspace。
 
-两处turn advance都直连已关闭的回合门；其内部`0x0047172C`坐标publication现进一步直接组合typed leaf。publication fault由回合门完整传播到本函数，并在候选累计、bit标记、defeated计数、完成消息、最终尾与其他父级后缀之前返回；旧raw `0x004785C0`生产调用为零。
+两处turn advance都直连`pending`的回合门；其内部`0x0047172C`坐标publication现进一步直接组合typed leaf。publication fault由回合门完整传播到本函数，并在候选累计、bit标记、defeated计数、完成消息、最终尾与其他父级后缀之前返回；旧raw `0x004785C0`生产调用为零。
 
 ## 10. 最终尾
 
 无论普通路径如何，最后调用固定`final actor step(group_a_index,1)`。完整EAX等于1时清待执行动作提交与本函数共用的唯一activation latch，并把final selected word写`0xFFFF`。函数正常返回固定1。
 
-## 11. closed callee、端口与typed边界
+## 11. `pending` callee、端口与typed边界
 
 两个pending门分别是BFC0与BFC4，当前由动作状态的`action_pending_aux`和`selection_cache_gate_b`保存，组A/组B及调试快捷键借用同一状态。结果判定BF5C另由动作状态的`resolution_latch`保存。此前将第二pending门与结果latch合并的结论错误，已按独立地址修正；本轮验证进度见[状态区分证据](battle-selection-wait-and-result-latch-0053bfc4-0053bf5c.md)。最终尾activation latch也已回收到actor metric唯一state，由待执行动作提交置1、本函数成功尾清0、全局重置同步清0。
 
@@ -263,7 +263,7 @@ Typed-stop只位于：
 - 三处目标数量递增的实际字段读、写或RET返回访问；
 - action target首次组B对象callee；
 - resolved target零token后的word54读取；
-- 已关闭动作分派自身真实访问点。
+- `pending`的动作分派自身真实访问点。
 
 ## 12. 验证与动态差分
 
@@ -278,7 +278,7 @@ Typed-stop只位于：
 - 两处回合完成查询使用实际目标DWORD及可选结果，保留完整值、字段/RET失败顺序、前驱返回和后缀抑制；父项其它协议仍待迁移，见[回合完成查询](battle-actor-turn-completion-00478690.md)；
 - 四处空闲查询使用共享实际字段和状态/可选值，保留完整DWORD、即时读取及字段/RET失败前缀；失败时父级保留已有返回，完整父项其它协议与资源仍待迁移。当前证据见[空闲状态查询](battle-actor-idle-state-004786a0.md)；
 - 公共显示调用直接读取Group-A实际启动计数，完整WORD零/非零与门值精确1组合、失败保留前驱高EAX和观察值、显示及后缀抑制；查询协议已删除，当前证据见[启动计数查询](battle-actor-start-gate-004786d0.md)；
-- active action直接调用已关闭主分派，确认端口不再出现旧callee token并完成全cleanup；
+- active action直接调用`pending`的主分派，确认端口不再出现旧callee token并完成全cleanup；
 - action target `0xFFFF`首次组B对象typed-stop；
 - turn `0x4000→0x8000→0`同调用穿透；
 - resolved word54最大值、stale turn参数与失败尾；

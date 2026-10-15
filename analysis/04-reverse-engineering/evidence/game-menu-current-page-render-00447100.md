@@ -4,7 +4,7 @@
 
 唯一行为真值为`swd3.exe.lst`。物理范围`0x00447100..0x00447FCA`，1650行、59个内部label、73个call，无FUNCTION CHUNK。3B480把本入口写入G01第12槽，444FC0也把它写入第一个共享draw callback；无code caller。
 
-入口先检查阻断owner，随后按19/17/11、13/13/9、24/10/11组合三种颜色。模式大于等于500直接调用已关闭C820运行时渲染。低模式通过`LegacyGameMenuPageRenderOperation`窄端口表达平台帧、文字、动作和资源绘制，不泄漏裸surface或Win32字符串接口；所有模式判断、链读取、选择、滚动和owner写仍在typed函数中执行。
+入口先检查阻断owner，随后按19/17/11、13/13/9、24/10/11组合三种颜色。模式大于等于500直接调用`pending`的C820运行时渲染。低模式通过`LegacyGameMenuPageRenderOperation`窄端口表达平台帧、文字、动作和资源绘制，不泄漏裸surface或Win32字符串接口；所有模式判断、链读取、选择、滚动和owner写仍在typed函数中执行。
 
 模式2保留4372D0门：按list offset预检后直接复用B9A0，非FFDC记录写FC648 owner 0x100并切模式4。进度差夹到5用于进度绘制；原始差值4最终写布局owner43。三个选择项保留31到35、35..38递增及越界回当前selection的循环。可见记录逐节点绘制名称、数量、type颜色和选择框；当前记录读取预检后直接复用B9C0。低两个transition nibble仅在进度至少4时逐级递减并生成scroll effect。
 

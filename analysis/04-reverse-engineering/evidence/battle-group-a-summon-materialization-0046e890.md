@@ -32,4 +32,4 @@ action15首帧从共享状态取得召唤索引，以对应组A角色token和`0x
 
 纯函数测试覆盖正常三callee顺序、41-dword清零、双份源复制、全部资料字段投影、9-byte非对齐复制、角色别名token、ECX高低word组合、零角色编号诊断，以及分配、角色owner、源记录和基础记录四类首次访问停止。caller回归覆盖action15共享owner直连、实际召唤索引、资料加载参数、旧调用零次、phase仅在成功后推进、固定诊断五参数和缺失owner前缀。
 
-定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码零warning。inventory生成器连续双跑逐字节一致，正式计数为`0/422 = 166 platform_adapted + 9 assembly_exact + 247 pending_audit`，SHA256为`1f0a60ebecb5d6c5a137cdf799c36d78f0f6372dc7c020c8a7a0374b277fda3d`。原版完整组A对象、0xA4资料、mon.dat加载/动态文字释放、诊断窗口和action15寄存器联合捕获后端缺失，`original_diff_verified`登记为`pending`。
+定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码零warning。inventory生成器连续双跑逐字节一致，正式计数为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`1f0a60ebecb5d6c5a137cdf799c36d78f0f6372dc7c020c8a7a0374b277fda3d`。原版完整组A对象、0xA4资料、mon.dat加载/动态文字释放、诊断窗口和action15寄存器联合捕获后端缺失，`original_diff_verified`登记为`pending`。

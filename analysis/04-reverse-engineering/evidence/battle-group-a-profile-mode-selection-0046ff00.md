@@ -36,4 +36,4 @@ actor profile mode与identity继续放在第184项每actor动作执行owner；pr
 
 单元测试覆盖首actor typed-stop、两项跳过、物品效果、重复identity、状态bit直接选择、确定阈值选择、计数小于8、随机AX等于5和高word非零低word6成功，并逐项断言profile mode、计数、identity与EAX/ECX/EDX。
 
-验证结果：定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning，app仅有既有ALSA提示。inventory连续双生成逐字节一致，稳定为`0/422 = 176 platform_adapted + 9 assembly_exact + 237 pending_audit`，SHA256为`5bbcff8346c51a72f94294b4442da14e3e6d9b8edc606d85c076f0f4ab96c866`。原版组A actor状态、共享随机计数、随机callee及第187项caller寄存器联合捕获后端缺失，动态差分登记为`pending`。
+验证结果：定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning，app仅有既有ALSA提示。inventory连续双生成逐字节一致，稳定为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`5bbcff8346c51a72f94294b4442da14e3e6d9b8edc606d85c076f0f4ab96c866`。原版组A actor状态、共享随机计数、随机callee及第187项caller寄存器联合捕获后端缺失，动态差分登记为`pending`。

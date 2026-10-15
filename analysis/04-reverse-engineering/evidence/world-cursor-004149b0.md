@@ -90,6 +90,6 @@ Clang `app` 163/163、Windows LLVM `app` 163/163 CTest 均通过，Windows 应�
 
 原 DIK/鼠标/动作/TSW/blitter globals 与裸 frame 指针改由 frame input、owned action、typed
 ports 和受检 frame piece 承担；有效路径的门、回绕、helper 分支、live reload 与绘制顺序
-不变，因此 closure disposition 为 `platform_adapted`。Linux core `185/185`、Linux app
+不变，因此 closure disposition 为 `pending`。Linux core `185/185`、Linux app
 `191/191`、Windows LLVM app `191/191` 完整门禁通过，两端应用成功链接且未启动游戏
 EXE。尚未取得原程序同帧 framebuffer 差分，因此不是 `original_diff_verified`。

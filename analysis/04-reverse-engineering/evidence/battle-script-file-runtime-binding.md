@@ -64,4 +64,4 @@ case1不再用关闭前缓存的cursor，已有窗口释放后从0加4。
   日志前缀`build/tmp/runtime/battle-script-file-final-`。
 
 完整正反向审查发现并修正了seek后目的地址重读和case1旧游标缓存差异。
-未运行游戏、未新增原版动态差分；B10仍315/422，316 pending_audit。
+未运行游戏、未新增原版动态差分；B10仍0/422，316 pending。

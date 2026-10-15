@@ -36,7 +36,7 @@
 72 个 `0x21C` 槽在现代 owner 中拆成 64 个 active slot 与 8 个 party slot；
 `LegacyWorldObjectSlot` 默认构造及 `reset_legacy_world_object_slot` 均写满 `0xFF`，而
 `LegacyWorldFrameCoordinatorState` 重建同时覆盖这两组。有效状态的释放、清零和后续地图
-物化结果不变，因此 closure disposition 为 `platform_adapted`。
+物化结果不变，因此 closure disposition 为 `pending`。
 
 ## 3. 验证
 

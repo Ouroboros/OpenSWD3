@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-唯一行为真值为`swd3.exe.lst`。物理范围`0x00445210..0x004452AB`，74行，无FUNCTION CHUNK。code caller为已关闭450E0输入函数；3B480另把它绑定为G08动作callback。450E0已直接回收。
+唯一行为真值为`swd3.exe.lst`。物理范围`0x00445210..0x004452AB`，74行，无FUNCTION CHUNK。code caller为`pending`的450E0输入函数；3B480另把它绑定为G08动作callback。450E0已直接回收。
 
 函数把selection按u16预减并立即写回。预减结果无符号小于等于10时夹为11；其余值保持，包括0预减后的FFFF。最终selection乘6再减36，低16位同时发布到两份坐标owner；画面索引写为selection加41。
 

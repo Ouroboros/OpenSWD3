@@ -13,7 +13,7 @@
 
 权威函数为`0x0045ADF0..0x0045AF8E`，从proc到endp完整186行、11个静态call站点、7个`loc_`标签，无外部FUNCTION CHUNK。8个唯一callee。
 
-唯一静态caller为已关闭组A帧`0x00456680`。caller已删除本函数opaque token，并在动作完成清理后直接组合typed战后目标重排。
+唯一静态caller为`pending`的组A帧`0x00456680`。caller已删除本函数opaque token，并在动作完成清理后直接组合typed战后目标重排。
 
 ## 2. 入口门与目标token
 

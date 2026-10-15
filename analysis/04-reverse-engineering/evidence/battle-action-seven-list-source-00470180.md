@@ -40,13 +40,13 @@ LST另有41处直接`call sub_478710`；核对各站前置压栈和寄存器来�
 
 JS合成代理测试通过，Python记录器22项通过，Windows**自有PE**完整代理探针两种模式均通过：无列表钩子时32次父调用及24次嵌套调用；开启三个新增钩子时同样是32/24，另有1份完整自有节点、1次profile入口/出口/游标、1次自有动作7setter，四物理父site各8次，采样site各2组。两种模式中的CPU现场和节点字节都由自有PE构造，不能作为原版差分。v5便携包的68件构建及`--self-test`通过，包内代理/桥/README与当前源码逐字节一致；包清单保留于`build/workpack316/v5-package-files.sha256`，**不代表VM原版资产身份**。
 
-仓库包装器`./build.sh core --test`、`./build-asan.sh --test`、`./build.sh app --test`已分别200/200、200/200、206/206通过，对应日志为`build/tmp/runtime/wp316-v5-{core,asan,app}-gate.log`；局部门禁不升级316状态。发布工具时还没有v5原版run；后续获得的限定原版回传见第4节，但仍无实际选择到动作7、两个缺失父CALL或同输入深层CPU复放证据。首次人工操作已按`AGENTS.md`12.1节经专门TG及聊天双渠道说明，用户未被要求盲选技能；后续通知按独立编号步骤列出。Workpack316仍`pending_audit`、0/422，不进入317。
+仓库包装器`./build.sh core --test`、`./build-asan.sh --test`、`./build.sh app --test`已分别200/200、200/200、206/206通过，对应日志为`build/tmp/runtime/wp316-v5-{core,asan,app}-gate.log`；局部门禁不升级316状态。发布工具时还没有v5原版run；后续获得的限定原版回传见第4节，但仍无实际选择到动作7、两个缺失父CALL或同输入深层CPU复放证据。首次人工操作已按`AGENTS.md`12.1节经专门TG及聊天双渠道说明，用户未被要求盲选技能；后续通知按独立编号步骤列出。Workpack316仍`pending`、0/422，不进入317。
 
 ### 未确认执行路径的显式边界
 
 当前C++战斗动作分派在内部case7的两个`sub_479850`调用点：组B`0x4554F6`及对手组A`0x45650F`，若没有对应`caller_snapshot`，抛出含`NOTIMPLEMENTED:`的`std::logic_error`，不再凭不受原版验证的opaque port回包推进父函数完成后缀。受控宿主后缀测试须绑定物理caller模型的父栈快照、actor owner与必要子端口；合成入口与回复不能作为原版运行证据。缺失原版case7现场时不填充上游来源；已绑定快照的typed-stop路径保持不变。此安全边界不解决内部动作7的真实来源、运行期节点物化历史、同run原版深层回复或316最终验收；如实际生产命中未绑定路径，应取得当次现场后再实现，不以猜测填充。
 
-旧合成回包回归测试改为提供显式父栈快照和子端口，仍只验证受控物理后缀；新增两条缺绑定快照时的`NOTIMPLEMENTED`断言，并核`0x479850`旧port零调用及父后缀未发生。首轮core在动作全集旧合成循环触发预期新抛错，仅199/200；改造这两处循环后，最终稳定源码Linux core/ASan各200/200、app206/206、Windows core200/200、app206/206均实际通过。Windows首次全量core曾受此前已关闭奖励百分比的x87精度差异阻断，另获用户允许修复，详情见[`battle-group-a-reward-profile-application-0046f5b0.md`](battle-group-a-reward-profile-application-0046f5b0.md)。最终五门日志`build/tmp/runtime/wp316-action7-x87-final-five-gates.log`，SHA-256 `460940679c8db97aee357df9a6e0fd88b7ce17ed1fd7719e0dd06cd787db6ed3`；局部通过不升级316状态。
+旧合成回包回归测试改为提供显式父栈快照和子端口，仍只验证受控物理后缀；新增两条缺绑定快照时的`NOTIMPLEMENTED`断言，并核`0x479850`旧port零调用及父后缀未发生。首轮core在动作全集旧合成循环触发预期新抛错，仅199/200；改造这两处循环后，最终稳定源码Linux core/ASan各200/200、app206/206、Windows core200/200、app206/206均实际通过。Windows首次全量core曾受此前`pending`的奖励百分比的x87精度差异阻断，另获用户允许修复，详情见[`battle-group-a-reward-profile-application-0046f5b0.md`](battle-group-a-reward-profile-application-0046f5b0.md)。最终五门日志`build/tmp/runtime/wp316-action7-x87-final-five-gates.log`，SHA-256 `460940679c8db97aee357df9a6e0fd88b7ce17ed1fd7719e0dd06cd787db6ed3`；局部通过不升级316状态。
 
 ## 4. v5原版限定回传：列表节点存在，但未观察动作7
 

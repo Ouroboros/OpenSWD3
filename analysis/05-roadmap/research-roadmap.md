@@ -37,19 +37,19 @@
 
 重点函数：
 
-- 已闭环 `sub_423400` 像素格式选择链、四条 forward 公式与当前 CM 缓存的 RGB565 实证
-- 已闭环 `sub_416D90/sub_4170E0` 的 43 个稀疏槽、RLE/span 物理命令和原始矩形选择方向
-- 已闭环普通 copy、饱和加减、覆盖调色、run 边缘、常量覆盖、灰度、邻像素涂抹、`0x14` 的 16 档项式和 `0x1C` RLE 纵向淡出
-- 已闭环 `0x08` 的逐像素 coverage composite、原始常量淡出和正反向特殊 run；当前 TSW/ACT 资产链没有 coverage 生产者或 mode `0x08` 命令，RLE 路径不可达
+- `pending`的 `sub_423400` 像素格式选择链、四条 forward 公式与当前 CM 缓存的 RGB565 实证
+- `pending`的 `sub_416D90/sub_4170E0` 的 43 个稀疏槽、RLE/span 物理命令和原始矩形选择方向
+- `pending`的普通 copy、饱和加减、覆盖调色、run 边缘、常量覆盖、灰度、邻像素涂抹、`0x14` 的 16 档项式和 `0x1C` RLE 纵向淡出
+- `pending`的 `0x08` 的逐像素 coverage composite、原始常量淡出和正反向特殊 run；当前 TSW/ACT 资产链没有 coverage 生产者或 mode `0x08` 命令，RLE 路径不可达
 - 已恢复 `0x0C/0x20` 的 10.10 行选择、逐行横移、顶部裁剪差异和静态调用条件；正常生产链不产生 `0x004CDC00` 指针，动态 `0x20` bit 1 恒零，空指针/空槽只保留为强制异常状态合同
-- 已闭环 `sub_420490–sub_4207E0` 与 `sub_421FB0`：三/单通道有符号偏移、双 lane packed 运算、overflow-to-zero 双输入查表、除以四灰度、无效计数边界和全部 50 个直接调用
-- 已闭环 `sub_435240–sub_436F66` 的 `細明體` GDI 生产、固定 64×64 surface/物理 pitch、非零阈值 1-bit 缓存、原始一/二字节协议和五种软件 footprint；跨平台确定性 glyph-mask oracle/字形源仍待选定
-- 已闭环游戏软件 surface、实测 pitch/行偏移、19 条 Lock 后发布地址再立即 Unlock 的全局帧地址路径，以及固定 640×480 操作并存的合同
+- `pending`的 `sub_420490–sub_4207E0` 与 `sub_421FB0`：三/单通道有符号偏移、双 lane packed 运算、overflow-to-zero 双输入查表、除以四灰度、无效计数边界和全部 50 个直接调用
+- `pending`的 `sub_435240–sub_436F66` 的 `細明體` GDI 生产、固定 64×64 surface/物理 pitch、非零阈值 1-bit 缓存、原始一/二字节协议和五种软件 footprint；跨平台确定性 glyph-mask oracle/字形源仍待选定
+- `pending`的游戏软件 surface、实测 pitch/行偏移、19 条 Lock 后发布地址再立即 Unlock 的全局帧地址路径，以及固定 640×480 操作并存的合同
 - 已穷举 32 个 DirectDraw Blt 和 21 个 primary 提交：18 个 NULL RECT、两个战斗动态矩形、一个 Bink `{0,0,639,479}` 固定矩形；原 7 个地址仅为稳态分支代表
 - 已确认当前唯一初始化选择 `0x4E22`、`640×480×16` 独占全屏；普通 cooperative 辅助 surface 分支当前不可达；`sub_437AE0` 仅是显示恢复循环
-- 已闭环 256-byte 键盘快照、20 条候选/18 条活动归一化记录、四字段状态机、严格 `>150` 的连按链、左键倒计时清零与 451 次静止采样门槛
+- `pending`的 256-byte 键盘快照、20 条候选/18 条活动归一化记录、四字段状态机、严格 `>150` 的连按链、左键倒计时清零与 451 次静止采样门槛
 - 已确认中央状态机没有统一 repeat：方向、菜单/商店和战斗消费者使用不同采样计数谓词，部分分支还保留汇编中的旧 AL 奇偶依赖；77 个 raw query 和 5 个合成 raw-key 写入已目录化
-- 已闭环三条 `timeGetTime`、八条 CRT `time`、0/35/70 interval、无符号回绕、拒绝帧 busy poll、接受后不 catch-up、27 个 Sleep 和九类关键等待；当前 EXE 没有多媒体 timer callback API
+- `pending`的三条 `timeGetTime`、八条 CRT `time`、0/35/70 interval、无符号回绕、拒绝帧 busy poll、接受后不 catch-up、27 个 Sleep 和九类关键等待；当前 EXE 没有多媒体 timer callback API
 - 已固定 19 个原程序动态探针、11 类产物和 EXE/DLL/asset/PE 基线；当前工作区没有 Wine/Windows 调试执行后端，实际 framebuffer/glyph/Bink/time 样本待旧参考环境捕获，静态逆向继续推进
 
 完成条件：选定截图可由独立算法逐像素复现；固定设备采样与时钟序列可复现相同输入边沿和 repeat。

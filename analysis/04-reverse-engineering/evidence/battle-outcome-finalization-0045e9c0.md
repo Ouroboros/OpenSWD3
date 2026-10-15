@@ -6,13 +6,13 @@
 
 权威LST完整主体为`0x0045E9C0..0x0045EA26`，从`proc`到`endp`共53行、35条实际指令、2个call、4个跳转、4个局部标签，没有外部`FUNCTION CHUNK`。
 
-两个call都指向已关闭玩家道具双数量步进`0x0045D180`。直接caller只有战斗结果判定`0x0045E580`两处：组A路径在暂停音频后调用，组B路径在全帧暗化精确返回1后调用。
+两个call都指向`pending`的玩家道具双数量步进`0x0045D180`。直接caller只有战斗结果判定`0x0045E580`两处：组A路径在暂停音频后调用，组B路径在全帧暗化精确返回1后调用。
 
 ## 2. 两项玩家奖励与陈旧EAX高word
 
 函数入口只保存ESI，不初始化EAX。ESI从固定奖励区首地址开始，以2字节递增，到首地址加4为止，因此精确处理两个u16奖励ID。
 
-每槽执行`mov ax,[esi]`：只替换EAX低word，完整高word保留。AX为0时跳过callee，当前完整EAX继续成为下一槽的陈旧高word；AX非零时以参数`(完整EAX, 0)`调用已关闭玩家道具双数量步进，callee完整返回token又成为下一槽高word来源。该高word会继续传入道具定义初始化callee，不能在typed边界截成单纯u16。
+每槽执行`mov ax,[esi]`：只替换EAX低word，完整高word保留。AX为0时跳过callee，当前完整EAX继续成为下一槽的陈旧高word；AX非零时以参数`(完整EAX, 0)`调用`pending`的玩家道具双数量步进，callee完整返回token又成为下一槽高word来源。该高word会继续传入道具定义初始化callee，不能在typed边界截成单纯u16。
 
 第一callee可改写第二奖励槽，因此第二次在实际循环读取点重新观察live奖励ID。玩家道具head、节点、两项u16数量、分配发布顺序与selector零路径直接复用唯一世界道具链状态。
 
@@ -42,7 +42,7 @@ callee返回后按原顺序：
 
 ## 5. 单一typed owner与caller回收
 
-奖励槽前缀word、两项奖励ID和结果完成双word由唯一`LegacyBattleOutcomeFinalizationStatePort`持有。已关闭奖励道具槽写入`0x0045EC60`的物理索引1/2直接发布这两项ID，索引0发布同state的前缀word；本函数live消费并只清两项ID。全局重置只清原写集合覆盖的结果完成低/高word，不清奖励槽前缀和玩家奖励ID。
+奖励槽前缀word、两项奖励ID和结果完成双word由唯一`LegacyBattleOutcomeFinalizationStatePort`持有。`pending`的奖励道具槽写入`0x0045EC60`的物理索引1/2直接发布这两项ID，索引0发布同state的前缀word；本函数live消费并只清两项ID。全局重置只清原写集合覆盖的结果完成低/高word，不清奖励槽前缀和玩家奖励ID。
 
 组B数量复用`LegacyBattleActorMetricStatePort`唯一存储。战斗启动旧`value_53c4b0`重复副本已删除，启动初始化和全局重置都直接清同一metric数量。固定奖励继续复用唯一玩家道具链，不建立战斗私有inventory。
 

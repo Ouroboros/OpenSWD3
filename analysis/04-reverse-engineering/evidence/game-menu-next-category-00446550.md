@@ -4,7 +4,7 @@
 
 唯一行为真值为`swd3.exe.lst`。物理范围`0x00446550..0x00446665`，141行，无FUNCTION CHUNK。3B480保存callback地址，无code caller。
 
-模式snapshot大于等于500时直接复用已关闭C760运行时mode推进。模式2在selection31时只发布selection；其余路径写viewport480、清FC648，调用4482E0记录清理，分类无符号递增并在精确等于7时回绕0，再调用448230重建、播放46，并由B9C0/B9E0更新当前文本。记录清理/初始化和链/文本停止均保留原始前缀。
+模式snapshot大于等于500时直接复用`pending`的C760运行时mode推进。模式2在selection31时只发布selection；其余路径写viewport480、清FC648，调用4482E0记录清理，分类无符号递增并在精确等于7时回绕0，再调用448230重建、播放46，并由B9C0/B9E0更新当前文本。记录清理/初始化和链/文本停止均保留原始前缀。
 
 模式5写动作1；模式10无符号递增后以signed边界夹到`outer_count-1`，count0保留FFFFFFFF；模式11写列1；模式15直接复用BB80推进二级cursor，不写transition。普通路径最终发布selection。
 

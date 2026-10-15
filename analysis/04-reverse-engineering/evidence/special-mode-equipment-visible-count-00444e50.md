@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-唯一行为真值为`swd3.exe.lst`。物理范围`0x00444E50..0x00444E73`，29行，无FUNCTION CHUNK。callers为已关闭`0x00443670`、`0x004437C0`和待审`0x00444E80`。
+唯一行为真值为`swd3.exe.lst`。物理范围`0x00444E50..0x00444E73`，29行，无FUNCTION CHUNK。callers为`pending`的`0x00443670`、`0x004437C0`和待审`0x00444E80`。
 
 入口读取窗口链`visible_record_head`，无条件把`visible_record_count`清零。只要当前节点非空且count小于24，就先递增并发布count，再沿offset0 next推进。返回值严格为计数停止处的节点：短链/空链为null，至少25项时为第25项节点；不改链。
 

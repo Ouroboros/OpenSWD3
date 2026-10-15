@@ -16,9 +16,9 @@
 4. 在`(x-108,y-46)`以资源u16宽高、flags0、auxiliary0 blit。
 5. 向64字节全局缓冲读取对象文字。
 6. 用`CharNextA`逐字符前进；步长恰为1且当前byte按i8为负时替换为`@`。
-7. 直接用已关闭RGB owner计算`(21,15,8)`的双lane颜色；在原`destination owner,(x,y),style4`绘制原始字节文字。
+7. 直接用`pending`的RGB owner计算`(21,15,8)`的双lane颜色；在原`destination owner,(x,y),style4`绘制原始字节文字。
 8. 读取对象文字metric，并用32位回绕计算`x + 11*metric`。
-9. 调用已关闭矩形效果边界：`(x+11*metric,y,11,22,20,13,0,5)`；其返回值原样作为函数返回。
+9. 调用`pending`的矩形效果边界：`(x+11*metric,y,11,22,20,13,0,5)`；其返回值原样作为函数返回。
 
 ## 3. 字节合同
 

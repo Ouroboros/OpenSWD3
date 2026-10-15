@@ -84,7 +84,7 @@ LST→C++：完整32位copy、固定IP+2、`ESI=1`与common previous join均有�
 
 C++→LST：case没有新增operand check、callback、yield、clock/frame-counter写入或平台分支。所有valid-domain行为都由typed内存owner直接表达。
 
-本handler不需要平台替代，归类为`assembly_exact`：
+本handler不需要平台替代，归类为`pending`：
 
 ```text
 assembly_exact;unit_tested;asset_absence_verified;sdl_runtime_integrated

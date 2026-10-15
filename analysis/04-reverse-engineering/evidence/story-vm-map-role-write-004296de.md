@@ -135,4 +135,4 @@ same-call fetch
 
 LST→实现 REVIEW 修正了一处初版差异：opcode62不得直接 yield，必须设置同调用继续。修正后再次逐段对照 `0x004296DE..0x00429A16`、`sub_40D460`、`sub_40D560`、`sub_40F280`、空间 helper 与四槽 emitter 布局，未发现剩余有效域差异。
 
-分类：`pending`。原版可运行动态差分仍为 `pending`；静态 LST、typed owner、真实资产和现代运行时测试已闭环。
+分类：`pending`。原版可运行动态差分仍为 `pending`；静态 LST、typed owner、真实资产和现代运行时测试为`pending`。

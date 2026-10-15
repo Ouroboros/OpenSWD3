@@ -4,7 +4,7 @@
 
 唯一行为真值为`swd3.exe.lst`。物理范围`0x004429B0..0x00442A36`，67行，无FUNCTION CHUNK。
 
-callers共十一项：40630、407F0、40B20、40C20、40D20、40E10、40F00、40FB0、41060、41160、41590。全部已关闭owner现均直接调用typed helper；原`prepare_guardian_attribute_cache`及`invoke_guardian_selection/input(refresh_attribute_cache)`端口调用均已移除。结果中的last_target只作为原调用位置trace，不触发opaque callback。
+callers共十一项：40630、407F0、40B20、40C20、40D20、40E10、40F00、40FB0、41060、41160、41590。全部`pending`的owner现均直接调用typed helper；原`prepare_guardian_attribute_cache`及`invoke_guardian_selection/input(refresh_attribute_cache)`端口调用均已移除。结果中的last_target只作为原调用位置trace，不触发opaque callback。
 
 ## 七步顺序
 

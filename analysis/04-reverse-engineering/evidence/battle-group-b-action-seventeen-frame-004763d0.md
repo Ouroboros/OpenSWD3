@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-来源：`swd3.exe.lst`完整函数体、唯一caller `0x00455D60`、已关闭动作记录更新`0x004321E0`、帧查询`0x004315D0`、软件blitter `0x004170E0`及音频命令证据。完整LST是唯一行为真值；IDA名称、反编译输出、旧证据和测试只用于导航。
+来源：`swd3.exe.lst`完整函数体、唯一caller `0x00455D60`、`pending`的动作记录更新`0x004321E0`、帧查询`0x004315D0`、软件blitter `0x004170E0`及音频命令证据。完整LST是唯一行为真值；IDA名称、反编译输出、旧证据和测试只用于导航。
 
 ## 1. 完整主体、调用边与ABI
 
@@ -28,7 +28,7 @@ caller只在调用前执行`mov ecx, esi`，因此入口只有组B source actor�
 0x00485650  1 call  已有窄音频声像命令
 ```
 
-已关闭callee直接使用typed接口；`0x00478600` current-coordinate query与`0x004785C0` coordinate publication均直接组合typed leaf，音频继续使用窄端口，不重新引入两个坐标整函数opaque边界。
+`pending`的callee直接使用typed接口；`0x00478600` current-coordinate query与`0x004785C0` coordinate publication均直接组合typed leaf，音频继续使用窄端口，不重新引入两个坐标整函数opaque边界。
 
 ## 2. 倒计时完成门
 
@@ -49,11 +49,11 @@ caller只在调用前执行`mov ecx, esi`，因此入口只有组B source actor�
 2. 动作记录`+0x00`写actor `+0x2A0C`的u16 profile值并零扩展。
 3. 动作记录`+0x08`写固定variant `0x24`。
 4. 动作记录`+0x90`先写零；actor `+0x2AD0`完整dword等于一时再写一。
-5. 调用已关闭动作记录更新。
+5. 调用`pending`的动作记录更新。
 
 动作更新返回完整零时，函数立即返回完整`EAX=1`。更新callee内部可按既有合同重置动作记录字段；本函数不在返回前恢复这些字段。该早退不查询帧、不访问坐标、不递减倒计时。
 
-更新非零后，把动作记录`+0x4A/+0x4C`两个u16键传给已关闭帧查询。查询callee最终只消费两个参数低word，因此caller在`mov ax`与`mov dx`中保留的高word不改变查询键。返回描述符token写入actor `+0x254C`；typed核心用`actor_token + 0x254C`作为非空描述符身份，并由`LegacyFramePiece`承载真实source、辅助色板及u16宽高。空描述符写零，但直到原版首次实际解引用位置才typed-stop。
+更新非零后，把动作记录`+0x4A/+0x4C`两个u16键传给`pending`的帧查询。查询callee最终只消费两个参数低word，因此caller在`mov ax`与`mov dx`中保留的高word不改变查询键。返回描述符token写入actor `+0x254C`；typed核心用`actor_token + 0x254C`作为非空描述符身份，并由`LegacyFramePiece`承载真实source、辅助色板及u16宽高。空描述符写零，但直到原版首次实际解引用位置才typed-stop。
 
 帧查询后固定发布：
 
@@ -116,7 +116,7 @@ X/Y减法按u32回绕后解释为i32。宽高只零扩展u16。第六参数是�
 - actor动作记录、profile、倒计时、frame token、位置、镜像mode、render flags、target offset、sample word和latch复用`LegacyBattleGroupAActionExecutionState`。
 - 组B actor物理槽继续由`LegacyBattleStartupState::group_b_lifecycle`唯一拥有。
 - 共享frame source复用`LegacyBattleGroupAActionExecutionSharedState`。
-- 动作更新、帧查询和软件blitter复用已关闭typed实现。
+- 动作更新、帧查询和软件blitter复用`pending`的typed实现。
 - raster、framebuffer、共享blitter request/effect和row jitter均借用既有渲染owner。
 
 新增typed-stop仅位于原版实际访问或平台调用边：
@@ -148,7 +148,7 @@ caller严格比较typed结果完整`return_eax`：
 
 历史验证为战斗聚合定向测试、完整core AddressSanitizer `188/188`、Linux core `188/188`、Linux app `194/194`全部通过。Workpack 287 REVIEW 3回收本函数坐标publication caller；Workpack 288 REVIEW 3再回收`0x00476544` current-coordinate caller，使目标工作包达到`caller_reclaimed:21/21`，并通过定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`、Linux app `205/205`与连续十轮core。
 
-原版组B actor、动作记录流、帧描述符、音频返回寄存器、坐标callee、软件blitter共享状态及唯一caller后缀的联合捕获后端仍缺失，因此动态差分为`blocked_runtime_oracle`。所需最小回放记录为：
+原版组B actor、动作记录流、帧描述符、音频返回寄存器、坐标callee、软件blitter共享状态及唯一caller后缀的联合捕获后端仍缺失，因此动态差分为`pending`。所需最小回放记录为：
 
 ```text
 actor_index

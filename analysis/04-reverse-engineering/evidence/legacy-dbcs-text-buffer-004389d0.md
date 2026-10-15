@@ -104,4 +104,4 @@ C++ 对象用宿主指针宽度表达缓冲所有权，不承诺仍是 x86 的�
 
 Windows LLVM `core-debug` 与 `app-debug` 均完成构建和 28/28 CTest；`app-debug` 同时重新链接 `build/app/src/platform/sdl3/Debug/openswd3.exe`。本单元尚未接入当前占位应用的业务调用路径，因此没有把应用启动 smoke 冒充文本对象运行验证。
 
-当前没有可运行的原程序输入对象状态捕获后端，不能把汇编复核、Win32 API 探针、真实静态字节和 UT 升级为 `original_diff_verified`；该项继续标记 `blocked_runtime_oracle`。
+当前没有可运行的原程序输入对象状态捕获后端，不能把汇编复核、Win32 API 探针、真实静态字节和 UT 升级为 `original_diff_verified`；该项继续标记 `pending`。

@@ -16,7 +16,7 @@
 
 ABI为thiscall：ECX是战斗绘制owner，唯一栈参数是旧DirectDraw owner，callee清栈并`retn 4`。唯一caller是战斗初始化`0x00451B10`，调用后立即写入固定值，旧EAX残值不被消费。
 
-直接callee为跨模块getter，以及已关闭surface行表重建`0x00433E90`、矩形`0x004342E0`和主行表重建`0x00433E20`。
+直接callee为跨模块getter，以及`pending`的surface行表重建`0x00433E90`、矩形`0x004342E0`和主行表重建`0x00433E20`。
 
 ## 2. getter字段职责
 
@@ -58,7 +58,7 @@ B11复核撤销了此前“交换宽高并使用原始pitch”的错误结论。
 
 ## 4. 申请失败与typed-stop
 
-两个行表callee已关闭，故障语义直接继承且不经opaque callback：
+两个行表callee为`pending`，故障语义直接继承且不经opaque callback：
 
 - surface普通申请失败：旧surface元数据保留，仍执行矩形与主行表重建；
 - surface容量不足：只在原首次越界行表写点typed-stop，保留新surface元数据和写入前缀，不执行矩形或主行表；
@@ -96,7 +96,7 @@ LST到C++：
 C++到LST：
 
 - getter只复制两个已证明字段；
-- 三个已关闭battle callee各有唯一直接调用点；
+- 三个`pending`的battle callee各有唯一直接调用点；
 - surface参数、矩形四参数和主表固定参数均有逐项来源；
 - 两个typed-stop只落在所属callee原写点；
 - 没有新增宽度读取、尺寸归一化、矩形修正、重试或后缀伪造。

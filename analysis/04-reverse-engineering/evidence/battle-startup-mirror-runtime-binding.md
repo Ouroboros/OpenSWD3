@@ -42,4 +42,4 @@ setup中的`mirrored`只描述其坐标是否已镜像，不作为状态真值�
 core setup 1/1（5.83秒）、ASan setup 1/1（8.88秒）及SDL构建通过。
 本批构建日志无警告、测试失败或sanitizer错误；日志位于
 `build/tmp/runtime/battle-startup-mirror-{core,asan,sdl}.log`。
-未启动游戏，未取得本批原版动态差分；B10仍315/422，316 pending_audit。
+未启动游戏，未取得本批原版动态差分；B10仍0/422，316 pending。

@@ -13,14 +13,14 @@
 5. 写window offset0、local selection0、current head。
 6. BC90以limit16写bounded count并返回bounded node指针。
 
-F080与F0D0现直接复用已关闭typed helper；D5D0保持最小typed port，B980与BC90直接复用已关闭helper。F000结果区分是否分配fallback，并保留BC90指针返回联合。
+F080与F0D0现直接复用`pending`的typed helper；D5D0保持最小typed port，B980与BC90直接复用`pending`的helper。F000结果区分是否分配fallback，并保留BC90指针返回联合。
 
 ## 2. caller回接
 
 原typed代码曾把F000整体压成`initialize_*forward_list`单port，并由caller重复或遗漏owner写入。本工作包删除该合并边界：
 
 - D530在动作/phase owner初始化后直接调用F000，不再重复B980/BC90。
-- E080/E170在page回绕后直接调用F000；随后以F000新count/head执行已关闭BCC0、F880及F1E0。
+- E080/E170在page回绕后直接调用F000；随后以F000新count/head执行`pending`的BCC0、F880及F1E0。
 - 其他DD20/DED0/DFA0/DDF0中的`refresh_database_records`并非F000 direct call，保持原callee边界不误接。
 
 ## 3. 测试

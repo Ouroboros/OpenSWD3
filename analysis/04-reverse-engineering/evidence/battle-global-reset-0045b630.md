@@ -35,7 +35,7 @@ mapped地址范围不增加；背景持有的字节及身份仅在对应释放�
 
 前三项已有typed实现，当前函数直接组合，不保留opaque helper。第四项只保留尚未关闭旧分配器的窄释放端口。条件分配token在释放调用返回后才由后续固定store清零。
 
-显示surface释放此前内联在已关闭战斗启动函数；现抽为同一`0x00451AE0` typed helper，启动与本函数共用一份实现。
+显示surface释放此前内联在`pending`的战斗启动函数；现抽为同一`0x00451AE0` typed helper，启动与本函数共用一份实现。
 
 B11显示缓存接线补充无效宿主句柄的停止传播：正常Release返回零仍算完成；
 未解析句柄保留当前槽，本函数立即返回，不执行旋转释放及固定写程序。
@@ -58,7 +58,7 @@ B11显示缓存接线补充无效宿主句柄的停止传播：正常Release返�
 
 ## 4. 单一typed存储
 
-已关闭并被其他工作包共享的物理状态不建立第二份数组：
+为`pending`并被其他工作包共享的物理状态不建立第二份数组：
 
 - 渲染owner固定731 dword清零映射回唯一`LegacyBattleRenderGeometry`；
 - 18槽metric、18槽角色顺序、18槽mask、两组数量、角色优先字段及其后六dword出队输出记录、待执行动作activation latch映射回唯一`LegacyBattleActorMetricState`；`0x0053AE70`起原七dword清零现完整同步同一owner，启动期重复的组B数量副本已删除；
@@ -72,8 +72,8 @@ B11显示缓存接线补充无效宿主句柄的停止传播：正常Release返�
 - 战斗上下文提示复用共享message、动作消息门/辅助值/两项坐标、最终角色active/pre-frame gate B及启动镜像模式；message、消息门、active、gate B和镜像模式清零，辅助值、坐标、提示计数、静态资源选择和偏移动作持久状态保持入口值；
 - 战斗纵向位移的phase与节拍上限映射到唯一state port并清零；节拍计数不在原写集合中，保持入口值；
 - 撤退提交两完成门和选择token映射到唯一state port并清零；辅助latch不在原写集合中保持入口值；battle mode/调试重置门与调试快捷键共享，叠加门改由撤退、逐帧和reset共用的独立gate port；
-- `0x0052022C`的20-dword reset块继续映射到启动状态唯一存储，并由已关闭过渡控制选择按40个half-word直接消费；`0x0053BF1E`控制pair继续映射到目标选择唯一owner，两段均已列入mapped范围，不进入unmapped字节像；
-- `0x00524788`的18条记录扩展为精确`0x1C`布局，126 dword全部映射到唯一启动状态并清零，不再只同步五个已知字段；已关闭攻击顺序登记、插入、移除和出队均直接读写同一记录owner，插入尾部两项共享门也映射到startup reset并按原物理写清零；最终角色十项顺序、frame gate、selection gate、排队角色及动作路径同址门同步清零；
+- `0x0052022C`的20-dword reset块继续映射到启动状态唯一存储，并由`pending`的过渡控制选择按40个half-word直接消费；`0x0053BF1E`控制pair继续映射到目标选择唯一owner，两段均已列入mapped范围，不进入unmapped字节像；
+- `0x00524788`的18条记录扩展为精确`0x1C`布局，126 dword全部映射到唯一启动状态并清零，不再只同步五个已知字段；`pending`的攻击顺序登记、插入、移除和出队均直接读写同一记录owner，插入尾部两项共享门也映射到startup reset并按原物理写清零；最终角色十项顺序、frame gate、selection gate、排队角色及动作路径同址门同步清零；
 - 效果总协调器的18槽主记录、八条强度效果记录、两组模式、计数器、反馈actor、参数数组和活动latch映射回唯一`LegacyBattleEffectCoordinatorState`；强度记录0同时是攻击顺序移除必读的一过尾七dword源，也是攻击顺序出队无界28字节扫描离开18槽后的首个物理区域；未写的扫描计时与反馈数组保持不变；
 - 固定组B行动记录表迁移到八槽生命周期唯一owner后，本函数继续清其32-byte记录与配置发布字段，但保留actor/resource token和164-byte资源块；八槽group B顺序表不在本函数写集合中，必须原样保留；
 - 战斗启动复用的显示surface、敌我启动记录、重置块、记录数组与镜像模式映射回唯一`LegacyBattleStartupState`；
@@ -95,11 +95,11 @@ B11将53BF36/38/3A当前颜色和53BF94/98双门映射到实际画面控制状�
 
 1. `0x00431960`；
 2. `0x00433010`；
-3. 已关闭`0x00485740`停止全部sample；
+3. `pending`的`0x00485740`停止全部sample；
 4. `0x00485710`提交固定音频stream停用；
-5. 已关闭`0x004776A0`按MON、LEVEL顺序条件关闭两个共享数据库句柄，并无条件清两会话门。
+5. `pending`的`0x004776A0`按MON、LEVEL顺序条件关闭两个共享数据库句柄，并无条件清两会话门。
 
-两个资源释放与stream停用仍保留窄typed端口，等待各自工作包关闭。停止全部sample直接组合已关闭sample命令；数据库关闭已删除旧整函数opaque调用，并复用MON/LEVEL唯一文件owner。
+两个资源释放与stream停用仍保留窄typed端口，等待各自工作包关闭。停止全部sample直接组合`pending`的sample命令；数据库关闭已删除旧整函数opaque调用，并复用MON/LEVEL唯一文件owner。
 
 五个callee返回后，函数把ECX设为6、EAX清零、重复清零一个全局dword，再以`rep stosd`清零最终6 dword。该最终区域现同步到成长标题框唯一24-byte typed owner，不能在数据库关闭前提前清零。正常返回固定EAX为0、ECX为0；EDX保留数据库关闭尾部的寄存器值。
 

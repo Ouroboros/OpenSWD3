@@ -62,7 +62,7 @@ control 改为向零，执行 `fistp qword`，再只返回 64 位整数的低 32
 
 原裸 framebuffer、固定像素格式全局和末像素越界 dword read 改由 owned framebuffer、
 明确 format 与只读 guard word 承担；有效域状态与像素顺序不变，因此 closure disposition
-为 `platform_adapted`。
+为 `pending`。
 
 独立 UT 固定三通道推进、参数零时不递减、递减后变负及入口已负时的 target→step 原始
 行为、三项 NaN/零早退、mixed NaN 继续执行、x87 qword→low-dword 转换、全 `0x4B000`

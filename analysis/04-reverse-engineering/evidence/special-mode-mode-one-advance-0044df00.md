@@ -4,7 +4,7 @@
 
 ## 1. LST锁
 
-权威范围为`swd3.exe.lst`的`0x0044DF00..0x0044DFEA`，111行，无外部FUNCTION CHUNK。caller为`0x0044DBC0`和`0x0044F920`。直接复用已关闭的单链推进/索引/共享文本、F7D0可见数、D6B0低16索引和FAF0候选属性比较；声音调用由最小typed端口表达。
+权威范围为`swd3.exe.lst`的`0x0044DF00..0x0044DFEA`，111行，无外部FUNCTION CHUNK。caller为`0x0044DBC0`和`0x0044F920`。直接复用`pending`的单链推进/索引/共享文本、F7D0可见数、D6B0低16索引和FAF0候选属性比较；声音调用由最小typed端口表达。
 
 函数先按`level`分支：
 

@@ -8,7 +8,7 @@
 
 cdecl四参数依次为selector、帧号、目标X、目标Y。八个callsite均位于`0x0047CF20`，地址为`0x0047CFF1`、`0x0047D051`、`0x0047D0AF`、`0x0047D10B`、`0x0047D18D`、`0x0047D1C9`、`0x0047D22B`和`0x0047D283`。其中四个caller立即把完整返回EAX加到EBX，返回高字不能丢失。
 
-callee只有帧查询`0x004315D0`和软件blitter`0x004170E0`，均已关闭并由typed接口直连。
+callee只有帧查询`0x004315D0`和软件blitter`0x004170E0`，均为`pending`并由typed接口直连。
 
 ## 2. selector资源分支与缓存
 
@@ -95,4 +95,4 @@ C++到LST反向追溯覆盖三个selector域、两种固定资源、frame/source
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版缓存frame record、共享source、模式word、blitter后EAX和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整74行LST、八个caller和两个关闭callee已完成固定状态闭环。
+当前没有原版缓存frame record、共享source、模式word、blitter后EAX和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整74行LST、八个caller和两个关闭callee固定状态闭环状态为`pending`。

@@ -6,7 +6,7 @@
 
 ## 精确流程
 
-1. 直接复用已关闭41F70，以全局source owner、record head destination、guardian slot filter index和party.low16执行筛选排序。destination sort/reserved/reset字段在state显式保留。
+1. 直接复用`pending`的41F70，以全局source owner、record head destination、guardian slot filter index和party.low16执行筛选排序。destination sort/reserved/reset字段在state显式保留。
 2. 筛选完成后才按`party.low16*16+slot`读取party text index。
 3. 当party text不是`0xFFDC`，或筛选结果head为空时，从head遍历到尾部并调用44D5D0创建missing节点；返回节点写到尾link并强制next=null。selected missing且已有非空链时不追加。
 4. 直接复用43B980计数total；清list offset与local selection；visible head=head。
@@ -18,7 +18,7 @@
 
 - 40630初始化不再调用opaque `prepare_guardian_record_list`，而是从0xB0记录提取text-index表后直接调用本helper。
 - B20/C20/D20/E10共享selection core及41060 party cycle中的`refresh_guardian_record` opaque target均已回收为直接helper调用；失败映射到既有guardian选择typed状态。
-- 因共享core，F00/FB0和407F0间接路径同步使用已关闭owner。
+- 因共享core，F00/FB0和407F0间接路径同步使用`pending`的owner。
 
 UT覆盖筛选排序、missing追加/抑制、total与窗口清零、两项链、11项链的第11项返回、筛选后party表越界、44D5D0 null typed-stop、40630直接初始化及全部既有选择caller事件序列。定向测试通过。
 

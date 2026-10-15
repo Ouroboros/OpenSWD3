@@ -84,7 +84,7 @@ source item id在第一项返回后从原source节点重新读取。若第一项
 
 `LegacyWorldItemNode`保留全部可见字段与定义/说明快照。临时节点和说明以RAII深拷贝；选定root固定字段、数量重设、说明深拷贝与两次库存更新保持机器顺序。裸malloc/free、说明泄漏和null/UAF域以`unique_ptr/vector/list`及typed-stop隔离。
 
-原root `next`与玩家tail的交叉所有权无法由两个独立`std::list`安全表达。现代在raw覆盖时释放选定root原独立child owner，并保持新root child为空；不伪造玩家节点共享所有权。当前生产消费者只读取64个root自身，child仅用于总关闭；因此有效root字段、库存数量与后续root存在查询保持一致。该差异明确归类`platform_adapted`，不声称重现原双重释放风险。
+原root `next`与玩家tail的交叉所有权无法由两个独立`std::list`安全表达。现代在raw覆盖时释放选定root原独立child owner，并保持新root child为空；不伪造玩家节点共享所有权。当前生产消费者只读取64个root自身，child仅用于总关闭；因此有效root字段、库存数量与后续root存在查询保持一致。该差异明确归类`pending`，不声称重现原双重释放风险。
 
 普通旧item加回库存继续复用`load_story_item_definition`窄端口。当前SDL MON后端留给B9：loader miss按原helper返回空并继续source扣除，不伪造定义节点。
 

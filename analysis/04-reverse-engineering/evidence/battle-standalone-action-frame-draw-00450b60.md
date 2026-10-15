@@ -8,7 +8,7 @@
 
 cdecl三参数依次为动作号、目标X、目标Y。唯一caller为`0x0045342C`，传固定动作号`0x2391`和同一索引记录中的两项坐标；返回值不被caller消费。
 
-callee依次为动作更新器`0x004321E0`、帧查询`0x004315D0`和软件blitter`0x004170E0`各一次，均已关闭并由typed接口直接组合。
+callee依次为动作更新器`0x004321E0`、帧查询`0x004315D0`和软件blitter`0x004170E0`各一次，均为`pending`并由typed接口直接组合。
 
 ## 2. 独立持久动作记录
 
@@ -23,7 +23,7 @@ record.base_variant = 0
 
 不清空其他字段。动作更新器返回0时立即返回，EAX保持0；两项入口写和更新器失败前缀保留，帧查询与绘制均不发生。
 
-modern使用专用`LegacyBattleStandaloneActionFrameDrawState::action_record`持续保存该记录，不与相邻已关闭包装共享错误owner。
+modern使用专用`LegacyBattleStandaloneActionFrameDrawState::action_record`持续保存该记录，不与相邻`pending`的包装共享错误owner。
 
 ## 3. ECX/EDX双陈旧高字
 
@@ -89,4 +89,4 @@ C++到LST反向追溯覆盖专用持久记录、两项入口写、更新失败�
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版更新后ECX/EDX、独立持久动作记录、帧record、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整51行LST、唯一caller和三个关闭callee已完成固定状态闭环。
+当前没有原版更新后ECX/EDX、独立持久动作记录、帧record、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整51行LST、唯一caller和三个关闭callee固定状态闭环状态为`pending`。

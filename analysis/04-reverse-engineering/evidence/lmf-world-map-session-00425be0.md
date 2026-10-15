@@ -101,7 +101,7 @@ LMF 路径与尾索引查找
 
 ## 6. 平台适配边界
 
-本函数归类 `platform_adapted`：
+本函数归类 `pending`：
 
 - 单一原文件句柄和裸暂存缓冲改为分阶段 `LegacyFile`/vector/RAII owner；
 - 裸全局状态、链表和空间表改为 typed session、角色 vector 与受检索引；

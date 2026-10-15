@@ -74,7 +74,7 @@ case 3–5、8、9、13、14、16以及动作0均走default，返回0且只执�
 
 ### side mode为0
 
-第二参数解释为组A目标。target首次有效性检查后，以组B source为this、组A target为显式参数直接调用已关闭的组B行动执行函数。typed-stop映射为父级`group_b_action_execution_typed_stop`；返回0与typed-stop都阻断pending、pair commit、视觉提交和全部side尾，只有完整返回1才继续：
+第二参数解释为组A目标。target首次有效性检查后，以组B source为this、组A target为显式参数直接调用`pending`的组B行动执行函数。typed-stop映射为父级`group_b_action_execution_typed_stop`；返回0与typed-stop都阻断pending、pair commit、视觉提交和全部side尾，只有完整返回1才继续：
 
 - action pending写1；
 - action pending auxiliary清零；
@@ -142,7 +142,7 @@ case 11的查询站点同时保留ECX source与栈上的source token；typed端�
 phase低wordbit15未置位时：
 
 1. phase低word写`0x8019`，保留高word；
-2. 直接调用已关闭的组B wave参数typed函数，按actor `+0x0DB0` word写special action，再按`+0x0DB4` byte零扩展写spawn count；
+2. 直接调用`pending`的组B wave参数typed函数，按actor `+0x0DB0` word写special action，再按`+0x0DB4` byte零扩展写spawn count；
 3. 对每个spawn：
    - 以当前group-B count选择新组B对象；
    - reset该对象；
@@ -152,7 +152,7 @@ phase低wordbit15未置位时：
    - mirror全DWORD等于1时直接写新敌方实际镜像字段1，再以u16写`640-x`；
    - scratch准备参数低word覆盖为special action，高word保留`32*index`陈旧位；
    - scratch更新返回后只覆盖EAX低word为special action，保留callee EAX高word；
-   - 直接调用已关闭组B行动配置，完成双记录复制、资源字段、profile与释放；
+   - 直接调用`pending`的组B行动配置，完成双记录复制、资源字段、profile与释放；
    - 配置正常完成后才对新对象pop `0x400`；
    - group-B count低32位加1；
    - 固定调用三个battle stage。
@@ -196,7 +196,7 @@ case 17逐帧入口内部原`0x0047656D`坐标publication已由typed action17直
 同帧2→8顺序、失败前缀、剩余机器诊断接口与定向验证见
 [敌方绘制步长](battle-enemy-presentation-step-0047d860.md)。
 
-## 10. closed callee与窄端口
+## 10. `pending` callee与窄端口
 
 直接复用单元状态：`pending`。
 
@@ -234,7 +234,7 @@ case 17逐帧入口内部原`0x0047656D`坐标publication已由typed action17直
 - 9个有效case逐项smoke；
 - 动作0与8个稀疏槽只执行入口callee；
 - framebuffer越界前refresh与完整owned前缀；
-- 全部原caller站点均有typed直连、已关闭callee复用或窄端口；组B行动配置的三个未审内部callee分别保留单一边界。
+- 全部原caller站点均有typed直连、`pending`的callee复用或窄端口；组B行动配置的三个未审内部callee分别保留单一边界。
 
 Workpack 289 REVIEW 3最终定向`1/1`、Linux core `199/199`、AddressSanitizer/UBSan `199/199`、Linux app `205/205`及连续十轮core `10/10`均通过；全部正式stderr为空，changed-range格式检查通过。
 

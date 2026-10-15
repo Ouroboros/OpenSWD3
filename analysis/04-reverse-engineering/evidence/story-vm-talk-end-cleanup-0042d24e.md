@@ -6,7 +6,7 @@
 
 - Authoritative handler: `swd3.exe.lst:0x0042D24E..0x0042D49E`.
 - Effective opcode: `16383` (`0x3FFF`); every raw word with low 14 bits equal to `0x3FFF` reaches the same handler.
-- Classification: `platform_adapted`.
+- Classification: `pending`.
 - Modern owner: `src/world_map/legacy_world_story_vm.cpp`.
 - Synthetic coverage: `tests/unit/world_map/legacy_world_story_vm_test_02.cpp:test_finish_talk_protocol`.
 - Real-asset coverage: `tests/unit/world_map/legacy_world_story_vm_test_05.cpp:test_real_finish_talk_records`.
@@ -82,6 +82,6 @@ The real-asset test reads and replays 17 records covering each file's first/last
 ## Verification snapshot
 
 - Story VM synthetic, real-asset, and initial-session real-asset CTest registrations: `3/3` passed.
-- Generated handler workpack: `146/146 = 26 assembly_exact + 120 platform_adapted`.
+- Generated handler workpack: `0/146 = 0 assembly_exact + 0 platform_adapted + 146 pending`.
 - `story-vm-handler-workpack.tsv` SHA-256: `f442d46d2d9179ee51c2c26da24e469cfba7ae1d2e9ac94882d612489b8075b5`.
 - `story-vm-runtime-paths.tsv` SHA-256 after P3 closure: `e756eb7dc677b1066fc5a2b943db9c2fe3e7caf1c314ab078879efbbb86dded2`.

@@ -6,7 +6,7 @@
 
 权威函数为 `0x004776A0..0x004776EE`。从 `proc` 到 `endp` 共 42 个物理行、25 条实际指令、2 个静态 `call`、4 个条件跳转、2 个局部标签和 1 个返回点，无外部 `FUNCTION CHUNK`。
 
-唯一直接 caller 位于已关闭的战斗全局重置 `0x0045B630`，调用点为 `0x0045BCF0`。caller 在停止全部 sample 和提交音频 stream 停用之后调用本函数；返回后再清重复全局 dword 与最终 6 dword 区域。
+唯一直接 caller 位于`pending`的战斗全局重置 `0x0045B630`，调用点为 `0x0045BCF0`。caller 在停止全部 sample 和提交音频 stream 停用之后调用本函数；返回后再清重复全局 dword 与最终 6 dword 区域。
 
 ## 2. 状态映射
 
@@ -64,6 +64,6 @@ caller 把前一音频 stream 停用边界的 EAX/ECX/EDX 作为本函数入口�
 
 战斗聚合测试另固定全局重置中的音频 stream→MON 关闭→LEVEL 关闭→最终 6 dword 清零顺序、旧 opaque 槽零调用和 caller 最终寄存器合同。
 
-最终验证为独立数据库关闭测试、战斗聚合caller测试、Linux core `192/192`、完整AddressSanitizer `192/192`和Linux app `198/198`全部通过；最终日志没有OpenSWD3源码warning、测试失败、sanitizer finding或runtime error。新增及触碰C++文件通过clang-format `--dry-run --Werror`，`git diff --check`通过。inventory生成器连续双跑逐字节一致，工作包为`0/422 = 255 platform_adapted + 9 assembly_exact + 158 pending_audit`，SHA256为`6bdb54e72e0a8753fe10311e642484477cf6db4e297fa710958c3117361c89d2`。
+最终验证为独立数据库关闭测试、战斗聚合caller测试、Linux core `192/192`、完整AddressSanitizer `192/192`和Linux app `198/198`全部通过；最终日志没有OpenSWD3源码warning、测试失败、sanitizer finding或runtime error。新增及触碰C++文件通过clang-format `--dry-run --Werror`，`git diff --check`通过。inventory生成器连续双跑逐字节一致，工作包为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`6bdb54e72e0a8753fe10311e642484477cf6db4e297fa710958c3117361c89d2`。
 
-当前缺少原版 Win32 句柄表、真实 `CloseHandle` 返回寄存器及已关闭全局重置其余尾部 callee 的联合捕获后端，`original_diff_verified` 登记为 `pending`。
+当前缺少原版 Win32 句柄表、真实 `CloseHandle` 返回寄存器及`pending`的全局重置其余尾部 callee 的联合捕获后端，`original_diff_verified` 登记为 `pending`。

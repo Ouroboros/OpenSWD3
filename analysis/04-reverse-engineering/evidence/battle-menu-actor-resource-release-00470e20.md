@@ -81,7 +81,7 @@ build/tmp/runtime/menu-actor-resource-*。实际日志为core-final、asan、sdl
 完整菜单其余操作/参数包/Port/别名继续pending。
 原叶历史验证见[资源释放](battle-actor-resource-release-00470e20.md)，
 本次菜单数量顺序见[实际物品数量](battle-menu-player-item-quantity-0045d180.md)。
-不改变315/422、Workpack316、B11和全项目范围穷尽性false；整体Goal未完成。
+不改变0/422、Workpack316、B11和全项目范围穷尽性false；整体Goal未完成。
 
 ## 6. 叶和其它调用消费同步
 

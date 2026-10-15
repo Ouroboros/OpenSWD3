@@ -6,7 +6,7 @@
 
 权威函数为`0x0045D2F0..0x0045D3DE`，从proc到endp完整109行、57条实际指令、4个静态call、7个条件或无条件分支与5个局部标签，无外部FUNCTION CHUNK。
 
-唯一caller是已关闭战斗逐帧画面协调器`0x00453200`中的一处调用。三个`0x00489654`是已闭合x87向零qword转换；尾部`0x00420490`是已闭合RGB三通道调整。四处均直接组合typed语义，不保留opaque地址端口。
+唯一caller是`pending`的战斗逐帧画面协调器`0x00453200`中的一处调用。三个`0x00489654`是已闭合x87向零qword转换；尾部`0x00420490`是已闭合RGB三通道调整。四处均直接组合typed语义，不保留opaque地址端口。
 
 ## 2. 状态地址与三step入口门
 
@@ -44,7 +44,7 @@
 - qword域内但超出i32的值保留低32位回绕；
 - NaN、无穷或qword越界产生integer-indefinite，低dword为0。
 
-三次返回依次压栈后，最终`0x00420490`参数仍是红、绿、蓝顺序。固定buffer是共享战斗framebuffer，count为`0x3C000`个u16像素。typed实现调用已关闭RGB helper，只修改该前缀；第`0x3C000`像素保持不变，同时保留原helper末像素dword look-ahead读取合同。
+三次返回依次压栈后，最终`0x00420490`参数仍是红、绿、蓝顺序。固定buffer是共享战斗framebuffer，count为`0x3C000`个u16像素。typed实现调用`pending`的RGB helper，只修改该前缀；第`0x3C000`像素保持不变，同时保留原helper末像素dword look-ahead读取合同。
 
 ## 5. 单一typed存储与caller回收
 

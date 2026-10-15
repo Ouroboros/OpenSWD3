@@ -71,7 +71,7 @@ return legacy_eax
 - `std::bit_cast<u32>`加法及递增后再bit-cast回i32，锁定x86回绕。
 - `LegacyStandardModeWindowCursorResult`公开`cursor_rewritten`、`window_offset_advanced`和`legacy_return_value`。
 
-原函数假定四个指针有效，modern引用合同不新增null分支。函数无资源、平台或业务副作用，归为`platform_adapted`只因32位裸owner被typed引用隔离。
+原函数假定四个指针有效，modern引用合同不新增null分支。函数无资源、平台或业务副作用，归为`pending`只因32位裸owner被typed引用隔离。
 
 ## 5. 验证
 

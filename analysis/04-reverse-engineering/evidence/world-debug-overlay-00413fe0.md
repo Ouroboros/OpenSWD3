@@ -117,7 +117,7 @@ DIV-zero 前两次文字、事件格→受控角色失败顺序、附近角色�
 
 原裸 framebuffer/cell/event/role 指针、无界 `vsprintf` 与 DIV trap 由受检 owner 和明确
 失败状态隔离；协调器传入同帧 camera/mouse/debug 状态快照。有效域的五次扫描、文字字节、
-查询和 reload 顺序保持不变，因此 closure disposition 为 `platform_adapted`。稳定快照的
+查询和 reload 顺序保持不变，因此 closure disposition 为 `pending`。稳定快照的
 Linux core `185/185`、Linux app `191/191`、Windows LLVM app `191/191` 完整门禁通过，
 两端应用成功链接；未启动原版或新版 EXE。原程序动态差分若需要，只准备 Frida spawn
 工具并等待用户执行，不由开发流程启动原版。

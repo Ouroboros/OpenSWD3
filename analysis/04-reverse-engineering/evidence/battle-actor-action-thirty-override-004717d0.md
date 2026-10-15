@@ -10,6 +10,6 @@
 
 字段归入既有每角色`LegacyBattleGroupAActionExecutionState::action_override_flags`唯一owner。typed getter只在原始word读取位置对空owner停止；非空时返回bit13，不把相邻位现代化为布尔状态。
 
-唯一caller为目标选择刷新`0x00462740`的动作三十提交路径。它在已关闭资源释放之后，对已提交group-A角色调用本getter；命中时把动作改写为十三、置special gate并递增special action count，未命中时停止固定effect sample。production已删除旧runtime `query_action_thirty_override`边界并直接读取typed owner。
+唯一caller为目标选择刷新`0x00462740`的动作三十提交路径。它在`pending`的资源释放之后，对已提交group-A角色调用本getter；命中时把动作改写为十三、置special gate并递增special action count，未命中时停止固定effect sample。production已删除旧runtime `query_action_thirty_override`边界并直接读取typed owner。
 
-测试覆盖bit13置位、bit13清除且其他位全置、空owner原访问点typed-stop，以及production动作三十caller命中后发布动作十三且不再调用旧opaque查询。定向测试与独立AddressSanitizer均通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 199 platform_adapted + 9 assembly_exact + 214 pending_audit`，SHA256为`9683f3206166bfd7a3823be063ba3df678a87b4e4e15a6d06b3a76e4fa304563`。动态差分因原版角色flags word与目标选择caller寄存器联合捕获后端缺失而登记为`pending`。
+测试覆盖bit13置位、bit13清除且其他位全置、空owner原访问点typed-stop，以及production动作三十caller命中后发布动作十三且不再调用旧opaque查询。定向测试与独立AddressSanitizer均通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`9683f3206166bfd7a3823be063ba3df678a87b4e4e15a6d06b3a76e4fa304563`。动态差分因原版角色flags word与目标选择caller寄存器联合捕获后端缺失而登记为`pending`。

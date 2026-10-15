@@ -26,7 +26,7 @@
 
 ## 4. caller与共享owner回收
 
-全程序四个静态caller都位于已关闭战斗效果协调器。typed实现中的公共分支把它们收敛为三个直接调用位置：当前组B角色命中组A目标、组B群体效果逐个处理组A、普通扫描逐个处理组A。每次都传入实际组A actor token、startup中该actor已有的两份内嵌资料、当前组B目标记录门word和目标token。
+全程序四个静态caller都位于`pending`的战斗效果协调器。typed实现中的公共分支把它们收敛为三个直接调用位置：当前组B角色命中组A目标、组B群体效果逐个处理组A、普通扫描逐个处理组A。每次都传入实际组A actor token、startup中该actor已有的两份内嵌资料、当前组B目标记录门word和目标token。
 
 第181项紧凑链从胜利状态内部提升为`LegacyBattleGroupARewardProfileStatePort`虚拟共享owner；胜利奖励port与效果port在组合运行时只拥有同一实例。效果协调器不复制资料，只显式借用frame coordinator context中的startup owner。旧完整函数地址调用生产零次；分配callee继续保持固定20字节窄port。
 
@@ -42,4 +42,4 @@
 
 新x87实现与第181项已验证helper逐字一致；另以真实内联x87对固定12的全部65,535个非零最大值、六条全u16网格及零分母共458,751组联合核对，全部一致。
 
-验证结果：定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning，app仅有既有ALSA提示。inventory连续双生成逐字节一致，稳定为`0/422 = 173 platform_adapted + 9 assembly_exact + 240 pending_audit`，SHA256为`b840953fb5739e4319c08f7e2affa12b7ae9e00364597c72c557dd1601464816`。原版组A动态资料、组B目标记录、共享紧凑链token拓扑、分配器、x87控制字和四处caller寄存器联合捕获后端缺失，动态差分登记为`pending`。
+验证结果：定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning，app仅有既有ALSA提示。inventory连续双生成逐字节一致，稳定为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`b840953fb5739e4319c08f7e2affa12b7ae9e00364597c72c557dd1601464816`。原版组A动态资料、组B目标记录、共享紧凑链token拓扑、分配器、x87控制字和四处caller寄存器联合捕获后端缺失，动态差分登记为`pending`。

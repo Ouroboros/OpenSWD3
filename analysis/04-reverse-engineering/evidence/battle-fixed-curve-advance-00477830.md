@@ -12,7 +12,7 @@
 
 ## 1. 完整权威范围与调用图
 
-唯一行为真值为`swd3.exe.lst`。完整主体为`0x00477830..0x0047791C`，从proc到endp共103个物理行、72条实际指令、5个call、4个跳转、4个局部标签和2个返回点，没有外部`FUNCTION CHUNK`。唯一caller是已关闭的`0x00474FC0`，物理callsite为`0x00474FF3`。
+唯一行为真值为`swd3.exe.lst`。完整主体为`0x00477830..0x0047791C`，从proc到endp共103个物理行、72条实际指令、5个call、4个跳转、4个局部标签和2个返回点，没有外部`FUNCTION CHUNK`。唯一caller是`pending`的`0x00474FC0`，物理callsite为`0x00474FF3`。
 
 五个call由20字节分配包装器`0x00487C10`一次和x87截零转换helper`0x00489654`四次组成；两条主路径各调用转换helper两次。`0x00489654`完整主体先保存x87 control word，把舍入控制位改为toward-zero，以`fistp qword`转换ST(0)，再恢复原control word并返回EDX:EAX；它没有外部chunk。
 
@@ -83,7 +83,7 @@ fixed-curve typed-stop保留两次motion清零和helper内部前缀，阻断共�
 `INT64_MIN`，不会提前返回成功零值。
 本批仅同步另外两个曲线设置函数对同一截零函数的调用。
 [普通曲线设置](battle-fixed-curve-set-00477920.md)与
-[定义曲线设置](battle-fixed-definition-curve-set-00477a20.md)随后已完成语义迁移。
+[定义曲线设置](battle-fixed-definition-curve-set-00477a20.md)随后语义迁移状态为`pending`。
 固定状态Port已移除，MON及对象重置父级中的剩余协议仍待处理。
 
 调用方在写入共享动作数值后，不再使用曲线返回寄存器作为业务输入。
@@ -112,6 +112,6 @@ SDL应用构建通过，未启动游戏。
 
 叶函数UT覆盖已有根命中、动态节点、递增后inclusive夹限、word回绕、缺键分配、五字清零、`1/3`双截零、scale高word保留、maximum零x87 indefinite、已有count/scale访问stop，以及分配`+0x08`前maximum阶段和`+0x0C`前ratio阶段。caller测试覆盖fixed owner真实曲线输出、mode-one skip、signed motion累计、9999夹限、负一抑制、caller count访问stop及全部旧地址零调用。
 
-验证：battle聚合定向通过并连续实际执行10次；Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`及changed-range clang-format Werror全部通过。最终日志零源码warning、测试失败、sanitizer finding或runtime error；验证期间未启动原版或OpenSWD3游戏程序。inventory连续双生成逐字节一致，稳定为`0/422 = 259 platform_adapted + 10 assembly_exact + 153 pending_audit`，SHA256为`95514d8b21ac60676fb2395a4deffbff78803f691dfce0d7661cf44c06a0a9e5`。
+验证：battle聚合定向通过并连续实际执行10次；Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`及changed-range clang-format Werror全部通过。最终日志零源码warning、测试失败、sanitizer finding或runtime error；验证期间未启动原版或OpenSWD3游戏程序。inventory连续双生成逐字节一致，稳定为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`95514d8b21ac60676fb2395a4deffbff78803f691dfce0d7661cf44c06a0a9e5`。
 
 当前缺少原版固定曲线链、allocator堆、x87 control/status word、行动者曲线字段以及`0x00474FF3`联合寄存器捕获后端，动态差分登记为`pending`；这不阻止完整LST静态闭合、原位置typed-stop和Linux门禁。

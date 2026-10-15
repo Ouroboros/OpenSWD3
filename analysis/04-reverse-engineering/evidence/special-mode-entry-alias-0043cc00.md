@@ -13,7 +13,7 @@
 - `0x00446420`外置chunk `0x0043C6E0`：`0x0043C71B`。
 - `0x0043C760`：`0x0043C799`。
 
-已关闭的C520/C590/C3C0/C670/C760直接复用typed helper；未关闭`0x00446420`及其chunk留待该owner独立审计。
+`pending`的C520/C590/C3C0/C670/C760直接复用typed helper；未关闭`0x00446420`及其chunk留待该owner独立审计。
 
 ## 2. 参数与精确语义
 
@@ -30,7 +30,7 @@ modern runtime以entry base为typed index0，因此最终alias等价为：
 window_offset <= 0 ? 0 : window_offset
 ```
 
-结果以`i32* legacy_alias_owner_pointer`表达原EAX owner指针。正`INT_MAX`直接得到typed index `INT_MAX`；本函数从不解引用最终alias，不能在这里提前钳制或报告越界。真正的负/超界alias隔离仍在后续已关闭`0x0043CBD0`原解引用点。
+结果以`i32* legacy_alias_owner_pointer`表达原EAX owner指针。正`INT_MAX`直接得到typed index `INT_MAX`；本函数从不解引用最终alias，不能在这里提前钳制或报告越界。真正的负/超界alias隔离仍在后续`pending`的`0x0043CBD0`原解引用点。
 
 ## 3. caller回接
 

@@ -190,54 +190,54 @@ asset_runtime sound request  → audio_video port
    先淘汰顺序；六个真实包固定切片哈希及合成缓存向量通过，Linux `core` 83/83、
    Windows LLVM `app` 87/87 CTest 通过。
 4. `[ ]` `0x98` 动作记录：精确物理布局、选择性初始化、三段键重置、ACT 查询、
-   跨帧等待、33 个命令字和原版第二参数再分派均已实现；六包真实 ACT 已经由
+   跨帧等待、33 个命令字和原版第二参数再分派实现状态均为`pending`；六包真实 ACT 已经由
    runtime→provider→updater 执行。Linux `core` 85/85、Windows LLVM `app` 89/89
    CTest 通过。
 5. `[ ]` ANI：`0x24` 头、独占打开、一基帧节点链、首次排除/缓存包含 12 字节、
-   RGB 调色板、零载荷保持和 span 写入已实现；19 个真实文件的 5,312 帧、
+   RGB 调色板、零载荷保持和 span 写入实现状态为`pending`；19 个真实文件的 5,312 帧、
    6,057,767 个 span、178,426,082 个索引像素及每文件首帧哈希通过。
    `0x004154A0` 的冻结快照、`-13` 揭幕、逐帧推进、两种结束阈值、释放顺序和三个
-   外部端口已实现；`0x00416CC0` 的逐节点 framebuffer 快照、变形、推进、完成摘链和
-   继续遍历也已闭环。`0x004163C0` 的 64 项状态、48 项有效块、16 帧刷新周期、第二套
-   RNG 顺序和下一物理行前向复制也已实现。`0x00416B30` 的 service
-   门、变体 78/79 双帧、裁剪 BUG 和目标跟随状态也已闭环。`0x00416590` 的
-   48/64 槽差异、概率 service 门、拖尾像素和存活计数异常已闭环。`0x004167B0`
-   的 96 槽、仅计数器重置、九点星芒核、跨行 x 和存活计数异常也已闭环。
+   外部端口实现状态为`pending`；`0x00416CC0` 的逐节点 framebuffer 快照、变形、推进、完成摘链和
+   继续遍历也为`pending`。`0x004163C0` 的 64 项状态、48 项有效块、16 帧刷新周期、第二套
+   RNG 顺序和下一物理行前向复制实现状态也为`pending`。`0x00416B30` 的 service
+   门、变体 78/79 双帧、裁剪 BUG 和目标跟随状态也为`pending`。`0x00416590` 的
+   48/64 槽差异、概率 service 门、拖尾像素和存活计数异常为`pending`。`0x004167B0`
+   的 96 槽、仅计数器重置、九点星芒核、跨行 x 和存活计数异常也为`pending`。
    `0x004161C0` 的四槽/四动作记录、包含边界、重生与扰动 RNG、变体表、ACT→TSW
-   绘制和帧尾移动也已闭环。`0x00415EE0` 的四发射器、角色绑定、节点链、创建与
-   删除异常也已闭环。`0x00415B70` 的三组四槽状态、双槽更新、同值概率门、四向
-   重生和共享动作绘制也已闭环；ANI 组的 11 个自有入口已全部完成实现映射。
+   绘制和帧尾移动也为`pending`。`0x00415EE0` 的四发射器、角色绑定、节点链、创建与
+   删除异常也为`pending`。`0x00415B70` 的三组四槽状态、双槽更新、同值概率门、四向
+   重生和共享动作绘制也为`pending`；ANI 组的 11 个自有入口实现映射状态均为`pending`。
 6. `[ ]` `0x00430C60..0x0043114C`：`0x2C` 变形节点、双 `i16` 工作场、固定场 0
-   warp、跨行 carry 更新、16 位衰减、径向注入、CRT 随机坐标与哨兵链表调度已实现。
+   warp、跨行 carry 更新、16 位衰减、径向注入、CRT 随机坐标与哨兵链表调度实现状态为`pending`。
    Linux `core` 89/89、Windows LLVM `app` 93/93 CTest 通过。
 7. `[ ]` `0x004163C0`：service 7 启用门、64 项初始状态、48 项首次生成和实际拷贝、
-   64/48/64 项周期刷新、第二套无偏 RNG 顺序、`u16` 计数回绕及下一物理行复制已实现。
+   64/48/64 项周期刷新、第二套无偏 RNG 顺序、`u16` 计数回绕及下一物理行复制实现状态为`pending`。
    Linux `core` 90/90、Windows LLVM `app` 94/94 CTest 通过。
 8. `[ ]` `0x00416B30`：service `0x13` 门、变体 78/79 的 ACT→TSW 查询、双帧绘制、
-   宽高交叉裁剪 BUG、`0x2C` 标志、绘制后目标跟随及 `i32` 回绕已实现；
+   宽高交叉裁剪 BUG、`0x2C` 标志、绘制后目标跟随及 `i32` 回绕实现状态为`pending`；
    真实 ACT/TSW 路径通过，Linux `core` 92/92、Windows LLVM `app` 96/96 CTest 通过。
 9. `[ ]` `0x00416590`：48/64 槽重置差异、条件 service 8、四步 RNG 创建、第 0 行跳过、
-   包含上界拖尾、逐点饱和增亮、`i16` 乘加回绕及越底边计数异常已实现；
+   包含上界拖尾、逐点饱和增亮、`i16` 乘加回绕及越底边计数异常实现状态为`pending`；
    Linux `core` 93/93、Windows LLVM `app` 97/97 CTest 通过。
 10. `[ ]` `0x004167B0`：96 槽与只清计数器的重置差异、条件 service `0x16`、
     四步 RNG 创建、八段相位、九点饱和增亮、硬编码上下边界、横向跨扫描线、
-    `i16` 状态推进及越底边计数异常已实现；Linux `core` 94/94、Windows LLVM
+    `i16` 状态推进及越底边计数异常实现状态为`pending`；Linux `core` 94/94、Windows LLVM
     `app` 98/98 CTest 通过。
 11. `[ ]` `0x004161C0`：四个 `0x10` 状态槽和四个 `0x98` 动作记录、只写 x 的
     重置、service 6、三步重生 RNG、活动槽概率/扰动 RNG、速度夹取与归零特殊行为、
-    八字节变体表、ACT→TSW→blitter 以及帧尾移动已实现；真实四变体 framebuffer
+    八字节变体表、ACT→TSW→blitter 以及帧尾移动实现状态为`pending`；真实四变体 framebuffer
     哈希为 `0x53695F8D8D2219DF`，Linux `core` 96/96、Windows LLVM `app` 100/100
     CTest 通过。
 12. `[ ]` `0x00415EE0`：四个 `0x10` 发射器、四条 `0x10` 节点链、包含边界、
     selector 符号不对称、完整 secondary RNG 顺序、`i16` 回绕、map 50 颜色、
-    复制后继删除异常和 ACT→TSW→blitter 已实现；真实 variant 59 framebuffer
+    复制后继删除异常和 ACT→TSW→blitter 实现状态为`pending`；真实 variant 59 framebuffer
     哈希为 `0xFA22737232A60CF6`，Linux `core` 98/98、Windows LLVM `app` 102/102
     CTest 通过。
 13. `[ ]` `0x00415B70`：三组分离的四槽状态、四槽初始化/双槽更新差异、motion-only
     重置、service 5、同一概率值驱动范围内目标更新与范围外 variant 分桶、四向重生、
-    ACT→TSW→blitter 和 `i32` 回绕已实现；真实 variant 0 framebuffer 哈希为
+    ACT→TSW→blitter 和 `i32` 回绕实现状态为`pending`；真实 variant 0 framebuffer 哈希为
     `0xE216591950463029`，Linux `core` 100/100、Windows LLVM `app` 104/104 CTest 通过。
-14. `[ ]` `0x0040EBF0/0x0040EC80/0x0040ECC0` 公共动作绘制桥已实现；更新后字段读取、
+14. `[ ]` `0x0040EBF0/0x0040EC80/0x0040ECC0` 公共动作绘制桥实现状态为`pending`；更新后字段读取、
     32 位回绕坐标、低 16 位 TSW 键、flags 掩码和被忽略的 blit 错误均由 UT 固定。
     原 78 地址候选完成逐项审计，59 项 B6 自有映射与 19 项跨模块转交记录在
     `asset-runtime-closure.tsv`；真实 ACT→TSW→blitter 哈希为

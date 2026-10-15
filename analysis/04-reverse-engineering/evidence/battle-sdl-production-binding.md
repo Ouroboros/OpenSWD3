@@ -280,7 +280,7 @@ SDL现有MON端口的打开、定位和读取分支改用同一实际文件持�
 打开使用原只读、共享读和OPEN_ALWAYS参数；定位按有符号距离返回实际位置；
 短读仅覆盖实际字节，无效句柄返回失败。文件修复不依赖尚未发布的解析存储
 或敌方重置，隔离验证见[MON文件接线证据](battle-mon-file-runtime-binding.md)。
-完整初始化及续玩状态仍保持未完成。
+完整初始化及续玩状态为`pending`。
 
 ## MON解析流存储
 
@@ -433,7 +433,7 @@ case51、case12、case14和case100的既有角色帧停止前缀断言已改为�
 
 已有核心启动入口需要定义归档文件、背景图像载入、旋转缓存释放、动作更新及可变帧图像端口。下一步须从这些真实资源生产者接通初始化，再构造完整帧；不得在SDL继续复制另一套初始化业务流程。当前只核对了这些接口及部分源码，完整初始化端口、状态借用及生命周期仍未收敛。
 
-重读两项归档读取的完整LST时发现既有ECX返回合同错误：入口push分配的是后来被清零和ReadFile覆盖的局部计数槽。已修正打开失败、成功及两种拒绝的返回来源，保留typed-stop故障点寄存器；独立补充零字节、短读与完整读取测试。详见`battle-definition-archive-header-load-0045f130.md`与`battle-definition-archive-record-load-0045f1b0.md`。`battle-archive-return-register-{core,asan,sdl}.log`确认core/ASan聚合目标各1/1通过，SDL链接通过，三个日志无warning/error。随后已实现真实归档文件端口，每个活动句柄对应实际文件及独立游标；补充直接API打开方式，避免额外改写Windows文件属性、增加顺序读取标志或归零seek。新增真实文件短读、失败寻址、EOF、句柄释放及原始battle.ffd字节对照；首批战斗与文件模块core/ASan各1/1、SDL链接通过，只有既有存档恢复及结果测试警告；原始资产测试宏已核对。追加真实寻址失败与EOF调用链的core/ASan复验各1/1通过，无warning/error。随后隔离API失败计数行为，保留现有文件包装器默认语义；`battle-archive-api-count-*`复验确认战斗与文件目标core/ASan分别1/1、SDL链接通过，仍仅有上述既有警告，`git diff --check`通过。Windows只读属性及API失败计数分支尚未在Windows运行。端口尚未接入SDL完整初始化；背景、旋转缓存、动作及帧图像端口仍待接线。
+重读两项归档读取的完整LST时发现既有ECX返回合同错误：入口push分配的是后来被清零和ReadFile覆盖的局部计数槽。已修正打开失败、成功及两种拒绝的返回来源，保留typed-stop故障点寄存器；独立补充零字节、短读与完整读取测试。详见`battle-definition-archive-header-load-0045f130.md`与`battle-definition-archive-record-load-0045f1b0.md`。`battle-archive-return-register-{core,asan,sdl}.log`确认core/ASan聚合目标各1/1通过，SDL链接通过，三个日志无warning/error。随后实现状态为`pending`：真实归档文件端口，每个活动句柄对应实际文件及独立游标；补充直接API打开方式，避免额外改写Windows文件属性、增加顺序读取标志或归零seek。新增真实文件短读、失败寻址、EOF、句柄释放及原始battle.ffd字节对照；首批战斗与文件模块core/ASan各1/1、SDL链接通过，只有既有存档恢复及结果测试警告；原始资产测试宏已核对。追加真实寻址失败与EOF调用链的core/ASan复验各1/1通过，无warning/error。随后隔离API失败计数行为，保留现有文件包装器默认语义；`battle-archive-api-count-*`复验确认战斗与文件目标core/ASan分别1/1、SDL链接通过，仍仅有上述既有警告，`git diff --check`通过。Windows只读属性及API失败计数分支尚未在Windows运行。端口尚未接入SDL完整初始化；背景、旋转缓存、动作及帧图像端口仍待接线。
 
 背景物理载入器已从匿名实现提升为`LegacyBattleArchiveBackgroundImageLoadPort`，默认背景入口复用同一实现。新增完整核心初始化的真实资产用例：实际文件端口读取`battle.ffd`第1项，实际背景端口读取`all_map2.tsw`，核对640×400背景、三个完成word及动作号15003；当时的右移160断言沿用了错误的启动参数映射，本轮已按LST修正，见背景初始化证据。测试显式让动作更新返回原正常停止，并在后续敌人资源分配处停止；没有用夹具证明完整角色或SDL接线成功。`battle-startup-real-background-{core,asan,sdl}.log`确认core/ASan聚合目标各1/1、SDL链接通过，仅既有结果测试窄化警告。已检查Debug Ninja编译定义，真实资产分支启用。
 
@@ -512,4 +512,4 @@ SDL构建通过。范围及历史单次测试失败的调查记录见
 
 ## 下一步
 
-继续真实初始化资源端口与完整帧上下文接线。完整SDL生命周期、实机续玩和B11最终验收均未完成。B10继续保持315/422，Workpack316仍为`pending`。
+继续真实初始化资源端口与完整帧上下文接线。完整SDL生命周期、实机续玩和B11最终验收均未完成。B10继续保持0/422，Workpack316仍为`pending`。

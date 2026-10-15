@@ -12,7 +12,7 @@
 
 之后严格执行：
 
-1. 对固定旋转缓存owner调用已关闭`0x00451730`；
+1. 对固定旋转缓存owner调用`pending`的`0x00451730`；
 2. 若旧背景图像token非零，则调用旧释放入口；
 3. 该释放正常返回后把背景图像槽清零；
 4. 才尝试打开与读取新资源。
@@ -53,7 +53,7 @@ shift = trunc_toward_zero(640 / rotation_divisor)
 
 ## 5. 背景图像水平循环旋转
 
-商作为shift，以固定mode 3和固定几何owner调用已关闭`0x00433F70`。modern直接调用`rotate_legacy_battle_literal_image(..., pixels_right, shift)`：
+商作为shift，以固定mode 3和固定几何owner调用`pending`的`0x00433F70`。modern直接调用`rotate_legacy_battle_literal_image(..., pixels_right, shift)`：
 
 - 非正shift、magic不符、首行flag门和非法mode属于callee原正常早退，caller继续；
 - 首次真实图像或临时缓冲越界属于typed-stop，caller不伪造公共后缀；
@@ -61,7 +61,7 @@ shift = trunc_toward_zero(640 / rotation_divisor)
 
 ## 6. 可选六帧动作旋转缓存
 
-图像旋转返回后，LST先检查战斗记录共享word非零，再只检查第二参数低16位非零。只有两者均真才调用已关闭`0x00451420`。
+图像旋转返回后，LST先检查战斗记录共享word非零，再只检查第二参数低16位非零。只有两者均真才调用`pending`的`0x00451420`。
 
 传参按原push顺序映射为：
 

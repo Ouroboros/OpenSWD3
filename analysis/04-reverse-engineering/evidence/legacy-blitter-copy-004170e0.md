@@ -133,6 +133,6 @@ destination += offsets[cursor / 4] * 2
 - 抖动表首项时序、终止行访问、正向 phase 推进与反向不推进；
 - `[+6] & 0x10` 未置位的正常空操作。
 
-真实资产样本来自 `all_sys.tsw`：记录序号 128、资源 9128、variant 0、16 位、`16x16`。压缩流为 76 字节，SHA-256 为 `2d249843094cee2847c1d91cca1c3ace3dffa95ae17e07b873c5c7c127d7b18d`；经已闭环解压器得到 238 字节 RLE。以 `0xA55A` 初始化目标后，copy 结果的 little-endian FNV-1a 64 为 `0x7C38744AC87B8BE1`，其中 54 个 literal 零像素确实覆盖目标。
+真实资产样本来自 `all_sys.tsw`：记录序号 128、资源 9128、variant 0、16 位、`16x16`。压缩流为 76 字节，SHA-256 为 `2d249843094cee2847c1d91cca1c3ace3dffa95ae17e07b873c5c7c127d7b18d`；经`pending`的解压器得到 238 字节 RLE。以 `0xA55A` 初始化目标后，copy 结果的 little-endian FNV-1a 64 为 `0x7C38744AC87B8BE1`，其中 54 个 literal 零像素确实覆盖目标。
 
 Linux Clang 22.1.8 的 `core` 42/42、`app` 44/44 CTest，以及 Windows LLVM `app` 44/44 CTest 均已通过。

@@ -70,11 +70,11 @@ LST摘录、独立分析、双向审查、首失败、四门日志、源码SHA�
 `build/tmp/runtime/resource-head-publication-*`。
 
 未执行全量UT、Windows、actual MON、游戏运行或原版联合动态差分。
-不标assembly_exact，不改变315/422、Workpack316 pending_audit、B11或整体Goal状态。
+不标assembly_exact，不改变0/422、Workpack316 `pending`、B11或整体Goal状态。
 
 ## 5. 历史还原验收
 
-原196/422阶段曾执行core188/188、app194/194及双生成，历史SHA256为
+原0/422阶段曾执行core188/188、app194/194及双生成，历史SHA256为
 `61edff9d9172acbf3fe675a6ca334657d402de59dffe303618b924e2f702b412`。
 这些旧全量结果不作为本次门禁。原版链头与caller联合捕获仍缺失，
 `original_diff_verified`保持`pending`。

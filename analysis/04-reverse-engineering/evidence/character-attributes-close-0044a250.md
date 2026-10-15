@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-唯一行为真值为`swd3.exe.lst`。物理范围`0x0044A250..0x0044A277`，26行、2个call，无FUNCTION CHUNK。直接caller为44A050，另由43B480安装为callback；callee为已关闭44A030与43B480。
+唯一行为真值为`swd3.exe.lst`。物理范围`0x0044A250..0x0044A277`，26行、2个call，无FUNCTION CHUNK。直接caller为44A050，另由43B480安装为callback；callee为`pending`的44A030与43B480。
 
 函数先直接调用44A030，按first、second顺序释放两份owner且不清owner值；随后对interaction mode执行u16预减。结果精确为0时清active owner，否则保持。最后把新mode零扩展为u32传给43B480并透传其EAX。入口mode为0时按u16下溢为FFFF，不清active owner，并以65535分派。
 

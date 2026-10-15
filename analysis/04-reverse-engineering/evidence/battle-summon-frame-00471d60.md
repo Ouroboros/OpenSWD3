@@ -14,4 +14,4 @@
 
 动作十五caller改为typed直连；消息九十七caller也改为同一typed实现，原message-phase whole-function枚举槽保留为reserved，新增sample/render窄槽并贯通frame coordinator adapter。测试覆盖actor/frame typed-stop、陈旧动作偏移、render gate两路、零到一同帧穿透、一到二终态、signed motion、word回绕、精确清零、action十五与message九十七production后续行为及旧地址零调用。
 
-定向测试与独立AddressSanitizer均通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 203 platform_adapted + 9 assembly_exact + 210 pending_audit`，SHA256为`373bd8bbe9088c04d1ae0c42b4075819e412b794f312a6477bad70bed52bedb7`。动态差分因原版角色、动作流、帧资源、音频、绘制和两个caller寄存器联合捕获后端缺失而登记为`pending`。
+定向测试与独立AddressSanitizer均通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`373bd8bbe9088c04d1ae0c42b4075819e412b794f312a6477bad70bed52bedb7`。动态差分因原版角色、动作流、帧资源、音频、绘制和两个caller寄存器联合捕获后端缺失而登记为`pending`。

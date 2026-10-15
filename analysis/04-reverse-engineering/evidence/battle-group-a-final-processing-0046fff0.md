@@ -4,7 +4,7 @@
 
 ## 1. 完整权威范围
 
-权威LST主体为`0x0046FFF0..0x00470172`，proc至endp共175行、103条实际指令、4个call、21个跳转、11个局部标签、2个返回点，没有外部`FUNCTION CHUNK`。callee为已关闭物品效果`0x0046F1F0`一次、已关闭profile模式选择`0x0046FF00`一次，以及待审资料缓冲加载`0x00476A80`两次。
+权威LST主体为`0x0046FFF0..0x00470172`，proc至endp共175行、103条实际指令、4个call、21个跳转、11个局部标签、2个返回点，没有外部`FUNCTION CHUNK`。callee为`pending`的物品效果`0x0046F1F0`一次、`pending`的profile模式选择`0x0046FF00`一次，以及待审资料缓冲加载`0x00476A80`两次。
 
 ## 2. 控制流
 
@@ -24,4 +24,4 @@
 
 ## 4. 验证状态
 
-单元测试覆盖零动作早退、模式替换转场、普通清零与actor record派生、双资料加载、bit5缓冲flag、零profile返回以及actor record typed-stop前缀。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 178 platform_adapted + 9 assembly_exact + 235 pending_audit`，SHA256为`e57b6e6a64cbc3b2353a7baa7d2f2537263a2e330aa4de26211644361f163c2d`。动态差分因原版actor、live资料记录、物品callee、随机callee、资料加载与caller寄存器联合捕获后端缺失而登记为`pending`。
+单元测试覆盖零动作早退、模式替换转场、普通清零与actor record派生、双资料加载、bit5缓冲flag、零profile返回以及actor record typed-stop前缀。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`e57b6e6a64cbc3b2353a7baa7d2f2537263a2e330aa4de26211644361f163c2d`。动态差分因原版actor、live资料记录、物品callee、随机callee、资料加载与caller寄存器联合捕获后端缺失而登记为`pending`。

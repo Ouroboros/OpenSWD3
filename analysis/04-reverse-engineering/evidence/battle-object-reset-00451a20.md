@@ -14,7 +14,7 @@
 入口保存ESI和EDI后严格执行：
 
 1. 无参数调用`0x00478110`清理三条共享链；
-2. 以`0x004B9F00`调用已关闭的五字清零helper；
+2. 以`0x004B9F00`调用`pending`的五字清零helper；
 3. 以`0x004ACBA8`调用同一helper；
 4. 以`0x004B8A00`调用同一helper；
 5. 三次调用完成后一次性回收12字节参数。
@@ -65,7 +65,7 @@ count  = 10
 
 ## 6. 双向追溯
 
-- `0x00451A20..0x00451A45`：全局链清理、三个已关闭typed helper及统一栈回收；
+- `0x00451A20..0x00451A45`：全局链清理、三个`pending`的typed helper及统一栈回收；
 - `0x00451A48..0x00451A54`：96个dword正向清零，结束时EAX/ECX为零；
 - `0x00451A56..0x00451A6E`：组B八槽固定stride遍历；
 - `0x00451A70..0x00451A88`：组A十槽固定stride遍历；
@@ -87,4 +87,4 @@ C++到LST反向追溯覆盖58行完整函数、22次原callee调用、三个五�
 - 18个actor reply的EAX和EDX逐次线程，ECX在每次调用前被当前token覆盖；
 - 最终EAX、ECX和EDX来自末个组A对象callee。
 
-当前没有原版全局链清理、384字节表、18个角色对象和后续角色callee的联合捕获后端，caller整体`original_diff_verified`仍为`pending`。本次已关闭五字helper不依赖该动态oracle。
+当前没有原版全局链清理、384字节表、18个角色对象和后续角色callee的联合捕获后端，caller整体`original_diff_verified`仍为`pending`。本次`pending`的五字helper不依赖该动态oracle。

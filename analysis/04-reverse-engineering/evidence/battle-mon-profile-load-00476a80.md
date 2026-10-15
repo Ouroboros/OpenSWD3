@@ -6,7 +6,7 @@
 
 权威主体为`0x00476A80..0x00476DA6`，从`proc`到`endp`共398行、222条实际指令、12个call、31个跳转、29个局部标签和3个返回点。没有外部`FUNCTION CHUNK`。
 
-函数接收40字节输出资料和16位资料编号。它共享两个原版全局：MON.DAT惰性文件句柄与临时1024字节读取块。`0x00476DB0`也使用同一会话；后续已关闭的`0x004776A0`在战斗全局重置尾部统一关闭共享句柄并清会话门。
+函数接收40字节输出资料和16位资料编号。它共享两个原版全局：MON.DAT惰性文件句柄与临时1024字节读取块。`0x00476DB0`也使用同一会话；后续`pending`的`0x004776A0`在战斗全局重置尾部统一关闭共享句柄并清会话门。
 
 原版还通过字符串复制与拼接建立数据目录下的MON.DAT路径，再调用文件open/seek/read、1024字节分配和释放。modern把路径拼接收敛到SDL数据目录适配层，并把其余操作收敛为`LegacyBattleMonDatabasePort`的五种低层请求，没有保留整函数opaque调用。
 
@@ -66,7 +66,7 @@
 
 ## 5. caller回收（`pending`）
 
-十四个已关闭caller已删除当前整函数的opaque边界并typed直连：十个战斗caller与四个特殊模式caller。尚未审计的`0x00480220`拥有八个调用站点，本轮不修改。
+十四个`pending`的caller已删除当前整函数的opaque边界并typed直连：十个战斗caller与四个特殊模式caller。尚未审计的`0x00480220`拥有八个调用站点，本轮不修改。
 
 战斗caller覆盖组B动作配置、重配置、组合、profile模式、profile选择、actor列表查询与应用、actor资料准备、资源选择以及组A最终处理。顶层startup、action、script和input port通过虚继承共享同一个MON会话和40字节scratch；旧预制profile回调、profile buffer接口及整函数callee枚举槽均已删除或保留为不可调用reserved值。
 
@@ -89,7 +89,7 @@
 
 ## 7. 验证与动态差分
 
-纯函数测试覆盖open失败、句柄缓存、短DWORD陈旧高字节、分配零、首tag非零、tag 0至25、unknown tag、tag 1、tag 5、全部字段和flag投影、寄存器线程、访问typed-stop与释放次数。caller回归覆盖十四个已关闭caller的资料编号、scratch清零差异、字段读取、失败前缀和共享会话。
+纯函数测试覆盖open失败、句柄缓存、短DWORD陈旧高字节、分配零、首tag非零、tag 0至25、unknown tag、tag 1、tag 5、全部字段和flag投影、寄存器线程、访问typed-stop与释放次数。caller回归覆盖十四个`pending`的caller的资料编号、scratch清零差异、字段读取、失败前缀和共享会话。
 
 战斗聚合定向测试、完整core AddressSanitizer `188/188`、Linux core `188/188`和Linux app `194/194`全部通过；最终日志零OpenSWD3源码warning、测试失败和sanitizer finding。ASan曾因战斗聚合测试单函数帧逼近默认8MiB而暴露栈耗尽；一个原本独立的测试块已改为聚合二进制的独立入口，没有禁用sanitizer或缩减断言。
 

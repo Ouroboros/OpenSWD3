@@ -117,10 +117,10 @@ FFmpeg、Miles、Bink 或 SDL 类型。
 
 有限收口表与总所有权表的 game/audio_video 地址集合逐项一致，均为 73 项：43 项核心
 实现、2 项真实资产验证实现、3 项平台替代、1 项外部 service 端口、23 项“核心状态机
-已实现但实际媒体后端延期”，以及 1 项剧情调用边界拆分。没有未映射地址。此前确认的
+实现状态为`pending`但实际媒体后端延期”，以及 1 项剧情调用边界拆分。没有未映射地址。此前确认的
 `0x004841B0/0x00484230/0x00484500` 已在总所有权表正式改归 battle，不再只停留在本文
-说明中。剩余工作只有最终 `libffmpeg`、后续 owner 调用点接线和 `blocked_runtime_oracle`，
-不构成继续占用 B5 执行位的理由。
+说明中。工作项包括最终 `libffmpeg`、后续 owner 调用点接线和原版动态差分。
+B5 执行状态：`pending`。
 
 ## 5. 已有证据
 
@@ -147,10 +147,10 @@ FFmpeg、Miles、Bink 或 SDL 类型。
 2. `[ ]` B5.2：`0x00486260/0x00486280` 已按完整 LST 实现 signed clamp 与 32 位
    回绕声像偏移；Linux `core` 65/65、Windows LLVM `app` 67/67 CTest 通过。
 3. `[ ]` B5.3：`0x004862B0/0x00486490` 的 3000 项索引、一基查找和四类 sample
-   buffer 已实现；真实 `all.snd` 的 664 个 view 拼接 SHA-256 精确匹配既有证据，Linux
+   buffer 实现状态为`pending`；真实 `all.snd` 的 664 个 view 拼接 SHA-256 精确匹配既有证据，Linux
    `core` 67/67、Windows LLVM `app` 69/69 CTest 通过。
 4. `[ ]` B5.4：`0x004859B0` 的 pool 部分及 `0x00485C20–0x00486210`、
-   `0x004862A0/0x00486430` 的 sample manager 核心已实现；fake backend 锁定两条单链表、
+   `0x004862A0/0x00486430` 的 sample manager 核心实现状态为`pending`；fake backend 锁定两条单链表、
    播放/停止顺序、status 1/2、返回值及原始 buffer 泄漏语义。Linux `core` 68/68、
    Windows LLVM `app` 70/70 CTest 通过。
 5. `[ ]` B5.5：`0x004859B0` 的 wave 格式协商/回退已按 LST 恢复；SDL3 backend 已
@@ -185,7 +185,7 @@ FFmpeg、Miles、Bink 或 SDL 类型。
     原光盘路径已锁定，正常路径以配置数据目录做确定性替代。Linux `core` 75/75、
     Linux/Windows `app` 79/79 CTest 通过；没有提前实现 `libffmpeg`。
 12. `[ ]` B5.close：73 地址收口表与总所有权表集合零差异；审计结果为 43 核心实现、
-    2 资产验证实现、3 平台替代、1 外部 service 端口、23 核心已实现/后端延期、1 剧情
+    2 资产验证实现、3 平台替代、1 外部 service 端口、23 核心实现状态为`pending`/后端延期、1 剧情
     边界拆分，没有未映射地址。Linux `core` 76/76、Linux/Windows `app` 80/80 CTest
     通过，核心层先行让出执行位。
 13. `[ ]` B5.media：官方签名FFmpeg n9.0源码已由项目脚本构建为最小LGPL双平台静态包，并把五个归档链接进项目自有`openswd3_ffmpeg`共享库。BGM/MP3经既有stream ABI解码为48 kHz stereo float并交SDL3播放；BIK/OP经既有video ABI逐帧解码、定时、RGB555/565拷贝，并同步处理内嵌Bink音频。组件白名单只保留真实资产所需的Bink/MP3解复用与解码、file协议、重采样和缩放；Windows归档使用与应用一致的clang-cl/MSVC ABI，双clean构建的十个归档哈希一致。Windows Debug媒体DLL从94.76 MiB基线降至1.22 MiB，且不依赖拆分FFmpeg或MinGW运行时。自建包下的真实`Map_Ca12`与`Map_Eu08`循环、短Bink和完整opening解码通过，Linux core为188/188、app为194/194，Windows app为194/194。主程序与媒体库共用单一动态SDL3，运行目录只复制项目媒体库、SDL3与LGPL许可；两个平台另行生成并实际验证可重链接的LGPL合规包，FFmpeg API未扩散到兼容核心。

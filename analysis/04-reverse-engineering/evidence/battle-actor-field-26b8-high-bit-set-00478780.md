@@ -101,7 +101,7 @@ Workpack 315必须把该leaf直接放回`actor+0x2B10`写入之后、`0x00478BDB
 
 ## 7. 双向追溯与验证范围
 
-LST到C++追溯覆盖53字节完整边界、两次TEST、条件双word清零、无条件最终OR/write、普通RET、六个故障点、部分提交、寄存器和flags。C++到LST反向追溯覆盖四个canonical字段、27个已关闭CALL的独立返回地址、8个延期CALL身份、`sub_478B60`窄reply、第二pending槽、嵌套trace顺序及caller后缀抑制。生产源码对`0x00478780`只保留typed地址常量和reserved枚举，已关闭路径不再执行generic opaque调用。
+LST到C++追溯覆盖53字节完整边界、两次TEST、条件双word清零、无条件最终OR/write、普通RET、六个故障点、部分提交、寄存器和flags。C++到LST反向追溯覆盖四个canonical字段、27个`pending`的CALL的独立返回地址、8个延期CALL身份、`sub_478B60`窄reply、第二pending槽、嵌套trace顺序及caller后缀抑制。生产源码对`0x00478780`只保留typed地址常量和reserved枚举，`pending`的路径不再执行generic opaque调用。
 
 测试覆盖gate早退、原bit31清/置两分支、两个word写顺序、最终dword写、六类typed-stop、部分提交、EAX/ECX/EDX、ESP/EIP、flags、Group-A/Group-B owner alias、27+8 caller分类、`sub_478B60`执行/未执行窄reply、第二pending槽、现代frame typed-stop后缀及全部生产caller trace。ASan还暴露聚合战斗测试中历史巨型frame-coordinator栈帧；仅测试侧把大型state、port、fixture和result放到堆，不改变生产行为。
 

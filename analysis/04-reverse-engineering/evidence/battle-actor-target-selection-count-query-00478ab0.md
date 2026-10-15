@@ -43,7 +43,7 @@ Group B: startup.group_b_lifecycle[index].action_execution.target_selection_coun
 
 空指针或不可读字段仍在原字段读取点停止，不制造零值。返回访问描述
 保留原 RET 故障边界；没有新增停止。C++ 不模拟任意原地址解引用、
-CPU 栈页故障或 SEH，因此保留 `platform_adapted`。
+CPU 栈页故障或 SEH，因此保留 `pending`。
 
 ## 3. 唯一调用方的顺序与结果消费
 

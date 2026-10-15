@@ -6,7 +6,7 @@
 
 权威LST主体为`0x00476780..0x0047685D`，从proc到endp共110行、80条带机器码且含助记符的实际指令、6个call、6个跳转、3个局部标签和4个返回点，没有外部`FUNCTION CHUNK`。六个call由三次待审定义加载器`0x00476DB0`和三次导入`lstrcpyA`组成。
 
-函数是thiscall。入口`ECX`为组Bactor；三个栈参数依次为完整32位selector、文字目标和输出dword目标，callee以`retn 0x0C`弹出参数。两个静态caller分别位于已关闭的目标选择进入函数和控制面板逐帧函数；两处都只在完整`EAX == 1`时把该主选项计为可用，不是低`AX`比较。
+函数是thiscall。入口`ECX`为组Bactor；三个栈参数依次为完整32位selector、文字目标和输出dword目标，callee以`retn 0x0C`弹出参数。两个静态caller分别位于`pending`的目标选择进入函数和控制面板逐帧函数；两处都只在完整`EAX == 1`时把该主选项计为可用，不是低`AX`比较。
 
 ## 2. selector与首次资源读取
 

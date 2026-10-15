@@ -8,9 +8,9 @@
 
 唯一caller是逐帧画面协调器`0x00453200`。五个call站点为：
 
-- 两次已关闭全帧暗化`0x0045BD10`，现直接组合typed实现；
+- 两次`pending`的全帧暗化`0x0045BD10`，现直接组合typed实现；
 - 一次音频stream暂停，保留窄端口；其完整EAX继续作为组A结果整理入口陈旧值；
-- 两次已关闭结果奖励整理`0x0045E9C0`，现直接组合同一typed实现。
+- 两次`pending`的结果奖励整理`0x0045E9C0`，现直接组合同一typed实现。
 
 ## 2. 组A剩余量与无符号门
 
@@ -33,7 +33,7 @@ remaining = group_a_count - packed_high_word - resolved_low_word
 
 ## 3. 组A暗化、音频与模式
 
-暗化门等于1时直接组合已关闭全帧暗化：
+暗化门等于1时直接组合`pending`的全帧暗化：
 
 - channel delta、三个颜色偏移和唯一owned framebuffer沿用原typed owner；
 - 返回不精确等于1时不暂停音频、不调用结果整理，并继续组B判定；
@@ -48,7 +48,7 @@ remaining = group_a_count - packed_high_word - resolved_low_word
 5. message state等于104时active清0；
 6. 再读取战斗mode flags，低byte bit3置位时active清0。
 
-message读取发生在模式写2之前。结果整理会清组B数量，并可通过已关闭道具callee改写后续packed进度、暗化门和channel delta；组B阶段必须重新读取，不缓存入口值。结果整理typed-stop保留暗化与音频前缀，阻断message、模式发布和组B阶段。
+message读取发生在模式写2之前。结果整理会清组B数量，并可通过`pending`的道具callee改写后续packed进度、暗化门和channel delta；组B阶段必须重新读取，不缓存入口值。结果整理typed-stop保留暗化与音频前缀，阻断message、模式发布和组B阶段。
 
 ## 4. 组B signed差值门
 
@@ -92,7 +92,7 @@ difference = zero_extend(low_byte) - zero_extend(byte_2)
 - 结果整理的两项奖励ID、双完成word和玩家道具链；
 - 全帧暗化channel delta、唯一framebuffer和共享颜色偏移。
 
-本函数只新增结果latch、暗化门与组B强制值；结果整理状态由相邻关闭函数唯一持有，组B数量复用actor metric且启动重复副本已删除。channel delta复用已关闭暗化状态。全局重置按原write program：
+本函数只新增结果latch、暗化门与组B强制值；结果整理状态由相邻关闭函数唯一持有，组B数量复用actor metric且启动重复副本已删除。channel delta复用`pending`的暗化状态。全局重置按原write program：
 
 - 清最终角色的排除u16与完成u8；
 - 只清动作phase counter低word，保留本函数读取的高word；
@@ -103,7 +103,7 @@ difference = zero_extend(low_byte) - zero_extend(byte_2)
 
 ## 7. caller回收
 
-逐帧协调器在内部bit17与可选调试叠加之后无条件调用本函数，再直接组合已关闭的上下文提示绘制。旧第一个post-input opaque stage已删除并直接组合typed结果判定。
+逐帧协调器在内部bit17与可选调试叠加之后无条件调用本函数，再直接组合`pending`的上下文提示绘制。旧第一个post-input opaque stage已删除并直接组合typed结果判定。
 
 子暗化或结果整理typed-stop保留此前整帧全部角色、UI、对话、倒计时与调试叠加副作用，以及本函数latch、颜色偏移、音频和已完成奖励前缀；随后阻断上下文提示、颜色初始化/累加、surface位移和截图。正常返回EAX按原caller不消费，继续后一阶段。
 

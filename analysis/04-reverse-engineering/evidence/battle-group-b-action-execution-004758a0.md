@@ -39,7 +39,7 @@
 - 提交成功的首段顺序为source更新→source尾→target发布→source finalize，次段顺序为source尾→source更新→target发布→source finalize；
 - 每段结束都把对应记录flags清零并把effect latch写1。
 
-主记录flags同时包含bit3与bit10时，函数按记录内七个signed word初始化已关闭颜色累计器，并分别消费bit10与bit3；其他位不参与该颜色条件。无论是否触发颜色，随后都将主记录三个颜色WORD发布到实际画面控制存储，再调用画面刷新。475C82/8B/94在返回后检查当前三色，任一非零时475C9D写实际secondary抑制门1；全零保留原值，不读snapshot，不覆盖BF74选择门。runtime bit15仍为零时在这里返回0，不访问actor资源token。
+主记录flags同时包含bit3与bit10时，函数按记录内七个signed word初始化`pending`的颜色累计器，并分别消费bit10与bit3；其他位不参与该颜色条件。无论是否触发颜色，随后都将主记录三个颜色WORD发布到实际画面控制存储，再调用画面刷新。475C82/8B/94在返回后检查当前三色，任一非零时475C9D写实际secondary抑制门1；全零保留原值，不读snapshot，不覆盖BF74选择门。runtime bit15仍为零时在这里返回0，不访问actor资源token。
 
 B11回调向量验证刷新后清零/改非零及两门、BF74互不覆盖；core/ASan setup各1/1及SDL链接通过。全部访问与日志见[双门与实时颜色](battle-frame-effect-00453580.md#20-b11双抑制门与当前颜色共用实际存储)。
 
@@ -71,6 +71,6 @@ profile mode不等于1时，函数先调用次记录准备callee，再按上述�
 
 定向测试覆盖入口start gate、caller入口EAX/EDX陈旧值、profile-bit8第二callee失败与early latch、主记录准备、bit1记录转移、runtime bit14及`mov ax`高半继承、首段负效果与u32累计、次段正效果与成功发布、效果提交EAX/EDX、七word颜色初始化、刷新与直接效果、资源首次访问stop、第一条资源绘制不访问render-source、第二条render-source首次访问stop及故障寄存器、非direct motion减4、special mode净零、五记录与工作区无条件物化清理、四个全一target槽、bound 120随机完成延迟、返回0/1，以及对手动作1的组A/组B target caller、旧opaque零调用和typed-stop传播。
 
-最终`./build-asan.sh`、`./build.sh core`和`./build.sh app`分别完成AddressSanitizer core `188/188`、Linux core `188/188`与Linux app `194/194`；零OpenSWD3源码warning、sanitizer finding或测试失败。inventory生成器连续双跑逐字节一致，关闭进度为`0/422 = 233 platform_adapted + 9 assembly_exact + 180 pending_audit`，SHA256为`f47b368d0fd12ac6b17afd257f6dacd01a38c5fc53282b1603b264956a57f8ad`。
+最终`./build-asan.sh`、`./build.sh core`和`./build.sh app`分别完成AddressSanitizer core `188/188`、Linux core `188/188`与Linux app `194/194`；零OpenSWD3源码warning、sanitizer finding或测试失败。inventory生成器连续双跑逐字节一致，关闭进度为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`f47b368d0fd12ac6b17afd257f6dacd01a38c5fc53282b1603b264956a57f8ad`。
 
 当前缺少原版八个组B完整actor、组A/组B target、动作/profile/资源/render-source物理布局、16个未审callee、共享累计/颜色/framebuffer/RNG状态及两处caller寄存器联合捕获后端，因此`original_diff_verified`登记为`pending`。

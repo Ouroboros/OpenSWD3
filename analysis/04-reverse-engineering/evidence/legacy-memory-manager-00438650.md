@@ -111,4 +111,4 @@ IDA 在 `0x004B6C8B` 标出了 `byte_4B6C8B[0x611]`，但六个代码引用均�
 - `resource_io.legacy_memory_manager` 连续四次建立/销毁独立实例；每次均得到私有堆可用、32 当前节点、32 峰值节点、32 空闲节点、0 活动节点、0 payload、桶字段全零和空错误缓冲。
 - 真实进程从 `build/runtime-smoke/launch` 启动，通过 `--data-dir E:\Game\swd3` 建立标题为 `OpenSWD3` 的窗口；正常关闭请求返回真，进程退出码为零。该路径实际覆盖进程级实例的主入口前构造和退出析构。
 
-当前没有可运行的原程序内存状态捕获后端，不能把以上静态复核、UT 和新程序 smoke 升级为 `original_diff_verified`；该项继续标记 `blocked_runtime_oracle`。
+当前没有可运行的原程序内存状态捕获后端，不能把以上静态复核、UT 和新程序 smoke 升级为 `original_diff_verified`；该项继续标记 `pending`。

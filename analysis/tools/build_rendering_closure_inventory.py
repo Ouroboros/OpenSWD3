@@ -228,7 +228,7 @@ def sha256(path: Path) -> str:
 def policy_for(address: int) -> Policy:
     if address == 0x004350E0:
         return Policy(
-            "platform_adapted",
+            "pending",
             "rendering;platform_sdl3",
             "LegacyFramebuffer and LegacyTextRendererRuntime construction",
             "asset-runtime-closure-audit.md;"
@@ -237,7 +237,7 @@ def policy_for(address: int) -> Policy:
         )
     if address in IMPLEMENTED_STREAM_CONVERSION:
         return Policy(
-            "implemented",
+            "pending",
             "rendering",
             "legacy image command-stream encode/decode/pixel-conversion family",
             "legacy-image-command-stream-004014f0-00401e50.md",
@@ -245,7 +245,7 @@ def policy_for(address: int) -> Policy:
         )
     if address in IMPLEMENTED_DRAWING_HELPERS:
         return Policy(
-            "implemented",
+            "pending",
             "rendering",
             "legacy animated border/thumbnail/decorated-number helpers",
             "legacy-drawing-helpers-0040de50-004117f0.md",
@@ -253,7 +253,7 @@ def policy_for(address: int) -> Policy:
         )
     if address in IMPLEMENTED_SCALED_RLE_WRITERS:
         return Policy(
-            "implemented",
+            "pending",
             "rendering",
             "LegacyScaledRleSource;LegacyScaledRleTransform;"
             "write_legacy_scaled_rle_forward/reverse",
@@ -262,7 +262,7 @@ def policy_for(address: int) -> Policy:
         )
     if address in IMPLEMENTED_SOFTWARE_HELPERS:
         return Policy(
-            "implemented",
+            "pending",
             "rendering",
             "legacy outline/fixed-tile/packed-row software helpers",
             "legacy-outline-fixed-tile-and-packed-row-00417050-00417de0.md",
@@ -270,7 +270,7 @@ def policy_for(address: int) -> Policy:
         )
     if address == 0x00414B60:
         return Policy(
-            "implemented",
+            "pending",
             "rendering;story_scene;world_map",
             "LegacyMovingActionNode; update_draw_legacy_moving_actions; "
             "LegacyWorldFrameRuntimePorts",
@@ -279,7 +279,7 @@ def policy_for(address: int) -> Policy:
         )
     if address == 0x00414CE0:
         return Policy(
-            "implemented",
+            "pending",
             "rendering;story_scene;world_map",
             "LegacyRoleHeadActionNode; update_draw_legacy_role_head_actions; "
             "LegacyWorldFrameRuntimePorts",
@@ -288,7 +288,7 @@ def policy_for(address: int) -> Policy:
         )
     if address in IMPLEMENTED_ACTION_RENDERERS:
         return Policy(
-            "implemented",
+            "pending",
             "rendering;story_scene",
             "legacy pause/action/packed-row/timed-message coordinators",
             "legacy-pause-action-and-message-renderers-00411fa0-004153d0.md",
@@ -296,7 +296,7 @@ def policy_for(address: int) -> Policy:
         )
     if address in IMPLEMENTED_FRAME_COLOR:
         return Policy(
-            "implemented",
+            "pending",
             "rendering",
             "legacy_frame_color signed-offset/pair/combine/grayscale helpers",
             "frame-color-adjustment-and-combine.md",
@@ -304,7 +304,7 @@ def policy_for(address: int) -> Policy:
         )
     if address in IMPLEMENTED_FONT_RUNTIME:
         return Policy(
-            "implemented",
+            "pending",
             "rendering;platform_sdl3",
             "LegacyTextRendererRuntime;SdlSmokeInitializationPorts;"
             "SdlDisplayLifecyclePorts;SmokeShutdownPorts",
@@ -313,7 +313,7 @@ def policy_for(address: int) -> Policy:
         )
     if address in INTERNAL_RAW_FADE_STEPS:
         return Policy(
-            "implemented_internal_branch",
+            "pending",
             "rendering",
             "blit_legacy_copy_paths/raw_constant_vertical_fade",
             "legacy-blitter-raw-constant-fade-00417ec0.md",
@@ -321,7 +321,7 @@ def policy_for(address: int) -> Policy:
         )
     if address in IMPLEMENTED_BLITTER:
         return Policy(
-            "implemented",
+            "pending",
             "rendering",
             "select_legacy_blitter;blit_legacy_copy_paths",
             "software-blitter-dispatch-and-pixel-effects.md",
@@ -329,7 +329,7 @@ def policy_for(address: int) -> Policy:
         )
     if address in UNREACHABLE_BLITTER:
         return Policy(
-            "unreachable_current_assets",
+            "pending",
             "rendering",
             "explicit unsupported_routine boundary",
             "software-blitter-dispatch-and-pixel-effects.md",
@@ -337,7 +337,7 @@ def policy_for(address: int) -> Policy:
         )
     if address in IMPLEMENTED_PIXEL_FORMAT:
         return Policy(
-            "implemented",
+            "pending",
             "rendering",
             "LegacyFramebuffer;LegacyPixelConversionState;legacy pixel converters",
             "legacy-framebuffer-geometry-00416d30.md;pixel-format-selection-and-cm-cache.md",
@@ -345,7 +345,7 @@ def policy_for(address: int) -> Policy:
         )
     if address in IMPLEMENTED_FEATURES:
         return Policy(
-            "implemented",
+            "pending",
             "rendering",
             "legacy tiled frame/BMP/formatted text/countdown/rectangle/effect panel units",
             "rendering.md:B4.7",
@@ -353,7 +353,7 @@ def policy_for(address: int) -> Policy:
         )
     if address in PLATFORM_FRAMEBUFFER:
         return Policy(
-            "platform_adapted",
+            "pending",
             "rendering;platform_sdl3",
             "LegacyFramebuffer stable owned storage",
             "legacy-framebuffer-geometry-00416d30.md",
@@ -361,7 +361,7 @@ def policy_for(address: int) -> Policy:
         )
     if address in PLATFORM_FONT_PRODUCTION:
         return Policy(
-            "platform_adapted",
+            "pending",
             "rendering;platform_sdl3",
             "LegacyGlyphAtlasProvider;legacy-glyph-atlas.bin",
             "font-surface-and-glyph-rendering.md",
@@ -369,7 +369,7 @@ def policy_for(address: int) -> Policy:
         )
     if address in IMPLEMENTED_FONT_CORE:
         return Policy(
-            "implemented",
+            "pending",
             "rendering",
             "LegacyTextRendererState;LegacyGlyphCache;draw_legacy_text;legacy glyph writers",
             "font-surface-and-glyph-rendering.md",
@@ -377,7 +377,7 @@ def policy_for(address: int) -> Policy:
         )
     if address == 0x00436FA0:
         return Policy(
-            "transferred",
+            "pending",
             "input_time_rng",
             "legacy input-device release boundary",
             "swd3.exe.lst:0x00436FA0 -> 0x004374E0",
@@ -385,7 +385,7 @@ def policy_for(address: int) -> Policy:
         )
     if address in PLATFORM_DIRECTDRAW:
         return Policy(
-            "platform_adapted",
+            "pending",
             "rendering;platform_sdl3",
             "SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus",
             "framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md",
@@ -393,7 +393,7 @@ def policy_for(address: int) -> Policy:
         )
     if address in DEFERRED_BATTLE_SURFACES:
         return Policy(
-            "implemented_with_deferred_binding",
+            "pending",
             "rendering;battle",
             "LegacyPresentationSources battle surface roles",
             "legacy-primary-presentation-requests.md",

@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-唯一行为真值为`swd3.exe.lst`。物理范围`0x004441A0..0x0044427D`，118行，无FUNCTION CHUNK。code caller为F40一处，3B480另绑定为退出callback；F40现已直接回收。3B480与442F10已关闭并直接复用；4885A0筛选表释放由typed容器及窄释放端口表达。
+唯一行为真值为`swd3.exe.lst`。物理范围`0x004441A0..0x0044427D`，118行，无FUNCTION CHUNK。code caller为F40一处，3B480另绑定为退出callback；F40现已直接回收。3B480与442F10为`pending`并直接复用；4885A0筛选表释放由typed容器及窄释放端口表达。
 
 入口保留`mode-1`残值。
 

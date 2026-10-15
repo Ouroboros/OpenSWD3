@@ -39,7 +39,7 @@ MOV、条件跳转和RET不修改flags。两次TEST均令CF/OF为零，ZF/SF/PF�
 
 ## 5. startup两处caller回收
 
-`0x00451B10`中的两个已实现物理caller已直接组合typed接口：
+`0x00451B10`中的两个`pending`的物理caller已直接组合typed接口：
 
 - 随机补位分支`0x00452511`，真实返回地址`0x00452516`；
 - 顺序补位分支`0x00452646`，真实返回地址`0x0045264B`。

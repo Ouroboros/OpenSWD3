@@ -14,7 +14,7 @@
 
 唯一行为真值为`swd3.exe.lst`。完整主体为`0x00477A20..0x00477B30`，从proc到endp共127个物理行、82条实际指令、5个call、7个跳转、7个局部标签和2个返回点，没有外部`FUNCTION CHUNK`。
 
-五个call依次为MON定义读取`0x00476DB0`、定义说明清理`0x00478220`、已有记录百分比截零`0x00489654`、20字节分配包装器`0x00487C10`和缺键记录百分比截零`0x00489654`。两个物理caller都在已关闭的共享角色、道具调试对话`0x0040F890`，callsite为新增命令路径`0x0040FC58`和直接修改路径`0x0040FED4`。
+五个call依次为MON定义读取`0x00476DB0`、定义说明清理`0x00478220`、已有记录百分比截零`0x00489654`、20字节分配包装器`0x00487C10`和缺键记录百分比截零`0x00489654`。两个物理caller都在`pending`的共享角色、道具调试对话`0x0040F890`，callsite为新增命令路径`0x0040FC58`和直接修改路径`0x0040FED4`。
 
 函数采用cdecl三参数ABI：根token、定义/记录键dword和待设置count dword。DI保存键低word，EBX保存根，ESI保存当前记录；完整键dword仍传给MON定义读取，count只在记录和百分比路径使用低word。
 
@@ -108,6 +108,6 @@ x87模拟或访问计数。本批旧callee编号仅保留在出处注释中。
 
 叶函数回归覆盖零count根命中、动态节点锁位、缺键分配与五dword清零、低word键/count截断、inclusive夹限、百分比截零、maximum零integer indefinite、说明分配/释放及累计字节残留、MON正常打开失败后继续、loader typed-stop，以及根、链、分配记录各原访问停止点。Dialog回归覆盖新增与直接修改两个物理caller、真实MON fixture、共享根`0x004B8A00`、第二分类typed-stop和与前后分类的严格顺序。
 
-最终定向测试`2/2`、Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`、连续10轮完整core、changed-range clang-format和release审计全部通过；最终日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error。生成器连续双跑逐字节一致，工作包为`0/422 = 262 platform_adapted + 10 assembly_exact + 150 pending_audit`，SHA256为`9065cdef0726c810d287228c25a22635f06eab4db80d96dd105b62db667e0c46`。验证期间未启动原版或OpenSWD3游戏程序。
+最终定向测试`2/2`、Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`、连续10轮完整core、changed-range clang-format和release审计全部通过；最终日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error。生成器连续双跑逐字节一致，工作包为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`9065cdef0726c810d287228c25a22635f06eab4db80d96dd105b62db667e0c46`。验证期间未启动原版或OpenSWD3游戏程序。
 
 当前缺少原版MON文件/说明堆、固定定义曲线链、allocator、x87 control/status word、Dialog记录/局部槽及两个callsite联合寄存器捕获后端，动态差分登记为`pending`；这不阻止完整LST静态闭合、原位置typed-stop和Linux门禁。

@@ -83,7 +83,7 @@ Group-B  startup.group_b_lifecycle[index].action_execution
 
 ## 4. 十二个父 CALL（`pending`）
 
-完整 LST 只有十二个物理 CALL，全部位于已关闭父函数：
+完整 LST 只有十二个物理 CALL，全部位于`pending`的父函数：
 
 ```text
 0x00454A5D -> 0x00454A62  action dispatch case 22
@@ -163,11 +163,11 @@ caller；没有无来源字段写或延期 caller。
 
 任意 32 位 actor token、三个字段页和 RET 栈页无法由现代 C++ 直接合法解引用。canonical token
 resolver、固定前一槽精确解析和原访问点 typed-stop 是最小平台边界，因此本目标登记为
-`platform_adapted`，不能以 owner、span 或测试通过标记为 `assembly_exact`。
+`pending`，不能以 owner、span 或测试通过标记为 `assembly_exact`。
 
 当前缺少原版完整 Group-A/Group-B actor backing、三个字段异常页、RET 异常栈页，以及十二个
 caller/callee 的联合寄存器、flags 与 SEH 捕获后端。原版动态差分登记为
-`blocked_runtime_oracle`，不得写成 `original_diff_verified`。
+`pending`，不得写成 `original_diff_verified`。
 
 ## 7. 验证与关闭
 
@@ -183,6 +183,6 @@ finding 或 runtime error。
 LST 地址摘录 SHA-256 为
 `d9ec9988fae8a606bceff6cd056a468aef7bf9f1e6f53d2e46d4c664ce6d2272`。inventory 生成器
 连续双跑逐字节一致，关闭结果为
-`0/422 = 300 platform_adapted + 10 assembly_exact + 112 pending_audit`，下一条为
+`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，下一条为
 `audit_order=311 / 0x00478B20 / sub_478B20`。最终 inventory SHA-256 为
 `5d2cac8cfcd4a4f3475e611b3ebb7ad7ba9fa33ed352b3732676b56929d9c0b2`。

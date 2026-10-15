@@ -57,4 +57,4 @@ core/ASan的setup与actor_frame_316各1/1通过，SDL构建通过。
 新增菜单消费测试后，actor_frame_316的core/ASan已再次通过。
 日志：`build/tmp/runtime/equipment-selection-cache-{core,asan,sdl}.log`及
 `equipment-selection-cache-menu-{core,asan}.log`。
-未启动游戏，未新增原版动态差分。B10保持315/422，316 pending_audit。
+未启动游戏，未新增原版动态差分。B10保持0/422，316 pending。

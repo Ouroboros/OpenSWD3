@@ -8,6 +8,6 @@
 
 绘制路径发布frame高度三分之一与四分之一及三项`-6`运动值。sample播放参数保留frame token高半和record sample word低半，声像参数保留sample callee返回EDX高半且固定为`-16`。首层flags保留bit31和低四位并置bit2/bit3；首层坐标为signed行动者位置减完整32位x偏移、signed y减高度三分之一，第二层保持相同x并以signed y减完整32位record y偏移。sample word在绘制前清零。
 
-绘制后，actor action flags低字节bit0或bit3任一非零时，清整word并返回`copied_runtime_word | 0x8000`；否则record完成位不等于一时返回零。完成位等于一时清latch、清整条152字节record并返回二。已关闭动作更新与frame provider typed直连；sample和软件绘制保留窄port。case 24 caller不再调用整个旧地址，直接消费typed低word并保留后续高位目标扫描。
+绘制后，actor action flags低字节bit0或bit3任一非零时，清整word并返回`copied_runtime_word | 0x8000`；否则record完成位不等于一时返回零。完成位等于一时清latch、清整条152字节record并返回二。`pending`的动作更新与frame provider typed直连；sample和软件绘制保留窄port。case 24 caller不再调用整个旧地址，直接消费typed低word并保留后续高位目标扫描。
 
-测试覆盖frame原访问点、宽度镜像、陈旧sample高半、双层坐标、特殊高位返回、完成清零、caller目标扫描及旧地址零调用。定向测试与独立AddressSanitizer均通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 207 platform_adapted + 9 assembly_exact + 206 pending_audit`，SHA256为`0396b1b954d73c7ee168de52bed12094255a5ecb13fdb96c5af7e876de725f71`。动态差分因原版行动者record、frame、sample、绘制与caller寄存器联合捕获后端缺失而登记为`pending`。
+测试覆盖frame原访问点、宽度镜像、陈旧sample高半、双层坐标、特殊高位返回、完成清零、caller目标扫描及旧地址零调用。定向测试与独立AddressSanitizer均通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`0396b1b954d73c7ee168de52bed12094255a5ecb13fdb96c5af7e876de725f71`。动态差分因原版行动者record、frame、sample、绘制与caller寄存器联合捕获后端缺失而登记为`pending`。

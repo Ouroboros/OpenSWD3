@@ -28,7 +28,7 @@
 
 ## 4. 槽7至10与其余槽
 
-槽7和槽8完成公共word累加后，分别把源记录`+0x0C`的0xA4资料复制到角色`+0x158`和`+0x1FC`。源u16 `+4`不是`0xFFDC`时覆盖内嵌资料u16 `+0x50`；哨兵值则保留刚复制的原word。随后以对应内嵌资料直接调用已关闭的`sub_46F030`实现，使用同一固定对象状态；原opaque枚举槽仅保留为reserved。
+槽7和槽8完成公共word累加后，分别把源记录`+0x0C`的0xA4资料复制到角色`+0x158`和`+0x1FC`。源u16 `+4`不是`0xFFDC`时覆盖内嵌资料u16 `+0x50`；哨兵值则保留刚复制的原word。随后以对应内嵌资料直接调用`pending`的`sub_46F030`实现，使用同一固定对象状态；原opaque枚举槽仅保留为reserved。
 
 槽9和槽10完成公共word累加后直接进入循环尾。其余12槽把源byte `+0x9E..+0xA6`依次加到基础记录`+0x2D..+0x35`，只保留u8低位回绕。
 
@@ -50,7 +50,7 @@
 
 纯函数测试覆盖16槽公共word、两组条件word、12槽九byte、0至6槽早期三项、槽7/8复制与哨兵覆盖、槽9/10跳过、特殊编号latch、description token、固定诊断、空参数表、三类typed-stop以及最终EAX/ECX/EDX。startup回归覆盖64条共享角色物品根、固定诊断adapter、两次内嵌资料callee参数、辅助资料owner纠正、旧槽零调用和缺失sentinel停止。
 
-验证结果：定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning，app仅有既有ALSA提示。inventory连续双生成逐字节一致，稳定为`0/422 = 168 platform_adapted + 9 assembly_exact + 245 pending_audit`，SHA256为`35eb20034b71ca82216aba763330245915c0afd684be1fff71f97d1c3fa20970`。原版组A对象、64条动态角色物品根、真实资料与description指针、`sub_46F030`副作用、诊断和caller寄存器联合捕获后端缺失，动态差分登记为`pending`。
+验证结果：定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning，app仅有既有ALSA提示。inventory连续双生成逐字节一致，稳定为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`35eb20034b71ca82216aba763330245915c0afd684be1fff71f97d1c3fa20970`。原版组A对象、64条动态角色物品根、真实资料与description指针、`sub_46F030`副作用、诊断和caller寄存器联合捕获后端缺失，动态差分登记为`pending`。
 
 ## 8. B11生产接线复核
 

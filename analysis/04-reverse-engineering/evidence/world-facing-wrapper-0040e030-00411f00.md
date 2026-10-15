@@ -80,4 +80,4 @@ square_sum = dx * dx + dy * dy
 - `legacy_world_facing_talk_test`、`legacy_world_collision_talk_test`、
   `legacy_world_interaction_test` 固定四条 `sub_40E030` 业务路径。
 - 实现完成后再次按 C++→LST 方向逐项核对角色字段、参数顺序、回绕算术、查表覆盖条件、
-  方向表和全部调用点，结论收敛为 `assembly_exact`。
+  方向表和全部调用点，结论收敛为 `pending`。

@@ -6,7 +6,7 @@
 
 权威函数为`0x0045D250..0x0045D292`，从proc到endp完整42行、26条实际指令、0个静态call、6个条件或无条件分支与3个局部标签，无外部FUNCTION CHUNK。
 
-唯一caller是已关闭战斗启动协调器`0x00451B10`中的一处调用。函数不接收参数，不调用其他函数，只读写玩家道具head与节点next、item id和selected count。
+唯一caller是`pending`的战斗启动协调器`0x00451B10`中的一处调用。函数不接收参数，不调用其他函数，只读写玩家道具head与节点next、item id和selected count。
 
 ## 2. 入口与单节点早退
 

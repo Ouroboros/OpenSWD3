@@ -90,7 +90,7 @@ span 无效窗口隔离。
 
 原固定 64-word 裸全局表改为受检 span；空表、越界游标和缺少 Y word 在相应原读取点隔离，
 此前的游标回零写入仍保留。有效窗口的门、写序、回绕和相机结果不变，因此 closure
-disposition 为 `platform_adapted`。
+disposition 为 `pending`。
 
 selection-scroll 与 frame-coordinator 两项定向 CTest 通过；独立向量覆盖 inactive/map 门、
 哨兵回零、奇数游标、零 countdown/负 interval、到期前/到期帧、负增量、`INT32_MIN`

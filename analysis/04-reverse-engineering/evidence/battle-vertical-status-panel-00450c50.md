@@ -8,7 +8,7 @@
 
 cdecl六参数依次为动作号、X、Y、中段数量、填充偏移和selector。三个caller均位于`0x00464270`，地址为`0x00464675`、`0x004646F8`和`0x00464799`；实际调用固定动作号`0x232A`、Y `0x9E`、中段数量4，X分别为`0x190`、`0x19E`和`0x192`，后两参数来自战斗共享状态。
 
-直接callee为四次动作更新`0x004321E0`、四次帧查询`0x004315D0`、最多多次软件blitter`0x004170E0`、两次clip设置`0x00416FF0`和一次x87向零转换`0x00489654`。动作更新、帧查询和blitter由已关闭typed接口直连；clip与转换按完整callee指令语义内联为typed状态转换。
+直接callee为四次动作更新`0x004321E0`、四次帧查询`0x004315D0`、最多多次软件blitter`0x004170E0`、两次clip设置`0x00416FF0`和一次x87向零转换`0x00489654`。动作更新、帧查询和blitter由`pending`的typed接口直连；clip与转换按完整callee指令语义内联为typed状态转换。
 
 ## 2. 动作号与四阶段记录生命周期
 
@@ -152,4 +152,4 @@ C++到LST反向追溯覆盖全部四个动作阶段、四组寄存器高字、�
 
 battle聚合目标零warning构建、定向测试和独立ASan通过。
 
-当前没有原版四次动作更新后寄存器、共享计数、x87结果、clip状态、四组frame record、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整363行LST、三个caller和五类callee已完成固定状态闭环。
+当前没有原版四次动作更新后寄存器、共享计数、x87结果、clip状态、四组frame record、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整363行LST、三个caller和五类callee固定状态闭环状态为`pending`。

@@ -54,4 +54,4 @@ CRT迭代器finally及`0048A610`的逆序析构属于异常展开，不应无条
 core和ASan的setup定向测试各1/1通过，SDL应用编译链接通过。
 保留既有outcome-resolution测试第133行整数窄化警告。
 完整暂存差异已复核；生产代码与测试中的通用向量构造协议符号零引用。
-没有启动游戏或新增原版动态差分，`blocked_runtime_oracle`保持。
+没有启动游戏或新增原版动态差分，`pending`保持。

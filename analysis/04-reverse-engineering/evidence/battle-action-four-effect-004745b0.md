@@ -8,7 +8,7 @@
 
 主记录field5A bit1先处理可选转身记录。field24非零时发布runtime gate bit14，把field24与field28复制到`+0x468`转身记录action ID和base variant；field5A bit9再次置主记录external mode。随后只清bit1，破坏性清field24与field28，保留其余field5A位。gate bit14存在时通过携带转身记录引用的窄port调用待审逐帧更新；严格只在返回一时整word清主field5A、清external mode并清gate bit14。
 
-主field5A bit15发布共享negative flag一并清negative reset，但不消费该位。bit2路径先整word清field5A，再发布gate bit15并以目标为this调用待审刷新。bit3路径无论bit10是否存在都会消费bit3、发布bit15、清motion word、整word清field5A并清完整效果记录；bit10存在时先把唯一颜色初始化gate置一，并将field7A、7C、7E、80、82、84、86按signed word直连已关闭七参数颜色初始化，再仅清bit10。因为bit3最终整word清零，同word bit0不会继续执行。独立bit0路径发布bit15、清motion与field5A，调用待审目标事件并清完整效果记录。
+主field5A bit15发布共享negative flag一并清negative reset，但不消费该位。bit2路径先整word清field5A，再发布gate bit15并以目标为this调用待审刷新。bit3路径无论bit10是否存在都会消费bit3、发布bit15、清motion word、整word清field5A并清完整效果记录；bit10存在时先把唯一颜色初始化gate置一，并将field7A、7C、7E、80、82、84、86按signed word直连`pending`的七参数颜色初始化，再仅清bit10。因为bit3最终整word清零，同word bit0不会继续执行。独立bit0路径发布bit15、清motion与field5A，调用待审目标事件并清完整效果记录。
 
 函数每帧无条件将主记录field64、field66、field68发布到实际三色WORD存储，再直连画面刷新函数。474839在刷新返回后检查当前三色，任一非零才将实际primary抑制门写1；全零保留门原值。颜色配置与历史快照均不能代替返回后的重读，surface、snapshot与pending继续由唯一刷新状态持有。只有runtime gate bit15置位才进入效果段。
 
@@ -22,6 +22,6 @@ B11回调向量覆盖刷新后清零与改非零，core/ASan actor_frame_316各1
 
 收尾按原顺序整记录清主记录、目标记录、转身记录和效果记录，不清附效果记录；清`+0xFCC`起连续`0x4C0`字节工作区，四个目标索引写全一并清motion。进度owner只在原`+0x2AB0`写点检查，缺失时保留此前清理前缀。随后清进度、runtime gate和尾word，completion byte按八位回绕加一，清共享profile mode并返回一。
 
-实现复用第226项主、目标、转身、效果记录与延迟连续工作区唯一owner，只新增`+0xD9C`直接效果模式字段。颜色初始化和画面刷新两个已关闭callee直接typed调用；主更新、转身更新、目标刷新、目标事件、两种效果更新与绘制保留窄port。普通动作4和特殊动作404两个production caller均删除整函数opaque调用。
+实现复用第226项主、目标、转身、效果记录与延迟连续工作区唯一owner，只新增`+0xD9C`直接效果模式字段。颜色初始化和画面刷新两个`pending`的callee直接typed调用；主更新、转身更新、目标刷新、目标事件、两种效果更新与绘制保留窄port。普通动作4和特殊动作404两个production caller均删除整函数opaque调用。
 
-测试覆盖双入口门、field24/28转身记录转移、bit9 external mode、bit14完成门、bit10 signed颜色初始化、bit3优先级、每帧画面刷新、普通效果fallback绘制、直接效果坐标与返回门、效果bit0事件、负八淡出、bit14绘制抑制、四记录与连续工作区清理、completion byte回绕、frame原访问点typed-stop、普通动作4与特殊动作404双caller及旧地址零调用。新增测试最初在普通和AddressSanitizer运行中分别暴露累计测试栈溢出；将大型行动者、Fixture、port与dispatch结果移出函数栈后，定向测试与独立AddressSanitizer均通过且findings为零。Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 218 platform_adapted + 9 assembly_exact + 195 pending_audit`，SHA256为`796f78d208b0f774040fa836b55a8d431d7f24eee72e290a6f406e2d5e5bbb05`。动态差分因原版四记录、frame、颜色、画面刷新、绘制、目标事件、两类待审效果callee与双caller寄存器联合捕获后端缺失而登记为`pending`。
+测试覆盖双入口门、field24/28转身记录转移、bit9 external mode、bit14完成门、bit10 signed颜色初始化、bit3优先级、每帧画面刷新、普通效果fallback绘制、直接效果坐标与返回门、效果bit0事件、负八淡出、bit14绘制抑制、四记录与连续工作区清理、completion byte回绕、frame原访问点typed-stop、普通动作4与特殊动作404双caller及旧地址零调用。新增测试最初在普通和AddressSanitizer运行中分别暴露累计测试栈溢出；将大型行动者、Fixture、port与dispatch结果移出函数栈后，定向测试与独立AddressSanitizer均通过且findings为零。Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`796f78d208b0f774040fa836b55a8d431d7f24eee72e290a6f406e2d5e5bbb05`。动态差分因原版四记录、frame、颜色、画面刷新、绘制、目标事件、两类待审效果callee与双caller寄存器联合捕获后端缺失而登记为`pending`。

@@ -6,7 +6,7 @@
 
 唯一行为真值为`swd3.exe.lst`。完整主体为`0x00477BD0..0x00477C8E`，从`proc`到`endp`共102个物理行、68条实际指令、4个call、5个跳转、5个局部标签和2个返回点，没有外部`FUNCTION CHUNK`。四个call依次属于零ID诊断`0x00431150`、`0xB0`字节分配`0x00487C10`、MON定义读取`0x00476DB0`和Win32 `lstrcpyA`；后三个只在普通缺失项路径执行。
 
-唯一物理caller为`0x0046CE75`，位于已关闭的战斗脚本分发器`0x00469D20`的case 55。该caller先有符号扩展两个word操作数，再以`actor - 8`和item ID调用本函数。
+唯一物理caller为`0x0046CE75`，位于`pending`的战斗脚本分发器`0x00469D20`的case 55。该caller先有符号扩展两个word操作数，再以`actor - 8`和item ID调用本函数。
 
 ## 2. 参数收窄、诊断和链搜索
 
@@ -53,6 +53,6 @@ case 55严格保留caller顺序：先把`[cursor+2]`有符号扩展到`value_a`�
 
 独立leaf回归覆盖根/后继命中、后继链头保留、`0x8000`缺失、普通附加、零ID诊断后继续、MON正常open失败、越界队伍索引、空头与不可映射后继、allocator调用trap、零分配、短分配清零前缀、宿主映射失败、MON typed-stop、字符串调用trap及caption写入边界。caller回归覆盖case 55普通附加、已存在项不改transition、叶函数typed-stop前缀和第二操作数读取故障前缀。
 
-发布验证为定向测试`2/2`、Linux core`195/195`、AddressSanitizer`195/195`、Linux app`201/201`、连续10轮完整core、changed-range clang-format、库存连续双生成和release审计；最终日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error。工作包为`0/422 = 264 platform_adapted + 10 assembly_exact + 148 pending_audit`，库存SHA256为`854922b90879fa0cfb79548531f5ebfe8aa6ce9c530f86251124da59425b3e69`。未启动原版或OpenSWD3游戏程序。
+发布验证为定向测试`2/2`、Linux core`195/195`、AddressSanitizer`195/195`、Linux app`201/201`、连续10轮完整core、changed-range clang-format、库存连续双生成和release审计；最终日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error。工作包为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，库存SHA256为`854922b90879fa0cfb79548531f5ebfe8aa6ce9c530f86251124da59425b3e69`。未启动原版或OpenSWD3游戏程序。
 
 原版四条队伍物品链、allocator与MON对象状态、Win32诊断/字符串复制ABI，以及caller与callee联合寄存器捕获后端缺失，`original_diff_verified`登记为`pending`。该阻塞不影响完整LST静态闭环、typed故障隔离和Linux验证。

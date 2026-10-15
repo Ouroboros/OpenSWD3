@@ -4,7 +4,7 @@
 
 ## 1. LST范围与边界
 
-唯一行为真值为`swd3.exe.lst`。函数物理范围为`0x0043D370..0x0043D46F`，152行，六个caller全部来自已关闭`0x0043D050`；唯一callee为RNG helper `0x00439070`。
+唯一行为真值为`swd3.exe.lst`。函数物理范围为`0x0043D370..0x0043D46F`，152行，六个caller全部来自`pending`的`0x0043D050`；唯一callee为RNG helper `0x00439070`。
 
 原六参数ABI为destination、4-byte CP950 label、signed status、threshold、value和maximum。typed helper保留完整格式化控制流；port只隔离唯一RNG owner。D050删除整函数`format_derived_text`高层占位，六处直接调用本helper并传播destination typed-stop。
 

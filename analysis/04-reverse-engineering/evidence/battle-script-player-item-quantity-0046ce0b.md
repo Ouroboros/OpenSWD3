@@ -4,7 +4,7 @@
 
 实现源码`6aa4ffa3`。脚本53直接借用世界共享物品栏和现有MON数据库，
 删除对应callee枚举和通用调用；节点由实际容器分配并拥有。
-本切片为`platform_adapted`、`unit_tested`、`fixed_state_tested`；
+本切片为`pending`；
 脚本父协议和数量接口族继续`pending`，不标`assembly_exact`。
 
 ## 1. 权威范围与归属纠正

@@ -18,7 +18,7 @@
 (8) 最终门禁、inventory／模块文档／PLAN 同步、提交推送和完成 TG。
 
 某项只有前缀或条件化测试时计为未完成；后续只在整项闭合后递增。
-B10 已关闭工作包仍为 `0/422 = 74.64%`，316 仍是 `0/1` 验收。
+B10 已关闭工作包仍为 `0/422 = 0.00%`，316 仍是 `0/1` 验收。
 
 ## 1. 唯一机器证据与 ABI
 
@@ -126,7 +126,7 @@ AF不作断言），DF仍为该次 parent CALL 时的入站方向位，EBP/EDI �
 - `0x0047985B..0x00479861`：actor `+0x2ABC` 完整 dword 为零时直接走 default，返回 EAX0，没有 CALL 和 actor 写入；任何非零进入并先置 `+0x2AAC/+0x2AB8=1`，以 `+0x2A0C` 低 word 写 `+0x3D0`，写 `+0x3D8=0x24`。
 - `0x00479893..0x0047991F`：`+0x2AA0==1` 或（`+0x2AA0!=1` 且 `+0x2AF8==1`），
   并且 `+0x2B00/+0x2B04` 均完整为零时立即重置。`+0x2AA0!=1` 时先 OR `actor[+4]->+0x25` 的 byte bit7。
-  后续先写清零前缀与 38 次 `rep stosd`，在 `0x004798F7` 直接调用已关闭 `sub_478850`，再写 `+0x2AAC/+0x2ABC/+0x2AB8`，
+  后续先写清零前缀与 38 次 `rep stosd`，在 `0x004798F7` 直接调用`pending`的 `sub_478850`，再写 `+0x2AAC/+0x2ABC/+0x2AB8`，
   调用 `0x00479911 sub_47E950`，返回 EAX1。无完整门匹配时不清理，走下一条更新。
 
 - `0x00479920..0x004799D5`：以先前的 EDI（`actor+0x3D0`）作参数调用 `sub_4321E0`；
@@ -216,7 +216,7 @@ EAX=0才按`0x0047992D..0x00479936`逐次出栈并返回1；EAX≠0则停在**�
 作32位`SUB EBP,EAX`；其余路线跳过 frame 读。然后逐次读`+0x2694`、AND`0x80000003`并写回、读取`actor+0x0C`。
 
 Group-B `actor+0x0C`映射构造函数的 `LegacyBattleActorGroupBElementState::resource_token` 与0xA4-byte owner；
-Group-A 由已关闭 `0x0046E890/0x0046E9C0` 资料物化时的物理 `actor+0x0C` 写，对应现行 `LegacyBattleGroupAConfigurationState::profile_token/profile_record`（0xA4 byte），
+Group-A 由`pending`的 `0x0046E890/0x0046E9C0` 资料物化时的物理 `actor+0x0C` 写，对应现行 `LegacyBattleGroupAConfigurationState::profile_token/profile_record`（0xA4 byte），
 同样接入image与逐次写回。只有人为缺 owner 的 view 在读站点typed-stop。早期仅Group-B接线和手工view缺owner向量于2026-09-23 23:19 UTC受管`./build.sh core --test`和CTest`199/199`通过（`proc_8a0c`，
 退出码0）；Group-A真实resolver与跨阶段资料字节门测试于2026-09-23 23:50 UTC受管`./build.sh core --test`和CTest`199/199`通过（`proc_ddd7`，
 退出码0）。
@@ -284,7 +284,7 @@ Group-A/B resolver共享同一action state；缺owner、首PUSH障和frame token
 向量于2026-09-24 00:27 UTC受管`./build.sh core --test`及CTest`199/199`通过（`proc_d97a`，
 退出码0）。音频port、frame首dword owner、后续四global/绘制及case1活动返回仍未实现；先前`proc_fb18`的sanitizer结果不覆盖本轮新增代码。
 
-case1 `0x00479A0E mov edx,[ecx]` 的首dword owner 复用已关闭动作呈现 `0x00478FF1 sub_4315D0 / 0x00478FFC mov edx,[eax]` 的同类资源首读。
+case1 `0x00479A0E mov edx,[ecx]` 的首dword owner 复用`pending`的动作呈现 `0x00478FF1 sub_4315D0 / 0x00478FFC mov edx,[eax]` 的同类资源首读。
 给现有 `LegacyBattleGroupAActionResourceRecord` 加`value_00`及**显式已知**标记：
 已有动作呈现port的`outputs[0]`填入该值；actor`+0x2548`换成另一token时失效；316的lookup port仅在回复明确给出资源头且actor指针写成功后发布新缓存。
 
@@ -440,7 +440,7 @@ case2 `0x00479C56` 狭义音频port现在单独执行CALL返回槽PUSH，入口�
 当前WIP至case2音频/phase接线的**临时**sanitizer：2026-09-24 02:44 UTC受管`./build-asan.sh --test`成功，CTest`199/199`（`proc_5ac2`，退出码0）。后续新代码需重新跑最终sanitizer；此局部成功不等于完整WP316或全Pi目标验收。
 
 case2 公共`0x0047B6C7 sub_434790`现单独CALL返回槽，缺canonical emitter phase owner在callee入口typed-stop；
-窄port可针对已接typed phase应答正常`retn 8`，按已关闭callee正常结果限制EAX∈{0,1}，`cmp eax,1`时0进原default epilogue、1停在尚未执行的`0x0047B6D5 phase=100`。
+窄port可针对已接typed phase应答正常`retn 8`，按`pending`的callee正常结果限制EAX∈{0,1}，`cmp eax,1`时0进原default epilogue、1停在尚未执行的`0x0047B6D5 phase=100`。
 
 传入全局值来自先前真实PUSH槽，不从变动request再次快照。CALL障、owner缺失、port入口停与0/1/无凭据2向量已加，
 于2026-09-24 02:49 UTC受管`./build.sh core --test`及CTest`199/199`通过（`proc_2334`，
@@ -483,7 +483,7 @@ case9 首绘图正常返回后的`0x0047A7F8/FE`现依原序分别清`special_re
 退出码0）。完整case9仍依赖绘图callee深层路径及真实caller接线审计。
 
 case8 `0x0047A5FE/0x0047A60B` 现按原指令两次分别CMP actor phase word与CX=100、固定emitter token dword与EBX=0，
-phase100直接进入已实现case2共享释放`0x00479C6C`而不读emitter，非终结非零token直接进共享粒子尾`0x0047B6B4`，
+phase100直接进入`pending`的case2共享释放`0x00479C6C`而不读emitter，非终结非零token直接进共享粒子尾`0x0047B6B4`，
 零token停在case8独立初始化`0x0047A617`；两项CMP均不修改EAX高低位。两处故障、三出口及Group-B缺owner向量已加，
 于2026-09-24 03:21 UTC受管`./build.sh core --test`及CTest`199/199`通过（`proc_2103`，
 退出码0）。case8初始化还未实现。
@@ -1928,7 +1928,7 @@ false回复没有未知续段的观察，不能回滚显式前缀；受控true�
 没有新原版释放差分、Win32/SEH实现或两项heap owner生产赋值证明。
 三处释放消费者复用此前缀，不代表98 CALL/22 RET深层已经闭合。
 本次将已验证的生产修正、对应测试和局部差分共同作为阶段发布边界；
-316最终REVIEW仍未完成，inventory保持pending_audit。未验证的断言续段草稿不纳入提交。
+316最终REVIEW仍未完成，inventory保持pending。未验证的断言续段草稿不纳入提交。
 
 case100 `0x0047B723` 的 reset CALL 另用已持有的独立 actor
 配置 owner 将 `+0x2AA0` 设为1，沿完整 `sub_478850` 子函数
@@ -2483,10 +2483,10 @@ ECX/EDX/EBP/ESI/EDI/EBX 保留。本工作包可以按此三指令提供等价 t
 case8 `0x0047A71E` 先载 EDI=IAT 再压 EBP=1，case100 `0x0047B649` **先压 EDI=1**、`0x0047B64A` 才载 IAT 到 EDI，
 且在第一 CALL 前先写三个 `+0x0E40/+0x0E44/+0x0E48=15`。按 Win32 `GetSystemMetrics` stdcall ABI（三处原 caller 无 `add esp,4`），
 第一次 CALL 正常由 callee 清自己的 nIndex，再压其 EAX 回复，随后压 EBX=0 调第二次；第二次正常同样清自己的 nIndex，
-再压新 EAX 调 `sub_433F30`，该已关闭 callee 在正常 `retn 8` 清两个返回值。因此第一次间接 CALL 入口停点的 caller 栈只增加1个 nIndex；
+再压新 EAX 调 `sub_433F30`，该`pending`的 callee 在正常 `retn 8` 清两个返回值。因此第一次间接 CALL 入口停点的 caller 栈只增加1个 nIndex；
 第二次入口停点另外仍有第一次回复值和第二个 nIndex 共2个 dword；`sub_433F30` 停点则保留两个回复值。该 host callee 正常先发布宿主 `+0x0B50/+0x0B54`，
 再调用行表与 `sub_4342E0`；后者末尾 `0x00434333 add eax,edi`、`0x00434335 add edx,ebx`、写 `+0x0B60/+0x0B64`，
-外层只弹寄存器后 `retn 8`，故正常返回 EAX 为传入 height（按此前已关闭的正常矩形证据），FLAGS 来自矩形最后的 `add edx,ebx`，
+外层只弹寄存器后 `retn 8`，故正常返回 EAX 为传入 height（按此前`pending`的正常矩形证据），FLAGS 来自矩形最后的 `add edx,ebx`，
 不能沿用行表/Win32 回复 FLAGS。
 
 若 Win32 call 停止，不能伪造正常 stdcall 清参、不能将其回复推测为屏幕宽高；
@@ -2566,7 +2566,7 @@ case12 的 `sub_422C70` 与 `sub_423020` 亦不能当成仅返回的四参函数
 
 现把 case12 两处生产 CALL 的受控停点移至首次未被局部模型读取的全局：设父 CALL 前 ESP=P，CALL 先压返回地址；正向 `0x00422C70 sub esp,20h` 后在 `0x00422C73` 读 `4A0698` 前 ESP=P−36，末次 PUSH 仍为父返回地址；反向 `0x00423020 sub esp,1Ch` 后 `0x00423023/24` 依次保存 EBX/EBP，再于 `0x00423025` 读 `4A06A0` 前 ESP=P−40、末次 PUSH 为旧 EBP。两路 FLAGS 由各自 SUB ESP 计算，DF 与其他寄存器仍为父入站值。首全局访问序号或缺可读 owner 不调用 raster port，反向两处保存写也能分别在提交前停止；窄 port 未返回时保留这些局部栈与 FLAGS，不回滚至 callee 入口。正常受控回复仅追加已知的反向两次栈写，不能据此认为像素循环或未建模全局已完成。两处父路由与直接停点的定向 `battle.actor_frame_316` 于 `proc_4d6a` 1/1 通过（首次 `proc_d7c8` 两处历史预期仍要求 callee 入口 IP，已修正）；阶段源码快照完整门禁 `proc_a410` 通过 Linux core 200/200、ASan core 200/200、Linux app 206/206。深层像素、裁剪、异常和原版差分仍为 partial；这不是 Workpack 316 最终门禁。
 
-仓库已有独立 `assembly_exact` 证据 `analysis/04-reverse-engineering/evidence/legacy-scaled-rle-writers-00422c70-00423020.md`、`rendering::write_legacy_scaled_rle_forward/reverse` 与定向 UT；
+仓库已有独立 `pending` 证据 `analysis/04-reverse-engineering/evidence/legacy-scaled-rle-writers-00422c70-00423020.md`、`rendering::write_legacy_scaled_rle_forward/reverse` 与定向 UT；
 callee 首部的四参、四项 transform 与共享画面访问已再对照 LST，case12 bit0=0 应转 forward，
 bit0=1 转 reverse。需要在调用**时**物化当前四项 transform、clip/source/surface 并复用该 typed writer，
 不能空 mock；现有 writer 将实际越出 owned framebuffer 的原裸指针故障隔离为 `destination_out_of_bounds`，
@@ -2716,7 +2716,7 @@ GetSystemMetrics via edi (6) 479C34 479C38 47A725 47A729 47B662 47B666
   后续集成需给这两个 caller/port 明确写回责任，尤其在第二个写障时保留第一个字段已提交。此 leaf 的 `+0x2B08` 还有当前 C++ 重复 owner：
   `progress.post_action_value` 与 `action_execution.special_draw_mirror_mode` 都标作同一物理 dword，
   现有 image 仅从前者物化、`synchronize_actor_write` 将写入同步给两者；opaque port 写回若只改其中之一，
-  其他已关闭消费路径将读旧值；当前 `legacy_battle_group_a_frame.cpp` 与 `legacy_battle_actor_progress.cpp` 还直接修改 `progress.post_action_value`，
+  其他`pending`的消费路径将读旧值；当前 `legacy_battle_group_a_frame.cpp` 与 `legacy_battle_actor_progress.cpp` 还直接修改 `progress.post_action_value`，
   而现有 `synchronize_actor_write()` 只在 image 写回时同步另一 alias，因此再次物化时必须始终以 canonical progress owner 的最新值为准，
   不能反取可能陈旧的 action-execution 镜像。两次写必须依物理顺序传播同一值，而不能一次性同步到失败点之后。本次未提交 WIP 已将 `+0x2B1C/+0x2B20` 纳入 materialize/synchronize 双向映射；
 
@@ -2734,7 +2734,7 @@ GetSystemMetrics via edi (6) 479C34 479C38 47A725 47A729 47B662 47B666
   不能因为 C++ 类型和注释相同而复用为 Group-B 固定 `+0x0E14`。本包已新增Group-B source actor固定相位owner并回收resolver；`materialize_legacy_battle_actor_image()`和逐dword同步已覆盖该固定记录、相邻32字节中间段与方向记录的保留字节。Group-B真实caller接线及其它读取链仍待最终双向REVIEW，不以此局部别名测试宣称粒子路径完成。
 
 - 物理记录边界核定：case51 的 `actor+0x0DB8..+0x0DF3` 恰为60 byte，其中 `0x0047B8EF` 对 `+0x0DF0` 写完整 dword 0x5A，
-  已关闭的 `sub_4344E0` 在源记录相对 `+0x38` 读到该末 dword；随后 `actor+0x0DF4..+0x0E13` 恰是当前 Group-A `LegacyBattleTargetPhaseState::block_0df4[8]` 的32 byte，
+  `pending`的 `sub_4344E0` 在源记录相对 `+0x38` 读到该末 dword；随后 `actor+0x0DF4..+0x0E13` 恰是当前 Group-A `LegacyBattleTargetPhaseState::block_0df4[8]` 的32 byte，
   再后 `actor+0x0E14..+0x0E6B` 是固定粒子记录88 byte，Group-B 的二维 target0 记录才从 `source+0x0E6C` 开始。
 
   这四段**静态布局**相邻但无物理重叠；不能据此认定 REP 的写入也互不跨区。本函数未执行 `cld/std`：若 DF=1，从 `actor+0x0E14` 起始清22 dword 实际按 `+0x0E14,+0x0E10,...,+0x0DC0` 写，
@@ -2780,8 +2780,8 @@ GetSystemMetrics via edi (6) 479C34 479C38 47A725 47A729 47B662 47B666
 
   即使数据均为零，父子两次同址物理访问可在不同 EIP/ESP/ECX/EDI 停止，不能合并或因父级已经清零跳过 leaf；现有 WP305 文档关于 leaf 七段 REP 的历史通过也不自动证明本次跨 CALL 别名组合正确。
 - `sub_47CE70` 在四个调用点读取的同一 `+0x2694` 已归 `LegacyBattleGroupAActionExecutionState::presentation_render_flags`；
-  应在 CALL 处读取，而不是复制入口 bit0 snapshot。已关闭 `sub_433F30` 的组合边界返回原宿主高度并保留宽高预发布/分配失败后矩形调用；
-  已关闭 `sub_4344E0` 接收共享 surface 及 actor `+0x0DB8` 记录。这两处只能在保持当前调用前缀时直接复用 typed owner。
+  应在 CALL 处读取，而不是复制入口 bit0 snapshot。`pending`的 `sub_433F30` 的组合边界返回原宿主高度并保留宽高预发布/分配失败后矩形调用；
+  `pending`的 `sub_4344E0` 接收共享 surface 及 actor `+0x0DB8` 记录。这两处只能在保持当前调用前缀时直接复用 typed owner。
 
 - 无显式 caller 快照的主分派 case7 在 child 前 `require_group_b()` 仍令 `index>=8` typed-stop；
   对手分派 case7 在无快照时的 `validate_group_a()` **允许 index<10，只拒绝 index>=10**（现行 `src/battle/legacy_battle_opponent_action_dispatch.cpp:105..112`）；
@@ -2872,7 +2872,7 @@ GetSystemMetrics via edi (6) 479C34 479C38 47A725 47A729 47B662 47B666
 
   两条均不证明真实父栈内容、深层别名或后续 callee 故障。此数值为首次读障的专用场景，不可套到后续深层 callee fault。
 
-- case51 `0x0047B97F` 后 `sub_4344E0` 的两参 `retn 8` 与父 `0x0047B984..0x0047B98D` 四次 POP/XOR/ADD20/RET 现有条件化接线：仅当 decoder 回复提供与 actor `+0x0DB8` token 匹配的真实源像素 span、共享surface token及方向向量/目标surface/共享状态/像素转换 owner 均明确时，直接调用已关闭的方向扫描 typed 实现；正常返回后才执行物理父尾，EAX置0。无 backing 仍停在真实子入口，不伪装正常返回；callee 发生内部 typed failure 时其已提交目标像素/共享写保持：对于水平/垂直除零依LST分别核到 `0x0043453C/0x00434566` 与相应入站ESP；对于源像素短读，依原 LST 镜像/非镜像路径分别核到 `0x00434651/0x004346B7` 并保留源token+字节偏移及该站 ESP；行表读障进一步按混色/直写分别核到 `0x004346E6/0x0043470E`，仅混色路径在读前已PUSH1、故ESP另减4；直写像素写障核到 `0x00434717`。这三站通过 `proc_914e` core/CTest `199/199` 覆盖case51子调用的EIP/ESP与独立扫描测试；混色目标像素读障另核到内层 `sub_4207E0+0x7A = 0x0042085A`，在前序PUSH三参/CALL及其四次保存寄存器后ESP为scan入站减`0x98`，同时三项mask低16位屏蔽已提交；`proc_15be` core/CTest `199/199`、`proc_c847` ASan core/CTest `199/199` 验证。行表及像素surface新增独立可选物理基址token：仅显式提供时按物理偏移公布读/写障token，未提供仍保持未知而非伪造；`proc_13b1` core/CTest `199/199`核对直写/混色的row与pixel地址。生产调用方的真实token resolver尚未接入；其它混色子callee失败的EIP与多项寄存器仍未知，不冒充子入口异常或正常返回。`proc_636d/proc_a645/proc_8f5a/proc_a01a` Linux core/CTest `199/199` 分别验证真实像素写/物理RET、独立POP/RET读障与源token失配、镜像/非镜像短源读点，以及水平/垂直IDIV零除的各自 EIP/ESP；`proc_6570`在方向扫描callee的独立单元验证同一两处读点，`proc_8d4e`对当前case51字节span接线执行本轮ASan core/CTest `199/199`，另`proc_045c` 本轮Linux app/CTest `205/205`；这些均非316最终发布门禁；之前 `proc_696e/proc_3584/proc_838a` 因测试以 synthetic `entry_esp` 推断返回ESP及两参 RET8 栈算术误计失败，改以CALL前 `case_fifty_one_tail_ready.esp + 48` 核对后通过。此为局部路径；最终 caller owner 接线、callee 深层停点和双向 REVIEW 尚未完成。
+- case51 `0x0047B97F` 后 `sub_4344E0` 的两参 `retn 8` 与父 `0x0047B984..0x0047B98D` 四次 POP/XOR/ADD20/RET 现有条件化接线：仅当 decoder 回复提供与 actor `+0x0DB8` token 匹配的真实源像素 span、共享surface token及方向向量/目标surface/共享状态/像素转换 owner 均明确时，直接调用`pending`的方向扫描 typed 实现；正常返回后才执行物理父尾，EAX置0。无 backing 仍停在真实子入口，不伪装正常返回；callee 发生内部 typed failure 时其已提交目标像素/共享写保持：对于水平/垂直除零依LST分别核到 `0x0043453C/0x00434566` 与相应入站ESP；对于源像素短读，依原 LST 镜像/非镜像路径分别核到 `0x00434651/0x004346B7` 并保留源token+字节偏移及该站 ESP；行表读障进一步按混色/直写分别核到 `0x004346E6/0x0043470E`，仅混色路径在读前已PUSH1、故ESP另减4；直写像素写障核到 `0x00434717`。这三站通过 `proc_914e` core/CTest `199/199` 覆盖case51子调用的EIP/ESP与独立扫描测试；混色目标像素读障另核到内层 `sub_4207E0+0x7A = 0x0042085A`，在前序PUSH三参/CALL及其四次保存寄存器后ESP为scan入站减`0x98`，同时三项mask低16位屏蔽已提交；`proc_15be` core/CTest `199/199`、`proc_c847` ASan core/CTest `199/199` 验证。行表及像素surface新增独立可选物理基址token：仅显式提供时按物理偏移公布读/写障token，未提供仍保持未知而非伪造；`proc_13b1` core/CTest `199/199`核对直写/混色的row与pixel地址。生产调用方的真实token resolver尚未接入；其它混色子callee失败的EIP与多项寄存器仍未知，不冒充子入口异常或正常返回。`proc_636d/proc_a645/proc_8f5a/proc_a01a` Linux core/CTest `199/199` 分别验证真实像素写/物理RET、独立POP/RET读障与源token失配、镜像/非镜像短源读点，以及水平/垂直IDIV零除的各自 EIP/ESP；`proc_6570`在方向扫描callee的独立单元验证同一两处读点，`proc_8d4e`对当前case51字节span接线执行本轮ASan core/CTest `199/199`，另`proc_045c` 本轮Linux app/CTest `205/205`；这些均非316最终发布门禁；之前 `proc_696e/proc_3584/proc_838a` 因测试以 synthetic `entry_esp` 推断返回ESP及两参 RET8 栈算术误计失败，改以CALL前 `case_fifty_one_tail_ready.esp + 48` 核对后通过。此为局部路径；最终 caller owner 接线、callee 深层停点和双向 REVIEW 尚未完成。
 
 ## 7. 独立向量与当前未决
 
@@ -4472,7 +4472,7 @@ Linux core `199/199`（`proc_619f`）、ASan core `199/199`
 非零回复停在 `0x00487C84` 下一轮分配参数首读前；
 `returned=false` 保留回调目标入口停点。
 三条向量各记录端口调用次数与 Size=8,930，不宣称
-生产回调、再次分配或动态异常已闭环。Linux core
+生产回调、再次分配或动态异常为`pending`。Linux core
 `199/199`（`proc_f6ec`）、ASan core `199/199`（`proc_2ab8`）、
 Linux app `205/205`（`proc_002c`）通过。
 
@@ -4986,7 +4986,7 @@ child、绘图、资源来源和 caller 异常栈仍未收敛。
 ASan core `199/199`（`proc_2755`）、Linux app
 `205/205`（`proc_e1e9`）通过；当前仅余四处
 RET 尚未获得局部尾部结论，整个函数仍
-`pending_audit`。
+`pending`。
 
 此前 case51 扫描 `0x0047B98D` 只核正常返回
 及首 POP `0x0047B984`、末 RET 的故障 token、
@@ -5634,7 +5634,7 @@ sequence372在 `0x0047B816 REP STOSD` 清空整个0x98字节slot2，
 `0x004799A3→0x004799AB` 只能约束资源字节的bit5，不能生成整个字节；
 宽高限制不默认为640×480，缺失数据不以零或合成回包替代。
 当前材料不足以证明完整非默认联合差分，但这些缺口不替代仍待进行的
-静态深层合同和生产绑定审查。316继续 `pending_audit`。
+静态深层合同和生产绑定审查。316继续 `pending`。
 
 后续只读采集工具v3在独立目录`analysis/tools/battle-actor-frame-oracle-v3/`
 准备了上述四项全局的**入口/出口**及异常快照读取；不可读明确标注，
@@ -5927,7 +5927,7 @@ build/tmp/runtime/wp316-tsw-signed-capacity-source-freeze-v2.sha256
 本次不补造失败加载后的GPR／FLAGS、缓存cursor／共享全局或完整CRT释放。
 空桶首轮尾部操作、16位桶计数回绕、四次深层free与失败停点仍待闭合。
 两个原版caller缺口、四caller生产绑定、全部98 CALL／22 RET及最终REVIEW仍未完成；
-本次不升级inventory，316继续 `pending_audit`。
+本次不升级inventory，316继续 `pending`。
 
 ### 查帧加载前的缓存登记与未知载荷命中
 
@@ -6092,7 +6092,7 @@ build/tmp/runtime/wp316-tsw-shared-cursor-source-freeze.sha256
 不称为431F80整体副作用或四free验证。后续计数修正单独记录如下，未反向修改本阶段冻结或red范围。
 40AD10已读至40AE1D，含AIL服务、allocator、文件/decoder/free；不据这些CALL推断实际递归。
 DF=1、count16回绕、空桶四free、首次失败实际CPU、四caller绑定、249跨块/98 CALL/22 RET、
-联合差分、316最终REVIEW与完整Goal均未完成；inventory保持pending_audit。
+联合差分、316最终REVIEW与完整Goal均未完成；inventory保持pending。
 
 ### 宿主清缓存后的残余计量与未知量传播
 
@@ -6167,7 +6167,7 @@ app206/206（81.51秒），五日志diagnostic0、七SHA门禁前后/完成后�
 材料前缀build/tmp/runtime/wp316-tsw-empty-sentinel-，包括旧生产/初版tests、新冻结SHA、
 两个完整red snapshot、两个red日志、五directed/full日志与source-review diff。
 该空桶批次已提交、推送及TG；当时count16/allocator暂存/物理别名、四free/SEH仍未完成。
-首次失败真实现场、四caller接线、249跨块/98 CALL/22 RET、联合差分与316最终REVIEW仍未完成，315/422不变。
+首次失败真实现场、四caller接线、249跨块/98 CALL/22 RET、联合差分与316最终REVIEW仍未完成，0/422不变。
 
 ### 分配前独立16位计数及空head残留
 
@@ -6231,9 +6231,9 @@ Runtime成功转换后按已验证的流depth选尺寸来源，字节流保留de
 core200/200（24.04秒）、ASan200/200（38.28秒）、app206/206（84.77秒）。
 六日志diagnostic0、十四SHA前后/完成后同，三LastTest各action1/reset1/skip0，未运行原版/Windows。
 材料前缀build/tmp/runtime/wp316-tsw-declared-count-与wp316-tsw-word-dimensions-保留各版冻结、red/green、snapshot；
-不改写原始capture、旧freeze，也不借v3green关闭新增尺寸合同。该限定阶段已完成审查、提交、推送及TG。
+不改写原始capture、旧freeze，也不借v3green关闭新增尺寸合同。该限定阶段审查状态为`pending`；已提交、推送及发送TG。
 五槽缓存/I/O顺序、共享全局/allocator游标、DF/别名/四free/SEH、首次失败真实CPU、四caller、
-249跨块/98 CALL/22 RET、联合复放/I5及316最终REVIEW/完整Goal仍未完成，315/422不变。
+249跨块/98 CALL/22 RET、联合复放/I5及316最终REVIEW/完整Goal仍未完成，0/422不变。
 
 ### 法术图像五槽准备的局部有界停点（尚未验收）
 
@@ -6255,7 +6255,7 @@ allocator真实owner仍未闭合；`load_direct()`的宿主物理读取不代表
 
 `431A50`按2Ch预读`all_magic.tsw`索引；已登记节点的6001..9000路径依431AA0选五槽，在有效非8位块头后按声明数逐条读36字节descriptor，并以真实宿主seek返回位置覆盖首DWORD；433540从已准备的槽取帧，不退回直接Archive物理查找。8位会请求未绑定487C10调色板分配，count256跨槽以及短读、重入、DF1、真实失败CPU均不补造，继续显式未知；key0资源9000父级仍停在CALL检查点。该Linux宿主路径只证明受控输入的文件字节与输出一致，未捕获原版Win32 API回复。
 
-旧生产四源码SHA冻结，真实6001首帧新断言在`proc_c7f3`恰一项失败；改动中16位限定路径对新增24位合成帧在`proc_3f1e`再恰一项失败，随后按`4332E0/4332E5`纠正。真实6001 variant0/1、6251/6331两个24位资源、6137的131帧末帧、合成16/24位双帧与战斗TSW端口、资源9000父级停点已在定向验证；`proc_a6e1`及`proc_9c8a`各1/1。曾因大数组内嵌Runtime出现战斗测试段错误，移至堆持有后先仅旧“6001必停”断言失败，改为9000后定向通过；不能单凭时序给出段错误根因。v3八份源码和测试/CMake身份冻结且后核匹配；新配置core 200/200、重跑完整ASan 200/200、app 206/206退出0，三份LastTest各实际执行17动作及seq372限定差分，日志诊断/跳过匹配均为零。中断的首轮ASan只有199/200且无退出证据，不借它作完整门禁；独立ASan战斗1/1后新受管完整重跑才作为门禁。最终1011行暂存差异及12条Unicode长行已逐段人工阅读，提交差异cmp0；已提交`12ef6eeb`、推送且远端main/HEAD相同，工作区清洁；TG脚本exit0但无送达ID。本限定切片不等于原版正常图像跨调用联合差分；失败API/allocator、DF/别名/四free、四caller与I5仍未完成；316保持`pending`，315/422不变。随后新增五槽真实六资源轮换与Linux已开文件短读两个受控向量，定向各1/1；v3后只补测试函数空行，最终v4四份源码/测试在`proc_3559`前后16项SHA匹配，core/ASan各200/200、app206/206退出0，三LastTest的17动作/seq372差分实际执行、诊断/跳过零；最终227行暂存及15条Unicode长行无截断人工阅读，提交差异cmp0；`b109c914`已推送且远端main/HEAD一致，TG脚本exit0但无送达ID。具体宿主证据见`tsw-archive-format.md`，不借此证明原版短读异常现场。
+旧生产四源码SHA冻结，真实6001首帧新断言在`proc_c7f3`恰一项失败；改动中16位限定路径对新增24位合成帧在`proc_3f1e`再恰一项失败，随后按`4332E0/4332E5`纠正。真实6001 variant0/1、6251/6331两个24位资源、6137的131帧末帧、合成16/24位双帧与战斗TSW端口、资源9000父级停点已在定向验证；`proc_a6e1`及`proc_9c8a`各1/1。曾因大数组内嵌Runtime出现战斗测试段错误，移至堆持有后先仅旧“6001必停”断言失败，改为9000后定向通过；不能单凭时序给出段错误根因。v3八份源码和测试/CMake身份冻结且后核匹配；新配置core 200/200、重跑完整ASan 200/200、app 206/206退出0，三份LastTest各实际执行17动作及seq372限定差分，日志诊断/跳过匹配均为零。中断的首轮ASan只有199/200且无退出证据，不借它作完整门禁；独立ASan战斗1/1后新受管完整重跑才作为门禁。最终1011行暂存差异及12条Unicode长行已逐段人工阅读，提交差异cmp0；已提交`12ef6eeb`、推送且远端main/HEAD相同，工作区清洁；TG脚本exit0但无送达ID。本限定切片不等于原版正常图像跨调用联合差分；失败API/allocator、DF/别名/四free、四caller与I5仍未完成；316保持`pending`，0/422不变。随后新增五槽真实六资源轮换与Linux已开文件短读两个受控向量，定向各1/1；v3后只补测试函数空行，最终v4四份源码/测试在`proc_3559`前后16项SHA匹配，core/ASan各200/200、app206/206退出0，三LastTest的17动作/seq372差分实际执行、诊断/跳过零；最终227行暂存及15条Unicode长行无截断人工阅读，提交差异cmp0；`b109c914`已推送且远端main/HEAD一致，TG脚本exit0但无送达ID。具体宿主证据见`tsw-archive-format.md`，不借此证明原版短读异常现场。
 
 ### 动作更新器内层调用只读诊断工具（v4，已取得受限原版回传）
 
@@ -6272,7 +6272,7 @@ LST的`479921`调用`4321E0`，其`432421`/`432434`按缓存路径分别调用
 全配对；调用点显式FLAGS与七项标志子现场断言、Linux代理/记录器18项、独立便携
 自检通过；测试EXE为自有夹具，不是原版。先前把夹具SUB/ADD导致的FLAGS变化归咎于
 Stalker的猜测已撤回。另两物理caller、完整子调用回复差分、四caller联合复放及
-异常路径/I5仍缺，316维持`pending_audit`、315/422不变。
+异常路径/I5仍缺，316维持`pending`、0/422不变。
 
 ### 旧v3物料清理与v4原版回传（只读物理核验）
 
@@ -6322,7 +6322,7 @@ Stalker的猜测已撤回。另两物理caller、完整子调用回复差分、�
 `0x18/0x03E4DEF0/0x202`（9组），`0x18/0x03E4DEF0/0x206`（5组）。
 当前生产动作端口未以同输入实现GPR/FLAGS/栈与指针身份的原位对照，
 因此这些是原版现场记录，不是生产回复通过。四caller覆盖、异常合同、
-完整联合差分、I5及316最终REVIEW仍缺，继续`pending_audit`、0/422。
+完整联合差分、I5及316最终REVIEW仍缺，继续`pending`、0/422。
 
 ### v4内层CPU现场与LST受限返回路径（原版分支核验，非生产回复）
 

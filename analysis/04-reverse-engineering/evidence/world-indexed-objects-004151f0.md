@@ -52,7 +52,7 @@
 OpenSWD3 在 render session 建立时移动解压 payload 所有权并执行同一 literal 转换，
 避免保留裸链表和全局源指针。无效 command stream、分配或 blitter 失败会在现代受检边界
 停止；blitter 返回后仍先执行原全屏 clip 恢复。有效游戏数据的字段、遍历顺序、整数运算、
-clip 和 blitter 参数不变，因此 closure disposition 为 `platform_adapted`。
+clip 和 blitter 参数不变，因此 closure disposition 为 `pending`。
 
 `0x00412930` 的原槽已接入该 owner，并共用实际相机视口、framebuffer、pixel
 conversion、blit effects 与 row jitter。

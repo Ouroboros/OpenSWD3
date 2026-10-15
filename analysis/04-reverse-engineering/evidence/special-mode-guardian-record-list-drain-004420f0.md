@@ -13,7 +13,7 @@
 
 4885A0由`release_missing_guardian_record`最窄生命周期边界承载；普通节点归还完全在typed owner中执行。
 
-所有已关闭caller中的`begin_slot_cycle` opaque target已回收：共享B20/C20/D20/E10移动核心、41060 party cycle，以及41590 mode0的两次连续排空均直接调用本helper；F00/FB0和407F0经共享owner同步复用。41590仍保留第一次有实效、第二次空链no-op的原始双调用。
+所有`pending`的caller中的`begin_slot_cycle` opaque target已回收：共享B20/C20/D20/E10移动核心、41060 party cycle，以及41590 mode0的两次连续排空均直接调用本helper；F00/FB0和407F0经共享owner同步复用。41590仍保留第一次有实效、第二次空链no-op的原始双调用。
 
 UT覆盖普通→missing→普通混合链、普通节点逆序头插到既有source、missing单次释放、record head清空、最终null返回和空链no-op；既有caller事件序列全部更新。旧41590测试使用的伪地址record head在直连后由ASan准确定位，已改成真实typed节点。定向测试及独立ASan通过。
 

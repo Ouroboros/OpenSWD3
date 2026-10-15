@@ -4,7 +4,7 @@
 
 ## 1. LST范围与callback边界
 
-唯一行为真值为`swd3.exe.lst`。函数物理范围为`0x0043D530..0x0043D873`，338行。它没有direct call指令caller，而由`0x00444FC0`写入callback表后间接调用。直接callee包括已关闭F000（其内复用B980/BC90）、record loader、interface sample owner及malloc/release owner。
+唯一行为真值为`swd3.exe.lst`。函数物理范围为`0x0043D530..0x0043D873`，338行。它没有direct call指令caller，而由`0x00444FC0`写入callback表后间接调用。直接callee包括`pending`的F000（其内复用B980/BC90）、record loader、interface sample owner及malloc/release owner。
 
 16次malloc改为固定typed owner，避免宿主地址和分配失败差异：四个1200×i32表、scan record、两个0xB0 runtime records、四个0xF0 buffer、四个0x1B8 buffer及一个0x400 mirror表。原函数不清零0xF0/0x1B8/mirror malloc内容，typed state保留调用前字节；只写LST明确位置。
 

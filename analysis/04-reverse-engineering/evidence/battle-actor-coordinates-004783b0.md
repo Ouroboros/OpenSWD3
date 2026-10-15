@@ -54,9 +54,9 @@ C++到LST：helper没有额外callee、分配、日志、验证、坐标变换�
 
 ## 6. 验证边界
 
-定向聚合目标覆盖两条完成路径、CMP标志及AF有效性、selector停止的入口flags与未定义AF标记，以及每个后续可失败访问的EAX/ECX/EDX残值、第一次写入后的部分提交、源/输出别名、相同输出指针、固定token解析、Group-B记录复制别名和28个已关闭caller物理站点的真实owner集成。REVIEW 4额外覆盖caller既有word/dword/参数槽的低16位别名、高word保留、两次查询共享槽、Y读取失败时X部分写入及各caller后缀阻断。生产`src/`静态扫描无`0x004783B0` opaque调用；兼容枚举只保留reserved地址槽，测试中的地址匹配只用于断言调用次数为零。
+定向聚合目标覆盖两条完成路径、CMP标志及AF有效性、selector停止的入口flags与未定义AF标记，以及每个后续可失败访问的EAX/ECX/EDX残值、第一次写入后的部分提交、源/输出别名、相同输出指针、固定token解析、Group-B记录复制别名和28个`pending`的caller物理站点的真实owner集成。REVIEW 4额外覆盖caller既有word/dword/参数槽的低16位别名、高word保留、两次查询共享槽、Y读取失败时X部分写入及各caller后缀阻断。生产`src/`静态扫描无`0x004783B0` opaque调用；兼容枚举只保留reserved地址槽，测试中的地址匹配只用于断言调用次数为零。
 
-原版异常页和全部caller寄存器/SEH联合动态捕获尚无运行时oracle；该限制按`blocked_runtime_oracle`登记，不以静态结果冒充动态差分。
+原版异常页和全部caller寄存器/SEH联合动态捕获尚无运行时oracle；该限制按`pending`登记，不以静态结果冒充动态差分。
 
 ## 7. 独立当前坐标查询 `0x00478600`
 

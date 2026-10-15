@@ -67,7 +67,7 @@ padding 无关，直接对应动态捕获协议中的 `framebuffer-logical.bin`�
 后结果不变。
 
 这里没有伪造原版 framebuffer 样本。原版动态哈希仍为
-`blocked_runtime_oracle`；需要捕获时由用户运行 Frida spawn 工具，Codex 不
+`pending`；需要捕获时由用户运行 Frida spawn 工具，Codex 不
 自行启动原版。
 
 SDL 恢复适配保留同一份 owned framebuffer，不在失焦时销毁它。恢复阶段若

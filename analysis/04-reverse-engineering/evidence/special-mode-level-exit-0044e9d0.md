@@ -4,7 +4,7 @@
 
 ## 1. LST锁
 
-权威范围为`swd3.exe.lst`的`0x0044E9D0..0x0044EA47`，69行，无外部FUNCTION CHUNK。caller为`0x0044DBC0`、`0x0044E4A0`和`0x0044F920`；callee DA40、F8E0与D5A0均已关闭并由typed helper直接复用。
+权威范围为`swd3.exe.lst`的`0x0044E9D0..0x0044EA47`，69行，无外部FUNCTION CHUNK。caller为`0x0044DBC0`、`0x0044E4A0`和`0x0044F920`；callee DA40、F8E0与D5A0均为`pending`并由typed helper直接复用。
 
 入口先形成`level-1`的32位返回值。分支严格为：
 

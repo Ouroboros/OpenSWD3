@@ -13,8 +13,8 @@ B11正在复核实际画布接线；灰度分带修正见第15节，复制返回
 
 权威LST函数为`0x00453580..0x004539A9`，完整508行、21个静态call站点、22个标签，无外部FUNCTION CHUNK。ABI为一参数cdecl/plain `retn`，caller清理参数。三个直接caller站点为：
 
-- `0x00452904`与`0x00452D75`，同属已关闭战斗画面转场；
-- `0x00453322`，属于已关闭战斗逐帧协调器。
+- `0x00452904`与`0x00452D75`，同属`pending`的战斗画面转场；
+- `0x00453322`，属于`pending`的战斗逐帧协调器。
 
 三个caller均忽略返回EAX。本函数不同出口可能保留surface虚调用、软件blitter或普通状态运算残值，不把它伪造成稳定业务返回。
 
@@ -29,7 +29,7 @@ right = 640
 bottom = 480
 ```
 
-modern以typed source保存token、可写命令流、布局和u16宽高；token发布严格早于clip。所有通用blit固定使用入口source宽高、目标`(0,0)`和空palette/辅助尾，直接复用已关闭软件blitter及其正常公共后缀。indexed布局仍因固定空palette在原palette首次读取点停止，不擅自借用外部palette。
+modern以typed source保存token、可写命令流、布局和u16宽高；token发布严格早于clip。所有通用blit固定使用入口source宽高、目标`(0,0)`和空palette/辅助尾，直接复用`pending`的软件blitter及其正常公共后缀。indexed布局仍因固定空palette在原palette首次读取点停止，不擅自借用外部palette。
 
 ## 3. 双抑制门与零旋转路径
 
@@ -38,7 +38,7 @@ modern以typed source保存token、可写命令流、布局和u16宽高；token�
 两者都为零且入口rotation amount为0时：
 
 1. 全屏绘制当前source，flags 0；
-2. 直接调用已关闭`0x00451540`旋转缓存单帧绘制；
+2. 直接调用`pending`的`0x00451540`旋转缓存单帧绘制；
 3. `53BF30`的完整DWORD精确等于1时更新u16 extent并绘制上下两条灰度带。
    `4535FA`与EBX=1比较，`453600 JNZ 453716`在不等时跳过整段。
    旧字段名`split_suppression`保留，但原语义是等于1启用；0、2和全1均跳过。
@@ -67,11 +67,11 @@ extent为0时仍执行两次零高clip和两次clipped-out调用；不现代化�
 
 入口rotation amount非零时：
 
-- signed正值：直接调用已关闭literal图像模式3，shift为原值；
+- signed正值：直接调用`pending`的literal图像模式3，shift为原值；
 - signed负值：以低32位二补数取负，调用模式2；
 - `INT_MIN`取负后bit pattern不变，closed rotation按非正shift普通返回，caller仍继续。
 
-之后全屏flags 0绘制当前source，再直接调用已关闭`0x004515E0`旋转缓存动作播放，传入原signed rotation amount。动作初始/后续更新返回0属于原callee普通返回，外层继续；非法缓存索引、空owner、rotation/blit故障和非终止域才typed-stop。
+之后全屏flags 0绘制当前source，再直接调用`pending`的`0x004515E0`旋转缓存动作播放，传入原signed rotation amount。动作初始/后续更新返回0属于原callee普通返回，外层继续；非法缓存索引、空owner、rotation/blit故障和非终止域才typed-stop。
 
 零或非零路径完成后都把共享pending rotation dword清零。若此前source blit、source rotation或缓存callee在真实访问点typed-stop，不执行该清零。
 
@@ -119,7 +119,7 @@ alternate surface mode非零时：
 2. 全屏flags 0绘制source；
 3. 读取red/green/blue三个i16 factor与signed stage；
 4. 每个factor先算术右移一位，再按低32位乘stage；
-5. 以红、绿、蓝顺序一次调用已关闭三通道颜色调整，固定`0x3C000`像素。
+5. 以红、绿、蓝顺序一次调用`pending`的三通道颜色调整，固定`0x3C000`像素。
 
 负奇数factor的右移保持x86算术右移，不使用C++向零除法。乘法保留低32位回绕。
 
@@ -160,24 +160,24 @@ alternate surface mode非零时：
 
 否则执行一次全屏flags 0 source blit后返回。surface表越界发生在stage已减一之后；fallback blit typed-stop也保留stage写回。
 
-## 11. closed callee回收
+## 11. `pending` callee回收
 
 21个call站点分类为：
 
 - clip owner 4次：直接typed状态转换；
 - 通用软件blitter 6次：直接typed绘制；
-- 旋转缓存单帧1次、播放2次：直接复用已关闭共享cache；
-- literal source循环平移2次：直接复用已关闭可写命令流旋转；
+- 旋转缓存单帧1次、播放2次：直接复用`pending`的共享cache；
+- literal source循环平移2次：直接复用`pending`的可写命令流旋转；
 - 红/绿/蓝单通道3次、RGB三通道1次：直接typed颜色函数；
 - DirectDraw虚操作2次：保留窄平台端口。
 
-已关闭callee没有复制平行实现。函数自身不创建source、frame cache或surface owner。
+`pending`的callee没有复制平行实现。函数自身不创建source、frame cache或surface owner。
 
 ## 12. caller回收
 
 `0x00453200`在主frame stage之后、条件stage之前直接调用本函数。typed-stop保留主frame stage并阻断全部后继stage、固定帧、跨模块队列、输入与截图。
 
-`0x004527E0`在首张640×480 raw快照转换后、任何场景准备前第一次调用；mode 0第二阶段在首个临时surface操作后、重复场景准备前第二次调用。caller从同一raw快照直接复用已关闭`0x004014F0`编码结果建立可写命令流，不用token冒充主机指针。首次调用typed-stop保留双raw分配、480行复制与转换，不执行合成cleanup。
+`0x004527E0`在首张640×480 raw快照转换后、任何场景准备前第一次调用；mode 0第二阶段在首个临时surface操作后、重复场景准备前第二次调用。caller从同一raw快照直接复用`pending`的`0x004014F0`编码结果建立可写命令流，不用token冒充主机指针。首次调用typed-stop保留双raw分配、480行复制与转换，不执行合成cleanup。
 
 ## 13. 双向追溯
 
@@ -265,7 +265,7 @@ flags=28h对应`421850`的目标灰度化，并非镜像。
 首轮core/ASan编译中的既有outcome-resolution数值转换warning未修改。
 
 实际共享状态、source/尺寸/颜色重读、真实旋转缓存及SDL画布接线仍未完成。
-WP316仍为pending_audit，未运行游戏或新增原版动态差分。
+WP316仍为pending，未运行游戏或新增原版动态差分。
 
 ## 17. B11角色移动与背景平移共用实际位移
 
@@ -531,7 +531,7 @@ ASan setup 1/1（7.89秒），actor_frame_316 1/1（26.95秒）；SDL链接通�
 
 本批仅回收双门及其必要的颜色发布依赖。实际画布、source尺寸/格式重读、
 真实旋转cache、actor selector、完整SDL帧和实际续玩仍待完成。
-WP316保持pending_audit、0/422；整体暂估60%（粗略工作量，非验收比例）。
+WP316保持pending、0/422；整体暂估60%（粗略工作量，非验收比例）。
 未运行游戏或新增原版动态差分，不升级WP316/WP379验收状态。
 
 ## 21. B11画面效果借实际角色WORD及优先角色DWORD
@@ -654,7 +654,7 @@ SDL于129/129链接完成。core setup沿用同源码proc_be02的1/1（5.04秒�
 不能据此认定这些字段的全部消费者已共用存储。
 本批只恢复上述消费、必要producer与复位合同；画布、source重读、
 初始化门、真实旋转缓存、SDL完整帧和实际续玩仍待完成。
-WP316仍pending_audit、0/422；未运行游戏或新增原版动态差分。
+WP316仍pending、0/422；未运行游戏或新增原版动态差分。
 
 ## 22. B11画面淡出借实际颜色初始化门
 
@@ -727,7 +727,7 @@ proc_c75a只格式化十项明确C++路径的新增范围，MON排除；
 
 本批范围只关闭初始化门共享。真实旋转缓存、source重读、实际画布、
 SDL完整帧及实际续玩仍待完成；原版联合捕获后端仍缺失。
-WP316仍pending_audit、0/422，不开始317。
+WP316仍pending、0/422，不开始317。
 
 ## 23. B11画面效果借背景初始化的实际旋转缓存
 
@@ -811,9 +811,9 @@ C++到LST反查引用接线、WORD动作门、正常返回与typed-stop前缀。
 现有释放实现未显式建模回调把owner槽改为零后的第二零门。
 该独立缺口登记保留，本批只验证普通释放对借用者立即可见，
 不宣称任意释放回调改写或未返回域已完成。
-原版共享缓存、ACT寄存器、资源与画布联合捕获仍为blocked_runtime_oracle。
+原版共享缓存、ACT寄存器、资源与画布联合捕获仍为pending。
 其余共享状态、source重读、实际画布、完整SDL帧和实际续玩仍待完成。
-WP316保持pending_audit、0/422，不开始317。
+WP316保持pending、0/422，不开始317。
 
 ## 24. B11画面来源与尺寸按原站点读取
 
@@ -929,7 +929,7 @@ LST到C++沿入口发布、六处尺寸、两处分带重发、两处旋转参�
 C++到LST逐项反查字段、引用、晚查询、合法身份和失败前缀。
 没有把现有archive适配器或通用blitter全部行为升级为assembly_exact。
 原raw blitter在41742A/417443再次取4CD730，完整像素callee的原全局
-联合动态捕获仍未取得，original_diff_verified保持blocked_runtime_oracle。
+联合动态捕获仍未取得，original_diff_verified保持pending。
 45AFEA/45B002的共享刷新也读取背景并发布来源，但其历史source_pitch
 字段和窄callee端口尚待独立接线，本批不升级该函数整体语义。
 其余共享状态、实际画布、完整SDL帧、实际续玩和WP316仍未验收。

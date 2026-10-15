@@ -68,7 +68,7 @@ owner、测试通过或 span 检查标记为 `pending`。
 
 ## 4. 二十个父 CALL（`pending`）
 
-完整 LST 有 6 个父函数、20 个物理 CALL。六个父函数均已关闭，因此本轮没有延期 CALL：
+完整 LST 有 6 个父函数、20 个物理 CALL。六个父函数均为`pending`，因此本轮没有延期 CALL：
 
 ```text
 sub_4539B0  0x00454B8D -> 0x00454B92
@@ -176,12 +176,12 @@ trace、五类 typed-stop、20 个物理 caller 和全局 request offset；没�
 扫描、TMP 分类、inventory 连续双生成及 staged/unstaged release audit 全部通过。未启动
 原版或 OpenSWD3 游戏程序。
 
-inventory 为 `0/422 = 296 platform_adapted + 10 assembly_exact + 116 pending_audit`，
+inventory 为 `0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，
 SHA-256 为 `b7a3c5db9f5df536b2800e1dc4c5016587ea8e503376cafd12fddc0afb8d186d`。
 
 ## 8. 动态差分状态
 
 当前缺少原版完整 Group-A/Group-B actor backing、异常参数栈、三个 actor 字段页、RET
 栈页，以及二十处 caller 的寄存器、flags 与 SEH 联合捕获后端。原版动态差分登记为
-`blocked_runtime_oracle`，不得写成 `original_diff_verified`。该阻塞不改变当前静态 LST
-边界、五阶段访问顺序或二十个已关闭 CALL 身份。
+`pending`，不得写成 `original_diff_verified`。该阻塞不改变当前静态 LST
+边界、五阶段访问顺序或二十个`pending`的 CALL 身份。

@@ -44,7 +44,7 @@ setup ASan1/1 19.66秒、actor ASan1/1 30.21秒，SDL136/136重新链接。
 
 ## 1. 完整权威范围
 
-权威LST主体为`0x00470FE0..0x00471070`，proc至endp共87行、51条实际指令、2个call、9个跳转、7个局部标签、2个返回点，没有外部`FUNCTION CHUNK`。callee为已关闭资源链头提交`0x00470900`一次，以及平台字符串复制`lstrcpyA`一次。
+权威LST主体为`0x00470FE0..0x00471070`，proc至endp共87行、51条实际指令、2个call、9个跳转、7个局部标签、2个返回点，没有外部`FUNCTION CHUNK`。callee为`pending`的资源链头提交`0x00470900`一次，以及平台字符串复制`lstrcpyA`一次。
 
 ## 2. 两种筛选模式与陈旧计数
 
@@ -58,10 +58,10 @@ mode非零时仅当node `+0x2F` byte bit3置位且resource id不是`0x0300`时�
 
 候选成功后测试node `+0x46` byte mask `0x05`。mask为零时函数仍返回1，但不复制名称、不写数量，caller原有局部值保持陈旧。mask非零时复制node `+0x0C`名称，并以16位加法把secondary word `+0x08`与tertiary word `+0x0A`相加写入输出word，保留负数位型和回绕。扫描期间ECX固定为`0x0300`、EDX持有occurrence；发布数量时仅替换EDX低word。
 
-唯一caller是已关闭mode grid frame `0x00466190`，共有primary mode零与secondary mode一两处调用。caller的`String1`位于`-0x14..-0x01`，容量为20 bytes；typed路径在名称连终止符无法容纳时于原始复制边界停止，不静默截断。资源链与selected由实际list持有，源名称/数量来自节点；文字和数量目标借用caller原局部。
+唯一caller是`pending`的mode grid frame `0x00466190`，共有primary mode零与secondary mode一两处调用。caller的`String1`位于`-0x14..-0x01`，容量为20 bytes；typed路径在名称连终止符无法容纳时于原始复制边界停止，不静默截断。资源链与selected由实际list持有，源名称/数量来自节点；文字和数量目标借用caller原局部。
 
 ## 4. caller回收与验证
 
-mode grid production现在从startup party span定位角色owner，primary与secondary两条查询直接调用typed实现；调用前后的两次已关闭资源链头提交也改为typed直连。`0x00471080` secondary count已在第203项接入实际累计器，脚本化mode grid兼容仅由单测显式开启，production默认关闭。
+mode grid production现在从startup party span定位角色owner，primary与secondary两条查询直接调用typed实现；调用前后的两次`pending`的资源链头提交也改为typed直连。`0x00471080` secondary count已在第203项接入实际累计器，脚本化mode grid兼容仅由单测显式开启，production默认关闭。
 
-测试覆盖mode零固定id直达且不改selected、mode一bit27计数并排除固定id、occurrence零陈旧选择、输出mask零保持陈旧值、16位数量回绕、缺项破坏性扫到空链、20-byte字符串边界typed-stop，以及mode grid production primary/group重复显示与两次typed链头提交。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 193 platform_adapted + 9 assembly_exact + 220 pending_audit`，SHA256为`9c4944438acbe1b483f72b9df3a9383903af867abb8d37f9371d4b94c02604a5`。动态差分因原版mode资源链、selected token、caller字符串/数量局部和寄存器联合捕获后端缺失而登记为`pending`。
+测试覆盖mode零固定id直达且不改selected、mode一bit27计数并排除固定id、occurrence零陈旧选择、输出mask零保持陈旧值、16位数量回绕、缺项破坏性扫到空链、20-byte字符串边界typed-stop，以及mode grid production primary/group重复显示与两次typed链头提交。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`9c4944438acbe1b483f72b9df3a9383903af867abb8d37f9371d4b94c02604a5`。动态差分因原版mode资源链、selected token、caller字符串/数量局部和寄存器联合捕获后端缺失而登记为`pending`。

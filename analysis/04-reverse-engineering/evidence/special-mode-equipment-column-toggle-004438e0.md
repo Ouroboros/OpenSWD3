@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-唯一行为真值为`swd3.exe.lst`。物理范围`0x004438E0..0x0044399D`，99行，无FUNCTION CHUNK。唯一引用来自3B480数据callback槽G03/动作4；无code caller可回收。B9C0、B9E0、BBC0已关闭并直接复用，sample46保留平台端口。
+唯一行为真值为`swd3.exe.lst`。物理范围`0x004438E0..0x0044399D`，99行，无FUNCTION CHUNK。唯一引用来自3B480数据callback槽G03/动作4；无code caller可回收。B9C0、B9E0、BBC0为`pending`并直接复用，sample46保留平台端口。
 
 ## mode1行内切换
 

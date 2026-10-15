@@ -111,4 +111,4 @@ CTest 全部通过；Linux 与 Windows 应用均成功链接。验证过程没�
 或原版。
 
 原程序逐帧 framebuffer 差分仍需用户运行统一 Frida spawn oracle，因此动态状态保持
-`blocked_runtime_oracle`。
+`pending`。

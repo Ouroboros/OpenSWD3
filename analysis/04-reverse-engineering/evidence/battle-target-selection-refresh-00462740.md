@@ -6,7 +6,7 @@
 
 权威LST主体为`0x00462740..0x004640F1`，从proc到endp共2820行、1662条实际指令、95个静态call、140个跳转、110个局部/默认标签、37个`retn`，没有外部`FUNCTION CHUNK`。函数后的两张间接表也已完整审计：主表压缩200个message为20个有效状态和一个默认槽；message 1的动作表压缩36种动作及默认槽。
 
-唯一静态caller位于已关闭目标选择进入函数。95个call覆盖光标定位、菜单面板、角色提交/刷新、目标校验、三类角色属性查询、目标回退、样本、效果记录、两组角色清理及选择显示刷新。
+唯一静态caller位于`pending`的目标选择进入函数。95个call覆盖光标定位、菜单面板、角色提交/刷新、目标校验、三类角色属性查询、目标回退、样本、效果记录、两组角色清理及选择显示刷新。
 
 ## 2. 公共入口与主跳表
 
@@ -27,11 +27,11 @@ selection input gate为0或animation frame B小于signed 6时直接返回；越�
 - 6、21、23、29、31、33回到message 3；17进入message 6；24同时置目标阻断；25只置动作模式低byte bit；26清辅助选择；
 - 27和30打开对应grid面板。
 
-动作完成后，仅pre-frame gate B为0且live共享message为3时直连已关闭组B目标轮转，再直连已关闭输入记录预置并把animation缓存写回`4/0/0`。目标轮转typed-stop保留动作与message前缀并阻断记录预置。其余13个原调用点也按各自原顺序统一直连：四项写复用主帧输入归一化records唯一owner，原opaque刷新槽保留reserved数值且零调用。动作callee可改写queued角色，因此每次实际角色call和后续记录store都动态重读owner。
+动作完成后，仅pre-frame gate B为0且live共享message为3时直连`pending`的组B目标轮转，再直连`pending`的输入记录预置并把animation缓存写回`4/0/0`。目标轮转typed-stop保留动作与message前缀并阻断记录预置。其余13个原调用点也按各自原顺序统一直连：四项写复用主帧输入归一化records唯一owner，原opaque刷新槽保留reserved数值且零调用。动作callee可改写queued角色，因此每次实际角色call和后续记录store都动态重读owner。
 
 ## 4. message 2、4、8、27、30：候选与属性链
 
-message 2先消费hovered category；否则在输入gate、双候选gate、候选参数和queued角色通过后，依次执行主动作验证、目标查询、属性A/B/C。属性A低word进入角色五dword记录，属性B可置目标缓存，属性C决定立即目标、默认回退或alternate回退。alternate剩余量unsigned至少4时直连已关闭组A目标轮转：复用连续八dword候选表的后五项物理视图，按queued角色零基值无上限匹配并发布一基目标。
+message 2先消费hovered category；否则在输入gate、双候选gate、候选参数和queued角色通过后，依次执行主动作验证、目标查询、属性A/B/C。属性A低word进入角色五dword记录，属性B可置目标缓存，属性C决定立即目标、默认回退或alternate回退。alternate剩余量unsigned至少4时直连`pending`的组A目标轮转：复用连续八dword候选表的后五项物理视图，按queued角色零基值无上限匹配并发布一基目标。
 
 message 4先消费hovered equipment；普通路径以current equipment和完整序号选择实际资源。校验失败时按`0/2/3`与callee输出word决定是否显示提示，随后播放失败样本。校验成功且特殊override为1时，低word非零提示失败；高word1/2进入message 5的两行选择；全零直接提交动作15。其他结果复用属性链。
 
@@ -47,7 +47,7 @@ message 3在published角色有效且queued/cleanup条件满足时提交当前act
 
 message 5提交动作15，把目标效果低word、行选择、高word偏移和group-A count按原u32公式组合为保存索引。效果记录复用`0x0053AF30`动作workspace的物理视图；旧item非零先增加实际数量，再写规则、效果、Y270/340、镜像X和启动样本。第一样本后重读完整mode，第二段独立检查mode2并沿用保存索引；末尾只存结果低word。原“旧样本停止”归因错误，三处45D180实际是物品数量操作。
 
-message 7未到alternate limit时固定动作25，并在pre-frame gate B为0时直连已关闭组B目标轮转；该函数按target cursor和live group-B count跳过完成对象，恢复原选择重置、一基published actor与耗尽message 1行为。随后把共享message写3、动画缓存写`0/0/4`并预置输入记录。count大于物理八对象时在第九次真实对象call或第九项target map读取停止，不添加步进上限。到limit时提交动作99并清选择缓存。
+message 7未到alternate limit时固定动作25，并在pre-frame gate B为0时直连`pending`的组B目标轮转；该函数按target cursor和live group-B count跳过完成对象，恢复原选择重置、一基published actor与耗尽message 1行为。随后把共享message写3、动画缓存写`0/0/4`并预置输入记录。count大于物理八对象时在第九次真实对象call或第九项target map读取停止，不添加步进上限。到limit时提交动作99并清选择缓存。
 
 ## 6. message 98–113与200
 

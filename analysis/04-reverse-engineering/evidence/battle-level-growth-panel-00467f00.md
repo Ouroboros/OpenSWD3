@@ -4,9 +4,9 @@
 
 ## 1. 完整权威范围
 
-权威LST主体为`0x00467F00..0x00468927`，从proc到endp共1007行、608条带机器码和真实助记符的实际指令、48个静态call、33个跳转、14个局部标签和1个返回点，没有外部`FUNCTION CHUNK`。唯一静态caller是已关闭消息阶段分派的消息110；原caller在transition对象存在时无条件调用本函数并立即返回，不消费返回值。
+权威LST主体为`0x00467F00..0x00468927`，从proc到endp共1007行、608条带机器码和真实助记符的实际指令、48个静态call、33个跳转、14个局部标签和1个返回点，没有外部`FUNCTION CHUNK`。唯一静态caller是`pending`的消息阶段分派的消息110；原caller在transition对象存在时无条件调用本函数并立即返回，不消费返回值。
 
-48个callsite包括动作记录更新1次、固定矩形1次、九宫格2次、stage推进1次、`wsprintfA` 14次、文字绘制22次和sample播放7次。动作、矩形和九宫格复用已关闭typed实现；stage推进直接组合已关闭typed实现，格式与文字通过成长面板窄端口保留；sample播放按live signed mix level进入typed音频边界。
+48个callsite包括动作记录更新1次、固定矩形1次、九宫格2次、stage推进1次、`wsprintfA` 14次、文字绘制22次和sample播放7次。动作、矩形和九宫格复用`pending`的typed实现；stage推进直接组合`pending`的typed实现，格式与文字通过成长面板窄端口保留；sample播放按live signed mix level进入typed音频边界。
 
 ## 2. 入口、底板和角色标题
 

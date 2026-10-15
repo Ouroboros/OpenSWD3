@@ -102,5 +102,5 @@ SDL目标编译链接通过，五份当前日志没有warning/error。
 - `build/tmp/runtime/attack-order-append-sdl.log`。
 
 尚未取得原版动态队列轨迹，`original_diff_verified`仍为
-`blocked_runtime_oracle`。没有启动原版或OpenSWD3游戏，不升级B11、
+`pending`。没有启动原版或OpenSWD3游戏，不升级B11、
 Workpack316或实际续玩的验收状态。

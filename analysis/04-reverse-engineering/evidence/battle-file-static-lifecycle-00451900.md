@@ -48,4 +48,4 @@ core、ASan的setup定向测试各1/1通过，SDL应用编译链接通过。
 本轮增量编译没有警告；完整调用方与删除符号引用已复核。
 日志前缀：`build/tmp/runtime/battle-file-exit-`。
 既有文件平台适配的依据见[文件状态机](legacy-file-object-00438000.md)。
-没有启动游戏或进行原版动态差分，`blocked_runtime_oracle`保持。
+没有启动游戏或进行原版动态差分，`pending`保持。

@@ -6,21 +6,21 @@
 
 权威函数为`0x0045BD10..0x0045BD8B`，从proc到endp完整58行、3个静态call站点、1个条件跳转与1个局部标签，无外部FUNCTION CHUNK。
 
-两个静态caller都位于已关闭的`0x0045E580`，调用点为`0x0045E5BE`与`0x0045E638`。两个caller现均直接组合本typed实现，并将完整EAX与1比较；只有精确返回1才进入各自结果整理路径。子typed-stop分别保留组A或组B结果latch与三颜色偏移前缀，再阻断其后副作用。
+两个静态caller都位于`pending`的`0x0045E580`，调用点为`0x0045E5BE`与`0x0045E638`。两个caller现均直接组合本typed实现，并将完整EAX与1比较；只有精确返回1才进入各自结果整理路径。子typed-stop分别保留组A或组B结果latch与三颜色偏移前缀，再阻断其后副作用。
 
 ## 2. 共享颜色状态
 
 入口读取共享channel delta，按原始顺序发布到红、绿、蓝三个完整dword偏移。三项偏移复用既有`LegacyBlitEffectState`，不建立第二份战斗专用副本；像素地址复用唯一owned `LegacyFramebuffer`。
 
-三个颜色callee分别是已关闭的渲染函数：
+三个颜色callee分别是`pending`的渲染函数：
 
 1. `0x00420560`对完整`0x4B000`个u16像素执行红通道signed偏移；
 2. `0x00420600`按两个u16 lane一次的packed运算执行绿通道signed偏移；
 3. `0x004206F0`按两个u16 lane一次的packed运算执行蓝通道signed偏移。
 
-完整`0x4B000`像素等于640×480画面。红通道保留末像素dword读取，因此typed实现使用同一framebuffer的只读guard；guard不计入画面、不被写回。三个callee均直接调用已关闭typed helper，不保留地址token或opaque端口。
+完整`0x4B000`像素等于640×480画面。红通道保留末像素dword读取，因此typed实现使用同一framebuffer的只读guard；guard不计入画面、不被写回。三个callee均直接调用`pending`的typed helper，不保留地址token或opaque端口。
 
-原LST在第一个callee后重新读取绿偏移与framebuffer地址，在第二个callee后重新读取蓝偏移与framebuffer地址。三个已关闭callee均不改写这些共享全局，因此typed直连继续读取同一共享字段与同一framebuffer，不缓存独立副本。
+原LST在第一个callee后重新读取绿偏移与framebuffer地址，在第二个callee后重新读取蓝偏移与framebuffer地址。三个`pending`的callee均不改写这些共享全局，因此typed直连继续读取同一共享字段与同一framebuffer，不缓存独立副本。
 
 ## 3. delta推进与返回
 

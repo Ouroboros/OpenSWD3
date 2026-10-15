@@ -34,4 +34,4 @@ retn
 
 新增case58回归将两个脚本word设为组B路径，断言cursor只推进4字节、返回1、无窄端口调用且攻击顺序记录保持不变。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过。
 
-inventory生成器连续双跑逐字节一致，正式计数为`0/422 = 154 platform_adapted + 8 assembly_exact + 260 pending_audit`，SHA256为`3a3d2dbd8e5b2f3f13402d674cd43e2dc965b85e18d23acc4048c031f4bdad47`。本函数的唯一引用静态不可达，无需动态oracle；`original_diff_verified`由完整两指令LST与不可达控制流证明关闭。
+inventory生成器连续双跑逐字节一致，正式计数为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`3a3d2dbd8e5b2f3f13402d674cd43e2dc965b85e18d23acc4048c031f4bdad47`。本函数的唯一引用静态不可达，无需动态oracle；`original_diff_verified`由完整两指令LST与不可达控制流证明关闭。

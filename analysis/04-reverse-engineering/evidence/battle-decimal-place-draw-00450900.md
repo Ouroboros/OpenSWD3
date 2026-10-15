@@ -45,7 +45,7 @@ cdecl唯一参数为32位除数。唯一caller `0x004507A0`固定调用十次，
 
 `word_4FD784 == 0x8000`时flags为`0x20`；其他值flags为0。
 
-当前已关闭blitter对测试direct16源的flags `0x20`选择`unassigned_routine`并在该真实callee点typed-stop；余数与leading后缀不得提前执行。普通flags0路径正常完成。indexed8源即使帧record带palette，也因固定空tail在首次palette读取点得到`palette_out_of_bounds`，保留record/source发布而不更新余数。
+当前`pending`的blitter对测试direct16源的flags `0x20`选择`unassigned_routine`并在该真实callee点typed-stop；余数与leading后缀不得提前执行。普通flags0路径正常完成。indexed8源即使帧record带palette，也因固定空tail在首次palette读取点得到`palette_out_of_bounds`，保留record/source发布而不更新余数。
 
 ## 5. 正常后缀与实际字宽
 

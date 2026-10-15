@@ -4,7 +4,7 @@
 
 ## 1. 完整权威范围
 
-权威LST主体为`0x00468AD0..0x00468C7E`，从proc到endp共187行、125条带机器码和真实助记符的实际指令、11个静态call、3个跳转、2个局部标签和1个返回点，没有外部`FUNCTION CHUNK`。唯一静态caller是已关闭消息阶段分派的消息112公共完成路径；caller固定压入两个零参数，本函数返回后重新读取timer并按u32加一。
+权威LST主体为`0x00468AD0..0x00468C7E`，从proc到endp共187行、125条带机器码和真实助记符的实际指令、11个静态call、3个跳转、2个局部标签和1个返回点，没有外部`FUNCTION CHUNK`。唯一静态caller是`pending`的消息阶段分派的消息112公共完成路径；caller固定压入两个零参数，本函数返回后重新读取timer并按u32加一。
 
 11个callsite包括sample播放1次、`wsprintfA` 2次、`lstrlenA` 2次、动作记录更新1次、固定矩形1次、九宫格1次、stage推进1次和文字绘制2次。它与相邻成长标题框共享确定性的格式、动作、矩形、九宫格和文字业务实现，但以独立variant保留新增sample门及五个generic callsite不同的EAX/ECX/EDX布局。
 
@@ -46,7 +46,7 @@ x             = 250 + name_pixels - detail_pixels
 
 transition mode/stage/actor、sample mix、动作标签、动作记录、framebuffer和24-byte共享标题均复用既有唯一typed owner；共享标题继续与紧邻的输入选择文字工作区保持独立数组，并由战斗全局重置末尾六dword写在全部尾部callee之后清零。入口seed只作为请求快照，不形成持久副本。
 
-消息112现于actor有效后直连本实现；actor缺失时先直连已关闭成长角色选择，再保持既有sample、完成查询与transition分配顺序。正常返回后caller按u32递增timer；成长角色选择或本函数typed-stop均模拟callee不返回并阻断全部后置写。旧选角槽与旧阶段112槽均改为reserved且生产零调用。消息113仍保留其自身下一工作包边界，不提前回收。
+消息112现于actor有效后直连本实现；actor缺失时先直连`pending`的成长角色选择，再保持既有sample、完成查询与transition分配顺序。正常返回后caller按u32递增timer；成长角色选择或本函数typed-stop均模拟callee不返回并阻断全部后置写。旧选角槽与旧阶段112槽均改为reserved且生产零调用。消息113仍保留其自身下一工作包边界，不提前回收。
 
 定向测试覆盖mode精确1门、live seed请求、stage零/非零sample门、sample前寄存器、sample后负一actor停止、CP950名称、五个variant generic调用寄存器、动态矩形/九宫格、stage商非零、双行文字、消息112直连/旧槽零调用/timer及主帧sample映射。组合战斗Debug测试已有多个单函数栈帧超过1MB；仅Windows该测试目标以`/STACK:8388608`锁定8MB PE栈保留，生产目标不变。修正后Windows定向测试连续三次通过；Linux定向、AddressSanitizer、Linux core `188/188`和Windows app `194/194`全部通过，源码构建零warning。
 

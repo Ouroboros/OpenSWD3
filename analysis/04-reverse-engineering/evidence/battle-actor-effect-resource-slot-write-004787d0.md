@@ -79,7 +79,7 @@ LST 的角色布局使用 35 个连续 word 槽 `actor+0x29C4..actor+0x2A08`，c
 
 ## 5. 二十七个已恢复物理 CALL
 
-机器码扫描得到 40 处 `call sub_4787D0`。以下 27 处所属 caller 已关闭，并在原控制流
+机器码扫描得到 40 处 `call sub_4787D0`。以下 27 处所属 caller 为`pending`，并在原控制流
 位置直接组合 typed leaf。括号内为 `CALL 地址 -> 返回地址`：
 
 - `sub_4539B0` 一处：`0x00453B85 -> 0x00453B8A`。
@@ -129,7 +129,7 @@ known 状态。调用只在原门真实到达时追加 trace。leaf typed-stop �
 
 这些 caller 在各自工作包关闭时必须直接组合本 typed leaf，并恢复各物理站点的入口机器
 状态、条件门、部分提交和返回后缀。延期站点不计入当前 27 个生产接入点，也不因地址清单
-存在而伪装父函数已关闭。
+存在而伪装父函数为`pending`。
 
 ## 7. 双向追溯与测试范围
 
@@ -140,7 +140,7 @@ LST 到 C++ 追溯覆盖 25 字节完整边界、word 参数读取、部分 EDX�
 `0x0047CEC0` 后的 cursor 同步。
 
 生产源码对 `0x004787D0` 只保留 typed leaf 地址身份和 script-dispatch reserved 地址
-枚举；已关闭路径不再通过 generic opaque port 执行该函数。
+枚举；`pending`的路径不再通过 generic opaque port 执行该函数。
 
 定向测试覆盖：
 
@@ -163,7 +163,7 @@ LST 到 C++ 追溯覆盖 25 字节完整边界、word 参数读取、部分 EDX�
 - 十轮 core 日志无 OpenSWD3 源码 warning、测试失败、sanitizer finding 或 runtime
   error；
 - inventory 生成器连续双跑逐字节一致，最终计数为
-  `0/422 = 292 platform_adapted + 10 assembly_exact + 120 pending_audit`，
+  `0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，
   SHA-256 为
   `adeeb9eba674ec671ec51253acfda91f35d43be15135826a004f574400fab93e`；
 - TMP 终检发现的三个历史 OpenSWD3 instance-lock 已迁入
@@ -174,5 +174,5 @@ LST 到 C++ 追溯覆盖 25 字节完整边界、word 参数读取、部分 EDX�
 
 当前缺少原版完整 Group-A/Group-B actor、越界 actor 页、异常栈页，以及 40 处 caller
 联合寄存器、flags 与 SEH 捕获后端。原版动态差分登记为
-`blocked_runtime_oracle`，不得写成 `original_diff_verified`。该阻塞不改变 25 字节 leaf、
+`pending`，不得写成 `original_diff_verified`。该阻塞不改变 25 字节 leaf、
 40 处物理 CALL 身份和 27/13 静态边界。

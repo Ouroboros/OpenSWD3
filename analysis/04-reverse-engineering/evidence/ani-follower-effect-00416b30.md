@@ -70,5 +70,5 @@ left/top 做上界夹取，也不会对 right/bottom 做下界夹取；因此反
 
 Linux Clang `core` 为 `92/92`，Windows LLVM `app` 为 `96/96` CTest，全套通过。
 当前证据状态为 `pending`；尚未对原程序帧缓冲和帧内
-调用轨迹做动态差分，保留 `blocked_runtime_oracle`。需要时由 Codex 准备 Frida spawn
+调用轨迹做动态差分，保留 `pending`。需要时由 Codex 准备 Frida spawn
 一键工具并等待用户执行，OpenSWD3 不自行启动原 EXE。

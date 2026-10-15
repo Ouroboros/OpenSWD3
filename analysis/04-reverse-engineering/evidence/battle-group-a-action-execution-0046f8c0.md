@@ -34,10 +34,10 @@ slot完成dword不为1时，以actor绘制位置、渲染flag和零资源参数�
 
 新增每actor动作执行owner保存actor局部0x98记录、slot、位置、flag、motion与资源视图；运行时动作flag继续复用`LegacyBattleActionDispatchState`，完成字段复用startup party进度owner，效果flag与激活byte复用第180项物品效果owner。actor跳过状态通过frame coordinator从胜利奖励唯一owner绑定为只读span，不复制第二份数组。
 
-全程序三处静态caller均位于已关闭行动调度器；typed源码将其收敛为两个直接调用位置，覆盖普通行动case 1及共享后段。目标token按side选择，槽索引固定0。旧完整函数地址调用生产零次，子callee以明确参数和寄存器的窄action port保留。
+全程序三处静态caller均位于`pending`的行动调度器；typed源码将其收敛为两个直接调用位置，覆盖普通行动case 1及共享后段。目标token按side选择，槽索引固定0。旧完整函数地址调用生产零次，子callee以明确参数和寄存器的窄action port保留。
 
 ## 6. 验证状态
 
 单元测试覆盖首actor typed-stop、两项入口门、目标查询早退、基础完成清理、激活倒计时、第二记录bit消费、颜色七参数与slot清理、bit0目标模式、渲染bit0完成、motion资源typed-stop和slot越界。行动调度回归覆盖两种side普通攻击、阻塞效果、framebuffer越界及旧opaque零调用。
 
-验证结果：定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning，app仅有既有ALSA提示。inventory连续双生成逐字节一致，稳定为`0/422 = 175 platform_adapted + 9 assembly_exact + 238 pending_audit`，SHA256为`769db821e21fdc38842ae86bb1cbbf882b1a3453689c411e6fec2c3c8abfa506`。原版组A actor完整状态、目标actor、资源记录、九类callee副作用及三处caller寄存器联合捕获后端缺失，动态差分登记为`pending`。
+验证结果：定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning，app仅有既有ALSA提示。inventory连续双生成逐字节一致，稳定为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`769db821e21fdc38842ae86bb1cbbf882b1a3453689c411e6fec2c3c8abfa506`。原版组A actor完整状态、目标actor、资源记录、九类callee副作用及三处caller寄存器联合捕获后端缺失，动态差分登记为`pending`。

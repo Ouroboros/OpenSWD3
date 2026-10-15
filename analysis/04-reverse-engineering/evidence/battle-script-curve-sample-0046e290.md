@@ -6,7 +6,7 @@
 
 权威LST主体为`0x0046E290..0x0046E385`，从proc到endp共105行、69条实际指令、5个call、0个跳转和1个返回点，没有外部`FUNCTION CHUNK`。函数是cdecl七参数：float帧值、两个i32输出指针，以及四个连续i16 X/Y控制点指针。
 
-函数按控制点顺序把8个i16分别符号扩展并经x87转为float。先以参数0调用一次已关闭曲线矩阵协调，结果写入死局部；随后把入口frame与double常量`0.05`相乘并舍入为float，生成四项三次B样条基值，再与四个X/Y点相乘求和。
+函数按控制点顺序把8个i16分别符号扩展并经x87转为float。先以参数0调用一次`pending`的曲线矩阵协调，结果写入死局部；随后把入口frame与double常量`0.05`相乘并舍入为float，生成四项三次B样条基值，再与四个X/Y点相乘求和。
 
 冻结矩阵的四列对应：
 
@@ -35,4 +35,4 @@ caller在曲线返回后把ECX/EDX恢复为两个物理输出owner的`compat::u3
 
 纯函数测试以四点`(0,0),(0,0),(60,-60),(60,-60)`验证帧0/10/20分别得到`(10,-10)/(30,-30)/(50,-50)`，并验证返回值是Y转换低dword。case39回归从live actor坐标构造路径，确认第一帧直接写typed曲线结果、旧reserved槽零调用且坐标服务调用一次。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码零warning；app只有既有ALSA白名单提示。
 
-inventory生成器连续双跑逐字节一致，正式计数为`0/422 = 158 platform_adapted + 9 assembly_exact + 255 pending_audit`，SHA256为`479882f5b376d12d09248f571e0ae3127d3e016f27cef80530fd3f18da50f24a`。原版x87扩展精度、动态局部栈、两个输出指针token和caller联合寄存器缺少捕获后端，`original_diff_verified`登记为`pending`。
+inventory生成器连续双跑逐字节一致，正式计数为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`479882f5b376d12d09248f571e0ae3127d3e016f27cef80530fd3f18da50f24a`。原版x87扩展精度、动态局部栈、两个输出指针token和caller联合寄存器缺少捕获后端，`original_diff_verified`登记为`pending`。

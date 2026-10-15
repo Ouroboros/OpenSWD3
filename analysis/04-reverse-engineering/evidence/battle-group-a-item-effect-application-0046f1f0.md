@@ -46,4 +46,4 @@
 
 独立位级脚本对类型31执行65,536组全u16向量，对三类乘数缩减执行131,072组向量，对signed记录派生执行1,114,112组交叉向量，合计1,310,720组，均与x86 signed乘积高位、算术右移和符号修正逐项一致。
 
-验证结果：定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning，app仅有既有ALSA提示。inventory连续双生成逐字节一致，稳定为`0/422 = 171 platform_adapted + 9 assembly_exact + 242 pending_audit`，SHA256为`6461117e3146c8594d8e1972c7b3d827868d07ab290a210c719225ed4029f10f`。原版组A角色对象、动态内嵌资料、玩家物品链、三个待审callee副作用及第187项caller寄存器联合捕获后端缺失，动态差分登记为`pending`。
+验证结果：定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning，app仅有既有ALSA提示。inventory连续双生成逐字节一致，稳定为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`6461117e3146c8594d8e1972c7b3d827868d07ab290a210c719225ed4029f10f`。原版组A角色对象、动态内嵌资料、玩家物品链、三个待审callee副作用及第187项caller寄存器联合捕获后端缺失，动态差分登记为`pending`。

@@ -101,6 +101,6 @@ synthetic固定：
 
 ## 6. 分类与验证
 
-合法资产域的operand位宽、u32文件/目录选择、四次audio、窗口尾、IP0、previous与same-call均已完成LST→C++→LST双向收敛。文件owner、原同步宿主退出、陈旧物理指针失败域和内部I/O夹点由上述最小资源边界承接，因此分类为`pending`。
+合法资产域的operand位宽、u32文件/目录选择、四次audio、窗口尾、IP0、previous与same-callLST→C++→LST双向收敛状态均为`pending`。文件owner、原同步宿主退出、陈旧物理指针失败域和内部I/O夹点由上述最小资源边界承接，因此分类为`pending`。
 
-Story VM synthetic、real、initial-session-real三项定向CTest 3/3通过。workpack双生成稳定为`127/146 = 20 assembly_exact + 107 platform_adapted + 19 pending_audit`，hash为`963960243d29c9674623319eff54bd274344218463faf2cf17c0323bdc8c2052`。Linux完整门core 186/186、app 192/192通过。未经许可未启动原版或OpenSWD3游戏EXE。
+Story VM synthetic、real、initial-session-real三项定向CTest 3/3通过。workpack双生成稳定为`0/146 = 0 assembly_exact + 0 platform_adapted + 146 pending`，hash为`963960243d29c9674623319eff54bd274344218463faf2cf17c0323bdc8c2052`。Linux完整门core 186/186、app 192/192通过。未经许可未启动原版或OpenSWD3游戏EXE。

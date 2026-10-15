@@ -32,7 +32,7 @@ opcode97只有在activity owner被逐帧推进后才能完成。本包把ordinar
 
 原版normal ending临时把active extent清零并递归重绘live world；当前composition stage不能安全递归进入完整world coordinator。SDL在opcode96 actual start前保存当前world framebuffer，`%`成功start按机器先清黑，normal ending恢复该snapshot并执行edge reveal，activity finalize后的下一帧恢复live world composition。这是有界、确定性的最小平台适配；不会让opcode97永久等待。
 
-missing ANI path仍在调用会先close旧activity的typed start之前失败，保留机器file-open failure尚未清旧节点/process bit的顺序。进入typed start后的header/frame/allocation failure则同步backend已关闭的process状态。
+missing ANI path仍在调用会先close旧activity的typed start之前失败，保留机器file-open failure尚未清旧节点/process bit的顺序。进入typed start后的header/frame/allocation failure则同步backend`pending`的process状态。
 
 ## 3. 资产锁与验证
 

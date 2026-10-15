@@ -52,7 +52,7 @@ target 缓存或独立 resolver。本工作包五处 caller 只使用 Group-A �
 
 ## 4. 五个父 CALL（`pending`）
 
-完整 LST 中共有五条真实 `call sub_478B20`，全部位于已关闭父函数：
+完整 LST 中共有五条真实 `call sub_478B20`，全部位于`pending`的父函数：
 
 ```text
 0x00456F94 -> 0x00456F99  Group-A frame
@@ -129,7 +129,7 @@ resolver、原访问点 typed-stop、惰性 request/trace 和显式 request offs
 
 当前缺少原版完整 Group-A/Group-B actor backing、`+0x29A2` 异常字段页、RET 异常栈页，
 以及五个 caller/callee 的联合寄存器、flags 与 SEH 捕获后端。原版动态差分登记为
-`blocked_runtime_oracle`，不得写成 `original_diff_verified`。
+`pending`，不得写成 `original_diff_verified`。
 
 ## 7. 验证与关闭
 
@@ -145,6 +145,6 @@ finding 或 runtime error。
 LST 地址摘录 SHA-256 为
 `996f7090b16b1c3a86d44174e55c0ddf9916a4bc8585dab723a8ad3df76d5deb`。inventory 生成器
 连续双跑逐字节一致，关闭结果为
-`0/422 = 301 platform_adapted + 10 assembly_exact + 111 pending_audit`，下一条为
+`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，下一条为
 `audit_order=312 / 0x00478B30 / sub_478B30`。最终 inventory SHA-256 为
 `805e441154895295cfae0ded8ff186748d3058f355b22dcb07b2c84da06d19cb`。

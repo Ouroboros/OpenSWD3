@@ -12,7 +12,7 @@ LST有两个运行时callsite、两个caller：`0x0043C3C0`在`0x0043C4BA`调用
 
 函数严格执行：
 
-1. 以`FC90C` window offset和`FC928` local cursor调用已关闭`0x0043BBC0`。
+1. 以`FC90C` window offset和`FC928` local cursor调用`pending`的`0x0043BBC0`。
 2. 以当前window offset、原64项entry base与`FC920` alias owner调用`0x0043CC00`。
 3. 调用`0x0043CBD0`刷新page。
 4. u32回绕相加`window_offset + local_cursor`，从原entry base读取并调用`0x0043CEF0`。
@@ -23,7 +23,7 @@ LST有两个运行时callsite、两个caller：`0x0043C3C0`在`0x0043C4BA`调用
 
 ## 3. typed边界与caller回接
 
-`retreat_legacy_standard_mode_runtime_cursor`复用已关闭的window retreat helper。alias重建后先执行CBD0并传播其alias读取typed-stop；CBD0完成后selected index只在原`[entry_base + index*4]`读取点检查64项边界。停止时保留此前cursor/alias/visible副作用，不执行消费、flags或sample。
+`retreat_legacy_standard_mode_runtime_cursor`复用`pending`的window retreat helper。alias重建后先执行CBD0并传播其alias读取typed-stop；CBD0完成后selected index只在原`[entry_base + index*4]`读取点检查64项边界。停止时保留此前cursor/alias/visible副作用，不执行消费、flags或sample。
 
 `0x0043C3C0`的upper caller已从抽象port改为真实helper：helper完成全部副作用后，caller重新加载pointer Y覆盖sample EAX。若upper范围与first dynamic及page范围重叠，顺序为：
 

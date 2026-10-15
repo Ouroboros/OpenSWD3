@@ -213,7 +213,7 @@ Windows LLVM `core` 完成 38/38 CTest，`app` 完成 39/39 CTest 和最终 EXE 
 
 SDL3 平台层累加相对鼠标位移，先通过 renderer 将宿主窗口位移换算到 640×480 逻辑域，再向兼容核心提供绝对轴样本；可拉伸窗口只影响这个平台映射。启动仍按原顺序设置 `2.0` 灵敏度并 rebase 到 `(480,360)`。
 
-Windows LLVM `core` 完成 38/38 CTest，`app` 完成 40/40 CTest 和最终 EXE 链接。兼容核心状态为 `pending`，SDL3 坐标转换为 `platform_adapted`，原程序运行时鼠标轨迹仍为 `pending`。
+Windows LLVM `core` 完成 38/38 CTest，`app` 完成 40/40 CTest 和最终 EXE 链接。兼容核心状态为 `pending`，SDL3 坐标转换为 `pending`，原程序运行时鼠标轨迹仍为 `pending`。
 
 ## B3.7 实现验证
 
@@ -223,4 +223,4 @@ Windows LLVM `core` 完成 38/38 CTest，`app` 完成 40/40 CTest 和最终 EXE 
 
 UT 逐个验证 16 个键盘绑定到记录的映射、两条保留记录、鼠标左右键、两帧抑制、450/451 严格边界、按钮/坐标活动重置、前帧坐标更新和 `u32` 回绕。启动与非空命令行接口中残留的 `initialize_float_conversion` 旧 FLIRT 误名已纠正为 `initialize_default_key_bindings`，两条路径均连接到同一运行时绑定块。
 
-Windows LLVM `core` 完成 38/38 CTest，`app` 完成 40/40 CTest 和最终 EXE 链接。整帧兼容核心为 `assembly_exact`，原程序输入轨迹仍为 `pending`。
+Windows LLVM `core` 完成 38/38 CTest，`app` 完成 40/40 CTest 和最终 EXE 链接。整帧兼容核心为 `pending`，原程序输入轨迹仍为 `pending`。

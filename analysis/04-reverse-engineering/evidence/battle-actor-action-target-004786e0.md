@@ -113,7 +113,7 @@ LST到C++追溯覆盖唯一word读、EAX局部寄存器写、普通RET、5处字
 - `./build.sh core --test`：`199/199`。
 - `./build.sh app --test`：`205/205`。
 - 连续10轮`./build.sh core --test`：每轮`199/199`。
-- inventory双生成稳定：`0/422 = 286 platform_adapted + 10 assembly_exact + 126 pending_audit`，SHA-256为`394486f01599ad2d0a0f3051079e8bcae840da84bf7cb21c24c814a2f9e2dcb8`。
+- inventory双生成稳定：`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA-256为`394486f01599ad2d0a0f3051079e8bcae840da84bf7cb21c24c814a2f9e2dcb8`。
 
 ## 8. 动态差分状态
 

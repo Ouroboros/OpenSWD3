@@ -12,7 +12,7 @@
 
 每次调用无条件先对固定字体token执行两次配置：第一次参数0，第二次参数`0xFFFE`。角色数非正、底部条关闭时，函数返回第二次字体callee完整EAX。
 
-角色数为正时，两轮循环的循环尾会把完整角色数重载到EAX；底部条关闭时最终返回该值。底部条开启时最终返回已关闭文字面板内部文字callee完整EAX。
+角色数为正时，两轮循环的循环尾会把完整角色数重载到EAX；底部条关闭时最终返回该值。底部条开启时最终返回`pending`的文字面板内部文字callee完整EAX。
 
 ## 3. 顶部队伍条
 
@@ -21,7 +21,7 @@
 每个active完整值等于1的角色：
 
 1. side mode完整值等于1时X为10，否则450；首行Y为10，只有active角色令Y加28；
-2. 查询actor数据后直连已关闭文字面板，以170×20背景和显式`X+5,Y+2`文字坐标绘制姓名；
+2. 查询actor数据后直连`pending`的文字面板，以170×20背景和显式`X+5,Y+2`文字坐标绘制姓名；
 3. 查询primary current/max，以x87扩展精度计算`current/max*56`，通过已闭合向零qword转换取低dword；
 4. 在`X+100,Y+8`绘制显式宽度条；
 5. 直接读取startup party唯一owner的`actor+0x2A12`低word，以共享行动阈值计算`trunc(progress/threshold*62)`；结果低16非0时查询颜色并在`X+100,Y+12`绘制三高颜色条；
@@ -105,7 +105,7 @@ delta = signed(68 - position) / 3
 position += delta
 ```
 
-减法和加法按低32位回绕，除法向零。共享footer delta发布后，直连已关闭文字面板，以`position-58,354,70,24`绘制背景、以双零坐标触发`left+2,top+4`相对文字定位，并返回文字callee完整EAX。magic除法后的符号修正位、原始分子和delta分别重建为helper入口EAX/ECX/EDX。
+减法和加法按低32位回绕，除法向零。共享footer delta发布后，直连`pending`的文字面板，以`position-58,354,70,24`绘制背景、以双零坐标触发`left+2,top+4`相对文字定位，并返回文字callee完整EAX。magic除法后的符号修正位、原始分子和delta分别重建为helper入口EAX/ECX/EDX。
 
 ## 10. caller回收
 

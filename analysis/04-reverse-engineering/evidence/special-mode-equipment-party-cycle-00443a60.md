@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-唯一行为真值为`swd3.exe.lst`。物理范围`0x00443A60..0x00443B6B`，127行，无FUNCTION CHUNK。code caller为F40一处，3B480另绑定为动作callback；F40现已直接回收。BB40、B9A0、BC90、B9C0、B9E0、444E80、444F00、444F60与444FB0已关闭并直接复用；sample107保留平台端口。
+唯一行为真值为`swd3.exe.lst`。物理范围`0x00443A60..0x00443B6B`，127行，无FUNCTION CHUNK。code caller为F40一处，3B480另绑定为动作callback；F40现已直接回收。BB40、B9A0、BC90、B9C0、B9E0、444E80、444F00、444F60与444FB0为`pending`并直接复用；sample107保留平台端口。
 
 函数仅在mode1执行；其他mode不读写状态。进入后先直接调用444F00回收记录，再把party selector low16加1并按四槽取模，保留high16。首个候选立即写入selector；若marker为FFFF，则继续循环候选，找到后才再次写selector。四项全FFFF时原函数无限扫描，modern完成四项原始域读取后typed-stop，并保留首个候选写入。
 

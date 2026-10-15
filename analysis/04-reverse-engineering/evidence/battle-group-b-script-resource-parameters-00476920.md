@@ -6,7 +6,7 @@
 
 权威主体为`0x00476920..0x00476993`，从`proc`到`endp`共45行、31条实际指令、0个call、0个跳转、0个局部标签和1个返回点。没有外部`FUNCTION CHUNK`，也没有直接callee。
 
-唯一静态caller是已关闭的战斗脚本分派`0x00469D20`，调用站点位于脚本case 74。完整caller主体已重新提取，并以该调用站点前后的真实算式和epilogue回收旧opaque边界。
+唯一静态caller是`pending`的战斗脚本分派`0x00469D20`，调用站点位于脚本case 74。完整caller主体已重新提取，并以该调用站点前后的真实算式和epilogue回收旧opaque边界。
 
 ## 2. ABI与唯一owner
 

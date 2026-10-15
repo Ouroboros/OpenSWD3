@@ -232,7 +232,7 @@ y         = live role.worldY - live action.drawY - frozen_top
 - 标签色调用统一的 16 项内建色转换；文字在校验刚解析 span 的 NUL 后进入实际 12 点
   `LegacyTextRendererRuntime` framebuffer。
 
-关闭 disposition 为 `platform_adapted`：受检 TSW/overlay/label owner、role selector
+关闭 disposition 为 `pending`：受检 TSW/overlay/label owner、role selector
 lookup、label NUL、颜色索引和现代 framebuffer/audio owner 隔离原始裸指针及平台 API，
 有效输入的分支、宽度、回绕、reload、写入和回调顺序保持不变。
 
@@ -301,7 +301,7 @@ lookup、label NUL、颜色索引和现代 framebuffer/audio owner 隔离原始�
   刷新 spatial-audio 监听者索引，避免只使用世界会话创建时的旧选择。
 - 原版固定 256 项裸角色表、两个 i16 数组和 Miles 对象改为 span、诊断状态及 sample
   manager owner；有效域的位宽、顺序和副作用不变，因此 disposition 为
-  `platform_adapted`，不是 `assembly_exact`。
+  `pending`，不是 `assembly_exact`。
 
 ## 6. `sub_413EA0` 独立逐基本块闭环
 
@@ -348,7 +348,7 @@ lookup、label NUL、颜色索引和现代 framebuffer/audio owner 隔离原始�
   real 与世界 frame composition synthetic/real 四项定向 CTest 通过。
 - 生产 runtime 已在 `sub_412930` 的 service-11 原槽调用该 scanner，并共用实际 group-0
   行首、角色数组、camera、TSW 与 framebuffer。受检 owner 和失败状态使 disposition 为
-  `platform_adapted`。
+  `pending`。
 - 稳定快照完整门禁：Linux core `185/185`、Linux app `191/191`、Windows LLVM app
   `191/191`；两端应用成功链接，未启动原版或 OpenSWD3 游戏 EXE。
 
@@ -402,7 +402,7 @@ lookup、label NUL、颜色索引和现代 framebuffer/audio owner 隔离原始�
 
 - 生产 stage 复用实际 `LegacyActionDrawRuntimePorts`、TSW cache、软件 framebuffer、raster
   clip 与共享 jitter；真实路径哈希继续为 `0xA6C3E08156F06060`。
-- 受检 frame owner、缺帧隔离与现代 blitter 状态诊断使 disposition 为 `platform_adapted`；
+- 受检 frame owner、缺帧隔离与现代 blitter 状态诊断使 disposition 为 `pending`；
   有效帧域的字段时序、回绕、flags、尺寸和调用顺序保持逐指令映射。
 - 稳定快照完整门禁：Linux core `185/185`、Linux app `191/191`、Windows LLVM app
   `191/191`；两端应用成功链接，未启动原版或 OpenSWD3 游戏 EXE。
@@ -463,9 +463,9 @@ lookup、label NUL、颜色索引和现代 framebuffer/audio owner 隔离原始�
 - 本轮稳定快照的完整顺序门禁通过：Linux core `185/185`、Linux app `191/191`、
   Windows LLVM app `191/191`，两端应用均成功链接且未启动游戏 EXE。
 - `sub_413910`、`sub_413CA0`、`sub_413EA0` 与 `sub_413F00` 的关闭 disposition 均为
-  `platform_adapted`：行为核心逐指令收敛，同时保留受检角色/数组/行首/link/frame/
+  `pending`：行为核心逐指令收敛，同时保留受检角色/数组/行首/link/frame/
   overlay/label owner、selector lookup 与平台 framebuffer/audio/sample owner。内建颜色
   helper 和距离音频 adapter 只复用既有 runtime，不扩张无关 API。
 - 原程序完整逐帧 framebuffer、audio/particle/text 调用与共享 jitter 差分仍为
-  `blocked_runtime_oracle`。需要时只准备 Frida spawn 工具并等待用户执行；本工作包不
+  `pending`。需要时只准备 Frida spawn 工具并等待用户执行；本工作包不
   启动原版或 OpenSWD3 游戏 EXE。

@@ -7,7 +7,7 @@
 实现源码为`31c3a08ea5ded27bf53f6899c58c1b409bafa7de`，三文件已提交并推送。
 脚本51直接写敌人实际当前动作分支与保留分支，删除47F3A0操作枚举和通用请求。
 没有新增转发包装、参数数组、回复、调用计数或并行字段表。
-本切片为`platform_adapted`、`unit_tested`、`fixed_state_tested`，父链仍pending。
+本切片为`pending`，父链仍pending。
 额外角色地址、原版差分和完整游戏未验证，不标`assembly_exact`。
 
 ## 完整原始范围

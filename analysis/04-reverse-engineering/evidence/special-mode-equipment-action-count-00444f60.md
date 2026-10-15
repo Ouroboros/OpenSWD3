@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-唯一行为真值为`swd3.exe.lst`。物理范围`0x00444F60..0x00444FA3`，38行，无FUNCTION CHUNK。callers为已关闭442E40模式初始化和43A60 party循环，两处均已直接回收。
+唯一行为真值为`swd3.exe.lst`。物理范围`0x00444F60..0x00444FA3`，38行，无FUNCTION CHUNK。callers为`pending`的442E40模式初始化和43A60 party循环，两处均已直接回收。
 
 函数先无条件把发布动作数写3。随后读取完整32位party selector，以u32环绕分别计算`selector*2+0x15`和`selector*2+0x16`，在原40DC50入参边界缩为u16。两次存在性结果均按非零判断并各自加一；返回值保持第二次40DC50的原始i32结果，而不是布尔化或最终计数。
 

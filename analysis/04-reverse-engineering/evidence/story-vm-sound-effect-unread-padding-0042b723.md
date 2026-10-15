@@ -24,7 +24,7 @@ sound id通过`mov ax`取得低16位；`sub_485610`又显式执行`AND 0xFFFF`�
 
 ## 2. sample wrapper与返回忽略
 
-113与已闭环opcode59复用`sub_485610`。wrapper把level先按i32执行wrapping `<<7`，再作signed向零`/11`，并以以下固定请求调用sample manager：
+113与`pending`的opcode59复用`sub_485610`。wrapper把level先按i32执行wrapping `<<7`，再作signed向零`/11`，并以以下固定请求调用sample manager：
 
 ```text
 sound id       u16

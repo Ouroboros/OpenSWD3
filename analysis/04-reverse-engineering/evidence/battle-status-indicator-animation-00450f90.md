@@ -6,7 +6,7 @@
 
 权威LST完整范围为`0x00450F90..0x004510FF`，从`proc`到`endp`共170行，没有外部`FUNCTION CHUNK`。函数无参数，唯一caller为`0x004539B0`内的`0x00454A14`。
 
-直接callee为有界随机`0x00439070`、动作更新`0x004321E0`、帧查询`0x004315D0`、软件blitter`0x004170E0`和提示音包装`0x00485670`。动作更新、帧查询和blitter直连已关闭typed接口；有界随机与音频所有权分别以端口注入，调用边界和参数保持可观测。
+直接callee为有界随机`0x00439070`、动作更新`0x004321E0`、帧查询`0x004315D0`、软件blitter`0x004170E0`和提示音包装`0x00485670`。动作更新、帧查询和blitter直连`pending`的typed接口；有界随机与音频所有权分别以端口注入，调用边界和参数保持可观测。
 
 四个共享word/dword显式映射为：
 
@@ -138,4 +138,4 @@ C++到LST反向追溯覆盖所有共享读写、五个callee、两个返回值�
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版有界随机表、动作更新后EAX、四个共享计数word、frame record、共享blitter状态、提示音后端和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整170行LST、唯一caller和五个callee已完成固定状态闭环。
+当前没有原版有界随机表、动作更新后EAX、四个共享计数word、frame record、共享blitter状态、提示音后端和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整170行LST、唯一caller和五个callee固定状态闭环状态为`pending`。

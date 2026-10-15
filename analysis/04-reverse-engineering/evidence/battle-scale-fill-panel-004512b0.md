@@ -124,4 +124,4 @@ C++到LST反向追溯覆盖171行全部基本块、五次查询、四次draw、�
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版五个frame record、等级值、共享clip/opacity/blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整171行LST与唯一caller已完成固定状态闭环。
+当前没有原版五个frame record、等级值、共享clip/opacity/blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整171行LST与唯一caller固定状态闭环状态为`pending`。

@@ -132,7 +132,7 @@ LST→C++：delta零扩展、u32回绕、完整clock、无符号严格比较、b
 
 C++→LST：两次bounds check分别位于原始delta/target首次读取；typed loader后的+8和previous在成功/失败路径都保留。没有新增状态写入、诊断或yield。
 
-由于taken使用typed资源加载/audio端口并增加checked I/O failure，本handler归类为`platform_adapted`：
+由于taken使用typed资源加载/audio端口并增加checked I/O failure，本handler归类为`pending`：
 
 ```text
 assembly_exact;unit_tested;asset_absence_verified;platform_adapted;sdl_runtime_integrated

@@ -14,10 +14,10 @@ required非零时从actor `+0x04`取得live记录token，对记录`+0x08`word做
 
 ## 3. owner与caller
 
-secondary required复用第188项链表owner，live记录复用startup配置owner。startup reset清零secondary required。两个静态caller均位于已关闭第193项`0x00470820`，已改为typed直连；旧刷新地址在生产源码、头文件和测试中调用为零。
+secondary required复用第188项链表owner，live记录复用startup配置owner。startup reset清零secondary required。两个静态caller均位于`pending`的第193项`0x00470820`，已改为typed直连；旧刷新地址在生产源码、头文件和测试中调用为零。
 
 缺失链表owner时在首required读取处typed-stop；required非零但缺失live记录owner时，在首次actor `+0x04`读取处停止并保留DX加载。required为零路径不要求记录owner。
 
 ## 4. 验证状态
 
-测试覆盖required为零早退、16位回绕、signed负值夹零、高word保留、字段清零、EAX/ECX/EDX返回和第193项释放寄存器衔接。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 185 platform_adapted + 9 assembly_exact + 228 pending_audit`，SHA256为`3b36625fb2f7b531968a90e37018c19a31aa7e49dc8c3dc09bfcb200a9ecace6`。动态差分因原版actor记录、secondary required与两个caller寄存器联合捕获后端缺失而登记为`pending`。
+测试覆盖required为零早退、16位回绕、signed负值夹零、高word保留、字段清零、EAX/ECX/EDX返回和第193项释放寄存器衔接。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`3b36625fb2f7b531968a90e37018c19a31aa7e49dc8c3dc09bfcb200a9ecace6`。动态差分因原版actor记录、secondary required与两个caller寄存器联合捕获后端缺失而登记为`pending`。

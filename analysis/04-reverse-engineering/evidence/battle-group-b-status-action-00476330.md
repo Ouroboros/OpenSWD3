@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-来源：`swd3.exe.lst`完整函数体、唯一caller `0x004576A0`及已关闭secondary bounded RNG `0x00439070`。完整LST是唯一行为真值；IDA名称、反编译输出、旧证据和测试只用于导航。
+来源：`swd3.exe.lst`完整函数体、唯一caller `0x004576A0`及`pending`的secondary bounded RNG `0x00439070`。完整LST是唯一行为真值；IDA名称、反编译输出、旧证据和测试只用于导航。
 
 ## 1. 完整主体与边界
 
@@ -98,7 +98,7 @@ src/battle/legacy_battle_group_b_status_action.cpp
 
 ## 7. 动态oracle缺口
 
-原版组B actor、动态资源`+0x54/+0x91`、secondary RNG种子/游标、返回寄存器与唯一caller状态后缀的联合捕获后端仍缺失，因此动态差分为`blocked_runtime_oracle`。所需最小回放记录为：
+原版组B actor、动态资源`+0x54/+0x91`、secondary RNG种子/游标、返回寄存器与唯一caller状态后缀的联合捕获后端仍缺失，因此动态差分为`pending`。所需最小回放记录为：
 
 ```text
 actor_index

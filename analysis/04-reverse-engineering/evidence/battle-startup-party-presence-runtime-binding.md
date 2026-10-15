@@ -51,4 +51,4 @@ core setup 1/1（5.10秒）、ASan setup 1/1（7.73秒）及SDL构建通过。
 日志为`build/tmp/runtime/battle-party-presence-{core,asan,sdl}.log`。
 两份setup构建保留既有结局测试137行窄化警告，无新增警告或sanitizer错误。
 尚未进行本批实机验证或新增原版动态差分。
-B10仍为315/422，Workpack316保持pending_audit。
+B10仍为0/422，Workpack316保持pending。

@@ -6,7 +6,7 @@
 
 权威LST完整范围为`0x004515E0..0x0045171F`，从`proc`到`endp`共164行，没有外部`FUNCTION CHUNK`。ABI为thiscall，ECX指向`0x00451420`建立的扩展动作状态，callee清理两个栈参数；两个caller均位于`0x00453580`。
 
-callee为动作更新`0x004321E0`两个callsite、已关闭literal循环平移`0x00433F70`一个循环callsite和通用blitter `0x004170E0`一个循环callsite。typed实现复用同一扩展状态、六owner/frame缓存、更新端口和closed rotation helper。
+callee为动作更新`0x004321E0`两个callsite、`pending`的literal循环平移`0x00433F70`一个循环callsite和通用blitter `0x004170E0`一个循环callsite。typed实现复用同一扩展状态、六owner/frame缓存、更新端口和closed rotation helper。
 
 B11来源共享：45168F在实际绘制前把当前缓存图像发布到共享request。
 45386B不重新发布背景，故播放后的图像沿用最后缓存帧；正、负与INT_MIN

@@ -6,7 +6,7 @@
 
 权威LST完整主体为`0x0045E7D0..0x0045E9B3`，从`proc`到`endp`共227行、144条实际指令、4个call、14个跳转、13个局部标签，没有外部`FUNCTION CHUNK`。
 
-唯一caller是逐帧协调器`0x00453200`。两个直接call都指向已关闭显示surface选择器`0x00437DF0`；其余两个是返回surface的虚表`+0x14`矩形Blt。两次Blt均以等待标志`0x01000000`、固定source surface token和空效果指针执行，返回值不参与后续控制流。
+唯一caller是逐帧协调器`0x00453200`。两个直接call都指向`pending`的显示surface选择器`0x00437DF0`；其余两个是返回surface的虚表`+0x14`矩形Blt。两次Blt均以等待标志`0x01000000`、固定source surface token和空效果指针执行，返回值不参与后续控制流。
 
 ## 2. 16项signed偏移表与三次动态读取
 

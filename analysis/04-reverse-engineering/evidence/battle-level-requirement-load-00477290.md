@@ -64,9 +64,9 @@ slot  = 0x70 + 4 * index
 
 ## 5. owner 与 caller 回收
 
-`LegacyBattleLevelDatabasePort`及其 `LegacyBattleLevelDatabaseState`是唯一 typed 文件 owner。SDL 层持有唯一 `LEVEL.DAT` 文件、handle/stream token和共享 state；剧情 VM、菜单转场、角色属性渲染及战斗升级端口都转发到该 owner，不各自打开文件。后续已关闭的`0x004776A0`在战斗全局重置尾部按句柄双哨兵规则关闭该同一owner并清会话门。
+`LegacyBattleLevelDatabasePort`及其 `LegacyBattleLevelDatabaseState`是唯一 typed 文件 owner。SDL 层持有唯一 `LEVEL.DAT` 文件、handle/stream token和共享 state；剧情 VM、菜单转场、角色属性渲染及战斗升级端口都转发到该 owner，不各自打开文件。后续`pending`的`0x004776A0`在战斗全局重置尾部按句柄双哨兵规则关闭该同一owner并清会话门。
 
-四个已关闭 caller 均删除旧 opaque LEVEL 查询：
+四个`pending`的 caller 均删除旧 opaque LEVEL 查询：
 
 - selector 16 先提交低 byte，再直连 loader；文件打开失败或首word非零的正常0返回仍把初始输出1写入field14；typed-stop保留低 byte且阻断field14、instruction offset推进和对话刷新等后续副作用；
 - 四入口动画先完成 label 绘制，再直连 loader；typed-stop阻断等级文字及该项目后续副作用；
@@ -77,6 +77,6 @@ slot  = 0x70 + 4 * index
 
 独立 loader 测试覆盖 synthetic tag 0/1/2/5、多个 tag 0 最后值覆盖、非零首 word、打开失败、零分配、输出不可访问、目录/流越界、32 位目录回绕、tag 0 部分复制及真实 LEVEL.DAT 双查询。四个 caller 均有分配清零故障回归，固定故障前已提交字段、绘制、命令计数、live 寄存器以及无伪释放。
 
-最终验证为完整Linux core `190/190`、AddressSanitizer `190/190`和Linux app `196/196`全部通过；最终日志没有OpenSWD3源码warning、测试失败、sanitizer finding或runtime error。新增及触碰C++文件通过clang-format `--dry-run --Werror`，`git diff --check`通过。inventory双跑稳定为`0/422 = 253 platform_adapted + 9 assembly_exact + 160 pending_audit`，SHA256为`8c4f0d4aa39562f76f313ca9023206cb8bce026910f1afc8c16f29e25608ba50`。
+最终验证为完整Linux core `190/190`、AddressSanitizer `190/190`和Linux app `196/196`全部通过；最终日志没有OpenSWD3源码warning、测试失败、sanitizer finding或runtime error。新增及触碰C++文件通过clang-format `--dry-run --Werror`，`git diff --check`通过。inventory双跑稳定为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`8c4f0d4aa39562f76f313ca9023206cb8bce026910f1afc8c16f29e25608ba50`。
 
 当前缺少原版共享文件对象、短读后的真实陈旧缓冲、堆 token、四个 caller 输入和 EAX/ECX/EDX 联合捕获后端；`original_diff_verified` 登记为 `pending`。

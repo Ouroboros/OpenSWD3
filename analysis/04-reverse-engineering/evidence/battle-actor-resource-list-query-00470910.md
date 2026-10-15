@@ -15,7 +15,7 @@
 
 ## 1. 完整权威范围
 
-权威LST主体为`0x00470910..0x00470A05`，proc至endp共132行、86条实际指令、2个call、17个跳转、8个局部标签、2个返回点，没有外部`FUNCTION CHUNK`。内部资源链头提交`0x00470900`已关闭。本次迁移直接写入调用方名称、flags和数量，撤销字符串副本回包。
+权威LST主体为`0x00470910..0x00470A05`，proc至endp共132行、86条实际指令、2个call、17个跳转、8个局部标签、2个返回点，没有外部`FUNCTION CHUNK`。内部资源链头提交`0x00470900`为`pending`。本次迁移直接写入调用方名称、flags和数量，撤销字符串副本回包。
 
 ## 2. 遍历与陈旧分支
 
@@ -47,4 +47,4 @@ actor-asan、sdl和identities日志。未启动游戏，未取得本批原版动
 
 ### 历史门禁
 
-测试覆盖链头提交、破坏性推进、掩码/mode筛选、signed扫描派生、16位输出回绕、bit15/14、字符串复制、链尽失败及occurrence零陈旧成功。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 188 platform_adapted + 9 assembly_exact + 225 pending_audit`，SHA256为`c58f54c211943da1d68a40531cfd6f1749b5eac340567c397a7cdb2c13ff7191`。动态差分因原版资源链、live容量、字符串输出与调用寄存器联合捕获后端缺失而登记为`pending`。
+测试覆盖链头提交、破坏性推进、掩码/mode筛选、signed扫描派生、16位输出回绕、bit15/14、字符串复制、链尽失败及occurrence零陈旧成功。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`c58f54c211943da1d68a40531cfd6f1749b5eac340567c397a7cdb2c13ff7191`。动态差分因原版资源链、live容量、字符串输出与调用寄存器联合捕获后端缺失而登记为`pending`。

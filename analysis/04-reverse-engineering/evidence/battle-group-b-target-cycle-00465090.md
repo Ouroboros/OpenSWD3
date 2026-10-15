@@ -6,7 +6,7 @@
 
 权威LST主体为`0x00465090..0x00465163`，从proc到endp共98行、59条实际指令、3个静态call、6个跳转、6个局部/返回标签、1个`retn`，没有外部`FUNCTION CHUNK`。
 
-五个静态caller全部位于已关闭目标选择状态刷新。两个完成查询call和一个选择重置call复用该caller已有的group-B窄平台操作，不新增opaque边界。
+五个静态caller全部位于`pending`的目标选择状态刷新。两个完成查询call和一个选择重置call复用该caller已有的group-B窄平台操作，不新增opaque边界。
 
 ## 2. 当前目标与首次查询
 
@@ -36,6 +36,6 @@
 
 原`prepare_default_target`枚举数值改为`reserved_group_b_target_cycle_slot`，生产代码零调用。完整LST交叉扫描确认`0x0053BCEC`就是既有共享message owner，而不是独立目标轮转状态：启动、最终角色、输入、菜单、目标刷新和本函数的1/3/0x63/0x67等写全部继续复用`LegacyBattleSharedPhaseStatePort`单一存储，global reset只清一次。交叉审计同时确认`0x0053BFBC`就是既有final-actor pre-frame gate B；选择帧删除第二份suppression存储并直接复用该owner，global reset只清一次。
 
-定向测试覆盖signed当前目标归零、count零仍查询、首次与循环查询的两套寄存器、live count/cursor重读、一基顺序回绕、全部完成时跳过最后查询但仍重置、重置后live当前目标重读、顺序表/首次查询/循环查询/最终重置四类typed-stop、五个caller路径、message 7尾部恢复、reserved槽零调用、共享message无副本及pre-frame物理owner的全局重置回归。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过。源码零warning；app仅保留既有ALSA开发库CMake warning。工作包稳定为`0/422 = 125 platform_adapted + 5 assembly_exact + 292 pending_audit`，连续双跑逐字节一致，SHA256为`45827505c66405dd7ed878f49107828225c07f42e53ed6e108865d5eeef3825f`。
+定向测试覆盖signed当前目标归零、count零仍查询、首次与循环查询的两套寄存器、live count/cursor重读、一基顺序回绕、全部完成时跳过最后查询但仍重置、重置后live当前目标重读、顺序表/首次查询/循环查询/最终重置四类typed-stop、五个caller路径、message 7尾部恢复、reserved槽零调用、共享message无副本及pre-frame物理owner的全局重置回归。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过。源码零warning；app仅保留既有ALSA开发库CMake warning。工作包稳定为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，连续双跑逐字节一致，SHA256为`45827505c66405dd7ed878f49107828225c07f42e53ed6e108865d5eeef3825f`。
 
 当前缺少原版group-B对象、完成查询与选择重置共享副作用、五处caller联合动态轨迹及EAX/ECX/EDX捕获后端，`original_diff_verified`为`pending`。

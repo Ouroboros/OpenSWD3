@@ -30,8 +30,8 @@ slot越界只在首次主记录complete读取处typed-stop。参数对象和reso
 
 mode完整EAX等于1时：
 
-1. `0x00458320`与`0x00458333`按原顺序直接组合已关闭的`0x004783B0`：第一处从startup-owned actor读取坐标，第二处从argument对象读取坐标；第二处入口EAX和flags严格继承第一处返回残值，EDX改为第二组X输出token；任一typed-stop只保留已执行前缀并抑制collision与全部效果后缀；
-2. animation counter按signed小于1000时，直接组合已关闭的动画沿线横向命中函数；其返回1时播放固定sample、只OR status低byte的bit0，并把counter写1000；八槽沿线计数与群体效果共用唯一状态，第九槽在子函数首次计数访问处typed-stop并阻断后续sample与surface；
+1. `0x00458320`与`0x00458333`按原顺序直接组合`pending`的`0x004783B0`：第一处从startup-owned actor读取坐标，第二处从argument对象读取坐标；第二处入口EAX和flags严格继承第一处返回残值，EDX改为第二组X输出token；任一typed-stop只保留已执行前缀并抑制collision与全部效果后缀；
+2. animation counter按signed小于1000时，直接组合`pending`的动画沿线横向命中函数；其返回1时播放固定sample、只OR status低byte的bit0，并把counter写1000；八槽沿线计数与群体效果共用唯一状态，第九槽在子函数首次计数访问处typed-stop并阻断后续sample与surface；
 3. 捕获实际画面快照；counter原值为0时发布初始位置并向实际场注入固定粒子；
 4. counter低32位加1；signed达到1000时把共享X写`actor_x-20`、共享Y写actor_y；
 5. 发布后续位置、present与advance；
@@ -74,7 +74,7 @@ B11真实caller回归检查signed配置、两个刷新观察点和最终门发�
 
 `0x004586C2`已直接组合角色绘制偏移查询`0x00478400`，不再通过generic port读取argument offsets。owner按argument对象token从startup角色状态解析；基础X/Y、特殊覆盖和镜像X均按原顺序只写caller两个既有dword local的低16位。任一真实访问typed-stop保留resource、参数mode、render-flags和width计算前缀，抑制base coordinates、sample、finalize、render、release及公共尾。
 
-两项offset任一低word非0时，`0x004586E5`直接组合已关闭的基准坐标查询`0x00478470`，不再通过generic port取一对坐标。owner按argument对象token从startup/action与Group-B lifecycle canonical角色状态解析；leaf以`position_x-source_y_offset`和`position_y-low16(target_phase_y_adjustment)`按X后Y写入两个独立既有dword local的低16位，再按原完整dword顺序分别加X/Y绘制偏移。入口EAX/EDX为X/Y输出token，flags来自到达调用点的最后一次低word `CMP offset,0`；typed-stop保留此前resource、参数mode、render-flags、width和绘制偏移前缀，X写入后的Y侧故障保留X低word并抑制sample、finalize、render、release与公共尾。
+两项offset任一低word非0时，`0x004586E5`直接组合`pending`的基准坐标查询`0x00478470`，不再通过generic port取一对坐标。owner按argument对象token从startup/action与Group-B lifecycle canonical角色状态解析；leaf以`position_x-source_y_offset`和`position_y-low16(target_phase_y_adjustment)`按X后Y写入两个独立既有dword local的低16位，再按原完整dword顺序分别加X/Y绘制偏移。入口EAX/EDX为X/Y输出token，flags来自到达调用点的最后一次低word `CMP offset,0`；typed-stop保留此前resource、参数mode、render-flags、width和绘制偏移前缀，X写入后的Y侧故障保留X低word并抑制sample、finalize、render、release与公共尾。
 
 - width value低word或record Y adjustment任一非0：只有坐标任一低word非0时，X做完整dword减width value，Y只减低word；
 - 两者都为0：清两项offset local，在`0x00458730`直接组合startup-owned actor坐标，X/Y只覆盖各自现有dword低word；入口EAX为Y输出token，EDX保留offset callee残值或已执行相加路径的辅助Y，flags来自清零EAX的XOR。成功后X做完整dword减base offset，Y只减record base-Y低word；坐标typed-stop阻止sample、finalize、render、release与公共尾。
@@ -120,7 +120,7 @@ alternate active完整值等于1时：
 随后重读status：
 
 - signed负值：battle gate清零，唯一共享战斗消息/阶段写1；该dword与startup、动作和预帧路径共用typed端口；
-- bit3置位：依次处理bit`0x1000/0x2000/0x4000`，每项先清自身再发布固定`(30,1/2/3)`；高byte bit2即word bit`0x0400`置位时，把七个record u16按i16符号扩展后直连已关闭颜色初始化器，清该bit并把共享颜色初始化门写1；
+- bit3置位：依次处理bit`0x1000/0x2000/0x4000`，每项先清自身再发布固定`(30,1/2/3)`；高byte bit2即word bit`0x0400`置位时，把七个record u16按i16符号扩展后直连`pending`的颜色初始化器，清该bit并把共享颜色初始化门写1；
 - bit2即word bit`0x0004`置位时发布actor index并把整个status word清零。
 
 status-mode、颜色初始化与actor callee的完整EDX按最后执行者更新最终陈旧EDX；颜色初始化精确保留蓝current向零qword的高dword。没有这些call时保留备用阶段来源。
@@ -152,7 +152,7 @@ final gate word按i16大于0时：
 
 - 保留当前陈旧EDX高word；
 - 只以主记录第二lookup key覆盖DX；
-- 直连已关闭全角色数值步进`0x0045BD90`，参数为`(stale_value, primary_complete)`，入口ECX保留完整complete；
+- 直连`pending`的全角色数值步进`0x0045BD90`，参数为`(stale_value, primary_complete)`，入口ECX保留完整complete；
 - 子返回0立即返回0，角色typed-stop阻止后续收束。
 
 正常成功还要求：主记录complete完整值等于1、pending为0、alternate active为0。否则返回0。成功时先清共享Y，再清同槽备用152字节记录，随后清共享X与animation counter，返回1。
@@ -161,7 +161,7 @@ final gate word按i16大于0时：
 
 ## 10. callee、测试与动态差分
 
-原32个唯一直接callee中的`0x0045BD90`、`0x0045D3E0`、`0x0045D810`、`0x00478400`、`0x00478470`与五处物理站点共用的`0x004783B0`已关闭并直连；其余26个资源、动画、角色、奖励、音频或owner边界继续使用专用typed token端口。六处坐标调用复用effect coordinator持有的startup/action actor owner，不建立平行角色数组。全角色步进内部两个尚未关闭actor callee也复用同一端口。第八十二项进一步把本函数与群体效果函数的主记录、备用记录、活动槽、公共渲染字段和奖励数组收敛为同一18槽虚共享状态。相邻双对象数值转场关闭后，辅助奖励word进一步与效果协调器次反馈及该转场收敛为唯一共享port；动画横向命中的八槽u16计数与共享XY也由两类效果帧共用，旧记录状态副本已删除。
+原32个唯一直接callee中的`0x0045BD90`、`0x0045D3E0`、`0x0045D810`、`0x00478400`、`0x00478470`与五处物理站点共用的`0x004783B0`为`pending`并直连；其余26个资源、动画、角色、奖励、音频或owner边界继续使用专用typed token端口。六处坐标调用复用effect coordinator持有的startup/action actor owner，不建立平行角色数组。全角色步进内部两个尚未关闭actor callee也复用同一端口。第八十二项进一步把本函数与群体效果函数的主记录、备用记录、活动槽、公共渲染字段和奖励数组收敛为同一18槽虚共享状态。相邻双对象数值转场关闭后，辅助奖励word进一步与效果协调器次反馈及该转场收敛为唯一共享port；动画横向命中的八槽u16计数与共享XY也由两类效果帧共用，旧记录状态副本已删除。
 
 定向测试覆盖：
 
@@ -178,7 +178,7 @@ final gate word按i16大于0时：
 - signed status、三mode、七项i16颜色初始化、共享门、蓝转换EDX与actor清word；
 - reward 9999夹值、负auxiliary、packed highword与三行顺序；
 - finalize后第五处坐标Y读取停止保留首个16-bit写入，并抑制collision、render、release与公共尾；
-- pending callee EDX进入已关闭全角色步进；
+- pending callee EDX进入`pending`的全角色步进；
 - 子返回0早退、角色越界typed-stop与共享状态直连；
 - Workpack 288 REVIEW 1把效果步进的Group-A/Group-B current-coordinate停止映射为独立父级状态，从frame state显式传入`arg_0/var_4`语义局部token并公开leaf真实EAX/ECX/EDX与X低字部分提交，同时阻断cleanup、render和公共尾；四处`0x00478600`效果步进站点均为typed直连，父级生产端口零调用。
 

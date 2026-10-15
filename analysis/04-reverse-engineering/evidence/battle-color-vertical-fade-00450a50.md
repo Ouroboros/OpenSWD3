@@ -18,7 +18,7 @@ arg10 = 32位颜色参数槽；LST因只取地址把它标成byte
 
 函数本身不清理这20字节参数。共有12个静态callsite，分布在`0x0044FFE0`、`0x00459D10`、`0x00466950`、`0x00469650`和`0x00469960`五个caller中。
 
-唯一callee为已关闭的通用软件blitter`0x004170E0`，调用一次；本工作包直接调用其typed接口，不保留opaque callback。
+唯一callee为`pending`的通用软件blitter`0x004170E0`，调用一次；本工作包直接调用其typed接口，不保留opaque callback。
 
 ## 2. 栈槽snapshot发布
 
@@ -70,7 +70,7 @@ LST到C++：
 - `mov ecx, argC`和`mov edx, arg8`对应高、宽snapshot；
 - `lea arg10`及共享写对应完整四字节颜色槽发布；
 - 六次push对应`x,y,width,height,8,0`；
-- 唯一call直接映射已关闭blitter typed入口；
+- 唯一call直接映射`pending`的blitter typed入口；
 - 栈回收与EAX残值对应typed调用返回。
 
 C++到LST：

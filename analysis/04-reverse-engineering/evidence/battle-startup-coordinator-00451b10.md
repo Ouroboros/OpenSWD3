@@ -15,7 +15,7 @@
 
 ## 2. 入口、阈值与固定reset区
 
-入口先把参数低word写入旧battle ID高半word槽，再调用运行时准备。随后从速度设置调用已关闭`0x0044FFC0`，modern直接调用`publish_legacy_battle_action_threshold`，保留模`2^32`的`(20-speed)*100`。
+入口先把参数低word写入旧battle ID高半word槽，再调用运行时准备。随后从速度设置调用`pending`的`0x0044FFC0`，modern直接调用`publish_legacy_battle_action_threshold`，保留模`2^32`的`(20-speed)*100`。
 
 接着按LST顺序清理固定状态：
 
@@ -26,7 +26,7 @@
 - 18条步长`0x1C`记录逐条写`+00=0xFFFFFFFF`、`+0A(word)=0`、`+0C=0`、`+14=0`、`+18=0`；
 - 另把固定latch写全1或零。
 
-modern以定长typed数组和字段建模全部块，不以宿主指针模拟旧地址。`LegacyBattleStartupResetRecord`现为精确`0x1C`布局；本函数只修改上述五个已证字段，`+04/+08/+10`保持入口值。`0x32`项零填充块由已关闭攻击顺序插入按十组、每组五dword直接消费并逐项清源，不建立平行暂存区。`0x0052022C`起20个dword同时是消息99过渡控制选择按四行十列读取的唯一40-word表；选择只清命中的半word，启动和全局重置仍整块清零。战斗调试W键和全局重置执行完整126 dword清零时则覆盖全部记录字段。角色优先索引直接写唯一actor metric owner。入口不清组B数量；`00451C86`清的是`0x0053C4B0`特殊行动计数，由共享目标选择状态唯一持有。组B数量直到定义投影时才被覆盖。测试先以非零值污染所有块，再逐块验证最终值与未写字段保留。
+modern以定长typed数组和字段建模全部块，不以宿主指针模拟旧地址。`LegacyBattleStartupResetRecord`现为精确`0x1C`布局；本函数只修改上述五个已证字段，`+04/+08/+10`保持入口值。`0x32`项零填充块由`pending`的攻击顺序插入按十组、每组五dword直接消费并逐项清源，不建立平行暂存区。`0x0052022C`起20个dword同时是消息99过渡控制选择按四行十列读取的唯一40-word表；选择只清命中的半word，启动和全局重置仍整块清零。战斗调试W键和全局重置执行完整126 dword清零时则覆盖全部记录字段。角色优先索引直接写唯一actor metric owner。入口不清组B数量；`00451C86`清的是`0x0053C4B0`特殊行动计数，由共享目标选择状态唯一持有。组B数量直到定义投影时才被覆盖。测试先以非零值污染所有块，再逐块验证最终值与未写字段保留。
 
 ## 3. 控制块与队伍发现
 
@@ -94,7 +94,7 @@ RGB555的`0x026B`恰为这三个分量。转换器对两个相同word分别转�
 1. snapshot窗口矩形；
 2. `00451DE4`将16点文字renderer的横向步进写为`0x10`；
 3. 依次转换RGB555分量`(31,29,23)`与`(15,14,11)`，只发布两个返回值的低word；
-4. 对固定几何owner与surface源调用已关闭`0x00433DC0`；
+4. 对固定几何owner与surface源调用`pending`的`0x00433DC0`；
 5. 按当前X、上一帧X、当前Y、上一帧Y顺序写鼠标坐标`320,320,200,200`，
    再调用`0x00437430`重定位鼠标输入；
 6. 调用`0x00451AE0`释放两个旧surface；
@@ -170,9 +170,9 @@ SDL证据为真实引用绑定的源码追溯和构建，不冒充完整战斗�
 之后拼接battle.ffd，宿主保留既有大小写文件名适配。
 核心与SDL现共用[FFD实际加载入口](battle-definition-runtime-binding.md)，
 不再由SDL的严格资产总加载器决定FFD失败后的继续行为。
-已关闭archive header读取直接复用第106项唯一`0x31F4`绑定对象，以固定只读独占参数打开文件，把`0x2714`字节写入对象`+4`，并把`this+0x1F48`发布到固定scratch输出owner；打开失败仍关闭全1handle，读取返回或短读不形成成功门。旧高层`open_archive`端口已删除，仅三项Windows文件API保持窄平台边界。
+`pending`的archive header读取直接复用第106项唯一`0x31F4`绑定对象，以固定只读独占参数打开文件，把`0x2714`字节写入对象`+4`，并把`this+0x1F48`发布到固定scratch输出owner；打开失败仍关闭全1handle，读取返回或短读不形成成功门。旧高层`open_archive`端口已删除，仅三项Windows文件API保持窄平台边界。
 
-无论archive header读取返回0还是1，caller都继续直连已关闭definition record读取。它以同一路径和同一绑定对象重新打开并读取头部，按battle ID低16位的signed计数、前序signed byte累计和variant零定位偏移dword，以`0x2714 + value*0x10C`回绕公式seek，再把固定`0x10C`字节读入启动状态唯一raw记录owner。打开失败、signed门拒绝或短读普通返回均不构成caller成功门，只有count或偏移表真实访问typed-stop阻断后续启动。
+无论archive header读取返回0还是1，caller都继续直连`pending`的definition record读取。它以同一路径和同一绑定对象重新打开并读取头部，按battle ID低16位的signed计数、前序signed byte累计和variant零定位偏移dword，以`0x2714 + value*0x10C`回绕公式seek，再把固定`0x10C`字节读入启动状态唯一raw记录owner。打开失败、signed门拒绝或短读普通返回均不构成caller成功门，只有count或偏移表真实访问typed-stop阻断后续启动。
 
 caller随后无条件从live raw记录按原物理offset投影definition；enemy count和secondary count只取低16位。旧高层`load_definition`端口已删除，文件open/read/seek/close统一复用同一窄平台边界。
 
@@ -194,7 +194,7 @@ enemy count按signed正数门进入循环，因已mask为u16，只有零跳过�
 4. 从definition按原stride读role、X、Y、mode；
 5. 清record尾dword；
 6. mirror mode严格等于1时调用actor mode并令X低word为`640-X`；
-7. 直接调用已关闭组B行动配置`0x00475720`，依次执行双记录复制、资源加载、字段发布、profile加载与资源文本释放；
+7. 直接调用`pending`的组B行动配置`0x00475720`，依次执行双记录复制、资源加载、字段发布、profile加载与资源文本释放；
 8. mode word严格等于1时调用额外模式callee。
 
 固定记录表`0x005213A0 + index*0x20`由组B元素生命周期八槽唯一持有，startup不再保留role/坐标/runtime副本。caller只写LST实际覆盖的`+0x14/+0x16/+0x18/+0x1C`，保留未知20-byte前缀与`+0x1A`。镜像路径在actor mode返回后只用`mov cx`覆盖下一定义参数低word，因此ECX高word为callee陈旧snapshot；modern组合为`stale_high | role_low`并直接送typed配置。资源加载、profile或释放typed-stop保留此前reset、scratch、记录和mirror副作用，并阻断额外mode、随机进度与后续组A阶段；旧整函数opaque槽保留为reserved且零调用。
@@ -214,7 +214,7 @@ definition与组B都只有八槽。第九项在首次actor对象访问处typed-s
 
 随后按组A基址`0x005029D0`、步长`0x2F34`逐项：reset；mirror mode为1时调用actor mode、令X=`640-X`并令对应X偏移=`624-old`；再以源索引派生固定`0x38`、`0x60`表token和placement token配置actor。actor mode查询严格等于1时递增陈旧byte计数，按u8回绕。
 
-两个pending全局阶段后，再为每个初始队员依次调用profile、value、palette、name四个callee，固定表步长分别为`0x40`与`0x10`。组A reset同步清唯一profile token/kind owner，以及对象说明记录token与callee可见text-index owner；profile callee只有显式发布时写回profile owner，供已关闭动作摘要在原首次指针与kind访问点读取或typed-stop。说明owner供已关闭列表内容与网格列表帧在各自双矩形之后直连共享文字解析，不复制对象字段或共享文字buffer。
+两个pending全局阶段后，再为每个初始队员依次调用profile、value、palette、name四个callee，固定表步长分别为`0x40`与`0x10`。组A reset同步清唯一profile token/kind owner，以及对象说明记录token与callee可见text-index owner；profile callee只有显式发布时写回profile owner，供`pending`的动作摘要在原首次指针与kind访问点读取或typed-stop。说明owner供`pending`的列表内容与网格列表帧在各自双矩形之后直连共享文字解析，不复制对象字段或共享文字buffer。
 
 ## 9. 三组x87比率
 
@@ -252,7 +252,7 @@ B11核心与SDL现从实际角色记录计算，不再消费三个opaque数值�
 - 分支值大于2：反复`random(8)`，查询失败或used字节为1则无上限重试，直到成功加入两人；
 - 分支值不大于2：顺序再扫八项，加入命中者，达到两人即退出。
 
-每个补位记录写role、`X=750`、`Y=310`、active=1；mirror mode为1时X按低word变为`640-750`。随机分支`0x00452511`与顺序分支`0x00452646`都以固定参数1和首个Group-A actor直接组合已关闭`0x00478670` typed选择器，只读取首个actor `+0x00`的角色基础记录token；即使该token与live来源记录token相等，也不得按内容改选`+0x04`。selector返回后保持“先压入所选记录token、再压入当前新角色token”的materialization参数顺序；随后配置当前Group-A槽、激活，mirror mode为0时才调用actor mode。最后递增队伍总数与补位word；随机分支还写used字节。
+每个补位记录写role、`X=750`、`Y=310`、active=1；mirror mode为1时X按低word变为`640-750`。随机分支`0x00452511`与顺序分支`0x00452646`都以固定参数1和首个Group-A actor直接组合`pending`的`0x00478670` typed选择器，只读取首个actor `+0x00`的角色基础记录token；即使该token与live来源记录token相等，也不得按内容改选`+0x04`。selector返回后保持“先压入所选记录token、再压入当前新角色token”的materialization参数顺序；随后配置当前Group-A槽、激活，mirror mode为0时才调用actor mode。最后递增队伍总数与补位word；随机分支还写used字节。
 
 两处selector的真实返回地址分别为`0x00452516/0x0045264B`。selector typed-stop保留此前候选role、placement坐标和mirror，既有基础token不变，阻断当前护援materialization、激活、剩余候选和全部startup后缀。旧seed端口ordinal改为reserved且生产零调用。随机重试不加modern上限，保持原非终止域；端口若违背`random(bound)`合同返回越界值，则在首次候选数组访问处typed-stop。
 
@@ -265,7 +265,7 @@ B11核心与SDL共用候选选择及物化入口；随机值先截取低WORD，�
 
 初始组A角色配置后的两个全局阶段均已回收。第一阶段对玩家道具链按u16 item id稳定升序，每次比较先清当前selected count，交换后从head重扫；第二阶段接收第一阶段EAX，依次稳定排序四个队伍道具sentinel链，不清selected count，交换后只重扫当前根。第一阶段typed-stop阻断第二阶段，第二阶段typed-stop阻断资料绑定和补位。
 
-补位后依次重建坐标指标、角色顺序及敌方顺序。每名敌人调用`random(6)`，结果为N就对该组B对象直接调用N次已关闭`0x004755E0`，固定参数零并使用本次动作阈值。第一次调用的EDX继承random callee；`0045274D..0045274F`在后续调用前将EDX替换为已完成次数的低16位，不继承前一次进度返回；整函数旧opaque枚举槽保留为reserved且零调用。资源typed-stop保留此前全部启动副作用和已完成迭代，并阻断组A随机进度初始化。之后按补位后的队伍总数，对每个组A对象直连已关闭`0x00478380`：以固定上界9调用第二套RNG，计算`300 + 150 / (random + 1)`，并只写角色`+0x2A12`低word。startup直接使用`state.party[index].progress`唯一owner；旧`finalize_party_actor` opaque槽改为reserved且零调用。角色进度写typed-stop保留已完成随机抽样、计算出的进度和此前角色写入，并阻断后续角色和正常尾部；固定组A owner越界也在完成本轮RNG与除法后才于原word写访问停止。
+补位后依次重建坐标指标、角色顺序及敌方顺序。每名敌人调用`random(6)`，结果为N就对该组B对象直接调用N次`pending`的`0x004755E0`，固定参数零并使用本次动作阈值。第一次调用的EDX继承random callee；`0045274D..0045274F`在后续调用前将EDX替换为已完成次数的低16位，不继承前一次进度返回；整函数旧opaque枚举槽保留为reserved且零调用。资源typed-stop保留此前全部启动副作用和已完成迭代，并阻断组A随机进度初始化。之后按补位后的队伍总数，对每个组A对象直连`pending`的`0x00478380`：以固定上界9调用第二套RNG，计算`300 + 150 / (random + 1)`，并只写角色`+0x2A12`低word。startup直接使用`state.party[index].progress`唯一owner；旧`finalize_party_actor` opaque槽改为reserved且零调用。角色进度写typed-stop保留已完成随机抽样、计算出的进度和此前角色写入，并阻断后续角色和正常尾部；固定组A owner越界也在完成本轮RNG与除法后才于原word写访问停止。
 
 B11核心与SDL已共用以上排序和进度入口。敌方人数及随机结果按signed判断，
 两组循环计数保留低WORD回绕，随机调用后重读人数，推进读取实时阈值。
@@ -300,9 +300,9 @@ B11核心与SDL已共用尾部消息判定，只在unsigned条件成立时访问
 - `0x00451C55..0x00451D8A`：presence、控制块、四ID队伍扫描及映射；
 - `0x00451D8A..0x00451E53`：flags、延迟、窗口、几何、鼠标重定位和两个surface附件；
 - `0x00451E53..0x00451EEC`：battle ID、`battle.ffd`及零敌人唯一普通早退；
-- `0x00451EED..0x00452018`：随机背景、已关闭背景helper与组B物化；
+- `0x00451EED..0x00452018`：随机背景、`pending`的背景helper与组B物化；
 - `0x00452018..0x0045227D`：队伍记录、1–4人坐标、陈旧槽偏移及组A配置；
-- `0x0045227D..0x00452449`：已关闭玩家与四队伍道具排序、四类资料绑定与三组x87比率；
+- `0x0045227D..0x00452449`：`pending`的玩家与四队伍道具排序、四类资料绑定与三组x87比率；
 - `0x00452449..0x004526F2`：陈旧word门、随机/顺序两条补位路径；
 - `0x004526F2..0x004527A5`：三个全局阶段、敌方随机动作与组A随机进度初始化；
 - `0x004527A5..0x004527DB`：两次u32减法、unsigned门、可选`0x67`与EAX返回。

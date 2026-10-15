@@ -36,7 +36,7 @@ esi <<= 3
 
 1. `action_id=0x2392`，完整dword；
 2. `base_variant=0`，完整dword；
-3. 调用已关闭`0x004321E0`动作更新器。
+3. 调用`pending`的`0x004321E0`动作更新器。
 
 函数不清零完整0x98槽，也不调用初始化器；其余旧字段是否保留由动作更新器的原状态机决定。更新返回0直接结束，两项覆盖及更新器已完成的失败前缀不回滚。
 
@@ -76,7 +76,7 @@ callee只有：
 - 帧查询`0x004315D0`一次；
 - 软件blitter`0x004170E0`一次。
 
-三者均已关闭。实现追加到战斗动作帧typed单元，直接使用`LegacyActionUpdater`和`LegacyFramePieceProvider`，不重复动作解释器，不引入callback边界。
+三者均为`pending`。实现追加到战斗动作帧typed单元，直接使用`LegacyActionUpdater`和`LegacyFramePieceProvider`，不重复动作解释器，不引入callback边界。
 
 ## 7. 双向追溯
 
@@ -94,7 +94,7 @@ C++到LST：
 - 两项字段写顺序对应两条固定dword写；
 - updater、provider和blitter各对应唯一callee；
 - frame/source状态对应两项旧共享写；
-- shared公共后缀来自已关闭blitter；
+- shared公共后缀来自`pending`的blitter；
 - typed-stop只位于原槽写、更新零返回、帧解引用或blitter故障点。
 
 完整正向与反向追溯没有未解释基本块、算术、字段、callee、共享写或出口。

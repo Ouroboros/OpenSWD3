@@ -110,5 +110,5 @@ B4.9c 中登记的最后一个底层像素端口缺口。
 - 原有矩形 mode 0 向公共 helper 重绑定后像素向量不变。
 
 Linux Clang `core` 为 61/61、Windows LLVM `app` 为 63/63 CTest。原程序
-framebuffer 动态差分继续使用 B4 已登记的 `blocked_runtime_oracle`；本轮没有启动
+framebuffer 动态差分继续使用 B4 已登记的 `pending`；本轮没有启动
 原版程序。

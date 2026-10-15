@@ -11,7 +11,7 @@
 - `0x00433E90`：surface行偏移表释放与重建；
 - `0x004342E0`：按surface边界发布绘制矩形。
 
-本函数不再通过opaque callback表示这两个边界，typed实现直接组合两个已关闭入口，完成callee回收。
+本函数不再通过opaque callback表示这两个边界，typed实现直接组合两个`pending`的入口，完成callee回收。
 
 工作包记录三个直接caller、五个调用点：
 
@@ -46,7 +46,7 @@ LST顺序为：
 
 尺寸写入发生在行表旧存储释放、申请和失败判断之前。这与直接调用`0x00433E90`不同：即使后续分配失败，本caller看到的surface宽高也已经是新参数，不会保留更早尺寸。
 
-现代组合入口先预发布`surface_width/surface_height`，再调用已关闭surface行表typed入口，保持该前缀。
+现代组合入口先预发布`surface_width/surface_height`，再调用`pending`的surface行表typed入口，保持该前缀。
 
 ## 4. 调用后寄存器与矩形参数 `0x00433F50..0x00433F58`
 
@@ -69,7 +69,7 @@ LST顺序为：
 
 ## 5. 分配失败前缀
 
-surface行表申请失败时，已关闭callee：
+surface行表申请失败时，`pending`的callee：
 
 - 已释放并清空旧surface表；
 - 不在自身成功块重新发布元数据；
@@ -128,7 +128,7 @@ LST到C++：
 C++到LST：
 
 - 尺寸预发布对应两条caller对象写指令；
-- surface行表调用对应已关闭的唯一callee；
+- surface行表调用对应`pending`的唯一callee；
 - `rectangle_published = false`只隔离callee原越界写破坏域；
 - 分配失败继续矩形对应callee正常零返回后的顺序执行；
 - 全surface矩形参数对应四条push；
@@ -153,4 +153,4 @@ C++到LST：
 
 ## 10. 动态差分
 
-当前没有可用原版战斗绘制对象与系统尺寸联合捕获后端，`original_diff_verified`为`pending`。该阻塞不改变完整LST、两个已关闭callee的直接回收、失败前缀、typed-stop传播和固定状态已经闭环的结论。
+当前没有可用原版战斗绘制对象与系统尺寸联合捕获后端，`original_diff_verified`为`pending`。该阻塞不改变完整LST、两个`pending`的callee的直接回收、失败前缀、typed-stop传播和固定状态已经闭环的结论。

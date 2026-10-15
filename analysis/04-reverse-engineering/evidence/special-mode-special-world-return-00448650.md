@@ -6,7 +6,7 @@
 
 函数先发布return mode owner 43，释放当前active inventory根；随后把485F0保存的inventory clone换为active root，把typed selection clone head换回当前记录head，并立即清空两个clone owner。platform adaptation将原裸选择链地址收紧为`LegacyStandardModeForwardNode*`，不是不可恢复的整数token。
 
-随后直接复用已关闭BCC0，以visible limit 13重算总数、窗口offset、local cursor、visible count、visible head与共享文本。按LST顺序又直接调用B9C0，以`window_offset+local_cursor`从head重取选中记录，再调用B9E0重复解析共享文本。缺失记录与MAPS解析失败均只在原读取点typed-stop，clone换回和窗口副作用不回滚。
+随后直接复用`pending`的BCC0，以visible limit 13重算总数、窗口offset、local cursor、visible count、visible head与共享文本。按LST顺序又直接调用B9C0，以`window_offset+local_cursor`从head重取选中记录，再调用B9E0重复解析共享文本。缺失记录与MAPS解析失败均只在原读取点typed-stop，clone换回和窗口副作用不回滚。
 
 参数原值作为缺省返回；只有精确等于1时，调用inventory mutation对2D9执行delta=-1、mode=0，并以该返回覆盖EAX。其他值不消费。
 

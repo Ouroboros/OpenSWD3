@@ -45,7 +45,7 @@ handler 表按最小 opcode 排定 `audit_order`，每行包含：
 - 当前 TALK 资产观察，仅作导航；
 - static triage direct calls 映射出的候选端口模块，仅作导航；
 - unresolved edge 导航；
-- 初始 `closure_status = pending_audit` 和独立 LST 重审规则；P2 仅通过显式 evidence/proof override 推进已审计行。
+- 初始 `closure_status = pending` 和独立 LST 重审规则；P2 仅通过显式 evidence/proof override 推进已审计行。
 
 P1 初始生成硬断言：
 
@@ -114,7 +114,7 @@ P1 初始生成硬断言：
 - 当前 TALK 资产：143 个 opcode 有观察记录、55 个未观察；对应 109 个 handler 有任一观察、37 个完全未观察；
 - static triage：146 个 handler 当前没有 unresolved edge，但该 CFG 明确是过近似导航，不证明分支可行性或业务语义。
 
-因此 P1 没有把任何一行标为已实现。`all` C++ case presence 也不能关闭 handler：共享入口仍可能有不同 operand、修饰位、等待、异常或窗口路径，旧实现同样必须按所属组重审。P2 已通过独立证据关闭前二十一行；生成器现在硬断言 21 closed / 125 pending，并拒绝无 override 的状态漂移。
+因此 P1 没有把任何一行标为已实现。`all` C++ case presence 也不能关闭 handler：共享入口仍可能有不同 operand、修饰位、等待、异常或窗口路径，旧实现同样必须按所属组重审。P2 前二十一行状态为`pending`；生成器现在硬断言 0 closed / 146 pending，并拒绝无 override 的状态漂移。
 
 ## 6. 候选端口依赖
 

@@ -33,7 +33,7 @@ LST 与 `reset_legacy_world_transient_state` 的顺序逐项对应：
 前三次 `rep stosd` 的 ECX 均为 `0x20`，即各写 128 字节、64 个 i16；最后一次 ECX
 为 `0x40`，即写 256 字节、64 个 u32。颜色当前值、目标值和倒计时均不在写集合中，
 不得随三个 step 一并清零。ANI drift 也只重置每个 `0x10` 槽的首 dword，其余字段由
-已闭环的 `sub_40F670` 合同保留。
+`pending`的 `sub_40F670` 合同保留。
 
 ## 3. 现代所有权与验证
 

@@ -4,9 +4,9 @@
 
 唯一行为真值为`swd3.exe.lst`。主物理范围`0x00448230..0x004482CD`，并包含外部FUNCTION CHUNK `0x00447FD0..0x00448017`；5个call。code caller为445430、446420、446550、446700。
 
-函数以分类owner作为mode直接调用已关闭48020。clone typed-stop时立即返回，不执行后续源链清理。成功后逐节点检查source first/second value；两者均0时从source链摘除并经窄port释放，否则保留并继续。目标链为空时在原44D5D0分配点创建FFDC缺省节点并清next；分配失败typed-stop。
+函数以分类owner作为mode直接调用`pending`的48020。clone typed-stop时立即返回，不执行后续源链清理。成功后逐节点检查source first/second value；两者均0时从source链摘除并经窄port释放，否则保留并继续。目标链为空时在原44D5D0分配点创建FFDC缺省节点并清next；分配失败typed-stop。
 
-随后直接调用已关闭B980统计完整目标链，发布local count，清window offset与local cursor，并把visible head指向目标head。外部chunk先把13个row label依次写100..112，再从visible head最多检查13项并发布visible count，最终只在`labels[visible_count]`写0；第14个数组元素只用于visible count恰为13时的terminator。
+随后直接调用`pending`的B980统计完整目标链，发布local count，清window offset与local cursor，并把visible head指向目标head。外部chunk先把13个row label依次写100..112，再从visible head最多检查13项并发布visible count，最终只在`labels[visible_count]`写0；第14个数组元素只用于visible count恰为13时的terminator。
 
 445430、446420、446550、446700中原`initialize_selection_records`四处opaque caller均改为直接调用本typed helper；初始化port拆成source、mode mask、特殊mask和record lifecycle getters，陈旧方法已删除。缺省source现在按原48230生成FFDC记录，因此445430空source从旧测试中的“selected missing”改为完整初始化；分配失败前缀和helper嵌套计数同步更新。
 

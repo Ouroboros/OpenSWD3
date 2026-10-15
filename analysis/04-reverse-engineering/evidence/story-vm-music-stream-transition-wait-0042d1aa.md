@@ -10,7 +10,7 @@ opcode：192
 
 ## 1. owner与判断顺序
 
-handler无operand，物理长度2。它复用scene music stream已闭环的完整u32 owner：
+handler无operand，物理长度2。它复用scene music stream`pending`的完整u32 owner：
 
 ```text
 0x004B7380  transition mode         LegacyWorldStoryVmState::current_first_stream

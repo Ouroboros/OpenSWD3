@@ -16,9 +16,9 @@ core/ASan setup各1/1及SDL链接通过，见
 
 ## 1. 完整权威范围
 
-权威LST主体为`0x004620D0..0x0046231F`，从proc到endp共269行、157条实际指令、7个静态call、23个跳转、12个局部标签、7个`retn`，没有外部`FUNCTION CHUNK`。callee为既有队列完成查询、sample command、角色选择配置、两类目标扫描及三项角色动作查询边界；动作模式刷新与选择状态刷新callee均已关闭并直连typed实现。
+权威LST主体为`0x004620D0..0x0046231F`，从proc到endp共269行、157条实际指令、7个静态call、23个跳转、12个局部标签、7个`retn`，没有外部`FUNCTION CHUNK`。callee为既有队列完成查询、sample command、角色选择配置、两类目标扫描及三项角色动作查询边界；动作模式刷新与选择状态刷新callee均为`pending`并直连typed实现。
 
-导航caller共有十三个静态callsite：已关闭逐帧输入分派十处，已关闭消息阶段分派三处。逐帧输入分派的八个直接数字键callsite在typed循环中合并为两条业务分支，record2、record15和base confirm三处仍各自保留原调用时机；消息100/103共用signed 150阈值、消息102独立signed 150阈值、消息104使用signed大于20阈值，三处均直连本实现并传播子stop。
+导航caller共有十三个静态callsite：`pending`的逐帧输入分派十处，`pending`的消息阶段分派三处。逐帧输入分派的八个直接数字键callsite在typed循环中合并为两条业务分支，record2、record15和base confirm三处仍各自保留原调用时机；消息100/103共用signed 150阈值、消息102独立signed 150阈值、消息104使用signed大于20阈值，三处均直连本实现并传播子stop。
 
 ## 2. 入口门与消息短路
 
@@ -32,15 +32,15 @@ message 110读取独立transition high word。u16值小于30时写29；恰好30�
 
 现代dialog list非空对应原head pointer非零：函数发布one-shot interaction state 1并以canonical非零token 1返回；不把主机节点地址转换为兼容指针。dialog为空时EAX为0。
 
-target-ready gate不等于1、当前queued角色code为0，或message非零且逐帧option cache为全1时，函数以当前寄存器直连已关闭选择状态刷新并直接返回；刷新typed-stop保留此前入口副作用并传播给逐帧输入。这里queued角色严格复用`0x0053BD54`既有owner；逐帧option cache严格对应`0x004A7644`。
+target-ready gate不等于1、当前queued角色code为0，或message非零且逐帧option cache为全1时，函数以当前寄存器直连`pending`的选择状态刷新并直接返回；刷新typed-stop保留此前入口副作用并传播给逐帧输入。这里queued角色严格复用`0x0053BD54`既有owner；逐帧option cache严格对应`0x004A7644`。
 
 进入目标选择时先把option cache写全1，再以`queued_code-8`构造group-A token和预调用EAX=`index*0xBCD`。物理索引只允许0..9；一过前/后一过尾在首次队列查询call typed-stop。队列完成查询完整EAX等于1时直接返回。
 
 ## 4. sample与角色配置
 
-队列未完成时，函数把sample mix装入ECX，以编号45调用既有sample command；EAX/ECX/EDX完整采用callee结果。随后重新读取queued code，把它装入EDX，发布mouse gate、target gate与phase 5，再重新计算group-A token和EAX=`index*0xBCD`，以两个固定output token调用角色选择配置；callee写回的两项word同步到输入分派内唯一选择角色原点owner，供已关闭选择帧直接读取。第二次实际对象call独立执行typed-stop，因此sample或外部callee若改变queued code，停止点仍保持此前声音和三项gate写。
+队列未完成时，函数把sample mix装入ECX，以编号45调用既有sample command；EAX/ECX/EDX完整采用callee结果。随后重新读取queued code，把它装入EDX，发布mouse gate、target gate与phase 5，再重新计算group-A token和EAX=`index*0xBCD`，以两个固定output token调用角色选择配置；callee写回的两项word同步到输入分派内唯一选择角色原点owner，供`pending`的选择帧直接读取。第二次实际对象call独立执行typed-stop，因此sample或外部callee若改变queued code，停止点仍保持此前声音和三项gate写。
 
-配置返回后，group-B index word为全1，或signed group-A index不等于`queued_code-8`时，函数发布message 1、action kind 1并直连已关闭动作模式刷新。两个index word物理相邻但独立；group-A index不与逐帧option cache合并。刷新typed-stop保留此前sample、gate和两项角色原点发布并立即返回。
+配置返回后，group-B index word为全1，或signed group-A index不等于`queued_code-8`时，函数发布message 1、action kind 1并直连`pending`的动作模式刷新。两个index word物理相邻但独立；group-A index不与逐帧option cache合并。刷新typed-stop保留此前sample、gate和两项角色原点发布并立即返回。
 
 ## 5. 五项目标扫描
 
@@ -66,4 +66,4 @@ target-ready gate不等于1、当前queued角色code为0，或message非零且�
 
 定向测试覆盖：四个入口门、group-B差值清message、message 110两种边界、dialog非空、ready刷新、active query完成、group-A一过前停止、sample、current-coordinate完成与Y读取停止后的X scratch前缀、旧input-dispatch坐标槽零调用、输出token高字进入动作刷新、动作刷新普通与typed-stop、五项扫描与可见数、group-B index 8前缀停止、逐帧输入普通直连和typed-stop传播，以及物理owner/reset交叉回归。
 
-当前缺少原版两组角色对象、动作刷新内三个角色查询及其余未关闭callee共享副作用、动态dialog head token、三处AI caller输入、两处输出word、已关闭刷新函数的动态状态/callee轨迹及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。
+当前缺少原版两组角色对象、动作刷新内三个角色查询及其余未关闭callee共享副作用、动态dialog head token、三处AI caller输入、两处输出word、`pending`的刷新函数的动态状态/callee轨迹及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

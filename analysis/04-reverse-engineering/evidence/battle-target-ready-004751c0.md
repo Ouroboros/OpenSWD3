@@ -10,7 +10,7 @@
 
 ## 动作与frame前缀
 
-函数先把行动者`+0x2A0C` u16零扩展写入唯一`+0x338`动作记录的action ID，置variant `0x30`与`+0x2AAC` latch，再直连已关闭动作更新器。更新返回零时保留此前写入并返回零。随后以记录`+0x4A/+0x4C`直连帧查询；空帧typed-stop严格位于返回token已写入`+0x254C`后的首次解引用点。
+函数先把行动者`+0x2A0C` u16零扩展写入唯一`+0x338`动作记录的action ID，置variant `0x30`与`+0x2AAC` latch，再直连`pending`的动作更新器。更新返回零时保留此前写入并返回零。随后以记录`+0x4A/+0x4C`直连帧查询；空帧typed-stop严格位于返回token已写入`+0x254C`后的首次解引用点。
 
 frame就绪后发布唯一共享source owner，复制记录draw X低word、mode flags及行动者`+0x3AE`到`+0x29B4/+0x26A0/+0x29AC`。`+0x2B08`精确等于一时以`test bl,al`选择分支：原bit0为一只执行`and al,0xFE`，因此仅清低bit并保留EAX高24位；原bit0为零则对完整EAX执行`or eax,1`。随后以frame width执行两个u16回绕镜像，辅助X为零时保持零。frame height分别发布无符号除三与右移二；三项运动默认为负六，仅`+0x2B00 == 1`时改为负一。
 
@@ -42,6 +42,6 @@ callee可在EAX非一时直接发布phase。若第一次callee把phase改为一�
 
 独立回归覆盖动作更新失败、帧typed-stop、共享owner typed-stop、零行动者首访问stop、完整双阶段、第一阶段未完成、正负声像、mirror高24位、负一/负六运动、事件门关闭、入口phase一/二、高位canonical目标坐标`movsx`、Y故障时X部分写入/寄存器/flags及粒子后缀阻断、两组九参数、两个默认adapter第九参数、callee直接发布phase、陈旧sequence、各pending call入口寄存器、双记录清理顺序与终端ECX。action-dispatch回归覆盖case 33直接typed组合、零目标后缀stop及旧opaque地址零调用。
 
-最终定向测试`1/1`、AddressSanitizer `1/1`、Linux core `188/188`、Linux app `194/194`全部通过；八份最终日志均为零warning、零error、零sanitizer finding。工作包双生成逐字节一致，为`0/422 = 226 platform_adapted + 9 assembly_exact + 187 pending_audit`，SHA256为`1e48d0179a8d157c653d0d68acb3bfaa42156ab311a4a277d547760b9ba35043`。
+最终定向测试`1/1`、AddressSanitizer `1/1`、Linux core `188/188`、Linux app `194/194`全部通过；八份最终日志均为零warning、零error、零sanitizer finding。工作包双生成逐字节一致，为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`1e48d0179a8d157c653d0d68acb3bfaa42156ab311a4a277d547760b9ba35043`。
 
 动态差分登记为`pending`：当前缺少原版group-A完整行动者、真实ACT/TSW frame、音频/软件绘制、目标坐标、粒子列表、两次`0x0047FC40`副作用、target refresh与caller寄存器的联合捕获后端。该阻塞不影响完整LST静态闭环、typed实现与Linux验证。

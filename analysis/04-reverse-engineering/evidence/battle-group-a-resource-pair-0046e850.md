@@ -22,10 +22,10 @@
 
 2026-10-07：core/ASan定向setup各1/1、SDL链接通过。完整顺序、借用与失败前缀见
 [入战引用接线](battle-startup-party-references-runtime-binding.md)。
-未做实机或原版动态差分，B10保持315/422。
+未做实机或原版动态差分，B10保持0/422。
 
 ## 5. 原工作包历史验证
 
 纯函数测试覆盖两项非零旧值被同一token按序替换、固定EAX/ECX、陈旧EDX完整直传，以及零角色token在首次写停止且不改任一字段。startup回归验证两名初始角色直接写入同一资源token、前一value callee的EDX进入typed结果、旧palette槽零调用且后续绑定继续。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码零warning；app仅出现既有ALSA开发库CMake提示。
 
-inventory生成器连续双跑逐字节一致，正式计数为`0/422 = 164 platform_adapted + 9 assembly_exact + 249 pending_audit`，SHA256为`39296e047e86652a3e46b68c8bf4ce5496227c435f358a7f6574c6df0c4ea5d8`。原版组A对象、共享资源表和caller前后callee寄存器联合捕获后端缺失，`original_diff_verified`登记为`pending`。
+inventory生成器连续双跑逐字节一致，正式计数为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`39296e047e86652a3e46b68c8bf4ce5496227c435f358a7f6574c6df0c4ea5d8`。原版组A对象、共享资源表和caller前后callee寄存器联合捕获后端缺失，`original_diff_verified`登记为`pending`。

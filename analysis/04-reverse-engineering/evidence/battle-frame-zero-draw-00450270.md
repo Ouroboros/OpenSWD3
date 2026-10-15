@@ -23,7 +23,7 @@ callee只有：
 - `0x004315D0`帧记录查询一次；
 - `0x004170E0`通用软件blitter一次。
 
-两者均已关闭，typed实现直接组合，不保留opaque port。
+两者均为`pending`，typed实现直接组合，不保留opaque port。
 
 三个caller：
 
@@ -76,7 +76,7 @@ C++到LST：
 - call source palette清空与request auxiliary清空对应两个固定0中的尾参数；
 - request flags 0对应另一个固定0；
 - width/height取`LegacyFramePiece`的u16字段；
-- 正常后缀清理来自已关闭blitter公共尾。
+- 正常后缀清理来自`pending`的blitter公共尾。
 
 完整正向和反向追溯无未解释基本块、参数、共享写、callee或出口。
 

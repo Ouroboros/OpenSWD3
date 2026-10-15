@@ -4,7 +4,7 @@
 
 ## 1. LST范围与owner
 
-唯一行为真值为`swd3.exe.lst`。函数范围`0x0043DA30..0x0043DD1F`，365行；由B480 callback表间接绑定，没有direct call caller。直接callee中C090、DD20、DDF0、DED0、DFA0、E080、E170、E310、E3D0和E770已关闭；外部物品查询继续保留边界。
+唯一行为真值为`swd3.exe.lst`。函数范围`0x0043DA30..0x0043DD1F`，365行；由B480 callback表间接绑定，没有direct call caller。直接callee中C090、DD20、DDF0、DED0、DFA0、E080、E170、E310、E3D0和E770为`pending`；外部物品查询继续保留边界。
 
 DA30读写D530共享owner：
 
@@ -14,7 +14,7 @@ DA30读写D530共享owner：
 - `FCA8C/FCAAC`是交互toggle与runtime input flags。
 - `FC4F0/F4/F8/FC`是两组动态strict-X边界。
 
-未关闭callee用地址枚举port表达；已关闭DD20/DDF0/DFA0/DED0直接回接typed helper。port同时取得state与input引用，使DA30能保留callee后重读全局X、button和toggle的顺序。C090直接回接typed availability helper；物品`0x1BA9`查询保留最小port。
+未关闭callee用地址枚举port表达；`pending`的DD20/DDF0/DFA0/DED0直接回接typed helper。port同时取得state与input引用，使DA30能保留callee后重读全局X、button和toggle的顺序。C090直接回接typed availability helper；物品`0x1BA9`查询保留最小port。
 
 ## 2. phase 1
 
@@ -47,7 +47,7 @@ callee后会重读X/button/toggle，不缓存为高层事件。E3D0现直接执�
 
 ## 4. phases 3–5与返回
 
-phase3/4在button低4位非零时直接调用E3D0；phase3执行countdown更新/sample2E，phase4执行三record文本发布、窗口重建及成功复位。phase5同条件直接调用已关闭E770；其他phase不调用。typed结果记录callback次数、最后地址target及最后callee EAX；无callee路径保留控制流最后装入EAX的owner值。
+phase3/4在button低4位非零时直接调用E3D0；phase3执行countdown更新/sample2E，phase4执行三record文本发布、窗口重建及成功复位。phase5同条件直接调用`pending`的E770；其他phase不调用。typed结果记录callback次数、最后地址target及最后callee EAX；无callee路径保留控制流最后装入EAX的owner值。
 
 ## 5. 验证
 

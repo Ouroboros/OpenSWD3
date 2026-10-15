@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-唯一行为真值为`swd3.exe.lst`。物理范围`0x00443BD0..0x00444169`，678行，无FUNCTION CHUNK。F40有五个code callsite，3B480另绑定为动作callback；F40统一commit分派现已直接回收。B9C0、BE40、BE90、BFC0、442F10与44D6E0均已关闭并直接复用；装备端口只提供目标party的21-word属性记录，源贡献从已选装备176字节记录解析后直接应用。40DC50查询和476A80动作加载仍保持独立窄端口，4885A0释放由typed容器/cleanup端口表达，sample8B/8C保持平台端口。
+唯一行为真值为`swd3.exe.lst`。物理范围`0x00443BD0..0x00444169`，678行，无FUNCTION CHUNK。F40有五个code callsite，3B480另绑定为动作callback；F40统一commit分派现已直接回收。B9C0、BE40、BE90、BFC0、442F10与44D6E0均为`pending`并直接复用；装备端口只提供目标party的21-word属性记录，源贡献从已选装备176字节记录解析后直接应用。40DC50查询和476A80动作加载仍保持独立窄端口，4885A0释放由typed容器/cleanup端口表达，sample8B/8C保持平台端口。
 
 ## mode分派
 
@@ -26,7 +26,7 @@
 
 ## typed边界与验证
 
-state明确拥有四party装备gate、主副资源、动作/筛选/对话/转场owner。动作加载、装备复制、筛选查询、对话接口和清理端口只隔离尚未关闭的平台或业务callee，不隐藏已关闭helper。
+state明确拥有四party装备gate、主副资源、动作/筛选/对话/转场owner。动作加载、装备复制、筛选查询、对话接口和清理端口只隔离尚未关闭的平台或业务callee，不隐藏`pending`的helper。
 
 UT覆盖六类mode、FFDC早退顺序、门禁/零需求、普通动作两类flags、四party复制、0619命中/存在短路/值组停止/对话/cleanup、061E阻断/筛选成功/筛选停止、mode15提交/索引/对话、mode2部分扣除/成功/目标与复制停止，以及selected/party/action-load边界。F40验证commit不再进入generic target，并直接传播typed-stop。
 

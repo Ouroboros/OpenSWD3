@@ -120,4 +120,4 @@ SDL命令为`./build.sh app --build-target openswd3`。
 该测试覆盖出队、帧选择、协调器、脚本及受头文件变化影响的角色帧。
 
 缺少原版同run内存轨迹与输出联合捕获，动态差分仍为
-`blocked_runtime_oracle`。没有启动原版或OpenSWD3游戏程序。
+`pending`。没有启动原版或OpenSWD3游戏程序。

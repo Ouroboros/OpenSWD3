@@ -26,7 +26,7 @@ argC = 附加复绘selector，只有完整dword等于1时启用
 - 四向描边包装`0x00417050`一次；
 - 通用软件blitter`0x004170E0`两次。
 
-四类callee均已关闭。typed实现直接接收`LegacyActionUpdater`、`LegacyFramePieceProvider`和软件绘制状态，不建立重复动作解释器或opaque绘制callback。battle目标公开链接既有asset-runtime库，依赖方向无反向环。
+四类callee均为`pending`。typed实现直接接收`LegacyActionUpdater`、`LegacyFramePieceProvider`和软件绘制状态，不建立重复动作解释器或opaque绘制callback。battle目标公开链接既有asset-runtime库，依赖方向无反向环。
 
 ## 3. 0x98栈动作记录
 
@@ -126,7 +126,7 @@ C++到LST：
 - frame provider输入来自`field_4a/field_4c`低word；
 - outline span读取对应唯一固定表读取；
 - outline、primary和overlay draw数量逐一对应三个静态绘制点；
-- 两类公共后缀来自已关闭callee；
+- 两类公共后缀来自`pending`的callee；
 - 所有typed-stop只位于原更新失败、裸记录、表读取或软件blit故障边界。
 
 完整正向与反向追溯没有未解释基本块、局部字段、全局写、callee、分支或出口。

@@ -160,7 +160,7 @@ LST→C++：FFF0 lookup替换、shared resolver、全高位flag mask、surface c
 
 C++→LST：新增端口只复用既有MAPS patch owner；operand与surface failure保留原始访问顺序。受控owner越界由既有VM session boundary提前隔离，且handler内没有此前副作用。没有新增audio、yield或action callback。
 
-由于raw surface访问与MAPS patch被typed owner及checked failure替代，本handler归类为`platform_adapted`：
+由于raw surface访问与MAPS patch被typed owner及checked failure替代，本handler归类为`pending`：
 
 ```text
 assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated

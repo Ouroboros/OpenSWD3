@@ -122,9 +122,9 @@ core/ASan定向setup各1/1及SDL构建通过；完整边界见
 
 脚本物理由`LegacyBattleAssets::script`提供固定0x8000-byte窗口；`LegacyBattleScriptWorkspace::cursor`是`0x0053CE84`的唯一typed cursor owner。实现只以窗口内offset承接指针，任何操作数或变长文字只在原始首次读取点检查，越界时保留此前副作用并typed-stop。
 
-本函数引用138个可写静态状态位置，另有4个固定只读地址/token操作数。角色组A、角色组B、战斗消息、输入选择、攻击顺序、奖励、frame coordinator和startup/global reset继续复用既有owner；`LegacyBattleScriptWorkspace`唯一承接`0x0053CCC8..0x0053CEB8`脚本工作区，`LegacyBattleScriptSharedState`只承接尚无既有owner的函数级共享状态，不复制已关闭物理数组。
+本函数引用138个可写静态状态位置，另有4个固定只读地址/token操作数。角色组A、角色组B、战斗消息、输入选择、攻击顺序、奖励、frame coordinator和startup/global reset继续复用既有owner；`LegacyBattleScriptWorkspace`唯一承接`0x0053CCC8..0x0053CEB8`脚本工作区，`LegacyBattleScriptSharedState`只承接尚无既有owner的函数级共享状态，不复制`pending`的物理数组。
 
-69个唯一游戏callee中，角色顺序、组B顺序和攻击顺序插入直接组合既有typed实现；需要平台对象或尚未审计内部业务的角色动作、对象、文件、画面和脚本服务统一经过`LegacyBattleScriptDispatchPort`窄合同。port显式携带对象token、参数、EAX/ECX/EDX和返回寄存器，不暴露原函数地址，也不提前实现`pending_audit`callee内部副作用。
+69个唯一游戏callee中，角色顺序、组B顺序和攻击顺序插入直接组合既有typed实现；需要平台对象或尚未审计内部业务的角色动作、对象、文件、画面和脚本服务统一经过`LegacyBattleScriptDispatchPort`窄合同。port显式携带对象token、参数、EAX/ECX/EDX和返回寄存器，不暴露原函数地址，也不提前实现`pending`callee内部副作用。
 
 ## 3. 公共出口
 
@@ -280,7 +280,7 @@ bit15已置时，完成门不等于1则直接调用完整战斗帧；精确为1�
 
 `script+4 > 7`走组A主动方：保存旧queued actor，发布主动actor；候选目标`>7`时设置组A目标门并写共享五dword表。随后初始化主动actor，调用目标数据准备、资源/状态查询，并按返回低16位更新五dword表；两个后续查询分别控制选择目标缓存和输入阻塞门。最后发布动作种类2和按actor索引的状态2。
 
-`script+4 <= 7`走组B主动方：先清`script+2`对应u16目标槽，再从`script+6`开始寻找首个可用目标。候选`>7`时按live组A数量随机或顺序推进，只有两个live actor门均为1才查询可用性；候选`<=7`时递增到7并跳过callee返回1的项，每次递增同步发布第三个共享signed操作数。最终写回目标槽，设置两个选择门，给目标槽高byte或入`0x40`，在原调用点直接组合已关闭组B行动对象资料，再插入类型2攻击顺序。资料组合typed-stop保留三个共享操作数、候选扫描、目标槽和选择门前缀，阻断攻击顺序、frame与cursor后缀。
+`script+4 <= 7`走组B主动方：先清`script+2`对应u16目标槽，再从`script+6`开始寻找首个可用目标。候选`>7`时按live组A数量随机或顺序推进，只有两个live actor门均为1才查询可用性；候选`<=7`时递增到7并跳过callee返回1的项，每次递增同步发布第三个共享signed操作数。最终写回目标槽，设置两个选择门，给目标槽高byte或入`0x40`，在原调用点直接组合`pending`的组B行动对象资料，再插入类型2攻击顺序。资料组合typed-stop保留三个共享操作数、候选扫描、目标槽和选择门前缀，阻断攻击顺序、frame与cursor后缀。
 
 两路汇合后帧门写0，调用完整战斗帧，再恢复帧门；cursor固定前进8并返回1。所有候选搜索保持原live数量、随机调用位置和上界条件。
 
@@ -370,7 +370,7 @@ bit15已置且完成门不等于1时继续调用帧；精确为1时cursor前进6
 
 ### case `41`
 
-先清转场阶段门，以`script+2`的u16调用已关闭画面转场，cursor前进4，再把阶段门写1并返回1。
+先清转场阶段门，以`script+2`的u16调用`pending`的画面转场，cursor前进4，再把阶段门写1并返回1。
 
 ### case `42`
 
@@ -416,7 +416,7 @@ case51先只改入口ECX低byte为`script+4`并把完整陈旧ECX压栈，再以
 
 ### case `53`
 
-以成长样本计数word作为未检查索引，调用已关闭玩家道具数量函数取得节点token，依次写奖励token数组、数量word加1、道具ID=`script+2`、样本计数word加1，最后cursor前进4。越界只在对应数组首次真实写入点typed-stop，且保留此前调用副作用。
+以成长样本计数word作为未检查索引，调用`pending`的玩家道具数量函数取得节点token，依次写奖励token数组、数量word加1、道具ID=`script+2`、样本计数word加1，最后cursor前进4。越界只在对应数组首次真实写入点typed-stop，且保留此前调用副作用。
 
 ### case `54`
 
@@ -424,13 +424,13 @@ case51先只改入口ECX低byte为`script+4`并把完整陈旧ECX压栈，再以
 
 ### case `55`、`56`
 
-case55把`script+2`按signed值发布到`value_a`并减8形成零基队伍索引，再把`script+4`按signed值发布到`value_b`，随后直接组合已关闭`0x00477BD0` typed队伍物品定义准备函数。叶函数共享唯一四链物品owner、MON定义owner和成长caption owner；仅返回精确1时设置成长过渡门，随后清两个临时值、cursor前进6、恢复caller入口ECX并返回1。叶函数typed-stop保留链头移动、尾link、分配清零、MON或caption已到达前缀，并阻断transition、清理和cursor后缀；第二操作数读取typed-stop则只保留已发布的`value_a`。旧`pending_477bd0`生产调用已删除，枚举数值位置只保留`reserved_party_item_definition`。
+case55把`script+2`按signed值发布到`value_a`并减8形成零基队伍索引，再把`script+4`按signed值发布到`value_b`，随后直接组合`pending`的`0x00477BD0` typed队伍物品定义准备函数。叶函数共享唯一四链物品owner、MON定义owner和成长caption owner；仅返回精确1时设置成长过渡门，随后清两个临时值、cursor前进6、恢复caller入口ECX并返回1。叶函数typed-stop保留链头移动、尾link、分配清零、MON或caption已到达前缀，并阻断transition、清理和cursor后缀；第二操作数读取typed-stop则只保留已发布的`value_a`。旧`pending_477bd0`生产调用已删除，枚举数值位置只保留`reserved_party_item_definition`。
 
-case56把`script+2`作为组Bactor u16并写入packed状态高word。caller按`script+0x0E/+0x0C/+0x0A/+0x08/+0x06/+0x04`逆序读取六个word，形成原EAX/EDX局部覆盖、actor地址和`1381 * actor`寄存器前缀后直连已关闭typed函数。六个word分别对应资源`+0x66..+0x70`三组主行动道具选项参数：零值跳过actor和资源访问并保留旧word，非零才重读资源token并写入；前五项使用EDX，末项使用ECX。全零参数不得因actor越界提前停止。只有typed函数完成后cursor才前进16、EAX返回1并恢复入口ECX；脚本、actor或资源typed-stop保留真实前缀并阻断成功后缀，旧整函数opaque地址生产调用为零。
+case56把`script+2`作为组Bactor u16并写入packed状态高word。caller按`script+0x0E/+0x0C/+0x0A/+0x08/+0x06/+0x04`逆序读取六个word，形成原EAX/EDX局部覆盖、actor地址和`1381 * actor`寄存器前缀后直连`pending`的typed函数。六个word分别对应资源`+0x66..+0x70`三组主行动道具选项参数：零值跳过actor和资源访问并保留旧word，非零才重读资源token并写入；前五项使用EDX，末项使用ECX。全零参数不得因actor越界提前停止。只有typed函数完成后cursor才前进16、EAX返回1并恢复入口ECX；脚本、actor或资源typed-stop保留真实前缀并阻断成功后缀，旧整函数opaque地址生产调用为零。
 
 ### case `57`
 
-把共享控制dword最低bit置1，按固定五个全局参数调用已关闭背景初始化，cursor前进2并返回1。
+把共享控制dword最低bit置1，按固定五个全局参数调用`pending`的背景初始化，cursor前进2并返回1。
 
 ### case `58`
 
@@ -471,7 +471,7 @@ case56把`script+2`作为组Bactor u16并写入packed状态高word。caller按`s
 
 把`script+2/+4/+6`三个i16分别转为x87 float并发布为三项起点；把`script+8/+10/+12`三个i16同时保留原word并转为三项目标float。`script+14`先在已清高word的ECX中读取为u16，发布为正的分母/剩余帧数。
 
-每项步进均按`(target - trunc_x87(start))/denominator`计算：起点先经已关闭`0x00489654`取得x87向零整数，再做整数差转float和x87除法。cursor前进16，三项目标word清零；第三项步进写完后显式弹出仍留在x87栈中的分母。原除零、NaN/无穷和x87舍入由既有兼容helper承接，不改成现代整数除法。
+每项步进均按`(target - trunc_x87(start))/denominator`计算：起点先经`pending`的`0x00489654`取得x87向零整数，再做整数差转float和x87除法。cursor前进16，三项目标word清零；第三项步进写完后显式弹出仍留在x87栈中的分母。原除零、NaN/无穷和x87舍入由既有兼容helper承接，不改成现代整数除法。
 
 ### case `63`
 
@@ -517,7 +517,7 @@ cursor前进2，设置独立脚本门为1，发布cursor后调用完整战斗帧
 
 ### case `72`
 
-以`script+2`的i16、`script+4`的低word、`script+6/+8`两个i16及固定1调用已关闭背景初始化，cursor前进10并返回1。`script+4`只改AX低word后压入完整EAX，必须保留入口高word。
+以`script+2`的i16、`script+4`的低word、`script+6/+8`两个i16及固定1调用`pending`的背景初始化，cursor前进10并返回1。`script+4`只改AX低word后压入完整EAX，必须保留入口高word。
 
 ### case `73`
 
@@ -531,13 +531,13 @@ cursor前进2，设置独立脚本门为1，发布cursor后调用完整战斗帧
 
 ### case `74`
 
-把`script+2`按u16直接形成组B对象地址，并把actor code写入共享packed状态高word。已关闭的typed函数以`script+4`为18-byte载荷首地址，只读取九个偶数byte，并按“重读动态资源token→读取一个脚本byte→写入一个连续资源参数byte”的原顺序更新资源`+0x92..+0x9A`；奇数byte不读取。前八项以EDX承接资源token，末项改由ECX承接资源token并只用DL覆盖EDX低byte；caller传入的初始EDX按原地址算式为`345 * actor`。
+把`script+2`按u16直接形成组B对象地址，并把actor code写入共享packed状态高word。`pending`的typed函数以`script+4`为18-byte载荷首地址，只读取九个偶数byte，并按“重读动态资源token→读取一个脚本byte→写入一个连续资源参数byte”的原顺序更新资源`+0x92..+0x9A`；奇数byte不读取。前八项以EDX承接资源token，末项改由ECX承接资源token并只用DL覆盖EDX低byte；caller传入的初始EDX按原地址算式为`345 * actor`。
 
 只有typed函数完整返回后，cursor才前进22、EAX返回1并由caller epilogue恢复入口ECX。actor、任一偶数脚本byte或资源写入typed-stop都保留packed actor及此前完成的参数写入，并阻断cursor后缀；旧整函数opaque地址生产调用为零。
 
 ### case `75`
 
-把`script+2`作为组Bactor u16并写入packed状态高word。caller按`script+0x0A/+0x08/+0x06/+0x04`逆序读取四个word，形成原EAX/EDX局部覆盖、actor地址和`1381 * actor`寄存器前缀后直连已关闭typed函数。四个非零word的资源写入目标依次为`+0x72/+0x74/+0x76/+0x74`，第4项按原指令再次覆盖第2项而不写`+0x78`；零值跳过actor和资源访问并保留旧word，前三项使用EDX，末项使用ECX。全零参数不得因actor越界提前停止。只有typed函数完成后cursor才前进12、EAX返回1并恢复入口ECX；脚本、actor或资源typed-stop保留真实前缀并阻断成功后缀，旧整函数opaque地址生产调用为零。
+把`script+2`作为组Bactor u16并写入packed状态高word。caller按`script+0x0A/+0x08/+0x06/+0x04`逆序读取四个word，形成原EAX/EDX局部覆盖、actor地址和`1381 * actor`寄存器前缀后直连`pending`的typed函数。四个非零word的资源写入目标依次为`+0x72/+0x74/+0x76/+0x74`，第4项按原指令再次覆盖第2项而不写`+0x78`；零值跳过actor和资源访问并保留旧word，前三项使用EDX，末项使用ECX。全零参数不得因actor越界提前停止。只有typed函数完成后cursor才前进12、EAX返回1并恢复入口ECX；脚本、actor或资源typed-stop保留真实前缀并阻断成功后缀，旧整函数opaque地址生产调用为零。
 
 ### case `76`
 
@@ -600,7 +600,7 @@ cursor前进2，设置独立脚本门为1，发布cursor后调用完整战斗帧
 
 ## 16. 验证与动态差分
 
-定向`battle.legacy_battle_setup`、独立AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过；新源码与SDL app目标零warning编译。inventory生成器连续双跑逐字节一致，正式计数为`0/422 = 154 platform_adapted + 7 assembly_exact + 261 pending_audit`，SHA256为`1ab13a95a22a4175d6663b6a2c0e5c185632078aed386bcd51c1763d664373ce`。
+定向`battle.legacy_battle_setup`、独立AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过；新源码与SDL app目标零warning编译。inventory生成器连续双跑逐字节一致，正式计数为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`1ab13a95a22a4175d6663b6a2c0e5c185632078aed386bcd51c1763d664373ce`。
 
 ## 17. `0x00478330`三条脚本分支直连
 
@@ -624,7 +624,7 @@ Group-A在当前坐标查询后形成`EAX=1007*(actor-8)`与actor ECX，保留�
 
 成功路径保留原共享槽不对称：当前坐标X继续位于`pair_x`，基准X覆盖`position_x`，基准Y覆盖`pair_y`；文字格式化与动态命令只消费当前X和基准Y。base X读取停止分别证明Group-A沿用前一查询EDX而Group-B重算EDX；Y减数停止证明基准X已提交且当前坐标槽仍保持。所有typed-stop只保留分配和已完成查询前缀，阻断角色清理、格式化、finalize、动态命令坐标发布和message写入。
 
-定向`battle.legacy_battle_setup`为`1/1`，Linux core与AddressSanitizer为`199/199`，Linux app为`205/205`，四份stderr为空；changed-range格式及`git diff --check`通过。inventory按计划仍为`0/422 = 273 platform_adapted + 10 assembly_exact + 139 pending_audit`，待工作包284 REVIEW 3回收其余3个现代callsite后关闭。
+定向`battle.legacy_battle_setup`为`1/1`，Linux core与AddressSanitizer为`199/199`，Linux app为`205/205`，四份stderr为空；changed-range格式及`git diff --check`通过。inventory按计划仍为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，待工作包284 REVIEW 3回收其余3个现代callsite后关闭。
 
 原版138项共享状态、动态对象地址、CRT随机序列、69个callee副作用、framebuffer/音频/文件服务及EAX/ECX/EDX联合捕获后端尚不可同时获得，因此`original_diff_verified`登记为`pending`；这不改变完整LST静态审计、typed实现和现代侧门禁结论。
 
@@ -636,7 +636,7 @@ Group-A在当前坐标查询后形成`EAX=1007*(actor-8)`与actor ECX，保留�
 
 正常路径保存最后一次完整publication结果与累计调用数；leaf成功返回的ECX为0，EAX/EDX来自低word替换后的真实caller寄存器。两组循环均只在publication成功后推进index并重读live count。typed-stop映射为独立`actor_coordinate_publication_typed_stop`，保留当前坐标写、当前source read和此前复制前缀，同时阻断当前index推进、剩余actor/group、cursor、共享坐标与临时值清零、Group-A mirror提交、actor metrics、frame和frame-gate后缀；此前成功actor不回滚。
 
-定向`battle.legacy_battle_setup`覆盖十三个物理站点的成功路径、canonical source/destination记录、两组次序、动态count重载、EAX/EDX/ESI/EDI高低word、32-bit/16-bit ADD与SUB flags及各case代表性source/destination fault，并验证Group-B publication后的下一次getter读取canonical新坐标而非平行action-record。REVIEW 2通过定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`与Linux app `205/205`，日志无warning、失败或sanitizer诊断且stderr为空。Workpack 287的caller回收达到`17/19`，inventory继续保持row 287 `pending_audit`，等待REVIEW 3回收turn gate与Group-B action17两处caller。原版联合动态差分继续登记为`pending`。
+定向`battle.legacy_battle_setup`覆盖十三个物理站点的成功路径、canonical source/destination记录、两组次序、动态count重载、EAX/EDX/ESI/EDI高低word、32-bit/16-bit ADD与SUB flags及各case代表性source/destination fault，并验证Group-B publication后的下一次getter读取canonical新坐标而非平行action-record。REVIEW 2通过定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`与Linux app `205/205`，日志无warning、失败或sanitizer诊断且stderr为空。Workpack 287的caller回收达到`17/19`，inventory继续保持row 287 `pending`，等待REVIEW 3回收turn gate与Group-B action17两处caller。原版联合动态差分继续登记为`pending`。
 
 ## 21. `0x00478600`十三处脚本当前坐标查询直连
 

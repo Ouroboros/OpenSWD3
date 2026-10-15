@@ -4,7 +4,7 @@
 
 ## 1. 完整权威范围
 
-权威LST主体为`0x004651D0..0x00465474`，从proc到endp共314行、210条实际指令、14个静态call、16个跳转、13个局部标签、1个`retn`，没有外部`FUNCTION CHUNK`。唯一静态caller位于已关闭选择帧message 1尾部。
+权威LST主体为`0x004651D0..0x00465474`，从proc到endp共314行、210条实际指令、14个静态call、16个跳转、13个局部标签、1个`retn`，没有外部`FUNCTION CHUNK`。唯一静态caller位于`pending`的选择帧message 1尾部。
 
 六个唯一callee中，动作模式刷新已经关闭并直接组合；字体清零、字体样式、原始字节文字绘制、组A特殊门和动作可用性五类callee继续使用窄typed端口。
 
@@ -25,7 +25,7 @@ B11调试外部调用批次删除原合成的profile token/kind缓存。引用�
 回归通过core/ASan定向测试；SDL构建通过。验证及限制见
 [调试端口接线第11节](battle-debug-hotkeys-0045d8f0.md#11-b11实际角色音频与文字调用)。
 
-两次字体callee和可选特殊门的完整返回寄存器进入后续已关闭动作模式刷新。刷新继续读取live startup mode、party mapping、option source、queued actor和输入状态；任一子typed-stop保留全部字体、profile查询、权限及刷新前缀，并阻断所有摘要行。
+两次字体callee和可选特殊门的完整返回寄存器进入后续`pending`的动作模式刷新。刷新继续读取live startup mode、party mapping、option source、queued actor和输入状态；任一子typed-stop保留全部字体、profile查询、权限及刷新前缀，并阻断所有摘要行。
 
 ## 3. 四项固定动作
 

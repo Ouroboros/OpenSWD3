@@ -4,9 +4,9 @@
 
 ## 1. 完整权威范围
 
-权威LST主体为`0x00466C00..0x00466F6D`，从proc到endp共384行、247条带机器码和真实助记符的实际指令、24个静态call、8个跳转、6个局部/返回标签和1个`retn`，没有外部`FUNCTION CHUNK`。唯一静态caller位于已关闭选择帧message 7，cdecl读取原点X、原点Y和selected index三项参数。
+权威LST主体为`0x00466C00..0x00466F6D`，从proc到endp共384行、247条带机器码和真实助记符的实际指令、24个静态call、8个跳转、6个局部/返回标签和1个`retn`，没有外部`FUNCTION CHUNK`。唯一静态caller位于`pending`的选择帧message 7，cdecl读取原点X、原点Y和selected index三项参数。
 
-24个callsite覆盖两处已关闭边框面板、九处文字、一次字体reset、九处字体style、三次主选项查询、两次特殊选项查询和一次`wsprintfA`。边框面板直接组合；特殊文字格式化改为固定24-byte typed写入；字体、文字和两类组B查询经窄typed端口保留。
+24个callsite覆盖两处`pending`的边框面板、九处文字、一次字体reset、九处字体style、三次主选项查询、两次特殊选项查询和一次`wsprintfA`。边框面板直接组合；特殊文字格式化改为固定24-byte typed写入；字体、文字和两类组B查询经窄typed端口保留。
 
 ## 2. 固定标题、双边框与基础动作
 

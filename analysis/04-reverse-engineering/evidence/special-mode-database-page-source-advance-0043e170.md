@@ -4,7 +4,7 @@
 
 ## 1. LST范围与边界
 
-唯一行为真值为`swd3.exe.lst`。函数范围`0x0043E170..0x0043E243`，105行；DA30有两个direct call点，B480另以callback地址绑定。直接callee F000/BCC0/F880/F1E0均已关闭；sample保留平台边界。
+唯一行为真值为`swd3.exe.lst`。函数范围`0x0043E170..0x0043E243`，105行；DA30有两个direct call点，B480另以callback地址绑定。直接callee F000/BCC0/F880/F1E0均为`pending`；sample保留平台边界。
 
 E170直接复用E080已建立的database cycle ports：F000现直接typed调用并在内部保留F080/F0D0/D5D0边界，BCC0继续保留missing-node边界、MAPS payload和state-owned shared-text buffer。DA30命中E170时直接调用typed helper，不再走通用地址port。
 
@@ -12,7 +12,7 @@ E170直接复用E080已建立的database cycle ports：F000现直接typed调用�
 
 交互phase1对页选择执行32-bit加1，signed比较大于2时写0；负值加1后若仍小于等于2则原样保留。随后严格执行：
 
-1. 直接调用已关闭F000重建forward head、count及window owner。
+1. 直接调用`pending`的F000重建forward head、count及window owner。
 2. window/local清0，visible预置16。
 3. 直接调用BCC0，发布完整count、current head、visible count、selected node及shared text。
 4. BCC0 typed-stop时保留此前副作用，不调用后续边界。

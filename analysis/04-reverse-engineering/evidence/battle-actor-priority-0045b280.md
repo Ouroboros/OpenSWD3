@@ -6,7 +6,7 @@
 
 权威函数为`0x0045B280..0x0045B59C`，从proc到endp完整384行、3个call站点、32个`loc_`标签，无外部FUNCTION CHUNK。
 
-两个call站点调用同一角色配对查询callee；尾部第三个call是已关闭的`0x0045B190`角色顺序重建。唯一静态caller位于已关闭的逐帧画面协调器，现已删除opaque边界并直接组合typed实现。
+两个call站点调用同一角色配对查询callee；尾部第三个call是`pending`的`0x0045B190`角色顺序重建。唯一静态caller位于`pending`的逐帧画面协调器，现已删除opaque边界并直接组合typed实现。
 
 ## 2. 四项入口早退
 
@@ -83,7 +83,7 @@ callee返回只取AX并按i16符号扩展。group B路径在callee后重读group
 选择数量精确等于固定总数后，函数固定清零18 dword mask，再把共享顺序ready写1。随后扫描角色顺序表全部18槽：
 
 - 未发现值18时返回顺序表尾token，ECX为0，EDX保留最后读取的group B数量；
-- 首次发现值18时立即直连已关闭的稳定角色顺序重建一次，并返回其完整EAX/ECX/EDX；不继续扫描。
+- 首次发现值18时立即直连`pending`的稳定角色顺序重建一次，并返回其完整EAX/ECX/EDX；不继续扫描。
 
 mask清零和ready发布发生在哨兵调用之前。嵌套重建typed-stop不会回滚此前尾部副作用。
 

@@ -6,7 +6,7 @@
 
 权威LST主体为`0x00464CC0..0x00464D96`，从proc到endp共95行、73条实际指令、4个静态call、5个跳转、3个局部标签、1个`retn`，没有外部`FUNCTION CHUNK`。
 
-两个静态caller分别位于已关闭组A逐角色帧与已关闭选择帧。四个原始call中，secondary RNG已由typed随机端口直连，`0x00478330`已由共享owner直连；仅组B完成查询callee仍通过窄端口。
+两个静态caller分别位于`pending`的组A逐角色帧与`pending`的选择帧。四个原始call中，secondary RNG已由typed随机端口直连，`0x00478330`已由共享owner直连；仅组B完成查询callee仍通过窄端口。
 
 ## 2. 角色发布与首次真实访问
 

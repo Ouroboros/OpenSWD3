@@ -13,7 +13,7 @@
 
 唯一行为真值为`swd3.exe.lst`。完整主体为`0x00477920..0x004779EF`，从proc到endp共97个物理行、67条实际指令、3个call、5个跳转、5个局部标签和2个返回点，没有外部`FUNCTION CHUNK`。
 
-三个call由20字节分配包装器`0x00487C10`一次和x87截零转换helper`0x00489654`两次组成；已有记录与缺键路径各调用转换helper一次。两个物理caller都在已关闭的共享角色、道具调试对话`0x0040F890`，callsite为新增命令路径`0x0040FC2B`和直接修改路径`0x0040FEA7`。
+三个call由20字节分配包装器`0x00487C10`一次和x87截零转换helper`0x00489654`两次组成；已有记录与缺键路径各调用转换helper一次。两个物理caller都在`pending`的共享角色、道具调试对话`0x0040F890`，callsite为新增命令路径`0x0040FC2B`和直接修改路径`0x0040FEA7`。
 
 函数采用cdecl四参数ABI：根token、键word、最大值dword和待设置count dword。后三项只在比较、记录和浮点计算中使用低word；入口保存EBX/ESI/EDI，DI保存键，EBX保存根，ESI保存当前记录。
 
@@ -95,7 +95,7 @@ SDL应用构建通过，未启动游戏。日志为`build/tmp/runtime/`下
 完整源码和测试差异已逐项复核；验证后仅补齐代码块空行，
 `fixed-curve-set-final-format.log`记录非空白内容不变的机械检查。
 生产和测试中已无该request及callee编号调用，原地址仅保留在出处注释。
-[定义曲线设置](battle-fixed-definition-curve-set-00477a20.md)随后已完成语义迁移；
+[定义曲线设置](battle-fixed-definition-curve-set-00477a20.md)随后语义迁移状态为`pending`；
 固定状态Port已移除，MON及对象重置父级中的剩余协议仍待处理。
 
 ## 7. 历史验证与动态差分

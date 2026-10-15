@@ -42,6 +42,6 @@
 
 纯函数测试覆盖actor首次访问stop、资源首次访问stop、低word0至4与5至9分类、超域低word完整保留、signed负值除3、完整timing override、相等拒绝、`+0x7C/+0x80`双资源门、`+0x26D1`门、`+0x8E`门、原mode保留、两种成功写入及EAX/ECX/EDX结果。frame测试覆盖成功side/self-target发布、旧opaque零调用，以及资源stop阻断`selection_initialized`后缀。
 
-最终`./build-asan.sh`、`./build.sh core`和`./build.sh app`分别完成AddressSanitizer core `188/188`、Linux core `188/188`与Linux app `194/194`；零OpenSWD3源码warning、sanitizer finding或测试失败。inventory生成器连续双跑逐字节一致，关闭进度为`0/422 = 234 platform_adapted + 9 assembly_exact + 179 pending_audit`，SHA256为`dce5ffe3646bc8cfcbc89c98cf946df9d3345eb9e36d3b8a3ea1ed03bb32f372`。
+最终`./build-asan.sh`、`./build.sh core`和`./build.sh app`分别完成AddressSanitizer core `188/188`、Linux core `188/188`与Linux app `194/194`；零OpenSWD3源码warning、sanitizer finding或测试失败。inventory生成器连续双跑逐字节一致，关闭进度为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`dce5ffe3646bc8cfcbc89c98cf946df9d3345eb9e36d3b8a3ea1ed03bb32f372`。
 
 当前缺少原版八个组B完整actor、动态164-byte资源、secondary RNG游标、唯一caller局部与寄存器联合捕获后端，因此`original_diff_verified`登记为`pending`。

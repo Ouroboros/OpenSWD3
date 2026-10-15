@@ -14,10 +14,10 @@ replacement与latch复用第187项final state，mode和action kind复用第180�
 
 ## 3. caller与typed-stop
 
-两个静态caller分别位于已关闭组A帧`0x00456680`和目标选择刷新`0x00462740`，均已改为typed直连。startup party span沿frame/input/message/target bindings传递，仅引用唯一party owner。旧地址在生产源码、头文件和测试中调用为零。
+两个静态caller分别位于`pending`的组A帧`0x00456680`和目标选择刷新`0x00462740`，均已改为typed直连。startup party span沿frame/input/message/target bindings传递，仅引用唯一party owner。旧地址在生产源码、头文件和测试中调用为零。
 
 缺失final、item或workspace owner时依次在首次对应访问处typed-stop，并保留此前副作用；特别是缺失workspace时保留mode、latch及条件action kind写入。
 
 ## 4. 验证状态
 
-测试覆盖mode OR、latch、非零replacement复制、304字节完整清零、寄存器结果及目标选择caller端口调用回收。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 186 platform_adapted + 9 assembly_exact + 227 pending_audit`，SHA256为`bc01de2599a2a2d3436786582e0de1a79c26ab46281f05ba0b236f27b25e8ba6`。动态差分因原版actor四段物理状态、两个caller及寄存器联合捕获后端缺失而登记为`pending`。
+测试覆盖mode OR、latch、非零replacement复制、304字节完整清零、寄存器结果及目标选择caller端口调用回收。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，SHA256为`bc01de2599a2a2d3436786582e0de1a79c26ab46281f05ba0b236f27b25e8ba6`。动态差分因原版actor四段物理状态、两个caller及寄存器联合捕获后端缺失而登记为`pending`。

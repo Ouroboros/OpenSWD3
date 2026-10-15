@@ -14,7 +14,7 @@
 - `0x0043C760`：`0x0043C79E`。
 - `0x0043C9C0`：`0x0043CBBA`。
 
-其中已关闭的C520/C590/C3C0/C670/C760/C9C0全部直接复用typed helper；未关闭`0x00446420`及其chunk留待该owner独立审计。
+其中`pending`的C520/C590/C3C0/C670/C760/C9C0全部直接复用typed helper；未关闭`0x00446420`及其chunk留待该owner独立审计。
 
 ## 2. 精确控制流与EAX
 

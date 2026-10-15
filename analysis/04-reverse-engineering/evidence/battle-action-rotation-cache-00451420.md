@@ -6,7 +6,7 @@
 
 权威LST完整范围为`0x00451420..0x0045153B`，从`proc`到`endp`共135行，没有外部`FUNCTION CHUNK`。ABI为thiscall，ECX指向扩展动作状态，callee清理五个栈参数；唯一caller位于`0x00451940`。
 
-callee为动作更新`0x004321E0`两个callsite、帧图像查询`0x00431760`一个循环callsite，以及已关闭的literal图像循环平移`0x00433F70`一个循环callsite。typed实现直接调用`rotate_legacy_battle_literal_image`，不再保留opaque旋转边界。
+callee为动作更新`0x004321E0`两个callsite、帧图像查询`0x00431760`一个循环callsite，以及`pending`的literal图像循环平移`0x00433F70`一个循环callsite。typed实现直接调用`rotate_legacy_battle_literal_image`，不再保留opaque旋转边界。
 
 ## 2. 扩展动作状态与入口写序
 
@@ -108,7 +108,7 @@ shift = 640 / zero_extend(u16(rotation_divisor))
 
 低word为0在原`idiv`点typed-stop。非零除数始终为正，商使用signed向零语义。
 
-随后直接调用已关闭callee：
+随后直接调用`pending`的callee：
 
 ```text
 rotate_legacy_battle_literal_image(image, pixels_right, shift)

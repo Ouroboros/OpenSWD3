@@ -11,7 +11,7 @@
 - 标准组：total=`4FCAD8`，offset=`4FCAD0`，cursor=`4FCBA4`，visible=`4FCB98`，limit=`16`，source head=`4FCAE0`，output head=`4FCD10`。
 - 后段组：total=`4FD08C`，offset=`4FD164`，cursor=`4FD098`，visible=`4FD298`，limit=`13`，source head=`4FD1E8`，output head=`4FD150`。
 
-直接callee为已关闭的`0x0043B980`、`0x0043B9A0`、`0x0043B9C0`、`0x0043B9E0`、`0x0043BC90`，以及仍未关闭的`0x0044D2D0`。后者只在空链路径以精确参数`source_head, 0xFFDC, 1, 0`调用；modern通过窄port保留请求，不提前关闭或计入该callee。
+直接callee为`pending`的`0x0043B980`、`0x0043B9A0`、`0x0043B9C0`、`0x0043B9E0`、`0x0043BC90`，以及仍未关闭的`0x0044D2D0`。后者只在空链路径以精确参数`source_head, 0xFFDC, 1, 0`调用；modern通过窄port保留请求，不提前关闭或计入该callee。
 
 ## 2. 全链计数与空链请求
 
@@ -43,7 +43,7 @@ insert_missing_node(source_head, 0xFFDC, 1, 0)
 
 ## 5. 文本解析与返回
 
-选中节点使用typed `text_index`表达原记录`+4` u16，再调用已关闭共享文本解析器。目录、terminator或buffer边界失败通过`text_resolution_failed`及内嵌解析结果传播。
+选中节点使用typed `text_index`表达原记录`+4` u16，再调用`pending`的共享文本解析器。目录、terminator或buffer边界失败通过`text_resolution_failed`及内嵌解析结果传播。
 
 原函数直接返回`0x0043B9E0`的路径相关EAX。`0x0043E3D0`以及`0x00446700`的四个callsite在清理栈后直接返回，传播该值；其余三处在消费前覆盖EAX。modern组合结果内嵌完整`LegacyStandardModeTextResolutionResult`，分别保留FFDC formatter返回与普通marker offset，不把两种原值伪造成单一宿主指针。
 

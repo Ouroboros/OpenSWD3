@@ -4,7 +4,7 @@
 
 唯一行为真值为`swd3.exe.lst`。物理范围`0x00445C90..0x00445E5A`，216行，无FUNCTION CHUNK。3B480保存其callback地址；455E0在主、次两套下移Y域直接调用。
 
-模式snapshot大于等于500时直接复用已关闭C520运行时游标推进并返回。模式2在selection31时只发布selection；其余路径先写viewport480并清FC648，再直接复用BB80推进window/local，B9A0发布可见链头，BC90按上限13重计可见数，低字节OR 0x30，发布local，播放46，最后由B9C0/B9E0更新当前文本。
+模式snapshot大于等于500时直接复用`pending`的C520运行时游标推进并返回。模式2在selection31时只发布selection；其余路径先写viewport480并清FC648，再直接复用BB80推进window/local，B9A0发布可见链头，BC90按上限13重计可见数，低字节OR 0x30，发布local，播放46，最后由B9C0/B9E0更新当前文本。
 
 B9A0与B9C0的动态链读取只在各自原`node->next`读取前typed-stop：BB80、viewport、FC648等此前副作用保留；停止后不提前写transition、音效、文本或最终selection发布。
 

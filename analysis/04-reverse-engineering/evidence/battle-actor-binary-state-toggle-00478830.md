@@ -118,7 +118,7 @@ warning、测试失败、sanitizer finding 或 runtime error；TMP 分类、prod
 调用归零和 unstaged release audit 均通过，未启动原版或 OpenSWD3 游戏程序。
 
 inventory 生成器连续双跑逐字节一致；当前计数为
-`0/422 = 294 platform_adapted + 10 assembly_exact + 118 pending_audit`，
+`0/422 = 0 platform_adapted + 0 assembly_exact + 422 pending`，
 SHA-256 为
 `17532962784376fa50d3dac230c609ed9b30309425db0a7f92628acd75b3bd55`。
 

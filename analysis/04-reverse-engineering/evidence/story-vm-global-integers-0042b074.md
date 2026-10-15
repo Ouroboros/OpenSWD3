@@ -154,7 +154,7 @@ real-asset 测试覆盖 TALK1 的 opcode 30 记录，以及上述 `33 -> 32 -> 2
 
 ## 关闭判定
 
-主入口 `0x0042B074` 的五个 opcode 已完成独立 LST→C++→LST 收敛：有效域、宽度、回绕、无符号比较、target 读取时机、共享 clamp、IP、previous opcode、same-call/yield、真实资产与负 index 平台隔离均有显式证据和测试。
+主入口 `0x0042B074` 的五个 opcode 独立 LST→C++→LST 收敛状态为`pending`：有效域、宽度、回绕、无符号比较、target 读取时机、共享 clamp、IP、previous opcode、same-call/yield、真实资产与负 index 平台隔离均有显式证据和测试。
 
 关闭标签：
 

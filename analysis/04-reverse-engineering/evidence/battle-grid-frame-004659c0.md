@@ -37,9 +37,9 @@
 
 ## 1. 完整权威范围
 
-权威LST主体为`0x004659C0..0x00465E45`，从proc到endp共503行、337条带机器码和真实助记符的实际指令、27个静态call、11个跳转、11个局部/返回标签和1个`retn`，没有外部`FUNCTION CHUNK`。唯一静态caller位于已关闭选择帧message 4路径，参数固定为原点`(224,126)`、live网格选择和live滚动偏移。
+权威LST主体为`0x004659C0..0x00465E45`，从proc到endp共503行、337条带机器码和真实助记符的实际指令、27个静态call、11个跳转、11个局部/返回标签和1个`retn`，没有外部`FUNCTION CHUNK`。唯一静态caller位于`pending`的选择帧message 4路径，参数固定为原点`(224,126)`、live网格选择和live滚动偏移。
 
-27个callsite覆盖两处偏移动作帧代码点、六处字体样式及字体模式/宽度、面板动作更新、三处矩形、九宫格、角色列表初始化、两处角色刷新、行查询、五处原始字节文字、共享文字解析和两个Win32字符串操作。偏移动作帧循环运行四次并另绘制当前分类，因此正常路径共五次；每个可见行都执行公共字体样式，当前行再多执行一次。已关闭动作帧、矩形、九宫格与共享文字均直接组合，`wsprintfA("%2d")`和`lstrlenA`改为等价有界typed处理。
+27个callsite覆盖两处偏移动作帧代码点、六处字体样式及字体模式/宽度、面板动作更新、三处矩形、九宫格、角色列表初始化、两处角色刷新、行查询、五处原始字节文字、共享文字解析和两个Win32字符串操作。偏移动作帧循环运行四次并另绘制当前分类，因此正常路径共五次；每个可见行都执行公共字体样式，当前行再多执行一次。`pending`的动作帧、矩形、九宫格与共享文字均直接组合，`wsprintfA("%2d")`和`lstrlenA`改为等价有界typed处理。
 
 ## 2. 零入口、五项动作框与面板
 
@@ -70,7 +70,7 @@ value低word按signed i16使用旧`%2d`最小宽度格式化，保留一个前�
 
 第一矩形固定为`origin_x, origin_y+display_row*20+40, 206x24, RGB 31/20/0, mode 5`。只有第一矩形成功后，才按原顺序先写target argument=当前iterator、selection input gate=1，再调用第二矩形`0,350,640x40, RGB 0/5/31, mode 5`。因此第一矩形stop不发布输入，第二矩形stop保留两项发布；两者都阻断共享说明与本行display count增加。
 
-第二矩形后，重读live queued，再从该组A对象说明记录取得record token，并以同一对象的typed text index直连已关闭共享文字解析。MAPS payload和固定128-byte buffer只接受外部唯一owner span，battle不建立副本。成功后按首个NUL长度计算`320-8*(length>>1)`，在Y=360、颜色`0xFFFF`绘制说明。缺目录、terminator或buffer时在原访问点typed-stop，保留双矩形和输入发布。说明后执行公共样式`0xFFFE`、增加display count/iterator；正常循环结束再执行一次最终样式并返回其寄存器。
+第二矩形后，重读live queued，再从该组A对象说明记录取得record token，并以同一对象的typed text index直连`pending`的共享文字解析。MAPS payload和固定128-byte buffer只接受外部唯一owner span，battle不建立副本。成功后按首个NUL长度计算`320-8*(length>>1)`，在Y=360、颜色`0xFFFF`绘制说明。缺目录、terminator或buffer时在原访问点typed-stop，保留双矩形和输入发布。说明后执行公共样式`0xFFFE`、增加display count/iterator；正常循环结束再执行一次最终样式并返回其寄存器。
 
 ## 6. owner、caller回收与验证
 

@@ -8,7 +8,7 @@
 
 cdecl四参数依次为动作号、动作槽索引、目标X、目标Y。三个caller位于`0x004648AB`、`0x00464932`和`0x00464BC1`。
 
-callee依次为已关闭动作更新器`0x004321E0`、帧查询`0x004315D0`和软件blitter`0x004170E0`各一次。
+callee依次为`pending`的动作更新器`0x004321E0`、帧查询`0x004315D0`和软件blitter`0x004170E0`各一次。
 
 ## 2. 0x98槽地址与写入顺序
 
@@ -66,7 +66,7 @@ frame_index = record.field_4c
 - `0x00450A26..0x00450A3F`：动作flags、记录宽高、入口Y/X和软件绘制；
 - `0x00450A44..0x00450A48`：栈与ESI恢复。
 
-C++ typed实现直接复用已关闭动作更新器和blitter；没有复制动作状态机、修正坐标、发布不存在的帧record或偷用帧palette。
+C++ typed实现直接复用`pending`的动作更新器和blitter；没有复制动作状态机、修正坐标、发布不存在的帧record或偷用帧palette。
 
 完整正向和反向追溯没有未解释基本块、参数、共享写、callee或出口。
 

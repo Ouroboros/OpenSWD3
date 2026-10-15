@@ -75,4 +75,4 @@ SDL原本用于该Port的三个方法已经删除。
 `build/tmp/runtime/business-music-validated-source.sha256`。
 源码提交`ad5c3f70b3508c118d2afdb9670c3612a951435a`是当前HEAD的祖先；
 复验时HEAD与远端main均为`ca6a9cae49061e5850c4c0e5df393d3775096a50`。
-本条可以计为已完成的业务迁移；不提升整个协调器、B11或原版差分状态。
+本条业务迁移状态为`pending`；不提升整个协调器、B11或原版差分状态。

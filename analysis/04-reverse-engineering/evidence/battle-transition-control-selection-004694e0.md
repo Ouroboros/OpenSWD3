@@ -4,7 +4,7 @@
 
 ## 1. 完整权威范围
 
-权威LST主体为`0x004694E0..0x00469542`，从proc到endp共53行、31条带机器码和真实助记符的实际指令、0个静态call、6个跳转、5个局部标签和1个返回点，没有外部`FUNCTION CHUNK`。唯一静态caller位于已关闭消息阶段的消息99分支：完成双方对象重置后调用本函数，再读取共享控制pair决定转消息100、返回消息98或继续动作初始化。
+权威LST主体为`0x004694E0..0x00469542`，从proc到endp共53行、31条带机器码和真实助记符的实际指令、0个静态call、6个跳转、5个局部标签和1个返回点，没有外部`FUNCTION CHUNK`。唯一静态caller位于`pending`的消息阶段的消息99分支：完成双方对象重置后调用本函数，再读取共享控制pair决定转消息100、返回消息98或继续动作初始化。
 
 ## 2. 入口短路与四行扫描
 
@@ -20,7 +20,7 @@
 
 ## 4. owner、caller回收与验证
 
-40-word物理表`0x0052022C..0x0052027B`继续唯一复用`LegacyBattleStartupResetBlocks::block_52022c`的20个u32存储；低/高半word访问不建立第二份数组。已关闭动作分派case 13的前四个角色行现直接写该表，后六行由相邻物理tail承接；缺少startup owner只在首次真实前缀槽访问typed-stop。共享控制pair`0x0053BF1E..0x0053BF21`继续唯一复用`LegacyBattleTargetSelectionRuntimeState::transition_control_words`。全局重置清零同一startup表与target-selection pair。
+40-word物理表`0x0052022C..0x0052027B`继续唯一复用`LegacyBattleStartupResetBlocks::block_52022c`的20个u32存储；低/高半word访问不建立第二份数组。`pending`的动作分派case 13的前四个角色行现直接写该表，后六行由相邻物理tail承接；缺少startup owner只在首次真实前缀槽访问typed-stop。共享控制pair`0x0053BF1E..0x0053BF21`继续唯一复用`LegacyBattleTargetSelectionRuntimeState::transition_control_words`。全局重置清零同一startup表与target-selection pair。
 
 消息99已直连本实现，并用函数返回EAX/ECX/EDX继续后续LST链；动作13生产者与消息99消费者现共享同一typed表；旧准备控制槽保留枚举数值并改名为reserved，生产代码零调用。无表项且pair全零时转消息100；选中行号作为组A角色索引，被消费值作为组B索引继续动作初始化。子函数无typed-stop或平台回调。
 

@@ -156,4 +156,4 @@ renderer 绑定及颜色表索引 3，并确认两者不再经过 generic stage�
 
 当前 Linux Clang `core` 为 157/157 CTest；Windows LLVM `app` 的当前检查点结果记录在
 世界帧运行时证据。原程序 framebuffer 动态差分仍沿用 B4 已登记的
-`blocked_runtime_oracle`，本轮没有启动原版程序。
+`pending`，本轮没有启动原版程序。

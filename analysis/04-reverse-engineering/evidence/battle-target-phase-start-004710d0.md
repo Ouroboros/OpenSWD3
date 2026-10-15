@@ -4,11 +4,11 @@
 
 ## 1. 完整权威范围
 
-权威LST主体为`0x004710D0..0x0047126B`，proc至endp共171行、104条实际指令、7个call、3个跳转、3个局部标签、1个返回点，没有外部`FUNCTION CHUNK`。五个函数callee为`0x00478620`、`0x00478470`、`0x004019A0`、`0x0047CE70`与已关闭host-surface设置`0x00433F30`；另有两次`GetSystemMetrics`导入调用。
+权威LST主体为`0x004710D0..0x0047126B`，proc至endp共171行、104条实际指令、7个call、3个跳转、3个局部标签、1个返回点，没有外部`FUNCTION CHUNK`。五个函数callee为`0x00478620`、`0x00478470`、`0x004019A0`、`0x0047CE70`与`pending`的host-surface设置`0x00433F30`；另有两次`GetSystemMetrics`导入调用。
 
 ## 2. 资源、演出记录与算术
 
-函数先以显式Group-B目标token直接组合已关闭typed `0x00478620`，把返回EAX写入Group-A source actor `+0x255C`语义槽，再查询两项坐标差，随后把source actor `+0x0E14`起始的`0x58`字节演出记录清零。leaf typed-stop保留目标actor动作记录复制、动作更新与可能提交的`turn_frame_token`，但阻断source phase token及全部caller后缀；leaf正常返回零则仍发布零token并完成坐标与记录清零，直到`0x00471120`真实资源对象首dword读取点停止。
+函数先以显式Group-B目标token直接组合`pending`的typed `0x00478620`，把返回EAX写入Group-A source actor `+0x255C`语义槽，再查询两项坐标差，随后把source actor `+0x0E14`起始的`0x58`字节演出记录清零。leaf typed-stop保留目标actor动作记录复制、动作更新与可能提交的`turn_frame_token`，但阻断source phase token及全部caller后缀；leaf正常返回零则仍发布零token并完成坐标与记录清零，直到`0x00471120`真实资源对象首dword读取点停止。
 
 资源可用时调用图像解码窄port，把返回token写入演出记录；resource `+0x0C/+0x0E`两个word分别发布为宽高。坐标差按signed low-word扩展，第一项减一；演出X按`source_x - source_y + actor_x - 0x32`的32位回绕算术生成，演出Y按`actor_y - vertical_adjustment + 0x28`生成。固定宽高为`0x14/0x1E`，两个active dword为1，三项step为5，spacing为`0x28`。
 
@@ -16,9 +16,9 @@ resource height按unsigned word分支：小于100时16位减10，否则逻辑右
 
 ## 3. host surface、清零与owner
 
-原版用系统宽高重建host surface。OpenSWD3复用startup中的唯一`LegacyBattleRenderGeometry` owner，并以当前SDL raster surface宽高完成平台适配，直接调用已关闭`set_legacy_battle_host_surface`。其后按原顺序把actor `+0x2680`清零，并清空`+0x0DF4`的8个dword、`+0x0500`的38个dword和`+0x2BC8`的190个dword。
+原版用系统宽高重建host surface。OpenSWD3复用startup中的唯一`LegacyBattleRenderGeometry` owner，并以当前SDL raster surface宽高完成平台适配，直接调用`pending`的`set_legacy_battle_host_surface`。其后按原顺序把actor `+0x2680`清零，并清空`+0x0DF4`的8个dword、`+0x0500`的38个dword和`+0x2BC8`的190个dword。
 
-action dispatch为每个group-A行动者持有唯一`LegacyBattleTargetPhaseState`；其中复用既有`LegacyBattleImageParticleEmitter`作为actor `+0x0E14`物理记录owner，并持有mode byte与三段清零区，不复制第二份状态。`actor+0x255C`由source `LegacyBattleGroupAActionExecutionState::target_phase_resource_token`唯一持有，phase只借用该共享字段。隐藏this是Group-A source actor，显式参数是Group-B目标token。资源准备通过startup `group_b_lifecycle[].action_execution` canonical owner解析；`0x00478470`已关闭并在原`0x004710F6`站点直接组合typed基准坐标查询。生产路径不再调用`0x00478620` generic port，仅保留后续尚未关闭的`0x004019A0`解码与`0x0047CE70`属性窄port，也不保留整个`0x004710D0` opaque adapter。
+action dispatch为每个group-A行动者持有唯一`LegacyBattleTargetPhaseState`；其中复用既有`LegacyBattleImageParticleEmitter`作为actor `+0x0E14`物理记录owner，并持有mode byte与三段清零区，不复制第二份状态。`actor+0x255C`由source `LegacyBattleGroupAActionExecutionState::target_phase_resource_token`唯一持有，phase只借用该共享字段。隐藏this是Group-A source actor，显式参数是Group-B目标token。资源准备通过startup `group_b_lifecycle[].action_execution` canonical owner解析；`0x00478470`为`pending`并在原`0x004710F6`站点直接组合typed基准坐标查询。生产路径不再调用`0x00478620` generic port，仅保留后续尚未关闭的`0x004019A0`解码与`0x0047CE70`属性窄port，也不保留整个`0x004710D0` opaque adapter。
 
 ## 4. caller回收与验证
 

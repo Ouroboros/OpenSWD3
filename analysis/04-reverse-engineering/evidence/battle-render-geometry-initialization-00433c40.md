@@ -18,7 +18,7 @@ ABI为thiscall：ECX是全局战斗绘制owner；无栈参数；正常出口在E
 
 另调用`0x00489654`九十次逻辑迭代。该CRT叶子临时把x87控制字改为向零截断，以`fistp qword`转换当前ST(0)，恢复控制字后返回低32位。
 
-现代实现直接组合三个已关闭battle入口，不保留opaque回调。
+现代实现直接组合三个`pending`的battle入口，不保留opaque回调。
 静态登记已在[独立批次](battle-render-geometry-static-lifecycle-004518a0.md)
 改为实际清理集合，并由SDL会话初始化同一绘图对象；本体数值行为不变。
 
@@ -158,7 +158,7 @@ index   horizontal   vertical
 - horizontal：owner `+0x000..+0x59C`；
 - vertical：owner `+0x5A0..+0xB3C`。
 
-这与已关闭`0x00434420`的两次索引读取完全一致。现代`LegacyBattleDirectionVectors`继续用两张各360项数组；本函数把它嵌入同一typed战斗绘制owner，已关闭consumer可直接借用，不复制或转置。
+这与`pending`的`0x00434420`的两次索引读取完全一致。现代`LegacyBattleDirectionVectors`继续用两张各360项数组；本函数把它嵌入同一typed战斗绘制owner，`pending`的consumer可直接借用，不复制或转置。
 
 完整720个i32按值和小端字节计算的FNV-1a锁为`0x62C7B4D936076038`。定向测试同时检查该整表锁和各象限边界值，避免只验证少数样本而漏掉复制计数或源索引。
 

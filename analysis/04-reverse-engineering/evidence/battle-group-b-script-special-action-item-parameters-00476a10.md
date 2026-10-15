@@ -6,13 +6,13 @@
 
 权威主体为`0x00476A10..0x00476A56`，从`proc`到下一函数分隔前共50行、21条实际指令、0个call、4个跳转、4个局部/返回标签和1个返回点。没有外部`FUNCTION CHUNK`，也没有直接callee。
 
-唯一静态caller是已关闭的战斗脚本分派`0x00469D20`，调用站点位于脚本case 75。完整caller主体和该case前后控制流均已从主LST重新提取。
+唯一静态caller是`pending`的战斗脚本分派`0x00469D20`，调用站点位于脚本case 75。完整caller主体和该case前后控制流均已从主LST重新提取。
 
 ## 2. ABI与唯一owner
 
 函数使用thiscall形态：ECX为组Bactor token，栈上四个参数都是u16，`retn 0x10`由callee清理16-byte参数区。
 
-四个目标资源word严格依次为`+0x72`、`+0x74`、`+0x76`、再次`+0x74`。前两个word是已关闭特殊行动道具选项加载器使用的定义槽；本函数的第4项没有写入看似连续的`+0x78`，而是按原指令覆盖第2项所在的`+0x74`。实现复用`LegacyBattleActorGroupBElementState::resource_token`与既有164-byte `resource_bytes`唯一owner，不建立平行配置记录，也不修正原目标别名。
+四个目标资源word严格依次为`+0x72`、`+0x74`、`+0x76`、再次`+0x74`。前两个word是`pending`的特殊行动道具选项加载器使用的定义槽；本函数的第4项没有写入看似连续的`+0x78`，而是按原指令覆盖第2项所在的`+0x74`。实现复用`LegacyBattleActorGroupBElementState::resource_token`与既有164-byte `resource_bytes`唯一owner，不建立平行配置记录，也不修正原目标别名。
 
 ## 3. 四段零值跳过与目标别名
 

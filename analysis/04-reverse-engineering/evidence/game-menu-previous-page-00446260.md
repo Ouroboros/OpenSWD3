@@ -4,7 +4,7 @@
 
 唯一行为真值为`swd3.exe.lst`。物理范围`0x00446260..0x004463EB`，194行，无FUNCTION CHUNK。3B480保存callback地址；455E0在主、次第一动态Y域直接调用。
 
-模式snapshot大于等于500时直接复用已关闭C670运行时整页后退。模式2在selection31时只发布selection；其余路径直接复用BC60，以window/local/step13三个实际读取参数后退，再由B9A0发布可见链、BC90按13重计，低字节OR 3，发布local、播放46，并由B9C0/B9E0更新文本。
+模式snapshot大于等于500时直接复用`pending`的C670运行时整页后退。模式2在selection31时只发布selection；其余路径直接复用BC60，以window/local/step13三个实际读取参数后退，再由B9A0发布可见链、BC90按13重计，低字节OR 3，发布local、播放46，并由B9C0/B9E0更新文本。
 
 BC60原ABI虽压入五参，但权威LST只读取window offset、local cursor和step；typed helper有意收窄到这三项，不伪造total/visible副作用。链越界停止规则与其他三方向控制一致。
 
