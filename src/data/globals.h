@@ -1932,10 +1932,10 @@ struct Globals {
     std::uint8_t pad_4A0677[0x1];
     char aActErrPicpaint_5[31];  // 0x004A0678
     std::uint8_t pad_4A0697[0x1];
-    std::int32_t dword_4A0698;  // 0x004A0698
-    std::int32_t dword_4A069C;  // 0x004A069C
-    std::int32_t dword_4A06A0;  // 0x004A06A0
-    std::int32_t dword_4A06A4;  // 0x004A06A4
+    std::int32_t zoomAnchorX;  // 0x004A0698 x kept fixed by the zoomed blitters (initial 0x28)
+    std::int32_t zoomAnchorY;  // 0x004A069C y kept fixed by the zoomed blitters (initial 0x48)
+    std::int32_t zoomX;  // 0x004A06A0 horizontal zoom in 1/1024 (initial 0x600)
+    std::int32_t zoomY;  // 0x004A06A4 vertical zoom in 1/1024 (initial 0x400)
     std::int32_t waveOffsets[495];  // 0x004A06A8 15 rows of 33 per-line x offsets (bytes/2) for the wave effect
     std::int32_t waveEnd;  // 0x004A0E64
     std::int32_t waveStart;  // 0x004A0E68
@@ -5748,6 +5748,10 @@ struct Globals {
 #pragma pack(pop)
 
 static_assert(sizeof(Globals) == image::kSize);
+static_assert(offsetof(Globals, zoomAnchorX) == 0x7698);
+static_assert(offsetof(Globals, zoomAnchorY) == 0x769C);
+static_assert(offsetof(Globals, zoomX) == 0x76A0);
+static_assert(offsetof(Globals, zoomY) == 0x76A4);
 static_assert(offsetof(Globals, waveOffsets) == 0x76A8);
 static_assert(offsetof(Globals, waveEnd) == 0x7E64);
 static_assert(offsetof(Globals, waveStart) == 0x7E68);

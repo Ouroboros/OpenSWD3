@@ -299,24 +299,24 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 298	swd32.exe	0x0041E5C0	sub_41E5C0	draw	src/draw/blit_level.cpp:BlitRle_41E5C0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
 299	swd32.exe	0x0041F8D0	sub_41F8D0	draw	src/draw/blit_shear.cpp:BlitRle_41F8D0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
 300	swd32.exe	0x0041FEA0	sub_41FEA0	draw	src/draw/blit_shear.cpp:BlitRle_41FEA0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-301	swd32.exe	0x00420490	sub_420490	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-302	swd32.exe	0x00420560	sub_420560	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-303	swd32.exe	0x00420600	sub_420600	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-304	swd32.exe	0x004206F0	sub_4206F0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-305	swd32.exe	0x004207E0	sub_4207E0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+301	swd32.exe	0x00420490	sub_420490	draw	src/draw/pixel_ops.cpp:TintPixels	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+302	swd32.exe	0x00420560	sub_420560	draw	src/draw/pixel_ops.cpp:ShiftRed	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+303	swd32.exe	0x00420600	sub_420600	draw	src/draw/pixel_ops.cpp:ShiftGreenPairs	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	count must be even: the loop steps by 2 and ends only at 0
+304	swd32.exe	0x004206F0	sub_4206F0	draw	src/draw/pixel_ops.cpp:ShiftBluePairs	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	count must be even: the loop steps by 2 and ends only at 0
+305	swd32.exe	0x004207E0	sub_4207E0	draw	src/draw/pixel_ops.cpp:MixPixels	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 306	swd32.exe	0x004208D0	sub_4208D0	draw	src/draw/blit_additive.cpp:BlitRle_4208D0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	original leaves the vertical scale remainder uninitialised (stack); starts at 0 here
 307	swd32.exe	0x00420D70	sub_420D70	draw	src/draw/blit_additive.cpp:BlitRle_420D70	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	original leaves the vertical scale remainder uninitialised (stack); starts at 0 here
 308	swd32.exe	0x00421230	sub_421230	draw	src/draw/blit_misc.cpp:BlitRle_421230	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
 309	swd32.exe	0x00421540	sub_421540	draw	src/draw/blit_misc.cpp:BlitRle_421540	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
 310	swd32.exe	0x00421850	sub_421850	draw	src/draw/blit_misc.cpp:BlitRle_421850	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
 311	swd32.exe	0x00421BE0	sub_421BE0	draw	src/draw/blit_misc.cpp:BlitRle_421BE0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-312	swd32.exe	0x00421FB0	sub_421FB0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+312	swd32.exe	0x00421FB0	sub_421FB0	draw	src/draw/pixel_ops.cpp:GrayPixels	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
 313	swd32.exe	0x00422030	sub_422030	draw	src/draw/blit_additive.cpp:BlitRle_422030	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
 314	swd32.exe	0x004223A0	sub_4223A0	draw	src/draw/blit_additive.cpp:BlitRle_4223A0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
 315	swd32.exe	0x00422730	sub_422730	draw	src/draw/blit_rle_copy.cpp:BlitRle_422730	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
 316	swd32.exe	0x004229C0	sub_4229C0	draw	src/draw/blit_rle_copy.cpp:BlitRle_4229C0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-317	swd32.exe	0x00422C70	sub_422C70	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-318	swd32.exe	0x00423020	sub_423020	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+317	swd32.exe	0x00422C70	sub_422C70	draw	src/draw/zoom.cpp:DrawZoomed	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+318	swd32.exe	0x00423020	sub_423020	draw	src/draw/zoom.cpp:DrawZoomedMirror	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 319	swd32.exe	0x004233D0	sub_4233D0	pic	src/pic/pixel_format.cpp:GetColorMasks	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 320	swd32.exe	0x00423400	sub_423400	pic	src/pic/pixel_format.cpp:PixelFormatInit	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 321	swd32.exe	0x004238B0	sub_4238B0	pic	src/pic/pixel_format.cpp:PixelConvert	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	

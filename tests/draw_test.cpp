@@ -4,6 +4,8 @@
 #include "data/globals.h"
 #include "ddraw_stub.h"
 #include "draw/draw.h"
+#include "draw/pixel_ops.h"
+#include "draw/zoom.h"
 #include "pic/pixel_format.h"
 #include "test.h"
 
@@ -159,4 +161,72 @@ TEST_CASE("draw.smear copies neighbours by the cycle counter") {
     CHECK_EQ(at(101, 1), 0x2000 + 101);
     CHECK_EQ(at(105, 1), 0x2000 + 105);
     CHECK_EQ(G.drawSmearCounter, 9);
+}
+
+TEST_CASE("draw.zoom 1:1 copies, 2x doubles columns, mirror lands one pixel right") {
+    RestoreFormat restore;
+    auto picture = rlePicture({{0x0002, 0xA, 0xB, 0x4001, 0x0001, 0xC}});
+    setup(0x1111);
+    G.drawSource = reinterpret_cast<std::uint8_t*>(picture.data());
+    G.zoomAnchorX = 0;
+    G.zoomAnchorY = 0;
+    G.zoomX = 0x400;
+    G.zoomY = 0x400;
+    DrawZoomed(10, 4, 4, 1);
+    CHECK_EQ(at(10, 4), 0xA);
+    CHECK_EQ(at(11, 4), 0xB);
+    CHECK_EQ(at(12, 4), 0x1111);
+    CHECK_EQ(at(13, 4), 0xC);
+    CHECK_EQ(at(10, 5), 0x1111);
+
+    setup(0x1111);
+    G.zoomX = 0x800;
+    DrawZoomed(10, 4, 4, 1);
+    CHECK_EQ(at(10, 4), 0xA);
+    CHECK_EQ(at(11, 4), 0xA);
+    CHECK_EQ(at(13, 4), 0xB);
+    CHECK_EQ(at(14, 4), 0x1111);
+    CHECK_EQ(at(15, 4), 0x1111);
+    CHECK_EQ(at(16, 4), 0xC);
+    CHECK_EQ(at(17, 4), 0xC);
+
+    setup(0x1111);
+    G.zoomX = 0x400;
+    DrawZoomedMirror(10, 4, 4, 1);
+    CHECK_EQ(at(14, 4), 0xA);
+    CHECK_EQ(at(13, 4), 0xB);
+    CHECK_EQ(at(12, 4), 0x1111);
+    CHECK_EQ(at(11, 4), 0xC);
+    CHECK_EQ(at(10, 4), 0x1111);
+
+    G.zoomAnchorX = 0x28;
+    G.zoomAnchorY = 0x48;
+    G.zoomX = 0x600;
+}
+
+TEST_CASE("draw.pixel ops: red saturation and green pair borrow") {
+    CHECK_EQ(PixelFormatInit(nullptr), 1);
+    std::uint16_t red[3] = {0x7C00, 0x0000, 0x0421};
+    ShiftRed(red, 3, 1);
+    CHECK_EQ(red[0], 0x7C00);
+    CHECK_EQ(red[1], 0x0400);
+    CHECK_EQ(red[2], 0x0821);
+    ShiftRed(red, 3, -2);
+    CHECK_EQ(red[1], 0x0000);
+    CHECK_EQ(red[2], 0x0021);
+
+    alignas(4) std::uint16_t pairs[2] = {0x0020, 0x0080};
+    ShiftGreenPairs(pairs, 2, -1);
+    CHECK_EQ(pairs[0], 0x0000);
+    CHECK_EQ(pairs[1], 0x0060);
+    // the low pixel underflows and its borrow clears the high pixel's green channel
+    pairs[0] = 0x0000;
+    pairs[1] = 0x0080;
+    ShiftGreenPairs(pairs, 2, -1);
+    CHECK_EQ(pairs[0], 0x0000);
+    CHECK_EQ(pairs[1], 0x0000);
+
+    std::uint16_t gray[1] = {static_cast<std::uint16_t>((8 << 10) | (4 << 5))};
+    GrayPixels(gray, 1);
+    CHECK_EQ(gray[0], (3 << 10) | (3 << 5) | 3);
 }

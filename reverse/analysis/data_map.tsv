@@ -153,3 +153,7 @@ addr	type	name	module	notes
 0x004CDE2C	std::int32_t	surfacePitchPixels	draw
 0x004CDC00	std::uint8_t*	darkenTable	draw	pixel lookup used by the 0x8000 runs of 0x0041A3B0 (index = (pixel >> 1) & ~1)
 0x004CD314	std::int32_t	drawSmearCounter	draw	cycle counter of the smear blitters 0x00422730 / 0x004229C0
+0x004A0698	std::int32_t	zoomAnchorX	draw	x kept fixed by the zoomed blitters (initial 0x28)
+0x004A069C	std::int32_t	zoomAnchorY	draw	y kept fixed by the zoomed blitters (initial 0x48)
+0x004A06A0	std::int32_t	zoomX	draw	horizontal zoom in 1/1024 (initial 0x600)
+0x004A06A4	std::int32_t	zoomY	draw	vertical zoom in 1/1024 (initial 0x400)
