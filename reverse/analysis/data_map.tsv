@@ -11,7 +11,7 @@ addr	type	name	module	notes
 0x004B6C78	MemoryManager	memoryManager	memmgr	"MemMgr", constructed by 0x00401000
 0x004B74A0	File	file_4B74A0	file	constructed by 0x00401290
 0x004B7AD0	File	file_4B7AD0	file	constructed by 0x00401410
-0x004B8868	File	file_4B8868	file	constructed by 0x004012D0
+
 0x004B9F18	File	file_4B9F18	file	constructed by 0x00401350
 0x004CAA28	File	file_4CAA28	file	constructed by 0x004013D0
 0x004CAD50	File	file_4CAD50	file	constructed by 0x00401310
@@ -24,3 +24,55 @@ addr	type	name	module	notes
 0x004CDE20	std::int32_t	rleSkipColor16	pic	16-bit colour encoded as 0x8000 runs
 0x004CDE74	std::int32_t	rleMagic	pic	RLE picture header magic (compared as a 32-bit value)
 0x004CDE78	std::int32_t	rleFillColor16	pic	16-bit colour encoded as 0xC000 runs
+@include	res/tsw.h
+@include	res/act.h
+@size	Picture	24
+@size	TswDirEntry	44
+@size	TswFrameEntry	36
+@size	TswCacheNode	32
+@size	ActIndexNode	20
+@size	ActCacheNode	24
+0x004A6020	std::int32_t	tswCacheLimit	res	initial 0x600000
+0x004A6098	std::int32_t	actCacheLimit	res	initial 0x100000
+0x004A94BC	char[260]	gameDir	core	game root directory with trailing backslash
+0x004AAED0	char[260]	tswPath	res	scratch path used to open archives
+0x004B8868	File	mapCacheFile	map	constructed by 0x004012D0
+0x004C9A1C	HWND	mainWindow	winmain
+0x004CDEA4	std::int32_t	mapUnitCount	map
+0x004CDEA8	std::int32_t[768]	mapUnitOffsets	map
+0x004CEAA8	std::int32_t	mapUnitBase	map
+0x004CEAAC	std::int32_t[768]	mapUnitSizes	map
+0x004CF840	std::int32_t	tswOpened	res
+0x004CF844	Picture*	tswDirectPicture	res	0x14-byte block from TswLoadPictureDirect
+0x004CF848	TswCacheNode[10]	tswBuckets	res	sentinels of the 10 cache chains
+0x004CF988	TswFrameEntry[1275]	tswMagicFrames	res	5 slots x 255 frame entries
+0x004DACD4	std::int32_t	tswMagicMode	res
+0x004DACD8	std::uint16_t*	tswMagicPalette	res
+0x004DACDC	TswCacheNode*	tswCursor	res
+0x004DACE0	std::uint16_t[10]	tswBucketCounts	res
+0x004DACF4	std::int32_t[5]	tswMagicAges	res
+0x004DAD08	std::int32_t	tswMagicSlot	res
+0x004DAD0C	std::int32_t	tswCacheBytes	res
+0x004DAD10	std::int32_t[5]	tswMagicSlots	res
+0x004DAD28	TswDirEntry[3000]	tswMagicDir	res	directory of all_magic.tsw (entry i = file index i + 1)
+0x004FB0C8	Picture*	tswCurrent	res
+0x004FB0CC	HANDLE[6]	tswFiles	res
+0x004FB1E8	HANDLE	tswExtraFile	res	closed by TswCloseAll
+0x004FB1F0	ActCacheNode*	actCursor	res
+0x004FB1F4	std::uint16_t[10]	actBucketCounts	res
+0x004FB208	ActIndexNode[10]	actIndexBuckets	res	only the next field of each sentinel is used
+0x004FB2D0	HANDLE[6]	actFiles	res
+0x004FB2E8	std::uint8_t*	actCurrent	res
+0x004FB2EC	std::uint16_t[10]	actIndexCounts	res
+0x004FB304	std::int32_t	actCacheBytes	res
+0x004FB308	std::int32_t	actOption	res	set by 0x00433080
+0x004FB30C	std::int32_t	actOpened	res
+0x004FB310	std::uint8_t*	actDirect	res
+0x004FB314	ActIndexNode*	actIndexCursor	res
+0x004FB318	ActCacheNode[10]	actBuckets	res	sentinels; next at +0
+0x004FB408	char[260]	actErrorText	res
+0x004FB50C	std::uint32_t	tswPackedCap	res
+0x004FB514	std::uint32_t	tswPackedCapB	res
+0x004FB518	char[64]	tswErrorText	res
+0x004FB558	std::uint8_t*	tswPackedBufB	res
+0x004FB55C	std::uint8_t*	tswPackedBuf	res

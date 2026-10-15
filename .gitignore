@@ -14,3 +14,4 @@
 *.nam
 *.til
 *.$$$
+/reverse/analysis/casm/

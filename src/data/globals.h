@@ -8,6 +8,8 @@
 #include "swd3/w32.h"
 #include "file/file.h"
 #include "memmgr/memory_manager.h"
+#include "res/act.h"
+#include "res/tsw.h"
 
 namespace swd3 {
 
@@ -2275,7 +2277,7 @@ struct Globals {
     std::uint8_t pad_4A600B[0x1];
     char aDderrOutofmemo[19];  // 0x004A600C
     std::uint8_t pad_4A601F[0x1];
-    std::int32_t dword_4A6020;  // 0x004A6020
+    std::int32_t tswCacheLimit;  // 0x004A6020 initial 0x600000
     char aAllMap2Tsw[13];  // 0x004A6024
     std::uint8_t pad_4A6031[0x3];
     char aAllMap1Tsw[13];  // 0x004A6034
@@ -2288,7 +2290,7 @@ struct Globals {
     char aAllCharTsw[13];  // 0x004A6070
     std::uint8_t pad_4A607D[0x3];
     char aMemErrorTswDPa[24];  // 0x004A6080
-    std::int32_t dword_4A6098;  // 0x004A6098
+    std::int32_t actCacheLimit;  // 0x004A6098 initial 0x100000
     char aTsw[3];  // 0x004A609C
     std::uint8_t pad_4A609F[0x11];
     std::uint8_t byte_4A60B0;  // 0x004A60B0
@@ -3355,8 +3357,8 @@ struct Globals {
     std::int32_t dword_4A94B0;  // 0x004A94B0
     std::uint8_t pad_4A94B4[0x4];
     std::int32_t dword_4A94B8;  // 0x004A94B8
-    std::uint8_t Buffer;  // 0x004A94BC
-    std::uint8_t pad_4A94BD[0x403];
+    char gameDir[260];  // 0x004A94BC game root directory with trailing backslash
+    std::uint8_t pad_4A95C0[0x300];
     std::int32_t dword_4A98C0;  // 0x004A98C0
     std::uint8_t pad_4A98C4[0x4];
     File file_4A98C8;  // 0x004A98C8 constructed by 0x00401390
@@ -3403,12 +3405,8 @@ struct Globals {
     std::int16_t word_4AAEC8;  // 0x004AAEC8
     std::uint8_t pad_4AAECA[0x2];
     std::int32_t dword_4AAECC;  // 0x004AAECC
-    std::int16_t FileName;  // 0x004AAED0
-    std::int16_t word_4AAED2;  // 0x004AAED2
-    std::int32_t dword_4AAED4;  // 0x004AAED4
-    std::uint8_t pad_4AAED8[0x1];
-    std::uint8_t byte_4AAED9;  // 0x004AAED9
-    std::uint8_t pad_4AAEDA[0x3F6];
+    char tswPath[260];  // 0x004AAED0 scratch path used to open archives
+    std::uint8_t pad_4AAFD4[0x2FC];
     std::int32_t dword_4AB2D0;  // 0x004AB2D0
     std::uint8_t pad_4AB2D4[0x20];
     std::int32_t dword_4AB2F4;  // 0x004AB2F4
@@ -3823,7 +3821,7 @@ struct Globals {
     std::uint8_t byte_4B8748[280];  // 0x004B8748
     std::int32_t dword_4B8860;  // 0x004B8860
     std::uint8_t pad_4B8864[0x4];
-    File file_4B8868;  // 0x004B8868 constructed by 0x004012D0
+    File mapCacheFile;  // 0x004B8868 constructed by 0x004012D0
     std::int32_t dword_4B88B8;  // 0x004B88B8
     std::int16_t word_4B88BC;  // 0x004B88BC
     std::uint8_t pad_4B88BE[0x2];
@@ -4047,7 +4045,7 @@ struct Globals {
     std::int32_t dword_4C9A10;  // 0x004C9A10
     std::int32_t dword_4C9A14;  // 0x004C9A14
     std::int32_t dword_4C9A18;  // 0x004C9A18
-    std::int32_t hWnd;  // 0x004C9A1C
+    HWND mainWindow;  // 0x004C9A1C
     std::int32_t dword_4C9A20;  // 0x004C9A20
     std::int32_t dword_4C9A24;  // 0x004C9A24
     std::int16_t word_4C9A28[2048];  // 0x004C9A28
@@ -4359,12 +4357,11 @@ struct Globals {
     std::uint8_t byte_4CDE9D;  // 0x004CDE9D
     std::uint8_t pad_4CDE9E[0x2];
     std::int32_t dword_4CDEA0;  // 0x004CDEA0
-    std::int32_t dword_4CDEA4;  // 0x004CDEA4
-    std::int32_t dword_4CDEA8;  // 0x004CDEA8
-    std::uint8_t pad_4CDEAC[0xBFC];
-    std::int32_t dword_4CEAA8;  // 0x004CEAA8
-    std::int32_t dword_4CEAAC;  // 0x004CEAAC
-    std::uint8_t pad_4CEAB0[0xC00];
+    std::int32_t mapUnitCount;  // 0x004CDEA4
+    std::int32_t mapUnitOffsets[768];  // 0x004CDEA8
+    std::int32_t mapUnitBase;  // 0x004CEAA8
+    std::int32_t mapUnitSizes[768];  // 0x004CEAAC
+    std::uint8_t pad_4CF6AC[0x4];
     std::int32_t dword_4CF6B0;  // 0x004CF6B0
     std::int32_t dword_4CF6B4;  // 0x004CF6B4
     std::int16_t word_4CF6B8;  // 0x004CF6B8
@@ -4378,73 +4375,45 @@ struct Globals {
     std::int32_t dword_4CF73C;  // 0x004CF73C
     std::uint8_t byte_4CF740[128];  // 0x004CF740
     std::uint8_t byte_4CF7C0[128];  // 0x004CF7C0
-    std::int32_t dword_4CF840;  // 0x004CF840
-    std::int32_t dword_4CF844;  // 0x004CF844
-    std::uint8_t unk_4CF848;  // 0x004CF848
-    std::uint8_t pad_4CF849[0x3];
-    std::int32_t dword_4CF84C;  // 0x004CF84C
-    std::uint8_t pad_4CF850[0x138];
-    std::int32_t dword_4CF988;  // 0x004CF988
-    std::int32_t dword_4CF98C[11474];  // 0x004CF98C
-    std::int32_t dword_4DACD4;  // 0x004DACD4
-    std::int32_t dword_4DACD8;  // 0x004DACD8
-    std::int32_t dword_4DACDC;  // 0x004DACDC
-    std::int16_t word_4DACE0;  // 0x004DACE0
-    std::uint8_t pad_4DACE2[0x12];
-    std::int32_t dword_4DACF4;  // 0x004DACF4
-    std::int32_t dword_4DACF8;  // 0x004DACF8
-    std::int32_t dword_4DACFC;  // 0x004DACFC
-    std::int32_t dword_4DAD00;  // 0x004DAD00
-    std::int32_t dword_4DAD04;  // 0x004DAD04
-    std::int32_t dword_4DAD08;  // 0x004DAD08
-    std::int32_t dword_4DAD0C;  // 0x004DAD0C
-    std::int32_t dword_4DAD10;  // 0x004DAD10
-    std::int32_t lDistanceToMove;  // 0x004DAD14
-    std::int32_t dword_4DAD18;  // 0x004DAD18
-    std::int32_t dword_4DAD1C;  // 0x004DAD1C
-    std::int32_t dword_4DAD20;  // 0x004DAD20
+    std::int32_t tswOpened;  // 0x004CF840
+    Picture* tswDirectPicture;  // 0x004CF844 0x14-byte block from TswLoadPictureDirect
+    TswCacheNode tswBuckets[10];  // 0x004CF848 sentinels of the 10 cache chains
+    TswFrameEntry tswMagicFrames[1275];  // 0x004CF988 5 slots x 255 frame entries
+    std::int32_t tswMagicMode;  // 0x004DACD4
+    std::uint16_t* tswMagicPalette;  // 0x004DACD8
+    TswCacheNode* tswCursor;  // 0x004DACDC
+    std::uint16_t tswBucketCounts[10];  // 0x004DACE0
+    std::int32_t tswMagicAges[5];  // 0x004DACF4
+    std::int32_t tswMagicSlot;  // 0x004DAD08
+    std::int32_t tswCacheBytes;  // 0x004DAD0C
+    std::int32_t tswMagicSlots[5];  // 0x004DAD10
     std::int32_t dword_4DAD24;  // 0x004DAD24
-    std::uint8_t unk_4DAD28;  // 0x004DAD28
-    std::uint8_t pad_4DAD29[0x2039F];
-    std::int32_t dword_4FB0C8;  // 0x004FB0C8
-    std::int32_t dword_4FB0CC;  // 0x004FB0CC
-    std::int32_t dword_4FB0D0;  // 0x004FB0D0
-    std::int32_t dword_4FB0D4;  // 0x004FB0D4
-    std::int32_t dword_4FB0D8;  // 0x004FB0D8
-    std::int32_t dword_4FB0DC;  // 0x004FB0DC
-    std::int32_t dword_4FB0E0;  // 0x004FB0E0
+    TswDirEntry tswMagicDir[3000];  // 0x004DAD28 directory of all_magic.tsw (entry i = file index i + 1)
+    Picture* tswCurrent;  // 0x004FB0C8
+    HANDLE tswFiles[6];  // 0x004FB0CC
     std::int32_t dword_4FB0E4[65];  // 0x004FB0E4
-    std::int32_t hObject;  // 0x004FB1E8
+    HANDLE tswExtraFile;  // 0x004FB1E8 closed by TswCloseAll
     std::uint8_t pad_4FB1EC[0x4];
-    std::int32_t dword_4FB1F0;  // 0x004FB1F0
-    std::int16_t word_4FB1F4;  // 0x004FB1F4
-    std::uint8_t pad_4FB1F6[0x12];
-    std::int32_t dword_4FB208;  // 0x004FB208
-    std::uint8_t pad_4FB20C[0xC4];
-    std::int32_t dword_4FB2D0;  // 0x004FB2D0
-    std::int32_t dword_4FB2D4;  // 0x004FB2D4
-    std::int32_t dword_4FB2D8;  // 0x004FB2D8
-    std::int32_t dword_4FB2DC;  // 0x004FB2DC
-    std::int32_t dword_4FB2E0;  // 0x004FB2E0
-    std::int32_t dword_4FB2E4;  // 0x004FB2E4
-    std::int32_t dword_4FB2E8;  // 0x004FB2E8
-    std::int16_t word_4FB2EC;  // 0x004FB2EC
-    std::uint8_t pad_4FB2EE[0x12];
+    ActCacheNode* actCursor;  // 0x004FB1F0
+    std::uint16_t actBucketCounts[10];  // 0x004FB1F4
+    ActIndexNode actIndexBuckets[10];  // 0x004FB208 only the next field of each sentinel is used
+    HANDLE actFiles[6];  // 0x004FB2D0
+    std::uint8_t* actCurrent;  // 0x004FB2E8
+    std::uint16_t actIndexCounts[10];  // 0x004FB2EC
     std::int32_t dword_4FB300;  // 0x004FB300
-    std::int32_t dword_4FB304;  // 0x004FB304
-    std::int32_t dword_4FB308;  // 0x004FB308
-    std::int32_t dword_4FB30C;  // 0x004FB30C
-    std::int32_t dword_4FB310;  // 0x004FB310
-    std::int32_t dword_4FB314;  // 0x004FB314
-    std::int32_t dword_4FB318;  // 0x004FB318
-    std::uint8_t pad_4FB31C[0xEC];
-    std::uint8_t byte_4FB408[260];  // 0x004FB408
-    std::int32_t dword_4FB50C;  // 0x004FB50C
+    std::int32_t actCacheBytes;  // 0x004FB304
+    std::int32_t actOption;  // 0x004FB308 set by 0x00433080
+    std::int32_t actOpened;  // 0x004FB30C
+    std::uint8_t* actDirect;  // 0x004FB310
+    ActIndexNode* actIndexCursor;  // 0x004FB314
+    ActCacheNode actBuckets[10];  // 0x004FB318 sentinels; next at +0
+    char actErrorText[260];  // 0x004FB408
+    std::uint32_t tswPackedCap;  // 0x004FB50C
     std::uint8_t pad_4FB510[0x4];
-    std::int32_t dword_4FB514;  // 0x004FB514
-    std::uint8_t byte_4FB518[64];  // 0x004FB518
-    std::int32_t dword_4FB558;  // 0x004FB558
-    std::int32_t lpBuffer;  // 0x004FB55C
+    std::uint32_t tswPackedCapB;  // 0x004FB514
+    char tswErrorText[64];  // 0x004FB518
+    std::uint8_t* tswPackedBufB;  // 0x004FB558
+    std::uint8_t* tswPackedBuf;  // 0x004FB55C
     std::uint8_t pad_4FB560[0x8];
     std::int32_t dword_4FB568;  // 0x004FB568
     std::uint8_t pad_4FB56C[0x27C];
@@ -5862,13 +5831,18 @@ struct Globals {
 static_assert(sizeof(Globals) == image::kSize);
 static_assert(offsetof(Globals, pixelConvert) == 0x7E6C);
 static_assert(offsetof(Globals, pixelConvertBack) == 0x7E70);
+static_assert(offsetof(Globals, tswCacheLimit) == 0xD020);
+static_assert(offsetof(Globals, actCacheLimit) == 0xD098);
 static_assert(offsetof(Globals, file_4A9380) == 0x10380);
+static_assert(offsetof(Globals, gameDir) == 0x104BC);
 static_assert(offsetof(Globals, file_4A98C8) == 0x108C8);
+static_assert(offsetof(Globals, tswPath) == 0x11ED0);
 static_assert(offsetof(Globals, memoryManager) == 0x1DC78);
 static_assert(offsetof(Globals, file_4B74A0) == 0x1E4A0);
 static_assert(offsetof(Globals, file_4B7AD0) == 0x1EAD0);
-static_assert(offsetof(Globals, file_4B8868) == 0x1F868);
+static_assert(offsetof(Globals, mapCacheFile) == 0x1F868);
 static_assert(offsetof(Globals, file_4B9F18) == 0x20F18);
+static_assert(offsetof(Globals, mainWindow) == 0x30A1C);
 static_assert(offsetof(Globals, file_4CAA28) == 0x31A28);
 static_assert(offsetof(Globals, file_4CAD50) == 0x31D50);
 static_assert(offsetof(Globals, rleSkipColor8) == 0x34780);
@@ -5876,7 +5850,45 @@ static_assert(offsetof(Globals, rleFillColor8) == 0x347B4);
 static_assert(offsetof(Globals, rleSkipColor16) == 0x34E20);
 static_assert(offsetof(Globals, rleMagic) == 0x34E74);
 static_assert(offsetof(Globals, rleFillColor16) == 0x34E78);
+static_assert(offsetof(Globals, mapUnitCount) == 0x34EA4);
+static_assert(offsetof(Globals, mapUnitOffsets) == 0x34EA8);
+static_assert(offsetof(Globals, mapUnitBase) == 0x35AA8);
+static_assert(offsetof(Globals, mapUnitSizes) == 0x35AAC);
 static_assert(offsetof(Globals, file_4CF6E0) == 0x366E0);
+static_assert(offsetof(Globals, tswOpened) == 0x36840);
+static_assert(offsetof(Globals, tswDirectPicture) == 0x36844);
+static_assert(offsetof(Globals, tswBuckets) == 0x36848);
+static_assert(offsetof(Globals, tswMagicFrames) == 0x36988);
+static_assert(offsetof(Globals, tswMagicMode) == 0x41CD4);
+static_assert(offsetof(Globals, tswMagicPalette) == 0x41CD8);
+static_assert(offsetof(Globals, tswCursor) == 0x41CDC);
+static_assert(offsetof(Globals, tswBucketCounts) == 0x41CE0);
+static_assert(offsetof(Globals, tswMagicAges) == 0x41CF4);
+static_assert(offsetof(Globals, tswMagicSlot) == 0x41D08);
+static_assert(offsetof(Globals, tswCacheBytes) == 0x41D0C);
+static_assert(offsetof(Globals, tswMagicSlots) == 0x41D10);
+static_assert(offsetof(Globals, tswMagicDir) == 0x41D28);
+static_assert(offsetof(Globals, tswCurrent) == 0x620C8);
+static_assert(offsetof(Globals, tswFiles) == 0x620CC);
+static_assert(offsetof(Globals, tswExtraFile) == 0x621E8);
+static_assert(offsetof(Globals, actCursor) == 0x621F0);
+static_assert(offsetof(Globals, actBucketCounts) == 0x621F4);
+static_assert(offsetof(Globals, actIndexBuckets) == 0x62208);
+static_assert(offsetof(Globals, actFiles) == 0x622D0);
+static_assert(offsetof(Globals, actCurrent) == 0x622E8);
+static_assert(offsetof(Globals, actIndexCounts) == 0x622EC);
+static_assert(offsetof(Globals, actCacheBytes) == 0x62304);
+static_assert(offsetof(Globals, actOption) == 0x62308);
+static_assert(offsetof(Globals, actOpened) == 0x6230C);
+static_assert(offsetof(Globals, actDirect) == 0x62310);
+static_assert(offsetof(Globals, actIndexCursor) == 0x62314);
+static_assert(offsetof(Globals, actBuckets) == 0x62318);
+static_assert(offsetof(Globals, actErrorText) == 0x62408);
+static_assert(offsetof(Globals, tswPackedCap) == 0x6250C);
+static_assert(offsetof(Globals, tswPackedCapB) == 0x62514);
+static_assert(offsetof(Globals, tswErrorText) == 0x62518);
+static_assert(offsetof(Globals, tswPackedBufB) == 0x62558);
+static_assert(offsetof(Globals, tswPackedBuf) == 0x6255C);
 static_assert(offsetof(Globals, file_521538) == 0x88538);
 
 inline Globals& globals() { return *reinterpret_cast<Globals*>(image::g_bytes); }

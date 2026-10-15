@@ -143,7 +143,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 142	swd32.exe	0x0040A0D0	sub_40A0D0	winmain		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "%sScrnShot\%05d.bmp"
 143	swd32.exe	0x0040A570	sub_40A570	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 144	swd32.exe	0x0040AB50	sub_40AB50	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-145	swd32.exe	0x0040AD10	sub_40AD10	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+145	swd32.exe	0x0040AD10	sub_40AD10	map	src/map/map_cache.cpp:LoadCachedMapPicture	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 146	swd32.exe	0x0040AE20	sub_40AE20	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 147	swd32.exe	0x0040AEC0	sub_40AEC0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 148	swd32.exe	0x0040AF70	sub_40AF70	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
@@ -351,7 +351,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 350	swd32.exe	0x00425B50	sub_425B50	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between map anchors 0x00425A70 and 0x00425BE0
 351	swd32.exe	0x00425BE0	sub_425BE0	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "HUGE.lmf"
 352	swd32.exe	0x004267E0	sub_4267E0	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between map anchors 0x00425BE0 and 0x00426840
-353	swd32.exe	0x00426820	sub_426820	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between map anchors 0x00425BE0 and 0x00426840
+353	swd32.exe	0x00426820	sub_426820	map	src/map/map_cache.cpp:MapDecompress	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between map anchors 0x00425BE0 and 0x00426840
 354	swd32.exe	0x00426840	sub_426840	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "mcache.dat"
 355	swd32.exe	0x00426DF0	sub_426DF0	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "%sdata\%d.cm"
 356	swd32.exe	0x004270F0	sub_4270F0	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between map anchors 0x00426DF0 and 0x00427140
@@ -390,42 +390,42 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 389	swd32.exe	0x00430FF0	sub_430FF0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 390	swd32.exe	0x00431150	sub_431150	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
 391	swd32.exe	0x004311C0	sub_4311C0	ddraw		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "DDERR_OUTOFMEMORY "
-392	swd32.exe	0x004315C0	sub_4315C0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-393	swd32.exe	0x004315D0	sub_4315D0	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "all_char.tsw"
-394	swd32.exe	0x00431760	sub_431760	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "all_char.tsw"
-395	swd32.exe	0x00431960	sub_431960	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00431760 and 0x00431C50
-396	swd32.exe	0x00431A20	sub_431A20	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00431760 and 0x00431C50
-397	swd32.exe	0x00431A50	sub_431A50	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00431760 and 0x00431C50
-398	swd32.exe	0x00431AA0	sub_431AA0	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00431760 and 0x00431C50
-399	swd32.exe	0x00431C50	sub_431C50	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Mem error::tsw:%d pa:%d"
-400	swd32.exe	0x00431DF0	sub_431DF0	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00431C50 and 0x004320E0
-401	swd32.exe	0x00431EA0	sub_431EA0	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00431C50 and 0x004320E0
-402	swd32.exe	0x00431F80	sub_431F80	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00431C50 and 0x004320E0
-403	swd32.exe	0x00432010	sub_432010	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00431C50 and 0x004320E0
-404	swd32.exe	0x00432020	sub_432020	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00431C50 and 0x004320E0
-405	swd32.exe	0x00432050	sub_432050	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00431C50 and 0x004320E0
-406	swd32.exe	0x004320E0	sub_4320E0	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "<<ACT:%d"
+392	swd32.exe	0x004315C0	sub_4315C0	res	src/res/tsw.cpp:TswSetCacheLimit	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+393	swd32.exe	0x004315D0	sub_4315D0	res	src/res/tsw.cpp:TswGetPicture	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "all_char.tsw"
+394	swd32.exe	0x00431760	sub_431760	res	src/res/tsw.cpp:TswLoadPictureDirect	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "all_char.tsw"
+395	swd32.exe	0x00431960	sub_431960	res	src/res/tsw.cpp:TswCloseAll	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00431760 and 0x00431C50
+396	swd32.exe	0x00431A20	sub_431A20	res	src/res/tsw.cpp:TswFindPicture	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00431760 and 0x00431C50
+397	swd32.exe	0x00431A50	sub_431A50	res	src/res/tsw.cpp:TswReadMagicDirectory	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00431760 and 0x00431C50
+398	swd32.exe	0x00431AA0	sub_431AA0	res	src/res/tsw.cpp:TswCacheMagicFrames	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00431760 and 0x00431C50
+399	swd32.exe	0x00431C50	sub_431C50	res	src/res/tsw.cpp:TswCacheLoad	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Mem error::tsw:%d pa:%d"
+400	swd32.exe	0x00431DF0	sub_431DF0	res	src/res/tsw.cpp:TswCacheFind	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00431C50 and 0x004320E0
+401	swd32.exe	0x00431EA0	sub_431EA0	res	src/res/tsw.cpp:TswCacheEvict	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00431C50 and 0x004320E0
+402	swd32.exe	0x00431F80	sub_431F80	res	src/res/tsw.cpp:TswCacheClear	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00431C50 and 0x004320E0
+403	swd32.exe	0x00432010	sub_432010	res	src/res/act.cpp:ActSetCacheLimit	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00431C50 and 0x004320E0
+404	swd32.exe	0x00432020	sub_432020	res	src/res/act.cpp:ActOpenFile	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00431C50 and 0x004320E0
+405	swd32.exe	0x00432050	sub_432050	res	src/res/act.cpp:ActExtractEntry	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00431C50 and 0x004320E0
+406	swd32.exe	0x004320E0	sub_4320E0	res	src/res/act.cpp:ActLoad	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "<<ACT:%d"
 407	swd32.exe	0x004321E0	sub_4321E0	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x004320E0 and 0x00432A50
-408	swd32.exe	0x00432A50	sub_432A50	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "all_char.act"
-409	swd32.exe	0x00432BC0	sub_432BC0	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "all_char.act"
-410	swd32.exe	0x00432D30	sub_432D30	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act error::actno:%d qq:%d"
-411	swd32.exe	0x00432E40	sub_432E40	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00432D30 and 0x00433010
-412	swd32.exe	0x00432EE0	sub_432EE0	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00432D30 and 0x00433010
-413	swd32.exe	0x00432FA0	sub_432FA0	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00432D30 and 0x00433010
-414	swd32.exe	0x00433010	sub_433010	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "ACT"
-415	swd32.exe	0x00433080	sub_433080	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00433010 and 0x00433320
-416	swd32.exe	0x00433090	sub_433090	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00433010 and 0x00433320
-417	swd32.exe	0x00433190	sub_433190	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00433010 and 0x00433320
-418	swd32.exe	0x00433220	sub_433220	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00433010 and 0x00433320
-419	swd32.exe	0x00433270	sub_433270	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00433010 and 0x00433320
-420	swd32.exe	0x004332A0	sub_4332A0	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00433010 and 0x00433320
-421	swd32.exe	0x00433320	sub_433320	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "TSW"
-422	swd32.exe	0x00433380	sub_433380	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "<<TSW%d"
-423	swd32.exe	0x00433540	sub_433540	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00433380 and 0x00433720
-424	swd32.exe	0x00433720	sub_433720	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "<<TSW%d"
-425	swd32.exe	0x004338F0	sub_4338F0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+408	swd32.exe	0x00432A50	sub_432A50	res	src/res/act.cpp:ActGet	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "all_char.act"
+409	swd32.exe	0x00432BC0	sub_432BC0	res	src/res/act.cpp:ActLoadDirect	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "all_char.act"
+410	swd32.exe	0x00432D30	sub_432D30	res	src/res/act.cpp:ActCacheLoad	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Act error::actno:%d qq:%d"
+411	swd32.exe	0x00432E40	sub_432E40	res	src/res/act.cpp:ActCacheFind	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00432D30 and 0x00433010
+412	swd32.exe	0x00432EE0	sub_432EE0	res	src/res/act.cpp:ActCacheEvict	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00432D30 and 0x00433010
+413	swd32.exe	0x00432FA0	sub_432FA0	res	src/res/act.cpp:ActCacheClear	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00432D30 and 0x00433010
+414	swd32.exe	0x00433010	sub_433010	res	src/res/act.cpp:ActCloseAll	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "ACT"
+415	swd32.exe	0x00433080	sub_433080	res	src/res/act.cpp:ActSetOption	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00433010 and 0x00433320
+416	swd32.exe	0x00433090	sub_433090	res	src/res/act.cpp:ActIndexInsert	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00433010 and 0x00433320
+417	swd32.exe	0x00433190	sub_433190	res	src/res/act.cpp:ActIndexLookup	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00433010 and 0x00433320
+418	swd32.exe	0x00433220	sub_433220	res	src/res/act.cpp:ActIndexClear	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00433010 and 0x00433320
+419	swd32.exe	0x00433270	sub_433270	res	src/res/tsw.cpp:TswOpenFile	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00433010 and 0x00433320
+420	swd32.exe	0x004332A0	sub_4332A0	res	src/res/tsw.cpp:TswReadHeader	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00433010 and 0x00433320
+421	swd32.exe	0x00433320	sub_433320	res	src/res/tsw.cpp:TswLoadFromFile	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "TSW"
+422	swd32.exe	0x00433380	sub_433380	res	src/res/tsw.cpp:TswLoadPicture	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "<<TSW%d"; magic-mode error text: original prints an uninitialised stack directory entry, rebuilt code prints an empty name
+423	swd32.exe	0x00433540	sub_433540	res	src/res/tsw.cpp:TswReadFrame	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00433380 and 0x00433720
+424	swd32.exe	0x00433720	sub_433720	res	src/res/tsw.cpp:TswLoadPictureB	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "<<TSW%d"; magic-mode error text: original prints an uninitialised stack directory entry, rebuilt code prints an empty name
+425	swd32.exe	0x004338F0	sub_4338F0	res	src/res/tsw.cpp:TswReadFrameB	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 426	swd32.exe	0x00433AA0	sub_433AA0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-427	swd32.exe	0x00433BF0	sub_433BF0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+427	swd32.exe	0x00433BF0	sub_433BF0	res	src/res/tsw.cpp:TswFreeBuffers	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 428	swd32.exe	0x00433C40	sub_433C40	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 429	swd32.exe	0x00433D70	sub_433D70	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 430	swd32.exe	0x00433DC0	sub_433DC0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	

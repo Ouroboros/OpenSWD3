@@ -22,6 +22,7 @@ void fail(const char* file, int line, const std::string& message) {
 }  // namespace swd3test
 
 int main(int argc, char** argv) {
+    std::setvbuf(stdout, nullptr, _IONBF, 0);
     int run = 0;
     for (const auto& c : swd3test::registry()) {
         if (argc > 1 && std::strstr(c.name, argv[1]) == nullptr) {
