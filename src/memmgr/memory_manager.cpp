@@ -7,9 +7,6 @@
 
 namespace swd3 {
 
-// swd32.exe 0x004B6C78; construction 0x00401000/0x00401010, atexit registration 0x00401020,
-// destruction 0x00401030
-MemoryManager g_memoryManager;
 
 namespace {
 

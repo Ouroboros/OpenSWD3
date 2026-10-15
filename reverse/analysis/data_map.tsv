@@ -1,0 +1,19 @@
+# Global variables placed in the data image (src/data/globals.h is generated from this file).
+# addr	type	name	module	notes
+# Lines starting with @size declare the byte size of a struct type; @include adds a header to globals.h.
+addr	type	name	module	notes
+@include	memmgr/memory_manager.h
+@include	file/file.h
+@size	MemoryManager	1572
+@size	File	80
+0x004A9380	File	file_4A9380	file	constructed by 0x00401450
+0x004A98C8	File	file_4A98C8	file	constructed by 0x00401390
+0x004B6C78	MemoryManager	memoryManager	memmgr	"MemMgr", constructed by 0x00401000
+0x004B74A0	File	file_4B74A0	file	constructed by 0x00401290
+0x004B7AD0	File	file_4B7AD0	file	constructed by 0x00401410
+0x004B8868	File	file_4B8868	file	constructed by 0x004012D0
+0x004B9F18	File	file_4B9F18	file	constructed by 0x00401350
+0x004CAA28	File	file_4CAA28	file	constructed by 0x004013D0
+0x004CAD50	File	file_4CAD50	file	constructed by 0x00401310
+0x004CF6E0	File	file_4CF6E0	file	constructed by 0x004272C0
+0x00521538	File	file_521538	file	constructed by 0x00451900

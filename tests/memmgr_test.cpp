@@ -1,23 +1,30 @@
 #include <cstring>
+#include <new>
 
 #include "crt/crt.h"
+#include "data/globals.h"
 #include "memmgr/memory_manager.h"
 #include "test.h"
 
 using namespace swd3;
 
-TEST_CASE("memmgr.global object has 32 preallocated nodes") {
-    CHECK_EQ(g_memoryManager.m_nodeCount, 32);
-    CHECK_EQ(g_memoryManager.m_peakNodes, 32);
+TEST_CASE("memmgr.construct in image with 32 preallocated nodes") {
+    MemoryManager* mgr = new (&G.memoryManager) MemoryManager();
+    CHECK(image::va(mgr) == 0x004B6C78u);
+    CHECK_EQ(mgr->m_nodeCount, 32);
+    CHECK_EQ(mgr->m_peakNodes, 32);
     int count = 0;
-    for (MemoryNode* node = g_memoryManager.m_freeNodes; node; node = node->next) {
+    for (MemoryNode* node = mgr->m_freeNodes; node; node = node->next) {
         ++count;
     }
     CHECK_EQ(count, 32);
+    mgr->~MemoryManager();
+    CHECK_EQ(mgr->m_nodeCount, 0);
+    CHECK(mgr->m_freeNodes == nullptr);
 }
 
 TEST_CASE("memmgr.free block validates guards") {
-    MemoryManager& mgr = g_memoryManager;
+    MemoryManager& mgr = G.memoryManager;
     MemoryNode node{};
     CHECK(mgr.FreeBlock(&node));
     CHECK(!mgr.FreeBlock(nullptr));

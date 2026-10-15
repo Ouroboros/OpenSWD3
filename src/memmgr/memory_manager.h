@@ -18,7 +18,7 @@ struct MemoryBucket {
     MemoryNode* head;
 };
 
-// Global "MemMgr" object (0x004B6C78). The game only constructs and destroys it.
+// "MemMgr" (global object at 0x004B6C78, G.memoryManager). The game only constructs and destroys it.
 class MemoryManager {
 public:
     MemoryManager();
@@ -47,6 +47,5 @@ static_assert(offsetof(MemoryManager, m_freeNodes) == 0x220);
 static_assert(offsetof(MemoryManager, m_text) == 0x224);
 #endif
 
-extern MemoryManager g_memoryManager;
 
 }  // namespace swd3
