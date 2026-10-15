@@ -1942,9 +1942,9 @@ struct Globals {
     std::int32_t dword_4A0E68;  // 0x004A0E68
     code_ptr pixelConvert;  // 0x004A0E6C converter for the display pixel format, set by 0x00423400 (initial 0x0044A240)
     code_ptr pixelConvertBack;  // 0x004A0E70 inverse converter, set by 0x00423400 (initial 0x0044A240)
-    std::int32_t dword_4A0E74;  // 0x004A0E74
-    std::int32_t dword_4A0E78;  // 0x004A0E78
-    std::int32_t dword_4A0E7C;  // 0x004A0E7C
+    std::int32_t screenPitch;  // 0x004A0E74 lPitch of the surface given to PixelFormatInit
+    std::int32_t screenWidth;  // 0x004A0E78
+    std::int32_t screenHeight;  // 0x004A0E7C
     char aSenvDat[10];  // 0x004A0E80
     std::uint8_t pad_4A0E8A[0x2];
     char aA[4];  // 0x004A0E8C
@@ -4277,80 +4277,57 @@ struct Globals {
     std::int32_t dword_4CD768;  // 0x004CD768
     std::int32_t dword_4CD76C;  // 0x004CD76C
     std::int32_t dword_4CD770;  // 0x004CD770
-    std::int32_t dword_4CD774;  // 0x004CD774
+    std::int32_t skipColorPair;  // 0x004CD774 rleSkipColor16 converted, duplicated in both halves
     std::int32_t dword_4CD778;  // 0x004CD778
-    std::int32_t dword_4CD77C;  // 0x004CD77C
+    std::int32_t greenMaskPair;  // 0x004CD77C
     std::int32_t rleSkipColor8;  // 0x004CD780 8-bit colour encoded as 0x8000 runs
-    std::int32_t dword_4CD784;  // 0x004CD784
-    std::int32_t dword_4CD788;  // 0x004CD788
-    std::int32_t dword_4CD78C;  // 0x004CD78C
-    std::int32_t dword_4CD790;  // 0x004CD790
-    std::int32_t dword_4CD794;  // 0x004CD794
-    std::uint8_t unk_4CD798;  // 0x004CD798
-    std::uint8_t pad_4CD799[0x3];
-    std::int32_t dword_4CD79C;  // 0x004CD79C
-    std::int32_t dword_4CD7A0;  // 0x004CD7A0
-    std::int32_t dword_4CD7A4;  // 0x004CD7A4
+    std::int32_t fillColorPair;  // 0x004CD784 rleFillColor16 converted, duplicated in both halves
+    std::int32_t halfMaskPairs[5];  // 0x004CD788 mask for (pair >> (k + 1)), k = 0..4
+    std::int32_t maskRed;  // 0x004CD79C
+    std::int32_t maskGreen;  // 0x004CD7A0
+    std::int32_t maskBlue;  // 0x004CD7A4
     std::uint8_t pad_4CD7A8[0xC];
     std::int32_t rleFillColor8;  // 0x004CD7B4 8-bit colour encoded as 0xC000 runs
-    std::int32_t dword_4CD7B8;  // 0x004CD7B8
-    std::int32_t dword_4CD7BC;  // 0x004CD7BC
-    std::uint8_t pad_4CD7C0[0x8];
-    std::int32_t dword_4CD7C8;  // 0x004CD7C8
-    std::uint8_t pad_4CD7CC[0x4];
-    std::uint8_t unk_4CD7D0;  // 0x004CD7D0
-    std::uint8_t pad_4CD7D1[0x7F];
-    std::int32_t dword_4CD850;  // 0x004CD850
-    std::uint8_t pad_4CD854[0x7C];
-    std::uint8_t unk_4CD8D0;  // 0x004CD8D0
-    std::uint8_t pad_4CD8D1[0xFF];
-    std::int32_t dword_4CD9D0;  // 0x004CD9D0
-    std::uint8_t unk_4CD9D4;  // 0x004CD9D4
-    std::uint8_t pad_4CD9D5[0x7F];
-    std::int32_t dword_4CDA54;  // 0x004CDA54
-    std::uint8_t pad_4CDA58[0x7C];
-    std::uint8_t unk_4CDAD4;  // 0x004CDAD4
-    std::uint8_t pad_4CDAD5[0xFF];
-    std::int32_t dword_4CDBD4;  // 0x004CDBD4
-    std::int32_t dword_4CDBD8;  // 0x004CDBD8
+    std::int32_t blueHalves[6];  // 0x004CD7B8 blueHalves[k] = blue mask after k halvings
+    std::int32_t blueZero[32];  // 0x004CD7D0
+    std::int32_t redRamp[32];  // 0x004CD850
+    std::int32_t redFill[32];  // 0x004CD8D0
+    std::uint8_t pad_4CD950[0x80];
+    std::int32_t redMaskInverse;  // 0x004CD9D0
+    std::int32_t greenZero[32];  // 0x004CD9D4
+    std::int32_t greenRamp[32];  // 0x004CDA54
+    std::int32_t greenFill[32];  // 0x004CDAD4
+    std::uint8_t pad_4CDB54[0x80];
+    std::int32_t shiftRed;  // 0x004CDBD4
+    std::int32_t shiftGreen;  // 0x004CDBD8
     std::uint8_t pad_4CDBDC[0x4];
     std::int32_t dword_4CDBE0;  // 0x004CDBE0
     std::uint8_t pad_4CDBE4[0x4];
-    std::int32_t dword_4CDBE8;  // 0x004CDBE8
-    std::int32_t dword_4CDBEC;  // 0x004CDBEC
-    std::uint8_t pad_4CDBF0[0x8];
-    std::int32_t dword_4CDBF8;  // 0x004CDBF8
-    std::uint8_t pad_4CDBFC[0x4];
+    std::int32_t redHalves[6];  // 0x004CDBE8
     std::int32_t dword_4CDC00;  // 0x004CDC00
-    std::uint8_t unk_4CDC04;  // 0x004CDC04
-    std::uint8_t pad_4CDC05[0x7F];
-    std::int32_t dword_4CDC84;  // 0x004CDC84
-    std::uint8_t pad_4CDC88[0x7C];
-    std::uint8_t unk_4CDD04;  // 0x004CDD04
-    std::uint8_t pad_4CDD05[0xFF];
-    std::int32_t dword_4CDE04;  // 0x004CDE04
-    std::int32_t dword_4CDE08;  // 0x004CDE08
-    std::uint8_t pad_4CDE0C[0x8];
-    std::int32_t dword_4CDE14;  // 0x004CDE14
-    std::uint8_t pad_4CDE18[0x4];
-    std::int32_t dword_4CDE1C;  // 0x004CDE1C
+    std::int32_t redZero[32];  // 0x004CDC04
+    std::int32_t blueRamp[32];  // 0x004CDC84
+    std::int32_t blueFill[32];  // 0x004CDD04
+    std::uint8_t pad_4CDD84[0x80];
+    std::int32_t greenHalves[6];  // 0x004CDE04
+    std::int32_t blueMaskCopy;  // 0x004CDE1C
     std::int32_t rleSkipColor16;  // 0x004CDE20 16-bit colour encoded as 0x8000 runs
-    std::int32_t dword_4CDE24;  // 0x004CDE24
+    std::int32_t blueMaskInverse;  // 0x004CDE24
     std::uint8_t pad_4CDE28[0x4];
     std::int32_t dword_4CDE2C;  // 0x004CDE2C
-    std::int32_t dword_4CDE30;  // 0x004CDE30
-    std::uint8_t pad_4CDE34[0x14];
-    std::int32_t dword_4CDE48;  // 0x004CDE48
-    std::int32_t dword_4CDE4C;  // 0x004CDE4C
-    std::int32_t dword_4CDE50;  // 0x004CDE50
-    std::int32_t dword_4CDE54;  // 0x004CDE54
+    std::int32_t blueSteps[5];  // 0x004CDE30
+    std::uint8_t pad_4CDE44[0x4];
+    std::int32_t greenMaskInverse;  // 0x004CDE48
+    std::int32_t redMaskCopy;  // 0x004CDE4C
+    std::int32_t greenMaskCopy;  // 0x004CDE50
+    std::int32_t shiftBlue;  // 0x004CDE54
     std::uint8_t pad_4CDE58[0x4];
-    std::int32_t dword_4CDE5C;  // 0x004CDE5C
-    std::uint8_t pad_4CDE60[0x14];
+    std::int32_t redSteps[5];  // 0x004CDE5C
+    std::uint8_t pad_4CDE70[0x4];
     std::int32_t rleMagic;  // 0x004CDE74 RLE picture header magic (compared as a 32-bit value)
     std::int32_t rleFillColor16;  // 0x004CDE78 16-bit colour encoded as 0xC000 runs
-    std::int32_t dword_4CDE7C;  // 0x004CDE7C
-    std::uint8_t pad_4CDE80[0x14];
+    std::int32_t greenSteps[5];  // 0x004CDE7C
+    std::uint8_t pad_4CDE90[0x4];
     std::int32_t dword_4CDE94;  // 0x004CDE94
     std::uint8_t byte_4CDE98;  // 0x004CDE98
     std::int32_t dword_4CDE99;  // 0x004CDE99
@@ -5831,6 +5808,9 @@ struct Globals {
 static_assert(sizeof(Globals) == image::kSize);
 static_assert(offsetof(Globals, pixelConvert) == 0x7E6C);
 static_assert(offsetof(Globals, pixelConvertBack) == 0x7E70);
+static_assert(offsetof(Globals, screenPitch) == 0x7E74);
+static_assert(offsetof(Globals, screenWidth) == 0x7E78);
+static_assert(offsetof(Globals, screenHeight) == 0x7E7C);
 static_assert(offsetof(Globals, tswCacheLimit) == 0xD020);
 static_assert(offsetof(Globals, actCacheLimit) == 0xD098);
 static_assert(offsetof(Globals, file_4A9380) == 0x10380);
@@ -5845,11 +5825,42 @@ static_assert(offsetof(Globals, file_4B9F18) == 0x20F18);
 static_assert(offsetof(Globals, mainWindow) == 0x30A1C);
 static_assert(offsetof(Globals, file_4CAA28) == 0x31A28);
 static_assert(offsetof(Globals, file_4CAD50) == 0x31D50);
+static_assert(offsetof(Globals, skipColorPair) == 0x34774);
+static_assert(offsetof(Globals, greenMaskPair) == 0x3477C);
 static_assert(offsetof(Globals, rleSkipColor8) == 0x34780);
+static_assert(offsetof(Globals, fillColorPair) == 0x34784);
+static_assert(offsetof(Globals, halfMaskPairs) == 0x34788);
+static_assert(offsetof(Globals, maskRed) == 0x3479C);
+static_assert(offsetof(Globals, maskGreen) == 0x347A0);
+static_assert(offsetof(Globals, maskBlue) == 0x347A4);
 static_assert(offsetof(Globals, rleFillColor8) == 0x347B4);
+static_assert(offsetof(Globals, blueHalves) == 0x347B8);
+static_assert(offsetof(Globals, blueZero) == 0x347D0);
+static_assert(offsetof(Globals, redRamp) == 0x34850);
+static_assert(offsetof(Globals, redFill) == 0x348D0);
+static_assert(offsetof(Globals, redMaskInverse) == 0x349D0);
+static_assert(offsetof(Globals, greenZero) == 0x349D4);
+static_assert(offsetof(Globals, greenRamp) == 0x34A54);
+static_assert(offsetof(Globals, greenFill) == 0x34AD4);
+static_assert(offsetof(Globals, shiftRed) == 0x34BD4);
+static_assert(offsetof(Globals, shiftGreen) == 0x34BD8);
+static_assert(offsetof(Globals, redHalves) == 0x34BE8);
+static_assert(offsetof(Globals, redZero) == 0x34C04);
+static_assert(offsetof(Globals, blueRamp) == 0x34C84);
+static_assert(offsetof(Globals, blueFill) == 0x34D04);
+static_assert(offsetof(Globals, greenHalves) == 0x34E04);
+static_assert(offsetof(Globals, blueMaskCopy) == 0x34E1C);
 static_assert(offsetof(Globals, rleSkipColor16) == 0x34E20);
+static_assert(offsetof(Globals, blueMaskInverse) == 0x34E24);
+static_assert(offsetof(Globals, blueSteps) == 0x34E30);
+static_assert(offsetof(Globals, greenMaskInverse) == 0x34E48);
+static_assert(offsetof(Globals, redMaskCopy) == 0x34E4C);
+static_assert(offsetof(Globals, greenMaskCopy) == 0x34E50);
+static_assert(offsetof(Globals, shiftBlue) == 0x34E54);
+static_assert(offsetof(Globals, redSteps) == 0x34E5C);
 static_assert(offsetof(Globals, rleMagic) == 0x34E74);
 static_assert(offsetof(Globals, rleFillColor16) == 0x34E78);
+static_assert(offsetof(Globals, greenSteps) == 0x34E7C);
 static_assert(offsetof(Globals, mapUnitCount) == 0x34EA4);
 static_assert(offsetof(Globals, mapUnitOffsets) == 0x34EA8);
 static_assert(offsetof(Globals, mapUnitBase) == 0x35AA8);

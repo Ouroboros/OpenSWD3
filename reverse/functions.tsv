@@ -317,15 +317,15 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 316	swd32.exe	0x004229C0	sub_4229C0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
 317	swd32.exe	0x00422C70	sub_422C70	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 318	swd32.exe	0x00423020	sub_423020	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-319	swd32.exe	0x004233D0	sub_4233D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-320	swd32.exe	0x00423400	sub_423400	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+319	swd32.exe	0x004233D0	sub_4233D0	pic	src/pic/pixel_format.cpp:GetColorMasks	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+320	swd32.exe	0x00423400	sub_423400	pic	src/pic/pixel_format.cpp:PixelFormatInit	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 321	swd32.exe	0x004238B0	sub_4238B0	pic	src/pic/pixel_format.cpp:PixelConvert	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-322	swd32.exe	0x004238D0	sub_4238D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-323	swd32.exe	0x004238F0	sub_4238F0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-324	swd32.exe	0x00423920	sub_423920	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-325	swd32.exe	0x00423950	sub_423950	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-326	swd32.exe	0x00423990	sub_423990	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-327	swd32.exe	0x004239D0	sub_4239D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+322	swd32.exe	0x004238D0	sub_4238D0	pic	src/pic/pixel_format.cpp:PixelConvertBack	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+323	swd32.exe	0x004238F0	sub_4238F0	pic	src/pic/pixel_format.cpp:PixelConvert5551	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+324	swd32.exe	0x00423920	sub_423920	pic	src/pic/pixel_format.cpp:PixelConvert555To565	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+325	swd32.exe	0x00423950	sub_423950	pic	src/pic/pixel_format.cpp:PixelConvert565To555	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+326	swd32.exe	0x00423990	sub_423990	pic	src/pic/pixel_format.cpp:PixelConvert6551	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+327	swd32.exe	0x004239D0	sub_4239D0	pic	src/pic/pixel_format.cpp:MakeColor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 328	swd32.exe	0x00423A10	sub_423A10	config_env		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "%sEnv.dat"
 329	swd32.exe	0x00423AF0	sub_423AF0	config_env		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "%sEnv.dat"
 330	swd32.exe	0x00423E00	sub_423E00	config_env		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "%sEnv.dat"

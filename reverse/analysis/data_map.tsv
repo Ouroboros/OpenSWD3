@@ -76,3 +76,37 @@ addr	type	name	module	notes
 0x004FB518	char[64]	tswErrorText	res
 0x004FB558	std::uint8_t*	tswPackedBufB	res
 0x004FB55C	std::uint8_t*	tswPackedBuf	res
+0x004A0E74	std::int32_t	screenPitch	pic	lPitch of the surface given to PixelFormatInit
+0x004A0E78	std::int32_t	screenWidth	pic
+0x004A0E7C	std::int32_t	screenHeight	pic
+0x004CD774	std::int32_t	skipColorPair	pic	rleSkipColor16 converted, duplicated in both halves
+0x004CD77C	std::int32_t	greenMaskPair	pic
+0x004CD784	std::int32_t	fillColorPair	pic	rleFillColor16 converted, duplicated in both halves
+0x004CD788	std::int32_t[5]	halfMaskPairs	pic	mask for (pair >> (k + 1)), k = 0..4
+0x004CD79C	std::int32_t	maskRed	pic
+0x004CD7A0	std::int32_t	maskGreen	pic
+0x004CD7A4	std::int32_t	maskBlue	pic
+0x004CD7B8	std::int32_t[6]	blueHalves	pic	blueHalves[k] = blue mask after k halvings
+0x004CD7D0	std::int32_t[32]	blueZero	pic
+0x004CD850	std::int32_t[32]	redRamp	pic
+0x004CD8D0	std::int32_t[32]	redFill	pic
+0x004CD9D0	std::int32_t	redMaskInverse	pic
+0x004CD9D4	std::int32_t[32]	greenZero	pic
+0x004CDA54	std::int32_t[32]	greenRamp	pic
+0x004CDAD4	std::int32_t[32]	greenFill	pic
+0x004CDBD4	std::int32_t	shiftRed	pic
+0x004CDBD8	std::int32_t	shiftGreen	pic
+0x004CDBE8	std::int32_t[6]	redHalves	pic
+0x004CDC04	std::int32_t[32]	redZero	pic
+0x004CDC84	std::int32_t[32]	blueRamp	pic
+0x004CDD04	std::int32_t[32]	blueFill	pic
+0x004CDE04	std::int32_t[6]	greenHalves	pic
+0x004CDE1C	std::int32_t	blueMaskCopy	pic
+0x004CDE24	std::int32_t	blueMaskInverse	pic
+0x004CDE30	std::int32_t[5]	blueSteps	pic
+0x004CDE48	std::int32_t	greenMaskInverse	pic
+0x004CDE4C	std::int32_t	redMaskCopy	pic
+0x004CDE50	std::int32_t	greenMaskCopy	pic
+0x004CDE54	std::int32_t	shiftBlue	pic
+0x004CDE5C	std::int32_t[5]	redSteps	pic
+0x004CDE7C	std::int32_t[5]	greenSteps	pic
