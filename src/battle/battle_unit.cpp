@@ -1595,19 +1595,19 @@ int BattleUnit::AddBuff(BattleServices& services, const SkillScript& skill)
     {
         case 0x80000:
             node->act.action = 0;
-            this->status |= 0x100000;
+            this->status |= unit_status::kDefenseDown;
             text = battle_text::kDefenseDown;
             break;
 
         case 0x100000:
             node->act.action = 0;
-            this->status |= 0x8000000;
+            this->status |= unit_status::kSpeedDown;
             text = battle_text::kSpeedDown;
             break;
 
         case 0x2000000:
             node->act.action = 0;
-            this->status |= 0x4000000;
+            this->status |= unit_status::kBarrier;
 
             if (this->kind != 0)
             {
@@ -1618,7 +1618,7 @@ int BattleUnit::AddBuff(BattleServices& services, const SkillScript& skill)
 
         case 0x8000000:
             node->act.action = 0;
-            this->status |= 0x1000000;
+            this->status |= unit_status::kAttackDown;
             text = battle_text::kAttackDown;
             break;
 
@@ -1635,19 +1635,19 @@ int BattleUnit::AddBuff(BattleServices& services, const SkillScript& skill)
 
         case 0x20000000:
             node->act.action = 0;
-            this->status |= 0x40000000;
+            this->status |= unit_status::kDefenseUp;
             text = battle_text::kDefenseUp;
             break;
 
         case 0x40000000:
             node->act.action = 0;
-            this->status |= 0x20000000;
+            this->status |= unit_status::kSpeedUp;
             text = battle_text::kSpeedUp;
             break;
 
         case 0x80000000:
             node->act.action = 0;
-            this->status |= 0x10000000;
+            this->status |= unit_status::kAttackUp;
             text = battle_text::kAttackUp;
             break;
 
@@ -2380,11 +2380,11 @@ void BattleUnit::GetHitPoints(i32& value, i32& maximum) const
 }
 
 // swd32.exe 0x004755E0: the action gauge filled by a quarter of the agility (an eighth while slowed, with a quarter
-// more and one when boosted; status bits 29 and 27 add and take 30%, bit 31 takes 10% more) while below full; a full
-// gauge marks the unit ready (true). Held and bit-14 units do not move.
+// more and one when boosted; speed up and speed down add and take 30%, invisibility takes 10% more) while below full;
+// a full gauge marks the unit ready (true). Held units do not move.
 int BattleUnit::AdvanceGauge(const BattleServices& services, int boost)
 {
-    if ((this->marks & 0x40) != 0 || (this->marks & 0x4000) != 0)
+    if ((this->marks & unit_mark::kHeld) != 0 || (this->marks & unit_mark::kUnk4000) != 0)
     {
         return 0;
     }
@@ -2395,7 +2395,7 @@ int BattleUnit::AdvanceGauge(const BattleServices& services, int boost)
     {
         int step = this->data->data.agility >> 2;
 
-        if ((this->status & 0x40) != 0)
+        if ((this->status & unit_status::kSlowed) != 0)
         {
             step = this->data->data.agility >> 3;
         }
@@ -2408,17 +2408,17 @@ int BattleUnit::AdvanceGauge(const BattleServices& services, int boost)
         int gain = 0;
         int loss = 0;
 
-        if ((this->status & 0x20000000) != 0)
+        if ((this->status & unit_status::kSpeedUp) != 0)
         {
             gain = 0x1E * step / 0x64;
         }
 
-        if ((this->status & 0x8000000) != 0)
+        if ((this->status & unit_status::kSpeedDown) != 0)
         {
             loss = 0x1E * step / 0x64;
         }
 
-        if ((this->status & 0x80000000) != 0)
+        if ((this->status & unit_status::kInvisible) != 0)
         {
             loss = static_cast<u16>(0xA * step / 0x64 + loss);
         }

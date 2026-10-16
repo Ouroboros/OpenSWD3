@@ -39,7 +39,7 @@ constexpr std::u8string_view kNoAct = u8"戰鬥角色actNumber為0!!";          
 constexpr std::u8string_view kNoGuestAct = u8"Npc角色actNumber為0!!";       // swd32.exe 0x004A7C7C
 constexpr std::u8string_view kNoWeaponAct = u8"武器%d號的強攻擊act沒設!!";  // swd32.exe 0x004A7C94
 constexpr i16 kStatLimit = 0x270F;
-constexpr u16 kGoldGuardItem = 0x39D;
+constexpr u16 kCoinArmour = 0x39D;  // 投幣式鎧甲: the gold pays for the hits
 
 // The value grown by a tenth per point of `scale` (the product kept to 16 bits as the original does).
 i16 Grown(i16 value, i16 scale)
@@ -160,7 +160,7 @@ void BattleRole::SetupGuest(
 // swd32.exe 0x0046EBB0: the sixteen equipment slots add to the battle record: the attack and defence bonuses, the
 // agility, +0x14, +0x18, +0x1E, raised attack and defence, the resistances (not slots 7..10) and, for slots 1..6 of
 // kind 0, the three bonus words. Slot 0 is the weapon (its strong attack act asserted), slots 7 and 8 the
-// accessories; item 0x39D guards the gold.
+// accessories; 投幣式鎧甲 makes the gold guard.
 void BattleRole::ApplyEquipment(
     std::span<const std::unique_ptr<ItemNode>> slots,
     CounterList& proficiency,
@@ -170,7 +170,7 @@ void BattleRole::ApplyEquipment(
     this->accessories.fill(ObjectRecord{});
     RoleRecord& record = *this->battleRecord;
 
-    for (std::size_t slot = 0; slot < 0x10 && slot < slots.size(); ++slot)
+    for (std::size_t slot = 0; slot < static_cast<std::size_t>(Party::kSlotsPerRole) && slot < slots.size(); ++slot)
     {
         if (slots[slot] == nullptr)
         {
@@ -180,7 +180,7 @@ void BattleRole::ApplyEquipment(
         const ItemNode& item = *slots[slot];
         const ObjectData& stats = item.record.data;
 
-        if (slot == 0)
+        if (slot == BattleRole::kWeaponSlot)
         {
             this->weapon = item.record;
             this->weaponId = item.id;
@@ -210,9 +210,9 @@ void BattleRole::ApplyEquipment(
             record.defenseBonus = static_cast<u16>(record.defenseBonus + stats.unk2A);
         }
 
-        if (slot == 7 || slot == 8)
+        if (slot == BattleRole::kFirstAccessorySlot || slot == BattleRole::kSecondAccessorySlot)
         {
-            ObjectRecord& accessory = this->accessories[slot - 7];
+            ObjectRecord& accessory = this->accessories[slot - BattleRole::kFirstAccessorySlot];
             accessory = item.record;
 
             if (item.id != ItemNode::kEmpty)
@@ -222,21 +222,21 @@ void BattleRole::ApplyEquipment(
 
             this->ApplyAccessory(accessory, proficiency);
         }
-        else if (slot != 9 && slot != 0xA)
+        else if (slot != BattleRole::kNoResistanceSlotA && slot != BattleRole::kNoResistanceSlotB)
         {
             for (std::size_t element = 0; element < record.unk2D.size(); ++element)
             {
                 record.unk2D[element] = static_cast<u8>(record.unk2D[element] + stats.resistances[element]);
             }
 
-            if (slot < 7 && stats.unk3C == 0)
+            if (slot < BattleRole::kArmourSlots && stats.unk3C == 0)
             {
                 this->bonusA = static_cast<u16>(this->bonusA + stats.unk34);
                 this->bonusB = static_cast<u16>(this->bonusB + stats.unk36);
                 this->bonusC = static_cast<u16>(this->bonusC + stats.unk38);
             }
 
-            if (item.id == kGoldGuardItem)
+            if (item.id == kCoinArmour)
             {
                 this->goldGuard = 1;
             }
@@ -244,20 +244,20 @@ void BattleRole::ApplyEquipment(
     }
 }
 
-// swd32.exe 0x0046F030: an accessory by its kind (+0x48): kinds 0x32 and 0x35..0x39 set equipment flags 1, 4..0x40;
-// 0x33 lowers its first resistance by the proficiency of the accessory; 0x34 raises the attack bonus by a tenth and
-// half the proficiency in percent
+// swd32.exe 0x0046F030: an accessory by its kind: most set their equipment flag; an elemental orb lowers its
+// first resistance by the proficiency of the accessory, an attack ring raises the attack bonus by a tenth and half the
+// proficiency in percent
 void BattleRole::ApplyAccessory(const ObjectRecord& accessory, CounterList& proficiency)
 {
     RoleRecord& record = *this->battleRecord;
 
-    switch (accessory.data.unk48)
+    switch (static_cast<AccessoryKind>(accessory.data.unk48))
     {
-        case 0x32:
-            this->equipmentFlags |= 1;
+        case AccessoryKind::Unk32:
+            this->equipmentFlags |= equipment_flag::kUnk32;
             break;
 
-        case 0x33:
+        case AccessoryKind::ElementOrb:
         {
             const i16 percent = FindCounterPercent(proficiency, static_cast<i16>(accessory.data.unk50));
             std::size_t element = 0;
@@ -279,7 +279,7 @@ void BattleRole::ApplyAccessory(const ObjectRecord& accessory, CounterList& prof
             break;
         }
 
-        case 0x34:
+        case AccessoryKind::AttackRing:
         {
             const auto half = static_cast<u16>(
                 static_cast<u16>(FindCounterPercent(proficiency, static_cast<i16>(accessory.data.unk50))) >> 1
@@ -290,24 +290,24 @@ void BattleRole::ApplyAccessory(const ObjectRecord& accessory, CounterList& prof
             break;
         }
 
-        case 0x35:
-            this->equipmentFlags |= 4;
+        case AccessoryKind::BladeReturn:
+            this->equipmentFlags |= equipment_flag::kBladeReturn;
             break;
 
-        case 0x36:
-            this->equipmentFlags |= 8;
+        case AccessoryKind::Unk36:
+            this->equipmentFlags |= equipment_flag::kUnk36;
             break;
 
-        case 0x37:
-            this->equipmentFlags |= 0x10;
+        case AccessoryKind::SpiritDrain:
+            this->equipmentFlags |= equipment_flag::kSpiritDrain;
             break;
 
-        case 0x38:
-            this->equipmentFlags |= 0x20;
+        case AccessoryKind::LifeDrain:
+            this->equipmentFlags |= equipment_flag::kLifeDrain;
             break;
 
-        case 0x39:
-            this->equipmentFlags |= 0x40;
+        case AccessoryKind::SpiritFan:
+            this->equipmentFlags |= equipment_flag::kSpiritFan;
             break;
 
         default:

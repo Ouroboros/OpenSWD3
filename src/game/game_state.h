@@ -74,6 +74,18 @@ public:
 };
 
 // The shared game state: the story flags, the pointer, the map characters and the player's control.
+// Story flags (GameState::flags) the code tests by number.
+namespace story_flag
+{
+
+constexpr int kRunning = 1;              // cleared when the debug quit key ends the game
+constexpr int kEncounters = 0xC;         // enemies are met on the map
+constexpr int kNoSlide = 0x14;           // steps into walls do not slide (debug key Ctrl+F3)
+constexpr int kDebugKeys = 0x52;         // the debug keys work
+constexpr int kMapNoEncounter = 0x1770;  // + the map number: no enemies on that map
+
+}  // namespace story_flag
+
 class GameState
 {
 public:

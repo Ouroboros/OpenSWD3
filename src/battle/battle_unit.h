@@ -73,6 +73,31 @@ struct UnitCommand
 
 // A unit in battle (0x2B28 bytes in the original; the base of BattleRole and BattleEnemy). Offsets of the original are
 // given for reference; fields not yet named keep their offset.
+// BattleUnit::status bits, named by the texts the buffs announce (AddBuff 0x0047BC50) and their effects.
+namespace unit_status
+{
+
+constexpr u32 kSlowed = 0x40;  // ailment 0x40: the gauge fills at half speed
+constexpr u32 kDefenseDown = 0x100000;
+constexpr u32 kAttackDown = 0x1000000;
+constexpr u32 kBarrier = 0x4000000;
+constexpr u32 kSpeedDown = 0x8000000;
+constexpr u32 kAttackUp = 0x10000000;
+constexpr u32 kSpeedUp = 0x20000000;
+constexpr u32 kDefenseUp = 0x40000000;
+constexpr u32 kInvisible = 0x80000000;
+
+}  // namespace unit_status
+
+// BattleUnit::marks bits.
+namespace unit_mark
+{
+
+constexpr u16 kHeld = 0x40;
+constexpr u16 kUnk4000 = 0x4000;  // the gauge stops (set elsewhere in the battle loop)
+
+}  // namespace unit_mark
+
 class Database;
 class ErrorReporter;
 

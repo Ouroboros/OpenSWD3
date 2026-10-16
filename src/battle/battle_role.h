@@ -12,11 +12,45 @@
 namespace swd3
 {
 
+// The kinds of the accessories (ObjectData::unk48), named after the mon.dat items of each kind.
+enum class AccessoryKind : u16
+{
+    Unk32 = 0x32,        // no item has it
+    ElementOrb = 0x33,   // 地炎玉, 水靈珠, 青龍水珠, ...: an element's resistance lowered by the proficiency
+    AttackRing = 0x34,   // 薩登荊環, 星君眼
+    BladeReturn = 0x35,  // 返刃玉
+    Unk36 = 0x36,        // no item has it
+    SpiritDrain = 0x37,  // 吸魔壺
+    LifeDrain = 0x38,    // 吸血鬼指環
+    SpiritFan = 0x39,    // 靈虛扇
+};
+
+// BattleUnit::equipmentFlags set by the accessories.
+namespace equipment_flag
+{
+
+constexpr u32 kUnk32 = 1;
+constexpr u32 kBladeReturn = 4;
+constexpr u32 kUnk36 = 8;
+constexpr u32 kSpiritDrain = 0x10;
+constexpr u32 kLifeDrain = 0x20;
+constexpr u32 kSpiritFan = 0x40;
+
+}  // namespace equipment_flag
+
 // A party role in battle (0x2F34 bytes in the original, ten of them at 0x005029D0): a unit with a battle copy of the
 // role's record and the fields past the unit.
 class BattleRole : public BattleUnit
 {
 public:
+    // The equipment slots of a role (Party::kSlotsPerRole).
+    static constexpr std::size_t kWeaponSlot = 0;
+    static constexpr std::size_t kFirstAccessorySlot = 7;
+    static constexpr std::size_t kSecondAccessorySlot = 8;
+    static constexpr std::size_t kArmourSlots = 7;  // slots below it give the bonus words
+    static constexpr std::size_t kNoResistanceSlotA = 9;
+    static constexpr std::size_t kNoResistanceSlotB = 0xA;
+
     BattleRole();
     void SetSkills(ItemNode* list);
     void SetInventory(ItemLink* list);

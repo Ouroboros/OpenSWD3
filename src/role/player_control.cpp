@@ -1,5 +1,6 @@
 #include "core/debug_log.h"
 #include "game/game.h"
+#include "input/dik.h"
 #include "item/item_list.h"
 #include "platform/system_info.h"
 #include "role/role_control.h"
@@ -9,10 +10,6 @@ namespace swd3
 
 namespace
 {
-
-// Ctrl or right Ctrl held (DirectInput scan codes).
-constexpr int kLeftControl = 0x1D;
-constexpr int kRightControl = 0x9D;
 
 }  // namespace
 
@@ -77,17 +74,17 @@ void RoleControl::ControlPlayer()
     int stepX = 0;
     int stepY = 0;
 
-    if (owner.config.debugMode == 1 && input.IsKeyDown(kRightControl) && input.IsKeyDown(0x36) &&
-        input.IsKeyDown(0xC7) && input.IsKeyDown(0xCF))
+    if (owner.config.debugMode == 1 && input.IsKeyDown(dik::kRightControl) && input.IsKeyDown(dik::kRightShift) &&
+        input.IsKeyDown(dik::kHome) && input.IsKeyDown(dik::kEnd))
     {
-        state.SetGameFlag(0x52);
+        state.SetGameFlag(story_flag::kDebugKeys);
     }
 
-    if (state.GameFlag(0x52))
+    if (state.GameFlag(story_flag::kDebugKeys))
     {
         const bool idle = leader.id == 0xFFFF && view.talkWindows == nullptr;
 
-        if (input.IsKeyDown(0x58) && idle)
+        if (input.IsKeyDown(dik::kF12) && idle)
         {
             SleepMilliseconds(0x1F4);
             owner.storyState = 3;
@@ -98,25 +95,25 @@ void RoleControl::ControlPlayer()
             return;
         }
 
-        if (input.IsKeyDown(kLeftControl) || input.IsKeyDown(kRightControl))
+        if (input.IsKeyDown(dik::kLeftControl) || input.IsKeyDown(dik::kRightControl))
         {
-            if (input.IsKeyDown(0x43))
+            if (input.IsKeyDown(dik::kF9))
             {
                 owner.talk.skipAll = (owner.talk.skipAll + 1) % 2;
                 SleepMilliseconds(0x15E);
                 return;
             }
 
-            if (input.IsKeyDown(0x10))
+            if (input.IsKeyDown(dik::kQ))
             {
                 owner.inactive = 1;
                 state.ClearFrameInterval();
                 owner.systemFlags |= 4;
-                state.ClearGameFlag(1);
+                state.ClearGameFlag(story_flag::kRunning);
                 return;
             }
 
-            if (input.IsKeyDown(0x1F) && idle)
+            if (input.IsKeyDown(dik::kS) && idle)
             {
                 owner.unk4CAEBC = 1;
                 owner.unk4CAEC0 = 0;
@@ -127,7 +124,7 @@ void RoleControl::ControlPlayer()
                 return;
             }
 
-            if (input.IsKeyDown(0x26) && idle)
+            if (input.IsKeyDown(dik::kL) && idle)
             {
                 owner.unk4CAEBC = 1;
                 owner.unk4CAEC0 = 1;
@@ -138,24 +135,24 @@ void RoleControl::ControlPlayer()
                 return;
             }
 
-            if (input.IsKeyDown(0x3B) || input.IsKeyDown(0x3C))
+            if (input.IsKeyDown(dik::kF1) || input.IsKeyDown(dik::kF2))
             {
-                i32& shown = input.IsKeyDown(0x3B) ? owner.debugText : owner.debugCells;
+                i32& shown = input.IsKeyDown(dik::kF1) ? owner.debugText : owner.debugCells;
                 shown = shown == 0 ? 1 : 0;
                 this->unk4CB220 = 0;
                 SleepMilliseconds(0x12C);
                 return;
             }
 
-            if (input.IsKeyDown(0x3D))
+            if (input.IsKeyDown(dik::kF3))
             {
-                state.SetGameFlagTo(0x14, state.GameFlag(0x14) ? 0 : 1);
+                state.SetGameFlagTo(story_flag::kNoSlide, state.GameFlag(story_flag::kNoSlide) ? 0 : 1);
                 this->unk4CB220 = 0;
                 SleepMilliseconds(0x12C);
                 return;
             }
 
-            if (input.IsKeyDown(0xF) && input.IsKeyDown(0x4E))
+            if (input.IsKeyDown(dik::kTab) && input.IsKeyDown(dik::kNumpadPlus))
             {
                 if (++view.unk49E0BC > 0x40)
                 {
@@ -165,7 +162,7 @@ void RoleControl::ControlPlayer()
                 this->unk4CB220 = 0;
             }
 
-            if (input.IsKeyDown(0xF) && input.IsKeyDown(0x4A))
+            if (input.IsKeyDown(dik::kTab) && input.IsKeyDown(dik::kNumpadMinus))
             {
                 if (--view.unk49E0BC < 1)
                 {
@@ -176,20 +173,20 @@ void RoleControl::ControlPlayer()
             }
         }
 
-        if (input.IsKeyDown(0x3E))
+        if (input.IsKeyDown(dik::kF4))
         {
             owner.running = 0;
             owner.running = 1;
             return;
         }
 
-        if (input.IsKeyDown(0x41))
+        if (input.IsKeyDown(dik::kF7))
         {
             owner.party.variables[0] += 0x3E8;
             SleepMilliseconds(0xFA);
         }
 
-        if (input.IsKeyDown(0x40))
+        if (input.IsKeyDown(dik::kF6))
         {
             for (u16 id = 0x65; id < 0x4B0; ++id)
             {
@@ -406,7 +403,7 @@ void RoleControl::ControlPlayer()
     const int wantedX = stepX;
     const int wantedY = stepY;
 
-    if (!state.GameFlag(0x14) && (stepX != 0 || stepY != 0))
+    if (!state.GameFlag(story_flag::kNoSlide) && (stepX != 0 || stepY != 0))
     {
         this->Slide(player, stepX, stepY);
     }
@@ -563,11 +560,12 @@ void RoleControl::ControlPlayer()
             state.SetWalkSpeed(speed);
         }
 
-        if (!state.GameFlag(owner.unk4A9A10 + 0x1770))
+        if (!state.GameFlag(owner.unk4A9A10 + story_flag::kMapNoEncounter))
         {
             ++view.unk4C9A20;
 
-            if (owner.inBattle == 0 && state.GameFlag(0xC) && owner.unk4A94AC == 0 && leader.id == 0xFFFF)
+            if (owner.inBattle == 0 && state.GameFlag(story_flag::kEncounters) && owner.unk4A94AC == 0 &&
+                leader.id == 0xFFFF)
             {
                 owner.unk4A94AC = static_cast<i32>(owner.RollEncounter(view.unk4C9A20, 0));
 
