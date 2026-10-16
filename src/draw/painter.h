@@ -127,6 +127,12 @@ public:
     u16* Target() const;
     bool SetClip(int left, int top, int right, int bottom);
     void SetClipClamped(int left, int top, int right, int bottom);
+    // The clip rectangle as left, top, width and height.
+    std::array<int, 4> ClipRect() const;
+    // Pixels per line of the screen.
+    int ScreenPitch() const;
+    // The channel bits kept by (pair >> (index + 1)) in both halves of a pixel pair.
+    u32 HalfMaskPair(int index) const;
 
     // Source and persistent effect state.
     void SetSource(const void* data);

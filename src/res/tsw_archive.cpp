@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <new>
 
 #include "codec/lzo.h"
 #include "core/debug_log.h"
@@ -44,6 +45,31 @@ std::string Format(const char* format, int first, const char* name, int second =
     char text[512];
     std::snprintf(text, sizeof(text), format, first, name, second);
     return text;
+}
+
+// A heap block for `size` bytes, as malloc gives it: false where the original 32-bit process gets no memory (requests
+// of 1 GiB and more, as read from the garbage of a frame record past the end of an entry).
+bool TryAssign(std::vector<u8>& bytes, u32 size)
+{
+    constexpr u32 kAllocationLimit = 0x40000000;
+
+    if (size >= kAllocationLimit)
+    {
+        bytes.clear();
+        return false;
+    }
+
+    try
+    {
+        bytes.assign(size, 0);
+    }
+    catch (const std::bad_alloc&)
+    {
+        bytes.clear();
+        return false;
+    }
+
+    return true;
 }
 
 }  // namespace
@@ -524,12 +550,14 @@ bool TswArchive::Decompress(
 {
     if (entry.packedSize > buffer.capacity)
     {
-        buffer.bytes.assign(entry.packedSize, 0);
+        buffer.present = TryAssign(buffer.bytes, entry.packedSize);
         buffer.capacity = entry.packedSize;
-        buffer.present = true;
     }
 
-    if (!buffer.present)
+    std::vector<u8> out;
+    const bool outAllocated = TryAssign(out, entry.size);
+
+    if (!buffer.present || !outAllocated)
     {
         if (logMissingBuffer)
         {
@@ -542,7 +570,6 @@ bool TswArchive::Decompress(
 
     u32 bytes = entry.packedSize;
     file.Read(buffer.bytes.data(), bytes);
-    std::vector<u8> out(entry.size);
     LzoDecoder decoder({buffer.bytes.data(), entry.packedSize}, out);
     const LzoStatus status = decoder.Run();
     const bool reachedEnd = status == LzoStatus::Ok || status == LzoStatus::InputNotConsumed;

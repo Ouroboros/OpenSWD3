@@ -141,3 +141,23 @@ TEST_CASE("tsw: matches the golden results of the legacy archives")
     CHECK_EQ(mismatches, 0);
     CHECK_EQ(compared, static_cast<int>(golden.size()));
 }
+
+TEST_CASE("tsw: a frame past the end of an entry reports an error instead of failing the allocation")
+{
+    if (swd3test::ReadGameFile("all_sys.tsw").empty())
+    {
+        std::printf("  (game data not found, skipped)\n");
+        return;
+    }
+
+    swd3::Surface screen(640, 480);
+    swd3::Painter painter;
+    painter.Init(screen);
+    const swd3::RleCodec codec(painter);
+    swd3test::RecordingReporter errors;
+    swd3::TswArchive archive(codec, errors);
+    archive.SetGameDirectory(swd3test::GameDirectory());
+    CHECK(archive.GetPicture(9024, 0) != nullptr);
+    CHECK(archive.GetPicture(9024, 1) == nullptr);
+    CHECK(!errors.messages.empty());
+}

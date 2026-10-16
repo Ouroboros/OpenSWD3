@@ -377,6 +377,21 @@ bool Painter::SetClip(int left, int top, int right, int bottom)
     return true;
 }
 
+std::array<int, 4> Painter::ClipRect() const
+{
+    return {this->clipX, this->clipY, this->clipWidth, this->clipHeight};
+}
+
+int Painter::ScreenPitch() const
+{
+    return this->screenPitch;
+}
+
+u32 Painter::HalfMaskPair(int index) const
+{
+    return this->halfMaskPairs[static_cast<std::size_t>(index)];
+}
+
 // swd32.exe 0x00416FF0: cut to the screen
 void Painter::SetClipClamped(int left, int top, int right, int bottom)
 {

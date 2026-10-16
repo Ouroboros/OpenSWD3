@@ -370,7 +370,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 369	swd32.exe	0x0042E5A0	sub_42E5A0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 370	swd32.exe	0x0042E740	sub_42E740	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 371	swd32.exe	0x0042E790	sub_42E790	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-372	swd32.exe	0x0042E850	sub_42E850	ui		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/ui/ui_draw.cpp:DrawWindowFrame
+372	swd32.exe	0x0042E850	sub_42E850	ui	src/ui/ui_draw.cpp:DrawWindowFrame	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/ui/ui_draw.cpp:DrawWindowFrame
 373	swd32.exe	0x0042ED40	sub_42ED40	dlg_message		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(DlgMessage:...)"
 374	swd32.exe	0x00430180	sub_430180	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 375	swd32.exe	0x00430230	sub_430230	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
@@ -572,7 +572,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 571	swd32.exe	0x0043AAA0	sub_43AAA0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 572	swd32.exe	0x0043AE40	sub_43AE40	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Menu:...)"
 573	swd32.exe	0x0043B080	sub_43B080	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Menu:...)"; legacy: src/menu/menu_util.cpp:DrawActGhost
-574	swd32.exe	0x0043B110	sub_43B110	ui		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043B080 and 0x0043FDE0; legacy: src/ui/ui_draw.cpp:FillBoxMode
+574	swd32.exe	0x0043B110	sub_43B110	ui	src/ui/ui_draw.cpp:FillBox	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043B080 and 0x0043FDE0; legacy: src/ui/ui_draw.cpp:FillBoxMode
 575	swd32.exe	0x0043B480	sub_43B480	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043B080 and 0x0043FDE0
 576	swd32.exe	0x0043B980	sub_43B980	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043B080 and 0x0043FDE0; legacy: src/menu/menu_util.cpp:CountList
 577	swd32.exe	0x0043B9A0	sub_43B9A0	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043B080 and 0x0043FDE0; legacy: src/menu/menu_util.cpp:ListNodeAtInto
