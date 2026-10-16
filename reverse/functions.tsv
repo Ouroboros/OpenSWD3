@@ -389,7 +389,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 388	swd32.exe	0x00430EB0	sub_430EB0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 389	swd32.exe	0x00430FF0	sub_430FF0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 390	swd32.exe	0x00431150	sub_431150	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-391	swd32.exe	0x004311C0	sub_4311C0	gfx		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "DDERR_OUTOFMEMORY "; legacy: src/gfx/graphics.cpp:ShowDirectDrawError
+391	swd32.exe	0x004311C0	sub_4311C0	gfx	src/gfx/graphics.cpp:ShowDeviceError	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "DDERR_OUTOFMEMORY "; legacy: src/gfx/graphics.cpp:ShowDirectDrawError
 392	swd32.exe	0x004315C0	sub_4315C0	res	src/res/tsw_archive.cpp:TswArchive::SetCacheLimit	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/res/tsw.cpp:TswSetCacheLimit
 393	swd32.exe	0x004315D0	sub_4315D0	res	src/res/tsw_archive.cpp:TswArchive::GetPicture	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "all_char.tsw"; legacy: src/res/tsw.cpp:TswGetPicture
 394	swd32.exe	0x00431760	sub_431760	res	src/res/tsw_archive.cpp:TswArchive::LoadPictureDirect	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "all_char.tsw"; legacy: src/res/tsw.cpp:TswLoadPictureDirect
@@ -480,26 +480,26 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 479	swd32.exe	0x00437430	sub_437430	input		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/input/input.cpp:Input::SetMousePosition
 480	swd32.exe	0x004374C0	sub_4374C0	input		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/input/input.cpp:Input::SetSensitivity
 481	swd32.exe	0x004374E0	sub_4374E0	input		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/input/input.cpp:Input::Release
-482	swd32.exe	0x00437560	sub_437560	gfx		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::Graphics
-483	swd32.exe	0x00437570	sub_437570	gfx		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::Init
-484	swd32.exe	0x00437610	sub_437610	gfx		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "DirectDraw Create Error!!"; legacy: src/gfx/graphics.cpp:Graphics::CreateDirectDraw
-485	swd32.exe	0x00437680	sub_437680	gfx		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "DirectDraw SetCooper Error!!"; legacy: src/gfx/graphics.cpp:Graphics::SetCooperativeLevel
-486	swd32.exe	0x004376D0	sub_4376D0	gfx		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "DirectDraw SetDisplayMode Error!!"; legacy: src/gfx/graphics.cpp:Graphics::SetDisplayMode
-487	swd32.exe	0x00437720	sub_437720	gfx		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "DirectDraw CreateClipper Error!!"; legacy: src/gfx/graphics.cpp:Graphics::CreateClipper
-488	swd32.exe	0x004377D0	sub_4377D0	gfx		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "DirectDraw Create Primary Surface Error!"; legacy: src/gfx/graphics.cpp:Graphics::CreateSurfaces
-489	swd32.exe	0x00437A50	sub_437A50	gfx		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::ReleaseSurfaces
-490	swd32.exe	0x00437AD0	sub_437AD0	gfx		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::ReleaseDirectDraw
-491	swd32.exe	0x00437AE0	sub_437AE0	gfx		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::Present
-492	swd32.exe	0x00437B60	sub_437B60	gfx		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::CreateOffscreen
-493	swd32.exe	0x00437C00	sub_437C00	gfx		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:FillSurfaceColor
-494	swd32.exe	0x00437C40	sub_437C40	gfx		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::ClearSurface
-495	swd32.exe	0x00437C80	sub_437C80	gfx		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:MatchSurfaceColor
-496	swd32.exe	0x00437D80	sub_437D80	gfx		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::GetBitDepth
-497	swd32.exe	0x00437DC0	sub_437DC0	gfx		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::QueryVideoMemory
-498	swd32.exe	0x00437DF0	sub_437DF0	gfx		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::GetSurface
-499	swd32.exe	0x00437E20	sub_437E20	gfx		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::GetDirectDraw
-500	swd32.exe	0x00437E30	sub_437E30	gfx		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::DetectPixelFormat
-501	swd32.exe	0x00437E90	sub_437E90	gfx		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::GetBackSize
+482	swd32.exe	0x00437560	sub_437560	gfx	src/gfx/graphics.cpp:Graphics::Graphics	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::Graphics
+483	swd32.exe	0x00437570	sub_437570	gfx	src/gfx/graphics.cpp:Graphics::Init	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::Init
+484	swd32.exe	0x00437610	sub_437610	gfx	src/gfx/graphics.cpp:Graphics::CreateDevice	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "DirectDraw Create Error!!"; legacy: src/gfx/graphics.cpp:Graphics::CreateDirectDraw
+485	swd32.exe	0x00437680	sub_437680	gfx	src/gfx/graphics.cpp:Graphics::SetCooperativeLevel	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "DirectDraw SetCooper Error!!"; legacy: src/gfx/graphics.cpp:Graphics::SetCooperativeLevel
+486	swd32.exe	0x004376D0	sub_4376D0	gfx	src/gfx/graphics.cpp:Graphics::SetDisplayMode	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "DirectDraw SetDisplayMode Error!!"; legacy: src/gfx/graphics.cpp:Graphics::SetDisplayMode
+487	swd32.exe	0x00437720	sub_437720	gfx	src/gfx/graphics.cpp:Graphics::CreateClipper	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "DirectDraw CreateClipper Error!!"; legacy: src/gfx/graphics.cpp:Graphics::CreateClipper
+488	swd32.exe	0x004377D0	sub_4377D0	gfx	src/gfx/graphics.cpp:Graphics::CreateSurfaces	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "DirectDraw Create Primary Surface Error!"; legacy: src/gfx/graphics.cpp:Graphics::CreateSurfaces
+489	swd32.exe	0x00437A50	sub_437A50	gfx	src/gfx/graphics.cpp:Graphics::ReleaseSurfaces	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::ReleaseSurfaces
+490	swd32.exe	0x00437AD0	sub_437AD0	gfx	src/gfx/graphics.cpp:Graphics::ReleaseDevice	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::ReleaseDirectDraw
+491	swd32.exe	0x00437AE0	sub_437AE0	gfx	src/gfx/graphics.cpp:Graphics::Present	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::Present
+492	swd32.exe	0x00437B60	sub_437B60	gfx	src/gfx/graphics.cpp:Graphics::CreateOffscreen	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::CreateOffscreen
+493	swd32.exe	0x00437C00	sub_437C00	gfx	src/gfx/graphics.cpp:FillSurfaceColor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:FillSurfaceColor
+494	swd32.exe	0x00437C40	sub_437C40	gfx	src/gfx/graphics.cpp:Graphics::ClearSurface	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::ClearSurface
+495	swd32.exe	0x00437C80	sub_437C80	gfx	src/gfx/graphics.cpp:MatchSurfaceColor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:MatchSurfaceColor
+496	swd32.exe	0x00437D80	sub_437D80	gfx	src/gfx/graphics.cpp:Graphics::BitDepth	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::GetBitDepth
+497	swd32.exe	0x00437DC0	sub_437DC0	gfx	src/gfx/graphics.cpp:Graphics::QueryVideoMemory	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::QueryVideoMemory
+498	swd32.exe	0x00437DF0	sub_437DF0	gfx	src/gfx/graphics.cpp:Graphics::GetSurface	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::GetSurface
+499	swd32.exe	0x00437E20	sub_437E20	gfx	src/gfx/graphics.cpp:Graphics::Device	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::GetDirectDraw
+500	swd32.exe	0x00437E30	sub_437E30	gfx	src/gfx/graphics.cpp:Graphics::DetectPixelFormat	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::DetectPixelFormat
+501	swd32.exe	0x00437E90	sub_437E90	gfx	src/gfx/graphics.cpp:Graphics::BackSize	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::GetBackSize
 502	swd32.exe	0x00437EB0	sub_437EB0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 503	swd32.exe	0x00437EF0	sub_437EF0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 504	swd32.exe	0x00437F40	sub_437F40	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
