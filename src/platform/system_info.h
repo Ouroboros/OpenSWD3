@@ -13,5 +13,7 @@ std::vector<char> CdRomDrives();
 u32 TotalPhysicalMemory();
 // timeGetTime(): milliseconds since the system started.
 u32 SystemUptime();
+// Sleep(): the calling thread waits.
+void SleepMilliseconds(u32 milliseconds);
 
 }  // namespace swd3

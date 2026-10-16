@@ -37,4 +37,9 @@ u32 SystemUptime()
     return static_cast<u32>(::GetTickCount());
 }
 
+void SleepMilliseconds(u32 milliseconds)
+{
+    SDL_Delay(milliseconds);
+}
+
 }  // namespace swd3

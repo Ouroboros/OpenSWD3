@@ -316,10 +316,15 @@ std::unique_ptr<Surface> Graphics::CreateOffscreen(int width, int height)
     return std::make_unique<Surface>(width, height);
 }
 
-// swd32.exe 0x00437C40: filled with the clear colour (never set: 0)
+// swd32.exe 0x00437C40: filled with the clear colour (a colour-fill blit)
 void Graphics::ClearSurface(Surface& surface)
 {
     surface.Fill(static_cast<Pixel>(this->clearColor));
+}
+
+void Graphics::SetClearColor(u32 color)
+{
+    this->clearColor = color;
 }
 
 // swd32.exe 0x00437D80: the depth of the display mode

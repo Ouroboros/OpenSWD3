@@ -2,6 +2,7 @@
 
 #include <array>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -254,8 +255,8 @@ struct Scene
     std::unique_ptr<TalkWindow> talkWindows;  // 0x004ACF48
     std::array<ActState, 4> unk4AD0D8;
     ActState unk4AD3F0;
-    i32 unk4B74F4 = 0;
-    i32 unk4B751C = 0;
+    std::optional<std::string> unk4B74F4;  // a name of up to 0x33 bytes (flag 0x4E)
+    std::optional<std::string> unk4B751C;  // (flag 0x4D)
     std::array<i32, 6> unk4B7C74 = {};
     std::array<ActState, 8> unk4B9F68;
     ActState unk4C83A8;
@@ -314,7 +315,6 @@ struct Scene
     std::array<i32, 0x30> heatOffsets = {};     // 0x004AC9BC pixels
     u16 heatFrame = 0;                          // 0x004CAE90
     ColorFade fade;
-    i32 unk4AB2D0 = 0;  // the pixels of a step of the camera
     i32 unk4C9A08 = 0;  // shown as dbg1
     i32 unk4ACE64 = 0;  // shown as dbg2
     i32 unk4BABA0 = 0;  // followers in unk4B7C8C

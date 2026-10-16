@@ -56,6 +56,9 @@ public:
     // The fade globals as a new game sets them.
     void SetFadeState(int mode, int length, int fading);
     void SetFadeMode(int mode);
+    void SetFadeLength(int length);
+    int FadeMode() const;
+    int Fading() const;
 
 private:
     AudioSystem system;
@@ -63,9 +66,9 @@ private:
     StreamPlayer streams;
     SoundEffects effects;
     MusicQueue queue;
-    int musicFadeMode = 0;
-    int musicFadeLength = 0;
-    int musicFading = 0;
+    int musicFadeMode = 0;    // 0x004B7380
+    int musicFadeLength = 0;  // 0x004B74F0
+    int musicFading = 0;      // 0x004B7378
 };
 
 }  // namespace swd3

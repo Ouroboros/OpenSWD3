@@ -138,7 +138,12 @@ int Game::Run()
             }
         }
 
-        if (this->running != 0 && (this->systemFlags & 0x21) == 0 && this->inactive == 0)
+        if (this->running != 0 && (this->systemFlags & 0x20) != 0)
+        {
+            this->VideoFrame();
+            this->AudioPump();
+        }
+        else if (this->running != 0 && (this->systemFlags & 1) == 0 && this->inactive == 0)
         {
             this->MainFrame();
         }
@@ -378,7 +383,7 @@ void Game::InitDrawKernel()
         this->painter.ConvertPixels(std::span<u16>(&mask, 1));
     }
 
-    this->unk4AB8F8 = this->painter.FillColorPair();
+    this->graphics.SetClearColor(this->painter.FillColorPair());
     this->SetupFont(this->largeFont, 0x14);
     this->SetupFont(this->mediumFont, 0x10);
     this->SetupFont(this->smallFont, 0xC);
@@ -402,7 +407,7 @@ void Game::InitDrawKernel()
         this->Destroy();
     }
 
-    this->databases.scratch.assign(GameDatabases::kScratchBytes, 0);
+    this->databases.script.assign(GameDatabases::kScriptBytes, 0);
     this->databases.LoadMaps();
     this->pathNodes.Init();
     this->NewGame();
@@ -585,8 +590,8 @@ void Game::NewGame()
     setPointer(scene.pointerPageRole, 0xE);
     scene.unk4A9A30 = ActState{};
     ResetPlayback(scene.unk4A9A30);
-    scene.unk4B751C = 0;
-    scene.unk4B74F4 = 0;
+    scene.unk4B751C.reset();
+    scene.unk4B74F4.reset();
 
     for (std::size_t index = 0; index < scene.unk4B9F68.size(); ++index)
     {
@@ -1098,6 +1103,8 @@ void Game::MainFrame()
                 }
             }
 
+            this->talk.RunEvent(this->state.leader);
+
             if ((this->systemFlags & 5) == 0)
             {
                 this->rolePath.Update();
@@ -1148,9 +1155,33 @@ void Game::HandleEvent(const SDL_Event& event)
 
     this->inputDevice.HandleEvent(event);
 
-    if (event.type == SDL_EVENT_KEY_UP && event.key.key == SDLK_F8)
+    if (event.type == SDL_EVENT_KEY_UP && event.key.key == SDLK_ESCAPE && (this->systemFlags & 0x20) != 0)
+    {
+        this->StopVideo();
+    }
+    else if (event.type == SDL_EVENT_KEY_UP && event.key.key == SDLK_F8)
     {
         this->running = ((this->systemFlags & 0x20) != 0 || this->running == 0) ? 1 : 0;
+    }
+
+    // WM_LBUTTONDOWN: the original compares its key state (wParam) with VK_ESCAPE, so 0x1B (the left, right and middle
+    // buttons with Ctrl) stops a movie.
+    if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT &&
+        (this->systemFlags & 0x20) != 0)
+    {
+        const SDL_MouseButtonFlags buttons = SDL_GetMouseState(nullptr, nullptr);
+        const SDL_Keymod modifiers = SDL_GetModState();
+        u32 held = 0;
+        held |= (buttons & SDL_BUTTON_LMASK) != 0 ? 1u : 0u;
+        held |= (buttons & SDL_BUTTON_RMASK) != 0 ? 2u : 0u;
+        held |= (modifiers & SDL_KMOD_SHIFT) != 0 ? 4u : 0u;
+        held |= (modifiers & SDL_KMOD_CTRL) != 0 ? 8u : 0u;
+        held |= (buttons & SDL_BUTTON_MMASK) != 0 ? 0x10u : 0u;
+
+        if (held == 0x1B)
+        {
+            this->StopVideo();
+        }
     }
 
     if (!this->state.GameFlag(kTextBoxFlag))

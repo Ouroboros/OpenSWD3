@@ -8,6 +8,9 @@
 | `structure-overview.md` | 主流程、地址分区、初步模块划分 |
 | `scope-and-gaps.md` | 扫描范围、函数边界补全过程、未闭合缺口 |
 | `module_assignment.tsv` | 各模块函数计数 |
+| `globals.tsv` | 架构 v3 的全局变量对照：原地址、还原它的成员（类型::成员）、类型、声明位置与说明；由 `scripts/list_globals.sh` 从 src/ 头文件的成员注释生成，提交前重新生成 |
+| `data_map.tsv` | 架构 v2 旧表（生成已删除的 globals.h），不再维护，仅作参考；以 `globals.tsv` 为准 |
+| `../functions.tsv` 的 notes 列 | 已实现函数的行为说明，取自源码中函数定义前的 `// swd32.exe 0x<地址>:` 注释，由 `scripts/register.sh` 写入；原有备注保留为 `[prior: …]` |
 | `ida/` | IDAT 导出：`functions_raw.tsv`、`func_refs.tsv`、`indirect_sites.tsv`、`code_drefs.tsv`、`text_pointer_scan.tsv`、`nonfunc_gaps.tsv`、`unowned_*.tsv`、`sp_audit.tsv`、`meta_*.json`、各步日志与 `dump*.txt` |
 | `scripts/` | IDAPython 与辅助脚本 |
 

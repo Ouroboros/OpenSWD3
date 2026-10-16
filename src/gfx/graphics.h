@@ -47,6 +47,7 @@ public:
     bool Present();
     std::unique_ptr<Surface> CreateOffscreen(int width, int height);
     void ClearSurface(Surface& surface);
+    void SetClearColor(u32 color);
     u32 BitDepth() const;
     bool QueryVideoMemory();
     Surface* GetSurface(SurfaceId id);
@@ -83,7 +84,7 @@ private:
     i32 primaryHeight = 0;
     i32 backPitch = 0;
     i32 backHeight = 0;
-    u32 clearColor = 0;
+    u32 clearColor = 0;  // 0x004AB8F8 (+0x88) the fill colour pair of the painter, set by InitDrawKernel
 };
 
 void ShowDeviceError(ErrorReporter& errors, std::string_view caption, u32 result);

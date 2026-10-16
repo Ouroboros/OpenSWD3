@@ -14,9 +14,6 @@ namespace
 
 constexpr u16 kTextEnd = 0x5125;  // "%Q"
 constexpr std::size_t kTextBytes = 0x200;
-// swd32.exe 0x004994F4 and 0x00499514: where a speaker's talk window goes by the way it faces.
-constexpr std::array<i32, 8> kWindowShiftX = {0, 0, 160, -160, 80, -80, 80, -80};
-constexpr std::array<i32, 8> kWindowShiftY = {96, -104, -64, -56, 56, -112, -112, 56};
 
 u16 ReadWord(std::span<const u8> bytes, std::size_t at)
 {
@@ -426,7 +423,7 @@ bool Talk::SetupDialog(
         if (window.role != TalkWindow::kNoRole && window.role < GameState::kRoles)
         {
             const auto facing = static_cast<std::size_t>(state.roles[window.role].act.direction) & 7;
-            lift = kWindowShiftY[facing] <= 0 ? 0x20 : -0x30;
+            lift = Talk::kWindowShiftY[facing] <= 0 ? 0x20 : -0x30;
         }
     }
 
@@ -503,8 +500,8 @@ bool Talk::SetupDialog(
     }
     else if ((options & 0x8000) == 0)
     {
-        window.x = static_cast<u16>(window.x + kWindowShiftX[facing]);
-        window.y = static_cast<u16>(window.y + lift + kWindowShiftY[facing]);
+        window.x = static_cast<u16>(window.x + Talk::kWindowShiftX[facing]);
+        window.y = static_cast<u16>(window.y + lift + Talk::kWindowShiftY[facing]);
     }
     else
     {
@@ -551,8 +548,8 @@ bool Talk::SetupDialog(
 
             if (screenY > static_cast<u32>(top) - 0x10 && screenY < static_cast<u32>(top) + window.height + 0x40)
             {
-                window.x = static_cast<u16>(window.x + kWindowShiftX[facing]);
-                window.y = static_cast<u16>(top + kWindowShiftY[facing]);
+                window.x = static_cast<u16>(window.x + Talk::kWindowShiftX[facing]);
+                window.y = static_cast<u16>(top + Talk::kWindowShiftY[facing]);
 
                 if (static_cast<i16>(window.x) < 0x18)
                 {
@@ -586,9 +583,9 @@ bool Talk::SeekScript(Role& context, u32 offset)
     this->game.AudioPump();
     context.unk14 = static_cast<i32>(offset);
     context.unk20 = 0;
-    this->scriptFile.SeekBegin(static_cast<i32>(offset + 0x200));
-    u32 bytes = static_cast<u32>(this->script.size());
-    this->scriptFile.Read(this->script.data(), bytes);
+    this->game.databases.story.SeekBegin(static_cast<i32>(offset + 0x200));
+    u32 bytes = static_cast<u32>(this->game.databases.script.size());
+    this->game.databases.story.Read(this->game.databases.script.data(), bytes);
     return true;
 }
 
@@ -597,26 +594,26 @@ bool Talk::SeekScript(Role& context, u32 offset)
 bool Talk::OpenScript(Role& context, u32 index)
 {
     Game& owner = this->game;
-    this->scriptFile.Close();
+    this->game.databases.story.Close();
     const std::string path = WinFormat("%sTalk%d.dat", {owner.config.installDirectory, index / 0x7D0 + 1});
     owner.AudioPump();
 
-    if (!this->scriptFile.Open(path, File::Disposition::OpenExisting, File::Access::Read))
+    if (!this->game.databases.story.Open(path, File::Disposition::OpenExisting, File::Access::Read))
     {
         DebugLog(Big5(u8"檔案開啟"), Big5(u8"劇情資料(1)無法讀取/%s"));
         owner.Destroy();
         return false;
     }
 
-    this->scriptFile.SeekBegin(static_cast<i32>(4 * (index % 0x7D0) + 0x200));
+    this->game.databases.story.SeekBegin(static_cast<i32>(4 * (index % 0x7D0) + 0x200));
     u32 offset = 0;
-    this->scriptFile.ReadDword(offset);
+    this->game.databases.story.ReadDword(offset);
     context.unk14 = static_cast<i32>(offset);
     context.unk20 = 0;
     owner.AudioPump();
-    this->scriptFile.SeekBegin(static_cast<i32>(offset + 0x200));
-    u32 bytes = static_cast<u32>(this->script.size());
-    this->scriptFile.Read(this->script.data(), bytes);
+    this->game.databases.story.SeekBegin(static_cast<i32>(offset + 0x200));
+    u32 bytes = static_cast<u32>(this->game.databases.script.size());
+    this->game.databases.story.Read(this->game.databases.script.data(), bytes);
     owner.AudioPump();
     return true;
 }

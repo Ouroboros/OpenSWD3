@@ -108,7 +108,7 @@ public:
     i32 roleCount = 1;                      // 0x0049E0C4 roles in use
     MapHeader map;                          // 0x004B7930
     std::array<MoveRecord, kMoves> moves;   // 0x004AD490
-    i32 walkSpeed = 0;                      // 0x004AB2D0
+    i32 walkSpeed = 0;                      // 0x004AB2D0 the pixels of a step of the camera
     i32 frameInterval = 0;                  // 0x004B7BCC milliseconds between the frames of the main loop
     ClickRegions clickRegions;
 };

@@ -25,4 +25,9 @@ u32 SystemUptime()
     return static_cast<u32>(static_cast<u64>(now.tv_sec) * 1000 + static_cast<u64>(now.tv_nsec) / 1000000);
 }
 
+void SleepMilliseconds(u32 milliseconds)
+{
+    SDL_Delay(milliseconds);
+}
+
 }  // namespace swd3

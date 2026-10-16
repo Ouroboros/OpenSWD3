@@ -1,4 +1,4 @@
-# Global variables placed in the data image (src/data/globals.h is generated from this file).
+# Architecture v2 (legacy, no longer maintained): global variables of the data image; see globals.tsv for v3.
 # addr	type	name	module	notes
 # Lines starting with @size declare the byte size of a struct type; @include adds a header to globals.h.
 addr	type	name	module	notes

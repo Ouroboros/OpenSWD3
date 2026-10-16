@@ -8,15 +8,6 @@
 namespace swd3
 {
 
-namespace
-{
-
-// swd32.exe 0x004994AC and 0x004994CC: the step of a move by direction (as 0x0040D790 uses them).
-constexpr std::array<i32, 8> kStepX = {4, 0, -4, -4, -4, 0, 4, 4};
-constexpr std::array<i32, 8> kStepY = {4, 4, 4, 0, -4, -4, -4, 0};
-
-}  // namespace
-
 // swd32.exe 0x0040D160: the camera around (x, y): 320 x 240 pixels before it, held inside the map
 void Field::CameraAround(int x, int y, std::array<i32, 4>& rect) const
 {
@@ -137,12 +128,12 @@ void Game::LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 dire
         {
             while ((role.x & 0xF) != 0)
             {
-                role.x += kStepX[last];
+                role.x += RolePath::kStepX[last];
             }
 
             while ((role.y & 0xF) != 0)
             {
-                role.y += kStepY[last];
+                role.y += RolePath::kStepY[last];
             }
         }
 
@@ -234,12 +225,12 @@ void Game::StartTimer(int minutes, int seconds, int event, int which)
     this->state.SetGameFlag(0x12);
 }
 
-// swd32.exe 0x00484730: the movie named in the script at `pc` (up to "%Q"; .avi and .mpg become .bik) from the video
-// folder, at the music volume; with no CD where one is needed the game ends. With no drive letter the name is written
-// over the start of the folder path, its rest kept.
-bool Game::PlayVideo(u16& pc)
+// swd32.exe 0x00484730: the movie named in the script at `cursor` (up to "%Q", the event offset `pc` moving along;
+// .avi and .mpg become .bik) from the video folder, at the music volume; with no CD where one is needed the game
+// ends. With no drive letter the name is written over the start of the folder path, its rest kept.
+bool Game::PlayVideo(std::size_t& cursor, u16& pc)
 {
-    const std::span<const u8> script(this->talk.script);
+    const std::span<const u8> script(this->databases.script);
     int drive = 0;
 
     if (this->CheckCd(this->config.cdRoot, drive) == 2)
@@ -257,16 +248,17 @@ bool Game::PlayVideo(u16& pc)
     };
 
     pc = static_cast<u16>(pc + 2);
-    std::size_t at = pc;
+    cursor += 2;
 
-    while (word(at) != 0x5125 && at < script.size())
+    while (word(cursor) != 0x5125 && cursor < script.size())
     {
-        name.push_back(static_cast<char>(script[at]));
         ++pc;
-        ++at;
+        name.push_back(static_cast<char>(script[cursor]));
+        ++cursor;
     }
 
     pc = static_cast<u16>(pc + 2);
+    cursor += 2;
 
     if (static_cast<u8>(drive) != 0)
     {
@@ -297,6 +289,40 @@ bool Game::PlayVideo(u16& pc)
 int Game::VideoPosition() const
 {
     return this->movie.Position();
+}
+
+// swd32.exe 0x00484920: the movie closed and its flag cleared
+void Game::StopVideo()
+{
+    this->movie.Close();
+    this->systemFlags &= ~0x20u;
+}
+
+// swd32.exe 0x00484950: the next frame of the movie (unless it waits for its time) centred on the frame drawn and
+// shown; after its last frame the movie stops. (The original reports every failed blit of the frame in a message box;
+// the emulated blit cannot fail.) A movie that did not open stops at once.
+void Game::VideoFrame()
+{
+    if (!this->movie.IsOpen())
+    {
+        this->StopVideo();
+        return;
+    }
+
+    if (this->movie.Waiting() || this->offscreen == nullptr)
+    {
+        return;
+    }
+
+    const int y = (0x1E0 - this->movie.Height()) / 2;
+    const int x = (0x280 - this->movie.Width()) / 2;
+    const int left = this->movie.Frame(*this->offscreen, x, y, this->errors);
+    this->ShowFrame();
+
+    if (left <= 0)
+    {
+        this->StopVideo();
+    }
 }
 
 }  // namespace swd3

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 #include "core/types.h"
 
 namespace swd3

@@ -142,8 +142,10 @@ private:
     void LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 direction, u16 flags);
     bool ChangeMap(int map, int x, int y, int act, int action, int direction, int options);
     void StartTimer(int minutes, int seconds, int event, int which);
-    bool PlayVideo(u16& pc);
+    bool PlayVideo(std::size_t& cursor, u16& pc);
     int VideoPosition() const;
+    void StopVideo();
+    void VideoFrame();
 
     DialogErrorReporter errors;
     Display display;
@@ -205,6 +207,8 @@ private:
     u32 systemFlags = 0;   // 0x004B7A9C bit 2: quit at the end of the frame
     i32 counterAlpha = 0;  // 0x004C9A24
     i32 unk4A9484 = 0;
+    i32 unk4A94AC = 0;           // bit 31: a battle to start, the low word its number
+    std::vector<u16> unk4B7928;  // the words of talk command 0x85 for menu 2, ended by 0
     i32 unk4A9A10 = 0;
     i32 unk4AB990 = 0;
     i32 unk4ACEF4 = 0;
@@ -246,7 +250,6 @@ private:
     i32 storyState = 0;                  // 0x004CAEB0
     i32 unk4CAEBC = 0;
     i32 unk4CAEC0 = 0;
-    u32 unk4AB8F8 = 0;  // 0x004AB8F8 a copy of the fill colour pair
     bool quit = false;
 };
 

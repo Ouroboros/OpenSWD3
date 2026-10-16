@@ -17,7 +17,7 @@ class GameDatabases
 {
 public:
     static constexpr u32 kMapsHeader = 0x200;
-    static constexpr u32 kScratchBytes = 0x8000;
+    static constexpr u32 kScriptBytes = 0x8000;
 
     bool Open(const std::string& installDirectory, ErrorReporter& errors);
     void LoadMaps();
@@ -27,7 +27,7 @@ public:
     const u8* pathData = nullptr;  // 0x004ACB94 the mapped path.dat
     File story;                    // 0x004A98C8
     std::vector<u8> mapsData;      // 0x004C9A10 maps.dat from offset 0x200
-    std::vector<u8> scratch;       // 0x004B8860 0x8000 bytes
+    std::vector<u8> script;        // 0x004B8860 0x8000 bytes: the script of the running event
 };
 
 // The word at `offset` of maps.dat past its header (0xFFFF past its end).

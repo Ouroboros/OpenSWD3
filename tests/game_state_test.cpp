@@ -9,6 +9,7 @@
 #include "game_data.h"
 #include "platform/surface.h"
 #include "res/act_state.h"
+#include "role/role_path.h"
 #include "test.h"
 #include "ui/marching_rect.h"
 
@@ -28,6 +29,27 @@ TEST_CASE("game state: constant tables match swd32.exe")
 
     CHECK(std::memcmp(exe.data() + (0x0049F250 - 0x400000), swd3::kSineTable.data(), swd3::kSineTable.size() * 2) == 0);
     CHECK(std::memcmp(exe.data() + (0x004994EC - 0x400000), GameState::kBitMasks.data(), 8) == 0);
+
+    auto same = [&exe](swd3::u32 address, const void* table)
+    {
+        return std::memcmp(exe.data() + (address - 0x400000), table, 0x20) == 0;
+    };
+
+    for (const swd3::u32 copy : {0x0049941Cu, 0x0049961Cu})
+    {
+        CHECK(same(copy, swd3::RolePath::kBlockedBy.data()));
+    }
+
+    for (const swd3::u32 copy : {0x0049943Cu, 0x0049963Cu, 0x004994ACu})
+    {
+        CHECK(same(copy, swd3::RolePath::kStepX.data()));
+        CHECK(same(copy + 0x20, swd3::RolePath::kStepY.data()));
+    }
+
+    for (const swd3::u32 copy : {0x0049947Cu, 0x0049967Cu})
+    {
+        CHECK(same(copy, swd3::RolePath::kFacing.data()));
+    }
 }
 
 TEST_CASE("game state: story flags")

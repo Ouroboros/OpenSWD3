@@ -120,7 +120,7 @@ void Game::MusicZone(int map)
     Scene& view = this->scene;
     const std::vector<u8>& data = this->databases.mapsData;
     const u32 lists = MapsTable(data, 2);
-    u32 at = MapsDword(data, lists + 4);
+    u32 at = MapsDword(data, MapsDword(data, lists + 4));
 
     for (;; at += 8)
     {

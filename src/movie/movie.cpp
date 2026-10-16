@@ -68,6 +68,12 @@ int Movie::Frame(Surface& surface, int x, int y, ErrorReporter& reporter)
     return result;
 }
 
+// A movie is open (the original keeps one behind 0x0053D070 from 0x00484730 to 0x00484920).
+bool Movie::IsOpen() const
+{
+    return this->decoder.IsOpen();
+}
+
 // swd32.exe 0x004846D0: the current frame, negated past the end; -1 without a movie
 int Movie::Position() const
 {

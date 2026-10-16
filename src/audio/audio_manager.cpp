@@ -192,4 +192,19 @@ void AudioManager::SetFadeMode(int mode)
     this->musicFadeMode = mode;
 }
 
+void AudioManager::SetFadeLength(int length)
+{
+    this->musicFadeLength = length;
+}
+
+int AudioManager::FadeMode() const
+{
+    return this->musicFadeMode;
+}
+
+int AudioManager::Fading() const
+{
+    return this->musicFading;
+}
+
 }  // namespace swd3

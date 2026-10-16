@@ -12,6 +12,8 @@ Skill负责准备工作区、AGENTS.md、GOAL.md及最小构建配置，并完�
 
 临时文件、临时数据库与中间产物一律放在工作区tmp/目录，不使用/tmp或其他系统临时目录；用完即删。
 
+用户的每个提问都必须同时在两处回答，顺序固定：先在 Agent 对话中回答——收到提问后尽快结束当前轮，把回答写在该轮最终回复里（过程说明会被折叠，不算回答）；然后用 TG 发送同一回答（`python3 /mnt/d/Dev/Source/Project/stockkit/scripts/tg_notify.py "…"`，以托管进程运行）。不得只在其中一处回答。
+
 ## 核心流程
 
 目标：原程序逻辑100%一致，包含原有逻辑BUG，即bug-for-bug compatibility。越界读写、破坏内存类BUG不复现，读取未初始化内存时改为确定初值；这类偏差及显示方式、平台API替换须在reverse/analysis/deviations.md逐条记录（类别见reverse/analysis/architecture.md）。实现语言由用户指定，记录在根目录GOAL.md中。

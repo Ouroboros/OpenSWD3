@@ -5,6 +5,7 @@
 #include <span>
 
 #include "core/debug_log.h"
+#include "core/fault.h"
 #include "core/format.h"
 #include "crt/msvc.h"
 #include "game/game.h"
@@ -1159,20 +1160,24 @@ bool RolePath::ResumeMove(int index)
     return true;
 }
 
-// The controlled role brought back onto its tile against its step (the original loops for ever without a step;
-// here it stops).
+// The controlled role brought back onto its tile against its step (without a step the original loops for ever).
 void RolePath::AlignPlayer(Role& role)
 {
     Game& owner = this->game;
     const int stepX = owner.unk4A9488 + owner.unk4B7518;
     const int stepY = owner.unk4A948C + owner.unk4B7920;
 
-    while ((role.x & 0xF) != 0 && stepX != 0)
+    if (((role.x & 0xF) != 0 && stepX == 0) || ((role.y & 0xF) != 0 && stepY == 0))
+    {
+        Hang();
+    }
+
+    while ((role.x & 0xF) != 0)
     {
         role.x -= stepX;
     }
 
-    while ((role.y & 0xF) != 0 && stepY != 0)
+    while ((role.y & 0xF) != 0)
     {
         role.y -= stepY;
     }

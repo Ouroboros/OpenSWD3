@@ -1368,8 +1368,8 @@ void FieldView::DrawWeather()
         if (++motion.counter > speed)
         {
             motion.counter = 0;
-            drop.x += drop.stepX + ((owner.unk4B7518 * view.unk4AB2D0) >> 2);
-            drop.y += drop.stepY + ((view.unk4AB2D0 * owner.unk4B7920) >> 2);
+            drop.x += drop.stepX + ((owner.unk4B7518 * owner.state.walkSpeed) >> 2);
+            drop.y += drop.stepY + ((owner.state.walkSpeed * owner.unk4B7920) >> 2);
 
             if (roll < 0x19)
             {
@@ -2687,7 +2687,15 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
         click.heldFrames,
         owner.controls.mouseSuppressed
     );
-    this->DrawDebugText(8, 0x30, white, "MapID[%d] MapCyc[%d] %d", owner.unk4A9A10, view.unk49E0BC, view.unk4AB2D0);
+    this->DrawDebugText(
+        8,
+        0x30,
+        white,
+        "MapID[%d] MapCyc[%d] %d",
+        owner.unk4A9A10,
+        view.unk49E0BC,
+        owner.state.walkSpeed
+    );
     this->DrawDebugText(
         8,
         0x40,
@@ -2865,7 +2873,7 @@ void FieldView::Render()
     }
 
     Role& player = state.roles[static_cast<std::size_t>(state.playerRole)];
-    const int scroll = view.unk4AB2D0;
+    const int scroll = owner.state.walkSpeed;
     player.x += scroll * (owner.unk4B7518 + owner.unk4A9488);
     player.y += scroll * (owner.unk4B7920 + owner.unk4A948C);
     field.cameraLeft += owner.unk4B7518 * scroll;

@@ -27,6 +27,7 @@ public:
     int Frame(Surface& surface, int x, int y, ErrorReporter& reporter);
     int Position() const;
     bool Waiting() const;
+    bool IsOpen() const;
     int Width() const;
     int Height() const;
     const std::string& Error() const;

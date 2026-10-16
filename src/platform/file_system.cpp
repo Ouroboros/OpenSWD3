@@ -100,4 +100,16 @@ std::string ResolvePath(std::string_view gamePath)
     return result.generic_string();
 }
 
+bool CopyGameFile(std::string_view from, std::string_view to)
+{
+    std::error_code error;
+    return fs::copy_file(ResolvePath(from), ResolvePath(to), fs::copy_options::overwrite_existing, error);
+}
+
+bool DeleteGameFile(std::string_view path)
+{
+    std::error_code error;
+    return fs::remove(ResolvePath(path), error);
+}
+
 }  // namespace swd3
