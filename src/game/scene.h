@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "core/types.h"
+#include "crt/msvc.h"
 #include "game/game_state.h"
 #include "res/act_state.h"
 #include "role/role.h"
@@ -145,7 +146,10 @@ struct ScriptObject
     std::vector<u16> screen;             // +0x24
     std::unique_ptr<ScriptObject> next;  // +0x28
 
+    ScriptObject() = default;
+    ScriptObject(int pitch, int lines, int left, int top, int gridWidth, int gridHeight);
     ~ScriptObject();
+    void Splash(int x, int y, int radius, int depth, crt::Random& random);
 
     void CopyScreen(std::span<const u16> pixels);
     void Refract(std::span<u16> pixels) const;
@@ -215,7 +219,11 @@ struct Scene
     static constexpr int kPointerAct = 0x2329;
     static constexpr u32 kPointerFlags = 0x9000;
 
-    i32 unk4A93D4 = 0;
+    i32 unk4A93D4 = 0;  // the event run when the first timer runs out
+    i32 unk4BAB78 = 0;
+    i32 unk4BAB7C = 0;
+    i32 unk4C97E8 = 0;
+    i32 unk4C97EC = 0;
     i32 unk4A9918 = 0;
     i32 unk4A9930 = 0;
     i32 unk4A9938 = 0;

@@ -3149,6 +3149,85 @@ void FieldView::Render()
     }
 }
 
+// swd32.exe 0x00430C60: a ripple over `lines` lines of `pitch` pixels at (left, top) with a gridWidth x gridHeight grid
+ScriptObject::ScriptObject(int pitch, int lines, int left, int top, int gridWidth, int gridHeight)
+    : pitch(pitch),
+      lines(lines),
+      left(left),
+      top(top),
+      gridWidth(gridWidth),
+      gridHeight(gridHeight),
+      damping(4),
+      heights(
+          2 * static_cast<std::size_t>(std::max(gridWidth, 0)) * static_cast<std::size_t>(std::max(gridHeight, 0)),
+          0
+      ),
+      screen(static_cast<std::size_t>(std::max(pitch, 0)) * static_cast<std::size_t>(std::max(lines, 0)), 0)
+{
+}
+
+// swd32.exe 0x00430FF0: a drop of `radius` cells into the current page, deepest (radius x depth) at its centre;
+// a negative place is chosen at random inside the grid
+void ScriptObject::Splash(int x, int y, int radius, int depth, crt::Random& random)
+{
+    if (x < 0)
+    {
+        x = random.Next() % (this->gridWidth - 2 * radius - 1) + radius + 1;
+    }
+
+    if (y < 0)
+    {
+        y = random.Next() % (this->gridHeight - 2 * radius - 1) + radius + 1;
+    }
+
+    int fromX = -radius;
+    int fromY = -radius;
+    int toX = radius;
+    int toY = radius;
+
+    if (x - radius < 1)
+    {
+        fromX = 1 - x;
+    }
+
+    if (y - radius < 1)
+    {
+        fromY = 1 - y;
+    }
+
+    if (x + radius > this->gridWidth - 1)
+    {
+        toX = this->gridWidth - x - 1;
+    }
+
+    if (radius + y > this->gridHeight - 1)
+    {
+        toY = this->gridHeight - y - 1;
+    }
+
+    const int page = this->gridWidth * this->gridHeight * this->page;
+
+    for (int dy = fromY; dy < toY; ++dy)
+    {
+        for (int dx = fromX; dx < toX; ++dx)
+        {
+            if (dx * dx + dy * dy < radius * radius)
+            {
+                const int at = page + x + dx + this->gridWidth * (dy + y);
+                const auto drop = static_cast<i16>(
+                    crt::Ftol((static_cast<double>(radius) - std::sqrt(static_cast<double>(dx * dx + dy * dy))) * depth)
+                );
+
+                if (at >= 0 && static_cast<std::size_t>(at) < this->heights.size())
+                {
+                    this->heights[static_cast<std::size_t>(at)] =
+                        static_cast<i16>(this->heights[static_cast<std::size_t>(at)] + drop);
+                }
+            }
+        }
+    }
+}
+
 // swd32.exe 0x00430CF0: its grid and screen copy freed
 ScriptObject::~ScriptObject() = default;
 

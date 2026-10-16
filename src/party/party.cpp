@@ -1,4 +1,5 @@
 #include "party/party.h"
+#include "org/database.h"
 #include "text/big5.h"
 
 #include <algorithm>
@@ -203,6 +204,101 @@ std::array<Party::Name, Party::kRoles> Party::DefaultNames()
     }
 
     return names;
+}
+
+// swd32.exe 0x00411030: a field of role `role` set by number (0..0xD the words from +4, 0xE the experience, 0xF the
+// first dword, 0x10 the level with the experience of that level)
+void Party::SetRoleStat(int field, int value, int role, Database& database)
+{
+    RoleRecord& record = this->roles[static_cast<std::size_t>(role)];
+    const std::array<i16*, 14> words = {
+        &record.hitPoints,
+        &record.spirit,
+        &record.stamina,
+        &record.maxHitPoints,
+        &record.maxSpirit,
+        &record.maxStamina,
+        &record.attack,
+        &record.defense,
+        &record.unk14,
+        &record.agility,
+        &record.unk18,
+        &record.unk1A,
+        &record.ailmentChance,
+        &record.unk1E,
+    };
+
+    if (field >= 0 && field < 0xE)
+    {
+        *words[static_cast<std::size_t>(field)] = static_cast<i16>(value);
+    }
+    else if (field == 0xE)
+    {
+        record.experience = value;
+    }
+    else if (field == 0xF)
+    {
+        record.unk00 = value;
+    }
+    else if (field == 0x10)
+    {
+        record.level = static_cast<u8>(value);
+        u32 experience = 0;
+
+        if (database.LoadLevelEntry(role + 1, value + 1, experience))
+        {
+            record.experience = static_cast<i32>(experience);
+        }
+    }
+}
+
+// swd32.exe 0x004112B0: a field of role `role` by number (the first six words signed, the others unsigned)
+int Party::RoleStat(int field, int role) const
+{
+    const RoleRecord& record = this->roles[static_cast<std::size_t>(role)];
+    const std::array<i16, 14> words = {
+        record.hitPoints,
+        record.spirit,
+        record.stamina,
+        record.maxHitPoints,
+        record.maxSpirit,
+        record.maxStamina,
+        record.attack,
+        record.defense,
+        record.unk14,
+        record.agility,
+        record.unk18,
+        record.unk1A,
+        record.ailmentChance,
+        record.unk1E,
+    };
+
+    if (field >= 0 && field < 6)
+    {
+        return words[static_cast<std::size_t>(field)];
+    }
+
+    if (field >= 6 && field < 0xE)
+    {
+        return static_cast<u16>(words[static_cast<std::size_t>(field)]);
+    }
+
+    if (field == 0xE)
+    {
+        return record.experience;
+    }
+
+    if (field == 0xF)
+    {
+        return record.unk00;
+    }
+
+    if (field == 0x10)
+    {
+        return record.level;
+    }
+
+    return 0;
 }
 
 }  // namespace swd3

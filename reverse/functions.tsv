@@ -146,11 +146,11 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 145	swd32.exe	0x0040AD10	sub_40AD10	map	src/map/field.cpp:Field::LoadUnitPicture	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/map/map_cache.cpp:LoadCachedMapPicture
 146	swd32.exe	0x0040AE20	sub_40AE20	map	src/map/field.cpp:Field::ClearRoleCells	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 147	swd32.exe	0x0040AEC0	sub_40AEC0	map	src/map/field.cpp:Field::MarkRoleCells	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-148	swd32.exe	0x0040AF70	sub_40AF70	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-149	swd32.exe	0x0040AFF0	sub_40AFF0	dialog		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Dialog:...)"
-150	swd32.exe	0x0040B7F0	sub_40B7F0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-151	swd32.exe	0x0040BAA0	sub_40BAA0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-152	swd32.exe	0x0040BB20	sub_40BB20	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+148	swd32.exe	0x0040AF70	sub_40AF70	talk	src/talk/talk_script.cpp:Talk::ShowMessage	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+149	swd32.exe	0x0040AFF0	sub_40AFF0	talk	src/talk/talk_script.cpp:Talk::SetupDialog	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Dialog:...)"
+150	swd32.exe	0x0040B7F0	sub_40B7F0	talk	src/talk/talk_script.cpp:Talk::ExpandText	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+151	swd32.exe	0x0040BAA0	sub_40BAA0	talk	src/talk/talk_script.cpp:Talk::ReplacePrefix	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+152	swd32.exe	0x0040BB20	sub_40BB20	talk	src/talk/talk_script.cpp:Talk::AppendWindow	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 153	swd32.exe	0x0040BB50	sub_40BB50	map	src/map/field.cpp:Field::ProbeCells	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 154	swd32.exe	0x0040C020	sub_40C020	game	src/game/game_state.cpp:GameState::FindRole	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 155	swd32.exe	0x0040C060	sub_40C060	role	src/role/role_path.cpp:RolePath::RoleId	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
@@ -162,13 +162,13 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 161	swd32.exe	0x0040CF40	sub_40CF40	game	src/game/game_field.cpp:Game::MusicZone	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 162	swd32.exe	0x0040D060	sub_40D060	game	src/game/game_field.cpp:Game::LoadRoleSound	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 163	swd32.exe	0x0040D0C0	sub_40D0C0	map	src/map/field.cpp:Field::CenterCamera	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-164	swd32.exe	0x0040D160	sub_40D160	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+164	swd32.exe	0x0040D160	sub_40D160	game	src/game/game_story.cpp:Field::CameraAround	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 165	swd32.exe	0x0040D200	sub_40D200	game	src/game/game_field.cpp:Game::SaveRoleStates	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 166	swd32.exe	0x0040D3C0	sub_40D3C0	game	src/game/game_field.cpp:Game::StoreRole	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 167	swd32.exe	0x0040D460	sub_40D460	game	src/game/game_field.cpp:Game::UpdateRoleRecord	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-168	swd32.exe	0x0040D560	sub_40D560	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+168	swd32.exe	0x0040D560	sub_40D560	game	src/game/game_story.cpp:Game::LoadRoleRecord	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 169	swd32.exe	0x0040D610	sub_40D610	game	src/game/game_field.cpp:Game::FollowLeader	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-170	swd32.exe	0x0040D790	sub_40D790	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+170	swd32.exe	0x0040D790	sub_40D790	game	src/game/game_story.cpp:Game::LeaveParty	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 171	swd32.exe	0x0040D9E0	sub_40D9E0	game	src/game/game_field.cpp:Game::BuildTriggers	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 172	swd32.exe	0x0040DA60	sub_40DA60	game	src/game/game_field.cpp:Game::RollEncounter	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 173	swd32.exe	0x0040DB40	sub_40DB40	game	src/game/game_state.cpp:ClickRegions::Count	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:CountClickRegions
@@ -215,8 +215,8 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 214	swd32.exe	0x00410490	sub_410490	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 215	swd32.exe	0x00410600	sub_410600	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 216	swd32.exe	0x00410730	sub_410730	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-217	swd32.exe	0x00411030	sub_411030	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-218	swd32.exe	0x004112B0	sub_4112B0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+217	swd32.exe	0x00411030	sub_411030	party	src/party/party.cpp:Party::SetRoleStat	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+218	swd32.exe	0x004112B0	sub_4112B0	party	src/party/party.cpp:Party::RoleStat	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 219	swd32.exe	0x00411490	sub_411490	map	src/map/field.cpp:Field::InsertRole	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 220	swd32.exe	0x00411530	sub_411530	map	src/map/field.cpp:Field::RemoveRole	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 221	swd32.exe	0x00411620	sub_411620	map	src/map/field.cpp:Field::ResetRows	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
@@ -363,13 +363,13 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 362	swd32.exe	0x00427300	sub_427300	talk	src/talk/talk.cpp:Talk::HandlePointer	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Talk:...)"
 363	swd32.exe	0x00427920	sub_427920	talk		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Talk:...)"
 364	swd32.exe	0x0042D920	sub_42D920	role	src/role/role_path.cpp:RolePath::ResumeMove	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between talk anchors 0x00427920 and 0x0042E480
-365	swd32.exe	0x0042DAF0	sub_42DAF0	talk		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between talk anchors 0x00427920 and 0x0042E480
-366	swd32.exe	0x0042E280	sub_42E280	talk		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between talk anchors 0x00427920 and 0x0042E480
-367	swd32.exe	0x0042E430	sub_42E430	talk		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between talk anchors 0x00427920 and 0x0042E480
-368	swd32.exe	0x0042E480	sub_42E480	talk		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "%sTalk%d.dat"
-369	swd32.exe	0x0042E5A0	sub_42E5A0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-370	swd32.exe	0x0042E740	sub_42E740	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-371	swd32.exe	0x0042E790	sub_42E790	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+365	swd32.exe	0x0042DAF0	sub_42DAF0	role	src/role/role_path.cpp:RolePath::MoveRoleTo	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between talk anchors 0x00427920 and 0x0042E480
+366	swd32.exe	0x0042E280	sub_42E280	role	src/role/role_path.cpp:RolePath::ScriptStep	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between talk anchors 0x00427920 and 0x0042E480
+367	swd32.exe	0x0042E430	sub_42E430	talk	src/talk/talk_script.cpp:Talk::SeekScript	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between talk anchors 0x00427920 and 0x0042E480
+368	swd32.exe	0x0042E480	sub_42E480	talk	src/talk/talk_script.cpp:Talk::OpenScript	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "%sTalk%d.dat"
+369	swd32.exe	0x0042E5A0	sub_42E5A0	role	src/role/role_path.cpp:RolePath::HoldRole	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+370	swd32.exe	0x0042E740	sub_42E740	talk	src/talk/talk_script.cpp:Talk::CommandsRole	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+371	swd32.exe	0x0042E790	sub_42E790	game	src/game/game_story.cpp:Game::ChangeMap	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 372	swd32.exe	0x0042E850	sub_42E850	ui	src/ui/ui_draw.cpp:DrawWindowFrame	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/ui/ui_draw.cpp:DrawWindowFrame
 373	swd32.exe	0x0042ED40	sub_42ED40	talk	src/talk/talk.cpp:Talk::Draw	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(DlgMessage:...)"
 374	swd32.exe	0x00430180	sub_430180	map	src/map/field_view.cpp:FieldView::FillCellMark	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
@@ -379,15 +379,15 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 378	swd32.exe	0x004303D0	sub_4303D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 379	swd32.exe	0x004306C0	sub_4306C0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 380	swd32.exe	0x004308C0	sub_4308C0	map	src/map/field_view.cpp:FieldView::DrawTimer	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-381	swd32.exe	0x00430B60	sub_430B60	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+381	swd32.exe	0x00430B60	sub_430B60	game	src/game/game_story.cpp:Game::StartTimer	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 382	swd32.exe	0x00430BE0	sub_430BE0	talk	src/talk/talk.cpp:Talk::ParseNumber	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-383	swd32.exe	0x00430C60	sub_430C60	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+383	swd32.exe	0x00430C60	sub_430C60	map	src/map/field_view.cpp:ScriptObject::ScriptObject	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 384	swd32.exe	0x00430CF0	sub_430CF0	map	src/map/field_view.cpp:ScriptObject::~ScriptObject	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 385	swd32.exe	0x00430D10	sub_430D10	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 386	swd32.exe	0x00430D50	sub_430D50	map	src/map/field_view.cpp:ScriptObject::CopyScreen	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 387	swd32.exe	0x00430D80	sub_430D80	map	src/map/field_view.cpp:ScriptObject::Refract	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 388	swd32.exe	0x00430EB0	sub_430EB0	map	src/map/field_view.cpp:ScriptObject::Step	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-389	swd32.exe	0x00430FF0	sub_430FF0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+389	swd32.exe	0x00430FF0	sub_430FF0	map	src/map/field_view.cpp:ScriptObject::Splash	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 390	swd32.exe	0x00431150	sub_431150	core	src/core/assertion.cpp:MaintenanceAssert	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
 391	swd32.exe	0x004311C0	sub_4311C0	gfx	src/gfx/graphics.cpp:ShowDeviceError	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "DDERR_OUTOFMEMORY "; legacy: src/gfx/graphics.cpp:ShowDirectDrawError
 392	swd32.exe	0x004315C0	sub_4315C0	res	src/res/tsw_archive.cpp:TswArchive::SetCacheLimit	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/res/tsw.cpp:TswSetCacheLimit
@@ -1220,10 +1220,10 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1219	swd32.exe	0x004846F0	sub_4846F0	movie_bink	src/movie/movie.cpp:Movie::Waiting	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import binkw32!_BinkWait@4; legacy: src/movie/movie.cpp:Movie::Waiting
 1220	swd32.exe	0x00484710	sub_484710	movie_bink	src/movie/movie.cpp:Movie::Width	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between movie_bink anchors 0x004846F0 and 0x00484730; legacy: src/movie/movie.cpp:Movie::Width
 1221	swd32.exe	0x00484720	sub_484720	movie_bink	src/movie/movie.cpp:Movie::Height	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between movie_bink anchors 0x004846F0 and 0x00484730; legacy: src/movie/movie.cpp:Movie::Height
-1222	swd32.exe	0x00484730	sub_484730	movie_bink		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "video\"
+1222	swd32.exe	0x00484730	sub_484730	game	src/game/game_story.cpp:Game::PlayVideo	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "video\"
 1223	swd32.exe	0x00484920	sub_484920	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1224	swd32.exe	0x00484950	sub_484950	ddraw		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "DDERR_GENERIC"
-1225	swd32.exe	0x00484DA0	sub_484DA0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+1225	swd32.exe	0x00484DA0	sub_484DA0	game	src/game/game_story.cpp:Game::VideoPosition	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1226	swd32.exe	0x00484DC0	sub_484DC0	audio_mss	src/audio/sequence_player.cpp:MidiPlayer::~MidiPlayer	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=THUNK; legacy: src/audio/audio.cpp:MidiPlayer::~MidiPlayer
 1227	swd32.exe	0x00484DD0	sub_484DD0	audio_mss	src/audio/sequence_player.cpp:MidiPlayer::Open	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_allocate_sequence_handle@4; legacy: src/audio/audio.cpp:MidiPlayer::Open
 1228	swd32.exe	0x00484ED0	sub_484ED0	audio_mss	src/audio/sequence_player.cpp:MidiPlayer::Close	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_end_sequence@4; legacy: src/audio/audio.cpp:MidiPlayer::Close

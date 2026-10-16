@@ -138,6 +138,12 @@ private:
     void Destroy();
     void PlaySoundAt(u16 sound, int x, int y);
     u32 RollEncounter(int steps, int force);
+    u32 LoadRoleRecord(Role& role, u16 id);
+    void LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 direction, u16 flags);
+    bool ChangeMap(int map, int x, int y, int act, int action, int direction, int options);
+    void StartTimer(int minutes, int seconds, int event, int which);
+    bool PlayVideo(u16& pc);
+    int VideoPosition() const;
 
     DialogErrorReporter errors;
     Display display;

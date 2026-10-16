@@ -1159,4 +1159,422 @@ bool RolePath::ResumeMove(int index)
     return true;
 }
 
+// The controlled role brought back onto its tile against its step (the original loops for ever without a step;
+// here it stops).
+void RolePath::AlignPlayer(Role& role)
+{
+    Game& owner = this->game;
+    const int stepX = owner.unk4A9488 + owner.unk4B7518;
+    const int stepY = owner.unk4A948C + owner.unk4B7920;
+
+    while ((role.x & 0xF) != 0 && stepX != 0)
+    {
+        role.x -= stepX;
+    }
+
+    while ((role.y & 0xF) != 0 && stepY != 0)
+    {
+        role.y -= stepY;
+    }
+}
+
+// swd32.exe 0x0042E5A0: role `index` held for an event (flag bit 31): the controlled role is put back on its tile and
+// stops; a path move is queued again from where it is (its target kept), a role between tiles goes back to its last one
+int RolePath::HoldRole(int index)
+{
+    Game& owner = this->game;
+    GameState& state = owner.state;
+    Role& role = state.roles[static_cast<std::size_t>(index)];
+    const auto leader = static_cast<u16>(owner.unk4B7BC4);
+
+    if (index == state.playerRole)
+    {
+        const int row = static_cast<int>(static_cast<u32>(role.y) >> 4) - 1;
+        this->AlignPlayer(role);
+        owner.unk4B7920 = 0;
+        owner.unk4B7518 = 0;
+        owner.unk4A948C = 0;
+        owner.unk4A9488 = 0;
+        owner.field.RemoveRole(role.id, static_cast<int>(role.flags & 3), row, 0);
+    }
+
+    MoveRecord* move = nullptr;
+
+    for (MoveRecord& candidate : state.moves)
+    {
+        if (candidate.role == index)
+        {
+            move = &candidate;
+            break;
+        }
+    }
+
+    if (move != nullptr)
+    {
+        if ((move->mode & 0xF) == 1)
+        {
+            move->step |= MoveRecord::kDone;
+            move->nextRole = move->role;
+            move->nextX = move->x;
+            move->nextY = move->y;
+        }
+
+        if ((role.x & 0xF) != 0 || (role.y & 0xF) != 0)
+        {
+            owner.field.ClearRoleCells(role, leader);
+
+            if (index != state.playerRole)
+            {
+                const int row = static_cast<int>(static_cast<u32>(role.y) >> 4) - 1;
+                const u8 back =
+                    move->directions[static_cast<std::size_t>(move->step & 0x7FFF) % move->directions.size()];
+
+                while ((role.x & 0xF) != 0 && back < 8)
+                {
+                    role.x -= RolePath::kStepX[back];
+                }
+
+                while ((role.y & 0xF) != 0 && back < 8)
+                {
+                    role.y -= RolePath::kStepY[back];
+                }
+
+                owner.field.RemoveRole(role.id, static_cast<int>(role.flags & 3), row, 0);
+            }
+        }
+    }
+
+    role.flags |= 0x80000000;
+    return 1;
+}
+
+// swd32.exe 0x0042E280: the next step of role `index` along its scripted move: at the path's end the role stops (2;
+// the controlled role also stops the keys and recentres); otherwise the step is taken unless blocked (walls ignored
+// with flag 0x40000) (1). 0 when it has no scripted move.
+int RolePath::ScriptStep(int index)
+{
+    Game& owner = this->game;
+    GameState& state = owner.state;
+    Role& role = state.roles[static_cast<std::size_t>(index)];
+    MoveRecord* found = nullptr;
+
+    for (MoveRecord& move : state.moves)
+    {
+        if (move.role == index && (move.mode & 0xF) == 2)
+        {
+            found = &move;
+            break;
+        }
+    }
+
+    if (found == nullptr)
+    {
+        return 0;
+    }
+
+    MoveRecord& move = *found;
+    const u8 direction = move.directions[static_cast<std::size_t>(move.step & 0x7FFF) % move.directions.size()];
+
+    if (direction == 0xFF)
+    {
+        if (role.x != move.x || role.y != move.y)
+        {
+            DebugLog("script move ends off its target", role.id, role.x, role.y, move.x, move.y);
+        }
+
+        role.act.speed = 0;
+        role.flags &= 0xBBFFFFFF;
+
+        if (index == state.playerRole)
+        {
+            owner.unk4B7920 = 0;
+            owner.controls.buttons = {};
+            owner.unk4B7518 = 0;
+            owner.unk4A948C = 0;
+            owner.unk4A9488 = 0;
+
+            if ((owner.scene.unk4C9A18 & 2) == 0)
+            {
+                owner.field.CenterCamera();
+            }
+        }
+
+        return 2;
+    }
+
+    u32 probe = 0;
+
+    if ((role.flags & 0x40000) == 0)
+    {
+        const std::ptrdiff_t cell = role.cell != nullptr ? role.cell - state.map.blocks.data() : 0;
+        probe = static_cast<u8>(owner.field.ProbeCells(cell, role.act.width, role.act.height, 0x40000000));
+    }
+
+    move.step |= MoveRecord::kDone;
+    ++move.unk1A;
+
+    if (direction < 8 && (probe & RolePath::kBlockedBy[direction]) == 0)
+    {
+        move.step &= static_cast<u16>(~MoveRecord::kDone);
+        move.stepX = static_cast<i16>(RolePath::kStepX[direction]);
+        move.stepY = static_cast<i16>(RolePath::kStepY[direction]);
+        move.unk1A = 0;
+    }
+
+    role.flags |= 0x40000000;
+    return 1;
+}
+
+// swd32.exe 0x0042DAF0: role `index` sent to (x, y) by the script, taking the act, action and direction given there
+// (0xFFFF keeps them): the controlled role first stops; a path move keeps its target as the next move; with option
+// bits 0..3 or no path the role is put there at once, otherwise a scripted move (mode 2) follows a new path, its steps
+// off the camera skipped. Option 0x8000 lets the event go on meanwhile. 0 when there is no free move or the target is
+// past the map.
+int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 action, i16 direction)
+{
+    Game& owner = this->game;
+    GameState& state = owner.state;
+    Role& role = state.roles[static_cast<std::size_t>(index)];
+    const auto leader = static_cast<u16>(owner.unk4B7BC4);
+    const BlockingMap grid = this->Grid();
+    PathFinder finder(owner.pathNodes, grid, owner.errors);
+    role.flags &= 0xFDFFFFFF;
+
+    auto placeCell = [&state](Role& moved)
+    {
+        const std::size_t at = (static_cast<u32>(moved.x) >> 4) +
+                               static_cast<std::size_t>(state.map.width) * (static_cast<u32>(moved.y) >> 4);
+        moved.cell = at < state.map.blocks.size() ? &state.map.blocks[at] : nullptr;
+    };
+
+    auto stopKeys = [&owner]()
+    {
+        owner.unk4B7920 = 0;
+        owner.controls.buttons = {};
+        owner.unk4B7518 = 0;
+        owner.unk4A948C = 0;
+        owner.unk4A9488 = 0;
+    };
+
+    if (index == state.playerRole)
+    {
+        const int row = static_cast<int>(static_cast<u32>(role.y) >> 4) - 1;
+        this->AlignPlayer(role);
+        stopKeys();
+        owner.field.RemoveRole(role.id, static_cast<int>(role.flags & 3), row, 0);
+    }
+
+    int slot = 0;
+
+    while (slot < RolePath::kMoves && state.moves[static_cast<std::size_t>(slot)].role != index)
+    {
+        ++slot;
+    }
+
+    if (slot < RolePath::kMoves)
+    {
+        MoveRecord& move = state.moves[static_cast<std::size_t>(slot)];
+
+        if ((move.mode & 0xF) == 1)
+        {
+            move.act = act;
+            move.action = action;
+            move.direction = direction;
+            move.nextRole = move.role;
+            move.nextX = move.x;
+            move.nextY = move.y;
+
+            if ((options & 0x8000) != 0)
+            {
+                move.mode &= 0x7F;
+            }
+        }
+
+        if ((role.x & 0xF) != 0 || (role.y & 0xF) != 0)
+        {
+            owner.field.ClearRoleCells(role, leader);
+
+            if (index != state.playerRole)
+            {
+                const int row = static_cast<int>(static_cast<u32>(role.y) >> 4) - 1;
+                const u8 back = move.directions[static_cast<std::size_t>(move.step & 0x7FFF) % move.directions.size()];
+
+                while ((role.x & 0xF) != 0 && back < 8)
+                {
+                    role.x -= RolePath::kStepX[back];
+                }
+
+                while ((role.y & 0xF) != 0 && back < 8)
+                {
+                    role.y -= RolePath::kStepY[back];
+                }
+
+                owner.field.RemoveRole(role.id, static_cast<int>(role.flags & 3), row, 0);
+            }
+        }
+    }
+
+    if ((options & 0xF) == 0 && slot == RolePath::kMoves)
+    {
+        slot = 0;
+
+        while (slot < RolePath::kMoves && state.moves[static_cast<std::size_t>(slot)].role != 0xFFFF)
+        {
+            ++slot;
+        }
+    }
+
+    if (slot == RolePath::kMoves)
+    {
+        if (state.GameFlag(2) && (options & 0xF) == 0)
+        {
+            DebugLog("no free move", options, this->RoleId(static_cast<u32>(index)));
+        }
+
+        owner.field.ClearRoleCells(role, leader);
+        role.x = x;
+        role.y = y;
+        placeCell(role);
+        owner.field.MarkRoleCells(role, leader);
+        owner.field.RemoveRole(role.id, static_cast<int>(role.flags & 3), 0, 0);
+
+        if (index == state.playerRole)
+        {
+            stopKeys();
+
+            if ((owner.scene.unk4C9A18 & 2) == 0)
+            {
+                owner.field.CenterCamera();
+            }
+        }
+
+        return 0;
+    }
+
+    MoveRecord& move = state.moves[static_cast<std::size_t>(slot)];
+    move.act = act;
+    move.action = action;
+    move.direction = direction;
+    move.role = static_cast<u16>(index);
+    move.step = 0;
+    move.x = x;
+    move.y = y;
+    move.mode = static_cast<u8>((move.mode & 0xF0) | 2);
+
+    if ((options & 0x8000) != 0)
+    {
+        move.mode &= 0x7F;
+    }
+
+    if (x > 0x10u * static_cast<u32>(state.map.width) || y > 0x10u * static_cast<u32>(state.map.height))
+    {
+        return 0;
+    }
+
+    auto putThere = [&]()
+    {
+        move.stepX = 0;
+        move.stepY = 0;
+        role.act.speed = 0;
+        role.x = x;
+        role.y = y;
+        owner.field.ClearRoleCells(role, leader);
+        placeCell(role);
+        owner.field.MarkRoleCells(role, leader);
+
+        if (index == state.playerRole && (owner.scene.unk4C9A18 & 2) == 0)
+        {
+            owner.field.CenterCamera();
+        }
+
+        owner.field.RemoveRole(role.id, static_cast<int>(role.flags & 3), 0, 0);
+    };
+
+    if ((options & 0xF) != 0)
+    {
+        putThere();
+        role.flags |= 0x80000000;
+        return 1;
+    }
+
+    if ((role.flags & 0x40000) != 0)
+    {
+        finder.SetMask(0);
+    }
+
+    if (finder.FindPath(role.x, role.y, x, y, role.act.width, role.act.height, move.directions) != 1)
+    {
+        DebugLog(
+            "script path not found",
+            slot,
+            this->RoleId(static_cast<u32>(index)),
+            role.x >> 4,
+            role.y >> 4,
+            x >> 4,
+            y >> 4
+        );
+        putThere();
+        role.flags |= 0x80000000;
+        return 1;
+    }
+
+    owner.field.ClearRoleCells(role, leader);
+    const Field& field = owner.field;
+    const auto bottom = static_cast<u32>(field.cameraBottom + 0xA0);
+    const auto right = static_cast<u32>(field.cameraRight + 0xA0);
+    const u32 top = field.cameraTop - 0x50 < 0 ? 0u : static_cast<u32>(field.cameraTop - 0x50);
+    const u32 left = field.cameraLeft - 0xA0 < 0 ? 0u : static_cast<u32>(field.cameraLeft - 0xA0);
+    u8 step = 0xFF;
+
+    for (;;)
+    {
+        step = move.directions[static_cast<std::size_t>(move.step) % move.directions.size()];
+        const auto atX = static_cast<u32>(role.x);
+        const auto atY = static_cast<u32>(role.y);
+
+        if (atX > left && atX < right && atY > top && atY < bottom)
+        {
+            break;
+        }
+
+        if (step == 0xFF || step >= 8)
+        {
+            break;
+        }
+
+        ++move.step;
+        role.x += 4 * RolePath::kStepX[step];
+        role.y += 4 * RolePath::kStepY[step];
+    }
+
+    if (step != 0xFF && step < 8)
+    {
+        role.act.direction = RolePath::kFacing[step];
+    }
+    else
+    {
+        if (move.act != -1)
+        {
+            role.act.id = move.act;
+        }
+
+        if (move.action != -1)
+        {
+            role.act.action = move.action;
+        }
+
+        if (move.direction != -1)
+        {
+            role.act.direction = move.direction;
+        }
+    }
+
+    move.step |= MoveRecord::kDone;
+    placeCell(role);
+    owner.field.MarkRoleCells(role, leader);
+    owner.field.RemoveRole(role.id, static_cast<int>(role.flags & 3), 0, 0);
+    role.flags |= 0x80000000;
+    return 1;
+}
+
 }  // namespace swd3

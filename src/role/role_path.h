@@ -11,6 +11,7 @@ namespace swd3
 class Game;
 class PathFinder;
 struct BlockingMap;
+struct Role;
 
 // The roles walking on the map (the original's Path, 0x00405430..0x00406960): each role runs its script of path.dat
 // (moves, waits, jumps on time, flags and variables, follows, labels), steps along its found path or wanders, and
@@ -38,11 +39,15 @@ public:
     void Follow(int index);
     u16 RoleId(u32 index);
     bool ResumeMove(int index);
+    int MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 action, i16 direction);
+    int ScriptStep(int index);
+    int HoldRole(int index);
 
     i32 timeMark = 0;  // 0x004BA42C
 
 private:
     BlockingMap Grid() const;
+    void AlignPlayer(Role& role);
 
     Game& game;
 };

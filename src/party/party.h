@@ -12,6 +12,8 @@
 namespace swd3
 {
 
+class Database;
+
 // A party member (0x38 bytes in the original, four of them at 0x004AB790). The attribute names follow the status
 // screen (attack and defence shown with their equipment bonus) and the battle checks of spirit and stamina costs;
 // those marked inferred are not yet confirmed by a label.
@@ -80,6 +82,8 @@ public:
     std::array<Name, kRoles> names = Party::DefaultNames();  // 0x0049E148
 
     void ApplyNameCheats();
+    void SetRoleStat(int field, int value, int role, Database& database);
+    int RoleStat(int field, int role) const;
     std::array<RoleBattleBlock, kRoles> battleBlocks;  // 0x004ACF50
 };
 
