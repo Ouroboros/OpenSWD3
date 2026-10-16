@@ -7,6 +7,7 @@
 #include "battle/battle_unit.h"
 #include "config/config.h"
 #include "draw/painter.h"
+#include "org/object_record.h"
 #include "party/party.h"
 #include "pic/rle.h"
 #include "platform/audio_device.h"
@@ -120,4 +121,61 @@ TEST_CASE("battle unit: construction, commands, turns and hits")
     unit.status = 0;
     unit.RaiseFlag26B8();
     CHECK_EQ(unit.Flag26B8(), 1);
+}
+
+TEST_CASE("battle unit: evasion, vitals and scaling")
+{
+    Services all;
+    swd3::BattleUnit unit;
+    CHECK_EQ(unit.RollEvade(all.services, 0), 0);
+    unit.unk2A93 = 9;
+    all.state.evadeStreak = 0x18;
+    CHECK_EQ(unit.RollEvade(all.services, 0), 1);
+    CHECK_EQ(all.state.evadeStreak, 0);
+    CHECK_EQ(unit.marks & 1, 1);
+    CHECK_EQ(unit.RollEvade(all.services, 0), 0);
+    CHECK_EQ(all.state.evadeJustSucceeded, 0);
+    all.state.evadeDisabled = 1;
+    CHECK_EQ(unit.RollEvade(all.services, 10), 0);
+    all.state.evadeDisabled = 0;
+    CHECK_EQ(unit.RollEvade(all.services, 10), 1);
+
+    swd3::HeroRecord hero;
+    hero.hitPoints = 5;
+    hero.maxHitPoints = 80;
+    unit.kind = swd3::BattleUnit::kHero;
+    unit.hero = &hero;
+    unit.SetVitals(-1, 30, 0);
+    CHECK_EQ(hero.hitPoints, 80);
+    CHECK_EQ(hero.spirit, 30);
+    CHECK_EQ(hero.maxSpirit, 30);
+    swd3::ObjectRecord enemy;
+    swd3::BattleUnit other;
+    other.data = &enemy;
+    other.SetVitals(500, 0, 0);
+    CHECK_EQ(enemy.data.maxHitPoints, 500);
+    CHECK_EQ(enemy.data.hitPoints, 500);
+    other.SetAttributes(0, 12, 7);
+    CHECK_EQ(enemy.data.defense, 12);
+    CHECK_EQ(enemy.data.agility, 7);
+
+    swd3::i16 value = 100;
+    CHECK_EQ(swd3::ScaleByTenths(3, value), 0);
+    CHECK_EQ(value, 130);
+    value = 100;
+    CHECK_EQ(swd3::ScaleByTenths(-15, value), 1);
+    CHECK_EQ(value, -50);
+
+    unit.targetCount = 0x22;
+    unit.StepTargetCount(1);
+    CHECK_EQ(unit.targetCount, 0x22);
+    unit.StepTargetCount(0);
+    CHECK_EQ(unit.targetCount, 0x21);
+    unit.PushTargetAlt(4);
+    CHECK_EQ(unit.damageDelays[0x21], 4);
+    unit.SetStatus(0x200);
+    CHECK_EQ(unit.brightLevel, -0x20);
+    unit.SetGuarding(1);
+    unit.ClearStatus(0x1000);
+    CHECK(!unit.IsGuarding());
 }

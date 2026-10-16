@@ -37,7 +37,8 @@ struct ObjectData
     u16 unk44 = 0;                     // +0x44 tag 0xD
     u16 price = 0;                     // +0x46 tag 0xB (the shop value)
     u16 unk48 = 0;                     // +0x48 tag 0x16
-    std::array<u8, 6> unk4A = {};      // +0x4A
+    u16 unk4A = 0;                     // +0x4A
+    i32 maxHitPoints = 0;              // +0x4C an enemy's maximum (set in battle)
     // +0x50..+0x9C: the 0x4D-byte block of tag 1; tags 0xE, 0x7D0, 0x1C and 0x1D set parts of it.
     u16 unk50 = 0;                       // +0x50 tag 0xE
     u16 unk52 = 0;                       // +0x52 tag 0x7D0

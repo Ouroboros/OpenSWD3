@@ -23,6 +23,9 @@ public:
     u16 itemCursor = 0;                           // 0x004FD588
     i32 gaugeFull = kInitialGaugeFull;            // 0x004A74CC the full action gauge
     std::array<i16, 3> unk4A7632 = {-1, -1, -1};  // 0x004A7632
+    i32 evadeDisabled = 0;                        // 0x0053CEB8
+    u8 evadeStreak = 0;                           // 0x0053D028 failed evasion rolls in a row
+    u8 evadeJustSucceeded = 0;                    // 0x0053D029
     std::array<std::unique_ptr<Surface>, 2> surfaces;  // 0x005244C4 screen sized off-screen surfaces
 };
 

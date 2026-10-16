@@ -1107,45 +1107,45 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1106	swd32.exe	0x00479850	sub_479850	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1107	swd32.exe	0x0047BA80	sub_47BA80	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::DrawAttack
 1108	swd32.exe	0x0047C1F0	sub_47C1F0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::DrawDamageNumbers
-1109	swd32.exe	0x0047C660	sub_47C660	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetAC0
-1110	swd32.exe	0x0047C670	sub_47C670	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::IsAE4Clear
-1111	swd32.exe	0x0047C680	sub_47C680	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::GetWordDA6
-1112	swd32.exe	0x0047C690	sub_47C690	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::MarkAC8
-1113	swd32.exe	0x0047C6B0	sub_47C6B0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::DrawFadeOut
-1114	swd32.exe	0x0047C950	sub_47C950	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::DrawFadeIn
-1115	swd32.exe	0x0047CC40	sub_47CC40	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetAD0
-1116	swd32.exe	0x0047CC50	sub_47CC50	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetAD4
-1117	swd32.exe	0x0047CC60	sub_47CC60	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::DrawFlash
-1118	swd32.exe	0x0047CD60	sub_47CD60	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::RollEvade
-1119	swd32.exe	0x0047CE70	sub_47CE70	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::Mirrored
-1120	swd32.exe	0x0047CE80	sub_47CE80	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::IsDefeated
-1121	swd32.exe	0x0047CEA0	sub_47CEA0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::StatusBit13
-1122	swd32.exe	0x0047CEB0	sub_47CEB0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::IsAB8
-1123	swd32.exe	0x0047CEC0	sub_47CEC0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::StepTargetCount
-1124	swd32.exe	0x0047CF00	sub_47CF00	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::PushTargetAlt
+1109	swd32.exe	0x0047C660	sub_47C660	battle	src/battle/battle_unit.cpp:BattleUnit::SetAC0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetAC0
+1110	swd32.exe	0x0047C670	sub_47C670	battle	src/battle/battle_unit.cpp:BattleUnit::IsAE4Clear	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::IsAE4Clear
+1111	swd32.exe	0x0047C680	sub_47C680	battle	src/battle/battle_unit.cpp:BattleUnit::GetWordDA6	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::GetWordDA6
+1112	swd32.exe	0x0047C690	sub_47C690	battle	src/battle/battle_unit.cpp:BattleUnit::MarkAC8	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::MarkAC8
+1113	swd32.exe	0x0047C6B0	sub_47C6B0	battle	src/battle/battle_unit.cpp:BattleUnit::DrawFadeOut	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::DrawFadeOut
+1114	swd32.exe	0x0047C950	sub_47C950	battle	src/battle/battle_unit.cpp:BattleUnit::DrawFadeIn	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::DrawFadeIn
+1115	swd32.exe	0x0047CC40	sub_47CC40	battle	src/battle/battle_unit.cpp:BattleUnit::SetHeld	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetAD0
+1116	swd32.exe	0x0047CC50	sub_47CC50	battle	src/battle/battle_unit.cpp:BattleUnit::SetAD4	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetAD4
+1117	swd32.exe	0x0047CC60	sub_47CC60	battle	src/battle/battle_unit.cpp:BattleUnit::DrawFlash	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::DrawFlash
+1118	swd32.exe	0x0047CD60	sub_47CD60	battle	src/battle/battle_unit.cpp:BattleUnit::RollEvade	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::RollEvade
+1119	swd32.exe	0x0047CE70	sub_47CE70	battle	src/battle/battle_unit.cpp:BattleUnit::Mirrored	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::Mirrored
+1120	swd32.exe	0x0047CE80	sub_47CE80	battle	src/battle/battle_unit.cpp:BattleUnit::IsDefeated	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::IsDefeated
+1121	swd32.exe	0x0047CEA0	sub_47CEA0	battle	src/battle/battle_unit.cpp:BattleUnit::StatusBit13	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::StatusBit13
+1122	swd32.exe	0x0047CEB0	sub_47CEB0	battle	src/battle/battle_unit.cpp:BattleUnit::IsAB8	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::IsAB8
+1123	swd32.exe	0x0047CEC0	sub_47CEC0	battle	src/battle/battle_unit.cpp:BattleUnit::StepTargetCount	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::StepTargetCount
+1124	swd32.exe	0x0047CF00	sub_47CF00	battle	src/battle/battle_unit.cpp:BattleUnit::PushTargetAlt	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::PushTargetAlt
 1125	swd32.exe	0x0047CF20	sub_47CF20	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::DrawGuardText
-1126	swd32.exe	0x0047D2E0	sub_47D2E0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:ScaleByTenths
+1126	swd32.exe	0x0047D2E0	sub_47D2E0	battle	src/battle/battle_unit.cpp:ScaleByTenths	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:ScaleByTenths
 1127	swd32.exe	0x0047D350	sub_47D350	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1128	swd32.exe	0x0047D640	sub_47D640	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetDamageDigits
-1129	swd32.exe	0x0047D7D0	sub_47D7D0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::ResetAfterGuard
-1130	swd32.exe	0x0047D7F0	sub_47D7F0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::GetGuard
-1131	swd32.exe	0x0047D810	sub_47D810	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetStatus
-1132	swd32.exe	0x0047D830	sub_47D830	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::ClearStatus
-1133	swd32.exe	0x0047D860	sub_47D860	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetWord2A0A
-1134	swd32.exe	0x0047D870	sub_47D870	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetAF0
-1135	swd32.exe	0x0047D880	sub_47D880	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::ActFlag1
-1136	swd32.exe	0x0047D8A0	sub_47D8A0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::ActFlag11
-1137	swd32.exe	0x0047D8B0	sub_47D8B0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::ActSpeed
-1138	swd32.exe	0x0047D8D0	sub_47D8D0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::ActFlag0
-1139	swd32.exe	0x0047D8E0	sub_47D8E0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::ActFlag13
-1140	swd32.exe	0x0047D8F0	sub_47D8F0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::ActFlag14
-1141	swd32.exe	0x0047D900	sub_47D900	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetAction2A0E
-1142	swd32.exe	0x0047D930	sub_47D930	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::IsGuarding
-1143	swd32.exe	0x0047D950	sub_47D950	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetStats
-1144	swd32.exe	0x0047DA10	sub_47DA10	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetLimits
-1145	swd32.exe	0x0047DA90	sub_47DA90	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetEnemyWord54
-1146	swd32.exe	0x0047DAB0	sub_47DAB0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetB00
-1147	swd32.exe	0x0047DAC0	sub_47DAC0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetB04
+1129	swd32.exe	0x0047D7D0	sub_47D7D0	battle	src/battle/battle_unit.cpp:BattleUnit::ResetAfterGuard	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::ResetAfterGuard
+1130	swd32.exe	0x0047D7F0	sub_47D7F0	battle	src/battle/battle_unit.cpp:BattleUnit::GetGuard	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::GetGuard
+1131	swd32.exe	0x0047D810	sub_47D810	battle	src/battle/battle_unit.cpp:BattleUnit::SetStatus	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetStatus
+1132	swd32.exe	0x0047D830	sub_47D830	battle	src/battle/battle_unit.cpp:BattleUnit::ClearStatus	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::ClearStatus
+1133	swd32.exe	0x0047D860	sub_47D860	battle	src/battle/battle_unit.cpp:BattleUnit::SetWord2A0A	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetWord2A0A
+1134	swd32.exe	0x0047D870	sub_47D870	battle	src/battle/battle_unit.cpp:BattleUnit::SetGuarding	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetAF0
+1135	swd32.exe	0x0047D880	sub_47D880	battle	src/battle/battle_unit.cpp:BattleUnit::ActFlag1	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::ActFlag1
+1136	swd32.exe	0x0047D8A0	sub_47D8A0	battle	src/battle/battle_unit.cpp:BattleUnit::ActFlag11	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::ActFlag11
+1137	swd32.exe	0x0047D8B0	sub_47D8B0	battle	src/battle/battle_unit.cpp:BattleUnit::ActSpeed	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::ActSpeed
+1138	swd32.exe	0x0047D8D0	sub_47D8D0	battle	src/battle/battle_unit.cpp:BattleUnit::ActFlag0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::ActFlag0
+1139	swd32.exe	0x0047D8E0	sub_47D8E0	battle	src/battle/battle_unit.cpp:BattleUnit::ActFlag13	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::ActFlag13
+1140	swd32.exe	0x0047D8F0	sub_47D8F0	battle	src/battle/battle_unit.cpp:BattleUnit::ActFlag14	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::ActFlag14
+1141	swd32.exe	0x0047D900	sub_47D900	battle	src/battle/battle_unit.cpp:BattleUnit::SetAction	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetAction2A0E
+1142	swd32.exe	0x0047D930	sub_47D930	battle	src/battle/battle_unit.cpp:BattleUnit::IsGuarding	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::IsGuarding
+1143	swd32.exe	0x0047D950	sub_47D950	battle	src/battle/battle_unit.cpp:BattleUnit::SetVitals	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetStats
+1144	swd32.exe	0x0047DA10	sub_47DA10	battle	src/battle/battle_unit.cpp:BattleUnit::SetAttributes	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetLimits
+1145	swd32.exe	0x0047DA90	sub_47DA90	battle	src/battle/battle_unit.cpp:BattleUnit::SetLevel	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetEnemyWord54
+1146	swd32.exe	0x0047DAB0	sub_47DAB0	battle	src/battle/battle_unit.cpp:BattleUnit::SetB00	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetB00
+1147	swd32.exe	0x0047DAC0	sub_47DAC0	battle	src/battle/battle_unit.cpp:BattleUnit::SetB04	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetB04
 1148	swd32.exe	0x0047DAD0	sub_47DAD0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1149	swd32.exe	0x0047DBD0	sub_47DBD0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::AddAilment
 1150	swd32.exe	0x0047E070	sub_47E070	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::AddBuff

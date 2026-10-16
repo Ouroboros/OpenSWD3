@@ -40,10 +40,12 @@ struct QueuedAction
 // The placement of a unit (0x20 bytes, copied whole into the saved placement).
 struct UnitPlacement
 {
-    std::array<u8, 0x16> unk00 = {};
-    i16 x = 0;  // +0x16
-    i16 y = 0;  // +0x18
-    std::array<u8, 6> unk1A = {};
+    std::array<u8, 0x14> unk00 = {};
+    u16 actId = 0;  // +0x14 the act of the unit
+    i16 x = 0;      // +0x16
+    i16 y = 0;      // +0x18
+    u16 unk1A = 0;
+    i32 kind = 0;  // +0x1C 1: a hero
 };
 
 // The command block of a unit (0x28 bytes, cleared whole).
@@ -115,13 +117,52 @@ public:
     void SetAA8();
     int GetAA8() const;
     int GetAE0() const;
+    int SetAC0(int value);
+    bool IsAE4Clear() const;
+    u16 GetWordDA6() const;
+    void MarkAC8();
+    int DrawFadeOut(BattleServices& services);
+    int DrawFadeIn(BattleServices& services, const BattleUnit& anchor);
+    int SetHeld(int value);
+    int SetAD4(int value);
+    int DrawFlash(BattleServices& services);
+    int RollEvade(BattleServices& services, u16 chance);
+    int Mirrored() const;
+    bool IsDefeated() const;
+    int StatusBit13() const;
+    bool IsAB8() const;
+    int StepTargetCount(int increase);
+    int PushTargetAlt(u16 value);
+    int ResetAfterGuard();
+    int GetGuard() const;
+    int SetStatus(int bits);
+    int ClearStatus(int bits);
+    i16 SetWord2A0A(i16 value);
+    int SetGuarding(int value);
+    int ActFlag1() const;
+    int ActFlag11() const;
+    i16 ActSpeed() const;
+    int ActFlag0() const;
+    int ActFlag13() const;
+    int ActFlag14() const;
+    int SetAction(i16 value);
+    bool IsGuarding() const;
+    void SetVitals(i16 hitPoints, i16 spirit, i16 stamina);
+    i16 SetAttributes(i16 attack, i16 defense, i16 agility);
+    void SetLevel(i16 level);
+    int SetB00(int value);
+    int SetB04(int value);
 
+private:
+    void MirrorRecoil(u32 actFlags, bool forced);
+
+public:
     // +0x00..+0x0F: what the unit is.
-    u8* heroStats = nullptr;       // +0x00 a hero's battle attributes (0x60 bytes at 0x004ACF50)
-    HeroRecord* hero = nullptr;    // +0x04 a hero's party record
-    const i32* unk08 = nullptr;    // +0x08
-    ObjectRecord* data = nullptr;  // +0x0C an enemy's mon.dat object (usually `object`)
-    ObjectRecord object;           // +0x10 (its description at +0xB0)
+    HeroRecord* heroStats = nullptr;  // +0x00 the battle copy of a hero's record (+0x26, +0x28: attack, defence)
+    HeroRecord* hero = nullptr;       // +0x04 the hero's party record
+    const i32* heroBlock = nullptr;   // +0x08 the hero's 0x60-byte block at 0x004ACF50
+    ObjectRecord* data = nullptr;     // +0x0C an enemy's mon.dat object (usually `object`)
+    ObjectRecord object;              // +0x10 (its description at +0xB0)
 
     ActState mainAct;                          // +0x2A0
     ActState standAct;                         // +0x338
@@ -164,9 +205,10 @@ public:
     u32 unk26CC = 0;
     u16 marks = 0;  // +0x26D0 (bit 1, 0x20, 0x40: held, 0x100, bit 13)
     i16 unk26D2 = 0;
-    u16 nudge = 0;        // +0x26D6
-    u16 drawAtSaved = 0;  // +0x26D8
-    u16 unk26DC = 0;      // +0x26DC
+    u16 nudge = 0;                            // +0x26D6
+    u16 drawAtSaved = 0;                      // +0x26D8
+    u16 unk26DC = 0;                          // +0x26DC
+    std::array<u16, 0x23> damageDelays = {};  // +0x26DE
     i16 unk2884 = 0;
     u16 unk2954 = 0;
     u16 unk2956 = 0;
@@ -242,5 +284,7 @@ public:
     i32 goldGuard = 0;  // +0x2B18
     i32 name = 0;       // +0x2B20
 };
+
+int ScaleByTenths(i8 tenths, i16& value);
 
 }  // namespace swd3
