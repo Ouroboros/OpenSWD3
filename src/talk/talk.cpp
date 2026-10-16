@@ -194,11 +194,11 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
     int bottom = 0;
     int edge = 0;
 
-    if ((window.flags & 0x40) != 0)
+    if ((window.flags & window_flag::kFade) != 0)
     {
         opening = false;
 
-        if ((window.flags & 0x8000) != 0)
+        if ((window.flags & window_flag::kTyped) != 0)
         {
             if (window.counter < 8)
             {
@@ -228,7 +228,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
         int y0 = 0;
         int offsetY = 0;
 
-        if ((window.flags & 0x800) != 0)
+        if ((window.flags & window_flag::kFixedPlace) != 0)
         {
             if (++window.openStep > 4)
             {
@@ -275,7 +275,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
         bottom = step * (window.height >> 2) + top + 8;
     }
 
-    if ((window.flags & 0x80) != 0)
+    if ((window.flags & window_flag::kOverlay) != 0)
     {
         opening = false;
         left = window.x;
@@ -307,59 +307,59 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
         space.heldFrames = 1;
     }
 
-    if ((window.flags & 0x20) == 0x20 && space.heldFrames == 1)
+    if ((window.flags & window_flag::kSkippable) != 0 && space.heldFrames == 1)
     {
-        window.flags |= static_cast<i32>(window.flags) < 0 ? 0x40000000u : 0x80000000u;
+        window.flags |= static_cast<i32>(window.flags) < 0 ? window_flag::kSkipping : window_flag::kSkipRequested;
     }
 
-    if ((window.flags & 0x40000000) == 0x40000000)
+    if ((window.flags & window_flag::kSkipping) != 0)
     {
         window.speed = 0xFFFF;
 
-        if ((window.flags & 0x20000000) == 0)
+        if ((window.flags & window_flag::kSpeedSet) == 0)
         {
             window.delay = 0xFFFF;
-            window.flags |= 0x20000000;
+            window.flags |= window_flag::kSpeedSet;
         }
     }
 
     const u32 now = owner.frameStart;
 
-    if ((window.flags & 0xC000) != 0)
+    if ((window.flags & (window_flag::kPageFull | window_flag::kTyped)) != 0)
     {
-        if ((window.flags & 0x400) != 0 && this->skipAll == 0)
+        if ((window.flags & window_flag::kNoAdvance) != 0 && this->skipAll == 0)
         {
             this->advance = 0;
         }
 
         bool timedOut = false;
 
-        if ((window.flags & 0x8000) == 0)
+        if ((window.flags & window_flag::kTyped) == 0)
         {
             if (this->advance != 0)
             {
-                window.flags |= 0x200;
+                window.flags |= window_flag::kAdvanced;
             }
 
             if (space.heldFrames != 1)
             {
                 this->advance = 0;
-                window.flags &= ~0x200u;
+                window.flags &= ~window_flag::kAdvanced;
             }
 
             if (this->advance != 0)
             {
-                window.flags |= 0x40000000;
+                window.flags |= window_flag::kSkipping;
             }
 
             if (window.timeout == 0xFFFF)
             {
-                if ((window.flags & 0x400) != 0)
+                if ((window.flags & window_flag::kNoAdvance) != 0)
                 {
                     this->advance = heldAdvance;
                 }
             }
-            else if ((now - window.shownAt) / 0x64 > window.timeout && (window.flags & 8) != 0)
+            else if ((now - window.shownAt) / 0x64 > window.timeout && (window.flags & window_flag::kTimed) != 0)
             {
                 window.shownAt = 0;
                 timedOut = true;
@@ -369,31 +369,31 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
         {
             if (heldAdvance != 0)
             {
-                window.flags |= 1;
+                window.flags |= window_flag::kRead;
             }
 
             if (this->advance != 0)
             {
-                window.flags |= 0x200;
+                window.flags |= window_flag::kAdvanced;
             }
 
             if (space.heldFrames != 1)
             {
                 this->advance = 0;
-                window.flags &= ~0x200u;
+                window.flags &= ~window_flag::kAdvanced;
             }
 
-            timedOut =
-                window.timeout != 0xFFFF && (now - window.shownAt) / 0x64 > window.timeout && (window.flags & 8) != 0;
+            timedOut = window.timeout != 0xFFFF && (now - window.shownAt) / 0x64 > window.timeout &&
+                       (window.flags & window_flag::kTimed) != 0;
         }
 
         if (timedOut)
         {
-            window.flags |= 0x200;
+            window.flags |= window_flag::kAdvanced;
             this->advance = 1;
         }
 
-        if ((window.flags & 0x40) == 0x40)
+        if ((window.flags & window_flag::kFade) != 0)
         {
             this->advance = 0;
             const u32 elapsed = (now - window.shownAt) / 0x64;
@@ -414,7 +414,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
 
                 if (window.counter == 0)
                 {
-                    window.flags |= 0x200;
+                    window.flags |= window_flag::kAdvanced;
                     this->advance = 1;
                 }
             }
@@ -424,19 +424,19 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
     {
         window.counter = 0x24;
 
-        if ((window.flags & 0x20) == 0x20)
+        if ((window.flags & window_flag::kSkippable) != 0)
         {
             this->advance = 0;
         }
         else if (this->advance != 0)
         {
-            window.flags |= 0x40000000;
+            window.flags |= window_flag::kSkipping;
         }
     }
 
     ClickRegions& regions = state.clickRegions;
 
-    if ((window.flags & 0x2000) != 0)
+    if ((window.flags & window_flag::kChoices) != 0)
     {
         window.counter = 0x20;
 
@@ -444,7 +444,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
         {
             window.counter = 1;
             this->advance = 1;
-            window.flags |= 0x200;
+            window.flags |= window_flag::kAdvanced;
         }
     }
 
@@ -479,22 +479,22 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
 
         if (this->advance != 0)
         {
-            if ((window.flags & 0x20) == 0)
+            if ((window.flags & window_flag::kSkippable) == 0)
             {
                 window.delay = 0x8FFF;
             }
 
             if (regions.regions.empty())
             {
-                if ((window.flags & 0x4000) != 0 && this->advance != 2)
+                if ((window.flags & window_flag::kPageFull) != 0 && this->advance != 2)
                 {
                     nextPage = true;
                     break;
                 }
 
-                if ((window.flags & 0x200) != 0)
+                if ((window.flags & window_flag::kAdvanced) != 0)
                 {
-                    if ((window.flags & 0x800) == 0)
+                    if ((window.flags & window_flag::kFixedPlace) == 0)
                     {
                         if (window.role == TalkWindow::kNoRole)
                         {
@@ -510,7 +510,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
                             }
                         }
 
-                        if ((window.flags & 0x10) != 0)
+                        if ((window.flags & window_flag::kBlocking) != 0)
                         {
                             owner.controls.mouseSuppressed = 0xC;
                             const i32 kept = owner.scene.unk4A9920 & 0x8000;
@@ -556,24 +556,24 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
         {
             flush();
 
-            if ((window.flags & 0x8000) == 0)
+            if ((window.flags & window_flag::kTyped) == 0)
             {
                 if (window.shownAt == 0)
                 {
                     window.shownAt = now;
                 }
 
-                if ((window.flags & 0x40) != 0)
+                if ((window.flags & window_flag::kFade) != 0)
                 {
                     window.counter = 0x10;
                 }
             }
 
-            window.flags |= 0x8000;
+            window.flags |= window_flag::kTyped;
 
             if (!regions.regions.empty())
             {
-                regions.flags |= 0x1000;
+                regions.flags |= ClickRegions::kTalkChoices;
             }
 
             break;
@@ -587,11 +587,11 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
 
             if (2 * unit * (line + 1) >= window.height)
             {
-                window.flags |= 0x4000;
+                window.flags |= window_flag::kPageFull;
 
                 if (!regions.regions.empty())
                 {
-                    regions.flags |= 0x1000;
+                    regions.flags |= ClickRegions::kTalkChoices;
                 }
 
                 if (word(cursor) == kNewLine)
@@ -605,7 +605,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
                     window.shownAt = now;
                 }
 
-                if (this->skipAll != 0 || (window.flags & 0x100) != 0)
+                if (this->skipAll != 0 || (window.flags & window_flag::kInstant) != 0)
                 {
                     window.typed = consumed + window.page;
                 }
@@ -654,7 +654,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
 
                 if (!regions.regions.empty())
                 {
-                    regions.flags |= 0x1000;
+                    regions.flags |= ClickRegions::kTalkChoices;
                 }
 
                 window.typed = consumed + 2 + window.page;
@@ -665,13 +665,13 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
                     window.shownAt = now;
                 }
 
-                if (this->skipAll != 0 || (window.flags & 0x100) != 0)
+                if (this->skipAll != 0 || (window.flags & window_flag::kInstant) != 0)
                 {
                     window.typed = consumed + window.page;
                 }
 
                 savePage();
-                window.flags |= 0x4000;
+                window.flags |= window_flag::kPageFull;
                 done = true;
                 break;
 
@@ -682,7 +682,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
                 consumed += 3;
                 window.speed = static_cast<u16>(2 * (owner.config.textSpeed + digit));
 
-                if ((window.flags & 0x40000000) == 0x40000000)
+                if ((window.flags & window_flag::kSkipping) != 0)
                 {
                     window.speed = 0;
                 }
@@ -722,7 +722,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
             case kChoice:
             case kChoiceSeen:
             {
-                window.flags |= 0x2000;
+                window.flags |= window_flag::kChoices;
                 ++choiceIndex;
                 flush();
                 std::size_t at = cursor + 2;
@@ -806,7 +806,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
                 window.speed = 0;
                 window.delay = 0;
                 cursor += 2;
-                window.flags |= 0x40000000;
+                window.flags |= window_flag::kSkipping;
                 consumed += 2;
                 break;
 
@@ -842,7 +842,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
             ++window.typed;
         }
 
-        window.flags &= ~0x4300u;
+        window.flags &= ~(window_flag::kPageFull | window_flag::kAdvanced | window_flag::kInstant);
         window.color = window.pageColor;
         window.shade = window.pageShade;
         window.style = static_cast<u16>(window.style >> 8);
@@ -864,10 +864,11 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
     painter.DrawPicture(window.x, window.y, 0x28 * unit, 0xB * unit, alpha != 0 ? 0x14 : 4);
     owner.graphics.ClearSurface(surface);
 
-    if ((window.flags & 0xC000) != 0 &&
-        (((window.flags & 2) != 0 && (window.flags & 1) == 0) || (window.flags & 0x400) == 0))
+    if ((window.flags & (window_flag::kPageFull | window_flag::kTyped)) != 0 &&
+        (((window.flags & window_flag::kShowMark) != 0 && (window.flags & window_flag::kRead) == 0) ||
+         (window.flags & window_flag::kNoAdvance) == 0))
     {
-        const ActState& mark = (window.flags & 0x8000) == 0 ? this->nextAct : this->endAct;
+        const ActState& mark = (window.flags & window_flag::kTyped) == 0 ? this->nextAct : this->endAct;
         const Picture* picture = owner.archive.GetPicture(mark.frame, mark.picture);
 
         if (picture != nullptr)
@@ -1117,7 +1118,7 @@ void Talk::HandlePointer()
     Role& target = state.roles[found];
     const int direction = state.DirectionToPlayer(target.x + 8 * target.act.width, target.y + 8 * target.act.height);
 
-    if ((target.flags & 0x800) != 0)
+    if ((target.flags & role_flag::kFacesTalker) != 0)
     {
         target.act.savedAction = target.act.action;
         target.act.savedDirection = target.act.direction;

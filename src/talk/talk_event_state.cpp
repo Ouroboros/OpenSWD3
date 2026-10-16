@@ -471,7 +471,8 @@ bool Talk::RunStateCommand(EventRun& run)
                 return true;
             }
 
-            const u32 done = run.code == EventCommand::WaitDialogRead ? window->flags & 1 : window->flags & 0x8000;
+            const u32 done = run.code == EventCommand::WaitDialogRead ? window->flags & window_flag::kRead
+                                                                      : window->flags & window_flag::kTyped;
 
             if (done != 0)
             {

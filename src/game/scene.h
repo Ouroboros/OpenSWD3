@@ -16,6 +16,30 @@
 namespace swd3
 {
 
+// TalkWindow::flags bits, named by how the window drawing (0x0042ED40) and the dialog commands use them.
+namespace window_flag
+{
+
+constexpr u32 kRead = 1;                    // advanced past its last page (waited for by WaitDialogRead)
+constexpr u32 kShowMark = 2;                // the page mark stays until it is read
+constexpr u32 kTimed = 8;                   // it advances by itself after its timeout
+constexpr u32 kBlocking = 0x10;             // the event waits for it
+constexpr u32 kSkippable = 0x20;            // Space skips its typing
+constexpr u32 kFade = 0x40;                 // it fades in and out instead of growing
+constexpr u32 kOverlay = 0x80;              // no frame, placed at its own place in colour 5
+constexpr u32 kInstant = 0x100;             // its text appears at once
+constexpr u32 kAdvanced = 0x200;            // a key or a click advanced it this frame
+constexpr u32 kNoAdvance = 0x400;           // the keys do not advance it
+constexpr u32 kFixedPlace = 0x800;          // it grows from fromX, fromY
+constexpr u32 kChoices = 0x2000;            // its text has choices
+constexpr u32 kPageFull = 0x4000;           // the page is typed and waits to turn
+constexpr u32 kTyped = 0x8000;              // the whole text is typed
+constexpr u32 kSpeedSet = 0x20000000;       // the skipping speed is set
+constexpr u32 kSkipping = 0x40000000;       // its typing is skipped
+constexpr u32 kSkipRequested = 0x80000000;  // Space asked once to skip
+
+}  // namespace window_flag
+
 // A talk window (0x4C bytes, the list at 0x004ACF48): its frame and place (growing out of the speaker or a point
 // over four frames), the text with the page shown and the typing position, the colours, the timeout and the name.
 struct TalkWindow
@@ -93,6 +117,14 @@ struct RoleMark
 // offsets and lengths the mode moves (high byte of `mode`: 0x80 down, 0x40 up, 0x20 open, 0x10 close, 0x08 still).
 struct ScriptEffect
 {
+    static constexpr u16 kNumberMask = 0xFF;  // in `mode`: the effect's number (below 0x100)
+    static constexpr u16 kKindMask = 0xFF00;  // in `mode`: what the lines do
+    static constexpr u16 kStill = 0x800;
+    static constexpr u16 kClosing = 0x1000;
+    static constexpr u16 kOpening = 0x2000;
+    static constexpr u16 kRising = 0x4000;
+    static constexpr u16 kFalling = 0x8000;
+
     i16 x = 0;                           // +0x00
     i16 y = 0;                           // +0x02
     i16 limit = 0;                       // +0x04

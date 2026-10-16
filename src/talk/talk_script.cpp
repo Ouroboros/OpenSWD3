@@ -293,7 +293,7 @@ bool Talk::SetupDialog(
     const Field& field = owner.field;
     const int unit = this->unit;
     const bool hasOrigin = window.fromX != 0 || window.fromY != 0;
-    const bool fixed = (window.flags & 0x800) != 0;
+    const bool fixed = (window.flags & window_flag::kFixedPlace) != 0;
     const u32 mode = options & 0x7FFF;
     const bool singleLine = (options & 0x10000) != 0;
     std::size_t textAt = 4;
@@ -427,7 +427,7 @@ bool Talk::SetupDialog(
     window.next.reset();
     int lift = 0;
 
-    if ((window.flags & 0x80) != 0)
+    if ((window.flags & window_flag::kOverlay) != 0)
     {
         window.color = 5;
         window.shade = 5;
@@ -546,7 +546,7 @@ bool Talk::SetupDialog(
 
     clamp(0x1E, 0x28);
 
-    if ((options & 0x8000) == 0 && (window.flags & 0x80) == 0 && window.role != TalkWindow::kNoRole &&
+    if ((options & 0x8000) == 0 && (window.flags & window_flag::kOverlay) == 0 && window.role != TalkWindow::kNoRole &&
         window.role < GameState::kRoles)
     {
         const Role& role = state.roles[window.role];

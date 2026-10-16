@@ -153,7 +153,7 @@ bool RolePath::FindPath(int index, u16 tileX, u16 tileY)
         move.step = 0;
         move.x = static_cast<u16>(x);
         move.y = static_cast<u16>(y);
-        move.mode = static_cast<u8>((move.mode & 0xF0) | 1);
+        move.SetKind(MoveKind::Path);
     }
     else
     {
@@ -188,12 +188,12 @@ int RolePath::Step(int index)
 
         if (move.role == index)
         {
-            if ((move.mode & 0xF) == 2)
+            if (move.Kind() == MoveKind::Scripted)
             {
                 return 0;
             }
 
-            if ((move.mode & 0xF) == 1)
+            if (move.Kind() == MoveKind::Path)
             {
                 break;
             }
@@ -214,7 +214,7 @@ int RolePath::Step(int index)
         return 0;
     }
 
-    const u8 direction = move.directions[static_cast<std::size_t>(move.step & 0x7FFF) % move.directions.size()];
+    const u8 direction = move.CurrentDirection();
 
     if (direction == kPathEnd)
     {
@@ -277,12 +277,12 @@ int RolePath::Wander(int index)
 
         if (move.role == index)
         {
-            if ((move.mode & 0xF) == 2)
+            if (move.Kind() == MoveKind::Scripted)
             {
                 return 1;
             }
 
-            if ((move.mode & 0xF) == 1)
+            if (move.Kind() == MoveKind::Path)
             {
                 found = true;
                 slot = at;
@@ -311,7 +311,7 @@ int RolePath::Wander(int index)
         fresh.step = 0;
         fresh.x = 0;
         fresh.y = 0;
-        fresh.mode = static_cast<u8>((fresh.mode & 0xF0) | 1);
+        fresh.SetKind(MoveKind::Path);
         fresh.directions[0] = 1;
     }
 
@@ -391,7 +391,7 @@ void RolePath::Follow(int index)
 
     auto direction = [&move]()
     {
-        return move.directions[static_cast<std::size_t>(move.step & 0x7FFF) % move.directions.size()];
+        return move.CurrentDirection();
     };
 
     if (move.role == kFree || move.unk1A != 0 || direction() == kPathEnd)
@@ -424,7 +424,7 @@ void RolePath::Follow(int index)
         }
         else
         {
-            move.mode = static_cast<u8>((move.mode & 0xF0) | 1);
+            move.SetKind(MoveKind::Path);
             move.role = static_cast<u16>(index);
             move.step = 0;
             move.x = static_cast<u16>(targetX);
@@ -502,7 +502,7 @@ void RolePath::Follow(int index)
     }
     else
     {
-        move.step = static_cast<u16>(taken & 0x7FFF);
+        move.step = static_cast<u16>(taken & MoveRecord::kStepMask);
         ++move.unk1A;
         role.act.action = 8;
         move.stepX = static_cast<i16>(2 * RolePath::kStepX[step]);
@@ -812,7 +812,7 @@ void RolePath::RunScript(int index)
                             continue;
                         }
 
-                        if ((move.mode & 0xF) == 2)
+                        if (move.Kind() == MoveKind::Scripted)
                         {
                             move.nextRole = 0xFFFF;
                             move.unk0A = 0xFFFF;
@@ -820,15 +820,15 @@ void RolePath::RunScript(int index)
                             move.nextY = 0xFFFF;
                         }
 
-                        if ((move.mode & 0xF) == 1)
+                        if (move.Kind() == MoveKind::Path)
                         {
                             if (((other.x | other.y) & 0xF) != 0)
                             {
                                 const int row = other.y >> 4;
                                 owner.field.ClearRoleCells(other, leaderId);
-                                const u8 back =
-                                    move.directions
-                                        [static_cast<std::size_t>(move.step & 0x7FFF) % move.directions.size()];
+                                const u8 back = move.directions
+                                                    [static_cast<std::size_t>(move.step & MoveRecord::kStepMask) %
+                                                     move.directions.size()];
 
                                 while ((other.x & 0xF) != 0 && back < 8)
                                 {
@@ -1130,7 +1130,7 @@ bool RolePath::ResumeMove(int index)
     int slot = 0;
 
     while (state.moves[static_cast<std::size_t>(slot)].role != index ||
-           (state.moves[static_cast<std::size_t>(slot)].mode & 0xF) <= 1)
+           state.moves[static_cast<std::size_t>(slot)].Kind() <= MoveKind::Path)
     {
         if (++slot >= RolePath::kMoves)
         {
@@ -1142,7 +1142,7 @@ bool RolePath::ResumeMove(int index)
 
     if (move.nextRole == kFree)
     {
-        if ((move.mode & 0xF) != 1)
+        if (move.Kind() != MoveKind::Path)
         {
             move.Clear();
         }
@@ -1156,7 +1156,7 @@ bool RolePath::ResumeMove(int index)
     move.x = move.nextX;
     move.y = move.nextY;
     move.step = 0;
-    move.mode = static_cast<u8>((move.mode & 0xF0) | 1);
+    move.SetKind(MoveKind::Path);
 
     if (finder.FindPath(role.x, role.y, move.x, move.y, role.act.width, role.act.height, move.directions) != 1)
     {
@@ -1222,7 +1222,7 @@ int RolePath::HoldRole(int index)
 
     if (move != nullptr)
     {
-        if ((move->mode & 0xF) == 1)
+        if (move->Kind() == MoveKind::Path)
         {
             move->step |= MoveRecord::kDone;
             move->nextRole = move->role;
@@ -1237,8 +1237,7 @@ int RolePath::HoldRole(int index)
             if (index != state.playerRole)
             {
                 const int row = static_cast<int>(static_cast<u32>(role.y) >> 4) - 1;
-                const u8 back =
-                    move->directions[static_cast<std::size_t>(move->step & 0x7FFF) % move->directions.size()];
+                const u8 back = move->CurrentDirection();
 
                 while ((role.x & 0xF) != 0 && back < 8)
                 {
@@ -1271,7 +1270,7 @@ int RolePath::ScriptStep(int index)
 
     for (MoveRecord& move : state.moves)
     {
-        if (move.role == index && (move.mode & 0xF) == 2)
+        if (move.role == index && move.Kind() == MoveKind::Scripted)
         {
             found = &move;
             break;
@@ -1284,7 +1283,7 @@ int RolePath::ScriptStep(int index)
     }
 
     MoveRecord& move = *found;
-    const u8 direction = move.directions[static_cast<std::size_t>(move.step & 0x7FFF) % move.directions.size()];
+    const u8 direction = move.CurrentDirection();
 
     if (direction == 0xFF)
     {
@@ -1386,7 +1385,7 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
     {
         MoveRecord& move = state.moves[static_cast<std::size_t>(slot)];
 
-        if ((move.mode & 0xF) == 1)
+        if (move.Kind() == MoveKind::Path)
         {
             move.act = act;
             move.action = action;
@@ -1397,7 +1396,7 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
 
             if ((options & 0x8000) != 0)
             {
-                move.mode &= 0x7F;
+                move.mode &= static_cast<u8>(~MoveRecord::kHoldAtEnd);
             }
         }
 
@@ -1408,7 +1407,7 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
             if (index != state.playerRole)
             {
                 const int row = static_cast<int>(static_cast<u32>(role.y) >> 4) - 1;
-                const u8 back = move.directions[static_cast<std::size_t>(move.step & 0x7FFF) % move.directions.size()];
+                const u8 back = move.CurrentDirection();
 
                 while ((role.x & 0xF) != 0 && back < 8)
                 {
@@ -1470,11 +1469,11 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
     move.step = 0;
     move.x = x;
     move.y = y;
-    move.mode = static_cast<u8>((move.mode & 0xF0) | 2);
+    move.SetKind(MoveKind::Scripted);
 
     if ((options & 0x8000) != 0)
     {
-        move.mode &= 0x7F;
+        move.mode &= static_cast<u8>(~MoveRecord::kHoldAtEnd);
     }
 
     if (x > 0x10u * static_cast<u32>(state.map.width) || y > 0x10u * static_cast<u32>(state.map.height))

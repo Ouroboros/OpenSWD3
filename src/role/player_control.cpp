@@ -263,7 +263,7 @@ void RoleControl::ControlPlayer()
 
     if ((spaceDown || enterDown) && choices)
     {
-        if ((state.clickRegions.flags & 0x1000) != 0)
+        if ((state.clickRegions.flags & ClickRegions::kTalkChoices) != 0)
         {
             state.clickRegions.Free();
         }

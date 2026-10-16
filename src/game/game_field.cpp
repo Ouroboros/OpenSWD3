@@ -488,8 +488,7 @@ void Game::FollowLeader(int index)
             if ((role.x & 0xF) != 0 || (role.y & 0xF) != 0)
             {
                 this->field.ClearRoleCells(role, static_cast<u16>(this->unk4B7BC4));
-                const u8 direction =
-                    move.directions[static_cast<std::size_t>(move.step & 0x7FFF) % move.directions.size()];
+                const u8 direction = move.CurrentDirection();
 
                 while ((role.x & 0xF) != 0 && direction < kStepX.size())
                 {

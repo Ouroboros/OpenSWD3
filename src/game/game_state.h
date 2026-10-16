@@ -26,9 +26,21 @@ struct MapHeader
 };
 
 // The movement of a role along a path (0x21C bytes, 72 of them at 0x004AD490); filled with 0xFF when unused.
+// The kinds of move (the low nibble of MoveRecord::mode).
+enum class MoveKind : u8
+{
+    None = 0,
+    Path = 1,      // a walk along the role's path
+    Scripted = 2,  // a move given by an event
+};
+
 struct MoveRecord
 {
-    static constexpr u16 kDone = 0x8000;  // in `step`: the step was taken
+    static constexpr u16 kDone = 0x8000;      // in `step`: the step was taken
+    static constexpr u16 kStepMask = 0x7FFF;  // in `step`: the step reached
+    static constexpr u8 kKindMask = 0xF;      // in `mode`: the MoveKind
+    static constexpr u8 kHoldAtEnd = 0x80;    // in `mode`: the role stays held by the event when it arrives
+    static constexpr u8 kEndOfPath = 0xFF;    // in `directions`
 
     u16 role = 0;                           // +0x00 the role moving (0xFFFF: unused)
     u16 step = 0;                           // +0x02 bits 0..14: the step reached, kDone once taken
@@ -48,6 +60,22 @@ struct MoveRecord
     std::array<u8, 0x200> directions = {};  // +0x1C the direction of every step (0xFF ends)
 
     void Clear();
+
+    MoveKind Kind() const
+    {
+        return static_cast<MoveKind>(this->mode & MoveRecord::kKindMask);
+    }
+
+    void SetKind(MoveKind kind)
+    {
+        this->mode = static_cast<u8>((this->mode & ~MoveRecord::kKindMask) | static_cast<u8>(kind));
+    }
+
+    // The direction of the step reached (kEndOfPath at the end).
+    u8 CurrentDirection() const
+    {
+        return this->directions[static_cast<std::size_t>(this->step & MoveRecord::kStepMask) % this->directions.size()];
+    }
 };
 
 // A clickable rectangle (0x10 bytes in the original list at 0x004C8BEC).
@@ -67,6 +95,9 @@ public:
     int Count() const;
     int Find(int pointerX, int pointerY, ClickRegion*& found);
     void Free();
+
+    // In `flags`: the regions are the choices of a talk window (Space or Enter frees them).
+    static constexpr i32 kTalkChoices = 0x1000;
 
     i32 flags = 0;                   // 0x004C8BE8
     std::list<ClickRegion> regions;  // 0x004C8BEC, the head first

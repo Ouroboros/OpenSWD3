@@ -338,7 +338,7 @@ void Talk::EndEvent(EventRun& run)
     {
         run.found = move.role;
 
-        if (move.role != 0xFFFF && (move.mode & 0xF) > 1)
+        if (move.role != 0xFFFF && move.Kind() > MoveKind::Path)
         {
             move.Clear();
 
@@ -410,33 +410,33 @@ bool Talk::OpenDialog(EventRun& run)
         options = 2;
     }
 
-    window->flags = code == EventCommand::PlainDialogWait || code == EventCommand::PlainDialog ? 0x40 : 0;
+    window->flags = code == EventCommand::PlainDialogWait || code == EventCommand::PlainDialog ? window_flag::kFade : 0;
     const u32 settings = this->dialogOptions;
 
     if ((settings & 0x80000000) == 0)
     {
-        window->flags |= 0x20;
+        window->flags |= window_flag::kSkippable;
     }
 
     if (this->dialogTimed == 1)
     {
         window->timeout = this->dialogTimeout;
-        window->flags |= 8;
+        window->flags |= window_flag::kTimed;
     }
 
     if ((settings & 0x40000000) == 0)
     {
-        window->flags |= 0x400;
+        window->flags |= window_flag::kNoAdvance;
     }
 
     if ((settings & 0x20000000) == 0)
     {
-        window->flags |= 0x80;
+        window->flags |= window_flag::kOverlay;
     }
 
     if ((settings & 0x4000000) == 0)
     {
-        window->flags |= 2;
+        window->flags |= window_flag::kShowMark;
     }
 
     if ((settings & 0x10000000) == 0)
@@ -484,7 +484,7 @@ bool Talk::OpenDialog(EventRun& run)
 
     if (WaitsForWindow(code))
     {
-        window->flags |= 0x10;
+        window->flags |= window_flag::kBlocking;
 
         if (run.found == TalkWindow::kNoRole)
         {
@@ -900,7 +900,7 @@ bool Talk::RunRoleCommand(EventRun& run)
             {
                 const MoveRecord& move = state.moves[static_cast<std::size_t>(slot)];
 
-                if (move.role == run.found && (move.mode & 0xF) == 2 &&
+                if (move.role == run.found && move.Kind() == MoveKind::Scripted &&
                     (run.code == EventCommand::JumpIfMoveIdle ? moving == 0 : moving != 0))
                 {
                     break;
@@ -1054,7 +1054,7 @@ bool Talk::RunRoleCommand(EventRun& run)
             {
                 MoveRecord& move = state.moves[static_cast<std::size_t>(slot)];
 
-                if ((move.mode & 0xF) == 2)
+                if (move.Kind() == MoveKind::Scripted)
                 {
                     move.nextRole = 0xFFFF;
                     move.unk0A = 0xFFFF;
@@ -1062,7 +1062,7 @@ bool Talk::RunRoleCommand(EventRun& run)
                     move.nextY = 0xFFFF;
                 }
 
-                if ((move.mode & 0xF) == 1)
+                if (move.Kind() == MoveKind::Path)
                 {
                     if ((role.x & 0xF) != 0 || (role.y & 0xF) != 0)
                     {
@@ -1073,8 +1073,7 @@ bool Talk::RunRoleCommand(EventRun& run)
                             owner.field.ClearRoleCells(role, leader);
                         }
 
-                        const u8 back =
-                            move.directions[static_cast<std::size_t>(move.step & 0x7FFF) % move.directions.size()];
+                        const u8 back = move.CurrentDirection();
 
                         while ((role.x & 0xF) != 0 && back < 8)
                         {

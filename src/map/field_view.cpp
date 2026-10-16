@@ -1090,9 +1090,9 @@ void FieldView::DrawLines()
             continue;
         }
 
-        const int kind = line.mode & 0xFF00;
+        const int kind = line.mode & ScriptEffect::kKindMask;
 
-        if (kind == 0x800)
+        if (kind == ScriptEffect::kStill)
         {
             for (int row = 0; row < line.count; ++row)
             {
@@ -1103,7 +1103,7 @@ void FieldView::DrawLines()
             continue;
         }
 
-        if (kind == 0x8000)
+        if (kind == ScriptEffect::kFalling)
         {
             int done = 0;
 
@@ -1123,11 +1123,11 @@ void FieldView::DrawLines()
 
             if (done == line.count)
             {
-                line.mode = static_cast<u16>((line.mode & 0xFF) | 0x800);
+                line.mode = static_cast<u16>((line.mode & ScriptEffect::kNumberMask) | ScriptEffect::kStill);
             }
         }
 
-        if ((line.mode & 0xFF00) == 0x4000)
+        if ((line.mode & ScriptEffect::kKindMask) == ScriptEffect::kRising)
         {
             int done = 0;
 
@@ -1148,13 +1148,13 @@ void FieldView::DrawLines()
 
             if (done == line.count)
             {
-                line.mode = static_cast<u16>((line.mode & 0xFF) | 0x800);
+                line.mode = static_cast<u16>((line.mode & ScriptEffect::kNumberMask) | ScriptEffect::kStill);
             }
         }
 
         bool finished = false;
 
-        if ((line.mode & 0xFF00) == 0x2000)
+        if ((line.mode & ScriptEffect::kKindMask) == ScriptEffect::kOpening)
         {
             int done = 0;
 
@@ -1183,7 +1183,7 @@ void FieldView::DrawLines()
             finished = done == line.count;
         }
 
-        if (!finished && (line.mode & 0xFF00) == 0x1000)
+        if (!finished && (line.mode & ScriptEffect::kKindMask) == ScriptEffect::kClosing)
         {
             int done = 0;
 
@@ -2920,7 +2920,7 @@ void FieldView::Render()
 
         const u16 id = role.id;
 
-        if ((id == state.leader.id && (move.mode & 0xF) == 1) ||
+        if ((id == state.leader.id && move.Kind() == MoveKind::Path) ||
             ((role.flags & role_flag::kFacesTalker) != 0 && role.unk26 == 1))
         {
             continue;
@@ -2983,7 +2983,7 @@ void FieldView::Render()
                         role.act.direction = move.direction;
                     }
 
-                    if (static_cast<i8>(move.mode) >= 0)
+                    if ((move.mode & MoveRecord::kHoldAtEnd) == 0)
                     {
                         owner.rolePath.ResumeMove(index);
                         role.act.delay = 0;

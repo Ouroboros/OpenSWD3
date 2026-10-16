@@ -119,10 +119,10 @@ void Game::LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 dire
     MoveRecord& move = view.followerMoves[follower];
     const auto leader = static_cast<u16>(this->unk4B7BC4);
 
-    if (move.step < 0x7FFF && ((role.x & 0xF) != 0 || (role.y & 0xF) != 0))
+    if (move.step < MoveRecord::kStepMask && ((role.x & 0xF) != 0 || (role.y & 0xF) != 0))
     {
         this->field.ClearRoleCells(role, leader);
-        const u8 last = move.directions[static_cast<std::size_t>(move.step & 0x7FFF) % move.directions.size()];
+        const u8 last = move.CurrentDirection();
 
         if (last != 0xFF && last < 8)
         {

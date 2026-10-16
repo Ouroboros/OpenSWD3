@@ -7,6 +7,7 @@
 #include "core/format.h"
 #include "game/direction.h"
 #include "game/game.h"
+#include "platform/display.h"
 #include "platform/system_info.h"
 #include "talk/talk.h"
 #include "talk/talk_event.h"
@@ -19,6 +20,7 @@ namespace
 
 constexpr u16 kTextEnd = 0x5125;  // "%Q"
 constexpr u16 kListEnd = 0xFF00;
+constexpr u16 kEvenPixels = 0xFFFE;  // the line effects keep to even pixels
 constexpr i16 kShakeEnd = static_cast<i16>(0xCFCF);
 
 // The nodes of a list for which `match` holds are freed (`first`: only the first of them).
@@ -1074,7 +1076,7 @@ bool Talk::RunSceneCommand(EventRun& run)
         {
             const u16 mode = this->Word(run, 1);
 
-            if (mode >= 0x100)
+            if (mode > ScriptEffect::kNumberMask)
             {
                 DebugLog(u8"effect number", run.context.event, mode);
                 this->Advance(run, 0x10);
@@ -1098,13 +1100,13 @@ bool Talk::RunSceneCommand(EventRun& run)
             auto effect = std::make_unique<ScriptEffect>();
             effect->mode = mode;
             effect->color = static_cast<i16>(this->Word(run, 2));
-            effect->x = static_cast<i16>(this->Word(run, 4) & 0xFFFE);
-            effect->y = static_cast<i16>(this->Word(run, 5) & 0xFFFE);
-            effect->limit = static_cast<i16>(this->Word(run, 6) & 0xFFFE);
-            effect->count = static_cast<i16>(this->Word(run, 7) & 0xFFFE);
+            effect->x = static_cast<i16>(this->Word(run, 4) & kEvenPixels);
+            effect->y = static_cast<i16>(this->Word(run, 5) & kEvenPixels);
+            effect->limit = static_cast<i16>(this->Word(run, 6) & kEvenPixels);
+            effect->count = static_cast<i16>(this->Word(run, 7) & kEvenPixels);
 
-            if (effect->x < 0 || effect->y < 0 || effect->limit + effect->x > 0x280 ||
-                effect->count + effect->y > 0x1E0)
+            if (effect->x < 0 || effect->y < 0 || effect->limit + effect->x > Display::kWidth ||
+                effect->count + effect->y > Display::kHeight)
             {
                 DebugLog(u8"effect off the screen", effect->x, effect->y, effect->limit, effect->count);
                 this->Advance(run, 0x10);
@@ -1115,17 +1117,17 @@ bool Talk::RunSceneCommand(EventRun& run)
             effect->offsets.assign(columns, 0);
             effect->lengths.assign(columns, 0);
             run.valueB = 0;
-            u16 kind = 0x8000;
+            u16 kind = ScriptEffect::kFalling;
 
             if (this->Word(run, 3) == 1)
             {
                 run.valueB = effect->limit - 2;
-                kind = 0x4000;
+                kind = ScriptEffect::kRising;
             }
 
             if (this->Word(run, 3) == 2)
             {
-                kind = 0x800;
+                kind = ScriptEffect::kStill;
                 run.valueB = 0;
             }
 
@@ -1148,7 +1150,7 @@ bool Talk::RunSceneCommand(EventRun& run)
         {
             const u16 mode = this->Word(run, 1);
 
-            if (mode >= 0x100)
+            if (mode > ScriptEffect::kNumberMask)
             {
                 DebugLog(u8"effect number", run.context.id, mode);
                 this->Advance(run, 6);
@@ -1176,12 +1178,12 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             if (change == 0)
             {
-                run.valueA = 0x2000;
+                run.valueA = ScriptEffect::kOpening;
             }
 
             if (change == 1)
             {
-                run.valueA = 0x1000;
+                run.valueA = ScriptEffect::kClosing;
             }
 
             if (change == 2)
