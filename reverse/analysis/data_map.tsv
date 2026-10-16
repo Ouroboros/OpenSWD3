@@ -342,3 +342,6 @@ addr	type	name	module	notes
 @size	Projector	2924
 0x0053B0B8	Projector	projector	pic	constructed by 0x004518A0
 0x004FB568	std::int32_t	particleRange	pic	pixel range of ParticlePut with flag 0x40, grows by burstStep
+@include	battle/battle_hero.h
+@size	BattleHero	12084
+0x005029D0	BattleHero[10]	battleHeroes	battle	constructed by 0x004517A0

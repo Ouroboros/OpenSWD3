@@ -946,32 +946,32 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 945	swd32.exe	0x004698E0	sub_4698E0	battle	src/battle/battle_message.cpp:AddBattleMessage	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 946	swd32.exe	0x00469960	sub_469960	battle	src/battle/battle_message.cpp:DrawBattleMessages	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 947	swd32.exe	0x00469D20	sub_469D20	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-948	swd32.exe	0x0046E090	sub_46E090	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-949	swd32.exe	0x0046E0A0	sub_46E0A0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+948	swd32.exe	0x0046E090	sub_46E090	battle	src/battle/battle_hero.cpp:BattleHero::Flag2B00	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+949	swd32.exe	0x0046E0A0	sub_46E0A0	battle	src/battle/battle_hero.cpp:BattleHero::Flag2B04	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 950	swd32.exe	0x0046E0B0	sub_46E0B0	figtalk		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "figtalk.dat"
 951	swd32.exe	0x0046E1E0	sub_46E1E0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 952	swd32.exe	0x0046E260	sub_46E260	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 953	swd32.exe	0x0046E290	sub_46E290	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 954	swd32.exe	0x0046E390	sub_46E390	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-955	swd32.exe	0x0046E490	sub_46E490	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+955	swd32.exe	0x0046E490	sub_46E490	battle	src/battle/battle_hero.cpp:BattleHero::BattleHero	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 956	swd32.exe	0x0046E4D0	sub_46E4D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-957	swd32.exe	0x0046E520	sub_46E520	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-958	swd32.exe	0x0046E6A0	sub_46E6A0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+957	swd32.exe	0x0046E520	sub_46E520	battle	src/battle/battle_hero.cpp:BattleHero::StepGauge	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+958	swd32.exe	0x0046E6A0	sub_46E6A0	battle	src/battle/battle_hero.cpp:BattleHero::ResetHeroState	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 959	swd32.exe	0x0046E730	sub_46E730	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "C:\Project\swd102aDVD\manrole.cpp"
-960	swd32.exe	0x0046E850	sub_46E850	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046E730 and 0x0046E890
-961	swd32.exe	0x0046E870	sub_46E870	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046E730 and 0x0046E890
+960	swd32.exe	0x0046E850	sub_46E850	battle	src/battle/battle_hero.cpp:BattleHero::SetBoth2EC8	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046E730 and 0x0046E890
+961	swd32.exe	0x0046E870	sub_46E870	battle	src/battle/battle_hero.cpp:BattleHero::SetBoth2EC0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046E730 and 0x0046E890
 962	swd32.exe	0x0046E890	sub_46E890	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "C:\Project\swd102aDVD\manrole.cpp"
 963	swd32.exe	0x0046E9C0	sub_46E9C0	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "C:\Project\swd102aDVD\manrole.cpp"
 964	swd32.exe	0x0046EBB0	sub_46EBB0	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "C:\Project\swd102aDVD\manrole.cpp"
 965	swd32.exe	0x0046EE60	sub_46EE60	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
 966	swd32.exe	0x0046F030	sub_46F030	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
 967	swd32.exe	0x0046F1F0	sub_46F1F0	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
-968	swd32.exe	0x0046F5B0	sub_46F5B0	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
-969	swd32.exe	0x0046F6E0	sub_46F6E0	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
-970	swd32.exe	0x0046F850	sub_46F850	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
+968	swd32.exe	0x0046F5B0	sub_46F5B0	battle	src/battle/battle_hero.cpp:BattleHero::AddRecordProgress	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
+969	swd32.exe	0x0046F6E0	sub_46F6E0	battle	src/battle/battle_hero.cpp:BattleHero::AddFixedRecordProgress	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
+970	swd32.exe	0x0046F850	sub_46F850	battle	src/battle/battle_hero.cpp:BattleHero::CompleteRecord	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
 971	swd32.exe	0x0046F8C0	sub_46F8C0	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
-972	swd32.exe	0x0046FF00	sub_46FF00	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
-973	swd32.exe	0x0046FFE0	sub_46FFE0	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
+972	swd32.exe	0x0046FF00	sub_46FF00	battle	src/battle/battle_hero.cpp:BattleHero::TryFirstStrike	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
+973	swd32.exe	0x0046FFE0	sub_46FFE0	battle	src/battle/battle_hero.cpp:BattleHero::Restore2EC0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
 974	swd32.exe	0x0046FFF0	sub_46FFF0	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
 975	swd32.exe	0x00470180	sub_470180	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
 976	swd32.exe	0x004702E0	sub_4702E0	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
@@ -979,9 +979,9 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 978	swd32.exe	0x004705C0	sub_4705C0	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
 979	swd32.exe	0x004707B0	sub_4707B0	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
 980	swd32.exe	0x00470820	sub_470820	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
-981	swd32.exe	0x00470890	sub_470890	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
-982	swd32.exe	0x004708C0	sub_4708C0	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
-983	swd32.exe	0x00470900	sub_470900	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
+981	swd32.exe	0x00470890	sub_470890	battle	src/battle/battle_hero.cpp:BattleHero::ApplyPendingMpCost	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
+982	swd32.exe	0x004708C0	sub_4708C0	battle	src/battle/battle_hero.cpp:BattleHero::MarkGuarded	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
+983	swd32.exe	0x00470900	sub_470900	battle	src/battle/battle_hero.cpp:BattleHero::Restore2EC8	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
 984	swd32.exe	0x00470910	sub_470910	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
 985	swd32.exe	0x00470A10	sub_470A10	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
 986	swd32.exe	0x00470AC0	sub_470AC0	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "C:\Project\swd102aDVD\manrole.cpp"
@@ -993,8 +993,8 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 992	swd32.exe	0x00471270	sub_471270	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 993	swd32.exe	0x004714B0	sub_4714B0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 994	swd32.exe	0x00471540	sub_471540	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-995	swd32.exe	0x004717D0	sub_4717D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-996	swd32.exe	0x004717E0	sub_4717E0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+995	swd32.exe	0x004717D0	sub_4717D0	battle	src/battle/battle_hero.cpp:BattleHero::ActionFlag13	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+996	swd32.exe	0x004717E0	sub_4717E0	battle	src/battle/battle_hero.cpp:BattleHero::ActionFlag12	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 997	swd32.exe	0x004717F0	sub_4717F0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 998	swd32.exe	0x00471AD0	sub_471AD0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 999	swd32.exe	0x00471D60	sub_471D60	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
@@ -1002,9 +1002,9 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1001	swd32.exe	0x004721F0	sub_4721F0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1002	swd32.exe	0x00472430	sub_472430	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1003	swd32.exe	0x004724D0	sub_4724D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-1004	swd32.exe	0x00472710	sub_472710	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+1004	swd32.exe	0x00472710	sub_472710	battle	src/battle/battle_hero.cpp:GetEnemyDataAlways	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1005	swd32.exe	0x00472730	sub_472730	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-1006	swd32.exe	0x004728D0	sub_4728D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+1006	swd32.exe	0x004728D0	sub_4728D0	battle	src/battle/battle_hero.cpp:BattleHero::Mark800Clear	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1007	swd32.exe	0x004728E0	sub_4728E0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1008	swd32.exe	0x00472C70	sub_472C70	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1009	swd32.exe	0x00472CE0	sub_472CE0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
@@ -1013,11 +1013,11 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1012	swd32.exe	0x004735B0	sub_4735B0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1013	swd32.exe	0x00473C10	sub_473C10	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1014	swd32.exe	0x004745B0	sub_4745B0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-1015	swd32.exe	0x00474B60	sub_474B60	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+1015	swd32.exe	0x00474B60	sub_474B60	battle	src/battle/battle_hero.cpp:RollChance	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1016	swd32.exe	0x00474BA0	sub_474BA0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1017	swd32.exe	0x00474E60	sub_474E60	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1018	swd32.exe	0x00474FC0	sub_474FC0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-1019	swd32.exe	0x004750C0	sub_4750C0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+1019	swd32.exe	0x004750C0	sub_4750C0	battle	src/battle/battle_hero.cpp:BattleHero::ClearActionState	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1020	swd32.exe	0x00475160	sub_475160	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1021	swd32.exe	0x00475180	sub_475180	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1022	swd32.exe	0x004751C0	sub_4751C0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	

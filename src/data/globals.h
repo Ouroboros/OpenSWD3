@@ -8,6 +8,7 @@
 #include "swd3/w32.h"
 #include "audio/audio.h"
 #include "battle/battle_draw.h"
+#include "battle/battle_hero.h"
 #include "battle/battle_message.h"
 #include "battle/battle_unit.h"
 #include "file/file.h"
@@ -4911,26 +4912,7 @@ struct Globals {
     std::uint8_t pad_502954[0x30];
     std::int32_t dword_502984;  // 0x00502984
     std::uint8_t pad_502988[0x48];
-    std::uint8_t unk_5029D0;  // 0x005029D0
-    std::uint8_t pad_5029D1[0x7];
-    std::int32_t dword_5029D8;  // 0x005029D8
-    std::uint8_t pad_5029DC[0x2624];
-    std::uint8_t byte_505000;  // 0x00505000
-    std::uint8_t pad_505001[0x47F];
-    std::int32_t dword_505480;  // 0x00505480
-    std::uint8_t pad_505484[0x30];
-    std::int32_t dword_5054B4;  // 0x005054B4
-    std::uint8_t pad_5054B8[0x18];
-    std::int32_t dword_5054D0;  // 0x005054D0
-    std::int32_t dword_5054D4;  // 0x005054D4
-    std::uint8_t pad_5054D8[0x3B8];
-    std::int32_t dword_505890;  // 0x00505890
-    std::uint8_t pad_505894[0x4];
-    std::int32_t dword_505898;  // 0x00505898
-    std::uint8_t pad_50589C[0x8E04];
-    std::uint8_t byte_50E6A0[72472];  // 0x0050E6A0
-    std::int32_t dword_5201B8;  // 0x005201B8
-    std::uint8_t pad_5201BC[0x1C];
+    BattleHero battleHeroes[10];  // 0x005029D0 constructed by 0x004517A0
     std::int32_t dword_5201D8;  // 0x005201D8
     std::uint8_t pad_5201DC[0x24];
     std::int32_t dword_520200;  // 0x00520200
@@ -5895,6 +5877,7 @@ static_assert(offsetof(Globals, numberFont) == 0x64D08);
 static_assert(offsetof(Globals, arrowActs) == 0x64D10);
 static_assert(offsetof(Globals, coinFrames) == 0x64F70);
 static_assert(offsetof(Globals, coinState) == 0x64F74);
+static_assert(offsetof(Globals, battleHeroes) == 0x699D0);
 static_assert(offsetof(Globals, actionQueue) == 0x8722C);
 static_assert(offsetof(Globals, battleMessages) == 0x884F8);
 static_assert(offsetof(Globals, file_521538) == 0x88538);
