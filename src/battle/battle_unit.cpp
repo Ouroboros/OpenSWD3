@@ -39,8 +39,25 @@ constexpr int kSlotActsPerTurn = 8;
 constexpr int kGaugeBase = 0x12C;  // a random gauge: kGaugeBase + kGaugeSpread / (1..kGaugeDivisors)
 constexpr int kGaugeSpread = 0x96;
 constexpr u32 kGaugeDivisors = 9;
-constexpr u16 kFlashPeak = 0x18;  // the tint pulse rises from kFlashStart to kFlashPeak and falls back
-constexpr u16 kFlashStart = 2;
+constexpr std::size_t kClearedNameBytes = 0x10;  // ResetTurn clears only the start of the skill name
+constexpr int kRoleGaugeBase = 0x32;             // a party role starts a turn at kRoleGaugeBase + 0..kRoleGaugeSpread-1
+constexpr u32 kRoleGaugeSpread = 0x8C;
+constexpr int kFadeOutSound = 0x2F;
+constexpr int kFadeInSound = 0x30;
+constexpr int kFadePan = 0x10;
+constexpr i32 kCommand1Action = 0x28;   // the fade in action after command 1
+constexpr i32 kPoseAction = 0x30;       // the fade in action of a posed unit
+constexpr i32 kPose2Action = 0x31;      // of pose 2
+constexpr i16 kSpeedMask = 0x7FFF;      // the speed of a command with bit 15 set
+constexpr int kGuardTextOffset = 0x14;  // the guard text starts left of and above the unit
+constexpr i16 kGuardTextRise = 0x18;    // pixels the guard text rises before it is gone
+constexpr int kGuardTextHeight = 0x1A;
+constexpr u32 kDrainsLife = 0x100;    // command action flag 8
+constexpr u32 kDrainsSpirit = 0x200;  // flag 9
+constexpr i32 kUnkBlock38 = 0x38;
+constexpr u32 kCommandStatusBit = 0x10000000;  // command +0x08 bit 28
+constexpr u16 kAccessoryValueMask = 0x3FFF;
+constexpr u32 kHealRoll = 0xA;           // ChooseHeal: a roll of 0..4 picks the first way, 5..9 the second
 constexpr u8 kSureEvadeStreak = 0x18;    // evades in a row from which the next hit lands
 constexpr u8 kLikelyEvadeStreak = 0x14;  // from which it lands one time in three
 constexpr int kPercent = 100;
@@ -274,15 +291,17 @@ int BattleUnit::ClearIdleAction()
 // other to commandA
 int BattleUnit::SetCommand(int command)
 {
-    if (command == 0xE || command == 0xF)
+    if (command == BattleUnit::UnkCommand14 || command == BattleUnit::UnkCommand15)
     {
-        this->unk2A86 = static_cast<u16>(this->unk2A86 | 0x4000);
+        this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag4000);
     }
-    else if (command == 6)
+    else if (command == BattleUnit::UnkCommand6)
     {
-        this->unk2A86 = static_cast<u16>(this->unk2A86 | 0x800);
+        this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag800);
     }
-    else if (command != 2 && command != 0xD && command != 3)
+    else if (
+        command != BattleUnit::UnkCommand2 && command != BattleUnit::UnkCommand13 && command != BattleUnit::UnkCommand3
+    )
     {
         this->commandA = static_cast<u16>(command);
         return 1;
@@ -381,10 +400,10 @@ int BattleUnit::ResetTurn(BattleServices& services)
     this->unk2A72 = 0;
     this->unk2A7A = 0;
     this->unk29A4 = 0;
-    this->fadeLevel = 0xF;
+    this->fadeLevel = BattleUnit::Opaque;
     this->brightLevel = 1;
     this->unk2954 = 0;
-    this->unk2A68 = kFlashStart;
+    this->unk2A68 = BattleUnit::FlashStart;
     this->unk2A6A = 8;
     this->unk2674 = 0;
     this->action = 0;
@@ -406,7 +425,7 @@ int BattleUnit::ResetTurn(BattleServices& services)
     if ((this->command.actionFlags & 4) != 0)
     {
         this->guarding = 0;
-        this->brightLevel = -0x20;
+        this->brightLevel = BattleUnit::DelayedFadeIn;
         this->marks = static_cast<u16>((this->marks & ~BattleUnit::UnkMark8) | BattleUnit::UnkMark200);
     }
 
@@ -430,14 +449,14 @@ int BattleUnit::ResetTurn(BattleServices& services)
         this->slotActs[static_cast<std::size_t>(i)] = ActState{};
     }
 
-    std::fill_n(this->skillName.begin(), 0x10, '\0');
+    std::fill_n(this->skillName.begin(), kClearedNameBytes, '\0');
     this->command = UnitCommand{};
-    this->targets = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};
+    this->targets = {BattleUnit::NoTarget, BattleUnit::NoTarget, BattleUnit::NoTarget, BattleUnit::NoTarget};
     int result = this->kind;
 
     if (result == BattleUnit::PartyRole)
     {
-        result = static_cast<int>(services.random.Below(0x8C)) + 0x32;
+        result = static_cast<int>(services.random.Below(kRoleGaugeSpread)) + kRoleGaugeBase;
         this->gauge = static_cast<u16>(result);
     }
 
@@ -495,7 +514,7 @@ i16 BattleUnit::DecreaseHits()
 // swd32.exe 0x00478B20
 void BattleUnit::ClearWord29A2()
 {
-    this->unk29A2 = 0xFFFF;
+    this->unk29A2 = BattleUnit::NoUnk29A2;
 }
 
 // swd32.exe 0x00478B30
@@ -590,17 +609,17 @@ int BattleUnit::DrawFadeOut(BattleServices& services)
 
     this->picture = services.archive.GetPicture(this->recoilAct.frame, this->recoilAct.picture);
 
-    if ((this->recoilAct.flags & 0x14) != 0)
+    if ((this->recoilAct.flags & ActState::Signal) != 0)
     {
         this->fadeLevel = 0;
         return 0;
     }
 
-    if (this->fadeLevel == 0xF)
+    if (this->fadeLevel == BattleUnit::Opaque)
     {
-        this->recoilAct.view = 0x2F;
-        services.audio.PlaySound(0x2F, services.config.soundVolume);
-        services.audio.SetSoundPan(this->recoilAct.view, this->facing == 1 ? 0x10 : -0x10);
+        this->recoilAct.view = kFadeOutSound;
+        services.audio.PlaySound(kFadeOutSound, services.config.soundVolume);
+        services.audio.SetSoundPan(this->recoilAct.view, this->facing == 1 ? kFadePan : -kFadePan);
         this->recoilAct.view = 0;
     }
 
@@ -621,9 +640,9 @@ int BattleUnit::DrawFadeOut(BattleServices& services)
     if (blend == 1)
     {
         DrawOptions& options = services.painter.Options();
-        options.tintRed = level - 0xF;
-        options.tintGreen = level - 0xF;
-        options.tintBlue = level - 0xF;
+        options.tintRed = level - BattleUnit::Opaque;
+        options.tintGreen = level - BattleUnit::Opaque;
+        options.tintBlue = level - BattleUnit::Opaque;
         services.painter.DrawPicture(x, y, this->picture->width, this->picture->height, this->drawFlags);
 
         if (this->held == 0)
@@ -635,7 +654,8 @@ int BattleUnit::DrawFadeOut(BattleServices& services)
     }
 
     services.painter.Options().alpha = level;
-    services.painter.DrawPicture(x, y, this->picture->width, this->picture->height, this->drawFlags | 0x14);
+    services.painter
+        .DrawPicture(x, y, this->picture->width, this->picture->height, this->drawFlags | Painter::Translucent);
 
     if (this->held == 0)
     {
@@ -654,7 +674,7 @@ int BattleUnit::DrawFadeIn(BattleServices& services, const BattleUnit& anchor)
         return 1;
     }
 
-    if (this->brightLevel >= 0xF)
+    if (this->brightLevel >= BattleUnit::Opaque)
     {
         this->recoilAct = ActState{};
         this->unk2AAC = 0;
@@ -662,13 +682,13 @@ int BattleUnit::DrawFadeIn(BattleServices& services, const BattleUnit& anchor)
     }
 
     this->unk2AAC = 1;
-    this->recoilAct.action = this->commandA == 1 ? 0x28 : kShadowAction;
+    this->recoilAct.action = this->commandA == BattleUnit::UnkCommand1 ? kCommand1Action : kShadowAction;
     this->recoilAct.id = this->actId;
     const u16 pose = this->unk2A8C;
 
     if (pose != 0)
     {
-        this->recoilAct.action = pose == 2 ? 0x31 : 0x30;
+        this->recoilAct.action = pose == 2 ? kPose2Action : kPoseAction;
     }
 
     if (services.acts.Run(this->recoilAct) == 0)
@@ -676,9 +696,9 @@ int BattleUnit::DrawFadeIn(BattleServices& services, const BattleUnit& anchor)
         return 0;
     }
 
-    if ((this->recoilAct.flags & 0x14) != 0)
+    if ((this->recoilAct.flags & ActState::Signal) != 0)
     {
-        this->brightLevel = 0x10;
+        this->brightLevel = BattleUnit::FadedIn;
         return 0;
     }
 
@@ -686,9 +706,9 @@ int BattleUnit::DrawFadeIn(BattleServices& services, const BattleUnit& anchor)
 
     if (this->brightLevel == 1)
     {
-        this->recoilAct.view = 0x30;
-        services.audio.PlaySound(0x30, services.config.soundVolume);
-        services.audio.SetSoundPan(this->recoilAct.view, this->facing == 1 ? -0x10 : 0x10);
+        this->recoilAct.view = kFadeInSound;
+        services.audio.PlaySound(kFadeInSound, services.config.soundVolume);
+        services.audio.SetSoundPan(this->recoilAct.view, this->facing == 1 ? -kFadePan : kFadePan);
         this->recoilAct.view = 0;
     }
 
@@ -714,9 +734,9 @@ int BattleUnit::DrawFadeIn(BattleServices& services, const BattleUnit& anchor)
     if (this->unk2B00 == 1)
     {
         DrawOptions& options = services.painter.Options();
-        options.tintRed = level - 0x10;
-        options.tintGreen = level - 0x10;
-        options.tintBlue = level - 0x10;
+        options.tintRed = level - BattleUnit::FadedIn;
+        options.tintGreen = level - BattleUnit::FadedIn;
+        options.tintBlue = level - BattleUnit::FadedIn;
         services.painter.DrawPicture(x, y, this->picture->width, this->picture->height, this->drawFlags);
 
         if (this->held == 0)
@@ -728,7 +748,8 @@ int BattleUnit::DrawFadeIn(BattleServices& services, const BattleUnit& anchor)
     }
 
     services.painter.Options().alpha = level;
-    services.painter.DrawPicture(x, y, this->picture->width, this->picture->height, this->drawFlags | 0x14);
+    services.painter
+        .DrawPicture(x, y, this->picture->width, this->picture->height, this->drawFlags | Painter::Translucent);
 
     if (this->held == 0)
     {
@@ -758,7 +779,7 @@ int BattleUnit::DrawFlash(BattleServices& services)
     DrawOptions& options = services.painter.Options();
     const u16 phase = this->unk2A68;
 
-    if (phase == kFlashPeak)
+    if (phase == BattleUnit::FlashPeak)
     {
         const u16 fall = this->unk2A6A;
 
@@ -774,8 +795,8 @@ int BattleUnit::DrawFlash(BattleServices& services)
         }
         else
         {
-            this->unk2A68 = kFlashStart;
-            this->unk2A6A = kFlashPeak;
+            this->unk2A68 = BattleUnit::FlashStart;
+            this->unk2A6A = BattleUnit::FlashPeak;
         }
     }
     else
@@ -910,12 +931,12 @@ int BattleUnit::StepTargetCount(int increase)
 {
     if (increase == 1)
     {
-        const bool below = ++this->targetCount < 0x23;
+        const bool below = ++this->targetCount < BattleUnit::MaxTargets;
         this->unk2AD8 = 1;
 
         if (!below)
         {
-            this->targetCount = 0x22;
+            this->targetCount = BattleUnit::MaxTargets - 1;
         }
     }
     else
@@ -973,7 +994,7 @@ int BattleUnit::SetStatus(int bits)
 {
     if (static_cast<u16>(bits) == BattleUnit::StatsScaled)
     {
-        this->brightLevel = -0x20;
+        this->brightLevel = BattleUnit::DelayedFadeIn;
     }
 
     this->marks = static_cast<u16>(this->marks | static_cast<u16>(bits));
@@ -1023,7 +1044,7 @@ int BattleUnit::ActFlag11() const
 i16 BattleUnit::ActSpeed() const
 {
     const i16 speed = this->command.unk1E;
-    return speed >= 0 ? i16{0} : static_cast<i16>(speed & 0x7FFF);
+    return speed >= 0 ? i16{0} : static_cast<i16>(speed & kSpeedMask);
 }
 
 // swd32.exe 0x0047D8D0
@@ -1259,15 +1280,15 @@ void BattleUnit::DrawGuardText(BattleServices& services)
     }
 
     BattleHud& hud = services.hud;
-    const int top = this->placement.y - 0x14;
-    const int left = this->placement.x - 0x14;
+    const int top = this->placement.y - kGuardTextOffset;
+    const int left = this->placement.x - kGuardTextOffset;
     std::array<i16, 4>& phases = this->guardPhases;
 
     if (phases[0] == 9 && phases[1] == 9 && phases[2] == 9 && phases[3] == 9)
     {
         const i16 rise = this->guardRise;
 
-        if (rise >= 0x18)
+        if (rise >= kGuardTextRise)
         {
             phases = {};
             this->guardRise = 0;
@@ -1293,7 +1314,7 @@ void BattleUnit::DrawGuardText(BattleServices& services)
             options.tintRed = -current;
             options.tintGreen = -current;
             options.tintBlue = -current;
-            options.scaleHeight = current + 0x1A;
+            options.scaleHeight = current + kGuardTextHeight;
             offset += hud.DrawDigit(0, letter, static_cast<u16>(offset) + left, top - current);
         }
 
@@ -1341,7 +1362,8 @@ void BattleUnit::SetDamageDigits(BattleServices& services, int amount)
 
     const u16 slot = this->targetCount;
 
-    if (this->pushedTargets[slot] == kDamageTarget && (this->status & kRaiseBlocked) != 0 && (amount & 0x8000) == 0)
+    if (this->pushedTargets[slot] == kDamageTarget && (this->status & kRaiseBlocked) != 0 &&
+        (amount & BattleUnit::Healing) == 0)
     {
         if (--this->barrierTurns != 0)
         {
@@ -1353,7 +1375,7 @@ void BattleUnit::SetDamageDigits(BattleServices& services, int amount)
         return;
     }
 
-    if ((amount & 0x8000) != 0)
+    if ((amount & BattleUnit::Healing) != 0)
     {
         amount = -amount;
     }
@@ -1428,57 +1450,57 @@ int BattleUnit::AddAilment(BattleServices& services, const SkillScript& skill)
     switch (skill.ailment)
     {
         case SkillScript::UnkAilment1:
-            SetEffectIcon(node, 1, 2);
+            SetEffectIcon(node, EffectNode::Ailment1Frame, EffectNode::Ailment1Icon);
             this->status |= skill.ailment;
             this->marks = static_cast<u16>(this->marks | BattleUnit::Held);
             break;
 
         case SkillScript::UnkAilment2:
-            SetEffectIcon(node, 7, 8);
+            SetEffectIcon(node, EffectNode::Ailment2Frame, EffectNode::Ailment2Icon);
             this->status |= skill.ailment;
             this->marks = static_cast<u16>(this->marks | BattleUnit::UnkMark2);
             break;
 
         case SkillScript::UnkAilment4:
             this->status |= skill.ailment;
-            node.icon = 3;
+            node.icon = EffectNode::Ailment4Icon;
             this->marks = static_cast<u16>(this->marks | BattleUnit::Held);
             break;
 
         case SkillScript::UnkAilment8:
-            SetEffectIcon(node, 0, 4);
+            SetEffectIcon(node, EffectNode::Ailment8Frame, EffectNode::Ailment8Icon);
             this->status |= skill.ailment;
             this->marks = static_cast<u16>(this->marks | BattleUnit::Held);
             break;
 
         case SkillScript::UnkAilment10:
-            SetEffectIcon(node, 5, 5);
+            SetEffectIcon(node, EffectNode::Ailment10Frame, EffectNode::Ailment10Icon);
             this->status |= skill.ailment;
             this->marks = static_cast<u16>(this->marks | BattleUnit::UnkMark100);
             break;
 
         case SkillScript::UnkAilment20:
-            SetEffectIcon(node, 4, 9);
+            SetEffectIcon(node, EffectNode::Ailment20Frame, EffectNode::Ailment20Icon);
             this->status |= skill.ailment;
             break;
 
         case SkillScript::SlowedAilment:
-            SetEffectIcon(node, 3, 6);
+            SetEffectIcon(node, EffectNode::SlowedFrame, EffectNode::SlowedIcon);
             this->status |= skill.ailment;
             break;
 
         case SkillScript::UnkAilment80:
-            SetEffectIcon(node, 2, 7);
+            SetEffectIcon(node, EffectNode::Ailment80Frame, EffectNode::Ailment80Icon);
             this->status |= skill.ailment;
             break;
 
         case SkillScript::UnkAilment100:
-            SetEffectIcon(node, 8, 0xA);
+            SetEffectIcon(node, EffectNode::Ailment100Frame, EffectNode::Ailment100Icon);
             this->status |= skill.ailment;
             break;
 
         case SkillScript::StatsScaledAilment:
-            SetEffectIcon(node, 6, 0xB);
+            SetEffectIcon(node, EffectNode::StatsScaledFrame, EffectNode::StatsScaledIcon);
             this->status |= skill.ailment;
 
             if (this->kind == BattleUnit::PartyRole)
@@ -1490,7 +1512,7 @@ int BattleUnit::AddAilment(BattleServices& services, const SkillScript& skill)
 
         case SkillScript::UnkAilment1000:
             this->status |= skill.ailment;
-            node.icon = 1;
+            node.icon = EffectNode::UnkIcon1;
             break;
 
         default:
@@ -1766,7 +1788,7 @@ bool BattleUnit::ApplyPendingDamage(BattleServices& services)
 
     this->PushTarget(kDamageTarget);
 
-    if ((this->pendingDamage & 0x8000) != 0)
+    if ((this->pendingDamage & BattleUnit::Healing) != 0)
     {
         this->PushTarget(kHealTarget);
     }
@@ -1774,7 +1796,7 @@ bool BattleUnit::ApplyPendingDamage(BattleServices& services)
     this->SetDamageDigits(services, static_cast<i16>(this->pendingDamage));
     this->StepTargetCount(1);
 
-    if ((this->pendingDamage & 0x8000) == 0)
+    if ((this->pendingDamage & BattleUnit::Healing) == 0)
     {
         this->RaiseFlag26B8();
     }
@@ -1831,7 +1853,8 @@ void BattleUnit::DrawEffects(BattleServices& services, int x, int y)
 
     if ((this->status & 4) != 0)
     {
-        const u32 flags = (this->drawFlags & 0x80000000u) | (this->drawFlags & 3) | 0x28;
+        const u32 flags =
+            (this->drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::GrayUnder;
         this->unk26A4 = flags;
 
         if (body != nullptr)
@@ -1845,7 +1868,7 @@ void BattleUnit::DrawEffects(BattleServices& services, int x, int y)
 
     if ((this->status & BattleUnit::UnkStatus1000) != 0)
     {
-        this->unk26A4 = this->drawFlags & 0x80000003u;
+        this->unk26A4 = this->drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip);
         DrawOptions& options = services.painter.Options();
         options.tintRed = -12;
         options.tintGreen = 0;
@@ -1854,7 +1877,7 @@ void BattleUnit::DrawEffects(BattleServices& services, int x, int y)
         if (body != nullptr)
         {
             services.painter.SetSource(body->data.data());
-            services.painter.DrawPicture(x, y, body->width, body->height, this->unk26A4 | 0x10);
+            services.painter.DrawPicture(x, y, body->width, body->height, this->unk26A4 | Painter::TintUnder);
         }
     }
 }
@@ -2267,12 +2290,12 @@ void BattleUnit::Reset(BattleServices& services)
         this->data = nullptr;
     }
 
-    this->targets = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};
-    this->unk29A2 = 0xFFFF;
-    this->fadeLevel = 0xF;
+    this->targets = {BattleUnit::NoTarget, BattleUnit::NoTarget, BattleUnit::NoTarget, BattleUnit::NoTarget};
+    this->unk29A2 = BattleUnit::NoUnk29A2;
+    this->fadeLevel = BattleUnit::Opaque;
     this->brightLevel = 1;
-    this->unk2A68 = kFlashStart;
-    this->unk2A6A = kFlashPeak;
+    this->unk2A68 = BattleUnit::FlashStart;
+    this->unk2A6A = BattleUnit::FlashPeak;
     this->unk2954 = 0;
     this->unk2660 = 0;
     this->unk2664 = 0;
@@ -2541,12 +2564,12 @@ u16 BattleUnit::DrainKind() const
 {
     const u32 flags = this->command.actionFlags;
 
-    if ((flags & 0x100) != 0)
+    if ((flags & kDrainsLife) != 0)
     {
         return (this->equipmentFlags & BattleUnit::LifeDrain) != 0 ? u16{8} : u16{1};
     }
 
-    if ((flags & 0x200) != 0)
+    if ((flags & kDrainsSpirit) != 0)
     {
         return 2;
     }
@@ -2619,7 +2642,7 @@ bool BattleUnit::MarkBit8Clear() const
 // swd32.exe 0x00482E80: the role's battle block starts with 0x38
 bool BattleUnit::HasBlock38() const
 {
-    return *this->roleBlock == 0x38;
+    return *this->roleBlock == kUnkBlock38;
 }
 
 // swd32.exe 0x004717D0
@@ -2652,7 +2675,7 @@ bool BattleUnit::RestartMainAct(i16 value, int force)
 // swd32.exe 0x00476140: the command sets status bit 28, or its flag 12
 int BattleUnit::CommandStatusBit() const
 {
-    if ((static_cast<u32>(this->command.unk08) & 0x10000000) != 0)
+    if ((static_cast<u32>(this->command.unk08) & kCommandStatusBit) != 0)
     {
         return 1;
     }
@@ -2699,7 +2722,7 @@ u16 BattleUnit::AccessoryValue(u16 kind) const
     {
         if (accessory.data.unk48 == kind)
         {
-            return static_cast<u16>(accessory.data.unk40 & 0x3FFF);
+            return static_cast<u16>(accessory.data.unk40 & kAccessoryValueMask);
         }
     }
 
@@ -2808,7 +2831,7 @@ void BattleUnit::LoadSkillAction(Database& database, u16 id, u16& act)
     this->LoadCommand(database, this->object.data.unk3E);
     this->unk29A4 = static_cast<u16>(this->unk29A4 + (this->command.unk0E[0] | this->command.unk0E[1] << 8));
     this->SetCommand(2);
-    this->unk2A86 = static_cast<u16>(this->unk2A86 | 0x8000);
+    this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
 }
 
 // swd32.exe 0x004761D0: an enemy's command: with +0x2A8C a command of flag 2 runs (command 2, its cast act returned);
@@ -2822,7 +2845,7 @@ u16 BattleUnit::PrepareCommand(Database& database)
             return 0;
         }
 
-        this->unk2A86 = static_cast<u16>(this->unk2A86 | 0x8000);
+        this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
         this->SetCommand(2);
         return this->command.castAct;
     }
@@ -2839,7 +2862,7 @@ u16 BattleUnit::PrepareCommand(Database& database)
 // first way, 5..9 its second) when it has that way, may heal and is not marked otherwise
 bool BattleUnit::ChooseHeal(BattleServices& services)
 {
-    u16 roll = static_cast<u16>(services.random.Below(0xA));
+    u16 roll = static_cast<u16>(services.random.Below(kHealRoll));
 
     if (roll <= 4)
     {

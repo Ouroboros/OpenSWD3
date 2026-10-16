@@ -21,6 +21,36 @@ struct SkillScript;
 // turns left, the element, the icon and a value). The unit holds the head as a node of its own: some walks start there.
 struct EffectNode
 {
+    // EffectNode::icon of each ailment (meanings follow SkillScript::Ailment).
+    enum Icon : u16
+    {
+        UnkIcon1 = 1,
+        Ailment1Icon = 2,
+        Ailment4Icon = 3,
+        Ailment8Icon = 4,
+        Ailment10Icon = 5,
+        SlowedIcon = 6,
+        Ailment80Icon = 7,
+        Ailment2Icon = 8,
+        Ailment20Icon = 9,
+        Ailment100Icon = 0xA,
+        StatsScaledIcon = 0xB,
+    };
+
+    // The action of the effect act shown for each ailment.
+    enum Frame : int
+    {
+        Ailment8Frame = 0,
+        Ailment1Frame = 1,
+        Ailment80Frame = 2,
+        SlowedFrame = 3,
+        Ailment20Frame = 4,
+        Ailment10Frame = 5,
+        StatsScaledFrame = 6,
+        Ailment2Frame = 7,
+        Ailment100Frame = 8,
+    };
+
     std::unique_ptr<EffectNode> next;  // +0x00
     ActState act;                      // +0x04
     u32 bits = 0;                      // +0x9C
@@ -134,6 +164,36 @@ public:
 
     static constexpr int SlotActs = 11;
     static constexpr i32 PartyRole = 1;
+
+    // BattleUnit::commandA / commandB values (meanings not yet known).
+    enum Command : u16
+    {
+        UnkCommand1 = 1,  // fades in with action 0x28
+        UnkCommand2 = 2,
+        UnkCommand3 = 3,
+        UnkCommand6 = 6,
+        UnkCommand13 = 0xD,
+        UnkCommand14 = 0xE,
+        UnkCommand15 = 0xF,
+    };
+
+    // BattleUnit::unk2A86 bits.
+    enum CommandFlag : u16
+    {
+        UnkCommandFlag800 = 0x800,    // set by command 6
+        UnkCommandFlag4000 = 0x4000,  // set by commands 14 and 15
+        UnkCommandFlag8000 = 0x8000,  // set when the skill action is loaded
+    };
+
+    static constexpr u32 NoTarget = 0xFFFFFFFF;
+    static constexpr u16 NoUnk29A2 = 0xFFFF;
+    static constexpr u16 MaxTargets = 0x23;      // pushedTargets entries
+    static constexpr u16 Healing = 0x8000;       // a damage amount that heals
+    static constexpr i32 Opaque = 0xF;           // fadeLevel of a fully visible unit; the fade out counts down from it
+    static constexpr i32 FadedIn = 0x10;         // brightLevel when the act ends the fade in early
+    static constexpr i32 DelayedFadeIn = -0x20;  // brightLevel of a unit that fades in 0x20 frames later
+    static constexpr u16 FlashPeak = 0x18;       // the tint pulse rises from FlashStart to FlashPeak and falls back
+    static constexpr u16 FlashStart = 2;
 
     BattleUnit();
     ~BattleUnit();
@@ -308,8 +368,8 @@ public:
     std::array<char, 0x30> skillName = {};    // +0x2630 the name of the skill used
     i32 unk2660 = 0;
     i32 unk2664 = 0;
-    i32 fadeLevel = 0xF;  // +0x2668
-    i32 brightLevel = 1;  // +0x266C
+    i32 fadeLevel = Opaque;  // +0x2668
+    i32 brightLevel = 1;     // +0x266C
     i32 unk2670 = 0;
     i32 unk2674 = 0;
     u32 unk267C = 0;  // +0x267C bit 15: the follow-up action runs
@@ -341,7 +401,7 @@ public:
     u16 unk2958 = 0;
     std::array<u16, 0x23> unk295A = {};  // +0x295A
     i16 guardRise = 0;                   // +0x29A0
-    u16 unk29A2 = 0xFFFF;
+    u16 unk29A2 = NoUnk29A2;
     u16 unk29A4 = 0;
     u16 unk29A6 = 0;
     u16 unk29A8 = 0;
@@ -353,16 +413,16 @@ public:
     u16 unk29B6 = 0;
     u16 extraY = 0;  // +0x29B8
     u16 unk29BA = 0;
-    std::array<u16, 0x23> pushedTargets = {};  // +0x29C4
+    std::array<u16, MaxTargets> pushedTargets = {};  // +0x29C4
     u16 unk2A0A = 4;
     u16 actId = 0;   // +0x2A0C the unit's act
     u16 action = 0;  // +0x2A0E
     u16 gauge = 0;   // +0x2A12 the action gauge
     u16 unk2A14 = 0;
-    std::array<u32, 4> targets = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};  // +0x2A56
+    std::array<u32, 4> targets = {NoTarget, NoTarget, NoTarget, NoTarget};  // +0x2A56
     u16 unk2A66 = 0;
     u16 unk2A68 = 2;
-    u16 unk2A6A = 0x18;
+    u16 unk2A6A = FlashPeak;
     u16 commandA = 0;  // +0x2A6C
     u16 unk2A6E = 0;
     u16 commandB = 0;  // +0x2A70 commands 2, 3, 6, 13, 14 and 15
