@@ -180,3 +180,7 @@ addr	type	name	module	notes
 0x004AB998	TextFont	textFont_4AB998	font	constructed by 0x004011D0
 0x004C9A28	TextFont	textFont_4C9A28	font	constructed by 0x00401210
 0x004A9ED0	TextFont	textFont_4A9ED0	font	constructed by 0x00401250
+0x004A6610	std::uint32_t[250]	r250Table	random
+0x004A69F8	std::uint32_t	lcgState	random
+0x004FB7F0	std::int32_t	r250Index	random
+0x004FB7E8	std::int32_t	textInputLeadPending	text_dbcs	1 after a WM_CHAR lead byte

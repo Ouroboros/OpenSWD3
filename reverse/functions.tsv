@@ -536,26 +536,26 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 535	swd32.exe	0x00438840	sub_438840	memmgr	src/memmgr/memory_manager.cpp:MemoryManager::FreeNode	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 536	swd32.exe	0x00438880	sub_438880	memmgr	src/memmgr/memory_manager.cpp:MemoryManager::FreeBlock	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 537	swd32.exe	0x004389A0	sub_4389A0	memmgr	src/memmgr/memory_manager.cpp:MemoryManager::FormatLastError	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-538	swd32.exe	0x004389D0	sub_4389D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-539	swd32.exe	0x00438A60	sub_438A60	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-540	swd32.exe	0x00438A70	sub_438A70	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-541	swd32.exe	0x00438A80	sub_438A80	text_dbcs		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import USER32!CharNextA
-542	swd32.exe	0x00438AC0	sub_438AC0	text_dbcs		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between text_dbcs anchors 0x00438A80 and 0x00438B50
-543	swd32.exe	0x00438AD0	sub_438AD0	text_dbcs		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between text_dbcs anchors 0x00438A80 and 0x00438B50
-544	swd32.exe	0x00438AE0	sub_438AE0	text_dbcs		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between text_dbcs anchors 0x00438A80 and 0x00438B50
-545	swd32.exe	0x00438AF0	sub_438AF0	text_dbcs		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between text_dbcs anchors 0x00438A80 and 0x00438B50
+538	swd32.exe	0x004389D0	sub_4389D0	text_dbcs	src/text/text_input.cpp:TextInput::TextInput	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+539	swd32.exe	0x00438A60	sub_438A60	text_dbcs	src/text/text_input.cpp:TextInput::GetResult	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+540	swd32.exe	0x00438A70	sub_438A70	text_dbcs	src/text/text_input.cpp:TextInput::~TextInput	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+541	swd32.exe	0x00438A80	sub_438A80	text_dbcs	src/text/text_input.cpp:TextFitLength	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import USER32!CharNextA
+542	swd32.exe	0x00438AC0	sub_438AC0	text_dbcs	src/text/text_input.cpp:TextInput::GetX	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between text_dbcs anchors 0x00438A80 and 0x00438B50
+543	swd32.exe	0x00438AD0	sub_438AD0	text_dbcs	src/text/text_input.cpp:TextInput::GetY	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between text_dbcs anchors 0x00438A80 and 0x00438B50
+544	swd32.exe	0x00438AE0	sub_438AE0	text_dbcs	src/text/text_input.cpp:TextInput::GetCursor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between text_dbcs anchors 0x00438A80 and 0x00438B50
+545	swd32.exe	0x00438AF0	sub_438AF0	text_dbcs	src/text/text_input.cpp:TextInput::CopyText	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between text_dbcs anchors 0x00438A80 and 0x00438B50
 546	swd32.exe	0x00438B50	sub_438B50	text_dbcs		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import IMM32!ImmIsIME
-547	swd32.exe	0x00438DC0	sub_438DC0	text_dbcs		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between text_dbcs anchors 0x00438B50 and 0x00438DE0
-548	swd32.exe	0x00438DD0	sub_438DD0	text_dbcs		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between text_dbcs anchors 0x00438B50 and 0x00438DE0
-549	swd32.exe	0x00438DE0	sub_438DE0	text_dbcs		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import USER32!CharPrevA
-550	swd32.exe	0x00438E10	sub_438E10	text_dbcs		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import USER32!CharNextA
-551	swd32.exe	0x00438E50	sub_438E50	text_dbcs		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between text_dbcs anchors 0x00438E10 and 0x00438F60
-552	swd32.exe	0x00438F60	sub_438F60	text_dbcs		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import USER32!CharNextA
-553	swd32.exe	0x00438FA0	sub_438FA0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-554	swd32.exe	0x00439020	sub_439020	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-555	swd32.exe	0x00439070	sub_439070	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-556	swd32.exe	0x004390F0	sub_4390F0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-557	swd32.exe	0x00439110	sub_439110	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+547	swd32.exe	0x00438DC0	sub_438DC0	text_dbcs	src/text/text_input.cpp:TextInput::SetInsertMode	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between text_dbcs anchors 0x00438B50 and 0x00438DE0
+548	swd32.exe	0x00438DD0	sub_438DD0	text_dbcs	src/text/text_input.cpp:TextInput::GetInsertMode	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between text_dbcs anchors 0x00438B50 and 0x00438DE0
+549	swd32.exe	0x00438DE0	sub_438DE0	text_dbcs	src/text/text_input.cpp:TextInput::CursorLeft	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import USER32!CharPrevA
+550	swd32.exe	0x00438E10	sub_438E10	text_dbcs	src/text/text_input.cpp:TextInput::CursorRight	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import USER32!CharNextA
+551	swd32.exe	0x00438E50	sub_438E50	text_dbcs	src/text/text_input.cpp:TextInput::InsertText	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	outside insert mode (unreachable: insert mode is always 1) the original deletes the stack slot holding this
+552	swd32.exe	0x00438F60	sub_438F60	text_dbcs	src/text/text_input.cpp:TextInput::DeleteAtCursor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import USER32!CharNextA
+553	swd32.exe	0x00438FA0	sub_438FA0	random	src/core/random.cpp:R250Seed	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+554	swd32.exe	0x00439020	sub_439020	random	src/core/random.cpp:R250Next	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+555	swd32.exe	0x00439070	sub_439070	random	src/core/random.cpp:R250Below	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+556	swd32.exe	0x004390F0	sub_4390F0	random	src/core/random.cpp:LcgNext	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+557	swd32.exe	0x00439110	sub_439110	random	src/core/random.cpp:LcgSeed	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 558	swd32.exe	0x00439120	sub_439120	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 559	swd32.exe	0x00439210	sub_439210	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 560	swd32.exe	0x00439580	sub_439580	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	

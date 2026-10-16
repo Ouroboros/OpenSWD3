@@ -116,6 +116,10 @@ constexpr int SM_CYSCREEN = 1;
 int GetSystemMetrics(int index);
 int wsprintfA(LPSTR buffer, LPCSTR format, ...);
 
+// DBCS navigation with the Big5 (code page 950) lead bytes 0x81-0xFE, independent of the host code page.
+LPSTR CharNextA(LPCSTR current);
+LPSTR CharPrevA(LPCSTR start, LPCSTR current);
+
 int lstrlenA(LPCSTR string);
 LPSTR lstrcpyA(LPSTR dest, LPCSTR src);
 LPSTR lstrcatA(LPSTR dest, LPCSTR src);

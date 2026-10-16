@@ -2369,12 +2369,8 @@ struct Globals {
     std::uint8_t pad_4A65EA[0x2];
     char aInternalErrorN[33];  // 0x004A65EC
     std::uint8_t pad_4A660D[0x3];
-    std::int32_t dword_4A6610;  // 0x004A6610
-    std::uint8_t pad_4A6614[0x8];
-    std::uint8_t unk_4A661C;  // 0x004A661C
-    std::uint8_t pad_4A661D[0x2BF];
-    std::int32_t dword_4A68DC[71];  // 0x004A68DC
-    std::int32_t dword_4A69F8;  // 0x004A69F8
+    std::uint32_t r250Table[250];  // 0x004A6610
+    std::uint32_t lcgState;  // 0x004A69F8
     std::uint8_t pad_4A69FC[0x4];
     std::int16_t word_4A6A00;  // 0x004A6A00
     std::uint8_t pad_4A6A02[0x18];
@@ -4334,9 +4330,9 @@ struct Globals {
     std::uint8_t pad_4FB560[0x8];
     std::int32_t dword_4FB568;  // 0x004FB568
     std::uint8_t pad_4FB56C[0x27C];
-    std::int32_t dword_4FB7E8;  // 0x004FB7E8
+    std::int32_t textInputLeadPending;  // 0x004FB7E8 1 after a WM_CHAR lead byte
     std::uint8_t pad_4FB7EC[0x4];
-    std::int32_t dword_4FB7F0;  // 0x004FB7F0
+    std::int32_t r250Index;  // 0x004FB7F0
     std::uint8_t pad_4FB7F4[0x14];
     std::int32_t dword_4FB808;  // 0x004FB808
     std::uint8_t pad_4FB80C[0x4];
@@ -5770,6 +5766,8 @@ static_assert(offsetof(Globals, screenWidth) == 0x7E78);
 static_assert(offsetof(Globals, screenHeight) == 0x7E7C);
 static_assert(offsetof(Globals, tswCacheLimit) == 0xD020);
 static_assert(offsetof(Globals, actCacheLimit) == 0xD098);
+static_assert(offsetof(Globals, r250Table) == 0xD610);
+static_assert(offsetof(Globals, lcgState) == 0xD9F8);
 static_assert(offsetof(Globals, file_4A9380) == 0x10380);
 static_assert(offsetof(Globals, gameDir) == 0x104BC);
 static_assert(offsetof(Globals, file_4A98C8) == 0x108C8);
@@ -5902,6 +5900,8 @@ static_assert(offsetof(Globals, tswPackedCapB) == 0x62514);
 static_assert(offsetof(Globals, tswErrorText) == 0x62518);
 static_assert(offsetof(Globals, tswPackedBufB) == 0x62558);
 static_assert(offsetof(Globals, tswPackedBuf) == 0x6255C);
+static_assert(offsetof(Globals, textInputLeadPending) == 0x627E8);
+static_assert(offsetof(Globals, r250Index) == 0x627F0);
 static_assert(offsetof(Globals, file_521538) == 0x88538);
 
 inline Globals& globals() { return *reinterpret_cast<Globals*>(image::g_bytes); }
