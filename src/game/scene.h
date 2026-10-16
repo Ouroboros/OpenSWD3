@@ -203,6 +203,7 @@ struct ScriptObject
 struct MapParticle
 {
     static constexpr i32 Unplaced = 0x7FFFFFFF;  // in `x`: a leaf to be placed again
+    static constexpr i32 Filled = 0x0F0F0F0F;    // the 0x0F bytes a new map fills the weather particles with
 
     i32 x = 0;
     i32 y = 0;
@@ -388,12 +389,13 @@ struct Scene
     i32 unk4ACE4C = 0;
     i32 unk4ACE50 = 0;
     i32 unk4ACE54 = 0;
-    i32 spotlightStepX = 0;          // 0x004ACE58 pixels per frame
-    i32 spotlightStepY = 0;          // 0x004ACE5C
-    u16 weatherAction = 0;           // 0x004ACEF0 the first action of the weather particles in the effect act
-    i16 lightningCount = 0;          // 0x004AAEC8 bolts wanted (up to 8)
-    i16 firefliesShown = 0;          // 0x004B737C
-    std::array<Streak, 0x40> bolts;  // 0x004B7520 (a new map clears the first 0x30)
+    i32 spotlightStepX = 0;  // 0x004ACE58 pixels per frame
+    i32 spotlightStepY = 0;  // 0x004ACE5C
+    u16 weatherAction = 0;   // 0x004ACEF0 the first action of the weather particles in the effect act
+    i16 lightningCount = 0;  // 0x004AAEC8 bolts wanted (up to 8)
+    i16 firefliesShown = 0;  // 0x004B737C
+    static constexpr std::size_t ClearedBolts = 0x30;  // the bolts a new map clears
+    std::array<Streak, 0x40> bolts;                    // 0x004B7520
     i32 unk4B7944 = 0;
     std::array<i32, 0x20> trailY = {};          // 0x004B7998 the places of the leader, the latest first
     std::array<i32, 0x20> trailDirection = {};  // 0x004C8C00

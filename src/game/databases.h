@@ -1,9 +1,11 @@
 #pragma once
 
+#include <climits>
 #include <string>
 #include <vector>
 
 #include "core/types.h"
+#include "core/words.h"
 #include "file/file.h"
 
 namespace swd3
@@ -30,16 +32,78 @@ public:
     std::vector<u8> script;        // 0x004B8860 0x8000 bytes: the script of the running event
 };
 
+// The records of the maps.dat tables (reverse/analysis/maps-dat.md); offsets in bytes unless named words.
+struct MapsRecord
+{
+    static constexpr u16 TableEnd = 0xFFFF;
+    static constexpr u16 NameEnd = 0x5125;  // "%Q" ends a Big5 name
+
+    // Table 1: a role, in words.
+    enum RoleWord : std::size_t
+    {
+        RoleMap,
+        RoleId,
+        RoleAct,
+        RoleAction,
+        RoleDirection,
+        RoleColumn,
+        RoleRow,
+        RoleEvent,
+        RolePath,
+        RoleStep,
+        RoleFlags,
+        RoleWords,
+    };
+
+    // Table 2: item SceneMusicItem points at a dword with the scene music records.
+    static constexpr std::size_t SceneMusicItem = 1;
+    static constexpr std::size_t MusicBytes = 8;
+    static constexpr std::size_t MusicFirstAt = 2;
+    static constexpr std::size_t MusicSecondAt = 4;
+    static constexpr std::size_t MusicMarksAt = 6;
+
+    // Table 3: the settings of a map.
+    static constexpr std::size_t SettingsBytes = 0xE;
+    static constexpr std::size_t SettingsUnitAt = 2;
+    static constexpr std::size_t SettingsKindAt = 4;
+    static constexpr std::size_t SettingsEffectsAt = 5;
+    static constexpr std::size_t SettingsSpeedsAt = 6;
+    static constexpr std::size_t SettingsUnk49E0BCAt = 8;
+    static constexpr std::size_t SettingsUnk4B896CAt = 0xA;
+    static constexpr std::size_t SettingsUnk4B88C0At = 0xC;
+
+    // Table 7: an encounter area in tiles and its encounter table.
+    static constexpr std::size_t AreaBytes = 0xE;
+    static constexpr std::size_t AreaLeftAt = 2;
+    static constexpr std::size_t AreaTopAt = 4;
+    static constexpr std::size_t AreaRightAt = 6;
+    static constexpr std::size_t AreaBottomAt = 8;
+    static constexpr std::size_t AreaTableAt = 0xA;
+
+    // Table 0x14: a place name after its map number.
+    static constexpr std::size_t PlaceNameAt = sizeof(u16);
+
+    // Table 0x15: a role sound.
+    static constexpr std::size_t SoundBytes = 6;
+    static constexpr std::size_t SoundAt = 2;
+    static constexpr std::size_t SoundPeriodAt = 4;
+
+    // Table 0x19: a role and the story values it follows the leader for.
+    static constexpr std::size_t FollowerBytes = 0x12;
+    static constexpr std::size_t FollowerStories = 8;
+};
+
 // The word at `offset` of maps.dat past its header (0xFFFF past its end).
 inline u16 MapsWord(const std::vector<u8>& data, std::size_t offset)
 {
-    return offset + 1 < data.size() ? static_cast<u16>(data[offset] | data[offset + 1] << 8) : u16{0xFFFF};
+    return offset + 1 < data.size() ? static_cast<u16>(data[offset] | data[offset + 1] << CHAR_BIT)
+                                    : MapsRecord::TableEnd;
 }
 
 // The dword at `offset` of maps.dat.
 inline u32 MapsDword(const std::vector<u8>& data, std::size_t offset)
 {
-    return static_cast<u32>(MapsWord(data, offset) | static_cast<u32>(MapsWord(data, offset + 2)) << 16);
+    return MakeWords(MapsWord(data, offset + sizeof(u16)), MapsWord(data, offset));
 }
 
 // The tables of maps.dat (see reverse/analysis/maps-dat.md).

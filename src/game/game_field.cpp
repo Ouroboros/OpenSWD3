@@ -1,4 +1,6 @@
 #include <algorithm>
+#include <bit>
+#include <climits>
 #include <cmath>
 #include <cstring>
 #include <span>
@@ -8,9 +10,11 @@
 
 #include "core/debug_log.h"
 #include "core/format.h"
+#include "core/words.h"
 #include "crt/msvc.h"
 #include "game/game.h"
 #include "platform/system_info.h"
+#include "role/path_script.h"
 
 namespace swd3
 {
@@ -29,22 +33,81 @@ constexpr u8 kGlowWeather = 0x40;
 constexpr u8 kOverlaysFirst = 0x80;
 
 constexpr int kSceneFadeLength = 0xF;  // the fade of the scene music when the map changes it
-constexpr int kRecordWords = 0xB;
-constexpr u16 kTableEnd = 0xFFFF;
-constexpr u16 kNameEnd = 0x5125;
 constexpr int kLoadingAct = 0x232A;
 constexpr int kLoadingAction = 0x4F;
 constexpr int kLoadingBarWidth = 0x18A;
-constexpr std::size_t kScreenBytes = 0x96000;
+constexpr std::size_t kScreenBytes = sizeof(Pixel) * Display::Pixels;
 constexpr u16 kPartyLeader = 1;
 constexpr u16 kSpecialItem = 0x192;
 constexpr std::string_view kCdData = "swd3_dvd.dat";  // swd32.exe 0x0049FC9C (the same name for every disc)
 
 // swd32.exe 0x0049FBA8: a nibble as a signed step.
 constexpr std::array<i32, 16> kSignedNibble = {0, 1, 2, 3, 4, 5, 6, 7, 8, -7, -6, -5, -4, -3, -2, -1};
+
+// The loading screen: the bar shades from (kBarRed, kBarGreen, kBarBlue) by the steps per column in 1/kColorFraction
+// (8-bit channels, kChannelDrop bits dropped for the display); the runner walks at its end.
+constexpr int kLoadingStart = -1;
+constexpr int kLoadingSettings = 2;  // the progress of LoadCity
+constexpr int kLoadingCleared = 10;
+constexpr int kLoadingNamed = 85;
+constexpr int kLoadingPlaced = 90;
+constexpr int kLoadingCentered = 95;
+constexpr int kLoadingDone = 100;
+constexpr u32 kRunners = 2;  // the runner is act 1 or 2
+constexpr i32 kBarRed = 0x1F;
+constexpr i32 kBarGreen = 0x73;
+constexpr i32 kBarBlue = 0xFF;
+constexpr int kBarRedStep = 0x246;
+constexpr int kBarGreenStep = 0xDA;
+constexpr int kBarBlueFall = 0x296;
+constexpr int kColorFraction = 0x400;
+constexpr int kChannelDrop = 3;
+constexpr int kBarLeft = 0x7B;
+constexpr int kBarTop = 0x1BD;
+constexpr int kBarHeight = 0x1E;
+constexpr int kPictureX = 0x78;
+constexpr int kPictureY = 0x1BA;
+constexpr int kStartPictureY = 0xCA;  // the picture before the screen is cleared
+constexpr int kRunnerX = 0x6B;        // past the end of the bar
+constexpr int kRunnerY = 0x1CC;
+
+// Map settings (maps.dat table 3): the kind and speed bytes hold nibbles.
+constexpr int kNibbleBits = 4;
+constexpr u16 kNibbleMask = 0xF;
+constexpr u8 kNoUnk4ACDB4 = 0x10;    // in the kind: unk4ACDB4 is 0
+constexpr u32 kMaxWalkSpeed = 0x10;  // the walk speed is a power of two up to this
+constexpr i32 kDefaultWalkSpeed = 4;
+constexpr u32 kStartSpeeds = 3;  // a weather particle starts at speed 1..kStartSpeeds
+constexpr int kStartDrift = 2;
+
+// The roles of maps.dat's role table.
+constexpr u16 kEveryMapRole = 10000;  // records of these roles (and of none) belong to every map
+constexpr u16 kEveryMapRole2 = 10001;
+constexpr u16 kLeaderFlags = Role::Visible | Role::Solid | Role::StepsAct | Role::CellEffects;
+constexpr u16 kStoryActMark = 0x8000;  // in unk4B88C0: the party leader takes a story act
+constexpr i32 kLeaderStoryAct = 0x60;
+constexpr i32 kLeaderSpecialAct = 0x5F;  // with kSpecialItem on the maps of the journey
+constexpr u32 kFollowUnlisted = 1;       // a flagged role not in the follower table follows
+constexpr u32 kFollowStory = 2;          // a listed one follows for the story values it lists
+
+constexpr u8 kNoDrive = 0xFF;       // ends Game::cdDrives
+constexpr u32 kShortCdWait = 1000;  // milliseconds of uptime before the CD is looked for (one drive: kLongCdWait)
+constexpr u32 kLongCdWait = 3000;
+
+constexpr int kSoundRange = 0x200;  // pixels a map sound is heard within
+constexpr int kSoundScale = 0x80;
+constexpr int kPanScale = 0x40;
+constexpr int kPlayOnce = 1;
+
+// The encounter sets (maps.dat table 0x12): their count, then kSetWords words each: kSetPairs pairs of a step
+// threshold and a chance in percent.
+constexpr std::size_t kSetsAt = 1;
+constexpr std::size_t kSetWords = 8;
+constexpr int kSetPairs = 4;
+constexpr std::size_t kPairWords = 2;
+constexpr u32 kPercent = 100;
+constexpr int kForcedEncounter = 1;  // RollEncounter `force`: the thresholds and the chance are skipped
 // swd32.exe 0x004994AC and 0x004994CC: the step of a move by direction.
-constexpr std::array<i32, 8> kStepX = {4, 0, -4, -4, -4, 0, 4, 4};
-constexpr std::array<i32, 8> kStepY = {4, 4, 4, 0, -4, -4, -4, 0};
 
 }  // namespace
 
@@ -55,15 +118,15 @@ void Game::ShowLoading(int percent)
     Scene& view = this->scene;
     int shown = percent;
 
-    if (percent == -1)
+    if (percent == kLoadingStart)
     {
         this->loadingPercent = 0;
         this->loadingUnk4CC2C0 = 0;
         shown = 0;
-        this->loadingRunner = static_cast<i32>(this->random.Below(2)) + 1;
-        this->loadingRed = 0x1F;
-        this->loadingGreen = 0x73;
-        this->loadingBlue = 0xFF;
+        this->loadingRunner = static_cast<i32>(this->random.Below(kRunners)) + 1;
+        this->loadingRed = kBarRed;
+        this->loadingGreen = kBarGreen;
+        this->loadingBlue = kBarBlue;
         this->loadingUnk4CC2C4 = 0;
         ResetPlayback(view.unk4A93E8);
         ResetPlayback(this->loadingAct);
@@ -75,7 +138,7 @@ void Game::ShowLoading(int percent)
         this->painter.SetTarget(this->drawSurface);
         this->painter.UnlockSurface(*this->offscreen);
         std::memset(this->drawSurface, 0, kScreenBytes);
-        const int length = kLoadingBarWidth * shown / 100;
+        const int length = kLoadingBarWidth * shown / kLoadingDone;
         const int pitch = this->offscreen->Width();
         int red = 0;
         int green = 0;
@@ -83,25 +146,25 @@ void Game::ShowLoading(int percent)
 
         for (int column = 0; column <= length; ++column)
         {
-            this->loadingBlue = blue / 0x400 + 0xFF;
-            this->loadingGreen = green / 0x400 + 0x73;
-            this->loadingRed = red / 0x400 + 0x1F;
+            this->loadingBlue = blue / kColorFraction + kBarBlue;
+            this->loadingGreen = green / kColorFraction + kBarGreen;
+            this->loadingRed = red / kColorFraction + kBarRed;
             const auto color = static_cast<u16>(this->painter.MakeColor(
-                static_cast<u32>(this->loadingRed >> 3),
-                static_cast<u32>(this->loadingGreen >> 3),
-                static_cast<u32>(this->loadingBlue >> 3)
+                static_cast<u32>(this->loadingRed >> kChannelDrop),
+                static_cast<u32>(this->loadingGreen >> kChannelDrop),
+                static_cast<u32>(this->loadingBlue >> kChannelDrop)
             ));
-            u16* pixel = this->drawSurface + pitch * 0x1BD + column + 0x7B;
+            u16* pixel = this->drawSurface + pitch * kBarTop + column + kBarLeft;
 
-            for (int row = 0; row < 0x1E; ++row)
+            for (int row = 0; row < kBarHeight; ++row)
             {
                 *pixel = color;
                 pixel += pitch;
             }
 
-            red += 0x246;
-            green += 0xDA;
-            blue -= 0x296;
+            red += kBarRedStep;
+            green += kBarGreenStep;
+            blue -= kBarBlueFall;
         }
 
         this->loadingPercent = shown;
@@ -110,15 +173,15 @@ void Game::ShowLoading(int percent)
         view.unk4A93E8.direction = 0;
         view.unk4A93E8.x = 0;
         view.unk4A93E8.y = 0;
-        this->actDrawer.Draw(view.unk4A93E8, 0x78, 0x1BA);
+        this->actDrawer.Draw(view.unk4A93E8, kPictureX, kPictureY);
         this->loadingAct.id = this->loadingRunner;
-        this->loadingAct.action = 0x10;
-        this->loadingAct.direction = 3;
-        this->actDrawer.Draw(this->loadingAct, length + 0x6B, 0x1CC);
+        this->loadingAct.action = Role::RunAction;
+        this->loadingAct.direction = ActState::Right;
+        this->actDrawer.Draw(this->loadingAct, length + kRunnerX, kRunnerY);
         this->ShowFrame();
     }
 
-    if (percent == 100)
+    if (percent == kLoadingDone)
     {
         this->state.ClearGameFlag(GameState::NoLoadingScreen);
     }
@@ -131,9 +194,9 @@ void Game::MusicZone(int map)
     Scene& view = this->scene;
     const std::vector<u8>& data = this->databases.mapsData;
     const u32 lists = MapsTable(data, MapsDataTable::Music);
-    u32 at = MapsDword(data, MapsDword(data, lists + 4));
+    u32 at = MapsDword(data, MapsDword(data, lists + sizeof(u32) * MapsRecord::SceneMusicItem));
 
-    for (;; at += 8)
+    for (;; at += MapsRecord::MusicBytes)
     {
         const u16 entry = MapsWord(data, at);
 
@@ -151,8 +214,8 @@ void Game::MusicZone(int map)
         }
     }
 
-    const i32 first = MapsWord(data, at + 2);
-    const i32 second = MapsWord(data, at + 4);
+    const i32 first = MapsWord(data, at + MapsRecord::MusicFirstAt);
+    const i32 second = MapsWord(data, at + MapsRecord::MusicSecondAt);
 
     if (first != view.musicTunes[Scene::SceneFirst] || second != view.musicTunes[Scene::SceneSecond])
     {
@@ -173,7 +236,7 @@ void Game::MusicZone(int map)
         }
 
         view.musicCue &= Scene::StoryMusic | (Scene::UnkMusic100000 - 1);
-        const u16 marks = MapsWord(data, at + 6);
+        const u16 marks = MapsWord(data, at + MapsRecord::MusicMarksAt);
         view.musicCue &= ~(Scene::SceneLoops | Scene::SceneRepeatFirst);
 
         if ((marks & Scene::MarksNone) == 0)
@@ -197,7 +260,7 @@ bool Game::LoadRoleSound(Role& role)
 {
     const std::vector<u8>& data = this->databases.mapsData;
 
-    for (u32 at = MapsTable(data, MapsDataTable::RoleSounds); at + 1 < data.size(); at += 6)
+    for (u32 at = MapsTable(data, MapsDataTable::RoleSounds); at + 1 < data.size(); at += MapsRecord::SoundBytes)
     {
         const u16 id = MapsWord(data, at);
 
@@ -208,9 +271,9 @@ bool Game::LoadRoleSound(Role& role)
 
         if (id == role.id)
         {
-            role.sound = MapsWord(data, at + 2);
-            const u32 period = MapsWord(data, at + 4);
-            role.soundTimer = period << 16 | period;
+            role.sound = MapsWord(data, at + MapsRecord::SoundAt);
+            const u16 period = MapsWord(data, at + MapsRecord::SoundPeriodAt);
+            role.soundTimer = MakeWords(period, period);
             return true;
         }
     }
@@ -223,16 +286,17 @@ void Game::BuildTriggers(MapTrigger& head)
 {
     const std::vector<u8>& data = this->databases.mapsData;
 
-    for (u32 at = MapsTable(data, MapsDataTable::EncounterAreas); MapsWord(data, at) != kTableEnd; at += 0xE)
+    for (u32 at = MapsTable(data, MapsDataTable::EncounterAreas); MapsWord(data, at) != MapsRecord::TableEnd;
+         at += MapsRecord::AreaBytes)
     {
         if (MapsWord(data, at) == static_cast<u16>(this->currentMap))
         {
             auto node = std::make_unique<MapTrigger>();
-            node->left = MapsWord(data, at + 2);
-            node->top = MapsWord(data, at + 4);
-            node->right = MapsWord(data, at + 6);
-            node->bottom = MapsWord(data, at + 8);
-            node->table = MapsDword(data, at + 0xA);
+            node->left = MapsWord(data, at + MapsRecord::AreaLeftAt);
+            node->top = MapsWord(data, at + MapsRecord::AreaTopAt);
+            node->right = MapsWord(data, at + MapsRecord::AreaRightAt);
+            node->bottom = MapsWord(data, at + MapsRecord::AreaBottomAt);
+            node->table = MapsDword(data, at + MapsRecord::AreaTableAt);
             node->next = std::move(head.next);
             head.next = std::move(node);
         }
@@ -246,8 +310,8 @@ void Game::InitRole(Role& role)
     role.act.flags = 0;
     this->acts.Run(role.act);
     role.flags &= ~(Role::Reflects | Role::CellShades);
-    const auto column = static_cast<u32>(role.x) >> 4;
-    const i32 row = role.y >> 4;
+    const auto column = static_cast<u32>(role.x) >> MapHeader::TileShift;
+    const i32 row = role.y >> MapHeader::TileShift;
     const std::size_t at = column + static_cast<std::size_t>(this->state.map.width) * static_cast<std::size_t>(row);
     std::vector<u32>& blocks = this->state.map.blocks;
     role.cell = at < blocks.size() ? &blocks[at] : nullptr;
@@ -267,7 +331,7 @@ void Game::InitRole(Role& role)
         }
     }
 
-    if (role.act.id != 0 && (role.flags & (Role::Visible | Role::Hidden)) == 0x8000)
+    if (role.act.id != 0 && (role.flags & (Role::Visible | Role::Hidden)) == Role::Visible)
     {
         this->field.MarkRoleCells(role, static_cast<u16>(this->unk4B7BC4));
     }
@@ -280,25 +344,25 @@ bool Game::MapName(int map, std::string& name) const
     std::size_t at = MapsTable(data, MapsDataTable::PlaceNames);
     u16 code = MapsWord(data, at);
 
-    if (code == kTableEnd)
+    if (code == MapsRecord::TableEnd)
     {
         return false;
     }
 
     while (code != static_cast<u16>(map))
     {
-        if (code != kNameEnd)
+        if (code != MapsRecord::NameEnd)
         {
             do
             {
                 ++at;
-            } while (at + 1 < data.size() && MapsWord(data, at) != kNameEnd);
+            } while (at + 1 < data.size() && MapsWord(data, at) != MapsRecord::NameEnd);
         }
 
-        code = MapsWord(data, at + 2);
-        at += 2;
+        code = MapsWord(data, at + MapsRecord::PlaceNameAt);
+        at += sizeof(u16);
 
-        if (code == kTableEnd || at + 1 >= data.size())
+        if (code == MapsRecord::TableEnd || at + 1 >= data.size())
         {
             return false;
         }
@@ -306,7 +370,8 @@ bool Game::MapName(int map, std::string& name) const
 
     name.clear();
 
-    for (std::size_t character = at + 2; character + 1 < data.size() && MapsWord(data, character) != kNameEnd;
+    for (std::size_t character = at + MapsRecord::PlaceNameAt;
+         character + 1 < data.size() && MapsWord(data, character) != MapsRecord::NameEnd;
          ++character)
     {
         name.push_back(static_cast<char>(data[character]));
@@ -333,77 +398,78 @@ bool Game::UpdateRoleRecord(
 {
     std::vector<u8>& data = this->databases.mapsData;
 
-    for (std::size_t at = this->scene.unk4ACE40;; at += 2 * kRecordWords)
+    for (std::size_t at = this->scene.unk4ACE40;; at += static_cast<std::size_t>(sizeof(u16) * MapsRecord::RoleWords))
     {
-        if (at + 2 * kRecordWords > data.size() || MapsWord(data, at) == kTableEnd)
+        if (at + static_cast<std::size_t>(sizeof(u16) * MapsRecord::RoleWords) > data.size() ||
+            MapsWord(data, at) == MapsRecord::TableEnd)
         {
             DebugLog(u8"role record missing", id);
             return false;
         }
 
-        if (MapsWord(data, at + 2) == id)
+        if (MapsWord(data, at + sizeof(u16) * MapsRecord::RoleId) == id)
         {
             auto put = [&data, at](int word, i16 value)
             {
-                const std::size_t offset = at + 2 * static_cast<std::size_t>(word);
+                const std::size_t offset = at + sizeof(u16) * static_cast<std::size_t>(word);
                 data[offset] = static_cast<u8>(value);
-                data[offset + 1] = static_cast<u8>(static_cast<u16>(value) >> 8);
+                data[offset + 1] = static_cast<u8>(static_cast<u16>(value) >> CHAR_BIT);
             };
 
             auto get = [&data, at](int word)
             {
-                return static_cast<i16>(MapsWord(data, at + 2 * static_cast<std::size_t>(word)));
+                return static_cast<i16>(MapsWord(data, at + sizeof(u16) * static_cast<std::size_t>(word)));
             };
 
             if (act != -1)
             {
-                put(2, act);
+                put(MapsRecord::RoleAct, act);
             }
 
             if (action != -1)
             {
-                put(3, action);
+                put(MapsRecord::RoleAction, action);
             }
 
             if (direction != -1)
             {
-                put(4, direction);
+                put(MapsRecord::RoleDirection, direction);
             }
 
             if (x != -1)
             {
-                put(5, x);
+                put(MapsRecord::RoleColumn, x);
             }
 
             if (y != -1)
             {
-                put(6, y);
+                put(MapsRecord::RoleRow, y);
             }
 
             if (event != -1)
             {
-                put(7, event);
+                put(MapsRecord::RoleEvent, event);
             }
 
             if (talk != -1)
             {
-                put(8, talk);
-                put(9, 0);
+                put(MapsRecord::RolePath, talk);
+                put(MapsRecord::RoleStep, 0);
             }
 
             if (clearBits != -1)
             {
-                put(0xA, static_cast<i16>(get(0xA) & clearBits));
+                put(MapsRecord::RoleFlags, static_cast<i16>(get(MapsRecord::RoleFlags) & clearBits));
             }
 
             if (setBits != -1)
             {
-                put(0xA, static_cast<i16>(get(0xA) | setBits));
+                put(MapsRecord::RoleFlags, static_cast<i16>(get(MapsRecord::RoleFlags) | setBits));
             }
 
             if (map != -1)
             {
-                put(0, map);
+                put(MapsRecord::RoleMap, map);
             }
 
             return true;
@@ -426,25 +492,20 @@ void Game::SaveRoleStates(i16 x, i16 y)
             continue;
         }
 
-        if (static_cast<i8>(copy.flags) >= 0)
+        if ((copy.flags & Role::Follower) == 0)
         {
             if (copy.unk1C != 0)
             {
                 const u8* paths = this->databases.pathData;
-                const std::size_t pathBytes = this->databases.paths.Size();
+                const std::span<const u8> pathBytes =
+                    paths != nullptr ? std::span<const u8>(paths, this->databases.paths.Size()) : std::span<const u8>();
+                const u32 path = PathScript::PathStart(pathBytes, static_cast<std::size_t>(copy.unk1C));
+                copy.x &= ~MapHeader::TileFraction;
+                copy.y &= ~MapHeader::TileFraction;
+                const std::size_t step = PathScript::WordBytes * static_cast<std::size_t>(static_cast<u32>(copy.unk18));
 
-                auto pathWord = [paths, pathBytes](std::size_t at)
-                {
-                    return paths != nullptr && at + 2 <= pathBytes ? static_cast<u16>(paths[at] | paths[at + 1] << 8)
-                                                                   : u16{0};
-                };
-
-                const u32 path = pathWord(0x200 + 4 * static_cast<std::size_t>(copy.unk1C)) |
-                                 static_cast<u32>(pathWord(0x202 + 4 * static_cast<std::size_t>(copy.unk1C))) << 16;
-                copy.x &= static_cast<i32>(0xFFFFFFF0u);
-                copy.y &= static_cast<i32>(0xFFFFFFF0u);
-
-                if (pathWord(0x200 + path + 2 * static_cast<std::size_t>(static_cast<u32>(copy.unk18))) == 8)
+                if (PathScript::Word(pathBytes, PathScript::DataAt + path + step) ==
+                    static_cast<u16>(PathCommand::Step))
                 {
                     for (const MoveRecord& move : this->state.moves)
                     {
@@ -496,22 +557,27 @@ void Game::FollowLeader(int index)
                 continue;
             }
 
-            if ((role.x & 0xF) != 0 || (role.y & 0xF) != 0)
+            if ((role.x & MapHeader::TileFraction) != 0 || (role.y & MapHeader::TileFraction) != 0)
             {
                 this->field.ClearRoleCells(role, static_cast<u16>(this->unk4B7BC4));
                 const u8 direction = move.CurrentDirection();
 
-                while ((role.x & 0xF) != 0 && direction < kStepX.size())
+                while ((role.x & MapHeader::TileFraction) != 0 && direction < RolePath::StepX.size())
                 {
-                    role.x -= kStepX[direction];
+                    role.x -= RolePath::StepX[direction];
                 }
 
-                while ((role.y & 0xF) != 0 && direction < kStepY.size())
+                while ((role.y & MapHeader::TileFraction) != 0 && direction < RolePath::StepY.size())
                 {
-                    role.y -= kStepY[direction];
+                    role.y -= RolePath::StepY[direction];
                 }
 
-                this->field.RemoveRole(role.id, static_cast<int>(role.flags & Role::LayerMask), (role.y >> 4) - 1, 0);
+                this->field.RemoveRole(
+                    role.id,
+                    static_cast<int>(role.flags & Role::LayerMask),
+                    (role.y >> MapHeader::TileShift) - 1,
+                    0
+                );
             }
 
             this->UpdateRoleRecord(
@@ -523,7 +589,7 @@ void Game::FollowLeader(int index)
                 Game::KeepValue,
                 Game::KeepValue,
                 Game::KeepValue,
-                0x80,
+                Role::Follower,
                 Game::KeepValue,
                 Game::KeepValue
             );
@@ -542,7 +608,7 @@ void Game::FollowLeader(int index)
     }
 
     role.event = 0;
-    role.flags = (role.flags & ~Role::Solid) | 0x80;
+    role.flags = (role.flags & ~Role::Solid) | Role::Follower;
     ++view.unk4BABA0;
 }
 
@@ -554,12 +620,13 @@ int Game::CheckCd(const std::string& root, int& drive)
     this->systemFlags |= Game::CheckingCd;
     int drives = 0;
 
-    while (drives < static_cast<int>(this->cdDrives.size()) && this->cdDrives[static_cast<std::size_t>(drives)] != 0xFF)
+    while (drives < static_cast<int>(this->cdDrives.size()) &&
+           this->cdDrives[static_cast<std::size_t>(drives)] != kNoDrive)
     {
         ++drives;
     }
 
-    const u32 wait = drives > 1 ? 0x3E8 : 0xBB8;
+    const u32 wait = drives > 1 ? kShortCdWait : kLongCdWait;
 
     for (;;)
     {
@@ -577,7 +644,7 @@ int Game::CheckCd(const std::string& root, int& drive)
 
         this->input.PollKeyboard();
 
-        if (this->input.IsKeyDown(0x10) != 0)
+        if (this->input.IsKeyDown(Input::Q) != 0)
         {
             break;
         }
@@ -606,8 +673,8 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
         view.unk4A93E8.direction = 0;
         view.unk4A93E8.x = 0;
         view.unk4A93E8.y = 0;
-        this->actDrawer.Draw(view.unk4A93E8, 0x78, 0xCA);
-        this->ShowLoading(-1);
+        this->actDrawer.Draw(view.unk4A93E8, kPictureX, kStartPictureY);
+        this->ShowLoading(kLoadingStart);
     }
 
     view.screenFlags = 0;
@@ -615,17 +682,17 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
     game.ClearGameFlag(GameState::Weather);
     game.ClearGameFlag(GameState::Leaves);
 
-    view.weather.fill({0x0F0F0F0F, 0x0F0F0F0F, 0x0F0F0F0F, 0x0F0F0F0F});
+    view.weather.fill({MapParticle::Filled, MapParticle::Filled, MapParticle::Filled, MapParticle::Filled});
 
     ResetPlayback(view.unk4ACAF8);
     view.ResetLeaves();
     game.ClearGameFlag(GameState::HeatHaze);
     game.ClearGameFlag(GameState::Lightning);
-    std::fill_n(view.bolts.begin(), 0x30, Streak{});
+    std::fill_n(view.bolts.begin(), Scene::ClearedBolts, Streak{});
     view.lightningShown = 0;
     view.lightningCount = 0;
     game.ClearGameFlag(GameState::Fireflies);
-    std::fill_n(view.bolts.begin(), 0x30, Streak{});
+    std::fill_n(view.bolts.begin(), Scene::ClearedBolts, Streak{});
     view.firefliesShown = 0;
     view.spotlightX = Display::Width / 2;
     view.spotlightTargetX = Display::Width / 2;
@@ -639,25 +706,26 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
     this->audio.StopAllSounds();
     this->AudioPump();
     const std::vector<u8>& data = this->databases.mapsData;
-    u16 unit = kTableEnd;
+    u16 unit = MapsRecord::TableEnd;
 
-    for (u32 at = MapsTable(data, MapsDataTable::MapSettings); MapsWord(data, at) != kTableEnd; at += 0xE)
+    for (u32 at = MapsTable(data, MapsDataTable::MapSettings); MapsWord(data, at) != MapsRecord::TableEnd;
+         at += MapsRecord::SettingsBytes)
     {
         if (MapsWord(data, at) != static_cast<u16>(map))
         {
             continue;
         }
 
-        unit = MapsWord(data, at + 2);
-        const u8 kind = data[at + 4];
-        const u8 effects = data[at + 5];
-        const u16 speeds = MapsWord(data, at + 6);
-        view.unk4B7EB4 = kind & 0xF;
-        view.unk4C8BD8 = data[at + 6] & 0xF;
-        view.unk49E0BC = MapsWord(data, at + 8);
-        view.unk4B896C = MapsWord(data, at + 0xA);
-        view.unk4B88C0 = MapsWord(data, at + 0xC);
-        view.unk4ACDB4 = (kind & 0x10) == 0 ? 1 : 0;
+        unit = MapsWord(data, at + MapsRecord::SettingsUnitAt);
+        const u8 kind = data[at + MapsRecord::SettingsKindAt];
+        const u8 effects = data[at + MapsRecord::SettingsEffectsAt];
+        const u16 speeds = MapsWord(data, at + MapsRecord::SettingsSpeedsAt);
+        view.unk4B7EB4 = kind & kNibbleMask;
+        view.unk4C8BD8 = data[at + MapsRecord::SettingsSpeedsAt] & kNibbleMask;
+        view.unk49E0BC = MapsWord(data, at + MapsRecord::SettingsUnk49E0BCAt);
+        view.unk4B896C = MapsWord(data, at + MapsRecord::SettingsUnk4B896CAt);
+        view.unk4B88C0 = MapsWord(data, at + MapsRecord::SettingsUnk4B88C0At);
+        view.unk4ACDB4 = (kind & kNoUnk4ACDB4) == 0 ? 1 : 0;
         game.ClearGameFlag(GameState::OverlaysFirst);
 
         if ((effects & kOverlaysFirst) != 0)
@@ -699,14 +767,13 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
             }
         }
 
-        view.unk4AB97C = kSignedNibble[speeds >> 0xC];
-        view.unk4AB994 = kSignedNibble[(speeds >> 8) & 0xF];
-        view.unk4ACB98 = kSignedNibble[data[at + 6] >> 4];
+        view.unk4AB97C = kSignedNibble[speeds >> (3 * kNibbleBits)];
+        view.unk4AB994 = kSignedNibble[(speeds >> (2 * kNibbleBits)) & kNibbleMask];
+        view.unk4ACB98 = kSignedNibble[data[at + MapsRecord::SettingsSpeedsAt] >> kNibbleBits];
 
-        if (view.unk4C8BD8 != 1 && view.unk4C8BD8 != 2 && view.unk4C8BD8 != 4 && view.unk4C8BD8 != 8 &&
-            view.unk4C8BD8 != 0x10)
+        if (!std::has_single_bit(static_cast<u32>(view.unk4C8BD8)) || static_cast<u32>(view.unk4C8BD8) > kMaxWalkSpeed)
         {
-            view.unk4C8BD8 = 4;
+            view.unk4C8BD8 = kDefaultWalkSpeed;
         }
 
         if (view.unk49E0BC < 1)
@@ -714,7 +781,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
             view.unk49E0BC = 1;
         }
 
-        if (!view.unk4CAE78.empty() && static_cast<i16>(view.unk4B896C) > static_cast<i16>(view.unk4CAE78[0]))
+        if (!view.unk4CAE78.empty() && static_cast<i16>(view.unk4B896C) > static_cast<i16>(view.unk4CAE78.front()))
         {
             view.unk4B896C = 1;
         }
@@ -739,17 +806,17 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
 
     this->MusicZone(map);
 
-    if (unit == kTableEnd)
+    if (unit == MapsRecord::TableEnd)
     {
         this->Destroy();
         return;
     }
 
-    this->ShowLoading(2);
+    this->ShowLoading(kLoadingSettings);
     this->AudioPump();
     this->currentMap = map;
     view.unk49E0C0 = 1;
-    game.SetGameFlag(map + 0x1388);
+    game.SetGameFlag(map + GameState::MapEntered);
 
     if ((options & Game::SaveRoles) != 0)
     {
@@ -787,7 +854,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
     this->AudioPump();
     this->field.overlays.reset();
     this->notices.head.next.reset();
-    this->ShowLoading(0xA);
+    this->ShowLoading(kLoadingCleared);
     this->AudioPump();
     game.roleCount = 1;
     this->field.palette.clear();
@@ -802,8 +869,8 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
 
     if (header.bitsPerPixel == MapHeader::IndexedBits && header.pixels != nullptr)
     {
-        this->field.palette.assign(0x100, 0);
-        std::memcpy(this->field.palette.data(), header.pixels, 0x200);
+        this->field.palette.assign(MapHeader::PaletteBytes / sizeof(u16), 0);
+        std::memcpy(this->field.palette.data(), header.pixels, MapHeader::PaletteBytes);
         this->painter.ConvertPixels(this->field.palette);
     }
 
@@ -820,32 +887,34 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
 
     header.name = {};
     std::copy_n(name.begin(), std::min(name.size(), header.name.size() - 1), header.name.begin());
-    this->ShowLoading(0x55);
+    this->ShowLoading(kLoadingNamed);
     this->AudioPump();
 
     if (game.GameFlag(GameState::Weather))
     {
-        for (std::size_t particle = 0; particle < 4; ++particle)
+        for (std::size_t particle = 0; particle < view.weather.size(); ++particle)
         {
-            view.weatherMotion[particle].speedTarget = static_cast<i32>(this->random.Below(3)) + 1;
+            view.weatherMotion[particle].speedTarget = static_cast<i32>(this->random.Below(kStartSpeeds)) + 1;
             const u32 spread = this->random.Below(view.weatherActions);
             view.weatherShades[particle].tintTarget = 0;
             view.weatherMotion[particle].action = view.weatherAction + static_cast<i32>(spread);
-            view.weather[particle].x = static_cast<i32>(this->random.Below(static_cast<u32>(0x10 * header.width)));
-            view.weather[particle].y = static_cast<i32>(this->random.Below(static_cast<u32>(0x10 * header.height)));
-            view.weather[particle].stepX = static_cast<i32>(this->random.Below(2)) - 2;
-            view.weather[particle].stepY = static_cast<i32>(this->random.Below(2)) - 2;
+            view.weather[particle].x =
+                static_cast<i32>(this->random.Below(static_cast<u32>(MapHeader::TileSize * header.width)));
+            view.weather[particle].y =
+                static_cast<i32>(this->random.Below(static_cast<u32>(MapHeader::TileSize * header.height)));
+            view.weather[particle].stepX = static_cast<i32>(this->random.Below(kStartDrift)) - kStartDrift;
+            view.weather[particle].stepY = static_cast<i32>(this->random.Below(kStartDrift)) - kStartDrift;
         }
     }
 
     view.unk4ACE4C = 0;
     view.unk4ACE48 = 0;
-    view.unk4ACE50 = 0x10 * header.width;
-    view.unk4ACE54 = 0x10 * header.height;
+    view.unk4ACE50 = MapHeader::TileSize * header.width;
+    view.unk4ACE54 = MapHeader::TileSize * header.height;
     this->BuildTriggers(view.triggers);
     view.unk4BABA0 = 1;
     this->PlaceRoles(map, x, y, act, action, direction, previous);
-    this->ShowLoading(0x5A);
+    this->ShowLoading(kLoadingPlaced);
     this->AudioPump();
 
     for (int index = 1; index < game.roleCount; ++index)
@@ -865,8 +934,8 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
         u8"TotalRole[%d]",
         game.roleCount
     );
-    this->ShowLoading(0x5F);
-    this->ShowLoading(100);
+    this->ShowLoading(kLoadingCentered);
+    this->ShowLoading(kLoadingDone);
     game.SetFrameInterval(Game::FrameInterval);
 }
 
@@ -884,17 +953,17 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
 
     auto word = [&data, table](std::size_t index)
     {
-        return MapsWord(data, table + 2 * index);
+        return MapsWord(data, table + sizeof(u16) * index);
     };
 
     auto put = [&data, table](std::size_t index, u16 value)
     {
-        const std::size_t at = table + 2 * index;
+        const std::size_t at = table + sizeof(u16) * index;
 
         if (at + 1 < data.size())
         {
             data[at] = static_cast<u8>(value);
-            data[at + 1] = static_cast<u8>(value >> 8);
+            data[at + 1] = static_cast<u8>(value >> CHAR_BIT);
         }
     };
 
@@ -902,75 +971,75 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
     int placed = 0;
     std::size_t mark = 0;
 
-    while (word(record) != kTableEnd)
+    while (word(record) != MapsRecord::TableEnd)
     {
-        for (std::size_t earlier = 0; earlier < record / kRecordWords; ++earlier)
+        for (std::size_t earlier = 0; earlier < record / MapsRecord::RoleWords; ++earlier)
         {
-            if (word(record + 1) == word(earlier * kRecordWords + 1))
+            if (word(record + MapsRecord::RoleId) == word(earlier * MapsRecord::RoleWords + MapsRecord::RoleId))
             {
-                record += kRecordWords;
+                record += MapsRecord::RoleWords;
             }
         }
 
-        const u16 id = word(record + 1);
+        const u16 id = word(record + MapsRecord::RoleId);
 
-        if (id == 0 || id == 0x2710 || id == 0x2711)
+        if (id == 0 || id == kEveryMapRole || id == kEveryMapRole2)
         {
-            put(record, static_cast<u16>(map));
+            put(record + MapsRecord::RoleMap, static_cast<u16>(map));
         }
 
         if (id == static_cast<u16>(this->unk4B7BC4))
         {
             this->AudioPump();
-            put(record, static_cast<u16>(map));
-            put(record + 2, static_cast<u16>(act));
-            put(record + 3, static_cast<u16>(action));
-            put(record + 4, static_cast<u16>(direction));
-            put(record + 5, static_cast<u16>(x));
-            put(record + 6, static_cast<u16>(y));
-            put(record + 7, 0);
-            put(record + 8, 0);
-            put(record + 9, 0);
-            put(record + 0xA, 0xD100);
+            put(record + MapsRecord::RoleMap, static_cast<u16>(map));
+            put(record + MapsRecord::RoleAct, static_cast<u16>(act));
+            put(record + MapsRecord::RoleAction, static_cast<u16>(action));
+            put(record + MapsRecord::RoleDirection, static_cast<u16>(direction));
+            put(record + MapsRecord::RoleColumn, static_cast<u16>(x));
+            put(record + MapsRecord::RoleRow, static_cast<u16>(y));
+            put(record + MapsRecord::RoleEvent, 0);
+            put(record + MapsRecord::RolePath, 0);
+            put(record + MapsRecord::RoleStep, 0);
+            put(record + MapsRecord::RoleFlags, kLeaderFlags);
             game.playerRole = placed + game.roleCount;
             view.unk4B7C8C[0] = placed + game.roleCount;
-            view.trailY.fill(0x10 * y);
-            view.trailX.fill(0x10 * x);
+            view.trailY.fill(MapHeader::TileSize * y);
+            view.trailX.fill(MapHeader::TileSize * x);
         }
 
         if (word(record) != static_cast<u16>(map))
         {
-            record += kRecordWords;
+            record += MapsRecord::RoleWords;
             continue;
         }
 
-        const u16 column = word(record + 5);
-        const u16 row = word(record + 6);
+        const u16 column = word(record + MapsRecord::RoleColumn);
+        const u16 row = word(record + MapsRecord::RoleRow);
         const int slot = placed + game.roleCount;
 
         if (column > static_cast<u32>(header.width) || row > static_cast<u32>(header.height) ||
             slot >= GameState::Roles)
         {
-            put(record + 5, static_cast<u16>(header.width - 1));
-            put(record + 6, static_cast<u16>(header.height - 1));
-            record += kRecordWords;
+            put(record + MapsRecord::RoleColumn, static_cast<u16>(header.width - 1));
+            put(record + MapsRecord::RoleRow, static_cast<u16>(header.height - 1));
+            record += MapsRecord::RoleWords;
             continue;
         }
 
         Role& role = game.roles[static_cast<std::size_t>(slot)];
-        role.id = word(record + 1);
-        role.act.id = word(record + 2);
-        role.act.action = word(record + 3);
-        role.act.direction = word(record + 4);
+        role.id = word(record + MapsRecord::RoleId);
+        role.act.id = word(record + MapsRecord::RoleAct);
+        role.act.action = word(record + MapsRecord::RoleAction);
+        role.act.direction = word(record + MapsRecord::RoleDirection);
         role.act.wait = 0;
         role.act.drawLevel = 0;
         role.act.signal = 0;
-        role.x = 0x10 * column;
-        role.y = 0x10 * row;
-        role.event = word(record + 7);
-        role.unk1C = word(record + 8);
-        role.unk18 = static_cast<i16>(word(record + 9));
-        role.flags = word(record + 0xA);
+        role.x = MapHeader::TileSize * column;
+        role.y = MapHeader::TileSize * row;
+        role.event = word(record + MapsRecord::RoleEvent);
+        role.unk1C = word(record + MapsRecord::RolePath);
+        role.unk18 = static_cast<i16>(word(record + MapsRecord::RoleStep));
+        role.flags = word(record + MapsRecord::RoleFlags);
         role.talkState = Role::NoTalk;
         role.unk14 = 0;
         role.unk20 = 0;
@@ -985,9 +1054,9 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
                 role.act.id = view.unk4C8BE0;
             }
 
-            if ((view.unk4B88C0 & 0x8000) != 0)
+            if ((view.unk4B88C0 & kStoryActMark) != 0)
             {
-                role.act.id = 0x60;
+                role.act.id = kLeaderStoryAct;
 
                 if (this->currentMap == Field::TwoRiversPlain || this->currentMap == Field::WesternRegions ||
                     this->currentMap == Field::MediterraneanEastCoast)
@@ -996,7 +1065,7 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
                     {
                         if (item->id == kSpecialItem)
                         {
-                            role.act.id = 0x5F;
+                            role.act.id = kLeaderSpecialAct;
                             break;
                         }
                     }
@@ -1004,23 +1073,24 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
             }
         }
 
-        if (static_cast<i8>(role.flags) < 0)
+        if ((role.flags & Role::Follower) != 0)
         {
-            u32 follow = 1;
-            const u32 story = static_cast<u32>(view.unk4B88C0) & 0x7FFF;
+            u32 follow = kFollowUnlisted;
+            const u32 story = static_cast<u32>(view.unk4B88C0) & ~kStoryActMark;
 
-            for (std::size_t list = MapsTable(data, MapsDataTable::Followers); MapsWord(data, list) != kTableEnd;
-                 list += 0x12)
+            for (std::size_t list = MapsTable(data, MapsDataTable::Followers);
+                 MapsWord(data, list) != MapsRecord::TableEnd;
+                 list += MapsRecord::FollowerBytes)
             {
                 if (MapsWord(data, list) == role.id)
                 {
-                    follow &= ~1u;
+                    follow &= ~kFollowUnlisted;
 
-                    for (std::size_t value = 1; value <= 8; ++value)
+                    for (std::size_t value = 1; value <= MapsRecord::FollowerStories; ++value)
                     {
-                        if (story == MapsWord(data, list + 2 * value))
+                        if (story == MapsWord(data, list + sizeof(u16) * value))
                         {
-                            follow |= 2;
+                            follow |= kFollowStory;
                         }
                     }
                 }
@@ -1031,7 +1101,7 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
                 this->FollowLeader(slot);
                 role.flags |= Role::Visible;
 
-                if (this->currentMap == Field::DemonRefiningPot || (view.unk4B88C0 & 0x8000) != 0)
+                if (this->currentMap == Field::DemonRefiningPot || (view.unk4B88C0 & kStoryActMark) != 0)
                 {
                     role.flags &= ~Role::Visible;
                 }
@@ -1049,7 +1119,7 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
             entry.unk0E = 0;
         }
 
-        record += kRecordWords;
+        record += MapsRecord::RoleWords;
         ++placed;
     }
 
@@ -1062,34 +1132,36 @@ void Game::StoreRole(const Role& role)
 {
     std::vector<u8>& data = this->databases.mapsData;
 
-    for (std::size_t at = this->scene.unk4ACE40; at + 2 * kRecordWords <= data.size(); at += 2 * kRecordWords)
+    for (std::size_t at = this->scene.unk4ACE40;
+         at + static_cast<std::size_t>(sizeof(u16) * MapsRecord::RoleWords) <= data.size();
+         at += static_cast<std::size_t>(sizeof(u16) * MapsRecord::RoleWords))
     {
-        if (MapsWord(data, at) == kTableEnd)
+        if (MapsWord(data, at) == MapsRecord::TableEnd)
         {
             return;
         }
 
-        if (MapsWord(data, at + 2) != role.id)
+        if (MapsWord(data, at + sizeof(u16) * MapsRecord::RoleId) != role.id)
         {
             continue;
         }
 
         auto put = [&data, at](int word, u32 value)
         {
-            const std::size_t offset = at + 2 * static_cast<std::size_t>(word);
+            const std::size_t offset = at + sizeof(u16) * static_cast<std::size_t>(word);
             data[offset] = static_cast<u8>(value);
-            data[offset + 1] = static_cast<u8>(value >> 8);
+            data[offset + 1] = static_cast<u8>(value >> CHAR_BIT);
         };
 
-        put(2, static_cast<u32>(role.act.id));
-        put(3, static_cast<u32>(role.act.action));
-        put(4, static_cast<u32>(role.act.direction));
-        put(5, static_cast<u16>(role.x) >> 4);
-        put(6, static_cast<u16>(role.y) >> 4);
-        put(7, role.event);
-        put(8, role.unk1C);
-        put(9, static_cast<u32>(role.unk18));
-        put(0xA, role.flags);
+        put(MapsRecord::RoleAct, static_cast<u32>(role.act.id));
+        put(MapsRecord::RoleAction, static_cast<u32>(role.act.action));
+        put(MapsRecord::RoleDirection, static_cast<u32>(role.act.direction));
+        put(MapsRecord::RoleColumn, static_cast<u16>(role.x) >> MapHeader::TileShift);
+        put(MapsRecord::RoleRow, static_cast<u16>(role.y) >> MapHeader::TileShift);
+        put(MapsRecord::RoleEvent, role.event);
+        put(MapsRecord::RolePath, role.unk1C);
+        put(MapsRecord::RoleStep, static_cast<u32>(role.unk18));
+        put(MapsRecord::RoleFlags, role.flags);
         return;
     }
 }
@@ -1111,15 +1183,18 @@ void Game::PlaySoundAt(u16 sound, int x, int y)
     const int squared = (player.x - x) * (player.x - x) + (player.y - y) * (player.y - y);
     const auto distance = static_cast<int>(crt::Ftol(std::sqrt(static_cast<double>(squared))));
 
-    if (distance >= 0x200)
+    if (distance >= kSoundRange)
     {
         return;
     }
 
     SoundEffects& effects = this->audio.Effects();
-    effects.Play(sound, 0, 0, 1);
-    effects.SetVolume(sound, this->config.soundVolume * (0x80 - (distance << 7) / 0x200) / 0xB);
-    effects.SetPan(sound, ((x - player.x) << 6) / 0x200);
+    effects.Play(sound, 0, 0, kPlayOnce);
+    effects.SetVolume(
+        sound,
+        this->config.soundVolume * (kSoundScale - distance * kSoundScale / kSoundRange) / Config::MaxVolume
+    );
+    effects.SetPan(sound, ((x - player.x) * kPanScale) / kSoundRange);
 }
 
 // swd32.exe 0x0040DA60: a random encounter after `steps` steps: the map's encounter set (from maps.dat's table 0x12)
@@ -1135,11 +1210,11 @@ u32 Game::RollEncounter(int steps, int force)
     }
 
     const Role& player = this->state.roles[static_cast<std::size_t>(this->state.playerRole)];
-    const auto roll = static_cast<int>(this->random.Below(0x64));
+    const auto roll = static_cast<int>(this->random.Below(kPercent));
     const std::vector<u16>& sets = view.unk4CAE78;
-    std::size_t at = 1 + 8 * static_cast<std::size_t>(view.unk4B896C - 1);
+    std::size_t at = kSetsAt + kSetWords * static_cast<std::size_t>(view.unk4B896C - 1);
     int threshold = 0;
-    int pair = 4;
+    int pair = kSetPairs;
 
     auto word = [&sets](std::size_t index) -> i16
     {
@@ -1150,12 +1225,12 @@ u32 Game::RollEncounter(int steps, int force)
     {
         threshold += word(at);
 
-        if (steps < threshold || force == 1)
+        if (steps < threshold || force == kForcedEncounter)
         {
             break;
         }
 
-        at += 2;
+        at += kPairWords;
 
         if (--pair <= 0)
         {
@@ -1163,13 +1238,13 @@ u32 Game::RollEncounter(int steps, int force)
         }
     }
 
-    if (word(at + 1) <= roll && force != 1)
+    if (word(at + 1) <= roll && force != kForcedEncounter)
     {
         return 0;
     }
 
-    const int column = player.x >> 4;
-    const int row = player.y >> 4;
+    const int column = player.x >> MapHeader::TileShift;
+    const int row = player.y >> MapHeader::TileShift;
     const MapTrigger* area = view.triggers.next.get();
 
     while (area != nullptr && (column < area->left || column > area->right || row < area->top || row > area->bottom))
@@ -1186,7 +1261,7 @@ u32 Game::RollEncounter(int steps, int force)
     const u16 count = MapsWord(data, area->table);
     const u32 pick = this->random.Below(count);
     view.encounterSteps = 0;
-    return MapsWord(data, area->table + 2 * (pick + 1));
+    return MapsWord(data, area->table + sizeof(u16) * (pick + 1));
 }
 
 }  // namespace swd3

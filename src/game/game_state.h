@@ -185,6 +185,7 @@ public:
         DebugKeys = 0x52,         // the debug keys work
         SecondDisc = 0x53,        // the minimal installation reads the second disc file
         UnkC9 = 0xC9,             // the battle start sets panel flag 2
+        MapEntered = 0x1388,      // + the map number: the map has been entered
         MapNoEncounter = 0x1770,  // + the map number: no enemies on that map
         Unk1BB0 = 0x1BB0,         // the timing window of the battle is 0x12 frames instead of 0x3C
     };

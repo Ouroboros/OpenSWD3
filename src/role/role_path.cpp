@@ -13,6 +13,7 @@
 #include "game/game.h"
 #include "map/blocking_map.h"
 #include "role/path_finder.h"
+#include "role/path_script.h"
 
 namespace swd3
 {
@@ -32,77 +33,11 @@ constexpr u32 kWanderRoll = 0x50;  // a wandering role rolls 0..79: directions b
 constexpr int kRestAbove = 0x3C;
 constexpr int kUnkMoveSlot = 0x20;  // FindPath: false only for this slot, which the full table never reaches
 constexpr int kFastWalkGap = 0x80;  // a follower further than this from its target walks fast
-
-// path.dat: a table of the start of every path (dwords relative to kPathData), the paths from kPathData. A path is a
-// list of commands: a command word, then word operands; jump targets are dwords.
-constexpr std::size_t kPathData = 0x200;
-constexpr std::size_t kPathWordBytes = sizeof(u16);
-constexpr std::size_t kPathTargetBytes = sizeof(u32);
-constexpr int kOpcodeWords = 1;
-constexpr int kTargetWords = 2;
-constexpr int kStepShift = 1;  // path offsets in bytes to steps in words
 constexpr u16 kFlagListEnd = 0xFFFF;
 constexpr u16 kKeepAct = 0xFFFF;      // SetAct: the act, action or direction left as it is
 constexpr u16 kLabelEnd = 0x5125;     // "%Q" ends the text of a label
 constexpr u16 kLabelColors = 0xA;     // a label colour past it becomes 0
 constexpr i32 kVariableLimit = 1000;  // path variables are capped here
-
-enum class PathCommand : u16
-{
-    Restart = 0,
-    Stop = 1,
-    SetAction = 2,
-    SetDirection = 3,
-    SetCount = 4,
-    WaitCount = 5,
-    WaitCountAnimated = 6,
-    FindPath = 7,
-    Step = 8,
-    WaitClock = 9,
-    JumpIfClockReached = 0xA,
-    SetClock = 0xB,
-    Jump = 0xC,
-    JumpIfFlag = 0xD,
-    JumpUnlessFlag = 0xE,
-    JumpIfAllFlags = 0xF,
-    JumpIfAnyFlag = 0x10,
-    SetFlag = 0x11,
-    ClearFlag = 0x12,
-    SetVariable = 0x13,
-    AddVariable = 0x14,
-    SubtractVariable = 0x15,
-    JumpIfVariableAtLeast = 0x16,
-    JumpIfVariableAtMost = 0x17,
-    StartPath = 0x18,
-    JumpAfterMark = 0x19,
-    MarkClock = 0x1A,
-    HideRole = 0x1B,
-    ShowRole = 0x1C,
-    PlaceRole = 0x1D,
-    Wander = 0x1E,
-    SetAct = 0x1F,
-    PlaySound = 0x20,
-    FollowRole = 0x21,
-    ShowLabel = 0x22,
-    ClearLabel = 0x23,
-    FollowBeside = 0x24,
-};
-
-// The words of a command with `operands` word operands and `targets` jump targets.
-constexpr int CommandWords(int operands, int targets = 0)
-{
-    return kOpcodeWords + operands + targets * kTargetWords;
-}
-
-u16 PathWord(std::span<const u8> data, std::size_t at)
-{
-    return at + 1 < data.size() ? static_cast<u16>(data[at] | data[at + 1] << CHAR_BIT) : u16{0};
-}
-
-u32 PathDword(std::span<const u8> data, std::size_t at)
-{
-    return MakeWords(PathWord(data, at + kPathWordBytes), PathWord(data, at));
-}
 
 }  // namespace
 
@@ -338,17 +273,17 @@ std::size_t RolePath::JumpTo(int index, u32 offset)
 {
     Role& role = this->game.state.roles[static_cast<std::size_t>(index)];
     const std::span<const u8> data = this->game.databases.paths.View();
-    const std::size_t table = kPathTargetBytes * static_cast<std::size_t>(role.unk1C);
+    const std::size_t table = PathScript::TargetBytes * static_cast<std::size_t>(role.unk1C);
     u32 start = 0;
 
-    if (kPathData + table + kPathTargetBytes <= data.size())
+    if (PathScript::DataAt + table + PathScript::TargetBytes <= data.size())
     {
-        start = PathDword(data, kPathData + table);
+        start = PathScript::Dword(data, PathScript::DataAt + table);
     }
 
-    role.unk18 =
-        static_cast<i32>(static_cast<std::ptrdiff_t>(offset) - static_cast<std::ptrdiff_t>(start)) >> kStepShift;
-    return kPathData + static_cast<std::size_t>(offset);
+    role.unk18 = static_cast<i32>(static_cast<std::ptrdiff_t>(offset) - static_cast<std::ptrdiff_t>(start)) >>
+                 PathScript::StepShift;
+    return PathScript::DataAt + static_cast<std::size_t>(offset);
 }
 
 // swd32.exe 0x00406770: a random step of role `index` (four in five frames it rests): a move of one step is taken
@@ -619,32 +554,33 @@ void RolePath::RunScript(int index)
 
     auto word = [&data](std::size_t at)
     {
-        return PathWord(data, at);
+        return PathScript::Word(data, at);
     };
 
     auto dword = [&data](std::size_t at)
     {
-        return PathDword(data, at);
+        return PathScript::Dword(data, at);
     };
 
-    std::size_t at = kPathData + dword(kPathData + kPathTargetBytes * static_cast<std::size_t>(role.unk1C)) +
-                     kPathWordBytes * static_cast<std::size_t>(role.unk18);
+    std::size_t at = PathScript::DataAt +
+                     dword(PathScript::DataAt + PathScript::TargetBytes * static_cast<std::size_t>(role.unk1C)) +
+                     PathScript::WordBytes * static_cast<std::size_t>(role.unk18);
 
     auto operand = [&data, &at](std::size_t index)
     {
-        return PathWord(data, at + kPathWordBytes * index);
+        return PathScript::Word(data, at + PathScript::WordBytes * index);
     };
 
     auto target = [&data, &at](std::size_t index)
     {
-        return PathDword(data, at + kPathWordBytes * index);
+        return PathScript::Dword(data, at + PathScript::WordBytes * index);
     };
 
     i32& time = owner.party.clock;
 
     auto advance = [&role, &at](int words)
     {
-        at += kPathWordBytes * static_cast<std::size_t>(words);
+        at += PathScript::WordBytes * static_cast<std::size_t>(words);
         role.unk18 += words;
     };
 
@@ -671,19 +607,19 @@ void RolePath::RunScript(int index)
 
             case PathCommand::SetAction:
                 role.act.action = operand(1);
-                role.unk18 += CommandWords(1);
+                role.unk18 += PathScript::CommandWords(1);
                 owner.acts.Run(role.act);
                 return;
 
             case PathCommand::SetDirection:
                 role.act.direction = operand(1);
-                role.unk18 += CommandWords(1);
+                role.unk18 += PathScript::CommandWords(1);
                 owner.acts.Run(role.act);
                 return;
 
             case PathCommand::SetCount:
                 role.unk22 = operand(1);
-                advance(CommandWords(1));
+                advance(PathScript::CommandWords(1));
                 continue;
 
             case PathCommand::WaitCount:
@@ -713,7 +649,7 @@ void RolePath::RunScript(int index)
 
             case PathCommand::FindPath:
                 this->FindPath(index, operand(1), operand(2));
-                advance(CommandWords(2));
+                advance(PathScript::CommandWords(2));
                 continue;
 
             case PathCommand::Step:
@@ -722,7 +658,7 @@ void RolePath::RunScript(int index)
                     return;
                 }
 
-                advance(CommandWords(0));
+                advance(PathScript::CommandWords(0));
                 role.flags &= ~Role::FastMove;
                 continue;
 
@@ -732,7 +668,7 @@ void RolePath::RunScript(int index)
 
                 if (operand(1) <= static_cast<u32>(time))
                 {
-                    advance(CommandWords(1));
+                    advance(PathScript::CommandWords(1));
                     passed = true;
                 }
 
@@ -752,7 +688,7 @@ void RolePath::RunScript(int index)
             case PathCommand::JumpIfClockReached:
                 if (operand(1) > static_cast<u16>(time))
                 {
-                    advance(CommandWords(1, 1));
+                    advance(PathScript::CommandWords(1, 1));
                     continue;
                 }
 
@@ -767,7 +703,7 @@ void RolePath::RunScript(int index)
                     time = 0;
                 }
 
-                advance(CommandWords(0));
+                advance(PathScript::CommandWords(0));
                 continue;
 
             case PathCommand::Jump:
@@ -783,7 +719,7 @@ void RolePath::RunScript(int index)
                     continue;
                 }
 
-                advance(CommandWords(1, 1));
+                advance(PathScript::CommandWords(1, 1));
                 continue;
 
             case PathCommand::JumpIfAllFlags:
@@ -791,7 +727,7 @@ void RolePath::RunScript(int index)
             {
                 int count = 0;
                 int set = 0;
-                std::size_t flag = at + kPathWordBytes * CommandWords(0);
+                std::size_t flag = at + PathScript::WordBytes * PathScript::CommandWords(0);
 
                 while (word(flag) != kFlagListEnd && flag < data.size())
                 {
@@ -801,7 +737,7 @@ void RolePath::RunScript(int index)
                     }
 
                     ++count;
-                    flag += kPathWordBytes;
+                    flag += PathScript::WordBytes;
                 }
 
                 const bool taken =
@@ -809,22 +745,22 @@ void RolePath::RunScript(int index)
 
                 if (taken)
                 {
-                    jump(dword(flag + kPathWordBytes));
+                    jump(dword(flag + PathScript::WordBytes));
                     continue;
                 }
 
-                advance(CommandWords(count + 1, 1));
+                advance(PathScript::CommandWords(count + 1, 1));
                 continue;
             }
 
             case PathCommand::SetFlag:
                 state.SetGameFlag(operand(1));
-                advance(CommandWords(1));
+                advance(PathScript::CommandWords(1));
                 continue;
 
             case PathCommand::ClearFlag:
                 state.ClearGameFlag(operand(1));
-                advance(CommandWords(1));
+                advance(PathScript::CommandWords(1));
                 continue;
 
             case PathCommand::SetVariable:
@@ -854,7 +790,7 @@ void RolePath::RunScript(int index)
                 {
                     case PathCommand::SetVariable:
                         variable = value;
-                        length = CommandWords(2);
+                        length = PathScript::CommandWords(2);
                         break;
 
                     case PathCommand::AddVariable:
@@ -867,7 +803,7 @@ void RolePath::RunScript(int index)
                             variable = kVariableLimit;
                         }
 
-                        length = CommandWords(2);
+                        length = PathScript::CommandWords(2);
                         break;
                     }
 
@@ -881,12 +817,12 @@ void RolePath::RunScript(int index)
                             variable = 0;
                         }
 
-                        length = CommandWords(2);
+                        length = PathScript::CommandWords(2);
                         break;
                     }
 
                     default:
-                        length = CommandWords(2, 1);
+                        length = PathScript::CommandWords(2, 1);
 
                         if (command == PathCommand::JumpIfVariableAtLeast ? variable >= value : variable <= value)
                         {
@@ -958,9 +894,9 @@ void RolePath::RunScript(int index)
                     }
                 }
 
-                role.unk18 += CommandWords(2);
-                at += kPathWordBytes * CommandWords(2);
-                const u16 path = word(at - kPathWordBytes);
+                role.unk18 += PathScript::CommandWords(2);
+                at += PathScript::WordBytes * PathScript::CommandWords(2);
+                const u16 path = word(at - PathScript::WordBytes);
 
                 if (target < GameState::Roles)
                 {
@@ -970,7 +906,8 @@ void RolePath::RunScript(int index)
 
                     if (target == static_cast<u32>(index))
                     {
-                        at = kPathData + dword(kPathData + kPathTargetBytes * static_cast<std::size_t>(path));
+                        at = PathScript::DataAt +
+                             dword(PathScript::DataAt + PathScript::TargetBytes * static_cast<std::size_t>(path));
                     }
                 }
 
@@ -984,12 +921,12 @@ void RolePath::RunScript(int index)
                     continue;
                 }
 
-                advance(CommandWords(1, 1));
+                advance(PathScript::CommandWords(1, 1));
                 continue;
 
             case PathCommand::MarkClock:
                 this->timeMark = time;
-                advance(CommandWords(0));
+                advance(PathScript::CommandWords(0));
                 continue;
 
             case PathCommand::HideRole:
@@ -1004,7 +941,7 @@ void RolePath::RunScript(int index)
                     owner.field.ClearRoleCells(other, leaderId);
                 }
 
-                advance(CommandWords(1));
+                advance(PathScript::CommandWords(1));
                 continue;
             }
 
@@ -1018,7 +955,7 @@ void RolePath::RunScript(int index)
                     state.roles[target].flags |= Role::Visible | Role::Solid;
                 }
 
-                advance(CommandWords(1));
+                advance(PathScript::CommandWords(1));
                 continue;
             }
 
@@ -1033,7 +970,7 @@ void RolePath::RunScript(int index)
                 role.cell = cell < state.map.blocks.size() ? &state.map.blocks[cell] : nullptr;
                 owner.acts.Run(role.act);
                 owner.field.MarkRoleCells(role, leaderId);
-                role.unk18 += CommandWords(2);
+                role.unk18 += PathScript::CommandWords(2);
                 owner.field.RemoveRole(role.id, static_cast<int>(role.flags & Role::LayerMask), 0, 0);
                 return;
             }
@@ -1062,13 +999,13 @@ void RolePath::RunScript(int index)
                     role.act.direction = operand(3);
                 }
 
-                role.unk18 += CommandWords(3);
+                role.unk18 += PathScript::CommandWords(3);
                 owner.acts.Run(role.act);
                 return;
 
             case PathCommand::PlaySound:
                 owner.PlaySoundAt(operand(1), role.x, role.y);
-                role.unk18 += CommandWords(1);
+                role.unk18 += PathScript::CommandWords(1);
                 return;
 
             case PathCommand::FollowRole:
@@ -1079,7 +1016,7 @@ void RolePath::RunScript(int index)
                 if (!state.FindRoleOrPlayer(operand(1), target) || target >= GameState::Roles)
                 {
                     DebugLog(u8"Path(Follow)", operand(1));
-                    role.unk18 += CommandWords(1);
+                    role.unk18 += PathScript::CommandWords(1);
                     return;
                 }
 
@@ -1158,11 +1095,11 @@ void RolePath::RunScript(int index)
                 }
 
                 this->FindPath(index, tileX, tileY);
-                advance(CommandWords(1));
+                advance(PathScript::CommandWords(1));
 
                 if (command == PathCommand::FollowBeside)
                 {
-                    advance(CommandWords(3) - CommandWords(1));
+                    advance(PathScript::CommandWords(3) - PathScript::CommandWords(1));
                 }
 
                 const auto own = static_cast<u32>(role.y) * static_cast<u32>(role.y) +
@@ -1191,16 +1128,17 @@ void RolePath::RunScript(int index)
                     role.labelColor = 0;
                 }
 
-                std::size_t end = at + kPathWordBytes * CommandWords(1);
+                std::size_t end = at + PathScript::WordBytes * PathScript::CommandWords(1);
 
                 while (end + 1 < data.size() && word(end) != kLabelEnd)
                 {
                     ++end;
                 }
 
-                role.unk18 += static_cast<u16>((end - at + kPathWordBytes) / kPathWordBytes);
+                role.unk18 += static_cast<u16>((end - at + PathScript::WordBytes) / PathScript::WordBytes);
                 role.label.assign(
-                    data.begin() + static_cast<std::ptrdiff_t>(at + kPathWordBytes * CommandWords(1)),
+                    data.begin() +
+                        static_cast<std::ptrdiff_t>(at + PathScript::WordBytes * PathScript::CommandWords(1)),
                     data.begin() + static_cast<std::ptrdiff_t>(end)
                 );
                 return;
@@ -1209,7 +1147,7 @@ void RolePath::RunScript(int index)
             case PathCommand::ClearLabel:
                 role.label.clear();
                 role.labelColor = 0;
-                advance(CommandWords(0));
+                advance(PathScript::CommandWords(0));
                 continue;
 
             default:
