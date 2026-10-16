@@ -1,6 +1,9 @@
 #include <array>
 
+#include "config/config.h"
 #include "core/types.h"
+#include "game/game_state.h"
+#include "input/controls.h"
 #include "input/input.h"
 #include "platform/input_device.h"
 #include "test.h"
@@ -78,4 +81,67 @@ TEST_CASE("input: SDL scancodes map to DirectInput codes")
     CHECK_EQ(swd3::ScanCodeOf(82), 0xC8);
     CHECK_EQ(swd3::ScanCodeOf(4), 0x1E);
     CHECK_EQ(swd3::ScanCodeOf(1000), 0);
+}
+
+TEST_CASE("controls: clicks in a row and the 150 ms gap")
+{
+    swd3::Controls controls;
+    swd3::ButtonState button;
+    controls.now = 1000;
+    controls.Update(button, 0);
+    CHECK_EQ(button.releasedAt, 1000);
+    controls.Update(button, 1);
+    CHECK_EQ(button.press, 1);
+    CHECK_EQ(button.heldFrames, 1);
+    controls.Update(button, 1);
+    CHECK_EQ(button.press, 1);
+    CHECK_EQ(button.heldFrames, 2);
+    controls.now = 1050;
+    controls.Update(button, 0);
+    controls.now = 1100;
+    controls.Update(button, 0);
+    CHECK_EQ(button.press, 0);
+    CHECK_EQ(button.clicks, 1);
+    controls.Update(button, 1);
+    CHECK_EQ(button.press, 2);
+    controls.Update(button, 0);
+    controls.now = 1300;
+    controls.Update(button, 0);
+    CHECK_EQ(button.clicks, 0);
+    controls.Update(button, 1);
+    CHECK_EQ(button.press, 1);
+}
+
+TEST_CASE("controls: the poll reads the configured keys, the mouse and the idle pointer")
+{
+    FakeDevice device;
+    swd3::Input input(device);
+    CHECK_EQ(input.Init(), 0);
+    swd3::Config config;
+    config.SetDefaultKeys();
+    swd3::GameState state;
+    swd3::Controls controls;
+    controls.Poll(input, config, state, 10);
+    device.keys[0x1C] = 0x80;
+    device.mouse.left = true;
+    input.PollKeyboard();
+    controls.Poll(input, config, state, 20);
+    CHECK_EQ(controls.At(swd3::Button::Enter).heldFrames, 1);
+    CHECK_EQ(controls.At(swd3::Button::Enter).press, 1);
+    CHECK_EQ(controls.At(swd3::Button::MouseLeft).press, 1);
+    CHECK_EQ(controls.At(swd3::Button::Escape).releasedAt, 10);
+    controls.mouseSuppressed = 1;
+    controls.Poll(input, config, state, 30);
+    CHECK_EQ(controls.At(swd3::Button::MouseLeft).heldFrames, 0);
+    CHECK_EQ(controls.mouseSuppressed, 0);
+    device.mouse.left = false;
+
+    for (int poll = 0; poll < 450; ++poll)
+    {
+        controls.Poll(input, config, state, 40 + poll);
+    }
+
+    CHECK(!state.GameFlag(swd3::Controls::kIdleFlag));
+    controls.Poll(input, config, state, 500);
+    CHECK(state.GameFlag(swd3::Controls::kIdleFlag));
 }

@@ -112,8 +112,8 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 111	swd32.exe	0x00404C00	sub_404C00	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 112	swd32.exe	0x00404FD0	sub_404FD0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 113	swd32.exe	0x004050B0	sub_4050B0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-114	swd32.exe	0x004050E0	sub_4050E0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-115	swd32.exe	0x004053C0	sub_4053C0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+114	swd32.exe	0x004050E0	sub_4050E0	input_dinput	src/input/controls.cpp:Controls::Poll	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+115	swd32.exe	0x004053C0	sub_4053C0	input_dinput	src/input/controls.cpp:Controls::Update	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 116	swd32.exe	0x00405430	sub_405430	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Path:...)"
 117	swd32.exe	0x00405500	sub_405500	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Path:...)"
 118	swd32.exe	0x00406390	sub_406390	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between role_path anchors 0x00405500 and 0x00406770
