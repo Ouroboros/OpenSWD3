@@ -179,7 +179,8 @@ public:
         Unk17 = 0x17,    // cleared by a new game
         InParty = 0x1E,  // 0x1E..0x21: the four roles are in the party
         NoLoadingScreen = 0x46,
-        PlainScreen = 0x48,  // the spotlight, the bubbles, the ripples and the screen effects are off
+        PlainScreen = 0x48,   // the spotlight, the bubbles, the ripples and the screen effects are off
+        SwappedPages = 0x49,  // the menu shows its pages in the other order
         SecondTimer = 0x4A,
         SecondTimerExpired = 0x4B,
         HideTimer = 0x4C,

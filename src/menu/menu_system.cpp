@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <span>
 #include <string>
@@ -10,6 +11,7 @@
 #include "game/game.h"
 #include "menu/menu.h"
 #include "menu/menu_text.h"
+#include "platform/display.h"
 #include "text/text_input.h"
 #include "ui/ui_draw.h"
 
@@ -31,16 +33,124 @@ constexpr i32 kNameEntry = 0x61;
 constexpr i32 kInGameFade = -0x78;
 constexpr i32 kTitleFade = -6;
 constexpr i32 kHiddenGlow = -0x10;
-constexpr i32 kEffectsOffFlag = 0x48;
-constexpr i32 kNameEntryFlag = 0x50;
+constexpr i32 kEffectsOffFlag = GameState::PlainScreen;
+constexpr i32 kNameEntryFlag = GameState::TextBox;
 constexpr int kVolumeSound = 0x2E;
 constexpr int kTitleMusic = 0xA;
 constexpr int kNameBoxX = 300;
 constexpr int kNameBoxY = 0xE6;
 constexpr int kNameLength = 8;
-constexpr u32 kScreenPixels = 0x4B000;
-constexpr std::size_t kScreenBytes = 0x96000;
-constexpr int kTextStyle = 4;
+constexpr u32 kScreenPixels = Display::Pixels;
+constexpr std::size_t kScreenBytes = sizeof(Pixel) * Display::Pixels;
+constexpr int kTextStyle = TextFont::BoldShadow;
+
+// The title entries (Menu::systemCursor).
+constexpr i32 kContinueEntry = 0;
+constexpr i32 kNewGameEntry = 1;
+constexpr i32 kSettingsEntry = 2;
+constexpr i32 kQuitEntry = 3;
+constexpr u32 kEntryLeft = 0x6E;  // the entries are clicked between these x
+constexpr u32 kEntryRight = 0x104;
+constexpr int kEntryX = 0x7D;
+constexpr i32 kChosenFade = 4;  // the chosen entry dims by this a frame down to kChosenGlow
+constexpr i32 kChosenGlow = -0x20;
+constexpr i32 kGlowRise = 2;  // the others brighten to kEntryGlow
+constexpr i32 kEntryGlow = -0xC;
+constexpr i32 kFadeInStep = 5;     // the screen fades in from black by this a frame
+constexpr i32 kFadeOutEnd = 0x68;  // a chosen entry fades the screen out until this row
+constexpr i32 kFadeOutStep = 8;
+constexpr int kWithMap = 1;  // Game::StartStory: the first map is entered
+
+// The settings rows (Menu::systemRow); a row is kRowHeight high from kRowsTop.
+constexpr i32 kSoundRow = 0;
+constexpr i32 kMusicRow = 1;
+constexpr i32 kCacheRow = 2;
+constexpr i32 kEffectsRow = 3;
+constexpr i32 kTextSpeedRow = 4;
+constexpr i32 kBattleSpeedRow = 5;
+constexpr u32 kRowsTop = 0xF0;
+constexpr u32 kRowHeight = 0x20;
+constexpr u32 kBarsLeft = 0xA8;  // a click between these x sets a bar
+constexpr u32 kBarsRight = 0x1C0;
+constexpr int kStepsLeft = 0x100;  // the steps of a bar, kStepWidth wide
+constexpr int kStepWidth = 0x10;
+constexpr int kStepShift = 4;
+constexpr int kStepsRight = 0x1B0;
+constexpr i32 kStepOff = 0x22;  // the actions of a step of a bar
+constexpr i32 kStepOn = 0x23;
+constexpr i32 kMinCache = 0x3C;  // the cache size in megabytes: kMinCache and kCacheStep more per step
+constexpr i32 kCacheStep = 0x28;
+constexpr u32 kCacheSteps = 2;
+constexpr i32 kMaxCache = kMinCache + static_cast<i32>(kCacheSteps) * kCacheStep;
+constexpr i32 kSlowestText = 4;                        // the text speed counts down to 0 from here
+constexpr i32 kMusicFallback = Config::MaxVolume - 1;  // past the maximum the music volume falls back here
+constexpr u8 kUnkSettings = 0x64;                      // the fourth byte written to Env.dat
+constexpr int kVolumeLabelX = 0xC4;
+constexpr int kLabelX = 0x98;
+constexpr int kLineX = 0x168;  // the cache, effects and speed lines
+constexpr int kLineDrop = 6;
+constexpr int kSampleX = 0x19E;
+constexpr int kLabelRed = 0x15;
+constexpr int kLabelGreen = 0xF;
+constexpr int kLabelBlue = 8;
+constexpr int kSampleRed = 0xF;
+constexpr int kSampleGreen = 9;
+constexpr int kSampleBlue = 2;
+constexpr std::size_t kCharBytes = 2;  // the sample types out by Big5 characters
+constexpr i32 kSampleDelayFactor = 2;
+constexpr int kBoxX = 0x98;
+constexpr int kBoxTop = 0xEC;
+constexpr int kBoxWidth = 0x190;
+constexpr int kBoxHeight = 0xC0;
+constexpr int kHighlightX = 0x93;
+constexpr int kHighlightWidth = 0x19A;
+constexpr int kHighlightRed = 0x14;
+constexpr int kHighlightGreen = 0xD;
+constexpr i32 kSpeeds = 5;
+
+// The name entry.
+constexpr u32 kConfirmLeft = 0x162;  // the confirm button
+constexpr u32 kConfirmRight = 0x198;
+constexpr u32 kConfirmTop = 0x101;
+constexpr u32 kConfirmBottom = 0x112;
+constexpr i32 kClickConfirm = 1;  // Menu::systemClick
+constexpr i32 kClickCancel = 2;
+constexpr u32 kLeftClicks = 3;  // Menu::clicks: a single or double left click
+constexpr u32 kCoin = 2;
+constexpr i32 kSecondName = kFirstName + 1;
+constexpr int kFirstRoleAct = 1;  // the faces of the two names
+constexpr int kSecondRoleAct = 2;
+constexpr i32 kFaceIdle = 0x46;
+constexpr i32 kFaceSmile = 0x3A;
+constexpr std::array<i32, 3> kFirstReplies = {0x1C, 0x4D, 0x1E};
+constexpr std::array<i32, 3> kSecondReplies = {0x22, 0x39, 0xE};
+constexpr i32 kReplyFrames = 0x28;
+constexpr i32 kReplyEnd = 2;  // the face goes back to idle when this many frames are left
+constexpr int kFaceX = 0xDC;
+constexpr int kFaceY = 0xFE;
+constexpr int kQuitFadeMode = 0x10;
+constexpr int kQuitFadeLength = 0x19;
+
+// In game (modes 1 and 2) the page fades over the saved screen.
+constexpr i32 kGrayEnd = -0x5A;  // mode 1: darkened until here, plain, then darkened again from kRedarken
+constexpr i32 kRedarken = -0xA;
+constexpr i32 kRedarkenStep = 3;
+constexpr i32 kInGameFrameAction = 0x44;
+constexpr i32 kDarkenEvery = 3;  // mode 2 darkens the saved screen every third frame
+constexpr int kDarkenTint = -1;
+
+// Whether `y` is inside settings row `row`.
+bool InRow(u32 y, i32 row)
+{
+    const u32 top = kRowsTop + kRowHeight * static_cast<u32>(row);
+    return y < top + kRowHeight - 1 && y > top;
+}
+
+// The top of settings row `row`.
+int RowY(i32 row)
+{
+    return static_cast<int>(kRowsTop + kRowHeight * static_cast<u32>(row));
+}
 
 }  // namespace
 
@@ -55,23 +165,23 @@ void Menu::SystemEnter()
     this->systemState = 0;
     this->savedScreen.clear();
 
-    if (this->mode == 1 || this->mode == 2)
+    if (this->mode == Menu::GameModeA || this->mode == Menu::GameModeB)
     {
         this->systemState = kInGame;
         this->systemRow = kInGameFade;
         this->savedScreen.assign(owner.drawSurface, owner.drawSurface + kScreenPixels);
     }
 
-    if (this->mode == 3)
+    if (this->mode == Menu::NameEntryMode)
     {
         this->systemState = kEntries;
-        this->systemCursor = 1;
+        this->systemCursor = kNewGameEntry;
         this->SystemSelect();
     }
 
     owner.unk4A9484 = 0;
 
-    if (this->mode == 0 && owner.audio.IsMusicStopped())
+    if (this->mode == Menu::TitleMode && owner.audio.IsMusicStopped())
     {
         owner.audio.StopMusic();
         owner.PlayMusic(owner.MusicPath(kTitleMusic));
@@ -97,13 +207,14 @@ void Menu::SystemFrame()
     {
         if (this->systemRow >= kNameEntry)
         {
-            if (leftButton.heldFrames == 1 && leftButton.press == 1 && y < 0x112 && y > 0x101 && x < 0x198 && x > 0x162)
+            if (leftButton.heldFrames == 1 && leftButton.press == 1 && y < kConfirmBottom && y > kConfirmTop &&
+                x < kConfirmRight && x > kConfirmLeft)
             {
-                this->systemClick = 1;
+                this->systemClick = kClickConfirm;
             }
             else if (rightButton.heldFrames == 1 && rightButton.press == 1)
             {
-                this->systemClick = 2;
+                this->systemClick = kClickCancel;
             }
         }
 
@@ -118,11 +229,11 @@ void Menu::SystemFrame()
 
         for (std::size_t entry = 0; entry < kRows.size(); ++entry)
         {
-            if (y < kRows[entry].second && y > kRows[entry].first && x < 0x104 && x > 0x6E)
+            if (y < kRows[entry].second && y > kRows[entry].first && x < kEntryRight && x > kEntryLeft)
             {
                 this->systemCursor = static_cast<i32>(entry);
 
-                if ((this->clicks & 3) != 0)
+                if ((this->clicks & kLeftClicks) != 0)
                 {
                     this->SystemSelect();
                 }
@@ -137,7 +248,7 @@ void Menu::SystemFrame()
         return;
     }
 
-    if (leftButton.press == 0 || x >= 0x1C0 || x <= 0xA8)
+    if (leftButton.press == 0 || x >= kBarsRight || x <= kBarsLeft)
     {
         if (rightButton.press != 0)
         {
@@ -147,13 +258,13 @@ void Menu::SystemFrame()
         return;
     }
 
-    u32 step = (x - 0x100) >> 4;
-    const bool onBar = (step & 0xFFFF0000u) == 0;
+    u32 step = (x - kStepsLeft) >> kStepShift;
+    const bool onBar = HighWord(step) == 0;
     Config& settings = owner.config;
 
-    if (y < 0x10F && y > 0xF0)
+    if (InRow(y, kSoundRow))
     {
-        this->systemRow = 0;
+        this->systemRow = kSoundRow;
 
         if (onBar)
         {
@@ -164,9 +275,9 @@ void Menu::SystemFrame()
         return;
     }
 
-    if (y < 0x12F && y > 0x110)
+    if (InRow(y, kMusicRow))
     {
-        this->systemRow = 1;
+        this->systemRow = kMusicRow;
 
         if (onBar)
         {
@@ -177,21 +288,22 @@ void Menu::SystemFrame()
         return;
     }
 
-    if (y < 0x14F && y > 0x130)
+    if (InRow(y, kCacheRow))
     {
-        this->systemRow = 2;
+        this->systemRow = kCacheRow;
 
         if (onBar)
         {
-            settings.cacheSize = static_cast<i32>(0x28 * std::min<u32>(step, 2) + 0x3C);
+            settings.cacheSize =
+                static_cast<i32>(kCacheStep * static_cast<i32>(std::min<u32>(step, kCacheSteps)) + kMinCache);
         }
 
         return;
     }
 
-    if (y < 0x16F && y > 0x150)
+    if (InRow(y, kEffectsRow))
     {
-        this->systemRow = 3;
+        this->systemRow = kEffectsRow;
 
         if (onBar)
         {
@@ -206,23 +318,23 @@ void Menu::SystemFrame()
         return;
     }
 
-    if (y < 0x18F && y > 0x170)
+    if (InRow(y, kTextSpeedRow))
     {
-        this->systemRow = 4;
+        this->systemRow = kTextSpeedRow;
 
         if (onBar)
         {
-            step = std::min<u32>(step, 4);
-            settings.textSpeed = static_cast<i32>(4 - step);
-            this->textSpeedShown = static_cast<i32>(4 - step);
+            step = std::min<u32>(step, kSlowestText);
+            settings.textSpeed = kSlowestText - static_cast<i32>(step);
+            this->textSpeedShown = kSlowestText - static_cast<i32>(step);
         }
 
         return;
     }
 
-    if (y < 0x1AF && y > 0x190)
+    if (InRow(y, kBattleSpeedRow))
     {
-        this->systemRow = 5;
+        this->systemRow = kBattleSpeedRow;
 
         if (onBar)
         {
@@ -243,16 +355,16 @@ void Menu::SystemDown()
 {
     if (this->systemState == kEntries)
     {
-        if (++this->systemCursor > 3)
+        if (++this->systemCursor > kQuitEntry)
         {
-            this->systemCursor = 3;
+            this->systemCursor = kQuitEntry;
         }
     }
     else if (this->systemState == kSettings)
     {
-        if (++this->systemRow > 5)
+        if (++this->systemRow > kBattleSpeedRow)
         {
-            this->systemRow = 4;
+            this->systemRow = kTextSpeedRow;
         }
     }
 }
@@ -271,7 +383,7 @@ void Menu::SystemUp()
     {
         if (--this->systemRow < 0)
         {
-            this->systemRow = 0;
+            this->systemRow = kSoundRow;
         }
     }
 }
@@ -281,11 +393,11 @@ void Menu::SystemLast()
 {
     if (this->systemState == kEntries)
     {
-        this->systemCursor = 3;
+        this->systemCursor = kQuitEntry;
     }
     else if (this->systemState == kSettings)
     {
-        this->systemRow = 5;
+        this->systemRow = kBattleSpeedRow;
     }
 }
 
@@ -298,7 +410,7 @@ void Menu::SystemFirst()
     }
     else if (this->systemState == kSettings)
     {
-        this->systemRow = 0;
+        this->systemRow = kSoundRow;
     }
 }
 
@@ -326,7 +438,7 @@ void Menu::SystemLeft()
 
     switch (this->systemRow)
     {
-        case 0:
+        case kSoundRow:
         {
             int volume = --settings.soundVolume;
 
@@ -340,7 +452,7 @@ void Menu::SystemLeft()
             break;
         }
 
-        case 1:
+        case kMusicRow:
         {
             int volume = --settings.musicVolume;
 
@@ -354,35 +466,35 @@ void Menu::SystemLeft()
             break;
         }
 
-        case 2:
-            settings.cacheSize -= 0x28;
+        case kCacheRow:
+            settings.cacheSize -= kCacheStep;
 
-            if (settings.cacheSize <= 0x3C)
+            if (settings.cacheSize <= kMinCache)
             {
-                settings.cacheSize = 0x3C;
+                settings.cacheSize = kMinCache;
             }
 
             break;
 
-        case 3:
+        case kEffectsRow:
             owner.state.SetGameFlag(kEffectsOffFlag);
             break;
 
-        case 4:
+        case kTextSpeedRow:
         {
             int level = ++settings.textSpeed;
 
-            if (settings.textSpeed > 4)
+            if (settings.textSpeed > kSlowestText)
             {
-                level = 4;
-                settings.textSpeed = 4;
+                level = kSlowestText;
+                settings.textSpeed = kSlowestText;
             }
 
             this->textSpeedShown = level;
             break;
         }
 
-        case 5:
+        case kBattleSpeedRow:
             if (--settings.battleSpeed < 0)
             {
                 settings.battleSpeed = 0;
@@ -404,9 +516,9 @@ void Menu::SystemRight()
 
     if (this->systemState == kEntries)
     {
-        if (++this->systemCursor > 3)
+        if (++this->systemCursor > kQuitEntry)
         {
-            this->systemCursor = 3;
+            this->systemCursor = kQuitEntry;
         }
 
         return;
@@ -419,7 +531,7 @@ void Menu::SystemRight()
 
     switch (this->systemRow)
     {
-        case 0:
+        case kSoundRow:
         {
             int volume = ++settings.soundVolume;
 
@@ -433,35 +545,35 @@ void Menu::SystemRight()
             break;
         }
 
-        case 1:
+        case kMusicRow:
         {
             int volume = ++settings.musicVolume;
 
             if (settings.musicVolume > Config::MaxVolume)
             {
-                volume = 0xA;
-                settings.musicVolume = 0xA;
+                volume = kMusicFallback;
+                settings.musicVolume = kMusicFallback;
             }
 
             owner.audio.SetMusicVolume(volume);
             break;
         }
 
-        case 2:
-            settings.cacheSize += 0x28;
+        case kCacheRow:
+            settings.cacheSize += kCacheStep;
 
-            if (settings.cacheSize >= 0x8C)
+            if (settings.cacheSize >= kMaxCache)
             {
-                settings.cacheSize = 0x8C;
+                settings.cacheSize = kMaxCache;
             }
 
             break;
 
-        case 3:
+        case kEffectsRow:
             owner.state.ClearGameFlag(kEffectsOffFlag);
             break;
 
-        case 4:
+        case kTextSpeedRow:
         {
             int level = --settings.textSpeed;
 
@@ -475,7 +587,7 @@ void Menu::SystemRight()
             break;
         }
 
-        case 5:
+        case kBattleSpeedRow:
             if (++settings.battleSpeed > Config::MaxVolume)
             {
                 settings.battleSpeed = Config::MaxVolume;
@@ -493,9 +605,9 @@ void Menu::SystemEnd()
 {
     if (this->systemState == kEntries)
     {
-        if (++this->systemCursor > 3)
+        if (++this->systemCursor > kQuitEntry)
         {
-            this->systemCursor = 3;
+            this->systemCursor = kQuitEntry;
         }
     }
 }
@@ -514,29 +626,29 @@ void Menu::SystemSelect()
     this->systemRow = kFadeOut;
     this->systemState = kChosen;
 
-    if (this->systemCursor == 1)
+    if (this->systemCursor == kNewGameEntry)
     {
         this->systemRow = kNameEntry;
         owner.state.SetGameFlag(kNameEntryFlag);
-        this->face.id = 1;
-        this->face.action = 0x46;
+        this->face.id = kFirstRoleAct;
+        this->face.action = kFaceIdle;
         this->face.direction = 0;
         this->nameReply = 0;
-        this->enteredNames.assign(0x20, 0);
+        this->enteredNames.assign(2 * Party::NameBytes, 0);
         ++this->systemRow;
         owner.textInput = std::make_unique<TextInput>(Party::RoleNames[0], kNameLength, kNameBoxX, kNameBoxY);
     }
-    else if (this->systemCursor == 2)
+    else if (this->systemCursor == kSettingsEntry)
     {
         owner.acts.Run(owner.battleMessages.panelAct);
         this->systemState = kSettings;
-        this->systemRow = 0;
-        this->gauge.id = 0x232A;
-        this->gauge.action = 0x22;
+        this->systemRow = kSoundRow;
+        this->gauge.id = Scene::InterfaceAct;
+        this->gauge.action = kStepOff;
     }
-    else if (this->systemCursor == 3)
+    else if (this->systemCursor == kQuitEntry)
     {
-        owner.audio.SetMusicFade(0x10, 0x19);
+        owner.audio.SetMusicFade(kQuitFadeMode, kQuitFadeLength);
         owner.audio.PollMusicFade();
     }
 }
@@ -549,7 +661,7 @@ void Menu::SystemCancel()
 
     if (this->systemState == kEntries)
     {
-        this->systemCursor = 3;
+        this->systemCursor = kQuitEntry;
         return;
     }
 
@@ -560,7 +672,7 @@ void Menu::SystemCancel()
             static_cast<u8>(owner.config.soundVolume),
             static_cast<u8>(owner.config.musicVolume),
             static_cast<u8>(owner.config.cacheSize),
-            0x64,
+            kUnkSettings,
             static_cast<u8>(owner.state.GameFlag(kEffectsOffFlag) ? 1 : 0),
             static_cast<u8>(owner.config.textSpeed),
             static_cast<u8>(owner.config.battleSpeed),
@@ -583,20 +695,20 @@ void Menu::SystemDraw()
     {
         owner.actDrawer.Draw(this->background, 0, 0);
         const auto chosen = static_cast<std::size_t>(this->systemCursor);
-        this->glow[chosen] -= 4;
+        this->glow[chosen] -= kChosenFade;
 
-        if (this->glow[chosen] < -0x20)
+        if (this->glow[chosen] < kChosenGlow)
         {
-            this->glow[chosen] = -0x20;
+            this->glow[chosen] = kChosenGlow;
         }
 
         for (i32& level : this->glow)
         {
-            level += 2;
+            level += kGlowRise;
 
-            if (level > -0xC)
+            if (level > kEntryGlow)
             {
-                level = -0xC;
+                level = kEntryGlow;
             }
         }
 
@@ -604,7 +716,7 @@ void Menu::SystemDraw()
 
         for (std::size_t entry = 0; entry < this->items.size(); ++entry)
         {
-            owner.actDrawer.DrawGlow(this->items[entry], 0x7D, kEntryY[entry], this->glow[entry]);
+            owner.actDrawer.DrawGlow(this->items[entry], kEntryX, kEntryY[entry], this->glow[entry]);
         }
 
         if (this->systemRow < 0)
@@ -617,7 +729,7 @@ void Menu::SystemDraw()
                 return;
             }
 
-            const int level = 5 * this->systemRow;
+            const int level = kFadeInStep * this->systemRow;
             painter.TintPixels(std::span<u16>(owner.drawSurface, kScreenPixels), level, level, level);
         }
     }
@@ -631,9 +743,9 @@ void Menu::SystemDraw()
                 return;
             }
         }
-        else if (++this->systemRow <= 0x68)
+        else if (++this->systemRow <= kFadeOutEnd)
         {
-            const int level = 8 * (kFadeOut - this->systemRow);
+            const int level = kFadeOutStep * (kFadeOut - this->systemRow);
             painter.TintPixels(std::span<u16>(owner.drawSurface, kScreenPixels), level, level, level);
         }
         else
@@ -656,40 +768,40 @@ void Menu::SystemDraw()
 
     i32 row = this->systemRow;
 
-    if (this->mode == 1 && row == kInGameFade)
+    if (this->mode == Menu::GameModeA && row == kInGameFade)
     {
         painter.GrayPixels(this->savedScreen);
     }
 
-    if (this->mode == 1)
+    if (this->mode == Menu::GameModeA)
     {
         if (row >= kInGameFade)
         {
-            if (row < -0x5A)
+            if (row < kGrayEnd)
             {
-                this->tint = row + 0x5A;
+                this->tint = row - kGrayEnd;
             }
-            else if (row < -0xA)
+            else if (row < kRedarken)
             {
                 this->tint = 0;
             }
             else if (row <= 0)
             {
-                this->tint = 3 * (-0xA - row);
+                this->tint = kRedarkenStep * (kRedarken - row);
             }
         }
 
-        this->gauge.id = 0x232A;
-        this->gauge.action = 0x44;
+        this->gauge.id = Scene::InterfaceAct;
+        this->gauge.action = kInGameFrameAction;
         owner.actDrawer.Draw(this->gauge, 0, 0);
     }
-    else if (this->mode == 2)
+    else if (this->mode == Menu::GameModeB)
     {
         std::copy(this->savedScreen.begin(), this->savedScreen.end(), owner.drawSurface);
 
-        if (row % 3 == 0)
+        if (row % kDarkenEvery == 0)
         {
-            painter.TintPixels(this->savedScreen, -1, -1, -1);
+            painter.TintPixels(this->savedScreen, kDarkenTint, kDarkenTint, kDarkenTint);
         }
     }
 
@@ -725,17 +837,15 @@ bool Menu::DrawNameEntry()
         {
             if (this->systemRow == kFirstName)
             {
-                constexpr std::array<i32, 3> kReplies = {0x1C, 0x4D, 0x1E};
-                this->face.action = kReplies[static_cast<std::size_t>(owner.random.Below(3))];
+                this->face.action = kFirstReplies[static_cast<std::size_t>(owner.random.Below(kFirstReplies.size()))];
             }
             else
             {
-                constexpr std::array<i32, 3> kReplies = {0x22, 0x39, 0xE};
-                this->face.action = kReplies[static_cast<std::size_t>(owner.random.Below(3))];
+                this->face.action = kSecondReplies[static_cast<std::size_t>(owner.random.Below(kSecondReplies.size()))];
             }
         }
 
-        this->nameReply = 0x28;
+        this->nameReply = kReplyFrames;
     }
     else
     {
@@ -744,21 +854,21 @@ bool Menu::DrawNameEntry()
             --this->nameReply;
         }
 
-        if (this->nameReply == 2)
+        if (this->nameReply == kReplyEnd)
         {
-            if (this->systemRow == kFirstName && owner.random.Below(2) == 0)
+            if (this->systemRow == kFirstName && owner.random.Below(kCoin) == 0)
             {
-                this->face.action = 0x3A;
+                this->face.action = kFaceSmile;
             }
             else
             {
-                this->face.action = 0x46;
+                this->face.action = kFaceIdle;
             }
         }
     }
 
     owner.DrawTextInput(*owner.textInput);
-    owner.actDrawer.Draw(this->face, 0xDC, 0xFE);
+    owner.actDrawer.Draw(this->face, kFaceX, kFaceY);
     int result = owner.textInput->GetResult();
 
     if (result == 0 && this->systemClick != 0)
@@ -771,20 +881,20 @@ bool Menu::DrawNameEntry()
     if (result == TextInput::Enter)
     {
         owner.party.names = Party::DefaultNames();
-        const std::string name = owner.textInput->CopyText(0x10);
-        const auto at = static_cast<std::size_t>(0x10 * (this->systemRow - kFirstName));
+        const std::string name = owner.textInput->CopyText(Party::NameBytes);
+        const auto at = Party::NameBytes * static_cast<std::size_t>(this->systemRow - kFirstName);
         std::copy_n(
             name.begin(),
-            std::min<std::size_t>(name.size(), 0x10),
+            std::min<std::size_t>(name.size(), Party::NameBytes),
             this->enteredNames.begin() + static_cast<long>(at)
         );
         owner.textInput.reset();
 
-        if (++this->systemRow == 0x63)
+        if (++this->systemRow == kSecondName)
         {
             owner.textInput = std::make_unique<TextInput>(Party::RoleNames[1], kNameLength, kNameBoxX, kNameBoxY);
-            this->face.id = 2;
-            this->face.action = 0x46;
+            this->face.id = kSecondRoleAct;
+            this->face.action = kFaceIdle;
         }
 
         if (this->systemRow == kFadeOut)
@@ -816,7 +926,7 @@ void Menu::ActOnEntry()
 
     switch (this->systemCursor)
     {
-        case 0:
+        case kContinueEntry:
             owner.menuState = Game::NoMenu;
             owner.storyState = Game::SaveSlotsState;
             owner.unk4CAEBC = 1;
@@ -825,12 +935,12 @@ void Menu::ActOnEntry()
             owner.ResetSaveSlots();
             break;
 
-        case 1:
+        case kNewGameEntry:
             owner.unk4ACEF4 = 0;
             owner.unk4AB990 = crt::Time();
             this->systemState = kSettings;
             std::memset(owner.drawSurface, 0, kScreenBytes);
-            owner.StartStory(1);
+            owner.StartStory(kWithMap);
             owner.menuState = Game::NoMenu;
             owner.storyState = Game::StoryRunning;
             owner.unk4CAEBC = 1;
@@ -840,11 +950,11 @@ void Menu::ActOnEntry()
             owner.LoadFameFile();
             break;
 
-        case 2:
+        case kSettingsEntry:
             this->systemState = kEntries;
             break;
 
-        case 3:
+        case kQuitEntry:
             owner.systemFlags |= Game::QuitRequested;
             break;
 
@@ -860,54 +970,54 @@ void Menu::DrawSettings()
     Game& owner = this->game;
     Painter& painter = owner.painter;
     Config& settings = owner.config;
-    auto color = static_cast<Pixel>(painter.MakeColor(0x15, 0xF, 8));
+    auto color = static_cast<Pixel>(painter.MakeColor(kLabelRed, kLabelGreen, kLabelBlue));
     owner.actDrawer.Draw(this->background, 0, 0);
-    this->DrawBox(0x98, 0xEC, 0x190, 0xC0, 4, 0, 0, 0);
-    this->gauge.id = 0x232A;
-    this->gauge.action = 0x22;
+    this->DrawBox(kBoxX, kBoxTop, kBoxWidth, kBoxHeight, static_cast<int>(FillMode::Eighth), 0, 0, 0);
+    this->gauge.id = Scene::InterfaceAct;
+    this->gauge.action = kStepOff;
     TextFont& large = owner.largeFont;
     TextFont& medium = owner.mediumFont;
     u16* pixels = painter.Target();
-    large.DrawText(pixels, 0xC4, 0xF0, menu_text::kSoundVolume, color, kTextStyle);
-    large.DrawText(pixels, 0xC4, 0x110, menu_text::kMusicVolume, color, kTextStyle);
-    large.DrawText(pixels, 0x98, 0x130, menu_text::kCacheSize, color, kTextStyle);
-    large.DrawText(pixels, 0x98, 0x150, menu_text::kMapEffects, color, kTextStyle);
-    large.DrawText(pixels, 0x98, 0x170, menu_text::kTextSpeed, color, kTextStyle);
-    large.DrawText(pixels, 0x98, 0x190, menu_text::kBattleSpeed, color, kTextStyle);
+    large.DrawText(pixels, kVolumeLabelX, RowY(kSoundRow), menu_text::kSoundVolume, color, kTextStyle);
+    large.DrawText(pixels, kVolumeLabelX, RowY(kMusicRow), menu_text::kMusicVolume, color, kTextStyle);
+    large.DrawText(pixels, kLabelX, RowY(kCacheRow), menu_text::kCacheSize, color, kTextStyle);
+    large.DrawText(pixels, kLabelX, RowY(kEffectsRow), menu_text::kMapEffects, color, kTextStyle);
+    large.DrawText(pixels, kLabelX, RowY(kTextSpeedRow), menu_text::kTextSpeed, color, kTextStyle);
+    large.DrawText(pixels, kLabelX, RowY(kBattleSpeedRow), menu_text::kBattleSpeed, color, kTextStyle);
 
     auto bar = [this, &owner](int y, auto lit)
     {
         int step = 0;
 
-        for (int x = 0x100; x <= 0x1B0; x += 0x10)
+        for (int x = kStepsLeft; x <= kStepsRight; x += kStepWidth)
         {
-            this->gauge.action = lit(step) ? 0x23 : 0x22;
+            this->gauge.action = lit(step) ? kStepOn : kStepOff;
             owner.actDrawer.Draw(this->gauge, x, y);
             ++step;
         }
     };
 
-    bar(0xF0,
+    bar(RowY(kSoundRow),
         [&settings](int step)
         {
             return step <= settings.soundVolume;
         });
 
-    bar(0x110,
+    bar(RowY(kMusicRow),
         [&settings](int step)
         {
             return step <= settings.musicVolume;
         });
 
-    int size = 0x3C;
+    int size = kMinCache;
 
-    for (int x = 0x100; x < 0x130; x += 0x10)
+    for (int x = kStepsLeft; x < kStepsLeft + static_cast<int>(kCacheSteps + 1) * kStepWidth; x += kStepWidth)
     {
-        this->gauge.action = 0x22;
+        this->gauge.action = kStepOff;
 
         if (size == settings.cacheSize)
         {
-            this->gauge.action = 0x23;
+            this->gauge.action = kStepOn;
             const std::string line = WinFormat(
                 menu_text::kCacheLine,
                 {static_cast<i32>(
@@ -915,68 +1025,85 @@ void Menu::DrawSettings()
                  ),
                  settings.cacheSize}
             );
-            color = static_cast<Pixel>(painter.MakeColor(0x15, 0xF, 8));
-            medium.DrawText(pixels, 0x168, 0x136, line, color, kTextStyle);
+            color = static_cast<Pixel>(painter.MakeColor(kLabelRed, kLabelGreen, kLabelBlue));
+            medium.DrawText(pixels, kLineX, RowY(kCacheRow) + kLineDrop, line, color, kTextStyle);
         }
 
-        owner.actDrawer.Draw(this->gauge, x, 0x130);
-        size += 0x28;
+        owner.actDrawer.Draw(this->gauge, x, RowY(kCacheRow));
+        size += kCacheStep;
     }
 
     const int effectsOff = owner.state.GameFlag(kEffectsOffFlag) ? 1 : 0;
 
-    for (int step = 0, x = 0x100; x < 0x120; x += 0x10, ++step)
+    for (int step = 0, x = kStepsLeft; x < kStepsLeft + 2 * kStepWidth; x += kStepWidth, ++step)
     {
-        this->gauge.action = step == effectsOff ? 0x22 : 0x23;
-        owner.actDrawer.Draw(this->gauge, x, 0x150);
+        this->gauge.action = step == effectsOff ? kStepOff : kStepOn;
+        owner.actDrawer.Draw(this->gauge, x, RowY(kEffectsRow));
     }
 
     const std::string effects =
         WinFormat(menu_text::kEffectsLine, {effectsOff != 0 ? menu_text::kOff : menu_text::kOn});
-    medium.DrawText(pixels, 0x168, 0x156, effects, color, kTextStyle);
+    medium.DrawText(pixels, kLineX, RowY(kEffectsRow) + kLineDrop, effects, color, kTextStyle);
 
-    for (int step = 0, x = 0x140; step < 5; ++step, x -= 0x10)
+    for (int step = 0, x = kStepsLeft + kSlowestText * kStepWidth; step < kSpeeds; ++step, x -= kStepWidth)
     {
-        this->gauge.action = step == settings.textSpeed ? 0x23 : 0x22;
-        owner.actDrawer.Draw(this->gauge, x, 0x170);
+        this->gauge.action = step == settings.textSpeed ? kStepOn : kStepOff;
+        owner.actDrawer.Draw(this->gauge, x, RowY(kTextSpeedRow));
     }
 
-    std::string speed = settings.textSpeed >= 0 && settings.textSpeed < 5
+    std::string speed = settings.textSpeed >= 0 && settings.textSpeed < kSpeeds
                             ? Big5(menu_text::kSpeeds[static_cast<std::size_t>(settings.textSpeed)])
                             : std::string();
     std::string sample = Big5(menu_text::kSample);
-    medium.DrawText(pixels, 0x19E, 0x176, sample, static_cast<Pixel>(painter.MakeColor(0xF, 9, 2)), kTextStyle);
+    medium.DrawText(
+        pixels,
+        kSampleX,
+        RowY(kTextSpeedRow) + kLineDrop,
+        sample,
+        static_cast<Pixel>(painter.MakeColor(kSampleRed, kSampleGreen, kSampleBlue)),
+        kTextStyle
+    );
 
     // The original then copies the first sampleLength words of the sample over the speed name in place.
     const auto words = static_cast<std::size_t>(this->sampleLength);
 
     if (words != 0)
     {
-        speed.resize(std::max(speed.size(), 2 + 2 * words), '\0');
-        std::copy_n(sample.begin(), std::min(sample.size(), 2 * words), speed.begin() + 2);
+        speed.resize(std::max(speed.size(), kCharBytes + kCharBytes * words), '\0');
+        std::copy_n(sample.begin(), std::min(sample.size(), kCharBytes * words), speed.begin() + kCharBytes);
     }
 
     if (--this->sampleDelay <= 0)
     {
         ++this->sampleLength;
-        this->sampleDelay = 2 * this->textSpeedShown + 1;
+        this->sampleDelay = kSampleDelayFactor * this->textSpeedShown + 1;
     }
 
-    medium.DrawText(pixels, 0x168, 0x176, speed, color, kTextStyle);
+    medium.DrawText(pixels, kLineX, RowY(kTextSpeedRow) + kLineDrop, speed, color, kTextStyle);
 
-    if (2 * static_cast<std::size_t>(this->sampleLength) >= sample.size() ||
-        sample[2 * static_cast<std::size_t>(this->sampleLength)] == 0)
+    if (kCharBytes * static_cast<std::size_t>(this->sampleLength) >= sample.size() ||
+        sample[kCharBytes * static_cast<std::size_t>(this->sampleLength)] == 0)
     {
         this->sampleLength = 0;
     }
 
-    bar(0x190,
+    bar(RowY(kBattleSpeedRow),
         [&settings](int step)
         {
             return step <= settings.battleSpeed;
         });
 
-    FillBox(painter, 0x93, 0x20 * this->systemRow + 0xEC, 0x19A, 0x20, 0x14, 0xD, 0, FillMode::Gradient);
+    FillBox(
+        painter,
+        kHighlightX,
+        static_cast<int>(kRowHeight) * this->systemRow + kBoxTop,
+        kHighlightWidth,
+        static_cast<int>(kRowHeight),
+        kHighlightRed,
+        kHighlightGreen,
+        0,
+        FillMode::Gradient
+    );
 }
 
 }  // namespace swd3

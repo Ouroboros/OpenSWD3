@@ -318,7 +318,7 @@ struct Scene
     static constexpr int SpotlightRadius = 0xC0;   // half the side of the lit square
     // The acts of the screen (the system act archive).
     static constexpr int PointerAct = 0x2329;
-    static constexpr int LoadingAct = 0x232A;
+    static constexpr int InterfaceAct = 0x232A;  // the loading screen and the menus
     static constexpr int EffectAct = 0x232B;
     static constexpr int TimerAct = 0x232C;
     // Actions of the pointer act besides the directions 0..7.

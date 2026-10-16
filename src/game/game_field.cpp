@@ -164,7 +164,7 @@ void Game::ShowLoading(int percent)
         }
 
         this->loadingPercent = shown;
-        view.unk4A93E8.id = Scene::LoadingAct;
+        view.unk4A93E8.id = Scene::InterfaceAct;
         view.unk4A93E8.action = kLoadingAction;
         view.unk4A93E8.direction = 0;
         view.unk4A93E8.x = 0;
@@ -664,7 +664,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
 
     if (this->drawSurface != nullptr)
     {
-        view.unk4A93E8.id = Scene::LoadingAct;
+        view.unk4A93E8.id = Scene::InterfaceAct;
         view.unk4A93E8.action = kLoadingAction;
         view.unk4A93E8.direction = 0;
         view.unk4A93E8.x = 0;
