@@ -126,9 +126,9 @@ int Game::Run()
             this->HandleEvent(event);
         }
 
-        if (this->state.GameFlag(0x50) != SDL_TextInputActive(this->display.Window()))
+        if (this->state.GameFlag(story_flag::kTextBox) != SDL_TextInputActive(this->display.Window()))
         {
-            if (this->state.GameFlag(0x50))
+            if (this->state.GameFlag(story_flag::kTextBox))
             {
                 SDL_StartTextInput(this->display.Window());
             }
@@ -549,8 +549,8 @@ void Game::NewGame()
         game.ClearGameFlag(flag);
     }
 
-    game.SetGameFlag(0x1E);
-    game.ClearGameFlag(0x15);
+    game.SetGameFlag(story_flag::kInParty);
+    game.ClearGameFlag(story_flag::kUnk15);
     this->party.variables[0] = 0x64;
     scene.unk4A9930 = -1;
     scene.unk4A9938 = -1;
@@ -845,7 +845,7 @@ std::string Game::MusicPath(int index) const
 // swd32.exe 0x004856C0: the tune as stream 100 (once) while story flag 3 allows music
 void Game::PlayMusic(const std::string& path)
 {
-    if (this->state.GameFlag(3))
+    if (this->state.GameFlag(story_flag::kMusic))
     {
         this->audio.Streams().Play(path, AudioManager::kMusicId, (this->config.musicVolume << 7) / 0xB, 1);
     }
@@ -1052,8 +1052,8 @@ void Game::MainFrame()
 
     if ((this->deviceFlags & 1) != 0)
     {
-        this->state.ClearGameFlag(3);
-        this->state.ClearGameFlag(4);
+        this->state.ClearGameFlag(story_flag::kMusic);
+        this->state.ClearGameFlag(story_flag::kSoundEffects);
     }
 
     this->unk4C844C = now;
@@ -1142,8 +1142,6 @@ void Game::SendText(TextMessage message, u32 parameter)
 // text go to the text box (as WM_KEYDOWN and WM_CHAR in Big5)
 void Game::HandleEvent(const SDL_Event& event)
 {
-    constexpr int kTextBoxFlag = 0x50;
-
     if (event.type == SDL_EVENT_QUIT)
     {
         this->Destroy();
@@ -1186,7 +1184,7 @@ void Game::HandleEvent(const SDL_Event& event)
         }
     }
 
-    if (!this->state.GameFlag(kTextBoxFlag))
+    if (!this->state.GameFlag(story_flag::kTextBox))
     {
         return;
     }

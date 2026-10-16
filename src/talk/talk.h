@@ -10,6 +10,7 @@
 #include "core/types.h"
 #include "file/file.h"
 #include "res/act_state.h"
+#include "talk/event_command.h"
 #include "ui/marching_rect.h"
 
 namespace swd3
@@ -28,9 +29,9 @@ struct EventRun
     std::size_t cursor = 0;  // the byte the commands are read from
     bool running = false;    // between commands 0x400 and 0x401 the commands run on without waiting for a frame
     bool stopped = false;    // the original returns at once (the CD is missing)
-    u16 code = 0;            // the command
-    u32 found = 0;           // the index of the role last looked up
-    i32 valueA = 0;          // two values a command leaves behind (commands 0x54 and 0x4D read them)
+    EventCommand code = EventCommand::None;  // the command
+    u32 found = 0;                           // the index of the role last looked up
+    i32 valueA = 0;                          // two values a command leaves behind (commands 0x54 and 0x4D read them)
     i32 valueB = 0;
 };
 

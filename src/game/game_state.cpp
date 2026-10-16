@@ -173,7 +173,7 @@ u32 GameState::FindRole(u16 id) const
 
     u32 index = 0;
 
-    while (this->roles[index].id != id || (this->roles[index].flags & 0x10000000) != 0)
+    while (this->roles[index].id != id || (this->roles[index].flags & role_flag::kRemoved) != 0)
     {
         if (++index >= static_cast<u32>(this->roleCount) || index >= this->roles.size())
         {

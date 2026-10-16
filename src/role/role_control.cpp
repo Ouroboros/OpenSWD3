@@ -260,7 +260,7 @@ u32 RoleControl::FindRoleAt(u32 x, u32 y) const
     {
         const Role& role = state.roles[index];
 
-        if (role.event == 0 || (role.flags & 0x8000) == 0)
+        if (role.event == 0 || (role.flags & role_flag::kVisible) == 0)
         {
             continue;
         }
@@ -283,7 +283,7 @@ u32 RoleControl::FindTouchRoleAt(u32 x, u32 y) const
 {
     const u32 index = this->FindRoleAt(x, y);
 
-    if (index != kNone && (this->game.state.roles[index].flags & 0x2000) == 0)
+    if (index != kNone && (this->game.state.roles[index].flags & role_flag::kTouchEvent) == 0)
     {
         return kNone;
     }

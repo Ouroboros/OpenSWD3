@@ -100,7 +100,7 @@ void FieldView::DrawTileGrid(const TileSet& tiles)
     int top = 0;
     int bottom = kScreenHeight;
 
-    if (!state.GameFlag(0x48) && state.GameFlag(0x13))
+    if (!state.GameFlag(story_flag::kPlainScreen) && state.GameFlag(story_flag::kSpotlight))
     {
         const int lightX = (view.unk4B9EF8 + 0xF) & ~0xF;
         const int lightY = (view.unk4B9EFC + 0xF) & ~0xF;
@@ -222,7 +222,7 @@ void FieldView::DrawTileGridScrolled(const TileSet& tiles)
         }
     };
 
-    if (state.GameFlag(0x48) || !state.GameFlag(0x13))
+    if (state.GameFlag(story_flag::kPlainScreen) || !state.GameFlag(story_flag::kSpotlight))
     {
         top = 0;
         right = kScreenWidth;
@@ -384,7 +384,7 @@ void FieldView::DrawRoles()
 // to it, its bubbles and, while no event runs, its label. Act roles are skipped while story flag 0xB is set.
 int FieldView::DrawRole(Role& role)
 {
-    if ((role.flags & 0x8400) != 0x8000)
+    if ((role.flags & (role_flag::kVisible | role_flag::kHidden)) != 0x8000)
     {
         return 0;
     }
@@ -408,7 +408,7 @@ int FieldView::DrawRole(Role& role)
     {
         frame = role.act.frame;
 
-        if (this->game.state.GameFlag(0xB))
+        if (this->game.state.GameFlag(story_flag::kHideActRoles))
         {
             return 1;
         }
@@ -427,7 +427,7 @@ int FieldView::DrawRole(Role& role)
         return 1;
     }
 
-    if ((role.flags & 0x100) != 0 && (view.unk4B7EB4 & 7) < 4)
+    if ((role.flags & role_flag::kCellEffects) != 0 && (view.unk4B7EB4 & 7) < 4)
     {
         this->DrawShadow(
             role,
@@ -453,14 +453,14 @@ int FieldView::DrawRole(Role& role)
     int green = 0;
     int blue = 0;
 
-    if ((role.flags & 0x100) != 0)
+    if ((role.flags & role_flag::kCellEffects) != 0)
     {
         red = view.unk4AB97C;
         green = view.unk4AB994;
         blue = view.unk4ACB98;
     }
 
-    if ((role.flags & 0xF00000) != 0)
+    if ((role.flags & role_flag::kCellShades) != 0)
     {
         const int tint = kRoleTint[(role.flags >> 20) & 0xF];
         red += tint;
@@ -505,7 +505,7 @@ int FieldView::DrawRole(Role& role)
 
     role.act.unknown89 = static_cast<u8>(painter.WavePhase());
 
-    if ((role.flags & 0x200) != 0 && !this->game.state.GameFlag(0x48))
+    if ((role.flags & role_flag::kBubbles) != 0 && !this->game.state.GameFlag(story_flag::kPlainScreen))
     {
         this->DrawBubbles(x, y, role.id);
     }
@@ -554,12 +554,12 @@ void FieldView::UpdateRoleSound(Role& role)
         }
     }
 
-    if (distance > 0x200 || (role.flags & 0x8000) == 0)
+    if (distance > 0x200 || (role.flags & role_flag::kVisible) == 0)
     {
-        if ((role.flags & 0x1000000) != 0)
+        if ((role.flags & role_flag::kSoundOnce) != 0)
         {
             effects.Stop(role.sound);
-            role.flags &= ~0x1000000u;
+            role.flags &= ~role_flag::kSoundOnce;
         }
 
         return;
@@ -568,14 +568,14 @@ void FieldView::UpdateRoleSound(Role& role)
     u32 index = 0;
     state.FindRole(role.id, index);
 
-    if ((role.flags & 0x1000000) == 0 && due)
+    if ((role.flags & role_flag::kSoundOnce) == 0 && due)
     {
         const u32 reloaded = (role.soundTimer >> 16) + (role.soundTimer & 0xFFFF0000);
         role.soundTimer = reloaded;
 
         if ((reloaded & 0xFFFF0000) == 0xFFFF0000)
         {
-            role.flags |= 0x1000000;
+            role.flags |= role_flag::kSoundOnce;
         }
 
         effects.Play(role.sound, 0, 0, 1);
@@ -662,7 +662,7 @@ void FieldView::DrawReflections()
 
         for (const Role* role = rows[index]; role != nullptr; role = role->next)
         {
-            if ((role->flags & 0x20000000) != 0)
+            if ((role->flags & role_flag::kReflects) != 0)
             {
                 this->DrawReflection(*role);
             }
@@ -673,7 +673,7 @@ void FieldView::DrawReflections()
 // swd32.exe 0x00413F00: a role's picture flipped below it at translucency 4
 int FieldView::DrawReflection(const Role& role)
 {
-    if ((role.flags & 0x8400) != 0x8000)
+    if ((role.flags & (role_flag::kVisible | role_flag::kHidden)) != 0x8000)
     {
         return 1;
     }
@@ -1296,7 +1296,7 @@ void FieldView::DrawWeather()
     Game& owner = this->game;
     GameState& state = owner.state;
 
-    if (!state.GameFlag(5))
+    if (!state.GameFlag(story_flag::kWeather))
     {
         return;
     }
@@ -1425,7 +1425,7 @@ void FieldView::DrawLeaves()
     Game& owner = this->game;
     GameState& state = owner.state;
 
-    if (!state.GameFlag(6))
+    if (!state.GameFlag(story_flag::kLeaves))
     {
         return;
     }
@@ -1509,7 +1509,7 @@ void FieldView::DrawHeat()
 {
     Game& owner = this->game;
 
-    if (!owner.state.GameFlag(7))
+    if (!owner.state.GameFlag(story_flag::kHeatHaze))
     {
         return;
     }
@@ -1619,7 +1619,7 @@ void FieldView::DrawLightning()
 
     if (random.Below(0x3E8) > 0x384)
     {
-        if (owner.state.GameFlag(8))
+        if (owner.state.GameFlag(story_flag::kLightning))
         {
             if (++view.lightningCount > 8)
             {
@@ -1737,7 +1737,7 @@ void FieldView::DrawFireflies()
 
     if (random.Below(0x3E8) > 0x384)
     {
-        if (owner.state.GameFlag(0x16))
+        if (owner.state.GameFlag(story_flag::kFireflies))
         {
             if (++view.fireflyCount > 1)
             {
@@ -1882,7 +1882,7 @@ void FieldView::DrawSpotlight()
 {
     Game& owner = this->game;
 
-    if (!owner.state.GameFlag(0x13))
+    if (!owner.state.GameFlag(story_flag::kSpotlight))
     {
         return;
     }
@@ -1981,17 +1981,17 @@ void FieldView::DrawTimer(int x, int y, int which)
     Game& owner = this->game;
     const GameState& state = owner.state;
 
-    if (which == 0 && !state.GameFlag(0x10))
+    if (which == 0 && !state.GameFlag(story_flag::kTimer))
     {
         return;
     }
 
-    if (which == 1 && !state.GameFlag(0x4A))
+    if (which == 1 && !state.GameFlag(story_flag::kSecondTimer))
     {
         return;
     }
 
-    if (state.GameFlag(0x4C))
+    if (state.GameFlag(story_flag::kHideTimer))
     {
         return;
     }
@@ -2519,7 +2519,7 @@ void FieldView::Paint()
     {
         bool later = true;
 
-        if (state.GameFlag(0xF) || state.GameFlag(0x13))
+        if (state.GameFlag(story_flag::kOverlaysFirst) || state.GameFlag(story_flag::kSpotlight))
         {
             std::memset(owner.drawSurface, 0, 0x96000);
         }
@@ -2532,7 +2532,7 @@ void FieldView::Paint()
         {
             this->DrawOverlays();
 
-            if (!state.GameFlag(0x48) && state.GameFlag(0x13))
+            if (!state.GameFlag(story_flag::kPlainScreen) && state.GameFlag(story_flag::kSpotlight))
             {
                 lightClip();
             }
@@ -2551,7 +2551,7 @@ void FieldView::Paint()
 
             painter.SetPalette(nullptr);
 
-            if (!state.GameFlag(0xB))
+            if (!state.GameFlag(story_flag::kHideActRoles))
             {
                 this->DrawReflections();
             }
@@ -2560,7 +2560,7 @@ void FieldView::Paint()
             this->DrawAnimations(view.animationsA);
             this->DrawSprites();
 
-            if (!state.GameFlag(0x48) && (view.unk4C9A18 & 1) == 0)
+            if (!state.GameFlag(story_flag::kPlainScreen) && (view.unk4C9A18 & 1) == 0)
             {
                 this->DrawLeaves();
                 this->DrawLightning();
@@ -2570,7 +2570,7 @@ void FieldView::Paint()
                 this->DrawRipples();
             }
 
-            if (!state.GameFlag(0x48))
+            if (!state.GameFlag(story_flag::kPlainScreen))
             {
                 this->DrawSpotlight();
                 this->DrawAnimations(view.animationsB);
@@ -2589,12 +2589,14 @@ void FieldView::Paint()
     owner.talk.Draw();
     this->DrawRoleHeads();
 
-    if ((state.leader.id == 0xFFFF || state.leader.unk20 < 8) && !state.GameFlag(0x51))
+    if ((state.leader.id == 0xFFFF || state.leader.unk20 < 8) && !state.GameFlag(story_flag::kHideHud))
     {
         owner.actDrawer.DrawCounter(0x27C, 0x1CC, static_cast<u32>(owner.party.variables[0]), owner.counterAlpha);
     }
 
-    if ((!state.GameFlag(0xA) && !state.GameFlag(9) && !state.GameFlag(0x51)) || owner.input.IsKeyDown(0x2E) != 0)
+    if ((!state.GameFlag(story_flag::kNoPointer) && !state.GameFlag(story_flag::kNoChoicePointer) &&
+         !state.GameFlag(story_flag::kHideHud)) ||
+        owner.input.IsKeyDown(0x2E) != 0)
     {
         owner.RefreshCursor();
     }
@@ -2826,17 +2828,17 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
 // 29, the shade bits 12..15 go to flags 20..23
 void FieldView::UpdateRoleCellFlags(Role& role)
 {
-    if ((role.flags & 0x100) == 0)
+    if ((role.flags & role_flag::kCellEffects) == 0)
     {
         return;
     }
 
-    role.flags &= 0xDF0FFFFF;
+    role.flags &= ~(role_flag::kReflects | role_flag::kCellShades);
     const u32 cell = role.cell != nullptr ? *role.cell : 0;
 
     if ((cell & 0x800) != 0)
     {
-        role.flags |= 0x20000000;
+        role.flags |= role_flag::kReflects;
     }
 
     if ((cell & 0xF000) != 0)
@@ -2911,14 +2913,15 @@ void FieldView::Render()
 
         Role& role = state.roles[index];
 
-        if ((role.flags & 0x8000) == 0)
+        if ((role.flags & role_flag::kVisible) == 0)
         {
             continue;
         }
 
         const u16 id = role.id;
 
-        if ((id == state.leader.id && (move.mode & 0xF) == 1) || ((role.flags & 0x800) != 0 && role.unk26 == 1))
+        if ((id == state.leader.id && (move.mode & 0xF) == 1) ||
+            ((role.flags & role_flag::kFacesTalker) != 0 && role.unk26 == 1))
         {
             continue;
         }
@@ -2934,7 +2937,7 @@ void FieldView::Render()
                 stepY *= 2;
             }
 
-            if ((role.flags & 0x4000000) != 0)
+            if ((role.flags & role_flag::kFastMove) != 0)
             {
                 stepX *= 2;
                 stepY *= 2;
@@ -2952,12 +2955,18 @@ void FieldView::Render()
 
             if (((role.x | role.y) & 0xF) == 0)
             {
-                field.RemoveRole(id, static_cast<int>(role.flags & 3), (static_cast<u32>(role.y) >> 4) - 1, 0);
+                field.RemoveRole(
+                    id,
+                    static_cast<int>(role.flags & role_flag::kLayerMask),
+                    (static_cast<u32>(role.y) >> 4) - 1,
+                    0
+                );
 
                 if (role.x == move.x && role.y == move.y)
                 {
                     role.act.speed = 0;
-                    role.flags = (role.flags & 0xB9FFFFFF) | 0x2000000;
+                    role.flags =
+                        (role.flags & ~(role_flag::kStepping | role_flag::kFastMove | role_flag::kArrived)) | 0x2000000;
 
                     if (move.act != -1)
                     {
@@ -2978,7 +2987,7 @@ void FieldView::Render()
                     {
                         owner.rolePath.ResumeMove(index);
                         role.act.delay = 0;
-                        role.flags &= 0x7FFFFFFF;
+                        role.flags &= ~role_flag::kHeld;
                     }
 
                     if (role.id == 1)
@@ -2995,7 +3004,7 @@ void FieldView::Render()
                         }
                     }
 
-                    role.flags &= ~0x40000u;
+                    role.flags &= ~role_flag::kPassWalls;
                 }
 
                 field.ClearRoleCells(role, leaderId);
@@ -3010,7 +3019,7 @@ void FieldView::Render()
                 this->UpdateRoleCellFlags(role);
             }
 
-            if (state.leader.id == 0xFFFF && (role.flags & 0x2000) != 0)
+            if (state.leader.id == 0xFFFF && (role.flags & role_flag::kTouchEvent) != 0)
             {
                 const std::ptrdiff_t cell = role.cell != nullptr ? role.cell - state.map.blocks.data() : 0;
 
@@ -3065,7 +3074,7 @@ void FieldView::Render()
 
             if (((role.x | role.y) & 0xF) == 0)
             {
-                field.RemoveRole(role.id, static_cast<int>(role.flags & 3), 0, 0);
+                field.RemoveRole(role.id, static_cast<int>(role.flags & role_flag::kLayerMask), 0, 0);
                 field.ClearRoleCells(role, leaderId);
                 moveCell(role, direction);
                 field.MarkRoleCells(role, leaderId);
@@ -3096,7 +3105,7 @@ void FieldView::Render()
 
     if ((player.x & 0xF) == 0 && (player.y & 0xF) == 0)
     {
-        field.RemoveRole(player.id, static_cast<int>(player.flags & 3), (player.y >> 4) - 1, 0);
+        field.RemoveRole(player.id, static_cast<int>(player.flags & role_flag::kLayerMask), (player.y >> 4) - 1, 0);
         field.ClearRoleCells(player, leaderId);
 
         if (player.cell != nullptr)
@@ -3127,7 +3136,7 @@ void FieldView::Render()
         this->UpdateRoleCellFlags(player);
     }
 
-    if ((player.flags & 0x40000000) == 0 && (player.flags & 0x1000) != 0)
+    if ((player.flags & role_flag::kStepping) == 0 && (player.flags & role_flag::kStepsAct) != 0)
     {
         owner.acts.Run(player.act);
     }

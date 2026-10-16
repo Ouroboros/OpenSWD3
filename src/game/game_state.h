@@ -78,14 +78,42 @@ public:
 namespace story_flag
 {
 
-constexpr int kRunning = 1;              // cleared when the debug quit key ends the game
-constexpr int kEncounters = 0xC;         // enemies are met on the map
-constexpr int kInParty = 0x1E;           // 0x1E..0x21: the four roles are in the party
-constexpr int kUnkC9 = 0xC9;             // the battle start sets panel flag 2
-constexpr int kUnk1BB0 = 0x1BB0;         // the timing window of the battle is 0x12 frames instead of 0x3C
-constexpr int kNoSlide = 0x14;           // steps into walls do not slide (debug key Ctrl+F3)
+constexpr int kRunning = 1;       // cleared when the debug quit key ends the game
+constexpr int kDebugReports = 2;  // the internal errors are reported
+constexpr int kMusic = 3;         // music plays (cleared without DirectInput)
+constexpr int kSoundEffects = 4;  // (cleared without DirectInput)
+constexpr int kWeather = 5;       // the map has weather particles
+constexpr int kLeaves = 6;        // leaves blow across the map
+constexpr int kHeatHaze = 7;
+constexpr int kLightning = 8;
+constexpr int kNoChoicePointer = 9;  // the pointer and the click choices of the talk windows are off
+constexpr int kNoPointer = 0xA;      // the pointer is not drawn
+constexpr int kHideActRoles = 0xB;   // roles drawn by an act alone are skipped
+constexpr int kEncounters = 0xC;     // enemies are met on the map
+constexpr int kOverlaysFirst = 0xF;  // the map's overlays are drawn before the roles (map effect bit 7)
+constexpr int kTimer = 0x10;         // the first timer runs
+constexpr int kTimerExpired = 0x11;
+constexpr int kTimerEvent = 0x12;  // the first timer runs an event when it expires
+constexpr int kSpotlight = 0x13;
+constexpr int kNoSlide = 0x14;  // steps into walls do not slide (debug key Ctrl+F3)
+constexpr int kUnk15 = 0x15;    // cleared by a new game
+constexpr int kFireflies = 0x16;
+constexpr int kInParty = 0x1E;  // 0x1E..0x21: the four roles are in the party
+constexpr int kNoLoadingScreen = 0x46;
+constexpr int kPlainScreen = 0x48;  // the spotlight, the bubbles, the ripples and the screen effects are off
+constexpr int kSecondTimer = 0x4A;
+constexpr int kSecondTimerExpired = 0x4B;
+constexpr int kHideTimer = 0x4C;
+constexpr int kFileNameA = 0x4D;  // talk commands 0xAA..0xAD
+constexpr int kFileNameB = 0x4E;
+constexpr int kFollowersPassWalls = 0x4F;
+constexpr int kTextBox = 0x50;           // the keyboard goes to the text box
+constexpr int kHideHud = 0x51;           // the gold counter and the pointer are not drawn
 constexpr int kDebugKeys = 0x52;         // the debug keys work
+constexpr int kSecondDisc = 0x53;        // the minimal installation reads the second disc file
+constexpr int kUnkC9 = 0xC9;             // the battle start sets panel flag 2
 constexpr int kMapNoEncounter = 0x1770;  // + the map number: no enemies on that map
+constexpr int kUnk1BB0 = 0x1BB0;         // the timing window of the battle is 0x12 frames instead of 0x3C
 
 }  // namespace story_flag
 

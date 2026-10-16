@@ -65,12 +65,12 @@ void RolePath::Update()
     {
         Role& role = state.roles[index];
 
-        if ((role.flags & 0x8000) == 0)
+        if ((role.flags & role_flag::kVisible) == 0)
         {
             continue;
         }
 
-        if ((role.flags & 0x80) != 0)
+        if ((role.flags & role_flag::kFollower) != 0)
         {
             this->Follow(static_cast<int>(index));
             continue;
@@ -88,7 +88,7 @@ void RolePath::Update()
 
         if (role.unk1C == 0)
         {
-            if ((role.flags & 0x1000) == 0 || index == static_cast<u32>(state.playerRole))
+            if ((role.flags & role_flag::kStepsAct) == 0 || index == static_cast<u32>(state.playerRole))
             {
                 continue;
             }
@@ -401,7 +401,7 @@ void RolePath::Follow(int index)
         const i32 targetX = view.trailX[2 * follower];
         const i32 targetY = view.trailY[2 * follower];
 
-        if (state.GameFlag(0x4F))
+        if (state.GameFlag(story_flag::kFollowersPassWalls))
         {
             finder.SetMask(0);
         }
@@ -477,11 +477,11 @@ void RolePath::Follow(int index)
                                    static_cast<std::size_t>(state.map.width) * (static_cast<u32>(role.y) >> 4);
             role.cell = at < state.map.blocks.size() ? &state.map.blocks[at] : nullptr;
             owner.field.MarkRoleCells(role, leaderId);
-            owner.field.RemoveRole(role.id, static_cast<int>(role.flags & 3), 0, 0);
+            owner.field.RemoveRole(role.id, static_cast<int>(role.flags & role_flag::kLayerMask), 0, 0);
         }
     }
 
-    const u32 mask = state.GameFlag(0x4F) ? 0u : 0x40000000u;
+    const u32 mask = state.GameFlag(story_flag::kFollowersPassWalls) ? 0u : 0x40000000u;
     const u8 step = direction();
     const std::ptrdiff_t cell = role.cell != nullptr ? role.cell - state.map.blocks.data() : 0;
     const u32 probe = owner.field.ProbeCells(cell, role.act.width, role.act.height, mask);
@@ -630,7 +630,7 @@ void RolePath::RunScript(int index)
                     passed = true;
                 }
 
-                if ((role.flags & 0x1000) != 0)
+                if ((role.flags & role_flag::kStepsAct) != 0)
                 {
                     owner.acts.Run(role.act);
                 }
@@ -839,7 +839,12 @@ void RolePath::RunScript(int index)
                                     other.y -= RolePath::kStepY[back];
                                 }
 
-                                owner.field.RemoveRole(other.id, static_cast<int>(other.flags & 3), row, 0);
+                                owner.field.RemoveRole(
+                                    other.id,
+                                    static_cast<int>(other.flags & role_flag::kLayerMask),
+                                    row,
+                                    0
+                                );
                             }
 
                             move.Clear();
@@ -891,7 +896,7 @@ void RolePath::RunScript(int index)
                 if (target < GameState::kRoles)
                 {
                     Role& other = state.roles[target];
-                    other.flags &= 0xFFFF3FFF;
+                    other.flags &= ~(role_flag::kVisible | role_flag::kSolid);
                     owner.field.ClearRoleCells(other, leaderId);
                 }
 
@@ -906,7 +911,7 @@ void RolePath::RunScript(int index)
 
                 if (target < GameState::kRoles)
                 {
-                    state.roles[target].flags |= 0xC000;
+                    state.roles[target].flags |= role_flag::kVisible | role_flag::kSolid;
                 }
 
                 advance(2);
@@ -924,7 +929,7 @@ void RolePath::RunScript(int index)
                 owner.acts.Run(role.act);
                 owner.field.MarkRoleCells(role, leaderId);
                 role.unk18 += 3;
-                owner.field.RemoveRole(role.id, static_cast<int>(role.flags & 3), 0, 0);
+                owner.field.RemoveRole(role.id, static_cast<int>(role.flags & role_flag::kLayerMask), 0, 0);
                 return;
             }
 
@@ -1200,7 +1205,7 @@ int RolePath::HoldRole(int index)
         owner.unk4B7518 = 0;
         owner.unk4A948C = 0;
         owner.unk4A9488 = 0;
-        owner.field.RemoveRole(role.id, static_cast<int>(role.flags & 3), row, 0);
+        owner.field.RemoveRole(role.id, static_cast<int>(role.flags & role_flag::kLayerMask), row, 0);
     }
 
     MoveRecord* move = nullptr;
@@ -1244,12 +1249,12 @@ int RolePath::HoldRole(int index)
                     role.y -= RolePath::kStepY[back];
                 }
 
-                owner.field.RemoveRole(role.id, static_cast<int>(role.flags & 3), row, 0);
+                owner.field.RemoveRole(role.id, static_cast<int>(role.flags & role_flag::kLayerMask), row, 0);
             }
         }
     }
 
-    role.flags |= 0x80000000;
+    role.flags |= role_flag::kHeld;
     return 1;
 }
 
@@ -1288,7 +1293,7 @@ int RolePath::ScriptStep(int index)
         }
 
         role.act.speed = 0;
-        role.flags &= 0xBBFFFFFF;
+        role.flags &= ~(role_flag::kStepping | role_flag::kFastMove);
 
         if (index == state.playerRole)
         {
@@ -1309,7 +1314,7 @@ int RolePath::ScriptStep(int index)
 
     u32 probe = 0;
 
-    if ((role.flags & 0x40000) == 0)
+    if ((role.flags & role_flag::kPassWalls) == 0)
     {
         const std::ptrdiff_t cell = role.cell != nullptr ? role.cell - state.map.blocks.data() : 0;
         probe = static_cast<u8>(owner.field.ProbeCells(cell, role.act.width, role.act.height, 0x40000000));
@@ -1326,7 +1331,7 @@ int RolePath::ScriptStep(int index)
         move.unk1A = 0;
     }
 
-    role.flags |= 0x40000000;
+    role.flags |= role_flag::kStepping;
     return 1;
 }
 
@@ -1343,7 +1348,7 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
     const auto leader = static_cast<u16>(owner.unk4B7BC4);
     const BlockingMap grid = this->Grid();
     PathFinder finder(owner.pathNodes, grid, owner.errors);
-    role.flags &= 0xFDFFFFFF;
+    role.flags &= ~role_flag::kArrived;
 
     auto placeCell = [&state](Role& moved)
     {
@@ -1366,7 +1371,7 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
         const int row = static_cast<int>(static_cast<u32>(role.y) >> 4) - 1;
         this->AlignPlayer(role);
         stopKeys();
-        owner.field.RemoveRole(role.id, static_cast<int>(role.flags & 3), row, 0);
+        owner.field.RemoveRole(role.id, static_cast<int>(role.flags & role_flag::kLayerMask), row, 0);
     }
 
     int slot = 0;
@@ -1414,7 +1419,7 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
                     role.y -= RolePath::kStepY[back];
                 }
 
-                owner.field.RemoveRole(role.id, static_cast<int>(role.flags & 3), row, 0);
+                owner.field.RemoveRole(role.id, static_cast<int>(role.flags & role_flag::kLayerMask), row, 0);
             }
         }
     }
@@ -1431,7 +1436,7 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
 
     if (slot == RolePath::kMoves)
     {
-        if (state.GameFlag(2) && (options & 0xF) == 0)
+        if (state.GameFlag(story_flag::kDebugReports) && (options & 0xF) == 0)
         {
             DebugLog("no free move", options, this->RoleId(static_cast<u32>(index)));
         }
@@ -1441,7 +1446,7 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
         role.y = y;
         placeCell(role);
         owner.field.MarkRoleCells(role, leader);
-        owner.field.RemoveRole(role.id, static_cast<int>(role.flags & 3), 0, 0);
+        owner.field.RemoveRole(role.id, static_cast<int>(role.flags & role_flag::kLayerMask), 0, 0);
 
         if (index == state.playerRole)
         {
@@ -1492,17 +1497,17 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
             owner.field.CenterCamera();
         }
 
-        owner.field.RemoveRole(role.id, static_cast<int>(role.flags & 3), 0, 0);
+        owner.field.RemoveRole(role.id, static_cast<int>(role.flags & role_flag::kLayerMask), 0, 0);
     };
 
     if ((options & 0xF) != 0)
     {
         putThere();
-        role.flags |= 0x80000000;
+        role.flags |= role_flag::kHeld;
         return 1;
     }
 
-    if ((role.flags & 0x40000) != 0)
+    if ((role.flags & role_flag::kPassWalls) != 0)
     {
         finder.SetMask(0);
     }
@@ -1519,7 +1524,7 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
             y >> 4
         );
         putThere();
-        role.flags |= 0x80000000;
+        role.flags |= role_flag::kHeld;
         return 1;
     }
 
@@ -1577,8 +1582,8 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
     move.step |= MoveRecord::kDone;
     placeCell(role);
     owner.field.MarkRoleCells(role, leader);
-    owner.field.RemoveRole(role.id, static_cast<int>(role.flags & 3), 0, 0);
-    role.flags |= 0x80000000;
+    owner.field.RemoveRole(role.id, static_cast<int>(role.flags & role_flag::kLayerMask), 0, 0);
+    role.flags |= role_flag::kHeld;
     return 1;
 }
 

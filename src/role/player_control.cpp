@@ -21,7 +21,7 @@ void RoleControl::Approach(Role& player, Role& other, bool walking)
     Game& game = this->game;
     const int facing = game.state.DirectionToPlayer(other.x + 8 * other.act.width, other.y + 8 * other.act.height);
 
-    if ((other.flags & 0x800) != 0)
+    if ((other.flags & role_flag::kFacesTalker) != 0)
     {
         other.act.savedDirection = other.act.direction;
         other.act.savedAction = other.act.action;
@@ -595,7 +595,7 @@ void RoleControl::ControlPlayer()
 
                     for (int index = 1; index < state.roleCount && index < GameState::kRoles; ++index)
                     {
-                        state.roles[static_cast<std::size_t>(index)].flags &= 0xFEFFFFFF;
+                        state.roles[static_cast<std::size_t>(index)].flags &= ~role_flag::kSoundOnce;
                     }
                 }
             }

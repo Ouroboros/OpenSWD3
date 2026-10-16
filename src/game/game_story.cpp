@@ -137,7 +137,7 @@ void Game::LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 dire
             }
         }
 
-        this->field.RemoveRole(role.id, static_cast<int>(role.flags & 3), (role.y >> 4) - 1, 0);
+        this->field.RemoveRole(role.id, static_cast<int>(role.flags & role_flag::kLayerMask), (role.y >> 4) - 1, 0);
     }
 
     move.Clear();
@@ -213,7 +213,7 @@ void Game::StartTimer(int minutes, int seconds, int event, int which)
         view.unk4BAB78 = 0;
         view.unk4BAB7C = 0;
         view.unk4A9918 = 0x1E * (seconds + 0x3C * minutes);
-        this->state.SetGameFlag(0x4A);
+        this->state.SetGameFlag(story_flag::kSecondTimer);
         return;
     }
 
@@ -221,8 +221,8 @@ void Game::StartTimer(int minutes, int seconds, int event, int which)
     view.unk4C97EC = 0;
     view.unk4CAD20 = 0x1E * (seconds + 0x3C * minutes);
     view.unk4A93D4 = event;
-    this->state.SetGameFlag(0x10);
-    this->state.SetGameFlag(0x12);
+    this->state.SetGameFlag(story_flag::kTimer);
+    this->state.SetGameFlag(story_flag::kTimerEvent);
 }
 
 // swd32.exe 0x00484730: the movie named in the script at `cursor` (up to "%Q", the event offset `pc` moving along;

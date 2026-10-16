@@ -71,7 +71,7 @@ SDL3与FFmpeg由构建脚本自行下载源码并构建，不查找或复用本�
 - 每个原模块是正经的C++类或一组相关类型（头文件加命名空间），原全局变量是所属类的成员，由根对象Game持有。不允许可写的自由全局变量、全局状态结构、数据镜像，也不允许C风格的逐句转写。
 - 记录与文件格式定义为带命名字段的struct；含义未定的字段在类型内以unkXX（XX为偏移）占位并注明读写者。不得按数字偏移访问记录。
 - 只读常量表与可写全局的初值写成带类型的constexpr表或成员默认值，并以单元测试与exe字节比对。
-- 常量、模式、状态、旗标位、物品与角色编号、声音编号写成具名常量或enum class，不在代码中直接写魔数；含义先从游戏数据（mon.dat 名称、maps.dat、剧本、资源）或调用关系查明再命名，查不明的用 unkXX 式占位名并注明依据。函数指针表按用途改写为虚函数、成员函数指针或枚举分派。
+- 常量、模式、状态、旗标位、物品与角色编号、声音编号写成具名常量或enum class，不在代码中直接写魔数；含义先从游戏数据（mon.dat 名称、maps.dat、剧本、资源）或调用关系查明再命名，查不明的用 unkXX 式占位名并注明依据。函数指针表按用途改写为虚函数、成员函数指针或枚举分派。 此要求适用于整个工程（src/ 与 tests/ 的全部代码，含已提交的旧代码），不限于战斗模块；已有代码中的魔数须逐模块清理，新写代码一律不得引入。生成的数据表（如 big5_table.h）与按 exe 字节比对的 constexpr 常量表不在此列。
 - 命名写出依据（读写它的函数、取值范围、对应的界面行为）；推断与已确认结论分开标注。
 - 提交前运行scripts/format.sh（clang-format 加空行规则，配置为 .clang-format）与scripts/check_style.sh（成员前缀、地址占位名、匈牙利前缀、C 风格内存管理），并检查改动文件没有数字偏移访问。函数登记用scripts/register.sh。
 
@@ -92,7 +92,7 @@ SDL3与FFmpeg由构建脚本自行下载源码并构建，不查找或复用本�
 - 每个还原函数的定义前写 `// swd32.exe 0x<地址>` 注释，可附简要说明（行为、保留的原有BUG、偏差）。默认实现的构造函数也写出定义以附注释。
 - 用 C++ 类型转换（`static_cast` 等），不用 C 风格转换；不用裸 `new`／`delete` 与 `malloc`／`free`，用容器与 `std::unique_ptr`；不用宏（单元测试框架除外）。
 - 头文件用 `#pragma once`，不在头文件中写 `using namespace`。
-- 字符串不用 `char*`／`const char*`／`char[]` 表示：参数与成员用 `std::string_view`、`std::string`，常量用 `constexpr std::string_view`。中文文本一律以繁体 UTF-8 的 `u8"…"` 字面量写出（`constexpr std::u8string_view kLeLe = u8"樂樂";`），不写八进制或十六进制转义；用到时才经 `Big5()`（src/text/big5.h，CP950 表）转成游戏的 Big5，测试按转换结果与 exe 字节比对。只有系统 API 边界（SDL、fopen、getenv）可以就地取 `.c_str()`／`.data()`。
+- 字符串不用 `char*`／`const char*`／`char[]` 表示：参数与成员用 `std::string_view`、`std::string`，常量用 `constexpr std::string_view`。中文文本一律以繁体 UTF-8 的 `u8"…"` 字面量写出（`constexpr std::u8string_view kLeLe = u8"樂樂";`），不写八进制或十六进制转义；接口一律以 UTF-8（`std::u8string_view`／`std::u8string`）接收文本，不以 Big5 作参数：需要 Big5 的实现（如字形绘制、与游戏数据或 exe 字节比较）在内部经 `Big5()`（src/text/big5.h，CP950 表）转换，调试输出、错误框等直接使用 UTF-8；调用处不得写 `Big5(...)` 再传给接口。游戏数据中读出的 Big5 字节按数据处理，显示或输出前在接口内部转换。测试按转换结果与 exe 字节比对。只有系统 API 边界（SDL、fopen、getenv）可以就地取 `.c_str()`／`.data()`。
 - 缩进 4 空格，行宽 120；`switch` 的 `case` 缩进一级。
 - 大括号单独占一行（Allman），包括函数、类、命名空间、控制语句与 lambda；所有控制语句都带大括号，不写单行函数体或单行块。
 - 每个大括号块前后各空一行：

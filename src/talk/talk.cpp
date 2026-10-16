@@ -504,7 +504,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
                         {
                             Role& speaker = state.roles[window.role];
 
-                            if ((speaker.flags & 0x800) != 0)
+                            if ((speaker.flags & role_flag::kFacesTalker) != 0)
                             {
                                 owner.acts.Run(speaker.act);
                             }
@@ -955,7 +955,7 @@ void Talk::HandlePointer()
         {
             const Role& role = state.roles[found];
 
-            if ((role.flags & 0x8000) == 0 || role.event == 0 || role.unk26 != 0)
+            if ((role.flags & role_flag::kVisible) == 0 || role.event == 0 || role.unk26 != 0)
             {
                 continue;
             }
@@ -972,11 +972,11 @@ void Talk::HandlePointer()
             }
         }
 
-        if (found < static_cast<u32>(state.roleCount) && (state.roles[found].flags & 0x20) == 0)
+        if (found < static_cast<u32>(state.roleCount) && (state.roles[found].flags & role_flag::kNoTalkPointer) == 0)
         {
             cursor = 9;
 
-            if ((state.roles[found].flags & 0x40) != 0)
+            if ((state.roles[found].flags & role_flag::kExamine) != 0)
             {
                 cursor = 0xA;
                 regionsAllowed = false;
@@ -994,7 +994,7 @@ void Talk::HandlePointer()
         return player.act.action == 0x34 || player.act.action == 0;
     };
 
-    if (!state.GameFlag(9) && !state.clickRegions.regions.empty() && standing())
+    if (!state.GameFlag(story_flag::kNoChoicePointer) && !state.clickRegions.regions.empty() && standing())
     {
         ClickRegion* region = nullptr;
         const int index = state.clickRegions.Find(state.pointerX, state.pointerY, region);

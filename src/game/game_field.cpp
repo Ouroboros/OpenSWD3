@@ -58,7 +58,7 @@ void Game::ShowLoading(int percent)
         ResetPlayback(this->loadingAct);
     }
 
-    if (!this->state.GameFlag(0x46))
+    if (!this->state.GameFlag(story_flag::kNoLoadingScreen))
     {
         this->drawSurface = this->painter.LockSurface(*this->offscreen);
         this->painter.SetTarget(this->drawSurface);
@@ -109,7 +109,7 @@ void Game::ShowLoading(int percent)
 
     if (percent == 100)
     {
-        this->state.ClearGameFlag(0x46);
+        this->state.ClearGameFlag(story_flag::kNoLoadingScreen);
     }
 }
 
@@ -234,29 +234,29 @@ void Game::InitRole(Role& role)
 {
     role.act.flags = 0;
     this->acts.Run(role.act);
-    role.flags &= 0xDF0FFFFF;
+    role.flags &= ~(role_flag::kReflects | role_flag::kCellShades);
     const auto column = static_cast<u32>(role.x) >> 4;
     const i32 row = role.y >> 4;
     const std::size_t at = column + static_cast<std::size_t>(this->state.map.width) * static_cast<std::size_t>(row);
     std::vector<u32>& blocks = this->state.map.blocks;
     role.cell = at < blocks.size() ? &blocks[at] : nullptr;
 
-    if ((role.flags & 0x100) != 0 && role.cell != nullptr)
+    if ((role.flags & role_flag::kCellEffects) != 0 && role.cell != nullptr)
     {
         const u32 cell = *role.cell;
 
         if ((cell & 0x800) != 0)
         {
-            role.flags |= 0x20000000;
+            role.flags |= role_flag::kReflects;
         }
 
         if ((cell & 0xF000) != 0)
         {
-            role.flags = (role.flags & 0xFF0FFFFF) | (cell & 0xF000) << 8;
+            role.flags = (role.flags & ~role_flag::kCellShades) | (cell & 0xF000) << 8;
         }
     }
 
-    if (role.act.id != 0 && (role.flags & 0x8400) == 0x8000)
+    if (role.act.id != 0 && (role.flags & (role_flag::kVisible | role_flag::kHidden)) == 0x8000)
     {
         this->field.MarkRoleCells(role, static_cast<u16>(this->unk4B7BC4));
     }
@@ -409,7 +409,8 @@ void Game::SaveRoleStates(i16 x, i16 y)
     {
         Role copy = this->state.roles[static_cast<std::size_t>(index)];
 
-        if ((copy.flags & 0x18000000) != 0 || copy.id == 0xFFFF || index == this->state.playerRole)
+        if ((copy.flags & (role_flag::kRemoved | role_flag::kUnk8000000)) != 0 || copy.id == 0xFFFF ||
+            index == this->state.playerRole)
         {
             continue;
         }
@@ -500,7 +501,8 @@ void Game::FollowLeader(int index)
                     role.y -= kStepY[direction];
                 }
 
-                this->field.RemoveRole(role.id, static_cast<int>(role.flags & 3), (role.y >> 4) - 1, 0);
+                this->field
+                    .RemoveRole(role.id, static_cast<int>(role.flags & role_flag::kLayerMask), (role.y >> 4) - 1, 0);
             }
 
             this->UpdateRoleRecord(role.id, -1, -1, -1, -1, -1, -1, -1, 0x80, -1, -1);
@@ -519,7 +521,7 @@ void Game::FollowLeader(int index)
     }
 
     role.event = 0;
-    role.flags = (role.flags & ~0x4000u) | 0x80;
+    role.flags = (role.flags & ~role_flag::kSolid) | 0x80;
     ++view.unk4BABA0;
 }
 
@@ -589,19 +591,19 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
 
     view.unk4C9A18 = 0;
     this->AudioPump();
-    game.ClearGameFlag(5);
-    game.ClearGameFlag(6);
+    game.ClearGameFlag(story_flag::kWeather);
+    game.ClearGameFlag(story_flag::kLeaves);
 
     view.weather.fill({0x0F0F0F0F, 0x0F0F0F0F, 0x0F0F0F0F, 0x0F0F0F0F});
 
     ResetPlayback(view.unk4ACAF8);
     view.ResetLeaves();
-    game.ClearGameFlag(7);
-    game.ClearGameFlag(8);
+    game.ClearGameFlag(story_flag::kHeatHaze);
+    game.ClearGameFlag(story_flag::kLightning);
     std::fill_n(view.bolts.begin(), 0x30, Streak{});
     view.lightningShown = 0;
     view.lightningCount = 0;
-    game.ClearGameFlag(0x16);
+    game.ClearGameFlag(story_flag::kFireflies);
     std::fill_n(view.bolts.begin(), 0x30, Streak{});
     view.firefliesShown = 0;
     view.unk4B9EF8 = 0x140;
@@ -635,25 +637,25 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
         view.unk4B896C = MapsWord(data, at + 0xA);
         view.unk4B88C0 = MapsWord(data, at + 0xC);
         view.unk4ACDB4 = (kind & 0x10) == 0 ? 1 : 0;
-        game.ClearGameFlag(0xF);
+        game.ClearGameFlag(story_flag::kOverlaysFirst);
 
         if (static_cast<i8>(effects) < 0)
         {
-            game.SetGameFlag(0xF);
+            game.SetGameFlag(story_flag::kOverlaysFirst);
         }
 
         view.unk4ACEF0 = 0x40;
         view.unk4C97F6 = 4;
-        game.ClearGameFlag(5);
+        game.ClearGameFlag(story_flag::kWeather);
 
         if ((effects & 0x40) != 0)
         {
-            game.SetGameFlag(5);
+            game.SetGameFlag(story_flag::kWeather);
         }
 
         if ((effects & 0x20) != 0)
         {
-            game.SetGameFlag(5);
+            game.SetGameFlag(story_flag::kWeather);
             view.unk4ACEF0 = 0x40;
             view.unk4C97F6 = 8;
         }
@@ -794,7 +796,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
     this->ShowLoading(0x55);
     this->AudioPump();
 
-    if (game.GameFlag(5))
+    if (game.GameFlag(story_flag::kWeather))
     {
         for (std::size_t particle = 0; particle < 4; ++particle)
         {
@@ -946,7 +948,7 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
         role.unk14 = 0;
         role.unk20 = 0;
         this->LoadRoleSound(role);
-        this->field.InsertRole(role, static_cast<int>(role.flags & 3));
+        this->field.InsertRole(role, static_cast<int>(role.flags & role_flag::kLayerMask));
 
         if (role.id == kPartyLeader)
         {
@@ -997,16 +999,16 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
             if (follow != 0)
             {
                 this->FollowLeader(slot);
-                role.flags |= 0x8000;
+                role.flags |= role_flag::kVisible;
 
                 if (this->unk4A9A10 == 0x16 || (view.unk4B88C0 & 0x8000) != 0)
                 {
-                    role.flags &= ~0x8000u;
+                    role.flags &= ~role_flag::kVisible;
                 }
             }
         }
 
-        if ((role.flags & 0x200) != 0 && mark < view.marks.size())
+        if ((role.flags & role_flag::kBubbles) != 0 && mark < view.marks.size())
         {
             RoleMark& entry = view.marks[mark++];
             entry.role = role.id;

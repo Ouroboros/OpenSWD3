@@ -69,14 +69,14 @@ bool Talk::PanCamera(EventRun& run)
         DebugLog("pan while panning", across, down);
     }
 
-    if (run.code == 0x32)
+    if (run.code == EventCommand::PanCamera)
     {
         across = static_cast<i16>(this->Word(run, 1));
         view.unk4A99F0 = across;
         down = static_cast<i16>(this->Word(run, 2));
         view.unk4A98C0 = down;
     }
-    else if (run.code == 0x46)
+    else if (run.code == EventCommand::PanCameraTo)
     {
         run.valueA = static_cast<i16>(this->Word(run, 1));
         across = run.valueA - (field.cameraLeft >> 4);
@@ -230,13 +230,13 @@ bool Talk::PlaceRole(EventRun& run)
 
         Role& role = state.roles[run.found];
         setBits = static_cast<i16>(role.flags);
-        role.flags &= ~0xC000u;
+        role.flags &= ~(role_flag::kVisible | role_flag::kSolid);
         owner.field.ClearRoleCells(role, static_cast<u16>(owner.unk4B7BC4));
-        role.flags |= 0x10000000;
+        role.flags |= role_flag::kRemoved;
         event = static_cast<i16>(role.event);
     }
 
-    run.code = 0xFFFF;
+    run.code = EventCommand::None;
     const i16 map =
         this->Word(run, 2) == 0xFFFF ? static_cast<i16>(owner.unk4A9A10) : static_cast<i16>(this->Word(run, 2));
     const i16 tileY = this->Word(run, 5) == 0xFFFF ? static_cast<i16>(static_cast<u32>(player.y) >> 4)
@@ -285,13 +285,13 @@ bool Talk::PlaceRole(EventRun& run)
             {
                 placed = &state.roles[static_cast<std::size_t>(state.roleCount)];
                 *placed = loaded;
-                owner.field.InsertRole(*placed, static_cast<int>(placed->flags & 3));
+                owner.field.InsertRole(*placed, static_cast<int>(placed->flags & role_flag::kLayerMask));
                 ++state.roleCount;
             }
         }
         else
         {
-            placed = owner.field.RemoveRole(loaded.id, static_cast<int>(loaded.flags & 3), 0, 1);
+            placed = owner.field.RemoveRole(loaded.id, static_cast<int>(loaded.flags & role_flag::kLayerMask), 0, 1);
 
             if (placed == nullptr)
             {
@@ -299,10 +299,10 @@ bool Talk::PlaceRole(EventRun& run)
             }
 
             *placed = loaded;
-            owner.field.InsertRole(*placed, static_cast<int>(placed->flags & 3));
+            owner.field.InsertRole(*placed, static_cast<int>(placed->flags & role_flag::kLayerMask));
         }
 
-        if (placed != nullptr && (placed->flags & 0x200) != 0)
+        if (placed != nullptr && (placed->flags & role_flag::kBubbles) != 0)
         {
             for (RoleMark& mark : owner.scene.marks)
             {
@@ -330,7 +330,7 @@ bool Talk::LoadName(EventRun& run)
     Game& owner = this->game;
     u32 index = 0;
 
-    if (run.code == 0x5B)
+    if (run.code == EventCommand::RoleNamePlate)
     {
         index = this->EventRoleId(run, this->Word(run, 1));
         run.found = index;
@@ -590,12 +590,12 @@ bool Talk::RunSceneCommand(EventRun& run)
 
     switch (run.code)
     {
-        case 0x32:
-        case 0x46:
-        case 0x49:
+        case EventCommand::PanCamera:
+        case EventCommand::PanCameraTo:
+        case EventCommand::PanCameraToRole:
             return this->PanCamera(run);
 
-        case 0x33:
+        case EventCommand::WaitPan:
             if (view.unk4A99F0 == 0 && view.unk4A98C0 == 0 && view.unk4A9480 == 0 && view.unk4A93D8 == 0)
             {
                 this->Advance(run, 2);
@@ -604,7 +604,7 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             return false;
 
-        case 0x34:
+        case EventCommand::FadeColors:
         {
             ColorFade& fade = view.fade;
             fade.red = static_cast<float>(static_cast<i16>(this->Word(run, 1)));
@@ -630,7 +630,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             return true;
         }
 
-        case 0x35:
+        case EventCommand::WaitFade:
             if (view.fade.frames <= 0)
             {
                 this->Advance(run, 2);
@@ -639,7 +639,7 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             return false;
 
-        case 0x36:
+        case EventCommand::SeekAct:
         {
             state.FindRoleOrPlayer(this->EventRoleId(run, this->Word(run, 1)), run.found);
             run.valueB = static_cast<i16>(this->Word(run, 2));
@@ -673,24 +673,24 @@ bool Talk::RunSceneCommand(EventRun& run)
             return true;
         }
 
-        case 0x37:
-        case 0x38:
-        case 0x39:
+        case EventCommand::LayerFront:
+        case EventCommand::LayerMiddle:
+        case EventCommand::LayerBack:
         {
             state.FindRoleOrPlayer(this->EventRoleId(run, this->Word(run, 1)), run.found);
 
             if (Role* role = this->FoundRole(run))
             {
-                const u32 layer = role->flags & 3;
+                const u32 layer = role->flags & role_flag::kLayerMask;
                 run.valueA = static_cast<i32>(layer);
-                role->flags &= ~3u;
+                role->flags &= ~role_flag::kLayerMask;
 
-                if (run.code == 0x37)
+                if (run.code == EventCommand::LayerFront)
                 {
                     role->flags |= 1;
                 }
 
-                if (run.code == 0x39)
+                if (run.code == EventCommand::LayerBack)
                 {
                     role->flags |= 2;
                 }
@@ -707,7 +707,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             return false;
         }
 
-        case 0x3A:
+        case EventCommand::ScreenAnimation:
         {
             auto animation = std::make_unique<ScriptAnimation>();
             ResetPlayback(animation->act);
@@ -721,16 +721,16 @@ bool Talk::RunSceneCommand(EventRun& run)
             return false;
         }
 
-        case 0x3B:
+        case EventCommand::Sound:
             owner.audio.PlaySound(this->Word(run, 1), owner.config.soundVolume);
             this->Advance(run, 4);
             return false;
 
-        case 0x3C:
-        case 0x3D:
+        case EventCommand::ShowScreen:
+        case EventCommand::BlackScreen:
             view.unk4C9A18 &= ~1;
 
-            if (run.code == 0x3D)
+            if (run.code == EventCommand::BlackScreen)
             {
                 if (owner.offscreen != nullptr)
                 {
@@ -743,10 +743,10 @@ bool Talk::RunSceneCommand(EventRun& run)
             this->Advance(run, 2);
             return false;
 
-        case 0x3E:
+        case EventCommand::PlaceRoleOnMap:
             return this->PlaceRole(run);
 
-        case 0x3F:
+        case EventCommand::Quake:
         {
             std::size_t count = 0;
 
@@ -781,12 +781,12 @@ bool Talk::RunSceneCommand(EventRun& run)
             return true;
         }
 
-        case 0x40:
+        case EventCommand::StopQuake:
             view.shake.fill(kShakeEnd);
             this->Advance(run, 2);
             return true;
 
-        case 0x41:
+        case EventCommand::JoinFollowers:
             if (state.FindRoleOrPlayer(this->Word(run, 1), run.found))
             {
                 owner.FollowLeader(static_cast<int>(run.found));
@@ -795,7 +795,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             this->Advance(run, 4);
             return false;
 
-        case 0x42:
+        case EventCommand::LeaveFollowers:
             owner.LeaveParty(
                 this->Word(run, 1),
                 this->Word(run, 2),
@@ -808,7 +808,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             this->Advance(run, 0x10);
             return false;
 
-        case 0x43:
+        case EventCommand::Wait:
         {
             const u16 length = this->Word(run, 1);
             run.found = length;
@@ -831,17 +831,18 @@ bool Talk::RunSceneCommand(EventRun& run)
             return true;
         }
 
-        case 0x44:
-        case 0x45:
+        case EventCommand::ClearRoleFlag400:
+        case EventCommand::SetRoleFlag400:
         {
             const u16 id = this->EventRoleId(run, this->Word(run, 1));
 
             if (state.FindRoleOrPlayer(id, run.found))
             {
                 Role& role = state.roles[run.found];
-                role.flags = run.code == 0x44 ? role.flags & ~0x400u : role.flags | 0x400u;
+                role.flags = run.code == EventCommand::ClearRoleFlag400 ? role.flags & ~role_flag::kHidden
+                                                                        : role.flags | role_flag::kHidden;
             }
-            else if (run.code == 0x44)
+            else if (run.code == EventCommand::ClearRoleFlag400)
             {
                 owner.UpdateRoleRecord(id, -1, -1, -1, -1, -1, -1, -1, 0, static_cast<i16>(0xFBFF), -1);
             }
@@ -854,7 +855,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             return false;
         }
 
-        case 0x47:
+        case EventCommand::AttachAct:
             if (state.FindRoleOrPlayer(this->Word(run, 1), run.found))
             {
                 const u16 act = this->Word(run, 2);
@@ -864,7 +865,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             this->Advance(run, 6);
             return false;
 
-        case 0x48:
+        case EventCommand::DetachAct:
             if (state.FindRoleOrPlayer(this->Word(run, 1), run.found))
             {
                 state.roles[run.found].attached = nullptr;
@@ -873,7 +874,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             this->Advance(run, 4);
             return false;
 
-        case 0x4A:
+        case EventCommand::StopFade:
             view.fade.stepRed = 0;
             view.fade.stepGreen = 0;
             view.fade.stepBlue = 0;
@@ -881,7 +882,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             this->Advance(run, 2);
             return true;
 
-        case 0x4B:
+        case EventCommand::HoldRole:
             state.FindRoleOrPlayer(this->Word(run, 1), run.found);
 
             if (run.found < GameState::kRoles)
@@ -892,7 +893,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             this->Advance(run, 4);
             return true;
 
-        case 0x4C:
+        case EventCommand::TurnToFace:
         {
             const u16 id = this->EventRoleId(run, this->Word(run, 1));
 
@@ -947,8 +948,8 @@ bool Talk::RunSceneCommand(EventRun& run)
             return true;
         }
 
-        case 0x4D:
-        case 0x4E:
+        case EventCommand::FixSpeed:
+        case EventCommand::FreeSpeed:
         {
             const u16 id = this->EventRoleId(run, this->Word(run, 1));
 
@@ -956,7 +957,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             {
                 Role& role = state.roles[run.found];
 
-                if (run.code == 0x4D)
+                if (run.code == EventCommand::FixSpeed)
                 {
                     role.act.speed = static_cast<i16>(this->Word(run, 2) | 0x8000);
                     run.valueB = 6;
@@ -984,7 +985,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             return true;
         }
 
-        case 0x4F:
+        case EventCommand::FlyingSprite:
         {
             auto sprite = std::make_unique<ScriptSprite>();
             ResetPlayback(sprite->act);
@@ -1011,12 +1012,12 @@ bool Talk::RunSceneCommand(EventRun& run)
             return true;
         }
 
-        case 0x50:
+        case EventCommand::DialogOverlay:
             this->dialogOptions &= 0xDFFFFFFF;
             this->Advance(run, 2);
             return true;
 
-        case 0x51:
+        case EventCommand::HeadIn:
         {
             auto sprite = std::make_unique<ScriptSprite>();
             ResetPlayback(sprite->act);
@@ -1046,7 +1047,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             return true;
         }
 
-        case 0x52:
+        case EventCommand::HeadOut:
         {
             for (ScriptSprite* sprite = view.spritesB.get(); sprite != nullptr; sprite = sprite->next.get())
             {
@@ -1069,7 +1070,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             return true;
         }
 
-        case 0x53:
+        case EventCommand::LineEffect:
         {
             const u16 mode = this->Word(run, 1);
 
@@ -1143,7 +1144,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             return true;
         }
 
-        case 0x54:
+        case EventCommand::LineEffectMode:
         {
             const u16 mode = this->Word(run, 1);
 
@@ -1203,7 +1204,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             return true;
         }
 
-        case 0x55:
+        case EventCommand::PlayVideo:
             if (owner.offscreen != nullptr)
             {
                 owner.offscreen->Fill(0);
@@ -1214,7 +1215,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             owner.PlayVideo(run.cursor, run.context.unk20);
             return false;
 
-        case 0x56:
+        case EventCommand::ChangeHead:
             for (ScriptSprite* sprite = view.spritesB.get(); sprite != nullptr; sprite = sprite->next.get())
             {
                 if (sprite->act.id == this->Word(run, 1) && sprite->act.action == this->Word(run, 2))
@@ -1228,7 +1229,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             this->Advance(run, 0xA);
             return true;
 
-        case 0x57:
+        case EventCommand::RandomJump:
         {
             u32 count = 0;
 
@@ -1250,22 +1251,22 @@ bool Talk::RunSceneCommand(EventRun& run)
             return true;
         }
 
-        case 0x58:
+        case EventCommand::StartBattle:
             view.FreeEffects();
             view.FreeSpritesB();
             owner.unk4A94AC = static_cast<i16>(this->Word(run, 1)) | static_cast<i32>(0x80000000u);
             this->Advance(run, 4);
             return false;
 
-        case 0x59:
-        case 0x5A:
+        case EventCommand::RecordDialogWait:
+        case EventCommand::RecordDialog:
             return this->OpenDialog(run);
 
-        case 0x5B:
+        case EventCommand::RoleNamePlate:
             return this->LoadName(run);
 
-        case 0x5C:
-        case 0x5D:
+        case EventCommand::SetCueFlag:
+        case EventCommand::ClearCueFlag:
         {
             run.found = static_cast<u32>(this->Word(run, 1) - 1);
 
@@ -1274,25 +1275,25 @@ bool Talk::RunSceneCommand(EventRun& run)
                 DebugLog("cue number", run.found);
             }
 
-            this->SetStoryFlag(static_cast<int>(run.found + 0x1E), run.code == 0x5C);
+            this->SetStoryFlag(static_cast<int>(run.found + 0x1E), run.code == EventCommand::SetCueFlag);
             this->Advance(run, 4);
             return true;
         }
 
-        case 0x5E:
+        case EventCommand::CameraHold:
             view.unk4C9A18 |= 2;
             this->Advance(run, 2);
             return false;
 
-        case 0x5F:
+        case EventCommand::CameraFollow:
             view.unk4C9A18 &= ~2;
             this->Advance(run, 2);
             return false;
 
-        case 0x60:
+        case EventCommand::MapMovie:
             return this->OpenMapMovie(run);
 
-        case 0x61:
+        case EventCommand::WaitMapMovie:
             if (owner.fieldView.movie.active != 0)
             {
                 return false;
@@ -1303,7 +1304,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             state.SetFrameInterval(0x23);
             return true;
 
-        case 0x62:
+        case EventCommand::Skip:
             this->Advance(run, 4);
             return false;
 

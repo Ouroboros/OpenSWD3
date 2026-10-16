@@ -602,12 +602,12 @@ bool Field::LoadMap(u32 map, u32& systemFlags)
         role.id = 0xFFFF;
         role.x *= 0x10;
         role.y *= 0x10;
-        role.flags |= 0x9000;
+        role.flags |= role_flag::kVisible | role_flag::kStepsAct;
         role.act.wait = 0;
 
         if (static_cast<u32>(role.y) < static_cast<u32>(0x10 * header.height))
         {
-            this->InsertRole(role, static_cast<int>(role.flags & 3));
+            this->InsertRole(role, static_cast<int>(role.flags & role_flag::kLayerMask));
         }
         else
         {
@@ -692,9 +692,9 @@ void ChangeRoleCells(std::vector<u32>& blocks, i32 mapWidth, const Role& role, C
 // bit 8 for the leader); the first cell is marked once more by the walk
 void Field::MarkRoleCells(const Role& role, u16 leader)
 {
-    u32 bits = (role.flags & 0x4000) != 0 ? 0x30000000u : 0x10000000u;
+    u32 bits = (role.flags & role_flag::kSolid) != 0 ? 0x30000000u : 0x10000000u;
 
-    if ((role.flags & 0x10) != 0)
+    if ((role.flags & role_flag::kUnk10) != 0)
     {
         bits |= 0x800000;
     }
