@@ -22,7 +22,6 @@ namespace
 
 constexpr u16 kFree = 0xFFFF;
 constexpr u8 kPathEnd = 0xFF;
-constexpr u32 kFastWalk = 0x4000000;
 constexpr u32 kBlockedTries = 8;   // after this many blocked steps a role walks through other roles
 constexpr int kNearMargin = 0x50;  // a follower or moved role appears this far around the camera
 constexpr int kFarMargin = 0xA0;
@@ -724,7 +723,7 @@ void RolePath::RunScript(int index)
                 }
 
                 advance(CommandWords(0));
-                role.flags &= ~kFastWalk;
+                role.flags &= ~Role::FastMove;
                 continue;
 
             case PathCommand::WaitClock:
@@ -1176,7 +1175,7 @@ void RolePath::RunScript(int index)
 
                 if (std::abs(gap) > kFastWalkGap)
                 {
-                    role.flags |= kFastWalk;
+                    role.flags |= Role::FastMove;
                 }
 
                 continue;

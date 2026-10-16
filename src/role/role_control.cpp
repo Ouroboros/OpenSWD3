@@ -17,14 +17,50 @@ constexpr u32 kSlideMask = MapHeader::Wall | MapHeader::SolidRole | MapHeader::U
 // The tables of a slide (on the stack of 0x004040B0): a straight step has the cell offset ahead (replaced by the
 // role's size when it moves right or down) and the probe bits of the side steps; a diagonal one its step and the probe
 // bits of the diagonal, the horizontal and the vertical part.
-constexpr std::array<i32, 6> kSlideLeft = {-1, 2, 1, 0x80, 0x40, 0x20};
-constexpr std::array<i32, 6> kSlideRight = {1, 2, 4, 8, 0x10, 0x20};
-constexpr std::array<i32, 6> kSlideUp = {-1, 0x80, 1, 2, 4, 8};
-constexpr std::array<i32, 6> kSlideDown = {1, 0x80, 0x40, 0x20, 0x10, 8};
-constexpr std::array<i32, 4> kSlideUpLeft = {-1, 1, 0x80, 2};
-constexpr std::array<i32, 4> kSlideDownRight = {1, 0x10, 8, 0x20};
-constexpr std::array<i32, 4> kSlideDownLeft = {-1, 0x40, 0x80, 0x20};
-constexpr std::array<i32, 4> kSlideUpRight = {1, 4, 8, 2};
+constexpr std::array<i32, 6> kSlideLeft = {
+    -1,
+    BlockingMap::ProbeUp,
+    BlockingMap::ProbeUpLeft,
+    BlockingMap::ProbeLeft,
+    BlockingMap::ProbeDownLeft,
+    BlockingMap::ProbeDown
+};
+
+constexpr std::array<i32, 6> kSlideRight = {
+    1,
+    BlockingMap::ProbeUp,
+    BlockingMap::ProbeUpRight,
+    BlockingMap::ProbeRight,
+    BlockingMap::ProbeDownRight,
+    BlockingMap::ProbeDown
+};
+
+constexpr std::array<i32, 6> kSlideUp = {
+    -1,
+    BlockingMap::ProbeLeft,
+    BlockingMap::ProbeUpLeft,
+    BlockingMap::ProbeUp,
+    BlockingMap::ProbeUpRight,
+    BlockingMap::ProbeRight
+};
+
+constexpr std::array<i32, 6> kSlideDown = {
+    1,
+    BlockingMap::ProbeLeft,
+    BlockingMap::ProbeDownLeft,
+    BlockingMap::ProbeDown,
+    BlockingMap::ProbeDownRight,
+    BlockingMap::ProbeRight
+};
+
+constexpr std::array<i32, 4> kSlideUpLeft =
+    {-1, BlockingMap::ProbeUpLeft, BlockingMap::ProbeLeft, BlockingMap::ProbeUp};
+constexpr std::array<i32, 4> kSlideDownRight =
+    {1, BlockingMap::ProbeDownRight, BlockingMap::ProbeRight, BlockingMap::ProbeDown};
+constexpr std::array<i32, 4> kSlideDownLeft =
+    {-1, BlockingMap::ProbeDownLeft, BlockingMap::ProbeLeft, BlockingMap::ProbeDown};
+constexpr std::array<i32, 4> kSlideUpRight =
+    {1, BlockingMap::ProbeUpRight, BlockingMap::ProbeRight, BlockingMap::ProbeUp};
 constexpr std::size_t kAheadOffset = 0;  // the columns of a straight slide
 constexpr std::size_t kFarBackSide = 1;
 constexpr std::size_t kNearBackSide = 2;

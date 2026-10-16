@@ -18,6 +18,14 @@ public:
     static constexpr u32 EnvBytes = 0x1000;
     static constexpr u32 CurrentFormat = 0xFFFFFFFF;
     static constexpr int MaxVolume = 0xB;  // the sound and music volumes run from 0 to MaxVolume
+
+    // Config::installType values.
+    enum InstallType : u8
+    {
+        MinimalInstall = 1,  // HUGE.lmf stays on the CD
+        FullInstall = 2,
+    };
+
     // The key slots in the order Env.dat stores them (from offset 4).
     static constexpr std::array<int, EnvKeys> EnvKeyOrder = {4, 6, 3, 5, 1, 12, 9, 0, 10, 2, 16, 17, 18, 19, 7, 8};
     // RGB555 channel masks (swd32.exe 0x0049E0B4), converted to the display format at startup.
@@ -43,7 +51,7 @@ public:
 
     std::string installDirectory;  // 0x004A94BC the game directory with a trailing backslash
     std::string cdRoot;            // 0x004B82F8 the first CD-ROM drive, "d:\"
-    u8 installType = 0;            // 0x004C97F4 1: minimal (HUGE.lmf on the CD), 2: full
+    u8 installType = 0;            // 0x004C97F4 Config::InstallType
     i32 soundVolume = 0;           // 0x004AB784 0..11
     i32 musicVolume = 0;           // 0x004C9A0C 0..11
     i32 cacheSize = 0;             // 0x004B7ACC map cache in MB: 60, 100 or 140

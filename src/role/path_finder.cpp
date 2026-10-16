@@ -44,13 +44,6 @@ enum Neighbour : int
 
 constexpr std::size_t kDeltaOffset = 1;  // DeltaX and DeltaY are indexed by the step plus kDeltaOffset
 constexpr int kDeltaCenter = 4;          // DirectionByDelta by DeltaY + DeltaX + kDeltaCenter
-constexpr int kCorners = 2;              // an edge runs one tile past the footprint at each end
-constexpr int kSmallFootprint = 2;       // footprints up to this size take the unrolled path
-constexpr int kSmallEdge = kSmallFootprint + kCorners;
-constexpr std::size_t kBefore = 0;  // the cells of a small edge: the corner before, the footprint, the corner after
-constexpr std::size_t kFirst = 1;
-constexpr std::size_t kAfterOne = 2;  // the corner after a one-tile footprint (its second tile for two)
-constexpr std::size_t kAfterTwo = 3;
 // "!!! 危險 步數超過510 !!!" and "路徑計算" (swd32.exe 0x0049F520, 0x0049F53C).
 constexpr std::u8string_view kOverflowText = u8"!!! 危險 步數超過510 !!!";
 constexpr std::u8string_view kOverflowCaption = u8"路徑計算";
@@ -544,44 +537,47 @@ void PathFinder::UpdateBlocked(int x, int y)
     const int h = this->height;
     const int topBase = above * mapWidth + tx - 1;
     const int bottomBase = ((y >> MapHeader::TileShift) + h) * mapWidth + tx - 1;
-    const std::size_t horizontal = static_cast<std::size_t>(std::max(w + kCorners, kSmallEdge));
+    const std::size_t horizontal =
+        static_cast<std::size_t>(std::max(w + FootprintEdge::Corners, FootprintEdge::SmallCells));
     std::vector<u32> top(horizontal, 0);
     std::vector<u32> bottom(horizontal, 0);
 
-    if (w <= kSmallFootprint)
+    if (w <= FootprintEdge::SmallFootprint)
     {
-        for (int i = 0; i < static_cast<int>(kAfterTwo); ++i)
+        for (int i = 0; i < static_cast<int>(FootprintEdge::AfterTwo); ++i)
         {
             top[static_cast<std::size_t>(i)] |= this->map.Cell(topBase + i) & this->mask;
             bottom[static_cast<std::size_t>(i)] |= this->map.Cell(bottomBase + i) & this->mask;
         }
 
-        if (w == kSmallFootprint)
+        if (w == FootprintEdge::SmallFootprint)
         {
-            top[kAfterTwo] |= this->map.Cell(topBase + static_cast<int>(kAfterTwo)) & this->mask;
-            bottom[kAfterTwo] |= this->map.Cell(bottomBase + static_cast<int>(kAfterTwo)) & this->mask;
+            top[FootprintEdge::AfterTwo] |=
+                this->map.Cell(topBase + static_cast<int>(FootprintEdge::AfterTwo)) & this->mask;
+            bottom[FootprintEdge::AfterTwo] |=
+                this->map.Cell(bottomBase + static_cast<int>(FootprintEdge::AfterTwo)) & this->mask;
         }
 
-        this->blocked[SouthWest] = bottom[kBefore];
-        this->blocked[NorthWest] = top[kBefore];
-        this->blocked[North] = top[kFirst];
-        this->blocked[NorthEast] = top[kAfterOne];
-        this->blocked[South] = bottom[kFirst];
-        this->blocked[SouthEast] = bottom[kAfterOne];
+        this->blocked[SouthWest] = bottom[FootprintEdge::Before];
+        this->blocked[NorthWest] = top[FootprintEdge::Before];
+        this->blocked[North] = top[FootprintEdge::First];
+        this->blocked[NorthEast] = top[FootprintEdge::AfterOne];
+        this->blocked[South] = bottom[FootprintEdge::First];
+        this->blocked[SouthEast] = bottom[FootprintEdge::AfterOne];
 
-        if (w == kSmallFootprint)
+        if (w == FootprintEdge::SmallFootprint)
         {
-            this->blocked[NorthWest] = top[kBefore] | top[kFirst];
-            this->blocked[North] = top[kFirst] | top[kAfterOne];
-            this->blocked[NorthEast] = top[kAfterOne] | top[kAfterTwo];
-            this->blocked[SouthWest] = bottom[kBefore] | bottom[kFirst];
-            this->blocked[South] = bottom[kFirst] | bottom[kAfterOne];
-            this->blocked[SouthEast] = bottom[kAfterOne] | bottom[kAfterTwo];
+            this->blocked[NorthWest] = top[FootprintEdge::Before] | top[FootprintEdge::First];
+            this->blocked[North] = top[FootprintEdge::First] | top[FootprintEdge::AfterOne];
+            this->blocked[NorthEast] = top[FootprintEdge::AfterOne] | top[FootprintEdge::AfterTwo];
+            this->blocked[SouthWest] = bottom[FootprintEdge::Before] | bottom[FootprintEdge::First];
+            this->blocked[South] = bottom[FootprintEdge::First] | bottom[FootprintEdge::AfterOne];
+            this->blocked[SouthEast] = bottom[FootprintEdge::AfterOne] | bottom[FootprintEdge::AfterTwo];
         }
     }
     else
     {
-        for (int i = 0; i < w + kCorners; ++i)
+        for (int i = 0; i < w + FootprintEdge::Corners; ++i)
         {
             top[static_cast<std::size_t>(i)] |= this->map.Cell(topBase + i) & this->mask;
             bottom[static_cast<std::size_t>(i)] |= this->map.Cell(bottomBase + i) & this->mask;
@@ -589,56 +585,59 @@ void PathFinder::UpdateBlocked(int x, int y)
 
         for (std::size_t i = 0; i < static_cast<std::size_t>(w); ++i)
         {
-            this->blocked[North] |= top[i + kFirst];
+            this->blocked[North] |= top[i + FootprintEdge::First];
             this->blocked[NorthWest] |= top[i];
-            this->blocked[NorthEast] |= top[i + kAfterOne];
-            this->blocked[South] |= bottom[i + kFirst];
+            this->blocked[NorthEast] |= top[i + FootprintEdge::AfterOne];
+            this->blocked[South] |= bottom[i + FootprintEdge::First];
             this->blocked[SouthWest] |= bottom[i];
-            this->blocked[SouthEast] |= bottom[i + kAfterOne];
+            this->blocked[SouthEast] |= bottom[i + FootprintEdge::AfterOne];
         }
     }
 
     const int leftBase = above * mapWidth + ((x - kTile) >> MapHeader::TileShift);
     const int rightBase = above * mapWidth + tx + w;
-    const std::size_t vertical = static_cast<std::size_t>(std::max(h + kCorners, kSmallEdge));
+    const std::size_t vertical =
+        static_cast<std::size_t>(std::max(h + FootprintEdge::Corners, FootprintEdge::SmallCells));
     std::vector<u32> left(vertical, 0);
     std::vector<u32> right(vertical, 0);
 
-    if (h <= kSmallFootprint)
+    if (h <= FootprintEdge::SmallFootprint)
     {
-        for (int i = 0; i < static_cast<int>(kAfterTwo); ++i)
+        for (int i = 0; i < static_cast<int>(FootprintEdge::AfterTwo); ++i)
         {
             left[static_cast<std::size_t>(i)] |= this->map.Cell(leftBase + i * mapWidth) & this->mask;
             right[static_cast<std::size_t>(i)] |= this->map.Cell(rightBase + i * mapWidth) & this->mask;
         }
 
-        if (h == kSmallFootprint)
+        if (h == FootprintEdge::SmallFootprint)
         {
-            left[kAfterTwo] |= this->map.Cell(leftBase + static_cast<int>(kAfterTwo) * mapWidth) & this->mask;
-            right[kAfterTwo] |= this->map.Cell(rightBase + static_cast<int>(kAfterTwo) * mapWidth) & this->mask;
+            left[FootprintEdge::AfterTwo] |=
+                this->map.Cell(leftBase + static_cast<int>(FootprintEdge::AfterTwo) * mapWidth) & this->mask;
+            right[FootprintEdge::AfterTwo] |=
+                this->map.Cell(rightBase + static_cast<int>(FootprintEdge::AfterTwo) * mapWidth) & this->mask;
         }
 
-        this->blocked[NorthWest] |= left[kBefore];
-        this->blocked[West] |= left[kFirst];
-        this->blocked[SouthWest] |= left[kAfterOne];
-        this->blocked[NorthEast] |= right[kBefore];
-        this->blocked[East] |= right[kFirst];
-        this->blocked[SouthEast] |= right[kAfterOne];
+        this->blocked[NorthWest] |= left[FootprintEdge::Before];
+        this->blocked[West] |= left[FootprintEdge::First];
+        this->blocked[SouthWest] |= left[FootprintEdge::AfterOne];
+        this->blocked[NorthEast] |= right[FootprintEdge::Before];
+        this->blocked[East] |= right[FootprintEdge::First];
+        this->blocked[SouthEast] |= right[FootprintEdge::AfterOne];
 
-        if (h == kSmallFootprint)
+        if (h == FootprintEdge::SmallFootprint)
         {
-            this->blocked[NorthWest] |= left[kFirst];
-            this->blocked[West] |= left[kAfterOne];
-            this->blocked[SouthWest] |= left[kAfterTwo];
-            this->blocked[NorthEast] |= right[kFirst];
-            this->blocked[East] |= right[kAfterOne];
-            this->blocked[SouthEast] |= right[kAfterTwo];
+            this->blocked[NorthWest] |= left[FootprintEdge::First];
+            this->blocked[West] |= left[FootprintEdge::AfterOne];
+            this->blocked[SouthWest] |= left[FootprintEdge::AfterTwo];
+            this->blocked[NorthEast] |= right[FootprintEdge::First];
+            this->blocked[East] |= right[FootprintEdge::AfterOne];
+            this->blocked[SouthEast] |= right[FootprintEdge::AfterTwo];
         }
 
         return;
     }
 
-    for (int i = 0; i < h + kCorners; ++i)
+    for (int i = 0; i < h + FootprintEdge::Corners; ++i)
     {
         left[static_cast<std::size_t>(i)] |= this->map.Cell(leftBase + i * mapWidth) & this->mask;
         right[static_cast<std::size_t>(i)] |= this->map.Cell(rightBase + i * mapWidth) & this->mask;
@@ -646,12 +645,12 @@ void PathFinder::UpdateBlocked(int x, int y)
 
     for (std::size_t i = 0; i < static_cast<std::size_t>(h); ++i)
     {
-        this->blocked[West] |= left[i + kFirst];
+        this->blocked[West] |= left[i + FootprintEdge::First];
         this->blocked[NorthWest] |= left[i];
-        this->blocked[SouthWest] |= left[i + kAfterOne];
-        this->blocked[East] |= right[i + kFirst];
+        this->blocked[SouthWest] |= left[i + FootprintEdge::AfterOne];
+        this->blocked[East] |= right[i + FootprintEdge::First];
         this->blocked[NorthEast] |= right[i];
-        this->blocked[SouthEast] |= right[i + kAfterOne];
+        this->blocked[SouthEast] |= right[i + FootprintEdge::AfterOne];
     }
 }
 

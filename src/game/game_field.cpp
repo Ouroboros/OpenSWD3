@@ -722,7 +722,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
         break;
     }
 
-    if (this->config.installType == 1)
+    if (this->config.installType == Config::MinimalInstall)
     {
         int drive = 0;
 
