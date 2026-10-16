@@ -385,3 +385,12 @@ addr	type	name	module	notes
 0x004C9A10	std::uint8_t*	itemText	item	names: offsets at +0x4C, texts end with 0x5125
 0x004FC2A0	char[128]	itemNameBuffer	menu
 0x004FB8AC	std::int32_t	menuMouseButtons	menu	bits 0..1 left click / hold, 2..3 right click / hold
+0x004FBAC8	char[64]	menuText	menu	scratch name buffer (IDA: CmdLine)
+0x004FC934	std::uint8_t*[16]	menuBuffers	menu
+0x004FC978	char*[64]	menuStrings	menu
+0x004FB8D0	std::uint8_t**	unlockedEntries	menu	(dword, word, name) entries whose game flags are set
+0x004FC834	std::int32_t	unlockedCount	menu
+0x004A6C58	char[15]	probablyText	menu	"%4s 大概是 %4d"
+0x004A6C68	char[15]	seemsText	menu	"%4s 似乎是 %4d"
+0x004A6C80	char[10]	exactValueText	menu	"%s 是 %4d"
+0x004A6C8C	char[6]	nameColumnText	menu	"%4s  "

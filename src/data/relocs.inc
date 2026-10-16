@@ -30,6 +30,9 @@
 {0x4FB314u, 1u, image::RelocKind::Data},  // actIndexCursor
 {0x4FB558u, 1u, image::RelocKind::Data},  // tswPackedBufB
 {0x4FB55Cu, 1u, image::RelocKind::Data},  // tswPackedBuf
+{0x4FB8D0u, 1u, image::RelocKind::Data},  // unlockedEntries
+{0x4FC934u, 16u, image::RelocKind::Data},  // menuBuffers
+{0x4FC978u, 64u, image::RelocKind::Data},  // menuStrings
 {0x4FD318u, 1u, image::RelocKind::Data},  // menuEntries
 {0x4FD4C0u, 1u, image::RelocKind::Data},  // battleListB
 {0x4FD580u, 1u, image::RelocKind::Data},  // battleItems

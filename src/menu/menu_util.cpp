@@ -1,6 +1,12 @@
 #include "menu/menu_util.h"
 
+#include <cstring>
+
 #include "core/debug_log.h"
+#include "core/random.h"
+#include "crt/crt.h"
+#include "data/image.h"
+#include "game/game_state.h"
 #include "core/mem.h"
 #include "data/globals.h"
 #include "draw/draw.h"
@@ -175,6 +181,196 @@ void CountListUpTo(uint8_t* list, int* count, int limit) {
     for (uint8_t* node = list; node != nullptr && *count < limit; node = mem::ptr<uint8_t>(node, 0)) {
         ++*count;
     }
+}
+
+namespace {
+
+const std::uint16_t* textTable(std::uint32_t slot) {
+    return reinterpret_cast<const std::uint16_t*>(G.itemText + mem::u32(G.itemText, slot));
+}
+
+}  // namespace
+
+// swd32.exe 0x0043BE40: the record of the table at +0x58 of the item text whose word list (after its three header
+// words, 0xFFFF terminated) holds `id`; null when none
+const std::uint16_t* FindTextRecord(int id) {
+    const std::uint16_t* record = textTable(0x58);
+    if (*record == 0xFFFF) {
+        return nullptr;
+    }
+    for (;;) {
+        const std::uint16_t* entry = record + 3;
+        while (*entry != 0xFFFF) {
+            if (*entry == static_cast<std::uint32_t>(id)) {
+                return record;
+            }
+            ++entry;
+        }
+        if (entry[1] == 0xFFFF) {
+            return nullptr;
+        }
+        record = entry + 1;
+    }
+}
+
+// swd32.exe 0x0043BE90: rebuilds G.unlockedEntries from the table at +0x5C of the item text: a name (bytes until
+// the word 0x5125), six bytes and a 0xFFFF terminated list of game flags (+0x1388); entries with a set flag are
+// kept as (four bytes, two bytes, name). The return value is unused by callers.
+void BuildUnlockedEntries() {
+    crt::free(G.unlockedEntries);
+    G.unlockedEntries = static_cast<uint8_t**>(crt::malloc(0x800));
+    G.unlockedCount = 0;
+    auto* record = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(textTable(0x5C)));
+    if (mem::u16(record, 0) == 0xFFFF) {
+        return;
+    }
+    for (;;) {
+        std::memset(G.menuText, 0, sizeof(G.menuText));
+        bool unlocked = false;
+        int length = 0;
+        while (mem::u16(record, 0) != 0x5125) {
+            G.menuText[length++] = static_cast<char>(*record);
+            ++record;
+        }
+        uint8_t* data = record + 2;
+        const uint8_t* flag = data + 6;
+        while (mem::u16(flag, 0) != 0xFFFF) {
+            if (GameFlag(mem::u16(flag, 0) + 0x1388)) {
+                unlocked = true;
+            }
+            flag += 2;
+        }
+        if (unlocked) {
+            auto* entry = static_cast<uint8_t*>(
+                crt::malloc(static_cast<std::uint32_t>(w32::lstrlenA(G.menuText) + 7)));
+            G.unlockedEntries[G.unlockedCount] = entry;
+            mem::put32(entry, 0, mem::u32(data, 0));
+            mem::put16(entry, 4, mem::u16(data, 4));
+            w32::lstrcpyA(reinterpret_cast<char*>(G.unlockedEntries[G.unlockedCount] + 6), G.menuText);
+            ++G.unlockedCount;
+        }
+        if (mem::u16(flag, 2) == 0xFFFF) {
+            return;
+        }
+        record = const_cast<uint8_t*>(flag + 2);
+    }
+}
+
+// swd32.exe 0x0043C090: key `key` (16 bytes of state each) just pressed, or held more than 10 frames on an even
+// frame
+bool KeyPressedOrRepeated(int key) {
+    const std::int32_t down = image::at<std::int32_t>(0x004B7CB0u + 16u * static_cast<std::uint32_t>(key));
+    const std::int32_t frames = image::at<std::int32_t>(0x004B7CBCu + 16u * static_cast<std::uint32_t>(key));
+    if (down == 0) {
+        return false;
+    }
+    return frames == 1 || (frames > 0xA && frames % 2 == 0);
+}
+
+// swd32.exe 0x0043C2F0: frees the menu buffers and points the menu act at 0x232A / 0x43. The return value is
+// unused by callers.
+void FreeMenuBuffers() {
+    uint8_t* item = reinterpret_cast<uint8_t*>(static_cast<std::uintptr_t>(G.dword_4FC918));
+    if (mem::ptr<uint8_t>(item, 0xAC) != nullptr) {
+        crt::free(mem::ptr<uint8_t>(item, 0xAC));
+        mem::putPtr(reinterpret_cast<uint8_t*>(static_cast<std::uintptr_t>(G.dword_4FC918)), 0xAC,
+                    static_cast<uint8_t*>(nullptr));
+    }
+    crt::free(reinterpret_cast<void*>(static_cast<std::uintptr_t>(G.dword_4FC918)));
+    crt::free(reinterpret_cast<void*>(static_cast<std::uintptr_t>(G.dword_4FCA78)));
+    crt::free(reinterpret_cast<void*>(static_cast<std::uintptr_t>(G.dword_4FCA7C)));
+    crt::free(reinterpret_cast<void*>(static_cast<std::uintptr_t>(G.dword_4FC930)));
+    for (G.dword_4FC974 = 0; G.dword_4FC974 < 0x10; ++G.dword_4FC974) {
+        crt::free(G.menuBuffers[G.dword_4FC974]);
+    }
+    for (G.dword_4FC974 = 0; G.dword_4FC974 < 0x40; ++G.dword_4FC974) {
+        crt::free(G.menuStrings[G.dword_4FC974]);
+    }
+    crt::free(reinterpret_cast<void*>(static_cast<std::uintptr_t>(G.dword_4FC91C)));
+    G.dword_4FB970 = 0x232A;
+    G.dword_4FB978 = 0x43;
+}
+
+// swd32.exe 0x0043CBD0: counts the non-null pointers at G.dword_4FC920 (at most 15) into G.dword_4FC914. The
+// return value is unused by callers.
+void CountMenuPointers() {
+    const auto* entry = reinterpret_cast<const std::uint32_t*>(static_cast<std::uintptr_t>(G.dword_4FC920));
+    int count = 0;
+    G.dword_4FC914 = 0;
+    while (*entry != 0 && count < 0xF) {
+        ++count;
+        ++entry;
+        G.dword_4FC914 = count;
+    }
+}
+
+// swd32.exe 0x0043CC00
+std::uint32_t* AdvanceByDwords(int count, std::uint32_t base, std::uint32_t* out) {
+    *out = base;
+    for (int i = count; i > 0; --i) {
+        *out += 4;
+    }
+    return out;
+}
+
+// swd32.exe 0x0043D370: "name value" for a stat the viewer may misjudge: exact without a level gap (`level` -
+// `known` <= 0), "大概是" / "似乎是" with a random error of a tenth / a hundredth / a thousandth range divided by
+// (3 - gap) for gaps 1 / 2, " ???" from 3 (with '?' at 7 above 1000). The return value is unused by callers.
+void FormatEstimate(char* out, const char* name, int known, int level, int value, int maximum) {
+    int range = 0xA;
+    if (value > 0x64) {
+        range = 0x64;
+    }
+    if (value > 0x3E8) {
+        range = 0x3E8;
+    }
+    const int gap = level - known;
+    w32::wsprintfA(out, G.nameColumnText, name);
+    if (gap <= 0) {
+        w32::wsprintfA(out, G.exactValueText, name, value);
+        return;
+    }
+    if (gap >= 3) {
+        w32::lstrcatA(out, " ???");
+        if (maximum > 0x3E8) {
+            out[7] = '?';
+        }
+        return;
+    }
+    const int spread = range / (3 - gap);
+    int shown = static_cast<int>(R250Below(static_cast<std::uint32_t>(spread))) - spread / 2 + value;
+    if (shown < 0) {
+        shown = 0;
+    }
+    if (shown > maximum) {
+        shown = maximum;
+    }
+    if (gap == 1) {
+        w32::wsprintfA(out, G.probablyText, name, shown);
+    } else if (gap == 2) {
+        w32::wsprintfA(out, G.seemsText, name, shown);
+    }
+}
+
+// swd32.exe 0x0043D470: the menu tabs (picture 0x2439, 40 pixels apart) around the current tab G.dword_4FC910, which
+// is drawn from picture 0x243A. The return value is unused by callers.
+void DrawMenuTabs() {
+    SetClipRectClamped(0xA, 1, 0xCE, 0x1DE);
+    int current = G.dword_4FC910;
+    int x = 6;
+    for (int tab = current - 2; tab <= current + 2; ++tab) {
+        if (static_cast<std::uint32_t>(tab) < 0xC && tab != current) {
+            Picture* picture = TswGetPicture(0x2439, static_cast<std::uint32_t>(tab));
+            G.drawSource = reinterpret_cast<uint8_t*>(picture->pixels);
+            DrawPicture(x, 0x3D, picture->width, picture->height, 0, 0);
+            current = G.dword_4FC910;
+        }
+        x += 0x28;
+    }
+    Picture* selected = TswGetPicture(0x243A, static_cast<std::uint32_t>(current));
+    G.drawSource = reinterpret_cast<uint8_t*>(selected->pixels);
+    DrawPicture(0x56, 0x3A, selected->width, selected->height, 0, 0);
+    SetClipRectClamped(0, 1, 0x280, 0x1DE);
 }
 
 }  // namespace swd3

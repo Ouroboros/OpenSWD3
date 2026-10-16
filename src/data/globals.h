@@ -2474,15 +2474,15 @@ struct Globals {
     std::uint8_t pad_4A6C4C[0x4];
     char asc_4A6C50[5];  // 0x004A6C50
     std::uint8_t pad_4A6C55[0x3];
-    char a4s_1[4];  // 0x004A6C58
-    std::uint8_t pad_4A6C5C[0xC];
-    char a4s_0[4];  // 0x004A6C68
-    std::uint8_t pad_4A6C6C[0xC];
+    char probablyText[15];  // 0x004A6C58 "%4s 大概是 %4d"
+    std::uint8_t pad_4A6C67[0x1];
+    char seemsText[15];  // 0x004A6C68 "%4s 似乎是 %4d"
+    std::uint8_t pad_4A6C77[0x1];
     char asc_4A6C78[5];  // 0x004A6C78
     std::uint8_t pad_4A6C7D[0x3];
-    char aS_3[3];  // 0x004A6C80
-    std::uint8_t pad_4A6C83[0x9];
-    char a4s[6];  // 0x004A6C8C
+    char exactValueText[10];  // 0x004A6C80 "%s 是 %4d"
+    std::uint8_t pad_4A6C8A[0x2];
+    char nameColumnText[6];  // 0x004A6C8C "%4s  "
     std::uint8_t pad_4A6C92[0x2];
     std::uint8_t byte_4A6C94;  // 0x004A6C94
     std::uint8_t pad_4A6C95[0x17];
@@ -4266,7 +4266,7 @@ struct Globals {
     std::int32_t dword_4FB8C4;  // 0x004FB8C4
     std::int32_t dword_4FB8C8;  // 0x004FB8C8
     std::uint8_t pad_4FB8CC[0x4];
-    std::int32_t dword_4FB8D0;  // 0x004FB8D0
+    std::uint8_t** unlockedEntries;  // 0x004FB8D0 (dword, word, name) entries whose game flags are set
     std::int32_t dword_4FB8D4;  // 0x004FB8D4
     std::int32_t dword_4FB8D8;  // 0x004FB8D8
     std::uint8_t pad_4FB8DC[0x4];
@@ -4295,11 +4295,8 @@ struct Globals {
     std::int32_t dword_4FBABC;  // 0x004FBABC
     std::int32_t dword_4FBAC0;  // 0x004FBAC0
     std::int32_t dword_4FBAC4;  // 0x004FBAC4
-    std::int32_t CmdLine;  // 0x004FBAC8
-    std::int32_t dword_4FBACC;  // 0x004FBACC
-    std::int32_t dword_4FBAD0;  // 0x004FBAD0
-    std::int32_t dword_4FBAD4;  // 0x004FBAD4
-    std::uint8_t pad_4FBAD8[0x3F0];
+    char menuText[64];  // 0x004FBAC8 scratch name buffer (IDA: CmdLine)
+    std::uint8_t pad_4FBB08[0x3C0];
     std::int32_t dword_4FBEC8;  // 0x004FBEC8
     std::int32_t dword_4FBECC;  // 0x004FBECC
     std::int32_t dword_4FBED0;  // 0x004FBED0
@@ -4441,7 +4438,7 @@ struct Globals {
     std::int16_t word_4FC82C;  // 0x004FC82C
     std::uint8_t pad_4FC82E[0x2];
     std::int32_t dword_4FC830;  // 0x004FC830
-    std::int32_t dword_4FC834;  // 0x004FC834
+    std::int32_t unlockedCount;  // 0x004FC834
     std::int32_t dword_4FC838;  // 0x004FC838
     std::int32_t dword_4FC83C;  // 0x004FC83C
     std::int32_t dword_4FC840;  // 0x004FC840
@@ -4474,22 +4471,9 @@ struct Globals {
     std::int32_t dword_4FC928;  // 0x004FC928
     std::int32_t dword_4FC92C;  // 0x004FC92C
     std::int32_t dword_4FC930;  // 0x004FC930
-    std::int32_t dword_4FC934;  // 0x004FC934
-    std::int32_t dword_4FC938;  // 0x004FC938
-    std::int32_t dword_4FC93C;  // 0x004FC93C
-    std::int32_t dword_4FC940;  // 0x004FC940
-    std::int32_t dword_4FC944;  // 0x004FC944
-    std::int32_t dword_4FC948;  // 0x004FC948
-    std::int32_t dword_4FC94C;  // 0x004FC94C
-    std::int32_t dword_4FC950;  // 0x004FC950
-    std::int32_t dword_4FC954;  // 0x004FC954
-    std::int32_t dword_4FC958;  // 0x004FC958
-    std::int32_t dword_4FC95C;  // 0x004FC95C
-    std::int32_t dword_4FC960;  // 0x004FC960
-    std::uint8_t pad_4FC964[0x10];
+    std::uint8_t* menuBuffers[16];  // 0x004FC934
     std::int32_t dword_4FC974;  // 0x004FC974
-    std::int32_t lpString1;  // 0x004FC978
-    std::uint8_t pad_4FC97C[0xFC];
+    char* menuStrings[64];  // 0x004FC978
     std::int32_t dword_4FCA78;  // 0x004FCA78
     std::int32_t dword_4FCA7C;  // 0x004FCA7C
     std::int32_t dword_4FCA80;  // 0x004FCA80
@@ -5591,6 +5575,10 @@ static_assert(offsetof(Globals, tswCacheLimit) == 0xD020);
 static_assert(offsetof(Globals, actCacheLimit) == 0xD098);
 static_assert(offsetof(Globals, r250Table) == 0xD610);
 static_assert(offsetof(Globals, lcgState) == 0xD9F8);
+static_assert(offsetof(Globals, probablyText) == 0xDC58);
+static_assert(offsetof(Globals, seemsText) == 0xDC68);
+static_assert(offsetof(Globals, exactValueText) == 0xDC80);
+static_assert(offsetof(Globals, nameColumnText) == 0xDC8C);
 static_assert(offsetof(Globals, coinDelay) == 0xE4C8);
 static_assert(offsetof(Globals, gaugeFull) == 0xE4CC);
 static_assert(offsetof(Globals, timingMarks) == 0xE4D0);
@@ -5818,8 +5806,13 @@ static_assert(offsetof(Globals, particleRange) == 0x62568);
 static_assert(offsetof(Globals, textInputLeadPending) == 0x627E8);
 static_assert(offsetof(Globals, r250Index) == 0x627F0);
 static_assert(offsetof(Globals, menuMouseButtons) == 0x628AC);
+static_assert(offsetof(Globals, unlockedEntries) == 0x628D0);
+static_assert(offsetof(Globals, menuText) == 0x62AC8);
 static_assert(offsetof(Globals, itemNameBuffer) == 0x632A0);
 static_assert(offsetof(Globals, panelAct) == 0x635B0);
+static_assert(offsetof(Globals, unlockedCount) == 0x63834);
+static_assert(offsetof(Globals, menuBuffers) == 0x63934);
+static_assert(offsetof(Globals, menuStrings) == 0x63978);
 static_assert(offsetof(Globals, menuFirst) == 0x642F4);
 static_assert(offsetof(Globals, menuEntries) == 0x64318);
 static_assert(offsetof(Globals, menuVisible) == 0x6431C);

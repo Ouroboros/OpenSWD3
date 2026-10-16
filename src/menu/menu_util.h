@@ -20,5 +20,13 @@ void MenuCursorUp(int unused, int* first, int* cursor);
 void MenuPageDown(const int* total, int* first, int* cursor, int* rows, int page);
 void MenuPageUp(int unused, int* first, int* cursor, int unused2, int page);
 void CountListUpTo(std::uint8_t* list, int* count, int limit);
+const std::uint16_t* FindTextRecord(int id);
+void BuildUnlockedEntries();
+bool KeyPressedOrRepeated(int key);
+void FreeMenuBuffers();
+void CountMenuPointers();
+std::uint32_t* AdvanceByDwords(int count, std::uint32_t base, std::uint32_t* out);
+void FormatEstimate(char* out, const char* name, int known, int level, int value, int maximum);
+void DrawMenuTabs();
 
 }  // namespace swd3
