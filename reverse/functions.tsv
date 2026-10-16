@@ -551,11 +551,11 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 550	swd32.exe	0x00438E10	sub_438E10	text_dbcs		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import USER32!CharNextA; legacy: src/text/text_input.cpp:TextInput::CursorRight
 551	swd32.exe	0x00438E50	sub_438E50	text_dbcs		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	outside insert mode (unreachable: insert mode is always 1) the original deletes the stack slot holding this; legacy: src/text/text_input.cpp:TextInput::InsertText
 552	swd32.exe	0x00438F60	sub_438F60	text_dbcs		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import USER32!CharNextA; legacy: src/text/text_input.cpp:TextInput::DeleteAtCursor
-553	swd32.exe	0x00438FA0	sub_438FA0	random		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/core/random.cpp:R250Seed
-554	swd32.exe	0x00439020	sub_439020	random		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/core/random.cpp:R250Next
-555	swd32.exe	0x00439070	sub_439070	random		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/core/random.cpp:R250Below
-556	swd32.exe	0x004390F0	sub_4390F0	random		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/core/random.cpp:LcgNext
-557	swd32.exe	0x00439110	sub_439110	random		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/core/random.cpp:LcgSeed
+553	swd32.exe	0x00438FA0	sub_438FA0	random	src/random/random.cpp:Random::Seed	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/core/random.cpp:R250Seed
+554	swd32.exe	0x00439020	sub_439020	random	src/random/random.cpp:Random::Next	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/core/random.cpp:R250Next
+555	swd32.exe	0x00439070	sub_439070	random	src/random/random.cpp:Random::Below	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/core/random.cpp:R250Below
+556	swd32.exe	0x004390F0	sub_4390F0	random	src/random/random.cpp:Random::LcgNext	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/core/random.cpp:LcgNext
+557	swd32.exe	0x00439110	sub_439110	random	src/random/random.cpp:Random::LcgSeed	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/core/random.cpp:LcgSeed
 558	swd32.exe	0x00439120	sub_439120	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 559	swd32.exe	0x00439210	sub_439210	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 560	swd32.exe	0x00439580	sub_439580	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	

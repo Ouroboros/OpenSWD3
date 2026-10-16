@@ -25,7 +25,7 @@
 - `Input`：键盘与鼠标状态（原 DirectInput 设备与窗口消息），鼠标位置换算为逻辑坐标。
 - `AudioDevice`：SDL3 音频输出与混音。
 - `MediaDecoder`：FFmpeg（MP3、Bink 视频与音频）。
-- `GlyphRasterizer`：中文字形栅格化。Windows 用 GDI，与原版字体一致；Linux 返回空白字形，只用于编译与测试。
+- `GlyphRasterizer`：中文字形栅格化。各平台都用自带字库 swd3font.bin（由用户提供的 mingliu.ttc 生成的完整 Big5 細明體 12/16/20 像素点阵），不依赖系统字体（用户 2026-10-16 要求）。
 - `FileSystem`：游戏目录内的文件读取；POSIX 上按大小写不敏感查找。
 
 ## 与原程序的已知偏差
