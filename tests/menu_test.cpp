@@ -11,19 +11,10 @@
 #include "platform/surface.h"
 #include "save/save_slots.h"
 #include "test.h"
+#include "text/big5.h"
 
 using swd3::u32;
 using swd3::u8;
-
-namespace
-{
-
-bool SameText(const std::vector<u8>& exe, u32 address, const char* text)
-{
-    return std::memcmp(exe.data() + (address - 0x400000), text, std::strlen(text) + 1) == 0;
-}
-
-}  // namespace
 
 TEST_CASE("menu: texts, names and tabs match swd32.exe")
 {
@@ -36,15 +27,15 @@ TEST_CASE("menu: texts, names and tabs match swd32.exe")
     }
 
     namespace text = swd3::menu_text;
-    CHECK(SameText(exe, 0x004A70EC, text::kSoundVolume));
-    CHECK(SameText(exe, 0x004A70A4, text::kCacheLine));
-    CHECK(SameText(exe, 0x004A7054, text::kSample));
-    CHECK(SameText(exe, 0x004A7068, text::kSpeedSlow));
-    CHECK(SameText(exe, 0x004A7088, text::kSpeedFastest));
-    CHECK(SameText(exe, 0x0049FAA4, swd3::SaveSlots::kDateTemplate));
-    CHECK(SameText(exe, 0x0049FA9C, swd3::SaveSlots::kHours));
-    CHECK(std::memcmp(exe.data() + (0x0049E188 - 0x400000), swd3::Party::kDefaultNames.data(), 0x40) == 0);
-    CHECK(std::memcmp(exe.data() + (0x0049E148 - 0x400000), swd3::Party::kDefaultNames.data(), 0x40) == 0);
+    CHECK(swd3test::SameText(exe, 0x004A70EC, text::kSoundVolume));
+    CHECK(swd3test::SameText(exe, 0x004A70A4, text::kCacheLine));
+    CHECK(swd3test::SameText(exe, 0x004A7054, text::kSample));
+    CHECK(swd3test::SameText(exe, 0x004A7068, text::kSpeedSlow));
+    CHECK(swd3test::SameText(exe, 0x004A7088, text::kSpeedFastest));
+    CHECK(swd3test::SameText(exe, 0x0049FAA4, swd3::SaveSlots::kDateTemplate));
+    CHECK(swd3test::SameText(exe, 0x0049FA9C, swd3::SaveSlots::kHours));
+    CHECK(std::memcmp(exe.data() + (0x0049E188 - 0x400000), swd3::Party::DefaultNames().data(), 0x40) == 0);
+    CHECK(std::memcmp(exe.data() + (0x0049E148 - 0x400000), swd3::Party::DefaultNames().data(), 0x40) == 0);
     static_assert(sizeof(swd3::MenuTab) == 0x1C);
     CHECK(std::memcmp(exe.data() + (0x004A6A38 - 0x400000), swd3::Menu::kInitialTabs.data(), 0x70) == 0);
 }
@@ -53,15 +44,15 @@ TEST_CASE("menu: name cheats")
 {
     swd3::Party party;
     party.roles[0].attack = 3;
-    party.names[0] = {"\246\363\265M"};
+    party.names[0] = swd3::Party::MakeName(swd3::Big5(u8"何然"));
     party.ApplyNameCheats();
     CHECK_EQ(party.roles[0].attack, 0x19);
     CHECK_EQ(party.roles[0].agility, 0x19);
-    party.names[0] = {"\271\347\252\366\246\332"};
+    party.names[0] = swd3::Party::MakeName(swd3::Big5(u8"寧采臣"));
     party.ApplyNameCheats();
     CHECK_EQ(party.variables[0], 0x1F4);
     CHECK_EQ(party.roles[0].attack, 0xF);
-    party.names[1] = {"\244p\255\305"};
+    party.names[1] = swd3::Party::MakeName(swd3::Big5(u8"小倩"));
     party.ApplyNameCheats();
     CHECK_EQ(party.roles[1].maxSpirit, 5);
 }

@@ -25,8 +25,8 @@ constexpr u32 kMenuBits = 0x0FFFFFFF;
 constexpr int kSlideMaximum = 0x320;
 constexpr int kTabGlowMaximum = 0x10;
 constexpr int kTabGlowMinimum = 6;
-constexpr char kLevelFormat[] = "%2d";  // swd32.exe 0x004A6ABC
-constexpr char kRatioFormat[] = "%4d/%4d";
+constexpr std::string_view kLevelFormat = "%2d";  // swd32.exe 0x004A6ABC
+constexpr std::string_view kRatioFormat = "%4d/%4d";
 
 // A key slot acting once when it goes down.
 bool Pressed(const ButtonState& button)
@@ -584,13 +584,13 @@ void Menu::DrawRoleTabs(int offset)
         owner.database.LoadLevelEntry(static_cast<int>(index) + 1, role.level + 1, needed);
         const std::string level =
             WinFormat(kLevelFormat, {static_cast<i32>(role.level), static_cast<i32>(needed) - role.unk00});
-        owner.mediumFont.DrawText(painter.Target(), 0x5C - offset, tab.y - 0x4C, level.c_str(), color, 4);
+        owner.mediumFont.DrawText(painter.Target(), 0x5C - offset, tab.y - 0x4C, level, color, 4);
         const std::string hitPoints = WinFormat(kRatioFormat, {role.hitPoints, role.maxHitPoints});
-        owner.smallFont.DrawText(painter.Target(), 0x6C - offset, tab.y - 0x34, hitPoints.c_str(), color, 4);
+        owner.smallFont.DrawText(painter.Target(), 0x6C - offset, tab.y - 0x34, hitPoints, color, 4);
         const std::string spirit = WinFormat(kRatioFormat, {role.spirit, role.maxSpirit});
-        owner.smallFont.DrawText(painter.Target(), 0x6C - offset, tab.y - 0x1E, spirit.c_str(), color, 4);
+        owner.smallFont.DrawText(painter.Target(), 0x6C - offset, tab.y - 0x1E, spirit, color, 4);
         const std::string stamina = WinFormat(kRatioFormat, {role.stamina, role.maxStamina});
-        owner.smallFont.DrawText(painter.Target(), 0x6C - offset, tab.y - 8, stamina.c_str(), color, 4);
+        owner.smallFont.DrawText(painter.Target(), 0x6C - offset, tab.y - 8, stamina, color, 4);
         painter.SetClipClamped(0, 0, 0x280, 0x1E0);
 
         if (static_cast<i8>(role.unk24 >> 8) < 0)

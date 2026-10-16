@@ -17,10 +17,10 @@ std::vector<Case>& registry()
     return cases;
 }
 
-void fail(const char* file, int line, const std::string& message)
+void fail(std::string_view file, int line, const std::string& message)
 {
     ++failures;
-    std::fprintf(stderr, "%s:%d: %s\n", file, line, message.c_str());
+    std::fprintf(stderr, "%.*s:%d: %s\n", static_cast<int>(file.size()), file.data(), line, message.c_str());
 }
 
 }  // namespace swd3test
@@ -32,7 +32,7 @@ int main(int argc, char** argv)
 
     for (const auto& c : swd3test::registry())
     {
-        if (argc > 1 && std::strstr(c.name, argv[1]) == nullptr)
+        if (argc > 1 && c.name.find(argv[1]) == std::string_view::npos)
         {
             continue;
         }
@@ -40,7 +40,12 @@ int main(int argc, char** argv)
         int before = swd3test::failures;
         c.body();
         ++run;
-        std::printf("%s %s\n", swd3test::failures == before ? "[ OK ]" : "[FAIL]", c.name);
+        std::printf(
+            "%s %.*s\n",
+            swd3test::failures == before ? "[ OK ]" : "[FAIL]",
+            static_cast<int>(c.name.size()),
+            c.name.data()
+        );
     }
 
     std::printf("%d test cases, %d failures\n", run, swd3test::failures);

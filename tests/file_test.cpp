@@ -14,7 +14,7 @@ using swd3::File;
 namespace
 {
 
-const char* kName = "file_test.bin";
+constexpr std::string_view kName = "file_test.bin";
 
 void cleanup()
 {

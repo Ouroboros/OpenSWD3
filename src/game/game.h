@@ -25,6 +25,7 @@
 #include "input/controls.h"
 #include "input/input.h"
 #include "launcher/launcher.h"
+#include "map/field.h"
 #include "map/map_cache.h"
 #include "menu/menu.h"
 
@@ -46,6 +47,7 @@
 #include "role/path_finder.h"
 #include "save/save_slots.h"
 #include "talk/text_colors.h"
+#include "text/big5.h"
 #include "text/text_input.h"
 #include "ui/act_draw.h"
 
@@ -59,14 +61,14 @@ class Game
     friend class Menu;
 
 public:
-    static constexpr char kWindowTitle[] =
-        "\xE8\xBB\x92\xE8\xBD\x85\xE5\x8A\x8D\xE5\x8F\x83 DVD";  // 0x0049FAC4 (Big5 there)
-    static constexpr char kTitle[] = "\260a\301\325\274C\244T";  // 0x004A0F78 "軒轅劍三"
-    static constexpr char kDirectInputFailed[] = "DirectInput \252\354\251l\244\306\277\371\273~%n";  // 0x004A0F5C
-    static constexpr char kExecutable[] = "swd32.exe";
+    static constexpr std::u8string_view kWindowTitle = u8"軒轅劍參 DVD";                    // 0x0049FAC4
+    static constexpr std::u8string_view kTitle = u8"軒轅劍三";                              // 0x004A0F78
+    static constexpr std::u8string_view kDirectInputFailed = u8"DirectInput 初始化錯誤%n";  // 0x004A0F5C
+    static constexpr std::string_view kExecutable = "swd32.exe";
     static constexpr u32 kStartSound = 0x78;
     static constexpr int kFrameInterval = 0x23;
     static constexpr u32 kTitleMenu = 0x80000003;
+    static constexpr std::u8string_view kUnknownPlace = u8"不知道";  // 0x0049FEA4
 
     explicit Game(std::string installDirectory);
 
@@ -78,7 +80,7 @@ private:
     void InitInstall();
     int FindCdDrives(std::string& firstDrive);
     void SizeCaches();
-    void MakeDirectory(const char* name);
+    void MakeDirectory(std::string_view name);
     void StartGraphics();
     void InitDrawKernel();
     bool InitDevices();
@@ -99,6 +101,32 @@ private:
     void AudioPump();
     void HandleEvent(const SDL_Event& event);
     void SendText(TextMessage message, u32 parameter);
+    void ShowLoading(int percent);
+    void MusicZone(int map);
+    bool LoadRoleColor(Role& role);
+    void BuildTriggers(MapTrigger& head);
+    void InitRole(Role& role);
+    bool MapName(int map, std::string& name) const;
+    bool UpdateRoleRecord(
+        u16 id,
+        i16 act,
+        i16 action,
+        i16 direction,
+        i16 x,
+        i16 y,
+        i16 event,
+        i16 talk,
+        i16 setBits,
+        i16 clearBits,
+        i16 map
+    );
+    void SaveRoleStates(i16 x, i16 y);
+    void StoreRole(const Role& role);
+    void FollowLeader(int index);
+    int CheckCd(const std::string& root, int& drive);
+    static bool ProbeFile(const std::string& path);
+    void LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, int options);
+    void PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction, int previous);
     void Destroy();
 
     DialogErrorReporter errors;
@@ -125,6 +153,7 @@ private:
     Config config;
     Controls controls;
     MapCache mapCache;
+    Field field;
 
     GameDatabases databases;
     PathNodePool pathNodes;
@@ -154,7 +183,6 @@ private:
     u32 systemFlags = 0;   // 0x004B7A9C bit 2: quit at the end of the frame
     i32 counterAlpha = 0;  // 0x004C9A24
     i32 unk4A9484 = 0;
-    i32 unk4A9920 = 0;
     i32 unk4A9A10 = 0;
     i32 unk4AB990 = 0;
     i32 unk4ACEF4 = 0;
@@ -168,6 +196,14 @@ private:
     i32 frameTime = 0;  // 0x0049E1C8
     i32 unk4A99FC = 0;
     i32 unk4CAD24 = 0;
+    i32 loadingPercent = 0;  // 0x004CC2B8
+    i32 loadingUnk4CC2C0 = 0;
+    i32 loadingRunner = 0;  // 0x004CC2D0 the act running along the bar (1 or 2)
+    i32 loadingRed = 0;     // 0x004CC2BC
+    i32 loadingGreen = 0;   // 0x004CC2B4
+    i32 loadingBlue = 0;    // 0x004CC2CC
+    i32 loadingUnk4CC2C4 = 0;
+    ActState loadingAct;  // 0x004B7408
     ExeResources resources;
     SystemSound systemSound;
     std::unique_ptr<Surface> offscreen;  // 0x004ACBA0 the frame drawn by the game

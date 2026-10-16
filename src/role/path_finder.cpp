@@ -6,6 +6,7 @@
 #include "core/debug_log.h"
 #include "map/blocking_map.h"
 #include "platform/message_box.h"
+#include "text/big5.h"
 
 namespace swd3
 {
@@ -27,8 +28,8 @@ enum Side
 
 constexpr int kTile = 0x10;
 // "!!! 危險 步數超過510 !!!" and "路徑計算" (swd32.exe 0x0049F520, 0x0049F53C).
-constexpr char kOverflowText[] = "!!! \246M\300I \250B\274\306\266W\271L510 !!!";
-constexpr char kOverflowCaption[] = "\270\364\256|\255p\272\342";
+constexpr std::u8string_view kOverflowText = u8"!!! 危險 步數超過510 !!!";
+constexpr std::u8string_view kOverflowCaption = u8"路徑計算";
 
 void AttachChild(PathNode& parent, PathNode& child)
 {
@@ -192,7 +193,7 @@ int PathFinder::FindPath(int fromX, int fromY, int toX, int toY, int width, int 
 
         if (++steps > PathFinder::kMaxSteps)
         {
-            this->reporter.ShowError(kOverflowCaption, kOverflowText);
+            this->reporter.ShowError(Big5(kOverflowCaption), Big5(kOverflowText));
         }
 
         current = next;

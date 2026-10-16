@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 struct SDL_Window;
 struct SDL_Renderer;
 struct SDL_Texture;
@@ -47,7 +49,7 @@ public:
     Display(const Display&) = delete;
     Display& operator=(const Display&) = delete;
 
-    bool Open(const char* title);
+    bool Open(const std::string& title);
 
     bool IsOpen() const
     {

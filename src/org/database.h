@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 
 #include "core/types.h"
 #include "file/file.h"
@@ -31,7 +32,7 @@ public:
     ObjectRecord scratch;      // 0x0053CF50 an object looked up for its limits
 
 private:
-    File* OpenData(File& file, bool& open, const char* name);
+    File* OpenData(File& file, bool& open, std::string_view name);
     void ReadScript(File& file, u32 offset, std::vector<u8>& script);
 
     const std::string& directory;

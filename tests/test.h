@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <functional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace swd3test
@@ -10,16 +11,16 @@ namespace swd3test
 
 struct Case
 {
-    const char* name;
+    std::string_view name;
     std::function<void()> body;
 };
 
 std::vector<Case>& registry();
-void fail(const char* file, int line, const std::string& message);
+void fail(std::string_view file, int line, const std::string& message);
 
 struct Registrar
 {
-    Registrar(const char* name, std::function<void()> body)
+    Registrar(std::string_view name, std::function<void()> body)
     {
         registry().push_back({name, std::move(body)});
     }

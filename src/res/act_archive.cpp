@@ -4,6 +4,7 @@
 #include <cstring>
 
 #include "core/debug_log.h"
+#include "core/format.h"
 #include "platform/message_box.h"
 
 namespace swd3
@@ -70,7 +71,10 @@ void ActArchive::OpenArchives()
 {
     for (int i = 0; i < ActArchive::kFileCount; ++i)
     {
-        this->OpenFile(this->files[static_cast<std::size_t>(i)], this->gameDirectory + act_text::kFileNames[i]);
+        this->OpenFile(
+            this->files[static_cast<std::size_t>(i)],
+            Concat({this->gameDirectory, act_text::kFileNames[i]})
+        );
     }
 
     this->opened = true;
@@ -167,11 +171,9 @@ ActScript ActArchive::Load(File* file, int fileIndex, int entry, int sub, u32& s
         return script;
     }
 
-    char text[260];
-    std::snprintf(text, sizeof(text), act_text::kBadEntry, entry, sub);
-    this->errorText = text;
-    DebugLog(this->errorText.c_str());
-    this->errors.ShowError(act_text::kErrorTitle, this->errorText);
+    this->errorText = WinFormat(act_text::kBadEntry, {entry, sub});
+    DebugLog(this->errorText);
+    this->errors.ShowError(Big5(act_text::kErrorTitle), this->errorText);
     return nullptr;
 }
 
@@ -319,7 +321,7 @@ int ActArchive::CloseAll()
 
     if (remaining != 0)
     {
-        this->errors.ShowError(act_text::kMemoryErrorTitle, act_text::kMemoryError);
+        this->errors.ShowError(act_text::kMemoryErrorTitle, Big5(act_text::kMemoryError));
         return 1;
     }
 

@@ -525,8 +525,7 @@ void Menu::SystemSelect()
         this->nameReply = 0;
         this->enteredNames.assign(0x20, 0);
         ++this->systemRow;
-        owner.textInput =
-            std::make_unique<TextInput>(Party::kDefaultNames[0].data(), kNameLength, kNameBoxX, kNameBoxY);
+        owner.textInput = std::make_unique<TextInput>(Big5(Party::kDefaultNames[0]), kNameLength, kNameBoxX, kNameBoxY);
     }
     else if (this->systemCursor == 2)
     {
@@ -708,7 +707,7 @@ void Menu::SystemDraw()
     owner.unk4CAEBC = 0;
     owner.unk4CAEC0 = 0;
     owner.menuMode = 0;
-    owner.unk4A9920 = 0;
+    owner.scene.unk4A9920 = 0;
     this->savedScreen.clear();
     std::memset(owner.drawSurface, 0, kScreenBytes);
 }
@@ -772,7 +771,7 @@ bool Menu::DrawNameEntry()
 
     if (result == TextInput::kEnter)
     {
-        owner.party.names = Party::kDefaultNames;
+        owner.party.names = Party::DefaultNames();
         const std::string name = owner.textInput->CopyText(0x10);
         const auto at = static_cast<std::size_t>(0x10 * (this->systemRow - kFirstName));
         std::copy_n(
@@ -785,7 +784,7 @@ bool Menu::DrawNameEntry()
         if (++this->systemRow == 0x63)
         {
             owner.textInput =
-                std::make_unique<TextInput>(Party::kDefaultNames[1].data(), kNameLength, kNameBoxX, kNameBoxY);
+                std::make_unique<TextInput>(Big5(Party::kDefaultNames[1]), kNameLength, kNameBoxX, kNameBoxY);
             this->face.id = 2;
             this->face.action = 0x46;
         }
@@ -923,7 +922,7 @@ void Menu::DrawSettings()
                  settings.cacheSize}
             );
             color = static_cast<Pixel>(painter.MakeColor(0x15, 0xF, 8));
-            medium.DrawText(pixels, 0x168, 0x136, line.c_str(), color, kTextStyle);
+            medium.DrawText(pixels, 0x168, 0x136, line, color, kTextStyle);
         }
 
         owner.actDrawer.Draw(this->gauge, x, 0x130);
@@ -940,7 +939,7 @@ void Menu::DrawSettings()
 
     const std::string effects =
         WinFormat(menu_text::kEffectsLine, {effectsOff != 0 ? menu_text::kOff : menu_text::kOn});
-    medium.DrawText(pixels, 0x168, 0x156, effects.c_str(), color, kTextStyle);
+    medium.DrawText(pixels, 0x168, 0x156, effects, color, kTextStyle);
 
     for (int step = 0, x = 0x140; step < 5; ++step, x -= 0x10)
     {
@@ -949,10 +948,10 @@ void Menu::DrawSettings()
     }
 
     std::string speed = settings.textSpeed >= 0 && settings.textSpeed < 5
-                            ? menu_text::kSpeeds[static_cast<std::size_t>(settings.textSpeed)]
-                            : "";
-    std::string sample = menu_text::kSample;
-    medium.DrawText(pixels, 0x19E, 0x176, sample.c_str(), static_cast<Pixel>(painter.MakeColor(0xF, 9, 2)), kTextStyle);
+                            ? Big5(menu_text::kSpeeds[static_cast<std::size_t>(settings.textSpeed)])
+                            : std::string();
+    std::string sample = Big5(menu_text::kSample);
+    medium.DrawText(pixels, 0x19E, 0x176, sample, static_cast<Pixel>(painter.MakeColor(0xF, 9, 2)), kTextStyle);
 
     // The original then copies the first sampleLength words of the sample over the speed name in place.
     const auto words = static_cast<std::size_t>(this->sampleLength);
@@ -969,7 +968,7 @@ void Menu::DrawSettings()
         this->sampleDelay = 2 * this->textSpeedShown + 1;
     }
 
-    medium.DrawText(pixels, 0x168, 0x176, speed.c_str(), color, kTextStyle);
+    medium.DrawText(pixels, 0x168, 0x176, speed, color, kTextStyle);
 
     if (2 * static_cast<std::size_t>(this->sampleLength) >= sample.size() ||
         sample[2 * static_cast<std::size_t>(this->sampleLength)] == 0)

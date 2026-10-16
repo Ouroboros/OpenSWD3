@@ -2,6 +2,9 @@
 
 #include <array>
 #include <memory>
+#include <span>
+#include <string>
+#include <string_view>
 
 #include "core/types.h"
 #include "res/act_state.h"
@@ -37,7 +40,13 @@ struct BattleMessage
     i32 slideY = 0;                       // +0x14
     i32 flags = 0;                        // +0x18
     i16 frames = 0;                       // +0x1C frames left before leaving
-    const char* text = nullptr;           // +0x20
+    // +0x20 the text. The original keeps the pointer it is given, so a buffer rewritten while the message shows draws
+    // its new text; a constant text is kept in `constant`.
+    std::span<const char> source;
+    std::string constant;
+
+    // The text up to its NUL.
+    std::string_view Text() const;
 };
 
 // The battle messages and the result panels of a battle (0x00469080..0x00469960).
@@ -60,25 +69,28 @@ public:
     void DrawLootPanel();
     void DrawDefeatPanel();
     void DrawCraftResultPanel();
-    void DrawMessageBox(int x, int y, int width, int height, int textX, int textY, const char* text);
+    void DrawMessageBox(int x, int y, int width, int height, int textX, int textY, std::string_view text);
     int GrowPanel(int top, int bottom, int divisor);
     void DrawResistancePanel();
-    void Add(int x, int y, i16 frames, const char* text, int flags);
+    void Add(int x, int y, i16 frames, std::span<const char> text, int flags);
+    void Add(int x, int y, i16 frames, std::u8string_view text, int flags);
     void Draw();
 
-    std::unique_ptr<BattleMessage> messages;             // 0x005214F8
-    ActState panelAct;                                   // 0x004FC5B0 act 0x233B: the frame picture of the panels
-    i32 panelHeight = 0;                                 // 0x0053C4BC grown by GrowPanel
-    u16 lootCount = 0;                                   // 0x0053C498
-    std::array<const char*, kLootSlots> lootNames = {};  // 0x00524468
-    std::array<u16, kLootSlots> lootCounts = {};         // 0x00525434
-    u8 craftSucceeded = 0;                               // 0x0053C4B4
-    const ObjectData* panelUnit = nullptr;               // 0x0053C4B8 the object shown by DrawResistancePanel
+    std::unique_ptr<BattleMessage> messages;                  // 0x005214F8
+    ActState panelAct;                                        // 0x004FC5B0 act 0x233B: the frame picture of the panels
+    i32 panelHeight = 0;                                      // 0x0053C4BC grown by GrowPanel
+    u16 lootCount = 0;                                        // 0x0053C498
+    std::array<std::string_view, kLootSlots> lootNames = {};  // 0x00524468
+    std::array<u16, kLootSlots> lootCounts = {};              // 0x00525434
+    u8 craftSucceeded = 0;                                    // 0x0053C4B4
+    const ObjectData* panelUnit = nullptr;                    // 0x0053C4B8 the object shown by DrawResistancePanel
 
 private:
     int PanelFrame();
-    void DrawPanelText(int x, int y, const char* text);
-    void DrawMessageText(int x, int y, const char* text);
+    void Append(std::unique_ptr<BattleMessage> message, int x, int y, i16 frames, int flags);
+    void DrawPanelText(int x, int y, std::string_view text);
+    void DrawPanelText(int x, int y, std::u8string_view text);
+    void DrawMessageText(int x, int y, std::string_view text);
 
     Painter& painter;
     TswArchive& archive;

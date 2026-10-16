@@ -40,9 +40,9 @@ public:
         this->font.SetAdvance(16);
     }
 
-    void DrawText(int x, int y, const char* text, std::uint16_t color, int style) override
+    void DrawText(int x, int y, std::string_view text, std::uint16_t color, int style) override
     {
-        this->font.DrawText(this->Visible(), x, y, text, color, style);
+        this->font.DrawText(this->Visible(), x, y, std::string(text).c_str(), color, style);
     }
 
     void SetClip(int x, int y, int width, int height) override

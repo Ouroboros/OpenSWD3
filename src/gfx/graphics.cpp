@@ -31,9 +31,9 @@ Pixel DevicePixel(ColorRef color)
 
 // swd32.exe 0x004311C0: a message box naming the DirectDraw result (nothing for an unknown one). The original
 // returns a leftover value that no caller reads.
-void ShowDeviceError(ErrorReporter& errors, const char* caption, u32 result)
+void ShowDeviceError(ErrorReporter& errors, std::string_view caption, u32 result)
 {
-    const char* text = nullptr;
+    std::string_view text;
 
     switch (result)
     {
@@ -129,7 +129,7 @@ void ShowDeviceError(ErrorReporter& errors, const char* caption, u32 result)
             break;
     }
 
-    if (text != nullptr)
+    if (!text.empty())
     {
         errors.ShowError(caption, text);
     }

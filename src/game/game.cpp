@@ -1,4 +1,5 @@
 #include "game/game.h"
+#include "core/format.h"
 
 #include <filesystem>
 #include <span>
@@ -10,8 +11,8 @@
 #include "crt/msvc.h"
 #include "platform/file_system.h"
 #include "platform/system_info.h"
-#include "platform/text_encoding.h"
 #include "save/save_games.h"
+#include "text/big5.h"
 #include "text/dbcs.h"
 #include "ui/ui_draw.h"
 
@@ -33,10 +34,10 @@ constexpr int kMaximumTileCache = 0x1000000;
 constexpr int kActCache = 0x80000;
 constexpr Uint32 kLowDiskPause = 0x400;
 constexpr int kDiskReserve = 0x40;
-constexpr char kDrawKernelFailed[] = "DrawKernel init Failed.";
-constexpr char kDirectDrawFailed[] = "DDraw init Failed.";
-constexpr char kTimerFailed[] = "mmTimer init Failed.";
-constexpr char kErrorTitle[] = "SWD3";
+constexpr std::string_view kDrawKernelFailed = "DrawKernel init Failed.";
+constexpr std::string_view kDirectDrawFailed = "DDraw init Failed.";
+constexpr std::string_view kTimerFailed = "mmTimer init Failed.";
+constexpr std::string_view kErrorTitle = "SWD3";
 
 // The wParam of a mouse message: the buttons and the modifier keys held.
 u32 MouseKeys(SDL_MouseButtonFlags buttons)
@@ -58,16 +59,16 @@ Game::Game(std::string installDirectory)
       graphics(this->display, this->errors), codec(this->painter), archive(this->codec, this->errors),
       acts(this->errors), rasterizer(this->glyphs), largeFont(this->rasterizer), mediumFont(this->rasterizer),
       smallFont(this->rasterizer), audio(this->audioDevice), mapCache(this->config, this->painter),
-      database(installDirectory), battleHud(this->painter, this->archive, this->acts, this->random, this->audio),
-      battleMessages(
-          this->painter,
-          this->archive,
-          this->acts,
-          this->battleHud,
-          this->battleState,
-          this->mediumFont,
-          this->largeFont
-      ),
+      field(this->state, this->mapCache, this->config, this->codec), database(installDirectory),
+      battleHud(this->painter, this->archive, this->acts, this->random, this->audio), battleMessages(
+                                                                                          this->painter,
+                                                                                          this->archive,
+                                                                                          this->acts,
+                                                                                          this->battleHud,
+                                                                                          this->battleState,
+                                                                                          this->mediumFont,
+                                                                                          this->largeFont
+                                                                                      ),
       battleServices{
           this->battleState,
           this->random,
@@ -90,7 +91,7 @@ Game::Game(std::string installDirectory)
 // swd32.exe 0x00409EC0: creates the window, sends itself the start message and runs the message loop
 int Game::Run()
 {
-    if (!this->display.Open(Game::kWindowTitle))
+    if (!this->display.Open(Utf8Chars(Game::kWindowTitle)))
     {
         return 0;
     }
@@ -141,7 +142,7 @@ int Game::Run()
 // the launcher, then the display for a new or continued game
 void Game::Start()
 {
-    if (!this->resources.Open(this->config.installDirectory + Game::kExecutable))
+    if (!this->resources.Open(Concat({this->config.installDirectory, Game::kExecutable})))
     {
         this->errors.ShowError("swd3r", "swd32.exe not found in the game directory");
         this->quit = true;
@@ -312,10 +313,10 @@ void Game::SizeCaches()
 
 // swd32.exe 0x00425150: creates <install directory><name> unless it exists. The original enters an existing directory
 // as the current one, which no path of the game depends on.
-void Game::MakeDirectory(const char* name)
+void Game::MakeDirectory(std::string_view name)
 {
     std::error_code error;
-    std::filesystem::create_directory(ResolvePath(this->config.installDirectory + name), error);
+    std::filesystem::create_directory(ResolvePath(Concat({this->config.installDirectory, name})), error);
 }
 
 // swd32.exe 0x00424910
@@ -403,7 +404,7 @@ bool Game::InitDevices()
     if (this->input.Init() != 0)
     {
         this->deviceFlags |= 2;
-        this->errors.ShowError(Game::kTitle, Game::kDirectInputFailed);
+        this->errors.ShowError(Big5(Game::kTitle), Big5(Game::kDirectInputFailed));
         this->Destroy();
         return false;
     }
@@ -433,7 +434,7 @@ void Game::SetupFont(TextFont& font, int size)
     font.Shutdown();
     font.Init(this->graphics);
     font.SetTarget(Display::kWidth, Display::kHeight);
-    font.SetFont(TextFont::kDefaultFace, size);
+    font.SetFont(Big5(TextFont::kDefaultFace), size);
 
     if (size == 0x14)
     {
@@ -492,19 +493,6 @@ namespace
 constexpr u16 kTableEnd = 0xFFFF;
 constexpr int kEquipmentFromData = 11;
 
-// The word at `offset` of maps.dat past its header.
-u16 MapsWord(const std::vector<u8>& data, std::size_t offset)
-{
-    return offset + 1 < data.size() ? static_cast<u16>(data[offset] | data[offset + 1] << 8) : u16{kTableEnd};
-}
-
-// The offset of table `index` of maps.dat (the dwords at its start).
-u32 MapsTable(const std::vector<u8>& data, int index)
-{
-    const auto at = static_cast<std::size_t>(4 * index);
-    return static_cast<u32>(MapsWord(data, at) | static_cast<u32>(MapsWord(data, at + 2)) << 16);
-}
-
 void ResetAct(ActState& state, int id, int action)
 {
     state = ActState{};
@@ -550,9 +538,12 @@ void Game::NewGame()
     scene.unk4CAE88 = 0;
     scene.unk4C8BE0 = 0;
     scene.unk4A93D4 = 0;
-    scene.unk4A9A04.clear();
-    scene.unk4A9A08.clear();
-    scene.unk4A9A0C.clear();
+
+    for (std::vector<Role*>& layer : this->field.rows)
+    {
+        layer.clear();
+    }
+
     scene.unk4B7C74 = {};
     scene.unk4AB788 = 1;
     this->audio.SetFadeState(1, 0, 0);
@@ -610,7 +601,12 @@ void Game::NewGame()
     }
 
     ResetPlayback(scene.unk4ACAF8);
-    scene.unk4C97A0.fill(0xF);
+
+    for (std::array<i32, 4>& particle : scene.unk4C97A0)
+    {
+        particle.fill(0x0F0F0F0F);
+    }
+
     scene.unk4ACAF8.id = 0x232B;
     scene.unk4ACAF8.action = 0x38;
 
@@ -911,22 +907,21 @@ void Game::DrawTextInput(const TextInput& box)
     }
 
     std::string text = box.CopyText(0x40);
-    char* character = text.data();
 
-    while (*character != '\0')
+    for (std::size_t at = 0; at < text.size();)
     {
-        char* next = const_cast<char*>(CharNext(character));
+        const std::size_t next = CharNext(text, at);
 
-        if (next - character == 1 && static_cast<i8>(*character) < 0)
+        if (next - at == 1 && static_cast<i8>(text[at]) < 0)
         {
-            *character = '@';
+            text[at] = '@';
         }
 
-        character = next;
+        at = next;
     }
 
     const auto color = static_cast<Pixel>(this->painter.MakeColor(0x15, 0xF, 8));
-    this->largeFont.DrawText(this->painter.Target(), x, y, text.c_str(), color, 4);
+    this->largeFont.DrawText(this->painter.Target(), x, y, text, color, 4);
     const int cursor = box.GetCursor();
     FillBox(this->painter, x + 0xB * cursor, y, 0xB, 0x16, 0x14, 0xD, 0, FillMode::Gradient);
 }

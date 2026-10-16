@@ -102,7 +102,7 @@ int TextFont::Init(Graphics& graphics)
     graphics.BackSize(pitch, height);
     this->SetTarget(pitch / 2, height);
     this->SetGlyphSize(16, 16);
-    this->SetFont(TextFont::kDefaultFace, this->glyphWidth);
+    this->SetFont(Big5(TextFont::kDefaultFace), this->glyphWidth);
     this->SetAdvance(this->glyphWidth);
     this->SetBackground(TextFont::kNoBackground);
     this->SetShadow(0);
@@ -139,7 +139,7 @@ void TextFont::ReleaseGlyphSurface()
 }
 
 // swd32.exe 0x004352E0: clears the glyph surface and draws `text` at (0, 0) whatever x and y are
-void TextFont::RenderString(int, int, const char* text, u32 color)
+void TextFont::RenderString(int, int, std::string_view text, u32 color)
 {
     FillSurfaceColor(*this->glyphSurface, 0);
     this->rasterizer.RenderText(*this->glyphSurface, this->fontFace, this->fontSize, text, color);
@@ -185,7 +185,7 @@ void TextFont::FreeGlyphCache()
 }
 
 // swd32.exe 0x00435500: a Big5 font of `size` pixels (at most 64) with square glyphs; the cache restarts
-void TextFont::SetFont(const char* face, int size)
+void TextFont::SetFont(std::string_view face, int size)
 {
     if (size > kMaxFontSize)
     {
@@ -533,7 +533,7 @@ void TextFont::CaptureGlyphSurface()
 }
 
 // swd32.exe 0x004368D0: draws `text` in white and ORs its non-black pixels into the 1-bit `bitmap`
-void TextFont::RasterizeGlyph(const char* text, u8* bitmap)
+void TextFont::RasterizeGlyph(std::string_view text, u8* bitmap)
 {
     this->RenderString(0, 0, text, 0xFFFFFF);
     this->CaptureGlyphSurface();
@@ -627,15 +627,15 @@ int TextFont::InsertGlyph(u16 code)
 // swd32.exe 0x00436AD0: a Big5 string; single-byte characters advance by half of the advance. A glyph missing from the
 // cache is rasterized into it; once the cache would reach 1999 entries the count stays and the slot after the last
 // entry is cleared.
-void TextFont::DrawText(Pixel* target, int x, int y, const char* text, Pixel color, int style)
+void TextFont::DrawText(Pixel* target, int x, int y, std::string_view text, Pixel color, int style)
 {
     int offset = 0;
-    const int last = static_cast<int>(std::strlen(text)) - 1;
+    const int last = static_cast<int>(text.size()) - 1;
 
     for (int index = 0; index <= last; ++index)
     {
         int half = 0;
-        this->character[0] = text[index];
+        this->character[0] = text[static_cast<std::size_t>(index)];
 
         if (static_cast<u8>(this->character[0]) < 0x80)
         {
@@ -645,18 +645,21 @@ void TextFont::DrawText(Pixel* target, int x, int y, const char* text, Pixel col
         else
         {
             ++index;
-            this->character[1] = text[index];
+            this->character[1] = index <= last ? text[static_cast<std::size_t>(index)] : '\0';
         }
 
         u16 code = 0;
-        std::memcpy(&code, this->character, 2);
+        std::memcpy(&code, this->character.data(), 2);
         int glyph = this->FindGlyph(code);
         const bool cached = glyph >= 0;
 
         if (!cached)
         {
             glyph = this->InsertGlyph(code);
-            this->RasterizeGlyph(this->character, this->GlyphBits(glyph));
+            this->RasterizeGlyph(
+                std::string_view(this->character.data(), this->character[1] == '\0' ? 1 : 2),
+                this->GlyphBits(glyph)
+            );
         }
 
         if (this->background != TextFont::kNoBackground)
@@ -756,6 +759,12 @@ void TextFont::FillRect(Pixel* target, int x, int y, int width, int height, Pixe
     {
         std::memmove(target + left + this->RowOffset(row), target + left + this->RowOffset(y), rowBytes);
     }
+}
+
+// A u8 text, drawn as its Big5.
+void TextFont::DrawText(Pixel* target, int x, int y, std::u8string_view text, Pixel color, int style)
+{
+    this->DrawText(target, x, y, Big5(text), color, style);
 }
 
 }  // namespace swd3

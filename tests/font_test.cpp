@@ -54,7 +54,7 @@ public:
         this->font.SetAdvance(16);
     }
 
-    void DrawText(int x, int y, const char* text, u16 color, int style) override
+    void DrawText(int x, int y, std::string_view text, u16 color, int style) override
     {
         this->font.DrawText(this->screen->Pixels(), x, y, text, color, style);
     }

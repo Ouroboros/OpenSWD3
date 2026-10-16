@@ -49,7 +49,7 @@ Display::~Display()
     }
 }
 
-bool Display::Open(const char* title)
+bool Display::Open(const std::string& title)
 {
     if (!SDL_WasInit(SDL_INIT_VIDEO) && !SDL_InitSubSystem(SDL_INIT_VIDEO))
     {
@@ -58,7 +58,7 @@ bool Display::Open(const char* title)
 
     const SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
     const bool created = SDL_CreateWindowAndRenderer(
-        title,
+        title.c_str(),
         Display::kDefaultWindowWidth,
         Display::kDefaultWindowHeight,
         flags,

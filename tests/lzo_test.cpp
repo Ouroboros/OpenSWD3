@@ -133,7 +133,7 @@ TEST_CASE("lzo encoder: recompressing the blocks of original saves gives the sam
 {
     int blocks = 0;
 
-    for (const char* name : {"Save/0.sav", "Save/1.sav"})
+    for (const std::string name : {"Save/0.sav", "Save/1.sav"})
     {
         const std::vector<swd3::u8> save = swd3test::ReadGameFile(name);
 

@@ -7,6 +7,7 @@
 #include "core/types.h"
 #include "item/item_list.h"
 #include "org/fame.h"
+#include "text/big5.h"
 
 namespace swd3
 {
@@ -59,12 +60,12 @@ public:
     static constexpr std::size_t kNameBytes = 0x10;
     using Name = std::array<char, kNameBytes>;
     // swd32.exe 0x0049E188: the names a new game offers (the first two can be changed).
-    static constexpr std::array<Name, kRoles> kDefaultNames = {{
-        {"\301\311\257S"},  // 賽特
-        {"\251g\245i"},     // 妮可
-        {"\245d\272\277"},  // 卡瑪
-        {"\247\365\271t"},  // 李靖
-    }};
+    static constexpr std::array<std::u8string_view, kRoles> kDefaultNames = {u8"賽特", u8"妮可", u8"卡瑪", u8"李靖"};
+
+    // A name buffer holding a Big5 text (cut to keep its NUL).
+    static Name MakeName(std::string_view text);
+    // The default names as the Big5 name buffers.
+    static std::array<Name, kRoles> DefaultNames();
 
     static constexpr int kSlotsPerRole = 16;
     static constexpr int kVariables = 64;
@@ -76,7 +77,7 @@ public:
     i32 unk4ACDB0 = 0;                                                        // 0x004ACDB0
     std::array<i32, kVariables> variables = {};                               // 0x004ACBD0 [0]: the gold
     Fame fame;
-    std::array<Name, kRoles> names = kDefaultNames;  // 0x0049E148
+    std::array<Name, kRoles> names = Party::DefaultNames();  // 0x0049E148
 
     void ApplyNameCheats();
     std::array<RoleBattleBlock, kRoles> battleBlocks;  // 0x004ACF50

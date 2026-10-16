@@ -4,11 +4,14 @@
 // are rasterized on Linux; after the cache is filled every cached slot gets a synthetic bitmap from its character
 // code, so that both sides draw the same shapes.
 
+#include <array>
 #include <functional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "golden/draw_scenarios.h"
+#include "text/big5.h"
 
 namespace golden
 {
@@ -18,7 +21,7 @@ class FontBackend
 public:
     virtual ~FontBackend() = default;
     virtual void Reset(u32 seed) = 0;
-    virtual void DrawText(int x, int y, const char* text, u16 color, int style) = 0;
+    virtual void DrawText(int x, int y, std::string_view text, u16 color, int style) = 0;
     virtual void SetClip(int x, int y, int width, int height) = 0;
     virtual void SetBackground(u16 color) = 0;
     virtual void SetShadow(u16 color) = 0;
@@ -39,24 +42,24 @@ inline void RunFont(FontBackend& backend, const std::function<void(const std::st
     };
 
     // Big5 pairs mixed with ASCII.
-    const char* texts[] = {
-        "AB\244\244\244\345x",
-        "\266}\251l\271C\300\270 swd3",
-        "\244@\244G\244T\244|\244\255\244\273\244C\244K\244E\244Q",
-        "Zz\244\244",
-        "\265\370\270\375\270\366\254O",
+    const std::array<std::string, 5> texts = {
+        swd3::Big5(u8"AB中文x"),
+        swd3::Big5(u8"開始遊戲 swd3"),
+        swd3::Big5(u8"一二三弋五六七八九十"),
+        swd3::Big5(u8"Zz中"),
+        swd3::Big5(u8"視軾跺是"),
     };
 
     backend.Reset(1);
 
-    for (const char* text : texts)
+    for (const std::string& text : texts)
     {
         backend.DrawText(10, 10, text, 0xFFFF, 1);
     }
 
     for (int code = 0; code < 120; ++code)
     {
-        const char text[3] = {static_cast<char>(0xA4 + code % 7), static_cast<char>(0x40 + (code * 13) % 0x3F), 0};
+        const std::string text = {static_cast<char>(0xA4 + code % 7), static_cast<char>(0x40 + (code * 13) % 0x3F)};
         backend.DrawText(0, 0, text, 0xFFFF, 1);
     }
 
@@ -100,7 +103,7 @@ inline void RunFont(FontBackend& backend, const std::function<void(const std::st
                 backend.SetShadow(0x0841);
                 int y = clip.y - 8;
 
-                for (const char* text : texts)
+                for (const std::string& text : texts)
                 {
                     backend.DrawText(clip.x - 5, y, text, 0x7BEF, style);
                     backend.DrawText(clip.x + clip.width - 40, y + 3, text, 0xF800, style);

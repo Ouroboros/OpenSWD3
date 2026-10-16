@@ -109,7 +109,12 @@ const Role& GameState::Player() const
 // swd32.exe 0x0040DD40
 void MoveRecord::Clear()
 {
-    this->unk000.fill(0xFF);
+    this->role = 0xFFFF;
+    this->step = 0xFFFF;
+    this->x = 0xFFFF;
+    this->y = 0xFFFF;
+    this->unk08.fill(0xFF);
+    this->directions.fill(0xFF);
 }
 
 // swd32.exe 0x00425B50: frees the map buffers and the roles' buffers, clears the roles, fills the leader with 0xFF and
@@ -130,6 +135,21 @@ void GameState::ClearWorld()
     for (MoveRecord& move : this->moves)
     {
         move.Clear();
+    }
+}
+
+// swd32.exe 0x0040F3B0: the buffers of the roles in use freed, every role cleared with its action playback reset
+void GameState::ClearRoles()
+{
+    for (int index = 0; index <= this->roleCount && index < GameState::kRoles; ++index)
+    {
+        this->roles[static_cast<std::size_t>(index)].unk38.clear();
+    }
+
+    for (Role& role : this->roles)
+    {
+        role = Role{};
+        ResetPlayback(role.act);
     }
 }
 

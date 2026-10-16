@@ -3,6 +3,8 @@
 #include <cstdio>
 #include <vector>
 
+#include "text/big5.h"
+
 namespace swd3
 {
 
@@ -25,11 +27,15 @@ FormatArgument::FormatArgument(i64 value) : number(value)
 {
 }
 
-FormatArgument::FormatArgument(const char* text) : text(true), string(text != nullptr ? text : "")
+FormatArgument::FormatArgument(std::string_view text) : text(true), string(text)
 {
 }
 
-FormatArgument::FormatArgument(std::string_view text) : text(true), string(text)
+FormatArgument::FormatArgument(const std::string& text) : text(true), string(text)
+{
+}
+
+FormatArgument::FormatArgument(std::u8string_view text) : text(true), string(Big5(text))
 {
 }
 
@@ -162,6 +168,23 @@ std::string WinFormat(std::string_view format, std::initializer_list<FormatArgum
     if (out.size() > kLimit)
     {
         out.resize(kLimit);
+    }
+
+    return out;
+}
+
+std::string WinFormat(std::u8string_view format, std::initializer_list<FormatArgument> arguments)
+{
+    return WinFormat(Big5(format), arguments);
+}
+
+std::string Concat(std::initializer_list<std::string_view> parts)
+{
+    std::string out;
+
+    for (const std::string_view part : parts)
+    {
+        out.append(part);
     }
 
     return out;

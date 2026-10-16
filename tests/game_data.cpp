@@ -1,21 +1,24 @@
 #include "game_data.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <iterator>
 
+#include "golden/draw_scenarios.h"
 #include "platform/file_system.h"
+#include "text/big5.h"
 
 namespace swd3test
 {
 
 std::string GameDirectory()
 {
-    const char* configured = std::getenv("SWD3_GAME_DIR");
+    const std::string configured = golden::Environment("SWD3_GAME_DIR");
 #if defined(_WIN32)
-    const std::string directory = configured != nullptr ? configured : "E:/Game/swd3";
+    const std::string directory = !configured.empty() ? configured : "E:/Game/swd3";
 #else
-    const std::string directory = configured != nullptr ? configured : "/mnt/e/Game/swd3";
+    const std::string directory = !configured.empty() ? configured : "/mnt/e/Game/swd3";
 #endif
     return directory + "/";
 }
@@ -35,6 +38,32 @@ std::vector<u8> ReadGameFile(const std::string& name)
     }
 
     return {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
+}
+
+bool SameText(const std::vector<u8>& exe, swd3::u32 address, std::string_view text)
+{
+    const std::size_t at = address - 0x400000u;
+
+    if (address < 0x400000u || at + text.size() >= exe.size())
+    {
+        return false;
+    }
+
+    return std::equal(
+               text.begin(),
+               text.end(),
+               exe.begin() + static_cast<std::ptrdiff_t>(at),
+               [](char left, u8 right)
+               {
+                   return static_cast<u8>(left) == right;
+               }
+           ) &&
+           exe[at + text.size()] == 0;
+}
+
+bool SameText(const std::vector<u8>& exe, swd3::u32 address, std::u8string_view text)
+{
+    return SameText(exe, address, swd3::Big5(text));
 }
 
 }  // namespace swd3test

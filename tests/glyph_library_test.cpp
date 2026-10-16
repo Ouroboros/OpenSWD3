@@ -4,6 +4,7 @@
 #include "platform/glyph_rasterizer.h"
 #include "platform/surface.h"
 #include "test.h"
+#include "text/big5.h"
 
 using swd3::u8;
 
@@ -32,8 +33,7 @@ TEST_CASE("glyph library: MingLiU cells of the three sizes")
     swd3::LibraryGlyphRasterizer rasterizer(library);
     swd3::Surface surface(64, 64);
     surface.Fill(0);
-    const char text[] = "\244\100";
-    rasterizer.RenderText(surface, "", 16, text, 0xFFFFFF);
+    rasterizer.RenderText(surface, "", 16, swd3::Big5(u8"一"), 0xFFFFFF);
     int set = 0;
     int outside = 0;
 

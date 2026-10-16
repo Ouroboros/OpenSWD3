@@ -2,6 +2,8 @@
 
 #include <array>
 #include <memory>
+#include <span>
+#include <string_view>
 
 #include "core/types.h"
 #include "org/object_record.h"
@@ -177,7 +179,7 @@ public:
 
 private:
     void MirrorRecoil(u32 actFlags, bool forced);
-    void Announce(BattleServices& services, const char* format, int flags);
+    void Announce(BattleServices& services, std::u8string_view format, int flags);
 
 public:
     // +0x00..+0x0F: what the unit is.
@@ -206,7 +208,7 @@ public:
     const Picture* picture = nullptr;          // +0x254C the current picture
     const Picture* unk2550 = nullptr;          // +0x2550
     const Picture* unk2554 = nullptr;          // +0x2554
-    const char* displayName = nullptr;         // +0x2560 the name shown in the messages
+    std::span<const char> displayName;         // +0x2560 the name shown in the messages (read up to its NUL when used)
     EffectNode effects;                        // +0x2584 (the head is a node: +0x2588 its act, +0x2620 its bits)
     i32 unk2630 = 0;
     i32 unk2634 = 0;

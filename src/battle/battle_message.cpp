@@ -57,14 +57,25 @@ int BattleMessages::PanelFrame()
     return this->panelAct.frame;
 }
 
-void BattleMessages::DrawPanelText(int x, int y, const char* text)
+void BattleMessages::DrawPanelText(int x, int y, std::string_view text)
 {
     this->panelFont.DrawText(this->painter.Target(), x, y, text, kPanelTextColor, kTextStyle);
 }
 
-void BattleMessages::DrawMessageText(int x, int y, const char* text)
+void BattleMessages::DrawPanelText(int x, int y, std::u8string_view text)
+{
+    this->DrawPanelText(x, y, Big5(text));
+}
+
+void BattleMessages::DrawMessageText(int x, int y, std::string_view text)
 {
     this->messageFont.DrawText(this->painter.Target(), x, y, text, kMessageTextColor, kTextStyle);
+}
+
+std::string_view BattleMessage::Text() const
+{
+    const std::string_view all(this->source.data(), this->source.size());
+    return all.substr(0, all.find('\0'));
 }
 
 // swd32.exe 0x00469080: the "戰利品" panel with one "%-12s X %2d" line per item
@@ -98,7 +109,7 @@ void BattleMessages::DrawLootPanel()
                 battle_text::kLootLine,
                 {this->lootNames[static_cast<std::size_t>(item)], this->lootCounts[static_cast<std::size_t>(item)]}
             );
-            this->DrawPanelText(0xD2, y, line.c_str());
+            this->DrawPanelText(0xD2, y, line);
             y += 0x14;
         }
     }
@@ -160,7 +171,7 @@ void BattleMessages::DrawCraftResultPanel()
     {
         this->DrawPanelText(0x100, 0xB4, battle_text::kCraftSuccess);
         const std::string line = WinFormat(battle_text::kCraftGot, {this->lootNames[0]});
-        this->DrawPanelText(0xD0, 0xDE, line.c_str());
+        this->DrawPanelText(0xD0, 0xDE, line);
     }
     else
     {
@@ -170,7 +181,7 @@ void BattleMessages::DrawCraftResultPanel()
 }
 
 // swd32.exe 0x00469550: a shaded framed box; the text goes to (textX, textY) unless both are 0
-void BattleMessages::DrawMessageBox(int x, int y, int width, int height, int textX, int textY, const char* text)
+void BattleMessages::DrawMessageBox(int x, int y, int width, int height, int textX, int textY, std::string_view text)
 {
     this->panelAct.id = BattleMessages::kPanelAct;
     this->panelAct.action = 0;
@@ -284,14 +295,28 @@ void BattleMessages::DrawResistancePanel()
 }
 
 // swd32.exe 0x004698E0: appends a message; kRise starts with speed 1 at y -32
-void BattleMessages::Add(int x, int y, i16 frames, const char* text, int flags)
+void BattleMessages::Add(int x, int y, i16 frames, std::span<const char> text, int flags)
 {
     auto message = std::make_unique<BattleMessage>();
+    message->source = text;
+    this->Append(std::move(message), x, y, frames, flags);
+}
+
+// A constant text (the original passes the address of the string in the executable).
+void BattleMessages::Add(int x, int y, i16 frames, std::u8string_view text, int flags)
+{
+    auto message = std::make_unique<BattleMessage>();
+    message->constant = Big5(text);
+    message->source = message->constant;
+    this->Append(std::move(message), x, y, frames, flags);
+}
+
+void BattleMessages::Append(std::unique_ptr<BattleMessage> message, int x, int y, i16 frames, int flags)
+{
     message->x = x;
     message->y = y;
     message->frames = frames;
-    message->text = text;
-    message->length = static_cast<i32>(std::strlen(text));
+    message->length = static_cast<i32>(message->Text().size());
     message->flags |= flags;
 
     if ((flags & BattleMessage::kRise) != 0)
@@ -399,7 +424,7 @@ void BattleMessages::Draw()
             this->hud.FillColor(0xE3, y - 6, 0xB0, 0x20, kBlack);
         }
 
-        this->DrawMessageText(x, y, message->text);
+        this->DrawMessageText(x, y, message->Text());
         --message->frames;
     }
 
@@ -420,7 +445,7 @@ void BattleMessages::Draw()
             }
 
             this->hud.FillColor(message.slideX - half, 0xA, 0xB0, 0x20, kBlack);
-            this->DrawMessageText(message.slideX, 0x10, message.text);
+            this->DrawMessageText(message.slideX, 0x10, message.Text());
             keep = message.slideX < 0x280;
         }
 
@@ -434,7 +459,7 @@ void BattleMessages::Draw()
             }
 
             this->hud.FillColor(message.slideX - half, 0xA, 0xB0, 0x20, kBlack);
-            this->DrawMessageText(message.slideX, 0x10, message.text);
+            this->DrawMessageText(message.slideX, 0x10, message.Text());
             keep = message.slideX > 0;
         }
 
@@ -449,7 +474,7 @@ void BattleMessages::Draw()
 
             message.y *= 2;
             this->hud.FillColor(message.slideX - half, message.slideY - 6, 0xB0, 0x20, kBlack);
-            this->DrawMessageText(message.slideX, message.slideY, message.text);
+            this->DrawMessageText(message.slideX, message.slideY, message.Text());
             keep = message.slideY > -0x20;
         }
 

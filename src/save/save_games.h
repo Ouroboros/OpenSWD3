@@ -11,7 +11,7 @@ class SaveGames
 {
 public:
     static constexpr int kLastSlot = 0x62;
-    static constexpr char kNameFormat[] = "%ssave\\%d.sav";  // swd32.exe 0x0049FA18
+    static constexpr std::string_view kNameFormat = "%ssave\\%d.sav";  // swd32.exe 0x0049FA18
 
     static std::string SlotPath(std::string_view installDirectory, int slot);
     static bool AnyExists(std::string_view installDirectory);

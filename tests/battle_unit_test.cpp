@@ -26,6 +26,7 @@
 #include "res/act_archive.h"
 #include "res/tsw_archive.h"
 #include "test.h"
+#include "text/big5.h"
 
 namespace
 {
@@ -251,7 +252,8 @@ TEST_CASE("battle unit: ailments, buffs, expiry and damage")
     CHECK_EQ(unit.AddBuff(all.services, defenseUp), 1);
     CHECK_EQ(unit.status & 0x40000000, 0x40000000u);
     CHECK(all.messages.messages != nullptr);
-    CHECK(std::strcmp(all.state.text.data(), "A\274W\245[30%\250\276\277m\244O") == 0);
+    const std::string_view shown(all.state.text.data(), all.state.text.size());
+    CHECK(shown.substr(0, shown.find('\0')) == swd3::Big5(u8"A增加30%防禦力"));
 
     unit.effects.next->turns = 0;
     unit.effects.next->next->turns = 0;

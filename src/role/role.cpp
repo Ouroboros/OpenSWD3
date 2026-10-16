@@ -5,7 +5,7 @@
 namespace swd3
 {
 
-// A role memset to 0xFF in the original (every field all ones; its buffer empty).
+// A role memset to 0xFF in the original (every field all ones; its links and buffer empty).
 void Role::FillUnused()
 {
     auto ones = [](auto& field)
@@ -14,10 +14,10 @@ void Role::FillUnused()
         field = static_cast<Field>(-1);
     };
 
-    ones(this->unk00);
+    this->next = nullptr;
     ones(this->x);
     ones(this->y);
-    ones(this->layer);
+    this->cell = nullptr;
     ones(this->flags);
     ones(this->unk14);
     ones(this->unk18);
@@ -28,10 +28,12 @@ void Role::FillUnused()
     ones(this->id);
     ones(this->unk26);
 
-    for (i32& value : this->unk28)
-    {
-        ones(value);
-    }
+    ones(this->unk28);
+    ones(this->unk2A);
+    ones(this->unk2C);
+    ones(this->unk2E);
+    ones(this->colorPair);
+    ones(this->unk34);
 
     this->unk38.clear();
     ones(this->unk3C);

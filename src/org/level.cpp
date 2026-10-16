@@ -7,6 +7,7 @@
 #include "core/assertion.h"
 #include "org/database.h"
 #include "party/party.h"
+#include "text/big5.h"
 
 namespace swd3
 {
@@ -14,10 +15,10 @@ namespace swd3
 namespace
 {
 
-constexpr char kOrgFile[] = "C:\\Project\\swd102aDVD\\org.cpp";
+constexpr std::string_view kOrgFile = "C:\\Project\\swd102aDVD\\org.cpp";
 // "升級魔法編號為0!!" and "魔法編號為0!!" (swd32.exe 0x004A7D04, 0x004A7D38).
-constexpr char kLevelSkillZero[] = "\244\311\257\305\305]\252k\275s\270\271\254\2600!!";
-constexpr char kSkillZero[] = "\305]\252k\275s\270\271\254\2600!!";
+constexpr std::u8string_view kLevelSkillZero = u8"升級魔法編號為0!!";
+constexpr std::u8string_view kSkillZero = u8"魔法編號為0!!";
 constexpr u32 kLevelSkillLine = 0x330;
 constexpr u32 kSkillLine = 0x50A;
 constexpr i16 kNoSkill = static_cast<i16>(0x8000);
@@ -138,7 +139,7 @@ bool LevelUp(
 
             if (id == 0)
             {
-                MaintenanceAssert(reporter, kLevelSkillZero, 0, kOrgFile, kLevelSkillLine);
+                MaintenanceAssert(reporter, Big5(kLevelSkillZero), 0, kOrgFile, kLevelSkillLine);
             }
 
             if (AppendSkill(*party.skills[static_cast<std::size_t>(role1 - 1)], id, database, last))
@@ -159,7 +160,7 @@ int LearnSkill(int role, i16 id, Party& party, Database& database, LearnedSkill&
 {
     if (id == 0)
     {
-        MaintenanceAssert(reporter, kSkillZero, 0, kOrgFile, kSkillLine);
+        MaintenanceAssert(reporter, Big5(kSkillZero), 0, kOrgFile, kSkillLine);
     }
 
     ItemNode& head = *party.skills[static_cast<std::size_t>(role)];

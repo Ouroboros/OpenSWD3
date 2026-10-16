@@ -69,10 +69,12 @@ public:
     int GetInsertMode() const;
     bool CursorLeft();
     int CursorRight();
-    int InsertText(const char* text);
+    int InsertText(std::string_view text);
     int DeleteAtCursor();
 
 private:
+    std::string_view Contents() const;
+
     std::vector<char> text;  // capacity + 1 bytes
     i32 x = 0;
     i32 y = 0;
@@ -84,6 +86,6 @@ private:
 };
 
 // The bytes of the whole characters of `text` within `maxBytes`.
-u32 TextFitLength(const char* text, int maxBytes);
+u32 TextFitLength(std::string_view text, int maxBytes);
 
 }  // namespace swd3

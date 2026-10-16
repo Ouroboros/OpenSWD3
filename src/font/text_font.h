@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "core/types.h"
+#include "text/big5.h"
 
 namespace swd3
 {
@@ -36,7 +37,7 @@ class TextFont
 public:
     static constexpr int kMaxGlyphs = 2000;
     static constexpr Pixel kNoBackground = 0xFFFE;
-    static constexpr char kDefaultFace[] = "\262\323\251\372\305\351";  // swd32.exe 0x0049FB74 "MingLiU" in Big5
+    static constexpr std::u8string_view kDefaultFace = u8"細明體";  // swd32.exe 0x0049FB74 "MingLiU" in Big5
 
     explicit TextFont(GlyphRasterizer& rasterizer);
     ~TextFont();
@@ -45,12 +46,12 @@ public:
     void Shutdown();
     void CreateGlyphSurface(int width, int height);
     void ReleaseGlyphSurface();
-    void RenderString(int x, int y, const char* text, u32 color);
+    void RenderString(int x, int y, std::string_view text, u32 color);
     void SetGlyphSize(int width, int height);
     void FreeGlyphPixels();
     void AllocGlyphCache();
     void FreeGlyphCache();
-    void SetFont(const char* face, int size);
+    void SetFont(std::string_view face, int size);
     void SetTarget(int width, int height);
     void SetClip(int x, int y, int width, int height);
     void SetAdvance(int advance);
@@ -63,10 +64,11 @@ public:
     void DrawGlyphOutline(Pixel* target, int x, int y, int glyph, Pixel color, int style);
     void DrawGlyphBoldOutline(Pixel* target, int x, int y, int glyph, Pixel color, int style);
     void CaptureGlyphSurface();
-    void RasterizeGlyph(const char* text, u8* bitmap);
+    void RasterizeGlyph(std::string_view text, u8* bitmap);
     int FindGlyph(u16 code) const;
     int InsertGlyph(u16 code);
-    void DrawText(Pixel* target, int x, int y, const char* text, Pixel color, int style);
+    void DrawText(Pixel* target, int x, int y, std::string_view text, Pixel color, int style);
+    void DrawText(Pixel* target, int x, int y, std::u8string_view text, Pixel color, int style);
     void FillRect(Pixel* target, int x, int y, int width, int height, Pixel color);
 
     int GlyphCount() const;
@@ -91,7 +93,7 @@ private:
     std::array<u16, kMaxGlyphs> codes{};  // sorted character codes of the cache
     std::vector<u8> glyphs;               // kMaxGlyphs 1-bit glyph bitmaps
     int glyphCount = 0;
-    char character[4] = {};  // the current character as a string (one or two bytes)
+    std::array<char, 2> character = {};  // the current character (one or two bytes)
     std::string fontFace;
     int fontSize = 0;
     int glyphWidth = 16;

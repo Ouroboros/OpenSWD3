@@ -1,8 +1,10 @@
 #include "item/item_list.h"
 
+#include <algorithm>
 #include <cstring>
 
 #include "org/database.h"
+#include "text/big5.h"
 
 namespace swd3
 {
@@ -11,16 +13,19 @@ namespace
 {
 
 // "無" (swd32.exe 0x0049F9FC).
-constexpr char kEmptyName[] = "\265L";
+constexpr std::u8string_view kEmptyName = u8"無";
 
 bool Pending(const ItemNode& node)
 {
     return (node.record.data.kind & ItemNode::kPendingKind) != 0;
 }
 
-void SetName(ItemNode& node, const char* name)
+// strncpy: the name, then NULs up to the size
+void SetName(ItemNode& node, std::string_view name)
 {
-    std::strncpy(node.record.data.name.data(), name, node.record.data.name.size());
+    auto& field = node.record.data.name;
+    field.fill('\0');
+    std::copy_n(name.begin(), std::min(name.size(), field.size()), field.begin());
 }
 
 // The link holding the first node `matches` accepts, or the link past the end.
@@ -56,7 +61,7 @@ std::unique_ptr<ItemNode> NewNode(u16 id, Database& database)
 
     if (id == ItemNode::kEmpty)
     {
-        SetName(*node, kEmptyName);
+        SetName(*node, Big5(kEmptyName));
     }
     else if (!database.LoadObject(node->record, id))
     {
@@ -121,7 +126,7 @@ std::unique_ptr<ItemNode> NewEmptyItem()
     auto node = std::make_unique<ItemNode>();
     node->id = ItemNode::kEmpty;
     node->count = 1;
-    SetName(*node, kEmptyName);
+    SetName(*node, Big5(kEmptyName));
     return node;
 }
 

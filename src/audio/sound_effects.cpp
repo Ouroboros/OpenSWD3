@@ -16,7 +16,7 @@ constexpr int kFullRate = 0xAC44;
 constexpr u32 kIndexStart = 0x1C;
 constexpr u32 kIndexRecordBytes = 0x2C;
 constexpr u32 kSizeMask = 0x3FFFFFF;
-constexpr char kRiffTemplate[] = "RIFF....WAVEfmt ....0123456789012345data..";
+constexpr std::string_view kRiffTemplate = "RIFF....WAVEfmt ....0123456789012345data..";
 
 u32 ReadDword(const u8* bytes)
 {
@@ -468,8 +468,8 @@ std::shared_ptr<std::vector<u8>> SoundEffects::LoadSound(int id)
     u32 size = entry.sizeFlags & kSizeMask;
     const u32 kind = entry.sizeFlags >> 0x1A;
     const u32 pad = kind == 0 ? 0x18 : 0;
-    auto image = std::make_shared<std::vector<u8>>(std::max<std::size_t>(size + pad, sizeof(kRiffTemplate)), 0);
-    std::memcpy(image->data(), kRiffTemplate, sizeof(kRiffTemplate));
+    auto image = std::make_shared<std::vector<u8>>(std::max<std::size_t>(size + pad, kRiffTemplate.size() + 1), 0);
+    std::memcpy(image->data(), kRiffTemplate.data(), kRiffTemplate.size() + 1);
     this->file.Read(image->data() + pad, size);
 
     if (kind != 1)

@@ -91,7 +91,7 @@ public:
     const std::string& ErrorText() const;
 
 private:
-    void SetError(const char* text);
+    void SetError(std::string_view text);
     bool ReleaseView();
 
     std::FILE* file = nullptr;

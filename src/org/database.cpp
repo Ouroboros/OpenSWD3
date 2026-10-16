@@ -1,4 +1,5 @@
 #include "org/database.h"
+#include "core/format.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -106,14 +107,14 @@ Database::Database(const std::string& directory) : directory(directory)
 }
 
 // mon.dat and level.dat are opened (OPEN_ALWAYS, read) on first use and kept open.
-File* Database::OpenData(File& file, bool& open, const char* name)
+File* Database::OpenData(File& file, bool& open, std::string_view name)
 {
     if (open)
     {
         return &file;
     }
 
-    if (!file.Open(this->directory + name, File::Disposition::OpenAlways, File::Access::Read))
+    if (!file.Open(Concat({this->directory, name}), File::Disposition::OpenAlways, File::Access::Read))
     {
         return nullptr;
     }

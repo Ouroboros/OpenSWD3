@@ -8,28 +8,28 @@ bool IsLeadByte(u8 byte)
     return byte >= 0x81 && byte <= 0xFE;
 }
 
-const char* CharNext(const char* text)
+std::size_t CharNext(std::string_view text, std::size_t at)
 {
-    if (*text == '\0')
+    if (at >= text.size())
     {
-        return text;
+        return at;
     }
 
-    if (IsLeadByte(static_cast<u8>(text[0])) && text[1] != '\0')
+    if (IsLeadByte(static_cast<u8>(text[at])) && at + 1 < text.size())
     {
-        return text + 2;
+        return at + 2;
     }
 
-    return text + 1;
+    return at + 1;
 }
 
-const char* CharPrev(const char* start, const char* position)
+std::size_t CharPrev(std::string_view text, std::size_t position)
 {
-    const char* current = start;
+    std::size_t current = 0;
 
-    while (*current != '\0' && current < position)
+    while (current < text.size() && current < position)
     {
-        const char* next = CharNext(current);
+        const std::size_t next = CharNext(text, current);
 
         if (next >= position)
         {

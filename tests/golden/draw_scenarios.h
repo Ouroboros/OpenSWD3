@@ -11,6 +11,7 @@
 #include <fstream>
 #include <functional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace golden
@@ -35,6 +36,13 @@ struct Frame
 
 // Decompresses `size` bytes into `output` (sized to the expected length); false on failure.
 using Decompress = std::function<bool(const u8* input, std::size_t size, std::vector<u8>& output)>;
+
+// An environment variable, empty when it is not set.
+inline std::string Environment(const std::string& name)
+{
+    const auto* value = std::getenv(name.c_str());
+    return value != nullptr ? std::string(value) : std::string();
+}
 
 inline u32 ReadU32(std::ifstream& file, u32 offset)
 {
@@ -288,12 +296,12 @@ inline void
 Run(Backend& backend, const std::vector<Frame>& frames, const std::function<void(const std::string&, u64)>& reportHash)
 {
     // GOLDEN_DUMP=<scenario name prefix>: the screen after that scenario is written to <GOLDEN_DUMP_FILE>.
-    const char* dumpName = std::getenv("GOLDEN_DUMP");
-    const char* dumpFile = std::getenv("GOLDEN_DUMP_FILE");
+    const std::string dumpName = Environment("GOLDEN_DUMP");
+    const std::string dumpFile = Environment("GOLDEN_DUMP_FILE");
 
     auto report = [&](const std::string& name, u64 hash)
     {
-        if (dumpName != nullptr && dumpFile != nullptr && name.rfind(dumpName, 0) == 0)
+        if (!dumpName.empty() && !dumpFile.empty() && name.rfind(dumpName, 0) == 0)
         {
             std::ofstream out(dumpFile, std::ios::binary);
             out.write(reinterpret_cast<const char*>(backend.Screen()), kScreenWidth * kScreenHeight * 2);
@@ -309,7 +317,7 @@ Run(Backend& backend, const std::vector<Frame>& frames, const std::function<void
 
     struct Variant
     {
-        const char* name;
+        std::string_view name;
         u32 mode;
         int alpha;
         int tintRed;
@@ -433,8 +441,8 @@ Run(Backend& backend, const std::vector<Frame>& frames, const std::function<void
                 }
 
                 report(
-                    "rle/" + std::to_string(f) + "/" + variant.name + "/clip" + std::to_string(clip) + " result " +
-                        std::to_string(result),
+                    "rle/" + std::to_string(f) + "/" + std::string(variant.name) + "/clip" + std::to_string(clip) +
+                        " result " + std::to_string(result),
                     screenHash()
                 );
             }
@@ -571,7 +579,7 @@ Run(Backend& backend, const std::vector<Frame>& frames, const std::function<void
         int a;
         int b;
         int c;
-        const char* name;
+        std::string_view name;
     } operations[] = {
 
         {PixelOperation::Tint, 3, -2, 7, "tint"},
@@ -604,7 +612,7 @@ Run(Backend& backend, const std::vector<Frame>& frames, const std::function<void
             operation.b,
             operation.c
         );
-        report(std::string("pixels/") + operation.name, Hash(pixels.data(), pixels.size() * 2));
+        report("pixels/" + std::string(operation.name), Hash(pixels.data(), pixels.size() * 2));
     }
 
     std::vector<u32> colors;

@@ -1,4 +1,5 @@
 #include "config/config.h"
+#include "core/format.h"
 
 #include <algorithm>
 #include <cstring>
@@ -12,7 +13,7 @@ namespace swd3
 namespace
 {
 
-constexpr char kEnvFile[] = "Env.dat";
+constexpr std::string_view kEnvFile = "Env.dat";
 constexpr std::size_t kKeysOffset = 4;
 constexpr std::size_t kUnknown14Offset = 0x14;
 constexpr std::size_t kSettingsOffset = 0x18;
@@ -84,7 +85,7 @@ void Config::Write(std::string_view installDirectory, std::string_view cdRoot, c
 {
     File file;
 
-    if (file.Open(this->installDirectory + kEnvFile, File::Disposition::OpenAlways, File::Access::Write))
+    if (file.Open(Concat({this->installDirectory, kEnvFile}), File::Disposition::OpenAlways, File::Access::Write))
     {
         file.Close();
         this->Update(installDirectory, cdRoot, settings);
@@ -100,7 +101,11 @@ void Config::Update(std::string_view installDirectory, std::string_view cdRoot, 
 {
     File file;
 
-    if (!file.Open(this->installDirectory + kEnvFile, File::Disposition::OpenExisting, File::Access::ReadWrite))
+    if (!file.Open(
+            Concat({this->installDirectory, kEnvFile}),
+            File::Disposition::OpenExisting,
+            File::Access::ReadWrite
+        ))
     {
         return;
     }
@@ -157,7 +162,7 @@ void Config::SaveKeys()
 {
     File file;
 
-    if (!file.Open(this->installDirectory + kEnvFile, File::Disposition::OpenExisting, File::Access::Write))
+    if (!file.Open(Concat({this->installDirectory, kEnvFile}), File::Disposition::OpenExisting, File::Access::Write))
     {
         return;
     }
@@ -183,7 +188,7 @@ bool Config::Load(i32& unknown14, u8& effectsOff)
 {
     File file;
 
-    if (!file.Open(this->installDirectory + kEnvFile, File::Disposition::OpenExisting, File::Access::Read))
+    if (!file.Open(Concat({this->installDirectory, kEnvFile}), File::Disposition::OpenExisting, File::Access::Read))
     {
         return false;
     }
@@ -211,7 +216,7 @@ bool Config::Load(i32& unknown14, u8& effectsOff)
         defaults.battleSpeed = 0xA;
         this->Update(directory, StringAt(data, firstEnd + 1), defaults);
         current = false;
-        file.Open(directory + kEnvFile, File::Disposition::OpenExisting, File::Access::Read);
+        file.Open(Concat({directory, kEnvFile}), File::Disposition::OpenExisting, File::Access::Read);
         ReadInto(file, data);
     }
 

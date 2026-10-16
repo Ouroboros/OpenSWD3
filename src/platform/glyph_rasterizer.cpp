@@ -15,7 +15,7 @@ namespace swd3
 namespace
 {
 
-constexpr char kMagic[] = "SWD3FONT";
+constexpr std::string_view kMagic = "SWD3FONT";
 
 u32 ReadU32(const std::vector<u8>& data, std::size_t offset)
 {
@@ -51,7 +51,7 @@ bool GlyphLibrary::Load(const std::string& path)
 
     const std::vector<u8> data{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
 
-    if (data.size() < 16 || std::memcmp(data.data(), kMagic, 8) != 0 || ReadU32(data, 8) != 1)
+    if (data.size() < 16 || std::memcmp(data.data(), kMagic.data(), kMagic.size()) != 0 || ReadU32(data, 8) != 1)
     {
         return false;
     }
@@ -152,8 +152,14 @@ void LibraryGlyphRasterizer::RenderText(Surface& surface, std::string_view, int 
 
 std::string GlyphLibraryPath()
 {
-    const char* base = SDL_GetBasePath();
-    return std::string(base != nullptr ? base : "") + "swd3font.bin";
+    std::string path;
+
+    if (const auto* base = SDL_GetBasePath(); base != nullptr)
+    {
+        path = base;
+    }
+
+    return path + "swd3font.bin";
 }
 
 }  // namespace swd3

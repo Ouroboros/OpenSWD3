@@ -1,4 +1,5 @@
 #include "launcher/launcher.h"
+#include "core/format.h"
 
 #include <utility>
 
@@ -100,11 +101,11 @@ Launcher::Choice Launcher::OnMouse(u32 buttons, int x, int y)
                     break;
 
                 case 2:
-                    Launcher::RunBrowser(Launcher::kWebsite);
+                    Launcher::RunBrowser(std::string(Launcher::kWebsite));
                     break;
 
                 case kReadmeItem:
-                    Launcher::RunTextViewer(this->installDirectory + Launcher::kReadme);
+                    Launcher::RunTextViewer(Concat({this->installDirectory, Launcher::kReadme}));
                     break;
 
                 default:
@@ -137,11 +138,11 @@ Launcher::Choice Launcher::OnCommand(int command)
             return Choice::Start;
 
         case 0x3FF:
-            Launcher::RunBrowser(Launcher::kWebsite);
+            Launcher::RunBrowser(std::string(Launcher::kWebsite));
             return Choice::None;
 
         case 0x400:
-            Launcher::RunTextViewer(this->installDirectory + Launcher::kReadme);
+            Launcher::RunTextViewer(Concat({this->installDirectory, Launcher::kReadme}));
             return Choice::None;
 
         case 0x401:

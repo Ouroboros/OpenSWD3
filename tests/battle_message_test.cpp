@@ -65,12 +65,6 @@ struct Messages
     swd3::BattleMessages messages;
 };
 
-bool SameText(const std::vector<u8>& exe, swd3::u32 address, const char* text)
-{
-    const std::size_t length = std::strlen(text) + 1;
-    return std::memcmp(exe.data() + (address - 0x400000), text, length) == 0;
-}
-
 }  // namespace
 
 TEST_CASE("battle message: texts match swd32.exe")
@@ -84,19 +78,19 @@ TEST_CASE("battle message: texts match swd32.exe")
     }
 
     namespace text = swd3::battle_text;
-    CHECK(SameText(exe, 0x004A7E20, text::kResistAllEnd));
-    CHECK(SameText(exe, 0x004A80E4, text::kDefenseDownEnd));
-    CHECK(SameText(exe, 0x004A7F3C, text::kResistPhysicalEnd));
-    CHECK(SameText(exe, 0x004A7B3C, text::kCraftSuccess));
-    CHECK(SameText(exe, 0x004A7AE8, text::kLootLine));
-    CHECK(SameText(exe, 0x004A7EB4, text::kSpeedDown));
+    CHECK(swd3test::SameText(exe, 0x004A7E20, text::kResistAllEnd));
+    CHECK(swd3test::SameText(exe, 0x004A80E4, text::kDefenseDownEnd));
+    CHECK(swd3test::SameText(exe, 0x004A7F3C, text::kResistPhysicalEnd));
+    CHECK(swd3test::SameText(exe, 0x004A7B3C, text::kCraftSuccess));
+    CHECK(swd3test::SameText(exe, 0x004A7AE8, text::kLootLine));
+    CHECK(swd3test::SameText(exe, 0x004A7EB4, text::kSpeedDown));
     constexpr swd3::u32 kElementTable = 0x004A79A8;
 
     for (int element = 0; element < 9; ++element)
     {
         swd3::u32 pointer = 0;
         std::memcpy(&pointer, exe.data() + (kElementTable - 0x400000) + 4 * element, 4);
-        CHECK(SameText(exe, pointer, text::kElementNames[element]));
+        CHECK(swd3test::SameText(exe, pointer, text::kElementNames[element]));
     }
 }
 

@@ -6,6 +6,7 @@
 
 #include "core/types.h"
 #include "res/act_state.h"
+#include "text/big5.h"
 
 namespace swd3
 {
@@ -49,10 +50,10 @@ public:
     static constexpr u32 kHeaderBytes = 0xC;
     static constexpr u32 kThumbnailPixels = 0x4B00;
     static constexpr u32 kLocationBytes = 0x20;
-    static constexpr char kDateTemplate[] = "____/__/__ __:__";  // swd32.exe 0x0049FAA4
-    static constexpr char kHours[] = "%02d\256\311";             // swd32.exe 0x0049FA9C "%02d時"
-    static constexpr char kMinutes[] = "%02d\244\300";           // swd32.exe 0x0049FA94 "%02d分"
-    static constexpr char kSeconds[] = "%02d\254\355";           // swd32.exe 0x0049FA8C "%02d秒"
+    static constexpr std::string_view kDateTemplate = "____/__/__ __:__";  // swd32.exe 0x0049FAA4
+    static constexpr std::u8string_view kHours = u8"%02d時";               // swd32.exe 0x0049FA9C
+    static constexpr std::u8string_view kMinutes = u8"%02d分";             // swd32.exe 0x0049FA94
+    static constexpr std::u8string_view kSeconds = u8"%02d秒";             // swd32.exe 0x0049FA8C
     static constexpr std::array<i32, kActsPerSlot> kFrameActs = {1, 2, 8, 0x11};
 
     static void Free(SavePreview& preview);

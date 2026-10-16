@@ -12,7 +12,7 @@ namespace swd3
 namespace
 {
 
-constexpr char kTitle[] = "MemMgr";
+constexpr std::string_view kTitle = "MemMgr";
 
 u32 ReadDword(const std::vector<u8>& block, std::size_t offset)
 {

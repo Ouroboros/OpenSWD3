@@ -88,6 +88,7 @@ SDL3与FFmpeg由构建脚本自行下载源码并构建，不查找或复用本�
 - 每个还原函数的定义前写 `// swd32.exe 0x<地址>` 注释，可附简要说明（行为、保留的原有BUG、偏差）。默认实现的构造函数也写出定义以附注释。
 - 用 C++ 类型转换（`static_cast` 等），不用 C 风格转换；不用裸 `new`／`delete` 与 `malloc`／`free`，用容器与 `std::unique_ptr`；不用宏（单元测试框架除外）。
 - 头文件用 `#pragma once`，不在头文件中写 `using namespace`。
+- 字符串不用 `char*`／`const char*`／`char[]` 表示：参数与成员用 `std::string_view`、`std::string`，常量用 `constexpr std::string_view`。中文文本一律以繁体 UTF-8 的 `u8"…"` 字面量写出（`constexpr std::u8string_view kLeLe = u8"樂樂";`），不写八进制或十六进制转义；用到时才经 `Big5()`（src/text/big5.h，CP950 表）转成游戏的 Big5，测试按转换结果与 exe 字节比对。只有系统 API 边界（SDL、fopen、getenv）可以就地取 `.c_str()`／`.data()`。
 - 缩进 4 空格，行宽 120；`switch` 的 `case` 缩进一级。
 - 大括号单独占一行（Allman），包括函数、类、命名空间、控制语句与 lambda；所有控制语句都带大括号，不写单行函数体或单行块。
 - 每个大括号块前后各空一行：

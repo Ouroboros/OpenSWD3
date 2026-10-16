@@ -7,6 +7,7 @@
 
 #include "codec/lzo.h"
 #include "core/debug_log.h"
+#include "core/format.h"
 #include "pic/rle.h"
 #include "platform/message_box.h"
 
@@ -40,11 +41,9 @@ bool ReadValue(File& file, Value& value)
     return file.Read(&value, bytes);
 }
 
-std::string Format(const char* format, int first, const char* name, int second = 0)
+std::string Format(std::u8string_view format, int first, std::string_view name, int second = 0)
 {
-    char text[512];
-    std::snprintf(text, sizeof(text), format, first, name, second);
-    return text;
+    return WinFormat(Big5(format), {first, name, second});
 }
 
 // A heap block for `size` bytes, as malloc gives it: false where the original 32-bit process gets no memory (requests
@@ -99,7 +98,10 @@ void TswArchive::OpenArchives()
 {
     for (int i = 0; i < TswArchive::kFileCount; ++i)
     {
-        this->OpenFile(this->files[static_cast<std::size_t>(i)], this->gameDirectory + tsw_text::kFileNames[i]);
+        this->OpenFile(
+            this->files[static_cast<std::size_t>(i)],
+            Concat({this->gameDirectory, tsw_text::kFileNames[i]})
+        );
     }
 
     this->magicDirectory.fill(TswDirectoryEntry{});
@@ -137,7 +139,7 @@ TswFrameEntry& TswArchive::MagicFrame(int slot, int frame)
 
 void TswArchive::ReportError(const std::string& text)
 {
-    this->errors.ShowError(tsw_text::kErrorTitle, text);
+    this->errors.ShowError(Big5(tsw_text::kErrorTitle), text);
 }
 
 // swd32.exe 0x004315C0
@@ -465,7 +467,7 @@ bool TswArchive::LoadFromFile(const std::string& fileName, int index, u32 frame,
 
     if (!this->OpenFile(*file, fileName))
     {
-        this->ReportError(tsw_text::kOpenFailed);
+        this->ReportError(Big5(tsw_text::kOpenFailed));
         return false;
     }
 
@@ -517,8 +519,8 @@ bool TswArchive::LoadPicture(File& file, int index, u32 frame, Picture& picture)
 
         if (!this->ReadHeader(file, info, count))
         {
-            this->errorText = Format(tsw_text::kBadHeader, index, entry.name);
-            DebugLog(this->errorText.c_str());
+            this->errorText = Format(tsw_text::kBadHeader, index, entry.Name());
+            DebugLog(this->errorText);
             this->ReportError(this->errorText);
             return false;
         }
@@ -526,8 +528,8 @@ bool TswArchive::LoadPicture(File& file, int index, u32 frame, Picture& picture)
 
     if (!this->ReadFrame(file, entry.offset, info, static_cast<int>(frame)))
     {
-        this->errorText = Format(tsw_text::kBadFrame, index, entry.name, static_cast<int>(frame));
-        DebugLog(this->errorText.c_str());
+        this->errorText = Format(tsw_text::kBadFrame, index, entry.Name(), static_cast<int>(frame));
+        DebugLog(this->errorText);
         this->ReportError(this->errorText);
         return false;
     }
@@ -564,7 +566,7 @@ bool TswArchive::Decompress(
             DebugLog(tsw_text::kNoBufferLog);
         }
 
-        this->ReportError(tsw_text::kNoBufferBox);
+        this->ReportError(Big5(tsw_text::kNoBufferBox));
         return false;
     }
 
@@ -578,7 +580,7 @@ bool TswArchive::Decompress(
     {
         buffer.bytes.clear();
         buffer.present = false;
-        this->ReportError(tsw_text::kDecompressFailed);
+        this->ReportError(Big5(tsw_text::kDecompressFailed));
         return false;
     }
 
@@ -646,7 +648,7 @@ bool TswArchive::LoadPictureB(File& file, int index, u32 frame, Picture& picture
 
         if (!this->ReadHeader(file, info, count))
         {
-            this->errorText = Format(tsw_text::kBadHeader, index, entry.name);
+            this->errorText = Format(tsw_text::kBadHeader, index, entry.Name());
             this->ReportError(this->errorText);
             return false;
         }
@@ -654,7 +656,7 @@ bool TswArchive::LoadPictureB(File& file, int index, u32 frame, Picture& picture
 
     if (!this->ReadFrameB(file, entry.offset, info, static_cast<int>(frame)))
     {
-        this->errorText = Format(tsw_text::kBadFrame, index, entry.name, static_cast<int>(frame));
+        this->errorText = Format(tsw_text::kBadFrame, index, entry.Name(), static_cast<int>(frame));
         this->ReportError(this->errorText);
         return false;
     }

@@ -8,25 +8,23 @@
 #include "core/types.h"
 #include "file/file.h"
 #include "res/act_state.h"
+#include "text/big5.h"
 
 namespace swd3
 {
 
 class ErrorReporter;
 
-// Texts of the archive (Big5 as in the executable).
+// Texts of the archive (Big5 in the executable; u8 here, converted where drawn).
 namespace act_text
 {
 
-constexpr char kErrorTitle[] = "ACT\277\371\273~";  // "ACT error"
-// "<<ACT:%d>> action, part %d: wrong ACT number!!"
-constexpr char kBadEntry[] =
-    "<<ACT:%d\270\271>>\260\312\247@\252\272\262\304%d\254qACT\270\271\275X\253\374\251w\277\371\273~!!";
-constexpr char kMemoryError[] =
-    "ACT\260O\276\320\305\351\272\336\262z\246\263\273~!!";  // "ACT memory management error!!"
-constexpr char kLoadFailedLog[] = "Act error::actno:%d qq:%d";
-constexpr char kMemoryErrorTitle[] = "ERR";
-constexpr const char* kFileNames[] = {
+constexpr std::u8string_view kErrorTitle = u8"ACT錯誤";  // "ACT error"
+constexpr std::u8string_view kBadEntry = u8"<<ACT:%d號>>動作的第%d段ACT號碼指定錯誤!!";
+constexpr std::u8string_view kMemoryError = u8"ACT記憶體管理有誤!!";  // "ACT memory management error!!"
+constexpr std::string_view kLoadFailedLog = "Act error::actno:%d qq:%d";
+constexpr std::string_view kMemoryErrorTitle = "ERR";
+constexpr std::array<std::string_view, 6> kFileNames = {
     "all_char.act",
     "all_item.act",
     "all_magic.act",

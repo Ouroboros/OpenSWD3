@@ -24,8 +24,8 @@ public:
     static constexpr u32 kBackground = 0x71;
     static constexpr u32 kHoverSound = 0x77;
     static constexpr int kSavedGameFlag = 0x12;
-    static constexpr char kWebsite[] = "www.softstar.com.tw";
-    static constexpr char kReadme[] = "Readme.txt";
+    static constexpr std::string_view kWebsite = "www.softstar.com.tw";
+    static constexpr std::string_view kReadme = "Readme.txt";
 
     // How the launcher ended (the EndDialog codes).
     enum class Choice

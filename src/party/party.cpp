@@ -1,5 +1,8 @@
 #include "party/party.h"
+#include "text/big5.h"
 
+#include <algorithm>
+#include <string>
 #include <string_view>
 
 namespace swd3
@@ -51,24 +54,25 @@ namespace
 {
 
 // The names that change the starting roles (swd32.exe 0x004A70F4..0x004A715C).
-constexpr char kHeRan[] = "\246\363\265M";                   // 0x004A715C 何然
-constexpr char kJiangRuHong[] = "\246\277\246p\254\365";     // 0x004A7154 江如紅
-constexpr char kYangKunShuo[] = "\267\250\251[\272\323";     // 0x004A714C 楊坤碩
-constexpr char kGuYueSheng[] = "\245j\244\353\270t";         // 0x004A7144 古月聖
-constexpr char kFuZiChe[] = "\273\262\244l\271\375";         // 0x004A713C 輔子徹
-constexpr char kWenJin[] = "\257\276\300A";                  // 0x004A7134 紋錦
-constexpr char kZhuShiZi[] = "\305\261\245\333\244l";        // 0x004A712C 鑄石子
-constexpr char kLeLe[] = "\274\326\274\326";                 // 0x004A7124 樂樂
-constexpr char kDaMi[] = "\244j\246\314";                    // 0x004A711C 大米
-constexpr char kZhenMeng[] = "\257u\271\332";                // 0x004A7114 真夢
-constexpr char kHongShanHu[] = "\254\365\254\300\267\344";   // 0x004A710C 紅珊瑚
-constexpr char kNingCaiChen[] = "\271\347\252\366\246\332";  // 0x004A7104 寧采臣
-constexpr char kYanChiXia[] = "\277P\250\252\301\370";       // 0x004A70FC 燕赤霞
-constexpr char kXiaoQian[] = "\244p\255\305";                // 0x004A70F4 小倩
+constexpr std::u8string_view kHeRan = u8"何然";          // 0x004A715C
+constexpr std::u8string_view kJiangRuHong = u8"江如紅";  // 0x004A7154
+constexpr std::u8string_view kYangKunShuo = u8"楊坤碩";  // 0x004A714C
+constexpr std::u8string_view kGuYueSheng = u8"古月聖";   // 0x004A7144
+constexpr std::u8string_view kFuZiChe = u8"輔子徹";      // 0x004A713C
+constexpr std::u8string_view kWenJin = u8"紋錦";         // 0x004A7134
+constexpr std::u8string_view kZhuShiZi = u8"鑄石子";     // 0x004A712C
+constexpr std::u8string_view kLeLe = u8"樂樂";           // 0x004A7124
+constexpr std::u8string_view kDaMi = u8"大米";           // 0x004A711C
+constexpr std::u8string_view kZhenMeng = u8"真夢";       // 0x004A7114
+constexpr std::u8string_view kHongShanHu = u8"紅珊瑚";   // 0x004A710C
+constexpr std::u8string_view kNingCaiChen = u8"寧采臣";  // 0x004A7104
+constexpr std::u8string_view kYanChiXia = u8"燕赤霞";    // 0x004A70FC
+constexpr std::u8string_view kXiaoQian = u8"小倩";       // 0x004A70F4
 
-bool Named(const Party::Name& name, const char* text)
+bool Named(const Party::Name& name, std::u8string_view text)
 {
-    return std::string_view(name.data()) == text;
+    const std::string_view all(name.data(), name.size());
+    return all.substr(0, all.find('\0')) == Big5(text);
 }
 
 }  // namespace
@@ -180,6 +184,25 @@ void Party::ApplyNameCheats()
         second.spirit = 5;
         second.maxSpirit = 5;
     }
+}
+
+Party::Name Party::MakeName(std::string_view text)
+{
+    Name name = {};
+    std::copy_n(text.begin(), std::min(text.size(), name.size() - 1), name.begin());
+    return name;
+}
+
+std::array<Party::Name, Party::kRoles> Party::DefaultNames()
+{
+    std::array<Name, kRoles> names = {};
+
+    for (std::size_t role = 0; role < names.size(); ++role)
+    {
+        names[role] = Party::MakeName(Big5(Party::kDefaultNames[role]));
+    }
+
+    return names;
 }
 
 }  // namespace swd3

@@ -62,7 +62,7 @@ TEST_CASE("fame: the fame block of original saves is saved again unchanged")
 {
     int blocks = 0;
 
-    for (const char* name : {"Save/0.sav", "Save/1.sav"})
+    for (const std::string name : {"Save/0.sav", "Save/1.sav"})
     {
         const std::vector<u8> save = swd3test::ReadGameFile(name);
 

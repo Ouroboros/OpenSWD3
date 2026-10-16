@@ -11,5 +11,7 @@ namespace swd3
 std::vector<char> CdRomDrives();
 // GlobalMemoryStatus().dwTotalPhys: the physical memory in bytes, at most 0xFFFFFFFF.
 u32 TotalPhysicalMemory();
+// timeGetTime(): milliseconds since the system started.
+u32 SystemUptime();
 
 }  // namespace swd3

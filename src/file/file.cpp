@@ -16,7 +16,7 @@ namespace swd3
 namespace
 {
 
-const char* openMode(File::Access access, bool create)
+std::string_view OpenMode(File::Access access, bool create)
 {
     switch (access)
     {
@@ -88,11 +88,11 @@ bool File::Open(std::string_view name, Disposition disposition, Access access)
         std::filesystem::perm_options::add,
         ignored
     );
-    this->file = std::fopen(path.c_str(), openMode(access, false));
+    this->file = std::fopen(path.c_str(), OpenMode(access, false).data());
 
     if (this->file == nullptr && disposition == Disposition::OpenAlways)
     {
-        this->file = std::fopen(path.c_str(), openMode(access, true));
+        this->file = std::fopen(path.c_str(), OpenMode(access, true).data());
     }
 
     if (this->file == nullptr)
@@ -428,9 +428,9 @@ bool File::ReadDword(u32& value)
 }
 
 // swd32.exe 0x00438620: FormatMessageA of the system error into the 0x40 byte buffer
-void File::SetError(const char* text)
+void File::SetError(std::string_view text)
 {
-    this->error.assign(text, std::min<std::size_t>(std::strlen(text), 0x3F));
+    this->error.assign(text.substr(0, 0x3F));
 }
 
 // swd32.exe 0x00438640

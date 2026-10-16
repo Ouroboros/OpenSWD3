@@ -1222,14 +1222,15 @@ void ScaleRoleStats(RoleRecord& stats, int sign)
 }  // namespace
 
 // The message of an effect: the format with the unit's name in the battle text, with sound 0x117.
-void BattleUnit::Announce(BattleServices& services, const char* format, int flags)
+void BattleUnit::Announce(BattleServices& services, std::u8string_view format, int flags)
 {
-    const std::string text = WinFormat(format, {this->displayName != nullptr ? this->displayName : ""});
+    const std::string_view name(this->displayName.data(), this->displayName.size());
+    const std::string text = WinFormat(format, {name.substr(0, name.find('\0'))});
     std::array<char, 64>& buffer = services.state.text;
     const std::size_t length = std::min<std::size_t>(text.size(), kBattleTextLimit);
     std::memcpy(buffer.data(), text.data(), length);
     buffer[length] = '\0';
-    services.messages.Add(kAnnounceX, kAnnounceY, kAnnounceFrames, buffer.data(), flags);
+    services.messages.Add(kAnnounceX, kAnnounceY, kAnnounceFrames, buffer, flags);
     services.audio.PlaySound(kAnnounceSound, services.config.soundVolume);
 }
 
@@ -1550,7 +1551,7 @@ int BattleUnit::AddBuff(BattleServices& services, const SkillScript& skill)
         }
     }
 
-    const char* resistUp = nullptr;
+    std::u8string_view resistUp;
 
     switch (skill.element)
     {
@@ -1582,12 +1583,12 @@ int BattleUnit::AddBuff(BattleServices& services, const SkillScript& skill)
             break;
     }
 
-    if (resistUp != nullptr)
+    if (!resistUp.empty())
     {
         this->Announce(services, resistUp, kAnnounceFlags);
     }
 
-    const char* text = nullptr;
+    std::u8string_view text;
 
     switch (skill.statusBits)
     {
@@ -1653,7 +1654,7 @@ int BattleUnit::AddBuff(BattleServices& services, const SkillScript& skill)
             break;
     }
 
-    if (text != nullptr)
+    if (!text.empty())
     {
         this->Announce(services, text, kAnnounceFlags);
     }
@@ -2020,8 +2021,8 @@ void BattleUnit::ExpireEffects(BattleServices& services, int clearAll)
                 this->marks = static_cast<u16>(this->marks & ~0x40);
             }
 
-            static constexpr std::array<const char*, 10> kResistEnd = {
-                nullptr,
+            static constexpr std::array<std::u8string_view, 10> kResistEnd = {
+                u8"",
                 battle_text::kResistFireEnd,
                 battle_text::kResistIceEnd,
                 battle_text::kResistWindEnd,
@@ -2033,7 +2034,7 @@ void BattleUnit::ExpireEffects(BattleServices& services, int clearAll)
                 battle_text::kResistPhysicalEnd,
             };
 
-            if (node->element < kResistEnd.size() && kResistEnd[node->element] != nullptr)
+            if (node->element < kResistEnd.size() && !kResistEnd[node->element].empty())
             {
                 this->Announce(services, kResistEnd[node->element], kAnnounceFlags);
             }

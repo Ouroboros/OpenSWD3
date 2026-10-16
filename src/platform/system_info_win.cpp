@@ -32,4 +32,9 @@ u32 TotalPhysicalMemory()
     return bytes > 0xFFFFFFFFull ? 0xFFFFFFFFu : static_cast<u32>(bytes);
 }
 
+u32 SystemUptime()
+{
+    return static_cast<u32>(::GetTickCount());
+}
+
 }  // namespace swd3

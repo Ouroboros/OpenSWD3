@@ -30,4 +30,22 @@ public:
     std::vector<u8> scratch;       // 0x004B8860 0x8000 bytes
 };
 
+// The word at `offset` of maps.dat past its header (0xFFFF past its end).
+inline u16 MapsWord(const std::vector<u8>& data, std::size_t offset)
+{
+    return offset + 1 < data.size() ? static_cast<u16>(data[offset] | data[offset + 1] << 8) : u16{0xFFFF};
+}
+
+// The dword at `offset` of maps.dat.
+inline u32 MapsDword(const std::vector<u8>& data, std::size_t offset)
+{
+    return static_cast<u32>(MapsWord(data, offset) | static_cast<u32>(MapsWord(data, offset + 2)) << 16);
+}
+
+// The offset of table `index` of maps.dat (the dwords at its start).
+inline u32 MapsTable(const std::vector<u8>& data, int index)
+{
+    return MapsDword(data, static_cast<std::size_t>(4 * index));
+}
+
 }  // namespace swd3

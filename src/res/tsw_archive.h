@@ -10,6 +10,7 @@
 #include "core/types.h"
 #include "file/file.h"
 #include "pic/picture.h"
+#include "text/big5.h"
 
 namespace swd3
 {
@@ -17,20 +18,19 @@ namespace swd3
 class ErrorReporter;
 class RleCodec;
 
-// Texts of the archive (Big5 as in the executable).
+// Texts of the archive (Big5 in the executable; u8 here, converted where drawn).
 namespace tsw_text
 {
 
-constexpr char kOpenFailed[] = "TSW\300\311\256\327\266}\261\322\245\242\261\321!!";  // "TSW file open failed!!"
-constexpr char kErrorTitle[] = "\277\371\273~";                                       // "Error"
-constexpr char kBadHeader[] = "<<TSW%d\270\271>>(%s)\252\272\300\311\300Y\270\352\256\306\246\263\273~!!";
-constexpr char kBadFrame[] =
-    "<<TSW%d\270\271>>(%s)\252\272\262\304%d\261i\252\272\271\317\247\316\270\352\256\306\246\263\273~!!";
-constexpr char kNoBufferBox[] = "\260t\270m\270\321\300\243\301Y\260O\276\320\305\351\245\242\261\321!!,";
-constexpr char kNoBufferLog[] = "\260t\270m\270\321\300\243\301Y\260O\276\320\305\351\245\242\261\321";
-constexpr char kDecompressFailed[] = "\270\321\300\243\245\242\261\321!!,";
-constexpr char kLoadFailedLog[] = "Mem error::tsw:%d pa:%d";
-constexpr const char* kFileNames[] = {
+constexpr std::u8string_view kOpenFailed = u8"TSW檔案開啟失敗!!";  // "TSW file open failed!!"
+constexpr std::u8string_view kErrorTitle = u8"錯誤";               // "Error"
+constexpr std::u8string_view kBadHeader = u8"<<TSW%d號>>(%s)的檔頭資料有誤!!";
+constexpr std::u8string_view kBadFrame = u8"<<TSW%d號>>(%s)的第%d張的圖形資料有誤!!";
+constexpr std::u8string_view kNoBufferBox = u8"配置解壓縮記憶體失敗!!,";
+constexpr std::u8string_view kNoBufferLog = u8"配置解壓縮記憶體失敗";
+constexpr std::u8string_view kDecompressFailed = u8"解壓失敗!!,";
+constexpr std::string_view kLoadFailedLog = "Mem error::tsw:%d pa:%d";
+constexpr std::array<std::string_view, 6> kFileNames = {
     "all_char.tsw",
     "all_item.tsw",
     "all_magic.tsw",
@@ -47,6 +47,13 @@ struct TswDirectoryEntry
     char name[0x18] = {};
     u32 offset = 0;
     u8 unknown1C[0x10] = {};
+
+    // The name up to its NUL.
+    std::string_view Name() const
+    {
+        const std::string_view all(this->name, sizeof(this->name));
+        return all.substr(0, all.find('\0'));
+    }
 };
 
 static_assert(sizeof(TswDirectoryEntry) == 0x2C);

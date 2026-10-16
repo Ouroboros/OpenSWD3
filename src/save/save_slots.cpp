@@ -74,7 +74,7 @@ void SaveSlots::LoadPreview(SavePreview& preview, int slot, const std::string& i
     file.CreateMapping();
     const u8* mapped = file.MapView(0, 0);
     const std::span<const u8> view(mapped, mapped != nullptr ? file.Size() : 0);
-    std::string date = SaveSlots::kDateTemplate;
+    std::string date(SaveSlots::kDateTemplate);
 
     if (view.size() >= SaveSlots::kHeaderBytes)
     {

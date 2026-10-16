@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <string_view>
 
 #include "core/types.h"
 
@@ -85,7 +86,7 @@ private:
     u32 clearColor = 0;
 };
 
-void ShowDeviceError(ErrorReporter& errors, const char* caption, u32 result);
+void ShowDeviceError(ErrorReporter& errors, std::string_view caption, u32 result);
 void FillSurfaceColor(Surface& surface, ColorRef color);
 u32 MatchSurfaceColor(Surface& surface, ColorRef color);
 
