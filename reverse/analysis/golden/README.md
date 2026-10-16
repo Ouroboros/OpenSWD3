@@ -33,3 +33,7 @@ GOLDEN_OUT=<工作区>/tests/golden/draw_golden.txt SWD3_GAME_DIR=/mnt/e/Game/sw
 ## act 档案与动作脚本（tests/golden/act_golden.txt）
 
 场景定义：`tests/golden/act_scenarios.h`。生成器：`act_golden_legacy.cpp`，运行 `./swd3_tests "act archives"`。脚本指针以“是否存在 + 前两个字”代替比较。
+
+## TextFont（tests/golden/font_golden.txt）
+
+场景定义：`tests/golden/font_scenarios.h`。生成器：`font_golden_legacy.cpp`，在旧树中以 `SDL_VIDEO_DRIVER=dummy` 运行 `./swd3_tests "text font"`。Linux 上两侧都不栅格化字形，缓存填满后按字符码写入相同的合成位图，再比较各样式、裁剪、背景与渐变的绘制结果。
