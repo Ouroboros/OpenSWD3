@@ -3,6 +3,7 @@
 #include <array>
 #include <memory>
 #include <span>
+#include <string>
 #include <vector>
 
 #include "core/types.h"
@@ -13,14 +14,41 @@
 namespace swd3
 {
 
-// A node of the list headed at 0x004ACF00 (0x4C bytes; two buffers and the next node at +0x48).
-struct SceneNode
+// A talk window (0x4C bytes, the list at 0x004ACF48): its frame and place (growing out of the speaker or a point
+// over four frames), the text with the page shown and the typing position, the colours, the timeout and the name.
+struct TalkWindow
 {
-    std::array<i32, 14> unk00 = {};
-    std::vector<u8> unk38;  // +0x38
-    std::array<i32, 2> unk3C = {};
-    std::vector<u8> unk44;            // +0x44
-    std::unique_ptr<SceneNode> next;  // +0x48
+    static constexpr std::size_t kClosed = static_cast<std::size_t>(-1);
+    static constexpr u16 kNoRole = 0xFFFD;
+
+    const ActState* frameAct = nullptr;  // +0x00 its frame picks the window frame
+    const ActState* nameAct = nullptr;   // +0x04 its frame picks the frame of the name plate
+    u32 flags = 0;                       // +0x08
+    u32 timeout = 0;                     // +0x0C tenths of a second (0xFFFF: none)
+    u32 shownAt = 0;                     // +0x10 the time the page was complete
+    u16 openStep = 0;                    // +0x14 0..4
+    u16 role = 0;                        // +0x16 the speaking role (kNoRole: the point fromX, fromY)
+    u16 counter = 0;                     // +0x18
+    u16 x = 0;                           // +0x1A screen pixels
+    u16 y = 0;                           // +0x1C
+    u16 fromX = 0;                       // +0x1E
+    u16 fromY = 0;                       // +0x20
+    u16 width = 0;                       // +0x22
+    u16 height = 0;                      // +0x24
+    u16 unk26 = 0;                       // +0x26
+    u16 speed = 0;                       // +0x28 frames per character
+    u16 delay = 0;                       // +0x2A frames to the next character (bit 15: typing)
+    u16 color = 0;                       // +0x2C an index into the text colours
+    u16 shade = 0;                       // +0x2E an index into the shadow colours
+    u16 pageColor = 0;                   // +0x30 the colours at the start of the next page
+    u16 pageShade = 0;                   // +0x32
+    u16 style = 0;                       // +0x34 low byte the text style, high byte the style of the next page
+    u16 unk36 = 0;                       // +0x36
+    std::string text;                    // +0x38 Big5 with % codes, ended by "%Q"
+    std::size_t page = 0;                // +0x3C the start of the page shown (kClosed: the window is done)
+    std::size_t typed = 0;               // +0x40 the typing position
+    std::string name;                    // +0x44 the name plate (empty: none)
+    std::unique_ptr<TalkWindow> next;    // +0x48
 };
 
 // An area of the map with its encounters (0x18 bytes; the list starts with a node of its own at 0x004A9A18).
@@ -211,11 +239,11 @@ struct Scene
     i32 shakeHold = 0;                 // 0x004AD0D0
     i32 unk4A93E4 = 0;                 // the camera before the quake
     i32 unk4A992C = 0;
-    i32 unk4A99F0 = 0;  // the pan still to go across
-    i32 unk4A98C0 = 0;  // and down
-    i32 unk4A9480 = 0;  // the step of the pan across
-    i32 unk4A93D8 = 0;  // and down
-    SceneNode unk4ACF00;
+    i32 unk4A99F0 = 0;                        // the pan still to go across
+    i32 unk4A98C0 = 0;                        // and down
+    i32 unk4A9480 = 0;                        // the step of the pan across
+    i32 unk4A93D8 = 0;                        // and down
+    std::unique_ptr<TalkWindow> talkWindows;  // 0x004ACF48
     std::array<ActState, 4> unk4AD0D8;
     ActState unk4AD3F0;
     i32 unk4B74F4 = 0;

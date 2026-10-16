@@ -21,10 +21,10 @@ void Scene::FreeSpritesB()
     this->spritesB.reset();
 }
 
-// swd32.exe 0x0040F5A0: also keeps only bit 15 of the word at 0x004A9920
+// swd32.exe 0x0040F5A0: the talk windows freed; only bit 15 of the word at 0x004A9920 kept
 void Scene::FreeNodes()
 {
-    this->unk4ACF00.next.reset();
+    this->talkWindows.reset();
     this->unk4A9920 &= 0x8000;
 }
 

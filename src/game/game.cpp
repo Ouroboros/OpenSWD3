@@ -59,16 +59,17 @@ Game::Game(std::string installDirectory)
       graphics(this->display, this->errors), codec(this->painter), archive(this->codec, this->errors),
       acts(this->errors), rasterizer(this->glyphs), largeFont(this->rasterizer), mediumFont(this->rasterizer),
       smallFont(this->rasterizer), audio(this->audioDevice), mapCache(this->config, this->painter),
-      field(this->state, this->mapCache, this->config, this->codec), fieldView(*this), database(installDirectory),
-      battleHud(this->painter, this->archive, this->acts, this->random, this->audio), battleMessages(
-                                                                                          this->painter,
-                                                                                          this->archive,
-                                                                                          this->acts,
-                                                                                          this->battleHud,
-                                                                                          this->battleState,
-                                                                                          this->mediumFont,
-                                                                                          this->largeFont
-                                                                                      ),
+      field(this->state, this->mapCache, this->config, this->codec), fieldView(*this), talk(*this),
+      database(installDirectory), battleHud(this->painter, this->archive, this->acts, this->random, this->audio),
+      battleMessages(
+          this->painter,
+          this->archive,
+          this->acts,
+          this->battleHud,
+          this->battleState,
+          this->mediumFont,
+          this->largeFont
+      ),
       battleServices{
           this->battleState,
           this->random,
@@ -366,7 +367,7 @@ void Game::InitDrawKernel()
     this->SetupFont(this->largeFont, 0x14);
     this->SetupFont(this->mediumFont, 0x10);
     this->SetupFont(this->smallFont, 0xC);
-    this->unk4A99F8 = 0xB;
+    this->talk.unit = 0xB;
     this->painter.SetClip(0, 0, Display::kWidth, Display::kHeight);
     this->textColors.Convert(this->painter);
     this->drawSurface = this->painter.LockSurface(*this->offscreen);
@@ -551,7 +552,7 @@ void Game::NewGame()
     scene.unk4A94B0 = 0x40000000;
     scene.shake.fill(static_cast<i16>(0xCFCF));
     scene.unk4ACDB8 = 3;
-    scene.unk4ACF00 = SceneNode{};
+    scene.talkWindows.reset();
     game.SetWalkSpeed(0x10);
 
     auto setPointer = [this](Role& role, int action)

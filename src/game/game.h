@@ -29,6 +29,7 @@
 #include "map/field_view.h"
 #include "map/map_cache.h"
 #include "menu/menu.h"
+#include "talk/talk.h"
 
 #include "movie/movie.h"
 #include "org/database.h"
@@ -61,6 +62,7 @@ class Game
 {
     friend class Menu;
     friend class FieldView;
+    friend class Talk;
 
 public:
     static constexpr std::u8string_view kWindowTitle = u8"軒轅劍參 DVD";                    // 0x0049FAC4
@@ -158,6 +160,7 @@ private:
     MapCache mapCache;
     Field field;
     FieldView fieldView;
+    Talk talk;
 
     GameDatabases databases;
     PathNodePool pathNodes;
@@ -226,7 +229,6 @@ private:
     i32 unk4CAEBC = 0;
     i32 unk4CAEC0 = 0;
     u32 unk4AB8F8 = 0;  // 0x004AB8F8 a copy of the fill colour pair
-    i32 unk4A99F8 = 0;  // 0x004A99F8
     bool quit = false;
 };
 

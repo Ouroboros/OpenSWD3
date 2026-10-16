@@ -371,16 +371,16 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 370	swd32.exe	0x0042E740	sub_42E740	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 371	swd32.exe	0x0042E790	sub_42E790	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 372	swd32.exe	0x0042E850	sub_42E850	ui	src/ui/ui_draw.cpp:DrawWindowFrame	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/ui/ui_draw.cpp:DrawWindowFrame
-373	swd32.exe	0x0042ED40	sub_42ED40	dlg_message		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(DlgMessage:...)"
+373	swd32.exe	0x0042ED40	sub_42ED40	talk	src/talk/talk.cpp:Talk::Draw	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(DlgMessage:...)"
 374	swd32.exe	0x00430180	sub_430180	map	src/map/field_view.cpp:FieldView::FillCellMark	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 375	swd32.exe	0x00430230	sub_430230	map	src/map/field_view.cpp:FieldView::MarkCells	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 376	swd32.exe	0x004302F0	sub_4302F0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-377	swd32.exe	0x00430350	sub_430350	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+377	swd32.exe	0x00430350	sub_430350	talk	src/talk/talk.cpp:Talk::DrawColoredText	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 378	swd32.exe	0x004303D0	sub_4303D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 379	swd32.exe	0x004306C0	sub_4306C0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 380	swd32.exe	0x004308C0	sub_4308C0	map	src/map/field_view.cpp:FieldView::DrawTimer	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 381	swd32.exe	0x00430B60	sub_430B60	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-382	swd32.exe	0x00430BE0	sub_430BE0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+382	swd32.exe	0x00430BE0	sub_430BE0	talk	src/talk/talk.cpp:Talk::ParseNumber	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 383	swd32.exe	0x00430C60	sub_430C60	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 384	swd32.exe	0x00430CF0	sub_430CF0	map	src/map/field_view.cpp:ScriptObject::~ScriptObject	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 385	swd32.exe	0x00430D10	sub_430D10	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
