@@ -633,7 +633,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 632	swd32.exe	0x0043F1E0	sub_43F1E0	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043B080 and 0x0043FDE0
 633	swd32.exe	0x0043F7C0	sub_43F7C0	menu	src/menu/menu_items.cpp:ItemFitsMenu	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043B080 and 0x0043FDE0
 634	swd32.exe	0x0043F880	sub_43F880	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043B080 and 0x0043FDE0
-635	swd32.exe	0x0043F940	sub_43F940	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043B080 and 0x0043FDE0
+635	swd32.exe	0x0043F940	sub_43F940	menu	src/menu/menu_use.cpp:SwapEquipment	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043B080 and 0x0043FDE0
 636	swd32.exe	0x0043FA70	sub_43FA70	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043B080 and 0x0043FDE0
 637	swd32.exe	0x0043FDE0	sub_43FDE0	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Botl:...)"
 638	swd32.exe	0x004400A0	sub_4400A0	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
@@ -669,12 +669,12 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 668	swd32.exe	0x00442E40	sub_442E40	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
 669	swd32.exe	0x00442F10	sub_442F10	menu	src/menu/menu_items.cpp:CloseUsePage	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
 670	swd32.exe	0x00442F40	sub_442F40	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
-671	swd32.exe	0x00443450	sub_443450	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
-672	swd32.exe	0x00443570	sub_443570	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
-673	swd32.exe	0x00443670	sub_443670	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
-674	swd32.exe	0x004437C0	sub_4437C0	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
-675	swd32.exe	0x004438E0	sub_4438E0	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
-676	swd32.exe	0x004439A0	sub_4439A0	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
+671	swd32.exe	0x00443450	sub_443450	menu	src/menu/menu_use.cpp:UseKeyDown	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
+672	swd32.exe	0x00443570	sub_443570	menu	src/menu/menu_use.cpp:UseKeyUp	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
+673	swd32.exe	0x00443670	sub_443670	menu	src/menu/menu_use.cpp:UseKeyPageDown	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
+674	swd32.exe	0x004437C0	sub_4437C0	menu	src/menu/menu_use.cpp:UseKeyPageUp	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
+675	swd32.exe	0x004438E0	sub_4438E0	menu	src/menu/menu_use.cpp:UseKeyLeft	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
+676	swd32.exe	0x004439A0	sub_4439A0	menu	src/menu/menu_use.cpp:UseKeyRight	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
 677	swd32.exe	0x00443A60	sub_443A60	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
 678	swd32.exe	0x00443B70	sub_443B70	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
 679	swd32.exe	0x00443BD0	sub_443BD0	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
