@@ -1,5 +1,6 @@
 #include <cstring>
 
+#include "core/words.h"
 #include "draw/painter.h"
 
 namespace swd3
@@ -92,7 +93,7 @@ void Painter::ShiftRed(std::span<u16> pixels, int delta) const
 {
     const u32 mask = this->red.mask;
     const u32 otherBits = 0xFFFFFFFFu - mask;
-    const auto step = static_cast<i32>(this->red.halves[4]);
+    const auto step = static_cast<i32>(this->red.halves[ColorChannel::TintHalf]);
 
     for (u16& pixel : pixels)
     {
@@ -138,9 +139,9 @@ void Painter::ShiftBluePairs(std::span<u16> pixels, int delta) const
 // (through the channel ramps). The channel masks are cut to 16 bits first, as in the original.
 void Painter::MixPixels(std::span<const u16> other, std::span<u16> pixels)
 {
-    this->red.mask &= 0xFFFF;
-    this->green.mask &= 0xFFFF;
-    this->blue.mask &= 0xFFFF;
+    this->red.mask = LowWord(this->red.mask);
+    this->green.mask = LowWord(this->green.mask);
+    this->blue.mask = LowWord(this->blue.mask);
 
     for (std::size_t i = 0; i < pixels.size(); ++i)
     {

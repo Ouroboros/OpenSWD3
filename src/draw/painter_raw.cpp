@@ -8,6 +8,12 @@ namespace swd3
 namespace
 {
 
+constexpr int kGradientShift = 4;  // BlitRawGradient: the level falls every sixteenth of the height
+constexpr int kHalfShift = 1;      // the shares of a blend
+constexpr int kQuarterShift = 2;
+constexpr int kEighthShift = 3;
+constexpr int kSixteenthShift = 4;
+
 u16 Word(const u8* bytes, std::ptrdiff_t index = 0)
 {
     u16 value = 0;
@@ -32,7 +38,7 @@ int Painter::BlitRawCopy(int, int, int width, int, const DrawArgument&)
             dest[column] = this->palette == nullptr ? Word(line, column) : this->palette[line[column]];
         }
 
-        line += static_cast<std::ptrdiff_t>(width) * (this->palette == nullptr ? 2 : 1);
+        line += static_cast<std::ptrdiff_t>(width) * (this->palette == nullptr ? sizeof(u16) : sizeof(u8));
         dest += this->screenPitch;
     }
 
@@ -53,7 +59,7 @@ int Painter::BlitRawCopyMirrored(int, int, int width, int, const DrawArgument&)
             dest[column] = Word(line, -column);
         }
 
-        line += 2 * static_cast<std::ptrdiff_t>(width);
+        line += static_cast<std::ptrdiff_t>(sizeof(u16)) * width;
         dest += this->screenPitch;
     }
 
@@ -87,7 +93,7 @@ int Painter::BlitRawKeyed(int, int, int width, int, const DrawArgument&)
             }
         }
 
-        line += static_cast<std::ptrdiff_t>(width) * (this->palette == nullptr ? 2 : 1);
+        line += static_cast<std::ptrdiff_t>(width) * (this->palette == nullptr ? sizeof(u16) : sizeof(u8));
         dest += this->screenPitch;
     }
 
@@ -114,7 +120,7 @@ int Painter::BlitRawKeyedMirrored(int, int, int width, int, const DrawArgument&)
             }
         }
 
-        line += 2 * static_cast<std::ptrdiff_t>(width);
+        line += static_cast<std::ptrdiff_t>(sizeof(u16)) * width;
         dest += this->screenPitch;
     }
 
@@ -142,7 +148,7 @@ int Painter::BlitRawTranslucent(int, int, int width, int, const DrawArgument&)
             }
         }
 
-        line += 2 * static_cast<std::ptrdiff_t>(width);
+        line += static_cast<std::ptrdiff_t>(sizeof(u16)) * width;
         dest += this->screenPitch;
     }
 
@@ -155,8 +161,8 @@ int Painter::BlitRawGradient(int, int, int, int height, const DrawArgument&)
 {
     const Placement& place = this->placement;
     const u16 color = Word(this->source);
-    const int rowsPerStep = height >> 4;
-    int level = 15;
+    const int rowsPerStep = height >> kGradientShift;
+    int level = Painter::MaxAlpha;
     int rowInStep = 0;
     u16* dest = place.dest;
 
@@ -186,8 +192,10 @@ void Painter::BlendPairsWithColor(std::span<u32> pairs, u32 colorPair) const
     for (u32& pair : pairs)
     {
         const u32 value = pair;
-        pair = ((value >> 1) & this->halfMaskPairs[0]) + ((colorPair >> 2) & this->halfMaskPairs[1]) +
-               ((value >> 3) & this->halfMaskPairs[2]) + ((value >> 4) & this->halfMaskPairs[3]);
+        pair = ((value >> kHalfShift) & this->halfMaskPairs[kHalfShift - 1]) +
+               ((colorPair >> kQuarterShift) & this->halfMaskPairs[kQuarterShift - 1]) +
+               ((value >> kEighthShift) & this->halfMaskPairs[kEighthShift - 1]) +
+               ((value >> kSixteenthShift) & this->halfMaskPairs[kSixteenthShift - 1]);
     }
 }
 

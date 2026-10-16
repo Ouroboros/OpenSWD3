@@ -34,15 +34,19 @@ struct DrawOptions
 // One colour channel of the display format.
 struct ColorChannel
 {
+    static constexpr int Levels = 32;  // a 5-bit channel
+    static constexpr std::size_t Shifts = 5;
+    static constexpr std::size_t TintHalf = 4;  // halves[TintHalf] is one tint step
+
     u32 mask = 0;
     u32 inverseMask = 0;  // 0xFFFFFFFF - mask
     int shift = 0;
     // halves[k]: the mask shifted right by k with the bits of the channel kept; halves[4] is one tint step.
-    std::array<u32, 6> halves{};
+    std::array<u32, Shifts + 1> halves{};
     // steps[k]: (k + 1) << shift.
-    std::array<u32, 5> steps{};
+    std::array<u32, Shifts> steps{};
     // Saturating sum lookup: 32 zero entries, the ramp k * halves[4] for k = 0..31, 32 entries of the mask.
-    std::array<u32, 96> ramp{};
+    std::array<u32, 3 * Levels> ramp{};
 
     u32 Ramp(int index) const;
 };
@@ -94,6 +98,16 @@ public:
         RawGradient = 0x08,     // destination blended towards the first source pixel
         RawTranslucent = 0x14,  // blend at DrawOptions::alpha, fill colour transparent
     };
+
+    static constexpr u32 RawBlitters = 0x80;  // the blitters of raw pictures follow the RLE ones
+    static constexpr int TileSide = 16;       // DrawTile16 and DrawTile8
+    static constexpr int MaxAlpha = 0xF;      // DrawOptions::alpha of a fully opaque blend
+    static constexpr int FractionBits = 10;   // the scale and shear steps are fixed point
+    static constexpr int DitherPhases = 3;
+    static constexpr u8 KeyIndex = 1;             // DrawTile8Keyed: the transparent palette index
+    static constexpr int WaveRowBytes = 0x84;     // a row of the wave offsets (33 dwords)
+    static constexpr int WideWaveStride = 0x528;  // the stride of the tint and grey walks
+    static constexpr int WaveEntryBytes = sizeof(i32);
 
     // How the display stores colours; pictures are stored as RGB555 and converted on load.
     enum class Conversion
@@ -209,8 +223,8 @@ private:
         bool signedPitch = false;  // lines advance by Placement::pitch (else by the screen pitch, ignoring kFlip)
         bool dropLines = false;    // honour DrawOptions::dropLines
         bool advanceWave = true;
-        int waveStride = 0x84;  // bytes between the wave rows (0x528 in some effects)
-        bool scaled = false;    // vertical scaling (kScaledGlow)
+        int waveStride = WaveRowBytes;  // bytes between the wave rows (WideWaveStride in some effects)
+        bool scaled = false;            // vertical scaling (kScaledGlow)
     };
 
     using Blitter = int (Painter::*)(int x, int y, int width, int height, const DrawArgument& argument);

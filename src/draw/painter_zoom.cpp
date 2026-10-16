@@ -1,12 +1,15 @@
 #include <cstring>
 
 #include "draw/painter.h"
+#include "pic/rle.h"
 
 namespace swd3
 {
 
 namespace
 {
+
+constexpr int kZoomUnit = 1 << Painter::FractionBits;  // the zoom scales are in 1/1024
 
 u16 Word(const u8* bytes, std::ptrdiff_t index = 0)
 {
@@ -25,15 +28,15 @@ void Painter::DrawZoomed(int x, int y, int width, int height)
 {
     const int scaleX = this->zoomX;
     const int scaleY = this->zoomY;
-    const int left = this->zoomAnchorX - this->zoomAnchorX * scaleX / 1024 + x;
-    int row = this->zoomAnchorY - this->zoomAnchorY * scaleY / 1024 + y;
+    const int left = this->zoomAnchorX - this->zoomAnchorX * scaleX / kZoomUnit + x;
+    int row = this->zoomAnchorY - this->zoomAnchorY * scaleY / kZoomUnit + y;
 
-    if (left >= this->clipX + this->clipWidth || width * scaleX / 1024 + left < this->clipX)
+    if (left >= this->clipX + this->clipWidth || width * scaleX / kZoomUnit + left < this->clipX)
     {
         return;
     }
 
-    if (row >= this->clipY + this->clipHeight || height * scaleY / 1024 + row < this->clipY)
+    if (row >= this->clipY + this->clipHeight || height * scaleY / kZoomUnit + row < this->clipY)
     {
         return;
     }
@@ -43,7 +46,7 @@ void Painter::DrawZoomed(int x, int y, int width, int height)
     std::ptrdiff_t rowClipLeft = row * pitch + this->clipX;
     std::ptrdiff_t rowClipRight = rowClipLeft + this->clipWidth;
     std::ptrdiff_t rowDest = row * pitch + left;
-    const u8* line = this->source + 8;
+    const u8* line = this->source + RleHeader::HeaderBytes;
     int rowFraction = 0;
 
     if (Word(line) != 0)
@@ -54,7 +57,7 @@ void Painter::DrawZoomed(int x, int y, int width, int height)
         {
             rowFraction += scaleY;
 
-            while (rowFraction >= 0x400)
+            while (rowFraction >= kZoomUnit)
             {
                 if (rowClipLeft >= clipTop)
                 {
@@ -62,7 +65,7 @@ void Painter::DrawZoomed(int x, int y, int width, int height)
                     break;
                 }
 
-                rowFraction -= 0x400;
+                rowFraction -= kZoomUnit;
                 ++row;
                 rowClipLeft += pitch;
                 rowClipRight = rowClipLeft + this->clipWidth;
@@ -74,7 +77,7 @@ void Painter::DrawZoomed(int x, int y, int width, int height)
                 break;
             }
 
-            line += Word(line) & 0x3FFF;
+            line += Word(line) & RleHeader::CountMask;
 
             if (Word(line) == 0)
             {
@@ -83,7 +86,7 @@ void Painter::DrawZoomed(int x, int y, int width, int height)
         }
     }
 
-    rowFraction %= 0x400;
+    rowFraction %= kZoomUnit;
 
     if (Word(line) == 0)
     {
@@ -94,9 +97,9 @@ void Painter::DrawZoomed(int x, int y, int width, int height)
     {
         rowFraction += scaleY;
 
-        while (rowFraction >= 0x400)
+        while (rowFraction >= kZoomUnit)
         {
-            rowFraction -= 0x400;
+            rowFraction -= kZoomUnit;
 
             if (row >= this->clipY + this->clipHeight)
             {
@@ -104,15 +107,15 @@ void Painter::DrawZoomed(int x, int y, int width, int height)
             }
 
             std::ptrdiff_t dest = rowDest;
-            const u8* code = line + 2;
+            const u8* code = line + sizeof(u16);
             int columnFraction = 0;
 
             for (u16 value = Word(code); value != 0; value = Word(code))
             {
-                const int count = value & 0x3FFF;
-                const bool literal = (value & 0xC000) == 0;
-                const int scaled = scaleX * count / 1024;
-                const u8* pixels = code + 2;
+                const int count = value & RleHeader::CountMask;
+                const bool literal = (value & RleHeader::KindMask) == 0;
+                const int scaled = scaleX * count / kZoomUnit;
+                const u8* pixels = code + sizeof(u16);
                 const std::ptrdiff_t fromLeft = dest - rowClipLeft;
                 const std::ptrdiff_t over = dest + scaled - rowClipRight;
                 std::ptrdiff_t lower = 0;
@@ -157,16 +160,16 @@ void Painter::DrawZoomed(int x, int y, int width, int height)
                     else
                     {
                         std::ptrdiff_t out = dest;
-                        columnFraction %= 0x400;
+                        columnFraction %= kZoomUnit;
                         bool stopped = false;
 
                         for (int i = 0; i < count && !stopped; ++i)
                         {
                             columnFraction += scaleX;
 
-                            while (columnFraction >= 0x400)
+                            while (columnFraction >= kZoomUnit)
                             {
-                                columnFraction -= 0x400;
+                                columnFraction -= kZoomUnit;
 
                                 if (out > upper)
                                 {
@@ -186,7 +189,7 @@ void Painter::DrawZoomed(int x, int y, int width, int height)
                 }
 
                 dest += scaled;
-                code += literal ? 2 + 2 * count : 2;
+                code += literal ? sizeof(u16) + sizeof(u16) * count : sizeof(u16);
             }
 
             ++row;
@@ -195,7 +198,7 @@ void Painter::DrawZoomed(int x, int y, int width, int height)
             rowDest += pitch;
         }
 
-        line += Word(line) & 0x3FFF;
+        line += Word(line) & RleHeader::CountMask;
 
         if (Word(line) == 0)
         {
@@ -212,15 +215,15 @@ void Painter::DrawZoomedMirrored(int x, int y, int width, int height)
 {
     const int scaleX = this->zoomX;
     const int scaleY = this->zoomY;
-    const int right = (width - this->zoomAnchorX) * scaleX / 1024 + this->zoomAnchorX + x;
-    int row = this->zoomAnchorY - this->zoomAnchorY * scaleY / 1024 + y;
+    const int right = (width - this->zoomAnchorX) * scaleX / kZoomUnit + this->zoomAnchorX + x;
+    int row = this->zoomAnchorY - this->zoomAnchorY * scaleY / kZoomUnit + y;
 
-    if (right - width * scaleX / 1024 >= this->clipX + this->clipWidth || right < this->clipX)
+    if (right - width * scaleX / kZoomUnit >= this->clipX + this->clipWidth || right < this->clipX)
     {
         return;
     }
 
-    if (height * scaleY / 1024 + row >= this->clipY + this->clipHeight || row < this->clipY)
+    if (height * scaleY / kZoomUnit + row >= this->clipY + this->clipHeight || row < this->clipY)
     {
         return;
     }
@@ -230,7 +233,7 @@ void Painter::DrawZoomedMirrored(int x, int y, int width, int height)
     std::ptrdiff_t rowClipLeft = row * pitch + this->clipX;
     std::ptrdiff_t rowClipRight = rowClipLeft + this->clipWidth;
     std::ptrdiff_t rowDest = row * pitch + right;
-    const u8* line = this->source + 8;
+    const u8* line = this->source + RleHeader::HeaderBytes;
     int rowFraction = 0;
 
     if (Word(line) != 0)
@@ -241,7 +244,7 @@ void Painter::DrawZoomedMirrored(int x, int y, int width, int height)
         {
             rowFraction += scaleY;
 
-            while (rowFraction >= 0x400)
+            while (rowFraction >= kZoomUnit)
             {
                 if (rowClipLeft >= clipTop)
                 {
@@ -249,7 +252,7 @@ void Painter::DrawZoomedMirrored(int x, int y, int width, int height)
                     break;
                 }
 
-                rowFraction -= 0x400;
+                rowFraction -= kZoomUnit;
                 ++row;
                 rowClipLeft += pitch;
                 rowClipRight = rowClipLeft + this->clipWidth;
@@ -261,7 +264,7 @@ void Painter::DrawZoomedMirrored(int x, int y, int width, int height)
                 break;
             }
 
-            line += Word(line) & 0x3FFF;
+            line += Word(line) & RleHeader::CountMask;
 
             if (Word(line) == 0)
             {
@@ -270,7 +273,7 @@ void Painter::DrawZoomedMirrored(int x, int y, int width, int height)
         }
     }
 
-    rowFraction %= 0x400;
+    rowFraction %= kZoomUnit;
 
     if (Word(line) == 0)
     {
@@ -281,9 +284,9 @@ void Painter::DrawZoomedMirrored(int x, int y, int width, int height)
     {
         rowFraction += scaleY;
 
-        while (rowFraction >= 0x400)
+        while (rowFraction >= kZoomUnit)
         {
-            rowFraction -= 0x400;
+            rowFraction -= kZoomUnit;
 
             if (row >= this->clipY + this->clipHeight)
             {
@@ -291,15 +294,15 @@ void Painter::DrawZoomedMirrored(int x, int y, int width, int height)
             }
 
             std::ptrdiff_t dest = rowDest;
-            const u8* code = line + 2;
+            const u8* code = line + sizeof(u16);
             int columnFraction = 0;
 
             for (u16 value = Word(code); value != 0; value = Word(code))
             {
-                const int count = value & 0x3FFF;
-                const bool literal = (value & 0xC000) == 0;
-                const int scaled = scaleX * count / 1024;
-                const u8* pixels = code + 2;
+                const int count = value & RleHeader::CountMask;
+                const bool literal = (value & RleHeader::KindMask) == 0;
+                const int scaled = scaleX * count / kZoomUnit;
+                const u8* pixels = code + sizeof(u16);
                 const std::ptrdiff_t next = dest - scaled;
                 const std::ptrdiff_t fromLeft = next - rowClipLeft;
                 const std::ptrdiff_t over = dest - rowClipRight;
@@ -345,16 +348,16 @@ void Painter::DrawZoomedMirrored(int x, int y, int width, int height)
                     else
                     {
                         std::ptrdiff_t out = dest;
-                        columnFraction %= 0x400;
+                        columnFraction %= kZoomUnit;
                         bool stopped = false;
 
                         for (int i = 0; i < count && !stopped; ++i)
                         {
                             columnFraction += scaleX;
 
-                            while (columnFraction >= 0x400)
+                            while (columnFraction >= kZoomUnit)
                             {
-                                columnFraction -= 0x400;
+                                columnFraction -= kZoomUnit;
 
                                 if (out < lower)
                                 {
@@ -374,7 +377,7 @@ void Painter::DrawZoomedMirrored(int x, int y, int width, int height)
                 }
 
                 dest = next;
-                code += literal ? 2 + 2 * count : 2;
+                code += literal ? sizeof(u16) + sizeof(u16) * count : sizeof(u16);
             }
 
             ++row;
@@ -383,7 +386,7 @@ void Painter::DrawZoomedMirrored(int x, int y, int width, int height)
             rowDest += pitch;
         }
 
-        line += Word(line) & 0x3FFF;
+        line += Word(line) & RleHeader::CountMask;
 
         if (Word(line) == 0)
         {

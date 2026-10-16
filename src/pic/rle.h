@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <span>
@@ -15,6 +16,20 @@ class Painter;
 
 struct RleHeader
 {
+    // The format (see RleCodec): a header of HeaderWords words, then lines of run codes.
+    static constexpr u16 Magic = 0xFFFF;
+    static constexpr std::size_t HeaderWords = 4;
+    static constexpr std::size_t HeaderBytes = HeaderWords * sizeof(u16);
+    static constexpr std::size_t FormatWord = 3;
+    static constexpr u16 TrueColor = 0x10;       // format: 16-bit pixels
+    static constexpr u16 Indexed = 8;            // format: palette indices
+    static constexpr u16 LengthMask = 0x7FFF;    // a line header: its byte length
+    static constexpr u16 LiteralStart = 0x8000;  // and whether it starts with literal pixels
+    static constexpr u16 CountMask = 0x3FFF;     // a run code: its pixel count
+    static constexpr u16 FillRun = 0x4000;
+    static constexpr u16 SkipRun = 0x8000;
+    static constexpr u16 KindMask = FillRun | SkipRun;
+
     u16 width = 0;
     u16 height = 0;
     u16 format = 0;

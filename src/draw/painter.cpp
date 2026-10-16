@@ -1,7 +1,10 @@
 #include "draw/painter.h"
 
+#include <array>
 #include <cstring>
 
+#include "core/words.h"
+#include "platform/display.h"
 #include "platform/surface.h"
 
 namespace swd3
@@ -10,10 +13,30 @@ namespace swd3
 namespace
 {
 
+// The channel masks of the display formats, and where each channel starts.
+constexpr u32 kRed555 = 0x7C00;
+constexpr u32 kGreen555 = 0x3E0;
+constexpr u32 kBlue5 = 0x1F;
+constexpr u32 kRed565 = 0xF800;
+constexpr u32 kGreen565 = 0x7E0;
+constexpr u32 kGreenAt6 = 0x7C0;  // a 5-bit green at bits 6..10
+constexpr u32 kBlue6 = 0x3F;
+constexpr u32 kBlueAt1 = 0x3E;  // a 5-bit blue at bits 1..5
+constexpr u32 kRed6 = 0xFC00;
+constexpr int kRed555Shift = 10;
+constexpr int kGreen555Shift = 5;
+constexpr int kRed565Shift = 11;
+constexpr int kGreenAt6Shift = 6;
+constexpr int kBlueAt1Shift = 1;
+constexpr std::size_t kChannels = 3;
+constexpr int kChannelBits = 5;
+constexpr u32 kChannelMask = (1u << kChannelBits) - 1;
+constexpr int kDitherOffset = Display::Height;  // the dither phase counts from the screen height
+
 u16 ReadPixel(const u8* bytes)
 {
     u16 value = 0;
-    std::memcpy(&value, bytes, 2);
+    std::memcpy(&value, bytes, sizeof(value));
     return value;
 }
 
@@ -88,7 +111,7 @@ void ConvertBack(Painter::Conversion conversion, std::span<u16> pixels)
 
 u32 ColorChannel::Ramp(int index) const
 {
-    return this->ramp[static_cast<std::size_t>(index + 32)];
+    return this->ramp[static_cast<std::size_t>(index + ColorChannel::Levels)];
 }
 
 // Ready to draw once Init has set the format and the screen (the tables of 0x00416D90 are built here as well).
@@ -152,7 +175,7 @@ void Painter::BuildBlitTables()
     rle(Painter::ScaledGlow, &Painter::BlitScaledGlow, &Painter::BlitScaledGlowMirrored);
     rle(Painter::Subtractive, &Painter::BlitSubtractive, &Painter::BlitSubtractiveMirrored);
 
-    constexpr u32 kRaw = 0x80;
+    constexpr u32 kRaw = Painter::RawBlitters;
     this->blitters[kRaw + Painter::RawCopy] = &Painter::BlitRawCopy;
     this->blitters[kRaw + (Painter::RawCopy | Painter::Mirror)] = &Painter::BlitRawCopyMirrored;
     this->blitters[kRaw + Painter::RawKeyed] = &Painter::BlitRawKeyed;
@@ -166,9 +189,9 @@ void Painter::BuildBlitTables()
 // the converter (RGB565 keeps a 5-bit green at bits 6..10), and the tint options are cleared.
 bool Painter::InitPixelFormat(const Surface* screen)
 {
-    u32 redMask = 0x7C00;
-    u32 greenMask = 0x3E0;
-    u32 blueMask = 0x1F;
+    u32 redMask = kRed555;
+    u32 greenMask = kGreen555;
+    u32 blueMask = kBlue5;
 
     if (screen != nullptr)
     {
@@ -187,66 +210,66 @@ bool Painter::InitPixelFormat(const Surface* screen)
     this->displayGreen = greenMask;
     this->displayBlue = blueMask;
 
-    if (redMask == 0x7C00)
+    if (redMask == kRed555)
     {
-        if (greenMask == 0x3E0 && blueMask == 0x1F)
+        if (greenMask == kGreen555 && blueMask == kBlue5)
         {
             this->conversion = Conversion::None;
             this->conversionBack = Conversion::None;
-            this->red.shift = 10;
-            this->green.shift = 5;
+            this->red.shift = kRed555Shift;
+            this->green.shift = kGreen555Shift;
             this->blue.shift = 0;
         }
     }
-    else if (redMask == 0xF800)
+    else if (redMask == kRed565)
     {
-        if (greenMask == 0x7C0)
+        if (greenMask == kGreenAt6)
         {
-            if (blueMask == 0x3F)
+            if (blueMask == kBlue6)
             {
-                blueMask = 0x3E;
+                blueMask = kBlueAt1;
                 this->conversion = Conversion::To5551;
-                this->red.shift = 11;
-                this->green.shift = 6;
-                this->blue.shift = 1;
+                this->red.shift = kRed565Shift;
+                this->green.shift = kGreenAt6Shift;
+                this->blue.shift = kBlueAt1Shift;
             }
         }
-        else if (greenMask == 0x7E0 && blueMask == 0x1F)
+        else if (greenMask == kGreen565 && blueMask == kBlue5)
         {
-            greenMask = 0x7C0;
+            greenMask = kGreenAt6;
             this->conversion = Conversion::To565;
             this->conversionBack = Conversion::To565;
-            this->red.shift = 11;
-            this->green.shift = 6;
+            this->red.shift = kRed565Shift;
+            this->green.shift = kGreenAt6Shift;
             this->blue.shift = 0;
         }
     }
-    else if (redMask == 0xFC00 && greenMask == 0x3E0 && blueMask == 0x1F)
+    else if (redMask == kRed6 && greenMask == kGreen555 && blueMask == kBlue5)
     {
-        redMask = 0xF800;
+        redMask = kRed565;
         this->conversion = Conversion::To6551;
-        this->red.shift = 11;
-        this->green.shift = 5;
+        this->red.shift = kRed565Shift;
+        this->green.shift = kGreen555Shift;
         this->blue.shift = 0;
     }
 
-    this->greenMaskPair = (greenMask << 16) | greenMask;
-    const u32 masks[3] = {redMask, greenMask, blueMask};
-    ColorChannel* channels[3] = {&this->red, &this->green, &this->blue};
+    this->greenMaskPair = MakeWords(LowWord(greenMask), LowWord(greenMask));
+    const std::array<u32, kChannels> masks = {redMask, greenMask, blueMask};
+    const std::array<ColorChannel*, kChannels> channels = {&this->red, &this->green, &this->blue};
 
-    for (int i = 0; i < 3; ++i)
+    for (std::size_t i = 0; i < kChannels; ++i)
     {
         ColorChannel& channel = *channels[i];
-        channel.mask = masks[i] & 0xFFFF;
-        channel.halves[0] = masks[i] & 0xFFFF;
-        channel.inverseMask = 0xFFFFFFFFu - channel.mask;
+        channel.mask = LowWord(masks[i]);
+        channel.halves[0] = LowWord(masks[i]);
+        channel.inverseMask = ~channel.mask;
     }
 
-    for (int k = 0; k < 5; ++k)
+    for (std::size_t k = 0; k < ColorChannel::Shifts; ++k)
     {
         u32 pair = 0;
 
-        for (int i = 0; i < 3; ++i)
+        for (std::size_t i = 0; i < kChannels; ++i)
         {
             ColorChannel& channel = *channels[i];
             channel.steps[k] = static_cast<u32>(k + 1) << channel.shift;
@@ -254,33 +277,30 @@ bool Painter::InitPixelFormat(const Surface* screen)
             pair |= channel.halves[k + 1];
         }
 
-        this->halfMaskPairs[k] = (pair << 16) | pair;
+        this->halfMaskPairs[k] = MakeWords(LowWord(pair), LowWord(pair));
     }
 
     this->rleColors = RleColors{};
-    u16 converted[3] = {
-        static_cast<u16>(this->greenMaskPair),
-        this->rleColors.fill16,
-        this->rleColors.skip16,
-    };
+    u16 green = LowWord(this->greenMaskPair);
+    u16 fill = this->rleColors.fill16;
+    u16 skip = this->rleColors.skip16;
+    this->ConvertPixels(std::span<u16>(&green, 1));
+    this->ConvertPixels(std::span<u16>(&fill, 1));
+    this->ConvertPixels(std::span<u16>(&skip, 1));
+    this->greenMaskPair = MakeWords(HighWord(this->greenMaskPair), green);
+    this->fillColorPair = MakeWords(fill, fill);
+    this->skipColorPair = MakeWords(skip, skip);
 
-    this->ConvertPixels(std::span<u16>(converted, 1));
-    this->ConvertPixels(std::span<u16>(converted + 1, 1));
-    this->ConvertPixels(std::span<u16>(converted + 2, 1));
-    this->greenMaskPair = (this->greenMaskPair & 0xFFFF0000u) | converted[0];
-    this->fillColorPair = converted[1] | (static_cast<u32>(converted[1]) << 16);
-    this->skipColorPair = converted[2] | (static_cast<u32>(converted[2]) << 16);
-
-    for (int i = 0; i < 3; ++i)
+    for (std::size_t i = 0; i < kChannels; ++i)
     {
         ColorChannel& channel = *channels[i];
-        const u32 step = channel.halves[4];
+        const u32 step = channel.halves[ColorChannel::TintHalf];
 
-        for (int k = 0; k < 32; ++k)
+        for (int k = 0; k < ColorChannel::Levels; ++k)
         {
             channel.ramp[static_cast<std::size_t>(k)] = 0;
-            channel.ramp[static_cast<std::size_t>(32 + k)] = step * static_cast<u32>(k);
-            channel.ramp[static_cast<std::size_t>(64 + k)] = masks[i];
+            channel.ramp[static_cast<std::size_t>(ColorChannel::Levels + k)] = step * static_cast<u32>(k);
+            channel.ramp[static_cast<std::size_t>(2 * ColorChannel::Levels + k)] = masks[i];
         }
     }
 
@@ -313,10 +333,12 @@ void Painter::ConvertPixelsBack(std::span<u16> pixels) const
 // swd32.exe 0x004239D0: 5-bit components to a display colour, in both halves of the result
 u32 Painter::MakeColor(u32 red, u32 green, u32 blue) const
 {
-    const auto color = static_cast<u16>((((red & 0x1F) << 5 | (green & 0x1F)) << 5) | (blue & 0x1F));
-    u16 halves[2] = {color, color};
+    const auto color = static_cast<u16>(
+        (((red & kChannelMask) << kChannelBits | (green & kChannelMask)) << kChannelBits) | (blue & kChannelMask)
+    );
+    std::array<u16, 2> halves = {color, color};
     this->ConvertPixels(halves);
-    return halves[0] | (static_cast<u32>(halves[1]) << 16);
+    return MakeWords(halves[1], halves[0]);
 }
 
 const RleColors& Painter::Rle() const
@@ -514,7 +536,7 @@ int Painter::DrawPicture(int x, int y, int width, int height, u32 mode, const Dr
     int destX = x;
     bool visible = true;
 
-    if (ReadPixel(this->source) == 0xFFFF && this->palette == nullptr)
+    if (ReadPixel(this->source) == this->rleColors.magic && this->palette == nullptr)
     {
         mode |= Painter::RleSource;
     }
@@ -525,7 +547,7 @@ int Painter::DrawPicture(int x, int y, int width, int height, u32 mode, const Dr
         {
             visible = false;
         }
-        else if (this->options.alpha > 0xF)
+        else if (this->options.alpha > Painter::MaxAlpha)
         {
             mode &= Painter::RleSource | Painter::Mirror | Painter::Flip;
         }
@@ -587,12 +609,13 @@ int Painter::DrawPicture(int x, int y, int width, int height, u32 mode, const Dr
 
         if (rows > height)
         {
-            place.scaleFraction = static_cast<u32>((height << 10) / rows);
+            place.scaleFraction = static_cast<u32>((height << Painter::FractionBits) / rows);
             place.scaleUp = true;
         }
         else
         {
-            place.scaleFraction = static_cast<u32>((height << 10) / rows - 0x400);
+            place.scaleFraction =
+                static_cast<u32>((height << Painter::FractionBits) / rows - (1 << Painter::FractionBits));
         }
 
         place.rows = rows;
@@ -630,7 +653,7 @@ int Painter::DrawPicture(int x, int y, int width, int height, u32 mode, const Dr
         place.width = width;
         const int magnitude = shear < 0 ? -shear : shear;
         const int span = this->options.scaleHeight != 0 ? this->options.scaleHeight : height;
-        place.shearStep = (magnitude << 10) / span;
+        place.shearStep = (magnitude << Painter::FractionBits) / span;
         int columns = width;
 
         if (this->clipX > x)
@@ -675,12 +698,12 @@ int Painter::DrawPicture(int x, int y, int width, int height, u32 mode, const Dr
 
         if (!rle)
         {
-            const std::size_t pixelSize = this->palette == nullptr ? 2 : 1;
+            const std::size_t pixelSize = this->palette == nullptr ? sizeof(u16) : sizeof(u8);
             place.sourceLine = this->source + (static_cast<std::size_t>(skip) * width + place.skipLeft) * pixelSize;
         }
 
-        place.ditherPhase = (destY + 0x1E0) % 3;
-        const u32 index = (mode & 0xFFFF) + (rle ? 0 : 0x80);
+        place.ditherPhase = (destY + kDitherOffset) % Painter::DitherPhases;
+        const u32 index = LowWord(mode) + (rle ? 0 : Painter::RawBlitters);
         result = this->Dispatch(index, destX, destY, width, height, argument);
     }
 
@@ -706,10 +729,10 @@ void Painter::DrawTile16(int x, int y)
     u16* dest = this->Pixel(x, y);
     const u8* tile = this->source;
 
-    for (int row = 0; row < 16; ++row)
+    for (int row = 0; row < Painter::TileSide; ++row)
     {
-        std::memcpy(dest, tile, 32);
-        tile += 32;
+        std::memcpy(dest, tile, Painter::TileSide * sizeof(u16));
+        tile += Painter::TileSide * sizeof(u16);
         dest += this->screenPitch;
     }
 }
@@ -721,12 +744,12 @@ void Painter::DrawTile16Keyed(int x, int y)
     const u8* tile = this->source;
     const u16 key = static_cast<u16>(this->fillColorPair);
 
-    for (int row = 0; row < 16; ++row)
+    for (int row = 0; row < Painter::TileSide; ++row)
     {
-        for (int column = 0; column < 16; ++column)
+        for (int column = 0; column < Painter::TileSide; ++column)
         {
             const u16 pixel = ReadPixel(tile);
-            tile += 2;
+            tile += sizeof(u16);
 
             if (pixel != key)
             {
@@ -744,9 +767,9 @@ void Painter::DrawTile8(int x, int y)
     u16* dest = this->Pixel(x, y);
     const u8* tile = this->source;
 
-    for (int row = 0; row < 16; ++row)
+    for (int row = 0; row < Painter::TileSide; ++row)
     {
-        for (int column = 0; column < 16; ++column)
+        for (int column = 0; column < Painter::TileSide; ++column)
         {
             dest[column] = this->palette[*tile++];
         }
@@ -761,13 +784,13 @@ void Painter::DrawTile8Keyed(int x, int y)
     u16* dest = this->Pixel(x, y);
     const u8* tile = this->source;
 
-    for (int row = 0; row < 16; ++row)
+    for (int row = 0; row < Painter::TileSide; ++row)
     {
-        for (int column = 0; column < 16; ++column)
+        for (int column = 0; column < Painter::TileSide; ++column)
         {
             const u8 index = *tile++;
 
-            if (index != 1)
+            if (index != Painter::KeyIndex)
             {
                 dest[column] = this->palette[index];
             }
