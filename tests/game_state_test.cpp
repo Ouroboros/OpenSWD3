@@ -9,6 +9,7 @@
 #include "game_data.h"
 #include "platform/surface.h"
 #include "res/act_state.h"
+#include "role/role_control.h"
 #include "role/role_path.h"
 #include "test.h"
 #include "ui/marching_rect.h"
@@ -40,7 +41,7 @@ TEST_CASE("game state: constant tables match swd32.exe")
         CHECK(same(copy, swd3::RolePath::kBlockedBy.data()));
     }
 
-    for (const swd3::u32 copy : {0x0049943Cu, 0x0049963Cu, 0x004994ACu})
+    for (const swd3::u32 copy : {0x0049943Cu, 0x0049963Cu, 0x004994ACu, 0x00499380u})
     {
         CHECK(same(copy, swd3::RolePath::kStepX.data()));
         CHECK(same(copy + 0x20, swd3::RolePath::kStepY.data()));
@@ -50,6 +51,10 @@ TEST_CASE("game state: constant tables match swd32.exe")
     {
         CHECK(same(copy, swd3::RolePath::kFacing.data()));
     }
+
+    CHECK(same(0x004993CC, swd3::RoleControl::kAheadX.data()));
+    CHECK(same(0x004993EC, swd3::RoleControl::kAheadY.data()));
+    CHECK(std::memcmp(exe.data() + (0x004993C0 - 0x400000), swd3::RoleControl::kRunToggle.data(), 0xC) == 0);
 }
 
 TEST_CASE("game state: story flags")

@@ -1090,8 +1090,10 @@ void Game::MainFrame()
     else
     {
         this->talk.HandlePointer();
+        this->roleControl.ControlPlayer();
 
-        if (this->running != 0 && this->inactive == 0 && this->storyState == 0)
+        if (this->running != 0 && this->inactive == 0 && this->menuState == 0 && this->inBattle == 0 &&
+            this->storyState == 0)
         {
             if (static_cast<u32>(++this->frameCounter) > 0x14)
             {

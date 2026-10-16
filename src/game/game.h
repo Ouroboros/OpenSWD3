@@ -146,6 +146,7 @@ private:
     int VideoPosition() const;
     void StopVideo();
     void VideoFrame();
+    void StartBattle(u16 battle);
 
     DialogErrorReporter errors;
     Display display;
@@ -208,6 +209,7 @@ private:
     i32 counterAlpha = 0;  // 0x004C9A24
     i32 unk4A9484 = 0;
     i32 unk4A94AC = 0;           // bit 31: a battle to start, the low word its number
+    i32 inBattle = 0;            // 0x004CAEB4 a battle from the map runs
     std::vector<u16> unk4B7928;  // the words of talk command 0x85 for menu 2, ended by 0
     i32 unk4A9A10 = 0;
     i32 unk4AB990 = 0;
