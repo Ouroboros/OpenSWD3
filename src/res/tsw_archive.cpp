@@ -8,6 +8,7 @@
 #include "codec/lzo.h"
 #include "core/debug_log.h"
 #include "core/format.h"
+#include "core/words.h"
 #include "pic/rle.h"
 #include "platform/message_box.h"
 
@@ -20,12 +21,17 @@ namespace
 constexpr u16 kEntryMagic = 0xABCD;
 constexpr u16 kPaletteFormat = 8;
 constexpr u32 kDirectoryStart = 0x1C;
+constexpr std::size_t kEntryHeaderBytes = 12;  // an entry: a dword, the magic, the frame count, the format
+constexpr std::size_t kMagicAt = 4;
+constexpr std::size_t kFrameCountAt = 6;
+constexpr std::size_t kFormatAt = 8;
+constexpr u32 kPaletteColors = 0x100;
 
 // Bucket of the cache chains: by id, map pictures by unit.
 int ChainOf(u32 id, u32 frame)
 {
-    return static_cast<u16>(id) == TswArchive::MapPicture ? static_cast<int>((frame & 0xFFFF) % 10)
-                                                          : static_cast<int>((id & 0xFFFF) % 10);
+    return static_cast<u16>(id) == TswArchive::MapPicture ? static_cast<int>((LowWord(frame)) % 10)
+                                                          : static_cast<int>(LowWord(id) % 10);
 }
 
 bool IsMagic(u32 id)
@@ -108,13 +114,13 @@ void TswArchive::OpenArchives()
 
     this->magicDirectory.fill(TswDirectoryEntry{});
     std::fill(this->magicFrames.begin(), this->magicFrames.end(), TswFrameEntry{});
-    this->ReadMagicDirectory(this->files[2]);
+    this->ReadMagicDirectory(this->files[TswArchive::MagicFile]);
     this->opened = true;
 }
 
 File* TswArchive::ArchiveOf(u32 id)
 {
-    const auto index = static_cast<std::size_t>((id & 0xFFFF) / TswArchive::IndicesPerFile);
+    const auto index = static_cast<std::size_t>(LowWord(id) / TswArchive::IndicesPerFile);
     // Ids from 18000 on index past the six handles in the original; they find no archive here.
     return index < this->files.size() ? &this->files[index] : nullptr;
 }
@@ -185,7 +191,10 @@ std::unique_ptr<Picture> TswArchive::LoadPictureDirect(u32 id, u32 frame)
     if (IsMagic(id))
     {
         this->magicMode = true;
-        this->CacheMagicFrames(this->files[2], static_cast<int>((id & 0xFFFF) % TswArchive::IndicesPerFile));
+        this->CacheMagicFrames(
+            this->files[TswArchive::MagicFile],
+            static_cast<int>(LowWord(id) % TswArchive::IndicesPerFile)
+        );
     }
 
     auto picture = std::make_unique<Picture>();
@@ -194,8 +203,8 @@ std::unique_ptr<Picture> TswArchive::LoadPictureDirect(u32 id, u32 frame)
     {
         this->LoadPictureB(
             *archive,
-            static_cast<int>((id & 0xFFFF) % TswArchive::IndicesPerFile),
-            frame & 0xFFFF,
+            static_cast<int>(LowWord(id) % TswArchive::IndicesPerFile),
+            LowWord(frame),
             *picture
         );
     }
@@ -327,7 +336,7 @@ bool TswArchive::CacheLoad(u32 id, u32 frame)
     {
         if (this->mapPictures != nullptr)
         {
-            this->mapPictures->LoadMapPicture(static_cast<int>(frame & 0xFFFF), picture);
+            this->mapPictures->LoadMapPicture(static_cast<int>(LowWord(frame)), picture);
         }
     }
     else
@@ -337,15 +346,18 @@ bool TswArchive::CacheLoad(u32 id, u32 frame)
         if (IsMagic(id))
         {
             this->magicMode = true;
-            this->CacheMagicFrames(this->files[2], static_cast<int>((id & 0xFFFF) % TswArchive::IndicesPerFile));
+            this->CacheMagicFrames(
+                this->files[TswArchive::MagicFile],
+                static_cast<int>(LowWord(id) % TswArchive::IndicesPerFile)
+            );
         }
 
         File* archive = this->ArchiveOf(id);
-        const int index = static_cast<int>((id & 0xFFFF) % TswArchive::IndicesPerFile);
+        const int index = static_cast<int>(LowWord(id) % TswArchive::IndicesPerFile);
 
-        if (archive == nullptr || !this->LoadPicture(*archive, index, frame & 0xFFFF, picture))
+        if (archive == nullptr || !this->LoadPicture(*archive, index, LowWord(frame), picture))
         {
-            DebugLog(TswArchive::LoadFailedLog, id & 0xFFFF, frame & 0xFFFF);
+            DebugLog(TswArchive::LoadFailedLog, LowWord(id), LowWord(frame));
             return false;
         }
 
@@ -438,24 +450,24 @@ bool TswArchive::OpenFile(File& file, const std::string& name)
 // entry
 bool TswArchive::ReadHeader(File& file, FrameInfo& info, u16& frameCount)
 {
-    u8 header[12] = {};
+    u8 header[kEntryHeaderBytes] = {};
     u32 bytes = sizeof(header);
     file.Read(header, bytes);
     u16 magic = 0;
-    std::memcpy(&magic, header + 4, 2);
+    std::memcpy(&magic, header + kMagicAt, sizeof(magic));
 
     if (magic != kEntryMagic)
     {
         return false;
     }
 
-    std::memcpy(&frameCount, header + 6, 2);
-    std::memcpy(&info.format, header + 8, 2);
+    std::memcpy(&frameCount, header + kFrameCountAt, sizeof(frameCount));
+    std::memcpy(&info.format, header + kFormatAt, sizeof(info.format));
 
     if (info.format == kPaletteFormat)
     {
-        info.palette.assign(256, 0);
-        u32 paletteBytes = 0x200;
+        info.palette.assign(kPaletteColors, 0);
+        u32 paletteBytes = kPaletteColors * sizeof(u16);
         file.Read(info.palette.data(), paletteBytes);
     }
 
@@ -514,7 +526,7 @@ bool TswArchive::LoadPicture(File& file, int index, u32 frame, Picture& picture)
     }
     else
     {
-        file.Seek(File::Origin::Begin, static_cast<i32>(sizeof(TswDirectoryEntry)) * index - 0x10);
+        file.Seek(File::Origin::Begin, static_cast<i32>(kDirectoryStart + sizeof(TswDirectoryEntry) * (index - 1)));
         ReadValue(file, entry);
         file.Seek(File::Origin::Begin, static_cast<i32>(entry.offset));
         u16 count = 0;
@@ -643,7 +655,7 @@ bool TswArchive::LoadPictureB(File& file, int index, u32 frame, Picture& picture
     }
     else
     {
-        file.Seek(File::Origin::Begin, static_cast<i32>(sizeof(TswDirectoryEntry)) * index - 0x10);
+        file.Seek(File::Origin::Begin, static_cast<i32>(kDirectoryStart + sizeof(TswDirectoryEntry) * (index - 1)));
         ReadValue(file, entry);
         file.Seek(File::Origin::Begin, static_cast<i32>(entry.offset));
         u16 count = 0;

@@ -5,6 +5,7 @@
 #include "crt/msvc.h"
 #include "draw/painter.h"
 #include "gfx/graphics.h"
+#include "platform/display.h"
 #include "platform/surface.h"
 
 namespace swd3
@@ -15,14 +16,24 @@ namespace
 
 constexpr int kBufferWidth = 0x500;
 constexpr int kBufferHeight = 0x300;
-constexpr int kScreenWidth = 0x280;
-constexpr int kScreenHeight = 0x1E0;
+constexpr int kScreenWidth = Display::Width;
+constexpr int kScreenHeight = Display::Height;
 constexpr double kDegree = 0.017444444444444446;
 constexpr u16 kMirrored = 1;
 constexpr u16 kMixed = 0x16;
 constexpr u16 kWithinRange = 0x40;
 constexpr u16 kWithinBurst = 0x80;
 constexpr int kFactorRange = 0x1C;
+constexpr int kQuarterTurn = 90;  // the direction tables are in degrees
+constexpr int kHalfTurn = 2 * kQuarterTurn;
+constexpr int kThreeQuarterTurn = 3 * kQuarterTurn;
+constexpr int kFullTurn = 4 * kQuarterTurn;
+constexpr i32 kSlopeUnit = 1000;       // a direction steps kSlopeUnit across
+constexpr i32 kSteepSlope = 100000;    // the slope of a straight up or down direction
+constexpr int kScaleBits = 10;         // Picture scales are in 1/1024
+constexpr int kSlowShare = 20;         // a twentieth of the opaque pixels fly slowly
+constexpr std::size_t kLowerLeft = 2;  // a particle is two by two pixels
+constexpr std::size_t kLowerRight = 3;
 
 void FillRows(std::vector<i32>& table, int width, int height)
 {
@@ -51,37 +62,39 @@ Projector::Projector()
     this->SetScreenRows(kScreenWidth, kScreenHeight);
     this->SetClip(0, 0, kScreenWidth, kScreenHeight);
 
-    for (int angle = 0; angle < 0x5A; ++angle)
+    for (int angle = 0; angle < kQuarterTurn; ++angle)
     {
-        this->dirX[static_cast<std::size_t>(angle)] = -1000;
-        const double slope = std::tan(static_cast<double>(angle) * kDegree) * -1000.0;
+        this->dirX[static_cast<std::size_t>(angle)] = -kSlopeUnit;
+        const double slope = std::tan(static_cast<double>(angle) * kDegree) * -static_cast<double>(kSlopeUnit);
         this->dirY[static_cast<std::size_t>(angle)] = static_cast<i32>(crt::Ftol(slope));
     }
 
-    for (int step = 0; step < 0x59; ++step)
+    for (int step = 0; step < kQuarterTurn - 1; ++step)
     {
-        this->dirX[static_cast<std::size_t>(0x5B + step)] = 1000;
-        this->dirY[static_cast<std::size_t>(0x5B + step)] = this->dirY[static_cast<std::size_t>(0x58 - step)];
+        this->dirX[static_cast<std::size_t>(kQuarterTurn + 1 + step)] = kSlopeUnit;
+        this->dirY[static_cast<std::size_t>(kQuarterTurn + 1 + step)] =
+            this->dirY[static_cast<std::size_t>(kQuarterTurn - 2 - step)];
     }
 
-    for (int angle = 0; angle < 0x5A; ++angle)
+    for (int angle = 0; angle < kQuarterTurn; ++angle)
     {
-        this->dirX[static_cast<std::size_t>(0xB4 + angle)] = 1000;
-        this->dirY[static_cast<std::size_t>(0xB4 + angle)] = -this->dirY[static_cast<std::size_t>(angle)];
+        this->dirX[static_cast<std::size_t>(kHalfTurn + angle)] = kSlopeUnit;
+        this->dirY[static_cast<std::size_t>(kHalfTurn + angle)] = -this->dirY[static_cast<std::size_t>(angle)];
     }
 
-    for (int step = 0; step < 0x59; ++step)
+    for (int step = 0; step < kQuarterTurn - 1; ++step)
     {
-        this->dirX[static_cast<std::size_t>(0x10F + step)] = -1000;
-        this->dirY[static_cast<std::size_t>(0x10F + step)] = -this->dirY[static_cast<std::size_t>(0x58 - step)];
+        this->dirX[static_cast<std::size_t>(kThreeQuarterTurn + 1 + step)] = -kSlopeUnit;
+        this->dirY[static_cast<std::size_t>(kThreeQuarterTurn + 1 + step)] =
+            -this->dirY[static_cast<std::size_t>(kQuarterTurn - 2 - step)];
     }
 
-    this->dirY[0xB4] = 0;
-    this->dirX[0x5A] = 0;
-    this->dirX[0x10E] = 0;
-    this->dirX[0xB4] = 100000;
-    this->dirY[0x5A] = -100000;
-    this->dirY[0x10E] = 100000;
+    this->dirY[kHalfTurn] = 0;
+    this->dirX[kQuarterTurn] = 0;
+    this->dirX[kThreeQuarterTurn] = 0;
+    this->dirX[kHalfTurn] = kSteepSlope;
+    this->dirY[kQuarterTurn] = -kSteepSlope;
+    this->dirY[kThreeQuarterTurn] = kSteepSlope;
 }
 
 // swd32.exe 0x00433D70
@@ -98,7 +111,7 @@ int Projector::Init(const Graphics& graphics)
     i32 pitch = 0;
     i32 height = 0;
     graphics.BackSize(pitch, height);
-    pitch /= 2;
+    pitch /= static_cast<i32>(sizeof(Pixel));
     this->SetScreenRows(pitch, height);
     this->SetClip(0, 0, pitch, height);
     return this->SetBufferRows(kBufferWidth, kBufferHeight);
@@ -304,12 +317,12 @@ void Projector::DrawScaled(Surface& surface, Painter& painter, const ProjectedPi
     const u16 skip = painter.Rle().skip16;
     const int width = picture.width;
     const int left = picture.x;
-    const int columns = (width << 10) / picture.scaleX;
-    const int rows = (picture.height << 10) / picture.scaleY;
+    const int columns = (width << kScaleBits) / picture.scaleX;
+    const int rows = (picture.height << kScaleBits) / picture.scaleY;
     DirectionWalker outer;
     DirectionWalker inner;
     outer.angle = picture.angle;
-    inner.angle = (picture.angle + 0x5A) % 0x168;
+    inner.angle = (picture.angle + kQuarterTurn) % kFullTurn;
     outer.y = picture.y;
     outer.x = left;
     int sourceRow = 0;
@@ -357,11 +370,11 @@ void Projector::DrawScaled(Surface& surface, Painter& painter, const ProjectedPi
             }
 
             columnAccumulator += picture.scaleX;
-            column = columnAccumulator >> 10;
+            column = columnAccumulator >> kScaleBits;
         }
 
         rowAccumulator += picture.scaleY;
-        sourceRow = width * (rowAccumulator >> 10);
+        sourceRow = width * (rowAccumulator >> kScaleBits);
     }
 }
 
@@ -539,7 +552,7 @@ int Projector::DrawExplosion(Surface& surface, Painter& painter, crt::Random& ra
             }
         }
 
-        effect.slowLimit = effect.opaque / 20;
+        effect.slowLimit = effect.opaque / kSlowShare;
         effect.burstStep = pixelCount / effect.bursts;
     }
 
@@ -661,26 +674,26 @@ int Projector::DrawExplosion(Surface& surface, Painter& painter, crt::Random& ra
 
                 if (mixed)
                 {
-                    if (particle->pixels[2] != fill)
+                    if (particle->pixels[kLowerLeft] != fill)
                     {
-                        Mix(painter, particle->pixels[2], line[0]);
+                        Mix(painter, particle->pixels[kLowerLeft], line[0]);
                     }
 
-                    if (particle->pixels[3] != fill)
+                    if (particle->pixels[kLowerRight] != fill)
                     {
-                        Mix(painter, particle->pixels[3], line[1]);
+                        Mix(painter, particle->pixels[kLowerRight], line[1]);
                     }
                 }
                 else
                 {
-                    if (particle->pixels[2] != fill)
+                    if (particle->pixels[kLowerLeft] != fill)
                     {
-                        line[0] = particle->pixels[2];
+                        line[0] = particle->pixels[kLowerLeft];
                     }
 
-                    if (particle->pixels[3] != fill)
+                    if (particle->pixels[kLowerRight] != fill)
                     {
-                        line[1] = particle->pixels[3];
+                        line[1] = particle->pixels[kLowerRight];
                     }
                 }
             }

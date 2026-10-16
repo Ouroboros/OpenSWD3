@@ -1,9 +1,12 @@
 #include "pic/picture_ops.h"
 
 #include <algorithm>
+#include <climits>
 #include <cstring>
 
+#include "core/words.h"
 #include "pic/picture.h"
+#include "pic/rle.h"
 
 namespace swd3
 {
@@ -11,10 +14,10 @@ namespace swd3
 namespace
 {
 
-constexpr u16 kRleMark = 0xFFFF;
-constexpr u32 kRunFlags = 0xC000;
-constexpr std::size_t kHeaderWords = 4;
-constexpr std::size_t kRowHeaderBytes = 4;
+constexpr u16 kRleMark = RleHeader::Magic;
+constexpr u32 kRunFlags = RleHeader::KindMask;
+constexpr std::size_t kHeaderWords = RleHeader::HeaderWords;
+constexpr std::size_t kRowHeaderBytes = 2 * sizeof(u16);
 constexpr int kRowExtraWords = 3;
 
 // The word at `index` of the data; words past the end read as 0.
@@ -61,7 +64,7 @@ int PictureHitTest(const Picture& picture, int x, int y, int originX, int origin
             break;
         }
 
-        code += (WordAt(picture.data, code) >> 1) & 0x3FFF;
+        code += (WordAt(picture.data, code) & RleHeader::LengthMask) / sizeof(u16);
     }
 
     if (WordAt(picture.data, code) == 0)
@@ -78,7 +81,7 @@ int PictureHitTest(const Picture& picture, int x, int y, int originX, int origin
 
         if ((run & kRunFlags) != 0)
         {
-            const u32 count = (run + 0x4000) & 0xFFFF;
+            const u32 count = LowWord(run + RleHeader::FillRun);
 
             if (column >= position && column <= static_cast<int>(count) + position)
             {
@@ -113,23 +116,23 @@ void ShiftPicture(std::vector<u8>& data, ShiftMode mode, int amount)
         return;
     }
 
-    const int width = WordAt(data, 1);
-    const int height = WordAt(data, 2);
-    const std::size_t first = 2 * kHeaderWords;
+    const int width = WordAt(data, RleHeader::WidthWord);
+    const int height = WordAt(data, RleHeader::HeightWord);
+    const std::size_t first = sizeof(u16) * kHeaderWords;
 
-    if (data.size() < first + 2)
+    if (data.size() < first + sizeof(u16))
     {
         return;
     }
 
-    data[first + 1] &= 0x7F;
+    data[first + 1] &= static_cast<u8>(~(RleHeader::LiteralStart >> CHAR_BIT));
 
     if ((WordAt(data, kHeaderWords) & kRunFlags) != 0)
     {
         return;
     }
 
-    const auto rowBytes = static_cast<std::size_t>(2 * (width + kRowExtraWords));
+    const auto rowBytes = sizeof(u16) * static_cast<std::size_t>(width + kRowExtraWords);
     const bool vertical = mode == ShiftMode::Up || mode == ShiftMode::Down;
 
     if ((vertical && amount > height) || (!vertical && amount > width) ||
@@ -174,8 +177,8 @@ void ShiftPicture(std::vector<u8>& data, ShiftMode mode, int amount)
         case ShiftMode::Left:
         case ShiftMode::Right:
         {
-            const std::size_t pixelBytes = rowBytes - 6;
-            const auto shifted = static_cast<std::size_t>(2 * amount);
+            const std::size_t pixelBytes = rowBytes - sizeof(u16) * kRowExtraWords;
+            const auto shifted = sizeof(u16) * static_cast<std::size_t>(amount);
             std::vector<u8> saved(pixelBytes);
 
             for (int row = 0; row < height; ++row)

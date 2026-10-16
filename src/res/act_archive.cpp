@@ -5,6 +5,7 @@
 
 #include "core/debug_log.h"
 #include "core/format.h"
+#include "core/words.h"
 #include "platform/message_box.h"
 
 namespace swd3
@@ -14,6 +15,10 @@ namespace
 {
 
 constexpr int kDirectoryRecordBytes = 0x2C;
+constexpr int kDirectoryStart = 0x1C;       // the directory records, from entry 1
+constexpr std::size_t kRecordSizeWord = 5;  // a record: its size and offset dwords
+constexpr std::size_t kRecordOffsetWord = 6;
+constexpr i16 kDelayMask = 0x7FFF;  // a negative speed sets the delay to its low bits
 
 int ChainOf(int id, int sub)
 {
@@ -105,9 +110,9 @@ ActScript ActArchive::ExtractEntry(const std::vector<u8>& data, int index, u32& 
         return nullptr;
     }
 
-    std::size_t table = 2 + 4 * static_cast<std::size_t>(index);
+    std::size_t table = sizeof(u16) + sizeof(u32) * static_cast<std::size_t>(index);
     const u32 start = ReadDword(data, table);
-    table += 4;
+    table += sizeof(u32);
 
     if (start == 0)
     {
@@ -120,10 +125,10 @@ ActScript ActArchive::ExtractEntry(const std::vector<u8>& data, int index, u32& 
     {
         u32 next = 0;
 
-        while (next == 0 && table + 4 <= data.size())
+        while (next == 0 && table + sizeof(u32) <= data.size())
         {
             next = ReadDword(data, table);
-            table += 4;
+            table += sizeof(u32);
         }
 
         if (next != 0)
@@ -338,21 +343,23 @@ void ActArchive::SetUseCache(int value)
 // swd32.exe 0x00433090: reads the directory record of the entry into the front of its index chain
 void ActArchive::IndexInsert(File& file, int fileIndex, int entry, u32& offset, u32& size)
 {
-    const int chain = (entry % 10) & 0xFFFF;
+    const int chain = LowWord(static_cast<u32>(entry % ActArchive::Chains));
     ++this->indexCounts[static_cast<std::size_t>(chain)];
-    u32 record[kDirectoryRecordBytes / 4] = {};
-    file.Seek(File::Origin::Begin, kDirectoryRecordBytes * entry - 0x10);
+    u32 record[kDirectoryRecordBytes / sizeof(u32)] = {};
+    file.Seek(File::Origin::Begin, kDirectoryStart + kDirectoryRecordBytes * (entry - 1));
     u32 bytes = kDirectoryRecordBytes;
     file.Read(record, bytes);
-    this->index[static_cast<std::size_t>(chain)].push_front(IndexEntry{fileIndex, entry, record[6], record[5]});
-    offset = record[6];
-    size = record[5];
+    this->index[static_cast<std::size_t>(chain)].push_front(
+        IndexEntry{fileIndex, entry, record[kRecordOffsetWord], record[kRecordSizeWord]}
+    );
+    offset = record[kRecordOffsetWord];
+    size = record[kRecordSizeWord];
 }
 
 // swd32.exe 0x00433190: a found record moves to the front of its chain
 void ActArchive::IndexLookup(int fileIndex, int entry, u32& offset, u32& size)
 {
-    std::list<IndexEntry>& records = this->index[static_cast<std::size_t>((entry % 10) & 0xFFFF)];
+    std::list<IndexEntry>& records = this->index[LowWord(static_cast<u32>(entry % ActArchive::Chains))];
 
     for (auto record = records.begin(); record != records.end(); ++record)
     {
@@ -461,13 +468,13 @@ int ActArchive::Run(ActState& state)
 
     auto word = [&script](u16 index) -> u16
     {
-        if (2 * static_cast<std::size_t>(index) + 2 > script.size())
+        if (sizeof(u16) * (static_cast<std::size_t>(index) + 1) > script.size())
         {
             return static_cast<u16>(ActOpcode::EndFrame);
         }
 
         u16 value = 0;
-        std::memcpy(&value, script.data() + 2 * static_cast<std::size_t>(index), 2);
+        std::memcpy(&value, script.data() + sizeof(u16) * static_cast<std::size_t>(index), sizeof(u16));
         return value;
     };
 
@@ -507,7 +514,7 @@ int ActArchive::Run(ActState& state)
 
         if (speed < 0)
         {
-            state.delay = static_cast<u16>(speed & 0x7FFF);
+            state.delay = static_cast<u16>(speed & kDelayMask);
         }
 
         switch (code)
@@ -556,7 +563,7 @@ int ActArchive::Run(ActState& state)
 
                 if (speed < 0)
                 {
-                    state.delay = static_cast<u16>(speed & 0x7FFF);
+                    state.delay = static_cast<u16>(speed & kDelayMask);
                 }
 
                 break;
@@ -611,12 +618,12 @@ int ActArchive::Run(ActState& state)
             {
                 const u16 at = state.position;
 
-                for (int i = 0; i < 7; ++i)
+                for (int i = 0; i < ActState::Lights; ++i)
                 {
                     state.lights[i] = word(static_cast<u16>(at + i));
                 }
 
-                state.position = static_cast<u16>(at + 7);
+                state.position = static_cast<u16>(at + ActState::Lights);
                 break;
             }
 

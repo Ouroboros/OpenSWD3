@@ -83,6 +83,7 @@ public:
     };
 
     static constexpr int FileCount = 6;
+    static constexpr std::size_t MagicFile = 2;  // all_magic.tsw
     static constexpr int IndicesPerFile = 3000;
     static constexpr int Chains = 10;
     static constexpr int MagicSlots = 5;
