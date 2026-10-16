@@ -15,5 +15,15 @@ void FreeShopBuffers();
 void FilterItemsByKind(std::uint8_t** source, std::uint8_t* target, int kind);
 void CountListD64();
 void ReturnListD70();
+int DrawMenuPicture(int id, int frame, int x, int y);
+std::int32_t* CopyHeroStats(std::int32_t* stats);
+void FilterItemsByType(std::uint8_t** source, std::uint8_t* target, int type);
+void CountListFBC();
+void ReturnListFC0();
+void CountStatusPages();
+int ReturnThree();
+void MenuPreviousPage();
+void MenuNextPage();
+void InitNumberList();
 
 }  // namespace swd3

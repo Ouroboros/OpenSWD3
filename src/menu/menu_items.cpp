@@ -7,6 +7,8 @@
 #include "crt/crt.h"
 #include "data/globals.h"
 #include "data/image.h"
+#include "draw/draw.h"
+#include "res/tsw.h"
 #include "game/game_state.h"
 #include "swd3/w32.h"
 
@@ -241,6 +243,163 @@ void ReturnListD70() {
             G.inventory = item;
         }
     }
+}
+
+// swd32.exe 0x00442960: frame `frame` of picture `id` at (x, y), kept in G.dword_4FCD60
+int DrawMenuPicture(int id, int frame, int x, int y) {
+    Picture* picture = TswGetPicture(static_cast<uint32_t>(id), static_cast<uint32_t>(frame));
+    G.dword_4FCD60 = static_cast<std::int32_t>(reinterpret_cast<std::uintptr_t>(picture));
+    G.drawSource = reinterpret_cast<uint8_t*>(picture->pixels);
+    return DrawPicture(x, y, picture->width, picture->height, 0, 0);
+}
+
+// swd32.exe 0x00442BC0: the fifteen stat words +4..+0x20 and the words +0x26 / +0x28 of the hero data at
+// G.dword_4FCD4C, sign extended
+std::int32_t* CopyHeroStats(std::int32_t* stats) {
+    const auto* data = reinterpret_cast<const uint8_t*>(static_cast<std::uintptr_t>(G.dword_4FCD4C));
+    for (int i = 0; i < 0xF; ++i) {
+        stats[i] = mem::s16(data, 4 + 2 * i);
+    }
+    stats[0xF] = mem::s16(data, 0x26);
+    stats[0x10] = mem::s16(data, 0x28);
+    return stats;
+}
+
+// swd32.exe 0x00444DB0: moves the items of `source` whose target type (+0x5E) is table 0x00499CDC[`type`] or 0 into
+// the sorted list `target`. The return value is unused by callers.
+void FilterItemsByType(uint8_t** source, uint8_t* target, int type) {
+    auto* link = reinterpret_cast<uint8_t*>(source);
+    mem::put32(target, 0, 0);
+    mem::put16(target, 8, 0);
+    uint8_t* item = *source;
+    while (item != nullptr) {
+        const uint16_t itemType = mem::u16(item, 0x5E);
+        if (itemType != image::at<uint32_t>(0x00499CDCu + 4u * static_cast<uint32_t>(type)) && itemType != 0) {
+            item = mem::ptr<uint8_t>(item, 0);
+            link = mem::ptr<uint8_t>(link, 0);
+            continue;
+        }
+        uint8_t* previous = target;
+        uint8_t* current = mem::ptr<uint8_t>(target, 0);
+        const uint16_t id = mem::u16(item, 4);
+        while (current != nullptr) {
+            if (mem::u16(current, 4) >= id && mem::u16(previous, 4) < id) {
+                break;
+            }
+            current = mem::ptr<uint8_t>(current, 0);
+            previous = mem::ptr<uint8_t>(previous, 0);
+        }
+        uint8_t* moved = item;
+        mem::putPtr(link, 0, mem::ptr<uint8_t>(item, 0));
+        item = mem::ptr<uint8_t>(item, 0);
+        if (current == nullptr || mem::ptr<uint8_t>(target, 0) != nullptr) {
+            mem::putPtr(moved, 0, mem::ptr<uint8_t>(previous, 0));
+            mem::putPtr(previous, 0, moved);
+        } else {
+            mem::putPtr(target, 0, moved);
+            mem::putPtr(moved, 0, static_cast<uint8_t*>(nullptr));
+        }
+    }
+}
+
+// swd32.exe 0x00444E50: counts the list at G.dword_4FCFBC (at most 24) into G.dword_4FCFA0. The return value is
+// unused by callers.
+void CountListFBC() {
+    G.dword_4FCFA0 = 0;
+    for (auto* node = reinterpret_cast<uint8_t*>(static_cast<std::uintptr_t>(G.dword_4FCFBC));
+         node != nullptr && G.dword_4FCFA0 < 0x18; node = mem::ptr<uint8_t>(node, 0)) {
+        ++G.dword_4FCFA0;
+    }
+}
+
+// swd32.exe 0x00444F00: the items of the list at 0x004FCFC0 go to the front of the item list of the current hero
+// (sentinel G.itemLists[G.dword_4FBECC]); empty ones are freed. The return value is unused by callers.
+void ReturnListFC0() {
+    auto& head = image::at<std::uint32_t>(0x004FCFC0u);
+    for (auto* item = reinterpret_cast<uint8_t*>(static_cast<std::uintptr_t>(head)); item != nullptr;
+         item = reinterpret_cast<uint8_t*>(static_cast<std::uintptr_t>(head))) {
+        head = mem::u32(item, 0);
+        if (mem::u16(item, 4) == 0xFFDC) {
+            crt::free(item);
+            continue;
+        }
+        uint8_t* sentinel = G.itemLists[static_cast<uint16_t>(G.dword_4FBECC)];
+        mem::putPtr(item, 0, mem::ptr<uint8_t>(sentinel, 0));
+        mem::putPtr(G.itemLists[static_cast<uint16_t>(G.dword_4FBECC)], 0, item);
+    }
+}
+
+// swd32.exe 0x00444F60: 3 pages, one more for each of the game flags 2 * G.dword_4FCFAC + 0x15 / + 0x16. The return
+// value is unused by callers.
+void CountStatusPages() {
+    G.dword_4FCFB0 = 3;
+    if (GameFlag(2 * G.dword_4FCFAC + 0x15)) {
+        ++G.dword_4FCFB0;
+    }
+    if (GameFlag(2 * G.dword_4FCFAC + 0x16)) {
+        ++G.dword_4FCFB0;
+    }
+}
+
+// swd32.exe 0x00444FB0
+int ReturnThree() { return 3; }
+
+namespace {
+
+void showPage(uint16_t page) {
+    const auto offset = static_cast<std::int16_t>(page * 6 - 0x24);
+    G.word_4FB8A8 = offset;
+    G.word_4FC200 = offset;
+    G.dword_4FB978 = page + 0x29;
+    if (GameFlag(0x49) == 1) {
+        if (G.dword_4FB978 == 0x38) {
+            G.dword_4FB978 = 0x39;
+        } else if (G.dword_4FB978 == 0x39) {
+            G.dword_4FB978 = 0x38;
+        }
+    }
+    PlaySound(0x8B, G.soundVolume);
+}
+
+}  // namespace
+
+// swd32.exe 0x00445210: previous page (not below 11; with game flag 0x49 pages 0x38 / 0x39 swap acts). The return
+// value is unused by callers.
+void MenuPreviousPage() {
+    auto page = static_cast<uint16_t>(G.dword_4FC3C4 - 1);
+    if (page <= 0xA) {
+        page = 0xB;
+    }
+    G.dword_4FC3C4 = static_cast<std::int32_t>((static_cast<uint32_t>(G.dword_4FC3C4) & 0xFFFF0000u) | page);
+    showPage(page);
+}
+
+// swd32.exe 0x004452B0: next page (not above 15, 16 with game flag 0x49). The return value is unused by callers.
+void MenuNextPage() {
+    uint16_t last = 0xF;
+    if (GameFlag(0x49)) {
+        last = 0x10;
+    }
+    auto page = static_cast<uint16_t>(G.dword_4FC3C4 + 1);
+    if (page > last) {
+        page = last;
+    }
+    G.dword_4FC3C4 = static_cast<std::int32_t>((static_cast<uint32_t>(G.dword_4FC3C4) & 0xFFFF0000u) | page);
+    showPage(page);
+}
+
+// swd32.exe 0x00447FD0: numbers 100.. in the 13 words at 0x004A6A00, then the list at G.dword_4FD150 is counted (at
+// most 13) into G.dword_4FD298 and its end marked with 0. The return value is unused by callers.
+void InitNumberList() {
+    for (int i = 0; i < 0xD; ++i) {
+        image::at<uint16_t>(0x004A6A00u + 2u * static_cast<uint32_t>(i)) = static_cast<uint16_t>(i + 0x64);
+    }
+    G.dword_4FD298 = 0;
+    for (auto* node = reinterpret_cast<uint8_t*>(static_cast<std::uintptr_t>(G.dword_4FD150));
+         node != nullptr && G.dword_4FD298 < 0xD; node = mem::ptr<uint8_t>(node, 0)) {
+        ++G.dword_4FD298;
+    }
+    image::at<uint16_t>(0x004A6A00u + 2u * static_cast<uint32_t>(G.dword_4FD298)) = 0;
 }
 
 }  // namespace swd3
