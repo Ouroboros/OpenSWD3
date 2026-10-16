@@ -43,3 +43,13 @@ void DialogErrorReporter::ShowError(std::string_view title, std::string_view tex
 }
 
 }  // namespace swd3
+
+namespace swd3
+{
+
+void PlaySystemBeep()
+{
+    ::MessageBeep(0);
+}
+
+}  // namespace swd3

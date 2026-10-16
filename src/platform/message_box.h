@@ -19,6 +19,9 @@ public:
     virtual void ShowError(std::string_view title, std::string_view text) = 0;
 };
 
+// MessageBeep(0): the default system sound (nothing where there is none).
+void PlaySystemBeep();
+
 class DialogErrorReporter : public ErrorReporter
 {
 public:

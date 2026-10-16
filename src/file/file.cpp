@@ -21,7 +21,9 @@ const char* openMode(File::Access access, bool create)
     switch (access)
     {
         case File::Access::Read:
-            return "rb";
+            // OPEN_ALWAYS creates a missing file also for reading.
+            return create ? "w+b" : "rb";
+
         case File::Access::Write:
         case File::Access::ReadWrite:
             return create ? "w+b" : "r+b";
