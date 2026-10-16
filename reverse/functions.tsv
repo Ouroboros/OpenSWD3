@@ -326,13 +326,13 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 325	swd32.exe	0x00423950	sub_423950	draw	src/draw/painter.cpp:ConvertFrom565	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME; legacy: src/pic/pixel_format.cpp:PixelConvert565To555
 326	swd32.exe	0x00423990	sub_423990	draw	src/draw/painter.cpp:ConvertTo6551	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME; legacy: src/pic/pixel_format.cpp:PixelConvert6551
 327	swd32.exe	0x004239D0	sub_4239D0	draw	src/draw/painter.cpp:Painter::MakeColor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/pic/pixel_format.cpp:MakeColor
-328	swd32.exe	0x00423A10	sub_423A10	config_env		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "%sEnv.dat"
-329	swd32.exe	0x00423AF0	sub_423AF0	config_env		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "%sEnv.dat"
-330	swd32.exe	0x00423E00	sub_423E00	config_env		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "%sEnv.dat"
-331	swd32.exe	0x00423FB0	sub_423FB0	config_env		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "%sEnv.dat"
+328	swd32.exe	0x00423A10	sub_423A10	config_env	src/config/config.cpp:Config::Write	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "%sEnv.dat"
+329	swd32.exe	0x00423AF0	sub_423AF0	config_env	src/config/config.cpp:Config::Update	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "%sEnv.dat"
+330	swd32.exe	0x00423E00	sub_423E00	config_env	src/config/config.cpp:Config::SaveKeys	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "%sEnv.dat"
+331	swd32.exe	0x00423FB0	sub_423FB0	config_env	src/config/config.cpp:Config::Load	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "%sEnv.dat"
 332	swd32.exe	0x004242B0	sub_4242B0	launcher		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "a:\"
 333	swd32.exe	0x00424330	sub_424330	launcher		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between launcher anchors 0x004242B0 and 0x00424440
-334	swd32.exe	0x00424390	sub_424390	launcher		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between launcher anchors 0x004242B0 and 0x00424440
+334	swd32.exe	0x00424390	sub_424390	config_env	src/config/config.cpp:Config::SetDefaultKeys	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between launcher anchors 0x004242B0 and 0x00424440
 335	swd32.exe	0x00424440	sub_424440	launcher		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "www.softstar.com.tw"
 336	swd32.exe	0x00424910	sub_424910	launcher		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between launcher anchors 0x00424440 and 0x00424930
 337	swd32.exe	0x00424930	sub_424930	launcher		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "\shell\open\command"
@@ -1572,14 +1572,14 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1571	swd32.exe	0x004980D8	SEH_409DD0	saveload		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	EH funclet of 0x00409DD0 (handler)
 1572	swd32.exe	0x004980F0	sub_4980F0	winmain		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	EH funclet of 0x0040A0D0 (unwind action)
 1573	swd32.exe	0x004980F8	SEH_40A0D0	winmain		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	EH funclet of 0x0040A0D0 (handler)
-1574	swd32.exe	0x00498110	sub_498110	config_env		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	EH funclet of 0x00423A10 (unwind action)
-1575	swd32.exe	0x0049811B	SEH_423A10	config_env		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	EH funclet of 0x00423A10 (handler)
-1576	swd32.exe	0x00498130	sub_498130	config_env		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	EH funclet of 0x00423AF0 (unwind action)
-1577	swd32.exe	0x0049813B	SEH_423AF0	config_env		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	EH funclet of 0x00423AF0 (handler)
-1578	swd32.exe	0x00498150	sub_498150	config_env		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	EH funclet of 0x00423E00 (unwind action)
-1579	swd32.exe	0x0049815B	SEH_423E00	config_env		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	EH funclet of 0x00423E00 (handler)
-1580	swd32.exe	0x00498170	sub_498170	config_env		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	EH funclet of 0x00423FB0 (unwind action)
-1581	swd32.exe	0x0049817B	SEH_423FB0	config_env		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	EH funclet of 0x00423FB0 (handler)
+1574	swd32.exe	0x00498110	sub_498110	config_env	src/config/config.cpp:Config::Write	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	EH funclet of 0x00423A10 (unwind action)
+1575	swd32.exe	0x0049811B	SEH_423A10	config_env	src/config/config.cpp:Config::Write	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	EH funclet of 0x00423A10 (handler)
+1576	swd32.exe	0x00498130	sub_498130	config_env	src/config/config.cpp:Config::Update	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	EH funclet of 0x00423AF0 (unwind action)
+1577	swd32.exe	0x0049813B	SEH_423AF0	config_env	src/config/config.cpp:Config::Update	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	EH funclet of 0x00423AF0 (handler)
+1578	swd32.exe	0x00498150	sub_498150	config_env	src/config/config.cpp:Config::SaveKeys	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	EH funclet of 0x00423E00 (unwind action)
+1579	swd32.exe	0x0049815B	SEH_423E00	config_env	src/config/config.cpp:Config::SaveKeys	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	EH funclet of 0x00423E00 (handler)
+1580	swd32.exe	0x00498170	sub_498170	config_env	src/config/config.cpp:Config::Load	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	EH funclet of 0x00423FB0 (unwind action)
+1581	swd32.exe	0x0049817B	SEH_423FB0	config_env	src/config/config.cpp:Config::Load	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	EH funclet of 0x00423FB0 (handler)
 1582	swd32.exe	0x00498190	sub_498190	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	EH funclet of 0x00425570 (unwind action)
 1583	swd32.exe	0x0049819B	sub_49819B	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	EH funclet of 0x00425570 (unwind action)
 1584	swd32.exe	0x004981A6	sub_4981A6	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	EH funclet of 0x00425570 (unwind action)
