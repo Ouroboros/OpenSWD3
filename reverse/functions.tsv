@@ -716,13 +716,13 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 715	swd32.exe	0x00448650	sub_448650	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
 716	swd32.exe	0x00448700	sub_448700	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
 717	swd32.exe	0x00448840	sub_448840	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
-718	swd32.exe	0x00448BB0	sub_448BB0	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
-719	swd32.exe	0x00448C00	sub_448C00	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
-720	swd32.exe	0x00448C40	sub_448C40	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
-721	swd32.exe	0x00448C70	sub_448C70	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
-722	swd32.exe	0x00448CA0	sub_448CA0	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
-723	swd32.exe	0x00448DA0	sub_448DA0	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
-724	swd32.exe	0x00448EB0	sub_448EB0	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
+718	swd32.exe	0x00448BB0	sub_448BB0	menu	src/menu/menu_options.cpp:OptionCursorDown	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
+719	swd32.exe	0x00448C00	sub_448C00	menu	src/menu/menu_options.cpp:OptionCursorUp	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
+720	swd32.exe	0x00448C40	sub_448C40	menu	src/menu/menu_options.cpp:OptionCursorLast	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
+721	swd32.exe	0x00448C70	sub_448C70	menu	src/menu/menu_options.cpp:OptionCursorFirst	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
+722	swd32.exe	0x00448CA0	sub_448CA0	menu	src/menu/menu_options.cpp:OptionDecrease	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
+723	swd32.exe	0x00448DA0	sub_448DA0	menu	src/menu/menu_options.cpp:OptionIncrease	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
+724	swd32.exe	0x00448EB0	sub_448EB0	menu	src/menu/menu_options.cpp:OptionPageCursorDown	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
 725	swd32.exe	0x00448EE0	sub_448EE0	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
 726	swd32.exe	0x00449050	sub_449050	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
 727	swd32.exe	0x004490C0	sub_4490C0	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30

@@ -394,3 +394,6 @@ addr	type	name	module	notes
 0x004A6C68	char[15]	seemsText	menu	"%4s 似乎是 %4d"
 0x004A6C80	char[10]	exactValueText	menu	"%s 是 %4d"
 0x004A6C8C	char[6]	nameColumnText	menu	"%4s  "
+0x004FD2AC	std::int32_t	optionPage	menu	1: page list, 5: settings
+0x004FD2B4	std::int32_t	optionPageCursor	menu	0..3
+0x004FD2C8	std::int32_t	optionRow	menu	0..5 (sound, music, speed, flag 0x48, two levels)

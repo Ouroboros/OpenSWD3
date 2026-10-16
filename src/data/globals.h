@@ -4619,14 +4619,14 @@ struct Globals {
     std::int32_t dword_4FD2A0;  // 0x004FD2A0
     std::int32_t dword_4FD2A4;  // 0x004FD2A4
     std::uint8_t pad_4FD2A8[0x4];
-    std::int32_t dword_4FD2AC;  // 0x004FD2AC
+    std::int32_t optionPage;  // 0x004FD2AC 1: page list, 5: settings
     std::int32_t dword_4FD2B0;  // 0x004FD2B0
-    std::int32_t dword_4FD2B4;  // 0x004FD2B4
+    std::int32_t optionPageCursor;  // 0x004FD2B4 0..3
     std::int32_t dword_4FD2B8;  // 0x004FD2B8
     std::int32_t dword_4FD2BC;  // 0x004FD2BC
     std::int32_t dword_4FD2C0;  // 0x004FD2C0
     std::int32_t dword_4FD2C4;  // 0x004FD2C4
-    std::int32_t dword_4FD2C8;  // 0x004FD2C8
+    std::int32_t optionRow;  // 0x004FD2C8 0..5 (sound, music, speed, flag 0x48, two levels)
     std::int32_t dword_4FD2CC;  // 0x004FD2CC
     std::int32_t dword_4FD2D0;  // 0x004FD2D0
     std::int32_t dword_4FD2D4;  // 0x004FD2D4
@@ -5813,6 +5813,9 @@ static_assert(offsetof(Globals, panelAct) == 0x635B0);
 static_assert(offsetof(Globals, unlockedCount) == 0x63834);
 static_assert(offsetof(Globals, menuBuffers) == 0x63934);
 static_assert(offsetof(Globals, menuStrings) == 0x63978);
+static_assert(offsetof(Globals, optionPage) == 0x642AC);
+static_assert(offsetof(Globals, optionPageCursor) == 0x642B4);
+static_assert(offsetof(Globals, optionRow) == 0x642C8);
 static_assert(offsetof(Globals, menuFirst) == 0x642F4);
 static_assert(offsetof(Globals, menuEntries) == 0x64318);
 static_assert(offsetof(Globals, menuVisible) == 0x6431C);
