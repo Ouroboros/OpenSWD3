@@ -9,17 +9,24 @@ using namespace swd3;
 
 namespace {
 
-// 8x8 map with a wall in column 4 from row 0 to row 5.
+// 8x8 map with a blocked border and a wall in column 4 from row 0 to row 5. The search reads neighbour cells
+// without bounds checks, so the storage is padded with blocked cells on both sides.
 struct MapFixture {
-    std::vector<std::int32_t> cells = std::vector<std::int32_t>(64, 0);
+    std::vector<std::int32_t> storage = std::vector<std::int32_t>(64 + 2 * 32, 0x40000000);
+    std::int32_t* cells = storage.data() + 32;
 
     MapFixture() {
+        for (int row = 1; row < 7; ++row) {
+            for (int column = 1; column < 7; ++column) {
+                cells[row * 8 + column] = 0;
+            }
+        }
         for (int row = 0; row <= 5; ++row) {
             cells[row * 8 + 4] = 0x40000000;
         }
         G.mapWidth = 8;
         G.mapHeight = 8;
-        G.mapBlocking = cells.data();
+        G.mapBlocking = cells;
         PathPoolInit();
     }
     ~MapFixture() { PathPoolRelease(); }
