@@ -35,6 +35,13 @@ public:
     static constexpr int QueueRows = 4;
     static constexpr int QueueColumns = 10;
 
+    // BattleState::panelFlags bits.
+    enum PanelFlag : i32
+    {
+        UnkPanel2 = 2,  // set when game flag 0xC9 is on at the battle start
+        ResistancePanel = 0x20,
+    };
+
     void TakePendingAction();
     void SortDrawOrder();
     void ListEnemyOrder();

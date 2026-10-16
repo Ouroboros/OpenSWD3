@@ -198,7 +198,7 @@ void Game::StartBattle(u16 number)
 
     if (state.GameFlag(GameState::UnkC9))
     {
-        battle.panelFlags |= 2;
+        battle.panelFlags |= BattleState::UnkPanel2;
     }
 
     battle.timingWindow = 0x3C;

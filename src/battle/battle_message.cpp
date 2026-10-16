@@ -4,13 +4,13 @@
 #include <string>
 
 #include "battle/battle_hud.h"
-#include "battle/battle_message.h"
 #include "battle/battle_state.h"
 #include "core/format.h"
 #include "crt/msvc.h"
 #include "draw/painter.h"
 #include "font/text_font.h"
 #include "org/object_record.h"
+#include "platform/display.h"
 #include "res/act_archive.h"
 #include "ui/ui_draw.h"
 
@@ -22,14 +22,108 @@ namespace
 
 constexpr Pixel kPanelTextColor = 0xFFC0;
 constexpr Pixel kMessageTextColor = 0xFFFF;
-constexpr int kTextStyle = 0x10;
-constexpr int kFrameBorder = BattleMessage::Frame | 8;
+constexpr int kTextStyle = TextFont::BoldOutline;
+constexpr int kFrameThickness = 8;
+constexpr int kFrameBorder = BattleMessage::Frame | kFrameThickness;
 constexpr u32 kBlack = 0xFF;
 constexpr int kElements = 9;
 
+// The shade behind every panel: a blend towards (kShadeRed, kShadeGreen, kShadeBlue), kShadeExtra taller than the
+// grown body; the frames sit kShadeMargin inside it.
+constexpr int kShadeRed = 0;
+constexpr int kShadeGreen = 4;
+constexpr int kShadeBlue = 4;
+constexpr int kShadeExtra = 0x28;
+constexpr int kShadeMargin = 4;
+constexpr int kPanelShadeWidth = 0xB8;
+constexpr int kGrowDivisor = 3;
+constexpr int kPanelAdvance = 0x10;  // the usual glyph advance of the panel font
+
+// The result panels (loot, defeat, craft): a title frame and a body frame growing below it.
+constexpr int kResultShadeX = 0xC4;
+constexpr int kResultShadeY = 0xB0;
+constexpr int kResultLeft = kResultShadeX + kShadeMargin;
+constexpr int kResultTitleTop = kResultShadeY + kShadeMargin;
+constexpr int kResultRight = 0x178;
+constexpr int kResultTitleBottom = 0xC4;
+constexpr int kResultBodyTop = 0xD4;
+constexpr int kLootTitleX = 0x108;
+constexpr int kLootX = 0xD2;
+constexpr int kLootRowHeight = 0x14;
+constexpr int kLootAdvance = 0x12;
+constexpr int kDefeatTitleX = 0x104;
+constexpr int kDefeatBodyBottom = 0xF4;
+constexpr int kWipedX = 0xFE;
+constexpr int kWipedY = 0xD8;
+constexpr int kWipedAdvance = 0x11;
+constexpr int kCraftTitleX = 0x100;
+constexpr int kCraftBodyBottom = 0xFC;
+constexpr int kCraftLineX = 0xD0;
+constexpr int kCraftLineY = 0xDE;
+
+// DrawMessageBox: the text without a position starts this far inside the box.
+constexpr int kBoxTextX = 2;
+constexpr int kBoxTextY = 4;
+
+// The resistance panel: the unit name over one bar per element.
+constexpr int kResistShadeX = 0xEC;
+constexpr int kResistShadeY = 0x56;
+constexpr int kResistLeft = kResistShadeX + kShadeMargin;
+constexpr int kResistTitleTop = kResistShadeY + kShadeMargin;
+constexpr int kResistRight = 0x1A0;
+constexpr int kResistTitleBottom = 0x6A;
+constexpr int kResistNameX = 0x130;
+constexpr int kResistBodyTop = 0x7A;
+constexpr int kResistBodyBottom = 0x12E;
+constexpr int kResistFirstBar = 0x82;
+constexpr int kResistRowHeight = 0x14;
+constexpr int kElementNameX = 0xFC;
+constexpr int kElementNameRise = 8;  // the element name sits this far above its bar
+constexpr int kBarX = 0x11C;
+constexpr int kBarHeight = 3;
+constexpr float kNeutralBarLength = 2.0F;
+constexpr double kTenth = 0.1;       // resistances are in tenths
+constexpr double kBarScale = 120.0;  // pixels of a full resistance
+constexpr i8 kAbsorbBelow = -10;     // a resistance below -10 tenths absorbs: green bar of the excess
+constexpr int kGrayLevel = 0x10;
+constexpr int kBrightLevel = 0x1C;
+constexpr int kMiddleLevel = 0xD;
+constexpr int kDarkLevel = 2;
+constexpr int kWhiteLevel = 0x1F;
+
+// The message bar at the top of the battle screen.
+constexpr int kBarLeft = 0xA;
+constexpr int kBarTop = 0xA;
+constexpr int kBarWidth = 0x26C;
+constexpr int kMessageBarHeight = 0x20;
+constexpr int kBarTintRed = -8;
+constexpr int kBarTintGreen = -8;
+constexpr int kBarTintBlue = 0xA;
+constexpr int kBarFrameLeft = kBarLeft + kShadeMargin;
+constexpr int kBarFrameTop = kBarTop + kShadeMargin;
+constexpr int kBarFrameRight = 0x272;
+constexpr int kBarFrameBottom = 0x26;
+constexpr int kMessageTextRight = 0x10;  // a message is drawn this far right of and kMessageTextDown below its x, y
+constexpr int kMessageTextDown = 6;
+constexpr int kLeftTextX = 0x12;
+constexpr int kCenterX = 0x13B;
+constexpr int kCenteredGlyph = 0x14;  // the glyph width used to centre a message
+
+// Sliding and rising messages stop at kSlideStopX (plus half their width) on a black box kSlideBoxWidth wide.
+constexpr int kSlideTextY = 0x10;
+constexpr int kSlideStopX = 0xE3;
+constexpr int kSlideBoxWidth = 0xB0;
+constexpr int kSlideOutStep = 0x50;  // pixels an expired message slides out a frame
+constexpr int kSlideGlyph = 0x16;
+constexpr int kSlideGlyphs = 8;
+constexpr i32 kRiseStart = -0x20;  // a rising message starts here and is gone above it
+constexpr i32 kRiseSpeed = 1;
+constexpr int kRiseTarget = 0x20;     // it drops halfway towards kRiseTarget a frame
+constexpr i32 kRiseAcceleration = 2;  // an expired rising message doubles its speed every frame
+
 int HalfWidth(const BattleMessage& message)
 {
-    return (0x16 * (8 - (message.length >> 1))) >> 1;
+    return (kSlideGlyph * (kSlideGlyphs - (message.length >> 1))) >> 1;
 }
 
 }  // namespace
@@ -86,27 +180,47 @@ std::string_view BattleMessage::Text() const
 // swd32.exe 0x00469080: the "戰利品" panel with one "%-12s X %2d" line per item
 void BattleMessages::DrawLootPanel()
 {
-    const int bottom = 0x14 * this->lootCount + 0xD4;
-    this->panelFont.SetAdvance(0x12);
+    const int bottom = kLootRowHeight * this->lootCount + kResultBodyTop;
+    this->panelFont.SetAdvance(kLootAdvance);
     const int frame = this->PanelFrame();
-    FillBox(this->painter, 0xC4, 0xB0, 0xB8, this->panelHeight + 0x28, 0, 4, 4, FillMode::Blend);
-    DrawWindowFrame(this->painter, this->archive, frame, 0xC8, 0xB4, 0x178, 0xC4, 0, kFrameBorder);
-    this->DrawPanelText(0x108, 0xB4, BattleMessages::LootTitle);
+    FillBox(
+        this->painter,
+        kResultShadeX,
+        kResultShadeY,
+        kPanelShadeWidth,
+        this->panelHeight + kShadeExtra,
+        kShadeRed,
+        kShadeGreen,
+        kShadeBlue,
+        FillMode::Blend
+    );
+    DrawWindowFrame(
+        this->painter,
+        this->archive,
+        frame,
+        kResultLeft,
+        kResultTitleTop,
+        kResultRight,
+        kResultTitleBottom,
+        0,
+        kFrameBorder
+    );
+    this->DrawPanelText(kLootTitleX, kResultTitleTop, BattleMessages::LootTitle);
     DrawWindowFrame(
         this->painter,
         this->archive,
         this->panelAct.frame,
-        0xC8,
-        0xD4,
-        0x178,
-        this->panelHeight + 0xD4,
+        kResultLeft,
+        kResultBodyTop,
+        kResultRight,
+        this->panelHeight + kResultBodyTop,
         0,
         kFrameBorder
     );
 
-    if (this->GrowPanel(0xD4, bottom, 3) == 1 && this->lootCount != 0)
+    if (this->GrowPanel(kResultBodyTop, bottom, kGrowDivisor) == 1 && this->lootCount != 0)
     {
-        int y = 0xD4;
+        int y = kResultBodyTop;
 
         for (int item = 0; item < this->lootCount; ++item)
         {
@@ -114,38 +228,58 @@ void BattleMessages::DrawLootPanel()
                 BattleMessages::LootLine,
                 {this->lootNames[static_cast<std::size_t>(item)], this->lootCounts[static_cast<std::size_t>(item)]}
             );
-            this->DrawPanelText(0xD2, y, line);
-            y += 0x14;
+            this->DrawPanelText(kLootX, y, line);
+            y += kLootRowHeight;
         }
     }
 
-    this->panelFont.SetAdvance(0x10);
+    this->panelFont.SetAdvance(kPanelAdvance);
 }
 
 // swd32.exe 0x00469220: the "戰鬥失敗" panel with "隊伍全滅!!"
 void BattleMessages::DrawDefeatPanel()
 {
     const int frame = this->PanelFrame();
-    FillBox(this->painter, 0xC4, 0xB0, 0xB8, this->panelHeight + 0x28, 0, 4, 4, FillMode::Blend);
-    DrawWindowFrame(this->painter, this->archive, frame, 0xC8, 0xB4, 0x178, 0xC4, 0, kFrameBorder);
-    this->DrawPanelText(0x104, 0xB4, BattleMessages::DefeatTitle);
+    FillBox(
+        this->painter,
+        kResultShadeX,
+        kResultShadeY,
+        kPanelShadeWidth,
+        this->panelHeight + kShadeExtra,
+        kShadeRed,
+        kShadeGreen,
+        kShadeBlue,
+        FillMode::Blend
+    );
+    DrawWindowFrame(
+        this->painter,
+        this->archive,
+        frame,
+        kResultLeft,
+        kResultTitleTop,
+        kResultRight,
+        kResultTitleBottom,
+        0,
+        kFrameBorder
+    );
+    this->DrawPanelText(kDefeatTitleX, kResultTitleTop, BattleMessages::DefeatTitle);
     DrawWindowFrame(
         this->painter,
         this->archive,
         this->panelAct.frame,
-        0xC8,
-        0xD4,
-        0x178,
-        this->panelHeight + 0xD4,
+        kResultLeft,
+        kResultBodyTop,
+        kResultRight,
+        this->panelHeight + kResultBodyTop,
         0,
         kFrameBorder
     );
 
-    if (this->GrowPanel(0xD4, 0xF4, 3) == 1)
+    if (this->GrowPanel(kResultBodyTop, kDefeatBodyBottom, kGrowDivisor) == 1)
     {
-        this->panelFont.SetAdvance(0x11);
-        this->DrawPanelText(0xFE, 0xD8, BattleMessages::PartyWiped);
-        this->panelFont.SetAdvance(0x10);
+        this->panelFont.SetAdvance(kWipedAdvance);
+        this->DrawPanelText(kWipedX, kWipedY, BattleMessages::PartyWiped);
+        this->panelFont.SetAdvance(kPanelAdvance);
     }
 }
 
@@ -153,35 +287,55 @@ void BattleMessages::DrawDefeatPanel()
 void BattleMessages::DrawCraftResultPanel()
 {
     const int frame = this->PanelFrame();
-    FillBox(this->painter, 0xC4, 0xB0, 0xB8, this->panelHeight + 0x28, 0, 4, 4, FillMode::Blend);
-    DrawWindowFrame(this->painter, this->archive, frame, 0xC8, 0xB4, 0x178, 0xC4, 0, kFrameBorder);
+    FillBox(
+        this->painter,
+        kResultShadeX,
+        kResultShadeY,
+        kPanelShadeWidth,
+        this->panelHeight + kShadeExtra,
+        kShadeRed,
+        kShadeGreen,
+        kShadeBlue,
+        FillMode::Blend
+    );
+    DrawWindowFrame(
+        this->painter,
+        this->archive,
+        frame,
+        kResultLeft,
+        kResultTitleTop,
+        kResultRight,
+        kResultTitleBottom,
+        0,
+        kFrameBorder
+    );
     DrawWindowFrame(
         this->painter,
         this->archive,
         this->panelAct.frame,
-        0xC8,
-        0xD4,
-        0x178,
-        this->panelHeight + 0xD4,
+        kResultLeft,
+        kResultBodyTop,
+        kResultRight,
+        this->panelHeight + kResultBodyTop,
         0,
         kFrameBorder
     );
 
-    if (this->GrowPanel(0xD4, 0xFC, 3) != 1)
+    if (this->GrowPanel(kResultBodyTop, kCraftBodyBottom, kGrowDivisor) != 1)
     {
         return;
     }
 
     if (this->craftSucceeded == 1)
     {
-        this->DrawPanelText(0x100, 0xB4, BattleMessages::CraftSuccess);
+        this->DrawPanelText(kCraftTitleX, kResultTitleTop, BattleMessages::CraftSuccess);
         const std::string line = WinFormat(BattleMessages::CraftGot, {this->lootNames[0]});
-        this->DrawPanelText(0xD0, 0xDE, line);
+        this->DrawPanelText(kCraftLineX, kCraftLineY, line);
     }
     else
     {
-        this->DrawPanelText(0x100, 0xB4, BattleMessages::CraftFailed);
-        this->DrawPanelText(0xD0, 0xDE, BattleMessages::NothingGained);
+        this->DrawPanelText(kCraftTitleX, kResultTitleTop, BattleMessages::CraftFailed);
+        this->DrawPanelText(kCraftLineX, kCraftLineY, BattleMessages::NothingGained);
     }
 }
 
@@ -191,15 +345,15 @@ void BattleMessages::DrawMessageBox(int x, int y, int width, int height, int tex
     this->panelAct.id = BattleMessages::PanelAct;
     this->panelAct.action = 0;
     this->acts.Run(this->panelAct);
-    FillBox(this->painter, x, y, width, height, 0, 4, 4, FillMode::Blend);
+    FillBox(this->painter, x, y, width, height, kShadeRed, kShadeGreen, kShadeBlue, FillMode::Blend);
     DrawWindowFrame(
         this->painter,
         this->archive,
         this->panelAct.frame,
-        x + 4,
-        y + 4,
-        x + width - 4,
-        y + height - 4,
+        x + kShadeMargin,
+        y + kShadeMargin,
+        x + width - kShadeMargin,
+        y + height - kShadeMargin,
         0,
         kFrameBorder
     );
@@ -210,7 +364,7 @@ void BattleMessages::DrawMessageBox(int x, int y, int width, int height, int tex
     }
     else
     {
-        this->DrawPanelText(x + 2, y + 4, text);
+        this->DrawPanelText(x + kBoxTextX, y + kBoxTextY, text);
     }
 }
 
@@ -229,33 +383,53 @@ void BattleMessages::DrawResistancePanel()
     u32 color = 0;
     float length = 0.0F;
 
-    if ((this->state.panelFlags & 0x20) == 0)
+    if ((this->state.panelFlags & BattleState::ResistancePanel) == 0)
     {
         return;
     }
 
     const int frame = this->PanelFrame();
-    FillBox(this->painter, 0xEC, 0x56, 0xB8, this->panelHeight + 0x28, 0, 4, 4, FillMode::Blend);
-    DrawWindowFrame(this->painter, this->archive, frame, 0xF0, 0x5A, 0x1A0, 0x6A, 0, kFrameBorder);
-    this->DrawPanelText(0x130, 0x5A, this->panelUnit->name.data());
+    FillBox(
+        this->painter,
+        kResistShadeX,
+        kResistShadeY,
+        kPanelShadeWidth,
+        this->panelHeight + kShadeExtra,
+        kShadeRed,
+        kShadeGreen,
+        kShadeBlue,
+        FillMode::Blend
+    );
+    DrawWindowFrame(
+        this->painter,
+        this->archive,
+        frame,
+        kResistLeft,
+        kResistTitleTop,
+        kResistRight,
+        kResistTitleBottom,
+        0,
+        kFrameBorder
+    );
+    this->DrawPanelText(kResistNameX, kResistTitleTop, this->panelUnit->name.data());
     DrawWindowFrame(
         this->painter,
         this->archive,
         this->panelAct.frame,
-        0xF0,
-        0x7A,
-        0x1A0,
-        this->panelHeight + 0x7A,
+        kResistLeft,
+        kResistBodyTop,
+        kResistRight,
+        this->panelHeight + kResistBodyTop,
         0,
         kFrameBorder
     );
 
-    if (this->GrowPanel(0x7A, 0x12E, 3) != 1)
+    if (this->GrowPanel(kResistBodyTop, kResistBodyBottom, kGrowDivisor) != 1)
     {
         return;
     }
 
-    int y = 0x82;
+    int y = kResistFirstBar;
 
     for (int element = 0; element < kElements; ++element)
     {
@@ -263,39 +437,39 @@ void BattleMessages::DrawResistancePanel()
 
         if (resistance == 0)
         {
-            color = this->painter.MakeColor(0x10, 0x10, 0x10);
-            length = 2.0F;
+            color = this->painter.MakeColor(kGrayLevel, kGrayLevel, kGrayLevel);
+            length = kNeutralBarLength;
         }
 
         if (resistance > 0)
         {
-            color = this->painter.MakeColor(0x1C, 2, 2);
-            length = static_cast<float>(static_cast<double>(resistance) * 0.1 * 120.0);
+            color = this->painter.MakeColor(kBrightLevel, kDarkLevel, kDarkLevel);
+            length = static_cast<float>(static_cast<double>(resistance) * kTenth * kBarScale);
         }
 
         if (resistance < 0)
         {
-            color = this->painter.MakeColor(2, 0xD, 0x1C);
-            length = static_cast<float>(static_cast<double>(resistance) * -0.1 * 120.0);
+            color = this->painter.MakeColor(kDarkLevel, kMiddleLevel, kBrightLevel);
+            length = static_cast<float>(static_cast<double>(resistance) * -kTenth * kBarScale);
         }
 
-        if (resistance < -10)
+        if (resistance < kAbsorbBelow)
         {
-            color = this->painter.MakeColor(2, 0x1C, 0xD);
-            length = static_cast<float>(static_cast<double>(resistance + 10) * -0.1 * 120.0);
+            color = this->painter.MakeColor(kDarkLevel, kBrightLevel, kMiddleLevel);
+            length = static_cast<float>(static_cast<double>(resistance - kAbsorbBelow) * -kTenth * kBarScale);
         }
 
-        const u32 white = this->painter.MakeColor(0x1F, 0x1F, 0x1F);
+        const u32 white = this->painter.MakeColor(kWhiteLevel, kWhiteLevel, kWhiteLevel);
         this->panelFont.DrawText(
             this->painter.Target(),
-            0xFC,
-            y - 8,
+            kElementNameX,
+            y - kElementNameRise,
             BattleMessages::ElementNames[element],
             static_cast<Pixel>(white),
             kTextStyle
         );
-        this->hud.FillColor(0x11C, y, static_cast<i32>(crt::Ftol(length)), 3, color);
-        y += 0x14;
+        this->hud.FillColor(kBarX, y, static_cast<i32>(crt::Ftol(length)), kBarHeight, color);
+        y += kResistRowHeight;
     }
 }
 
@@ -326,8 +500,8 @@ void BattleMessages::Append(std::unique_ptr<BattleMessage> message, int x, int y
 
     if ((flags & BattleMessage::Rise) != 0)
     {
-        message->y = 1;
-        message->slideY = -0x20;
+        message->y = kRiseSpeed;
+        message->slideY = kRiseStart;
     }
 
     std::unique_ptr<BattleMessage>* link = &this->messages;
@@ -353,33 +527,53 @@ void BattleMessages::Draw()
 
     for (BattleMessage* message = this->messages.get(); message != nullptr; message = message->next.get())
     {
-        int y = message->y + 6;
-        int x = message->x + 0x10;
+        int y = message->y + kMessageTextDown;
+        int x = message->x + kMessageTextRight;
 
         if (message->flags < 0)
         {
             this->panelAct.id = BattleMessages::PanelAct;
             this->panelAct.action = 0;
             this->acts.Run(this->panelAct);
-            FillBox(this->painter, 0xA, 0xA, 0x26C, 0x20, -8, -8, 0xA, FillMode::Tint);
-            DrawWindowFrame(this->painter, this->archive, this->panelAct.frame, 0xE, 0xE, 0x272, 0x26, 0, kFrameBorder);
+            FillBox(
+                this->painter,
+                kBarLeft,
+                kBarTop,
+                kBarWidth,
+                kMessageBarHeight,
+                kBarTintRed,
+                kBarTintGreen,
+                kBarTintBlue,
+                FillMode::Tint
+            );
+            DrawWindowFrame(
+                this->painter,
+                this->archive,
+                this->panelAct.frame,
+                kBarFrameLeft,
+                kBarFrameTop,
+                kBarFrameRight,
+                kBarFrameBottom,
+                0,
+                kFrameBorder
+            );
         }
 
         if ((message->flags & BattleMessage::BlackBar) != 0)
         {
-            this->hud.FillColor(0xA, 0xA, 0x26C, 0x20, kBlack);
+            this->hud.FillColor(kBarLeft, kBarTop, kBarWidth, kMessageBarHeight, kBlack);
         }
 
         const int flags = message->flags;
 
         if ((flags & BattleMessage::Left) != 0)
         {
-            x = 0x12;
+            x = kLeftTextX;
         }
 
         if ((flags & BattleMessage::Centered) != 0)
         {
-            x = 0x13B - ((0x14 * (message->length >> 1)) >> 1);
+            x = kCenterX - ((kCenteredGlyph * (message->length >> 1)) >> 1);
         }
 
         if (message->frames <= 0)
@@ -389,44 +583,44 @@ void BattleMessages::Draw()
 
         if ((flags & BattleMessage::FromRight) != 0)
         {
-            y = 0x10;
+            y = kSlideTextY;
             const int half = HalfWidth(*message);
 
             if (message->slideX == 0)
             {
-                message->slideX = 0x280;
+                message->slideX = Display::Width;
             }
 
             if (!paused)
             {
-                message->slideX = (half + 0xE3 + message->slideX) >> 1;
+                message->slideX = (half + kSlideStopX + message->slideX) >> 1;
             }
 
             x = message->slideX;
-            this->hud.FillColor(x - half, 0xA, 0xB0, 0x20, kBlack);
+            this->hud.FillColor(x - half, kBarTop, kSlideBoxWidth, kMessageBarHeight, kBlack);
         }
 
         if ((message->flags & BattleMessage::FromLeft) != 0)
         {
-            y = 0x10;
+            y = kSlideTextY;
             const int half = HalfWidth(*message);
 
             if (!paused)
             {
-                message->slideX = (message->slideX + half + 0xE3) >> 1;
+                message->slideX = (message->slideX + half + kSlideStopX) >> 1;
             }
 
             x = message->slideX;
-            this->hud.FillColor(x - half, 0xA, 0xB0, 0x20, kBlack);
+            this->hud.FillColor(x - half, kBarTop, kSlideBoxWidth, kMessageBarHeight, kBlack);
         }
 
         if ((message->flags & BattleMessage::Rise) != 0)
         {
-            x = HalfWidth(*message) + 0xE3;
-            y = (message->slideY + 0x20) / 2;
+            x = HalfWidth(*message) + kSlideStopX;
+            y = (message->slideY + kRiseTarget) / 2;
             message->slideY = y;
             message->slideX = x;
-            this->hud.FillColor(0xE3, y - 6, 0xB0, 0x20, kBlack);
+            this->hud.FillColor(kSlideStopX, y - kMessageTextDown, kSlideBoxWidth, kMessageBarHeight, kBlack);
         }
 
         this->DrawMessageText(x, y, message->Text());
@@ -446,12 +640,12 @@ void BattleMessages::Draw()
 
             if (!paused)
             {
-                message.slideX += 0x50;
+                message.slideX += kSlideOutStep;
             }
 
-            this->hud.FillColor(message.slideX - half, 0xA, 0xB0, 0x20, kBlack);
-            this->DrawMessageText(message.slideX, 0x10, message.Text());
-            keep = message.slideX < 0x280;
+            this->hud.FillColor(message.slideX - half, kBarTop, kSlideBoxWidth, kMessageBarHeight, kBlack);
+            this->DrawMessageText(message.slideX, kSlideTextY, message.Text());
+            keep = message.slideX < Display::Width;
         }
 
         if (!keep && (message.flags & BattleMessage::FromRight) != 0)
@@ -460,11 +654,11 @@ void BattleMessages::Draw()
 
             if (!paused)
             {
-                message.slideX -= 0x50;
+                message.slideX -= kSlideOutStep;
             }
 
-            this->hud.FillColor(message.slideX - half, 0xA, 0xB0, 0x20, kBlack);
-            this->DrawMessageText(message.slideX, 0x10, message.Text());
+            this->hud.FillColor(message.slideX - half, kBarTop, kSlideBoxWidth, kMessageBarHeight, kBlack);
+            this->DrawMessageText(message.slideX, kSlideTextY, message.Text());
             keep = message.slideX > 0;
         }
 
@@ -477,10 +671,16 @@ void BattleMessages::Draw()
                 message.slideY -= message.y;
             }
 
-            message.y *= 2;
-            this->hud.FillColor(message.slideX - half, message.slideY - 6, 0xB0, 0x20, kBlack);
+            message.y *= kRiseAcceleration;
+            this->hud.FillColor(
+                message.slideX - half,
+                message.slideY - kMessageTextDown,
+                kSlideBoxWidth,
+                kMessageBarHeight,
+                kBlack
+            );
             this->DrawMessageText(message.slideX, message.slideY, message.Text());
-            keep = message.slideY > -0x20;
+            keep = message.slideY > kRiseStart;
         }
 
         if (keep)
