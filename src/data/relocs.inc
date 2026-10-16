@@ -2,6 +2,7 @@
 {0x49E000u, 28u, image::RelocKind::Code},  // cppInitializers
 {0x4A0E6Cu, 1u, image::RelocKind::Code},  // pixelConvert
 {0x4A0E70u, 1u, image::RelocKind::Code},  // pixelConvertBack
+{0x4A79A8u, 9u, image::RelocKind::Data},  // elementNames
 {0x4ACAC0u, 1u, image::RelocKind::Data},  // eventList
 {0x4B7948u, 1u, image::RelocKind::Data},  // mapBlocking
 {0x4C8BECu, 1u, image::RelocKind::Data},  // clickRegions
@@ -26,3 +27,6 @@
 {0x4FB558u, 1u, image::RelocKind::Data},  // tswPackedBufB
 {0x4FB55Cu, 1u, image::RelocKind::Data},  // tswPackedBuf
 {0x4FD78Cu, 1u, image::RelocKind::Data},  // uiPicture
+{0x5214F8u, 1u, image::RelocKind::Data},  // battleMessages
+{0x524468u, 10u, image::RelocKind::Data},  // lootNames
+{0x53C4B8u, 1u, image::RelocKind::Data},  // panelUnit

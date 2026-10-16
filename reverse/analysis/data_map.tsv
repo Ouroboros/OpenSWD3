@@ -273,3 +273,25 @@ addr	type	name	module	notes
 0x004A74D0	std::uint16_t[3]	timingMarks	battle
 0x004FD768	std::int32_t	timingCounter	battle	low word: needle position * 2 (0x8000 when done)
 0x004FDC68	std::uint16_t	timingHit	battle
+@include	battle/battle_message.h
+0x004FC5B0	ActState	panelAct	battle	act 0x233B: frame picture of the battle panels
+0x0053C4B8	std::uint8_t*	panelUnit	battle	unit shown by DrawResistancePanel
+0x0053C4BC	std::int32_t	panelHeight	battle	grown by GrowPanel
+0x0053BC24	std::int32_t	battleUiFlags	battle	bit 5: resistance panel
+0x004A79A8	char*[9]	elementNames	battle
+0x0052022C	std::int16_t[40]	actionQueue	battle	4 rows of 10, taken by TakePendingAction
+0x0053BF1E	std::int16_t	pendingActionRow	battle
+0x0053BF20	std::int16_t	pendingAction	battle
+0x00524468	char*[10]	lootNames	battle
+0x00525434	std::uint16_t[10]	lootCounts	battle
+0x0053C498	std::uint16_t	lootCount	battle
+0x0053C4B4	std::uint8_t	craftSucceeded	battle
+0x005214F8	BattleMessage*	battleMessages	battle
+0x0053C00C	std::int32_t	battlePaused	battle	messages do not slide while non-zero
+0x004A7AF4	char[7]	lootTitleText	battle	"戰利品"
+0x004A7AFC	char[11]	partyWipedText	battle	"隊伍全滅!!"
+0x004A7B08	char[9]	defeatTitleText	battle	"戰鬥失敗"
+0x004A7B14	char[13]	nothingGainedText	battle	"沒有得到東西"
+0x004A7B24	char[9]	craftFailedText	battle	"煉符失敗"
+0x004A7B30	char[12]	craftGotText	battle	"得到符咒:%s"
+0x004A7B3C	char[9]	craftSuccessText	battle	"煉符成功"

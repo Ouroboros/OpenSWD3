@@ -8,6 +8,7 @@
 #include "swd3/w32.h"
 #include "audio/audio.h"
 #include "battle/battle_draw.h"
+#include "battle/battle_message.h"
 #include "battle/battle_unit.h"
 #include "file/file.h"
 #include "font/text_font.h"
@@ -2931,15 +2932,7 @@ struct Globals {
     std::uint8_t pad_4A7991[0xF];
     std::uint8_t unk_4A79A0;  // 0x004A79A0
     std::uint8_t pad_4A79A1[0x7];
-    std::int32_t off_4A79A8;  // 0x004A79A8
-    std::int32_t g_4a79ac;  // 0x004A79AC
-    std::int32_t g_4a79b0;  // 0x004A79B0
-    std::int32_t g_4a79b4;  // 0x004A79B4
-    std::int32_t g_4a79b8;  // 0x004A79B8
-    std::int32_t g_4a79bc;  // 0x004A79BC
-    std::int32_t g_4a79c0;  // 0x004A79C0
-    std::int32_t g_4a79c4;  // 0x004A79C4
-    std::int32_t g_4a79c8;  // 0x004A79C8
+    char* elementNames[9];  // 0x004A79A8
     char a2d_0[4];  // 0x004A79CC
     std::uint8_t byte_4A79D0[12];  // 0x004A79D0
     std::uint8_t byte_4A79DC;  // 0x004A79DC
@@ -2983,14 +2976,19 @@ struct Globals {
     std::uint8_t byte_4A7AD4;  // 0x004A7AD4
     std::uint8_t pad_4A7AD5[0x13];
     char a12sX2d[12];  // 0x004A7AE8
-    std::uint8_t byte_4A7AF4[8];  // 0x004A7AF4
-    std::uint8_t byte_4A7AFC[12];  // 0x004A7AFC
-    std::uint8_t byte_4A7B08[12];  // 0x004A7B08
-    std::uint8_t byte_4A7B14[16];  // 0x004A7B14
-    std::uint8_t byte_4A7B24[12];  // 0x004A7B24
-    std::uint8_t byte_4A7B30;  // 0x004A7B30
-    std::uint8_t pad_4A7B31[0xB];
-    std::uint8_t byte_4A7B3C[12];  // 0x004A7B3C
+    char lootTitleText[7];  // 0x004A7AF4 "戰利品"
+    std::uint8_t pad_4A7AFB[0x1];
+    char partyWipedText[11];  // 0x004A7AFC "隊伍全滅!!"
+    std::uint8_t pad_4A7B07[0x1];
+    char defeatTitleText[9];  // 0x004A7B08 "戰鬥失敗"
+    std::uint8_t pad_4A7B11[0x3];
+    char nothingGainedText[13];  // 0x004A7B14 "沒有得到東西"
+    std::uint8_t pad_4A7B21[0x3];
+    char craftFailedText[9];  // 0x004A7B24 "煉符失敗"
+    std::uint8_t pad_4A7B2D[0x3];
+    char craftGotText[12];  // 0x004A7B30 "得到符咒:%s"
+    char craftSuccessText[9];  // 0x004A7B3C "煉符成功"
+    std::uint8_t pad_4A7B45[0x3];
     char a2d0[7];  // 0x004A7B48
     std::uint8_t pad_4A7B4F[0x1];
     char asc_4A7B50[3];  // 0x004A7B50
@@ -4433,12 +4431,7 @@ struct Globals {
     std::uint8_t pad_4FC51C[0x4];
     std::int32_t dword_4FC520;  // 0x004FC520
     std::uint8_t pad_4FC524[0x8C];
-    std::int32_t dword_4FC5B0;  // 0x004FC5B0
-    std::uint8_t pad_4FC5B4[0x4];
-    std::int32_t dword_4FC5B8;  // 0x004FC5B8
-    std::uint8_t pad_4FC5BC[0x3E];
-    std::int16_t word_4FC5FA;  // 0x004FC5FA
-    std::uint8_t pad_4FC5FC[0x4C];
+    ActState panelAct;  // 0x004FC5B0 act 0x233B: frame picture of the battle panels
     std::int32_t dword_4FC648;  // 0x004FC648
     std::int32_t dword_4FC64C;  // 0x004FC64C
     std::int32_t dword_4FC650;  // 0x004FC650
@@ -4944,8 +4937,7 @@ struct Globals {
     std::uint8_t pad_5201DC[0x24];
     std::int32_t dword_520200;  // 0x00520200
     std::uint8_t pad_520204[0x28];
-    std::int16_t word_52022C;  // 0x0052022C
-    std::uint8_t pad_52022E[0x4E];
+    std::int16_t actionQueue[40];  // 0x0052022C 4 rows of 10, taken by TakePendingAction
     std::int32_t dword_52027C;  // 0x0052027C
     std::uint8_t pad_520280[0x28];
     std::uint8_t unk_5202A8;  // 0x005202A8
@@ -5060,7 +5052,7 @@ struct Globals {
     std::int32_t dword_5214AC;  // 0x005214AC
     std::int32_t dword_5214B0[17];  // 0x005214B0
     std::int32_t dword_5214F4;  // 0x005214F4
-    std::int32_t dword_5214F8;  // 0x005214F8
+    BattleMessage* battleMessages;  // 0x005214F8
     std::uint8_t pad_5214FC[0x20];
     float flt_52151C;  // 0x0052151C
     std::int16_t word_521520;  // 0x00521520
@@ -5110,8 +5102,7 @@ struct Globals {
     std::int32_t dword_52441C;  // 0x0052441C
     std::int32_t dword_524420;  // 0x00524420
     std::uint8_t pad_524424[0x44];
-    std::int32_t dword_524468;  // 0x00524468
-    std::uint8_t pad_52446C[0x24];
+    char* lootNames[10];  // 0x00524468
     std::int32_t dword_524490;  // 0x00524490
     std::uint8_t pad_524494[0x2C];
     std::int32_t dword_5244C0;  // 0x005244C0
@@ -5152,11 +5143,7 @@ struct Globals {
     std::int32_t dword_524A10;  // 0x00524A10
     std::uint8_t pad_524A14[0xA1C];
     float flt_525430;  // 0x00525430
-    std::int32_t dword_525434;  // 0x00525434
-    std::int32_t dword_525438;  // 0x00525438
-    std::int32_t dword_52543C;  // 0x0052543C
-    std::int32_t dword_525440;  // 0x00525440
-    std::int32_t dword_525444;  // 0x00525444
+    std::uint16_t lootCounts[10];  // 0x00525434
     std::int32_t dword_525448;  // 0x00525448
     std::int32_t dword_52544C;  // 0x0052544C
     std::int32_t dword_525450;  // 0x00525450
@@ -5226,7 +5213,7 @@ struct Globals {
     std::int16_t word_53B0B0;  // 0x0053B0B0
     std::uint8_t pad_53B0B2[0x6];
     std::int32_t dword_53B0B8[731];  // 0x0053B0B8
-    std::int32_t dword_53BC24;  // 0x0053BC24
+    std::int32_t battleUiFlags;  // 0x0053BC24 bit 5: resistance panel
     std::uint8_t byte_53BC28[66];  // 0x0053BC28
     std::int16_t word_53BC6A;  // 0x0053BC6A
     std::int32_t dword_53BC6C;  // 0x0053BC6C
@@ -5315,7 +5302,8 @@ struct Globals {
     std::int16_t word_53BF1A;  // 0x0053BF1A
     std::uint8_t unk_53BF1C;  // 0x0053BF1C
     std::uint8_t unk_53BF1D;  // 0x0053BF1D
-    std::int32_t dword_53BF1E;  // 0x0053BF1E
+    std::int16_t pendingActionRow;  // 0x0053BF1E
+    std::int16_t pendingAction;  // 0x0053BF20
     std::int16_t word_53BF22;  // 0x0053BF22
     std::int32_t dword_53BF24;  // 0x0053BF24
     std::int16_t word_53BF28;  // 0x0053BF28
@@ -5381,7 +5369,7 @@ struct Globals {
     std::int32_t dword_53C000;  // 0x0053C000
     std::int32_t dword_53C004;  // 0x0053C004
     std::int32_t dword_53C008;  // 0x0053C008
-    std::int32_t dword_53C00C;  // 0x0053C00C
+    std::int32_t battlePaused;  // 0x0053C00C messages do not slide while non-zero
     std::int32_t dword_53C010;  // 0x0053C010
     std::int32_t dword_53C014;  // 0x0053C014
     std::int32_t dword_53C018;  // 0x0053C018
@@ -5408,7 +5396,7 @@ struct Globals {
     std::int32_t dword_53C190;  // 0x0053C190
     std::int32_t dword_53C194;  // 0x0053C194
     std::uint8_t byte_53C198[768];  // 0x0053C198
-    std::int16_t word_53C498;  // 0x0053C498
+    std::uint16_t lootCount;  // 0x0053C498
     std::int16_t word_53C49A;  // 0x0053C49A
     std::int32_t dword_53C49C;  // 0x0053C49C
     std::int32_t dword_53C4A0;  // 0x0053C4A0
@@ -5416,10 +5404,10 @@ struct Globals {
     std::int32_t dword_53C4A8;  // 0x0053C4A8
     std::int32_t dword_53C4AC;  // 0x0053C4AC
     std::int32_t dword_53C4B0;  // 0x0053C4B0
-    std::uint8_t byte_53C4B4;  // 0x0053C4B4
+    std::uint8_t craftSucceeded;  // 0x0053C4B4
     std::uint8_t pad_53C4B5[0x3];
-    std::int32_t dword_53C4B8;  // 0x0053C4B8
-    std::int32_t dword_53C4BC;  // 0x0053C4BC
+    std::uint8_t* panelUnit;  // 0x0053C4B8 unit shown by DrawResistancePanel
+    std::int32_t panelHeight;  // 0x0053C4BC grown by GrowPanel
     std::uint8_t byte_53C4C0;  // 0x0053C4C0
     std::uint8_t pad_53C4C1[0x3];
     std::int32_t dword_53C4C4;  // 0x0053C4C4
@@ -5671,6 +5659,14 @@ static_assert(offsetof(Globals, lcgState) == 0xD9F8);
 static_assert(offsetof(Globals, coinDelay) == 0xE4C8);
 static_assert(offsetof(Globals, gaugeFull) == 0xE4CC);
 static_assert(offsetof(Globals, timingMarks) == 0xE4D0);
+static_assert(offsetof(Globals, elementNames) == 0xE9A8);
+static_assert(offsetof(Globals, lootTitleText) == 0xEAF4);
+static_assert(offsetof(Globals, partyWipedText) == 0xEAFC);
+static_assert(offsetof(Globals, defeatTitleText) == 0xEB08);
+static_assert(offsetof(Globals, nothingGainedText) == 0xEB14);
+static_assert(offsetof(Globals, craftFailedText) == 0xEB24);
+static_assert(offsetof(Globals, craftGotText) == 0xEB30);
+static_assert(offsetof(Globals, craftSuccessText) == 0xEB3C);
 static_assert(offsetof(Globals, file_4A9380) == 0x10380);
 static_assert(offsetof(Globals, gameDir) == 0x104BC);
 static_assert(offsetof(Globals, file_4A98C8) == 0x108C8);
@@ -5836,6 +5832,7 @@ static_assert(offsetof(Globals, tswPackedBufB) == 0x62558);
 static_assert(offsetof(Globals, tswPackedBuf) == 0x6255C);
 static_assert(offsetof(Globals, textInputLeadPending) == 0x627E8);
 static_assert(offsetof(Globals, r250Index) == 0x627F0);
+static_assert(offsetof(Globals, panelAct) == 0x635B0);
 static_assert(offsetof(Globals, scrollAct) == 0x64638);
 static_assert(offsetof(Globals, effectAct) == 0x646D0);
 static_assert(offsetof(Globals, timingCounter) == 0x64768);
@@ -5860,9 +5857,21 @@ static_assert(offsetof(Globals, numberFont) == 0x64D08);
 static_assert(offsetof(Globals, arrowActs) == 0x64D10);
 static_assert(offsetof(Globals, coinFrames) == 0x64F70);
 static_assert(offsetof(Globals, coinState) == 0x64F74);
+static_assert(offsetof(Globals, actionQueue) == 0x8722C);
+static_assert(offsetof(Globals, battleMessages) == 0x884F8);
 static_assert(offsetof(Globals, file_521538) == 0x88538);
 static_assert(offsetof(Globals, battleUnit) == 0x88598);
 static_assert(offsetof(Globals, portraitHighlight) == 0x8B118);
+static_assert(offsetof(Globals, lootNames) == 0x8B468);
+static_assert(offsetof(Globals, lootCounts) == 0x8C434);
+static_assert(offsetof(Globals, battleUiFlags) == 0xA2C24);
+static_assert(offsetof(Globals, pendingActionRow) == 0xA2F1E);
+static_assert(offsetof(Globals, pendingAction) == 0xA2F20);
+static_assert(offsetof(Globals, battlePaused) == 0xA300C);
+static_assert(offsetof(Globals, lootCount) == 0xA3498);
+static_assert(offsetof(Globals, craftSucceeded) == 0xA34B4);
+static_assert(offsetof(Globals, panelUnit) == 0xA34B8);
+static_assert(offsetof(Globals, panelHeight) == 0xA34BC);
 static_assert(offsetof(Globals, evadeDisabled) == 0xA3EB8);
 static_assert(offsetof(Globals, evadeStreak) == 0xA4028);
 static_assert(offsetof(Globals, evadeJustSucceeded) == 0xA4029);
