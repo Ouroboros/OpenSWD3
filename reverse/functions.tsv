@@ -3,26 +3,26 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 2	swd32.exe	0x00401010	sub_401010	static_init	src/core/static_init.cpp:ConstructMemoryManager	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
 3	swd32.exe	0x00401020	sub_401020	static_init	src/core/static_init.cpp:RegisterMemoryManagerDestructor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
 4	swd32.exe	0x00401030	sub_401030	static_init	src/core/static_init.cpp:DestroyMemoryManager	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-5	swd32.exe	0x00401040	sub_401040	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-6	swd32.exe	0x00401050	sub_401050	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-7	swd32.exe	0x00401060	sub_401060	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-8	swd32.exe	0x00401070	sub_401070	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-9	swd32.exe	0x00401080	sub_401080	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-10	swd32.exe	0x00401090	sub_401090	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-11	swd32.exe	0x004010A0	sub_4010A0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-12	swd32.exe	0x004010B0	sub_4010B0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-13	swd32.exe	0x004010C0	sub_4010C0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-14	swd32.exe	0x004010D0	sub_4010D0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-15	swd32.exe	0x004010E0	sub_4010E0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-16	swd32.exe	0x004010F0	sub_4010F0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-17	swd32.exe	0x00401100	sub_401100	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-18	swd32.exe	0x00401110	sub_401110	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-19	swd32.exe	0x00401120	sub_401120	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-20	swd32.exe	0x00401130	sub_401130	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-21	swd32.exe	0x00401140	sub_401140	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-22	swd32.exe	0x00401150	sub_401150	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-23	swd32.exe	0x00401160	sub_401160	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-24	swd32.exe	0x00401170	sub_401170	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+5	swd32.exe	0x00401040	sub_401040	static_init	src/core/static_init.cpp:InitAudioSystem	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+6	swd32.exe	0x00401050	sub_401050	static_init	src/core/static_init.cpp:ConstructAudioSystem	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+7	swd32.exe	0x00401060	sub_401060	static_init	src/core/static_init.cpp:RegisterAudioSystemDestructor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+8	swd32.exe	0x00401070	sub_401070	static_init	src/core/static_init.cpp:DestroyAudioSystem	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+9	swd32.exe	0x00401080	sub_401080	static_init	src/core/static_init.cpp:InitSoundEffects	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+10	swd32.exe	0x00401090	sub_401090	static_init	src/core/static_init.cpp:ConstructSoundEffects	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+11	swd32.exe	0x004010A0	sub_4010A0	static_init	src/core/static_init.cpp:RegisterSoundEffectsDestructor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+12	swd32.exe	0x004010B0	sub_4010B0	static_init	src/core/static_init.cpp:DestroySoundEffects	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+13	swd32.exe	0x004010C0	sub_4010C0	static_init	src/core/static_init.cpp:InitMidiPlayer	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+14	swd32.exe	0x004010D0	sub_4010D0	static_init	src/core/static_init.cpp:ConstructMidiPlayer	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+15	swd32.exe	0x004010E0	sub_4010E0	static_init	src/core/static_init.cpp:RegisterMidiPlayerDestructor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+16	swd32.exe	0x004010F0	sub_4010F0	static_init	src/core/static_init.cpp:DestroyMidiPlayer	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+17	swd32.exe	0x00401100	sub_401100	static_init	src/core/static_init.cpp:InitStreamPlayer	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+18	swd32.exe	0x00401110	sub_401110	static_init	src/core/static_init.cpp:ConstructStreamPlayer	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+19	swd32.exe	0x00401120	sub_401120	static_init	src/core/static_init.cpp:RegisterStreamPlayerDestructor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+20	swd32.exe	0x00401130	sub_401130	static_init	src/core/static_init.cpp:DestroyStreamPlayer	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+21	swd32.exe	0x00401140	sub_401140	static_init	src/core/static_init.cpp:InitMusicQueue	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+22	swd32.exe	0x00401150	sub_401150	static_init	src/core/static_init.cpp:ConstructMusicQueue	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+23	swd32.exe	0x00401160	sub_401160	static_init	src/core/static_init.cpp:RegisterMusicQueueDestructor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+24	swd32.exe	0x00401170	sub_401170	static_init	src/core/static_init.cpp:DestroyMusicQueue	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
 25	swd32.exe	0x00401180	sub_401180	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
 26	swd32.exe	0x00401190	sub_401190	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
 27	swd32.exe	0x004011B0	sub_4011B0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
@@ -1224,74 +1224,74 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1223	swd32.exe	0x00484920	sub_484920	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1224	swd32.exe	0x00484950	sub_484950	ddraw		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "DDERR_GENERIC"
 1225	swd32.exe	0x00484DA0	sub_484DA0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-1226	swd32.exe	0x00484DC0	sub_484DC0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=THUNK
-1227	swd32.exe	0x00484DD0	sub_484DD0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_allocate_sequence_handle@4
-1228	swd32.exe	0x00484ED0	sub_484ED0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_end_sequence@4
-1229	swd32.exe	0x00484F60	sub_484F60	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_init_sequence@12
-1230	swd32.exe	0x00485180	sub_485180	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_end_sequence@4
-1231	swd32.exe	0x00485290	sub_485290	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485180 and 0x004852F0
-1232	swd32.exe	0x004852C0	sub_4852C0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485180 and 0x004852F0
-1233	swd32.exe	0x004852F0	sub_4852F0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_sequence_user_data@8
+1226	swd32.exe	0x00484DC0	sub_484DC0	audio_mss	src/audio/audio.cpp:MidiPlayer::~MidiPlayer	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=THUNK
+1227	swd32.exe	0x00484DD0	sub_484DD0	audio_mss	src/audio/audio.cpp:MidiPlayer::Open	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_allocate_sequence_handle@4
+1228	swd32.exe	0x00484ED0	sub_484ED0	audio_mss	src/audio/audio.cpp:MidiPlayer::Close	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_end_sequence@4
+1229	swd32.exe	0x00484F60	sub_484F60	audio_mss	src/audio/audio.cpp:MidiPlayer::Play	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_init_sequence@12
+1230	swd32.exe	0x00485180	sub_485180	audio_mss	src/audio/audio.cpp:MidiPlayer::Update	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	the first status-dependent retire test reads the stack slot holding this (never 1)
+1231	swd32.exe	0x00485290	sub_485290	audio_mss	src/audio/audio.cpp:MidiPlayer::IsStopped	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485180 and 0x004852F0
+1232	swd32.exe	0x004852C0	sub_4852C0	audio_mss	src/audio/audio.cpp:SequencePlayer::FreeNode	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485180 and 0x004852F0
+1233	swd32.exe	0x004852F0	sub_4852F0	audio_mss	src/audio/audio.cpp:MidiPlayer::Find	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_sequence_user_data@8
 1234	swd32.exe	0x00485330	_AIL_serve@0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x004852F0 and 0x00485360; ida_flags=THUNK|HIDDEN
-1235	swd32.exe	0x00485340	sub_485340	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x004852F0 and 0x00485360
-1236	swd32.exe	0x00485350	sub_485350	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x004852F0 and 0x00485360; ida_flags=THUNK
-1237	swd32.exe	0x00485360	sub_485360	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_set_redist_directory@4
-1238	swd32.exe	0x004853C0	sub_4853C0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_shutdown@0
-1239	swd32.exe	0x004853E0	sub_4853E0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x004853C0 and 0x00485460
-1240	swd32.exe	0x00485440	sub_485440	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x004853C0 and 0x00485460
-1241	swd32.exe	0x00485460	sub_485460	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_mem_free_lock@4
-1242	swd32.exe	0x004854B0	sub_4854B0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
-1243	swd32.exe	0x00485610	sub_485610	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
-1244	swd32.exe	0x00485650	sub_485650	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
-1245	swd32.exe	0x00485670	sub_485670	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
+1235	swd32.exe	0x00485340	sub_485340	audio_mss	src/audio/audio.cpp:AudioSystem::AudioSystem	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x004852F0 and 0x00485360
+1236	swd32.exe	0x00485350	sub_485350	audio_mss	src/audio/audio.cpp:AudioSystem::~AudioSystem	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x004852F0 and 0x00485360; ida_flags=THUNK
+1237	swd32.exe	0x00485360	sub_485360	audio_mss	src/audio/audio.cpp:AudioSystem::Startup	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_set_redist_directory@4
+1238	swd32.exe	0x004853C0	sub_4853C0	audio_mss	src/audio/audio.cpp:AudioSystem::Shutdown	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_shutdown@0
+1239	swd32.exe	0x004853E0	sub_4853E0	audio_mss	src/audio/audio.cpp:MusicQueue::MusicQueue	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x004853C0 and 0x00485460
+1240	swd32.exe	0x00485440	sub_485440	audio_mss	src/audio/audio.cpp:MusicQueue::~MusicQueue	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x004853C0 and 0x00485460
+1241	swd32.exe	0x00485460	sub_485460	audio_mss	src/audio/audio.cpp:MusicQueue::ClearSlots	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_mem_free_lock@4
+1242	swd32.exe	0x004854B0	sub_4854B0	audio_mss	src/audio/audio.cpp:MusicQueue::Update	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MessageBeep(0) before each queued stream start, as in the original
+1243	swd32.exe	0x00485610	sub_485610	audio_mss	src/audio/audio.cpp:PlaySound	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
+1244	swd32.exe	0x00485650	sub_485650	audio_mss	src/audio/audio.cpp:SetSoundPan	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
+1245	swd32.exe	0x00485670	sub_485670	audio_mss	src/audio/audio.cpp:PlaySoundAt	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
 1246	swd32.exe	0x004856C0	sub_4856C0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
-1247	swd32.exe	0x00485710	sub_485710	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
-1248	swd32.exe	0x00485720	sub_485720	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
-1249	swd32.exe	0x00485740	sub_485740	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
+1247	swd32.exe	0x00485710	sub_485710	audio_mss	src/audio/audio.cpp:StopMusic	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
+1248	swd32.exe	0x00485720	sub_485720	audio_mss	src/audio/audio.cpp:StopSound	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
+1249	swd32.exe	0x00485740	sub_485740	audio_mss	src/audio/audio.cpp:StopAllSounds	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
 1250	swd32.exe	0x00485750	sub_485750	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
-1251	swd32.exe	0x00485830	sub_485830	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
-1252	swd32.exe	0x00485850	sub_485850	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
-1253	swd32.exe	0x00485880	sub_485880	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
-1254	swd32.exe	0x004858D0	sub_4858D0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
-1255	swd32.exe	0x00485910	sub_485910	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
-1256	swd32.exe	0x00485930	sub_485930	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
-1257	swd32.exe	0x00485960	sub_485960	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
-1258	swd32.exe	0x004859B0	sub_4859B0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "SFX file connot open."
-1259	swd32.exe	0x00485C20	sub_485C20	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_end_sample@4
-1260	swd32.exe	0x00485CC0	sub_485CC0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485C20 and 0x00485CE0
-1261	swd32.exe	0x00485CD0	sub_485CD0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485C20 and 0x00485CE0
-1262	swd32.exe	0x00485CE0	sub_485CE0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_init_sample@4
-1263	swd32.exe	0x00485E90	sub_485E90	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_end_sample@4
-1264	swd32.exe	0x00485F30	sub_485F30	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_end_sample@4
-1265	swd32.exe	0x00485FE0	sub_485FE0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_set_sample_volume@8
-1266	swd32.exe	0x00486030	sub_486030	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_set_sample_pan@8
-1267	swd32.exe	0x00486080	sub_486080	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_end_sample@4
-1268	swd32.exe	0x00486160	sub_486160	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486080 and 0x004861D0
-1269	swd32.exe	0x00486190	sub_486190	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486080 and 0x004861D0
-1270	swd32.exe	0x004861B0	sub_4861B0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486080 and 0x004861D0
-1271	swd32.exe	0x004861D0	sub_4861D0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_sample_user_data@8
-1272	swd32.exe	0x00486210	sub_486210	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_sample_user_data@8
-1273	swd32.exe	0x00486260	sub_486260	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486210 and 0x004862B0
-1274	swd32.exe	0x00486280	sub_486280	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486210 and 0x004862B0
-1275	swd32.exe	0x004862A0	sub_4862A0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486210 and 0x004862B0
-1276	swd32.exe	0x004862B0	sub_4862B0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "all.snd"
-1277	swd32.exe	0x00486430	sub_486430	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_mem_free_lock@4
-1278	swd32.exe	0x00486490	sub_486490	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "RIFF....WAVEfmt ....0123456789012345data"
-1279	swd32.exe	0x00486580	sub_486580	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486490 and 0x004865B0
-1280	swd32.exe	0x004865A0	sub_4865A0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486490 and 0x004865B0; ida_flags=THUNK
-1281	swd32.exe	0x004865B0	sub_4865B0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_mem_alloc_lock@4
-1282	swd32.exe	0x00486610	sub_486610	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_close_stream@4
-1283	swd32.exe	0x004866A0	sub_4866A0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486610 and 0x004866C0
-1284	swd32.exe	0x004866B0	sub_4866B0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486610 and 0x004866C0
-1285	swd32.exe	0x004866C0	sub_4866C0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_set_stream_volume@8
-1286	swd32.exe	0x00486730	sub_486730	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_last_error@0
-1287	swd32.exe	0x00486860	sub_486860	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_stream_ms_position@12
-1288	swd32.exe	0x004868E0	sub_4868E0	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486860 and 0x00486900
-1289	swd32.exe	0x00486900	sub_486900	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_close_stream@4
-1290	swd32.exe	0x00486A10	sub_486A10	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486900 and 0x00486A70
-1291	swd32.exe	0x00486A30	sub_486A30	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486900 and 0x00486A70
-1292	swd32.exe	0x00486A50	sub_486A50	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486900 and 0x00486A70
-1293	swd32.exe	0x00486A70	sub_486A70	audio_mss		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_stream_user_data@8
+1251	swd32.exe	0x00485830	sub_485830	audio_mss	src/audio/audio.cpp:IsMusicStopped	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
+1252	swd32.exe	0x00485850	sub_485850	audio_mss	src/audio/audio.cpp:SetMusicVolume	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
+1253	swd32.exe	0x00485880	sub_485880	audio_mss	src/audio/audio.cpp:UpdateMusicFade	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
+1254	swd32.exe	0x004858D0	sub_4858D0	audio_mss	src/audio/audio.cpp:PollMusicFade	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
+1255	swd32.exe	0x00485910	sub_485910	audio_mss	src/audio/audio.cpp:SetMusicFade	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
+1256	swd32.exe	0x00485930	sub_485930	audio_mss	src/audio/audio.cpp:SoundEffects::SoundEffects	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
+1257	swd32.exe	0x00485960	sub_485960	audio_mss	src/audio/audio.cpp:SoundEffects::~SoundEffects	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
+1258	swd32.exe	0x004859B0	sub_4859B0	audio_mss	src/audio/audio.cpp:SoundEffects::Open	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "SFX file connot open."
+1259	swd32.exe	0x00485C20	sub_485C20	audio_mss	src/audio/audio.cpp:SoundEffects::Close	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_end_sample@4
+1260	swd32.exe	0x00485CC0	sub_485CC0	audio_mss	src/audio/audio.cpp:SoundEffects::IsOpen	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485C20 and 0x00485CE0
+1261	swd32.exe	0x00485CD0	sub_485CD0	audio_mss	src/audio/audio.cpp:SoundEffects::IsEnabled	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485C20 and 0x00485CE0
+1262	swd32.exe	0x00485CE0	sub_485CE0	audio_mss	src/audio/audio.cpp:SoundEffects::Play	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_init_sample@4
+1263	swd32.exe	0x00485E90	sub_485E90	audio_mss	src/audio/audio.cpp:SoundEffects::Stop	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_end_sample@4
+1264	swd32.exe	0x00485F30	sub_485F30	audio_mss	src/audio/audio.cpp:SoundEffects::StopAll	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_end_sample@4
+1265	swd32.exe	0x00485FE0	sub_485FE0	audio_mss	src/audio/audio.cpp:SoundEffects::SetVolume	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_set_sample_volume@8
+1266	swd32.exe	0x00486030	sub_486030	audio_mss	src/audio/audio.cpp:SoundEffects::SetPan	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_set_sample_pan@8
+1267	swd32.exe	0x00486080	sub_486080	audio_mss	src/audio/audio.cpp:SoundEffects::Update	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_end_sample@4
+1268	swd32.exe	0x00486160	sub_486160	audio_mss	src/audio/audio.cpp:SoundEffects::FreeNode	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486080 and 0x004861D0
+1269	swd32.exe	0x00486190	sub_486190	audio_mss	src/audio/audio.cpp:SoundEffects::AllocNode	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486080 and 0x004861D0
+1270	swd32.exe	0x004861B0	sub_4861B0	audio_mss	src/audio/audio.cpp:SoundEffects::PushActive	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486080 and 0x004861D0
+1271	swd32.exe	0x004861D0	sub_4861D0	audio_mss	src/audio/audio.cpp:SoundEffects::Find	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_sample_user_data@8
+1272	swd32.exe	0x00486210	sub_486210	audio_mss	src/audio/audio.cpp:SoundEffects::Unlink	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_sample_user_data@8
+1273	swd32.exe	0x00486260	sub_486260	audio_mss	src/audio/audio.cpp:ClampVolume	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486210 and 0x004862B0
+1274	swd32.exe	0x00486280	sub_486280	audio_mss	src/audio/audio.cpp:ClampPan	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486210 and 0x004862B0
+1275	swd32.exe	0x004862A0	sub_4862A0	audio_mss	src/audio/audio.cpp:SoundEffects::GetDriver	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486210 and 0x004862B0
+1276	swd32.exe	0x004862B0	sub_4862B0	audio_mss	src/audio/audio.cpp:SoundEffects::LoadIndex	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "all.snd"
+1277	swd32.exe	0x00486430	sub_486430	audio_mss	src/audio/audio.cpp:SoundEffects::FreeIndex	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_mem_free_lock@4
+1278	swd32.exe	0x00486490	sub_486490	audio_mss	src/audio/audio.cpp:SoundEffects::LoadSound	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "RIFF....WAVEfmt ....0123456789012345data"
+1279	swd32.exe	0x00486580	sub_486580	audio_mss	src/audio/audio.cpp:SequencePlayer::SequencePlayer	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486490 and 0x004865B0
+1280	swd32.exe	0x004865A0	sub_4865A0	audio_mss	src/audio/audio.cpp:StreamPlayer::~StreamPlayer	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486490 and 0x004865B0; ida_flags=THUNK
+1281	swd32.exe	0x004865B0	sub_4865B0	audio_mss	src/audio/audio.cpp:StreamPlayer::Open	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_mem_alloc_lock@4
+1282	swd32.exe	0x00486610	sub_486610	audio_mss	src/audio/audio.cpp:StreamPlayer::Close	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_close_stream@4
+1283	swd32.exe	0x004866A0	sub_4866A0	audio_mss	src/audio/audio.cpp:SequencePlayer::IsOpen	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486610 and 0x004866C0
+1284	swd32.exe	0x004866B0	sub_4866B0	audio_mss	src/audio/audio.cpp:SequencePlayer::IsEnabled	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486610 and 0x004866C0
+1285	swd32.exe	0x004866C0	sub_4866C0	audio_mss	src/audio/audio.cpp:StreamPlayer::SetVolume	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_set_stream_volume@8
+1286	swd32.exe	0x00486730	sub_486730	audio_mss	src/audio/audio.cpp:StreamPlayer::Play	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_last_error@0
+1287	swd32.exe	0x00486860	sub_486860	audio_mss	src/audio/audio.cpp:StreamPlayer::FadeOut	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_stream_ms_position@12
+1288	swd32.exe	0x004868E0	sub_4868E0	audio_mss	src/audio/audio.cpp:SetFadeStep	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486860 and 0x00486900
+1289	swd32.exe	0x00486900	sub_486900	audio_mss	src/audio/audio.cpp:StreamPlayer::Update	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	the first status-dependent retire test reads a pointer (never 1)
+1290	swd32.exe	0x00486A10	sub_486A10	audio_mss	src/audio/audio.cpp:StreamPlayer::IsStopped	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486900 and 0x00486A70
+1291	swd32.exe	0x00486A30	sub_486A30	audio_mss	src/audio/audio.cpp:SequencePlayer::AllocNode	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486900 and 0x00486A70
+1292	swd32.exe	0x00486A50	sub_486A50	audio_mss	src/audio/audio.cpp:SequencePlayer::PushActive	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00486900 and 0x00486A70
+1293	swd32.exe	0x00486A70	sub_486A70	audio_mss	src/audio/audio.cpp:StreamPlayer::Find	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import mss32!_AIL_stream_user_data@8
 1294	swd32.exe	0x00486AB0	DirectDrawCreate	ddraw		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import DDRAW!DirectDrawCreate; ida_flags=THUNK|HIDDEN
 1295	swd32.exe	0x00487AD8	DirectInputCreateA	input_dinput		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import DINPUT!DirectInputCreateA; ida_flags=THUNK|HIDDEN
 1296	swd32.exe	0x00487ADE	ImmIsIME	text_dbcs		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import IMM32!ImmIsIME; ida_flags=THUNK|HIDDEN

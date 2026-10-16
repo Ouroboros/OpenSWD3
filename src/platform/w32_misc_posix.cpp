@@ -25,6 +25,8 @@ HANDLE HeapCreate(DWORD, SIZE_T, SIZE_T) { return &g_heapToken; }
 
 BOOL HeapDestroy(HANDLE heap) { return heap == &g_heapToken; }
 
+BOOL MessageBeep(UINT) { return 1; }
+
 int MessageBoxA(HWND, LPCSTR text, LPCSTR caption, UINT) {
     std::fprintf(stderr, "[MessageBox] %s: %s\n", caption ? caption : "", text ? text : "");
     return IDOK;

@@ -97,9 +97,13 @@ for (const r of rows) {
 }
 if (cursor < IMAGE_END) out += `    std::uint8_t pad_${cursor.toString(16).toUpperCase()}[0x${(IMAGE_END - cursor).toString(16).toUpperCase()}];\n`;
 out += '};\n#pragma pack(pop)\n\nstatic_assert(sizeof(Globals) == image::kSize);\n';
+// Members derived from game classes (e.g. SoundEffects : File) make Globals non-standard-layout; the 32-bit layout
+// is still fixed, so offsetof is checked with the warning silenced.
+out += '#if defined(__clang__)\n#pragma clang diagnostic push\n#pragma clang diagnostic ignored "-Winvalid-offsetof"\n#endif\n';
 for (const r of rows.filter((x) => x.manual)) {
   out += `static_assert(offsetof(Globals, ${r.name}) == 0x${(r.addr - IMAGE_BASE).toString(16).toUpperCase()});\n`;
 }
+out += '#if defined(__clang__)\n#pragma clang diagnostic pop\n#endif\n';
 out += '\ninline Globals& globals() { return *reinterpret_cast<Globals*>(image::g_bytes); }\n\n}  // namespace swd3\n\n';
 out += '#define G (::swd3::globals())\n';
 fs.writeFileSync(outHeader, out);

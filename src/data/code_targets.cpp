@@ -16,6 +16,11 @@ struct CodeTarget {
 const CodeTarget kTargets[] = {
     {0x0044A240u, reinterpret_cast<void*>(&PixelConvertNone)},
     {0x00401000u, reinterpret_cast<void*>(&InitMemoryManager)},
+    {0x00401040u, reinterpret_cast<void*>(&InitAudioSystem)},
+    {0x00401080u, reinterpret_cast<void*>(&InitSoundEffects)},
+    {0x004010C0u, reinterpret_cast<void*>(&InitMidiPlayer)},
+    {0x00401100u, reinterpret_cast<void*>(&InitStreamPlayer)},
+    {0x00401140u, reinterpret_cast<void*>(&InitMusicQueue)},
     {0x00401290u, reinterpret_cast<void*>(&InitFile4B74A0)},
     {0x004012D0u, reinterpret_cast<void*>(&InitMapCacheFile)},
     {0x00401310u, reinterpret_cast<void*>(&InitFile4CAD50)},

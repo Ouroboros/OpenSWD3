@@ -43,19 +43,23 @@ else()
 endif()
 
 find_package(SDL3 CONFIG REQUIRED COMPONENTS SDL3-static)
+include(cmake/FFmpegStatic.cmake)
 add_library(swd3_core STATIC ${SWD3_SOURCES})
 target_include_directories(swd3_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_compile_options(swd3_core PRIVATE ${SWD3_WARNINGS})
-target_link_libraries(swd3_core PUBLIC SDL3::SDL3-static)
+target_link_libraries(swd3_core PUBLIC SDL3::SDL3-static swd3::ffmpeg)
+if(NOT WIN32)
+    # Pull in the fmod replacement of src/platform/libm_posix.cpp before avutil needs it.
+    target_link_options(swd3_core PUBLIC -Wl,--undefined=fmod)
+endif()
 if(WIN32)
     target_compile_definitions(swd3_core PUBLIC NOMINMAX _CRT_SECURE_NO_WARNINGS)
     target_link_libraries(swd3_core PUBLIC user32 gdi32 advapi32 ole32 winmm imm32)
 endif()
 
 if(EXISTS "${SWD3_MAIN_SOURCE}")
-    include(cmake/FFmpegStatic.cmake)
     add_executable(swd3 "${SWD3_MAIN_SOURCE}")
     target_link_libraries(swd3 PRIVATE swd3_core SDL3::SDL3-static swd3::ffmpeg)
     if(WIN32)

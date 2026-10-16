@@ -109,6 +109,11 @@ void GetSystemInfo(SYSTEM_INFO* info);
 HANDLE HeapCreate(DWORD options, SIZE_T initialSize, SIZE_T maximumSize);
 BOOL HeapDestroy(HANDLE heap);
 int MessageBoxA(HWND owner, LPCSTR text, LPCSTR caption, UINT type);
+BOOL MessageBeep(UINT type);
+// The port loads no external DLLs: LoadLibraryA always fails.
+HANDLE LoadLibraryA(LPCSTR fileName);
+int LoadStringA(HANDLE instance, UINT id, LPSTR buffer, int size);
+BOOL FreeLibrary(HANDLE module);
 
 using COLORREF = DWORD;
 constexpr int SM_CXSCREEN = 0;

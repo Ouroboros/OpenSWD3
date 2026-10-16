@@ -6,6 +6,7 @@
 
 #include "data/image.h"
 #include "swd3/w32.h"
+#include "audio/audio.h"
 #include "file/file.h"
 #include "font/text_font.h"
 #include "gfx/graphics.h"
@@ -3391,8 +3392,7 @@ struct Globals {
     std::int16_t word_4A9A7A;  // 0x004A9A7A
     std::int16_t word_4A9A7C;  // 0x004A9A7C
     std::uint8_t pad_4A9A7E[0x4A];
-    std::uint8_t unk_4A9AC8;  // 0x004A9AC8
-    std::uint8_t pad_4A9AC9[0x3];
+    AudioSystem audioSystem;  // 0x004A9AC8 constructed by 0x00401040
     std::uint8_t byte_4A9ACC;  // 0x004A9ACC
     std::uint8_t pad_4A9ACD[0x3FF];
     std::int32_t dword_4A9ECC;  // 0x004A9ECC
@@ -3648,10 +3648,10 @@ struct Globals {
     std::uint8_t pad_4B72C2[0x2];
     std::int32_t dword_4B72C4;  // 0x004B72C4
     std::uint8_t pad_4B72C8[0xB0];
-    std::int32_t dword_4B7378;  // 0x004B7378
+    std::int32_t musicFading;  // 0x004B7378
     std::int16_t word_4B737C;  // 0x004B737C
     std::uint8_t pad_4B737E[0x2];
-    std::int32_t dword_4B7380;  // 0x004B7380
+    std::int32_t musicFadeMode;  // 0x004B7380 1: stop now, 2: fade over musicFadeLength
     std::int32_t dword_4B7384;  // 0x004B7384
     std::int32_t dword_4B7388;  // 0x004B7388
     std::int32_t dword_4B738C;  // 0x004B738C
@@ -3679,7 +3679,7 @@ struct Globals {
     std::int32_t dword_4B743C;  // 0x004B743C
     std::uint8_t pad_4B7440[0x60];
     File file_4B74A0;  // 0x004B74A0 constructed by 0x00401290
-    std::int32_t dword_4B74F0;  // 0x004B74F0
+    std::int32_t musicFadeLength;  // 0x004B74F0
     std::int32_t dword_4B74F4;  // 0x004B74F4
     std::uint8_t byte_4B74F8;  // 0x004B74F8
     std::uint8_t byte_4B74F9;  // 0x004B74F9
@@ -3793,7 +3793,7 @@ struct Globals {
     std::uint8_t pad_4B7DE1[0xCF];
     std::int32_t dword_4B7EB0;  // 0x004B7EB0
     std::int32_t dword_4B7EB4;  // 0x004B7EB4
-    std::uint8_t byte_4B7EB8[1088];  // 0x004B7EB8
+    MidiPlayer midiPlayer;  // 0x004B7EB8 constructed by 0x004010C0
     std::uint8_t byte_4B82F8;  // 0x004B82F8
     std::uint8_t pad_4B82F9[0x3FF];
     std::int32_t dword_4B86F8;  // 0x004B86F8
@@ -3880,8 +3880,7 @@ struct Globals {
     std::uint8_t pad_4BA631[0xAF];
     std::int32_t dword_4BA6E0;  // 0x004BA6E0
     std::uint8_t pad_4BA6E4[0x4];
-    std::uint8_t unk_4BA6E8;  // 0x004BA6E8
-    std::uint8_t pad_4BA6E9[0x48B];
+    MusicQueue musicQueue;  // 0x004BA6E8 constructed by 0x00401140
     std::int32_t dword_4BAB74;  // 0x004BAB74
     std::int32_t dword_4BAB78;  // 0x004BAB78
     std::int32_t dword_4BAB7C;  // 0x004BAB7C
@@ -3957,8 +3956,7 @@ struct Globals {
     std::int32_t dword_4C8444;  // 0x004C8444
     std::int32_t dword_4C8448;  // 0x004C8448
     std::int32_t dword_4C844C;  // 0x004C844C
-    std::uint8_t unk_4C8450;  // 0x004C8450
-    std::uint8_t pad_4C8451[0x67F];
+    SoundEffects soundEffects;  // 0x004C8450 constructed by 0x00401080
     std::int32_t dword_4C8AD0;  // 0x004C8AD0
     std::uint8_t pad_4C8AD4[0x18];
     std::uint8_t unk_4C8AEC;  // 0x004C8AEC
@@ -3991,9 +3989,7 @@ struct Globals {
     std::uint8_t pad_4C8C05[0x89];
     std::uint8_t unk_4C8C8E;  // 0x004C8C8E
     std::uint8_t pad_4C8C8F[0x5F9];
-    std::uint8_t unk_4C9288;  // 0x004C9288
-    std::uint8_t pad_4C9289[0x5];
-    std::int16_t word_4C928E[541];  // 0x004C928E
+    StreamPlayer streamPlayer;  // 0x004C9288 constructed by 0x00401100
     std::uint8_t unk_4C96C8;  // 0x004C96C8
     std::uint8_t pad_4C96C9[0xF];
     std::int32_t dword_4C96D8;  // 0x004C96D8
@@ -5613,12 +5609,7 @@ struct Globals {
     std::int32_t dword_53D06C;  // 0x0053D06C
     std::int32_t dword_53D070;  // 0x0053D070
     std::uint8_t pad_53D074[0x9C];
-    std::int16_t word_53D110;  // 0x0053D110
-    std::int16_t word_53D112;  // 0x0053D112
-    std::int32_t dword_53D114;  // 0x0053D114
-    std::int32_t dword_53D118;  // 0x0053D118
-    std::int16_t word_53D11C;  // 0x0053D11C
-    std::int16_t word_53D11E;  // 0x0053D11E
+    mss::PCMWAVEFORMAT waveFormat;  // 0x0053D110 output format requested by SoundEffects::Open
     std::int32_t dword_53D120;  // 0x0053D120
     std::int32_t dword_53D124;  // 0x0053D124
     std::int32_t dword_53D128;  // 0x0053D128
@@ -5742,6 +5733,10 @@ struct Globals {
 #pragma pack(pop)
 
 static_assert(sizeof(Globals) == image::kSize);
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#endif
 static_assert(offsetof(Globals, tenDouble) == 0x6B0);
 static_assert(offsetof(Globals, iidDirectDraw4) == 0xD88);
 static_assert(offsetof(Globals, iidDirectDrawSurface4) == 0xDC8);
@@ -5771,16 +5766,24 @@ static_assert(offsetof(Globals, lcgState) == 0xD9F8);
 static_assert(offsetof(Globals, file_4A9380) == 0x10380);
 static_assert(offsetof(Globals, gameDir) == 0x104BC);
 static_assert(offsetof(Globals, file_4A98C8) == 0x108C8);
+static_assert(offsetof(Globals, audioSystem) == 0x10AC8);
 static_assert(offsetof(Globals, textFont_4A9ED0) == 0x10ED0);
 static_assert(offsetof(Globals, tswPath) == 0x11ED0);
 static_assert(offsetof(Globals, graphics) == 0x12870);
 static_assert(offsetof(Globals, textFont_4AB998) == 0x12998);
 static_assert(offsetof(Globals, memoryManager) == 0x1DC78);
+static_assert(offsetof(Globals, musicFading) == 0x1E378);
+static_assert(offsetof(Globals, musicFadeMode) == 0x1E380);
 static_assert(offsetof(Globals, file_4B74A0) == 0x1E4A0);
+static_assert(offsetof(Globals, musicFadeLength) == 0x1E4F0);
 static_assert(offsetof(Globals, file_4B7AD0) == 0x1EAD0);
+static_assert(offsetof(Globals, midiPlayer) == 0x1EEB8);
 static_assert(offsetof(Globals, input) == 0x1F748);
 static_assert(offsetof(Globals, mapCacheFile) == 0x1F868);
 static_assert(offsetof(Globals, file_4B9F18) == 0x20F18);
+static_assert(offsetof(Globals, musicQueue) == 0x216E8);
+static_assert(offsetof(Globals, soundEffects) == 0x2F450);
+static_assert(offsetof(Globals, streamPlayer) == 0x30288);
 static_assert(offsetof(Globals, mainWindow) == 0x30A1C);
 static_assert(offsetof(Globals, textFont_4C9A28) == 0x30A28);
 static_assert(offsetof(Globals, file_4CAA28) == 0x31A28);
@@ -5903,6 +5906,10 @@ static_assert(offsetof(Globals, tswPackedBuf) == 0x6255C);
 static_assert(offsetof(Globals, textInputLeadPending) == 0x627E8);
 static_assert(offsetof(Globals, r250Index) == 0x627F0);
 static_assert(offsetof(Globals, file_521538) == 0x88538);
+static_assert(offsetof(Globals, waveFormat) == 0xA4110);
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 
 inline Globals& globals() { return *reinterpret_cast<Globals*>(image::g_bytes); }
 

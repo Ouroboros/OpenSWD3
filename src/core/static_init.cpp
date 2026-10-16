@@ -22,6 +22,81 @@ void RegisterMemoryManagerDestructor() { crt::atexit(&DestroyMemoryManager); }
 // swd32.exe 0x00401030
 void DestroyMemoryManager() { G.memoryManager.~MemoryManager(); }
 
+// swd32.exe 0x00401040
+void InitAudioSystem() {
+    ConstructAudioSystem();
+    RegisterAudioSystemDestructor();
+}
+
+// swd32.exe 0x00401050
+void ConstructAudioSystem() { new (&G.audioSystem) AudioSystem(); }
+
+// swd32.exe 0x00401060
+void RegisterAudioSystemDestructor() { crt::atexit(&DestroyAudioSystem); }
+
+// swd32.exe 0x00401070
+void DestroyAudioSystem() { G.audioSystem.~AudioSystem(); }
+
+// swd32.exe 0x00401080
+void InitSoundEffects() {
+    ConstructSoundEffects();
+    RegisterSoundEffectsDestructor();
+}
+
+// swd32.exe 0x00401090
+void ConstructSoundEffects() { new (&G.soundEffects) SoundEffects(); }
+
+// swd32.exe 0x004010A0
+void RegisterSoundEffectsDestructor() { crt::atexit(&DestroySoundEffects); }
+
+// swd32.exe 0x004010B0
+void DestroySoundEffects() { G.soundEffects.~SoundEffects(); }
+
+// swd32.exe 0x004010C0
+void InitMidiPlayer() {
+    ConstructMidiPlayer();
+    RegisterMidiPlayerDestructor();
+}
+
+// swd32.exe 0x004010D0
+void ConstructMidiPlayer() { new (&G.midiPlayer) MidiPlayer(); }
+
+// swd32.exe 0x004010E0
+void RegisterMidiPlayerDestructor() { crt::atexit(&DestroyMidiPlayer); }
+
+// swd32.exe 0x004010F0
+void DestroyMidiPlayer() { G.midiPlayer.~MidiPlayer(); }
+
+// swd32.exe 0x00401100
+void InitStreamPlayer() {
+    ConstructStreamPlayer();
+    RegisterStreamPlayerDestructor();
+}
+
+// swd32.exe 0x00401110
+void ConstructStreamPlayer() { new (&G.streamPlayer) StreamPlayer(); }
+
+// swd32.exe 0x00401120
+void RegisterStreamPlayerDestructor() { crt::atexit(&DestroyStreamPlayer); }
+
+// swd32.exe 0x00401130
+void DestroyStreamPlayer() { G.streamPlayer.~StreamPlayer(); }
+
+// swd32.exe 0x00401140
+void InitMusicQueue() {
+    ConstructMusicQueue();
+    RegisterMusicQueueDestructor();
+}
+
+// swd32.exe 0x00401150
+void ConstructMusicQueue() { new (&G.musicQueue) MusicQueue(); }
+
+// swd32.exe 0x00401160
+void RegisterMusicQueueDestructor() { crt::atexit(&DestroyMusicQueue); }
+
+// swd32.exe 0x00401170
+void DestroyMusicQueue() { G.musicQueue.~MusicQueue(); }
+
 // swd32.exe 0x00401290
 void InitFile4B74A0() {
     ConstructFile4B74A0();

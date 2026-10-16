@@ -184,3 +184,19 @@ addr	type	name	module	notes
 0x004A69F8	std::uint32_t	lcgState	random
 0x004FB7F0	std::int32_t	r250Index	random
 0x004FB7E8	std::int32_t	textInputLeadPending	text_dbcs	1 after a WM_CHAR lead byte
+@include	audio/audio.h
+@size	mss::PCMWAVEFORMAT	16
+@size	AudioSystem	4
+@size	SoundEffects	1664
+@size	MidiPlayer	1088
+@size	StreamPlayer	1088
+@size	MusicQueue	1164
+0x004A9AC8	AudioSystem	audioSystem	audio_mss	constructed by 0x00401040
+0x004C8450	SoundEffects	soundEffects	audio_mss	constructed by 0x00401080
+0x004B7EB8	MidiPlayer	midiPlayer	audio_mss	constructed by 0x004010C0
+0x004C9288	StreamPlayer	streamPlayer	audio_mss	constructed by 0x00401100
+0x004BA6E8	MusicQueue	musicQueue	audio_mss	constructed by 0x00401140
+0x0053D110	mss::PCMWAVEFORMAT	waveFormat	audio_mss	output format requested by SoundEffects::Open
+0x004B7380	std::int32_t	musicFadeMode	audio_mss	1: stop now, 2: fade over musicFadeLength
+0x004B7378	std::int32_t	musicFading	audio_mss
+0x004B74F0	std::int32_t	musicFadeLength	audio_mss

@@ -26,6 +26,8 @@ int MessageBoxA(HWND owner, LPCSTR text, LPCSTR caption, UINT type) {
     return ::MessageBoxA(static_cast<::HWND>(owner), text, caption, type);
 }
 
+BOOL MessageBeep(UINT type) { return ::MessageBeep(type); }
+
 int wsprintfA(LPSTR buffer, LPCSTR format, ...) {
     va_list args;
     va_start(args, format);
