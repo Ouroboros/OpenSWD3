@@ -183,7 +183,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 182	swd32.exe	0x0040DD10	sub_40DD10	game	src/game/game_state.cpp:GameState::SetWalkSpeed	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:SetWalkSpeed
 183	swd32.exe	0x0040DD20	sub_40DD20	game	src/game/game_state.cpp:GameState::SetFrameInterval	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:SetInputLock
 184	swd32.exe	0x0040DD30	sub_40DD30	game	src/game/game_state.cpp:GameState::ClearFrameInterval	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:ClearInputLock
-185	swd32.exe	0x0040DD40	sub_40DD40	map	src/map/world.cpp:MoveRecord::Clear	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:ClearFollower
+185	swd32.exe	0x0040DD40	sub_40DD40	game	src/game/game_state.cpp:MoveRecord::Clear	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:ClearFollower
 186	swd32.exe	0x0040DD60	sub_40DD60	game		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:LoadRoleRecord
 187	swd32.exe	0x0040DE50	sub_40DE50	game	src/ui/marching_rect.cpp:MarchingRect::Draw	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:DrawMarchingRect
 188	swd32.exe	0x0040E030	sub_40E030	game	src/game/game_state.cpp:GameState::DirectionToPlayer	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:DirectionToPlayer
@@ -348,7 +348,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 347	swd32.exe	0x004259B0	sub_4259B0	map	src/map/map_cache.cpp:MapCache::MarkDirty	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between map anchors 0x00425570 and 0x00425A70
 348	swd32.exe	0x00425A70	sub_425A70	map	src/map/map_cache.cpp:MapCache::CacheBytes	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "%sdata\%d.cm"
 349	swd32.exe	0x00425B40	sub_425B40	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between map anchors 0x00425A70 and 0x00425BE0
-350	swd32.exe	0x00425B50	sub_425B50	map	src/map/world.cpp:World::Clear	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between map anchors 0x00425A70 and 0x00425BE0
+350	swd32.exe	0x00425B50	sub_425B50	game	src/game/game_state.cpp:GameState::ClearWorld	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between map anchors 0x00425A70 and 0x00425BE0
 351	swd32.exe	0x00425BE0	sub_425BE0	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "HUGE.lmf"
 352	swd32.exe	0x004267E0	sub_4267E0	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between map anchors 0x00425BE0 and 0x00426840
 353	swd32.exe	0x00426820	sub_426820	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between map anchors 0x00425BE0 and 0x00426840; legacy: src/map/map_cache.cpp:MapDecompress

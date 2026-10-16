@@ -336,7 +336,7 @@ void Game::InitDrawKernel()
 
     this->databases.LoadMaps();
     this->pathNodes.Init();
-    this->world.Clear();
+    this->state.ClearWorld();
     this->menuState = Game::kTitleMenu;
 }
 

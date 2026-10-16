@@ -15,7 +15,7 @@
 #include "input/input.h"
 #include "launcher/launcher.h"
 #include "map/map_cache.h"
-#include "map/world.h"
+
 #include "movie/movie.h"
 #include "pic/rle.h"
 #include "platform/audio_device.h"
@@ -90,7 +90,7 @@ private:
     Config config;
     Controls controls;
     MapCache mapCache;
-    World world;
+
     GameDatabases databases;
     PathNodePool pathNodes;
     TextColors textColors;
