@@ -1310,7 +1310,7 @@ void FieldView::DrawWeather()
     {
         const auto roll = static_cast<int>(random.Below(0x3E8));
         const int width = state.map.width;
-        Particle& drop = view.weather[particle];
+        MapParticle& drop = view.weather[particle];
         WeatherShade& shade = view.weatherShades[particle];
         WeatherMotion& motion = view.weatherMotion[particle];
 
@@ -1439,7 +1439,7 @@ void FieldView::DrawLeaves()
 
     for (std::size_t index = 0; index < view.leaves.size(); ++index)
     {
-        Particle& leaf = view.leaves[index];
+        MapParticle& leaf = view.leaves[index];
         ActState& act = view.unk4AD0D8[index];
 
         if (leaf.x <= -0x78 || leaf.x >= width + 0x78 || leaf.y <= -0x78 || leaf.y >= height + 0x78)

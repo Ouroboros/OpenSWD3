@@ -158,7 +158,7 @@ struct ScriptObject
 };
 
 // A particle of the weather or the leaves: its place on the map and its speed.
-struct Particle
+struct MapParticle
 {
     i32 x = 0;
     i32 y = 0;
@@ -261,10 +261,10 @@ struct Scene
     std::array<ActState, 8> unk4B9F68;
     ActState unk4C83A8;
     i32 unk4C8BE0 = 0;
-    u16 unk4C8BD4 = 0;                     // the bytes of maps.dat's table 1
-    Role pointerButtonRole;                // 0x004C96C8 (action 0xC)
-    std::array<Particle, 4> weather = {};  // 0x004C97A0 the weather particles (filled with 0x0F bytes)
-    u32 unk4C97E4 = 0;                     // an offset into maps.dat (its table 0x18)
+    u16 unk4C8BD4 = 0;                        // the bytes of maps.dat's table 1
+    Role pointerButtonRole;                   // 0x004C96C8 (action 0xC)
+    std::array<MapParticle, 4> weather = {};  // 0x004C97A0 the weather particles (filled with 0x0F bytes)
+    u32 unk4C97E4 = 0;                        // an offset into maps.dat (its table 0x18)
     std::array<ActState, 4> unk4CAA78;
     i32 unk4CAD20 = 0;
     Role pointerPageRole;        // 0x004CADA0 (action 0xE)
@@ -298,7 +298,7 @@ struct Scene
     i32 unk4B7A98 = 0;
     std::array<i32, 8> unk4B7C8C = {};  // the roles following the leader
     i32 unk4B7EB4 = 0;
-    std::array<Particle, 4> leaves = {};  // 0x004B86F8 (x 0x7FFFFFFF: to be placed)
+    std::array<MapParticle, 4> leaves = {};  // 0x004B86F8 (x 0x7FFFFFFF: to be placed)
     i32 unk4B873C = 0;
     i32 unk4B88C0 = 0;
     i16 lightningShown = 0;  // 0x004B88BC

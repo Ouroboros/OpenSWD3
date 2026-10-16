@@ -80,6 +80,9 @@ namespace story_flag
 
 constexpr int kRunning = 1;              // cleared when the debug quit key ends the game
 constexpr int kEncounters = 0xC;         // enemies are met on the map
+constexpr int kInParty = 0x1E;           // 0x1E..0x21: the four roles are in the party
+constexpr int kUnkC9 = 0xC9;             // the battle start sets panel flag 2
+constexpr int kUnk1BB0 = 0x1BB0;         // the timing window of the battle is 0x12 frames instead of 0x3C
 constexpr int kNoSlide = 0x14;           // steps into walls do not slide (debug key Ctrl+F3)
 constexpr int kDebugKeys = 0x52;         // the debug keys work
 constexpr int kMapNoEncounter = 0x1770;  // + the map number: no enemies on that map

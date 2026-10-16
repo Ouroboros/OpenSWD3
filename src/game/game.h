@@ -12,6 +12,7 @@
 #include "battle/battle_role.h"
 #include "battle/battle_services.h"
 #include "battle/battle_state.h"
+#include "battle/fight_talk.h"
 #include "config/config.h"
 #include "core/types.h"
 #include "crt/msvc.h"
@@ -147,6 +148,8 @@ private:
     void StopVideo();
     void VideoFrame();
     void StartBattle(u16 battle);
+    void LoadBattleBackground(int picture, u16 animation, int x, int y, u16 scene);
+    void MeasureUnits();
 
     DialogErrorReporter errors;
     Display display;
@@ -187,6 +190,7 @@ private:
     BattleState battleState;
     BattleHud battleHud;
     BattleMessages battleMessages;
+    FightTalk fightTalk;
     BattleServices battleServices;
     std::array<BattleRole, 10> battleRoles;    // 0x005029D0
     std::array<BattleEnemy, 8> battleEnemies;  // 0x00525508

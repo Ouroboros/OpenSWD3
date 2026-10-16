@@ -47,7 +47,7 @@ void Scene::FreeMarks()
 // swd32.exe 0x0040F670
 void Scene::ResetLeaves()
 {
-    for (Particle& leaf : this->leaves)
+    for (MapParticle& leaf : this->leaves)
     {
         leaf.x = 0x7FFFFFFF;
     }
