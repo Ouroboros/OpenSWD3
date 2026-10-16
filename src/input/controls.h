@@ -59,6 +59,7 @@ public:
     void Poll(Input& input, const Config& config, GameState& state, i32 frameTime);
     ButtonState& At(Button button);
     const ButtonState& At(Button button) const;
+    int PressConfirm();
 
     std::array<ButtonState, kButtons> buttons = {};
     i32 now = 0;              // 0x004CB224 the frame time of this poll

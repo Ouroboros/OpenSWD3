@@ -117,4 +117,16 @@ const ButtonState& Controls::At(Button button) const
     return this->buttons[static_cast<std::size_t>(button)];
 }
 
+// swd32.exe 0x00464DA0: Space pressed and held two frames, the left button held two frames, Enter held one frame (the
+// battle menus confirm with it); 2 is returned
+int Controls::PressConfirm()
+{
+    ButtonState& space = this->At(Button::Space);
+    space.press = 1;
+    space.heldFrames = 2;
+    this->At(Button::MouseLeft).heldFrames = 2;
+    this->At(Button::Enter).heldFrames = 1;
+    return 2;
+}
+
 }  // namespace swd3

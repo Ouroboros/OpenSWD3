@@ -25,19 +25,6 @@ enum class AccessoryKind : u16
     SpiritFan = 0x39,    // 靈虛扇
 };
 
-// BattleUnit::equipmentFlags set by the accessories.
-namespace equipment_flag
-{
-
-constexpr u32 kUnk32 = 1;
-constexpr u32 kBladeReturn = 4;
-constexpr u32 kUnk36 = 8;
-constexpr u32 kSpiritDrain = 0x10;
-constexpr u32 kLifeDrain = 0x20;
-constexpr u32 kSpiritFan = 0x40;
-
-}  // namespace equipment_flag
-
 // A party role in battle (0x2F34 bytes in the original, ten of them at 0x005029D0): a unit with a battle copy of the
 // role's record and the fields past the unit.
 class BattleRole : public BattleUnit
@@ -60,14 +47,18 @@ public:
     void
     ApplyEquipment(std::span<const std::unique_ptr<ItemNode>> slots, CounterList& proficiency, ErrorReporter& reporter);
     void ApplyAccessory(const ObjectRecord& accessory, CounterList& proficiency);
+    void ShowAllSkills();
+    void ShowAllItems();
+    void PayStamina();
+    void TakeCommand2F18();
 
     std::unique_ptr<RoleRecord> ownedRecord;  // the 0x38 bytes at +0x00
     ObjectRecord unk2B24;                     // +0x2B24
     std::array<ActState, 5> unk2BC8;          // +0x2BC8
-    ItemNode* skills = nullptr;               // +0x2EC0 the role's skill list (its "無" head)
-    ItemNode* skillsShown = nullptr;          // +0x2EC4
-    ItemLink* inventory = nullptr;            // +0x2EC8 the party's items
-    ItemLink* inventoryShown = nullptr;       // +0x2ECC
+    ItemNode* skills = nullptr;               // +0x2EC0 the first skill shown in the list
+    ItemNode* skillsHead = nullptr;           // +0x2EC4 the start of the list (its "無" head)
+    ItemLink* inventory = nullptr;            // +0x2EC8 the first item shown
+    ItemLink* inventoryHead = nullptr;        // +0x2ECC the party's items
     i32 unk2F0C = 0;
     u16 unk2F10 = 0;
     u16 unk2F12 = 0;

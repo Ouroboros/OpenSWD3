@@ -117,8 +117,8 @@
 0x004ACE5C	Scene::unk4ACE5C	i32	src/game/scene.h:289	
 0x004ACE60	Settings::battleSpeed	i32	src/config/config.h:50	0..11
 0x004ACE64	Scene::unk4ACE64	i32	src/game/scene.h:319	shown as dbg2
-0x004ACE68	Controls::lastPointerX	i32	src/input/controls.h:68	
-0x004ACE6C	Controls::lastPointerY	i32	src/input/controls.h:69	
+0x004ACE68	Controls::lastPointerX	i32	src/input/controls.h:69	
+0x004ACE6C	Controls::lastPointerY	i32	src/input/controls.h:70	
 0x004ACE70	Scene::shake	std::array<i16, 0x40>	src/game/scene.h:245	camera offsets of the quake in pairs, ended by 0xCFCF
 0x004ACEF0	Scene::unk4ACEF0	u16	src/game/scene.h:290	
 0x004ACEF4	Game::unk4ACEF4	i32	src/game/game.h:220	
@@ -210,7 +210,7 @@
 0x004C8BE8	ClickRegions::flags	i32	src/game/game_state.h:71	
 0x004C8BEC	ClickRegions::regions	std::list<ClickRegion>	src/game/game_state.h:72	 the head first
 0x004C8BF0	ClickRegions::state	std::array<i32, 3>	src/game/game_state.h:73	
-0x004C8BFC	Controls::idleFrames	u32	src/input/controls.h:67	polls without pointer movement or buttons
+0x004C8BFC	Controls::idleFrames	u32	src/input/controls.h:68	polls without pointer movement or buttons
 0x004C8C00	Scene::trailDirection	std::array<i32, 0x20>	src/game/scene.h:296	
 0x004C8C80	Scene::fireflies	std::array<Streak, 0x60>	src/game/scene.h:312	
 0x004C96C8	Scene::pointerButtonRole	Role	src/game/scene.h:265	(action 0xC)
@@ -250,7 +250,7 @@
 0x004CAE88	Scene::unk4CAE88	i32	src/game/scene.h:272	
 0x004CAE8C	MapMovie::active	i32	src/map/field_view.h:49	
 0x004CAE90	Scene::heatFrame	u16	src/game/scene.h:316	
-0x004CAE94	Controls::mouseSuppressed	i32	src/input/controls.h:66	polls left with the left button ignored
+0x004CAE94	Controls::mouseSuppressed	i32	src/input/controls.h:67	polls left with the left button ignored
 0x004CAE98	Settings::debugMode	i32	src/config/config.h:51	debug hot keys
 0x004CAE9C	Game::debugText	i32	src/game/game.h:229	the debug lines (debug key F1)
 0x004CAEA0	Game::debugCells	i32	src/game/game.h:230	the debug cell marks (debug key F2)
@@ -269,13 +269,13 @@
 0x004CB218	RoleControl::scrollDown	i32	src/role/role_control.h:39	
 0x004CB21C	RoleControl::scrollUp	i32	src/role/role_control.h:38	
 0x004CB220	RoleControl::unk4CB220	i32	src/role/role_control.h:46	frames since a debug key
-0x004CB224	Controls::now	i32	src/input/controls.h:64	the frame time of this poll
+0x004CB224	Controls::now	i32	src/input/controls.h:65	the frame time of this poll
 0x004CB228	RoleControl::stepRight	i32	src/role/role_control.h:41	
 0x004CB22C	RoleControl::stepLeft	i32	src/role/role_control.h:40	the role alone can step left
 0x004CB230	RoleControl::stepDown	i32	src/role/role_control.h:43	
 0x004CB234	RoleControl::idleFrames	i32	src/role/role_control.h:45	frames standing (idle action 0x34 after 0x80)
 0x004CB238	RoleControl::stepUp	i32	src/role/role_control.h:42	
-0x004CB23C	Controls::lastPoll	i32	src/input/controls.h:65	
+0x004CB23C	Controls::lastPoll	i32	src/input/controls.h:66	
 0x004CB240	Game::unk4CB240	i32	src/game/game.h:211	
 0x004CB248	SaveSlots::acts	std::array<std::array<ActState, kActsPerSlot>, kVisible>	src/save/save_slots.h:66	
 0x004CB968	SaveSlots::previews	std::array<SavePreview, kVisible>	src/save/save_slots.h:67	

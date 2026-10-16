@@ -58,4 +58,15 @@ void BattleEnemy::Setup(const UnitPlacement& at, u16 id, Database& database)
     }
 }
 
+// swd32.exe 0x00475820: the enemy turned into object `id` (its hit points full, its level byte and skill script)
+void BattleEnemy::Reload(u16 id, Database& database)
+{
+    database.LoadObject(*this->data, id);
+    ObjectData& object = this->data->data;
+    object.maxHitPoints = object.hitPoints;
+    this->unk2A93 = object.battleLevel;
+    this->LoadCommand(database, object.skill);
+    Database::FreeDescription(*this->data);
+}
+
 }  // namespace swd3

@@ -89,6 +89,19 @@ constexpr u32 kInvisible = 0x80000000;
 
 }  // namespace unit_status
 
+// BattleUnit::equipmentFlags set by the accessories (BattleRole::ApplyAccessory).
+namespace equipment_flag
+{
+
+constexpr u32 kUnk32 = 1;
+constexpr u32 kBladeReturn = 4;
+constexpr u32 kUnk36 = 8;
+constexpr u32 kSpiritDrain = 0x10;
+constexpr u32 kLifeDrain = 0x20;
+constexpr u32 kSpiritFan = 0x40;
+
+}  // namespace equipment_flag
+
 // BattleUnit::marks bits.
 namespace unit_mark
 {
@@ -99,7 +112,10 @@ constexpr u16 kUnk4000 = 0x4000;  // the gauge stops (set elsewhere in the battl
 }  // namespace unit_mark
 
 class Database;
+class Random;
 class ErrorReporter;
+struct CounterNode;
+using CounterList = CounterNode;
 
 class BattleUnit
 {
@@ -202,6 +218,36 @@ public:
     void SetDefeatPoseFixed(u8 pose);
     void SetDamageDigits(BattleServices& services, int amount);
     int AdvanceGauge(const BattleServices& services, int boost);
+    ObjectRecord* Data() const;
+    bool MarkBit11Clear() const;
+    int IsHeldOrHolding() const;
+    u16 ActId() const;
+    u16 DrainKind() const;
+    int StatusBit5Or8() const;
+    int SetValueAAC(int value);
+    int SetFacingIfAble(int value);
+    void SetNudge(u16 nudge, u16 saved);
+    bool CommandTarget(u16& target) const;
+    int MarkBit1() const;
+    bool MarkBit8Clear() const;
+    bool HasBlock38() const;
+    int Word2A86Bit13() const;
+    int Word2A86Bit12() const;
+    bool RestartMainAct(i16 value, int force);
+    int CommandStatusBit() const;
+    void CommandValues(u16& value, u16& turns) const;
+    bool IsSmallMachine() const;
+    void Unk62And8A(u16& first, u16& second) const;
+    u16 AccessoryValue(u16 kind) const;
+    i16 AccessoryProficiency(u16 kind, CounterList& proficiency);
+    void SetWords72(i16 first, i16 second, i16 third, i16 fourth);
+    void SetWords66(i16 a, i16 b, i16 c, i16 d, i16 e, i16 f);
+    void SetResistances(std::span<const i16, 9> values);
+    bool ShowsPicture(i16 picture) const;
+    void LoadSkillAction(Database& database, u16 id, u16& act);
+    u16 PrepareCommand(Database& database);
+    bool ChooseHeal(BattleServices& services);
+    void ClearMoveAxes(u16& x, u16& y) const;
     void LoadCommand(Database& database, u16 id);
     int SetFacing(int value);
     void SetDisplayName(std::span<const char> name);
@@ -247,10 +293,7 @@ public:
     const Picture* unk2554 = nullptr;          // +0x2554
     std::span<const char> displayName;         // +0x2560 the name shown in the messages (read up to its NUL when used)
     EffectNode effects;                        // +0x2584 (the head is a node: +0x2588 its act, +0x2620 its bits)
-    i32 unk2630 = 0;
-    i32 unk2634 = 0;
-    i32 unk2638 = 0;
-    i32 unk263C = 0;
+    std::array<char, 0x30> skillName = {};     // +0x2630 the name of the skill used
     i32 unk2660 = 0;
     i32 unk2664 = 0;
     i32 fadeLevel = 0xF;  // +0x2668
@@ -366,5 +409,6 @@ public:
 };
 
 int ScaleByTenths(i8 tenths, i16& value);
+bool RollChance(Random& random, int percent);
 
 }  // namespace swd3

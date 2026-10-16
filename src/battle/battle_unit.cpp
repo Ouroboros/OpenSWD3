@@ -5,6 +5,7 @@
 #include <string>
 
 #include "audio/audio_manager.h"
+#include "battle/battle_enemy.h"
 #include "battle/battle_hud.h"
 #include "battle/battle_message.h"
 #include "battle/battle_services.h"
@@ -15,6 +16,7 @@
 #include "crt/msvc.h"
 #include "draw/painter.h"
 #include "org/database.h"
+#include "org/fame.h"
 #include "party/party.h"
 #include "pic/picture.h"
 #include "random/random.h"
@@ -414,10 +416,7 @@ int BattleUnit::ResetTurn(BattleServices& services)
         this->slotActs[static_cast<std::size_t>(i)] = ActState{};
     }
 
-    this->unk2630 = 0;
-    this->unk2634 = 0;
-    this->unk2638 = 0;
-    this->unk263C = 0;
+    std::fill_n(this->skillName.begin(), 0x10, '\0');
     this->command = UnitCommand{};
     this->targets = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};
     int result = this->kind;
@@ -2489,6 +2488,416 @@ void BattleUnit::LoadCommand(Database& database, u16 id)
     this->command.unk20 = skill.unk20;
     this->command.target = skill.unk22;
     this->command.unk24 = skill.turns;
+}
+
+// swd32.exe 0x00480AD0
+ObjectRecord* BattleUnit::Data() const
+{
+    return this->data;
+}
+
+// swd32.exe 0x004728D0
+bool BattleUnit::MarkBit11Clear() const
+{
+    return (this->marks & 0x800) == 0;
+}
+
+// swd32.exe 0x0047F920: held (by a mark) or holding
+int BattleUnit::IsHeldOrHolding() const
+{
+    if ((this->marks & unit_mark::kHeld) != 0)
+    {
+        return 1;
+    }
+
+    return this->held;
+}
+
+// swd32.exe 0x0047F910
+u16 BattleUnit::ActId() const
+{
+    return this->actId;
+}
+
+// swd32.exe 0x00482E90: the drain of the command: an attack drain (bit 8) drains life with a vampire ring (8) and hit
+// points otherwise (1); bit 9 drains spirit (2); bit 10 stamina (4)
+u16 BattleUnit::DrainKind() const
+{
+    const u32 flags = this->command.actionFlags;
+
+    if ((flags & 0x100) != 0)
+    {
+        return (this->equipmentFlags & equipment_flag::kLifeDrain) != 0 ? u16{8} : u16{1};
+    }
+
+    if ((flags & 0x200) != 0)
+    {
+        return 2;
+    }
+
+    return static_cast<u16>((flags >> 8) & 4);
+}
+
+// swd32.exe 0x00483820
+int BattleUnit::StatusBit5Or8() const
+{
+    if ((this->status & 0x20) != 0)
+    {
+        return 1;
+    }
+
+    return static_cast<int>((this->status >> 8) & 1);
+}
+
+// swd32.exe 0x00483FD0
+int BattleUnit::SetValueAAC(int value)
+{
+    this->unk2AAC = value;
+    return value;
+}
+
+// swd32.exe 0x00483FF0: the facing (and +0x2B20) set, unless the unit is a defeated party role
+int BattleUnit::SetFacingIfAble(int value)
+{
+    if (this->kind != BattleUnit::kPartyRole || this->defeated != 1)
+    {
+        this->name = value;
+        this->facing = value;
+        return value;
+    }
+
+    return 1;
+}
+
+// swd32.exe 0x00482080
+void BattleUnit::SetNudge(u16 nudge, u16 saved)
+{
+    this->nudge = nudge;
+    this->drawAtSaved = saved;
+}
+
+// swd32.exe 0x00483840: the target of a command that names one (flag 1)
+bool BattleUnit::CommandTarget(u16& target) const
+{
+    if ((this->command.flags & 1) == 0)
+    {
+        return false;
+    }
+
+    target = this->command.target;
+    return true;
+}
+
+// swd32.exe 0x00481FC0
+int BattleUnit::MarkBit1() const
+{
+    return (this->marks >> 1) & 1;
+}
+
+// swd32.exe 0x00481FB0
+bool BattleUnit::MarkBit8Clear() const
+{
+    return (this->marks & 0x100) == 0;
+}
+
+// swd32.exe 0x00482E80: the role's battle block starts with 0x38
+bool BattleUnit::HasBlock38() const
+{
+    return *this->roleBlock == 0x38;
+}
+
+// swd32.exe 0x004717D0
+int BattleUnit::Word2A86Bit13() const
+{
+    return (this->unk2A86 >> 13) & 1;
+}
+
+// swd32.exe 0x004717E0
+int BattleUnit::Word2A86Bit12() const
+{
+    return (this->unk2A86 >> 12) & 1;
+}
+
+// swd32.exe 0x00482030: the main act started over (cleared, the cast act marked done and +0x26D2 set) when it waits or
+// when forced
+bool BattleUnit::RestartMainAct(i16 value, int force)
+{
+    if (this->mainAct.waiting != 1 && force != 1)
+    {
+        return false;
+    }
+
+    this->mainAct = ActState{};
+    this->castAct.waiting = 1;
+    this->unk26D2 = value;
+    return true;
+}
+
+// swd32.exe 0x00476140: the command sets status bit 28, or its flag 12
+int BattleUnit::CommandStatusBit() const
+{
+    if ((static_cast<u32>(this->command.unk08) & 0x10000000) != 0)
+    {
+        return 1;
+    }
+
+    return static_cast<int>((this->command.actionFlags >> 12) & 1);
+}
+
+// swd32.exe 0x00476900
+void BattleUnit::CommandValues(u16& value, u16& turns) const
+{
+    value = this->command.unk20;
+    turns = this->command.unk24;
+}
+
+// swd32.exe 0x004768D0: a machine enemy (kind 0x800, like 蟹精魔機) of a type up to 0x15, never a named one
+bool BattleUnit::IsSmallMachine() const
+{
+    const u32 kind = this->data->data.kind;
+
+    if ((kind & BattleEnemy::kNamedKind) != 0)
+    {
+        return false;
+    }
+
+    if ((kind & BattleEnemy::kMachineKind) != 0)
+    {
+        return this->data->data.unk52 <= BattleEnemy::kSmallMachineTypes;
+    }
+
+    return false;
+}
+
+// swd32.exe 0x00475870
+void BattleUnit::Unk62And8A(u16& first, u16& second) const
+{
+    first = this->data->data.unk62;
+    second = this->data->data.unk8A;
+}
+
+// swd32.exe 0x00482F70: the value (+0x40, low 14 bits) of the worn accessory of `kind`, 0 without one
+u16 BattleUnit::AccessoryValue(u16 kind) const
+{
+    for (const ObjectRecord& accessory : this->accessories)
+    {
+        if (accessory.data.unk48 == kind)
+        {
+            return static_cast<u16>(accessory.data.unk40 & 0x3FFF);
+        }
+    }
+
+    return 0;
+}
+
+// swd32.exe 0x00482F10: the proficiency in percent of the worn accessory of `kind` (kept at +0x26DC; the last one
+// kept without such an accessory)
+i16 BattleUnit::AccessoryProficiency(u16 kind, CounterList& proficiency)
+{
+    for (const ObjectRecord& accessory : this->accessories)
+    {
+        if (accessory.data.unk48 == kind)
+        {
+            this->unk26DC = static_cast<u16>(FindCounterPercent(proficiency, static_cast<i16>(accessory.data.unk50)));
+            return static_cast<i16>(this->unk26DC);
+        }
+    }
+
+    return static_cast<i16>(this->unk26DC);
+}
+
+// swd32.exe 0x00476A10: the object's words +0x72..+0x76 set where non-zero (the fourth value goes to +0x74 as well)
+void BattleUnit::SetWords72(i16 first, i16 second, i16 third, i16 fourth)
+{
+    ObjectData& object = this->data->data;
+
+    if (first != 0)
+    {
+        object.unk72 = static_cast<u16>(first);
+    }
+
+    if (second != 0)
+    {
+        object.unk74 = static_cast<u16>(second);
+    }
+
+    if (third != 0)
+    {
+        object.unk76 = static_cast<u16>(third);
+    }
+
+    if (fourth != 0)
+    {
+        object.unk74 = static_cast<u16>(fourth);
+    }
+}
+
+// swd32.exe 0x004769A0: the object's words +0x66..+0x70 set where non-zero
+void BattleUnit::SetWords66(i16 a, i16 b, i16 c, i16 d, i16 e, i16 f)
+{
+    ObjectData& object = this->data->data;
+    const std::array<std::pair<i16, u16*>, 6> words = {{
+        {a, &object.unk66},
+        {b, &object.unk68},
+        {c, &object.unk6A},
+        {d, &object.unk6C},
+        {e, &object.unk6E},
+        {f, &object.unk70},
+    }};
+
+    for (const auto& [value, word] : words)
+    {
+        if (value != 0)
+        {
+            *word = static_cast<u16>(value);
+        }
+    }
+}
+
+// swd32.exe 0x00476920: the object's resistances from the low bytes of nine words
+void BattleUnit::SetResistances(std::span<const i16, 9> values)
+{
+    for (std::size_t element = 0; element < values.size(); ++element)
+    {
+        this->data->data.resistances[element] = static_cast<u8>(values[element]);
+    }
+}
+
+// swd32.exe 0x00482EC0: the unit has an action and its main act shows picture `picture` - 1 (-1: the main act waits)
+bool BattleUnit::ShowsPicture(i16 picture) const
+{
+    if (this->action == 0)
+    {
+        return false;
+    }
+
+    if (picture != -1)
+    {
+        return this->mainAct.picture == static_cast<u16>(picture - 1);
+    }
+
+    return this->mainAct.waiting == 1;
+}
+
+// swd32.exe 0x00476160: skill `id` of mon.dat taken as the unit's action: its act, its name, its command script (the
+// command's +0x0E adding to +0x29A4) and command 2
+void BattleUnit::LoadSkillAction(Database& database, u16 id, u16& act)
+{
+    database.LoadObject(this->object, id);
+    act = this->object.data.unk50;
+    const std::span<const char> name(this->object.data.name);
+    const std::size_t length = std::min<std::size_t>(strnlen(name.data(), name.size()), this->skillName.size() - 1);
+    std::copy_n(name.begin(), length, this->skillName.begin());
+    this->skillName[length] = '\0';
+    this->LoadCommand(database, this->object.data.unk3E);
+    this->unk29A4 = static_cast<u16>(this->unk29A4 + (this->command.unk0E[0] | this->command.unk0E[1] << 8));
+    this->SetCommand(2);
+    this->unk2A86 = static_cast<u16>(this->unk2A86 | 0x8000);
+}
+
+// swd32.exe 0x004761D0: an enemy's command: with +0x2A8C a command of flag 2 runs (command 2, its cast act returned);
+// otherwise the enemy's own skill script is read afresh, +0x29A4 starts from its attack and command 1 follows
+u16 BattleUnit::PrepareCommand(Database& database)
+{
+    if (this->unk2A8C != 0)
+    {
+        if ((this->command.flags & 2) == 0)
+        {
+            return 0;
+        }
+
+        this->unk2A86 = static_cast<u16>(this->unk2A86 | 0x8000);
+        this->SetCommand(2);
+        return this->command.castAct;
+    }
+
+    this->unk29A4 = 0;
+    this->command = UnitCommand{};
+    this->LoadCommand(database, this->data->data.skill);
+    this->unk29A4 = static_cast<u16>(this->unk29A4 + this->data->data.attack);
+    this->SetCommand(1);
+    return 0;
+}
+
+// swd32.exe 0x00476080: an enemy below a third of its hit points heals itself half the time (on a roll of 0..4 its
+// first way, 5..9 its second) when it has that way, may heal and is not marked otherwise
+bool BattleUnit::ChooseHeal(BattleServices& services)
+{
+    u16 roll = static_cast<u16>(services.random.Below(0xA));
+
+    if (roll <= 4)
+    {
+        roll = 0;
+    }
+    else if (roll <= 9)
+    {
+        roll = 1;
+    }
+
+    const ObjectData& object = this->data->data;
+    i32 hitPoints = object.hitPoints;
+
+    if (this->hitPointsOverride != 0)
+    {
+        hitPoints = this->hitPointsOverride;
+    }
+
+    if (hitPoints >= object.maxHitPoints / 3)
+    {
+        return false;
+    }
+
+    const bool free = (this->marks & 0x100) == 0 && object.canHeal != 0;
+
+    if (roll == 0)
+    {
+        if (object.healA != 0 && free)
+        {
+            this->healChoice = 1;
+            return true;
+        }
+    }
+    else if (roll == 1 && object.healB != 0 && free)
+    {
+        this->healChoice = 2;
+        return true;
+    }
+
+    return false;
+}
+
+// swd32.exe 0x00481FD0: a command that does not move across (flag 4) starts at x 0, or 0x280 for a target command of
+// an enemy or of a role facing left; one that does not move down (flag 5) at y 0
+void BattleUnit::ClearMoveAxes(u16& x, u16& y) const
+{
+    if ((this->command.actionFlags & 0x10) != 0)
+    {
+        x = 0;
+
+        if ((this->command.flags & 1) != 0)
+        {
+            if (this->kind == BattleUnit::kPartyRole && this->facing == 1)
+            {
+                x = 0x280;
+            }
+
+            if (this->kind == 0)
+            {
+                x = 0x280;
+            }
+        }
+    }
+
+    if ((this->command.actionFlags & 0x20) != 0)
+    {
+        y = 0;
+    }
+}
+
+// swd32.exe 0x00474B60: a roll of 0..99 at most 70% of `percent` plus 10 (16-bit compare)
+bool RollChance(Random& random, int percent)
+{
+    return static_cast<u16>(0x46 * percent / 0x64 + 0xA) >= static_cast<u16>(random.Below(0x64));
 }
 
 }  // namespace swd3

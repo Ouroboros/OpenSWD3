@@ -21,14 +21,14 @@ BattleRole::BattleRole()
 void BattleRole::SetSkills(ItemNode* list)
 {
     this->skills = list;
-    this->skillsShown = list;
+    this->skillsHead = list;
 }
 
 // swd32.exe 0x0046E850
 void BattleRole::SetInventory(ItemLink* list)
 {
     this->inventory = list;
-    this->inventoryShown = list;
+    this->inventoryHead = list;
 }
 
 namespace
@@ -313,6 +313,51 @@ void BattleRole::ApplyAccessory(const ObjectRecord& accessory, CounterList& prof
         default:
             break;
     }
+}
+
+// swd32.exe 0x0046FFE0: the skill list shown from its start
+void BattleRole::ShowAllSkills()
+{
+    this->skills = this->skillsHead;
+}
+
+// swd32.exe 0x00470900: the item list shown from its start
+void BattleRole::ShowAllItems()
+{
+    this->inventory = this->inventoryHead;
+}
+
+// swd32.exe 0x00470890: the stamina owed (+0x2F12) taken from the party record, not below 0
+void BattleRole::PayStamina()
+{
+    if (this->unk2F12 == 0)
+    {
+        return;
+    }
+
+    this->roleRecord->stamina = static_cast<i16>(this->roleRecord->stamina - this->unk2F12);
+
+    if (this->roleRecord->stamina < 0)
+    {
+        this->roleRecord->stamina = 0;
+    }
+
+    this->unk2F12 = 0;
+}
+
+// swd32.exe 0x004708C0: flag 9 of +0x2A86 and +0x2B0C set, command A from +0x2F18 when set, slot acts 8 and 9 cleared
+void BattleRole::TakeCommand2F18()
+{
+    this->unk2A86 = static_cast<u16>(this->unk2A86 | 0x200);
+    this->unk2B0C = 1;
+
+    if (this->unk2F18 != 0)
+    {
+        this->commandA = this->unk2F18;
+    }
+
+    this->slotActs[8] = ActState{};
+    this->slotActs[9] = ActState{};
 }
 
 }  // namespace swd3
