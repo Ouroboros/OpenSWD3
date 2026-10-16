@@ -128,6 +128,19 @@ public:
     std::uint32_t GuardKind();
     bool IsActionFrame(std::int16_t frame);
     std::uint32_t RecordValue(int id);
+    int AddRecordProgress(std::uint8_t* list, int unused, std::uint16_t amount);
+    int DrawOverlay(int id, int frame, int x, int y, int offset, int offsetY);
+    int Status20Or100();
+    int GetActionTarget(std::uint16_t* target);
+    void GetHeroWords0E08(std::uint16_t* first, std::uint16_t* second);
+    void GetHeroWords0C06(std::uint16_t* first, std::uint16_t* second);
+    int SetAAC(int value);
+    int SetName(int name);
+    int SetFacing(int facing);
+    void GetBasePosition(std::int32_t* x, std::int32_t* y);
+    void DrawState(BattleUnit* target, struct ActState* state);
+    int DrawExtraState(struct ActState* state, std::int16_t offsetY);
+    void DrawStateAt(std::int16_t x, std::int16_t y, struct ActState* state);
 
     template <typename T>
     T& at(std::intptr_t offset) {

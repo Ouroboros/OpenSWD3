@@ -2490,4 +2490,424 @@ uint32_t BattleUnit::RecordValue(int id) {
     return 0;
 }
 
+// swd32.exe 0x004830A0: adds `amount` to the progress entries (0x14 bytes: next, id, value, percent, done) of
+// the ids of the two records (+0x19C max, +0x1A8 id) in `list` (+0 head, +4 count), appending missing ones.
+// The search continues from the entry found for the previous record. `unused` is ignored. Returns 1 when a
+// record has an id.
+int BattleUnit::AddRecordProgress(uint8_t* list, int unused, uint16_t amount) {
+    static_cast<void>(unused);
+    int any = 0;
+    uint8_t* entry = list;
+    if (mem::u16(list, 4) != 0) {
+        entry = mem::ptr<uint8_t>(list, 0);
+    }
+    for (int record = 0; record < 2; ++record) {
+        uint8_t* fields = raw(0x19C + 0xA4 * record);
+        const uint16_t id = mem::u16(fields, 0xC);
+        if (id == 0) {
+            continue;
+        }
+        any = 1;
+        bool found = id == mem::u16(entry, 4);
+        while (!found) {
+            uint8_t* next = mem::ptr<uint8_t>(entry, 0);
+            if (next == nullptr) {
+                break;
+            }
+            entry = next;
+            found = id == mem::u16(entry, 4);
+        }
+        if (found) {
+            if (mem::u16(entry, 0xA) != 0) {
+                continue;
+            }
+            mem::put16(entry, 6, static_cast<uint16_t>(mem::u16(entry, 6) + amount));
+            const uint16_t max = mem::u16(fields, 0);
+            if (mem::u16(entry, 6) >= max) {
+                mem::put16(entry, 6, max);
+            }
+            const double percent = static_cast<double>(mem::u16(entry, 6)) / static_cast<double>(max) * 100.0;
+            mem::put16(entry, 8, static_cast<uint16_t>(crt::ftol(percent)));
+            continue;
+        }
+        auto* added = static_cast<uint8_t*>(crt::malloc(0x14));
+        mem::putPtr(entry, 0, added);
+        std::memset(added, 0, 0x14);
+        entry = added;
+        mem::put16(entry, 4, mem::u16(fields, 0xC));
+        mem::put16(entry, 6, amount);
+        const double percent = static_cast<double>(amount) / static_cast<double>(mem::u16(fields, 0)) * 100.0;
+        mem::put16(entry, 8, static_cast<uint16_t>(crt::ftol(percent)));
+        ++mem::ref<uint16_t>(list, 4);
+    }
+    return any;
+}
+
+// swd32.exe 0x00483700: overlay frame `frame` - 1 of picture `id` at (x + offset, y + offsetY), the offset
+// mirrored against the current picture for mirrored units
+int BattleUnit::DrawOverlay(int id, int frame, int x, int y, int offset, int offsetY) {
+    if (id == 0 || frame == 0) {
+        return 1;
+    }
+    at<int16_t>(0x29B0) = static_cast<int16_t>(offset);
+    Picture* picture = TswGetPicture(static_cast<uint32_t>(id), static_cast<uint32_t>(frame - 1));
+    at<Picture*>(0x2554) = picture;
+    G.drawSource = reinterpret_cast<uint8_t*>(picture->pixels);
+    const int32_t kind = at<int32_t>(0x2B00);
+    auto mirror = [this, offset]() {
+        const auto shifted = static_cast<uint16_t>(at<Picture*>(0x254C)->width - offset);
+        at<uint16_t>(0x29B0) = shifted;
+        at<uint16_t>(0x29B0) = static_cast<uint16_t>(shifted - at<Picture*>(0x2554)->width);
+    };
+    if (kind == 1 || at<int32_t>(0x2B04) == 1) {
+        if (at<int32_t>(0x2B08) != 1) {
+            DrawPicture(at<int16_t>(0x29B0) + x, y + offsetY, at<Picture*>(0x2554)->width,
+                        at<Picture*>(0x2554)->height, static_cast<int>(at<uint32_t>(0x26A0) | 4), 0);
+            return 1;
+        }
+        if (offset != 0) {
+            mirror();
+        }
+    }
+    if (at<int32_t>(0x2B08) == 1 && kind == 0 && at<int32_t>(0x2B04) == 0 && offset != 0) {
+        mirror();
+    }
+    DrawPicture(at<int16_t>(0x29B0) + x, y + offsetY, at<Picture*>(0x2554)->width, at<Picture*>(0x2554)->height,
+                static_cast<int>(at<uint32_t>(0x26A0) | 4), 0);
+    return 1;
+}
+
+// swd32.exe 0x00483820
+int BattleUnit::Status20Or100() {
+    const uint32_t status = at<uint32_t>(0x26C0);
+    if ((status & 0x20) != 0) {
+        return 1;
+    }
+    return (status >> 8) & 1;
+}
+
+// swd32.exe 0x00483840: the word at +0xDB2 when action flag 1 of +0xD9C is set
+int BattleUnit::GetActionTarget(uint16_t* target) {
+    if ((at<uint8_t>(0xD9C) & 1) == 0) {
+        return 0;
+    }
+    *target = at<uint16_t>(0xDB2);
+    return 1;
+}
+
+// swd32.exe 0x00483870: hero only; the return value is unused by callers
+void BattleUnit::GetHeroWords0E08(uint16_t* first, uint16_t* second) {
+    if (at<int32_t>(0x2AA0) == 1) {
+        *first = mem::u16(at<uint8_t*>(4), 0xE);
+        *second = mem::u16(at<uint8_t*>(4), 8);
+    }
+}
+
+// swd32.exe 0x004838A0: hero only; the return value is unused by callers
+void BattleUnit::GetHeroWords0C06(uint16_t* first, uint16_t* second) {
+    if (at<int32_t>(0x2AA0) == 1) {
+        *first = mem::u16(at<uint8_t*>(4), 0xC);
+        *second = mem::u16(at<uint8_t*>(4), 6);
+    }
+}
+
+// swd32.exe 0x00483FD0
+int BattleUnit::SetAAC(int value) {
+    at<int32_t>(0x2AAC) = value;
+    return value;
+}
+
+// swd32.exe 0x00483FE0
+int BattleUnit::SetName(int name) {
+    at<int32_t>(0x2560) = name;
+    return name;
+}
+
+// swd32.exe 0x00483FF0: sets +0x2B20 and the facing +0x2B08 unless the unit is a hero with +0x2AB8 set
+int BattleUnit::SetFacing(int facing) {
+    if (at<int32_t>(0x2AA0) != 1 || at<int32_t>(0x2AB8) != 1) {
+        at<int32_t>(0x2B20) = facing;
+        at<int32_t>(0x2B08) = facing;
+        return facing;
+    }
+    return 1;
+}
+
+// swd32.exe 0x00484500: hero values +4 / +0xA of +4, or enemy +0x64 (overridden by +0x26B4) / +0x4C of +0xC.
+// The return value is unused by callers.
+void BattleUnit::GetBasePosition(int32_t* x, int32_t* y) {
+    if (at<int32_t>(0x2AA0) == 1) {
+        *y = mem::s16(at<uint8_t*>(4), 0xA);
+        *x = mem::s16(at<uint8_t*>(4), 4);
+        return;
+    }
+    *x = mem::s16(at<uint8_t*>(0xC), 0x64);
+    if (at<int32_t>(0x26B4) != 0) {
+        *x = at<int32_t>(0x26B4);
+    }
+    *y = mem::s32(at<uint8_t*>(0xC), 0x4C);
+}
+
+namespace {
+
+// flips the frame of `state` for mirrored units: flag 1 of +0x26A0 toggled, origin (+0x29B4) and overlay offset
+// (+0x29AC) measured from the other edge of the current picture
+void mirrorFrame(BattleUnit& unit, const ActState* state) {
+    const uint32_t flags = unit.at<uint32_t>(0x26A0);
+    unit.at<uint32_t>(0x26A0) = (flags & 1) != 0 ? flags & ~1u : flags | 1;
+    Picture* picture = unit.at<Picture*>(0x254C);
+    unit.at<uint16_t>(0x29B4) = static_cast<uint16_t>(picture->width - static_cast<uint16_t>(state->x));
+    const uint16_t overlay = mem::u16(reinterpret_cast<const uint8_t*>(state), 0x76);
+    if (overlay != 0) {
+        unit.at<uint16_t>(0x29AC) = static_cast<uint16_t>(picture->width - overlay);
+    }
+}
+
+void drawShadow(BattleUnit& unit, int y) {
+    Picture* picture = unit.at<Picture*>(0x254C);
+    G.drawScaleHeight = picture->height / 3;
+    G.drawShear = picture->height >> 2;
+    G.drawOption304 = -6;
+    G.drawOption30C = -6;
+    G.drawOption71C = -6;
+    if (unit.at<int32_t>(0x26C0) < 0) {
+        G.drawOption304 = -1;
+        G.drawOption30C = -1;
+        G.drawOption71C = -1;
+    }
+    unit.at<uint32_t>(0x26A4) = (unit.at<uint32_t>(0x26A0) & 0x8000000F) | 0xC;
+    G.drawSource = reinterpret_cast<uint8_t*>(picture->pixels);
+    picture = unit.at<Picture*>(0x254C);
+    DrawPicture(unit.at<int16_t>(0x29B8), y - G.drawScaleHeight, picture->width, picture->height,
+                static_cast<int>(unit.at<uint32_t>(0x26A4)), 0);
+    G.drawSource = reinterpret_cast<uint8_t*>(unit.at<Picture*>(0x254C)->pixels);
+}
+
+void panSound(const ActState* state, int x) {
+    auto* raw = reinterpret_cast<uint8_t*>(const_cast<ActState*>(state));
+    const uint16_t sound = mem::u16(raw, 0x58);
+    PlaySound(sound, G.soundVolume);
+    SetSoundPan(mem::u16(raw, 0x58), x >= 0x140 ? 0x10 : -0x10);
+    mem::put16(raw, 0x58, 0);
+}
+
+}  // namespace
+
+// swd32.exe 0x004831C0: one step of `state` drawn at the unit (or, with action flags 0x38 of +0xD9C, at the
+// draw position of `target`, randomly nudged by +0x26D6 which then halves): optional green outline (+0x2AC0),
+// shadow, body (whitened while status bit 31 is set) and the overlay frame of the state. The return value is
+// unused by callers.
+void BattleUnit::DrawState(BattleUnit* target, ActState* state) {
+    uint32_t targetX = 0;
+    uint32_t targetY = 0;
+    if (ActRun(state) == 0) {
+        return;
+    }
+    auto* raw = reinterpret_cast<uint8_t*>(state);
+    Picture* picture = TswGetPicture(state->fr, state->ap);
+    at<Picture*>(0x254C) = picture;
+    G.drawSource = reinterpret_cast<uint8_t*>(picture->pixels);
+    at<uint32_t>(0x26A0) = state->flags;
+    at<uint16_t>(0x29B4) = static_cast<uint16_t>(state->x);
+    at<uint16_t>(0x29AC) = mem::u16(raw, 0x76);
+    const int32_t kind = at<int32_t>(0x2B00);
+    at<uint16_t>(0x29B0) = mem::u16(raw, 0x5E);
+    if (kind == 1 || at<int32_t>(0x2B04) == 1) {
+        if (at<int32_t>(0x2B08) == 1) {
+            mirrorFrame(*this, state);
+        }
+        if (kind == 1 && (at<uint32_t>(0x26A0) & 0x2C) == 0) {
+            at<uint32_t>(0x26A0) |= 4;
+        }
+    }
+    if (at<int32_t>(0x2B08) == 1 && kind == 0 && at<int32_t>(0x2B04) == 0) {
+        mirrorFrame(*this, state);
+    }
+    target->GetDrawPosition(reinterpret_cast<uint16_t*>(&targetX), reinterpret_cast<uint16_t*>(&targetY));
+    uint32_t x = targetX;
+    if (at<uint16_t>(0x26D6) > 0 && R250Below(2) == 1) {
+        const uint16_t nudge = at<uint16_t>(0x26D6);
+        x = targetX + nudge - 0x28;
+        const auto halved = static_cast<uint16_t>(nudge >> 1);
+        at<uint16_t>(0x26D6) = halved;
+        if (halved <= 1) {
+            at<uint16_t>(0x26D6) = 1;
+        }
+    }
+    if ((at<uint16_t>(0xD9C) & 0x38) != 0) {
+        at<uint16_t>(0x29B8) = static_cast<uint16_t>(x - at<uint16_t>(0x29B4));
+        at<uint16_t>(0x29BA) = static_cast<uint16_t>(targetY - static_cast<uint16_t>(state->y));
+    } else {
+        const auto drawX = static_cast<uint16_t>(at<uint16_t>(0xD66) - at<uint16_t>(0x29B4));
+        at<uint16_t>(0x29B8) = drawX;
+        at<uint16_t>(0x29BA) = static_cast<uint16_t>(at<uint16_t>(0xD68) - static_cast<uint16_t>(state->y));
+        if (at<int32_t>(0x2AC0) == 1) {
+            Picture* current = at<Picture*>(0x254C);
+            at<uint32_t>(0x26BC) = 0x07E007E0u;
+            DrawOutline(static_cast<int16_t>(drawX), at<int16_t>(0x29BA), current->width, current->height,
+                        static_cast<int>(at<uint32_t>(0x26A0) & 0x80000003),
+                        static_cast<int>(reinterpret_cast<std::uintptr_t>(&at<uint32_t>(0x26BC))));
+            at<uint32_t>(0x26BC) = 0x07E007E0u;
+        }
+    }
+    panSound(state, at<int16_t>(0x29B8) + at<int16_t>(0x29B4));
+    drawShadow(*this, at<int16_t>(0x29BA) + state->y);
+    Picture* body = at<Picture*>(0x254C);
+    if ((at<uint32_t>(0x26C0) & 0x80000000u) != 0) {
+        const uint32_t flags = at<uint32_t>(0x26A0) & 0x80000003;
+        at<uint32_t>(0x26A4) = flags;
+        DrawPicture(at<int16_t>(0x29B8), at<int16_t>(0x29BA), body->width, body->height,
+                    static_cast<int>(flags | 0x30), 0);
+    } else {
+        if ((at<uint8_t>(0x26A0) & 0x14) != 0) {
+            G.drawAlpha = raw[0x8A];
+        }
+        if (at<uint8_t>(0x328) != 0) {
+            G.waveMode = at<uint8_t>(0x328);
+        }
+        DrawPicture(at<int16_t>(0x29B8), at<int16_t>(0x29BA), body->width, body->height,
+                    static_cast<int>(at<uint32_t>(0x26A0)), 0);
+        G.waveMode = 0;
+    }
+    const uint16_t overlayId = mem::u16(raw, 0x4E);
+    const uint16_t overlayFrame = mem::u16(raw, 0x50);
+    if (overlayId == 0 || overlayFrame == 0) {
+        return;
+    }
+    Picture* overlay = TswGetPicture(overlayId, static_cast<uint16_t>(overlayFrame - 1));
+    at<Picture*>(0x2554) = overlay;
+    G.drawSource = reinterpret_cast<uint8_t*>(overlay->pixels);
+    const int32_t overlayKind = at<int32_t>(0x2B00);
+    auto mirrorOverlay = [this, raw]() {
+        const uint16_t offset = mem::u16(raw, 0x5E);
+        if (offset == 0) {
+            return;
+        }
+        const auto shifted = static_cast<uint16_t>(at<Picture*>(0x254C)->width - offset);
+        at<uint16_t>(0x29B0) = shifted;
+        at<uint16_t>(0x29B0) = static_cast<uint16_t>(shifted - at<Picture*>(0x2554)->width);
+    };
+    bool skipMirror = false;
+    if (overlayKind == 1 || at<int32_t>(0x2B04) == 1) {
+        if (at<int32_t>(0x2B08) != 1) {
+            skipMirror = true;
+        } else {
+            mirrorOverlay();
+        }
+    }
+    if (!skipMirror && at<int32_t>(0x2B08) == 1 && overlayKind == 0 && at<int32_t>(0x2B04) == 0) {
+        mirrorOverlay();
+    }
+    overlay = at<Picture*>(0x2554);
+    DrawPicture(at<int16_t>(0x29B8) + at<int16_t>(0x29B0), at<int16_t>(0x29BA) + mem::s16(raw, 0x60), overlay->width,
+                overlay->height, static_cast<int>(at<uint32_t>(0x26A0) | 4), 0);
+    if (state->waiting == 1) {
+        mem::put16(raw, 0x4E, 0);
+        mem::put16(raw, 0x50, 0);
+        mem::put16(raw, 0x5E, 0);
+        mem::put16(raw, 0x60, 0);
+    }
+}
+
+// swd32.exe 0x00483B30: one step of the extra state `state` drawn at the unit position (+0x29B8) lowered by
+// `offsetY`; once it waits it fades out by 2 per frame (unless paused) and returns 1 at -32
+int BattleUnit::DrawExtraState(ActState* state, int16_t offsetY) {
+    if (ActRun(state) == 0) {
+        return 0;
+    }
+    auto* raw = reinterpret_cast<uint8_t*>(state);
+    at<Picture*>(0x254C) = TswGetPicture(state->fr, state->ap);
+    PlaySound(mem::u16(raw, 0x58), G.soundVolume);
+    SetSoundPan(mem::u16(raw, 0x58), at<int16_t>(0x29B8) >= 0x140 ? 0x10 : -0x10);
+    mem::put16(raw, 0x58, 0);
+    at<uint32_t>(0x26A4) = state->flags;
+    at<uint16_t>(0x29B6) = static_cast<uint16_t>(state->x);
+    const int32_t kind = at<int32_t>(0x2B00);
+    auto mirror = [this, state]() {
+        const uint32_t flags = at<uint32_t>(0x26A4);
+        at<uint32_t>(0x26A4) = (flags & 1) != 0 ? flags & ~1u : flags | 1;
+        if (state->x != 0) {
+            at<uint16_t>(0x29B6) =
+                static_cast<uint16_t>(at<Picture*>(0x254C)->width - static_cast<uint16_t>(state->x));
+        }
+    };
+    bool skipMirror = false;
+    if (kind == 1 || at<int32_t>(0x2B04) == 1) {
+        if (at<int32_t>(0x2B08) != 1) {
+            skipMirror = true;
+        } else {
+            mirror();
+        }
+    }
+    if (!skipMirror && at<int32_t>(0x2B08) == 1 && kind == 0 && at<int32_t>(0x2B04) == 0) {
+        mirror();
+    }
+    G.drawSource = reinterpret_cast<uint8_t*>(at<Picture*>(0x254C)->pixels);
+    Picture* picture = at<Picture*>(0x254C);
+    const int x = at<int16_t>(0x29AC) - at<int16_t>(0x29B6) + at<int16_t>(0x29B8);
+    const int y = at<int16_t>(0x29BA) - state->y + offsetY;
+    if (state->waiting != 1) {
+        if ((at<uint8_t>(0x26A4) & 0x14) != 0) {
+            G.drawAlpha = raw[0x8A];
+        }
+        DrawPicture(x, y, picture->width, picture->height, static_cast<int>(at<uint32_t>(0x26A4)), 0);
+        G.drawAlpha = 0;
+        return 0;
+    }
+    const int16_t fade = at<int16_t>(0x2956);
+    if (fade <= -0x20) {
+        at<int16_t>(0x2956) = 0;
+        return 1;
+    }
+    G.drawOption71C = fade;
+    G.drawOption30C = at<int16_t>(0x2956);
+    G.drawOption304 = at<int16_t>(0x2956);
+    DrawPicture(x, y, picture->width, picture->height, static_cast<int>(at<uint32_t>(0x26A4)), 0);
+    at<int16_t>(0x2956) = static_cast<int16_t>(at<int16_t>(0x2956) - 2);
+    if (at<int32_t>(0x2AD0) == 1) {
+        at<int16_t>(0x2956) = static_cast<int16_t>(at<int16_t>(0x2956) + 2);
+    }
+    return 0;
+}
+
+// swd32.exe 0x00484230: one step of `state` drawn at (x, y) with shadow; body whitened while status bit 31 is
+// set, translucent by +0x32A with flags 0x14. The return value is unused by callers.
+void BattleUnit::DrawStateAt(int16_t x, int16_t y, ActState* state) {
+    if (ActRun(state) == 0) {
+        return;
+    }
+    auto* raw = reinterpret_cast<uint8_t*>(state);
+    at<Picture*>(0x254C) = TswGetPicture(state->fr, state->ap);
+    at<uint32_t>(0x26A0) = state->flags;
+    at<uint16_t>(0x29B4) = static_cast<uint16_t>(state->x);
+    at<uint16_t>(0x29AC) = mem::u16(raw, 0x76);
+    const int32_t kind = at<int32_t>(0x2B00);
+    if (kind == 1 || at<int32_t>(0x2B04) == 1) {
+        if (at<int32_t>(0x2B08) == 1) {
+            mirrorFrame(*this, state);
+        }
+        if (kind == 1) {
+            at<uint32_t>(0x26A0) |= 4;
+        }
+    }
+    if (at<int32_t>(0x2B08) == 1 && kind == 0 && at<int32_t>(0x2B04) == 0) {
+        mirrorFrame(*this, state);
+    }
+    at<uint16_t>(0x29B8) = static_cast<uint16_t>(x - at<uint16_t>(0x29B4));
+    at<uint16_t>(0x29BA) = static_cast<uint16_t>(y - static_cast<uint16_t>(state->y));
+    panSound(state, at<int16_t>(0x29B4) + at<int16_t>(0x29B8));
+    drawShadow(*this, at<int16_t>(0x29BA) + state->y);
+    Picture* body = at<Picture*>(0x254C);
+    if (at<int32_t>(0x26C0) < 0) {
+        DrawPicture(at<int16_t>(0x29B8), at<int16_t>(0x29BA), body->width, body->height,
+                    static_cast<int>(at<uint32_t>(0x26A0) | 0x30), 0);
+        return;
+    }
+    if ((at<uint32_t>(0x26A0) & 0x14) == 0x14) {
+        G.drawAlpha = at<uint8_t>(0x32A);
+    }
+    DrawPicture(at<int16_t>(0x29B8), at<int16_t>(0x29BA), body->width, body->height,
+                static_cast<int>(at<uint32_t>(0x26A0)), 0);
+}
+
 }  // namespace swd3
