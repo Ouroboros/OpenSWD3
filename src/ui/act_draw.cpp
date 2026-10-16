@@ -11,10 +11,14 @@ namespace swd3
 namespace
 {
 
-constexpr u32 kTranslucent = 0x14;
-constexpr u32 kTinted = 4;
+constexpr u32 kTranslucent = Painter::Translucent;
+constexpr u32 kTinted = Painter::Additive;
 constexpr int kGlowLimit = -12;
 constexpr int kGlowBase = -25;
+constexpr u32 kDecimal = 10;
+constexpr int kDigitGap = 2;
+constexpr int kLabelLeft = 0x28;
+constexpr int kLabelUp = 8;
 
 }  // namespace
 
@@ -93,17 +97,17 @@ void ActDrawer::DrawCounter(int right, int y, u32 value, int alpha)
 
     do
     {
-        const Picture* digit = this->archive.GetPicture(ActDrawer::Digits, value % 10);
+        const Picture* digit = this->archive.GetPicture(ActDrawer::Digits, value % kDecimal);
 
         if (digit != nullptr)
         {
-            x += -2 - digit->width;
+            x += -kDigitGap - digit->width;
             this->painter.SetSource(digit->data.data());
             this->painter.Options().alpha = alpha;
             this->painter.DrawPicture(x, y + 1, digit->width, digit->height, kTranslucent);
         }
 
-        value /= 10;
+        value /= kDecimal;
     } while (value != 0);
 
     const Picture* label = this->archive.GetPicture(ActDrawer::CounterLabel, 0);
@@ -112,7 +116,7 @@ void ActDrawer::DrawCounter(int right, int y, u32 value, int alpha)
     {
         this->painter.SetSource(label->data.data());
         this->painter.Options().alpha = alpha;
-        this->painter.DrawPicture(x - 0x28, y - 8, label->width, label->height, kTranslucent);
+        this->painter.DrawPicture(x - kLabelLeft, y - kLabelUp, label->width, label->height, kTranslucent);
     }
 }
 

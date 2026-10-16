@@ -10,6 +10,8 @@ namespace swd3
 namespace
 {
 
+constexpr int kConfirmFrames = 2;  // PressConfirm holds Space and the left button this long
+
 // The key slots in the order the poll updates them (the mouse buttons follow).
 constexpr std::array<Button, 16> kPollOrder = {
     Button::Escape,
@@ -79,8 +81,8 @@ void Controls::Poll(Input& input, const Config& config, GameState& state, i32 fr
         this->Update(this->buttons[slot], input.IsKeyDown(config.keys[slot]));
     }
 
-    this->Update(this->At(Button::MouseLeft), mouse & 1);
-    this->Update(this->At(Button::MouseRight), mouse & 2);
+    this->Update(this->At(Button::MouseLeft), mouse & Input::LeftButton);
+    this->Update(this->At(Button::MouseRight), mouse & Input::RightButton);
     this->lastPoll = this->now;
 
     if (this->mouseSuppressed != 0)
@@ -123,10 +125,10 @@ int Controls::PressConfirm()
 {
     ButtonState& space = this->At(Button::Space);
     space.press = 1;
-    space.heldFrames = 2;
-    this->At(Button::MouseLeft).heldFrames = 2;
+    space.heldFrames = kConfirmFrames;
+    this->At(Button::MouseLeft).heldFrames = kConfirmFrames;
     this->At(Button::Enter).heldFrames = 1;
-    return 2;
+    return kConfirmFrames;
 }
 
 }  // namespace swd3

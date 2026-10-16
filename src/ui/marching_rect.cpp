@@ -3,6 +3,7 @@
 #include <array>
 
 #include "draw/painter.h"
+#include "platform/display.h"
 #include "platform/surface.h"
 
 namespace swd3
@@ -11,9 +12,13 @@ namespace swd3
 namespace
 {
 
-constexpr int kScreenWidth = 0x280;
-constexpr int kScreenHeight = 0x1E0;
+constexpr int kScreenWidth = Display::Width;
+constexpr int kScreenHeight = Display::Height;
 constexpr u32 kPhases = 0x1F;
+constexpr u32 kShadeStart = 0x3F;
+constexpr u32 kChannelMask = 0x1F;  // a grey of the same 5-bit level in the three channels
+constexpr int kChannelBits = 5;
+constexpr int kShrink = 4;  // ShrinkScreenQuarter keeps every fourth pixel and row
 
 }  // namespace
 
@@ -30,8 +35,8 @@ void MarchingRect::Draw(Surface& surface, const Painter& painter, int x, int y, 
 
     auto shade = [&]
     {
-        const u32 level = (0x3F - shadePhase) & 0x1F;
-        const auto grey = static_cast<u16>(level | (level << 5) | (level << 10));
+        const u32 level = (kShadeStart - shadePhase) & kChannelMask;
+        const auto grey = static_cast<u16>(level | (level << kChannelBits) | (level << (2 * kChannelBits)));
         std::array<u16, 2> pair = {grey, grey};
         painter.ConvertPixels(pair);
         shadePhase = (shadePhase + 1) & kPhases;
@@ -64,14 +69,14 @@ void MarchingRect::Draw(Surface& surface, const Painter& painter, int x, int y, 
 // swd32.exe 0x0040E080
 void ShrinkScreenQuarter(Surface& screen)
 {
-    for (int row = 0; row < 0x78; ++row)
+    for (int row = 0; row < Display::Height / kShrink; ++row)
     {
-        const u16* source = screen.Row(4 * row);
-        u16* target = screen.Pixels() + static_cast<std::size_t>(row) * 0xA0;
+        const u16* source = screen.Row(kShrink * row);
+        u16* target = screen.Pixels() + static_cast<std::size_t>(row) * (Display::Width / kShrink);
 
-        for (int column = 0; column < 0xA0; ++column)
+        for (int column = 0; column < Display::Width / kShrink; ++column)
         {
-            target[column] = source[4 * column];
+            target[column] = source[kShrink * column];
         }
     }
 }

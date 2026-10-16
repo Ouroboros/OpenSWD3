@@ -7,11 +7,22 @@
 namespace swd3::crt
 {
 
+namespace
+{
+
+constexpr double kInt64Limit = 9223372036854775808.0;  // 2 to the 63rd
+constexpr u32 kRandMultiplier = 0x343FD;               // the rand() LCG: 15-bit values from bit kRandShift
+constexpr u32 kRandIncrement = 0x269EC3;
+constexpr int kRandShift = 16;
+constexpr u32 kRandMask = 0x7FFF;
+
+}  // namespace
+
 // swd32.exe 0x00489654: _ftol, truncation towards zero by fistp in the round-to-zero mode with a 64-bit result; NaN
 // and values outside the 64-bit range give the integer indefinite value
 i64 Ftol(double value)
 {
-    if (std::isnan(value) || value >= 9223372036854775808.0 || value < -9223372036854775808.0)
+    if (std::isnan(value) || value >= kInt64Limit || value < -kInt64Limit)
     {
         return std::numeric_limits<i64>::min();
     }
@@ -40,8 +51,8 @@ void Random::Seed(u32 seed)
 // swd32.exe 0x00489B20
 int Random::Next()
 {
-    this->holdrand = 0x343FD * this->holdrand + 0x269EC3;
-    return static_cast<int>((this->holdrand >> 16) & 0x7FFF);
+    this->holdrand = kRandMultiplier * this->holdrand + kRandIncrement;
+    return static_cast<int>((this->holdrand >> kRandShift) & kRandMask);
 }
 
 }  // namespace swd3::crt

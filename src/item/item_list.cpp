@@ -12,6 +12,8 @@ namespace swd3
 namespace
 {
 
+constexpr u16 kKindIdMask = 0x3FFF;  // an item id without its two top bits
+
 // "無" (swd32.exe 0x0049F9FC).
 constexpr std::u8string_view kEmptyName = u8"無";
 
@@ -170,7 +172,7 @@ ItemNode* FindItemOfKind(const ItemLink& list, i16 id)
 {
     for (ItemNode* node = list.get(); node != nullptr; node = node->next.get())
     {
-        if ((node->id & 0x3FFF) == static_cast<u16>(id))
+        if ((node->id & kKindIdMask) == static_cast<u16>(id))
         {
             return node;
         }

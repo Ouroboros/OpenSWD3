@@ -1,6 +1,7 @@
 #include "text/big5.h"
 
 #include <array>
+#include <climits>
 #include <cstddef>
 
 #include "core/types.h"
@@ -11,6 +12,8 @@ namespace swd3
 
 namespace
 {
+
+constexpr u32 kFirstNonAscii = 0x80;  // a byte from here leads a Big5 or UTF-8 sequence
 
 u16 Find(const auto& table, u32 key)
 {
@@ -39,7 +42,7 @@ u32 DecodeUtf8(std::basic_string_view<Char> text, std::size_t& at)
 {
     const auto lead = static_cast<unsigned char>(text[at]);
 
-    if (lead < 0x80)
+    if (lead < kFirstNonAscii)
     {
         ++at;
         return lead;
@@ -124,7 +127,7 @@ std::string Utf8FromBig5(std::string_view text)
     {
         const auto lead = static_cast<unsigned char>(text[at]);
 
-        if (lead < 0x80)
+        if (lead < kFirstNonAscii)
         {
             out.push_back(static_cast<char>(lead));
             continue;
@@ -136,7 +139,8 @@ std::string Utf8FromBig5(std::string_view text)
             continue;
         }
 
-        const u16 unicode = Find(big5_table::kDecode, static_cast<u32>(lead << 8 | static_cast<u8>(text[at + 1])));
+        const u16 unicode =
+            Find(big5_table::kDecode, static_cast<u32>(lead << CHAR_BIT | static_cast<u8>(text[at + 1])));
         AppendUtf8(out, unicode != 0 ? unicode : u32{'?'});
         ++at;
     }

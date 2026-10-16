@@ -16,6 +16,9 @@ namespace swd3
 namespace
 {
 
+constexpr i64 kFileTimeTicksPerSecond = 10000000;  // FILETIME counts 100 ns ticks
+constexpr std::size_t kErrorTextLimit = 0x3F;      // the error text buffer of the original
+
 std::string_view OpenMode(File::Access access, bool create)
 {
     switch (access)
@@ -386,7 +389,7 @@ bool File::LastWriteTime(u64& fileTime) const
         return false;
     }
 
-    using FileTimeTicks = std::chrono::duration<i64, std::ratio<1, 10000000>>;
+    using FileTimeTicks = std::chrono::duration<i64, std::ratio<1, kFileTimeTicksPerSecond>>;
     const auto sinceEpoch = std::chrono::clock_cast<std::chrono::system_clock>(written).time_since_epoch();
     const auto since1970 = std::chrono::duration_cast<FileTimeTicks>(sinceEpoch);
     constexpr i64 kFrom1601To1970 = 116444736000000000;
@@ -403,7 +406,7 @@ bool File::WriteByte(u8 value)
 // swd32.exe 0x004385B0
 bool File::WriteDword(u32 value)
 {
-    return this->WriteExact(&value, 4);
+    return this->WriteExact(&value, sizeof(value));
 }
 
 // swd32.exe 0x004385C0: succeeds whenever the read call does, also on a short read
@@ -429,13 +432,13 @@ bool File::ReadByte(u8& value)
 // swd32.exe 0x00438610
 bool File::ReadDword(u32& value)
 {
-    return this->ReadExact(&value, 4);
+    return this->ReadExact(&value, sizeof(value));
 }
 
 // swd32.exe 0x00438620: FormatMessageA of the system error into the 0x40 byte buffer
 void File::SetError(std::string_view text)
 {
-    this->error.assign(text.substr(0, 0x3F));
+    this->error.assign(text.substr(0, kErrorTextLimit));
 }
 
 // swd32.exe 0x00438640

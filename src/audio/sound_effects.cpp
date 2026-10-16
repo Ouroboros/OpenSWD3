@@ -17,17 +17,44 @@ constexpr u32 kIndexStart = 0x1C;
 constexpr u32 kIndexRecordBytes = 0x2C;
 constexpr u32 kSizeMask = 0x3FFFFFF;
 constexpr std::string_view kRiffTemplate = "RIFF....WAVEfmt ....0123456789012345data..";
+constexpr std::string_view kRiffTag = "RIFF";
+
+// The RIFF header of a sound: its size, the fmt chunk size and data, the data tag and size.
+constexpr std::size_t kRiffSizeAt = 4;
+constexpr std::size_t kFmtSizeAt = 0x10;
+constexpr std::size_t kFmtAt = 0x14;
+constexpr u32 kFmtBytes = 0x10;
+constexpr std::size_t kMovedFmtBytes = 0x12;
+constexpr std::size_t kDataTagEnd = 0x26;  // the last two letters of "data", patched
+constexpr std::size_t kDataSizeAt = 0x28;
+constexpr u32 kBareFmtPad = 0x18;  // a kind 0 sound is its fmt record, put after the template
+constexpr u32 kBareFmtKind = 0;
+constexpr u32 kWholeRiffKind = 1;  // a whole RIFF image, left as it is
+
+// An index record: the size (and the kind in kKindMask << kKindShift), the offset, the kind.
+constexpr std::size_t kRecordSizeAt = 0x14;
+constexpr std::size_t kRecordOffsetAt = 0x18;
+constexpr std::size_t kRecordKindAt = 0x20;
+constexpr u32 kKindMask = 3;
+constexpr int kKindShift = 26;
+
+constexpr int kStereo = 2;
+constexpr int kWideSamples = 16;  // bits per sample, kNarrowSamples once the rate is too low
+constexpr int kNarrowSamples = 8;
+constexpr int kRateStep = 2;  // a failed device is tried again at half the rate
+constexpr int kReservedChannels = 8;
+constexpr int kMaxVoices = 0x10;
 
 u32 ReadDword(const u8* bytes)
 {
     u32 value = 0;
-    std::memcpy(&value, bytes, 4);
+    std::memcpy(&value, bytes, sizeof(value));
     return value;
 }
 
 void WriteDword(u8* bytes, u32 value)
 {
-    std::memcpy(bytes, &value, 4);
+    std::memcpy(bytes, &value, sizeof(value));
 }
 
 }  // namespace
@@ -67,9 +94,9 @@ bool SoundEffects::Open(const std::string& directory)
         return false;
     }
 
-    this->channels = 2;
+    this->channels = kStereo;
     this->rate = kFullRate;
-    this->bits = 0x10;
+    this->bits = kWideSamples;
     bool waveOut = false;
 
     while (true)
@@ -86,12 +113,12 @@ bool SoundEffects::Open(const std::string& directory)
 
             if (waveOut)
             {
-                this->rate /= 2;
+                this->rate /= kRateStep;
 
-                if (this->rate < kMinRate && this->bits == 0x10)
+                if (this->rate < kMinRate && this->bits == kWideSamples)
                 {
                     this->rate = kFullRate;
-                    this->bits = 8;
+                    this->bits = kNarrowSamples;
                 }
             }
             else
@@ -116,7 +143,7 @@ bool SoundEffects::Open(const std::string& directory)
     this->driver = true;
     this->opened = true;
     this->enabled = true;
-    this->voices = std::min(AudioDevice::MixerChannels - 8, 0x10);
+    this->voices = std::min(AudioDevice::MixerChannels - kReservedChannels, kMaxVoices);
     this->active.clear();
 
     for (int count = 0; count < this->voices; ++count)
@@ -193,7 +220,7 @@ int SoundEffects::Play(int id, int volume, int pan, int loops)
     }
 
     this->device.ResetVoice(node->voice);
-    const bool riff = std::memcmp(image->data(), "RIFF", 4) == 0;
+    const bool riff = std::memcmp(image->data(), kRiffTag.data(), kRiffTag.size()) == 0;
     const bool loaded = riff ? this->device.LoadWave(node->voice, image->data())
                              : this->device.LoadCompressed(node->voice, image->data(), 0);
 
@@ -427,8 +454,9 @@ bool SoundEffects::LoadIndex(const std::string& directory)
     {
         const u8* record = index.data() + kIndexRecordBytes * i;
         SoundEntry& entry = this->table[static_cast<std::size_t>(i)];
-        entry.sizeFlags = (ReadDword(record + 0x14) & kSizeMask) | ((ReadDword(record + 0x20) & 3) << 0x1A);
-        entry.offset = ReadDword(record + 0x18);
+        entry.sizeFlags = (ReadDword(record + kRecordSizeAt) & kSizeMask) |
+                          ((ReadDword(record + kRecordKindAt) & kKindMask) << kKindShift);
+        entry.offset = ReadDword(record + kRecordOffsetAt);
     }
 
     return true;
@@ -467,20 +495,20 @@ std::shared_ptr<std::vector<u8>> SoundEffects::LoadSound(int id)
 
     this->file.SeekBegin(static_cast<i32>(entry.offset));
     u32 size = entry.sizeFlags & kSizeMask;
-    const u32 kind = entry.sizeFlags >> 0x1A;
-    const u32 pad = kind == 0 ? 0x18 : 0;
+    const u32 kind = entry.sizeFlags >> kKindShift;
+    const u32 pad = kind == kBareFmtKind ? kBareFmtPad : 0;
     auto image = std::make_shared<std::vector<u8>>(std::max<std::size_t>(size + pad, kRiffTemplate.size() + 1), 0);
     std::memcpy(image->data(), kRiffTemplate.data(), kRiffTemplate.size() + 1);
     this->file.Read(image->data() + pad, size);
 
-    if (kind != 1)
+    if (kind != kWholeRiffKind)
     {
-        std::memmove(image->data() + 0x14, image->data() + 0x18, 0x12);
-        WriteDword(image->data() + 0x10, 0x10);
-        WriteDword(image->data() + 4, size);
-        image->at(0x26) = 't';
-        image->at(0x27) = 'a';
-        WriteDword(image->data() + 0x28, size - 0x18);
+        std::memmove(image->data() + kFmtAt, image->data() + kBareFmtPad, kMovedFmtBytes);
+        WriteDword(image->data() + kFmtSizeAt, kFmtBytes);
+        WriteDword(image->data() + kRiffSizeAt, size);
+        image->at(kDataTagEnd) = 't';
+        image->at(kDataTagEnd + 1) = 'a';
+        WriteDword(image->data() + kDataSizeAt, size - kBareFmtPad);
     }
 
     return image;

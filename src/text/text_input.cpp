@@ -1,6 +1,7 @@
 #include "text/text_input.h"
 
 #include <algorithm>
+#include <climits>
 #include <cstring>
 
 #include "audio/audio_manager.h"
@@ -67,7 +68,7 @@ int TextInput::HandleMessage(
     {
         case TextMessage::ImeChar:
         {
-            this->InsertText(CharacterText(static_cast<char>(parameter >> 8), static_cast<char>(parameter)));
+            this->InsertText(CharacterText(static_cast<char>(parameter >> CHAR_BIT), static_cast<char>(parameter)));
             return 0;
         }
 

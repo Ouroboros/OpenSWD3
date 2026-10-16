@@ -16,6 +16,14 @@ namespace
 
 constexpr i8 kShow = 5;
 constexpr u32 kLeftButton = 1;
+constexpr std::size_t kContinueItem = 0;  // the items of the dialog
+constexpr std::size_t kStartItem = 1;
+constexpr std::size_t kWebsiteItem = 2;
+constexpr i16 kStartCommand = 0x3FE;  // WM_COMMAND ids
+constexpr i16 kWebsiteCommand = 0x3FF;
+constexpr i16 kReadmeCommand = 0x400;
+constexpr i16 kExitCommand = 0x401;
+constexpr i16 kCommand3 = 0x402;
 constexpr int kReadmeItem = 3;
 
 }  // namespace
@@ -95,15 +103,15 @@ Launcher::Choice Launcher::OnMouse(u32 buttons, int x, int y)
 
             switch (item)
             {
-                case 0:
+                case kContinueItem:
                     choice = Choice::Continue;
                     break;
 
-                case 1:
+                case kStartItem:
                     choice = Choice::Start;
                     break;
 
-                case 2:
+                case kWebsiteItem:
                     Launcher::RunBrowser(std::string(Launcher::Website));
                     break;
 
@@ -137,21 +145,21 @@ Launcher::Choice Launcher::OnCommand(int command)
 {
     switch (static_cast<i16>(command))
     {
-        case 0x3FE:
+        case kStartCommand:
             return Choice::Start;
 
-        case 0x3FF:
+        case kWebsiteCommand:
             Launcher::RunBrowser(std::string(Launcher::Website));
             return Choice::None;
 
-        case 0x400:
+        case kReadmeCommand:
             Launcher::RunTextViewer(Concat({this->installDirectory, Launcher::Readme}));
             return Choice::None;
 
-        case 0x401:
+        case kExitCommand:
             return Choice::Exit;
 
-        case 0x402:
+        case kCommand3:
             return Choice::Command3;
 
         default:

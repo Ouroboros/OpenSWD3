@@ -3,6 +3,7 @@
 #include <cstring>
 
 #include "crt/msvc.h"
+#include "platform/display.h"
 #include "platform/input_device.h"
 
 namespace swd3
@@ -42,15 +43,15 @@ int Input::PollKeyboard()
 // swd32.exe 0x004372D0
 int Input::IsKeyDown(int scanCode) const
 {
-    return this->keys[static_cast<std::size_t>(scanCode)] & 0x80;
+    return this->keys[static_cast<std::size_t>(scanCode)] & Input::KeyDown;
 }
 
 // swd32.exe 0x004372E0: the lowest pressed scan code; 0 when none (indistinguishable from code 0)
 int Input::FirstKeyDown() const
 {
-    for (int code = 0; code < 0x100; ++code)
+    for (int code = 0; code < static_cast<int>(Input::KeyCount); ++code)
     {
-        if ((this->keys[static_cast<std::size_t>(code)] & 0x80) != 0)
+        if ((this->keys[static_cast<std::size_t>(code)] & Input::KeyDown) != 0)
         {
             return code;
         }
@@ -62,7 +63,7 @@ int Input::FirstKeyDown() const
 // swd32.exe 0x00437300
 int Input::PressKey(int scanCode)
 {
-    this->keys[static_cast<std::size_t>(scanCode)] |= 0x80;
+    this->keys[static_cast<std::size_t>(scanCode)] |= Input::KeyDown;
     return scanCode;
 }
 
@@ -71,18 +72,18 @@ int Input::PressKey(int scanCode)
 int Input::ReadMouse(int& x, int& y)
 {
     const MouseState state = this->device.Mouse();
-    int screenX = (state.x - this->mouseOriginX) * this->sensitivity / 10;
-    int screenY = (state.y - this->mouseOriginY) * this->sensitivity / 10;
+    int screenX = (state.x - this->mouseOriginX) * this->sensitivity / Input::Tenths;
+    int screenY = (state.y - this->mouseOriginY) * this->sensitivity / Input::Tenths;
     int buttons = 0;
 
     if (state.left)
     {
-        buttons = 1;
+        buttons = Input::LeftButton;
     }
 
     if (state.right)
     {
-        buttons |= 2;
+        buttons |= Input::RightButton;
     }
 
     if (screenX < 0)
@@ -93,7 +94,7 @@ int Input::ReadMouse(int& x, int& y)
     else if (screenX > Input::ScreenRight)
     {
         screenX = Input::ScreenRight;
-        this->mouseOriginX = state.x - 0x18F6 / this->sensitivity;
+        this->mouseOriginX = state.x - Input::Tenths * Input::ScreenRight / this->sensitivity;
     }
 
     if (screenY < 0)
@@ -104,7 +105,7 @@ int Input::ReadMouse(int& x, int& y)
     else if (screenY > Input::ScreenBottom)
     {
         screenY = Input::ScreenBottom;
-        this->mouseOriginY = state.y - 0x12B6 / this->sensitivity;
+        this->mouseOriginY = state.y - Input::Tenths * Input::ScreenBottom / this->sensitivity;
     }
 
     x = screenX;
@@ -116,7 +117,7 @@ int Input::ReadMouse(int& x, int& y)
 // returns its last computed value, which no caller reads.
 void Input::SetMousePosition(int x, int y)
 {
-    if (x >= 0x280)
+    if (x >= Display::Width)
     {
         x = Input::ScreenRight;
     }
@@ -125,7 +126,7 @@ void Input::SetMousePosition(int x, int y)
         x = 0;
     }
 
-    if (y >= 0x1E0)
+    if (y >= Display::Height)
     {
         y = Input::ScreenBottom;
     }
@@ -135,8 +136,8 @@ void Input::SetMousePosition(int x, int y)
     }
 
     const MouseState state = this->device.Mouse();
-    this->mouseOriginX = state.x - 10 * (x / this->sensitivity);
-    this->mouseOriginY = state.y - 10 * (y / this->sensitivity);
+    this->mouseOriginX = state.x - Input::Tenths * (x / this->sensitivity);
+    this->mouseOriginY = state.y - Input::Tenths * (y / this->sensitivity);
 }
 
 // swd32.exe 0x004374C0: tenths, truncated

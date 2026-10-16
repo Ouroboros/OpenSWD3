@@ -16,18 +16,18 @@ MusicQueue::MusicQueue(StreamPlayer& streams, MidiPlayer& midi)
 // swd32.exe 0x00485440
 MusicQueue::~MusicQueue()
 {
-    this->ClearSlots(2);
-    this->ClearSlots(1);
+    this->ClearSlots(MusicQueue::SecondList);
+    this->ClearSlots(MusicQueue::FirstList);
 }
 
 // swd32.exe 0x00485460
 int MusicQueue::ClearSlots(int list)
 {
-    if (list == 1)
+    if (list == MusicQueue::FirstList)
     {
         this->list1.fill(MusicSlot{});
     }
-    else if (list == 2)
+    else if (list == MusicQueue::SecondList)
     {
         this->list2.fill(MusicSlot{});
     }
@@ -39,14 +39,14 @@ int MusicQueue::ClearSlots(int list)
 // of the current list; every stream start is preceded by MessageBeep(0)
 int MusicQueue::Update()
 {
-    if (this->current.type == 1)
+    if (this->current.type == MusicSlot::Stream)
     {
         if (!this->streams.IsStopped(this->current.id))
         {
             return 0;
         }
     }
-    else if (this->current.type == 2)
+    else if (this->current.type == MusicSlot::Midi)
     {
         if (!this->midi.IsStopped(this->current.id))
         {
@@ -59,12 +59,12 @@ int MusicQueue::Update()
 
     if (switchTo > 0)
     {
-        if (switchTo <= 2)
+        if (switchTo <= MusicQueue::SecondList)
         {
             this->mode = switchTo;
             this->pending = 0;
 
-            if (switchTo == 1)
+            if (switchTo == MusicQueue::FirstList)
             {
                 this->index1 = 0;
             }
@@ -73,7 +73,7 @@ int MusicQueue::Update()
                 this->index2 = 0;
             }
         }
-        else if (switchTo == 3)
+        else if (switchTo == MusicQueue::Silent)
         {
             this->mode = 0;
             this->pending = 0;
@@ -84,11 +84,11 @@ int MusicQueue::Update()
     i32* loop = nullptr;
     MusicSlot* slot = nullptr;
 
-    if (this->mode == 1)
+    if (this->mode == MusicQueue::FirstList)
     {
         index = &this->index1;
 
-        if (*index >= 2)
+        if (*index >= static_cast<i32>(MusicQueue::Pieces))
         {
             return 0;
         }
@@ -96,11 +96,11 @@ int MusicQueue::Update()
         slot = &this->list1[static_cast<std::size_t>(*index)];
         loop = &this->loop1;
     }
-    else if (this->mode == 2)
+    else if (this->mode == MusicQueue::SecondList)
     {
         index = &this->index2;
 
-        if (*index >= 2)
+        if (*index >= static_cast<i32>(MusicQueue::Pieces))
         {
             return 0;
         }
@@ -117,20 +117,20 @@ int MusicQueue::Update()
 
     if (!this->current.name.empty())
     {
-        if (this->current.type == 1)
+        if (this->current.type == MusicSlot::Stream)
         {
             PlaySystemBeep();
-            this->streams.Play(this->current.name, this->current.id, this->volume, 1);
+            this->streams.Play(this->current.name, this->current.id, this->volume, MusicQueue::PlayOnce);
         }
-        else if (this->current.type == 2)
+        else if (this->current.type == MusicSlot::Midi)
         {
-            this->midi.Play(this->current.name, this->current.id, this->volume, 1);
+            this->midi.Play(this->current.name, this->current.id, this->volume, MusicQueue::PlayOnce);
         }
     }
 
     ++*index;
 
-    if (*loop == 1 && *index >= 2)
+    if (*loop == 1 && *index >= static_cast<i32>(MusicQueue::Pieces))
     {
         *index = 0;
     }

@@ -14,6 +14,10 @@ namespace
 {
 
 constexpr std::u8string_view kTitle = u8"MemMgr";
+constexpr std::size_t kGuardBytes = 2 * sizeof(u32);  // two guard dwords before and after a block
+constexpr std::size_t kShownBytes = 16;               // the user bytes a damaged block reports
+constexpr std::size_t kShortMessage = 64;
+constexpr std::size_t kLongMessage = 160;
 
 u32 ReadDword(const std::vector<u8>& block, std::size_t offset)
 {
@@ -57,7 +61,7 @@ MemoryManager::~MemoryManager()
         {
             std::unique_ptr<MemoryNode> node = std::move(bucket.back());
             bucket.pop_back();
-            char message[64];
+            char message[kShortMessage];
             std::snprintf(message, sizeof(message), "Resource not release ,Size[%d]", static_cast<int>(node->size));
             this->text = Utf8Bytes(message);
             this->errors.ShowError(u8"MemMgr report", this->text);
@@ -130,15 +134,16 @@ bool MemoryManager::FreeBlock(MemoryNode* node)
         const std::vector<u8>& block = node->block;
         const std::size_t tail = node->size;
 
-        if (ReadDword(block, 0) != MemoryManager::Guard || ReadDword(block, 4) != MemoryManager::Guard ||
-            ReadDword(block, tail + 8) != MemoryManager::Guard || ReadDword(block, tail + 0xC) != MemoryManager::Guard)
+        if (ReadDword(block, 0) != MemoryManager::Guard || ReadDword(block, sizeof(u32)) != MemoryManager::Guard ||
+            ReadDword(block, tail + kGuardBytes) != MemoryManager::Guard ||
+            ReadDword(block, tail + kGuardBytes + sizeof(u32)) != MemoryManager::Guard)
         {
-            char message[160];
-            u8 user[16] = {};
+            char message[kLongMessage];
+            u8 user[kShownBytes] = {};
 
-            for (std::size_t i = 0; i < 16 && 8 + i < block.size(); ++i)
+            for (std::size_t i = 0; i < kShownBytes && kGuardBytes + i < block.size(); ++i)
             {
-                user[i] = block[8 + i];
+                user[i] = block[kGuardBytes + i];
             }
 
             std::snprintf(

@@ -1,6 +1,7 @@
 #include "gfx/graphics.h"
 
 #include <algorithm>
+#include <climits>
 
 #include "platform/display.h"
 #include "platform/message_box.h"
@@ -17,6 +18,13 @@ constexpr u32 kGenericError = 0x80004005u;
 constexpr u32 kUnsupportedMode = 0x8876024Eu;
 // The video memory the device reports (the original asks the driver for texture memory).
 constexpr u32 kVideoMemory = 64u << 20;
+constexpr int kDisplayBits = 16;
+constexpr u32 kGreen6 = 0x7E0;  // the channel masks with six bits: green, blue, red
+constexpr u32 kBlue6 = 0x3F;
+constexpr u32 kRed6 = 0xFC00;
+constexpr int kFormat556 = 1;  // pixelFormat: the channel with six bits
+constexpr int kFormat565 = 2;
+constexpr int kFormat655 = 3;
 
 // GDI's colour of a COLORREF on a 16-bit RGB565 surface (SetPixel keeps the high bits of each channel).
 Pixel DevicePixel(ColorRef color)
@@ -201,7 +209,7 @@ bool Graphics::SetCooperativeLevel(u32 flags)
 // swd32.exe 0x004376D0: the game window shows 16-bit pixels only; any other depth fails like an unsupported mode
 bool Graphics::SetDisplayMode(int width, int height, int bitsPerPixel)
 {
-    if (bitsPerPixel != 16)
+    if (bitsPerPixel != kDisplayBits)
     {
         ShowDeviceError(this->errors, u8"DirectDraw SetDisplayMode Error!!", kUnsupportedMode);
         this->device = false;
@@ -238,9 +246,9 @@ bool Graphics::CreateSurfaces()
         this->width = Display::Width;
         this->height = Display::Height;
         this->back = this->CreateOffscreen(Display::Width, Display::Height);
-        this->primaryPitch = this->primary->Width() * 2;
+        this->primaryPitch = this->primary->Width() * static_cast<int>(sizeof(Pixel));
         this->primaryHeight = this->primary->Height();
-        this->backPitch = this->back->Width() * 2;
+        this->backPitch = this->back->Width() * static_cast<int>(sizeof(Pixel));
         this->backHeight = this->back->Height();
         return true;
     }
@@ -259,7 +267,7 @@ bool Graphics::CreateSurfaces()
         return false;
     }
 
-    this->primaryPitch = this->primary->Width() * 2;
+    this->primaryPitch = this->primary->Width() * static_cast<int>(sizeof(Pixel));
     this->primaryHeight = this->primary->Height();
     this->backPitch = this->primaryPitch;
     this->backHeight = this->primaryHeight;
@@ -312,7 +320,7 @@ bool Graphics::Present()
 // swd32.exe 0x00437B60: a system memory surface; its bytes count as video memory used
 std::unique_ptr<Surface> Graphics::CreateOffscreen(int width, int height)
 {
-    this->videoMemoryUsed += static_cast<u32>(height * width) * (this->BitDepth() >> 3);
+    this->videoMemoryUsed += static_cast<u32>(height * width) * (this->BitDepth() / CHAR_BIT);
     return std::make_unique<Surface>(width, height);
 }
 
@@ -330,7 +338,7 @@ void Graphics::SetClearColor(u32 color)
 // swd32.exe 0x00437D80: the depth of the display mode
 u32 Graphics::BitDepth() const
 {
-    return 16;
+    return kDisplayBits;
 }
 
 // swd32.exe 0x00437DC0
@@ -376,19 +384,19 @@ u32 Graphics::DetectPixelFormat()
 {
     this->pixelFormat = 0;
 
-    if (Surface::GreenMask == 0x7E0)
+    if (Surface::GreenMask == kGreen6)
     {
-        this->pixelFormat = 2;
+        this->pixelFormat = kFormat565;
     }
 
-    if (Surface::BlueMask == 0x3F)
+    if (Surface::BlueMask == kBlue6)
     {
-        this->pixelFormat = 1;
+        this->pixelFormat = kFormat556;
     }
 
-    if (Surface::RedMask == 0xFC00)
+    if (Surface::RedMask == kRed6)
     {
-        this->pixelFormat = 3;
+        this->pixelFormat = kFormat655;
     }
 
     return Surface::GreenMask;

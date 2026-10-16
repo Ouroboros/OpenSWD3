@@ -14,11 +14,18 @@ void Fault(ErrorReporter& reporter, std::u8string_view what)
     std::abort();
 }
 
+namespace
+{
+
+constexpr int kHangPause = 1000;  // milliseconds slept per round of an emulated hang
+
+}  // namespace
+
 void Hang()
 {
     for (;;)
     {
-        SleepMilliseconds(1000);
+        SleepMilliseconds(kHangPause);
     }
 }
 

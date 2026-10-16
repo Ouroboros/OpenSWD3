@@ -53,6 +53,11 @@ public:
 
     static constexpr int ScreenRight = 0x27F;
     static constexpr int ScreenBottom = 0x1DF;
+    static constexpr std::size_t KeyCount = 256;
+    static constexpr u8 KeyDown = 0x80;
+    static constexpr int Tenths = 10;     // the sensitivity is in tenths
+    static constexpr int LeftButton = 1;  // ReadMouse
+    static constexpr int RightButton = 2;
 
     explicit Input(InputDevice& device);
     ~Input();
@@ -72,10 +77,10 @@ public:
 private:
     InputDevice& device;
     bool acquired = false;
-    std::array<u8, 256> keys{};  // bit 7 set while down
-    i32 mouseOriginX = 0;        // axis value at screen x 0
+    std::array<u8, KeyCount> keys{};  // KeyDown set while down
+    i32 mouseOriginX = 0;             // axis value at screen x 0
     i32 mouseOriginY = 0;
-    i32 sensitivity = 10;  // tenths
+    i32 sensitivity = Tenths;
 };
 
 }  // namespace swd3

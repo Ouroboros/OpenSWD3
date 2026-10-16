@@ -2,8 +2,10 @@
 
 #include <span>
 
+#include "core/words.h"
 #include "draw/painter.h"
 #include "pic/picture.h"
+#include "platform/display.h"
 #include "res/tsw_archive.h"
 
 namespace swd3
@@ -14,10 +16,25 @@ namespace
 
 constexpr u32 kFramePicture = 0x234A;
 constexpr int kTagFrame = 9;
+constexpr int kTopLeftFrame = 0;  // the frames of a window picture, row by row
+constexpr int kTopFrame = 1;
+constexpr int kTopRightFrame = 2;
+constexpr int kLeftFrame = 3;
 constexpr int kBodyFrame = 4;
-constexpr u32 kTranslucent = 0x14;
-constexpr int kScreenWidth = 0x280;
-constexpr int kScreenHeight = 0x1E0;
+constexpr int kRightFrame = 5;
+constexpr int kBottomLeftFrame = 6;
+constexpr int kBottomFrame = 7;
+constexpr int kBottomRightFrame = 8;
+constexpr int kThicknessMask = 0x7FFFFFFF;  // `border` without its frame-only bit
+constexpr int kTagRise = 0xC;
+constexpr int kQuarterShift = 2;
+constexpr int kEighthShift = 3;
+constexpr int kPixelsPerPair = 2;
+constexpr int kLevelBits = 10;  // the gradient levels are fixed point
+constexpr int kLevelUnit = 1 << kLevelBits;
+constexpr u32 kTranslucent = Painter::Translucent;
+constexpr int kScreenWidth = Display::Width;
+constexpr int kScreenHeight = Display::Height;
 
 // Blends `pairs` pixel pairs from `row` with the colour, two pixels as one 32-bit pair as the original walks them.
 void BlendPairs(const Painter& painter, u16* row, int pairs, u32 color)
@@ -117,17 +134,17 @@ void FillBox(Painter& painter, int x, int y, int width, int height, int red, int
         case FillMode::Quarter:
         case FillMode::Eighth:
         {
-            const int shift = mode == FillMode::Quarter ? 2 : 3;
+            const int shift = mode == FillMode::Quarter ? kQuarterShift : kEighthShift;
             const u32 mask = painter.HalfMaskPair(shift - 1);
 
             for (int line = 0; line < height; ++line, row += pitch)
             {
-                for (int i = 0; i < width / 2; ++i)
+                for (int i = 0; i < width / kPixelsPerPair; ++i)
                 {
-                    const u32 pair = row[2 * i] | (static_cast<u32>(row[2 * i + 1]) << 16);
+                    const u32 pair = MakeWords(row[kPixelsPerPair * i + 1], row[kPixelsPerPair * i]);
                     const u32 darker = mask & (pair >> shift);
-                    row[2 * i] = static_cast<u16>(darker);
-                    row[2 * i + 1] = static_cast<u16>(darker >> 16);
+                    row[kPixelsPerPair * i] = LowWord(darker);
+                    row[kPixelsPerPair * i + 1] = HighWord(darker);
                 }
             }
 
@@ -154,19 +171,23 @@ void FillBox(Painter& painter, int x, int y, int width, int height, int red, int
             for (int i = steps; i > 0; --i)
             {
                 const std::size_t pixels = static_cast<std::size_t>(width);
-                painter
-                    .TintPixels(std::span<u16>(top, pixels), redLevel / 0x400, greenLevel / 0x400, blueLevel / 0x400);
+                painter.TintPixels(
+                    std::span<u16>(top, pixels),
+                    redLevel / kLevelUnit,
+                    greenLevel / kLevelUnit,
+                    blueLevel / kLevelUnit
+                );
                 painter.TintPixels(
                     std::span<u16>(bottom, pixels),
-                    redLevel / 0x400,
-                    greenLevel / 0x400,
-                    blueLevel / 0x400
+                    redLevel / kLevelUnit,
+                    greenLevel / kLevelUnit,
+                    blueLevel / kLevelUnit
                 );
                 bottom -= pitch;
                 top += pitch;
-                redLevel += (red << 10) / steps;
-                greenLevel += (green << 10) / steps;
-                blueLevel += (blue << 10) / steps;
+                redLevel += (red << kLevelBits) / steps;
+                greenLevel += (green << kLevelBits) / steps;
+                blueLevel += (blue << kLevelBits) / steps;
             }
 
             break;
@@ -190,7 +211,7 @@ void DrawWindowFrame(
 )
 {
     const bool frameOnly = border < 0;
-    const int size = border & 0x7FFFFFFF;
+    const int size = border & kThicknessMask;
     const auto picture = static_cast<u32>(id);
 
     if (!frameOnly)
@@ -201,7 +222,7 @@ void DrawWindowFrame(
 
             if (tag != nullptr)
             {
-                Draw(painter, tag, right + tag->width - size, ((bottom + top) >> 1) - 0xC, alpha);
+                Draw(painter, tag, right + tag->width - size, ((bottom + top) >> 1) - kTagRise, alpha);
             }
         }
 
@@ -223,19 +244,19 @@ void DrawWindowFrame(
     const int outerTop = top - size;
     const int outerLeft = left - size;
     painter.SetClipClamped(outerLeft, outerTop, left, top);
-    const Picture* piece = Piece(painter, archive, picture, 0);
+    const Picture* piece = Piece(painter, archive, picture, kTopLeftFrame);
     Draw(painter, piece, outerLeft, outerTop, alpha);
     painter.SetClipClamped(left, outerTop, right, top);
-    Piece(painter, archive, picture, 1);
+    Piece(painter, archive, picture, kTopFrame);
 
     for (int x = left; piece != nullptr && piece->width != 0 && x < right; x += piece->width)
     {
-        piece = Piece(painter, archive, picture, 1);
+        piece = Piece(painter, archive, picture, kTopFrame);
         Draw(painter, piece, x, outerTop, alpha);
     }
 
     painter.SetClipClamped(right, outerTop, right + size, top);
-    piece = Piece(painter, archive, picture, 2);
+    piece = Piece(painter, archive, picture, kTopRightFrame);
 
     if (piece != nullptr)
     {
@@ -245,10 +266,10 @@ void DrawWindowFrame(
     for (int y = top; piece != nullptr && piece->height != 0 && y < bottom; y += piece->height)
     {
         painter.SetClipClamped(outerLeft, top, left, bottom);
-        piece = Piece(painter, archive, picture, 3);
+        piece = Piece(painter, archive, picture, kLeftFrame);
         Draw(painter, piece, outerLeft, y, alpha);
         painter.SetClipClamped(right, top, right + size, bottom);
-        piece = Piece(painter, archive, picture, 5);
+        piece = Piece(painter, archive, picture, kRightFrame);
 
         if (piece != nullptr)
         {
@@ -257,7 +278,7 @@ void DrawWindowFrame(
     }
 
     painter.SetClipClamped(outerLeft, bottom, left, bottom + size);
-    piece = Piece(painter, archive, picture, 6);
+    piece = Piece(painter, archive, picture, kBottomLeftFrame);
 
     if (piece != nullptr)
     {
@@ -265,7 +286,7 @@ void DrawWindowFrame(
     }
 
     painter.SetClipClamped(left, bottom, right, bottom + size);
-    piece = Piece(painter, archive, picture, 7);
+    piece = Piece(painter, archive, picture, kBottomFrame);
 
     if (piece != nullptr && piece->width != 0)
     {
@@ -278,7 +299,7 @@ void DrawWindowFrame(
     }
 
     painter.SetClipClamped(right, bottom, right + size, bottom + size);
-    piece = Piece(painter, archive, picture, 8);
+    piece = Piece(painter, archive, picture, kBottomRightFrame);
 
     if (piece != nullptr)
     {

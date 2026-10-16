@@ -9,6 +9,10 @@ namespace
 constexpr u32 kHighBit = 0x8000;
 constexpr u32 kLowMask = 0xFFFF;
 constexpr int kBasisFirst = 3;
+constexpr u32 kLcgMultiplier = 0x015A4E35;  // the seeding LCG: 15-bit values from bit kLcgShift
+constexpr int kLcgShift = 16;
+constexpr u32 kLcgMask = 0x7FFF;
+constexpr u32 kHalfRange = 0x4000;  // a seed value above it sets the high bit of a table word
 constexpr int kBasisStride = 11;
 constexpr int kBasisEnd = 179;
 
@@ -28,7 +32,7 @@ void Random::Seed(u32 seed)
 
     for (u32& word : this->table)
     {
-        if (this->LcgNext() > 0x4000)
+        if (this->LcgNext() > kHalfRange)
         {
             word |= kHighBit;
         }
@@ -79,8 +83,8 @@ u32 Random::Below(u32 limit)
 // swd32.exe 0x004390F0
 u32 Random::LcgNext()
 {
-    this->lcg = 0x015A4E35 * this->lcg + 1;
-    return (this->lcg >> 16) & 0x7FFF;
+    this->lcg = kLcgMultiplier * this->lcg + 1;
+    return (this->lcg >> kLcgShift) & kLcgMask;
 }
 
 // swd32.exe 0x00439110
