@@ -23,8 +23,7 @@ namespace
 constexpr u16 kFree = 0xFFFF;
 constexpr u8 kPathEnd = 0xFF;
 constexpr u32 kFastWalk = 0x4000000;
-constexpr u32 kBlockedTries = 8;  // after this many blocked steps a role walks through other roles
-constexpr i32 kWalkAction = 8;
+constexpr u32 kBlockedTries = 8;   // after this many blocked steps a role walks through other roles
 constexpr int kNearMargin = 0x50;  // a follower or moved role appears this far around the camera
 constexpr int kFarMargin = 0xA0;
 constexpr int kStepsPerTile = MapHeader::TileSize / 4;  // RolePath::StepX and StepY move 4 pixels
@@ -418,7 +417,7 @@ int RolePath::Wander(int index)
         return 1;
     }
 
-    role.act.action = kWalkAction;
+    role.act.action = Role::WalkAction;
 
     if (chance < RolePath::Directions)
     {
@@ -599,7 +598,7 @@ void RolePath::Follow(int index)
     {
         move.step = static_cast<u16>(taken & MoveRecord::StepMask);
         ++move.unk1A;
-        role.act.action = kWalkAction;
+        role.act.action = Role::WalkAction;
         move.stepX = static_cast<i16>(kFollowerSpeed * RolePath::StepX[step]);
         move.stepY = static_cast<i16>(kFollowerSpeed * RolePath::StepY[step]);
     }

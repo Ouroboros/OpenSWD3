@@ -19,6 +19,10 @@ struct Role
     static constexpr u16 NoTalk = 0;
     static constexpr u16 TalkWaiting = 1;  // its window is waited for (the role stands still)
     static constexpr u16 TalkOpen = 2;
+    static constexpr i32 StandAction = 0;  // the actions of a role act
+    static constexpr i32 WalkAction = 8;
+    static constexpr i32 RunAction = 0x10;
+    static constexpr i32 IdleAction = 0x34;  // the controlled role after standing still a while
     // `soundTimer`: the low word counts the frames to the next play, the high word is the period.
     static constexpr u32 SoundCountMask = 0xFFFF;
     static constexpr u32 SoundPeriodMask = 0xFFFF0000;

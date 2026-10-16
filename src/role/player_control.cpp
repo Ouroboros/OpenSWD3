@@ -1,4 +1,8 @@
+#include <algorithm>
+#include <array>
+
 #include "core/debug_log.h"
+#include "core/words.h"
 #include "game/game.h"
 #include "input/input.h"
 #include "item/item_list.h"
@@ -11,6 +15,36 @@ namespace swd3
 namespace
 {
 
+constexpr u32 kNone = 0xFFFFFFFF;
+constexpr int kHalfTile = MapHeader::TileSize / 2;
+constexpr std::size_t kDirectionMask = RolePath::Directions - 1;
+constexpr i32 kRepeatMask = 7;       // a held arrow moves the choice every 8 frames
+constexpr int kDebugKeyPause = 500;  // milliseconds slept after a debug key
+constexpr int kSkipKeyPause = 350;
+constexpr int kToggleKeyPause = 300;
+constexpr int kGoldKeyPause = 250;
+constexpr int kRunKeyPause = 200;
+constexpr int kToggleStates = 2;
+constexpr i32 kMaxMapSpeed = 0x40;
+constexpr i32 kDebugGold = 1000;
+constexpr u16 kFirstDebugItem = 0x65;  // F6 gives kDebugItemCount of the objects kFirstDebugItem..kDebugItemsEnd-1
+constexpr u16 kDebugItemsEnd = 0x4B0;
+constexpr u16 kDebugItemCount = 0xA;
+constexpr u16 kFirstSkippedKind = 0xA;  // object kinds given besides those below kFirstSkippedKind
+constexpr std::array<u16, 8> kDebugKinds = {0x12, 0x13, 0x11, 0x10, 0xF, 0x14, 0x15, 0x18};
+constexpr i32 kCounterFade = 2;
+constexpr i32 kCounterDelay = 0x64;  // standing frames before the counter fades in
+constexpr i32 kCounterOpaque = 0x10;
+constexpr u32 kScrollX = 0x130;  // the camera follows the controlled role past the middle of the screen
+constexpr u32 kScrollY = 0xF0;
+constexpr u32 kStepRightLimit = 0x258;
+constexpr u32 kStepDownLimit = 0x1C2;
+constexpr i32 kRegionLeaderSteps = 0x10;  // a region event is placed this many steps behind the controlled role
+constexpr i32 kDoublePress = 2;           // ButtonState::press of a second click
+constexpr int kRunSpeedFactor = 2;
+constexpr int kSkipSpeed = 0x10;
+constexpr i32 kIdlePoseFrames = 0x80;
+
 }  // namespace
 
 // The role faced turned to look back at the controlled role, the controlled role turned towards it, and the event of
@@ -19,7 +53,8 @@ namespace
 void RoleControl::Approach(Role& player, Role& other, bool walking)
 {
     Game& game = this->game;
-    const int facing = game.state.DirectionToPlayer(other.x + 8 * other.act.width, other.y + 8 * other.act.height);
+    const int facing =
+        game.state.DirectionToPlayer(other.x + kHalfTile * other.act.width, other.y + kHalfTile * other.act.height);
 
     if ((other.flags & Role::FacesTalker) != 0)
     {
@@ -36,7 +71,7 @@ void RoleControl::Approach(Role& player, Role& other, bool walking)
     }
 
     player.act.action = 0;
-    player.act.direction = (facing & 0xFFFE) + ((static_cast<u8>(facing) - 1) & 1);
+    player.act.direction = (facing & ~1) + ((static_cast<u8>(facing) - 1) & 1);
     player.act.delay = 0;
 
     if (game.acts.Run(walking ? other.act : player.act) == 0)
@@ -86,7 +121,7 @@ void RoleControl::ControlPlayer()
 
         if (input.IsKeyDown(Input::F12) && idle)
         {
-            SleepMilliseconds(0x1F4);
+            SleepMilliseconds(kDebugKeyPause);
             owner.storyState = Game::SaveSlotsState;
             owner.menuMode = Menu::KeySaveMode;
             owner.unk4CAEBC = 0;
@@ -99,8 +134,8 @@ void RoleControl::ControlPlayer()
         {
             if (input.IsKeyDown(Input::F9))
             {
-                owner.talk.skipAll = (owner.talk.skipAll + 1) % 2;
-                SleepMilliseconds(0x15E);
+                owner.talk.skipAll = (owner.talk.skipAll + 1) % kToggleStates;
+                SleepMilliseconds(kSkipKeyPause);
                 return;
             }
 
@@ -117,7 +152,7 @@ void RoleControl::ControlPlayer()
             {
                 owner.unk4CAEBC = 1;
                 owner.unk4CAEC0 = 0;
-                SleepMilliseconds(0x1F4);
+                SleepMilliseconds(kDebugKeyPause);
                 owner.menuMode = Menu::KeySaveMode;
                 owner.storyState = Game::SaveSlotsState;
                 owner.ResetSaveSlots();
@@ -128,7 +163,7 @@ void RoleControl::ControlPlayer()
             {
                 owner.unk4CAEBC = 1;
                 owner.unk4CAEC0 = 1;
-                SleepMilliseconds(0x1F4);
+                SleepMilliseconds(kDebugKeyPause);
                 owner.menuMode = Menu::KeyLoadMode;
                 owner.storyState = Game::SaveSlotsState;
                 owner.ResetSaveSlots();
@@ -140,7 +175,7 @@ void RoleControl::ControlPlayer()
                 i32& shown = input.IsKeyDown(Input::F1) ? owner.debugText : owner.debugCells;
                 shown = shown == 0 ? 1 : 0;
                 this->unk4CB220 = 0;
-                SleepMilliseconds(0x12C);
+                SleepMilliseconds(kToggleKeyPause);
                 return;
             }
 
@@ -148,15 +183,15 @@ void RoleControl::ControlPlayer()
             {
                 state.SetGameFlagTo(GameState::NoSlide, state.GameFlag(GameState::NoSlide) ? 0 : 1);
                 this->unk4CB220 = 0;
-                SleepMilliseconds(0x12C);
+                SleepMilliseconds(kToggleKeyPause);
                 return;
             }
 
             if (input.IsKeyDown(Input::Tab) && input.IsKeyDown(Input::NumpadPlus))
             {
-                if (++view.unk49E0BC > 0x40)
+                if (++view.unk49E0BC > kMaxMapSpeed)
                 {
-                    view.unk49E0BC = 0x40;
+                    view.unk49E0BC = kMaxMapSpeed;
                 }
 
                 this->unk4CB220 = 0;
@@ -182,13 +217,13 @@ void RoleControl::ControlPlayer()
 
         if (input.IsKeyDown(Input::F7))
         {
-            owner.party.variables[Party::Gold] += 0x3E8;
-            SleepMilliseconds(0xFA);
+            owner.party.variables[Party::Gold] += kDebugGold;
+            SleepMilliseconds(kGoldKeyPause);
         }
 
         if (input.IsKeyDown(Input::F6))
         {
-            for (u16 id = 0x65; id < 0x4B0; ++id)
+            for (u16 id = kFirstDebugItem; id < kDebugItemsEnd; ++id)
             {
                 ObjectRecord record;
 
@@ -196,24 +231,23 @@ void RoleControl::ControlPlayer()
                 {
                     const u16 kind = record.data.unk52;
 
-                    if (kind < 0xA || kind == 0x12 || kind == 0x13 || kind == 0x11 || kind == 0x10 || kind == 0xF ||
-                        kind == 0x14 || kind == 0x15 || kind == 0x18)
+                    if (kind < kFirstSkippedKind || std::ranges::find(kDebugKinds, kind) != kDebugKinds.end())
                     {
                         ItemLink& list =
                             owner.party.inventory != nullptr ? owner.party.inventory->next : owner.party.inventory;
-                        AddItem(list, id, 0xA, ItemCountMode::Pending, owner.database);
+                        AddItem(list, id, kDebugItemCount, ItemCountMode::Pending, owner.database);
                     }
                 }
             }
 
-            SleepMilliseconds(0x1F4);
+            SleepMilliseconds(kDebugKeyPause);
         }
     }
 
-    if (input.IsKeyDown(owner.config.keys[16]))
+    if (input.IsKeyDown(owner.config.keys[static_cast<std::size_t>(Button::KeyR)]))
     {
         this->running = RoleControl::RunToggle[static_cast<std::size_t>(this->running) % RoleControl::RunToggle.size()];
-        SleepMilliseconds(0xC8);
+        SleepMilliseconds(kRunKeyPause);
     }
 
     const bool still = owner.unk4A9488 == 0 && owner.unk4A948C == 0 && owner.unk4B7518 == 0 && owner.unk4B7920 == 0;
@@ -221,7 +255,7 @@ void RoleControl::ControlPlayer()
 
     if (owner.unk4CAD24 == 0)
     {
-        owner.counterAlpha -= 2;
+        owner.counterAlpha -= kCounterFade;
 
         if (owner.counterAlpha < 0)
         {
@@ -236,14 +270,14 @@ void RoleControl::ControlPlayer()
 
     const auto screenX = static_cast<u32>(player.x - field.cameraLeft);
     const auto screenY = static_cast<u32>(player.y - field.cameraTop);
-    this->scrollLeft = field.cameraLeft > 0 && screenX <= 0x130 ? 1 : 0;
-    this->scrollRight = screenX >= 0x130 && field.cameraRight < 0x10 * state.map.width ? 1 : 0;
-    this->scrollUp = field.cameraTop > 0 && screenY <= 0xF0 ? 1 : 0;
-    this->scrollDown = screenY >= 0xF0 && field.cameraBottom < 0x10 * state.map.height ? 1 : 0;
+    this->scrollLeft = field.cameraLeft > 0 && screenX <= kScrollX ? 1 : 0;
+    this->scrollRight = screenX >= kScrollX && field.cameraRight < MapHeader::TileSize * state.map.width ? 1 : 0;
+    this->scrollUp = field.cameraTop > 0 && screenY <= kScrollY ? 1 : 0;
+    this->scrollDown = screenY >= kScrollY && field.cameraBottom < MapHeader::TileSize * state.map.height ? 1 : 0;
     this->stepLeft = player.x != 0 ? 1 : 0;
-    this->stepRight = screenX < 0x258 ? 1 : 0;
+    this->stepRight = screenX < kStepRightLimit ? 1 : 0;
     this->stepUp = player.y != 0 ? 1 : 0;
-    this->stepDown = screenY < 0x1C2 ? 1 : 0;
+    this->stepDown = screenY < kStepDownLimit ? 1 : 0;
     const bool choices = !state.clickRegions.regions.empty();
     const ButtonState& space = controls.At(Button::Space);
     const ButtonState& enter = controls.At(Button::Enter);
@@ -272,7 +306,7 @@ void RoleControl::ControlPlayer()
 
     if (spaceDown && leader.id == Role::NoId)
     {
-        const auto facing = static_cast<std::size_t>(player.act.direction) & 7;
+        const auto facing = static_cast<std::size_t>(player.act.direction) & kDirectionMask;
         const u32 found =
             this->FindRoleAhead(state.playerRole, RoleControl::AheadX[facing], RoleControl::AheadY[facing]);
 
@@ -297,7 +331,7 @@ void RoleControl::ControlPlayer()
 
     auto changeChoice = [&owner, &state, this](const ButtonState& button, int by)
     {
-        if (button.heldFrames == 1 || (button.heldFrames & 7) == 7)
+        if (button.heldFrames == 1 || (button.heldFrames & kRepeatMask) == kRepeatMask)
         {
             if (by > 0 && static_cast<u32>(++owner.talk.choice) >= static_cast<u32>(state.clickRegions.Count()))
             {
@@ -325,7 +359,7 @@ void RoleControl::ControlPlayer()
 
         if (!choices)
         {
-            player.act.direction = 2;
+            player.act.direction = ActState::Left;
             across = true;
             stepX = -1;
         }
@@ -340,7 +374,7 @@ void RoleControl::ControlPlayer()
 
         if (!choices)
         {
-            player.act.direction = 3;
+            player.act.direction = ActState::Right;
             across = true;
             stepX = 1;
         }
@@ -358,13 +392,13 @@ void RoleControl::ControlPlayer()
         {
             if (across)
             {
-                player.act.direction = player.act.direction == 2   ? 4
-                                       : player.act.direction == 3 ? 7
-                                                                   : player.act.direction;
+                player.act.direction = player.act.direction == ActState::Left    ? ActState::UpLeft
+                                       : player.act.direction == ActState::Right ? ActState::UpRight
+                                                                                 : player.act.direction;
             }
             else
             {
-                player.act.direction = 0;
+                player.act.direction = ActState::Up;
             }
 
             stepY = -1;
@@ -382,13 +416,13 @@ void RoleControl::ControlPlayer()
         {
             if (across)
             {
-                player.act.direction = player.act.direction == 2   ? 6
-                                       : player.act.direction == 3 ? 5
-                                                                   : player.act.direction;
+                player.act.direction = player.act.direction == ActState::Left    ? ActState::DownLeft
+                                       : player.act.direction == ActState::Right ? ActState::DownRight
+                                                                                 : player.act.direction;
             }
             else
             {
-                player.act.direction = 1;
+                player.act.direction = ActState::Down;
             }
 
             stepY = 1;
@@ -407,8 +441,8 @@ void RoleControl::ControlPlayer()
         this->Slide(player, stepX, stepY);
     }
 
-    u32 found = 0xFFFFFFFF;
-    u32 target = 0xFFFFFFFF;
+    u32 found = kNone;
+    u32 target = kNone;
     u32 event = 0;
 
     if (stepX != 0 || stepY != 0)
@@ -423,7 +457,7 @@ void RoleControl::ControlPlayer()
         target = found;
     }
 
-    if (target != 0xFFFFFFFF && target < GameState::Roles)
+    if (target != kNone && target < GameState::Roles)
     {
         event = state.roles[target].event;
     }
@@ -432,7 +466,7 @@ void RoleControl::ControlPlayer()
     {
         const MapRegion* region = nullptr;
 
-        if (target == 0xFFFFFFFF)
+        if (target == kNone)
         {
             region = owner.field.FindRegion(static_cast<int>(event));
 
@@ -440,7 +474,7 @@ void RoleControl::ControlPlayer()
             {
                 DebugLog(u8"錯誤的劇情點(%d)", event);
             }
-            else if (state.GameFlag(static_cast<int>(static_cast<u32>(region->flag) >> 16)))
+            else if (state.GameFlag(static_cast<int>(HighWord(static_cast<u32>(region->flag)))))
             {
                 stepY = 0;
                 stepX = 0;
@@ -451,18 +485,18 @@ void RoleControl::ControlPlayer()
 
         if (leader.id == Role::NoId)
         {
-            if (target == 0xFFFFFFFF)
+            if (target == kNone)
             {
                 if (region != nullptr)
                 {
-                    const auto facing = static_cast<std::size_t>(player.act.direction) & 7;
+                    const auto facing = static_cast<std::size_t>(player.act.direction) & kDirectionMask;
                     leader.unk14 = 0;
                     leader.unk20 = 0;
                     leader.event = static_cast<u16>(region->event);
                     leader.id = TalkWindow::NoRole;
                     leader.flags = 0;
-                    leader.x = player.x - 0x10 * RolePath::StepX[facing];
-                    leader.y = player.y - 0x10 * RolePath::StepY[facing];
+                    leader.x = player.x - kRegionLeaderSteps * RolePath::StepX[facing];
+                    leader.y = player.y - kRegionLeaderSteps * RolePath::StepY[facing];
                     DebugLog(u8"map region event", region->event);
                 }
             }
@@ -524,16 +558,16 @@ void RoleControl::ControlPlayer()
             }
         }
 
-        if (player.act.action != 0x10)
+        if (player.act.action != Role::RunAction)
         {
-            player.act.action = 8;
+            player.act.action = Role::WalkAction;
         }
 
-        const int doubled = pressed & 2;
+        const int doubled = pressed & kDoublePress;
 
         if (doubled != 0 || this->running != 0)
         {
-            player.act.action = 0x10;
+            player.act.action = Role::RunAction;
         }
 
         if (player.act.direction != player.act.lastDirection)
@@ -548,12 +582,12 @@ void RoleControl::ControlPlayer()
 
             if (this->running != 0 || doubled != 0)
             {
-                speed = 2 * view.unk4C8BD8;
+                speed = kRunSpeedFactor * view.unk4C8BD8;
             }
 
             if (owner.talk.skipAll != 0)
             {
-                speed = 0x10;
+                speed = kSkipSpeed;
             }
 
             state.SetWalkSpeed(speed);
@@ -611,20 +645,21 @@ void RoleControl::ControlPlayer()
 
         player.act.action = 0;
 
-        if (this->idleFrames > 0x80)
+        if (this->idleFrames > kIdlePoseFrames)
         {
-            player.act.action = 0x34;
+            player.act.action = Role::IdleAction;
         }
 
-        if ((++owner.unk4CAD24 > 0x64 || (owner.counterAlpha & 0xF) != 0) && ++owner.counterAlpha > 0x10)
+        if ((++owner.unk4CAD24 > kCounterDelay || (owner.counterAlpha & (kCounterOpaque - 1)) != 0) &&
+            ++owner.counterAlpha > kCounterOpaque)
         {
-            owner.counterAlpha = 0x10;
+            owner.counterAlpha = kCounterOpaque;
         }
     }
 
     ++this->idleFrames;
 
-    if (player.act.action != 0 && player.act.action != 0x34)
+    if (player.act.action != 0 && player.act.action != Role::IdleAction)
     {
         this->idleFrames = 0;
     }

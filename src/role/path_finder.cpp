@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "core/debug_log.h"
+#include "game/game_state.h"
 #include "map/blocking_map.h"
 #include "platform/message_box.h"
 #include "text/big5.h"
@@ -26,7 +27,30 @@ enum Side
     NorthWest,
 };
 
-constexpr int kTile = 0x10;
+constexpr int kTile = MapHeader::TileSize;
+
+// The direction TryNeighbour stores for the neighbour on each side (the order of PathNode::children).
+enum Neighbour : int
+{
+    NorthWestNeighbour,
+    NorthNeighbour,
+    NorthEastNeighbour,
+    EastNeighbour,
+    SouthEastNeighbour,
+    SouthNeighbour,
+    SouthWestNeighbour,
+    WestNeighbour,
+};
+
+constexpr std::size_t kDeltaOffset = 1;  // DeltaX and DeltaY are indexed by the step plus kDeltaOffset
+constexpr int kDeltaCenter = 4;          // DirectionByDelta by DeltaY + DeltaX + kDeltaCenter
+constexpr int kCorners = 2;              // an edge runs one tile past the footprint at each end
+constexpr int kSmallFootprint = 2;       // footprints up to this size take the unrolled path
+constexpr int kSmallEdge = kSmallFootprint + kCorners;
+constexpr std::size_t kBefore = 0;  // the cells of a small edge: the corner before, the footprint, the corner after
+constexpr std::size_t kFirst = 1;
+constexpr std::size_t kAfterOne = 2;  // the corner after a one-tile footprint (its second tile for two)
+constexpr std::size_t kAfterTwo = 3;
 // "!!! 危險 步數超過510 !!!" and "路徑計算" (swd32.exe 0x0049F520, 0x0049F53C).
 constexpr std::u8string_view kOverflowText = u8"!!! 危險 步數超過510 !!!";
 constexpr std::u8string_view kOverflowCaption = u8"路徑計算";
@@ -186,11 +210,11 @@ int PathFinder::FindPath(int fromX, int fromY, int toX, int toY, int width, int 
 
     for (const PathNode* next = current->parent; next != nullptr; next = next->parent)
     {
-        const int dy = (current->y >> 4) - (next->y >> 4);
-        const int dx = (current->x >> 4) - (next->x >> 4);
-        const int index =
-            PathFinder::DeltaY[static_cast<std::size_t>(dy + 1)] + PathFinder::DeltaX[static_cast<std::size_t>(dx + 1)];
-        put(static_cast<u8>(PathFinder::DirectionByDelta[static_cast<std::size_t>(index + 4)]));
+        const int dy = (current->y >> MapHeader::TileShift) - (next->y >> MapHeader::TileShift);
+        const int dx = (current->x >> MapHeader::TileShift) - (next->x >> MapHeader::TileShift);
+        const int index = PathFinder::DeltaY[static_cast<std::size_t>(dy) + kDeltaOffset] +
+                          PathFinder::DeltaX[static_cast<std::size_t>(dx) + kDeltaOffset];
+        put(static_cast<u8>(PathFinder::DirectionByDelta[static_cast<std::size_t>(index + kDeltaCenter)]));
         ++written;
 
         if (++steps > PathFinder::MaxSteps)
@@ -226,7 +250,7 @@ int PathFinder::IsUsable() const
 // swd32.exe 0x004023C0
 int PathFinder::TileIndex(int x, int y) const
 {
-    return (x >> 4) + this->map.width * (y >> 4);
+    return (x >> MapHeader::TileShift) + this->map.width * (y >> MapHeader::TileShift);
 }
 
 // swd32.exe 0x004023E0
@@ -315,42 +339,42 @@ void PathFinder::Expand(PathNode& node, int targetX, int targetY)
 
     if (this->blocked[NorthWest] == 0)
     {
-        this->TryNeighbour(node, x - kTile, y - kTile, targetX, targetY, 0);
+        this->TryNeighbour(node, x - kTile, y - kTile, targetX, targetY, NorthWestNeighbour);
     }
 
     if (this->blocked[North] == 0)
     {
-        this->TryNeighbour(node, node.x, node.y - kTile, targetX, targetY, 1);
+        this->TryNeighbour(node, node.x, node.y - kTile, targetX, targetY, NorthNeighbour);
     }
 
     if (this->blocked[NorthEast] == 0)
     {
-        this->TryNeighbour(node, node.x + kTile, node.y - kTile, targetX, targetY, 2);
+        this->TryNeighbour(node, node.x + kTile, node.y - kTile, targetX, targetY, NorthEastNeighbour);
     }
 
     if (this->blocked[East] == 0)
     {
-        this->TryNeighbour(node, node.x + kTile, node.y, targetX, targetY, 3);
+        this->TryNeighbour(node, node.x + kTile, node.y, targetX, targetY, EastNeighbour);
     }
 
     if (this->blocked[SouthEast] == 0)
     {
-        this->TryNeighbour(node, node.x + kTile, node.y + kTile, targetX, targetY, 4);
+        this->TryNeighbour(node, node.x + kTile, node.y + kTile, targetX, targetY, SouthEastNeighbour);
     }
 
     if (this->blocked[South] == 0)
     {
-        this->TryNeighbour(node, node.x, node.y + kTile, targetX, targetY, 5);
+        this->TryNeighbour(node, node.x, node.y + kTile, targetX, targetY, SouthNeighbour);
     }
 
     if (this->blocked[SouthWest] == 0)
     {
-        this->TryNeighbour(node, node.x - kTile, node.y + kTile, targetX, targetY, 6);
+        this->TryNeighbour(node, node.x - kTile, node.y + kTile, targetX, targetY, SouthWestNeighbour);
     }
 
     if (this->blocked[West] == 0)
     {
-        this->TryNeighbour(node, node.x - kTile, node.y, targetX, targetY, 7);
+        this->TryNeighbour(node, node.x - kTile, node.y, targetX, targetY, WestNeighbour);
     }
 }
 
@@ -389,7 +413,7 @@ void PathFinder::TryNeighbour(PathNode& parent, int x, int y, int targetX, int t
             this->Propagate(*closedNode);
         }
 
-        parent.children[0]->direction = PathFinder::OppositeDirection[static_cast<std::size_t>(direction)];
+        parent.children.front()->direction = PathFinder::OppositeDirection[static_cast<std::size_t>(direction)];
         return;
     }
 
@@ -514,50 +538,50 @@ void PathFinder::UpdateBlocked(int x, int y)
 {
     this->blocked.fill(0);
     const int mapWidth = this->map.width;
-    const int tx = x >> 4;
-    const int above = (y - kTile) >> 4;
+    const int tx = x >> MapHeader::TileShift;
+    const int above = (y - kTile) >> MapHeader::TileShift;
     const int w = this->width;
     const int h = this->height;
     const int topBase = above * mapWidth + tx - 1;
-    const int bottomBase = ((y >> 4) + h) * mapWidth + tx - 1;
-    const std::size_t horizontal = static_cast<std::size_t>(std::max(w + 2, 4));
+    const int bottomBase = ((y >> MapHeader::TileShift) + h) * mapWidth + tx - 1;
+    const std::size_t horizontal = static_cast<std::size_t>(std::max(w + kCorners, kSmallEdge));
     std::vector<u32> top(horizontal, 0);
     std::vector<u32> bottom(horizontal, 0);
 
-    if (w <= 2)
+    if (w <= kSmallFootprint)
     {
-        for (int i = 0; i < 3; ++i)
+        for (int i = 0; i < static_cast<int>(kAfterTwo); ++i)
         {
             top[static_cast<std::size_t>(i)] |= this->map.Cell(topBase + i) & this->mask;
             bottom[static_cast<std::size_t>(i)] |= this->map.Cell(bottomBase + i) & this->mask;
         }
 
-        if (w == 2)
+        if (w == kSmallFootprint)
         {
-            top[3] |= this->map.Cell(topBase + 3) & this->mask;
-            bottom[3] |= this->map.Cell(bottomBase + 3) & this->mask;
+            top[kAfterTwo] |= this->map.Cell(topBase + static_cast<int>(kAfterTwo)) & this->mask;
+            bottom[kAfterTwo] |= this->map.Cell(bottomBase + static_cast<int>(kAfterTwo)) & this->mask;
         }
 
-        this->blocked[SouthWest] = bottom[0];
-        this->blocked[NorthWest] = top[0];
-        this->blocked[North] = top[1];
-        this->blocked[NorthEast] = top[2];
-        this->blocked[South] = bottom[1];
-        this->blocked[SouthEast] = bottom[2];
+        this->blocked[SouthWest] = bottom[kBefore];
+        this->blocked[NorthWest] = top[kBefore];
+        this->blocked[North] = top[kFirst];
+        this->blocked[NorthEast] = top[kAfterOne];
+        this->blocked[South] = bottom[kFirst];
+        this->blocked[SouthEast] = bottom[kAfterOne];
 
-        if (w == 2)
+        if (w == kSmallFootprint)
         {
-            this->blocked[NorthWest] = top[0] | top[1];
-            this->blocked[North] = top[1] | top[2];
-            this->blocked[NorthEast] = top[2] | top[3];
-            this->blocked[SouthWest] = bottom[0] | bottom[1];
-            this->blocked[South] = bottom[1] | bottom[2];
-            this->blocked[SouthEast] = bottom[2] | bottom[3];
+            this->blocked[NorthWest] = top[kBefore] | top[kFirst];
+            this->blocked[North] = top[kFirst] | top[kAfterOne];
+            this->blocked[NorthEast] = top[kAfterOne] | top[kAfterTwo];
+            this->blocked[SouthWest] = bottom[kBefore] | bottom[kFirst];
+            this->blocked[South] = bottom[kFirst] | bottom[kAfterOne];
+            this->blocked[SouthEast] = bottom[kAfterOne] | bottom[kAfterTwo];
         }
     }
     else
     {
-        for (int i = 0; i < w + 2; ++i)
+        for (int i = 0; i < w + kCorners; ++i)
         {
             top[static_cast<std::size_t>(i)] |= this->map.Cell(topBase + i) & this->mask;
             bottom[static_cast<std::size_t>(i)] |= this->map.Cell(bottomBase + i) & this->mask;
@@ -565,56 +589,56 @@ void PathFinder::UpdateBlocked(int x, int y)
 
         for (std::size_t i = 0; i < static_cast<std::size_t>(w); ++i)
         {
-            this->blocked[North] |= top[i + 1];
+            this->blocked[North] |= top[i + kFirst];
             this->blocked[NorthWest] |= top[i];
-            this->blocked[NorthEast] |= top[i + 2];
-            this->blocked[South] |= bottom[i + 1];
+            this->blocked[NorthEast] |= top[i + kAfterOne];
+            this->blocked[South] |= bottom[i + kFirst];
             this->blocked[SouthWest] |= bottom[i];
-            this->blocked[SouthEast] |= bottom[i + 2];
+            this->blocked[SouthEast] |= bottom[i + kAfterOne];
         }
     }
 
-    const int leftBase = above * mapWidth + ((x - kTile) >> 4);
+    const int leftBase = above * mapWidth + ((x - kTile) >> MapHeader::TileShift);
     const int rightBase = above * mapWidth + tx + w;
-    const std::size_t vertical = static_cast<std::size_t>(std::max(h + 2, 4));
+    const std::size_t vertical = static_cast<std::size_t>(std::max(h + kCorners, kSmallEdge));
     std::vector<u32> left(vertical, 0);
     std::vector<u32> right(vertical, 0);
 
-    if (h <= 2)
+    if (h <= kSmallFootprint)
     {
-        for (int i = 0; i < 3; ++i)
+        for (int i = 0; i < static_cast<int>(kAfterTwo); ++i)
         {
             left[static_cast<std::size_t>(i)] |= this->map.Cell(leftBase + i * mapWidth) & this->mask;
             right[static_cast<std::size_t>(i)] |= this->map.Cell(rightBase + i * mapWidth) & this->mask;
         }
 
-        if (h == 2)
+        if (h == kSmallFootprint)
         {
-            left[3] |= this->map.Cell(leftBase + 3 * mapWidth) & this->mask;
-            right[3] |= this->map.Cell(rightBase + 3 * mapWidth) & this->mask;
+            left[kAfterTwo] |= this->map.Cell(leftBase + static_cast<int>(kAfterTwo) * mapWidth) & this->mask;
+            right[kAfterTwo] |= this->map.Cell(rightBase + static_cast<int>(kAfterTwo) * mapWidth) & this->mask;
         }
 
-        this->blocked[NorthWest] |= left[0];
-        this->blocked[West] |= left[1];
-        this->blocked[SouthWest] |= left[2];
-        this->blocked[NorthEast] |= right[0];
-        this->blocked[East] |= right[1];
-        this->blocked[SouthEast] |= right[2];
+        this->blocked[NorthWest] |= left[kBefore];
+        this->blocked[West] |= left[kFirst];
+        this->blocked[SouthWest] |= left[kAfterOne];
+        this->blocked[NorthEast] |= right[kBefore];
+        this->blocked[East] |= right[kFirst];
+        this->blocked[SouthEast] |= right[kAfterOne];
 
-        if (h == 2)
+        if (h == kSmallFootprint)
         {
-            this->blocked[NorthWest] |= left[1];
-            this->blocked[West] |= left[2];
-            this->blocked[SouthWest] |= left[3];
-            this->blocked[NorthEast] |= right[1];
-            this->blocked[East] |= right[2];
-            this->blocked[SouthEast] |= right[3];
+            this->blocked[NorthWest] |= left[kFirst];
+            this->blocked[West] |= left[kAfterOne];
+            this->blocked[SouthWest] |= left[kAfterTwo];
+            this->blocked[NorthEast] |= right[kFirst];
+            this->blocked[East] |= right[kAfterOne];
+            this->blocked[SouthEast] |= right[kAfterTwo];
         }
 
         return;
     }
 
-    for (int i = 0; i < h + 2; ++i)
+    for (int i = 0; i < h + kCorners; ++i)
     {
         left[static_cast<std::size_t>(i)] |= this->map.Cell(leftBase + i * mapWidth) & this->mask;
         right[static_cast<std::size_t>(i)] |= this->map.Cell(rightBase + i * mapWidth) & this->mask;
@@ -622,12 +646,12 @@ void PathFinder::UpdateBlocked(int x, int y)
 
     for (std::size_t i = 0; i < static_cast<std::size_t>(h); ++i)
     {
-        this->blocked[West] |= left[i + 1];
+        this->blocked[West] |= left[i + kFirst];
         this->blocked[NorthWest] |= left[i];
-        this->blocked[SouthWest] |= left[i + 2];
-        this->blocked[East] |= right[i + 1];
+        this->blocked[SouthWest] |= left[i + kAfterOne];
+        this->blocked[East] |= right[i + kFirst];
         this->blocked[NorthEast] |= right[i];
-        this->blocked[SouthEast] |= right[i + 2];
+        this->blocked[SouthEast] |= right[i + kAfterOne];
     }
 }
 
