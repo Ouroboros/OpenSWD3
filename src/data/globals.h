@@ -4306,7 +4306,7 @@ struct Globals {
     HANDLE actFiles[6];  // 0x004FB2D0
     std::uint8_t* actCurrent;  // 0x004FB2E8
     std::uint16_t actIndexCounts[10];  // 0x004FB2EC
-    std::int32_t dword_4FB300;  // 0x004FB300
+    std::int32_t actStateReset;  // 0x004FB300 1 after ActRun restarted a script, 0 once it loaded
     std::int32_t actCacheBytes;  // 0x004FB304
     std::int32_t actOption;  // 0x004FB308 set by 0x00433080
     std::int32_t actOpened;  // 0x004FB30C
@@ -5901,6 +5901,7 @@ static_assert(offsetof(Globals, actIndexBuckets) == 0x62208);
 static_assert(offsetof(Globals, actFiles) == 0x622D0);
 static_assert(offsetof(Globals, actCurrent) == 0x622E8);
 static_assert(offsetof(Globals, actIndexCounts) == 0x622EC);
+static_assert(offsetof(Globals, actStateReset) == 0x62300);
 static_assert(offsetof(Globals, actCacheBytes) == 0x62304);
 static_assert(offsetof(Globals, actOption) == 0x62308);
 static_assert(offsetof(Globals, actOpened) == 0x6230C);

@@ -3,6 +3,7 @@
 #include "crt/crt.h"
 #include "data/globals.h"
 #include "res/act.h"
+#include "res/act_anim.h"
 #include "res/tsw.h"
 #include "test.h"
 
@@ -84,4 +85,29 @@ TEST_CASE("res.act loads and caches entries from all_sys.act") {
     ActCacheClear();
     CHECK_EQ(G.actCacheBytes, 0);
     CHECK_EQ(ActCloseAll(), 0);
+}
+
+TEST_CASE("res.act script runs frame by frame from all_sys.act") {
+    if (!prepareGameDir()) {
+        return;
+    }
+    G.actOption = 1;
+    ActState state{};
+    state.id = 9001;
+    CHECK_EQ(ActRun(&state), 1);
+    CHECK(state.script == ActGet(9001, 0));
+    CHECK_EQ(G.actStateReset, 0);
+    const std::uint16_t afterFirst = state.pc;
+    CHECK(afterFirst > 0);
+    // the frame ends on a 'DE' word just before the new position
+    std::uint16_t end;
+    std::memcpy(&end, state.script + 2 * (afterFirst - 1), 2);
+    CHECK_EQ(end, 0x4544);
+    // a direction change restarts the script
+    state.direction = 1;
+    state.delay = 0;
+    ActRun(&state);
+    CHECK_EQ(state.lastDirection, 1);
+    ActCacheClear();
+    ActCloseAll();
 }

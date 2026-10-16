@@ -214,3 +214,4 @@ addr	type	name	module	notes
 0x004B7934	std::int32_t	mapHeight	map	tiles
 0x004B7948	std::int32_t*	mapBlocking	map	one blocking word per tile
 @include	role/path_finder.h
+0x004FB300	std::int32_t	actStateReset	res	1 after ActRun restarted a script, 0 once it loaded

@@ -405,7 +405,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 404	swd32.exe	0x00432020	sub_432020	res	src/res/act.cpp:ActOpenFile	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00431C50 and 0x004320E0
 405	swd32.exe	0x00432050	sub_432050	res	src/res/act.cpp:ActExtractEntry	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00431C50 and 0x004320E0
 406	swd32.exe	0x004320E0	sub_4320E0	res	src/res/act.cpp:ActLoad	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "<<ACT:%d"
-407	swd32.exe	0x004321E0	sub_4321E0	res_pack		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x004320E0 and 0x00432A50
+407	swd32.exe	0x004321E0	sub_4321E0	res	src/res/act_anim.cpp:ActRun	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	YX, HW, GC, RC and BC read their second value without advancing, so it runs as the next opcode
 408	swd32.exe	0x00432A50	sub_432A50	res	src/res/act.cpp:ActGet	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "all_char.act"
 409	swd32.exe	0x00432BC0	sub_432BC0	res	src/res/act.cpp:ActLoadDirect	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "all_char.act"
 410	swd32.exe	0x00432D30	sub_432D30	res	src/res/act.cpp:ActCacheLoad	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Act error::actno:%d qq:%d"
