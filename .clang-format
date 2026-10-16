@@ -1,0 +1,36 @@
+# Project style (AGENTS.md, 代码风格). Blank lines around braced blocks are added by scripts/format.sh.
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 120
+AccessModifierOffset: -4
+BreakBeforeBraces: Allman
+BraceWrapping:
+  BeforeLambdaBody: true
+AllowShortFunctionsOnASingleLine: None
+AllowShortBlocksOnASingleLine: Never
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortLambdasOnASingleLine: None
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortEnumsOnASingleLine: false
+AlignAfterOpenBracket: BlockIndent
+BinPackArguments: false
+BinPackParameters: false
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+ContinuationIndentWidth: 4
+IndentCaseLabels: true
+PointerAlignment: Left
+SpaceBeforeParens: ControlStatements
+AlwaysBreakTemplateDeclarations: Yes
+FixNamespaceComments: true
+NamespaceIndentation: None
+SortIncludes: CaseSensitive
+IncludeBlocks: Preserve
+AlignTrailingComments: true
+SpacesBeforeTrailingComments: 2
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+EmptyLineBeforeAccessModifier: LogicalBlock
+SeparateDefinitionBlocks: Always
+InsertBraces: true

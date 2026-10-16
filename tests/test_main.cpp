@@ -2,37 +2,47 @@
 
 #include "test.h"
 
-namespace swd3test {
-namespace {
+namespace swd3test
+{
+namespace
+{
 
 int failures = 0;
 
 }  // namespace
 
-std::vector<Case>& registry() {
+std::vector<Case>& registry()
+{
     static std::vector<Case> cases;
     return cases;
 }
 
-void fail(const char* file, int line, const std::string& message) {
+void fail(const char* file, int line, const std::string& message)
+{
     ++failures;
     std::fprintf(stderr, "%s:%d: %s\n", file, line, message.c_str());
 }
 
 }  // namespace swd3test
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
     std::setvbuf(stdout, nullptr, _IONBF, 0);
     int run = 0;
-    for (const auto& c : swd3test::registry()) {
-        if (argc > 1 && std::strstr(c.name, argv[1]) == nullptr) {
+
+    for (const auto& c : swd3test::registry())
+    {
+        if (argc > 1 && std::strstr(c.name, argv[1]) == nullptr)
+        {
             continue;
         }
+
         int before = swd3test::failures;
         c.body();
         ++run;
         std::printf("%s %s\n", swd3test::failures == before ? "[ OK ]" : "[FAIL]", c.name);
     }
+
     std::printf("%d test cases, %d failures\n", run, swd3test::failures);
     return swd3test::failures == 0 ? 0 : 1;
 }

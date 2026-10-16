@@ -6,24 +6,35 @@
 #include <string_view>
 #include <vector>
 
-namespace swd3 {
+namespace swd3
+{
 
 // "cFile" (its error text names it): a file handle with a single read-only view. The original wraps CreateFileA
 // with FILE_FLAG_RANDOM_ACCESS and a read-only file mapping; here the view is a copy of the mapped range.
-class File {
+class File
+{
 public:
     // dwCreationDisposition values the game passes.
-    enum class Disposition {
+    enum class Disposition
+    {
         OpenExisting,  // OPEN_EXISTING (3)
         OpenAlways,    // OPEN_ALWAYS (4)
     };
+
     // dwDesiredAccess values the game passes.
-    enum class Access {
+    enum class Access
+    {
         Read,       // GENERIC_READ
         Write,      // GENERIC_WRITE
         ReadWrite,  // GENERIC_READ | GENERIC_WRITE
     };
-    enum class Origin { Begin, Current, End };
+
+    enum class Origin
+    {
+        Begin,
+        Current,
+        End
+    };
 
     static constexpr std::uint32_t kInvalidPosition = 0xFFFFFFFFu;
 
@@ -34,8 +45,16 @@ public:
 
     bool Open(std::string_view name, Disposition disposition, Access access);
     bool Close();
-    bool IsOpen() const { return this->file != nullptr; }
-    const std::string& Name() const { return this->name; }
+
+    bool IsOpen() const
+    {
+        return this->file != nullptr;
+    }
+
+    const std::string& Name() const
+    {
+        return this->name;
+    }
 
     bool CreateMapping();
     bool CloseMapping();

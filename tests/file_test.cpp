@@ -7,18 +7,21 @@
 
 using swd3::File;
 
-namespace {
+namespace
+{
 
 const char* kName = "file_test.bin";
 
-void cleanup() {
+void cleanup()
+{
     std::error_code ignored;
     std::filesystem::remove(kName, ignored);
 }
 
 }  // namespace
 
-TEST_CASE("file: open always creates, writes and reads back") {
+TEST_CASE("file: open always creates, writes and reads back")
+{
     cleanup();
     {
         File file;
@@ -39,10 +42,12 @@ TEST_CASE("file: open always creates, writes and reads back") {
         CHECK_EQ(byte, 0xABu);
         CHECK(file.Close());
     }
+
     cleanup();
 }
 
-TEST_CASE("file: empty read fails, short read succeeds") {
+TEST_CASE("file: empty read fails, short read succeeds")
+{
     cleanup();
     File file;
     CHECK(file.Open(kName, File::Disposition::OpenAlways, File::Access::ReadWrite));
@@ -56,7 +61,8 @@ TEST_CASE("file: empty read fails, short read succeeds") {
     cleanup();
 }
 
-TEST_CASE("file: mapping views the whole file; only the current view can be released") {
+TEST_CASE("file: mapping views the whole file; only the current view can be released")
+{
     cleanup();
     File file;
     CHECK(file.Open(kName, File::Disposition::OpenAlways, File::Access::ReadWrite));
@@ -74,7 +80,8 @@ TEST_CASE("file: mapping views the whole file; only the current view can be rele
     cleanup();
 }
 
-TEST_CASE("file: seek before the start fails") {
+TEST_CASE("file: seek before the start fails")
+{
     cleanup();
     File file;
     CHECK(file.Open(kName, File::Disposition::OpenAlways, File::Access::ReadWrite));
