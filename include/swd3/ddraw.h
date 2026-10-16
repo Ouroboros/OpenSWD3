@@ -143,6 +143,8 @@ struct IUnknownLike {
     virtual DWORD Release() = 0;
 };
 
+struct IDirectDraw : IUnknownLike {};
+
 struct IDirectDrawClipper : IUnknownLike {
     virtual HRESULT GetClipList(RECT* rect, void* clipList, DWORD* size) = 0;
     virtual HRESULT GetHWnd(HWND* window) = 0;
@@ -232,7 +234,11 @@ struct IDirectDraw4 : IUnknownLike {
     virtual HRESULT GetDeviceIdentifier(void* identifier, DWORD flags) = 0;
 };
 
+// GDI pixel access on a surface DC (GetDC / ReleaseDC).
+COLORREF GetPixel(HDC dc, int x, int y);
+COLORREF SetPixel(HDC dc, int x, int y, COLORREF color);
+
 // Returns an IDirectDraw object; the game immediately queries IID_IDirectDraw4.
-HRESULT DirectDrawCreate(GUID* guid, IUnknownLike** directDraw, void* outer);
+HRESULT DirectDrawCreate(GUID* driver, IDirectDraw** directDraw, void* outer);
 
 }  // namespace w32

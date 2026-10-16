@@ -18,7 +18,7 @@ namespace {
 
 thread_local DWORD t_lastError = ERROR_SUCCESS;
 
-enum class Kind { File, Mapping };
+enum class Kind { File, Mapping, Event };
 
 struct Object {
     Kind kind;
@@ -81,6 +81,9 @@ BOOL CloseHandle(HANDLE handle) {
     delete object;
     return 1;
 }
+
+// Events are only created for DirectInput notifications, which the emulation never signals.
+HANDLE CreateEventA(void*, BOOL, BOOL, LPCSTR) { return new Object{Kind::Event, -1, 0, 0}; }
 
 HANDLE CreateFileA(LPCSTR fileName, DWORD desiredAccess, DWORD, void*, DWORD creationDisposition, DWORD,
                    HANDLE) {

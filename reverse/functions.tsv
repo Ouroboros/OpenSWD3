@@ -1,8 +1,8 @@
 order	binary	address	name	module	source	status	verification_count	evidence	notes
-1	swd32.exe	0x00401000	sub_401000	memmgr	src/memmgr/memory_manager.cpp:g_memoryManager (dynamic initializer)	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-2	swd32.exe	0x00401010	sub_401010	memmgr	src/memmgr/memory_manager.cpp:g_memoryManager (constructor call)	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-3	swd32.exe	0x00401020	sub_401020	memmgr	src/memmgr/memory_manager.cpp:g_memoryManager (atexit registration)	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-4	swd32.exe	0x00401030	sub_401030	memmgr	src/memmgr/memory_manager.cpp:g_memoryManager (destructor call)	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+1	swd32.exe	0x00401000	sub_401000	static_init	src/core/static_init.cpp:InitMemoryManager	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+2	swd32.exe	0x00401010	sub_401010	static_init	src/core/static_init.cpp:ConstructMemoryManager	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+3	swd32.exe	0x00401020	sub_401020	static_init	src/core/static_init.cpp:RegisterMemoryManagerDestructor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+4	swd32.exe	0x00401030	sub_401030	static_init	src/core/static_init.cpp:DestroyMemoryManager	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
 5	swd32.exe	0x00401040	sub_401040	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
 6	swd32.exe	0x00401050	sub_401050	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
 7	swd32.exe	0x00401060	sub_401060	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
@@ -39,44 +39,44 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 38	swd32.exe	0x00401260	sub_401260	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
 39	swd32.exe	0x00401270	sub_401270	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
 40	swd32.exe	0x00401280	sub_401280	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-41	swd32.exe	0x00401290	sub_401290	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-42	swd32.exe	0x004012A0	sub_4012A0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-43	swd32.exe	0x004012B0	sub_4012B0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-44	swd32.exe	0x004012C0	sub_4012C0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-45	swd32.exe	0x004012D0	sub_4012D0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-46	swd32.exe	0x004012E0	sub_4012E0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-47	swd32.exe	0x004012F0	sub_4012F0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-48	swd32.exe	0x00401300	sub_401300	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-49	swd32.exe	0x00401310	sub_401310	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-50	swd32.exe	0x00401320	sub_401320	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-51	swd32.exe	0x00401330	sub_401330	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-52	swd32.exe	0x00401340	sub_401340	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-53	swd32.exe	0x00401350	sub_401350	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-54	swd32.exe	0x00401360	sub_401360	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-55	swd32.exe	0x00401370	sub_401370	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-56	swd32.exe	0x00401380	sub_401380	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-57	swd32.exe	0x00401390	sub_401390	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-58	swd32.exe	0x004013A0	sub_4013A0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-59	swd32.exe	0x004013B0	sub_4013B0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-60	swd32.exe	0x004013C0	sub_4013C0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-61	swd32.exe	0x004013D0	sub_4013D0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-62	swd32.exe	0x004013E0	sub_4013E0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-63	swd32.exe	0x004013F0	sub_4013F0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-64	swd32.exe	0x00401400	sub_401400	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-65	swd32.exe	0x00401410	sub_401410	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-66	swd32.exe	0x00401420	sub_401420	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-67	swd32.exe	0x00401430	sub_401430	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-68	swd32.exe	0x00401440	sub_401440	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-69	swd32.exe	0x00401450	sub_401450	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-70	swd32.exe	0x00401460	sub_401460	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-71	swd32.exe	0x00401470	sub_401470	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-72	swd32.exe	0x00401480	sub_401480	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-73	swd32.exe	0x00401490	sub_401490	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern; ida_flags=THUNK
-74	swd32.exe	0x004014A0	sub_4014A0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-75	swd32.exe	0x004014B0	sub_4014B0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-76	swd32.exe	0x004014C0	sub_4014C0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-77	swd32.exe	0x004014D0	sub_4014D0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-78	swd32.exe	0x004014E0	sub_4014E0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+41	swd32.exe	0x00401290	sub_401290	static_init	src/core/static_init.cpp:InitFile4B74A0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+42	swd32.exe	0x004012A0	sub_4012A0	static_init	src/core/static_init.cpp:ConstructFile4B74A0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+43	swd32.exe	0x004012B0	sub_4012B0	static_init	src/core/static_init.cpp:RegisterFile4B74A0Destructor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+44	swd32.exe	0x004012C0	sub_4012C0	static_init	src/core/static_init.cpp:DestroyFile4B74A0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+45	swd32.exe	0x004012D0	sub_4012D0	static_init	src/core/static_init.cpp:InitMapCacheFile	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+46	swd32.exe	0x004012E0	sub_4012E0	static_init	src/core/static_init.cpp:ConstructMapCacheFile	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+47	swd32.exe	0x004012F0	sub_4012F0	static_init	src/core/static_init.cpp:RegisterMapCacheFileDestructor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+48	swd32.exe	0x00401300	sub_401300	static_init	src/core/static_init.cpp:DestroyMapCacheFile	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+49	swd32.exe	0x00401310	sub_401310	static_init	src/core/static_init.cpp:InitFile4CAD50	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+50	swd32.exe	0x00401320	sub_401320	static_init	src/core/static_init.cpp:ConstructFile4CAD50	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+51	swd32.exe	0x00401330	sub_401330	static_init	src/core/static_init.cpp:RegisterFile4CAD50Destructor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+52	swd32.exe	0x00401340	sub_401340	static_init	src/core/static_init.cpp:DestroyFile4CAD50	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+53	swd32.exe	0x00401350	sub_401350	static_init	src/core/static_init.cpp:InitFile4B9F18	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+54	swd32.exe	0x00401360	sub_401360	static_init	src/core/static_init.cpp:ConstructFile4B9F18	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+55	swd32.exe	0x00401370	sub_401370	static_init	src/core/static_init.cpp:RegisterFile4B9F18Destructor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+56	swd32.exe	0x00401380	sub_401380	static_init	src/core/static_init.cpp:DestroyFile4B9F18	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+57	swd32.exe	0x00401390	sub_401390	static_init	src/core/static_init.cpp:InitFile4A98C8	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+58	swd32.exe	0x004013A0	sub_4013A0	static_init	src/core/static_init.cpp:ConstructFile4A98C8	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+59	swd32.exe	0x004013B0	sub_4013B0	static_init	src/core/static_init.cpp:RegisterFile4A98C8Destructor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+60	swd32.exe	0x004013C0	sub_4013C0	static_init	src/core/static_init.cpp:DestroyFile4A98C8	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+61	swd32.exe	0x004013D0	sub_4013D0	static_init	src/core/static_init.cpp:InitFile4CAA28	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+62	swd32.exe	0x004013E0	sub_4013E0	static_init	src/core/static_init.cpp:ConstructFile4CAA28	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+63	swd32.exe	0x004013F0	sub_4013F0	static_init	src/core/static_init.cpp:RegisterFile4CAA28Destructor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+64	swd32.exe	0x00401400	sub_401400	static_init	src/core/static_init.cpp:DestroyFile4CAA28	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+65	swd32.exe	0x00401410	sub_401410	static_init	src/core/static_init.cpp:InitFile4B7AD0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+66	swd32.exe	0x00401420	sub_401420	static_init	src/core/static_init.cpp:ConstructFile4B7AD0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+67	swd32.exe	0x00401430	sub_401430	static_init	src/core/static_init.cpp:RegisterFile4B7AD0Destructor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+68	swd32.exe	0x00401440	sub_401440	static_init	src/core/static_init.cpp:DestroyFile4B7AD0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+69	swd32.exe	0x00401450	sub_401450	static_init	src/core/static_init.cpp:InitFile4A9380	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+70	swd32.exe	0x00401460	sub_401460	static_init	src/core/static_init.cpp:ConstructFile4A9380	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+71	swd32.exe	0x00401470	sub_401470	static_init	src/core/static_init.cpp:RegisterFile4A9380Destructor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+72	swd32.exe	0x00401480	sub_401480	static_init	src/core/static_init.cpp:DestroyFile4A9380	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+73	swd32.exe	0x00401490	sub_401490	static_init	src/core/static_init.cpp:InitGraphics	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern; ida_flags=THUNK
+74	swd32.exe	0x004014A0	sub_4014A0	static_init	src/core/static_init.cpp:ConstructGraphics	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+75	swd32.exe	0x004014B0	sub_4014B0	static_init	src/core/static_init.cpp:InitInput	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+76	swd32.exe	0x004014C0	sub_4014C0	static_init	src/core/static_init.cpp:ConstructInput	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+77	swd32.exe	0x004014D0	sub_4014D0	static_init	src/core/static_init.cpp:RegisterInputDestructor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+78	swd32.exe	0x004014E0	sub_4014E0	static_init	src/core/static_init.cpp:DestroyInput	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
 79	swd32.exe	0x004014F0	sub_4014F0	pic	src/pic/rle.cpp:RleEncode	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 80	swd32.exe	0x004019A0	sub_4019A0	pic	src/pic/rle.cpp:RleDecode	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 81	swd32.exe	0x00401B70	sub_401B70	pic	src/pic/rle.cpp:RleCheck16	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
@@ -356,10 +356,10 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 355	swd32.exe	0x00426DF0	sub_426DF0	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "%sdata\%d.cm"
 356	swd32.exe	0x004270F0	sub_4270F0	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between map anchors 0x00426DF0 and 0x00427140
 357	swd32.exe	0x00427140	sub_427140	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "%sdata\%d.cm"
-358	swd32.exe	0x004272C0	sub_4272C0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-359	swd32.exe	0x004272D0	sub_4272D0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-360	swd32.exe	0x004272E0	sub_4272E0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-361	swd32.exe	0x004272F0	sub_4272F0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+358	swd32.exe	0x004272C0	sub_4272C0	static_init	src/core/static_init.cpp:InitFile4CF6E0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+359	swd32.exe	0x004272D0	sub_4272D0	static_init	src/core/static_init.cpp:ConstructFile4CF6E0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+360	swd32.exe	0x004272E0	sub_4272E0	static_init	src/core/static_init.cpp:RegisterFile4CF6E0Destructor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+361	swd32.exe	0x004272F0	sub_4272F0	static_init	src/core/static_init.cpp:DestroyFile4CF6E0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 362	swd32.exe	0x00427300	sub_427300	talk		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Talk:...)"
 363	swd32.exe	0x00427920	sub_427920	talk		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Talk:...)"
 364	swd32.exe	0x0042D920	sub_42D920	talk		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between talk anchors 0x00427920 and 0x0042E480
@@ -389,7 +389,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 388	swd32.exe	0x00430EB0	sub_430EB0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 389	swd32.exe	0x00430FF0	sub_430FF0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 390	swd32.exe	0x00431150	sub_431150	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
-391	swd32.exe	0x004311C0	sub_4311C0	ddraw		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "DDERR_OUTOFMEMORY "
+391	swd32.exe	0x004311C0	sub_4311C0	gfx	src/gfx/graphics.cpp:ShowDirectDrawError	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "DDERR_OUTOFMEMORY "
 392	swd32.exe	0x004315C0	sub_4315C0	res	src/res/tsw.cpp:TswSetCacheLimit	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 393	swd32.exe	0x004315D0	sub_4315D0	res	src/res/tsw.cpp:TswGetPicture	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "all_char.tsw"
 394	swd32.exe	0x00431760	sub_431760	res	src/res/tsw.cpp:TswLoadPictureDirect	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "all_char.tsw"
@@ -469,37 +469,37 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 468	swd32.exe	0x004369C0	sub_4369C0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 469	swd32.exe	0x00436AD0	sub_436AD0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 470	swd32.exe	0x00436EA0	sub_436EA0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-471	swd32.exe	0x00436F70	sub_436F70	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-472	swd32.exe	0x00436FA0	sub_436FA0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=THUNK
-473	swd32.exe	0x00436FB0	sub_436FB0	input_dinput		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "cDINPUT"
-474	swd32.exe	0x004372B0	sub_4372B0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-475	swd32.exe	0x004372D0	sub_4372D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-476	swd32.exe	0x004372E0	sub_4372E0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-477	swd32.exe	0x00437300	sub_437300	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-478	swd32.exe	0x00437310	sub_437310	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-479	swd32.exe	0x00437430	sub_437430	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-480	swd32.exe	0x004374C0	sub_4374C0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-481	swd32.exe	0x004374E0	sub_4374E0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-482	swd32.exe	0x00437560	sub_437560	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-483	swd32.exe	0x00437570	sub_437570	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-484	swd32.exe	0x00437610	sub_437610	ddraw		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "DirectDraw Create Error!!"
-485	swd32.exe	0x00437680	sub_437680	ddraw		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "DirectDraw SetCooper Error!!"
-486	swd32.exe	0x004376D0	sub_4376D0	ddraw		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "DirectDraw SetDisplayMode Error!!"
-487	swd32.exe	0x00437720	sub_437720	ddraw		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "DirectDraw CreateClipper Error!!"
-488	swd32.exe	0x004377D0	sub_4377D0	ddraw		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "DirectDraw Create Primary Surface Error!"
-489	swd32.exe	0x00437A50	sub_437A50	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-490	swd32.exe	0x00437AD0	sub_437AD0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-491	swd32.exe	0x00437AE0	sub_437AE0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-492	swd32.exe	0x00437B60	sub_437B60	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-493	swd32.exe	0x00437C00	sub_437C00	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-494	swd32.exe	0x00437C40	sub_437C40	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-495	swd32.exe	0x00437C80	sub_437C80	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-496	swd32.exe	0x00437D80	sub_437D80	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-497	swd32.exe	0x00437DC0	sub_437DC0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-498	swd32.exe	0x00437DF0	sub_437DF0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-499	swd32.exe	0x00437E20	sub_437E20	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-500	swd32.exe	0x00437E30	sub_437E30	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-501	swd32.exe	0x00437E90	sub_437E90	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+471	swd32.exe	0x00436F70	sub_436F70	input	src/input/input.cpp:Input::Input	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+472	swd32.exe	0x00436FA0	sub_436FA0	input	src/input/input.cpp:Input::~Input	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=THUNK
+473	swd32.exe	0x00436FB0	sub_436FB0	input	src/input/input.cpp:Input::Init	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	data format of the keyboard (c_dfDIKeyboard in the code section) reproduced as a constant without its object table
+474	swd32.exe	0x004372B0	sub_4372B0	input	src/input/input.cpp:Input::PollKeyboard	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+475	swd32.exe	0x004372D0	sub_4372D0	input	src/input/input.cpp:Input::IsKeyDown	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+476	swd32.exe	0x004372E0	sub_4372E0	input	src/input/input.cpp:Input::FirstKeyDown	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+477	swd32.exe	0x00437300	sub_437300	input	src/input/input.cpp:Input::PressKey	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+478	swd32.exe	0x00437310	sub_437310	input	src/input/input.cpp:Input::ReadMouse	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+479	swd32.exe	0x00437430	sub_437430	input	src/input/input.cpp:Input::SetMousePosition	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+480	swd32.exe	0x004374C0	sub_4374C0	input	src/input/input.cpp:Input::SetSensitivity	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+481	swd32.exe	0x004374E0	sub_4374E0	input	src/input/input.cpp:Input::Release	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+482	swd32.exe	0x00437560	sub_437560	gfx	src/gfx/graphics.cpp:Graphics::Graphics	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+483	swd32.exe	0x00437570	sub_437570	gfx	src/gfx/graphics.cpp:Graphics::Init	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+484	swd32.exe	0x00437610	sub_437610	gfx	src/gfx/graphics.cpp:Graphics::CreateDirectDraw	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "DirectDraw Create Error!!"
+485	swd32.exe	0x00437680	sub_437680	gfx	src/gfx/graphics.cpp:Graphics::SetCooperativeLevel	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "DirectDraw SetCooper Error!!"
+486	swd32.exe	0x004376D0	sub_4376D0	gfx	src/gfx/graphics.cpp:Graphics::SetDisplayMode	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "DirectDraw SetDisplayMode Error!!"
+487	swd32.exe	0x00437720	sub_437720	gfx	src/gfx/graphics.cpp:Graphics::CreateClipper	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "DirectDraw CreateClipper Error!!"
+488	swd32.exe	0x004377D0	sub_4377D0	gfx	src/gfx/graphics.cpp:Graphics::CreateSurfaces	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "DirectDraw Create Primary Surface Error!"
+489	swd32.exe	0x00437A50	sub_437A50	gfx	src/gfx/graphics.cpp:Graphics::ReleaseSurfaces	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+490	swd32.exe	0x00437AD0	sub_437AD0	gfx	src/gfx/graphics.cpp:Graphics::ReleaseDirectDraw	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+491	swd32.exe	0x00437AE0	sub_437AE0	gfx	src/gfx/graphics.cpp:Graphics::Present	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+492	swd32.exe	0x00437B60	sub_437B60	gfx	src/gfx/graphics.cpp:Graphics::CreateOffscreen	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+493	swd32.exe	0x00437C00	sub_437C00	gfx	src/gfx/graphics.cpp:FillSurfaceColor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+494	swd32.exe	0x00437C40	sub_437C40	gfx	src/gfx/graphics.cpp:Graphics::ClearSurface	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+495	swd32.exe	0x00437C80	sub_437C80	gfx	src/gfx/graphics.cpp:MatchSurfaceColor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+496	swd32.exe	0x00437D80	sub_437D80	gfx	src/gfx/graphics.cpp:Graphics::GetBitDepth	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+497	swd32.exe	0x00437DC0	sub_437DC0	gfx	src/gfx/graphics.cpp:Graphics::QueryVideoMemory	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+498	swd32.exe	0x00437DF0	sub_437DF0	gfx	src/gfx/graphics.cpp:Graphics::GetSurface	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+499	swd32.exe	0x00437E20	sub_437E20	gfx	src/gfx/graphics.cpp:Graphics::GetDirectDraw	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+500	swd32.exe	0x00437E30	sub_437E30	gfx	src/gfx/graphics.cpp:Graphics::DetectPixelFormat	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+501	swd32.exe	0x00437E90	sub_437E90	gfx	src/gfx/graphics.cpp:Graphics::GetBackSize	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 502	swd32.exe	0x00437EB0	sub_437EB0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 503	swd32.exe	0x00437EF0	sub_437EF0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 504	swd32.exe	0x00437F40	sub_437F40	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
@@ -832,10 +832,10 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 831	swd32.exe	0x004518D0	sub_4518D0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
 832	swd32.exe	0x004518E0	sub_4518E0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern; ida_flags=THUNK
 833	swd32.exe	0x004518F0	sub_4518F0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-834	swd32.exe	0x00451900	sub_451900	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-835	swd32.exe	0x00451910	sub_451910	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-836	swd32.exe	0x00451920	sub_451920	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-837	swd32.exe	0x00451930	sub_451930	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+834	swd32.exe	0x00451900	sub_451900	static_init	src/core/static_init.cpp:InitFile521538	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+835	swd32.exe	0x00451910	sub_451910	static_init	src/core/static_init.cpp:ConstructFile521538	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+836	swd32.exe	0x00451920	sub_451920	static_init	src/core/static_init.cpp:RegisterFile521538Destructor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+837	swd32.exe	0x00451930	sub_451930	static_init	src/core/static_init.cpp:DestroyFile521538	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
 838	swd32.exe	0x00451940	sub_451940	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 839	swd32.exe	0x00451A20	sub_451A20	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 840	swd32.exe	0x00451A90	sub_451A90	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
@@ -1296,7 +1296,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1295	swd32.exe	0x00487AD8	DirectInputCreateA	input_dinput		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import DINPUT!DirectInputCreateA; ida_flags=THUNK|HIDDEN
 1296	swd32.exe	0x00487ADE	ImmIsIME	text_dbcs		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import IMM32!ImmIsIME; ida_flags=THUNK|HIDDEN
 1297	swd32.exe	0x00487AF0	sub_487AF0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
-1298	swd32.exe	0x00487BA0	sub_487BA0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
+1298	swd32.exe	0x00487BA0	sub_487BA0	crt	src/crt/crt.cpp:atexit	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1299	swd32.exe	0x00487BC0	sub_487BC0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1300	swd32.exe	0x00487C10	sub_487C10	crt	src/crt/crt.cpp:crt::malloc (host malloc + 0xCD fill)	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1301	swd32.exe	0x00487C30	sub_487C30	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
@@ -1348,11 +1348,11 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1347	swd32.exe	0x00489E90	sub_489E90	crt	src/crt/crt.cpp:crt::operator_new (host malloc + 0xCD fill)	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1348	swd32.exe	0x00489EB0	sub_489EB0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1349	swd32.exe	0x0048A1F0	sub_48A1F0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
-1350	swd32.exe	0x0048A330	sub_48A330	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
+1350	swd32.exe	0x0048A330	sub_48A330	crt	src/crt/crt.cpp:cinit	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	the floating point hook and the __xi CRT initializers are host runtime work
 1351	swd32.exe	0x0048A370	sub_48A370	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1352	swd32.exe	0x0048A390	sub_48A390	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1353	swd32.exe	0x0048A3B0	sub_48A3B0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
-1354	swd32.exe	0x0048A490	sub_48A490	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
+1354	swd32.exe	0x0048A490	sub_48A490	crt	src/crt/crt.cpp:initterm	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1355	swd32.exe	0x0048A4C0	sub_48A4C0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1356	swd32.exe	0x0048A560	sub_48A560	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1357	swd32.exe	0x0048A610	sub_48A610	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME

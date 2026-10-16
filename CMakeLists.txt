@@ -7,6 +7,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Scalar SSE2 floating point without contraction: every float/double intermediate is rounded like the original's
+# x87 code running at the 53-bit precision set by the MSVC runtime.
+if(MSVC)
+    add_compile_options(/arch:SSE2 /clang:-ffp-contract=off)
+else()
+    add_compile_options(-msse2 -mfpmath=sse -ffp-contract=off)
+endif()
+
 if(WIN32)
     set(SWD3_DEPS_PLATFORM windows)
 else()
@@ -34,18 +42,19 @@ else()
     set(SWD3_WARNINGS -Wall -Wno-unused-parameter)
 endif()
 
+find_package(SDL3 CONFIG REQUIRED COMPONENTS SDL3-static)
 add_library(swd3_core STATIC ${SWD3_SOURCES})
 target_include_directories(swd3_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_compile_options(swd3_core PRIVATE ${SWD3_WARNINGS})
+target_link_libraries(swd3_core PUBLIC SDL3::SDL3-static)
 if(WIN32)
     target_compile_definitions(swd3_core PUBLIC NOMINMAX _CRT_SECURE_NO_WARNINGS)
     target_link_libraries(swd3_core PUBLIC user32 gdi32 advapi32 ole32 winmm imm32)
 endif()
 
 if(EXISTS "${SWD3_MAIN_SOURCE}")
-    find_package(SDL3 CONFIG REQUIRED COMPONENTS SDL3-static)
     include(cmake/FFmpegStatic.cmake)
     add_executable(swd3 "${SWD3_MAIN_SOURCE}")
     target_link_libraries(swd3 PRIVATE swd3_core SDL3::SDL3-static swd3::ffmpeg)

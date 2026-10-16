@@ -1,5 +1,8 @@
 #include "crt/crt.h"
 
+#include "data/code_ptr.h"
+#include "data/globals.h"
+
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -72,5 +75,21 @@ std::int64_t ftol(double value) {
 double difftime(std::int32_t end, std::int32_t start) {
     return static_cast<double>(static_cast<std::int32_t>(static_cast<std::uint32_t>(end) - static_cast<std::uint32_t>(start)));
 }
+
+// swd32.exe 0x00487BA0 atexit
+int atexit(void (*function)()) { return std::atexit(function) == 0 ? 0 : -1; }
+
+// swd32.exe 0x0048A490 _initterm
+void initterm(const std::uint32_t* begin, const std::uint32_t* end) {
+    for (; begin < end; ++begin) {
+        if (*begin != 0) {
+            codeAs<void()>(*begin)();
+        }
+    }
+}
+
+// swd32.exe 0x0048A330 _cinit: the floating point hook and the CRT's own __xi initializers are host runtime
+// work; the C++ initializers (__xc_a 0x0049E000 .. __xc_z 0x0049E070) are run here.
+void cinit() { initterm(&G.cppInitializers[0], &G.cppInitializers[0] + 28); }
 
 }  // namespace swd3::crt

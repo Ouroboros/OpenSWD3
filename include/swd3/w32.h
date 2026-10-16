@@ -71,6 +71,7 @@ struct SYSTEMTIME {
 DWORD GetLastError();
 void SetLastError(DWORD code);
 BOOL CloseHandle(HANDLE handle);
+HANDLE CreateEventA(void* attributes, BOOL manualReset, BOOL initialState, LPCSTR name);
 HANDLE CreateFileA(LPCSTR fileName, DWORD desiredAccess, DWORD shareMode, void* securityAttributes,
                    DWORD creationDisposition, DWORD flagsAndAttributes, HANDLE templateFile);
 BOOL SetFileAttributesA(LPCSTR fileName, DWORD attributes);
@@ -108,6 +109,11 @@ void GetSystemInfo(SYSTEM_INFO* info);
 HANDLE HeapCreate(DWORD options, SIZE_T initialSize, SIZE_T maximumSize);
 BOOL HeapDestroy(HANDLE heap);
 int MessageBoxA(HWND owner, LPCSTR text, LPCSTR caption, UINT type);
+
+using COLORREF = DWORD;
+constexpr int SM_CXSCREEN = 0;
+constexpr int SM_CYSCREEN = 1;
+int GetSystemMetrics(int index);
 int wsprintfA(LPSTR buffer, LPCSTR format, ...);
 
 int lstrlenA(LPCSTR string);

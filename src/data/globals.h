@@ -7,9 +7,12 @@
 #include "data/image.h"
 #include "swd3/w32.h"
 #include "file/file.h"
+#include "gfx/graphics.h"
+#include "input/input.h"
 #include "memmgr/memory_manager.h"
 #include "res/act.h"
 #include "res/tsw.h"
+#include "swd3/ddraw.h"
 
 namespace swd3 {
 
@@ -302,7 +305,7 @@ struct Globals {
     std::uint8_t pad_49969D[0x7];
     float flt_4996A4;  // 0x004996A4
     double dbl_4996A8;  // 0x004996A8
-    double dbl_4996B0;  // 0x004996B0
+    double tenDouble;  // 0x004996B0 10.0
     double dbl_4996B8;  // 0x004996B8
     float flt_4996C0;  // 0x004996C0
     std::uint8_t pad_4996C4[0x610];
@@ -327,20 +330,18 @@ struct Globals {
     double dbl_499D38;  // 0x00499D38
     float flt_499D40;  // 0x00499D40
     std::uint8_t pad_499D44[0x44];
-    std::uint8_t unk_499D88;  // 0x00499D88
-    std::uint8_t pad_499D89[0x3F];
-    std::uint8_t unk_499DC8;  // 0x00499DC8
-    std::uint8_t pad_499DC9[0x94F];
-    std::uint8_t unk_49A718;  // 0x0049A718
-    std::uint8_t pad_49A719[0xF];
-    std::uint8_t unk_49A728;  // 0x0049A728
-    std::uint8_t pad_49A729[0x5F];
-    std::uint8_t unk_49A788;  // 0x0049A788
-    std::uint8_t pad_49A789[0x3F];
-    std::uint8_t unk_49A7C8;  // 0x0049A7C8
-    std::uint8_t pad_49A7C9[0xF];
-    std::uint8_t unk_49A7D8;  // 0x0049A7D8
-    std::uint8_t pad_49A7D9[0xD1F];
+    w32::GUID iidDirectDraw4;  // 0x00499D88 IID_IDirectDraw4
+    std::uint8_t pad_499D98[0x30];
+    w32::GUID iidDirectDrawSurface4;  // 0x00499DC8 IID_IDirectDrawSurface4
+    std::uint8_t pad_499DD8[0x940];
+    w32::GUID guidXAxis;  // 0x0049A718 GUID_XAxis
+    w32::GUID guidYAxis;  // 0x0049A728 GUID_YAxis
+    std::uint8_t pad_49A738[0x50];
+    w32::GUID guidButton;  // 0x0049A788 GUID_Button
+    std::uint8_t pad_49A798[0x30];
+    w32::GUID guidSysMouse;  // 0x0049A7C8 GUID_SysMouse
+    w32::GUID guidSysKeyboard;  // 0x0049A7D8 GUID_SysKeyboard
+    std::uint8_t pad_49A7E8[0xD10];
     char aOnexitC[9];  // 0x0049B4F8
     std::uint8_t pad_49B501[0x3];
     char aClient[7];  // 0x0049B504
@@ -1503,8 +1504,7 @@ struct Globals {
     std::int16_t word_49DDE4;  // 0x0049DDE4
     char g_49dde6[24];  // 0x0049DDE6
     std::uint8_t pad_49DDFE[0x202];
-    std::uint8_t unk_49E000;  // 0x0049E000
-    std::uint8_t pad_49E001[0x6F];
+    code_ptr cppInitializers[28];  // 0x0049E000 __xc_a..__xc_z (0x0049E070) run by crt::cinit
     std::uint8_t unk_49E070;  // 0x0049E070
     std::uint8_t pad_49E071[0x3];
     std::uint8_t unk_49E074;  // 0x0049E074
@@ -3473,10 +3473,7 @@ struct Globals {
     std::int16_t word_4AB85E;  // 0x004AB85E
     std::int16_t word_4AB860;  // 0x004AB860
     std::uint8_t pad_4AB862[0xE];
-    std::int32_t dword_4AB870[2];  // 0x004AB870
-    std::uint8_t pad_4AB878[0x2];
-    std::int16_t word_4AB87A[63];  // 0x004AB87A
-    std::int32_t dword_4AB8F8;  // 0x004AB8F8
+    Graphics graphics;  // 0x004AB870 DirectDraw wrapper, constructed by 0x00401490
     std::int16_t word_4AB8FC;  // 0x004AB8FC
     std::uint8_t pad_4AB8FE[0x7E];
     std::int32_t dword_4AB97C;  // 0x004AB97C
@@ -3817,7 +3814,7 @@ struct Globals {
     std::int32_t dword_4B873C;  // 0x004B873C
     std::int32_t dword_4B8740;  // 0x004B8740
     std::uint8_t pad_4B8744[0x4];
-    std::uint8_t byte_4B8748[280];  // 0x004B8748
+    Input input;  // 0x004B8748 DirectInput keyboard and mouse, constructed by 0x004014B0
     std::int32_t dword_4B8860;  // 0x004B8860
     std::uint8_t pad_4B8864[0x4];
     File mapCacheFile;  // 0x004B8868 constructed by 0x004012D0
@@ -5748,6 +5745,15 @@ struct Globals {
 #pragma pack(pop)
 
 static_assert(sizeof(Globals) == image::kSize);
+static_assert(offsetof(Globals, tenDouble) == 0x6B0);
+static_assert(offsetof(Globals, iidDirectDraw4) == 0xD88);
+static_assert(offsetof(Globals, iidDirectDrawSurface4) == 0xDC8);
+static_assert(offsetof(Globals, guidXAxis) == 0x1718);
+static_assert(offsetof(Globals, guidYAxis) == 0x1728);
+static_assert(offsetof(Globals, guidButton) == 0x1788);
+static_assert(offsetof(Globals, guidSysMouse) == 0x17C8);
+static_assert(offsetof(Globals, guidSysKeyboard) == 0x17D8);
+static_assert(offsetof(Globals, cppInitializers) == 0x5000);
 static_assert(offsetof(Globals, zoomAnchorX) == 0x7698);
 static_assert(offsetof(Globals, zoomAnchorY) == 0x769C);
 static_assert(offsetof(Globals, zoomX) == 0x76A0);
@@ -5766,9 +5772,11 @@ static_assert(offsetof(Globals, file_4A9380) == 0x10380);
 static_assert(offsetof(Globals, gameDir) == 0x104BC);
 static_assert(offsetof(Globals, file_4A98C8) == 0x108C8);
 static_assert(offsetof(Globals, tswPath) == 0x11ED0);
+static_assert(offsetof(Globals, graphics) == 0x12870);
 static_assert(offsetof(Globals, memoryManager) == 0x1DC78);
 static_assert(offsetof(Globals, file_4B74A0) == 0x1E4A0);
 static_assert(offsetof(Globals, file_4B7AD0) == 0x1EAD0);
+static_assert(offsetof(Globals, input) == 0x1F748);
 static_assert(offsetof(Globals, mapCacheFile) == 0x1F868);
 static_assert(offsetof(Globals, file_4B9F18) == 0x20F18);
 static_assert(offsetof(Globals, mainWindow) == 0x30A1C);

@@ -24,6 +24,14 @@ std::uint32_t randSeed();
 std::int64_t ftol(double value);
 double difftime(std::int32_t end, std::int32_t start);
 
+// Registers a function run at exit, last registered first (host atexit).
+int atexit(void (*function)());
+
+// Calls the non-null function pointers of [begin, end) (code addresses of the data image, relocated).
+void initterm(const std::uint32_t* begin, const std::uint32_t* end);
+// Runs the C++ dynamic initializers of the game (__xc table).
+void cinit();
+
 template <typename T, typename... Args>
 T* New(Args&&... args) {
     void* memory = operator_new(static_cast<std::uint32_t>(sizeof(T)));

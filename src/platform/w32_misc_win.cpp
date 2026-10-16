@@ -12,6 +12,10 @@ void GetSystemInfo(SYSTEM_INFO* info) {
     ::GetSystemInfo(reinterpret_cast<::LPSYSTEM_INFO>(info));
 }
 
+HANDLE CreateEventA(void* attributes, BOOL manualReset, BOOL initialState, LPCSTR name) {
+    return ::CreateEventA(static_cast<::LPSECURITY_ATTRIBUTES>(attributes), manualReset, initialState, name);
+}
+
 HANDLE HeapCreate(DWORD options, SIZE_T initialSize, SIZE_T maximumSize) {
     return ::HeapCreate(options, initialSize, maximumSize);
 }

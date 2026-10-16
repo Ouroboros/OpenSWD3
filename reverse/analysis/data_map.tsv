@@ -157,3 +157,20 @@ addr	type	name	module	notes
 0x004A069C	std::int32_t	zoomAnchorY	draw	y kept fixed by the zoomed blitters (initial 0x48)
 0x004A06A0	std::int32_t	zoomX	draw	horizontal zoom in 1/1024 (initial 0x600)
 0x004A06A4	std::int32_t	zoomY	draw	vertical zoom in 1/1024 (initial 0x400)
+@include	swd3/ddraw.h
+@include	gfx/graphics.h
+@size	w32::GUID	16
+@size	Graphics	140
+0x00499D88	w32::GUID	iidDirectDraw4	gfx	IID_IDirectDraw4
+0x00499DC8	w32::GUID	iidDirectDrawSurface4	gfx	IID_IDirectDrawSurface4
+0x004AB870	Graphics	graphics	gfx	DirectDraw wrapper, constructed by 0x00401490
+0x0049E000	code*[28]	cppInitializers	crt	__xc_a..__xc_z (0x0049E070) run by crt::cinit
+0x004996B0	double	tenDouble	misc	10.0
+0x0049A718	w32::GUID	guidXAxis	input	GUID_XAxis
+0x0049A728	w32::GUID	guidYAxis	input	GUID_YAxis
+0x0049A788	w32::GUID	guidButton	input	GUID_Button
+0x0049A7C8	w32::GUID	guidSysMouse	input	GUID_SysMouse
+0x0049A7D8	w32::GUID	guidSysKeyboard	input	GUID_SysKeyboard
+@include	input/input.h
+@size	Input	280
+0x004B8748	Input	input	input	DirectInput keyboard and mouse, constructed by 0x004014B0
