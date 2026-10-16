@@ -22,10 +22,16 @@ public:
     static constexpr int Units = 0x18;
     static constexpr u32 TableBytes = 0x180;
 
+    // MapCache::Check modes.
+    static constexpr int CheckSessionMark = 0;
+    static constexpr int CheckColorMasks = 1;
+
     // One entry of mcache.dat (0x10 bytes).
     struct Slot
     {
-        u32 map = 0xFFFFFFFF;  // the cached map, 0xFFFFFFFF: free
+        static constexpr u32 Free = 0xFFFFFFFF;
+
+        u32 map = Free;  // the cached map
         u32 bytes = 0;
         u32 age = 0;
         u32 unit = 0;  // the .cm file

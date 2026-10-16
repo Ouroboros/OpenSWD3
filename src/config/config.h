@@ -28,8 +28,18 @@ public:
 
     // The key slots in the order Env.dat stores them (from offset 4).
     static constexpr std::array<int, EnvKeys> EnvKeyOrder = {4, 6, 3, 5, 1, 12, 9, 0, 10, 2, 16, 17, 18, 19, 7, 8};
+
     // RGB555 channel masks (swd32.exe 0x0049E0B4), converted to the display format at startup.
-    static constexpr std::array<u16, 3> DefaultChannelMasks = {0x7C00, 0x3E0, 0x1F};
+    // The order of channelMasks.
+    enum Channel : std::size_t
+    {
+        RedChannel = 0,
+        GreenChannel = 1,
+        BlueChannel = 2,
+        Channels = 3,
+    };
+
+    static constexpr std::array<u16, Channels> DefaultChannelMasks = {0x7C00, 0x3E0, 0x1F};
 
     // The settings Update writes besides the directories.
     struct Settings
@@ -58,7 +68,7 @@ public:
     i32 textSpeed = 0;             // 0x004A9ECC 0 (fastest) .. 4 (slow)
     i32 battleSpeed = 0;           // 0x004ACE60 0..11
     i32 debugMode = 0;             // 0x004CAE98 debug hot keys
-    std::array<u16, 3> channelMasks = Config::DefaultChannelMasks;
+    std::array<u16, Channels> channelMasks = Config::DefaultChannelMasks;
     std::array<i32, Keys> keys = {};  // 0x004B7384 DirectInput scan codes of the key slots
 };
 

@@ -279,7 +279,7 @@ void Game::InitInstall()
     this->cdDriveCount = this->FindCdDrives(settings.cdRoot);
     settings.Load(this->unknown14, this->effectsOff);
     this->SizeCaches();
-    this->mapCache.Check(0);
+    this->mapCache.Check(MapCache::CheckSessionMark);
     this->MakeDirectory("Save");
     this->MakeDirectory("Data");
     this->MakeDirectory("Music");
@@ -365,7 +365,7 @@ void Game::InitDrawKernel()
         return;
     }
 
-    const u32 cachedMegabytes = (this->mapCache.Check(1) + 0xFFFFF) >> 0x14;
+    const u32 cachedMegabytes = (this->mapCache.Check(MapCache::CheckColorMasks) + 0xFFFFF) >> 0x14;
 
     if (static_cast<u32>(this->config.cacheSize) - cachedMegabytes + kDiskReserve >= Game::DiskFreeMegabytes())
     {

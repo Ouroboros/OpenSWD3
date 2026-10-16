@@ -1,8 +1,8 @@
 #include "battle/battle_file.h"
 
 #include <algorithm>
-#include <climits>
 
+#include "core/byte_reader.h"
 #include "file/file.h"
 
 namespace swd3
@@ -11,52 +11,8 @@ namespace swd3
 namespace
 {
 
-// Little-endian fields read in order; bytes past the end read as 0.
-class FieldReader
-{
-public:
-    explicit FieldReader(std::span<const u8> bytes)
-        : bytes(bytes)
-    {
-    }
-
-    u8 Byte()
-    {
-        const u8 value = this->at < this->bytes.size() ? this->bytes[this->at] : u8{0};
-        ++this->at;
-        return value;
-    }
-
-    u32 Word32()
-    {
-        u32 value = 0;
-
-        for (std::size_t index = 0; index < sizeof(u32); ++index)
-        {
-            value |= static_cast<u32>(this->Byte()) << (CHAR_BIT * index);
-        }
-
-        return value;
-    }
-
-    u16 Word16()
-    {
-        const u16 low = this->Byte();
-        return static_cast<u16>(low | this->Byte() << CHAR_BIT);
-    }
-
-    void Skip(std::size_t count)
-    {
-        this->at += count;
-    }
-
-private:
-    std::span<const u8> bytes;
-    std::size_t at = 0;
-};
-
 template <typename Value, std::size_t Count>
-void ReadWords(FieldReader& reader, std::array<Value, Count>& values)
+void ReadWords(ByteReader& reader, std::array<Value, Count>& values)
 {
     for (Value& value : values)
     {
@@ -69,7 +25,7 @@ void ReadWords(FieldReader& reader, std::array<Value, Count>& values)
 // The fields of a formation from its 0x10C bytes.
 void BattleFormation::Load(std::span<const u8> bytes)
 {
-    FieldReader reader(bytes);
+    ByteReader reader(bytes);
     this->unk00 = static_cast<i32>(reader.Word32());
     this->background = static_cast<i32>(reader.Word32());
     ReadWords(reader, this->unk08);
@@ -139,7 +95,7 @@ bool BattleFile::ReadFormation(std::string_view path, BattleFormation& formation
         skipped += static_cast<i8>(counts[before]);
     }
 
-    FieldReader table(this->header);
+    ByteReader table(this->header);
     table.Skip(BattleFile::RecordsAt + sizeof(u32) * static_cast<std::size_t>(skipped + choice));
     const u32 record = table.Word32();
     file.SeekBegin(static_cast<i32>(BattleFile::RecordBytes * record + BattleFile::HeaderBytes));

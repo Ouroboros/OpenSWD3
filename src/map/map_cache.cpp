@@ -2,12 +2,15 @@
 
 #include <algorithm>
 #include <array>
+#include <limits>
 
 #include "codec/lzo.h"
 #include "config/config.h"
+#include "core/byte_reader.h"
 #include "core/format.h"
 #include "draw/painter.h"
 #include "file/file.h"
+#include "game/game_state.h"
 
 namespace swd3
 {
@@ -19,6 +22,8 @@ constexpr std::string_view kEnvFile = "env.dat";
 constexpr std::string_view kUnitFormat = "%sdata\\%d.cm";
 constexpr std::string_view kTableFile = "mcache.dat";
 constexpr i32 kMaskOffset = 0x1E;
+constexpr std::size_t kMaskWords = 0x20;  // the buffer the masks are read into
+constexpr u32 kMaskBytes = sizeof(u16) * Config::Channels;
 
 }  // namespace
 
@@ -42,7 +47,7 @@ u32 MapCache::Check(int mode)
             File::Access::ReadWrite
         ))
     {
-        if (mode == 0)
+        if (mode == MapCache::CheckSessionMark)
         {
             file.SeekEnd(-1);
             u8 mark = 0;
@@ -55,26 +60,27 @@ u32 MapCache::Check(int mode)
                 clear = true;
             }
         }
-        else if (mode == 1)
+        else if (mode == MapCache::CheckColorMasks)
         {
             u32 red = 0;
             u32 green = 0;
             u32 blue = 0;
             this->painter.ColorMasks(red, green, blue);
-            const std::array<u16, 3>& recorded = this->config.channelMasks;
+            const std::array<u16, Config::Channels>& recorded = this->config.channelMasks;
 
-            if (red != recorded[0] || green != recorded[1] || blue != recorded[2])
+            if (red != recorded[Config::RedChannel] || green != recorded[Config::GreenChannel] ||
+                blue != recorded[Config::BlueChannel])
             {
                 clear = true;
-                std::array<u16, 0x20> masks = {};
-                u32 bytes = 6;
+                std::array<u16, kMaskWords> masks = {};
+                u32 bytes = kMaskBytes;
                 file.SeekBegin(kMaskOffset);
                 file.Read(masks.data(), bytes);
-                masks[0] = static_cast<u16>(red);
-                masks[1] = static_cast<u16>(green);
-                masks[2] = static_cast<u16>(blue);
+                masks[Config::RedChannel] = static_cast<u16>(red);
+                masks[Config::GreenChannel] = static_cast<u16>(green);
+                masks[Config::BlueChannel] = static_cast<u16>(blue);
                 file.SeekBegin(kMaskOffset);
-                bytes = 6;
+                bytes = kMaskBytes;
                 file.Write(masks.data(), bytes);
             }
         }
@@ -201,11 +207,20 @@ constexpr int kTableSlots = 0x20;  // the 0x200-byte buffer the table is read in
 constexpr u32 kKeptHeader = 0x10;
 constexpr int kDictionaryBits = 14;
 
+// The unit header of a map in HUGE.lmf: the unpacked size, the block size, then a length per block.
+constexpr std::size_t kUnpackedAt = 0x10;
+constexpr std::size_t kBlockSizeAt = 0x14;
+constexpr std::size_t kBlocksAt = 0x1C;
+constexpr std::size_t kBlockEntryBytes = 8;
+constexpr int kSlackShift = 10;     // a block buffer has 1/1024 to spare for packed data
+constexpr u32 kProgressStart = 15;  // the loading screen runs from 15 to 60 percent while unpacking
+constexpr u32 kProgressSpan = 45;
+constexpr int kMegabyteShift = 20;
+constexpr i32 kAgeShare = 4;  // a slot older than a quarter of the cache size in megabytes goes first
+
 u32 HeaderDword(const std::array<u8, MapCache::HeaderBytes>& header, std::size_t at)
 {
-    return static_cast<u32>(
-        header[at] | header[at + 1] << 8 | header[at + 2] << 16 | static_cast<u32>(header[at + 3]) << 24
-    );
+    return ByteReader::Word32At(header, at);
 }
 
 }  // namespace
@@ -231,7 +246,7 @@ void MapCache::ReadUnitBytes(u32 base, u32 size, u32& bytes)
         return;
     }
 
-    this->lmf.SeekBegin(static_cast<i32>(base + size + 0x10));
+    this->lmf.SeekBegin(static_cast<i32>(base + size + kUnpackedAt));
     this->lmf.ReadDword(bytes);
 }
 
@@ -266,9 +281,9 @@ void MapCache::DecompressMap(int unit, u32 base, u32 size, int bitsPerPixel, u32
         return;
     }
 
-    const u32 total = HeaderDword(header, 0x10);
+    const u32 total = HeaderDword(header, kUnpackedAt);
     bytes = total;
-    const u32 blockSize = HeaderDword(header, 0x14);
+    const u32 blockSize = HeaderDword(header, kBlockSizeAt);
 
     if (blockSize == 0)
     {
@@ -276,17 +291,17 @@ void MapCache::DecompressMap(int unit, u32 base, u32 size, int bitsPerPixel, u32
         return;
     }
 
-    std::vector<u8> packed((blockSize >> 0xA) + blockSize, 0);
-    std::vector<u8> output((blockSize >> 0xA) + blockSize, 0);
+    std::vector<u8> packed((blockSize >> kSlackShift) + blockSize, 0);
+    std::vector<u8> output((blockSize >> kSlackShift) + blockSize, 0);
     const u32 blocks = (blockSize + total) / blockSize;
     u32 remaining = total;
     u32 step = 0;
 
     for (u32 block = 0; block < blocks; ++block)
     {
-        const std::size_t entry = 0x1C + 8 * static_cast<std::size_t>(block);
+        const std::size_t entry = kBlocksAt + kBlockEntryBytes * static_cast<std::size_t>(block);
 
-        if (entry + 4 > header.size())
+        if (entry + sizeof(u32) > header.size())
         {
             break;
         }
@@ -303,9 +318,9 @@ void MapCache::DecompressMap(int unit, u32 base, u32 size, int bitsPerPixel, u32
         MapCache::Unpack(std::span<const u8>(packed).first(length), output);
         u32 written = std::min(blockSize, remaining);
 
-        if (bitsPerPixel == 0x10)
+        if (bitsPerPixel == MapHeader::TrueColorBits)
         {
-            this->painter.ConvertPixels(std::span<u16>(reinterpret_cast<u16*>(output.data()), written >> 1));
+            this->painter.ConvertPixels(std::span<u16>(reinterpret_cast<u16*>(output.data()), written / sizeof(u16)));
         }
 
         cached.Write(output.data(), written);
@@ -313,10 +328,10 @@ void MapCache::DecompressMap(int unit, u32 base, u32 size, int bitsPerPixel, u32
 
         if (this->progress)
         {
-            this->progress(static_cast<int>(step / blocks + 0xF));
+            this->progress(static_cast<int>(step / blocks + kProgressStart));
         }
 
-        step += 0x2D;
+        step += kProgressSpan;
     }
 
     cached.Close();
@@ -381,7 +396,7 @@ const u8* MapCache::GetCachedMap(u32 map, u32 base, u32 size, int bitsPerPixel)
     table.SeekBegin(0);
     u32 read = std::min<u32>(bytes, sizeof(slots));
     table.Read(slots.data(), read);
-    const u32 count = bytes >> 4;
+    const u32 count = bytes / sizeof(Slot);
     const u32 kept = std::min<u32>(count, kTableSlots);
 
     for (u32 slot = 0; slot < kept; ++slot)
@@ -403,7 +418,7 @@ const u8* MapCache::GetCachedMap(u32 map, u32 base, u32 size, int bitsPerPixel)
         const u8* opened = this->OpenUnit(static_cast<int>(slots[found].unit));
         slots[found].age = 0;
         table.SeekBegin(0);
-        u32 written = 0x10 * kept;
+        u32 written = sizeof(Slot) * kept;
         table.Write(slots.data(), written);
         table.Close();
         return opened;
@@ -415,26 +430,26 @@ const u8* MapCache::GetCachedMap(u32 map, u32 base, u32 size, int bitsPerPixel)
 
     for (u32 slot = 0; slot < kept; ++slot)
     {
-        if (slots[slot].map == 0xFFFFFFFF)
+        if (slots[slot].map == Slot::Free)
         {
             full = false;
             break;
         }
     }
 
-    const auto limit = static_cast<u32>(this->config.cacheSize) << 0x14;
+    const auto limit = static_cast<u32>(this->config.cacheSize) << kMegabyteShift;
     u32 victim = count;
     u32 victimUnit = 0;
 
     while ((used + needed > limit && count != 0) || full)
     {
-        u32 smallest = 0xFFFFFFFF;
+        u32 smallest = std::numeric_limits<u32>::max();
 
         for (u32 slot = 0; slot < kept; ++slot)
         {
             const Slot& entry = slots[slot];
 
-            if (entry.map == 0xFFFFFFFF)
+            if (entry.map == Slot::Free)
             {
                 continue;
             }
@@ -446,7 +461,7 @@ const u8* MapCache::GetCachedMap(u32 map, u32 base, u32 size, int bitsPerPixel)
                 victim = slot;
             }
 
-            if (entry.age > static_cast<u32>(this->config.cacheSize / 4))
+            if (entry.age > static_cast<u32>(this->config.cacheSize / kAgeShare))
             {
                 smallest = entry.bytes;
                 victimUnit = entry.unit;
@@ -459,7 +474,7 @@ const u8* MapCache::GetCachedMap(u32 map, u32 base, u32 size, int bitsPerPixel)
 
         if (victim < kTableSlots)
         {
-            slots[victim] = {0xFFFFFFFF, 0, 0, victim};
+            slots[victim] = {Slot::Free, 0, 0, victim};
         }
 
         File cached;
@@ -480,7 +495,7 @@ const u8* MapCache::GetCachedMap(u32 map, u32 base, u32 size, int bitsPerPixel)
 
     u32 free = 0;
 
-    while (free < kept && slots[free].map != 0xFFFFFFFF)
+    while (free < kept && slots[free].map != Slot::Free)
     {
         ++free;
     }
@@ -491,7 +506,7 @@ const u8* MapCache::GetCachedMap(u32 map, u32 base, u32 size, int bitsPerPixel)
     }
 
     table.SeekBegin(0);
-    u32 written = 0x10 * kept;
+    u32 written = sizeof(Slot) * kept;
     table.Write(slots.data(), written);
     table.Truncate();
     table.Close();
