@@ -23,18 +23,18 @@
 - 当前阶段：第 2 阶段（还原）。
 - 已识别函数数：1626（无 FLIRT 数据库导出；函数外代码头 0）。
 - 函数总数：待确定（间接调用目标与函数指针表尚未全部核对，见 reverse/analysis/scope-and-gaps.md）。
-- 已实现／总数：531／待确定（已识别 1626）。
+- 已实现／总数：647／待确定（已识别 1626）。
 - 已验证／总数：0／待确定（已识别 1626）。
-- 待实现／待验证：1095／1626（按已识别函数计）。
+- 待实现／待验证：979／1626（按已识别函数计）。
 - 模块初分：已归属 884，unknown 742（reverse/analysis/module_assignment.tsv）。
 
 ## 当前工作
 
-按 reverse/analysis/plan.md 自底向上还原。已完成：file、memmgr、crt 映射、LZO、资源包（tsw／act）、像素格式、绘图核心与全部 blitter、像素操作与缩放、Graphics、Input、静态初始化、TextFont、随机数、文本输入、音频（MSS 模拟）、A* 寻路、ACT 动画、角色结构与游戏状态、BattleUnit 主体与状态效果、战斗界面绘制辅助。Linux（i386）与 Windows x86 构建及 44 个单元测试通过。
+按 reverse/analysis/plan.md 自底向上还原。已完成：file、memmgr、crt 映射、LZO、资源包（tsw／act）、像素格式、绘图核心与全部 blitter、像素操作与缩放、Graphics、Input、静态初始化、TextFont、随机数、文本输入、音频（MSS 模拟）、A* 寻路、ACT 动画、角色结构与游戏状态、BattleUnit 全部方法、战斗消息与结果面板、窗框与填色、Bink 播放模拟与 Movie、投影辅助与碎裂粒子特效、BattleHero 部分方法。Linux（i386）与 Windows x86 构建及 58 个单元测试通过。
 
 ## 下一步
 
-战斗消息列表（0x004698E0 起）及依赖它的 BattleUnit 方法，随后 BattleEnemy／BattleHero（0x00475560、0x0046E490）。
+BattleHero 剩余方法（0x0046E730 起）与 BattleEnemy（0x00475560 起），随后 figtalk、菜单与地图模块。
 
 ## GOAL完成条件
 
