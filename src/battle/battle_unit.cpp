@@ -1382,4 +1382,154 @@ void BattleUnit::ExpireEffects(int clearAll) {
     }
 }
 
+namespace {
+
+// +0x330 (the paused flag of the action state at +0x2A0) follows +0x2AD0
+void syncPaused(BattleUnit& unit) {
+    unit.at<int32_t>(0x330) = 0;
+    if (unit.at<int32_t>(0x2AD0) == 1) {
+        unit.at<int32_t>(0x330) = 1;
+    }
+}
+
+}  // namespace
+
+// swd32.exe 0x0047F3C0: draws the unit darkening by 2 per frame (unless paused) down to -32; then the action
+// state at +0x468 is cleared and 1 returned. The argument is unused.
+int BattleUnit::DrawDarken(int unused) {
+    static_cast<void>(unused);
+    syncPaused(*this);
+    Picture* picture = TswGetPicture(at<uint16_t>(0x2EA), at<uint16_t>(0x2EC));
+    at<Picture*>(0x254C) = picture;
+    G.drawSource = reinterpret_cast<uint8_t*>(picture->pixels);
+    G.drawOption71C = at<int16_t>(0x2958);
+    G.drawOption30C = at<int16_t>(0x2958);
+    G.drawOption304 = at<int16_t>(0x2958);
+    DrawPicture(at<int16_t>(0xD66) - at<int16_t>(0x29B2), at<int16_t>(0xD68) - at<int32_t>(0x2B4),
+                at<Picture*>(0x254C)->width, at<Picture*>(0x254C)->height,
+                static_cast<int>(at<uint32_t>(0x2694) | 4), 0);
+    if (at<uint16_t>(0x2EE) != 0 && at<uint16_t>(0x2F0) != 0) {
+        G.drawOption71C = at<int16_t>(0x2958);
+        G.drawOption30C = at<int16_t>(0x2958);
+        G.drawOption304 = at<int16_t>(0x2958);
+        Picture* overlay = TswGetPicture(at<uint16_t>(0x2EE), static_cast<uint16_t>(at<uint16_t>(0x2F0) - 1));
+        at<Picture*>(0x2554) = overlay;
+        G.drawSource = reinterpret_cast<uint8_t*>(overlay->pixels);
+        DrawPicture(at<int16_t>(0xD66) + at<int16_t>(0x2FE) - at<int16_t>(0x29B2),
+                    at<int16_t>(0xD68) + at<int16_t>(0x300) - at<int32_t>(0x2B4), at<Picture*>(0x2554)->width,
+                    at<Picture*>(0x2554)->height, static_cast<int>(at<uint32_t>(0x2694) | 4), 0);
+    }
+    if (at<int32_t>(0x2AD0) == 0) {
+        at<int16_t>(0x2958) -= 2;
+    }
+    if (at<int16_t>(0x2958) > -0x20) {
+        return 0;
+    }
+    at<int16_t>(0x2958) = -0x20;
+    std::memset(raw(0x468), 0, sizeof(ActState));
+    return 1;
+}
+
+// swd32.exe 0x0047F580: draws the unit brightening by 1 per frame (unless paused) from the level at +0x266C;
+// at 0 the mark 0x200 is cleared, the level set to 1 and 1 returned
+int BattleUnit::DrawBrighten() {
+    syncPaused(*this);
+    Picture* picture = TswGetPicture(at<uint16_t>(0x2EA), at<uint16_t>(0x2EC));
+    at<Picture*>(0x254C) = picture;
+    G.drawSource = reinterpret_cast<uint8_t*>(picture->pixels);
+    G.drawOption71C = at<int32_t>(0x266C);
+    G.drawOption30C = G.drawOption71C;
+    G.drawOption304 = G.drawOption71C;
+    DrawPicture(at<int16_t>(0xD66) - at<int16_t>(0x29B2), at<int16_t>(0xD68) - at<int32_t>(0x2B4),
+                at<Picture*>(0x254C)->width, at<Picture*>(0x254C)->height,
+                static_cast<int>(at<uint32_t>(0x2694) | 4), 0);
+    if (at<uint16_t>(0x2EE) != 0 && at<uint16_t>(0x2F0) != 0) {
+        const int32_t level = at<int32_t>(0x266C);
+        G.drawOption71C = level;
+        G.drawOption30C = level;
+        G.drawOption304 = level;
+        Picture* overlay = TswGetPicture(at<uint16_t>(0x2EE), static_cast<uint16_t>(at<uint16_t>(0x2F0) - 1));
+        at<Picture*>(0x2554) = overlay;
+        G.drawSource = reinterpret_cast<uint8_t*>(overlay->pixels);
+        DrawPicture(at<int16_t>(0xD66) + at<int16_t>(0x2FE) - at<int16_t>(0x29B2),
+                    at<int16_t>(0xD68) + at<int16_t>(0x300) - at<int32_t>(0x2B4), at<Picture*>(0x2554)->width,
+                    at<Picture*>(0x2554)->height, static_cast<int>(at<uint32_t>(0x2694) | 4), 0);
+    }
+    if (at<int32_t>(0x2AD0) == 0) {
+        ++at<int32_t>(0x266C);
+    }
+    if (at<int32_t>(0x266C) < 0) {
+        return 0;
+    }
+    at<uint16_t>(0x26D0) &= ~0x200;
+    at<int32_t>(0x266C) = 1;
+    return 1;
+}
+
+// swd32.exe 0x0047F710: 24 frames of the unit over its squashed shadow picture (+0x2548) with translucency
+// fading out (`mode` 0) or in (`mode` 1). Returns 1 while running; at the end mode 0 sets status bit 31, and
+// marks 0x480 are cleared.
+int BattleUnit::DrawPhase(int mode) {
+    syncPaused(*this);
+    Picture* picture = TswGetPicture(at<uint16_t>(0x2EA), at<uint16_t>(0x2EC));
+    at<Picture*>(0x254C) = picture;
+    G.drawSource = reinterpret_cast<uint8_t*>(picture->pixels);
+    if (++at<int16_t>(0x2958) <= 0x18) {
+        G.drawScaleHeight = at<Picture*>(0x2548)->height / 3;
+        G.drawShear = at<Picture*>(0x2548)->height >> 2;
+        G.drawOption304 = -1;
+        G.drawOption30C = -1;
+        G.drawOption71C = -1;
+        if (at<int32_t>(0x2B00) == 1) {
+            G.drawOption304 = -1;
+            G.drawOption30C = -1;
+            G.drawOption71C = -1;
+        }
+        Picture* shadow = at<Picture*>(0x2548);
+        const uint32_t shadowFlags = (at<uint32_t>(0x2694) & 0x8000000F) | 0xC;
+        at<uint32_t>(0x26A4) = shadowFlags;
+        DrawPicture(at<int16_t>(0xD66) - at<int16_t>(0x29B2) - 5, at<int16_t>(0xD68) - G.drawScaleHeight,
+                    shadow->width, shadow->height, static_cast<int>(shadowFlags), 0);
+        if (mode == 0) {
+            G.drawAlpha = 0xF - at<int16_t>(0x2958) / 2;
+        } else if (mode == 1) {
+            G.drawAlpha = at<int16_t>(0x2958) / 2;
+        }
+        Picture* current = at<Picture*>(0x254C);
+        const uint32_t flags = at<uint32_t>(0x2694) & 0x80000003;
+        at<uint32_t>(0x26A4) = flags;
+        DrawPicture(at<int16_t>(0xD66) - at<int16_t>(0x29B2), at<int16_t>(0xD68) - at<int32_t>(0x2B4),
+                    current->width, current->height, static_cast<int>(flags | 0x14), 0);
+        return 1;
+    }
+    at<int16_t>(0x2958) = 0x18;
+    if (mode == 1) {
+        at<uint16_t>(0x26D0) &= 0xFB7F;
+        at<int16_t>(0x2958) = 0;
+        return 0;
+    }
+    if (mode == 0) {
+        at<uint32_t>(0x26C0) |= 0x80000000u;
+    }
+    at<uint16_t>(0x26D0) &= 0xFB7F;
+    return 0;
+}
+
+// swd32.exe 0x0047F900
+int BattleUnit::SetB08(int value) {
+    at<int32_t>(0x2B08) = value;
+    return value;
+}
+
+// swd32.exe 0x0047F910
+std::int16_t BattleUnit::GetWord2A0C() { return at<int16_t>(0x2A0C); }
+
+// swd32.exe 0x0047F920: held by mark 0x40 or by the value at +0x2AD0
+int BattleUnit::IsHeld() {
+    if ((at<uint8_t>(0x26D0) & 0x40) == 0) {
+        return at<int32_t>(0x2AD0);
+    }
+    return 1;
+}
+
 }  // namespace swd3

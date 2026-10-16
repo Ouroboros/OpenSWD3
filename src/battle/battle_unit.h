@@ -98,6 +98,12 @@ public:
     void SetDamageDigits(int amount);
     bool ApplyPendingDamage();
     void ExpireEffects(int clearAll);
+    int DrawDarken(int unused);
+    int DrawBrighten();
+    int DrawPhase(int mode);
+    int SetB08(int value);
+    std::int16_t GetWord2A0C();
+    int IsHeld();
 
     template <typename T>
     T& at(std::intptr_t offset) {
