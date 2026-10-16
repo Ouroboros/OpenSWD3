@@ -136,7 +136,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 135	swd32.exe	0x004099C0	sub_4099C0	saveload		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between saveload anchors 0x00409600 and 0x00409A10
 136	swd32.exe	0x00409A10	sub_409A10	saveload		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "%ssave\%d.sav"
 137	swd32.exe	0x00409B80	sub_409B80	saveload		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between saveload anchors 0x00409A10 and 0x00409C10
-138	swd32.exe	0x00409C10	sub_409C10	saveload		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "%ssave\%d.sav"
+138	swd32.exe	0x00409C10	sub_409C10	saveload	src/save/save_games.cpp:SaveGames::AnyExists	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "%ssave\%d.sav"
 139	swd32.exe	0x00409CE0	sub_409CE0	saveload		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "%sFame.dat"
 140	swd32.exe	0x00409DD0	sub_409DD0	saveload		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "%sFame.dat"
 141	swd32.exe	0x00409EC0	_WinMain@16	winmain		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	WinMain
@@ -333,10 +333,10 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 332	swd32.exe	0x004242B0	sub_4242B0	launcher		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "a:\"
 333	swd32.exe	0x00424330	sub_424330	launcher		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between launcher anchors 0x004242B0 and 0x00424440
 334	swd32.exe	0x00424390	sub_424390	config_env	src/config/config.cpp:Config::SetDefaultKeys	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between launcher anchors 0x004242B0 and 0x00424440
-335	swd32.exe	0x00424440	sub_424440	launcher		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "www.softstar.com.tw"
+335	swd32.exe	0x00424440	sub_424440	launcher	src/launcher/launcher.cpp:Launcher::OnClose	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "www.softstar.com.tw"
 336	swd32.exe	0x00424910	sub_424910	launcher		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between launcher anchors 0x00424440 and 0x00424930
-337	swd32.exe	0x00424930	sub_424930	launcher		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "\shell\open\command"
-338	swd32.exe	0x00424A60	sub_424A60	launcher		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "\shell\open\command"
+337	swd32.exe	0x00424930	sub_424930	launcher	src/launcher/launcher.cpp:Launcher::RunBrowser	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "\shell\open\command"
+338	swd32.exe	0x00424A60	sub_424A60	launcher	src/launcher/launcher.cpp:Launcher::RunTextViewer	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "\shell\open\command"
 339	swd32.exe	0x00424B90	sub_424B90	game_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "DrawKernel init Failed."
 340	swd32.exe	0x00424EF0	sub_424EF0	game_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "DDraw init Failed."
 341	swd32.exe	0x00425040	sub_425040	game_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Born.avi"

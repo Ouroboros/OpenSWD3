@@ -1,8 +1,11 @@
+#include <filesystem>
+#include <string>
+#include <system_error>
+
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
-#include "platform/display.h"
-#include "platform/surface.h"
+#include "game/game.h"
 
 int main(int, char**)
 {
@@ -11,39 +14,14 @@ int main(int, char**)
         return 1;
     }
 
+    int result = 0;
+
     {
-        swd3::Display display;
-
-        if (!display.Open("SWD3"))
-        {
-            SDL_Quit();
-            return 1;
-        }
-
-        swd3::Surface screen(swd3::Display::kWidth, swd3::Display::kHeight);
-        bool running = true;
-
-        while (running)
-        {
-            SDL_Event event;
-
-            while (SDL_PollEvent(&event))
-            {
-                if (event.type == SDL_EVENT_QUIT)
-                {
-                    running = false;
-                }
-                else
-                {
-                    display.HandleEvent(event);
-                }
-            }
-
-            display.Present(screen);
-            SDL_Delay(16);
-        }
+        std::error_code error;
+        swd3::Game game(std::filesystem::current_path(error).string() + "\\");
+        result = game.Run();
     }
 
     SDL_Quit();
-    return 0;
+    return result;
 }
