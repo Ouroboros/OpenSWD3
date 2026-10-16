@@ -558,4 +558,10 @@ void Database::CloseFiles()
     this->levelOpen = false;
 }
 
+// swd32.exe 0x00478220
+void Database::FreeDescription(ObjectRecord& record)
+{
+    record.description.reset();
+}
+
 }  // namespace swd3

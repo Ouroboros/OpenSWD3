@@ -24,8 +24,11 @@ public:
     void CloseFiles();
     // The level.dat script of (group, index) (also read by the level-up of a hero).
     bool ReadLevelScript(int group, int index, std::vector<u8>& script);
+    // Frees the description without uncounting it.
+    static void FreeDescription(ObjectRecord& record);
 
     i32 descriptionBytes = 0;  // 0x0053CF48 bytes held by object descriptions
+    ObjectRecord scratch;      // 0x0053CF50 an object looked up for its limits
 
 private:
     File* OpenData(File& file, bool& open, const char* name);
