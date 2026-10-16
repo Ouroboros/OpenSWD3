@@ -17,35 +17,40 @@ namespace
 {
 
 constexpr u16 kTextEnd = 0x5125;  // "%Q"
+// The range the spotlight command keeps the spotlight in (screen pixels).
+constexpr int kSpotlightLeft = 0xD0;
+constexpr int kSpotlightRight = 0x1B0;
+constexpr int kSpotlightTop = 0xD0;
+constexpr int kSpotlightBottom = 0x110;
 
 // The role flag commands 0x66, 0x67, 0x75, 0x88, 0x8C, 0x91, 0x92 and 0xAE set or clear.
 u32 RoleFlagOf(EventCommand code)
 {
     switch (code)
     {
-        case EventCommand::RoleFlag40:
-            return 0x40;
+        case EventCommand::RoleExamine:
+            return Role::Examine;
 
-        case EventCommand::RoleFlag20:
-            return 0x20;
+        case EventCommand::RoleNoTalkPointer:
+            return Role::NoTalkPointer;
 
-        case EventCommand::RoleFlag10:
-            return 0x10;
+        case EventCommand::RoleUnk10:
+            return Role::Unk10;
 
-        case EventCommand::RoleFlag1000:
-            return 0x1000;
+        case EventCommand::RoleStepsAct:
+            return Role::StepsAct;
 
-        case EventCommand::RoleFlag800:
-            return 0x800;
+        case EventCommand::RoleFacesTalker:
+            return Role::FacesTalker;
 
-        case EventCommand::RoleFlag2000:
-            return 0x2000;
+        case EventCommand::RoleTouchEvent:
+            return Role::TouchEvent;
 
-        case EventCommand::RoleFlag100:
-            return 0x100;
+        case EventCommand::RoleCellEffects:
+            return Role::CellEffects;
 
         default:
-            return 0x4000;
+            return Role::Solid;
     }
 }
 
@@ -132,7 +137,7 @@ bool Talk::RunStateCommand(EventRun& run)
             return true;
         }
 
-        case EventCommand::SetRoleFlag4000000:
+        case EventCommand::SetRoleFastMove:
             if (state.FindRoleOrPlayer(this->EventRoleId(run, this->Word(run, 1)), run.found))
             {
                 state.roles[run.found].flags |= Role::FastMove;
@@ -141,14 +146,14 @@ bool Talk::RunStateCommand(EventRun& run)
             this->Advance(run, 4);
             return true;
 
-        case EventCommand::RoleFlag40:
-        case EventCommand::RoleFlag20:
-        case EventCommand::RoleFlag10:
-        case EventCommand::RoleFlag1000:
-        case EventCommand::RoleFlag800:
-        case EventCommand::RoleFlag2000:
-        case EventCommand::RoleFlag100:
-        case EventCommand::RoleFlag4000:
+        case EventCommand::RoleExamine:
+        case EventCommand::RoleNoTalkPointer:
+        case EventCommand::RoleUnk10:
+        case EventCommand::RoleStepsAct:
+        case EventCommand::RoleFacesTalker:
+        case EventCommand::RoleTouchEvent:
+        case EventCommand::RoleCellEffects:
+        case EventCommand::RoleSolid:
         {
             const u32 bit = RoleFlagOf(run.code);
             const u16 id = this->Word(run, 1) == 0xFFF0 ? static_cast<u16>(state.playerRole) : this->Word(run, 1);
@@ -926,80 +931,81 @@ bool Talk::RunSystemCommand(EventRun& run)
             this->Advance(run, 4);
             return false;
 
-        case EventCommand::RoleFlag2000:
-        case EventCommand::RoleFlag100:
-        case EventCommand::RoleFlag4000:
+        case EventCommand::RoleTouchEvent:
+        case EventCommand::RoleCellEffects:
+        case EventCommand::RoleSolid:
             return this->RunStateCommand(run);
 
-        case EventCommand::SetFlag46:
+        case EventCommand::HideLoadingScreen:
             state.SetGameFlag(GameState::NoLoadingScreen);
             this->Advance(run, 2);
             return false;
 
-        case EventCommand::SetFlag13:
+        case EventCommand::SpotlightOn:
             state.SetGameFlag(GameState::Spotlight);
             this->Advance(run, 2);
             return false;
 
-        case EventCommand::ClearFlag13:
+        case EventCommand::SpotlightOff:
             state.ClearGameFlag(GameState::Spotlight);
             this->Advance(run, 2);
             return false;
 
-        case EventCommand::CameraTarget:
+        case EventCommand::SpotlightAt:
         {
-            i32 x = 0x10 * static_cast<i16>(this->Word(run, 1));
-            view.unk4B9EF8 = x;
-            const i32 y = 0x10 * static_cast<i16>(this->Word(run, 2));
-            view.unk4B9EFC = y;
+            i32 x = MapHeader::TileSize * static_cast<i16>(this->Word(run, 1));
+            view.spotlightX = x;
+            const i32 y = MapHeader::TileSize * static_cast<i16>(this->Word(run, 2));
+            view.spotlightY = y;
 
             if (x == -1)
             {
-                x = 0x140;
-                view.unk4B9EF8 = 0x140;
+                x = Display::Width / 2;
+                view.spotlightX = Display::Width / 2;
             }
 
             if (y == -1)
             {
-                x = 0xF0;
-                view.unk4B9EF8 = 0xF0;
-                view.unk4B9EFC = 0xD0;
+                // The original stores the centre row in x (and the scaled -1 values never occur).
+                x = Display::Height / 2;
+                view.spotlightX = Display::Height / 2;
+                view.spotlightY = kSpotlightTop;
             }
             else
             {
-                if (x > 0x1B0 || x < 0xD0)
+                if (x > kSpotlightRight || x < kSpotlightLeft)
                 {
-                    x = x > 0x1B0 ? 0x1B0 : 0xD0;
-                    view.unk4B9EF8 = x;
+                    x = x > kSpotlightRight ? kSpotlightRight : kSpotlightLeft;
+                    view.spotlightX = x;
                 }
 
-                if (y > 0x110)
+                if (y > kSpotlightBottom)
                 {
-                    view.unk4B9EFC = 0x110;
+                    view.spotlightY = kSpotlightBottom;
                 }
-                else if (y < 0xD0)
+                else if (y < kSpotlightTop)
                 {
-                    view.unk4B9EFC = 0xD0;
+                    view.spotlightY = kSpotlightTop;
                 }
             }
 
-            view.unk4A94A8 = x;
-            view.unk4ACE58 = 0;
-            view.unk4ACE5C = 0;
+            view.spotlightTargetX = x;
+            view.spotlightStepX = 0;
+            view.spotlightStepY = 0;
             this->Advance(run, 6);
             return false;
         }
 
-        case EventCommand::CameraTargetStep:
-            view.unk4A94A8 = 0x10 * static_cast<i16>(this->Word(run, 1));
-            view.unk4CAE80 = 0x10 * static_cast<i16>(this->Word(run, 2));
-            view.unk4ACE58 = static_cast<i16>(this->Word(run, 3));
-            view.unk4ACE5C = static_cast<i16>(this->Word(run, 4));
+        case EventCommand::SpotlightMove:
+            view.spotlightTargetX = MapHeader::TileSize * static_cast<i16>(this->Word(run, 1));
+            view.spotlightTargetY = MapHeader::TileSize * static_cast<i16>(this->Word(run, 2));
+            view.spotlightStepX = static_cast<i16>(this->Word(run, 3));
+            view.spotlightStepY = static_cast<i16>(this->Word(run, 4));
             this->Advance(run, 0xA);
             return false;
 
-        case EventCommand::WaitCameraTarget:
-            if (view.unk4B9EF8 == view.unk4A94A8 && view.unk4B9EFC == view.unk4CAE80)
+        case EventCommand::WaitSpotlight:
+            if (view.spotlightX == view.spotlightTargetX && view.spotlightY == view.spotlightTargetY)
             {
                 this->Advance(run, 2);
             }

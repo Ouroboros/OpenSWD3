@@ -416,14 +416,14 @@ bool Talk::OpenMapMovie(EventRun& run)
     if (this->Byte(run, 0) == '%')
     {
         ++run.cursor;
-        film.options |= 2;
+        film.options |= MapMovie::NoFadeIn;
         ++run.context.unk20;
     }
 
     if (this->Byte(run, 0) == '*')
     {
         ++run.cursor;
-        film.options |= 1;
+        film.options |= MapMovie::DarkenOut;
         ++run.context.unk20;
     }
 
@@ -567,9 +567,9 @@ bool Talk::OpenMapMovie(EventRun& run)
 
     film.frameIndex = 1;
     owner.fieldView.ReadMovieFrame();
-    film.frameIndex = -13;
+    film.frameIndex = MapMovie::FadeInStart;
 
-    if ((film.options & 2) != 0)
+    if ((film.options & MapMovie::NoFadeIn) != 0)
     {
         film.frameIndex = 1;
         owner.ShowFrame();
@@ -833,8 +833,8 @@ bool Talk::RunSceneCommand(EventRun& run)
             return true;
         }
 
-        case EventCommand::ClearRoleFlag400:
-        case EventCommand::SetRoleFlag400:
+        case EventCommand::ClearRoleHidden:
+        case EventCommand::SetRoleHidden:
         {
             const u16 id = this->EventRoleId(run, this->Word(run, 1));
 
@@ -842,9 +842,9 @@ bool Talk::RunSceneCommand(EventRun& run)
             {
                 Role& role = state.roles[run.found];
                 role.flags =
-                    run.code == EventCommand::ClearRoleFlag400 ? role.flags & ~Role::Hidden : role.flags | Role::Hidden;
+                    run.code == EventCommand::ClearRoleHidden ? role.flags & ~Role::Hidden : role.flags | Role::Hidden;
             }
-            else if (run.code == EventCommand::ClearRoleFlag400)
+            else if (run.code == EventCommand::ClearRoleHidden)
             {
                 owner.UpdateRoleRecord(id, -1, -1, -1, -1, -1, -1, -1, 0, static_cast<i16>(0xFBFF), -1);
             }

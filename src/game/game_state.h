@@ -16,18 +16,27 @@ struct MapHeader
     // The bits of a word in `blocks`.
     enum Cell : u32
     {
-        RegionMask = 0xFF,       // the map region (event area) of the cell
-        LeaderCell = 0x100,      // the leader stands on it
-        Reflecting = 0x800,      // the roles on it are reflected
-        ShadeMask = 0xF000,      // the shade of the roles on it (Role::CellShades >> ShadeShift)
-        Unk800000 = 0x800000,    // under a role with Role::Unk10
-        RoleCell = 0x10000000,   // a role stands on it
-        SolidRole = 0x20000000,  // a solid role stands on it
+        RegionMask = 0xFF,        // the map region (event area) of the cell
+        LeaderCell = 0x100,       // the leader stands on it
+        Reflecting = 0x800,       // the roles on it are reflected
+        ShadeMask = 0xF000,       // the shade of the roles on it (Role::CellShades >> ShadeShift)
+        Unk800000 = 0x800000,     // under a role with Role::Unk10
+        KeyedTile = 0x04000000,   // its tile is drawn with colour 0 transparent
+        HiddenTile = 0x08000000,  // its tile is not drawn
+        RoleCell = 0x10000000,    // a role stands on it
+        SolidRole = 0x20000000,   // a solid role stands on it
         Wall = 0x40000000,
         Outside = 0xFFFFFFFF,  // read past the cells
     };
 
     static constexpr u32 ShadeShift = 8;  // from ShadeMask to Role::CellShades
+
+    static constexpr int TileSize = 0x10;                         // pixels per tile side (one cell)
+    static constexpr int TileShift = 4;                           // pixels to tiles
+    static constexpr int TileFraction = TileSize - 1;             // the pixels inside a tile
+    static constexpr int TileBytes = 2 * TileSize * TileSize;     // a 16-bit tile in the map unit
+    static constexpr int IndexedTileBytes = TileSize * TileSize;  // an 8-bit tile
+    static constexpr int PaletteBytes = 0x200;                    // the palette before the 8-bit tiles
 
     i32 width = 0;                     // +0x00 tiles
     i32 height = 0;                    // +0x04 tiles

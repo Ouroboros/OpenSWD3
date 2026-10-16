@@ -37,6 +37,20 @@ struct MovieChunk
 // 8-bit frames through palettes changing at given frames, faded in and out with black bars.
 struct MapMovie
 {
+    // The bits of `options`.
+    enum Option : u32
+    {
+        DarkenOut = 1,  // the fade out darkens the last frame instead of closing black bars
+        NoFadeIn = 2,   // the movie starts without the bars opening
+        Paused = 0x10,
+    };
+
+    static constexpr i32 FadeInStart = -13;     // `frameIndex` when the bars start opening
+    static constexpr int BarStep = 4;           // lines the bars move per frame
+    static constexpr i32 FadeOutStart = 10000;  // `frameIndex` once the last frame was shown
+    static constexpr i32 DarkenFrames = 0xF;    // the length of the darkening fade out
+    static constexpr i32 CloseFrames = 0x1E;    // the length of the closing fade out
+
     File file;                       // 0x004A9380
     MovieChunk chunks;               // 0x004CAD28 the list head
     MovieChunk* current = nullptr;   // 0x004C8BDC

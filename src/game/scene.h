@@ -251,6 +251,7 @@ struct ColorFade
 // are restored): the pointer roles, the animations of the screen elements and tables of maps.dat.
 struct Scene
 {
+    static constexpr int SpotlightRadius = 0xC0;  // half the side of the lit square
     static constexpr int PointerAct = 0x2329;
     static constexpr u32 PointerFlags = 0x9000;
 
@@ -308,7 +309,7 @@ struct Scene
     // Set by LoadCity (0x0040C130).
     i32 unk49E0BC = 0;
     i32 unk49E0C0 = 0;
-    i32 unk4A94A8 = 0;
+    i32 spotlightTargetX = 0;  // 0x004A94A8 where the spotlight moves to
     i32 unk4AB97C = 0;
     i32 unk4AB994 = 0;
     i32 unk4ACB98 = 0;
@@ -319,8 +320,8 @@ struct Scene
     i32 unk4ACE4C = 0;
     i32 unk4ACE50 = 0;
     i32 unk4ACE54 = 0;
-    i32 unk4ACE58 = 0;
-    i32 unk4ACE5C = 0;
+    i32 spotlightStepX = 0;  // 0x004ACE58 pixels per frame
+    i32 spotlightStepY = 0;  // 0x004ACE5C
     u16 unk4ACEF0 = 0;
     i16 lightningCount = 0;          // 0x004AAEC8 bolts wanted (up to 8)
     i16 firefliesShown = 0;          // 0x004B737C
@@ -337,9 +338,9 @@ struct Scene
     i32 unk4B88C0 = 0;
     i16 lightningShown = 0;  // 0x004B88BC
     i32 unk4B896C = 0;
-    std::array<MoveRecord, 8> followerMoves;  // 0x004B8E18
-    i32 unk4B9EF8 = 0;
-    i32 unk4B9EFC = 0;
+    std::array<MoveRecord, 8> followerMoves;    // 0x004B8E18
+    i32 spotlightX = 0;                         // 0x004B9EF8 the centre of the spotlight (screen pixels)
+    i32 spotlightY = 0;                         // 0x004B9EFC
     std::array<i16, 0x100> soundRise = {};      // 0x004BA430 by role: how far below the controlled role
     i16 fireflyCount = 0;                       // 0x004BAB80 (up to 1)
     std::array<i16, 0x100> soundDistance = {};  // 0x004C97F8 by role
@@ -356,7 +357,7 @@ struct Scene
     u16 unk4C97F6 = 0;
     i32 unk4C9A18 = 0;
     i32 unk4C9A20 = 0;
-    i32 unk4CAE80 = 0;
+    i32 spotlightTargetY = 0;  // 0x004CAE80
     i32 unk4CC2DC = 0;
     i32 unk4A9920 = 0;                             // 0x004A9920 bit 15 kept across maps
     MapTrigger triggers;                           // 0x004A9A18 (the list from +0x14)

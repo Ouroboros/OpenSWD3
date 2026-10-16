@@ -14,6 +14,8 @@ namespace swd3
 // the playback of its action script. Offsets of the original are given for reference.
 struct Role
 {
+    static constexpr u32 CellShadeShift = 20;  // CellShades to a shade index (0..15)
+
     // Role::flags bits, named by what tests and sets them.
     enum Flag : u32
     {

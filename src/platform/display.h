@@ -41,6 +41,7 @@ class Display
 public:
     static constexpr int Width = 640;
     static constexpr int Height = 480;
+    static constexpr int Pixels = Width * Height;
     static constexpr int DefaultWindowWidth = 1280;
     static constexpr int DefaultWindowHeight = 960;
 
