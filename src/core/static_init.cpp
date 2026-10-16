@@ -247,6 +247,21 @@ void RegisterBattleUnitDestructor() { crt::atexit(&DestroyBattleUnit); }
 // swd32.exe 0x00451890
 void DestroyBattleUnit() { G.battleUnit.~BattleUnit(); }
 
+// swd32.exe 0x004518A0
+void InitProjector() {
+    ConstructProjector();
+    RegisterProjectorDestructor();
+}
+
+// swd32.exe 0x004518B0
+void ConstructProjector() { new (&G.projector) Projector(); }
+
+// swd32.exe 0x004518C0
+void RegisterProjectorDestructor() { crt::atexit(&DestroyProjector); }
+
+// swd32.exe 0x004518D0
+void DestroyProjector() { G.projector.Release(); }
+
 // swd32.exe 0x00451900
 void InitFile521538() {
     ConstructFile521538();

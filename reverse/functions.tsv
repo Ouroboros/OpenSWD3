@@ -424,20 +424,20 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 423	swd32.exe	0x00433540	sub_433540	res	src/res/tsw.cpp:TswReadFrame	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between res_pack anchors 0x00433380 and 0x00433720
 424	swd32.exe	0x00433720	sub_433720	res	src/res/tsw.cpp:TswLoadPictureB	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "<<TSW%d"; magic-mode error text: original prints an uninitialised stack directory entry, rebuilt code prints an empty name
 425	swd32.exe	0x004338F0	sub_4338F0	res	src/res/tsw.cpp:TswReadFrameB	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-426	swd32.exe	0x00433AA0	sub_433AA0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+426	swd32.exe	0x00433AA0	sub_433AA0	pic	src/pic/pic_ops.cpp:PictureHitTest	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 427	swd32.exe	0x00433BF0	sub_433BF0	res	src/res/tsw.cpp:TswFreeBuffers	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-428	swd32.exe	0x00433C40	sub_433C40	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-429	swd32.exe	0x00433D70	sub_433D70	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-430	swd32.exe	0x00433DC0	sub_433DC0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-431	swd32.exe	0x00433E20	sub_433E20	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-432	swd32.exe	0x00433E90	sub_433E90	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-433	swd32.exe	0x00433F00	sub_433F00	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-434	swd32.exe	0x00433F30	sub_433F30	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-435	swd32.exe	0x00433F70	sub_433F70	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-436	swd32.exe	0x004342E0	sub_4342E0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-437	swd32.exe	0x00434350	sub_434350	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-438	swd32.exe	0x00434420	sub_434420	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-439	swd32.exe	0x004344E0	sub_4344E0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+428	swd32.exe	0x00433C40	sub_433C40	pic	src/pic/projector.cpp:Projector::Projector	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	host tan instead of x87 fptan: all 89 non-zero values are >=1.2e-4 from an integer, so the truncated table is identical
+429	swd32.exe	0x00433D70	sub_433D70	pic	src/pic/projector.cpp:Projector::Release	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+430	swd32.exe	0x00433DC0	sub_433DC0	pic	src/pic/projector.cpp:Projector::Init	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+431	swd32.exe	0x00433E20	sub_433E20	pic	src/pic/projector.cpp:Projector::SetBufferRows	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+432	swd32.exe	0x00433E90	sub_433E90	pic	src/pic/projector.cpp:Projector::SetScreenRows	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+433	swd32.exe	0x00433F00	sub_433F00	pic	src/pic/projector.cpp:Projector::FreeParticles	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+434	swd32.exe	0x00433F30	sub_433F30	pic	src/pic/projector.cpp:Projector::SetScreen	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+435	swd32.exe	0x00433F70	sub_433F70	pic	src/pic/pic_ops.cpp:ShiftPicture	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+436	swd32.exe	0x004342E0	sub_4342E0	pic	src/pic/projector.cpp:Projector::SetClip	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+437	swd32.exe	0x00434350	sub_434350	pic	src/pic/projector.cpp:LineStep	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+438	swd32.exe	0x00434420	sub_434420	pic	src/pic/projector.cpp:Projector::Step	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+439	swd32.exe	0x004344E0	sub_4344E0	pic	src/pic/projector.cpp:Projector::DrawScaled	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 440	swd32.exe	0x00434790	sub_434790	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 441	swd32.exe	0x00434DD0	sub_434DD0	particle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "particle_put(..) "
 442	swd32.exe	0x004350E0	sub_4350E0	font_gdi	src/font/text_font.cpp:TextFont::TextFont	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
@@ -826,10 +826,10 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 825	swd32.exe	0x00451870	sub_451870	static_init	src/core/static_init.cpp:ConstructBattleUnit	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
 826	swd32.exe	0x00451880	sub_451880	static_init	src/core/static_init.cpp:RegisterBattleUnitDestructor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
 827	swd32.exe	0x00451890	sub_451890	static_init	src/core/static_init.cpp:DestroyBattleUnit	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-828	swd32.exe	0x004518A0	sub_4518A0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-829	swd32.exe	0x004518B0	sub_4518B0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-830	swd32.exe	0x004518C0	sub_4518C0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
-831	swd32.exe	0x004518D0	sub_4518D0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+828	swd32.exe	0x004518A0	sub_4518A0	static_init	src/core/static_init.cpp:InitProjector	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+829	swd32.exe	0x004518B0	sub_4518B0	static_init	src/core/static_init.cpp:ConstructProjector	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+830	swd32.exe	0x004518C0	sub_4518C0	static_init	src/core/static_init.cpp:RegisterProjectorDestructor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
+831	swd32.exe	0x004518D0	sub_4518D0	static_init	src/core/static_init.cpp:DestroyProjector	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
 832	swd32.exe	0x004518E0	sub_4518E0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern; ida_flags=THUNK
 833	swd32.exe	0x004518F0	sub_4518F0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
 834	swd32.exe	0x00451900	sub_451900	static_init	src/core/static_init.cpp:InitFile521538	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern

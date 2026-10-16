@@ -338,3 +338,6 @@ addr	type	name	module	notes
 @include	movie/movie.h
 0x0053D06C	std::int32_t	movieSurfaceType	movie_bink	BinkDDSurfaceType of the primary surface
 0x0053D070	Movie*	movie	movie_bink
+@include	pic/projector.h
+@size	Projector	2924
+0x0053B0B8	Projector	projector	pic	constructed by 0x004518A0

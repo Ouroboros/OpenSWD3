@@ -17,6 +17,7 @@
 #include "input/input.h"
 #include "memmgr/memory_manager.h"
 #include "movie/movie.h"
+#include "pic/projector.h"
 #include "res/act.h"
 #include "res/act_anim.h"
 #include "res/tsw.h"
@@ -5209,7 +5210,7 @@ struct Globals {
     std::uint8_t pad_53AFEA[0xC6];
     std::int16_t word_53B0B0;  // 0x0053B0B0
     std::uint8_t pad_53B0B2[0x6];
-    std::int32_t dword_53B0B8[731];  // 0x0053B0B8
+    Projector projector;  // 0x0053B0B8 constructed by 0x004518A0
     std::int32_t battleUiFlags;  // 0x0053BC24 bit 5: resistance panel
     std::uint8_t byte_53BC28[66];  // 0x0053BC28
     std::int16_t word_53BC6A;  // 0x0053BC6A
@@ -5900,6 +5901,7 @@ static_assert(offsetof(Globals, battleUnit) == 0x88598);
 static_assert(offsetof(Globals, portraitHighlight) == 0x8B118);
 static_assert(offsetof(Globals, lootNames) == 0x8B468);
 static_assert(offsetof(Globals, lootCounts) == 0x8C434);
+static_assert(offsetof(Globals, projector) == 0xA20B8);
 static_assert(offsetof(Globals, battleUiFlags) == 0xA2C24);
 static_assert(offsetof(Globals, pendingActionRow) == 0xA2F1E);
 static_assert(offsetof(Globals, pendingAction) == 0xA2F20);
