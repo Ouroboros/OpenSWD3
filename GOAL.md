@@ -30,7 +30,7 @@
 
 ## 当前工作
 
-按 reverse/analysis/plan.md 自底向上还原。已完成：file、memmgr、crt 映射、LZO、资源包（tsw／act）、像素格式、绘图核心与全部 blitter、像素操作与缩放、Graphics、Input、静态初始化、TextFont、随机数、文本输入、音频（MSS 模拟）、A* 寻路、ACT 动画、角色结构与游戏状态、BattleUnit 全部方法、战斗消息与结果面板、窗框与填色、Bink 播放模拟与 Movie、投影辅助与碎裂粒子特效、BattleHero 部分方法。Linux（i386）与 Windows x86 构建及 58 个单元测试通过。
+按 reverse/analysis/plan.md 自底向上还原。已完成：file、memmgr、crt 映射、LZO、资源包（tsw／act）、像素格式、绘图核心与全部 blitter、像素操作与缩放、Graphics、Input、静态初始化、TextFont、随机数、文本输入、音频（MSS 模拟）、A* 寻路、ACT 动画、角色结构与游戏状态、BattleUnit 大部分方法、战斗消息与结果面板、窗框与填色、Bink 播放模拟与 Movie、投影辅助与碎裂粒子特效、BattleHero 部分方法。Linux（i386）与 Windows x86 构建及 58 个单元测试通过。
 
 ## 下一步
 
