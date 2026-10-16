@@ -30,5 +30,7 @@ void FormatEstimate(char* out, const char* name, int known, int level, int value
 void DrawMenuTabs();
 int DrawActAlpha(ActState* state, int x, int y, int level);
 void DrawSignedChange(int change, int x, int y, int value);
+void CloseMenuWhenDone();
+void RunPageHandler();
 
 }  // namespace swd3

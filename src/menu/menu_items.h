@@ -28,5 +28,12 @@ void InitNumberList();
 void CopyItemsForMenu(int mode);
 void FreeRecordBuffers();
 int OpenRecordsPage();
+void FilterItemsForMenu(std::uint8_t** source, std::uint8_t* target, int mode);
+void CloseEquipPage();
+void BuildEquipList();
+std::uint8_t* EquipCursorItem();
+void CloseUsePage();
+void BuildUseList();
+void BuildCopyList();
 
 }  // namespace swd3

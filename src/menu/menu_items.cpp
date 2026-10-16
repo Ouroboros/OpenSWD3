@@ -9,6 +9,8 @@
 #include "data/globals.h"
 #include "data/image.h"
 #include "draw/draw.h"
+#include "item/item_list.h"
+#include "menu/menu_util.h"
 #include "res/tsw.h"
 #include "game/game_state.h"
 #include "swd3/w32.h"
@@ -507,6 +509,163 @@ int OpenRecordsPage() {
     G.dword_4FC4FC = 0;
     G.dword_4FC50C = 0;
     return G.dword_4A9ECC;
+}
+
+// swd32.exe 0x0043F0D0: moves the items of `source` that ItemFitsMenu(`mode`) accepts into the id sorted list
+// `target` (+0 head, +8 count cleared). The return value is unused by callers.
+void FilterItemsForMenu(uint8_t** source, uint8_t* target, int mode) {
+    auto* link = reinterpret_cast<uint8_t*>(source);
+    mem::put32(target, 0, 0);
+    mem::put16(target, 8, 0);
+    uint8_t* item = *source;
+    while (item != nullptr) {
+        if (!ItemFitsMenu(item, mode)) {
+            item = mem::ptr<uint8_t>(item, 0);
+            link = mem::ptr<uint8_t>(link, 0);
+            continue;
+        }
+        uint8_t* previous = target;
+        uint8_t* current = mem::ptr<uint8_t>(target, 0);
+        if (current != nullptr) {
+            const uint16_t id = mem::u16(item, 4);
+            while (current != nullptr) {
+                if (mem::u16(current, 4) >= id && mem::u16(previous, 4) < id) {
+                    break;
+                }
+                current = mem::ptr<uint8_t>(current, 0);
+                previous = mem::ptr<uint8_t>(previous, 0);
+            }
+        }
+        uint8_t* moved = item;
+        mem::putPtr(link, 0, mem::ptr<uint8_t>(item, 0));
+        item = mem::ptr<uint8_t>(item, 0);
+        if (current == nullptr || mem::ptr<uint8_t>(target, 0) != nullptr) {
+            mem::putPtr(moved, 0, mem::ptr<uint8_t>(previous, 0));
+            mem::putPtr(previous, 0, moved);
+        } else {
+            mem::putPtr(target, 0, moved);
+            mem::putPtr(moved, 0, static_cast<uint8_t*>(nullptr));
+        }
+    }
+}
+
+// swd32.exe 0x00440750: closes the equipment page: returns the list at 0x004FCD70, clears its state, frees its
+// buffers and resets the counts of every hero item slot (+8 = 1, +0xA = 0)
+void CloseEquipPage() {
+    ReturnListD70();
+    G.dword_4FCD34 = 0;
+    G.dword_4FCD3C = 0;
+    G.dword_4FCF88 = 0;
+    G.dword_4FCF90 = 0;
+    G.dword_4FCD38 = 0;
+    G.dword_4FCD54 = 0;
+    G.dword_4FCD64 = 0;
+    G.dword_4FCD70 = 0;
+    crt::free(reinterpret_cast<void*>(static_cast<std::uintptr_t>(G.dword_4FCD4C)));
+    crt::free(reinterpret_cast<void*>(static_cast<std::uintptr_t>(G.dword_4FCD50)));
+    G.dword_4FCD4C = 0;
+    G.dword_4FCD50 = 0;
+    for (uint8_t* slot : G.heroItemSlots) {
+        mem::put16(slot, 8, 1);
+        mem::put16(slot, 0xA, 0);
+    }
+    crt::free(reinterpret_cast<void*>(static_cast<std::uintptr_t>(G.dword_4FCF8C)));
+    G.dword_4FCD48 = 0;
+}
+
+// swd32.exe 0x00442050: fills the list at 0x004FCD70 with the inventory items of slot kind G.dword_4FCD38 and
+// appends an empty item unless the slot holds the empty marker 0xFFDC and the list has items
+void BuildEquipList() {
+    auto* list = reinterpret_cast<uint8_t*>(&G.dword_4FCD70);
+    FilterItemsByKind(&G.inventory, list, G.dword_4FCD38);
+    const uint8_t* slot = image::at<uint8_t*>(0x004C8AD0u + 4u * (16u * static_cast<uint16_t>(G.dword_4FBECC) +
+                                                                  static_cast<uint32_t>(G.dword_4FCD38)));
+    if (mem::u16(slot, 4) != 0xFFDC || G.dword_4FCD70 == 0) {
+        uint8_t* last = list;
+        while (mem::ptr<uint8_t>(last, 0) != nullptr) {
+            last = mem::ptr<uint8_t>(last, 0);
+        }
+        uint8_t* empty = NewEmptyItem();
+        mem::putPtr(last, 0, empty);
+        mem::put32(empty, 0, 0);
+    }
+    G.dword_4FCF90 = CountList(reinterpret_cast<uint8_t**>(list));
+    G.dword_4FCF88 = 0;
+    G.dword_4FCD3C = 0;
+    G.dword_4FCD64 = G.dword_4FCD70;
+    CountListD64();
+}
+
+// swd32.exe 0x00442A40: the item under the equipment cursor: the hero slot G.dword_4FCD38 in column 0, the list
+// entry G.dword_4FCF88 + G.dword_4FCD3C in column 1, else none
+uint8_t* EquipCursorItem() {
+    if (G.dword_4FCD54 == 0) {
+        return image::at<uint8_t*>(0x004C8AD0u + 4u * (16u * static_cast<uint16_t>(G.dword_4FBECC) +
+                                                       static_cast<uint32_t>(G.dword_4FCD38)));
+    }
+    if (G.dword_4FCD54 != 1) {
+        return nullptr;
+    }
+    uint8_t* item;
+    ListNodeAtInto(G.dword_4FCF88 + G.dword_4FCD3C, reinterpret_cast<uint8_t**>(&G.dword_4FCD70), &item);
+    return item;
+}
+
+// swd32.exe 0x00442F10: closes the item use page: returns the list at 0x004FCFC0 and frees G.dword_4BAB74; next act
+// 0x36
+void CloseUsePage() {
+    ReturnListFC0();
+    G.dword_4FD078 = 0;
+    crt::free(reinterpret_cast<void*>(static_cast<std::uintptr_t>(G.dword_4BAB74)));
+    G.dword_4FB978 = 0x36;
+}
+
+// swd32.exe 0x00444E80: fills the list at 0x004FCFC0 with the current hero's items of type G.dword_4FCFA8 (an empty
+// item when there are none) and counts it
+void BuildUseList() {
+    auto* list = &image::at<uint8_t>(0x004FCFC0u);
+    FilterItemsByType(reinterpret_cast<uint8_t**>(G.itemLists[static_cast<uint16_t>(G.dword_4FBECC)]), list,
+                      G.dword_4FCFA8);
+    auto& head = image::at<std::uint32_t>(0x004FCFC0u);
+    if (head == 0) {
+        uint8_t* empty = NewEmptyItem();
+        head = static_cast<std::uint32_t>(reinterpret_cast<std::uintptr_t>(empty));
+        mem::put32(empty, 0, 0);
+    }
+    G.dword_4FCFB8 = CountList(reinterpret_cast<uint8_t**>(list));
+    G.dword_4FCF98 = 0;
+    G.dword_4FD070 = 0;
+    G.dword_4FCFBC = static_cast<std::int32_t>(head);
+    CountListFBC();
+}
+
+// swd32.exe 0x00448230: copies the inventory items for mode G.dword_4FD094 into G.dword_4FD1E8, drops inventory
+// items left with no count, gives the list an empty item when it is empty and numbers it
+void BuildCopyList() {
+    CopyItemsForMenu(G.dword_4FD094);
+    auto* link = reinterpret_cast<uint8_t*>(&G.inventory);
+    uint8_t* item = G.inventory;
+    while (item != nullptr) {
+        if (mem::u16(item, 8) != 0 || mem::u16(item, 0xA) != 0) {
+            link = item;
+            item = mem::ptr<uint8_t>(item, 0);
+            continue;
+        }
+        mem::putPtr(link, 0, mem::ptr<uint8_t>(item, 0));
+        crt::free(mem::ptr<uint8_t>(item, 0xAC));
+        crt::free(item);
+        item = mem::ptr<uint8_t>(link, 0);
+    }
+    if (G.dword_4FD1E8 == 0) {
+        uint8_t* empty = NewEmptyItem();
+        G.dword_4FD1E8 = static_cast<std::int32_t>(reinterpret_cast<std::uintptr_t>(empty));
+        mem::put32(empty, 0, 0);
+    }
+    G.dword_4FD08C = CountList(reinterpret_cast<uint8_t**>(&G.dword_4FD1E8));
+    G.dword_4FD164 = 0;
+    G.dword_4FD098 = 0;
+    G.dword_4FD150 = G.dword_4FD1E8;
+    InitNumberList();
 }
 
 }  // namespace swd3

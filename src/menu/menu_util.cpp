@@ -5,6 +5,7 @@
 #include "core/debug_log.h"
 #include "core/random.h"
 #include "crt/crt.h"
+#include "data/code_ptr.h"
 #include "data/image.h"
 #include "game/game_state.h"
 #include "core/mem.h"
@@ -427,6 +428,20 @@ void DrawSignedChange(int change, int x, int y, int value) {
     w32::wsprintfA(G.menuText, "%c%-3d", change <= 0 ? '-' : '+', change < 0 ? -change : change);
     G.textFont_4A9ED0.DrawText(reinterpret_cast<std::uint16_t*>(G.drawSurface), shift + x + 4, y, G.menuText,
                                static_cast<std::uint16_t>(color), 4);
+}
+
+// swd32.exe 0x0043C800: frees the menu buffers once the close counter G.word_4FC900 reached 500 (then 2)
+void CloseMenuWhenDone() {
+    if (G.word_4FC900 == 0x1F4) {
+        G.word_4FC900 = 2;
+        FreeMenuBuffers();
+    }
+}
+
+// swd32.exe 0x00445420: runs the handler of page G.dword_4FC3C4 from the table at 0x004FBF54 (pages 11.. start at
+// 0x004FBF80)
+void RunPageHandler() {
+    codeAs<void()>(image::at<code_ptr>(0x004FBF54u + 4u * static_cast<std::uint16_t>(G.dword_4FC3C4)))();
 }
 
 }  // namespace swd3
