@@ -41,6 +41,43 @@ struct EventRun
 class Talk
 {
 public:
+    static constexpr u16 Current =
+        0xFFF0;  // an operand standing for the role of the event, the controlled role or the map
+    static constexpr u16 Keep = 0xFFFF;  // an operand that leaves its value as it is
+
+    // The bits of `dialogOptions`: all set after each dialog; a command clears one to turn its feature on.
+    enum DialogOption : u32
+    {
+        Logged = 0x2000000,      // the text goes to the log
+        ShowMark = 0x4000000,    // the page mark stays until read
+        SingleLine = 0x8000000,  // the text is laid out on one line
+        Offset = 0x10000000,     // the window is moved by dialogOffsetX, dialogOffsetY
+        Overlay = 0x20000000,    // no frame
+        NoAdvance = 0x40000000,  // the keys do not advance it
+        Skippable = 0x80000000,  // Space skips its typing
+        AllOff = 0xFFFFFFFF,
+    };
+
+    // The `options` of SetupDialog: the layout in the low bits and the features turned on.
+    enum DialogSetup : u32
+    {
+        SpeechLayout = 0,  // a speaker, the text after it
+        SizedLayout = 1,   // a speaker, a width and a height, the text
+        RecordLayout = 2,  // a role record laid out with its head
+        LayoutMask = 0x7FFF,
+        UseOffset = 0x8000,
+        OneLine = 0x10000,
+        LogText = 0x20000,
+        Centred = 0x40000,
+    };
+
+    static constexpr u32 NoOrigin = 0x80008000;  // `dialogOrigin`: the window opens out of its speaker
+    static constexpr u32 NoOriginX = 0x8000;
+    static constexpr int OriginYShift = 16;  // `dialogOrigin`: x in the low word, y above it
+    static constexpr u32 OriginXMask = 0xFFFF;
+    static constexpr u32 OriginEdge = 0x10;      // where a place past the screen is moved to
+    static constexpr u16 DefaultTimeout = 0x3C;  // tenths of a second
+
     // swd32.exe 0x004994F4 and 0x00499514: where a speaker's talk window goes by the way it faces.
     static constexpr std::array<i32, 8> WindowShiftX = {0, 0, 160, -160, 80, -80, 80, -80};
     static constexpr std::array<i32, 8> WindowShiftY = {96, -104, -64, -56, 56, -112, -112, 56};
@@ -74,25 +111,25 @@ public:
     bool CommandsRole(std::span<const u8> command, u32 role);
     void RunEvent(Role& context);
 
-    i32 unit = 0;                            // 0x004A99F8 the text cell in pixels
-    i32 advance = 0;                         // 0x004A99F4 the text is to move on (a key or a click)
-    i32 skipAll = 0;                         // 0x004CAEB8
-    i32 choice = 0;                          // 0x004CAE7C the choice under the pointer
-    ActState endAct;                         // 0x004C9708 the mark of a finished text
-    ActState nextAct;                        // 0x004CADE0 the mark of a full page
-    MarchingRect marker;                     // 0x004CC2D4 around the chosen choice
-    std::vector<std::string> history;        // 0x004C99FC the texts kept by the talk log
-    u32 dialogOrigin = 0x80008000;           // 0x004A135C the place of the next talk window (0x8000: by its speaker)
-    u32 dialogOptions = 0xFFFFFFFF;          // 0x004A1360 its options, a cleared bit turns one on
-    u32 dialogTimeout = 0x3C;                // 0x004A1364
-    i32 dialogOffsetX = 0;                   // 0x004CF730
-    i32 dialogOffsetY = 0;                   // 0x004CF734
-    i32 dialogTimed = 0;                     // 0x004CF738 dialogTimeout applies
-    i32 dialogCentred = 0;                   // 0x004CF73C
-    std::array<char, 0x20> dialogName = {};  // 0x004CF6B8 the name plate
-    u32 lastCommand = 0;                     // 0x004CF6D8
-    u32 waitLength = 0;                      // 0x004CF6B0 command 0x43
-    u32 waitStart = 0;                       // 0x004CF6B4
+    i32 unit = 0;                       // 0x004A99F8 the text cell in pixels
+    i32 advance = 0;                    // 0x004A99F4 the text is to move on (a key or a click)
+    i32 skipAll = 0;                    // 0x004CAEB8
+    i32 choice = 0;                     // 0x004CAE7C the choice under the pointer
+    ActState endAct;                    // 0x004C9708 the mark of a finished text
+    ActState nextAct;                   // 0x004CADE0 the mark of a full page
+    MarchingRect marker;                // 0x004CC2D4 around the chosen choice
+    std::vector<std::string> history;   // 0x004C99FC the texts kept by the talk log
+    u32 dialogOrigin = Talk::NoOrigin;  // 0x004A135C the place of the next talk window (NoOriginX: by its speaker)
+    u32 dialogOptions = Talk::AllOff;   // 0x004A1360 its options, a cleared bit turns one on
+    u32 dialogTimeout = Talk::DefaultTimeout;  // 0x004A1364
+    i32 dialogOffsetX = 0;                     // 0x004CF730
+    i32 dialogOffsetY = 0;                     // 0x004CF734
+    i32 dialogTimed = 0;                       // 0x004CF738 dialogTimeout applies
+    i32 dialogCentred = 0;                     // 0x004CF73C
+    std::array<char, 0x20> dialogName = {};    // 0x004CF6B8 the name plate
+    u32 lastCommand = 0;                       // 0x004CF6D8
+    u32 waitLength = 0;                        // 0x004CF6B0 command 0x43
+    u32 waitStart = 0;                         // 0x004CF6B4
 
 private:
     void DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 heldAdvance);

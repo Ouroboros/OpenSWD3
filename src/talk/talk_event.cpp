@@ -15,7 +15,6 @@ namespace
 {
 
 constexpr u16 kTextEnd = 0x5125;  // "%Q"
-constexpr u16 kEventRole = 0xFFF0;
 constexpr u16 kListEnd = 0xFF00;
 
 }  // namespace
@@ -34,7 +33,7 @@ void Talk::RunEvent(Role& context)
     Game& owner = this->game;
     GameState& state = owner.state;
 
-    if (context.id == 0xFFFF)
+    if (context.id == Role::NoId)
     {
         return;
     }
@@ -191,10 +190,10 @@ Role* Talk::FoundRole(const EventRun& run)
     return run.found < GameState::Roles ? &this->game.state.roles[run.found] : nullptr;
 }
 
-// The role of a command: 0xFFF0 stands for the role of the event.
+// The role of a command: Talk::Current stands for the role of the event.
 u16 Talk::EventRoleId(const EventRun& run, u16 id) const
 {
-    return id == kEventRole ? run.context.id : id;
+    return id == Talk::Current ? run.context.id : id;
 }
 
 // A story flag of a command (flags past the 0x400 bytes read as clear and are not set).
@@ -398,28 +397,29 @@ bool Talk::OpenDialog(EventRun& run)
         window->fromY = static_cast<u16>(context.y);
     }
 
-    if ((this->dialogOrigin & 0xFFFF) != 0x8000)
+    if ((this->dialogOrigin & Talk::OriginXMask) != Talk::NoOriginX)
     {
         window->fromX = static_cast<u16>(this->dialogOrigin + static_cast<u32>(field.cameraLeft));
-        window->fromY = static_cast<u16>((this->dialogOrigin >> 16) + static_cast<u32>(field.cameraTop));
+        window->fromY =
+            static_cast<u16>((this->dialogOrigin >> Talk::OriginYShift) + static_cast<u32>(field.cameraTop));
     }
 
     u32 options = 0;
 
     if (code >= EventCommand::SizedDialogWait && code <= EventCommand::PlainDialog)
     {
-        options = 1;
+        options = Talk::SizedLayout;
     }
 
     if (code == EventCommand::RecordDialogWait || code == EventCommand::RecordDialog)
     {
-        options = 2;
+        options = Talk::RecordLayout;
     }
 
     window->flags = code == EventCommand::PlainDialogWait || code == EventCommand::PlainDialog ? TalkWindow::Fade : 0;
     const u32 settings = this->dialogOptions;
 
-    if ((settings & 0x80000000) == 0)
+    if ((settings & Talk::Skippable) == 0)
     {
         window->flags |= TalkWindow::Skippable;
     }
@@ -430,39 +430,39 @@ bool Talk::OpenDialog(EventRun& run)
         window->flags |= TalkWindow::Timed;
     }
 
-    if ((settings & 0x40000000) == 0)
+    if ((settings & Talk::NoAdvance) == 0)
     {
         window->flags |= TalkWindow::NoAdvance;
     }
 
-    if ((settings & 0x20000000) == 0)
+    if ((settings & Talk::Overlay) == 0)
     {
         window->flags |= TalkWindow::Overlay;
     }
 
-    if ((settings & 0x4000000) == 0)
+    if ((settings & Talk::ShowMark) == 0)
     {
         window->flags |= TalkWindow::ShowMark;
     }
 
-    if ((settings & 0x10000000) == 0)
+    if ((settings & Talk::Offset) == 0)
     {
-        options |= 0x8000;
+        options |= Talk::UseOffset;
     }
 
-    if ((settings & 0x8000000) == 0)
+    if ((settings & Talk::SingleLine) == 0)
     {
-        options |= 0x10000;
+        options |= Talk::OneLine;
     }
 
-    if ((settings & 0x2000000) == 0)
+    if ((settings & Talk::Logged) == 0)
     {
-        options |= 0x20000;
+        options |= Talk::LogText;
     }
 
     if (this->dialogCentred == 1)
     {
-        options |= 0x40000;
+        options |= Talk::Centred;
     }
 
     owner.AudioPump();
@@ -514,9 +514,9 @@ bool Talk::OpenDialog(EventRun& run)
 
     run.cursor = at + 2;
     this->SyncOffset(run);
-    this->dialogOrigin = 0x80008000;
-    this->dialogOptions = 0xFFFFFFFF;
-    this->dialogTimeout = 0x3C;
+    this->dialogOrigin = Talk::NoOrigin;
+    this->dialogOptions = Talk::AllOff;
+    this->dialogTimeout = Talk::DefaultTimeout;
     this->dialogTimed = 0;
     this->dialogName[0] = '\0';
     this->dialogOffsetY = 0;
@@ -737,7 +737,7 @@ bool Talk::RunRoleCommand(EventRun& run)
             return this->OpenDialog(run);
 
         case EventCommand::DialogNoSkip:
-            this->dialogOptions &= 0x7FFFFFFF;
+            this->dialogOptions &= ~Talk::Skippable;
             this->Next(run);
             return true;
 
@@ -748,7 +748,7 @@ bool Talk::RunRoleCommand(EventRun& run)
             return true;
 
         case EventCommand::DialogNoAdvance:
-            this->dialogOptions &= 0xBFFFFFFF;
+            this->dialogOptions &= ~Talk::NoAdvance;
             this->Next(run);
             return true;
 

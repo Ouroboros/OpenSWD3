@@ -577,15 +577,15 @@ int ActArchive::Run(ActState& state)
             {
                 const u16 counter = state.counter;
                 state.picture = word(state.position++);
-                u16 round = static_cast<u16>((counter >> 8) + 1);
+                u16 round = static_cast<u16>((counter >> ActState::RoundShift) + 1);
                 const auto limit = static_cast<u8>(counter);
 
                 if (round > limit)
                 {
-                    round = static_cast<u16>((round & 0xFF00) | 1);
+                    round = static_cast<u16>((round & ~ActState::RoundsMask) | 1);
                 }
 
-                state.counter = static_cast<u16>(limit | ((round & 0xFF) << 8));
+                state.counter = static_cast<u16>(limit | ((round & ActState::RoundsMask) << ActState::RoundShift));
                 break;
             }
 

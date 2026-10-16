@@ -21,7 +21,6 @@ constexpr int kFirstRoleFlag = 0x1E;
 constexpr int kSwappedPagesFlag = 0x49;
 constexpr int kHiddenPointerFlag = 9;
 constexpr int kMenuSound = 0xBB;
-constexpr u32 kMenuBits = 0x0FFFFFFF;
 constexpr int kSlideMaximum = 0x320;
 constexpr int kTabGlowMaximum = 0x10;
 constexpr int kTabGlowMinimum = 6;
@@ -74,9 +73,9 @@ void Menu::Run()
         this->pointerX = 0;
         this->pointerY = 0;
         this->unk4FC840.action = 1;
-        const u32 menu = state & kMenuBits;
+        const u32 menu = state & Game::MenuNumberMask;
 
-        if (menu <= 2)
+        if (menu <= Game::ItemChoiceMenu)
         {
             owner.menuMode = 0;
             this->background.id = 0x232A;
@@ -95,7 +94,7 @@ void Menu::Run()
             this->unk4FC82C = 0;
             this->frames = 0x1E;
 
-            if ((state & 0x40000000) != 0)
+            if ((state & Game::MenuOnItems) != 0)
             {
                 this->unk4FC82C = 1;
                 this->frames = 0x24;
@@ -114,7 +113,7 @@ void Menu::Run()
             owner.audio.PlaySound(kMenuSound, owner.config.soundVolume);
         }
 
-        if (menu == 3 || menu == 6)
+        if (menu == Game::TitleScreenMenu || menu == Game::NameEntryMenu)
         {
             owner.archive.CloseAll();
 
@@ -132,36 +131,36 @@ void Menu::Run()
                 this->items[item].action = static_cast<i32>(0x2C + item);
             }
 
-            this->Open(menu == 6 ? 3 : 0, Menu::SystemPage);
+            this->Open(menu == Game::NameEntryMenu ? Menu::NameEntryMode : Menu::TitleMode, Menu::SystemPage);
         }
 
-        if (menu == 4)
+        if (menu == Game::SystemMenuA)
         {
             owner.archive.CloseAll();
-            this->Open(1, Menu::SystemPage);
+            this->Open(Menu::GameModeA, Menu::SystemPage);
         }
 
-        if (menu == 5)
+        if (menu == Game::SystemMenuB)
         {
             owner.archive.CloseAll();
-            this->Open(2, Menu::SystemPage);
+            this->Open(Menu::GameModeB, Menu::SystemPage);
         }
 
         this->frames = 0x40;
         this->flags = 0;
-        owner.menuState &= 0x3FFFFFFF;
+        owner.menuState &= Game::MenuEnteredMask;
     }
 
     ++this->frames;
     this->ReadMouse();
     this->Dispatch();
 
-    if (owner.menuState != 0)
+    if (owner.menuState != Game::NoMenu)
     {
         this->Present();
     }
 
-    if (owner.menuState == 0)
+    if (owner.menuState == Game::NoMenu)
     {
         this->flags &= ~2u;
     }
@@ -409,7 +408,7 @@ void Menu::Present()
     {
         this->Call(this->draw);
 
-        if (owner.menuState == 0)
+        if (owner.menuState == Game::NoMenu)
         {
             return;
         }

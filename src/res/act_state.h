@@ -54,6 +54,23 @@ enum class ActOpcode : u16
 // original are given for reference.
 struct ActState
 {
+    // `counter`: the low byte is the round limit, the high byte the round.
+    static constexpr u16 RoundsMask = 0xFF;
+    static constexpr int RoundShift = 8;
+
+    // The act directions (RolePath::Facing maps the steps onto them).
+    enum Direction : u16
+    {
+        Up = 0,
+        Down = 1,
+        Left = 2,
+        Right = 3,
+        UpLeft = 4,
+        DownRight = 5,
+        DownLeft = 6,
+        UpRight = 7,
+    };
+
     // Flags of ActState::flags.
     enum Flag : u32
     {

@@ -1015,7 +1015,7 @@ bool Talk::RunSceneCommand(EventRun& run)
         }
 
         case EventCommand::DialogOverlay:
-            this->dialogOptions &= 0xDFFFFFFF;
+            this->dialogOptions &= ~Talk::Overlay;
             this->Next(run);
             return true;
 

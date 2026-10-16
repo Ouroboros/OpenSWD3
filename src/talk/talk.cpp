@@ -950,7 +950,7 @@ void Talk::HandlePointer()
     u32 found = 0xFFFFFFFF;
     bool regionsAllowed = true;
 
-    if (state.leader.id == 0xFFFF && (player.act.action == 0 || player.act.action == 0x34))
+    if (state.leader.id == Role::NoId && (player.act.action == 0 || player.act.action == 0x34))
     {
         for (found = 1; found < static_cast<u32>(state.roleCount); ++found)
         {
@@ -1021,7 +1021,7 @@ void Talk::HandlePointer()
     }
 
     if (found == 0xFFFFFFFF || found == static_cast<u32>(state.roleCount) ||
-        found == static_cast<u32>(state.playerRole) || state.leader.id != 0xFFFF || state.roles[found].unk26 != 0 ||
+        found == static_cast<u32>(state.playerRole) || state.leader.id != Role::NoId || state.roles[found].unk26 != 0 ||
         left.press == 0 || left.heldFrames != 1)
     {
         const std::vector<u32>& blocks = state.map.blocks;
@@ -1031,7 +1031,7 @@ void Talk::HandlePointer()
         const u8 regionId = cell < blocks.size() ? static_cast<u8>(blocks[cell]) : u8{0};
         MapRegion* region = nullptr;
 
-        if (state.leader.id == 0xFFFF && regionsAllowed && standing() && regionId != 0 &&
+        if (state.leader.id == Role::NoId && regionsAllowed && standing() && regionId != 0 &&
             (region = owner.field.FindRegion(regionId)) != nullptr && state.GameFlag(region->flag & 0xFFFF))
         {
             cursor = 0xB;

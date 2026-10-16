@@ -184,7 +184,7 @@ void Game::Start()
     {
         case Launcher::Choice::Continue:
             this->StartGraphics();
-            this->menuState = 0;
+            this->menuState = Game::NoMenu;
             this->menuMode = 3;
             this->storyState = 3;
             this->unk4CAEBC = 1;
@@ -552,11 +552,11 @@ void Game::NewGame()
     game.SetGameFlag(GameState::InParty);
     game.ClearGameFlag(GameState::Unk15);
     this->party.variables[0] = 0x64;
-    scene.unk4A9930 = -1;
-    scene.unk4A9938 = -1;
+    scene.returnColumn = -1;
+    scene.returnRow = -1;
     scene.unk4CAD20 = -1;
     scene.unk4A9918 = -1;
-    scene.unk4CAE88 = 0;
+    scene.returnMap = 0;
     scene.unk4C8BE0 = 0;
     scene.unk4A93D4 = 0;
 
@@ -565,10 +565,10 @@ void Game::NewGame()
         layer.clear();
     }
 
-    scene.unk4B7C74 = {};
+    scene.musicTunes = {};
     scene.unk4AB788 = 1;
     this->audio.SetFadeState(1, 0, 0);
-    scene.unk4ACDBC = 0;
+    scene.musicCue = 0;
     scene.unk4A94B0 = 0x40000000;
     scene.shake.fill(Scene::ShakeEnd);
     scene.unk4ACDB8 = 3;
@@ -743,7 +743,7 @@ void Game::RefreshCursor()
         pointer.act.action = 0xF;
     }
 
-    if (this->menuState == 0)
+    if (this->menuState == Game::NoMenu)
     {
         bool button = true;
 
@@ -764,13 +764,13 @@ void Game::RefreshCursor()
             const ButtonState& click = this->controls.At(Button::MouseLeft);
 
             if (click.press != 0 && static_cast<u32>(this->state.pointerX) > 0x262 &&
-                static_cast<u32>(this->state.pointerY) < 0x18 && this->state.leader.id == 0xFFFF)
+                static_cast<u32>(this->state.pointerY) < 0x18 && this->state.leader.id == Role::NoId)
             {
-                this->menuState = 0x80000001;
+                this->menuState = Game::MenuEntering | Game::MainMenu;
             }
         }
 
-        if (this->state.leader.id != 0xFFFF && this->state.leader.unk20 >= 8)
+        if (this->state.leader.id != Role::NoId && this->state.leader.unk20 >= 8)
         {
             button = false;
         }
@@ -881,8 +881,8 @@ void Game::StartStory(int withMap)
     lead.unk20 = 0;
     lead.event = 0x64;
     lead.flags = 0;
-    this->scene.unk4B7C74 = {};
-    this->scene.unk4ACDBC = 0;
+    this->scene.musicTunes = {};
+    this->scene.musicCue = 0;
 
     if (withMap == 1)
     {
@@ -978,31 +978,31 @@ void Game::MusicCue()
     }
 
     Scene& view = this->scene;
-    u32 cue = static_cast<u32>(view.unk4ACDBC);
-    const bool second = (cue & 0x800000) != 0;
-    const u32 thirdMark = second ? 0x20000 : 0x80000;
-    const u32 secondMark = second ? 0x10000 : 0x40000;
-    std::array<i32, 6>& tunes = view.unk4B7C74;
+    u32 cue = view.musicCue;
+    const bool second = (cue & Scene::StoryMusic) != 0;
+    const u32 thirdMark = second ? Scene::StoryLoops : Scene::SceneLoops;
+    const u32 secondMark = second ? Scene::StoryRepeatFirst : Scene::SceneRepeatFirst;
+    std::array<i32, 6>& tunes = view.musicTunes;
 
-    if (tunes[3] < 0)
+    if (tunes[Scene::StoryFade] < 0)
     {
-        this->audio.SetFadeMode(tunes[3] & 0xF);
-        tunes[3] &= ~static_cast<i32>(0x80000000u);
+        this->audio.SetFadeMode(tunes[Scene::StoryFade] & Scene::FadeModeMask);
+        tunes[Scene::StoryFade] &= ~static_cast<i32>(Scene::FadePending);
     }
 
-    if (tunes[0] < 0)
+    if (tunes[Scene::SceneFade] < 0)
     {
-        this->audio.SetFadeMode(tunes[0] & 0xF);
-        tunes[0] &= ~static_cast<i32>(0x80000000u);
+        this->audio.SetFadeMode(tunes[Scene::SceneFade] & Scene::FadeModeMask);
+        tunes[Scene::SceneFade] &= ~static_cast<i32>(Scene::FadePending);
     }
 
-    int next = static_cast<int>(cue & 0xF) + 1;
+    int next = static_cast<int>(cue & Scene::TrackMask) + 1;
 
-    if (next > 2)
+    if (next > static_cast<int>(Scene::SceneSecond))
     {
         if ((cue & thirdMark) == 0)
         {
-            view.unk4ACDBC = static_cast<i32>((cue & ~0xFFu) | 3);
+            view.musicCue = (cue & ~Scene::TrackByte) | Scene::MusicStopped;
             return;
         }
 
@@ -1011,17 +1011,17 @@ void Game::MusicCue()
 
     if (next >= 1)
     {
-        const i32 tune = tunes[static_cast<std::size_t>(next + (second ? 3 : 0))];
+        const i32 tune = tunes[static_cast<std::size_t>(next) + (second ? Scene::StoryFade : Scene::SceneFade)];
 
-        if (tune != 0 && (tune & 0x8000) == 0)
+        if (tune != 0 && (tune & Scene::NoTune) == 0)
         {
             this->PlayMusic(this->MusicPath(tune));
             this->audio.SetMusicVolume(this->config.musicVolume);
-            cue = static_cast<u32>(view.unk4ACDBC) & 0xFFDFFFFFu;
+            cue = view.musicCue & ~Scene::UnkMusic200000;
         }
     }
 
-    view.unk4ACDBC = static_cast<i32>((cue & ~0xFFu) | static_cast<u32>(next));
+    view.musicCue = (cue & ~Scene::TrackByte) | static_cast<u32>(next);
 }
 
 // swd32.exe 0x0040A570 (the frame pacing, the input and the menus; the story, battle and map branches are restored with
@@ -1064,7 +1064,7 @@ void Game::MainFrame()
     this->scene.pointerRole.act.action = 0xD;
     this->MusicCue();
 
-    if (this->menuState != 0)
+    if (this->menuState != Game::NoMenu)
     {
         this->unk4CAD24 = 0x400;
         this->counterAlpha = 0x10;
@@ -1073,7 +1073,7 @@ void Game::MainFrame()
         this->mediumFont.SetAdvance(0x12);
         this->smallFont.SetAdvance(0x10);
 
-        switch (this->menuState & 0x0FFFFFFF)
+        switch (this->menuState & Game::MenuNumberMask)
         {
             case 1:
             case 3:
@@ -1092,7 +1092,7 @@ void Game::MainFrame()
         this->talk.HandlePointer();
         this->roleControl.ControlPlayer();
 
-        if (this->running != 0 && this->inactive == 0 && this->menuState == 0 && this->inBattle == 0 &&
+        if (this->running != 0 && this->inactive == 0 && this->menuState == Game::NoMenu && this->inBattle == 0 &&
             this->storyState == 0)
         {
             if (static_cast<u32>(++this->frameCounter) > 0x14)

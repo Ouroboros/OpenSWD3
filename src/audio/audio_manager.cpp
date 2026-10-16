@@ -92,7 +92,7 @@ int AudioManager::PlaySoundAt(u16 id, u16 volume)
 // swd32.exe 0x00485710: fades the music out in one update
 int AudioManager::StopMusic()
 {
-    return this->streams.FadeOut(AudioManager::MusicId, 1);
+    return this->streams.FadeOut(AudioManager::MusicId, AudioManager::ShortestFade);
 }
 
 // swd32.exe 0x00485720
@@ -124,42 +124,42 @@ int AudioManager::SetMusicVolume(int volume)
 // swd32.exe 0x00485880: mode 1 stops the music at once, mode 2 fades it over the set length
 int AudioManager::UpdateMusicFade()
 {
-    if (this->musicFadeMode == 1)
+    if (this->musicFadeMode == AudioManager::StopAtOnce)
     {
-        this->streams.FadeOut(AudioManager::MusicId, 1);
-        this->musicFadeMode = 0;
+        this->streams.FadeOut(AudioManager::MusicId, AudioManager::ShortestFade);
+        this->musicFadeMode = AudioManager::NoFade;
         this->musicFading = 0;
         return 0;
     }
 
-    if (this->musicFadeMode == 2)
+    if (this->musicFadeMode == AudioManager::FadeOverLength)
     {
         const int result = this->streams.FadeOut(AudioManager::MusicId, this->musicFadeLength);
         this->musicFading = this->musicFadeLength;
         return result;
     }
 
-    return this->musicFadeMode - 2;
+    return this->musicFadeMode - AudioManager::FadeOverLength;
 }
 
 // swd32.exe 0x004858D0: whether a mode 2 fade has finished (which ends it)
 int AudioManager::PollMusicFade()
 {
-    if (this->musicFadeMode == 0)
+    if (this->musicFadeMode == AudioManager::NoFade)
     {
         return 0;
     }
 
-    if (this->musicFadeMode != 2)
+    if (this->musicFadeMode != AudioManager::FadeOverLength)
     {
-        return this->musicFadeMode - 2;
+        return this->musicFadeMode - AudioManager::FadeOverLength;
     }
 
     const bool stopped = this->streams.IsStopped(AudioManager::MusicId);
 
     if (stopped)
     {
-        this->musicFadeMode = 0;
+        this->musicFadeMode = AudioManager::NoFade;
         this->musicFading = 0;
     }
 
@@ -171,7 +171,7 @@ int AudioManager::SetMusicFade(int mode, int length)
 {
     this->musicFadeMode = mode;
 
-    if (mode == 2)
+    if (mode == AudioManager::FadeOverLength)
     {
         this->musicFadeLength = length;
         return length;

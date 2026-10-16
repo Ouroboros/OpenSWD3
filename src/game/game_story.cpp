@@ -176,7 +176,7 @@ void Game::LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 dire
 }
 
 // swd32.exe 0x0042E790: a scripted change of map: the keys and steps stop, the map frame is hidden while LoadCity
-// runs (0xFFFF keeps the controlled role's act, action or direction)
+// runs (Talk::Keep keeps the controlled role's act, action or direction)
 bool Game::ChangeMap(int map, int x, int y, int act, int action, int direction, int options)
 {
     const Role& player = this->state.roles[static_cast<std::size_t>(this->state.playerRole)];
@@ -186,9 +186,9 @@ bool Game::ChangeMap(int map, int x, int y, int act, int action, int direction, 
     this->unk4A948C = 0;
     this->unk4A9488 = 0;
     this->scene.unk4C9A18 |= 1;
-    const i32 newAct = act == 0xFFFF ? player.act.id : act;
-    const i32 newAction = action == 0xFFFF ? player.act.action : action;
-    const i32 newDirection = direction == 0xFFFF ? player.act.direction : direction;
+    const i32 newAct = act == Talk::Keep ? player.act.id : act;
+    const i32 newAction = action == Talk::Keep ? player.act.action : action;
+    const i32 newDirection = direction == Talk::Keep ? player.act.direction : direction;
     this->LoadCity(
         map,
         x,

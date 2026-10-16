@@ -28,6 +28,7 @@ constexpr u8 kShadeWeather = 0x20;
 constexpr u8 kGlowWeather = 0x40;
 constexpr u8 kOverlaysFirst = 0x80;
 
+constexpr int kSceneFadeLength = 0xF;  // the fade of the scene music when the map changes it
 constexpr int kRecordWords = 0xB;
 constexpr u16 kTableEnd = 0xFFFF;
 constexpr u16 kNameEnd = 0x5125;
@@ -138,9 +139,9 @@ void Game::MusicZone(int map)
 
         if (entry == 0 || at + 1 >= data.size())
         {
-            view.unk4B7C74[1] = 0;
-            view.unk4B7C74[2] = 0;
-            view.unk4ACDBC &= static_cast<i32>(0xFFF3FFFFu);
+            view.musicTunes[Scene::SceneFirst] = 0;
+            view.musicTunes[Scene::SceneSecond] = 0;
+            view.musicCue &= ~(Scene::SceneLoops | Scene::SceneRepeatFirst);
             return;
         }
 
@@ -153,38 +154,38 @@ void Game::MusicZone(int map)
     const i32 first = MapsWord(data, at + 2);
     const i32 second = MapsWord(data, at + 4);
 
-    if (first != view.unk4B7C74[1] || second != view.unk4B7C74[2])
+    if (first != view.musicTunes[Scene::SceneFirst] || second != view.musicTunes[Scene::SceneSecond])
     {
-        view.unk4B7C74[1] = first;
-        view.unk4B7C74[2] = second;
+        view.musicTunes[Scene::SceneFirst] = first;
+        view.musicTunes[Scene::SceneSecond] = second;
 
-        if ((view.unk4ACDBC & 0x800000) == 0)
+        if ((view.musicCue & Scene::StoryMusic) == 0)
         {
-            view.unk4ACDBC = 0;
+            view.musicCue = 0;
 
             if (!this->audio.IsMusicStopped())
             {
-                this->audio.SetMusicFade(2, 0xF);
+                this->audio.SetMusicFade(AudioManager::FadeOverLength, kSceneFadeLength);
                 this->audio.UpdateMusicFade();
             }
 
             DebugLog(u8"StreamStartOut");
         }
 
-        view.unk4ACDBC &= 0x8FFFFF;
+        view.musicCue &= Scene::StoryMusic | (Scene::UnkMusic100000 - 1);
         const u16 marks = MapsWord(data, at + 6);
-        view.unk4ACDBC &= static_cast<i32>(0xFFF3FFFFu);
+        view.musicCue &= ~(Scene::SceneLoops | Scene::SceneRepeatFirst);
 
-        if ((marks & 0x8000) == 0)
+        if ((marks & Scene::MarksNone) == 0)
         {
-            if ((marks & 0x4000) != 0)
+            if ((marks & Scene::MarkRepeatFirst) != 0)
             {
-                view.unk4ACDBC |= 0xC0000;
+                view.musicCue |= Scene::SceneLoops | Scene::SceneRepeatFirst;
             }
 
-            if ((marks & 0x2000) != 0)
+            if ((marks & Scene::MarkLoops) != 0)
             {
-                view.unk4ACDBC |= 0x80000;
+                view.musicCue |= Scene::SceneLoops;
             }
         }
     }
@@ -419,7 +420,7 @@ void Game::SaveRoleStates(i16 x, i16 y)
     {
         Role copy = this->state.roles[static_cast<std::size_t>(index)];
 
-        if ((copy.flags & (Role::Removed | Role::Unk8000000)) != 0 || copy.id == 0xFFFF ||
+        if ((copy.flags & (Role::Removed | Role::Unk8000000)) != 0 || copy.id == Role::NoId ||
             index == this->state.playerRole)
         {
             continue;
@@ -738,12 +739,12 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
     view.unk49E0C0 = 1;
     game.SetGameFlag(map + 0x1388);
 
-    if ((options & 1) == 1)
+    if ((options & Game::SaveRoles) != 0)
     {
         this->SaveRoleStates(static_cast<i16>(x), static_cast<i16>(y));
     }
 
-    view.unk4C9A20 = 0;
+    view.encounterSteps = 0;
     view.soundRise = {};
     view.triggers.next.reset();
     view.FreeAnimations();
@@ -1171,7 +1172,7 @@ u32 Game::RollEncounter(int steps, int force)
     const std::vector<u8>& data = this->databases.mapsData;
     const u16 count = MapsWord(data, area->table);
     const u32 pick = this->random.Below(count);
-    view.unk4C9A20 = 0;
+    view.encounterSteps = 0;
     return MapsWord(data, area->table + 2 * (pick + 1));
 }
 

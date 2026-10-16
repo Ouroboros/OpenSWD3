@@ -82,7 +82,7 @@ void RoleControl::ControlPlayer()
 
     if (state.GameFlag(GameState::DebugKeys))
     {
-        const bool idle = leader.id == 0xFFFF && view.talkWindows == nullptr;
+        const bool idle = leader.id == Role::NoId && view.talkWindows == nullptr;
 
         if (input.IsKeyDown(Input::F12) && idle)
         {
@@ -229,7 +229,7 @@ void RoleControl::ControlPlayer()
         }
     }
 
-    if (controls.mouseSuppressed != 0 || !still || owner.menuState != 0)
+    if (controls.mouseSuppressed != 0 || !still || owner.menuState != Game::NoMenu)
     {
         return;
     }
@@ -270,7 +270,7 @@ void RoleControl::ControlPlayer()
         return;
     }
 
-    if (spaceDown && leader.id == 0xFFFF)
+    if (spaceDown && leader.id == Role::NoId)
     {
         const auto facing = static_cast<std::size_t>(player.act.direction) & 7;
         const u32 found =
@@ -284,9 +284,9 @@ void RoleControl::ControlPlayer()
         }
     }
 
-    if (enterDown && leader.id == 0xFFFF)
+    if (enterDown && leader.id == Role::NoId)
     {
-        owner.menuState = 0x80000001;
+        owner.menuState = Game::MenuEntering | Game::MainMenu;
         return;
     }
 
@@ -449,7 +449,7 @@ void RoleControl::ControlPlayer()
             target = found;
         }
 
-        if (leader.id == 0xFFFF)
+        if (leader.id == Role::NoId)
         {
             if (target == 0xFFFFFFFF)
             {
@@ -561,12 +561,12 @@ void RoleControl::ControlPlayer()
 
         if (!state.GameFlag(owner.currentMap + GameState::MapNoEncounter))
         {
-            ++view.unk4C9A20;
+            ++view.encounterSteps;
 
             if (owner.inBattle == 0 && state.GameFlag(GameState::Encounters) && owner.unk4A94AC == 0 &&
-                leader.id == 0xFFFF)
+                leader.id == Role::NoId)
             {
-                owner.unk4A94AC = static_cast<i32>(owner.RollEncounter(view.unk4C9A20, 0));
+                owner.unk4A94AC = static_cast<i32>(owner.RollEncounter(view.encounterSteps, 0));
 
                 if (owner.unk4A94AC != 0)
                 {

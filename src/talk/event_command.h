@@ -166,8 +166,8 @@ enum class EventCommand : u16
     WaitSpotlight = 0x98,
     ScreenAnimationB = 0x99,
     WaitAnimationB = 0x9A,
-    EnterMap22 = 0x9B,
-    ReturnFromMap22 = 0x9C,
+    EnterDemonPot = 0x9B,
+    LeaveDemonPot = 0x9C,
     SetReturnMap = 0x9D,
     CopyMedia = 0x9E,
     DeleteMedia = 0x9F,
@@ -215,7 +215,8 @@ enum class EventCommand : u16
 // The command number in the first word of a command (bits 14 and 15 mark a command in progress).
 constexpr u16 kCommandMask = 0x3FFF;
 
-constexpr int kOpcodeBytes = 2;  // the command word
+constexpr int kOpcodeBytes = 2;        // the command word
+constexpr std::size_t kWordBytes = 2;  // an operand
 
 // The bytes of each command below 0xC2 (0: its length depends on its operands), as 0x00427920 advances past them.
 constexpr std::array<u8, 0xC2> kCommandBytes = {

@@ -259,6 +259,42 @@ struct ColorFade
 struct Scene
 {
     static constexpr i16 ShakeEnd = static_cast<i16>(0xCFCF);  // ends the pairs of `shake`
+
+    // `musicCue`: the tune playing in the low byte (1, 2, MusicStopped) and how the two tunes of the scene and of the
+    // story follow each other.
+    enum MusicCue : u32
+    {
+        TrackMask = 0xF,
+        TrackByte = 0xFF,
+        StoryRepeatFirst = 0x10000,  // the first tune plays again (Rep1), else the two alternate (Cyc2)
+        StoryLoops = 0x20000,        // the tunes go on after the second
+        SceneRepeatFirst = 0x40000,
+        SceneLoops = 0x80000,
+        UnkMusic100000 = 0x100000,
+        UnkMusic200000 = 0x200000,  // cleared when a tune starts
+        UnkMusic400000 = 0x400000,
+        StoryMusic = 0x800000,  // the story's tunes play instead of the scene's
+    };
+
+    static constexpr u32 MusicStopped = 3;  // the track after the second tune when the tunes do not loop
+
+    // The slots of `musicTunes`: a fade mode, then the first and second tune, for the scene and for the story.
+    static constexpr std::size_t SceneFade = 0;
+    static constexpr std::size_t SceneFirst = 1;
+    static constexpr std::size_t SceneSecond = 2;
+    static constexpr std::size_t StoryFade = 3;
+    static constexpr std::size_t StoryFirst = 4;
+    static constexpr std::size_t StorySecond = 5;
+    static constexpr u32 FadePending = 0x80000000;  // in a fade slot: the mode is still to be set
+    static constexpr u32 FadeModeMask = 0xF;
+    static constexpr i32 NoTune = 0x8000;  // in a tune: none
+
+    // The marks of a pair of tunes (maps.dat table 2 and command ChangeMusic).
+    static constexpr u16 MarksNone = 0x8000;
+    static constexpr u16 MarkRepeatFirst = 0x4000;
+    static constexpr u16 MarkLoops = 0x2000;
+
+    static constexpr i32 EncounterStepMask = 0x7FFFFFFF;  // `encounterSteps` without bit 31
     static constexpr u16 WeatherFirstAction = 0x40;
     static constexpr u16 GlowWeatherActions = 4;   // the weather added to the screen
     static constexpr u16 ShadeWeatherActions = 8;  // the weather subtracted from it
@@ -272,8 +308,8 @@ struct Scene
     i32 unk4C97E8 = 0;
     i32 unk4C97EC = 0;
     i32 unk4A9918 = 0;
-    i32 unk4A9930 = 0;
-    i32 unk4A9938 = 0;
+    i32 returnColumn = 0;  // 0x004A9930 its tile
+    i32 returnRow = 0;     // 0x004A9938
     ActState unk4A9A30;
     std::array<ActState, 4> unk4A9120;
     ActState unk4A93E8;
@@ -286,7 +322,7 @@ struct Scene
     i32 unk4ACBCC = 0;
     Role pointerRole;  // 0x004ACCD8 the mouse pointer (act 0x2329, action 0)
     i32 unk4ACDB8 = 0;
-    i32 unk4ACDBC = 0;
+    u32 musicCue = 0;                  // 0x004ACDBC MusicCue bits and the tune playing
     u32 unk4ACE40 = 0;                 // an offset into maps.dat (its table 1)
     std::array<i16, 0x40> shake = {};  // 0x004ACE70 camera offsets of the quake in pairs, ended by ShakeEnd
     i32 shakeIndex = 0;                // 0x004B7EB0
@@ -303,7 +339,7 @@ struct Scene
     ActState unk4AD3F0;
     std::optional<std::string> unk4B74F4;  // a name of up to 0x33 bytes (flag 0x4E)
     std::optional<std::string> unk4B751C;  // (flag 0x4D)
-    std::array<i32, 6> unk4B7C74 = {};
+    std::array<i32, 6> musicTunes = {};    // 0x004B7C74 by MusicSlot
     std::array<ActState, 8> unk4B9F68;
     ActState unk4C83A8;
     i32 unk4C8BE0 = 0;
@@ -315,7 +351,7 @@ struct Scene
     i32 unk4CAD20 = 0;
     Role pointerPageRole;        // 0x004CADA0 (action 0xE)
     std::vector<u16> unk4CAE78;  // records of 8 words from maps.dat's table 0x12, their count first
-    i32 unk4CAE88 = 0;
+    i32 returnMap = 0;           // 0x004CAE88 the map to go back to from Field::DemonRefiningPot (0: none)
 
     // Set by LoadCity (0x0040C130).
     i32 unk49E0BC = 0;
@@ -367,7 +403,7 @@ struct Scene
     i32 unk4C8BD8 = 0;
     u16 weatherActions = 0;  // 0x004C97F6 how many actions follow it
     i32 unk4C9A18 = 0;
-    i32 unk4C9A20 = 0;
+    i32 encounterSteps = 0;    // 0x004C9A20 steps on the map since the last battle (bit 31 aside)
     i32 spotlightTargetY = 0;  // 0x004CAE80
     i32 unk4CC2DC = 0;
     i32 unk4A9920 = 0;                             // 0x004A9920 bit 15 kept across maps

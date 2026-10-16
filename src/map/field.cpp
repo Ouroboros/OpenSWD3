@@ -491,7 +491,7 @@ bool Field::LoadMap(u32 map, u32& systemFlags)
         ResetPlayback(role.act);
         const u16 placement = Word(block, at + 0xA);
         const u32 flags = (placement & 3) | 0x9000;
-        role.id = 0xFFFF;
+        role.id = Role::NoId;
         role.flags = flags;
         role.unk28 = static_cast<u16>(placement >> 0xC);
         role.unk2A = static_cast<u16>((placement >> 8) & 0xF);
@@ -599,7 +599,7 @@ bool Field::LoadMap(u32 map, u32& systemFlags)
         role.unk28 = static_cast<u16>(placement >> 0xC);
         role.unk2A = static_cast<u16>((placement >> 8) & 0xF);
         at += 0xA + StringLength(block, at + 0xA) + 1;
-        role.id = 0xFFFF;
+        role.id = Role::NoId;
         role.x *= 0x10;
         role.y *= 0x10;
         role.flags |= Role::Visible | Role::StepsAct;

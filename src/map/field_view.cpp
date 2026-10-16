@@ -2855,7 +2855,7 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
         view.unk4A9920,
         owner.talk.advance,
         owner.party.unk4ACDB0,
-        view.unk4C9A20 & 0x7FFFFFFF,
+        view.encounterSteps & Scene::EncounterStepMask,
         view.unk4B896C,
         owner.talk.choice
     );
@@ -2872,12 +2872,12 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
 
     auto mode = [&view](u32 used, u32 repeat) -> std::string
     {
-        if ((view.unk4ACDBC & used) == 0)
+        if ((view.musicCue & used) == 0)
         {
             return "Nil";
         }
 
-        return (view.unk4ACDBC & repeat) != 0 ? "Rep1" : "Cyc2";
+        return (view.musicCue & repeat) != 0 ? "Rep1" : "Cyc2";
     };
 
     this->DrawDebugText(
@@ -2885,14 +2885,14 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
         DebugRow(6),
         white,
         kMusicLine,
-        view.unk4B7C74[1],
-        view.unk4B7C74[2],
-        view.unk4B7C74[4],
-        view.unk4B7C74[5],
-        static_cast<u32>(static_cast<u8>(view.unk4ACDBC)),
-        (view.unk4ACDBC & 0x800000) != 0 ? kStory : kScene,
-        mode(0x80000, 0x40000),
-        mode(0x20000, 0x10000)
+        view.musicTunes[Scene::SceneFirst],
+        view.musicTunes[Scene::SceneSecond],
+        view.musicTunes[Scene::StoryFirst],
+        view.musicTunes[Scene::StorySecond],
+        view.musicCue & Scene::TrackByte,
+        (view.musicCue & Scene::StoryMusic) != 0 ? kStory : kScene,
+        mode(Scene::SceneLoops, Scene::SceneRepeatFirst),
+        mode(Scene::StoryLoops, Scene::StoryRepeatFirst)
     );
 
     if (region != 0)

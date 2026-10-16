@@ -34,6 +34,16 @@ class AudioManager
 public:
     static constexpr int MusicId = 100;
 
+    // The modes of `musicFadeMode`.
+    enum MusicFade : int
+    {
+        NoFade = 0,
+        StopAtOnce = 1,      // the music stops on the next UpdateMusicFade
+        FadeOverLength = 2,  // it fades out over musicFadeLength
+    };
+
+    static constexpr int ShortestFade = 1;  // the fade length of StopAtOnce
+
     explicit AudioManager(AudioDevice& device);
 
     AudioSystem& System();

@@ -294,8 +294,8 @@ bool Talk::SetupDialog(
     const int unit = this->unit;
     const bool hasOrigin = window.fromX != 0 || window.fromY != 0;
     const bool fixed = (window.flags & TalkWindow::FixedPlace) != 0;
-    const u32 mode = options & 0x7FFF;
-    const bool singleLine = (options & 0x10000) != 0;
+    const u32 mode = options & Talk::LayoutMask;
+    const bool singleLine = (options & Talk::OneLine) != 0;
     std::size_t textAt = 4;
 
     auto word = [&record](std::size_t index)
@@ -337,7 +337,7 @@ bool Talk::SetupDialog(
     const u32 lines = measured >> 16;
     const u32 characters = measured & 0xFFFF;
 
-    if ((options & 0x20000) == 0x20000)
+    if ((options & Talk::LogText) != 0)
     {
         this->history.emplace_back(CString(window.text, 0));
     }
@@ -448,7 +448,7 @@ bool Talk::SetupDialog(
     window.x = word(2);
     window.y = word(3);
 
-    if ((options & 0x40000) != 0)
+    if ((options & Talk::Centred) != 0)
     {
         window.x = static_cast<u16>(window.x - (window.width >> 1));
     }
@@ -510,7 +510,7 @@ bool Talk::SetupDialog(
     {
         window.y = static_cast<u16>(window.y - 0x68);
     }
-    else if ((options & 0x8000) == 0)
+    else if ((options & Talk::UseOffset) == 0)
     {
         window.x = static_cast<u16>(window.x + Talk::WindowShiftX[facing]);
         window.y = static_cast<u16>(window.y + lift + Talk::WindowShiftY[facing]);
@@ -546,8 +546,8 @@ bool Talk::SetupDialog(
 
     clamp(0x1E, 0x28);
 
-    if ((options & 0x8000) == 0 && (window.flags & TalkWindow::Overlay) == 0 && window.role != TalkWindow::NoRole &&
-        window.role < GameState::Roles)
+    if ((options & Talk::UseOffset) == 0 && (window.flags & TalkWindow::Overlay) == 0 &&
+        window.role != TalkWindow::NoRole && window.role < GameState::Roles)
     {
         const Role& role = state.roles[window.role];
         const auto screenX = static_cast<u32>(role.x - field.cameraLeft);

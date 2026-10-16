@@ -42,6 +42,12 @@ public:
 
     // The code of the system page (the title and the settings).
     static constexpr u16 SystemPage = 0xEA60;
+    // The modes of the system page (Open on SystemPage).
+    static constexpr int TitleMode = 0;
+    static constexpr int GameModeA = 1;
+    static constexpr int GameModeB = 2;
+    static constexpr int NameEntryMode = 3;
+    static constexpr int SaveMode = 4;  // `menuMode` of the save page opened by a talk command
     static constexpr int Tabs = 4;
     // swd32.exe 0x004A6A38: the tabs as the executable holds them.
     static constexpr std::array<MenuTab, Tabs> InitialTabs = {{

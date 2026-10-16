@@ -76,7 +76,24 @@ public:
     static constexpr std::string_view Executable = "swd32.exe";
     static constexpr u32 StartSound = 0x78;
     static constexpr int FrameInterval = 0x23;
-    static constexpr u32 TitleMenu = 0x80000003;
+
+    // `menuState`: the menu shown (0: none), bit 31 while it is being entered.
+    enum MenuNumber : u32
+    {
+        NoMenu = 0,
+        MainMenu = 1,
+        ItemChoiceMenu = 2,        // the items listed by talk command ItemMenu
+        TitleScreenMenu = 3,       // the system page in mode 0
+        SystemMenuA = 4,           // the system page in mode 1 (talk command EndGame)
+        SystemMenuB = 5,           // the system page in mode 2
+        NameEntryMenu = 6,         // the system page in mode 3
+        MenuOnItems = 0x40000000,  // the main menu opens on its items page
+        MenuEntering = 0x80000000,
+        MenuNumberMask = 0x0FFFFFFF,
+        MenuEnteredMask = 0x3FFFFFFF,
+    };
+
+    static constexpr u32 TitleMenu = MenuEntering | TitleScreenMenu;
     static constexpr std::u8string_view UnknownPlace = u8"不知道";  // 0x0049FEA4
 
     explicit Game(std::string installDirectory);
@@ -134,6 +151,7 @@ private:
     void FollowLeader(int index);
     int CheckCd(const std::string& root, int& drive);
     static bool ProbeFile(const std::string& path);
+    static constexpr int SaveRoles = 1;  // LoadCity option: the roles of the map left are written back
     void LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, int options);
     void PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction, int previous);
     void Destroy();
