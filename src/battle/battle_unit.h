@@ -1,0 +1,246 @@
+#pragma once
+
+#include <array>
+#include <memory>
+
+#include "core/types.h"
+#include "org/object_record.h"
+#include "res/act_state.h"
+
+namespace swd3
+{
+
+struct BattleServices;
+struct HeroRecord;
+struct Picture;
+
+// A status effect of a unit (a list node in the original: next, the effect animation, the status bits, the timer, the
+// turns left, the message and the icon). The unit holds the head as a node of its own: some walks start there.
+struct EffectNode
+{
+    std::unique_ptr<EffectNode> next;  // +0x00
+    ActState act;                      // +0x04
+    u32 bits = 0;                      // +0x9C
+    u16 timer = 0;                     // +0xA0
+    u16 turns = 0;                     // +0xA2
+    u16 message = 0;                   // +0xA4
+    u16 icon = 0;                      // +0xA6
+};
+
+// An action queued for the unit (0x1DC bytes in the original).
+struct QueuedAction
+{
+    std::unique_ptr<QueuedAction> next;  // +0x00
+    i32 kind = 0;                        // +0x04
+    i32 unk08 = 0;
+    i32 target = 0;  // +0x0C
+    i32 data = 0;    // +0x9C
+};
+
+// The placement of a unit (0x20 bytes, copied whole into the saved placement).
+struct UnitPlacement
+{
+    std::array<u8, 0x16> unk00 = {};
+    i16 x = 0;  // +0x16
+    i16 y = 0;  // +0x18
+    std::array<u8, 6> unk1A = {};
+};
+
+// The command block of a unit (0x28 bytes, cleared whole).
+struct UnitCommand
+{
+    i32 unk00 = 0;
+    u32 actionFlags = 0;  // +0x04 (0xD94)
+    i32 unk08 = 0;
+    u16 flags = 0;  // +0x0C (0xD9C)
+    std::array<u8, 4> unk0E = {};
+    u16 followAct = 0;  // +0x12 (0xDA2) the follow-up action's act
+    u16 castAct = 0;    // +0x14 (0xDA4)
+    u16 unk16 = 0;      // +0x16 (0xDA6)
+    std::array<u8, 6> unk18 = {};
+    i16 unk1E = 0;   // +0x1E (0xDAE)
+    u16 unk20 = 0;   // +0x20 (0xDB0)
+    u16 target = 0;  // +0x22 (0xDB2)
+    u8 unk24 = 0;    // +0x24 (0xDB4)
+    std::array<u8, 3> unk25 = {};
+};
+
+// A unit in battle (0x2B28 bytes in the original; the base of BattleHero and BattleEnemy). Offsets of the original are
+// given for reference; fields not yet named keep their offset.
+class BattleUnit
+{
+public:
+    static constexpr int kSlotActs = 11;
+    static constexpr i32 kHero = 1;
+
+    BattleUnit();
+    ~BattleUnit();
+    BattleUnit(const BattleUnit&) = delete;
+    BattleUnit& operator=(const BattleUnit&) = delete;
+
+    int SetTarget(int value);
+    int GaugeLength(const BattleServices& services) const;
+    i16 ResetGauge(const BattleServices& services);
+    int RandomizeGauge(BattleServices& services);
+    void GetDrawPosition(u16& x, u16& y) const;
+    void GetOffset(u16& x, u16& y) const;
+    i16 GetOrigin(u16& x, u16& y) const;
+    void GetShadowRect(BattleServices& services, std::array<i32, 4>& rect);
+    i16 Move(i16 dx, i16 dy);
+    i16 SetPosition(i16 x, i16 y);
+    i16 GetPosition(u16& x, u16& y) const;
+    const Picture* StepIdleAction(BattleServices& services);
+    const void* SelectEntry(int second) const;
+    int GetValueAAC() const;
+    int GetValueAB4() const;
+    u16 GetCommandA() const;
+    u16 GetCommandB() const;
+    u16 GetWord2A74() const;
+    u16 GetWord29A2() const;
+    int ClearIdleAction();
+    int SetCommand(int command);
+    void ClearFlag26B8();
+    void RaiseFlag26B8();
+    int Flag26B8() const;
+    int PushTarget(u16 target);
+    int StartDefeat(int kind);
+    int ToggleAF8();
+    int ResetTurn(BattleServices& services);
+    i16 Retarget(i16 target);
+    void IncreaseCounter2A76();
+    u16 Counter2A76() const;
+    void IncreaseHits();
+    i16 DecreaseHits();
+    void ClearWord29A2();
+    void SetAA8();
+    int GetAA8() const;
+    int GetAE0() const;
+
+    // +0x00..+0x0F: what the unit is.
+    u8* heroStats = nullptr;       // +0x00 a hero's battle attributes (0x60 bytes at 0x004ACF50)
+    HeroRecord* hero = nullptr;    // +0x04 a hero's party record
+    const i32* unk08 = nullptr;    // +0x08
+    ObjectRecord* data = nullptr;  // +0x0C an enemy's mon.dat object (usually `object`)
+    ObjectRecord object;           // +0x10 (its description at +0xB0)
+
+    ActState mainAct;                          // +0x2A0
+    ActState standAct;                         // +0x338
+    ActState castAct;                          // +0x3D0
+    ActState recoilAct;                        // +0x468
+    ActState attackAct;                        // +0x500
+    std::array<ActState, kSlotActs> slotActs;  // +0x630
+    ActState stepAct;                          // +0xCB8
+    UnitPlacement placement;                   // +0xD50
+    UnitPlacement savedPlacement;              // +0xD70
+    UnitCommand command;                       // +0xD90
+    std::unique_ptr<QueuedAction> actions;     // +0x236C
+    const Picture* shadowPicture = nullptr;    // +0x2548
+    const Picture* picture = nullptr;          // +0x254C the current picture
+    const Picture* unk2550 = nullptr;          // +0x2550
+    const Picture* unk2554 = nullptr;          // +0x2554
+    i32 unk2560 = 0;                           // +0x2560
+    EffectNode effects;                        // +0x2584 (the head is a node: +0x2588 its act, +0x2620 its bits)
+    i32 unk2630 = 0;
+    i32 unk2634 = 0;
+    i32 unk2638 = 0;
+    i32 unk263C = 0;
+    i32 fadeLevel = 0xF;  // +0x2668
+    i32 brightLevel = 1;  // +0x266C
+    i32 unk2670 = 0;
+    i32 unk2674 = 0;
+    u32 unk267C = 0;  // +0x267C bit 15: the follow-up action runs
+    i32 unk2690 = 0;
+    u32 drawFlags = 0;   // +0x2694 bit 0: mirrored
+    u32 frameFlags = 0;  // +0x26A0 flag 1 toggled for mirrored frames
+    u32 unk26A4 = 0;
+    i32 unk26A8 = 0;
+    i32 unk26AC = 0;
+    i32 damageCarry = 0;         // +0x26B0
+    i32 hitPointsOverride = 0;   // +0x26B4 an enemy's current hit points when set
+    u32 unk26B8 = 0;             // +0x26B8 bit 31
+    u32 colorPair = 0x062B062B;  // +0x26BC
+    u32 status = 0;              // +0x26C0 status bits (2: stone, 12: frozen, ...)
+    u32 equipmentFlags = 0;      // +0x26C8 bits 0, 2..6 from the equipment
+    u32 unk26CC = 0;
+    u16 marks = 0;  // +0x26D0 (bit 1, 0x20, 0x40: held, 0x100, bit 13)
+    i16 unk26D2 = 0;
+    u16 nudge = 0;        // +0x26D6
+    u16 drawAtSaved = 0;  // +0x26D8
+    u16 unk26DC = 0;      // +0x26DC
+    i16 unk2884 = 0;
+    u16 unk2954 = 0;
+    u16 unk2956 = 0;
+    u16 unk2958 = 0;
+    i16 unk29A0 = 0;
+    u16 unk29A2 = 0xFFFF;
+    u16 unk29A4 = 0;
+    u16 unk29A6 = 0;
+    u16 unk29A8 = 0;
+    u16 unk29AA = 0;
+    u16 overlayOffset = 0;  // +0x29AC
+    u16 unk29B0 = 0;
+    u16 originX = 0;  // +0x29B2
+    u16 origin = 0;   // +0x29B4
+    u16 unk29B6 = 0;
+    u16 extraY = 0;  // +0x29B8
+    u16 unk29BA = 0;
+    std::array<u16, 0x23> pushedTargets = {};  // +0x29C4
+    u16 unk2A0A = 4;
+    u16 actId = 0;                                                                  // +0x2A0C the unit's act
+    u16 action = 0;                                                                 // +0x2A0E
+    u16 gauge = 0;                                                                  // +0x2A12 the action gauge
+    std::array<u32, 4> targets = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};  // +0x2A56
+    u16 unk2A66 = 0;
+    u16 unk2A68 = 2;
+    u16 unk2A6A = 0x18;
+    u16 commandA = 0;  // +0x2A6C
+    u16 commandB = 0;  // +0x2A70 commands 2, 3, 6, 13, 14 and 15
+    u16 unk2A72 = 0;
+    u16 unk2A74 = 0;
+    u16 unk2A76 = 0;
+    u16 attackStage = 0;  // +0x2A78 1..5
+    u16 unk2A7A = 0;
+    u16 targetCount = 0;    // +0x2A7C
+    u16 damageSlot = 0;     // +0x2A7E
+    u16 actionCount = 0;    // +0x2A80
+    u16 pendingDamage = 0;  // +0x2A84 bit 15: healing
+    u16 unk2A86 = 0;        // +0x2A86 (high byte at +0x2A87)
+    u16 unk2A8A = 0;
+    u16 unk2A8C = 0;
+    u16 barrierTurns = 0;  // +0x2A90
+    u8 unk2A93 = 0;
+    u8 unk2A94 = 0;
+    u8 fixedPose = 0;   // +0x2A95
+    u8 healChoice = 0;  // +0x2A9C
+    i32 kind = 0;       // +0x2AA0 1: a hero
+    i32 unk2AA8 = 0;
+    i32 unk2AAC = 0;
+    i32 unk2AB0 = 0;
+    i32 unk2AB4 = 0;
+    i32 defeated = 0;  // +0x2AB8
+    i32 unk2ABC = 0;
+    i32 outline = 0;  // +0x2AC0
+    i32 unk2AC4 = 0;
+    i32 unk2AC8 = 0;
+    i32 unk2ACC = 0;
+    i32 held = 0;  // +0x2AD0
+    i32 unk2AD4 = 0;
+    i32 unk2AD8 = 0;
+    i32 unk2AE0 = 0;
+    i32 target = 0;       // +0x2AE4
+    i32 extraNumber = 0;  // +0x2AE8
+    i32 unk2AEC = 0;
+    i32 guarding = 0;  // +0x2AF0
+    i32 unk2AF4 = 0;
+    i32 unk2AF8 = 0;
+    i32 unk2B00 = 0;
+    i32 unk2B04 = 0;
+    i32 facing = 0;  // +0x2B08
+    i32 unk2B0C = 0;
+    i32 unk2B10 = 0;
+    i32 unk2B14 = 0;
+    i32 goldGuard = 0;  // +0x2B18
+    i32 name = 0;       // +0x2B20
+};
+
+}  // namespace swd3
