@@ -14,6 +14,7 @@
 #include "memmgr/memory_manager.h"
 #include "res/act.h"
 #include "res/tsw.h"
+#include "role/path_finder.h"
 #include "swd3/ddraw.h"
 
 namespace swd3 {
@@ -231,15 +232,13 @@ struct Globals {
     std::int32_t CoUninitialize;  // 0x00499338
     std::int32_t CoInitialize;  // 0x0049933C
     std::uint8_t g_499340[4];  // 0x00499340
-    std::uint8_t pad_499344[0x8];
-    std::uint8_t byte_49934C;  // 0x0049934C
-    std::uint8_t pad_49934D[0xB];
-    std::int32_t dword_499358;  // 0x00499358
-    std::uint8_t pad_49935C[0x8];
-    std::int32_t dword_499364;  // 0x00499364
-    std::uint8_t pad_499368[0x4];
-    std::uint8_t byte_49936C;  // 0x0049936C
-    std::uint8_t pad_49936D[0xB];
+    std::uint8_t pad_499344[0x4];
+    std::int8_t pathDirectionByDelta[9];  // 0x00499348 indexed by pathDeltaY + pathDeltaX + 4
+    std::uint8_t pad_499351[0x3];
+    std::int32_t pathDeltaX[3];  // 0x00499354 dx + 1: -1, 0, 1
+    std::int32_t pathDeltaY[3];  // 0x00499360 dy + 1: -3, 0, 3
+    std::uint8_t oppositeDirection[8];  // 0x0049936C
+    std::uint8_t pad_499374[0x4];
     double dbl_499378;  // 0x00499378
     std::int32_t dword_499380;  // 0x00499380
     std::uint8_t pad_499384[0x1C];
@@ -1573,10 +1572,8 @@ struct Globals {
     std::int32_t dword_49E370[5];  // 0x0049E370
     std::int32_t dword_49E384[59];  // 0x0049E384
     std::uint8_t byte_49E470[4272];  // 0x0049E470
-    char Text[4];  // 0x0049F520
-    std::uint8_t pad_49F524[0x18];
-    std::uint8_t Caption;  // 0x0049F53C
-    std::uint8_t pad_49F53D[0xB];
+    char pathOverflowText[28];  // 0x0049F520 "!!! 路徑超過510 !!!"
+    char pathOverflowCaption[12];  // 0x0049F53C
     char aAstarPathFindF[22];  // 0x0049F548
     std::uint8_t pad_49F55E[0x2];
     char aFightByMapClos[33];  // 0x0049F560
@@ -3694,13 +3691,13 @@ struct Globals {
     std::int32_t dword_4B7924;  // 0x004B7924
     std::int32_t dword_4B7928;  // 0x004B7928
     std::uint8_t pad_4B792C[0x4];
-    std::int32_t dword_4B7930;  // 0x004B7930
-    std::int32_t dword_4B7934;  // 0x004B7934
+    std::int32_t mapWidth;  // 0x004B7930 tiles
+    std::int32_t mapHeight;  // 0x004B7934 tiles
     std::int32_t dword_4B7938;  // 0x004B7938
     std::uint8_t pad_4B793C[0x4];
     std::int32_t dword_4B7940;  // 0x004B7940
     std::int32_t dword_4B7944;  // 0x004B7944
-    std::int32_t dword_4B7948;  // 0x004B7948
+    std::int32_t* mapBlocking;  // 0x004B7948 one blocking word per tile
     std::int32_t dword_4B794C;  // 0x004B794C
     std::int32_t lpBaseAddress;  // 0x004B7950
     std::uint8_t String1[64];  // 0x004B7954
@@ -4111,10 +4108,10 @@ struct Globals {
     std::int32_t dword_4CAEBC;  // 0x004CAEBC
     std::int32_t dword_4CAEC0;  // 0x004CAEC0
     std::uint8_t pad_4CAEC4[0x32C];
-    std::int32_t dword_4CB1F0;  // 0x004CB1F0
-    std::int32_t dword_4CB1F4;  // 0x004CB1F4
-    std::int32_t dword_4CB1F8;  // 0x004CB1F8
-    std::int32_t dword_4CB1FC;  // 0x004CB1FC
+    std::int32_t pathPoolUnused;  // 0x004CB1F0
+    std::int32_t pathPoolFree;  // 0x004CB1F4
+    std::int32_t pathPoolPeak;  // 0x004CB1F8
+    PathNode* pathNodePool;  // 0x004CB1FC
     std::uint8_t pad_4CB200[0xC];
     std::int32_t dword_4CB20C;  // 0x004CB20C
     std::int32_t dword_4CB210;  // 0x004CB210
@@ -5737,6 +5734,10 @@ static_assert(sizeof(Globals) == image::kSize);
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #endif
+static_assert(offsetof(Globals, pathDirectionByDelta) == 0x348);
+static_assert(offsetof(Globals, pathDeltaX) == 0x354);
+static_assert(offsetof(Globals, pathDeltaY) == 0x360);
+static_assert(offsetof(Globals, oppositeDirection) == 0x36C);
 static_assert(offsetof(Globals, tenDouble) == 0x6B0);
 static_assert(offsetof(Globals, iidDirectDraw4) == 0xD88);
 static_assert(offsetof(Globals, iidDirectDrawSurface4) == 0xDC8);
@@ -5746,6 +5747,8 @@ static_assert(offsetof(Globals, guidButton) == 0x1788);
 static_assert(offsetof(Globals, guidSysMouse) == 0x17C8);
 static_assert(offsetof(Globals, guidSysKeyboard) == 0x17D8);
 static_assert(offsetof(Globals, cppInitializers) == 0x5000);
+static_assert(offsetof(Globals, pathOverflowText) == 0x6520);
+static_assert(offsetof(Globals, pathOverflowCaption) == 0x653C);
 static_assert(offsetof(Globals, defaultFontFace) == 0x6B74);
 static_assert(offsetof(Globals, zoomAnchorX) == 0x7698);
 static_assert(offsetof(Globals, zoomAnchorY) == 0x769C);
@@ -5776,6 +5779,9 @@ static_assert(offsetof(Globals, musicFading) == 0x1E378);
 static_assert(offsetof(Globals, musicFadeMode) == 0x1E380);
 static_assert(offsetof(Globals, file_4B74A0) == 0x1E4A0);
 static_assert(offsetof(Globals, musicFadeLength) == 0x1E4F0);
+static_assert(offsetof(Globals, mapWidth) == 0x1E930);
+static_assert(offsetof(Globals, mapHeight) == 0x1E934);
+static_assert(offsetof(Globals, mapBlocking) == 0x1E948);
 static_assert(offsetof(Globals, file_4B7AD0) == 0x1EAD0);
 static_assert(offsetof(Globals, midiPlayer) == 0x1EEB8);
 static_assert(offsetof(Globals, input) == 0x1F748);
@@ -5788,6 +5794,10 @@ static_assert(offsetof(Globals, mainWindow) == 0x30A1C);
 static_assert(offsetof(Globals, textFont_4C9A28) == 0x30A28);
 static_assert(offsetof(Globals, file_4CAA28) == 0x31A28);
 static_assert(offsetof(Globals, file_4CAD50) == 0x31D50);
+static_assert(offsetof(Globals, pathPoolUnused) == 0x321F0);
+static_assert(offsetof(Globals, pathPoolFree) == 0x321F4);
+static_assert(offsetof(Globals, pathPoolPeak) == 0x321F8);
+static_assert(offsetof(Globals, pathNodePool) == 0x321FC);
 static_assert(offsetof(Globals, drawPitch) == 0x332EC);
 static_assert(offsetof(Globals, drawAlpha) == 0x332F0);
 static_assert(offsetof(Globals, drawShearDir) == 0x332F4);

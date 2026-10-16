@@ -2,6 +2,8 @@
 {0x49E000u, 28u, image::RelocKind::Code},  // cppInitializers
 {0x4A0E6Cu, 1u, image::RelocKind::Code},  // pixelConvert
 {0x4A0E70u, 1u, image::RelocKind::Code},  // pixelConvertBack
+{0x4B7948u, 1u, image::RelocKind::Data},  // mapBlocking
+{0x4CB1FCu, 1u, image::RelocKind::Data},  // pathNodePool
 {0x4CD318u, 128u, image::RelocKind::Code},  // drawRleTable
 {0x4CD518u, 128u, image::RelocKind::Code},  // drawRawTable
 {0x4CD730u, 1u, image::RelocKind::Data},  // drawSource

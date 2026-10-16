@@ -200,3 +200,17 @@ addr	type	name	module	notes
 0x004B7380	std::int32_t	musicFadeMode	audio_mss	1: stop now, 2: fade over musicFadeLength
 0x004B7378	std::int32_t	musicFading	audio_mss
 0x004B74F0	std::int32_t	musicFadeLength	audio_mss
+0x00499348	std::int8_t[9]	pathDirectionByDelta	role_path	indexed by pathDeltaY + pathDeltaX + 4
+0x00499354	std::int32_t[3]	pathDeltaX	role_path	dx + 1: -1, 0, 1
+0x00499360	std::int32_t[3]	pathDeltaY	role_path	dy + 1: -3, 0, 3
+0x0049936C	std::uint8_t[8]	oppositeDirection	role_path
+0x0049F520	char[28]	pathOverflowText	role_path	"!!! 路徑超過510 !!!"
+0x0049F53C	char[12]	pathOverflowCaption	role_path
+0x004CB1F0	std::int32_t	pathPoolUnused	role_path
+0x004CB1F4	std::int32_t	pathPoolFree	role_path
+0x004CB1F8	std::int32_t	pathPoolPeak	role_path
+0x004CB1FC	PathNode*	pathNodePool	role_path
+0x004B7930	std::int32_t	mapWidth	map	tiles
+0x004B7934	std::int32_t	mapHeight	map	tiles
+0x004B7948	std::int32_t*	mapBlocking	map	one blocking word per tile
+@include	role/path_finder.h
