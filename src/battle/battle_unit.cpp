@@ -908,4 +908,250 @@ int BattleUnit::SetB04(int value) {
     return value;
 }
 
+// Status effects are a list headed at +0x2584 (node: next, ActState at +4, bits +0x9C, timer +0xA0, turns +0xA2,
+// message +0xA4, icon +0xA6). Some walks start at the head field itself, treating the unit bytes at +0x2584 as
+// a node.
+
+// swd32.exe 0x0047E4C0
+int BattleUnit::HasEffectMessage(int16_t message) {
+    if (message == 0) {
+        return 0;
+    }
+    for (uint8_t* node = at<uint8_t*>(0x2584); node != nullptr; node = mem::ptr<uint8_t>(node, 0)) {
+        if (message == mem::s16(node, 0xA4)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// swd32.exe 0x0047E500: kinds 1, 2, 6, 7 map to effect bits 0x1000000, 0x800000, 0x400000, 0x200000 (others to 0)
+int BattleUnit::HasEffectKind(int16_t kind) {
+    uint8_t* node = at<uint8_t*>(0x2584);
+    if (node == nullptr) {
+        return 0;
+    }
+    uint32_t bits = 0;
+    switch (kind) {
+    case 1:
+        bits = 0x1000000;
+        break;
+    case 2:
+        bits = 0x800000;
+        break;
+    case 6:
+        bits = 0x400000;
+        break;
+    case 7:
+        bits = 0x200000;
+        break;
+    default:
+        break;
+    }
+    for (; node != nullptr; node = mem::ptr<uint8_t>(node, 0)) {
+        if (bits == mem::u32(node, 0x9C)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// swd32.exe 0x0047E580
+int BattleUnit::HasEffectBits(uint16_t bits) {
+    for (uint8_t* node = at<uint8_t*>(0x2584); node != nullptr; node = mem::ptr<uint8_t>(node, 0)) {
+        if (mem::u32(node, 0x9C) & bits) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// swd32.exe 0x0047E650: animates the first effect with an action id (the head field itself when +0x2588 > 0)
+// above the unit, then the stone (+0x26C0 bit 2) or freeze (bit 12) overlay at (x, y)
+int BattleUnit::DrawEffects(int x, int y) {
+    int result = at<int32_t>(0x2584);
+    if (result == 0) {
+        return 0;
+    }
+    uint8_t* node = raw(0x2584);
+    bool found = true;
+    if (at<int32_t>(0x2588) <= 0) {
+        do {
+            node = mem::ptr<uint8_t>(node, 0);
+            if (node == nullptr) {
+                found = false;
+                break;
+            }
+        } while (mem::s32(node, 4) <= 0);
+    }
+    if (found) {
+        mem::put32(node, 0x94, 0);
+        if (at<int32_t>(0x2AD0) == 1) {
+            mem::put32(node, 0x94, 1);
+        }
+        result = ActRun(reinterpret_cast<ActState*>(node + 4));
+        if (result == 0) {
+            return 0;
+        }
+        Picture* picture = TswGetPicture(mem::u16(node, 0x4E), mem::u16(node, 0x50));
+        at<Picture*>(0x254C) = picture;
+        G.drawSource = reinterpret_cast<std::uint8_t*>(picture->pixels);
+        if (at<int32_t>(0x26B8) >= 0) {
+            Picture* current = at<Picture*>(0x254C);
+            DrawPicture(at<int16_t>(0xD66) - mem::s32(node, 0x14),
+                        at<int16_t>(0xD68) - (current->height >> 1) - at<int32_t>(0x2B4), current->width,
+                        current->height, mem::s32(node, 0x1C), 0);
+        }
+    }
+    result = at<int32_t>(0x26C0);
+    Picture* body = at<Picture*>(0x2548);
+    if (result & 4) {
+        G.drawSource = reinterpret_cast<std::uint8_t*>(body->pixels);
+        const uint32_t flags = (at<uint32_t>(0x2694) & 0x80000000u) | (at<uint32_t>(0x2694) & 3) | 0x28;
+        at<uint32_t>(0x26A4) = flags;
+        return DrawPicture(x, y, body->width, body->height, static_cast<int>(flags), 0);
+    }
+    if (result & 0x1000) {
+        at<uint32_t>(0x26A4) = at<uint32_t>(0x2694) & 0x80000003u;
+        G.drawOption71C = -12;
+        G.drawOption30C = 0;
+        G.drawOption304 = -12;
+        G.drawSource = reinterpret_cast<std::uint8_t*>(body->pixels);
+        return DrawPicture(x, y, body->width, body->height, static_cast<int>(at<uint32_t>(0x26A4) | 0x10), 0);
+    }
+    return result;
+}
+
+// swd32.exe 0x0047E7F0: icons (picture 0x241D, frame icon - 1) of the effects in a row, starting with the head
+// field taken as a node
+int BattleUnit::DrawEffectIcons(int x, int y) {
+    int count = 0;
+    int result = at<int32_t>(0x2584);
+    if (result == 0) {
+        return 0;
+    }
+    for (uint8_t* node = raw(0x2584);;) {
+        const uint16_t icon = mem::u16(node, 0xA6);
+        if (icon != 0 && mem::s32(node, 0x9C) >= 0) {
+            Picture* picture = TswGetPicture(0x241D, icon - 1u);
+            at<Picture*>(0x254C) = picture;
+            G.drawSource = reinterpret_cast<std::uint8_t*>(picture->pixels);
+            Picture* current = at<Picture*>(0x254C);
+            DrawPicture(x + count * current->width, y, current->width, current->height, 0, 0);
+            ++count;
+        }
+        result = mem::s32(node, 0);
+        if (result == 0) {
+            break;
+        }
+        node = mem::ptr<uint8_t>(node, 0);
+    }
+    return result;
+}
+
+// swd32.exe 0x0047F150: applies hp damage and mp / sp changes; returns 1 when the unit falls. Heroes with the
+// gold guard (+0x2B18) pay hp damage from G.gold while it is not zero.
+int BattleUnit::Damage(int hp, int16_t mp, int16_t sp) {
+    if (hp > 0 && ((at<uint8_t>(0x26D1) & 0x80) || (at<uint32_t>(0x26C0) & 0x2000000))) {
+        return 0;
+    }
+    if (at<int32_t>(0x2AB8) == 1 || EffectFlag3() == 1) {
+        return 0;
+    }
+    if (at<int32_t>(0x2AA0) != 1) {
+        uint8_t* block = at<uint8_t*>(0xC);
+        const int32_t shield = at<int32_t>(0x26B4);
+        if (shield != 0) {
+            at<int32_t>(0x26B4) = hp < shield ? shield - hp : 0;
+            const int32_t limit = mem::s32(block, 0x4C);
+            if (at<int32_t>(0x26B4) > limit) {
+                at<int32_t>(0x26B4) = limit;
+            }
+            if (at<int32_t>(0x26B4) > 0) {
+                return 0;
+            }
+            mem::put16(block, 0x64, 0);
+            at<int32_t>(0x26B4) = 0;
+        } else {
+            const int16_t life = mem::s16(block, 0x64);
+            mem::put16(block, 0x64, hp < life ? static_cast<uint16_t>(life - hp) : 0);
+            if (mem::s16(block, 0x64) < 0) {
+                mem::put16(block, 0x64, mem::u16(block, 0x4C));
+            }
+            if (mem::s16(block, 0x64) > mem::s32(block, 0x4C)) {
+                mem::put16(block, 0x64, mem::u16(block, 0x4C));
+            }
+            if (mem::s16(block, 0x64) > 0) {
+                return 0;
+            }
+            mem::put16(block, 0x64, 0);
+        }
+        const uint8_t pose = at<uint8_t>(0x2A94);
+        at<int32_t>(0x2ABC) = 1;
+        at<uint16_t>(0x2958) = 0;
+        if (pose == 0) {
+            at<uint8_t>(0x2A94) = static_cast<uint8_t>(R250Below(10) + 1);
+        }
+        return 1;
+    }
+    uint8_t* record = at<uint8_t*>(4);
+    if (at<int32_t>(0x2B18) == 1 && G.gold != 0) {
+        G.gold -= hp;
+        if (G.gold == 0) {
+            G.gold = 0;
+        }
+    } else {
+        mem::put16(record, 4, static_cast<uint16_t>(mem::u16(record, 4) - hp));
+        if (mem::s16(record, 4) > mem::s16(record, 0xA)) {
+            mem::put16(record, 4, mem::u16(record, 0xA));
+        }
+    }
+    mem::put16(record, 6, static_cast<uint16_t>(mem::u16(record, 6) + mp));
+    if (mem::s16(record, 6) > mem::s16(record, 0xC)) {
+        mem::put16(record, 6, mem::u16(record, 0xC));
+    }
+    mem::put16(record, 8, static_cast<uint16_t>(mem::u16(record, 8) + sp));
+    if (mem::s16(record, 8) > mem::s16(record, 0xE)) {
+        mem::put16(record, 8, mem::u16(record, 0xE));
+    }
+    if (mem::s16(record, 6) <= 0) {
+        mem::put16(record, 6, 0);
+    }
+    if (mem::s16(record, 8) <= 0) {
+        mem::put16(record, 8, 0);
+    }
+    if (mem::s16(record, 4) > 0) {
+        return 0;
+    }
+    mem::put16(record, 4, 0);
+    at<int32_t>(0x2ABC) = 1;
+    if (at<int32_t>(0x2B00) == 1) {
+        at<uint8_t>(0x2A94) = 6;
+    }
+    return 1;
+}
+
+// swd32.exe 0x0047F340
+int BattleUnit::EffectFlag2() { return (at<uint8_t>(0x26C8) >> 2) & 1; }
+
+// swd32.exe 0x0047F360
+int BattleUnit::EffectFlag3() { return (at<uint8_t>(0x26C8) >> 3) & 1; }
+
+// swd32.exe 0x0047F380: a fixed pose (+0x2A95) overrides the requested one
+uint8_t BattleUnit::SetDefeatPose(uint8_t pose) {
+    at<uint8_t>(0x2A94) = pose;
+    const uint8_t fixed = at<uint8_t>(0x2A95);
+    if (fixed != 0) {
+        at<uint8_t>(0x2A94) = fixed;
+    }
+    return fixed;
+}
+
+// swd32.exe 0x0047F3A0
+uint8_t BattleUnit::SetDefeatPoseFixed(uint8_t pose) {
+    at<uint8_t>(0x2A95) = pose;
+    at<uint8_t>(0x2A94) = pose;
+    return pose;
+}
+
 }  // namespace swd3

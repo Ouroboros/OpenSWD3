@@ -242,3 +242,4 @@ addr	type	name	module	notes
 0x0053CEB8	std::int32_t	evadeDisabled	battle
 0x0053D028	std::uint8_t	evadeStreak	battle	failed evasion rolls in a row
 0x0053D029	std::uint8_t	evadeJustSucceeded	battle
+0x004ACBD0	std::int32_t	gold	game

@@ -85,6 +85,16 @@ public:
     void SetEnemyWord54(std::int16_t value);
     int SetB00(int value);
     int SetB04(int value);
+    int HasEffectMessage(std::int16_t message);
+    int HasEffectKind(std::int16_t kind);
+    int HasEffectBits(std::uint16_t bits);
+    int DrawEffects(int x, int y);
+    int DrawEffectIcons(int x, int y);
+    int Damage(int hp, std::int16_t mp, std::int16_t sp);
+    int EffectFlag2();
+    int EffectFlag3();
+    std::uint8_t SetDefeatPose(std::uint8_t pose);
+    std::uint8_t SetDefeatPoseFixed(std::uint8_t pose);
 
     template <typename T>
     T& at(std::intptr_t offset) {

@@ -1149,19 +1149,19 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1148	swd32.exe	0x0047DAD0	sub_47DAD0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1149	swd32.exe	0x0047DBD0	sub_47DBD0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1150	swd32.exe	0x0047E070	sub_47E070	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-1151	swd32.exe	0x0047E4C0	sub_47E4C0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-1152	swd32.exe	0x0047E500	sub_47E500	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-1153	swd32.exe	0x0047E580	sub_47E580	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+1151	swd32.exe	0x0047E4C0	sub_47E4C0	battle	src/battle/battle_unit.cpp:BattleUnit::HasEffectMessage	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+1152	swd32.exe	0x0047E500	sub_47E500	battle	src/battle/battle_unit.cpp:BattleUnit::HasEffectKind	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+1153	swd32.exe	0x0047E580	sub_47E580	battle	src/battle/battle_unit.cpp:BattleUnit::HasEffectBits	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1154	swd32.exe	0x0047E5C0	sub_47E5C0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-1155	swd32.exe	0x0047E650	sub_47E650	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-1156	swd32.exe	0x0047E7F0	sub_47E7F0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+1155	swd32.exe	0x0047E650	sub_47E650	battle	src/battle/battle_unit.cpp:BattleUnit::DrawEffects	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+1156	swd32.exe	0x0047E7F0	sub_47E7F0	battle	src/battle/battle_unit.cpp:BattleUnit::DrawEffectIcons	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1157	swd32.exe	0x0047E880	sub_47E880	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1158	swd32.exe	0x0047E950	sub_47E950	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-1159	swd32.exe	0x0047F150	sub_47F150	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-1160	swd32.exe	0x0047F340	sub_47F340	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-1161	swd32.exe	0x0047F360	sub_47F360	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-1162	swd32.exe	0x0047F380	sub_47F380	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-1163	swd32.exe	0x0047F3A0	sub_47F3A0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+1159	swd32.exe	0x0047F150	sub_47F150	battle	src/battle/battle_unit.cpp:BattleUnit::Damage	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+1160	swd32.exe	0x0047F340	sub_47F340	battle	src/battle/battle_unit.cpp:BattleUnit::EffectFlag2	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+1161	swd32.exe	0x0047F360	sub_47F360	battle	src/battle/battle_unit.cpp:BattleUnit::EffectFlag3	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+1162	swd32.exe	0x0047F380	sub_47F380	battle	src/battle/battle_unit.cpp:BattleUnit::SetDefeatPose	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+1163	swd32.exe	0x0047F3A0	sub_47F3A0	battle	src/battle/battle_unit.cpp:BattleUnit::SetDefeatPoseFixed	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1164	swd32.exe	0x0047F3C0	sub_47F3C0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1165	swd32.exe	0x0047F580	sub_47F580	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1166	swd32.exe	0x0047F710	sub_47F710	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	

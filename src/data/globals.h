@@ -3514,7 +3514,7 @@ struct Globals {
     std::int32_t dword_4ACBC4;  // 0x004ACBC4
     std::int32_t dword_4ACBC8;  // 0x004ACBC8
     std::int32_t dword_4ACBCC;  // 0x004ACBCC
-    std::int32_t dword_4ACBD0;  // 0x004ACBD0
+    std::int32_t gold;  // 0x004ACBD0
     std::uint8_t pad_4ACBD4[0xFC];
     std::int32_t dword_4ACCD0;  // 0x004ACCD0
     std::uint8_t pad_4ACCD4[0x4];
@@ -5730,6 +5730,7 @@ static_assert(offsetof(Globals, soundVolume) == 0x12784);
 static_assert(offsetof(Globals, graphics) == 0x12870);
 static_assert(offsetof(Globals, textFont_4AB998) == 0x12998);
 static_assert(offsetof(Globals, eventList) == 0x13AC0);
+static_assert(offsetof(Globals, gold) == 0x13BD0);
 static_assert(offsetof(Globals, memoryManager) == 0x1DC78);
 static_assert(offsetof(Globals, musicFading) == 0x1E378);
 static_assert(offsetof(Globals, musicFadeMode) == 0x1E380);
