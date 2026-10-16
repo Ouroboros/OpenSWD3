@@ -989,13 +989,13 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 988	swd32.exe	0x00470F70	sub_470F70	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 989	swd32.exe	0x00470FE0	sub_470FE0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 990	swd32.exe	0x00471080	sub_471080	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-991	swd32.exe	0x004710D0	sub_4710D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+991	swd32.exe	0x004710D0	sub_4710D0	battle	src/battle/battle_hero.cpp:BattleHero::StartExplosion	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 992	swd32.exe	0x00471270	sub_471270	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-993	swd32.exe	0x004714B0	sub_4714B0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-994	swd32.exe	0x00471540	sub_471540	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+993	swd32.exe	0x004714B0	sub_4714B0	battle	src/battle/battle_hero.cpp:BattleHero::RollLevelChance	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+994	swd32.exe	0x00471540	sub_471540	battle	src/battle/battle_hero.cpp:BattleHero::DrawRecoil	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 995	swd32.exe	0x004717D0	sub_4717D0	battle	src/battle/battle_hero.cpp:BattleHero::ActionFlag13	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 996	swd32.exe	0x004717E0	sub_4717E0	battle	src/battle/battle_hero.cpp:BattleHero::ActionFlag12	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-997	swd32.exe	0x004717F0	sub_4717F0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+997	swd32.exe	0x004717F0	sub_4717F0	battle	src/battle/battle_hero.cpp:BattleHero::DrawLeap	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 998	swd32.exe	0x00471AD0	sub_471AD0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 999	swd32.exe	0x00471D60	sub_471D60	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1000	swd32.exe	0x00471FC0	sub_471FC0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	

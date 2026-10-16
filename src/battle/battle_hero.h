@@ -29,6 +29,10 @@ public:
     int ActionFlag12();
     std::uint32_t Mark800Clear();
     int ClearActionState();
+    int StartExplosion(BattleUnit* target);
+    bool RollLevelChance(std::uint16_t level);
+    int DrawRecoil(int mode);
+    int DrawLeap(BattleUnit* target);
 
     std::uint8_t m_heroData[0x2F34 - 0x2B28];
 };
