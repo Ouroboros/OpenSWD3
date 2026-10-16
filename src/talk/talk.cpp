@@ -3,6 +3,8 @@
 #include <span>
 #include <string>
 
+#include "core/debug_log.h"
+#include "game/direction.h"
 #include "game/game.h"
 #include "ui/ui_draw.h"
 
@@ -150,6 +152,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
     const Field& field = owner.field;
     std::string& text = window.text;
     const int unit = this->unit;
+    ButtonState& space = owner.controls.At(Button::Space);
 
     auto word = [&text](std::size_t at) -> u16
     {
@@ -295,15 +298,15 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
     {
         window.delay = 0x8FFF;
         this->advance = 1;
-        this->unk4B7CCC = 1;
+        space.heldFrames = 1;
     }
 
-    if (this->unk4B7D7C == 1)
+    if (owner.controls.At(Button::Enter).heldFrames == 1)
     {
-        this->unk4B7CCC = 1;
+        space.heldFrames = 1;
     }
 
-    if ((window.flags & 0x20) == 0x20 && this->unk4B7CCC == 1)
+    if ((window.flags & 0x20) == 0x20 && space.heldFrames == 1)
     {
         window.flags |= static_cast<i32>(window.flags) < 0 ? 0x40000000u : 0x80000000u;
     }
@@ -337,7 +340,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
                 window.flags |= 0x200;
             }
 
-            if (this->unk4B7CCC != 1)
+            if (space.heldFrames != 1)
             {
                 this->advance = 0;
                 window.flags &= ~0x200u;
@@ -373,7 +376,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
                 window.flags |= 0x200;
             }
 
-            if (this->unk4B7CCC != 1)
+            if (space.heldFrames != 1)
             {
                 this->advance = 0;
                 window.flags &= ~0x200u;
@@ -508,7 +511,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
 
                         if ((window.flags & 0x10) != 0)
                         {
-                            this->unk4CAE94 = 0xC;
+                            owner.controls.mouseSuppressed = 0xC;
                             const i32 kept = owner.scene.unk4A9920 & 0x8000;
                             const i32 locks = std::max((owner.scene.unk4A9920 & ~0x8000) - 1, 0);
                             owner.scene.unk4A9920 = kept | locks;
@@ -516,8 +519,8 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
                     }
 
                     window.page = TalkWindow::kClosed;
-                    this->unk4B7CC0 = 0;
-                    this->unk4B7CCC = 0;
+                    space.press = 0;
+                    space.heldFrames = 0;
                     break;
                 }
             }
@@ -923,6 +926,227 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
         );
         owner.mediumFont.SetShadow(0);
     }
+}
+
+// swd32.exe 0x00427300: the pointer over the map. With no event running and the controlled role standing, a visible
+// role with an event under the pointer shows pointer 9 (0xA for flag 0x40, which then blocks map events); a left click
+// on it turns both to face each other and starts its event. Otherwise a clickable region of the map under the pointer
+// shows pointer 0xB and a click starts its event; elsewhere the pointer shows the direction from the controlled role,
+// the right button walks that way and a left click stands for the space key while a talk window is open. With choices
+// on screen the pointer picks the choice under it and a click ends them.
+void Talk::HandlePointer()
+{
+    Game& owner = this->game;
+    GameState& state = owner.state;
+    const Field& field = owner.field;
+    Controls& controls = owner.controls;
+    ButtonState& left = controls.At(Button::MouseLeft);
+    i32& cursor = owner.scene.pointerRole.act.action;
+    Role& player = state.roles[static_cast<std::size_t>(state.playerRole)];
+    const int cameraLeft = field.cameraLeft;
+    const int cameraTop = field.cameraTop;
+    u32 found = 0xFFFFFFFF;
+    bool regionsAllowed = true;
+
+    if (state.leader.id == 0xFFFF && (player.act.action == 0 || player.act.action == 0x34))
+    {
+        for (found = 1; found < static_cast<u32>(state.roleCount); ++found)
+        {
+            const Role& role = state.roles[found];
+
+            if ((role.flags & 0x8000) == 0 || role.event == 0 || role.unk26 != 0)
+            {
+                continue;
+            }
+
+            const Picture* picture = owner.archive.FindPicture(role.act.frame, role.act.picture);
+            const auto x = static_cast<u32>(role.x - role.act.x - cameraLeft);
+            const auto y = static_cast<u32>(role.y - role.act.y - cameraTop);
+
+            if (picture != nullptr && static_cast<u32>(state.pointerX) > x &&
+                static_cast<u32>(state.pointerX) < x + picture->width && static_cast<u32>(state.pointerY) > y &&
+                static_cast<u32>(state.pointerY) < y + picture->height)
+            {
+                break;
+            }
+        }
+
+        if (found < static_cast<u32>(state.roleCount) && (state.roles[found].flags & 0x20) == 0)
+        {
+            cursor = 9;
+
+            if ((state.roles[found].flags & 0x40) != 0)
+            {
+                cursor = 0xA;
+                regionsAllowed = false;
+            }
+        }
+    }
+
+    auto faceAway = [](int direction)
+    {
+        return (direction & 0xFFFE) + ((direction - 1) & 1);
+    };
+
+    auto standing = [&player]()
+    {
+        return player.act.action == 0x34 || player.act.action == 0;
+    };
+
+    if (!state.GameFlag(9) && !state.clickRegions.regions.empty() && standing())
+    {
+        ClickRegion* region = nullptr;
+        const int index = state.clickRegions.Find(state.pointerX, state.pointerY, region);
+        cursor = 0xD;
+
+        if (region != nullptr)
+        {
+            this->choice = index;
+
+            if (left.press != 0 && left.heldFrames == 1)
+            {
+                state.clickRegions.Free();
+                left = ButtonState{};
+                DebugLog(
+                    "\n"
+                    "Button[%d]Pressed",
+                    this->choice
+                );
+            }
+        }
+
+        return;
+    }
+
+    if (found == 0xFFFFFFFF || found == static_cast<u32>(state.roleCount) ||
+        found == static_cast<u32>(state.playerRole) || state.leader.id != 0xFFFF || state.roles[found].unk26 != 0 ||
+        left.press == 0 || left.heldFrames != 1)
+    {
+        const std::vector<u32>& blocks = state.map.blocks;
+        const auto cellX = static_cast<u32>(cameraLeft + state.pointerX) >> 4;
+        const auto cellY = static_cast<u32>(cameraTop + state.pointerY) >> 4;
+        const std::size_t cell = cellX + static_cast<std::size_t>(state.map.width) * cellY;
+        const u8 regionId = cell < blocks.size() ? static_cast<u8>(blocks[cell]) : u8{0};
+        MapRegion* region = nullptr;
+
+        if (state.leader.id == 0xFFFF && regionsAllowed && standing() && regionId != 0 &&
+            (region = owner.field.FindRegion(regionId)) != nullptr && state.GameFlag(region->flag & 0xFFFF))
+        {
+            cursor = 0xB;
+
+            if (left.press == 0 || left.heldFrames != 1)
+            {
+                return;
+            }
+
+            Role& leader = state.leader;
+            leader.unk14 = 0;
+            leader.unk20 = 0;
+            leader.flags = 0;
+            leader.event = static_cast<u16>(region->event & 0x7FFF);
+            leader.x = cameraLeft + (state.pointerX & ~0xF);
+            leader.id = 0xFFFD;
+            leader.y = cameraTop + (state.pointerY & ~0xF);
+            const int direction = state.DirectionToPlayer(cameraLeft + state.pointerX, cameraTop + state.pointerY);
+            player.act.savedDirection = player.act.direction;
+            player.act.savedAction = player.act.action;
+            player.act.action = 0;
+            player.act.direction = faceAway(direction);
+            player.act.delay = 0;
+            owner.acts.Run(player.act);
+            owner.scene.unk4A9920 = 0x8000;
+            DebugLog(
+                "\n"
+                "MapEvent.Talk[%d]",
+                leader.event
+            );
+            return;
+        }
+
+        i32 distance = 0;
+        const int angle = AngleBetween(
+            state.pointerX,
+            state.pointerY,
+            player.x + 8 * player.act.width - cameraLeft,
+            player.y + 8 * player.act.height - cameraTop,
+            distance
+        );
+        const int direction = AngleToDirection(angle);
+
+        if (cursor == 0xD)
+        {
+            cursor = direction;
+        }
+
+        const ButtonState& right = controls.At(Button::MouseRight);
+
+        if (((player.x | player.y) & 0xF) == 0 && owner.scene.unk4A9920 == 0 && right.press != 0 && distance >= 0x10)
+        {
+            if (direction == 0 || direction == 4 || direction == 7)
+            {
+                controls.At(Button::Up).press = right.press;
+            }
+
+            if (direction == 1 || direction == 5 || direction == 6)
+            {
+                controls.At(Button::Down).press = right.press;
+            }
+
+            if (direction == 2 || direction == 4 || direction == 6)
+            {
+                controls.At(Button::Left).press = right.press;
+            }
+
+            if (direction == 3 || direction == 5 || direction == 7)
+            {
+                controls.At(Button::Right).press = right.press;
+            }
+        }
+
+        ButtonState& space = controls.At(Button::Space);
+
+        if (owner.scene.talkWindows != nullptr && space.press == 0)
+        {
+            space = left;
+        }
+
+        return;
+    }
+
+    Role& target = state.roles[found];
+    const int direction = state.DirectionToPlayer(target.x + 8 * target.act.width, target.y + 8 * target.act.height);
+
+    if ((target.flags & 0x800) != 0)
+    {
+        target.act.savedAction = target.act.action;
+        target.act.savedDirection = target.act.direction;
+        target.act.action = 0;
+        target.act.delay = 0;
+        target.act.direction = direction;
+        owner.acts.Run(target.act);
+    }
+
+    player.act.action = 0;
+    player.act.direction = faceAway(direction);
+    player.act.delay = 0;
+    owner.acts.Run(player.act);
+    Role& leader = state.leader;
+    leader.unk14 = target.unk14;
+    leader.unk20 = target.unk20;
+    leader.event = target.event;
+    leader.id = target.id;
+    leader.flags = target.flags;
+    leader.x = target.x;
+    leader.y = target.y;
+    left = ButtonState{};
+    DebugLog(
+        "\n"
+        "RoleEvent.GUID[%d].Talk[%d].Ridx[%d].RArgu[%x]",
+        target.id,
+        target.event,
+        state.FindRole(target.id),
+        target.flags
+    );
 }
 
 }  // namespace swd3

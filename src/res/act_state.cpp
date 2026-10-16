@@ -9,8 +9,8 @@ namespace swd3
 void ResetPlayback(ActState& state)
 {
     state.unknown1C = -1;
-    state.unknown20 = -1;
-    state.unknown3C = -1;
+    state.savedAction = -1;
+    state.savedDirection = -1;
     state.speed = 0;
     state.frameDelay = 0;
     state.delay = 0;
@@ -35,14 +35,14 @@ void FillUnused(ActState& state)
     ones(state.y);
     ones(state.flags);
     ones(state.unknown1C);
-    ones(state.unknown20);
+    ones(state.savedAction);
     ones(state.effectA);
     ones(state.effectQ);
     ones(state.width);
     ones(state.height);
     ones(state.direction);
     ones(state.lastDirection);
-    ones(state.unknown3C);
+    ones(state.savedDirection);
     ones(state.counter);
     ones(state.position);
     ones(state.delay);

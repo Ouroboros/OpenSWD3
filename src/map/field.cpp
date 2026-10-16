@@ -423,8 +423,8 @@ bool Field::LoadMap(u32 map, u32& systemFlags)
     {
         auto node = std::make_unique<MapRegion>();
         node->id = Word(block, at);
-        node->unk08 = static_cast<i32>(Dword(block, at + 2));
-        node->unk0C = static_cast<i32>(Dword(block, at + 6));
+        node->event = static_cast<i32>(Dword(block, at + 2));
+        node->flag = static_cast<i32>(Dword(block, at + 6));
         node->unk10 = static_cast<i32>(Dword(block, at + 0xA));
         at += 0xE;
         const std::size_t length = StringLength(block, at);
@@ -719,6 +719,20 @@ void Field::ClearRoleCells(const Role& role, u16 leader)
             cell &= mask;
         }
     );
+}
+
+// swd32.exe 0x0040DC30: the region with `id` after the list head (nullptr when none)
+MapRegion* Field::FindRegion(int id)
+{
+    for (MapRegion* region = this->regions.next.get(); region != nullptr; region = region->next.get())
+    {
+        if (region->id == id)
+        {
+            return region;
+        }
+    }
+
+    return nullptr;
 }
 
 }  // namespace swd3

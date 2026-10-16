@@ -21,8 +21,8 @@ struct MapRegion
 {
     std::unique_ptr<MapRegion> next;   // +0x00
     i32 id = 0;                        // +0x04
-    i32 unk08 = 0;                     // +0x08
-    i32 unk0C = 0;                     // +0x0C
+    i32 event = 0;                     // +0x08 bit 15 aside: the event run when the region is clicked
+    i32 flag = 0;                      // +0x0C low word: the story flag that enables it
     i32 unk10 = 0;                     // +0x10
     std::array<char, 0x20> name = {};  // +0x14
 };
@@ -64,6 +64,7 @@ public:
     void CenterCamera();
     void MarkRoleCells(const Role& role, u16 leader);
     void ClearRoleCells(const Role& role, u16 leader);
+    MapRegion* FindRegion(int id);
 
     MapRegion regions;                             // 0x004ACAC0
     std::unique_ptr<MapOverlay> overlays;          // 0x004AB2F4

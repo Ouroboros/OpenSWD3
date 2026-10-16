@@ -175,7 +175,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 174	swd32.exe	0x0040DB60	sub_40DB60	game	src/game/game_state.cpp:ClickRegions::Find	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:FindClickRegion
 175	swd32.exe	0x0040DBC0	sub_40DBC0	game	src/game/game_state.cpp:ClickRegions::Free	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:FreeClickRegions
 176	swd32.exe	0x0040DC00	sub_40DC00	game	src/res/act_state.cpp:ResetPlayback	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:ResetMoveRecord
-177	swd32.exe	0x0040DC30	sub_40DC30	game		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:FindEvent
+177	swd32.exe	0x0040DC30	sub_40DC30	map	src/map/field.cpp:Field::FindRegion	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:FindEvent
 178	swd32.exe	0x0040DC50	sub_40DC50	game	src/game/game_state.cpp:GameState::GameFlag	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:GameFlag
 179	swd32.exe	0x0040DC80	sub_40DC80	game	src/game/game_state.cpp:GameState::SetGameFlag	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:SetGameFlag
 180	swd32.exe	0x0040DCB0	sub_40DCB0	game	src/game/game_state.cpp:GameState::ClearGameFlag	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:ClearGameFlag
@@ -360,7 +360,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 359	swd32.exe	0x004272D0	sub_4272D0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern; legacy: src/core/static_init.cpp:ConstructFile4CF6E0
 360	swd32.exe	0x004272E0	sub_4272E0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern; legacy: src/core/static_init.cpp:RegisterFile4CF6E0Destructor
 361	swd32.exe	0x004272F0	sub_4272F0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/core/static_init.cpp:DestroyFile4CF6E0
-362	swd32.exe	0x00427300	sub_427300	talk		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Talk:...)"
+362	swd32.exe	0x00427300	sub_427300	talk	src/talk/talk.cpp:Talk::HandlePointer	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Talk:...)"
 363	swd32.exe	0x00427920	sub_427920	talk		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Talk:...)"
 364	swd32.exe	0x0042D920	sub_42D920	talk		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between talk anchors 0x00427920 and 0x0042E480
 365	swd32.exe	0x0042DAF0	sub_42DAF0	talk		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between talk anchors 0x00427920 and 0x0042E480
