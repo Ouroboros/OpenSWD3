@@ -52,19 +52,36 @@ constexpr i16 kSpeedMask = 0x7FFF;      // the speed of a command with bit 15 se
 constexpr int kGuardTextOffset = 0x14;  // the guard text starts left of and above the unit
 constexpr i16 kGuardTextRise = 0x18;    // pixels the guard text rises before it is gone
 constexpr int kGuardTextHeight = 0x1A;
-constexpr u32 kDrainsLife = 0x100;    // command action flag 8
-constexpr u32 kDrainsSpirit = 0x200;  // flag 9
 constexpr i32 kUnkBlock38 = 0x38;
 constexpr u32 kCommandStatusBit = 0x10000000;  // command +0x08 bit 28
 constexpr u16 kAccessoryValueMask = 0x3FFF;
-constexpr u32 kHealRoll = 0xA;           // ChooseHeal: a roll of 0..4 picks the first way, 5..9 the second
+constexpr u32 kHealRoll = 0xA;         // ChooseHeal: a roll of 0..4 picks the first way, 5..9 the second
+constexpr u8 kDefeatPoses = 10;        // a defeated unit takes a pose of 1..kDefeatPoses
+constexpr u8 kFallbackDefeatPose = 6;  // or this one when none was taken
+constexpr u16 kTurnFlashFall = 8;      // the tint pulse falls from here after ResetTurn
+constexpr int kResetClearsGuard = 8;   // ResetTurn mode bit
+constexpr u16 kPose2 = 2;
+constexpr u32 kEvadeRoll = 10;       // evade chances are in tenths
+constexpr u16 kInvisibleEvades = 9;  // an invisible unit evades 9 times in kEvadeRoll
+constexpr u32 kLikelyEvadeOdds = 3;
+constexpr u8 kLowEvadeSkill = 6;  // up to this evade skill a hit also needs a roll of kLowEvadeGate or more
+constexpr u16 kLowEvadeGate = 8;
+constexpr int kTenths = 10;
+constexpr int kStatScalePercent = 10;  // StatsScaled moves the stats of a party role by this percent
+constexpr i16 kGuardPhaseEnd = 9;      // the last phase of a guard text letter
+constexpr i16 kGuardTextStep = 4;      // pixels the guard text rises a frame
+constexpr int kUnkStatus1000Tint = -12;
+constexpr int kAgilityShift = 2;  // the gauge step is agility / 4, agility / 8 when slowed
+constexpr int kSlowedAgilityShift = 3;
+constexpr int kBoostDivisor = 4;         // a boost adds a quarter of the step plus one
+constexpr u16 kHealBelowShare = 3;       // an enemy heals below a third of its hit points
+constexpr u8 kFirstHeal = 1;             // healChoice: ObjectData::healA
+constexpr u8 kSecondHeal = 2;            // ObjectData::healB
 constexpr u8 kSureEvadeStreak = 0x18;    // evades in a row from which the next hit lands
 constexpr u8 kLikelyEvadeStreak = 0x14;  // from which it lands one time in three
 constexpr int kPercent = 100;
 constexpr int kSpeedChangePercent = 0x1E;  // the gauge step a speed buff adds or takes
 constexpr int kInvisibleSlowPercent = 0xA;
-constexpr u32 kStaysAcross = 0x10;  // command action flag 4: the move starts at an edge across
-constexpr u32 kStaysDown = 0x20;    // flag 5: it starts at the top
 constexpr int kChanceScale = 0x46;  // RollChance: kChanceScale percent of the chance plus kChanceBase
 constexpr int kChanceBase = 0xA;
 }  // namespace
@@ -120,10 +137,10 @@ void BattleUnit::GetOffset(u16& x, u16& y) const
     x = this->mainAct.anchorX;
     y = this->mainAct.anchorY;
 
-    if (((this->unk2A86 >> 8) & 2) != 0)
+    if ((this->unk2A86 & BattleUnit::UnkCommandFlag200) != 0)
     {
-        x = this->slotActs[8].anchorX;
-        y = this->slotActs[8].anchorY;
+        x = this->slotActs[BattleUnit::UnkSlot8].anchorX;
+        y = this->slotActs[BattleUnit::UnkSlot8].anchorY;
     }
 
     if (this->facing == 1)
@@ -338,7 +355,7 @@ void BattleUnit::RaiseFlag26B8()
 // swd32.exe 0x004787C0
 int BattleUnit::Flag26B8() const
 {
-    return static_cast<int>(this->unk26B8 >> 31);
+    return (this->unk26B8 & kFlag26B8) != 0 ? 1 : 0;
 }
 
 // swd32.exe 0x004787D0: stores at the current count without advancing it
@@ -357,7 +374,7 @@ int BattleUnit::StartDefeat(int defeat)
 
     if (this->defeatPose == 0)
     {
-        this->defeatPose = 6;
+        this->defeatPose = kFallbackDefeatPose;
     }
 
     if (this->kind == BattleUnit::PartyRole && this->roleRecord != nullptr)
@@ -404,7 +421,7 @@ int BattleUnit::ResetTurn(BattleServices& services)
     this->brightLevel = 1;
     this->unk2954 = 0;
     this->unk2A68 = BattleUnit::FlashStart;
-    this->unk2A6A = 8;
+    this->unk2A6A = kTurnFlashFall;
     this->unk2674 = 0;
     this->action = 0;
     this->unk2690 = 0;
@@ -417,12 +434,12 @@ int BattleUnit::ResetTurn(BattleServices& services)
     this->mainAct.anchorY = 0;
     this->unk26CC = 0;
 
-    if ((mode & 8) != 0)
+    if ((mode & kResetClearsGuard) != 0)
     {
         this->guarding = 0;
     }
 
-    if ((this->command.actionFlags & 4) != 0)
+    if ((this->command.actionFlags & UnitCommand::DelaysFadeIn) != 0)
     {
         this->guarding = 0;
         this->brightLevel = BattleUnit::DelayedFadeIn;
@@ -557,7 +574,7 @@ u16 BattleUnit::GetWordDA6() const
 // swd32.exe 0x0047C690: unless flag 2 of +0x2A87 is set
 void BattleUnit::MarkAC8()
 {
-    if (((this->unk2A86 >> 8) & 2) == 0)
+    if ((this->unk2A86 & BattleUnit::UnkCommandFlag200) == 0)
     {
         this->unk2AC8 = 1;
     }
@@ -573,11 +590,12 @@ void BattleUnit::MirrorRecoil(u32 actFlags, bool forced)
     {
         if (this->facing == 1)
         {
-            this->drawFlags = (actFlags & 1) != 0 ? actFlags & ~1u : actFlags | 1;
+            this->drawFlags =
+                (actFlags & Painter::Mirror) != 0 ? actFlags & ~Painter::Mirror : actFlags | Painter::Mirror;
             this->originX = static_cast<u16>(width - static_cast<u16>(this->recoilAct.x));
         }
 
-        this->drawFlags |= 4;
+        this->drawFlags |= Painter::Additive;
     }
 
     if (this->facing == 1 && !forced)
@@ -688,7 +706,7 @@ int BattleUnit::DrawFadeIn(BattleServices& services, const BattleUnit& anchor)
 
     if (pose != 0)
     {
-        this->recoilAct.action = pose == 2 ? kPose2Action : kPoseAction;
+        this->recoilAct.action = pose == kPose2 ? kPose2Action : kPoseAction;
     }
 
     if (services.acts.Run(this->recoilAct) == 0)
@@ -851,7 +869,7 @@ int BattleUnit::RollEvade(BattleServices& services, u16 chance)
 
     if (static_cast<i32>(this->status) < 0)
     {
-        return static_cast<u16>(services.random.Below(10) + 1) <= 9 ? success() : 0;
+        return static_cast<u16>(services.random.Below(kEvadeRoll) + 1) <= kInvisibleEvades ? success() : 0;
     }
 
     const u8 skill = this->unk2A93;
@@ -863,7 +881,7 @@ int BattleUnit::RollEvade(BattleServices& services, u16 chance)
 
     if (chance != 0)
     {
-        return static_cast<u16>(services.random.Below(10)) < chance ? success() : 0;
+        return static_cast<u16>(services.random.Below(kEvadeRoll)) < chance ? success() : 0;
     }
 
     if (state.evadeJustSucceeded == 1)
@@ -881,16 +899,16 @@ int BattleUnit::RollEvade(BattleServices& services, u16 chance)
     }
     else if (streak >= kLikelyEvadeStreak)
     {
-        hit = static_cast<u16>(services.random.Below(3)) == 2;
+        hit = static_cast<u16>(services.random.Below(kLikelyEvadeOdds)) == kLikelyEvadeOdds - 1;
     }
-    else if (skill <= 6)
+    else if (skill <= kLowEvadeSkill)
     {
-        hit = static_cast<u16>(services.random.Below(10)) >= 8 &&
-              static_cast<u16>(services.random.Below(10)) < this->unk2A93;
+        hit = static_cast<u16>(services.random.Below(kEvadeRoll)) >= kLowEvadeGate &&
+              static_cast<u16>(services.random.Below(kEvadeRoll)) < this->unk2A93;
     }
     else
     {
-        hit = static_cast<u16>(services.random.Below(10)) < this->unk2A93;
+        hit = static_cast<u16>(services.random.Below(kEvadeRoll)) < this->unk2A93;
     }
 
     if (hit)
@@ -917,7 +935,7 @@ bool BattleUnit::IsDefeated() const
 // swd32.exe 0x0047CEA0
 int BattleUnit::StatusBit13() const
 {
-    return (this->marks >> 13) & 1;
+    return (this->marks & BattleUnit::DefeatedMark) != 0 ? 1 : 0;
 }
 
 // swd32.exe 0x0047CEB0
@@ -959,13 +977,13 @@ int BattleUnit::PushTargetAlt(u16 value)
 // swd32.exe 0x0047D2E0: value plus `tenths` tenths for -10..127, value * (tenths + 10) / 10 (an 8-bit sum) below
 int ScaleByTenths(i8 tenths, i16& value)
 {
-    if (tenths >= -10)
+    if (tenths >= -kTenths)
     {
-        value = static_cast<i16>(value + tenths * value / 10);
+        value = static_cast<i16>(value + tenths * value / kTenths);
         return 0;
     }
 
-    value = static_cast<i16>(value * static_cast<i8>(tenths + 10) / 10);
+    value = static_cast<i16>(value * static_cast<i8>(tenths + kTenths) / kTenths);
     return 1;
 }
 
@@ -1037,7 +1055,7 @@ int BattleUnit::ActFlag1() const
 // swd32.exe 0x0047D8A0
 int BattleUnit::ActFlag11() const
 {
-    return static_cast<int>((this->command.actionFlags >> 11) & 1);
+    return (this->command.actionFlags & UnitCommand::UnkAction800) != 0 ? 1 : 0;
 }
 
 // swd32.exe 0x0047D8B0: the speed of the command when its bit 15 is set
@@ -1050,19 +1068,19 @@ i16 BattleUnit::ActSpeed() const
 // swd32.exe 0x0047D8D0
 int BattleUnit::ActFlag0() const
 {
-    return static_cast<int>(this->command.actionFlags & 1);
+    return static_cast<int>(this->command.actionFlags & UnitCommand::UnkAction1);
 }
 
 // swd32.exe 0x0047D8E0
 int BattleUnit::ActFlag13() const
 {
-    return static_cast<int>((this->command.actionFlags >> 13) & 1);
+    return (this->command.actionFlags & UnitCommand::UnkAction2000) != 0 ? 1 : 0;
 }
 
 // swd32.exe 0x0047D8F0
 int BattleUnit::ActFlag14() const
 {
-    return static_cast<int>((this->command.actionFlags >> 14) & 1);
+    return (this->command.actionFlags & UnitCommand::UnkAction4000) != 0 ? 1 : 0;
 }
 
 // swd32.exe 0x0047D900: also restarts the main action
@@ -1244,7 +1262,7 @@ template <typename Field>
 void ScaleStat(Field& field, int sign)
 {
     const auto value = static_cast<u16>(field);
-    field = static_cast<Field>(static_cast<u16>(value + sign * (10 * value / 100)));
+    field = static_cast<Field>(static_cast<u16>(value + sign * (kStatScalePercent * value / kPercent)));
 }
 
 void ScaleRoleStats(RoleRecord& stats, int sign)
@@ -1262,7 +1280,7 @@ void BattleUnit::Announce(BattleServices& services, std::u8string_view format, i
 {
     const std::string_view name(this->displayName.data(), this->displayName.size());
     const std::string text = WinFormat(format, {name.substr(0, name.find('\0'))});
-    std::array<char, 64>& buffer = services.state.text;
+    auto& buffer = services.state.text;
     const std::size_t length = std::min<std::size_t>(text.size(), kBattleTextLimit);
     std::memcpy(buffer.data(), text.data(), length);
     buffer[length] = '\0';
@@ -1284,7 +1302,8 @@ void BattleUnit::DrawGuardText(BattleServices& services)
     const int left = this->placement.x - kGuardTextOffset;
     std::array<i16, 4>& phases = this->guardPhases;
 
-    if (phases[0] == 9 && phases[1] == 9 && phases[2] == 9 && phases[3] == 9)
+    if (phases[0] == kGuardPhaseEnd && phases[1] == kGuardPhaseEnd && phases[2] == kGuardPhaseEnd &&
+        phases[3] == kGuardPhaseEnd)
     {
         const i16 rise = this->guardRise;
 
@@ -1302,12 +1321,12 @@ void BattleUnit::DrawGuardText(BattleServices& services)
 
         if (this->held == 0)
         {
-            this->guardRise = static_cast<i16>(rise + 4);
+            this->guardRise = static_cast<i16>(rise + kGuardTextStep);
         }
 
         u32 offset = 0;
 
-        for (int letter = 0; letter < 4; ++letter)
+        for (int letter = 0; letter < static_cast<int>(phases.size()); ++letter)
         {
             const i16 current = this->guardRise;
             DrawOptions& options = services.painter.Options();
@@ -1324,7 +1343,7 @@ void BattleUnit::DrawGuardText(BattleServices& services)
     hud.digitMode = 0;
     u32 offset = hud.DrawDigit(0, 0, left, top - BattleUnit::PopOffsets[static_cast<std::size_t>(phases[0])]);
 
-    for (std::size_t letter = 1; letter < 4 && phases[0] > 0; ++letter)
+    for (std::size_t letter = 1; letter < phases.size() && phases[0] > 0; ++letter)
     {
         offset += hud.DrawDigit(
             0,
@@ -1338,15 +1357,15 @@ void BattleUnit::DrawGuardText(BattleServices& services)
             ++phases[letter];
         }
 
-        if (phases[letter] > 9)
+        if (phases[letter] > kGuardPhaseEnd)
         {
-            phases[letter] = 9;
+            phases[letter] = kGuardPhaseEnd;
         }
     }
 
-    if (++phases[0] > 9)
+    if (++phases[0] > kGuardPhaseEnd)
     {
-        phases[0] = 9;
+        phases[0] = kGuardPhaseEnd;
     }
 }
 
@@ -1529,7 +1548,7 @@ int BattleUnit::AddBuff(BattleServices& services, const SkillScript& skill)
 {
     const u32 bits = skill.statusBits;
 
-    if (bits == 0 && (skill.flags & 8) == 0)
+    if (bits == 0 && (skill.flags & SkillScript::ElementBuff) == 0)
     {
         return 0;
     }
@@ -1582,7 +1601,7 @@ int BattleUnit::AddBuff(BattleServices& services, const SkillScript& skill)
             node->bits = skill.statusBits;
         }
 
-        if ((skill.flags & 8) != 0)
+        if ((skill.flags & SkillScript::ElementBuff) != 0)
         {
             node->element = skill.element;
         }
@@ -1592,27 +1611,27 @@ int BattleUnit::AddBuff(BattleServices& services, const SkillScript& skill)
 
     switch (skill.element)
     {
-        case 1:
+        case SkillScript::Fire:
             resistUp = BattleMessages::FireResistUp;
             break;
 
-        case 2:
+        case SkillScript::Water:
             resistUp = BattleMessages::WaterResistUp;
             break;
 
-        case 5:
+        case SkillScript::Poison:
             resistUp = BattleMessages::PoisonResistUp;
             break;
 
-        case 6:
+        case SkillScript::Light:
             resistUp = BattleMessages::LightResistUp;
             break;
 
-        case 7:
+        case SkillScript::Dark:
             resistUp = BattleMessages::DarkResistUp;
             break;
 
-        case 9:
+        case SkillScript::Physical:
             resistUp = BattleMessages::PhysicalResistUp;
             break;
 
@@ -1733,19 +1752,19 @@ int BattleUnit::HasEffectKind(i16 kind) const
 
     switch (kind)
     {
-        case 1:
+        case SkillScript::Fire:
             bits = SkillScript::FireAttackUp;
             break;
 
-        case 2:
+        case SkillScript::Water:
             bits = SkillScript::IceAttackUp;
             break;
 
-        case 6:
+        case SkillScript::Light:
             bits = SkillScript::LightAttackUp;
             break;
 
-        case 7:
+        case SkillScript::Dark:
             bits = SkillScript::DarkAttackUp;
             break;
 
@@ -1851,7 +1870,7 @@ void BattleUnit::DrawEffects(BattleServices& services, int x, int y)
 
     const Picture* body = this->shadowPicture;
 
-    if ((this->status & 4) != 0)
+    if ((this->status & BattleUnit::UnkStatus4) != 0)
     {
         const u32 flags =
             (this->drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::GrayUnder;
@@ -1870,9 +1889,9 @@ void BattleUnit::DrawEffects(BattleServices& services, int x, int y)
     {
         this->unk26A4 = this->drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip);
         DrawOptions& options = services.painter.Options();
-        options.tintRed = -12;
+        options.tintRed = kUnkStatus1000Tint;
         options.tintGreen = 0;
-        options.tintBlue = -12;
+        options.tintBlue = kUnkStatus1000Tint;
 
         if (body != nullptr)
         {
@@ -1942,25 +1961,25 @@ void BattleUnit::ExpireEffects(BattleServices& services, int clearAll)
             switch (node->bits)
             {
                 case SkillScript::UnkAilment1:
-                    this->status &= ~1u;
+                    this->status &= ~BattleUnit::UnkStatus1;
                     clearHeld = (this->status & (BattleUnit::UnkStatus4 | BattleUnit::UnkStatus8)) == 0;
                     this->held = 0;
                     break;
 
                 case SkillScript::UnkAilment2:
-                    this->marks = static_cast<u16>(this->marks & ~2);
-                    this->status &= ~2u;
+                    this->marks = static_cast<u16>(this->marks & ~BattleUnit::UnkMark2);
+                    this->status &= ~BattleUnit::UnkStatus2;
                     break;
 
                 case SkillScript::UnkAilment4:
-                    this->status &= ~4u;
-                    clearHeld = (this->status & 9) == 0;
+                    this->status &= ~BattleUnit::UnkStatus4;
+                    clearHeld = (this->status & (BattleUnit::UnkStatus1 | BattleUnit::UnkStatus8)) == 0;
                     this->held = 0;
                     break;
 
                 case SkillScript::UnkAilment8:
-                    this->status &= ~8u;
-                    clearHeld = (this->status & 5) == 0;
+                    this->status &= ~BattleUnit::UnkStatus8;
+                    clearHeld = (this->status & (BattleUnit::UnkStatus1 | BattleUnit::UnkStatus4)) == 0;
                     this->held = 0;
                     break;
 
@@ -2166,7 +2185,7 @@ int BattleUnit::Damage(BattleServices& services, int hitPoints, i16 spirit, i16 
 
         if (pose == 0)
         {
-            this->defeatPose = static_cast<u8>(services.random.Below(10) + 1);
+            this->defeatPose = static_cast<u8>(services.random.Below(kDefeatPoses) + 1);
         }
 
         return 1;
@@ -2223,7 +2242,7 @@ int BattleUnit::Damage(BattleServices& services, int hitPoints, i16 spirit, i16 
 
     if (this->unk2B00 == 1)
     {
-        this->defeatPose = 6;
+        this->defeatPose = kFallbackDefeatPose;
     }
 
     return 1;
@@ -2232,13 +2251,13 @@ int BattleUnit::Damage(BattleServices& services, int hitPoints, i16 spirit, i16 
 // swd32.exe 0x0047F340
 int BattleUnit::EffectFlag2() const
 {
-    return static_cast<int>((this->equipmentFlags >> 2) & 1);
+    return (this->equipmentFlags & BattleUnit::BladeReturn) != 0 ? 1 : 0;
 }
 
 // swd32.exe 0x0047F360
 int BattleUnit::EffectFlag3() const
 {
-    return static_cast<int>((this->equipmentFlags >> 3) & 1);
+    return (this->equipmentFlags & BattleUnit::Unk36) != 0 ? 1 : 0;
 }
 
 // swd32.exe 0x0047F380: a fixed pose overrides the requested one
@@ -2269,7 +2288,7 @@ void BattleUnit::Reset(BattleServices& services)
     this->recoilAct = ActState{};
     this->attackAct = ActState{};
     this->unk598 = ActState{};
-    this->slotActs[10] = ActState{};
+    this->slotActs[BattleUnit::SlotActs - 1] = ActState{};
 
     for (int slot = 0; slot < kSlotActsPerTurn; ++slot)
     {
@@ -2431,16 +2450,16 @@ int BattleUnit::AdvanceGauge(const BattleServices& services, int boost)
 
     if (gauge < static_cast<u32>(services.state.gaugeFull))
     {
-        int step = this->data->data.agility >> 2;
+        int step = this->data->data.agility >> kAgilityShift;
 
         if ((this->status & BattleUnit::Slowed) != 0)
         {
-            step = this->data->data.agility >> 3;
+            step = this->data->data.agility >> kSlowedAgilityShift;
         }
 
         if (boost == 1)
         {
-            step += step / 4 + 1;
+            step += step / kBoostDivisor + 1;
         }
 
         int gain = 0;
@@ -2564,17 +2583,18 @@ u16 BattleUnit::DrainKind() const
 {
     const u32 flags = this->command.actionFlags;
 
-    if ((flags & kDrainsLife) != 0)
+    if ((flags & UnitCommand::DrainsLife) != 0)
     {
-        return (this->equipmentFlags & BattleUnit::LifeDrain) != 0 ? u16{8} : u16{1};
+        return (this->equipmentFlags & BattleUnit::LifeDrain) != 0 ? u16{BattleUnit::DrainedLife}
+                                                                   : u16{BattleUnit::DrainedHitPoints};
     }
 
-    if ((flags & kDrainsSpirit) != 0)
+    if ((flags & UnitCommand::DrainsSpirit) != 0)
     {
-        return 2;
+        return BattleUnit::DrainedSpirit;
     }
 
-    return static_cast<u16>((flags >> 8) & 4);
+    return (flags & UnitCommand::DrainsStamina) != 0 ? u16{BattleUnit::DrainedStamina} : u16{0};
 }
 
 // swd32.exe 0x00483820
@@ -2585,7 +2605,7 @@ int BattleUnit::StatusBit5Or8() const
         return 1;
     }
 
-    return static_cast<int>((this->status >> 8) & 1);
+    return (this->status & BattleUnit::UnkStatus100) != 0 ? 1 : 0;
 }
 
 // swd32.exe 0x00483FD0
@@ -2648,13 +2668,13 @@ bool BattleUnit::HasBlock38() const
 // swd32.exe 0x004717D0
 int BattleUnit::Word2A86Bit13() const
 {
-    return (this->unk2A86 >> 13) & 1;
+    return (this->unk2A86 & BattleUnit::UnkCommandFlag2000) != 0 ? 1 : 0;
 }
 
 // swd32.exe 0x004717E0
 int BattleUnit::Word2A86Bit12() const
 {
-    return (this->unk2A86 >> 12) & 1;
+    return (this->unk2A86 & BattleUnit::UnkCommandFlag1000) != 0 ? 1 : 0;
 }
 
 // swd32.exe 0x00482030: the main act started over (cleared, the cast act marked done and +0x26D2 set) when it waits or
@@ -2680,7 +2700,7 @@ int BattleUnit::CommandStatusBit() const
         return 1;
     }
 
-    return static_cast<int>((this->command.actionFlags >> 12) & 1);
+    return (this->command.actionFlags & UnitCommand::UnkAction1000) != 0 ? 1 : 0;
 }
 
 // swd32.exe 0x00476900
@@ -2830,7 +2850,7 @@ void BattleUnit::LoadSkillAction(Database& database, u16 id, u16& act)
     this->skillName[length] = '\0';
     this->LoadCommand(database, this->object.data.unk3E);
     this->unk29A4 = static_cast<u16>(this->unk29A4 + (this->command.unk0E[0] | this->command.unk0E[1] << 8));
-    this->SetCommand(2);
+    this->SetCommand(BattleUnit::UnkCommand2);
     this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
 }
 
@@ -2840,13 +2860,13 @@ u16 BattleUnit::PrepareCommand(Database& database)
 {
     if (this->unk2A8C != 0)
     {
-        if ((this->command.flags & 2) == 0)
+        if ((this->command.flags & UnitCommand::UnkFlag2) == 0)
         {
             return 0;
         }
 
         this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
-        this->SetCommand(2);
+        this->SetCommand(BattleUnit::UnkCommand2);
         return this->command.castAct;
     }
 
@@ -2864,11 +2884,11 @@ bool BattleUnit::ChooseHeal(BattleServices& services)
 {
     u16 roll = static_cast<u16>(services.random.Below(kHealRoll));
 
-    if (roll <= 4)
+    if (roll < kHealRoll / 2)
     {
         roll = 0;
     }
-    else if (roll <= 9)
+    else if (roll < kHealRoll)
     {
         roll = 1;
     }
@@ -2881,7 +2901,7 @@ bool BattleUnit::ChooseHeal(BattleServices& services)
         hitPoints = this->hitPointsOverride;
     }
 
-    if (hitPoints >= object.maxHitPoints / 3)
+    if (hitPoints >= object.maxHitPoints / kHealBelowShare)
     {
         return false;
     }
@@ -2892,13 +2912,13 @@ bool BattleUnit::ChooseHeal(BattleServices& services)
     {
         if (object.healA != 0 && free)
         {
-            this->healChoice = 1;
+            this->healChoice = kFirstHeal;
             return true;
         }
     }
     else if (roll == 1 && object.healB != 0 && free)
     {
-        this->healChoice = 2;
+        this->healChoice = kSecondHeal;
         return true;
     }
 
@@ -2909,11 +2929,11 @@ bool BattleUnit::ChooseHeal(BattleServices& services)
 // an enemy or of a role facing left; one that does not move down (flag 5) at y 0
 void BattleUnit::ClearMoveAxes(u16& x, u16& y) const
 {
-    if ((this->command.actionFlags & kStaysAcross) != 0)
+    if ((this->command.actionFlags & UnitCommand::StaysAcross) != 0)
     {
         x = 0;
 
-        if ((this->command.flags & 1) != 0)
+        if ((this->command.flags & UnitCommand::TargetsUnit) != 0)
         {
             if (this->kind == BattleUnit::PartyRole && this->facing == 1)
             {
@@ -2927,7 +2947,7 @@ void BattleUnit::ClearMoveAxes(u16& x, u16& y) const
         }
     }
 
-    if ((this->command.actionFlags & kStaysDown) != 0)
+    if ((this->command.actionFlags & UnitCommand::StaysDown) != 0)
     {
         y = 0;
     }

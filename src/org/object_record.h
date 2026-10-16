@@ -117,6 +117,21 @@ struct SkillScript
     };
 
     static constexpr u32 NoAilmentFlag = 0x80;  // in `flags`: the skill brings no ailment
+    static constexpr u32 ElementBuff = 8;       // in `flags`: the buff raises the resistance to `element`
+
+    // The values of `element` (names from the battle messages of each resistance).
+    enum Element : u16
+    {
+        Fire = 1,
+        Water = 2,  // its attack buff is named ice
+        UnkElement3 = 3,
+        UnkElement4 = 4,
+        Poison = 5,
+        Light = 6,
+        Dark = 7,
+        UnkElement8 = 8,
+        Physical = 9,
+    };
 
     // The bits of `statusBits` (kept by the effect nodes of a unit, EffectNode::bits).
     enum Buff : u32

@@ -85,6 +85,29 @@ struct UnitPlacement
 // The command block of a unit (0x28 bytes, cleared whole).
 struct UnitCommand
 {
+    // The bits of `actionFlags` (flag n is bit n).
+    enum ActionFlag : u32
+    {
+        UnkAction1 = 1,
+        DelaysFadeIn = 4,    // the unit fades in later (BattleUnit::DelayedFadeIn)
+        StaysAcross = 0x10,  // the move starts at an edge across
+        StaysDown = 0x20,    // the move starts at the top
+        DrainsLife = 0x100,
+        DrainsSpirit = 0x200,
+        DrainsStamina = 0x400,
+        UnkAction800 = 0x800,
+        UnkAction1000 = 0x1000,
+        UnkAction2000 = 0x2000,
+        UnkAction4000 = 0x4000,
+    };
+
+    // The bits of `flags`.
+    enum Flag : u16
+    {
+        TargetsUnit = 1,  // a target command (ClearMoveAxes)
+        UnkFlag2 = 2,
+    };
+
     i32 unk00 = 0;
     u32 actionFlags = 0;  // +0x04 (0xD94)
     i32 unk08 = 0;
@@ -145,11 +168,14 @@ public:
     // buffs announce (AddBuff 0x0047BC50) and their effects.
     enum Status : u32
     {
+        UnkStatus1 = 1,
+        UnkStatus2 = 2,
         UnkStatus4 = 4,
         UnkStatus8 = 8,
         UnkStatus10 = 0x10,  // cleared with mark UnkMark100
         UnkStatus20 = 0x20,
-        Slowed = 0x40,        // ailment 0x40: the gauge fills at half speed
+        Slowed = 0x40,  // ailment 0x40: the gauge fills at half speed
+        UnkStatus100 = 0x100,
         StatsScaled = 0x200,  // a party role's attributes are scaled (undone when it ends)
         UnkStatus1000 = 0x1000,
         DefenseDown = 0x100000,
@@ -180,11 +206,24 @@ public:
     // BattleUnit::unk2A86 bits.
     enum CommandFlag : u16
     {
-        UnkCommandFlag800 = 0x800,    // set by command 6
+        UnkCommandFlag200 = 0x200,  // GetOffset uses slot act UnkSlot8
+        UnkCommandFlag800 = 0x800,  // set by command 6
+        UnkCommandFlag1000 = 0x1000,
+        UnkCommandFlag2000 = 0x2000,
         UnkCommandFlag4000 = 0x4000,  // set by commands 14 and 15
         UnkCommandFlag8000 = 0x8000,  // set when the skill action is loaded
     };
 
+    // BattleUnit::DrainKind values.
+    enum Drain : u16
+    {
+        DrainedHitPoints = 1,
+        DrainedSpirit = 2,
+        DrainedStamina = 4,
+        DrainedLife = 8,
+    };
+
+    static constexpr int UnkSlot8 = 8;
     static constexpr u32 NoTarget = 0xFFFFFFFF;
     static constexpr u16 NoUnk29A2 = 0xFFFF;
     static constexpr u16 MaxTargets = 0x23;      // pushedTargets entries
