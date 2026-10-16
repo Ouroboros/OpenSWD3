@@ -45,3 +45,7 @@ GOLDEN_OUT=<工作区>/tests/golden/draw_golden.txt SWD3_GAME_DIR=/mnt/e/Game/sw
 ## 寻路（tests/golden/path_golden.txt）
 
 场景定义：`tests/golden/path_scenarios.h`（随机地图，四周四格宽的阻挡边框）。生成器：`path_golden_legacy.cpp`，运行 `./swd3_tests "golden: legacy path finder"`（不需要游戏数据）。旧实现一侧的阻挡数组前后补上全阻挡格。
+
+## mon.dat 与 level.dat（tests/golden/database_golden.txt）
+
+场景定义：`tests/golden/database_scenarios.h`。生成器：`database_golden_legacy.cpp`，运行 `./swd3_tests "golden: legacy database"`。对象编号 1–2000 全部比较；技能编号 0–2000 中只比较脚本在 0x400 字节内以 5 结束的编号（其余不是技能，两侧都会读出缓冲区）；等级表比较第 0–4 组（游戏使用 1–4 组，第 5 组在表外）。
