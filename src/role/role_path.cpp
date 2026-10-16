@@ -1,5 +1,6 @@
 #include "role/role_path.h"
 
+#include <climits>
 #include <cmath>
 #include <cstdlib>
 #include <span>
@@ -7,6 +8,7 @@
 #include "core/debug_log.h"
 #include "core/fault.h"
 #include "core/format.h"
+#include "core/words.h"
 #include "crt/msvc.h"
 #include "game/game.h"
 #include "map/blocking_map.h"
@@ -21,6 +23,88 @@ namespace
 constexpr u16 kFree = 0xFFFF;
 constexpr u8 kPathEnd = 0xFF;
 constexpr u32 kFastWalk = 0x4000000;
+constexpr u32 kBlockedTries = 8;  // after this many blocked steps a role walks through other roles
+constexpr i32 kWalkAction = 8;
+constexpr int kNearMargin = 0x50;  // a follower or moved role appears this far around the camera
+constexpr int kFarMargin = 0xA0;
+constexpr int kStepsPerTile = MapHeader::TileSize / 4;  // RolePath::StepX and StepY move 4 pixels
+constexpr int kFollowerSpeed = 2;
+constexpr u32 kTrailSpacing = 2;   // the trail points between two followers
+constexpr u32 kWanderRoll = 0x50;  // a wandering role rolls 0..79: directions below 8, a rest above kRestAbove
+constexpr int kRestAbove = 0x3C;
+constexpr int kUnkMoveSlot = 0x20;  // FindPath: false only for this slot, which the full table never reaches
+constexpr int kFastWalkGap = 0x80;  // a follower further than this from its target walks fast
+
+// path.dat: a table of the start of every path (dwords relative to kPathData), the paths from kPathData. A path is a
+// list of commands: a command word, then word operands; jump targets are dwords.
+constexpr std::size_t kPathData = 0x200;
+constexpr std::size_t kPathWordBytes = sizeof(u16);
+constexpr std::size_t kPathTargetBytes = sizeof(u32);
+constexpr int kOpcodeWords = 1;
+constexpr int kTargetWords = 2;
+constexpr int kStepShift = 1;  // path offsets in bytes to steps in words
+constexpr u16 kFlagListEnd = 0xFFFF;
+constexpr u16 kKeepAct = 0xFFFF;      // SetAct: the act, action or direction left as it is
+constexpr u16 kLabelEnd = 0x5125;     // "%Q" ends the text of a label
+constexpr u16 kLabelColors = 0xA;     // a label colour past it becomes 0
+constexpr i32 kVariableLimit = 1000;  // path variables are capped here
+
+enum class PathCommand : u16
+{
+    Restart = 0,
+    Stop = 1,
+    SetAction = 2,
+    SetDirection = 3,
+    SetCount = 4,
+    WaitCount = 5,
+    WaitCountAnimated = 6,
+    FindPath = 7,
+    Step = 8,
+    WaitClock = 9,
+    JumpIfClockReached = 0xA,
+    SetClock = 0xB,
+    Jump = 0xC,
+    JumpIfFlag = 0xD,
+    JumpUnlessFlag = 0xE,
+    JumpIfAllFlags = 0xF,
+    JumpIfAnyFlag = 0x10,
+    SetFlag = 0x11,
+    ClearFlag = 0x12,
+    SetVariable = 0x13,
+    AddVariable = 0x14,
+    SubtractVariable = 0x15,
+    JumpIfVariableAtLeast = 0x16,
+    JumpIfVariableAtMost = 0x17,
+    StartPath = 0x18,
+    JumpAfterMark = 0x19,
+    MarkClock = 0x1A,
+    HideRole = 0x1B,
+    ShowRole = 0x1C,
+    PlaceRole = 0x1D,
+    Wander = 0x1E,
+    SetAct = 0x1F,
+    PlaySound = 0x20,
+    FollowRole = 0x21,
+    ShowLabel = 0x22,
+    ClearLabel = 0x23,
+    FollowBeside = 0x24,
+};
+
+// The words of a command with `operands` word operands and `targets` jump targets.
+constexpr int CommandWords(int operands, int targets = 0)
+{
+    return kOpcodeWords + operands + targets * kTargetWords;
+}
+
+u16 PathWord(std::span<const u8> data, std::size_t at)
+{
+    return at + 1 < data.size() ? static_cast<u16>(data[at] | data[at + 1] << CHAR_BIT) : u16{0};
+}
+
+u32 PathDword(std::span<const u8> data, std::size_t at)
+{
+    return MakeWords(PathWord(data, at + kPathWordBytes), PathWord(data, at));
+}
 
 }  // namespace
 
@@ -118,19 +202,28 @@ bool RolePath::FindPath(int index, u16 tileX, u16 tileY)
     {
         if (++slot >= RolePath::Moves)
         {
-            return slot != 0x20;
+            return slot != kUnkMoveSlot;
         }
     }
 
     Role& role = state.roles[static_cast<std::size_t>(index)];
     const BlockingMap grid = this->Grid();
     PathFinder finder(this->game.pathNodes, grid, this->game.errors);
-    const u32 x = 0x10u * tileX;
-    const u32 y = 0x10u * tileY;
+    const u32 x = MapHeader::TileSize * tileX;
+    const u32 y = MapHeader::TileSize * tileY;
 
-    if (x > 0x10u * static_cast<u32>(state.map.width) || y > 0x10u * static_cast<u32>(state.map.height))
+    if (x > MapHeader::TileSize * static_cast<u32>(state.map.width) ||
+        y > MapHeader::TileSize * static_cast<u32>(state.map.height))
     {
-        DebugLog(u8"path target outside", slot, index, role.x >> 4, role.y >> 4, x >> 4, y >> 4);
+        DebugLog(
+            u8"path target outside",
+            slot,
+            index,
+            role.x >> MapHeader::TileShift,
+            role.y >> MapHeader::TileShift,
+            x >> MapHeader::TileShift,
+            y >> MapHeader::TileShift
+        );
         return false;
     }
 
@@ -161,16 +254,16 @@ bool RolePath::FindPath(int index, u16 tileX, u16 tileY)
             u8"path not found",
             slot,
             this->RoleId(static_cast<u32>(index)),
-            role.x >> 4,
-            role.y >> 4,
-            x >> 4,
-            y >> 4
+            role.x >> MapHeader::TileShift,
+            role.y >> MapHeader::TileShift,
+            x >> MapHeader::TileShift,
+            y >> MapHeader::TileShift
         );
         role.x = static_cast<i32>(x);
         role.y = static_cast<i32>(y);
     }
 
-    return slot != 0x20;
+    return slot != kUnkMoveSlot;
 }
 
 // swd32.exe 0x00406580: the next step of role `index` along its move: held while it talks; at the path's end the move
@@ -203,7 +296,7 @@ int RolePath::Step(int index)
     if (slot == RolePath::Moves)
     {
         DebugLog(u8"no path", this->RoleId(static_cast<u32>(index)), role.act.id, role.act.action, role.unk1C);
-        return 2;
+        return RolePath::PathEnded;
     }
 
     MoveRecord& move = state.moves[static_cast<std::size_t>(slot)];
@@ -219,10 +312,10 @@ int RolePath::Step(int index)
     if (direction == kPathEnd)
     {
         move.Clear();
-        return 2;
+        return RolePath::PathEnded;
     }
 
-    const u32 mask = move.unk1A > 8 ? MapHeader::Wall : MapHeader::Wall | MapHeader::SolidRole;
+    const u32 mask = move.unk1A > kBlockedTries ? MapHeader::Wall : MapHeader::Wall | MapHeader::SolidRole;
     const std::ptrdiff_t cell = role.cell != nullptr ? role.cell - state.map.blocks.data() : 0;
     const u32 probe = this->game.field.ProbeCells(cell, role.act.width, role.act.height, mask);
     move.step |= MoveRecord::Done;
@@ -230,7 +323,7 @@ int RolePath::Step(int index)
     move.stepY = 0;
     move.stepX = 0;
 
-    if (direction < 8 && (probe & RolePath::BlockedBy[direction]) == 0)
+    if (direction < RolePath::Directions && (probe & RolePath::BlockedBy[direction]) == 0)
     {
         move.step &= static_cast<u16>(~MoveRecord::Done);
         move.unk1A = 0;
@@ -247,16 +340,17 @@ std::size_t RolePath::JumpTo(int index, u32 offset)
 {
     Role& role = this->game.state.roles[static_cast<std::size_t>(index)];
     const std::span<const u8> data = this->game.databases.paths.View();
-    const std::size_t table = 0x200 + 4 * static_cast<std::size_t>(role.unk1C);
+    const std::size_t table = kPathTargetBytes * static_cast<std::size_t>(role.unk1C);
     u32 start = 0;
 
-    if (table + 4 <= data.size())
+    if (kPathData + table + kPathTargetBytes <= data.size())
     {
-        start = static_cast<u32>(data[table] | data[table + 1] << 8 | data[table + 2] << 16 | data[table + 3] << 24);
+        start = PathDword(data, kPathData + table);
     }
 
-    role.unk18 = static_cast<i32>(static_cast<std::ptrdiff_t>(offset) - static_cast<std::ptrdiff_t>(start)) >> 1;
-    return 0x200 + static_cast<std::size_t>(offset);
+    role.unk18 =
+        static_cast<i32>(static_cast<std::ptrdiff_t>(offset) - static_cast<std::ptrdiff_t>(start)) >> kStepShift;
+    return kPathData + static_cast<std::size_t>(offset);
 }
 
 // swd32.exe 0x00406770: a random step of role `index` (four in five frames it rests): a move of one step is taken
@@ -267,7 +361,7 @@ int RolePath::Wander(int index)
     GameState& state = this->game.state;
     Role& role = state.roles[static_cast<std::size_t>(index)];
     this->game.crtRandom.Next();
-    const auto chance = static_cast<int>(this->game.random.Below(0x50));
+    const auto chance = static_cast<int>(this->game.random.Below(kWanderRoll));
     bool found = false;
     int slot = 0;
 
@@ -317,16 +411,16 @@ int RolePath::Wander(int index)
 
     MoveRecord& move = state.moves[static_cast<std::size_t>(slot)];
 
-    if (role.talkState == Role::TalkWaiting || chance > 0x3C)
+    if (role.talkState == Role::TalkWaiting || chance > kRestAbove)
     {
         move.step |= MoveRecord::Done;
         role.act.action = 0;
         return 1;
     }
 
-    role.act.action = 8;
+    role.act.action = kWalkAction;
 
-    if (chance < 8)
+    if (chance < RolePath::Directions)
     {
         move.directions[0] = static_cast<u8>(chance);
     }
@@ -338,7 +432,7 @@ int RolePath::Wander(int index)
         return 1;
     }
 
-    const u32 mask = move.unk1A > 8 ? MapHeader::Wall : MapHeader::Wall | MapHeader::SolidRole;
+    const u32 mask = move.unk1A > kBlockedTries ? MapHeader::Wall : MapHeader::Wall | MapHeader::SolidRole;
     const std::ptrdiff_t cell = role.cell != nullptr ? role.cell - state.map.blocks.data() : 0;
     const u32 probe = this->game.field.ProbeCells(cell, role.act.width, role.act.height, mask);
     ++move.unk1A;
@@ -346,7 +440,7 @@ int RolePath::Wander(int index)
     move.stepY = 0;
     move.stepX = 0;
 
-    if (direction < 8 && (probe & RolePath::BlockedBy[direction]) == 0)
+    if (direction < RolePath::Directions && (probe & RolePath::BlockedBy[direction]) == 0)
     {
         move.step = 0;
         move.unk1A = 0;
@@ -367,7 +461,7 @@ void RolePath::Follow(int index)
     Scene& view = owner.scene;
     Role& role = state.roles[static_cast<std::size_t>(index)];
 
-    if (((role.x | role.y) & 0xF) != 0)
+    if (((role.x | role.y) & MapHeader::TileFraction) != 0)
     {
         return;
     }
@@ -399,8 +493,8 @@ void RolePath::Follow(int index)
         const BlockingMap grid = this->Grid();
         PathFinder finder(owner.pathNodes, grid, owner.errors);
         move.Clear();
-        const i32 targetX = view.trailX[2 * follower];
-        const i32 targetY = view.trailY[2 * follower];
+        const i32 targetX = view.trailX[kTrailSpacing * follower];
+        const i32 targetY = view.trailY[kTrailSpacing * follower];
 
         if (state.GameFlag(GameState::FollowersPassWalls))
         {
@@ -413,13 +507,13 @@ void RolePath::Follow(int index)
                 u8"CmpyWalk PathFind fail ,G(%d) sx(%d/%d) sy(%d/%d) dx(%d/%d) dy(%d/%d)",
                 role.id,
                 role.x,
-                role.x >> 4,
+                role.x >> MapHeader::TileShift,
                 role.y,
-                role.y >> 4,
+                role.y >> MapHeader::TileShift,
                 targetX,
-                targetX >> 4,
+                targetX >> MapHeader::TileShift,
                 targetY,
-                targetY >> 4
+                targetY >> MapHeader::TileShift
             );
         }
         else
@@ -432,17 +526,17 @@ void RolePath::Follow(int index)
             move.unk1A = 0;
             owner.field.ClearRoleCells(role, leaderId);
             const Field& field = owner.field;
-            const auto bottom = static_cast<u32>(field.cameraBottom + 0xA0);
-            auto top = static_cast<u32>(field.cameraTop - 0x50);
-            auto left = static_cast<u32>(field.cameraLeft - 0x50);
-            const auto right = static_cast<u32>(field.cameraRight + 0x50);
+            const auto bottom = static_cast<u32>(field.cameraBottom + kFarMargin);
+            auto top = static_cast<u32>(field.cameraTop - kNearMargin);
+            auto left = static_cast<u32>(field.cameraLeft - kNearMargin);
+            const auto right = static_cast<u32>(field.cameraRight + kNearMargin);
 
-            if (field.cameraTop - 0x50 < 0)
+            if (field.cameraTop - kNearMargin < 0)
             {
                 top = 0;
             }
 
-            if (field.cameraLeft - 0x50 < 0)
+            if (field.cameraLeft - kNearMargin < 0)
             {
                 left = 0;
             }
@@ -455,7 +549,7 @@ void RolePath::Follow(int index)
 
                 if (x > left && x < right && y > top && y < bottom)
                 {
-                    if (step != kPathEnd && step < 8)
+                    if (step != kPathEnd && step < RolePath::Directions)
                     {
                         role.act.direction = RolePath::Facing[step];
                     }
@@ -463,19 +557,20 @@ void RolePath::Follow(int index)
                     break;
                 }
 
-                if (step == kPathEnd || step >= 8)
+                if (step == kPathEnd || step >= RolePath::Directions)
                 {
                     break;
                 }
 
                 ++move.step;
-                role.x += 4 * RolePath::StepX[step];
-                role.y += 4 * RolePath::StepY[step];
+                role.x += kStepsPerTile * RolePath::StepX[step];
+                role.y += kStepsPerTile * RolePath::StepY[step];
             }
 
             move.step |= MoveRecord::Done;
-            const std::size_t at = (static_cast<u32>(role.x) >> 4) +
-                                   static_cast<std::size_t>(state.map.width) * (static_cast<u32>(role.y) >> 4);
+            const std::size_t at =
+                (static_cast<u32>(role.x) >> MapHeader::TileShift) +
+                static_cast<std::size_t>(state.map.width) * (static_cast<u32>(role.y) >> MapHeader::TileShift);
             role.cell = at < state.map.blocks.size() ? &state.map.blocks[at] : nullptr;
             owner.field.MarkRoleCells(role, leaderId);
             owner.field.RemoveRole(role.id, static_cast<int>(role.flags & Role::LayerMask), 0, 0);
@@ -496,7 +591,7 @@ void RolePath::Follow(int index)
         role.act.action = 0;
         role.act.direction = state.roles[static_cast<std::size_t>(state.playerRole)].act.direction;
     }
-    else if (step >= 8 || (probe & RolePath::BlockedBy[step]) != 0)
+    else if (step >= RolePath::Directions || (probe & RolePath::BlockedBy[step]) != 0)
     {
         role.act.action = 0;
     }
@@ -504,9 +599,9 @@ void RolePath::Follow(int index)
     {
         move.step = static_cast<u16>(taken & MoveRecord::StepMask);
         ++move.unk1A;
-        role.act.action = 8;
-        move.stepX = static_cast<i16>(2 * RolePath::StepX[step]);
-        move.stepY = static_cast<i16>(2 * RolePath::StepY[step]);
+        role.act.action = kWalkAction;
+        move.stepX = static_cast<i16>(kFollowerSpeed * RolePath::StepX[step]);
+        move.stepY = static_cast<i16>(kFollowerSpeed * RolePath::StepY[step]);
     }
 }
 
@@ -524,23 +619,34 @@ void RolePath::RunScript(int index)
     auto& variables = owner.party.variables;
     const u16 leaderId = static_cast<u16>(owner.unk4B7BC4);
 
-    auto word = [&data](std::size_t at) -> u16
+    auto word = [&data](std::size_t at)
     {
-        return at + 1 < data.size() ? static_cast<u16>(data[at] | data[at + 1] << 8) : u16{0};
+        return PathWord(data, at);
     };
 
-    auto dword = [&word](std::size_t at) -> u32
+    auto dword = [&data](std::size_t at)
     {
-        return static_cast<u32>(word(at) | static_cast<u32>(word(at + 2)) << 16);
+        return PathDword(data, at);
     };
 
-    std::size_t at =
-        0x200 + dword(0x200 + 4 * static_cast<std::size_t>(role.unk1C)) + 2 * static_cast<std::size_t>(role.unk18);
+    std::size_t at = kPathData + dword(kPathData + kPathTargetBytes * static_cast<std::size_t>(role.unk1C)) +
+                     kPathWordBytes * static_cast<std::size_t>(role.unk18);
+
+    auto operand = [&data, &at](std::size_t index)
+    {
+        return PathWord(data, at + kPathWordBytes * index);
+    };
+
+    auto target = [&data, &at](std::size_t index)
+    {
+        return PathDword(data, at + kPathWordBytes * index);
+    };
+
     i32& time = owner.party.clock;
 
     auto advance = [&role, &at](int words)
     {
-        at += 2 * static_cast<std::size_t>(words);
+        at += kPathWordBytes * static_cast<std::size_t>(words);
         role.unk18 += words;
     };
 
@@ -552,36 +658,37 @@ void RolePath::RunScript(int index)
     for (;;)
     {
         const u16 code = word(at);
+        const auto command = static_cast<PathCommand>(code);
 
-        switch (code)
+        switch (command)
         {
-            case 0:
+            case PathCommand::Restart:
                 role.unk18 = 0;
                 return;
 
-            case 1:
+            case PathCommand::Stop:
                 role.unk1C = 0;
                 role.unk18 = 0;
                 return;
 
-            case 2:
-                role.act.action = word(at + 2);
-                role.unk18 += 2;
+            case PathCommand::SetAction:
+                role.act.action = operand(1);
+                role.unk18 += CommandWords(1);
                 owner.acts.Run(role.act);
                 return;
 
-            case 3:
-                role.act.direction = word(at + 2);
-                role.unk18 += 2;
+            case PathCommand::SetDirection:
+                role.act.direction = operand(1);
+                role.unk18 += CommandWords(1);
                 owner.acts.Run(role.act);
                 return;
 
-            case 4:
-                role.unk22 = word(at + 2);
-                advance(2);
+            case PathCommand::SetCount:
+                role.unk22 = operand(1);
+                advance(CommandWords(1));
                 continue;
 
-            case 5:
+            case PathCommand::WaitCount:
                 if (role.unk22 != 0)
                 {
                     --role.unk22;
@@ -593,7 +700,7 @@ void RolePath::RunScript(int index)
 
                 return;
 
-            case 6:
+            case PathCommand::WaitCountAnimated:
                 if (role.unk22 != 0)
                 {
                     --role.unk22;
@@ -606,28 +713,28 @@ void RolePath::RunScript(int index)
                 owner.acts.Run(role.act);
                 return;
 
-            case 7:
-                this->FindPath(index, word(at + 2), word(at + 4));
-                advance(3);
+            case PathCommand::FindPath:
+                this->FindPath(index, operand(1), operand(2));
+                advance(CommandWords(2));
                 continue;
 
-            case 8:
-                if (((role.x | role.y) & 0xF) != 0 || this->Step(index) != 2)
+            case PathCommand::Step:
+                if (((role.x | role.y) & MapHeader::TileFraction) != 0 || this->Step(index) != RolePath::PathEnded)
                 {
                     return;
                 }
 
-                advance(1);
+                advance(CommandWords(0));
                 role.flags &= ~kFastWalk;
                 continue;
 
-            case 9:
+            case PathCommand::WaitClock:
             {
                 bool passed = false;
 
-                if (word(at + 2) <= static_cast<u32>(time))
+                if (operand(1) <= static_cast<u32>(time))
                 {
-                    advance(2);
+                    advance(CommandWords(1));
                     passed = true;
                 }
 
@@ -644,50 +751,51 @@ void RolePath::RunScript(int index)
                 return;
             }
 
-            case 0xA:
-                if (word(at + 2) > static_cast<u16>(time))
+            case PathCommand::JumpIfClockReached:
+                if (operand(1) > static_cast<u16>(time))
                 {
-                    advance(4);
+                    advance(CommandWords(1, 1));
                     continue;
                 }
 
-                jump(dword(at + 4));
+                jump(target(2));
                 continue;
 
-            case 0xB:
-                time = word(at + 2);
+            case PathCommand::SetClock:
+                time = operand(1);
 
-                if (static_cast<u32>(time) > 0x3E8)
+                if (static_cast<u32>(time) > Party::ClockLimit)
                 {
                     time = 0;
                 }
 
-                advance(1);
+                advance(CommandWords(0));
                 continue;
 
-            case 0xC:
-                jump(dword(at + 2));
+            case PathCommand::Jump:
+                jump(target(1));
                 continue;
 
-            case 0xD:
-            case 0xE:
-                if ((static_cast<int>(state.GameFlag(word(at + 2))) ^ static_cast<int>(code == 0xE)) == 1)
+            case PathCommand::JumpIfFlag:
+            case PathCommand::JumpUnlessFlag:
+                if ((static_cast<int>(state.GameFlag(operand(1))) ^
+                     static_cast<int>(command == PathCommand::JumpUnlessFlag)) == 1)
                 {
-                    jump(dword(at + 4));
+                    jump(target(2));
                     continue;
                 }
 
-                advance(4);
+                advance(CommandWords(1, 1));
                 continue;
 
-            case 0xF:
-            case 0x10:
+            case PathCommand::JumpIfAllFlags:
+            case PathCommand::JumpIfAnyFlag:
             {
                 int count = 0;
                 int set = 0;
-                std::size_t flag = at + 2;
+                std::size_t flag = at + kPathWordBytes * CommandWords(0);
 
-                while (word(flag) != 0xFFFF && flag < data.size())
+                while (word(flag) != kFlagListEnd && flag < data.size())
                 {
                     if (state.GameFlag(word(flag)))
                     {
@@ -695,47 +803,48 @@ void RolePath::RunScript(int index)
                     }
 
                     ++count;
-                    flag += 2;
+                    flag += kPathWordBytes;
                 }
 
-                const bool taken = code == 0xF ? count == 0 || count == set : count != 0 && set != 0;
+                const bool taken =
+                    command == PathCommand::JumpIfAllFlags ? count == 0 || count == set : count != 0 && set != 0;
 
                 if (taken)
                 {
-                    jump(dword(flag + 2));
+                    jump(dword(flag + kPathWordBytes));
                     continue;
                 }
 
-                advance(count + 4);
+                advance(CommandWords(count + 1, 1));
                 continue;
             }
 
-            case 0x11:
-                state.SetGameFlag(word(at + 2));
-                advance(2);
+            case PathCommand::SetFlag:
+                state.SetGameFlag(operand(1));
+                advance(CommandWords(1));
                 continue;
 
-            case 0x12:
-                state.ClearGameFlag(word(at + 2));
-                advance(2);
+            case PathCommand::ClearFlag:
+                state.ClearGameFlag(operand(1));
+                advance(CommandWords(1));
                 continue;
 
-            case 0x13:
-            case 0x14:
-            case 0x15:
-            case 0x16:
-            case 0x17:
+            case PathCommand::SetVariable:
+            case PathCommand::AddVariable:
+            case PathCommand::SubtractVariable:
+            case PathCommand::JumpIfVariableAtLeast:
+            case PathCommand::JumpIfVariableAtMost:
             {
-                const u16 slot = word(at + 2);
-                const u16 value = word(at + 4);
+                const u16 slot = operand(1);
+                const u16 value = operand(2);
 
-                if (slot >= 0x40 || slot >= variables.size())
+                if (slot >= Party::Variables || slot >= variables.size())
                 {
                     DebugLog(u8"path variable", slot, value);
                     return;
                 }
 
-                if (value > 0x3E8)
+                if (value > kVariableLimit)
                 {
                     DebugLog(u8"path value", slot, value);
                 }
@@ -743,28 +852,28 @@ void RolePath::RunScript(int index)
                 i32& variable = variables[slot];
                 int length = 0;
 
-                switch (code)
+                switch (command)
                 {
-                    case 0x13:
+                    case PathCommand::SetVariable:
                         variable = value;
-                        length = 3;
+                        length = CommandWords(2);
                         break;
 
-                    case 0x14:
+                    case PathCommand::AddVariable:
                     {
                         const i32 before = variable;
                         variable = value + before;
 
-                        if (static_cast<u32>(value) + static_cast<u32>(before) > 0x3E8)
+                        if (static_cast<u32>(value) + static_cast<u32>(before) > kVariableLimit)
                         {
-                            variable = 0x3E8;
+                            variable = kVariableLimit;
                         }
 
-                        length = 3;
+                        length = CommandWords(2);
                         break;
                     }
 
-                    case 0x15:
+                    case PathCommand::SubtractVariable:
                     {
                         const i32 before = variable;
                         variable = before - value;
@@ -774,16 +883,16 @@ void RolePath::RunScript(int index)
                             variable = 0;
                         }
 
-                        length = 3;
+                        length = CommandWords(2);
                         break;
                     }
 
                     default:
-                        length = 5;
+                        length = CommandWords(2, 1);
 
-                        if (code == 0x16 ? variable >= value : variable <= value)
+                        if (command == PathCommand::JumpIfVariableAtLeast ? variable >= value : variable <= value)
                         {
-                            jump(dword(at + 6));
+                            jump(target(3));
                             length = 0;
                         }
 
@@ -794,10 +903,10 @@ void RolePath::RunScript(int index)
                 continue;
             }
 
-            case 0x18:
+            case PathCommand::StartPath:
             {
                 u32 target = 0;
-                state.FindRoleOrPlayer(word(at + 2), target);
+                state.FindRoleOrPlayer(operand(1), target);
 
                 if (target < GameState::Roles)
                 {
@@ -814,28 +923,28 @@ void RolePath::RunScript(int index)
 
                         if (move.Kind() == MoveKind::Scripted)
                         {
-                            move.nextRole = 0xFFFF;
-                            move.unk0A = 0xFFFF;
-                            move.nextX = 0xFFFF;
-                            move.nextY = 0xFFFF;
+                            move.nextRole = MoveRecord::NoRole;
+                            move.unk0A = MoveRecord::Unused;
+                            move.nextX = MoveRecord::Unused;
+                            move.nextY = MoveRecord::Unused;
                         }
 
                         if (move.Kind() == MoveKind::Path)
                         {
-                            if (((other.x | other.y) & 0xF) != 0)
+                            if (((other.x | other.y) & MapHeader::TileFraction) != 0)
                             {
-                                const int row = other.y >> 4;
+                                const int row = other.y >> MapHeader::TileShift;
                                 owner.field.ClearRoleCells(other, leaderId);
                                 const u8 back = move.directions
                                                     [static_cast<std::size_t>(move.step & MoveRecord::StepMask) %
                                                      move.directions.size()];
 
-                                while ((other.x & 0xF) != 0 && back < 8)
+                                while ((other.x & MapHeader::TileFraction) != 0 && back < RolePath::Directions)
                                 {
                                     other.x -= RolePath::StepX[back];
                                 }
 
-                                while ((other.y & 0xF) != 0 && back < 8)
+                                while ((other.y & MapHeader::TileFraction) != 0 && back < RolePath::Directions)
                                 {
                                     other.y -= RolePath::StepY[back];
                                 }
@@ -851,9 +960,9 @@ void RolePath::RunScript(int index)
                     }
                 }
 
-                role.unk18 += 3;
-                at += 6;
-                const u16 path = word(at - 2);
+                role.unk18 += CommandWords(2);
+                at += kPathWordBytes * CommandWords(2);
+                const u16 path = word(at - kPathWordBytes);
 
                 if (target < GameState::Roles)
                 {
@@ -863,32 +972,32 @@ void RolePath::RunScript(int index)
 
                     if (target == static_cast<u32>(index))
                     {
-                        at = 0x200 + dword(0x200 + 4 * static_cast<std::size_t>(path));
+                        at = kPathData + dword(kPathData + kPathTargetBytes * static_cast<std::size_t>(path));
                     }
                 }
 
                 continue;
             }
 
-            case 0x19:
-                if (static_cast<u32>(time) > static_cast<u32>(word(at + 2) + this->timeMark))
+            case PathCommand::JumpAfterMark:
+                if (static_cast<u32>(time) > static_cast<u32>(operand(1) + this->timeMark))
                 {
-                    jump(dword(at + 4));
+                    jump(target(2));
                     continue;
                 }
 
-                advance(4);
+                advance(CommandWords(1, 1));
                 continue;
 
-            case 0x1A:
+            case PathCommand::MarkClock:
                 this->timeMark = time;
-                advance(1);
+                advance(CommandWords(0));
                 continue;
 
-            case 0x1B:
+            case PathCommand::HideRole:
             {
                 u32 target = 0;
-                state.FindRoleOrPlayer(word(at + 2), target);
+                state.FindRoleOrPlayer(operand(1), target);
 
                 if (target < GameState::Roles)
                 {
@@ -897,81 +1006,82 @@ void RolePath::RunScript(int index)
                     owner.field.ClearRoleCells(other, leaderId);
                 }
 
-                advance(2);
+                advance(CommandWords(1));
                 continue;
             }
 
-            case 0x1C:
+            case PathCommand::ShowRole:
             {
                 u32 target = 0;
-                state.FindRoleOrPlayer(word(at + 2), target);
+                state.FindRoleOrPlayer(operand(1), target);
 
                 if (target < GameState::Roles)
                 {
                     state.roles[target].flags |= Role::Visible | Role::Solid;
                 }
 
-                advance(2);
+                advance(CommandWords(1));
                 continue;
             }
 
-            case 0x1D:
+            case PathCommand::PlaceRole:
             {
                 owner.field.ClearRoleCells(role, leaderId);
-                role.x = 0x10 * word(at + 2);
-                role.y = 0x10 * word(at + 4);
-                const std::size_t cell = (static_cast<u32>(role.x) >> 4) +
-                                         static_cast<std::size_t>(state.map.width) * (static_cast<u32>(role.y) >> 4);
+                role.x = MapHeader::TileSize * operand(1);
+                role.y = MapHeader::TileSize * operand(2);
+                const std::size_t cell =
+                    (static_cast<u32>(role.x) >> MapHeader::TileShift) +
+                    static_cast<std::size_t>(state.map.width) * (static_cast<u32>(role.y) >> MapHeader::TileShift);
                 role.cell = cell < state.map.blocks.size() ? &state.map.blocks[cell] : nullptr;
                 owner.acts.Run(role.act);
                 owner.field.MarkRoleCells(role, leaderId);
-                role.unk18 += 3;
+                role.unk18 += CommandWords(2);
                 owner.field.RemoveRole(role.id, static_cast<int>(role.flags & Role::LayerMask), 0, 0);
                 return;
             }
 
-            case 0x1E:
-                if ((role.x & 0xF) == 0 && (role.y & 0xF) == 0)
+            case PathCommand::Wander:
+                if ((role.x & MapHeader::TileFraction) == 0 && (role.y & MapHeader::TileFraction) == 0)
                 {
                     this->Wander(index);
                 }
 
                 return;
 
-            case 0x1F:
-                if (word(at + 2) != 0xFFFF)
+            case PathCommand::SetAct:
+                if (operand(1) != kKeepAct)
                 {
-                    role.act.id = word(at + 2);
+                    role.act.id = operand(1);
                 }
 
-                if (word(at + 4) != 0xFFFF)
+                if (operand(2) != kKeepAct)
                 {
-                    role.act.action = word(at + 4);
+                    role.act.action = operand(2);
                 }
 
-                if (word(at + 6) != 0xFFFF)
+                if (operand(3) != kKeepAct)
                 {
-                    role.act.direction = word(at + 6);
+                    role.act.direction = operand(3);
                 }
 
-                role.unk18 += 4;
+                role.unk18 += CommandWords(3);
                 owner.acts.Run(role.act);
                 return;
 
-            case 0x20:
-                owner.PlaySoundAt(word(at + 2), role.x, role.y);
-                role.unk18 += 2;
+            case PathCommand::PlaySound:
+                owner.PlaySoundAt(operand(1), role.x, role.y);
+                role.unk18 += CommandWords(1);
                 return;
 
-            case 0x21:
-            case 0x24:
+            case PathCommand::FollowRole:
+            case PathCommand::FollowBeside:
             {
                 u32 target = 0;
 
-                if (!state.FindRoleOrPlayer(word(at + 2), target) || target >= GameState::Roles)
+                if (!state.FindRoleOrPlayer(operand(1), target) || target >= GameState::Roles)
                 {
-                    DebugLog(u8"Path(Follow)", word(at + 2));
-                    role.unk18 += 2;
+                    DebugLog(u8"Path(Follow)", operand(1));
+                    role.unk18 += CommandWords(1);
                     return;
                 }
 
@@ -979,54 +1089,54 @@ void RolePath::RunScript(int index)
                 const i32 otherX = other.x;
                 const i32 otherY = other.y;
 
-                if (((otherX | otherY) & 0xF) != 0)
+                if (((otherX | otherY) & MapHeader::TileFraction) != 0)
                 {
                     return;
                 }
 
-                u16 tileX = static_cast<u16>(otherX >> 4);
-                u16 tileY = static_cast<u16>(otherY >> 4);
+                u16 tileX = static_cast<u16>(otherX >> MapHeader::TileShift);
+                u16 tileY = static_cast<u16>(otherY >> MapHeader::TileShift);
 
-                if (code == 0x24)
+                if (command == PathCommand::FollowBeside)
                 {
-                    const int ahead = static_cast<i16>(word(at + 4));
-                    const int side = static_cast<i16>(word(at + 6));
+                    const int ahead = static_cast<i16>(operand(2));
+                    const int side = static_cast<i16>(operand(3));
                     int offsetX = 0;
                     int offsetY = 0;
 
                     switch (other.act.direction)
                     {
-                        case 0:
+                        case ActState::Up:
                             offsetX = ahead;
                             offsetY = -side;
                             break;
 
-                        case 2:
+                        case ActState::Left:
                             offsetX = -side;
                             offsetY = ahead;
                             break;
 
-                        case 3:
+                        case ActState::Right:
                             offsetX = side;
                             offsetY = -ahead;
                             break;
 
-                        case 4:
+                        case ActState::UpLeft:
                             offsetX = side + ahead;
                             offsetY = side - ahead;
                             break;
 
-                        case 5:
+                        case ActState::DownRight:
                             offsetX = -(side + ahead);
                             offsetY = ahead - side;
                             break;
 
-                        case 6:
+                        case ActState::DownLeft:
                             offsetX = side - ahead;
                             offsetY = -(ahead + side);
                             break;
 
-                        case 7:
+                        case ActState::UpRight:
                             offsetX = ahead - side;
                             offsetY = ahead + side;
                             break;
@@ -1035,8 +1145,8 @@ void RolePath::RunScript(int index)
                             break;
                     }
 
-                    tileY = static_cast<u16>((otherY >> 4) + offsetY);
-                    tileX = static_cast<u16>((otherX >> 4) + offsetX);
+                    tileY = static_cast<u16>((otherY >> MapHeader::TileShift) + offsetY);
+                    tileX = static_cast<u16>((otherX >> MapHeader::TileShift) + offsetX);
                     const std::size_t cell = tileX + static_cast<std::size_t>(state.map.width) * tileY;
                     const std::vector<u32>& blocks = state.map.blocks;
                     const u32 here = cell < blocks.size() ? blocks[cell] : MapHeader::Outside;
@@ -1044,17 +1154,17 @@ void RolePath::RunScript(int index)
 
                     if ((here & MapHeader::Wall) != 0 || (next & MapHeader::Wall) != 0)
                     {
-                        tileX = static_cast<u16>(otherX >> 4);
-                        tileY = static_cast<u16>(otherY >> 4);
+                        tileX = static_cast<u16>(otherX >> MapHeader::TileShift);
+                        tileY = static_cast<u16>(otherY >> MapHeader::TileShift);
                     }
                 }
 
                 this->FindPath(index, tileX, tileY);
-                advance(2);
+                advance(CommandWords(1));
 
-                if (code == 0x24)
+                if (command == PathCommand::FollowBeside)
                 {
-                    advance(2);
+                    advance(CommandWords(3) - CommandWords(1));
                 }
 
                 const auto own = static_cast<u32>(role.y) * static_cast<u32>(role.y) +
@@ -1065,7 +1175,7 @@ void RolePath::RunScript(int index)
                 const auto theirRoot = static_cast<i32>(crt::Ftol(std::sqrt(static_cast<double>(theirs))));
                 const auto gap = static_cast<i32>(crt::Ftol(ownRoot - static_cast<double>(theirRoot)));
 
-                if (std::abs(gap) > 0x80)
+                if (std::abs(gap) > kFastWalkGap)
                 {
                     role.flags |= kFastWalk;
                 }
@@ -1073,35 +1183,35 @@ void RolePath::RunScript(int index)
                 continue;
             }
 
-            case 0x22:
+            case PathCommand::ShowLabel:
             {
                 role.label.clear();
-                role.labelColor = word(at + 2);
+                role.labelColor = operand(1);
 
-                if (static_cast<u32>(role.labelColor) > 0xA)
+                if (static_cast<u32>(role.labelColor) > kLabelColors)
                 {
                     role.labelColor = 0;
                 }
 
-                std::size_t end = at + 4;
+                std::size_t end = at + kPathWordBytes * CommandWords(1);
 
-                while (end + 1 < data.size() && word(end) != 0x5125)
+                while (end + 1 < data.size() && word(end) != kLabelEnd)
                 {
                     ++end;
                 }
 
-                role.unk18 += static_cast<u16>((end - at + 2) / 2);
+                role.unk18 += static_cast<u16>((end - at + kPathWordBytes) / kPathWordBytes);
                 role.label.assign(
-                    data.begin() + static_cast<std::ptrdiff_t>(at + 4),
+                    data.begin() + static_cast<std::ptrdiff_t>(at + kPathWordBytes * CommandWords(1)),
                     data.begin() + static_cast<std::ptrdiff_t>(end)
                 );
                 return;
             }
 
-            case 0x23:
+            case PathCommand::ClearLabel:
                 role.label.clear();
                 role.labelColor = 0;
-                advance(1);
+                advance(CommandWords(0));
                 continue;
 
             default:
@@ -1156,7 +1266,14 @@ bool RolePath::ResumeMove(int index)
 
     if (finder.FindPath(role.x, role.y, move.x, move.y, role.act.width, role.act.height, move.directions) != 1)
     {
-        DebugLog(u8"resume path not found", index, role.x >> 4, role.y >> 4, move.x / 0x10, move.y / 0x10);
+        DebugLog(
+            u8"resume path not found",
+            index,
+            role.x >> MapHeader::TileShift,
+            role.y >> MapHeader::TileShift,
+            move.x / MapHeader::TileSize,
+            move.y / MapHeader::TileSize
+        );
     }
 
     return true;
@@ -1169,17 +1286,18 @@ void RolePath::AlignPlayer(Role& role)
     const int stepX = owner.unk4A9488 + owner.unk4B7518;
     const int stepY = owner.unk4A948C + owner.unk4B7920;
 
-    if (((role.x & 0xF) != 0 && stepX == 0) || ((role.y & 0xF) != 0 && stepY == 0))
+    if (((role.x & MapHeader::TileFraction) != 0 && stepX == 0) ||
+        ((role.y & MapHeader::TileFraction) != 0 && stepY == 0))
     {
         Hang();
     }
 
-    while ((role.x & 0xF) != 0)
+    while ((role.x & MapHeader::TileFraction) != 0)
     {
         role.x -= stepX;
     }
 
-    while ((role.y & 0xF) != 0)
+    while ((role.y & MapHeader::TileFraction) != 0)
     {
         role.y -= stepY;
     }
@@ -1196,7 +1314,7 @@ int RolePath::HoldRole(int index)
 
     if (index == state.playerRole)
     {
-        const int row = static_cast<int>(static_cast<u32>(role.y) >> 4) - 1;
+        const int row = static_cast<int>(static_cast<u32>(role.y) >> MapHeader::TileShift) - 1;
         this->AlignPlayer(role);
         owner.unk4B7920 = 0;
         owner.unk4B7518 = 0;
@@ -1226,21 +1344,21 @@ int RolePath::HoldRole(int index)
             move->nextY = move->y;
         }
 
-        if ((role.x & 0xF) != 0 || (role.y & 0xF) != 0)
+        if ((role.x & MapHeader::TileFraction) != 0 || (role.y & MapHeader::TileFraction) != 0)
         {
             owner.field.ClearRoleCells(role, leader);
 
             if (index != state.playerRole)
             {
-                const int row = static_cast<int>(static_cast<u32>(role.y) >> 4) - 1;
+                const int row = static_cast<int>(static_cast<u32>(role.y) >> MapHeader::TileShift) - 1;
                 const u8 back = move->CurrentDirection();
 
-                while ((role.x & 0xF) != 0 && back < 8)
+                while ((role.x & MapHeader::TileFraction) != 0 && back < RolePath::Directions)
                 {
                     role.x -= RolePath::StepX[back];
                 }
 
-                while ((role.y & 0xF) != 0 && back < 8)
+                while ((role.y & MapHeader::TileFraction) != 0 && back < RolePath::Directions)
                 {
                     role.y -= RolePath::StepY[back];
                 }
@@ -1281,7 +1399,7 @@ int RolePath::ScriptStep(int index)
     MoveRecord& move = *found;
     const u8 direction = move.CurrentDirection();
 
-    if (direction == 0xFF)
+    if (direction == kPathEnd)
     {
         if (role.x != move.x || role.y != move.y)
         {
@@ -1319,7 +1437,7 @@ int RolePath::ScriptStep(int index)
     move.step |= MoveRecord::Done;
     ++move.unk1A;
 
-    if (direction < 8 && (probe & RolePath::BlockedBy[direction]) == 0)
+    if (direction < RolePath::Directions && (probe & RolePath::BlockedBy[direction]) == 0)
     {
         move.step &= static_cast<u16>(~MoveRecord::Done);
         move.stepX = static_cast<i16>(RolePath::StepX[direction]);
@@ -1348,8 +1466,9 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
 
     auto placeCell = [&state](Role& moved)
     {
-        const std::size_t at = (static_cast<u32>(moved.x) >> 4) +
-                               static_cast<std::size_t>(state.map.width) * (static_cast<u32>(moved.y) >> 4);
+        const std::size_t at =
+            (static_cast<u32>(moved.x) >> MapHeader::TileShift) +
+            static_cast<std::size_t>(state.map.width) * (static_cast<u32>(moved.y) >> MapHeader::TileShift);
         moved.cell = at < state.map.blocks.size() ? &state.map.blocks[at] : nullptr;
     };
 
@@ -1364,7 +1483,7 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
 
     if (index == state.playerRole)
     {
-        const int row = static_cast<int>(static_cast<u32>(role.y) >> 4) - 1;
+        const int row = static_cast<int>(static_cast<u32>(role.y) >> MapHeader::TileShift) - 1;
         this->AlignPlayer(role);
         stopKeys();
         owner.field.RemoveRole(role.id, static_cast<int>(role.flags & Role::LayerMask), row, 0);
@@ -1402,7 +1521,7 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
 
             if (index != state.playerRole)
             {
-                const int row = static_cast<int>(static_cast<u32>(role.y) >> 4) - 1;
+                const int row = static_cast<int>(static_cast<u32>(role.y) >> MapHeader::TileShift) - 1;
                 const u8 back = move.CurrentDirection();
 
                 while ((role.x & MapHeader::TileFraction) != 0 && back < static_cast<int>(RolePath::StepX.size()))
@@ -1467,12 +1586,13 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
     move.y = y;
     move.SetKind(MoveKind::Scripted);
 
-    if ((options & 0x8000) != 0)
+    if ((options & RolePath::EventGoesOn) != 0)
     {
         move.mode &= static_cast<u8>(~MoveRecord::HoldAtEnd);
     }
 
-    if (x > 0x10u * static_cast<u32>(state.map.width) || y > 0x10u * static_cast<u32>(state.map.height))
+    if (x > MapHeader::TileSize * static_cast<u32>(state.map.width) ||
+        y > MapHeader::TileSize * static_cast<u32>(state.map.height))
     {
         return 0;
     }
@@ -1496,7 +1616,7 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
         owner.field.RemoveRole(role.id, static_cast<int>(role.flags & Role::LayerMask), 0, 0);
     };
 
-    if ((options & 0xF) != 0)
+    if ((options & RolePath::PlaceMask) != 0)
     {
         putThere();
         role.flags |= Role::Held;
@@ -1514,10 +1634,10 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
             u8"script path not found",
             slot,
             this->RoleId(static_cast<u32>(index)),
-            role.x >> 4,
-            role.y >> 4,
-            x >> 4,
-            y >> 4
+            role.x >> MapHeader::TileShift,
+            role.y >> MapHeader::TileShift,
+            x >> MapHeader::TileShift,
+            y >> MapHeader::TileShift
         );
         putThere();
         role.flags |= Role::Held;
@@ -1526,11 +1646,11 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
 
     owner.field.ClearRoleCells(role, leader);
     const Field& field = owner.field;
-    const auto bottom = static_cast<u32>(field.cameraBottom + 0xA0);
-    const auto right = static_cast<u32>(field.cameraRight + 0xA0);
-    const u32 top = field.cameraTop - 0x50 < 0 ? 0u : static_cast<u32>(field.cameraTop - 0x50);
-    const u32 left = field.cameraLeft - 0xA0 < 0 ? 0u : static_cast<u32>(field.cameraLeft - 0xA0);
-    u8 step = 0xFF;
+    const auto bottom = static_cast<u32>(field.cameraBottom + kFarMargin);
+    const auto right = static_cast<u32>(field.cameraRight + kFarMargin);
+    const u32 top = field.cameraTop - kNearMargin < 0 ? 0u : static_cast<u32>(field.cameraTop - kNearMargin);
+    const u32 left = field.cameraLeft - kFarMargin < 0 ? 0u : static_cast<u32>(field.cameraLeft - kFarMargin);
+    u8 step = kPathEnd;
 
     for (;;)
     {
@@ -1543,17 +1663,17 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
             break;
         }
 
-        if (step == 0xFF || step >= 8)
+        if (step == kPathEnd || step >= RolePath::Directions)
         {
             break;
         }
 
         ++move.step;
-        role.x += 4 * RolePath::StepX[step];
-        role.y += 4 * RolePath::StepY[step];
+        role.x += kStepsPerTile * RolePath::StepX[step];
+        role.y += kStepsPerTile * RolePath::StepY[step];
     }
 
-    if (step != 0xFF && step < 8)
+    if (step != kPathEnd && step < RolePath::Directions)
     {
         role.act.direction = RolePath::Facing[step];
     }

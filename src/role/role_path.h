@@ -29,6 +29,7 @@ public:
     // swd32.exe 0x0049947C (a copy at 0x0049967C): the act direction of each path direction.
     static constexpr std::array<i32, 8> Facing = {5, 1, 6, 2, 4, 0, 7, 3};
     static constexpr int Moves = 72;
+    static constexpr u8 Directions = 8;
 
     explicit RolePath(Game& game);
 
