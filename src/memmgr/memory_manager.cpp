@@ -1,0 +1,192 @@
+#include "memmgr/memory_manager.h"
+
+#include <cerrno>
+#include <cstdio>
+#include <cstring>
+
+#include "platform/message_box.h"
+
+namespace swd3
+{
+
+namespace
+{
+
+constexpr char kTitle[] = "MemMgr";
+
+u32 ReadDword(const std::vector<u8>& block, std::size_t offset)
+{
+    u32 value = 0;
+
+    if (offset + 4 <= block.size())
+    {
+        std::memcpy(&value, block.data() + offset, 4);
+    }
+
+    return value;
+}
+
+}  // namespace
+
+// swd32.exe 0x00438650: the private heap (with the page size as initial size) and 32 spare nodes
+MemoryManager::MemoryManager(ErrorReporter& errors) : errors(errors)
+{
+    for (int i = 0; i < MemoryManager::kSpareNodes; ++i)
+    {
+        std::unique_ptr<MemoryNode> node = this->NewNode();
+
+        if (node != nullptr)
+        {
+            this->spareNodes.push_back(std::move(node));
+        }
+        else
+        {
+            this->errors.ShowError(kTitle, "MemMgrObject node Create Failed");
+        }
+    }
+}
+
+// swd32.exe 0x004386E0: reports and frees every block still held, then the spare nodes and the heap
+MemoryManager::~MemoryManager()
+{
+    for (auto& bucket : this->buckets)
+    {
+        while (!bucket.empty())
+        {
+            std::unique_ptr<MemoryNode> node = std::move(bucket.back());
+            bucket.pop_back();
+            char message[64];
+            std::snprintf(message, sizeof(message), "Resource not release ,Size[%d]", static_cast<int>(node->size));
+            this->text = message;
+            this->errors.ShowError("MemMgr report", this->text);
+
+            if (!this->FreeBlock(node.get()))
+            {
+                this->errors.ShowError(kTitle, this->text);
+            }
+
+            this->spareNodes.push_back(std::move(node));
+        }
+    }
+
+    while (!this->spareNodes.empty())
+    {
+        std::unique_ptr<MemoryNode> node = std::move(this->spareNodes.back());
+        this->spareNodes.pop_back();
+
+        if (!this->FreeNode(std::move(node)))
+        {
+            this->errors.ShowError(kTitle, this->text);
+        }
+    }
+
+    if (this->nodeCount != 0)
+    {
+        this->errors.ShowError(kTitle, "Resource node not match");
+    }
+}
+
+// swd32.exe 0x00438800: counts the node and the peak count
+std::unique_ptr<MemoryNode> MemoryManager::NewNode()
+{
+    auto node = std::make_unique<MemoryNode>();
+    ++this->nodeCount;
+
+    if (this->peakNodes < this->nodeCount)
+    {
+        this->peakNodes = this->nodeCount;
+    }
+
+    return node;
+}
+
+// swd32.exe 0x00438840
+bool MemoryManager::FreeNode(std::unique_ptr<MemoryNode> node)
+{
+    if (node == nullptr || !this->FreeBlock(node.get()))
+    {
+        return false;
+    }
+
+    --this->nodeCount;
+    return true;
+}
+
+// swd32.exe 0x00438880: releases the block of a node; a damaged guard word is reported with the first 16 user bytes
+bool MemoryManager::FreeBlock(MemoryNode* node)
+{
+    if (node == nullptr)
+    {
+        this->text = "Internal error : NodeContainFree";
+        return false;
+    }
+
+    bool intact = true;
+
+    if (!node->block.empty())
+    {
+        const std::vector<u8>& block = node->block;
+        const std::size_t tail = node->size;
+
+        if (ReadDword(block, 0) != MemoryManager::kGuard || ReadDword(block, 4) != MemoryManager::kGuard ||
+            ReadDword(block, tail + 8) != MemoryManager::kGuard ||
+            ReadDword(block, tail + 0xC) != MemoryManager::kGuard)
+        {
+            char message[160];
+            u8 user[16] = {};
+
+            for (std::size_t i = 0; i < 16 && 8 + i < block.size(); ++i)
+            {
+                user[i] = block[8 + i];
+            }
+
+            std::snprintf(
+                message,
+                sizeof(message),
+                "block[0x%x][%d] overwrited! [%2X %2X %2X %2X %2X %2X %2X %2X %2X %2X %2X %2X %2X %2X %2X %2X]",
+                0u,
+                static_cast<int>(node->size),
+                user[0],
+                user[1],
+                user[2],
+                user[3],
+                user[4],
+                user[5],
+                user[6],
+                user[7],
+                user[8],
+                user[9],
+                user[10],
+                user[11],
+                user[12],
+                user[13],
+                user[14],
+                user[15]
+            );
+            this->text = message;
+            intact = false;
+        }
+
+        this->allocatedBytes -= node->size;
+        node->block.clear();
+        node->size = 0;
+        node->unknown8 = 0;
+        node->next = nullptr;
+    }
+
+    return intact;
+}
+
+// swd32.exe 0x004389A0: the text of the last system error
+u32 MemoryManager::FormatLastError()
+{
+    this->text = std::strerror(errno);
+    return static_cast<u32>(this->text.size());
+}
+
+int MemoryManager::NodeCount() const
+{
+    return this->nodeCount;
+}
+
+}  // namespace swd3

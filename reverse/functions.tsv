@@ -530,12 +530,12 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 529	swd32.exe	0x00438610	sub_438610	file	src/file/file.cpp:File::ReadDword	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/file/file.cpp:File::ReadDword
 530	swd32.exe	0x00438620	sub_438620	file	src/file/file.cpp:File::SetError	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/file/file.cpp:File::SetError
 531	swd32.exe	0x00438640	sub_438640	file	src/file/file.cpp:File::ErrorText	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/file/file.cpp:File::ErrorText
-532	swd32.exe	0x00438650	sub_438650	memmgr		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "MemMgr"; legacy: src/memmgr/memory_manager.cpp:MemoryManager::MemoryManager
-533	swd32.exe	0x004386E0	sub_4386E0	memmgr		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "MemMgr report"; legacy: src/memmgr/memory_manager.cpp:MemoryManager::~MemoryManager
-534	swd32.exe	0x00438800	sub_438800	memmgr		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/memmgr/memory_manager.cpp:MemoryManager::NewNode
-535	swd32.exe	0x00438840	sub_438840	memmgr		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/memmgr/memory_manager.cpp:MemoryManager::FreeNode
-536	swd32.exe	0x00438880	sub_438880	memmgr		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/memmgr/memory_manager.cpp:MemoryManager::FreeBlock
-537	swd32.exe	0x004389A0	sub_4389A0	memmgr		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/memmgr/memory_manager.cpp:MemoryManager::FormatLastError
+532	swd32.exe	0x00438650	sub_438650	memmgr	src/memmgr/memory_manager.cpp:MemoryManager::MemoryManager	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "MemMgr"; legacy: src/memmgr/memory_manager.cpp:MemoryManager::MemoryManager
+533	swd32.exe	0x004386E0	sub_4386E0	memmgr	src/memmgr/memory_manager.cpp:MemoryManager::~MemoryManager	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "MemMgr report"; legacy: src/memmgr/memory_manager.cpp:MemoryManager::~MemoryManager
+534	swd32.exe	0x00438800	sub_438800	memmgr	src/memmgr/memory_manager.cpp:MemoryManager::NewNode	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/memmgr/memory_manager.cpp:MemoryManager::NewNode
+535	swd32.exe	0x00438840	sub_438840	memmgr	src/memmgr/memory_manager.cpp:MemoryManager::FreeNode	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/memmgr/memory_manager.cpp:MemoryManager::FreeNode
+536	swd32.exe	0x00438880	sub_438880	memmgr	src/memmgr/memory_manager.cpp:MemoryManager::FreeBlock	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/memmgr/memory_manager.cpp:MemoryManager::FreeBlock
+537	swd32.exe	0x004389A0	sub_4389A0	memmgr	src/memmgr/memory_manager.cpp:MemoryManager::FormatLastError	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/memmgr/memory_manager.cpp:MemoryManager::FormatLastError
 538	swd32.exe	0x004389D0	sub_4389D0	text_dbcs		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/text/text_input.cpp:TextInput::TextInput
 539	swd32.exe	0x00438A60	sub_438A60	text_dbcs		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/text/text_input.cpp:TextInput::GetResult
 540	swd32.exe	0x00438A70	sub_438A70	text_dbcs		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/text/text_input.cpp:TextInput::~TextInput
