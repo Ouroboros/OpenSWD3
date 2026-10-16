@@ -15,6 +15,10 @@ class BattleState
 {
 public:
     static constexpr i32 kInitialGaugeFull = 900;
+    static constexpr int kQueueRows = 4;
+    static constexpr int kQueueColumns = 10;
+
+    void TakePendingAction();
 
     i32 listBCount = 0;                           // 0x004FD3B0 entries of listB, at most 13
     ItemLink listB;                               // 0x004FD4C0
@@ -27,6 +31,13 @@ public:
     u8 evadeStreak = 0;                           // 0x0053D028 failed evasion rolls in a row
     u8 evadeJustSucceeded = 0;                    // 0x0053D029
     std::array<std::unique_ptr<Surface>, 2> surfaces;  // 0x005244C4 screen sized off-screen surfaces
+    std::array<i16, kQueueRows * kQueueColumns> actionQueue =
+        {};                          // 0x0052022C 4 rows of 10, taken by TakePendingAction
+    i32 panelFlags = 0;              // 0x0053BC24 bit 5: the resistance panel
+    i16 pendingActionRow = 0;        // 0x0053BF1E
+    i16 pendingAction = 0;           // 0x0053BF20
+    i32 paused = 0;                  // 0x0053C00C messages do not slide while set
+    std::array<char, 64> text = {};  // 0x0053D02C the formatted text of the battle messages
 };
 
 }  // namespace swd3

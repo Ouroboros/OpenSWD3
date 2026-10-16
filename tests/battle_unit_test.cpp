@@ -40,6 +40,8 @@ struct Services
 
     {
         this->painter.Init(this->screen);
+        this->painter.SetTarget(this->screen.Pixels());
+        this->painter.SetClipClamped(0, 0, 640, 480);
     }
 
     swd3::Surface screen;

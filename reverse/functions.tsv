@@ -936,15 +936,15 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 935	swd32.exe	0x00468C80	sub_468C80	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 936	swd32.exe	0x00468ED0	sub_468ED0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 937	swd32.exe	0x00468FF0	sub_468FF0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-938	swd32.exe	0x00469080	sub_469080	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_message.cpp:DrawLootPanel
-939	swd32.exe	0x00469220	sub_469220	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_message.cpp:DrawDefeatPanel
-940	swd32.exe	0x00469340	sub_469340	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_message.cpp:DrawCraftResultPanel
-941	swd32.exe	0x004694E0	sub_4694E0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_message.cpp:TakePendingAction
-942	swd32.exe	0x00469550	sub_469550	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_message.cpp:DrawMessageBox
-943	swd32.exe	0x00469620	sub_469620	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_message.cpp:GrowPanel
-944	swd32.exe	0x00469650	sub_469650	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_message.cpp:DrawResistancePanel
-945	swd32.exe	0x004698E0	sub_4698E0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_message.cpp:AddBattleMessage
-946	swd32.exe	0x00469960	sub_469960	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_message.cpp:DrawBattleMessages
+938	swd32.exe	0x00469080	sub_469080	battle	src/battle/battle_message.cpp:BattleMessages::DrawLootPanel	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_message.cpp:DrawLootPanel
+939	swd32.exe	0x00469220	sub_469220	battle	src/battle/battle_message.cpp:BattleMessages::DrawDefeatPanel	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_message.cpp:DrawDefeatPanel
+940	swd32.exe	0x00469340	sub_469340	battle	src/battle/battle_message.cpp:BattleMessages::DrawCraftResultPanel	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_message.cpp:DrawCraftResultPanel
+941	swd32.exe	0x004694E0	sub_4694E0	battle	src/battle/battle_state.cpp:BattleState::TakePendingAction	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_message.cpp:TakePendingAction
+942	swd32.exe	0x00469550	sub_469550	battle	src/battle/battle_message.cpp:BattleMessages::DrawMessageBox	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_message.cpp:DrawMessageBox
+943	swd32.exe	0x00469620	sub_469620	battle	src/battle/battle_message.cpp:BattleMessages::GrowPanel	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_message.cpp:GrowPanel
+944	swd32.exe	0x00469650	sub_469650	battle	src/battle/battle_message.cpp:BattleMessages::DrawResistancePanel	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_message.cpp:DrawResistancePanel
+945	swd32.exe	0x004698E0	sub_4698E0	battle	src/battle/battle_message.cpp:BattleMessages::Add	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_message.cpp:AddBattleMessage
+946	swd32.exe	0x00469960	sub_469960	battle	src/battle/battle_message.cpp:BattleMessages::Draw	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_message.cpp:DrawBattleMessages
 947	swd32.exe	0x00469D20	sub_469D20	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 948	swd32.exe	0x0046E090	sub_46E090	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_hero.cpp:BattleHero::Flag2B00
 949	swd32.exe	0x0046E0A0	sub_46E0A0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_hero.cpp:BattleHero::Flag2B04
