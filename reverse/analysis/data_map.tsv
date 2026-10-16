@@ -359,3 +359,9 @@ addr	type	name	module	notes
 0x004A7CB0	char[13]	noStaminaText	battle	"體力值不夠!!"
 0x004A7CC0	char[13]	noSpiritText	battle	"靈力值不夠!!"
 0x004A7CD0	char[11]	noItemText	battle	"物品不夠!!"
+@include	item/item_list.h
+0x004C8AD0	std::uint8_t*[64]	heroItemSlots	item	16 item nodes per hero
+0x0049F9FC	char[3]	emptyItemName	item	Big5 name of an empty item
+0x004FD318	std::uint16_t*	menuEntries	item
+0x004FD2F4	std::int32_t	menuFirst	item
+0x004FD31C	std::int32_t	menuVisible	item	entries shown from menuFirst (at most 5)

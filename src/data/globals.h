@@ -17,6 +17,7 @@
 #include "game/game_state.h"
 #include "gfx/graphics.h"
 #include "input/input.h"
+#include "item/item_list.h"
 #include "memmgr/memory_manager.h"
 #include "movie/movie.h"
 #include "pic/projector.h"
@@ -1661,8 +1662,8 @@ struct Globals {
     std::uint8_t byte_49F9C8[12];  // 0x0049F9C8
     std::uint8_t unk_49F9D4;  // 0x0049F9D4
     std::uint8_t pad_49F9D5[0x27];
-    std::uint8_t byte_49F9FC;  // 0x0049F9FC
-    std::uint8_t pad_49F9FD[0x3];
+    char emptyItemName[3];  // 0x0049F9FC Big5 name of an empty item
+    std::uint8_t pad_49F9FF[0x1];
     char a04d02d02d02d02[21];  // 0x0049FA00
     std::uint8_t pad_49FA15[0x3];
     char aSsaveDSav[14];  // 0x0049FA18
@@ -3890,20 +3891,7 @@ struct Globals {
     std::int32_t dword_4C8448;  // 0x004C8448
     std::int32_t dword_4C844C;  // 0x004C844C
     SoundEffects soundEffects;  // 0x004C8450 constructed by 0x00401080
-    std::int32_t dword_4C8AD0;  // 0x004C8AD0
-    std::uint8_t pad_4C8AD4[0x18];
-    std::uint8_t unk_4C8AEC;  // 0x004C8AEC
-    std::uint8_t pad_4C8AED[0xF];
-    std::int32_t dword_4C8AFC[5];  // 0x004C8AFC
-    std::uint8_t unk_4C8B10;  // 0x004C8B10
-    std::uint8_t pad_4C8B11[0x2B];
-    std::int32_t dword_4C8B3C[5];  // 0x004C8B3C
-    std::uint8_t unk_4C8B50;  // 0x004C8B50
-    std::uint8_t pad_4C8B51[0x2B];
-    std::int32_t dword_4C8B7C[5];  // 0x004C8B7C
-    std::uint8_t unk_4C8B90;  // 0x004C8B90
-    std::uint8_t pad_4C8B91[0x2B];
-    std::int32_t dword_4C8BBC[5];  // 0x004C8BBC
+    std::uint8_t* heroItemSlots[64];  // 0x004C8AD0 16 item nodes per hero
     std::int32_t hmod;  // 0x004C8BD0
     std::int16_t word_4C8BD4;  // 0x004C8BD4
     std::uint8_t pad_4C8BD6[0x2];
@@ -4668,7 +4656,7 @@ struct Globals {
     std::int32_t dword_4FD2E8;  // 0x004FD2E8
     std::int32_t dword_4FD2EC;  // 0x004FD2EC
     std::int32_t dword_4FD2F0;  // 0x004FD2F0
-    std::int32_t dword_4FD2F4;  // 0x004FD2F4
+    std::int32_t menuFirst;  // 0x004FD2F4
     std::int32_t dword_4FD2F8;  // 0x004FD2F8
     std::uint8_t unk_4FD2FC;  // 0x004FD2FC
     std::uint8_t pad_4FD2FD[0x3];
@@ -4678,8 +4666,8 @@ struct Globals {
     std::int32_t dword_4FD30C;  // 0x004FD30C
     std::int32_t dword_4FD310;  // 0x004FD310
     std::int32_t dword_4FD314;  // 0x004FD314
-    std::int32_t dword_4FD318;  // 0x004FD318
-    std::int32_t dword_4FD31C;  // 0x004FD31C
+    std::uint16_t* menuEntries;  // 0x004FD318
+    std::int32_t menuVisible;  // 0x004FD31C entries shown from menuFirst (at most 5)
     std::int32_t dword_4FD320;  // 0x004FD320
     std::int32_t dword_4FD324;  // 0x004FD324
     std::uint8_t pad_4FD328[0x7C];
@@ -5601,6 +5589,7 @@ static_assert(offsetof(Globals, roleCount) == 0x50C4);
 static_assert(offsetof(Globals, sineTable) == 0x6250);
 static_assert(offsetof(Globals, pathOverflowText) == 0x6520);
 static_assert(offsetof(Globals, pathOverflowCaption) == 0x653C);
+static_assert(offsetof(Globals, emptyItemName) == 0x69FC);
 static_assert(offsetof(Globals, defaultFontFace) == 0x6B74);
 static_assert(offsetof(Globals, zoomAnchorX) == 0x7698);
 static_assert(offsetof(Globals, zoomAnchorY) == 0x769C);
@@ -5707,6 +5696,7 @@ static_assert(offsetof(Globals, file_4B9F18) == 0x20F18);
 static_assert(offsetof(Globals, musicQueue) == 0x216E8);
 static_assert(offsetof(Globals, roles) == 0x21BA8);
 static_assert(offsetof(Globals, soundEffects) == 0x2F450);
+static_assert(offsetof(Globals, heroItemSlots) == 0x2FAD0);
 static_assert(offsetof(Globals, clickRegionFlags) == 0x2FBE8);
 static_assert(offsetof(Globals, clickRegions) == 0x2FBEC);
 static_assert(offsetof(Globals, clickRegionState) == 0x2FBF0);
@@ -5841,6 +5831,9 @@ static_assert(offsetof(Globals, particleRange) == 0x62568);
 static_assert(offsetof(Globals, textInputLeadPending) == 0x627E8);
 static_assert(offsetof(Globals, r250Index) == 0x627F0);
 static_assert(offsetof(Globals, panelAct) == 0x635B0);
+static_assert(offsetof(Globals, menuFirst) == 0x642F4);
+static_assert(offsetof(Globals, menuEntries) == 0x64318);
+static_assert(offsetof(Globals, menuVisible) == 0x6431C);
 static_assert(offsetof(Globals, scrollAct) == 0x64638);
 static_assert(offsetof(Globals, effectAct) == 0x646D0);
 static_assert(offsetof(Globals, timingCounter) == 0x64768);

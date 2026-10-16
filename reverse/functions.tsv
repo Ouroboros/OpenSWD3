@@ -751,19 +751,19 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 750	swd32.exe	0x0044BDA0	sub_44BDA0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 751	swd32.exe	0x0044C0E0	sub_44C0E0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 752	swd32.exe	0x0044C160	sub_44C160	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-753	swd32.exe	0x0044D010	sub_44D010	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-754	swd32.exe	0x0044D050	sub_44D050	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+753	swd32.exe	0x0044D010	sub_44D010	item	src/item/item_list.cpp:CountVisibleEntries	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+754	swd32.exe	0x0044D050	sub_44D050	item	src/item/item_list.cpp:AdvanceByWords	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 755	swd32.exe	0x0044D070	sub_44D070	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 756	swd32.exe	0x0044D0F0	sub_44D0F0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 757	swd32.exe	0x0044D2D0	sub_44D2D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-758	swd32.exe	0x0044D4E0	sub_44D4E0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-759	swd32.exe	0x0044D520	sub_44D520	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-760	swd32.exe	0x0044D5A0	sub_44D5A0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-761	swd32.exe	0x0044D5D0	sub_44D5D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-762	swd32.exe	0x0044D620	sub_44D620	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-763	swd32.exe	0x0044D650	sub_44D650	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-764	swd32.exe	0x0044D680	sub_44D680	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-765	swd32.exe	0x0044D6B0	sub_44D6B0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+758	swd32.exe	0x0044D4E0	sub_44D4E0	item	src/item/item_list.cpp:MergePendingCounts	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+759	swd32.exe	0x0044D520	sub_44D520	item	src/item/item_list.cpp:CopyItemList	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+760	swd32.exe	0x0044D5A0	sub_44D5A0	item	src/item/item_list.cpp:FreeItemList	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+761	swd32.exe	0x0044D5D0	sub_44D5D0	item	src/item/item_list.cpp:NewEmptyItem	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+762	swd32.exe	0x0044D620	sub_44D620	item	src/item/item_list.cpp:UnlinkItem	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+763	swd32.exe	0x0044D650	sub_44D650	item	src/item/item_list.cpp:FindHeroItem	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+764	swd32.exe	0x0044D680	sub_44D680	item	src/item/item_list.cpp:FindItemOfKind	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+765	swd32.exe	0x0044D6B0	sub_44D6B0	item	src/item/item_list.cpp:ItemAt	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 766	swd32.exe	0x0044D6E0	sub_44D6E0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 767	swd32.exe	0x0044D920	sub_44D920	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 768	swd32.exe	0x0044DA40	sub_44DA40	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
