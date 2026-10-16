@@ -9,12 +9,14 @@
 #include "audio/audio.h"
 #include "file/file.h"
 #include "font/text_font.h"
+#include "game/game_state.h"
 #include "gfx/graphics.h"
 #include "input/input.h"
 #include "memmgr/memory_manager.h"
 #include "res/act.h"
 #include "res/tsw.h"
 #include "role/path_finder.h"
+#include "role/role.h"
 #include "swd3/ddraw.h"
 
 namespace swd3 {
@@ -273,8 +275,7 @@ struct Globals {
     std::uint8_t pad_4994B0[0x1C];
     std::int32_t dword_4994CC;  // 0x004994CC
     std::uint8_t pad_4994D0[0x1C];
-    std::uint8_t byte_4994EC;  // 0x004994EC
-    std::uint8_t pad_4994ED[0x7];
+    std::uint8_t bitMasks[8];  // 0x004994EC 1 << n
     std::int16_t word_4994F4;  // 0x004994F4
     std::uint8_t pad_4994F6[0x2];
     std::int16_t word_4994F8;  // 0x004994F8
@@ -1526,7 +1527,7 @@ struct Globals {
     std::uint8_t pad_49E0BA[0x2];
     std::int32_t dword_49E0BC;  // 0x0049E0BC
     std::int32_t dword_49E0C0;  // 0x0049E0C0
-    std::int32_t dword_49E0C4;  // 0x0049E0C4
+    std::int32_t roleCount;  // 0x0049E0C4 roles in use (index 0 included)
     std::int32_t dword_49E0C8;  // 0x0049E0C8
     std::uint8_t pad_49E0CC[0x4];
     std::int16_t word_49E0D0;  // 0x0049E0D0
@@ -1571,7 +1572,9 @@ struct Globals {
     std::int32_t dword_49E36C;  // 0x0049E36C
     std::int32_t dword_49E370[5];  // 0x0049E370
     std::int32_t dword_49E384[59];  // 0x0049E384
-    std::uint8_t byte_49E470[4272];  // 0x0049E470
+    std::uint8_t byte_49E470[3552];  // 0x0049E470
+    std::int16_t sineTable[90];  // 0x0049F250 sin(degree) * 8192
+    std::uint8_t pad_49F304[0x21C];
     char pathOverflowText[28];  // 0x0049F520 "!!! 路徑超過510 !!!"
     char pathOverflowCaption[12];  // 0x0049F53C
     char aAstarPathFindF[22];  // 0x0049F548
@@ -3358,8 +3361,8 @@ struct Globals {
     std::int32_t dword_4A9918;  // 0x004A9918
     std::uint8_t pad_4A991C[0x4];
     std::int32_t dword_4A9920;  // 0x004A9920
-    std::int32_t dword_4A9924;  // 0x004A9924
-    std::int32_t dword_4A9928;  // 0x004A9928
+    std::int32_t pointerX;  // 0x004A9924
+    std::int32_t pointerY;  // 0x004A9928
     std::int32_t dword_4A992C;  // 0x004A992C
     std::int32_t dword_4A9930;  // 0x004A9930
     std::int32_t dword_4A9934;  // 0x004A9934
@@ -3399,16 +3402,15 @@ struct Globals {
     std::int32_t dword_4AAECC;  // 0x004AAECC
     char tswPath[260];  // 0x004AAED0 scratch path used to open archives
     std::uint8_t pad_4AAFD4[0x2FC];
-    std::int32_t dword_4AB2D0;  // 0x004AB2D0
+    std::int32_t walkSpeed;  // 0x004AB2D0
     std::uint8_t pad_4AB2D4[0x20];
     std::int32_t dword_4AB2F4;  // 0x004AB2F4
     std::int16_t word_4AB2F8;  // 0x004AB2F8
     std::uint8_t pad_4AB2FA[0x7E];
-    std::int32_t dword_4AB378;  // 0x004AB378
+    std::int32_t playerRole;  // 0x004AB378 index of the controlled role in roles
     std::int32_t dword_4AB37C;  // 0x004AB37C
     std::uint8_t pad_4AB380[0x4];
-    std::uint8_t byte_4AB384;  // 0x004AB384
-    std::uint8_t pad_4AB385[0x3FF];
+    std::uint8_t gameFlags[1024];  // 0x004AB384 bit flags (GameFlag); also saved with the game
     std::int32_t dword_4AB784;  // 0x004AB784
     std::int32_t dword_4AB788;  // 0x004AB788
     std::uint8_t pad_4AB78C[0x4];
@@ -3479,7 +3481,7 @@ struct Globals {
     std::int32_t dword_4AC9B8;  // 0x004AC9B8
     std::uint8_t unk_4AC9BC;  // 0x004AC9BC
     std::uint8_t pad_4AC9BD[0x103];
-    std::int32_t dword_4ACAC0;  // 0x004ACAC0
+    EventNode* eventList;  // 0x004ACAC0
     std::uint8_t pad_4ACAC4[0x34];
     std::int32_t dword_4ACAF8;  // 0x004ACAF8
     std::uint8_t pad_4ACAFC[0x4];
@@ -3719,7 +3721,7 @@ struct Globals {
     std::uint8_t pad_4B7B20[0xA4];
     std::int32_t dword_4B7BC4;  // 0x004B7BC4
     std::uint8_t pad_4B7BC8[0x4];
-    std::int32_t dword_4B7BCC;  // 0x004B7BCC
+    std::int32_t inputLock;  // 0x004B7BCC
     std::uint8_t unk_4B7BD0;  // 0x004B7BD0
     std::uint8_t pad_4B7BD1[0x9F];
     std::int32_t dword_4B7C70;  // 0x004B7C70
@@ -3888,61 +3890,7 @@ struct Globals {
     std::int32_t dword_4BAB9C;  // 0x004BAB9C
     std::int32_t dword_4BABA0;  // 0x004BABA0
     std::int32_t dword_4BABA4;  // 0x004BABA4
-    std::uint8_t unk_4BABA8;  // 0x004BABA8
-    std::uint8_t pad_4BABA9[0x3];
-    std::int32_t dword_4BABAC;  // 0x004BABAC
-    std::int32_t dword_4BABB0;  // 0x004BABB0
-    std::uint8_t pad_4BABB4[0x4];
-    std::int32_t dword_4BABB8;  // 0x004BABB8
-    std::int32_t dword_4BABBC;  // 0x004BABBC
-    std::int32_t dword_4BABC0;  // 0x004BABC0
-    std::int16_t word_4BABC4;  // 0x004BABC4
-    std::int16_t word_4BABC6;  // 0x004BABC6
-    std::int16_t word_4BABC8;  // 0x004BABC8
-    std::uint8_t pad_4BABCA[0x2];
-    std::int16_t word_4BABCC;  // 0x004BABCC
-    std::int16_t word_4BABCE;  // 0x004BABCE
-    std::uint8_t pad_4BABD0[0x10];
-    std::int32_t dword_4BABE0;  // 0x004BABE0
-    std::int32_t dword_4BABE4;  // 0x004BABE4
-    std::int32_t dword_4BABE8;  // 0x004BABE8
-    std::uint8_t pad_4BABEC[0x4];
-    std::int32_t dword_4BABF0;  // 0x004BABF0
-    std::int32_t dword_4BABF4;  // 0x004BABF4
-    std::uint8_t pad_4BABF8[0x10];
-    std::int32_t dword_4BAC08;  // 0x004BAC08
-    std::uint8_t pad_4BAC0C[0x8];
-    std::int32_t dword_4BAC14;  // 0x004BAC14
-    std::int32_t dword_4BAC18;  // 0x004BAC18
-    std::int32_t dword_4BAC1C;  // 0x004BAC1C
-    std::int32_t dword_4BAC20;  // 0x004BAC20
-    std::int32_t dword_4BAC24;  // 0x004BAC24
-    std::int16_t word_4BAC28;  // 0x004BAC28
-    std::int16_t word_4BAC2A;  // 0x004BAC2A
-    std::int16_t word_4BAC2C;  // 0x004BAC2C
-    std::uint8_t pad_4BAC2E[0x2];
-    std::int16_t word_4BAC30;  // 0x004BAC30
-    std::uint8_t pad_4BAC32[0xE];
-    std::int16_t word_4BAC40;  // 0x004BAC40
-    std::uint8_t pad_4BAC42[0x3E];
-    std::uint8_t unk_4BAC80;  // 0x004BAC80
-    std::uint8_t pad_4BAC81[0x3];
-    std::uint8_t unk_4BAC84;  // 0x004BAC84
-    std::uint8_t pad_4BAC85[0x3];
-    std::uint8_t unk_4BAC88;  // 0x004BAC88
-    std::uint8_t pad_4BAC89[0x7];
-    std::uint8_t unk_4BAC90;  // 0x004BAC90
-    std::uint8_t pad_4BAC91[0xD];
-    std::uint8_t unk_4BAC9E;  // 0x004BAC9E
-    std::uint8_t pad_4BAC9F[0x5];
-    std::uint8_t unk_4BACA4;  // 0x004BACA4
-    std::uint8_t pad_4BACA5[0x1];
-    std::uint8_t unk_4BACA6;  // 0x004BACA6
-    std::uint8_t pad_4BACA7[0x45];
-    std::uint8_t unk_4BACEC;  // 0x004BACEC
-    std::uint8_t pad_4BACED[0x3];
-    std::uint8_t unk_4BACF0;  // 0x004BACF0
-    std::uint8_t pad_4BACF1[0xD6B7];
+    Role roles[256];  // 0x004BABA8
     std::int32_t dword_4C83A8;  // 0x004C83A8
     std::uint8_t pad_4C83AC[0x4];
     std::int32_t dword_4C83B0;  // 0x004C83B0
@@ -3975,11 +3923,9 @@ struct Globals {
     std::int32_t dword_4C8BDC;  // 0x004C8BDC
     std::int32_t dword_4C8BE0;  // 0x004C8BE0
     std::uint8_t pad_4C8BE4[0x4];
-    std::int32_t dword_4C8BE8;  // 0x004C8BE8
-    std::int32_t dword_4C8BEC;  // 0x004C8BEC
-    std::int32_t dword_4C8BF0;  // 0x004C8BF0
-    std::int32_t dword_4C8BF4;  // 0x004C8BF4
-    std::int32_t dword_4C8BF8;  // 0x004C8BF8
+    std::int32_t clickRegionFlags;  // 0x004C8BE8
+    ClickRegion* clickRegions;  // 0x004C8BEC
+    std::int32_t clickRegionState[3];  // 0x004C8BF0
     std::int32_t dword_4C8BFC;  // 0x004C8BFC
     std::int32_t dword_4C8C00;  // 0x004C8C00
     std::uint8_t unk_4C8C04;  // 0x004C8C04
@@ -4162,7 +4108,7 @@ struct Globals {
     std::int32_t dword_4CC2C8;  // 0x004CC2C8
     std::int32_t dword_4CC2CC;  // 0x004CC2CC
     std::int32_t dword_4CC2D0;  // 0x004CC2D0
-    std::int32_t dword_4CC2D4;  // 0x004CC2D4
+    std::int32_t marchingPhase;  // 0x004CC2D4
     std::uint8_t ValueName;  // 0x004CC2D8
     std::uint8_t pad_4CC2D9[0x3];
     std::int32_t dword_4CC2DC;  // 0x004CC2DC
@@ -5738,6 +5684,7 @@ static_assert(offsetof(Globals, pathDirectionByDelta) == 0x348);
 static_assert(offsetof(Globals, pathDeltaX) == 0x354);
 static_assert(offsetof(Globals, pathDeltaY) == 0x360);
 static_assert(offsetof(Globals, oppositeDirection) == 0x36C);
+static_assert(offsetof(Globals, bitMasks) == 0x4EC);
 static_assert(offsetof(Globals, tenDouble) == 0x6B0);
 static_assert(offsetof(Globals, iidDirectDraw4) == 0xD88);
 static_assert(offsetof(Globals, iidDirectDrawSurface4) == 0xDC8);
@@ -5747,6 +5694,8 @@ static_assert(offsetof(Globals, guidButton) == 0x1788);
 static_assert(offsetof(Globals, guidSysMouse) == 0x17C8);
 static_assert(offsetof(Globals, guidSysKeyboard) == 0x17D8);
 static_assert(offsetof(Globals, cppInitializers) == 0x5000);
+static_assert(offsetof(Globals, roleCount) == 0x50C4);
+static_assert(offsetof(Globals, sineTable) == 0x6250);
 static_assert(offsetof(Globals, pathOverflowText) == 0x6520);
 static_assert(offsetof(Globals, pathOverflowCaption) == 0x653C);
 static_assert(offsetof(Globals, defaultFontFace) == 0x6B74);
@@ -5769,11 +5718,17 @@ static_assert(offsetof(Globals, lcgState) == 0xD9F8);
 static_assert(offsetof(Globals, file_4A9380) == 0x10380);
 static_assert(offsetof(Globals, gameDir) == 0x104BC);
 static_assert(offsetof(Globals, file_4A98C8) == 0x108C8);
+static_assert(offsetof(Globals, pointerX) == 0x10924);
+static_assert(offsetof(Globals, pointerY) == 0x10928);
 static_assert(offsetof(Globals, audioSystem) == 0x10AC8);
 static_assert(offsetof(Globals, textFont_4A9ED0) == 0x10ED0);
 static_assert(offsetof(Globals, tswPath) == 0x11ED0);
+static_assert(offsetof(Globals, walkSpeed) == 0x122D0);
+static_assert(offsetof(Globals, playerRole) == 0x12378);
+static_assert(offsetof(Globals, gameFlags) == 0x12384);
 static_assert(offsetof(Globals, graphics) == 0x12870);
 static_assert(offsetof(Globals, textFont_4AB998) == 0x12998);
+static_assert(offsetof(Globals, eventList) == 0x13AC0);
 static_assert(offsetof(Globals, memoryManager) == 0x1DC78);
 static_assert(offsetof(Globals, musicFading) == 0x1E378);
 static_assert(offsetof(Globals, musicFadeMode) == 0x1E380);
@@ -5783,12 +5738,17 @@ static_assert(offsetof(Globals, mapWidth) == 0x1E930);
 static_assert(offsetof(Globals, mapHeight) == 0x1E934);
 static_assert(offsetof(Globals, mapBlocking) == 0x1E948);
 static_assert(offsetof(Globals, file_4B7AD0) == 0x1EAD0);
+static_assert(offsetof(Globals, inputLock) == 0x1EBCC);
 static_assert(offsetof(Globals, midiPlayer) == 0x1EEB8);
 static_assert(offsetof(Globals, input) == 0x1F748);
 static_assert(offsetof(Globals, mapCacheFile) == 0x1F868);
 static_assert(offsetof(Globals, file_4B9F18) == 0x20F18);
 static_assert(offsetof(Globals, musicQueue) == 0x216E8);
+static_assert(offsetof(Globals, roles) == 0x21BA8);
 static_assert(offsetof(Globals, soundEffects) == 0x2F450);
+static_assert(offsetof(Globals, clickRegionFlags) == 0x2FBE8);
+static_assert(offsetof(Globals, clickRegions) == 0x2FBEC);
+static_assert(offsetof(Globals, clickRegionState) == 0x2FBF0);
 static_assert(offsetof(Globals, streamPlayer) == 0x30288);
 static_assert(offsetof(Globals, mainWindow) == 0x30A1C);
 static_assert(offsetof(Globals, textFont_4C9A28) == 0x30A28);
@@ -5798,6 +5758,7 @@ static_assert(offsetof(Globals, pathPoolUnused) == 0x321F0);
 static_assert(offsetof(Globals, pathPoolFree) == 0x321F4);
 static_assert(offsetof(Globals, pathPoolPeak) == 0x321F8);
 static_assert(offsetof(Globals, pathNodePool) == 0x321FC);
+static_assert(offsetof(Globals, marchingPhase) == 0x332D4);
 static_assert(offsetof(Globals, drawPitch) == 0x332EC);
 static_assert(offsetof(Globals, drawAlpha) == 0x332F0);
 static_assert(offsetof(Globals, drawShearDir) == 0x332F4);

@@ -171,23 +171,23 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 170	swd32.exe	0x0040D790	sub_40D790	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 171	swd32.exe	0x0040D9E0	sub_40D9E0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 172	swd32.exe	0x0040DA60	sub_40DA60	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-173	swd32.exe	0x0040DB40	sub_40DB40	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-174	swd32.exe	0x0040DB60	sub_40DB60	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-175	swd32.exe	0x0040DBC0	sub_40DBC0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-176	swd32.exe	0x0040DC00	sub_40DC00	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-177	swd32.exe	0x0040DC30	sub_40DC30	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-178	swd32.exe	0x0040DC50	sub_40DC50	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-179	swd32.exe	0x0040DC80	sub_40DC80	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-180	swd32.exe	0x0040DCB0	sub_40DCB0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-181	swd32.exe	0x0040DCE0	sub_40DCE0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-182	swd32.exe	0x0040DD10	sub_40DD10	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-183	swd32.exe	0x0040DD20	sub_40DD20	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-184	swd32.exe	0x0040DD30	sub_40DD30	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-185	swd32.exe	0x0040DD40	sub_40DD40	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-186	swd32.exe	0x0040DD60	sub_40DD60	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-187	swd32.exe	0x0040DE50	sub_40DE50	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-188	swd32.exe	0x0040E030	sub_40E030	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-189	swd32.exe	0x0040E080	sub_40E080	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+173	swd32.exe	0x0040DB40	sub_40DB40	game	src/game/game_state.cpp:CountClickRegions	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+174	swd32.exe	0x0040DB60	sub_40DB60	game	src/game/game_state.cpp:FindClickRegion	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+175	swd32.exe	0x0040DBC0	sub_40DBC0	game	src/game/game_state.cpp:FreeClickRegions	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+176	swd32.exe	0x0040DC00	sub_40DC00	game	src/game/game_state.cpp:ResetMoveRecord	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+177	swd32.exe	0x0040DC30	sub_40DC30	game	src/game/game_state.cpp:FindEvent	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+178	swd32.exe	0x0040DC50	sub_40DC50	game	src/game/game_state.cpp:GameFlag	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+179	swd32.exe	0x0040DC80	sub_40DC80	game	src/game/game_state.cpp:SetGameFlag	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+180	swd32.exe	0x0040DCB0	sub_40DCB0	game	src/game/game_state.cpp:ClearGameFlag	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+181	swd32.exe	0x0040DCE0	sub_40DCE0	game	src/game/game_state.cpp:SetGameFlagTo	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+182	swd32.exe	0x0040DD10	sub_40DD10	game	src/game/game_state.cpp:SetWalkSpeed	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+183	swd32.exe	0x0040DD20	sub_40DD20	game	src/game/game_state.cpp:SetInputLock	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+184	swd32.exe	0x0040DD30	sub_40DD30	game	src/game/game_state.cpp:ClearInputLock	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+185	swd32.exe	0x0040DD40	sub_40DD40	game	src/game/game_state.cpp:ClearFollower	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+186	swd32.exe	0x0040DD60	sub_40DD60	game	src/game/game_state.cpp:LoadRoleRecord	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+187	swd32.exe	0x0040DE50	sub_40DE50	game	src/game/game_state.cpp:DrawMarchingRect	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+188	swd32.exe	0x0040E030	sub_40E030	game	src/game/game_state.cpp:DirectionToPlayer	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+189	swd32.exe	0x0040E080	sub_40E080	game	src/game/game_state.cpp:ShrinkScreenQuarter	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 190	swd32.exe	0x0040E0B0	sub_40E0B0	misc		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Misc:...)"
 191	swd32.exe	0x0040EB60	sub_40EB60	music		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Music\"
 192	swd32.exe	0x0040EBF0	sub_40EBF0	misc		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Misc:...)"
@@ -226,8 +226,8 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 225	swd32.exe	0x00411C90	sub_411C90	cdcheck		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between cdcheck anchors 0x004118B0 and 0x00411D90
 226	swd32.exe	0x00411D00	sub_411D00	cdcheck		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between cdcheck anchors 0x004118B0 and 0x00411D90
 227	swd32.exe	0x00411D90	sub_411D90	cdcheck		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "GetDiskFreeSpaceExA"
-228	swd32.exe	0x00411E20	sub_411E20	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-229	swd32.exe	0x00411F00	sub_411F00	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+228	swd32.exe	0x00411E20	sub_411E20	game	src/game/game_state.cpp:AngleBetween	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+229	swd32.exe	0x00411F00	sub_411F00	game	src/game/game_state.cpp:AngleToDirection	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 230	swd32.exe	0x00411F90	sub_411F90	core	src/core/debug_log.cpp:DebugLog	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 231	swd32.exe	0x00411FA0	sub_411FA0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 232	swd32.exe	0x00412050	sub_412050	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
