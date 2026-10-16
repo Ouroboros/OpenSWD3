@@ -23,18 +23,18 @@
 - 当前阶段：第 2 阶段（还原），按版本 3 架构重建。
 - 已识别函数数：1626（无 FLIRT 数据库导出；函数外代码头 0）。
 - 函数总数：待确定（间接调用目标与函数指针表尚未全部核对，见 reverse/analysis/scope-and-gaps.md）。
-- 已实现／总数：273／待确定（已识别 1626）；旧逐句转写实现（804 个）保存在标签 legacy-transliteration，仅作参考。
+- 已实现／总数：369／待确定（已识别 1626）；旧逐句转写实现（804 个）保存在标签 legacy-transliteration，仅作参考。
 - 已验证／总数：0／待确定（已识别 1626）。
-- 待实现／待验证：1353／1626（按已识别函数计）。
+- 待实现／待验证：1257／1626（按已识别函数计）。
 - 模块初分：已归属 884，unknown 742（reverse/analysis/module_assignment.tsv）。
 
 ## 当前工作
 
-按 reverse/analysis/architecture.md 自底向上重建。已完成：骨架与窗口 Display、文件、LZO、绘制核心 Painter、RLE 编解码、tsw/act 档案与动作脚本、Graphics、MemMgr、TextFont（自带细明体点阵字库 GlyphLibrary）、Input、音频（AudioDevice 与 Miles 封装）、Bink 影片（Movie 与 MediaDecoder）；各模块以旧实现生成的黄金数据逐项对照（reverse/analysis/golden/）。
+按 reverse/analysis/architecture.md 自底向上重建。已完成：骨架与窗口 Display、文件、LZO、绘制核心 Painter、RLE 编解码、tsw/act 档案与动作脚本、Graphics、MemMgr、TextFont（自带细明体点阵字库 GlyphLibrary）、Input、音频（AudioDevice 与 Miles 封装）、Bink 影片（Movie 与 MediaDecoder）、随机数、游戏状态基础、文字输入框、配置（Env.dat）、按键状态、投影与粒子效果、A* 寻路；各模块以旧实现生成的黄金数据逐项对照（reverse/analysis/golden/）。
 
 ## 下一步
 
-随机数、游戏状态、角色与寻路、地图、对话、战斗、菜单与主循环。
+角色与移动、道具、地图、对话、战斗、菜单与主循环。
 
 ## GOAL完成条件
 
