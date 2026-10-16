@@ -48,7 +48,7 @@ std::string Format(const char* format, int first, const char* name, int second =
 
 }  // namespace
 
-TswArchive::TswArchive(const RleCodec& codec) : codec(codec)
+TswArchive::TswArchive(const RleCodec& codec, ErrorReporter& errors) : codec(codec), errors(errors)
 {
 }
 
@@ -111,7 +111,7 @@ TswFrameEntry& TswArchive::MagicFrame(int slot, int frame)
 
 void TswArchive::ReportError(const std::string& text)
 {
-    ShowErrorMessage(tsw_text::kErrorTitle, text);
+    this->errors.ShowError(tsw_text::kErrorTitle, text);
 }
 
 // swd32.exe 0x004315C0

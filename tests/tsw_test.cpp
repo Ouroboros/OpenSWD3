@@ -9,6 +9,7 @@
 #include "golden/tsw_scenarios.h"
 #include "pic/rle.h"
 #include "platform/surface.h"
+#include "recording_reporter.h"
 #include "res/tsw_archive.h"
 #include "test.h"
 
@@ -112,7 +113,8 @@ TEST_CASE("tsw: matches the golden results of the legacy archives")
     swd3::Painter painter;
     painter.Init(screen);
     const swd3::RleCodec codec(painter);
-    swd3::TswArchive archive(codec);
+    swd3test::RecordingReporter errors;
+    swd3::TswArchive archive(codec, errors);
     archive.SetGameDirectory(swd3test::GameDirectory());
     ArchiveBackend backend(archive);
     int compared = 0;

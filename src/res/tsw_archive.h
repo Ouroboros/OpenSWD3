@@ -14,6 +14,7 @@
 namespace swd3
 {
 
+class ErrorReporter;
 class RleCodec;
 
 // Texts of the archive (Big5 as in the executable).
@@ -88,7 +89,7 @@ public:
     static constexpr int kMagicLast = 9000;
     static constexpr u16 kMapPicture = 0xFFFF;
 
-    explicit TswArchive(const RleCodec& codec);
+    TswArchive(const RleCodec& codec, ErrorReporter& errors);
 
     void SetGameDirectory(std::string directory);
     void SetMapPictureSource(MapPictureSource* source);
@@ -150,6 +151,7 @@ private:
     void ReportError(const std::string& text);
 
     const RleCodec& codec;
+    ErrorReporter& errors;
     MapPictureSource* mapPictures = nullptr;
     std::string gameDirectory;
     std::array<File, kFileCount> files;

@@ -29,3 +29,7 @@ GOLDEN_OUT=<工作区>/tests/golden/draw_golden.txt SWD3_GAME_DIR=/mnt/e/Game/sw
 ## tsw 档案（tests/golden/tsw_golden.txt）
 
 场景定义：`tests/golden/tsw_scenarios.h`。生成器：`tsw_golden_legacy.cpp`，运行 `./swd3_tests "tsw archives"`。场景只请求实际存在的帧（越界帧号会把图形数据当作帧记录读取，原程序同样不可用）；直接载入的魔法图片不比较调色板（原程序带未初始化指针）。
+
+## act 档案与动作脚本（tests/golden/act_golden.txt）
+
+场景定义：`tests/golden/act_scenarios.h`。生成器：`act_golden_legacy.cpp`，运行 `./swd3_tests "act archives"`。脚本指针以“是否存在 + 前两个字”代替比较。

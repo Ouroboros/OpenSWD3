@@ -33,3 +33,13 @@ void ShowErrorMessage(std::string_view title, std::string_view text)
 }
 
 }  // namespace swd3
+
+namespace swd3
+{
+
+void DialogErrorReporter::ShowError(std::string_view title, std::string_view text)
+{
+    ShowErrorMessage(title, text);
+}
+
+}  // namespace swd3

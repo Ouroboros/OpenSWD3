@@ -2,6 +2,8 @@
 
 ## 执行边界
 
+Agent 只运行 WSL（Linux）程序；任何 Windows 可执行文件（包括 swd3r.exe、swd3_tests.exe、idat.exe）只能由用户启动。Windows 目标由 Agent 交叉编译，Windows 单元测试、试玩以及需要 IDAT 的查询由用户运行，Agent 提供命令与脚本并根据用户回传的结果继续。单元测试与工具不得弹出窗口或对话框（错误对话框经 ErrorReporter 注入，测试使用只记录的实现）。
+
 Skill负责准备工作区、AGENTS.md、GOAL.md及最小构建配置，并完成IDAT初步分析。交付前必须等待自动分析完成，将工作数据库（IDB／I64）保存至reverse/analysis/，正常关闭后用IDAT重开，确认输入身份及函数、汇编可读取；同时记录输入基线、结构概览和范围缺口，从数据库填写真实初始函数表。新函数为pending_implementation、验证次数为0，源码映射留空；已有工作与进度保留。准备结果及数据库入口写入GOAL后，Skill结束。
 
 由用户自行START GOAL，接续已保存的分析成果。函数实现、逐函数一致性验证与成品构建在GOAL启动后执行；初步分析不计入函数验证次数。
