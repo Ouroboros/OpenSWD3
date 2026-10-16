@@ -1,10 +1,12 @@
 #include "battle/battle_hud.h"
 
 #include "audio/audio_manager.h"
+#include "core/words.h"
 #include "crt/msvc.h"
 #include "draw/painter.h"
 #include "pic/picture.h"
 #include "pic/picture_ops.h"
+#include "platform/display.h"
 #include "random/random.h"
 #include "res/act_archive.h"
 #include "res/tsw_archive.h"
@@ -18,10 +20,6 @@ namespace
 constexpr int kPortraitAct = 0x2390;
 constexpr int kArrowAct = 0x2392;
 constexpr u32 kOutlineGreen = 0x07E007E0;
-constexpr u32 kTintFlag = 0x10;
-constexpr u32 kTranslucent = 0x14;
-constexpr u32 kScaledGlow = 0x20;
-constexpr u32 kRawGradient = 0x08;
 constexpr u16 kDigitGlow4000 = 0x4000;
 constexpr u16 kDigitGlow8000 = 0x8000;
 constexpr u32 kDigitFont0 = 0x2359;
@@ -29,9 +27,56 @@ constexpr u32 kDigitFont1 = 0x2358;
 constexpr u16 kCoinAct = 0x2329;
 constexpr u32 kTimingPicture = 0x234F;
 constexpr u32 kTallGauge = 0x241A;
-constexpr int kScreenWidth = 0x280;
-constexpr int kScreenHeight = 0x1E0;
 constexpr int kVisibleRows = 7;
+constexpr int kDimTint = -10;  // the green and blue tint of a dimmed portrait
+constexpr int kGaugeBack = 0;  // the frames of a gauge picture
+constexpr int kGaugeFill = 1;
+constexpr int kGaugeAltFill = 2;
+constexpr int kWideFillExtra = 2;
+constexpr int kDecimal = 10;
+constexpr int kSmallDigits = 4;
+constexpr int kSmallTopDivisor = 1000;
+constexpr u32 kTopDivisor = 1000000000u;  // DrawNumber: ten digits
+constexpr int kNumberDigitWidth = 0x10;
+constexpr int kScrollPiece = 0x18;  // the actions of the scroll bar act
+constexpr int kScrollThumb = 0x19;
+constexpr int kScrollTop = 0x1A;
+constexpr int kScrollBottom = 0x1B;
+constexpr int kScrollStyle1Top = 0x1E;
+constexpr int kScrollStyle2Bottom = 0x1F;
+constexpr int kTopCapStyle = 1;  // DrawScrollBar styles
+constexpr int kBottomCapStyle = 2;
+constexpr int kLineWidth = 1;  // the timing marks and needle
+constexpr int kTrackInset = 2;
+constexpr int kThumbInset = 5;
+constexpr int kMinThumb = 5;
+constexpr int kScrollClipWidth = 0x20;
+constexpr u32 kCoinSides = 2;
+constexpr u16 kWinningSide = 1;
+constexpr i32 kCoinAction = 2;
+constexpr i32 kCoinWinAction = 3;  // the coin showing the winning side
+constexpr int kCoinX = 0x104;      // a coin is drawn kCoinStep further right on the winning side
+constexpr int kCoinStep = 0x32;
+constexpr int kCoinY = 0xC8;
+constexpr i32 kCoinSlowFrames = 0x19;  // the coin flips kCoinSlowdown times slower every kCoinSlowFrames frames
+constexpr int kCoinSlowdown = 2;
+constexpr u16 kCoinStopDelay = 0x40;
+constexpr u16 kCoinSound = 0x2E;
+constexpr u16 kCoinVolume = 1;
+constexpr int kNeedleShift = 1;  // the needle moves a pixel every second frame
+constexpr int kNeedleReach = 2;  // a mark is hit up to two pixels past it
+constexpr int kNeedleEnd = 0x3D;
+constexpr u16 kTimingDone = 0x8000;
+constexpr int kGaugeTop = 0;  // the frames of the tall gauge
+constexpr int kGaugeBottom = 1;
+constexpr int kGaugeBody = 2;
+constexpr int kGaugeShine = 3;
+constexpr int kGaugeLevels = 6;
+constexpr int kBodyInset = 4;
+constexpr int kShineAlpha = 8;
+constexpr int kShineX = 0xB;
+constexpr int kShineY = 0x1F;
+constexpr u16 kNotLoaded = 0xFFFF;
 
 }  // namespace
 
@@ -109,12 +154,12 @@ int BattleHud::DrawPortrait(u16 index, int x, int y, int dim)
     }
 
     DrawOptions& options = this->painter.Options();
-    options.tintGreen = -10;
-    options.tintBlue = -10;
+    options.tintGreen = kDimTint;
+    options.tintBlue = kDimTint;
     options.tintRed = 0;
     const Picture* current = this->lastPicture;
     return this->painter
-        .DrawPicture(x - state.x, y - state.y, current->width, current->height, state.flags | kTintFlag);
+        .DrawPicture(x - state.x, y - state.y, current->width, current->height, state.flags | Painter::TintUnder);
 }
 
 // swd32.exe 0x00450400: the looping arrow (act 0x2392) of one of four slots
@@ -162,14 +207,14 @@ int BattleHud::DrawPictureFrame(int id, int frame, int x, int y)
 // swd32.exe 0x00450530: frame 0 as the background, `fill` pixels of frame 1 over it
 int BattleHud::DrawGauge(int id, int x, int y, int fill)
 {
-    const Picture* back = this->Select(id, 0);
+    const Picture* back = this->Select(id, kGaugeBack);
 
     if (back != nullptr)
     {
         this->painter.DrawPicture(x, y, back->width, back->height, 0);
     }
 
-    const Picture* front = this->Select(id, 1);
+    const Picture* front = this->Select(id, kGaugeFill);
 
     if (front != nullptr && fill != 0)
     {
@@ -182,14 +227,14 @@ int BattleHud::DrawGauge(int id, int x, int y, int fill)
 // swd32.exe 0x004505B0: as DrawGauge with frame 2
 int BattleHud::DrawGaugeAlt(int id, int x, int y, int fill)
 {
-    const Picture* back = this->Select(id, 0);
+    const Picture* back = this->Select(id, kGaugeBack);
 
     if (back != nullptr)
     {
         this->painter.DrawPicture(x, y, back->width, back->height, 0);
     }
 
-    const Picture* front = this->Select(id, 2);
+    const Picture* front = this->Select(id, kGaugeAltFill);
 
     if (front != nullptr && fill != 0)
     {
@@ -202,23 +247,23 @@ int BattleHud::DrawGaugeAlt(int id, int x, int y, int fill)
 // swd32.exe 0x00450630: frame 1 drawn fill + 2 pixels wide (also when fill is 0)
 int BattleHud::DrawGaugeWide(int id, int x, int y, u16 fill)
 {
-    const Picture* back = this->Select(id, 0);
+    const Picture* back = this->Select(id, kGaugeBack);
 
     if (back != nullptr)
     {
         this->painter.DrawPicture(x, y, back->width, back->height, 0);
     }
 
-    const Picture* front = this->Select(id, 1);
-    return front != nullptr ? this->painter.DrawPicture(x, y, fill + 2, front->height, 0) : 0;
+    const Picture* front = this->Select(id, kGaugeFill);
+    return front != nullptr ? this->painter.DrawPicture(x, y, fill + kWideFillExtra, front->height, 0) : 0;
 }
 
 // swd32.exe 0x004506B0: up to four decimal digits right aligned at x (frames of picture `font`)
 int BattleHud::DrawSmallNumber(int font, int value, int x, int y)
 {
-    std::array<int, 4> digits = {};
+    std::array<int, kSmallDigits> digits = {};
     int count = 0;
-    int divisor = 1000;
+    int divisor = kSmallTopDivisor;
     this->numberX = x;
     this->numberY = y;
     this->numberStarted = 0;
@@ -235,7 +280,7 @@ int BattleHud::DrawSmallNumber(int font, int value, int x, int y)
             ++count;
         }
 
-        divisor /= 10;
+        divisor /= kDecimal;
     }
 
     if (count == 0)
@@ -247,7 +292,7 @@ int BattleHud::DrawSmallNumber(int font, int value, int x, int y)
 
     for (int i = 0; i < count; ++i)
     {
-        const Picture* picture = this->Select(font, digits[static_cast<std::size_t>(3 - i)]);
+        const Picture* picture = this->Select(font, digits[static_cast<std::size_t>(kSmallDigits - 1 - i)]);
 
         if (picture == nullptr)
         {
@@ -264,14 +309,14 @@ int BattleHud::DrawSmallNumber(int font, int value, int x, int y)
 // swd32.exe 0x004507A0: a ten-digit number from x without leading zeros (the units digit always drawn)
 int BattleHud::DrawNumber(i16 font, int value, int x, int y)
 {
-    this->numberFont = (this->numberFont & 0xFFFF) | (static_cast<u32>(static_cast<u16>(font)) << 16);
+    this->numberFont = MakeWords(static_cast<u16>(font), LowWord(this->numberFont));
     this->numberValue = value;
     this->numberX = x;
     this->numberY = y;
     this->numberStarted = 0;
-    this->numberX = this->DrawNumberDigit(1000000000u) + x;
+    this->numberX = this->DrawNumberDigit(kTopDivisor) + x;
 
-    for (u32 divisor = 100000000u; divisor >= 10u; divisor /= 10)
+    for (u32 divisor = kTopDivisor / kDecimal; divisor >= kDecimal; divisor /= kDecimal)
     {
         this->numberX += this->DrawNumberDigit(divisor);
     }
@@ -292,14 +337,14 @@ u16 BattleHud::DrawNumberDigit(u32 divisor)
         return 0;
     }
 
-    const Picture* picture = this->Select(static_cast<u16>(this->numberFont >> 16), static_cast<int>(digit));
+    const Picture* picture = this->Select(HighWord(this->numberFont), static_cast<int>(digit));
     this->Draw(
         picture,
-        this->numberX - 0x10,
+        this->numberX - kNumberDigitWidth,
         this->numberY,
         picture != nullptr ? picture->width : 0,
         picture != nullptr ? picture->height : 0,
-        this->digitMode == kDigitGlow8000 ? kScaledGlow : 0
+        this->digitMode == kDigitGlow8000 ? Painter::ScaledGlow : 0
     );
     this->numberStarted = 1;
     this->numberValue = static_cast<i32>(static_cast<u32>(this->numberValue) - divisor * static_cast<u16>(digit));
@@ -334,7 +379,7 @@ int BattleHud::FillColor(int x, int y, int width, int height, u32 color)
 {
     u32 slot = color;
     this->painter.SetSource(&slot);
-    const int result = this->painter.DrawPicture(x, y, width, height, kRawGradient);
+    const int result = this->painter.DrawPicture(x, y, width, height, Painter::RawGradient);
     this->painter.SetSource(nullptr);
     return result;
 }
@@ -424,8 +469,8 @@ u16 BattleHud::DrawDigit(int font, int digit, int x, int y)
         return 0;
     }
 
-    this->painter
-        .DrawPicture(x, y, picture->width, picture->height, this->digitMode == kDigitGlow4000 ? kScaledGlow : 0);
+    const u32 glow = this->digitMode == kDigitGlow4000 ? Painter::ScaledGlow : 0;
+    this->painter.DrawPicture(x, y, picture->width, picture->height, glow);
     return this->lastPicture->width;
 }
 
@@ -456,7 +501,7 @@ const Picture* BattleHud::RunScroll(u16 id, int action)
 int BattleHud::DrawScrollBar(u16 id, int x, int y, int rows, int offset, int style)
 {
     ActState& state = this->scrollAct;
-    const Picture* cap = this->RunScroll(id, style == 1 ? 0x1E : 0x1A);
+    const Picture* cap = this->RunScroll(id, style == kTopCapStyle ? kScrollStyle1Top : kScrollTop);
 
     if (cap == nullptr)
     {
@@ -467,7 +512,7 @@ int BattleHud::DrawScrollBar(u16 id, int x, int y, int rows, int offset, int sty
     const int capHeight = cap->height;
     const int trackTop = capHeight + y;
     state = ActState{};
-    const Picture* piece = this->RunScroll(id, 0x18);
+    const Picture* piece = this->RunScroll(id, kScrollPiece);
 
     if (piece == nullptr)
     {
@@ -478,14 +523,15 @@ int BattleHud::DrawScrollBar(u16 id, int x, int y, int rows, int offset, int sty
 
     for (; row < rows; ++row)
     {
-        this->painter.DrawPicture(x + 2, y + capHeight + row * piece->height, piece->width, piece->height, state.flags);
+        const int rowY = y + capHeight + row * piece->height;
+        this->painter.DrawPicture(x + kTrackInset, rowY, piece->width, piece->height, state.flags);
     }
 
     const u16 pieceHeight = piece->height;
     const int bottomOffset = row * pieceHeight + capHeight;
     const int track = rows * pieceHeight;
     state = ActState{};
-    const Picture* thumb = this->RunScroll(id, 0x19);
+    const Picture* thumb = this->RunScroll(id, kScrollThumb);
 
     if (thumb == nullptr)
     {
@@ -500,9 +546,9 @@ int BattleHud::DrawScrollBar(u16 id, int x, int y, int rows, int offset, int sty
     int thumbBottom = offset + trackTop + this->scrollStep * this->scrollFirst + thumbLength;
     this->scrollThumbY = thumbTop;
 
-    if (thumbBottom - thumbTop < 5)
+    if (thumbBottom - thumbTop < kMinThumb)
     {
-        thumbBottom = thumbTop + 5;
+        thumbBottom = thumbTop + kMinThumb;
     }
 
     if (this->scrollFirst + kVisibleRows >= this->scrollCount)
@@ -514,7 +560,7 @@ int BattleHud::DrawScrollBar(u16 id, int x, int y, int rows, int offset, int sty
     this->scrollThumbTop = thumbTop;
     this->scrollThumbBottom = thumbBottom;
     this->scrollTrackBottom = trackTop + track;
-    this->painter.SetClipClamped(x, y, x + 0x20, thumbBottom);
+    this->painter.SetClipClamped(x, y, x + kScrollClipWidth, thumbBottom);
 
     if (thumbLength > 0)
     {
@@ -522,14 +568,15 @@ int BattleHud::DrawScrollBar(u16 id, int x, int y, int rows, int offset, int sty
 
         do
         {
-            this->painter.DrawPicture(x + 5, drawn + this->scrollThumbY, thumb->width, thumb->height, state.flags);
+            this->painter
+                .DrawPicture(x + kThumbInset, drawn + this->scrollThumbY, thumb->width, thumb->height, state.flags);
             drawn += thumb->height;
         } while (drawn < thumbLength && thumb->height != 0);
     }
 
-    this->painter.SetClipClamped(0, 0, kScreenWidth, kScreenHeight);
+    this->painter.SetClipClamped(0, 0, Display::Width, Display::Height);
     state = ActState{};
-    const Picture* bottom = this->RunScroll(id, style == 2 ? 0x1F : 0x1B);
+    const Picture* bottom = this->RunScroll(id, style == kBottomCapStyle ? kScrollStyle2Bottom : kScrollBottom);
 
     if (bottom == nullptr)
     {
@@ -545,19 +592,19 @@ int BattleHud::DrawCoinToss()
 {
     if (this->coinFrames == 0)
     {
-        if ((this->coinState >> 16) != 0)
+        if (HighWord(this->coinState) != 0)
         {
             this->coinState = 0;
         }
         else
         {
-            this->coinState = (this->coinState & 0xFFFF0000u) | static_cast<u16>(this->random.Below(2));
+            this->coinState = MakeWords(HighWord(this->coinState), static_cast<u16>(this->random.Below(kCoinSides)));
         }
     }
 
     ActState& state = this->scrollAct;
     state.id = kCoinAct;
-    state.action = static_cast<u16>(this->coinState) == 1 ? 3 : 2;
+    state.action = LowWord(this->coinState) == kWinningSide ? kCoinWinAction : kCoinAction;
 
     if (this->acts.Run(state) == 0)
     {
@@ -570,8 +617,8 @@ int BattleHud::DrawCoinToss()
     {
         this->painter.SetSource(picture->data.data());
         this->painter.DrawPicture(
-            0x32 * static_cast<u16>(this->coinState) + 0x104,
-            0xC8,
+            kCoinStep * LowWord(this->coinState) + kCoinX,
+            kCoinY,
             picture->width,
             picture->height,
             state.flags
@@ -580,37 +627,37 @@ int BattleHud::DrawCoinToss()
 
     u16 delay = 0;
 
-    if (++this->coinFrames % 0x19 != 0)
+    if (++this->coinFrames % kCoinSlowFrames != 0)
     {
-        delay = static_cast<u16>(this->coinDelay);
+        delay = LowWord(this->coinDelay);
     }
     else
     {
-        delay = static_cast<u16>(2 * this->coinDelay);
-        this->coinDelay = (static_cast<u32>(delay) << 16) | delay;
+        delay = static_cast<u16>(kCoinSlowdown * this->coinDelay);
+        this->coinDelay = MakeWords(delay, delay);
     }
 
-    if (delay < 0x40)
+    if (delay < kCoinStopDelay)
     {
-        auto countdown = static_cast<u16>(this->coinDelay >> 16);
+        auto countdown = HighWord(this->coinDelay);
 
         if (--countdown == 0)
         {
             countdown = delay;
-            this->coinState = (this->coinState & 0xFFFF0000u) | (static_cast<u16>(this->coinState) == 0 ? 1u : 0u);
-            this->audio.PlaySoundAt(0x2E, 1);
+            this->coinState = MakeWords(HighWord(this->coinState), LowWord(this->coinState) == 0 ? u16{1} : u16{0});
+            this->audio.PlaySoundAt(kCoinSound, kCoinVolume);
         }
 
-        this->coinDelay = (this->coinDelay & 0xFFFF) | (static_cast<u32>(countdown) << 16);
+        this->coinDelay = MakeWords(countdown, LowWord(this->coinDelay));
         return 0;
     }
 
     this->coinDelay = BattleHud::InitialCoinDelay;
     this->coinFrames = 0;
 
-    if (static_cast<u16>(this->coinState) == 1)
+    if (LowWord(this->coinState) == kWinningSide)
     {
-        this->coinState += 0x10000;
+        this->coinState = MakeWords(static_cast<u16>(HighWord(this->coinState) + 1), LowWord(this->coinState));
     }
 
     state = ActState{};
@@ -632,51 +679,50 @@ int BattleHud::DrawTimingBar(int x, int y)
     this->painter.DrawPicture(x, y, back->width, back->height, 0);
     this->timingHit = 0;
 
-    for (int mark = 0; mark < 3; ++mark)
+    for (int mark = 0; mark < static_cast<int>(BattleHud::TimingMarks.size()); ++mark)
     {
         const u16 position = BattleHud::TimingMarks[static_cast<std::size_t>(mark)];
-        this->painter.SetClipClamped(x + position, y, x + position + 1, y + this->lastPicture->height);
+        this->painter.SetClipClamped(x + position, y, x + position + kLineWidth, y + this->lastPicture->height);
         const Picture* line = this->Select(static_cast<int>(kTimingPicture), 1);
         this->Draw(line, x, y, line != nullptr ? line->width : 0, line != nullptr ? line->height : 0, 0);
-        const int needle = (static_cast<u16>(this->timingCounter) >> 1) + 1;
+        const int needle = (LowWord(this->timingCounter) >> kNeedleShift) + 1;
 
-        if (needle >= position && needle <= position + 2)
+        if (needle >= position && needle <= position + kNeedleReach)
         {
             this->timingHit = static_cast<u16>(mark + 1);
 
-            if (static_cast<u16>(this->numberFont) == mark + 1)
+            if (LowWord(this->numberFont) == mark + 1)
             {
                 this->timingHit = 0;
             }
             else
             {
-                this->numberFont &= 0xFFFF0000u;
+                this->numberFont = MakeWords(HighWord(this->numberFont), 0);
             }
         }
     }
 
-    const int needle = static_cast<u16>(this->timingCounter) >> 1;
-    this->painter.SetClipClamped(needle + x + 1, y, needle + x + 2, y + this->lastPicture->height);
+    const int needle = LowWord(this->timingCounter) >> kNeedleShift;
+    this->painter.SetClipClamped(needle + x + 1, y, needle + x + 1 + kLineWidth, y + this->lastPicture->height);
     const Picture* line = this->Select(static_cast<int>(kTimingPicture), 1);
     this->Draw(line, x, y, line != nullptr ? line->width : 0, line != nullptr ? line->height : 0, 0);
-    this->painter.SetClipClamped(0, 0, kScreenWidth, kScreenHeight);
-    this->timingCounter = static_cast<i32>(
-        (static_cast<u32>(this->timingCounter) & 0xFFFF0000u) | static_cast<u16>(this->timingCounter + 1)
-    );
+    this->painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+    this->timingCounter =
+        static_cast<i32>(MakeWords(HighWord(this->timingCounter), static_cast<u16>(this->timingCounter + 1)));
 
-    if ((static_cast<u16>(this->timingCounter) >> 1) != 0x3D)
+    if ((LowWord(this->timingCounter) >> kNeedleShift) != kNeedleEnd)
     {
         return 0;
     }
 
-    this->timingCounter = static_cast<i32>((static_cast<u32>(this->timingCounter) & 0xFFFF0000u) | 0x8000);
+    this->timingCounter = static_cast<i32>(MakeWords(HighWord(this->timingCounter), kTimingDone));
     return 1;
 }
 
 // swd32.exe 0x004512B0: the vertical gauge of picture 0x241A showing `level` sixths of its body
 int BattleHud::DrawTallGauge(int x, int y, int level)
 {
-    const Picture* body = this->archive.GetPicture(kTallGauge, 2);
+    const Picture* body = this->archive.GetPicture(kTallGauge, kGaugeBody);
     this->lastPicture = body;
 
     if (body == nullptr)
@@ -684,8 +730,8 @@ int BattleHud::DrawTallGauge(int x, int y, int level)
         return 0;
     }
 
-    const int shown = level * (body->height / 6);
-    const Picture* top = this->Select(static_cast<int>(kTallGauge), 0);
+    const int shown = level * (body->height / kGaugeLevels);
+    const Picture* top = this->Select(static_cast<int>(kTallGauge), kGaugeTop);
 
     if (top == nullptr)
     {
@@ -695,25 +741,25 @@ int BattleHud::DrawTallGauge(int x, int y, int level)
     this->painter.DrawPicture(x, y, top->width, top->height, 0);
     const int bodyTop = this->lastPicture->height + y;
 
-    if (level < 6)
+    if (level < kGaugeLevels)
     {
         this->painter.SetClipClamped(x, bodyTop, x + this->lastPicture->width, shown + bodyTop);
     }
 
-    body = this->Select(static_cast<int>(kTallGauge), 2);
-    this->Draw(body, x + 4, bodyTop, body != nullptr ? body->width : 0, body != nullptr ? body->height : 0, 0);
-    const Picture* shine = this->Select(static_cast<int>(kTallGauge), 3);
-    this->painter.Options().alpha = 8;
+    body = this->Select(static_cast<int>(kTallGauge), kGaugeBody);
+    this->Draw(body, x + kBodyInset, bodyTop, body != nullptr ? body->width : 0, body != nullptr ? body->height : 0, 0);
+    const Picture* shine = this->Select(static_cast<int>(kTallGauge), kGaugeShine);
+    this->painter.Options().alpha = kShineAlpha;
     this->Draw(
         shine,
-        x + 0xB,
-        bodyTop + 0x1F,
+        x + kShineX,
+        bodyTop + kShineY,
         shine != nullptr ? shine->width : 0,
         shine != nullptr ? shine->height : 0,
-        kTranslucent
+        Painter::Translucent
     );
-    this->painter.SetClipClamped(0, 0, kScreenWidth, kScreenHeight);
-    const Picture* bottom = this->Select(static_cast<int>(kTallGauge), 1);
+    this->painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+    const Picture* bottom = this->Select(static_cast<int>(kTallGauge), kGaugeBottom);
     return bottom != nullptr ? this->painter.DrawPicture(x, bodyTop + shown, bottom->width, bottom->height, 0) : 0;
 }
 
@@ -762,7 +808,8 @@ int BattleHud::FreeAnimation(BattleAnimation& animation)
 // by 640 / `divisor`; the wave mode of 'WT' is kept. `unused` is ignored. Always 0.
 int BattleHud::LoadAnimation(BattleAnimation& animation, int, int x, int y, u16 id, u16 divisor)
 {
-    std::array<u16, BattleAnimation::Pictures> loaded = {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
+    std::array<u16, BattleAnimation::Pictures> loaded = {};
+    loaded.fill(kNotLoaded);
     ActState& state = animation.act;
     animation.id = id;
     animation.x = x;
@@ -784,14 +831,14 @@ int BattleHud::LoadAnimation(BattleAnimation& animation, int, int x, int y, u16 
 
         const u16 frame = state.picture;
 
-        if (frame < BattleAnimation::Pictures && loaded[frame] == 0xFFFF)
+        if (frame < BattleAnimation::Pictures && loaded[frame] == kNotLoaded)
         {
             animation.pictures[frame] = this->archive.LoadPictureDirect(state.frame, state.picture);
             loaded[frame] = frame;
 
             if (animation.pictures[frame] != nullptr)
             {
-                ShiftPicture(animation.pictures[frame]->data, ShiftMode::Right, kScreenWidth / divisor);
+                ShiftPicture(animation.pictures[frame]->data, ShiftMode::Right, Display::Width / divisor);
             }
         }
 
@@ -817,7 +864,8 @@ int BattleHud::LoadAnimation(BattleAnimation& animation, int, int x, int y, u16 
 // when positive, left when negative) and drawn; 1 when it ended, 0 without an animation. `unused` is ignored.
 int BattleHud::PlayAnimationShifted(BattleAnimation& animation, int, int amount)
 {
-    std::array<u16, BattleAnimation::Pictures> shown = {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
+    std::array<u16, BattleAnimation::Pictures> shown = {};
+    shown.fill(kNotLoaded);
 
     if (animation.id == 0)
     {
@@ -838,7 +886,7 @@ int BattleHud::PlayAnimationShifted(BattleAnimation& animation, int, int amount)
     {
         const u16 frame = state.picture;
 
-        if (frame < BattleAnimation::Pictures && shown[frame] == 0xFFFF)
+        if (frame < BattleAnimation::Pictures && shown[frame] == kNotLoaded)
         {
             shown[frame] = frame;
             Picture* picture = animation.pictures[frame].get();
