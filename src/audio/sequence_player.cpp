@@ -178,6 +178,8 @@ int MidiPlayer::Close()
 
 // swd32.exe 0x00484F60: loads a MIDI file and starts it as sequence `id`. A file that cannot be opened loses the node;
 // an initialization result of -1 is reported but played anyway. (Without a MIDI device the player never opens.)
+// swd32.exe 0x004983F0 (EH unwind: frees the node allocated for the sequence, held by its unique_ptr)
+// swd32.exe 0x004983FB (EH handler of 0x00484F60)
 int MidiPlayer::Play(const std::string& fileName, int id, int volume, int loops)
 {
     if (!this->IsOpen() || !this->IsEnabled() || id == 0)

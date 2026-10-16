@@ -38,6 +38,8 @@ SoundEffects::SoundEffects(AudioDevice& device) : device(device)
 }
 
 // swd32.exe 0x00485960
+// swd32.exe 0x00498410 (EH unwind: the cFile base, closed by its destructor)
+// swd32.exe 0x00498418 (EH handler of 0x00485960)
 SoundEffects::~SoundEffects()
 {
     this->Close();

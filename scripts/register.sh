@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Registers the functions defined in the given source files in reverse/functions.tsv: every definition preceded by a
 # "// swd32.exe 0x<address>" comment sets module, source (path:symbol) and, when still pending, the status
-# implemented_pending_review. Usage: scripts/register.sh <module> <file>...
+# implemented_pending_review. Consecutive address comments (an EH funclet after its parent) all map to the definition
+# that follows. Usage: scripts/register.sh <module> <file>...
 set -eu
 cd "$(dirname "$0")/.."
 module="$1"
@@ -11,10 +12,13 @@ map="tmp/register_map.tsv"
 for file in "$@"; do
     awk -v file="$file" -v mod="$module" '
         /^(\/\/|    \/\/) swd32\.exe 0x/ {
-            match($0, /0x[0-9A-F]+/); address = substr($0, RSTART, RLENGTH)
+            match($0, /0x[0-9A-F]+/); count = 1; address[1] = substr($0, RSTART, RLENGTH)
             while ((getline line) > 0) {
+                if (line ~ /^\s*\/\/ swd32\.exe 0x/) { match(line, /0x[0-9A-F]+/); address[++count] = substr(line, RSTART, RLENGTH); continue }
                 if (line ~ /^\s*\/\// || line ~ /^\s*template/) continue
-                if (match(line, /[A-Za-z_0-9:~]+\(/)) { print address "\t" mod "\t" file ":" substr(line, RSTART, RLENGTH - 1) }
+                if (match(line, /[A-Za-z_0-9:~]+\(/)) {
+                    for (i = 1; i <= count; ++i) print address[i] "\t" mod "\t" file ":" substr(line, RSTART, RLENGTH - 1)
+                }
                 break
             }
         }' "$file" >> "$map"
