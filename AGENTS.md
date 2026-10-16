@@ -12,7 +12,7 @@ Skill负责准备工作区、AGENTS.md、GOAL.md及最小构建配置，并完�
 
 ## 核心流程
 
-目标：原程序逻辑100%一致，包含原有BUG，即bug-for-bug compatibility。实现语言由用户指定，记录在根目录GOAL.md中。
+目标：原程序逻辑100%一致，包含原有逻辑BUG，即bug-for-bug compatibility。越界读写、破坏内存类BUG不复现，读取未初始化内存时改为确定初值；这类偏差及显示方式、平台API替换须在reverse/analysis/deviations.md逐条记录（类别见reverse/analysis/architecture.md）。实现语言由用户指定，记录在根目录GOAL.md中。
 
 1. 读取Skill已保存的IDAT工作数据库、输入基线、结构概览和范围缺口，核对GOAL停点。
 2. 按已有模块与函数表推进，补充未决分析，在reverse/functions.tsv维护module；无法确认归属的暂记unknown。
@@ -42,7 +42,7 @@ Skill负责准备工作区、AGENTS.md、GOAL.md及最小构建配置，并完�
 
 SDL3与FFmpeg由构建脚本自行下载源码并构建，不查找或复用本机其他位置的现成副本。FFmpeg启用x86汇编，汇编器为nasm（WSL中`/opt/nasm`，`/usr/local/bin/nasm`链接；Windows目标在WSL中交叉编译，同样使用该nasm）。
 
-平台定位：Windows（x86）是主平台，最终产物必须能正常游玩，画面、输入、音频、视频播放与原程序一致。Linux只要求编译通过、单元测试通过并可用于代码验证，不要求音频输出或可正常游玩。
+平台定位：Windows（x86）是主平台，最终产物必须能正常游玩，画面内容、输入、音频、视频播放与原程序一致。显示改为窗口化：逻辑画面640×480与窗口大小分离，窗口默认1280×960、可用鼠标拉伸，最近邻任意比例等比缩放，不成原比例时留黑边，Alt+Enter切换无边框全屏，鼠标坐标换算到逻辑画面。平台层是C++类（Display、Surface、Input、AudioDevice、MediaDecoder、GlyphRasterizer、FileSystem），不模拟Win32、DirectDraw、DirectInput、Miles与GDI的API。Linux只要求编译通过、单元测试通过并可用于代码验证，不要求音频输出或可正常游玩。
 
 ## 动态采集
 
@@ -50,7 +50,7 @@ SDL3与FFmpeg由构建脚本自行下载源码并构建，不查找或复用本�
 
 ## CRT 与命名
 
-已识别的静态链接 MSVC CRT 函数直接调用平台 CRT，不重写 MSVC 的堆、启动代码与库内部实现；只在游戏可观察到差异时保留原行为：`rand`／`srand`（MSVC LCG）、调试堆新块填 0xCD／释放填 0xDD、`_ftol` 截断与溢出值、`difftime` 的 32 位减法等，集中在src/crt/。函数表中 CRT 函数的source记录对应的平台 CRT 调用。
+已识别的静态链接 MSVC CRT 函数使用 C++ 标准库，不重写 MSVC 的堆、启动代码与库内部实现；只在游戏可观察到差异时保留原行为：`rand`／`srand`（MSVC LCG）、`_ftol` 截断与溢出值、`difftime` 的 32 位减法等，集中在src/crt/。函数表中 CRT 函数的source记录对应的平台 CRT 调用。
 
 类名、函数名和变量名不必照搬原名，使用本项目的命名风格；每个还原函数定义前写`// swd32.exe 0x<地址>`，函数表source记录`路径:符号`。
 
@@ -59,6 +59,15 @@ SDL3与FFmpeg由构建脚本自行下载源码并构建，不查找或复用本�
 原程序的机器码、汇编和原数据是逻辑依据。IDAT用于分析，IDAPython通过IDAT执行必要查询；反编译辅助理解。名称、已有代码和测试结果不能单独证明原行为。
 
 尽量还原原模块、函数归属、数据结构和接口。结合符号、调用关系、共享状态与生命周期组织src目录和文件；推断注明依据与未决项。函数是工作粒度，相关函数按原模块组织。
+
+代码按reverse/analysis/architecture.md组织，要求如下：
+
+- 每个原模块是正经的C++类或一组相关类型（头文件加命名空间），原全局变量是所属类的成员，由根对象Game持有。不允许可写的自由全局变量、全局状态结构、数据镜像，也不允许C风格的逐句转写。
+- 记录与文件格式定义为带命名字段的struct；含义未定的字段在类型内以unkXX（XX为偏移）占位并注明读写者。不得按数字偏移访问记录。
+- 只读常量表与可写全局的初值写成带类型的constexpr表或成员默认值，并以单元测试与exe字节比对。
+- 常量、模式、状态、声音编号写成具名常量或enum class；函数指针表按用途改写为虚函数、成员函数指针或枚举分派。
+- 命名写出依据（读写它的函数、取值范围、对应的界面行为）；推断与已确认结论分开标注。
+- 提交前检查改动文件：没有dword_/word_/byte_/unk_形式的地址占位名，没有数字偏移访问。
 
 ## C++ 构建要求
 
@@ -73,7 +82,7 @@ SDL3与FFmpeg由构建脚本自行下载源码并构建，不查找或复用本�
 ### 工作环境与平台
 
 - 日常工作环境为 WSL。
-- Linux 目标在 WSL 中构建为 i386 静态程序（与 Windows x86 相同的 32 位数据布局）：`cmake --preset linux`、`cmake --build --preset linux`，构建目录build/linux/；单元测试`ctest --preset linux`。sysroot 为`/opt/sysroot-i386`（`scripts/deps/setup_i386_sysroot.sh`生成，Ubuntu noble 的 libc6-dev-i386、lib32stdc++-13-dev 等包解压而成，不改动系统目录），工具链文件cmake/toolchain-linux-i386-clang.cmake。
+- Linux 目标在 WSL 中构建为 i386 静态程序（与 Windows x86 相同的 32 位整数与指针宽度）：`cmake --preset linux`、`cmake --build --preset linux`，构建目录build/linux/；单元测试`ctest --preset linux`。sysroot 为`/opt/sysroot-i386`（`scripts/deps/setup_i386_sysroot.sh`生成，Ubuntu noble 的 libc6-dev-i386、lib32stdc++-13-dev 等包解压而成，不改动系统目录），工具链文件cmake/toolchain-linux-i386-clang.cmake。
 - Windows 目标使用 clang-cl／lld-link 交叉构建 x86 产物（MSVC 14.44 与 Windows SDK 10.0.26100 头文件和库）：`cmake --preset windows`、`cmake --build --preset windows`，构建目录build/windows/，工具链文件cmake/toolchain-windows-x86-clang-cl.cmake。
 - 两个平台分别使用独立的构建目录。
 

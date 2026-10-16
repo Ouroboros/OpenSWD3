@@ -1,10 +1,10 @@
 # 逆向还原整体执行计划
 
-版本：2
+版本：3
 
 ## 目标与范围
 
-目标目录 `/mnt/e/Game/swd3`，主程序 `swd32.exe`（SHA-256 `4c4c2268…c03f2a`），实现语言 C++20；IDAT 路径见 AGENTS.md。范围为 `swd32.exe` 的函数全集（游戏代码、静态链接的 MSVC 调试版 CRT、全局初始化 thunk、EH funclet）及其依赖的常量表、全局数据与游戏数据文件。尽量还原原模块与代码结构，原逻辑和BUG完整保留；平台层按 AGENTS.md 使用 SDL3 与 FFmpeg n9.0。Windows x86 为主平台，须可正常游玩；Linux 只要求编译、单元测试通过并用于代码验证。
+目标目录 `/mnt/e/Game/swd3`，主程序 `swd32.exe`（SHA-256 `4c4c2268…c03f2a`），实现语言 C++20；IDAT 路径见 AGENTS.md。范围为 `swd32.exe` 的函数全集（游戏代码、静态链接的 MSVC 调试版 CRT、全局初始化 thunk、EH funclet）及其依赖的常量表、全局数据与游戏数据文件。尽量还原原模块与代码结构，以正经的 C++ 类和结构体组织（见 reverse/analysis/architecture.md），原逻辑和逻辑BUG完整保留，越界读写类BUG不复现并逐条记录；平台层按 AGENTS.md 使用 SDL3 与 FFmpeg n9.0，窗口化显示（逻辑 640×480，窗口默认 1280×960、可拉伸，最近邻等比缩放加黑边，Alt+Enter 全屏）。Windows x86 为主平台，须可正常游玩；Linux 只要求编译、单元测试通过并用于代码验证。
 
 ## 不做的事项
 
@@ -20,21 +20,21 @@
 
 ## 整体进度
 
-- 当前阶段：第 2 阶段（还原）。
+- 当前阶段：第 2 阶段（还原），按版本 3 架构重建。
 - 已识别函数数：1626（无 FLIRT 数据库导出；函数外代码头 0）。
 - 函数总数：待确定（间接调用目标与函数指针表尚未全部核对，见 reverse/analysis/scope-and-gaps.md）。
-- 已实现／总数：647／待确定（已识别 1626）。
+- 已实现／总数：0／待确定（已识别 1626）；旧逐句转写实现（804 个）保存在标签 legacy-transliteration，仅作参考。
 - 已验证／总数：0／待确定（已识别 1626）。
-- 待实现／待验证：979／1626（按已识别函数计）。
+- 待实现／待验证：1626／1626（按已识别函数计）。
 - 模块初分：已归属 884，unknown 742（reverse/analysis/module_assignment.tsv）。
 
 ## 当前工作
 
-按 reverse/analysis/plan.md 自底向上还原。已完成：file、memmgr、crt 映射、LZO、资源包（tsw／act）、像素格式、绘图核心与全部 blitter、像素操作与缩放、Graphics、Input、静态初始化、TextFont、随机数、文本输入、音频（MSS 模拟）、A* 寻路、ACT 动画、角色结构与游戏状态、BattleUnit 大部分方法、战斗消息与结果面板、窗框与填色、Bink 播放模拟与 Movie、投影辅助与碎裂粒子特效、BattleHero 部分方法。Linux（i386）与 Windows x86 构建及 58 个单元测试通过。
+按 reverse/analysis/architecture.md 重建代码架构：先建核心与平台层（Display 窗口缩放、Surface、Input、AudioDevice、MediaDecoder、GlyphRasterizer、FileSystem）与根对象 Game，再自底向上按模块还原。
 
 ## 下一步
 
-BattleHero 剩余方法（0x0046E730 起）与 BattleEnemy（0x00475560 起），随后 figtalk、菜单与地图模块。
+文件与资源模块（file、LZO、tsw／act、RLE 与像素格式），随后绘图、字体、输入、音频。
 
 ## GOAL完成条件
 
@@ -53,5 +53,6 @@ BattleHero 剩余方法（0x0046E730 起）与 BattleEnemy（0x00475560 起）�
 - 结构概览：reverse/analysis/structure-overview.md
 - 范围与缺口：reverse/analysis/scope-and-gaps.md
 - 分析入口与 IDAT 用法：reverse/analysis/README.md
+- 代码架构：reverse/analysis/architecture.md；已知偏差：reverse/analysis/deviations.md
 - 验证证据：reverse/evidence/（尚无）
 - 临时目录：tmp/
