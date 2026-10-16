@@ -25,3 +25,4 @@
 {0x4FB314u, 1u, image::RelocKind::Data},  // actIndexCursor
 {0x4FB558u, 1u, image::RelocKind::Data},  // tswPackedBufB
 {0x4FB55Cu, 1u, image::RelocKind::Data},  // tswPackedBuf
+{0x4FD78Cu, 1u, image::RelocKind::Data},  // uiPicture

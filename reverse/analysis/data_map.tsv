@@ -243,3 +243,33 @@ addr	type	name	module	notes
 0x0053D028	std::uint8_t	evadeStreak	battle	failed evasion rolls in a row
 0x0053D029	std::uint8_t	evadeJustSucceeded	battle
 0x004ACBD0	std::int32_t	gold	game
+@include	battle/battle_draw.h
+0x004FD6D0	ActState	effectAct	battle	shared effect animation of DrawEffectAt
+0x004FD778	std::int32_t	numberX	battle
+0x004FD77C	std::int32_t	numberY	battle
+0x004FD780	std::int32_t	numberStarted	battle
+0x004FD784	std::uint16_t	digitMode	battle	0x4000 / 0x8000: digits drawn in mode 0x20
+0x004FD788	std::int32_t	numberValue	battle
+0x004FD78C	Picture*	uiPicture	battle	last picture of the battle drawing helpers
+0x004FD798	ActState[8]	slotActs	battle
+0x004FDC70	ActState	cursorAct	battle
+0x004FDD08	std::uint32_t	numberFont	battle	high word: picture of DrawNumber digits
+0x004FDD10	ActState[4]	arrowActs	battle
+0x00524118	std::uint8_t[8]	portraitHighlight	battle
+@include	res/act_anim.h
+@size	ActState	152
+0x004FD638	ActState	scrollAct	battle	shared by DrawScrollBar and DrawCoinToss
+0x004FDC58	std::int32_t	scrollThumbTop	battle
+0x004FDC5C	std::int32_t	scrollTrackTop	battle
+0x004FDC60	std::int32_t	scrollCount	battle	items in the list
+0x004FDC64	std::int32_t	scrollFirst	battle	first visible item
+0x004FD76C	std::int32_t	scrollStep	battle
+0x004FD770	std::int32_t	scrollThumbY	battle
+0x004FD790	std::int32_t	scrollThumbBottom	battle
+0x004FD794	std::int32_t	scrollTrackBottom	battle
+0x004FDF70	std::int32_t	coinFrames	battle
+0x004FDF74	std::uint32_t	coinState	battle	low word: side, high word: wins
+0x004A74C8	std::uint32_t	coinDelay	battle	low word: delay, high word: countdown (initial 0x10001)
+0x004A74D0	std::uint16_t[3]	timingMarks	battle
+0x004FD768	std::int32_t	timingCounter	battle	low word: needle position * 2 (0x8000 when done)
+0x004FDC68	std::uint16_t	timingHit	battle

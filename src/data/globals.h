@@ -7,6 +7,7 @@
 #include "data/image.h"
 #include "swd3/w32.h"
 #include "audio/audio.h"
+#include "battle/battle_draw.h"
 #include "battle/battle_unit.h"
 #include "file/file.h"
 #include "font/text_font.h"
@@ -15,6 +16,7 @@
 #include "input/input.h"
 #include "memmgr/memory_manager.h"
 #include "res/act.h"
+#include "res/act_anim.h"
 #include "res/tsw.h"
 #include "role/path_finder.h"
 #include "role/role.h"
@@ -2785,10 +2787,9 @@ struct Globals {
     char asc_4A74BC[5];  // 0x004A74BC
     std::uint8_t pad_4A74C1[0x3];
     std::uint8_t byte_4A74C4[4];  // 0x004A74C4
-    std::int32_t dword_4A74C8;  // 0x004A74C8
+    std::uint32_t coinDelay;  // 0x004A74C8 low word: delay, high word: countdown (initial 0x10001)
     std::int32_t gaugeFull;  // 0x004A74CC full action gauge
-    std::uint8_t unk_4A74D0;  // 0x004A74D0
-    std::uint8_t pad_4A74D1[0x5];
+    std::uint16_t timingMarks[3];  // 0x004A74D0
     std::int16_t word_4A74D6[47];  // 0x004A74D6
     std::int32_t off_4A7534;  // 0x004A7534
     std::int32_t g_4a7538;  // 0x004A7538
@@ -4741,80 +4742,34 @@ struct Globals {
     std::uint8_t pad_4FD58A[0xA6];
     std::int32_t dword_4FD630;  // 0x004FD630
     std::uint8_t pad_4FD634[0x4];
-    std::int32_t dword_4FD638;  // 0x004FD638
-    std::uint8_t pad_4FD63C[0x4];
-    std::int32_t dword_4FD640;  // 0x004FD640
-    std::uint8_t pad_4FD644[0xC];
-    std::int32_t dword_4FD650;  // 0x004FD650
-    std::uint8_t pad_4FD654[0x2E];
-    std::int16_t word_4FD682;  // 0x004FD682
-    std::int16_t word_4FD684;  // 0x004FD684
-    std::uint8_t pad_4FD686[0x4A];
-    std::int32_t dword_4FD6D0;  // 0x004FD6D0
-    std::uint8_t pad_4FD6D4[0x4];
-    std::int32_t dword_4FD6D8;  // 0x004FD6D8
-    std::uint8_t pad_4FD6DC[0x4];
-    std::int32_t dword_4FD6E0;  // 0x004FD6E0
-    std::int32_t dword_4FD6E4;  // 0x004FD6E4
-    std::int32_t dword_4FD6E8;  // 0x004FD6E8
-    std::uint8_t pad_4FD6EC[0x2E];
-    std::int16_t word_4FD71A;  // 0x004FD71A
-    std::int16_t word_4FD71C;  // 0x004FD71C
-    std::uint8_t pad_4FD71E[0x3E];
-    std::int32_t dword_4FD75C;  // 0x004FD75C
-    std::uint8_t pad_4FD760[0x8];
-    std::int32_t dword_4FD768;  // 0x004FD768
-    std::int32_t dword_4FD76C;  // 0x004FD76C
-    std::int32_t dword_4FD770;  // 0x004FD770
+    ActState scrollAct;  // 0x004FD638 shared by DrawScrollBar and DrawCoinToss
+    ActState effectAct;  // 0x004FD6D0 shared effect animation of DrawEffectAt
+    std::int32_t timingCounter;  // 0x004FD768 low word: needle position * 2 (0x8000 when done)
+    std::int32_t scrollStep;  // 0x004FD76C
+    std::int32_t scrollThumbY;  // 0x004FD770
     std::uint8_t pad_4FD774[0x4];
-    std::int32_t dword_4FD778;  // 0x004FD778
-    std::int32_t dword_4FD77C;  // 0x004FD77C
-    std::int32_t dword_4FD780;  // 0x004FD780
-    std::int16_t word_4FD784;  // 0x004FD784
+    std::int32_t numberX;  // 0x004FD778
+    std::int32_t numberY;  // 0x004FD77C
+    std::int32_t numberStarted;  // 0x004FD780
+    std::uint16_t digitMode;  // 0x004FD784 0x4000 / 0x8000: digits drawn in mode 0x20
     std::uint8_t pad_4FD786[0x2];
-    std::int32_t dword_4FD788;  // 0x004FD788
-    std::int32_t dword_4FD78C;  // 0x004FD78C
-    std::int32_t dword_4FD790;  // 0x004FD790
-    std::int32_t dword_4FD794;  // 0x004FD794
-    std::uint8_t unk_4FD798;  // 0x004FD798
-    std::uint8_t pad_4FD799[0x7];
-    std::int32_t dword_4FD7A0;  // 0x004FD7A0
-    std::uint8_t pad_4FD7A4[0xC];
-    std::int32_t dword_4FD7B0;  // 0x004FD7B0
-    std::uint8_t pad_4FD7B4[0x2E];
-    std::int16_t word_4FD7E2;  // 0x004FD7E2
-    std::int16_t word_4FD7E4;  // 0x004FD7E4
-    std::uint8_t pad_4FD7E6[0x472];
-    std::int32_t dword_4FDC58;  // 0x004FDC58
-    std::int32_t dword_4FDC5C;  // 0x004FDC5C
-    std::int32_t dword_4FDC60;  // 0x004FDC60
-    std::int32_t dword_4FDC64;  // 0x004FDC64
-    std::int16_t word_4FDC68;  // 0x004FDC68
+    std::int32_t numberValue;  // 0x004FD788
+    Picture* uiPicture;  // 0x004FD78C last picture of the battle drawing helpers
+    std::int32_t scrollThumbBottom;  // 0x004FD790
+    std::int32_t scrollTrackBottom;  // 0x004FD794
+    ActState slotActs[8];  // 0x004FD798
+    std::int32_t scrollThumbTop;  // 0x004FDC58
+    std::int32_t scrollTrackTop;  // 0x004FDC5C
+    std::int32_t scrollCount;  // 0x004FDC60 items in the list
+    std::int32_t scrollFirst;  // 0x004FDC64 first visible item
+    std::uint16_t timingHit;  // 0x004FDC68
     std::uint8_t pad_4FDC6A[0x6];
-    std::int32_t dword_4FDC70;  // 0x004FDC70
-    std::uint8_t pad_4FDC74[0x4];
-    std::int32_t dword_4FDC78;  // 0x004FDC78
-    std::uint8_t pad_4FDC7C[0xC];
-    std::int32_t dword_4FDC88;  // 0x004FDC88
-    std::uint8_t pad_4FDC8C[0x2E];
-    std::int16_t word_4FDCBA;  // 0x004FDCBA
-    std::int16_t word_4FDCBC;  // 0x004FDCBC
-    std::uint8_t pad_4FDCBE[0x4A];
-    std::int32_t dword_4FDD08;  // 0x004FDD08
+    ActState cursorAct;  // 0x004FDC70
+    std::uint32_t numberFont;  // 0x004FDD08 high word: picture of DrawNumber digits
     std::uint8_t pad_4FDD0C[0x4];
-    std::uint8_t unk_4FDD10;  // 0x004FDD10
-    std::uint8_t pad_4FDD11[0x7];
-    std::int32_t dword_4FDD18;  // 0x004FDD18
-    std::uint8_t pad_4FDD1C[0x4];
-    std::int32_t dword_4FDD20;  // 0x004FDD20
-    std::int32_t dword_4FDD24;  // 0x004FDD24
-    std::int32_t dword_4FDD28;  // 0x004FDD28
-    std::uint8_t pad_4FDD2C[0x2E];
-    std::int16_t word_4FDD5A;  // 0x004FDD5A
-    std::int16_t word_4FDD5C;  // 0x004FDD5C
-    std::uint8_t pad_4FDD5E[0x212];
-    std::int32_t dword_4FDF70;  // 0x004FDF70
-    std::int32_t dword_4FDF74;  // 0x004FDF74
+    ActState arrowActs[4];  // 0x004FDD10
+    std::int32_t coinFrames;  // 0x004FDF70
+    std::uint32_t coinState;  // 0x004FDF74 low word: side, high word: wins
     std::int32_t dword_4FDF78;  // 0x004FDF78
     std::int16_t word_4FDF7C;  // 0x004FDF7C
     std::uint8_t pad_4FDF7E[0x2];
@@ -5121,8 +5076,7 @@ struct Globals {
     std::uint8_t pad_5240CC[0x24];
     std::int32_t dword_5240F0;  // 0x005240F0
     std::uint8_t pad_5240F4[0x24];
-    std::int32_t dword_524118;  // 0x00524118
-    std::int32_t dword_52411C;  // 0x0052411C
+    std::uint8_t portraitHighlight[8];  // 0x00524118
     std::uint8_t pad_524120[0x44];
     std::int32_t dword_524164;  // 0x00524164
     std::uint8_t pad_524168[0x24];
@@ -5714,7 +5668,9 @@ static_assert(offsetof(Globals, tswCacheLimit) == 0xD020);
 static_assert(offsetof(Globals, actCacheLimit) == 0xD098);
 static_assert(offsetof(Globals, r250Table) == 0xD610);
 static_assert(offsetof(Globals, lcgState) == 0xD9F8);
+static_assert(offsetof(Globals, coinDelay) == 0xE4C8);
 static_assert(offsetof(Globals, gaugeFull) == 0xE4CC);
+static_assert(offsetof(Globals, timingMarks) == 0xE4D0);
 static_assert(offsetof(Globals, file_4A9380) == 0x10380);
 static_assert(offsetof(Globals, gameDir) == 0x104BC);
 static_assert(offsetof(Globals, file_4A98C8) == 0x108C8);
@@ -5880,8 +5836,33 @@ static_assert(offsetof(Globals, tswPackedBufB) == 0x62558);
 static_assert(offsetof(Globals, tswPackedBuf) == 0x6255C);
 static_assert(offsetof(Globals, textInputLeadPending) == 0x627E8);
 static_assert(offsetof(Globals, r250Index) == 0x627F0);
+static_assert(offsetof(Globals, scrollAct) == 0x64638);
+static_assert(offsetof(Globals, effectAct) == 0x646D0);
+static_assert(offsetof(Globals, timingCounter) == 0x64768);
+static_assert(offsetof(Globals, scrollStep) == 0x6476C);
+static_assert(offsetof(Globals, scrollThumbY) == 0x64770);
+static_assert(offsetof(Globals, numberX) == 0x64778);
+static_assert(offsetof(Globals, numberY) == 0x6477C);
+static_assert(offsetof(Globals, numberStarted) == 0x64780);
+static_assert(offsetof(Globals, digitMode) == 0x64784);
+static_assert(offsetof(Globals, numberValue) == 0x64788);
+static_assert(offsetof(Globals, uiPicture) == 0x6478C);
+static_assert(offsetof(Globals, scrollThumbBottom) == 0x64790);
+static_assert(offsetof(Globals, scrollTrackBottom) == 0x64794);
+static_assert(offsetof(Globals, slotActs) == 0x64798);
+static_assert(offsetof(Globals, scrollThumbTop) == 0x64C58);
+static_assert(offsetof(Globals, scrollTrackTop) == 0x64C5C);
+static_assert(offsetof(Globals, scrollCount) == 0x64C60);
+static_assert(offsetof(Globals, scrollFirst) == 0x64C64);
+static_assert(offsetof(Globals, timingHit) == 0x64C68);
+static_assert(offsetof(Globals, cursorAct) == 0x64C70);
+static_assert(offsetof(Globals, numberFont) == 0x64D08);
+static_assert(offsetof(Globals, arrowActs) == 0x64D10);
+static_assert(offsetof(Globals, coinFrames) == 0x64F70);
+static_assert(offsetof(Globals, coinState) == 0x64F74);
 static_assert(offsetof(Globals, file_521538) == 0x88538);
 static_assert(offsetof(Globals, battleUnit) == 0x88598);
+static_assert(offsetof(Globals, portraitHighlight) == 0x8B118);
 static_assert(offsetof(Globals, evadeDisabled) == 0xA3EB8);
 static_assert(offsetof(Globals, evadeStreak) == 0xA4028);
 static_assert(offsetof(Globals, evadeJustSucceeded) == 0xA4029);
