@@ -25,11 +25,14 @@ enum class VoiceStatus : u32
 // One sound of the mixer: a Miles sample (a sound image) or stream (a music file), decoded to the mixer format.
 struct AudioVoice
 {
+    static constexpr int MaxLevel = 127;  // the top of the volume and pan scales
+    static constexpr int CenterPan = 64;
+
     std::shared_ptr<const std::vector<i16>> pcm;
     std::size_t frame = 0;
     int loops = 1;  // 0: forever
-    int volume = 127;
-    int pan = 64;
+    int volume = MaxLevel;
+    int pan = CenterPan;
     VoiceStatus status = VoiceStatus::Done;
 };
 

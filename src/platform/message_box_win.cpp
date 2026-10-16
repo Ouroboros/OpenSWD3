@@ -3,6 +3,7 @@
 #include <SDL3/SDL.h>
 #include <windows.h>
 
+#include <iterator>
 #include <string>
 
 namespace swd3
@@ -45,7 +46,7 @@ AssertChoice DialogErrorReporter::AskAssertion(std::u8string_view title, std::u8
     data.flags = SDL_MESSAGEBOX_ERROR;
     data.title = caption.c_str();
     data.message = message.c_str();
-    data.numbuttons = 3;
+    data.numbuttons = static_cast<int>(std::size(buttons));
     data.buttons = buttons;
     int pressed = static_cast<int>(AssertChoice::Ignore);
 

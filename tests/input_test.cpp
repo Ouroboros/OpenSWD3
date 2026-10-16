@@ -16,7 +16,7 @@ namespace
 class FakeDevice : public swd3::InputDevice
 {
 public:
-    void KeyboardState(std::array<u8, 256>& keys) override
+    void KeyboardState(KeyState& keys) override
     {
         keys = this->keys;
     }
@@ -26,7 +26,7 @@ public:
         return this->mouse;
     }
 
-    std::array<u8, 256> keys{};
+    KeyState keys{};
     swd3::MouseState mouse;
 };
 

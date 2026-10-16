@@ -1,5 +1,6 @@
 #include "platform/audio_decoder.h"
 
+#include <climits>
 #include <cstring>
 
 extern "C"
@@ -15,6 +16,9 @@ namespace swd3
 
 namespace
 {
+
+constexpr int kNarrowBits = 8;  // the sample sizes of raw PCM
+constexpr int kWideBits = 16;
 
 class MemoryReader
 {
@@ -193,7 +197,7 @@ bool ConvertPcm(const u8* data, std::size_t bytes, int channels, int rate, int b
 {
     pcm.clear();
 
-    if (channels < 1 || channels > 2 || rate <= 0 || (bits != 8 && bits != 16))
+    if (channels < 1 || channels > kMixChannels || rate <= 0 || (bits != kNarrowBits && bits != kWideBits))
     {
         return false;
     }
@@ -202,7 +206,7 @@ bool ConvertPcm(const u8* data, std::size_t bytes, int channels, int rate, int b
     av_channel_layout_default(&input, channels);
     AVChannelLayout stereo = AV_CHANNEL_LAYOUT_STEREO;
     SwrContext* resampler = nullptr;
-    const AVSampleFormat format = bits == 8 ? AV_SAMPLE_FMT_U8 : AV_SAMPLE_FMT_S16;
+    const AVSampleFormat format = bits == kNarrowBits ? AV_SAMPLE_FMT_U8 : AV_SAMPLE_FMT_S16;
     const int configured =
         swr_alloc_set_opts2(&resampler, &stereo, AV_SAMPLE_FMT_S16, kMixRate, &input, format, rate, 0, nullptr);
 
@@ -212,7 +216,7 @@ bool ConvertPcm(const u8* data, std::size_t bytes, int channels, int rate, int b
         return false;
     }
 
-    const int frames = static_cast<int>(bytes / static_cast<std::size_t>(channels * bits / 8));
+    const int frames = static_cast<int>(bytes / static_cast<std::size_t>(channels * bits / CHAR_BIT));
     const u8* planes[1] = {data};
     AppendConverted(resampler, planes, frames, pcm);
     AppendConverted(resampler, nullptr, 0, pcm);

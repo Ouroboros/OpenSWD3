@@ -24,8 +24,12 @@ struct MouseState
 class InputDevice
 {
 public:
+    static constexpr std::size_t KeyCount = 256;  // a DIK_* key state per scan code
+    static constexpr u8 KeyDown = 0x80;
+    using KeyState = std::array<u8, KeyCount>;
+
     virtual ~InputDevice() = default;
-    virtual void KeyboardState(std::array<u8, 256>& keys) = 0;
+    virtual void KeyboardState(KeyState& keys) = 0;
     virtual MouseState Mouse() = 0;
 };
 
@@ -37,12 +41,12 @@ public:
     explicit WindowInputDevice(const Display& display);
 
     void HandleEvent(const SDL_Event& event);
-    void KeyboardState(std::array<u8, 256>& keys) override;
+    void KeyboardState(KeyState& keys) override;
     MouseState Mouse() override;
 
 private:
     const Display& display;
-    std::array<u8, 256> keys{};
+    KeyState keys{};
     MouseState mouse;
 };
 

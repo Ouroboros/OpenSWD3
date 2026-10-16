@@ -5,6 +5,13 @@
 namespace swd3
 {
 
+namespace
+{
+
+constexpr std::size_t kStoredFrames = 3;  // a frame-sized guard before and after the pixels
+
+}  // namespace
+
 Surface::Surface(int width, int height)
 {
     this->Resize(width, height);
@@ -14,7 +21,7 @@ void Surface::Resize(int width, int height)
 {
     this->width = width;
     this->height = height;
-    this->storage.assign(3 * this->Guard(), 0);
+    this->storage.assign(kStoredFrames * this->Guard(), 0);
 }
 
 void Surface::Fill(u16 color)

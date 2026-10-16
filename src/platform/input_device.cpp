@@ -86,7 +86,7 @@ void WindowInputDevice::HandleEvent(const SDL_Event& event)
 
             if (code != 0)
             {
-                this->keys[code] = event.type == SDL_EVENT_KEY_DOWN ? 0x80 : 0;
+                this->keys[code] = event.type == SDL_EVENT_KEY_DOWN ? InputDevice::KeyDown : 0;
             }
 
             break;
@@ -128,7 +128,7 @@ void WindowInputDevice::HandleEvent(const SDL_Event& event)
     }
 }
 
-void WindowInputDevice::KeyboardState(std::array<u8, 256>& keys)
+void WindowInputDevice::KeyboardState(KeyState& keys)
 {
     keys = this->keys;
 }

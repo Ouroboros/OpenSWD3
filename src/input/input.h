@@ -3,11 +3,10 @@
 #include <array>
 
 #include "core/types.h"
+#include "platform/input_device.h"
 
 namespace swd3
 {
-
-class InputDevice;
 
 // Keyboard and mouse of the game (the DirectInput object at 0x004B8748): a polled key state by DirectInput scan code
 // and a mouse whose axes map to the 640x480 screen with a sensitivity in tenths.
@@ -53,8 +52,8 @@ public:
 
     static constexpr int ScreenRight = 0x27F;
     static constexpr int ScreenBottom = 0x1DF;
-    static constexpr std::size_t KeyCount = 256;
-    static constexpr u8 KeyDown = 0x80;
+    static constexpr std::size_t KeyCount = InputDevice::KeyCount;
+    static constexpr u8 KeyDown = InputDevice::KeyDown;
     static constexpr int Tenths = 10;     // the sensitivity is in tenths
     static constexpr int LeftButton = 1;  // ReadMouse
     static constexpr int RightButton = 2;

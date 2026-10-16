@@ -6,6 +6,7 @@
 #include <cstring>
 #include <fstream>
 #include <iterator>
+#include <limits>
 
 #include "platform/audio_decoder.h"
 #include "platform/file_system.h"
@@ -16,10 +17,14 @@ namespace swd3
 namespace
 {
 
+constexpr int kUnityGain = 0x100;  // the mixer gains are fixed point
+constexpr int kPanHalf = 63;       // the pan distance at which a side reaches unity gain
+constexpr int kMillisecondsPerSecond = 1000;
+
 u32 ReadDword(const u8* bytes)
 {
     u32 value = 0;
-    std::memcpy(&value, bytes, 4);
+    std::memcpy(&value, bytes, sizeof(value));
     return value;
 }
 
@@ -90,7 +95,7 @@ bool AudioDevice::OpenOutput()
         return false;
     }
 
-    const SDL_AudioSpec spec{SDL_AUDIO_S16, 2, kMixRate};
+    const SDL_AudioSpec spec{SDL_AUDIO_S16, kMixChannels, kMixRate};
     this->output = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, &AudioDevice::Feed, this);
 
     if (this->output == nullptr)
@@ -231,7 +236,7 @@ VoiceStatus AudioDevice::Status(const VoiceHandle& voice)
 void AudioDevice::SetVolume(const VoiceHandle& voice, int volume)
 {
     std::lock_guard<std::recursive_mutex> lock(this->mutex);
-    voice->volume = std::clamp(volume, 0, 127);
+    voice->volume = std::clamp(volume, 0, AudioVoice::MaxLevel);
 }
 
 int AudioDevice::Volume(const VoiceHandle& voice)
@@ -243,7 +248,7 @@ int AudioDevice::Volume(const VoiceHandle& voice)
 void AudioDevice::SetPan(const VoiceHandle& voice, int pan)
 {
     std::lock_guard<std::recursive_mutex> lock(this->mutex);
-    voice->pan = std::clamp(pan, 0, 127);
+    voice->pan = std::clamp(pan, 0, AudioVoice::MaxLevel);
 }
 
 void AudioDevice::SetLoops(const VoiceHandle& voice, int loops)
@@ -255,9 +260,9 @@ void AudioDevice::SetLoops(const VoiceHandle& voice, int loops)
 void AudioDevice::Position(const VoiceHandle& voice, int& totalMilliseconds, int& currentMilliseconds)
 {
     std::lock_guard<std::recursive_mutex> lock(this->mutex);
-    const std::size_t frames = voice->pcm != nullptr ? voice->pcm->size() / 2 : 0;
-    totalMilliseconds = static_cast<int>(frames * 1000 / kMixRate);
-    currentMilliseconds = static_cast<int>(voice->frame * 1000 / kMixRate);
+    const std::size_t frames = voice->pcm != nullptr ? voice->pcm->size() / kMixChannels : 0;
+    totalMilliseconds = static_cast<int>(frames * kMillisecondsPerSecond / kMixRate);
+    currentMilliseconds = static_cast<int>(voice->frame * kMillisecondsPerSecond / kMixRate);
 }
 
 bool AudioDevice::OpenMidi()
@@ -282,7 +287,7 @@ void AudioDevice::Detach(const VoiceHandle& voice)
 void AudioDevice::Mix(std::vector<i16>& out, int frames)
 {
     std::lock_guard<std::recursive_mutex> lock(this->mutex);
-    this->mix.assign(static_cast<std::size_t>(frames) * 2, 0);
+    this->mix.assign(static_cast<std::size_t>(frames) * kMixChannels, 0);
 
     for (const VoiceHandle& voice : this->playing)
     {
@@ -292,10 +297,10 @@ void AudioDevice::Mix(std::vector<i16>& out, int frames)
         }
 
         const std::vector<i16>& pcm = *voice->pcm;
-        const std::size_t total = pcm.size() / 2;
-        const i32 left = std::min<i32>(256, (127 - voice->pan) * 256 / 63);
-        const i32 right = std::min<i32>(256, voice->pan * 256 / 63);
-        const i32 gain = voice->volume * 256 / 127;
+        const std::size_t total = pcm.size() / kMixChannels;
+        const i32 left = std::min<i32>(kUnityGain, (AudioVoice::MaxLevel - voice->pan) * kUnityGain / kPanHalf);
+        const i32 right = std::min<i32>(kUnityGain, voice->pan * kUnityGain / kPanHalf);
+        const i32 gain = voice->volume * kUnityGain / AudioVoice::MaxLevel;
 
         for (int i = 0; i < frames; ++i)
         {
@@ -315,8 +320,10 @@ void AudioDevice::Mix(std::vector<i16>& out, int frames)
                 voice->frame = 0;
             }
 
-            this->mix[static_cast<std::size_t>(i) * 2] += pcm[voice->frame * 2] * gain / 256 * left / 256;
-            this->mix[static_cast<std::size_t>(i) * 2 + 1] += pcm[voice->frame * 2 + 1] * gain / 256 * right / 256;
+            this->mix[static_cast<std::size_t>(i) * kMixChannels] +=
+                pcm[voice->frame * kMixChannels] * gain / kUnityGain * left / kUnityGain;
+            this->mix[static_cast<std::size_t>(i) * kMixChannels + 1] +=
+                pcm[voice->frame * kMixChannels + 1] * gain / kUnityGain * right / kUnityGain;
             ++voice->frame;
         }
     }
@@ -325,7 +332,9 @@ void AudioDevice::Mix(std::vector<i16>& out, int frames)
 
     for (std::size_t i = 0; i < out.size(); ++i)
     {
-        out[i] = static_cast<i16>(std::clamp<i32>(this->mix[i], -32768, 32767));
+        out[i] = static_cast<i16>(
+            std::clamp<i32>(this->mix[i], std::numeric_limits<i16>::min(), std::numeric_limits<i16>::max())
+        );
     }
 }
 
@@ -338,8 +347,8 @@ void SDLCALL AudioDevice::Feed(void* user, SDL_AudioStream* stream, int addition
 
     auto* device = static_cast<AudioDevice*>(user);
     std::vector<i16> out;
-    device->Mix(out, additional / 4);
-    SDL_PutAudioStreamData(stream, out.data(), static_cast<int>(out.size() * 2));
+    device->Mix(out, additional / static_cast<int>(kMixChannels * sizeof(i16)));
+    SDL_PutAudioStreamData(stream, out.data(), static_cast<int>(out.size() * sizeof(i16)));
 }
 
 }  // namespace swd3

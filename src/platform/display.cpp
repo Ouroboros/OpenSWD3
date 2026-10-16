@@ -9,6 +9,14 @@
 namespace swd3
 {
 
+namespace
+{
+
+constexpr float kHalf = 0.5F;      // the picture is centred in the window
+constexpr int kMinimumShrink = 2;  // the window shrinks to half the logical size at most
+
+}  // namespace
+
 Viewport FitViewport(int outputWidth, int outputHeight)
 {
     const float scaleX = static_cast<float>(outputWidth) / Display::Width;
@@ -16,7 +24,7 @@ Viewport FitViewport(int outputWidth, int outputHeight)
     const float scale = std::min(scaleX, scaleY);
     const float width = Display::Width * scale;
     const float height = Display::Height * scale;
-    return {(outputWidth - width) / 2, (outputHeight - height) / 2, width, height};
+    return {(outputWidth - width) * kHalf, (outputHeight - height) * kHalf, width, height};
 }
 
 LogicalPoint ToLogical(const Viewport& viewport, float outputX, float outputY)
@@ -71,7 +79,7 @@ bool Display::Open(const std::string& title)
         return false;
     }
 
-    SDL_SetWindowMinimumSize(this->window, Display::Width / 2, Display::Height / 2);
+    SDL_SetWindowMinimumSize(this->window, Display::Width / kMinimumShrink, Display::Height / kMinimumShrink);
     this->texture = SDL_CreateTexture(
         this->renderer,
         SDL_PIXELFORMAT_RGB565,
@@ -104,8 +112,8 @@ void Display::Present(const Surface& screen)
         return;
     }
 
-    SDL_UpdateTexture(this->texture, nullptr, screen.Pixels(), screen.Width() * 2);
-    SDL_SetRenderDrawColor(this->renderer, 0, 0, 0, 255);
+    SDL_UpdateTexture(this->texture, nullptr, screen.Pixels(), screen.Width() * static_cast<int>(sizeof(Pixel)));
+    SDL_SetRenderDrawColor(this->renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(this->renderer);
     const Viewport viewport = this->CurrentViewport();
     const SDL_FRect target{viewport.x, viewport.y, viewport.width, viewport.height};

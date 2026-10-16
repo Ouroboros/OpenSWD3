@@ -1,6 +1,7 @@
 #include "platform/system_info.h"
 
 #include <array>
+#include <limits>
 
 #include <SDL3/SDL.h>
 #include <windows.h>
@@ -8,10 +9,17 @@
 namespace swd3
 {
 
+namespace
+{
+
+constexpr int kMegabyteShift = 20;  // SDL_GetSystemRAM counts MiB
+
+}  // namespace
+
 std::vector<char> CdRomDrives()
 {
     std::vector<char> drives;
-    std::array<char, 4> root = {'a', ':', '\\', '\0'};
+    std::array root = {'a', ':', '\\', '\0'};
 
     for (char letter = 'a'; letter <= 'z'; ++letter)
     {
@@ -28,8 +36,8 @@ std::vector<char> CdRomDrives()
 
 u32 TotalPhysicalMemory()
 {
-    const u64 bytes = static_cast<u64>(SDL_GetSystemRAM()) << 20;
-    return bytes > 0xFFFFFFFFull ? 0xFFFFFFFFu : static_cast<u32>(bytes);
+    const u64 bytes = static_cast<u64>(SDL_GetSystemRAM()) << kMegabyteShift;
+    return bytes > std::numeric_limits<u32>::max() ? std::numeric_limits<u32>::max() : static_cast<u32>(bytes);
 }
 
 u32 SystemUptime()

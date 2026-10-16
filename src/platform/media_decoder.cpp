@@ -25,6 +25,8 @@ namespace swd3
 namespace
 {
 
+constexpr int kScalerPlanes = 4;  // sws_scale takes four plane pointers and pitches
+
 constexpr int kIoBufferSize = 0x8000;
 constexpr float kFullVolume = 32768.0F;
 
@@ -164,7 +166,11 @@ struct MediaDecoder::State
 
                 if (converted > 0)
                 {
-                    SDL_PutAudioStreamData(this->output, pcm.data(), converted * channels * 2);
+                    SDL_PutAudioStreamData(
+                        this->output,
+                        pcm.data(),
+                        converted * channels * static_cast<int>(sizeof(i16))
+                    );
                 }
             }
 
@@ -195,8 +201,8 @@ struct MediaDecoder::State
 
         if (this->scaler != nullptr)
         {
-            u8* planes[4] = {reinterpret_cast<u8*>(this->pixels.data()), nullptr, nullptr, nullptr};
-            const int pitches[4] = {this->width * 2, 0, 0, 0};
+            u8* planes[kScalerPlanes] = {reinterpret_cast<u8*>(this->pixels.data()), nullptr, nullptr, nullptr};
+            const int pitches[kScalerPlanes] = {this->width * static_cast<int>(sizeof(u16)), 0, 0, 0};
             sws_scale(this->scaler, this->frame->data, this->frame->linesize, 0, this->frame->height, planes, pitches);
         }
 
@@ -424,7 +430,7 @@ bool MediaDecoder::CopyTo(Surface& surface, int x, int y) const
         std::memcpy(
             surface.Row(y + row) + x,
             this->state->pixels.data() + static_cast<std::size_t>(row) * this->state->width,
-            static_cast<std::size_t>(columns) * 2
+            static_cast<std::size_t>(columns) * sizeof(u16)
         );
     }
 
