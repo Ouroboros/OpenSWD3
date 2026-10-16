@@ -11,5 +11,6 @@ void OptionDecrease();
 void OptionIncrease();
 void OptionPageCursorDown();
 void OptionSelect();
+void ApplyNameCheats();
 
 }  // namespace swd3

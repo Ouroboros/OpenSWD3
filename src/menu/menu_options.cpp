@@ -8,6 +8,8 @@
 #include "res/act_anim.h"
 #include "text/text_input.h"
 #include "data/globals.h"
+#include "data/image.h"
+#include "swd3/w32.h"
 #include "game/game_state.h"
 
 namespace swd3 {
@@ -227,6 +229,99 @@ void OptionSelect() {
             break;
         default:
             break;
+    }
+}
+
+namespace {
+
+bool nameIs(std::uint32_t name, std::uint32_t code) {
+    return w32::lstrcmpA(&image::at<char>(name), &image::at<char>(code)) == 0;
+}
+
+void setWord(std::uint32_t address, int value) { image::at<std::int16_t>(address) = static_cast<std::int16_t>(value); }
+
+void fillBytes(std::uint32_t address, std::uint8_t value) {
+    for (std::uint32_t i = 0; i < 9; ++i) {
+        image::at<std::uint8_t>(address + i) = value;
+    }
+}
+
+}  // namespace
+
+// swd32.exe 0x00449D80: name cheats after the name entry; each code compares the first (0x0049E148) or second
+// (0x0049E158) hero name with a string at 0x004A70F4..0x004A715C and overwrites stat words of the hero data. The
+// return value is unused by callers.
+void ApplyNameCheats() {
+    constexpr std::uint32_t first = 0x0049E148u;
+    constexpr std::uint32_t second = 0x0049E158u;
+    if (nameIs(first, 0x004A715Cu)) {
+        setWord(0x004AB7A0u, 0x19);
+        setWord(0x004AB7A2u, 0x19);
+        setWord(0x004AB7A4u, 0x19);
+        setWord(0x004AB7A6u, 0x19);
+    }
+    if (nameIs(second, 0x004A7154u)) {
+        setWord(0x004AB7DCu, 0x64);
+        setWord(0x004AB7CEu, 0x12C);
+        setWord(0x004AB7D4u, 0x12C);
+    }
+    if (nameIs(first, 0x004A714Cu)) {
+        setWord(0x004AB7A0u, 0x32);
+        setWord(0x004AB794u, 0xC8);
+        setWord(0x004AB79Au, 0xC8);
+    }
+    if (nameIs(first, 0x004A7144u)) {
+        fillBytes(0x004AB7BDu, 0xFB);
+    }
+    if (nameIs(first, 0x004A713Cu)) {
+        setWord(0x004AB7A0u, 0x1E);
+        setWord(0x004AB7A2u, 0x1E);
+        setWord(0x004AB7A4u, 0x1E);
+        setWord(0x004AB7A6u, 0x1E);
+    }
+    if (nameIs(second, 0x004A7134u)) {
+        fillBytes(0x004AB7F5u, 0xF9);
+    }
+    if (nameIs(first, 0x004A712Cu)) {
+        setWord(0x004AB7A2u, 0x64);
+        setWord(0x004AB798u, 0x12C);
+        setWord(0x004AB79Eu, 0x12C);
+    }
+    if (nameIs(first, 0x004A7124u)) {
+        setWord(0x004AB7A4u, 0x46);
+        setWord(0x004AB796u, 0xFA);
+        setWord(0x004AB79Cu, 0xFA);
+    }
+    if (nameIs(first, 0x004A711Cu)) {
+        setWord(0x004AB7A4u, 0x64);
+        fillBytes(0x004AB7BDu, 2);
+    }
+    if (nameIs(second, 0x004A7114u)) {
+        setWord(0x004AB7DAu, 0x64);
+        setWord(0x004AB7D0u, 0x12C);
+        setWord(0x004AB7D6u, 0x12C);
+    }
+    if (nameIs(second, 0x004A710Cu)) {
+        setWord(0x004AB7D8u, 0x32);
+        setWord(0x004AB7CCu, 0xC8);
+        setWord(0x004AB7D2u, 0xC8);
+    }
+    if (nameIs(first, 0x004A7104u)) {
+        setWord(0x004AB7A2u, image::at<std::int16_t>(0x004AB7A2u) - 5);
+        setWord(0x004AB7A4u, image::at<std::int16_t>(0x004AB7A4u) - 5);
+        setWord(0x004AB7A6u, image::at<std::int16_t>(0x004AB7A6u) - 5);
+        image::at<std::int32_t>(0x004ACBD0u) = 0x1F4;
+        setWord(0x004AB7A0u, image::at<std::int16_t>(0x004AB7A0u) - 10);
+    }
+    if (nameIs(first, 0x004A70FCu)) {
+        setWord(0x004AB7A2u, 0);
+        setWord(0x004AB798u, 0);
+        setWord(0x004AB79Eu, 0);
+    }
+    if (nameIs(second, 0x004A70F4u)) {
+        setWord(0x004AB7DCu, 5);
+        setWord(0x004AB7CEu, 5);
+        setWord(0x004AB7D4u, 5);
     }
 }
 

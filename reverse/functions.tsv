@@ -727,7 +727,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 726	swd32.exe	0x00449050	sub_449050	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
 727	swd32.exe	0x004490C0	sub_4490C0	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
 728	swd32.exe	0x00449C30	sub_449C30	menu	src/menu/menu_util.cpp:DrawActAlpha	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Menu:...)"
-729	swd32.exe	0x00449D80	sub_449D80	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+729	swd32.exe	0x00449D80	sub_449D80	menu	src/menu/menu_options.cpp:ApplyNameCheats	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 730	swd32.exe	0x00449FF0	sub_449FF0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 731	swd32.exe	0x0044A030	sub_44A030	menu	src/menu/menu_items.cpp:FreeRecordBuffers	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 732	swd32.exe	0x0044A050	sub_44A050	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
