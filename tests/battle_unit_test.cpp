@@ -10,7 +10,6 @@
 #include "battle/battle_role.h"
 #include "battle/battle_services.h"
 #include "battle/battle_state.h"
-#include "battle/battle_text.h"
 #include "battle/battle_unit.h"
 #include "config/config.h"
 #include "draw/painter.h"

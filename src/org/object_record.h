@@ -98,6 +98,43 @@ struct ObjectRecord
 // A skill script of mon.dat (Database::LoadSkill): flags and parameters set by the opcodes.
 struct SkillScript
 {
+    // The values of `ailment` (the status bit it sets on the unit); names are given where the battle shows them.
+    enum Ailment : u16
+    {
+        UnkAilment1 = 1,
+        UnkAilment2 = 2,
+        UnkAilment4 = 4,
+        UnkAilment8 = 8,
+        UnkAilment10 = 0x10,
+        UnkAilment20 = 0x20,
+        SlowedAilment = 0x40,
+        UnkAilment80 = 0x80,
+        UnkAilment100 = 0x100,
+        StatsScaledAilment = 0x200,
+        UnkAilment1000 = 0x1000,
+        MissedAilment = 0x2000,  // the skill marks the unit missed instead
+        RefreshOnly = 0x8000,    // an effect of the same kind only gets new turns and value
+    };
+
+    static constexpr u32 NoAilmentFlag = 0x80;  // in `flags`: the skill brings no ailment
+
+    // The bits of `statusBits` (kept by the effect nodes of a unit, EffectNode::bits).
+    enum Buff : u32
+    {
+        DefenseDown = 0x80000,
+        SpeedDown = 0x100000,
+        DarkAttackUp = 0x200000,
+        LightAttackUp = 0x400000,
+        IceAttackUp = 0x800000,
+        FireAttackUp = 0x1000000,
+        Barrier = 0x2000000,
+        AttackDown = 0x8000000,
+        Invisible = 0x10000000,
+        DefenseUp = 0x20000000,
+        SpeedUp = 0x40000000,
+        AttackUp = 0x80000000,
+    };
+
     u32 unk00 = 0;
     u32 flags = 0;       // +0x04 opcodes 3, 6, 9, 0xB, 0xE..0x16, 0x18, 0x19
     u32 statusBits = 0;  // +0x08 opcode 0xC: the status bits of a buff

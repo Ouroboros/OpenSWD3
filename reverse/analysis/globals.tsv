@@ -85,7 +85,7 @@
 0x004AB98C	Field::cameraBottom	i32	src/map/field.h:103	
 0x004AB990	Game::unk4AB990	i32	src/game/game.h:258	
 0x004AB994	Scene::unk4AB994	i32	src/game/scene.h:381	
-0x004AB998	BattleMessages::messageFont	TextFont&	src/battle/battle_message.h:101	(20 pixels)
+0x004AB998	BattleMessages::messageFont	TextFont&	src/battle/battle_message.h:160	(20 pixels)
 0x004AB998	Game::largeFont	TextFont	src/game/game.h:204	(20 pixels)
 0x004AC9B8	Scene::objects	std::unique_ptr<ScriptObject>	src/game/scene.h:437	
 0x004AC9BC	Scene::heatOffsets	std::array<i32, 0x30>	src/game/scene.h:417	pixels
@@ -233,7 +233,7 @@
 0x004C9A18	Scene::screenFlags	i32	src/game/scene.h:425	ScreenFlag bits
 0x004C9A20	Scene::encounterSteps	i32	src/game/scene.h:426	steps on the map since the last battle (bit 31 aside)
 0x004C9A24	Game::counterAlpha	i32	src/game/game.h:251	
-0x004C9A28	BattleMessages::panelFont	TextFont&	src/battle/battle_message.h:100	(16 pixels)
+0x004C9A28	BattleMessages::panelFont	TextFont&	src/battle/battle_message.h:159	(16 pixels)
 0x004C9A28	Game::mediumFont	TextFont	src/game/game.h:205	(16 pixels)
 0x004CAA28	Slot::unitFile	File	src/map/map_cache.h:50	the mapped unit
 0x004CAA78	Scene::unk4CAA78	std::array<ActState, 4>	src/game/scene.h:370	
@@ -343,7 +343,7 @@
 0x004FC450	Menu::unk4FC450	ActState	src/menu/menu.h:146	
 0x004FC4E8	Menu::up	Handler	src/menu/menu.h:105	
 0x004FC518	Menu::unk4FC518	ActState	src/menu/menu.h:147	
-0x004FC5B0	BattleMessages::panelAct	ActState	src/battle/battle_message.h:80	act 0x233B: the frame picture of the panels
+0x004FC5B0	BattleMessages::panelAct	ActState	src/battle/battle_message.h:139	act 0x233B: the frame picture of the panels
 0x004FC64C	Menu::frame	Handler	src/menu/menu.h:103	
 0x004FC650	Menu::gauge	ActState	src/menu/menu.h:148	a step of the settings bars
 0x004FC6E8	Menu::unk4FC6E8	ActState	src/menu/menu.h:149	
@@ -435,7 +435,7 @@
 0x00521398	BattleState::inParty	std::array<u8, 4>	src/battle/battle_state.h:74	the four roles are in the party (story flags 0x1E..)
 0x005213A0	BattleState::enemyPlaces	std::array<UnitPlacement, 8>	src/battle/battle_state.h:85	
 0x005214AC	BattleState::drawOrder	std::array<i32, Units>	src/battle/battle_state.h:101	the units from the top down
-0x005214F8	BattleMessages::messages	std::unique_ptr<BattleMessage>	src/battle/battle_message.h:79	
+0x005214F8	BattleMessages::messages	std::unique_ptr<BattleMessage>	src/battle/battle_message.h:138	
 0x005240BC	BattleState::darkColor	u16	src/battle/battle_state.h:82	
 0x005240C8	BattleState::spiritBars	std::array<i32, 10>	src/battle/battle_state.h:92	and its copy 0x00524288
 0x00524118	BattleHud::portraitHighlight	std::array<u8, 8>	src/battle/battle_hud.h:71	roles outlined in green
@@ -447,14 +447,14 @@
 0x00524414	BattleState::unk524414	i32	src/battle/battle_state.h:115	
 0x00524418	BattleState::unk524418	i32	src/battle/battle_state.h:129	
 0x00524420	BattleState::unk524420	std::array<i32, 0x12>	src/battle/battle_state.h:131	
-0x00524468	BattleMessages::lootNames	std::array<std::string_view, LootSlots>	src/battle/battle_message.h:83	
+0x00524468	BattleMessages::lootNames	std::array<std::string_view, LootSlots>	src/battle/battle_message.h:142	
 0x005244C4	BattleState::surfaces	std::array<std::unique_ptr<Surface>, 2>	src/battle/battle_state.h:52	screen sized off-screen surfaces
 0x005244D8	BattleState::unk5244D8	i32	src/battle/battle_state.h:126	
 0x005244DC	BattleState::unk5244DC	i32	src/battle/battle_state.h:127	
 0x005244E8	BattleState::unk5244E8	std::array<i32, 0x7E>	src/battle/battle_state.h:133	
 0x005246E0	BattleState::unk5246E0	ObjectRecord	src/battle/battle_state.h:105	
 0x00524788	BattleState::unk524788	std::array<BattleSlotRecord, Units>	src/battle/battle_state.h:138	
-0x00525434	BattleMessages::lootCounts	std::array<u16, LootSlots>	src/battle/battle_message.h:84	
+0x00525434	BattleMessages::lootCounts	std::array<u16, LootSlots>	src/battle/battle_message.h:143	
 0x0052544C	BattleState::unk52544C	i32	src/battle/battle_state.h:116	
 0x00525450	BattleState::unk525450	i32	src/battle/battle_state.h:119	
 0x00525454	BattleState::unk525454	i32	src/battle/battle_state.h:120	
@@ -481,11 +481,11 @@
 0x0053C00C	BattleState::paused	i32	src/battle/battle_state.h:57	messages do not slide while set
 0x0053C048	BattleState::unk53C048	i32	src/battle/battle_state.h:134	
 0x0053C052	BattleState::battle	u16	src/battle/battle_state.h:63	the battle number
-0x0053C498	BattleMessages::lootCount	u16	src/battle/battle_message.h:82	
+0x0053C498	BattleMessages::lootCount	u16	src/battle/battle_message.h:141	
 0x0053C4B0	BattleState::unk53C4B0	i32	src/battle/battle_state.h:137	
-0x0053C4B4	BattleMessages::craftSucceeded	u8	src/battle/battle_message.h:85	
-0x0053C4B8	BattleMessages::panelUnit	const ObjectData*	src/battle/battle_message.h:86	the object shown by DrawResistancePanel
-0x0053C4BC	BattleMessages::panelHeight	i32	src/battle/battle_message.h:81	grown by GrowPanel
+0x0053C4B4	BattleMessages::craftSucceeded	u8	src/battle/battle_message.h:144	
+0x0053C4B8	BattleMessages::panelUnit	const ObjectData*	src/battle/battle_message.h:145	the object shown by DrawResistancePanel
+0x0053C4BC	BattleMessages::panelHeight	i32	src/battle/battle_message.h:140	grown by GrowPanel
 0x0053CE84	FightTalk::script	std::vector<u8>	src/battle/fight_talk.h:25	
 0x0053CE88	FightTalk::cursor	std::size_t	src/battle/fight_talk.h:26	the command read next
 0x0053CEA8	FightTalk::open	bool	src/battle/fight_talk.h:24	

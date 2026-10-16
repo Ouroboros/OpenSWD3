@@ -4,8 +4,8 @@
 #include <string>
 
 #include "battle/battle_hud.h"
+#include "battle/battle_message.h"
 #include "battle/battle_state.h"
-#include "battle/battle_text.h"
 #include "core/format.h"
 #include "crt/msvc.h"
 #include "draw/painter.h"
@@ -91,7 +91,7 @@ void BattleMessages::DrawLootPanel()
     const int frame = this->PanelFrame();
     FillBox(this->painter, 0xC4, 0xB0, 0xB8, this->panelHeight + 0x28, 0, 4, 4, FillMode::Blend);
     DrawWindowFrame(this->painter, this->archive, frame, 0xC8, 0xB4, 0x178, 0xC4, 0, kFrameBorder);
-    this->DrawPanelText(0x108, 0xB4, battle_text::kLootTitle);
+    this->DrawPanelText(0x108, 0xB4, BattleMessages::LootTitle);
     DrawWindowFrame(
         this->painter,
         this->archive,
@@ -111,7 +111,7 @@ void BattleMessages::DrawLootPanel()
         for (int item = 0; item < this->lootCount; ++item)
         {
             const std::string line = WinFormat(
-                battle_text::kLootLine,
+                BattleMessages::LootLine,
                 {this->lootNames[static_cast<std::size_t>(item)], this->lootCounts[static_cast<std::size_t>(item)]}
             );
             this->DrawPanelText(0xD2, y, line);
@@ -128,7 +128,7 @@ void BattleMessages::DrawDefeatPanel()
     const int frame = this->PanelFrame();
     FillBox(this->painter, 0xC4, 0xB0, 0xB8, this->panelHeight + 0x28, 0, 4, 4, FillMode::Blend);
     DrawWindowFrame(this->painter, this->archive, frame, 0xC8, 0xB4, 0x178, 0xC4, 0, kFrameBorder);
-    this->DrawPanelText(0x104, 0xB4, battle_text::kDefeatTitle);
+    this->DrawPanelText(0x104, 0xB4, BattleMessages::DefeatTitle);
     DrawWindowFrame(
         this->painter,
         this->archive,
@@ -144,7 +144,7 @@ void BattleMessages::DrawDefeatPanel()
     if (this->GrowPanel(0xD4, 0xF4, 3) == 1)
     {
         this->panelFont.SetAdvance(0x11);
-        this->DrawPanelText(0xFE, 0xD8, battle_text::kPartyWiped);
+        this->DrawPanelText(0xFE, 0xD8, BattleMessages::PartyWiped);
         this->panelFont.SetAdvance(0x10);
     }
 }
@@ -174,14 +174,14 @@ void BattleMessages::DrawCraftResultPanel()
 
     if (this->craftSucceeded == 1)
     {
-        this->DrawPanelText(0x100, 0xB4, battle_text::kCraftSuccess);
-        const std::string line = WinFormat(battle_text::kCraftGot, {this->lootNames[0]});
+        this->DrawPanelText(0x100, 0xB4, BattleMessages::CraftSuccess);
+        const std::string line = WinFormat(BattleMessages::CraftGot, {this->lootNames[0]});
         this->DrawPanelText(0xD0, 0xDE, line);
     }
     else
     {
-        this->DrawPanelText(0x100, 0xB4, battle_text::kCraftFailed);
-        this->DrawPanelText(0xD0, 0xDE, battle_text::kNothingGained);
+        this->DrawPanelText(0x100, 0xB4, BattleMessages::CraftFailed);
+        this->DrawPanelText(0xD0, 0xDE, BattleMessages::NothingGained);
     }
 }
 
@@ -290,7 +290,7 @@ void BattleMessages::DrawResistancePanel()
             this->painter.Target(),
             0xFC,
             y - 8,
-            battle_text::kElementNames[element],
+            BattleMessages::ElementNames[element],
             static_cast<Pixel>(white),
             kTextStyle
         );

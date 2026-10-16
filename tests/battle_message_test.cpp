@@ -7,7 +7,6 @@
 #include "battle/battle_hud.h"
 #include "battle/battle_message.h"
 #include "battle/battle_state.h"
-#include "battle/battle_text.h"
 #include "draw/painter.h"
 #include "font/text_font.h"
 #include "game_data.h"
@@ -82,20 +81,19 @@ TEST_CASE("battle message: texts match swd32.exe")
         return;
     }
 
-    namespace text = swd3::battle_text;
-    CHECK(swd3test::SameText(exe, 0x004A7E20, text::kResistAllEnd));
-    CHECK(swd3test::SameText(exe, 0x004A80E4, text::kDefenseDownEnd));
-    CHECK(swd3test::SameText(exe, 0x004A7F3C, text::kResistPhysicalEnd));
-    CHECK(swd3test::SameText(exe, 0x004A7B3C, text::kCraftSuccess));
-    CHECK(swd3test::SameText(exe, 0x004A7AE8, text::kLootLine));
-    CHECK(swd3test::SameText(exe, 0x004A7EB4, text::kSpeedDown));
+    CHECK(swd3test::SameText(exe, 0x004A7E20, swd3::BattleMessages::ResistAllEnd));
+    CHECK(swd3test::SameText(exe, 0x004A80E4, swd3::BattleMessages::DefenseDownEnd));
+    CHECK(swd3test::SameText(exe, 0x004A7F3C, swd3::BattleMessages::ResistPhysicalEnd));
+    CHECK(swd3test::SameText(exe, 0x004A7B3C, swd3::BattleMessages::CraftSuccess));
+    CHECK(swd3test::SameText(exe, 0x004A7AE8, swd3::BattleMessages::LootLine));
+    CHECK(swd3test::SameText(exe, 0x004A7EB4, swd3::BattleMessages::SpeedDown));
     constexpr swd3::u32 kElementTable = 0x004A79A8;
 
     for (int element = 0; element < 9; ++element)
     {
         swd3::u32 pointer = 0;
         std::memcpy(&pointer, exe.data() + (kElementTable - 0x400000) + 4 * element, 4);
-        CHECK(swd3test::SameText(exe, pointer, text::kElementNames[element]));
+        CHECK(swd3test::SameText(exe, pointer, swd3::BattleMessages::ElementNames[element]));
     }
 }
 

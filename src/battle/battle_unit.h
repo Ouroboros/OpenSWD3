@@ -83,8 +83,20 @@ public:
     // BattleUnit::marks bits.
     enum Mark : u16
     {
+        UnkMark1 = 1,  // cleared when the guard text has risen
+        UnkMark2 = 2,
+        UnkMark8 = 8,       // cleared by ResetTurn
+        MissedMark = 0x20,  // the ailment missed (SkillScript::MissedAilment)
         Held = 0x40,
-        Unk4000 = 0x4000,  // the gauge stops (set elsewhere in the battle loop)
+        InvisibleMark = 0x80,
+        UnkMark100 = 0x100,
+        UnkMark200 = 0x200,  // set by ResetTurn
+        UnkMark400 = 0x400,  // set when invisibility ends
+        UnkMark800 = 0x800,
+        GuardingMark = 0x1000,
+        DefeatedMark = 0x2000,
+        Unk4000 = 0x4000,      // the gauge stops (set elsewhere in the battle loop)
+        UnkMark8000 = 0x8000,  // the damage of the unit is not raised
     };
 
     // BattleUnit::equipmentFlags set by the accessories (BattleRole::ApplyAccessory).
@@ -103,7 +115,13 @@ public:
     // buffs announce (AddBuff 0x0047BC50) and their effects.
     enum Status : u32
     {
-        Slowed = 0x40,  // ailment 0x40: the gauge fills at half speed
+        UnkStatus4 = 4,
+        UnkStatus8 = 8,
+        UnkStatus10 = 0x10,  // cleared with mark UnkMark100
+        UnkStatus20 = 0x20,
+        Slowed = 0x40,        // ailment 0x40: the gauge fills at half speed
+        StatsScaled = 0x200,  // a party role's attributes are scaled (undone when it ends)
+        UnkStatus1000 = 0x1000,
         DefenseDown = 0x100000,
         AttackDown = 0x1000000,
         Barrier = 0x4000000,
