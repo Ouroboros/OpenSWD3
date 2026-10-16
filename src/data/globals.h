@@ -9,6 +9,7 @@
 #include "audio/audio.h"
 #include "battle/battle_draw.h"
 #include "battle/battle_enemy.h"
+#include "battle/battle_formation.h"
 #include "battle/battle_hero.h"
 #include "battle/battle_message.h"
 #include "battle/battle_unit.h"
@@ -4850,13 +4851,8 @@ struct Globals {
     std::int32_t dword_4FF584;  // 0x004FF584
     std::uint8_t unk_4FF588;  // 0x004FF588
     std::uint8_t pad_4FF589[0x2F];
-    std::uint8_t unk_4FF5B8;  // 0x004FF5B8
-    std::uint8_t pad_4FF5B9[0x4E3];
-    std::uint8_t unk_4FFA9C;  // 0x004FFA9C
-    std::uint8_t pad_4FFA9D[0x2AFF];
-    std::int32_t dword_50259C;  // 0x0050259C
-    std::int32_t dword_5025A0;  // 0x005025A0
-    std::uint8_t pad_5025A4[0x2FC];
+    BattleFormation battleFormation;  // 0x004FF5B8 constructed by 0x004518E0
+    std::uint8_t pad_5027B0[0xF0];
     std::int32_t dword_5028A0;  // 0x005028A0
     std::int32_t dword_5028A4;  // 0x005028A4
     std::uint8_t pad_5028A8[0x4];
@@ -5854,6 +5850,7 @@ static_assert(offsetof(Globals, numberFont) == 0x64D08);
 static_assert(offsetof(Globals, arrowActs) == 0x64D10);
 static_assert(offsetof(Globals, coinFrames) == 0x64F70);
 static_assert(offsetof(Globals, coinState) == 0x64F74);
+static_assert(offsetof(Globals, battleFormation) == 0x665B8);
 static_assert(offsetof(Globals, battleHeroes) == 0x699D0);
 static_assert(offsetof(Globals, actionQueue) == 0x8722C);
 static_assert(offsetof(Globals, drawOrderUsed) == 0x87D5C);

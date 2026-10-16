@@ -379,3 +379,6 @@ addr	type	name	module	notes
 0x0053BCE0	std::uint32_t	enemyCount	battle
 0x0053BCE4	std::uint32_t	heroCount	battle
 0x004A9490	std::uint8_t*[4]	itemLists	item	sorted by SortItemLists
+@include	battle/battle_formation.h
+@size	BattleFormation	12792
+0x004FF5B8	BattleFormation	battleFormation	battle	constructed by 0x004518E0

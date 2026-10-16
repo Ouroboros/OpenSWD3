@@ -80,6 +80,8 @@ void InitBattleEnemies();
 void ConstructBattleEnemies();
 void RegisterBattleEnemiesDestructor();
 void DestroyBattleEnemies();
+void InitBattleFormation();
+void ConstructBattleFormation();
 void InitProjector();
 void ConstructProjector();
 void RegisterProjectorDestructor();

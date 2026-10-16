@@ -289,6 +289,12 @@ void RegisterBattleEnemiesDestructor() { crt::atexit(&DestroyBattleEnemies); }
 // swd32.exe 0x00451840
 void DestroyBattleEnemies() { crt::vectorDestruct(G.battleEnemies, sizeof(BattleEnemy), 8, &destroyEnemy); }
 
+// swd32.exe 0x004518E0
+void InitBattleFormation() { ConstructBattleFormation(); }
+
+// swd32.exe 0x004518F0
+void ConstructBattleFormation() { new (&G.battleFormation) BattleFormation(&G.projector); }
+
 // swd32.exe 0x004518A0
 void InitProjector() {
     ConstructProjector();
