@@ -174,3 +174,9 @@ addr	type	name	module	notes
 @include	input/input.h
 @size	Input	280
 0x004B8748	Input	input	input	DirectInput keyboard and mouse, constructed by 0x004014B0
+0x0049FB74	char[8]	defaultFontFace	font	Big5 "細明體" (MingLiU)
+@include	font/text_font.h
+@size	TextFont	4088
+0x004AB998	TextFont	textFont_4AB998	font	constructed by 0x004011D0
+0x004C9A28	TextFont	textFont_4C9A28	font	constructed by 0x00401210
+0x004A9ED0	TextFont	textFont_4A9ED0	font	constructed by 0x00401250

@@ -172,6 +172,51 @@ void RegisterFile521538Destructor() { crt::atexit(&DestroyFile521538); }
 // swd32.exe 0x00451930
 void DestroyFile521538() { G.file_521538.~File(); }
 
+// swd32.exe 0x004011D0
+void InitTextFont4AB998() {
+    ConstructTextFont4AB998();
+    RegisterTextFont4AB998Destructor();
+}
+
+// swd32.exe 0x004011E0
+void ConstructTextFont4AB998() { new (&G.textFont_4AB998) TextFont(); }
+
+// swd32.exe 0x004011F0
+void RegisterTextFont4AB998Destructor() { crt::atexit(&DestroyTextFont4AB998); }
+
+// swd32.exe 0x00401200
+void DestroyTextFont4AB998() { G.textFont_4AB998.~TextFont(); }
+
+// swd32.exe 0x00401210
+void InitTextFont4C9A28() {
+    ConstructTextFont4C9A28();
+    RegisterTextFont4C9A28Destructor();
+}
+
+// swd32.exe 0x00401220
+void ConstructTextFont4C9A28() { new (&G.textFont_4C9A28) TextFont(); }
+
+// swd32.exe 0x00401230
+void RegisterTextFont4C9A28Destructor() { crt::atexit(&DestroyTextFont4C9A28); }
+
+// swd32.exe 0x00401240
+void DestroyTextFont4C9A28() { G.textFont_4C9A28.~TextFont(); }
+
+// swd32.exe 0x00401250
+void InitTextFont4A9ED0() {
+    ConstructTextFont4A9ED0();
+    RegisterTextFont4A9ED0Destructor();
+}
+
+// swd32.exe 0x00401260
+void ConstructTextFont4A9ED0() { new (&G.textFont_4A9ED0) TextFont(); }
+
+// swd32.exe 0x00401270
+void RegisterTextFont4A9ED0Destructor() { crt::atexit(&DestroyTextFont4A9ED0); }
+
+// swd32.exe 0x00401280
+void DestroyTextFont4A9ED0() { G.textFont_4A9ED0.~TextFont(); }
+
 // swd32.exe 0x00401490: Graphics has no destructor, so nothing is registered
 void InitGraphics() { ConstructGraphics(); }
 

@@ -7,6 +7,7 @@
 #include "data/image.h"
 #include "swd3/w32.h"
 #include "file/file.h"
+#include "font/text_font.h"
 #include "gfx/graphics.h"
 #include "input/input.h"
 #include "memmgr/memory_manager.h"
@@ -1696,8 +1697,7 @@ struct Globals {
     char aSscrnshot05dBm[20];  // 0x0049FB3C
     char aAfterFightRema[33];  // 0x0049FB50
     std::uint8_t pad_49FB71[0x3];
-    std::uint8_t byte_49FB74;  // 0x0049FB74
-    std::uint8_t pad_49FB75[0x7];
+    char defaultFontFace[8];  // 0x0049FB74 Big5 "細明體" (MingLiU)
     char aIntoStoryFight[36];  // 0x0049FB7C
     char aSS[5];  // 0x0049FBA0
     std::uint8_t pad_49FBA5[0x3];
@@ -3400,7 +3400,7 @@ struct Globals {
     std::uint8_t byte_4A9ACC;  // 0x004A9ACC
     std::uint8_t pad_4A9ACD[0x3FF];
     std::int32_t dword_4A9ECC;  // 0x004A9ECC
-    std::int16_t word_4A9ED0[2044];  // 0x004A9ED0
+    TextFont textFont_4A9ED0;  // 0x004A9ED0 constructed by 0x00401250
     std::int16_t word_4AAEC8;  // 0x004AAEC8
     std::uint8_t pad_4AAECA[0x2];
     std::int32_t dword_4AAECC;  // 0x004AAECC
@@ -3480,7 +3480,7 @@ struct Globals {
     std::uint8_t xmmword_4AB980[16];  // 0x004AB980
     std::int32_t dword_4AB990;  // 0x004AB990
     std::int32_t dword_4AB994;  // 0x004AB994
-    std::int16_t word_4AB998[2044];  // 0x004AB998
+    TextFont textFont_4AB998;  // 0x004AB998 constructed by 0x004011D0
     std::uint8_t unk_4AC990;  // 0x004AC990
     std::uint8_t pad_4AC991[0x27];
     std::int32_t dword_4AC9B8;  // 0x004AC9B8
@@ -4044,7 +4044,8 @@ struct Globals {
     HWND mainWindow;  // 0x004C9A1C
     std::int32_t dword_4C9A20;  // 0x004C9A20
     std::int32_t dword_4C9A24;  // 0x004C9A24
-    std::int16_t word_4C9A28[2048];  // 0x004C9A28
+    TextFont textFont_4C9A28;  // 0x004C9A28 constructed by 0x00401210
+    std::uint8_t pad_4CAA20[0x8];
     File file_4CAA28;  // 0x004CAA28 constructed by 0x004013D0
     std::int32_t dword_4CAA78;  // 0x004CAA78
     std::uint8_t pad_4CAA7C[0x4];
@@ -5754,6 +5755,7 @@ static_assert(offsetof(Globals, guidButton) == 0x1788);
 static_assert(offsetof(Globals, guidSysMouse) == 0x17C8);
 static_assert(offsetof(Globals, guidSysKeyboard) == 0x17D8);
 static_assert(offsetof(Globals, cppInitializers) == 0x5000);
+static_assert(offsetof(Globals, defaultFontFace) == 0x6B74);
 static_assert(offsetof(Globals, zoomAnchorX) == 0x7698);
 static_assert(offsetof(Globals, zoomAnchorY) == 0x769C);
 static_assert(offsetof(Globals, zoomX) == 0x76A0);
@@ -5771,8 +5773,10 @@ static_assert(offsetof(Globals, actCacheLimit) == 0xD098);
 static_assert(offsetof(Globals, file_4A9380) == 0x10380);
 static_assert(offsetof(Globals, gameDir) == 0x104BC);
 static_assert(offsetof(Globals, file_4A98C8) == 0x108C8);
+static_assert(offsetof(Globals, textFont_4A9ED0) == 0x10ED0);
 static_assert(offsetof(Globals, tswPath) == 0x11ED0);
 static_assert(offsetof(Globals, graphics) == 0x12870);
+static_assert(offsetof(Globals, textFont_4AB998) == 0x12998);
 static_assert(offsetof(Globals, memoryManager) == 0x1DC78);
 static_assert(offsetof(Globals, file_4B74A0) == 0x1E4A0);
 static_assert(offsetof(Globals, file_4B7AD0) == 0x1EAD0);
@@ -5780,6 +5784,7 @@ static_assert(offsetof(Globals, input) == 0x1F748);
 static_assert(offsetof(Globals, mapCacheFile) == 0x1F868);
 static_assert(offsetof(Globals, file_4B9F18) == 0x20F18);
 static_assert(offsetof(Globals, mainWindow) == 0x30A1C);
+static_assert(offsetof(Globals, textFont_4C9A28) == 0x30A28);
 static_assert(offsetof(Globals, file_4CAA28) == 0x31A28);
 static_assert(offsetof(Globals, file_4CAD50) == 0x31D50);
 static_assert(offsetof(Globals, drawPitch) == 0x332EC);

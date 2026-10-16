@@ -19,3 +19,28 @@ COLORREF GetPixel(HDC, int, int) { return 0xFFFFFFFFu; }
 COLORREF SetPixel(HDC, int, int, COLORREF) { return 0xFFFFFFFFu; }
 
 }  // namespace w32
+
+#include "swd3/gdi.h"
+
+namespace w32 {
+namespace {
+
+int g_fontToken;
+
+}  // namespace
+
+HFONT CreateFontIndirectA(const LOGFONTA*) { return &g_fontToken; }
+
+BOOL DeleteObject(HGDIOBJ object) { return object != nullptr; }
+
+HGDIOBJ SelectObject(HDC, HGDIOBJ) { return nullptr; }
+
+COLORREF SetBkColor(HDC, COLORREF) { return 0xFFFFFFFFu; }
+
+int SetBkMode(HDC, int) { return 0; }
+
+COLORREF SetTextColor(HDC, COLORREF) { return 0xFFFFFFFFu; }
+
+BOOL TextOutA(HDC, int, int, LPCSTR, int) { return 0; }
+
+}  // namespace w32
