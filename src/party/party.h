@@ -82,6 +82,7 @@ public:
     std::array<Name, Roles> names = Party::DefaultNames();  // 0x0049E148
 
     void ApplyNameCheats();
+    static constexpr int LastStat = 0x10;  // the attributes SetRoleStat and RoleStat know
     void SetRoleStat(int field, int value, int role, Database& database);
     int RoleStat(int field, int role) const;
     std::array<RoleBattleBlock, Roles> battleBlocks;  // 0x004ACF50

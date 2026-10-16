@@ -427,7 +427,7 @@ bool Database::LoadObject(ObjectRecord& record, u16 id)
                 break;
 
             case 0x1A:
-                word(data.unk3A);
+                word(data.usableBy);
                 break;
 
             case 0x1B:

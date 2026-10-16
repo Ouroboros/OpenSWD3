@@ -1390,13 +1390,13 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
             move.nextX = move.x;
             move.nextY = move.y;
 
-            if ((options & 0x8000) != 0)
+            if ((options & RolePath::EventGoesOn) != 0)
             {
                 move.mode &= static_cast<u8>(~MoveRecord::HoldAtEnd);
             }
         }
 
-        if ((role.x & 0xF) != 0 || (role.y & 0xF) != 0)
+        if ((role.x & MapHeader::TileFraction) != 0 || (role.y & MapHeader::TileFraction) != 0)
         {
             owner.field.ClearRoleCells(role, leader);
 
@@ -1405,12 +1405,12 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
                 const int row = static_cast<int>(static_cast<u32>(role.y) >> 4) - 1;
                 const u8 back = move.CurrentDirection();
 
-                while ((role.x & 0xF) != 0 && back < 8)
+                while ((role.x & MapHeader::TileFraction) != 0 && back < static_cast<int>(RolePath::StepX.size()))
                 {
                     role.x -= RolePath::StepX[back];
                 }
 
-                while ((role.y & 0xF) != 0 && back < 8)
+                while ((role.y & MapHeader::TileFraction) != 0 && back < static_cast<int>(RolePath::StepX.size()))
                 {
                     role.y -= RolePath::StepY[back];
                 }
@@ -1420,11 +1420,11 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
         }
     }
 
-    if ((options & 0xF) == 0 && slot == RolePath::Moves)
+    if ((options & RolePath::PlaceMask) == 0 && slot == RolePath::Moves)
     {
         slot = 0;
 
-        while (slot < RolePath::Moves && state.moves[static_cast<std::size_t>(slot)].role != 0xFFFF)
+        while (slot < RolePath::Moves && state.moves[static_cast<std::size_t>(slot)].role != MoveRecord::NoRole)
         {
             ++slot;
         }
@@ -1432,7 +1432,7 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
 
     if (slot == RolePath::Moves)
     {
-        if (state.GameFlag(GameState::DebugReports) && (options & 0xF) == 0)
+        if (state.GameFlag(GameState::DebugReports) && (options & RolePath::PlaceMask) == 0)
         {
             DebugLog(u8"no free move", options, this->RoleId(static_cast<u32>(index)));
         }

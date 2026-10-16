@@ -25,7 +25,7 @@ void Scene::FreeSpritesB()
 void Scene::FreeNodes()
 {
     this->talkWindows.reset();
-    this->unk4A9920 &= 0x8000;
+    this->playerHold &= Scene::HoldLocked;
 }
 
 // swd32.exe 0x0040F5E0

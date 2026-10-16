@@ -2852,7 +2852,7 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
         DebugRow(4),
         white,
         u8"ULck[%x] UIpt[%x] gTm[%d] Fsc[%d] ,BtlM[%d] ,BtnIp[%d]",
-        view.unk4A9920,
+        view.playerHold,
         owner.talk.advance,
         owner.party.unk4ACDB0,
         view.encounterSteps & Scene::EncounterStepMask,

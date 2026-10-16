@@ -57,6 +57,7 @@ struct ActState
     // `counter`: the low byte is the round limit, the high byte the round.
     static constexpr u16 RoundsMask = 0xFF;
     static constexpr int RoundShift = 8;
+    static constexpr i16 FixedDelay = static_cast<i16>(0x8000);  // in `speed`: the low bits are a fixed delay
 
     // The act directions (RolePath::Facing maps the steps onto them).
     enum Direction : u16
@@ -104,7 +105,7 @@ struct ActState
     u16 position = 0;        // +0x42 script position in words
     u16 delay = 0;           // +0x44 frames left on the current frame
     u16 frameDelay = 0;      // +0x46 'DS'
-    i16 speed = 0;           // +0x48 bit 15: a fixed delay in the low bits
+    i16 speed = 0;           // +0x48 FixedDelay: a fixed delay in the low bits
     u16 frame = 0;           // +0x4A 'FR'
     u16 picture = 0;         // +0x4C 'AP'
     u16 rotation = 0;        // +0x4E 'OR'

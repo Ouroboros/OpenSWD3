@@ -7,6 +7,7 @@
 #include "game/game.h"
 #include "item/item_list.h"
 #include "platform/file_system.h"
+#include "talk/script_text.h"
 #include "talk/talk.h"
 #include "talk/talk_event.h"
 
@@ -16,9 +17,10 @@ namespace swd3
 namespace
 {
 
-constexpr u16 kTextEnd = 0x5125;  // "%Q"
 // The range the spotlight command keeps the spotlight in (screen pixels).
-constexpr int kPotEntry = 0x3B;  // the tile EnterDemonPot puts the controlled role on (both ways)
+constexpr int kPotEntry = 0x3B;               // the tile EnterDemonPot puts the controlled role on (both ways)
+constexpr u16 kCommandStarted = 0x8000;       // GatherParty marks its own command word while the party gathers
+constexpr std::size_t kFileNameBytes = 0x33;  // the longest name SetFileNameA/B keeps
 constexpr int kSpotlightLeft = 0xD0;
 constexpr int kSpotlightRight = 0x1B0;
 constexpr int kSpotlightTop = 0xD0;
@@ -63,31 +65,27 @@ u32 RoleFlagOf(EventCommand code)
 bool Talk::CopyMedia(EventRun& run)
 {
     Game& owner = this->game;
+    constexpr u16 kVideoFolder = 0;
+    constexpr u16 kMusicFolder = 1;
     const std::vector<u8>& script = owner.databases.script;
-    std::size_t at = run.cursor + 4;
-    std::string name;
-
-    while (at + 1 < script.size() && (script[at] | script[at + 1] << 8) != kTextEnd)
-    {
-        name.push_back(static_cast<char>(script[at]));
-        ++at;
-    }
-
+    const std::size_t start = run.cursor + kOpcodeBytes + kWordBytes;
+    const std::size_t end = TextEndAt(script, start);
+    const std::string name = start < end ? std::string(script.begin() + start, script.begin() + end) : std::string();
     run.valueA = static_cast<i32>(name.size());
     owner.inactive = 1;
-    run.context.unk20 = static_cast<u16>(at + 2);
-    run.cursor = at + 2;
-    const u16 mode = at + 5 < script.size() ? static_cast<u16>(script[at + 4] | script[at + 5] << 8) : u16{0};
+    run.cursor = end + kWordBytes;
+    this->SyncOffset(run);
+    const u16 mode = TextWord(script, end + 2 * kWordBytes);
     run.valueB = static_cast<i16>(mode);
     std::string source = owner.config.cdRoot;
     std::string target = owner.config.installDirectory;
 
-    if (mode == 0)
+    if (mode == kVideoFolder)
     {
         source += "Video\\";
         target += "Video\\";
     }
-    else if (mode == 1)
+    else if (mode == kMusicFolder)
     {
         source += "Music\\";
         target += "Music\\";
@@ -393,7 +391,7 @@ bool Talk::RunStateCommand(EventRun& run)
         case EventCommand::MusicVolume:
         {
             const u16 volume = this->Word(run, 1);
-            run.valueA = volume <= 0xB ? volume : 0xB;
+            run.valueA = volume <= Config::MaxVolume ? volume : Config::MaxVolume;
             owner.audio.SetMusicVolume(run.valueA);
             this->Next(run);
             return false;
@@ -401,34 +399,39 @@ bool Talk::RunStateCommand(EventRun& run)
 
         case EventCommand::PutRoles:
         {
+            constexpr std::size_t kRolesAt = 2;     // the entries follow the count
+            constexpr std::size_t kEntryWords = 3;  // a role, a column and a row
             const u16 count = this->Word(run, 1);
             run.valueA = 0;
 
             for (u16 index = 0; index < count; ++index)
             {
-                const u16 id = this->EventRoleId(run, this->Word(run, 2 + 3 * index));
+                const std::size_t entry = kRolesAt + kEntryWords * index;
+                const u16 id = this->EventRoleId(run, this->Word(run, entry));
+                const u16 column = this->Word(run, entry + 1);
+                const u16 row = this->Word(run, entry + 2);
                 state.FindRoleOrPlayer(id, run.found);
 
                 if (run.found < GameState::Roles)
                 {
                     owner.rolePath.MoveRoleTo(
                         static_cast<int>(run.found),
-                        static_cast<u16>(0x10 * this->Word(run, 3 + 3 * index)),
-                        static_cast<u16>(0x10 * this->Word(run, 4 + 3 * index)),
-                        0,
-                        -1,
-                        -1,
-                        -1
+                        static_cast<u16>(MapHeader::TileSize * column),
+                        static_cast<u16>(MapHeader::TileSize * row),
+                        RolePath::WalkThere,
+                        RolePath::Keep,
+                        RolePath::Keep,
+                        RolePath::Keep
                     );
                 }
 
                 if (static_cast<i32>(run.found) == state.playerRole)
                 {
-                    view.unk4A9920 |= 0x8000;
+                    view.playerHold |= Scene::HoldLocked;
                 }
             }
 
-            this->Advance(run, 6 * this->Word(run, 1) + 4);
+            this->Advance(run, static_cast<int>(kWordBytes * (kRolesAt + kEntryWords * count)));
             return true;
         }
 
@@ -454,9 +457,9 @@ bool Talk::RunStateCommand(EventRun& run)
 
                 std::unique_ptr<TalkWindow> gone = std::move(*link);
                 *link = std::move(gone->next);
-                run.valueA = view.unk4A9920 & 0x8000;
-                run.valueB = std::max((view.unk4A9920 & 0x7FFF) - 1, 0);
-                view.unk4A9920 = run.valueA | run.valueB;
+                run.valueA = view.playerHold & Scene::HoldLocked;
+                run.valueB = std::max((view.playerHold & Scene::HoldCountMask) - 1, 0);
+                view.playerHold = run.valueA | run.valueB;
             }
 
             this->Next(run);
@@ -608,26 +611,21 @@ bool Talk::RunStateCommand(EventRun& run)
 
         case EventCommand::AddLog:
         {
+            constexpr std::size_t kLogLineBytes = 0xFD;  // a log line before its "%Q"
             const std::vector<u8>& script = owner.databases.script;
-            std::size_t at = run.cursor + 2;
-            std::string text;
-
-            while (at + 1 < script.size() && (script[at] | script[at + 1] << 8) != kTextEnd)
-            {
-                text.push_back(static_cast<char>(script[at]));
-                ++at;
-            }
-
+            const std::size_t start = run.cursor + kOpcodeBytes;
+            const std::size_t end = TextEndAt(script, start);
+            std::string text = start < end ? std::string(script.begin() + start, script.begin() + end) : std::string();
             run.valueA = static_cast<i32>(text.size());
 
-            if (text.size() > 0xFD)
+            if (text.size() > kLogLineBytes)
             {
-                text.resize(0xFD);
+                text.resize(kLogLineBytes);
             }
 
             this->history.push_back(text + "%Q");
-            run.context.unk20 = static_cast<u16>(at + 2);
-            run.cursor = at + 2;
+            run.cursor = end + kWordBytes;
+            this->SyncOffset(run);
             return false;
         }
 
@@ -705,7 +703,7 @@ bool Talk::RunStateCommand(EventRun& run)
             const u16 skill = this->Word(run, 2);
             run.found = role;
 
-            if (role >= 4)
+            if (role >= Party::Roles)
             {
                 DebugLog(u8"skill role", role);
                 this->Next(run);
@@ -720,9 +718,9 @@ bool Talk::RunStateCommand(EventRun& run)
 
                 if (learned != nullptr)
                 {
-                    learned->record.data.kind &= ~0x8000u;
+                    learned->record.data.kind &= ~ObjectData::UnkKind8000;
 
-                    if ((learned->record.data.unk3A & (0x8000 >> role)) == 0)
+                    if ((learned->record.data.usableBy & (ObjectData::FirstRoleBit >> role)) == 0)
                     {
                         DebugLog(u8"skill not for the role", role, learned->id);
                         AddFlaggedItem(skills, learned->id, -1, 0, owner.database);
@@ -842,10 +840,10 @@ bool Talk::RunStateCommand(EventRun& run)
         }
 
         case EventCommand::SaveMenu:
-            owner.menuMode = Menu::SaveMode;
+            owner.menuMode = Menu::ScriptSaveMode;
             owner.unk4CAEBC = 1;
             owner.unk4CAEC0 = 0;
-            owner.storyState = 3;
+            owner.storyState = Game::SaveSlotsState;
             owner.ResetSaveSlots();
             this->Next(run);
             owner.AudioPump();
@@ -956,11 +954,11 @@ bool Talk::RunSystemCommand(EventRun& run)
     {
         case EventCommand::EndGame:
             owner.menuState = Game::MenuEntering | (this->Byte(run, 2) == 1 ? Game::SystemMenuB : Game::SystemMenuA);
-            owner.storyState = 0;
+            owner.storyState = Game::StoryRunning;
             owner.ResetSaveSlots();
             owner.unk4CAEBC = 0;
             owner.unk4CAEC0 = 0;
-            owner.menuMode = 0;
+            owner.menuMode = Menu::NoSlotsMode;
             this->Next(run);
             return false;
 
@@ -1221,16 +1219,16 @@ bool Talk::RunSystemCommand(EventRun& run)
             if (SetsFileName(run.code))
             {
                 const std::vector<u8>& script = owner.databases.script;
-                std::size_t at = run.cursor + 2;
+                const std::size_t start = run.cursor + kOpcodeBytes;
+                const std::size_t end = TextEndAt(script, start);
 
-                while (at + 1 < script.size() && (script[at] | script[at + 1] << 8) != kTextEnd)
+                if (start < end)
                 {
-                    name.push_back(static_cast<char>(script[at]));
-                    ++at;
+                    name.assign(script.begin() + start, script.begin() + end);
                 }
 
-                run.context.unk20 = static_cast<u16>(at + 2);
-                run.cursor = at + 2;
+                run.cursor = end + kWordBytes;
+                this->SyncOffset(run);
             }
             else
             {
@@ -1243,13 +1241,13 @@ bool Talk::RunSystemCommand(EventRun& run)
 
             if (SetsFileName(run.code))
             {
-                slot = name.substr(0, 0x33);
-                state.SetGameFlag(run.valueA + 0x4D);
+                slot = name.substr(0, kFileNameBytes);
+                state.SetGameFlag(run.valueA + GameState::FileNameA);
             }
             else
             {
                 slot.reset();
-                state.ClearGameFlag(run.valueA + 0x4D);
+                state.ClearGameFlag(run.valueA + GameState::FileNameA);
             }
 
             return false;
@@ -1269,11 +1267,11 @@ bool Talk::RunSystemCommand(EventRun& run)
         {
             const u16 command = this->Word(run, 0);
 
-            if ((command & 0x8000) == 0)
+            if ((command & kCommandStarted) == 0)
             {
                 run.valueA = 1;
-                this->SetWord(run, 0, static_cast<u16>(command | 0x8000));
-                view.unk4A9920 |= 0x8000;
+                this->SetWord(run, 0, static_cast<u16>(command | kCommandStarted));
+                view.playerHold |= Scene::HoldLocked;
                 player.act.action = 0;
                 view.trailY.fill(player.y);
                 view.trailX.fill(player.x);
@@ -1285,7 +1283,7 @@ bool Talk::RunSystemCommand(EventRun& run)
                     if ((role.flags & Role::Follower) != 0)
                     {
                         role.flags |= Role::FastMove;
-                        role.act.speed = static_cast<i16>(0x8000);
+                        role.act.speed = ActState::FixedDelay;  // a fixed delay of 0 frames
                     }
 
                     run.valueA = state.roleCount;
@@ -1313,7 +1311,7 @@ bool Talk::RunSystemCommand(EventRun& run)
 
             if (run.valueB + 1 == view.unk4BABA0)
             {
-                this->SetWord(run, 0, static_cast<u16>(command & 0x7FFF));
+                this->SetWord(run, 0, static_cast<u16>(command & ~kCommandStarted));
                 this->Next(run);
             }
 
@@ -1342,8 +1340,16 @@ bool Talk::RunSystemCommand(EventRun& run)
             const i32 depth = static_cast<i16>(this->Word(run, 4));
             run.valueA = x;
             run.valueB = y;
-            auto ripple = std::make_unique<ScriptObject>(0x280, 0x1E0, x - radius, y - radius, 2 * radius, 2 * radius);
-            ripple->Splash(radius, radius, 0x18, depth, owner.crtRandom);
+            constexpr int kSplashRadius = 0x18;
+            auto ripple = std::make_unique<ScriptObject>(
+                Display::Width,
+                Display::Height,
+                x - radius,
+                y - radius,
+                2 * radius,
+                2 * radius
+            );
+            ripple->Splash(radius, radius, kSplashRadius, depth, owner.crtRandom);
             ripple->next = std::move(view.objects);
             view.objects = std::move(ripple);
             this->Next(run);
@@ -1368,7 +1374,7 @@ bool Talk::RunSystemCommand(EventRun& run)
             const i32 field = static_cast<i16>(this->Word(run, 1));
             run.valueB = field;
 
-            if (field > 0x10)
+            if (field > Party::LastStat)
             {
                 DebugLog(u8"attribute number", field);
                 return false;
@@ -1396,7 +1402,7 @@ bool Talk::RunSystemCommand(EventRun& run)
             const i32 value = static_cast<i16>(this->Word(run, 2));
             run.valueB = field;
 
-            if (field > 0x10)
+            if (field > Party::LastStat)
             {
                 DebugLog(u8"attribute number", field);
                 return false;

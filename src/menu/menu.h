@@ -47,7 +47,12 @@ public:
     static constexpr int GameModeA = 1;
     static constexpr int GameModeB = 2;
     static constexpr int NameEntryMode = 3;
-    static constexpr int SaveMode = 4;  // `menuMode` of the save page opened by a talk command
+    // `Game::menuMode`: where the save slots were opened from.
+    static constexpr int NoSlotsMode = 0;
+    static constexpr int KeySaveMode = 1;     // F12 or Ctrl+S on the map
+    static constexpr int KeyLoadMode = 2;     // Ctrl+L on the map
+    static constexpr int TitleLoadMode = 3;   // loading from the title or the launcher
+    static constexpr int ScriptSaveMode = 4;  // talk command SaveMenu
     static constexpr int Tabs = 4;
     // swd32.exe 0x004A6A38: the tabs as the executable holds them.
     static constexpr std::array<MenuTab, Tabs> InitialTabs = {{

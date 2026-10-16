@@ -5,6 +5,7 @@
 #include "core/format.h"
 #include "game/game.h"
 #include "platform/message_box.h"
+#include "talk/script_text.h"
 #include "talk/talk.h"
 #include "talk/talk_event.h"
 
@@ -14,7 +15,6 @@ namespace swd3
 namespace
 {
 
-constexpr u16 kTextEnd = 0x5125;  // "%Q"
 constexpr u16 kListEnd = 0xFF00;
 
 }  // namespace
@@ -80,7 +80,7 @@ void Talk::RunEvent(Role& context)
         std::fill(owner.databases.script.begin(), owner.databases.script.end(), u8{0xC});
         u32 bytes = static_cast<u32>(owner.databases.script.size());
         story.Read(owner.databases.script.data(), bytes);
-        owner.scene.unk4A9920 |= 0x8000;
+        owner.scene.playerHold |= Scene::HoldLocked;
 
         if (owner.acts.Run(player.act) == 0)
         {
@@ -356,7 +356,7 @@ void Talk::EndEvent(EventRun& run)
     }
 
     DebugLog(u8"TalkEnd [%d]", run.context.event);
-    owner.scene.unk4A9920 &= ~0x8000;
+    owner.scene.playerHold &= ~Scene::HoldLocked;
     owner.databases.script[0] = 0xFF;
     owner.databases.script[1] = 0xFF;
     state.leader.FillUnused();
@@ -501,13 +501,13 @@ bool Talk::OpenDialog(EventRun& run)
             role->unk26 = 1;
         }
 
-        ++owner.scene.unk4A9920;
+        ++owner.scene.playerHold;
     }
 
     this->AppendWindow(std::move(window));
-    std::size_t at = run.cursor + 2;
+    std::size_t at = run.cursor + kOpcodeBytes;
 
-    while (at < script.size() && (at + 1 >= script.size() || (script[at] | script[at + 1] << 8) != kTextEnd))
+    while (at < script.size() && TextWord(script, at) != kTextEnd)
     {
         ++at;
     }
@@ -575,20 +575,20 @@ bool Talk::MoveRoles(EventRun& run)
             {
                 owner.rolePath.MoveRoleTo(
                     static_cast<int>(run.found),
-                    static_cast<u16>(0x10 * tileX),
-                    static_cast<u16>(0x10 * tileY),
+                    static_cast<u16>(MapHeader::TileSize * tileX),
+                    static_cast<u16>(MapHeader::TileSize * tileY),
                     static_cast<u32>(run.valueA),
-                    -1,
-                    -1,
-                    -1
+                    RolePath::Keep,
+                    RolePath::Keep,
+                    RolePath::Keep
                 );
             }
             else
             {
                 owner.rolePath.MoveRoleTo(
                     static_cast<int>(run.found),
-                    static_cast<u16>(0x10 * tileX),
-                    static_cast<u16>(0x10 * tileY),
+                    static_cast<u16>(MapHeader::TileSize * tileX),
+                    static_cast<u16>(MapHeader::TileSize * tileY),
                     static_cast<u32>(run.valueA),
                     static_cast<i16>(this->Word(run, at + 3)),
                     static_cast<i16>(this->Word(run, at + 4)),
@@ -598,7 +598,7 @@ bool Talk::MoveRoles(EventRun& run)
 
             if (static_cast<i32>(run.found) == state.playerRole)
             {
-                owner.scene.unk4A9920 |= 0x8000;
+                owner.scene.playerHold |= Scene::HoldLocked;
             }
         }
 
@@ -810,7 +810,7 @@ bool Talk::RunRoleCommand(EventRun& run)
 
                 if (static_cast<i32>(run.found) == state.playerRole)
                 {
-                    owner.scene.unk4A9920 |= 0x8000;
+                    owner.scene.playerHold |= Scene::HoldLocked;
                 }
 
                 return true;
@@ -827,18 +827,18 @@ bool Talk::RunRoleCommand(EventRun& run)
 
             owner.rolePath.MoveRoleTo(
                 static_cast<int>(run.found),
-                static_cast<u16>(0x10 * this->Word(run, 2)),
-                static_cast<u16>(0x10 * this->Word(run, 3)),
-                0,
-                -1,
-                -1,
-                -1
+                static_cast<u16>(MapHeader::TileSize * this->Word(run, 2)),
+                static_cast<u16>(MapHeader::TileSize * this->Word(run, 3)),
+                RolePath::WalkThere,
+                RolePath::Keep,
+                RolePath::Keep,
+                RolePath::Keep
             );
             this->Next(run);
 
             if (static_cast<i32>(run.found) == state.playerRole)
             {
-                owner.scene.unk4A9920 |= 0x8000;
+                owner.scene.playerHold |= Scene::HoldLocked;
             }
 
             return true;
@@ -1201,12 +1201,12 @@ bool Talk::RunRoleCommand(EventRun& run)
                 Role& role = state.roles[run.found];
                 owner.rolePath.MoveRoleTo(
                     static_cast<int>(run.found),
-                    static_cast<u16>(0x10 * this->Word(run, 2)),
-                    static_cast<u16>(0x10 * this->Word(run, 3)),
-                    1,
-                    -1,
-                    -1,
-                    -1
+                    static_cast<u16>(MapHeader::TileSize * this->Word(run, 2)),
+                    static_cast<u16>(MapHeader::TileSize * this->Word(run, 3)),
+                    RolePath::PlaceThere,
+                    RolePath::Keep,
+                    RolePath::Keep,
+                    RolePath::Keep
                 );
                 owner.rolePath.ResumeMove(static_cast<int>(run.found));
                 role.flags &= ~Role::Held;
@@ -1264,7 +1264,7 @@ bool Talk::RunRoleCommand(EventRun& run)
             if (run.code == EventCommand::LockPlayer)
             {
                 Role& player = state.roles[static_cast<std::size_t>(state.playerRole)];
-                owner.scene.unk4A9920 |= 0x8000;
+                owner.scene.playerHold |= Scene::HoldLocked;
                 player.act.action = 0;
 
                 if (owner.acts.Run(player.act) == 0)
@@ -1274,7 +1274,7 @@ bool Talk::RunRoleCommand(EventRun& run)
             }
             else
             {
-                owner.scene.unk4A9920 &= ~0x8000;
+                owner.scene.playerHold &= ~Scene::HoldLocked;
             }
 
             this->Next(run);

@@ -87,8 +87,8 @@ void RoleControl::ControlPlayer()
         if (input.IsKeyDown(Input::F12) && idle)
         {
             SleepMilliseconds(0x1F4);
-            owner.storyState = 3;
-            owner.menuMode = 1;
+            owner.storyState = Game::SaveSlotsState;
+            owner.menuMode = Menu::KeySaveMode;
             owner.unk4CAEBC = 0;
             owner.unk4CAEC0 = 0;
             owner.ResetSaveSlots();
@@ -118,8 +118,8 @@ void RoleControl::ControlPlayer()
                 owner.unk4CAEBC = 1;
                 owner.unk4CAEC0 = 0;
                 SleepMilliseconds(0x1F4);
-                owner.menuMode = 1;
-                owner.storyState = 3;
+                owner.menuMode = Menu::KeySaveMode;
+                owner.storyState = Game::SaveSlotsState;
                 owner.ResetSaveSlots();
                 return;
             }
@@ -129,8 +129,8 @@ void RoleControl::ControlPlayer()
                 owner.unk4CAEBC = 1;
                 owner.unk4CAEC0 = 1;
                 SleepMilliseconds(0x1F4);
-                owner.menuMode = 2;
-                owner.storyState = 3;
+                owner.menuMode = Menu::KeyLoadMode;
+                owner.storyState = Game::SaveSlotsState;
                 owner.ResetSaveSlots();
                 return;
             }
@@ -290,7 +290,7 @@ void RoleControl::ControlPlayer()
         return;
     }
 
-    if (view.unk4A9920 != 0 && !choices)
+    if (view.playerHold != 0 && !choices)
     {
         return;
     }

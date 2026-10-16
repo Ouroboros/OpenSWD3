@@ -77,7 +77,7 @@ void Menu::Run()
 
         if (menu <= Game::ItemChoiceMenu)
         {
-            owner.menuMode = 0;
+            owner.menuMode = Menu::NoSlotsMode;
             this->background.id = 0x232A;
             this->background.action = 0x34;
             this->unk4FBA18.id = 0x232A;
@@ -414,7 +414,7 @@ void Menu::Present()
         }
     }
 
-    if (owner.menuMode == 0)
+    if (owner.menuMode == Menu::NoSlotsMode)
     {
         if (this->code != Menu::SystemPage && this->page != 0x11)
         {

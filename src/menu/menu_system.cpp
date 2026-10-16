@@ -702,11 +702,11 @@ void Menu::SystemDraw()
     }
 
     owner.menuState = Game::TitleMenu;
-    owner.storyState = 0;
+    owner.storyState = Game::StoryRunning;
     owner.unk4CAEBC = 0;
     owner.unk4CAEC0 = 0;
-    owner.menuMode = 0;
-    owner.scene.unk4A9920 = 0;
+    owner.menuMode = Menu::NoSlotsMode;
+    owner.scene.playerHold = 0;
     this->savedScreen.clear();
     std::memset(owner.drawSurface, 0, kScreenBytes);
 }
@@ -818,10 +818,10 @@ void Menu::ActOnEntry()
     {
         case 0:
             owner.menuState = Game::NoMenu;
-            owner.storyState = 3;
+            owner.storyState = Game::SaveSlotsState;
             owner.unk4CAEBC = 1;
             owner.unk4CAEC0 = 1;
-            owner.menuMode = Menu::NameEntryMode;
+            owner.menuMode = Menu::TitleLoadMode;
             owner.ResetSaveSlots();
             break;
 
@@ -832,7 +832,7 @@ void Menu::ActOnEntry()
             std::memset(owner.drawSurface, 0, kScreenBytes);
             owner.StartStory(1);
             owner.menuState = Game::NoMenu;
-            owner.storyState = 0;
+            owner.storyState = Game::StoryRunning;
             owner.unk4CAEBC = 1;
             owner.unk4CAEC0 = 1;
             owner.ResetSaveSlots();

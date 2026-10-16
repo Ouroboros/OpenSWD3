@@ -4,6 +4,7 @@
 #include "core/debug_log.h"
 #include "core/format.h"
 #include "game/game.h"
+#include "talk/script_text.h"
 #include "talk/talk.h"
 
 namespace swd3
@@ -12,7 +13,6 @@ namespace swd3
 namespace
 {
 
-constexpr u16 kTextEnd = 0x5125;  // "%Q"
 constexpr std::size_t kTextBytes = 0x200;
 
 u16 ReadWord(std::span<const u8> bytes, std::size_t at)

@@ -94,6 +94,10 @@ public:
     };
 
     static constexpr u32 TitleMenu = MenuEntering | TitleScreenMenu;
+
+    // `storyState`: 0 while the story runs, SaveSlotsState while the save slots are shown.
+    static constexpr i32 StoryRunning = 0;
+    static constexpr i32 SaveSlotsState = 3;
     static constexpr std::u8string_view UnknownPlace = u8"不知道";  // 0x0049FEA4
 
     explicit Game(std::string installDirectory);
@@ -259,19 +263,19 @@ private:
     ActState loadingAct;  // 0x004B7408
     ExeResources resources;
     SystemSound systemSound;
-    std::unique_ptr<Surface> offscreen;  // 0x004ACBA0 the frame drawn by the game
-    u16* drawSurface = nullptr;          // 0x004CD76C the locked frame (the target of the painter and the fonts)
-    std::array<u8, 0x20> cdDrives = {};  // 0x004B74F8 the CD-ROM drive letters, 0xFF after the last
-    i32 cdDriveCount = 0;                // 0x004ACEF8
-    i32 unknown14 = 0;                   // the dword of Env.dat at +0x14
-    u8 effectsOff = 0;                   // Env.dat +0x1B
-    u32 deviceFlags = 0;                 // 0x004ACB90 bit 1: DirectInput failed
-    i32 active = 0;                      // 0x004B7CAC 1 once the display runs
-    i32 inactive = 0;                    // 0x004BABA4
-    i32 frameCounter = 0;                // 0x004A94A0
-    u32 menuState = 0;                   // 0x004B8740 bit 31: entered, low bits the menu
-    i32 menuMode = 0;                    // 0x004FBAB0
-    i32 storyState = 0;                  // 0x004CAEB0
+    std::unique_ptr<Surface> offscreen;   // 0x004ACBA0 the frame drawn by the game
+    u16* drawSurface = nullptr;           // 0x004CD76C the locked frame (the target of the painter and the fonts)
+    std::array<u8, 0x20> cdDrives = {};   // 0x004B74F8 the CD-ROM drive letters, 0xFF after the last
+    i32 cdDriveCount = 0;                 // 0x004ACEF8
+    i32 unknown14 = 0;                    // the dword of Env.dat at +0x14
+    u8 effectsOff = 0;                    // Env.dat +0x1B
+    u32 deviceFlags = 0;                  // 0x004ACB90 bit 1: DirectInput failed
+    i32 active = 0;                       // 0x004B7CAC 1 once the display runs
+    i32 inactive = 0;                     // 0x004BABA4
+    i32 frameCounter = 0;                 // 0x004A94A0
+    u32 menuState = 0;                    // 0x004B8740 bit 31: entered, low bits the menu
+    i32 menuMode = 0;                     // 0x004FBAB0
+    i32 storyState = Game::StoryRunning;  // 0x004CAEB0
     i32 unk4CAEBC = 0;
     i32 unk4CAEC0 = 0;
     bool quit = false;

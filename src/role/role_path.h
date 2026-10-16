@@ -41,6 +41,13 @@ public:
     void Follow(int index);
     u16 RoleId(u32 index);
     bool ResumeMove(int index);
+    // The options of MoveRoleTo: any of bits 0..3 puts the role there at once (PlaceThere), none walks it there.
+    static constexpr u32 WalkThere = 0;
+    static constexpr u32 PlaceThere = 1;
+    static constexpr u32 PlaceMask = 0xF;
+    static constexpr u32 EventGoesOn = 0x8000;  // the event does not wait for the move
+    static constexpr i16 Keep = -1;             // an act, action or direction left as it is
+
     int MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 action, i16 direction);
     int ScriptStep(int index);
     int HoldRole(int index);

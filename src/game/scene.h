@@ -295,6 +295,10 @@ struct Scene
     static constexpr u16 MarkLoops = 0x2000;
 
     static constexpr i32 EncounterStepMask = 0x7FFFFFFF;  // `encounterSteps` without bit 31
+
+    // `playerHold`: the controlled role does not move while it is nonzero.
+    static constexpr i32 HoldLocked = 0x8000;     // set by the talk commands that hold it
+    static constexpr i32 HoldCountMask = 0x7FFF;  // the blocking talk windows still open
     static constexpr u16 WeatherFirstAction = 0x40;
     static constexpr u16 GlowWeatherActions = 4;   // the weather added to the screen
     static constexpr u16 ShadeWeatherActions = 8;  // the weather subtracted from it
@@ -406,9 +410,9 @@ struct Scene
     i32 encounterSteps = 0;    // 0x004C9A20 steps on the map since the last battle (bit 31 aside)
     i32 spotlightTargetY = 0;  // 0x004CAE80
     i32 unk4CC2DC = 0;
-    i32 unk4A9920 = 0;                             // 0x004A9920 bit 15 kept across maps
-    MapTrigger triggers;                           // 0x004A9A18 (the list from +0x14)
-    std::array<RoleMark, 4> marks;                 // 0x004CACE0
+    i32 playerHold = 0;             // 0x004A9920 HoldLocked (kept across maps) and the blocking talk windows open
+    MapTrigger triggers;            // 0x004A9A18 (the list from +0x14)
+    std::array<RoleMark, 4> marks;  // 0x004CACE0
     std::unique_ptr<ScriptEffect> effects;         // 0x004BAB9C
     std::unique_ptr<ScriptSprite> spritesA;        // 0x004AD3E8
     std::unique_ptr<ScriptSprite> spritesB;        // 0x004BA6E0

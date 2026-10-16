@@ -9,6 +9,7 @@
 #include "game/game.h"
 #include "platform/display.h"
 #include "platform/system_info.h"
+#include "talk/script_text.h"
 #include "talk/talk.h"
 #include "talk/talk_event.h"
 
@@ -18,7 +19,6 @@ namespace swd3
 namespace
 {
 
-constexpr u16 kTextEnd = 0x5125;  // "%Q"
 constexpr u16 kListEnd = 0xFF00;
 constexpr u16 kPlaceAtTarget = 0x8000;  // in the y of HeadIn: the head is placed at its target
 constexpr u16 kEvenPixels = 0xFFFE;     // the line effects keep to even pixels
@@ -368,13 +368,10 @@ bool Talk::LoadName(EventRun& run)
         this->dialogName[offset] = at + offset < data.size() ? static_cast<char>(data[at + offset]) : '\0';
     }
 
-    std::size_t end = 0;
-
-    while (end + 1 < this->dialogName.size() &&
-           (static_cast<u8>(this->dialogName[end]) | static_cast<u8>(this->dialogName[end + 1]) << 8) != kTextEnd)
-    {
-        ++end;
-    }
+    const std::size_t end = TextEndAt(
+        std::span<const u8>(reinterpret_cast<const u8*>(this->dialogName.data()), this->dialogName.size()),
+        0
+    );
 
     this->dialogName[end] = '\0';
     std::string name(this->dialogName.data(), this->dialogName.size());
@@ -436,7 +433,7 @@ bool Talk::OpenMapMovie(EventRun& run)
 
     std::size_t end = 0;
 
-    while (end + 1 < copy.size() && (copy[end] | copy[end + 1] << 8) != kTextEnd)
+    while (end + 1 < copy.size() && TextWord(copy, end) != kTextEnd)
     {
         ++run.context.unk20;
         ++end;

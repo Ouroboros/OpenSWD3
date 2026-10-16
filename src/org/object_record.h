@@ -16,6 +16,9 @@ namespace swd3
 // screens, the rest are placeholders.
 struct ObjectData
 {
+    static constexpr u16 FirstRoleBit = 0x8000;  // in `usableBy`: the bit of the first role, the others below it
+    static constexpr u32 UnkKind8000 = 0x8000;   // in `kind`: cleared on a skill learnt by a talk command
+
     std::array<char, 0x20> name = {};  // +0x00 tag 0x3E8 (a longer name runs into the next fields)
     u32 kind = 0;                      // +0x20 tag 0x19
     u16 unk24 = 0;                     // +0x24 tag 7
@@ -29,7 +32,7 @@ struct ObjectData
     u16 unk34 = 0;                     // +0x34 tag 0x13
     u16 unk36 = 0;                     // +0x36 tag 0x14
     u16 unk38 = 0;                     // +0x38 tag 0x15
-    u16 unk3A = 0;                     // +0x3A tag 0x1A
+    u16 usableBy = 0;                  // +0x3A tag 0x1A the roles that can learn or use it (FirstRoleBit >> role)
     u16 unk3C = 0;                     // +0x3C tag 0x1B
     u16 unk3E = 0;                     // +0x3E tag 0x64
     u16 unk40 = 0;                     // +0x40 tag 6

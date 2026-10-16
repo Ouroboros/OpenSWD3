@@ -185,8 +185,8 @@ void Game::Start()
         case Launcher::Choice::Continue:
             this->StartGraphics();
             this->menuState = Game::NoMenu;
-            this->menuMode = 3;
-            this->storyState = 3;
+            this->menuMode = Menu::TitleLoadMode;
+            this->storyState = Game::SaveSlotsState;
             this->unk4CAEBC = 1;
             this->unk4CAEC0 = 1;
             this->ResetSaveSlots();
@@ -1093,7 +1093,7 @@ void Game::MainFrame()
         this->roleControl.ControlPlayer();
 
         if (this->running != 0 && this->inactive == 0 && this->menuState == Game::NoMenu && this->inBattle == 0 &&
-            this->storyState == 0)
+            this->storyState == Game::StoryRunning)
         {
             if (static_cast<u32>(++this->frameCounter) > 0x14)
             {

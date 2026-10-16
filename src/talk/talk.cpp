@@ -513,9 +513,9 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
                         if ((window.flags & TalkWindow::Blocking) != 0)
                         {
                             owner.controls.mouseSuppressed = 0xC;
-                            const i32 kept = owner.scene.unk4A9920 & 0x8000;
-                            const i32 locks = std::max((owner.scene.unk4A9920 & ~0x8000) - 1, 0);
-                            owner.scene.unk4A9920 = kept | locks;
+                            const i32 kept = owner.scene.playerHold & Scene::HoldLocked;
+                            const i32 locks = std::max((owner.scene.playerHold & ~Scene::HoldLocked) - 1, 0);
+                            owner.scene.playerHold = kept | locks;
                         }
                     }
 
@@ -1056,7 +1056,7 @@ void Talk::HandlePointer()
             player.act.direction = faceAway(direction);
             player.act.delay = 0;
             owner.acts.Run(player.act);
-            owner.scene.unk4A9920 = 0x8000;
+            owner.scene.playerHold = Scene::HoldLocked;
             DebugLog(
                 u8"\n"
                 u8"MapEvent.Talk[%d]",
@@ -1082,7 +1082,7 @@ void Talk::HandlePointer()
 
         const ButtonState& right = controls.At(Button::MouseRight);
 
-        if (((player.x | player.y) & 0xF) == 0 && owner.scene.unk4A9920 == 0 && right.press != 0 && distance >= 0x10)
+        if (((player.x | player.y) & 0xF) == 0 && owner.scene.playerHold == 0 && right.press != 0 && distance >= 0x10)
         {
             if (direction == 0 || direction == 4 || direction == 7)
             {
