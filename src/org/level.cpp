@@ -123,7 +123,7 @@ bool LevelUp(
             hero.agility = static_cast<i16>(words[6]);
             hero.unk18 = static_cast<i16>(words[7]);
             hero.unk1A = static_cast<i16>(words[8]);
-            hero.unk1C = static_cast<i16>(words[9]);
+            hero.ailmentChance = static_cast<i16>(words[9]);
             hero.unk1E = static_cast<i16>(words[10]);
             hero.experience = static_cast<i32>(words[11] | (static_cast<u32>(words[12]) << 16));
             at += 2 * kStatWords;

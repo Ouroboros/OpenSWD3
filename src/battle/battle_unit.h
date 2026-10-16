@@ -13,9 +13,10 @@ namespace swd3
 struct BattleServices;
 struct HeroRecord;
 struct Picture;
+struct SkillScript;
 
 // A status effect of a unit (a list node in the original: next, the effect animation, the status bits, the timer, the
-// turns left, the message and the icon). The unit holds the head as a node of its own: some walks start there.
+// turns left, the element, the icon and a value). The unit holds the head as a node of its own: some walks start there.
 struct EffectNode
 {
     std::unique_ptr<EffectNode> next;  // +0x00
@@ -23,8 +24,9 @@ struct EffectNode
     u32 bits = 0;                      // +0x9C
     u16 timer = 0;                     // +0xA0
     u16 turns = 0;                     // +0xA2
-    u16 message = 0;                   // +0xA4
+    u16 element = 0;                   // +0xA4 the element of a resistance effect
     u16 icon = 0;                      // +0xA6
+    u16 value = 0;                     // +0xA8
 };
 
 // An action queued for the unit (0x1DC bytes in the original).
@@ -152,9 +154,29 @@ public:
     void SetLevel(i16 level);
     int SetB00(int value);
     int SetB04(int value);
+    void DrawGuardText(BattleServices& services);
+    int AddAilment(BattleServices& services, const SkillScript& skill);
+    int AddBuff(BattleServices& services, const SkillScript& skill);
+    int HasEffectElement(i16 element) const;
+    int HasEffectKind(i16 kind) const;
+    int HasEffectBits(u16 bits) const;
+    bool ApplyPendingDamage(BattleServices& services);
+    void DrawEffects(BattleServices& services, int x, int y);
+    void DrawEffectIcons(BattleServices& services, int x, int y);
+    void ExpireEffects(BattleServices& services, int clearAll);
+    int Damage(BattleServices& services, int hitPoints, i16 spirit, i16 stamina);
+    int EffectFlag2() const;
+    int EffectFlag3() const;
+    void SetDefeatPose(u8 pose);
+    void SetDefeatPoseFixed(u8 pose);
+    void SetDamageDigits(BattleServices& services, int amount);
+
+    // swd32.exe 0x004A7D8C: the height of a popping letter or digit by phase.
+    static constexpr std::array<i32, 10> kPopOffsets = {0, 12, 18, 12, 8, 4, 0, 2, 0, 0};
 
 private:
     void MirrorRecoil(u32 actFlags, bool forced);
+    void Announce(BattleServices& services, const char* format, int flags);
 
 public:
     // +0x00..+0x0F: what the unit is.
@@ -179,7 +201,7 @@ public:
     const Picture* picture = nullptr;          // +0x254C the current picture
     const Picture* unk2550 = nullptr;          // +0x2550
     const Picture* unk2554 = nullptr;          // +0x2554
-    i32 unk2560 = 0;                           // +0x2560
+    const char* displayName = nullptr;         // +0x2560 the name shown in the messages
     EffectNode effects;                        // +0x2584 (the head is a node: +0x2588 its act, +0x2620 its bits)
     i32 unk2630 = 0;
     i32 unk2634 = 0;
@@ -205,15 +227,16 @@ public:
     u32 unk26CC = 0;
     u16 marks = 0;  // +0x26D0 (bit 1, 0x20, 0x40: held, 0x100, bit 13)
     i16 unk26D2 = 0;
-    u16 nudge = 0;                            // +0x26D6
-    u16 drawAtSaved = 0;                      // +0x26D8
-    u16 unk26DC = 0;                          // +0x26DC
-    std::array<u16, 0x23> damageDelays = {};  // +0x26DE
-    i16 unk2884 = 0;
+    u16 nudge = 0;                                           // +0x26D6
+    u16 drawAtSaved = 0;                                     // +0x26D8
+    u16 unk26DC = 0;                                         // +0x26DC
+    std::array<u16, 0x23> damageDelays = {};                 // +0x26DE
+    std::array<std::array<i16, 4>, 0x23> damageDigits = {};  // +0x2724 the four digits per target slot
+    std::array<i16, 4> guardPhases = {};  // +0x2884 the pop phases of the four letters of the guard text
     u16 unk2954 = 0;
     u16 unk2956 = 0;
     u16 unk2958 = 0;
-    i16 unk29A0 = 0;
+    i16 guardRise = 0;  // +0x29A0
     u16 unk29A2 = 0xFFFF;
     u16 unk29A4 = 0;
     u16 unk29A6 = 0;
@@ -251,7 +274,7 @@ public:
     u16 unk2A8C = 0;
     u16 barrierTurns = 0;  // +0x2A90
     u8 unk2A93 = 0;
-    u8 unk2A94 = 0;
+    u8 defeatPose = 0;  // +0x2A94 the pose of the defeat (a fixed pose overrides it)
     u8 fixedPose = 0;   // +0x2A95
     u8 healChoice = 0;  // +0x2A9C
     i32 kind = 0;       // +0x2AA0 1: a hero

@@ -1,9 +1,17 @@
 #include "battle/battle_unit.h"
 
+#include <algorithm>
+#include <cstring>
+#include <string>
+
 #include "audio/audio_manager.h"
+#include "battle/battle_hud.h"
+#include "battle/battle_message.h"
 #include "battle/battle_services.h"
 #include "battle/battle_state.h"
+#include "battle/battle_text.h"
 #include "config/config.h"
+#include "core/format.h"
 #include "crt/msvc.h"
 #include "draw/painter.h"
 #include "party/party.h"
@@ -311,9 +319,9 @@ int BattleUnit::StartDefeat(int defeat)
     this->defeated = defeat;
     this->unk2ABC = 1;
 
-    if (this->unk2A94 == 0)
+    if (this->defeatPose == 0)
     {
-        this->unk2A94 = 6;
+        this->defeatPose = 6;
     }
 
     if (this->kind == BattleUnit::kHero && this->hero != nullptr)
@@ -1165,6 +1173,1050 @@ int BattleUnit::SetB04(int value)
 {
     this->unk2B04 = value;
     return value;
+}
+
+namespace
+{
+
+constexpr int kBattleTextLimit = 63;
+constexpr int kAnnounceX = 0x118;
+constexpr int kAnnounceY = 0xA;
+constexpr i16 kAnnounceFrames = 0x28;
+constexpr int kAnnounceFlags = BattleMessage::kBlackBar | BattleMessage::kCentered;
+constexpr int kFramedFlags = BattleMessage::kFrame | BattleMessage::kCentered;
+constexpr int kAnnounceSound = 0x117;
+constexpr i32 kEffectAct = 0x2AF8;
+constexpr u16 kEffectIcons = 0x241D;
+constexpr u16 kDamageTarget = 0x235E;
+constexpr u16 kHealTarget = 0x246F;
+
+// The value of a skill script: the word at +0xE.
+u16 SkillValue(const SkillScript& skill)
+{
+    return static_cast<u16>(skill.unk0C >> 16);
+}
+
+void SetEffectIcon(EffectNode& node, int frame, u16 icon)
+{
+    node.act.id = kEffectAct;
+    node.act.action = frame;
+    node.icon = icon;
+}
+
+// value +/- value / 10 on the word of a stat
+template <typename Field>
+void ScaleStat(Field& field, int sign)
+{
+    const auto value = static_cast<u16>(field);
+    field = static_cast<Field>(static_cast<u16>(value + sign * (10 * value / 100)));
+}
+
+void ScaleHeroStats(HeroRecord& stats, int sign)
+{
+    ScaleStat(stats.attackBonus, sign);
+    ScaleStat(stats.defenseBonus, sign);
+    ScaleStat(stats.agility, sign);
+    ScaleStat(stats.unk14, sign);
+}
+
+}  // namespace
+
+// The message of an effect: the format with the unit's name in the battle text, with sound 0x117.
+void BattleUnit::Announce(BattleServices& services, const char* format, int flags)
+{
+    const std::string text = WinFormat(format, {this->displayName != nullptr ? this->displayName : ""});
+    std::array<char, 64>& buffer = services.state.text;
+    const std::size_t length = std::min<std::size_t>(text.size(), kBattleTextLimit);
+    std::memcpy(buffer.data(), text.data(), length);
+    buffer[length] = '\0';
+    services.messages.Add(kAnnounceX, kAnnounceY, kAnnounceFrames, buffer.data(), flags);
+    services.audio.PlaySound(kAnnounceSound, services.config.soundVolume);
+}
+
+// swd32.exe 0x0047CF20: while mark 1 is set, the four letters (frames 0..3 of digit font 0) pop in one after another
+// (the later ones only advance once the first is past phase 0), then rise and fade out by 4 per frame
+void BattleUnit::DrawGuardText(BattleServices& services)
+{
+    if ((this->marks & 1) == 0)
+    {
+        return;
+    }
+
+    BattleHud& hud = services.hud;
+    const int top = this->placement.y - 0x14;
+    const int left = this->placement.x - 0x14;
+    std::array<i16, 4>& phases = this->guardPhases;
+
+    if (phases[0] == 9 && phases[1] == 9 && phases[2] == 9 && phases[3] == 9)
+    {
+        const i16 rise = this->guardRise;
+
+        if (rise >= 0x18)
+        {
+            phases = {};
+            this->guardRise = 0;
+            hud.digitMode = 0;
+            this->marks = static_cast<u16>(this->marks & 0xFFFE);
+            this->action = 0;
+            this->unk26A8 = 0;
+            this->unk26AC = 0;
+            return;
+        }
+
+        if (this->held == 0)
+        {
+            this->guardRise = static_cast<i16>(rise + 4);
+        }
+
+        u32 offset = 0;
+
+        for (int letter = 0; letter < 4; ++letter)
+        {
+            const i16 current = this->guardRise;
+            DrawOptions& options = services.painter.Options();
+            options.tintRed = -current;
+            options.tintGreen = -current;
+            options.tintBlue = -current;
+            options.scaleHeight = current + 0x1A;
+            offset += hud.DrawDigit(0, letter, static_cast<u16>(offset) + left, top - current);
+        }
+
+        return;
+    }
+
+    hud.digitMode = 0;
+    u32 offset = hud.DrawDigit(0, 0, left, top - BattleUnit::kPopOffsets[static_cast<std::size_t>(phases[0])]);
+
+    for (std::size_t letter = 1; letter < 4 && phases[0] > 0; ++letter)
+    {
+        offset += hud.DrawDigit(
+            0,
+            static_cast<int>(letter),
+            static_cast<u16>(offset) + left,
+            top - BattleUnit::kPopOffsets[static_cast<std::size_t>(phases[letter])]
+        );
+
+        if (this->held == 0)
+        {
+            ++phases[letter];
+        }
+
+        if (phases[letter] > 9)
+        {
+            phases[letter] = 9;
+        }
+    }
+
+    if (++phases[0] > 9)
+    {
+        phases[0] = 9;
+    }
+}
+
+// swd32.exe 0x0047D640: splits `amount` into the four digits of the current target slot (a set bit 15 negates it).
+// While the barrier is up against a damage number, a hit only counts the barrier down and ends it with
+// "抵抗所有攻擊解除".
+void BattleUnit::SetDamageDigits(BattleServices& services, int amount)
+{
+    if ((this->marks & 0x8000) != 0)
+    {
+        return;
+    }
+
+    const u16 slot = this->targetCount;
+
+    if (this->pushedTargets[slot] == kDamageTarget && (this->status & kRaiseBlocked) != 0 && (amount & 0x8000) == 0)
+    {
+        if (--this->barrierTurns != 0)
+        {
+            return;
+        }
+
+        this->Announce(services, battle_text::kResistAllEnd, kAnnounceFlags);
+        this->status &= ~kRaiseBlocked;
+        return;
+    }
+
+    if ((amount & 0x8000) != 0)
+    {
+        amount = -amount;
+    }
+
+    std::array<i16, 4>& digits = this->damageDigits[slot];
+    digits[0] = static_cast<i16>(amount / 1000);
+    amount -= 1000 * digits[0];
+    digits[1] = static_cast<i16>(amount / 100);
+    amount -= 100 * digits[1];
+    digits[2] = static_cast<i16>(amount / 10);
+    digits[3] = static_cast<i16>(amount - static_cast<u16>(static_cast<u16>(digits[2]) * 10));
+}
+
+// swd32.exe 0x0047DBD0: the ailment of `skill` lands unless it is bit 13 (mark 0x20 instead) or the skill has flag 7,
+// or a roll of 1..10 exceeds the ailment chance. An effect of the same kind (the search starts with the head node of
+// the unit) only gets the new turns and value; kind bit 15 adds nothing new. 1 when it landed.
+int BattleUnit::AddAilment(BattleServices& services, const SkillScript& skill)
+{
+    const u16 kind = skill.ailment;
+
+    if ((kind & 0x2000) != 0)
+    {
+        this->marks = static_cast<u16>(this->marks | 0x20);
+        return 0;
+    }
+
+    if (kind == 0 || (skill.flags & 0x80) != 0)
+    {
+        return 0;
+    }
+
+    const int roll = static_cast<int>(services.random.Below(10)) + 1;
+
+    if (this->kind == BattleUnit::kHero)
+    {
+        if (roll > static_cast<u16>(this->heroStats->ailmentChance))
+        {
+            return 0;
+        }
+    }
+    else if (roll > this->data->data.ailmentChance)
+    {
+        return 0;
+    }
+
+    bool found = false;
+
+    for (EffectNode* node = &this->effects; node != nullptr; node = node->next.get())
+    {
+        if (node->bits == skill.ailment)
+        {
+            node->turns = skill.turns;
+            node->value = SkillValue(skill);
+            found = true;
+            break;
+        }
+    }
+
+    if ((skill.ailment & 0x8000) != 0 || found)
+    {
+        return 1;
+    }
+
+    auto added = std::make_unique<EffectNode>();
+    added->next = std::move(this->effects.next);
+    added->turns = skill.turns;
+    added->bits = skill.ailment;
+    added->value = SkillValue(skill);
+    EffectNode& node = *added;
+    this->effects.next = std::move(added);
+
+    switch (skill.ailment)
+    {
+        case 1:
+            SetEffectIcon(node, 1, 2);
+            this->status |= 1;
+            this->marks = static_cast<u16>(this->marks | 0x40);
+            break;
+
+        case 2:
+            SetEffectIcon(node, 7, 8);
+            this->status |= 2;
+            this->marks = static_cast<u16>(this->marks | 2);
+            break;
+
+        case 4:
+            this->status |= 4;
+            node.icon = 3;
+            this->marks = static_cast<u16>(this->marks | 0x40);
+            break;
+
+        case 8:
+            SetEffectIcon(node, 0, 4);
+            this->status |= 8;
+            this->marks = static_cast<u16>(this->marks | 0x40);
+            break;
+
+        case 0x10:
+            SetEffectIcon(node, 5, 5);
+            this->status |= 0x10;
+            this->marks = static_cast<u16>(this->marks | 0x100);
+            break;
+
+        case 0x20:
+            SetEffectIcon(node, 4, 9);
+            this->status |= 0x20;
+            break;
+
+        case 0x40:
+            SetEffectIcon(node, 3, 6);
+            this->status |= 0x40;
+            break;
+
+        case 0x80:
+            SetEffectIcon(node, 2, 7);
+            this->status |= 0x80;
+            break;
+
+        case 0x100:
+            SetEffectIcon(node, 8, 0xA);
+            this->status |= 0x100;
+            break;
+
+        case 0x200:
+            SetEffectIcon(node, 6, 0xB);
+            this->status |= 0x200;
+
+            if (this->kind == BattleUnit::kHero)
+            {
+                ScaleHeroStats(*this->heroStats, -1);
+            }
+
+            break;
+
+        case 0x1000:
+            this->status |= 0x1000;
+            node.icon = 1;
+            break;
+
+        default:
+            break;
+    }
+
+    return 1;
+}
+
+// swd32.exe 0x0047E070: the buff of `skill` (its status bits, or its element with flag 3): bit 26 is the hit barrier
+// (turns in barrierTurns); otherwise an effect with the same bits, or whose element equals the whole flags word of the
+// skill, is refreshed (the search starts with the head node of the unit) or a new one is appended, then announced
+int BattleUnit::AddBuff(BattleServices& services, const SkillScript& skill)
+{
+    const u32 bits = skill.statusBits;
+
+    if (bits == 0 && (skill.flags & 8) == 0)
+    {
+        return 0;
+    }
+
+    if ((bits & 0x4000000) != 0)
+    {
+        this->status |= kRaiseBlocked;
+        this->barrierTurns = skill.turns;
+        return 1;
+    }
+
+    EffectNode* node = &this->effects;
+    bool refreshed = false;
+
+    for (;;)
+    {
+        if (node->bits != 0 && node->bits == bits)
+        {
+            refreshed = true;
+            break;
+        }
+
+        if (node->element != 0 && node->element == skill.flags)
+        {
+            refreshed = true;
+            break;
+        }
+
+        if (node->next == nullptr)
+        {
+            break;
+        }
+
+        node = node->next.get();
+    }
+
+    if (refreshed)
+    {
+        node->turns = skill.turns;
+    }
+    else
+    {
+        node->next = std::make_unique<EffectNode>();
+        node = node->next.get();
+        node->turns = skill.turns;
+        node->value = SkillValue(skill);
+
+        if (skill.statusBits != 0)
+        {
+            node->bits = skill.statusBits;
+        }
+
+        if ((skill.flags & 8) != 0)
+        {
+            node->element = skill.element;
+        }
+    }
+
+    const char* resistUp = nullptr;
+
+    switch (skill.element)
+    {
+        case 1:
+            resistUp = battle_text::kFireResistUp;
+            break;
+
+        case 2:
+            resistUp = battle_text::kWaterResistUp;
+            break;
+
+        case 5:
+            resistUp = battle_text::kPoisonResistUp;
+            break;
+
+        case 6:
+            resistUp = battle_text::kLightResistUp;
+            break;
+
+        case 7:
+            resistUp = battle_text::kDarkResistUp;
+            break;
+
+        case 9:
+            resistUp = battle_text::kPhysicalResistUp;
+            break;
+
+        default:
+            break;
+    }
+
+    if (resistUp != nullptr)
+    {
+        this->Announce(services, resistUp, kAnnounceFlags);
+    }
+
+    const char* text = nullptr;
+
+    switch (skill.statusBits)
+    {
+        case 0x80000:
+            node->act.action = 0;
+            this->status |= 0x100000;
+            text = battle_text::kDefenseDown;
+            break;
+
+        case 0x100000:
+            node->act.action = 0;
+            this->status |= 0x8000000;
+            text = battle_text::kSpeedDown;
+            break;
+
+        case 0x2000000:
+            node->act.action = 0;
+            this->status |= 0x4000000;
+
+            if (this->kind != 0)
+            {
+                text = battle_text::kBarrierStart;
+            }
+
+            break;
+
+        case 0x8000000:
+            node->act.action = 0;
+            this->status |= 0x1000000;
+            text = battle_text::kAttackDown;
+            break;
+
+        case 0x10000000:
+            node->act.action = 0;
+            this->marks = static_cast<u16>(this->marks | 0x80);
+
+            if (this->kind != 0)
+            {
+                text = battle_text::kInvisibleStart;
+            }
+
+            break;
+
+        case 0x20000000:
+            node->act.action = 0;
+            this->status |= 0x40000000;
+            text = battle_text::kDefenseUp;
+            break;
+
+        case 0x40000000:
+            node->act.action = 0;
+            this->status |= 0x20000000;
+            text = battle_text::kSpeedUp;
+            break;
+
+        case 0x80000000:
+            node->act.action = 0;
+            this->status |= 0x10000000;
+            text = battle_text::kAttackUp;
+            break;
+
+        default:
+            break;
+    }
+
+    if (text != nullptr)
+    {
+        this->Announce(services, text, kAnnounceFlags);
+    }
+
+    return 1;
+}
+
+// swd32.exe 0x0047E4C0: the effects after the head node
+int BattleUnit::HasEffectElement(i16 element) const
+{
+    if (element == 0)
+    {
+        return 0;
+    }
+
+    for (const EffectNode* node = this->effects.next.get(); node != nullptr; node = node->next.get())
+    {
+        if (element == static_cast<i16>(node->element))
+        {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+// swd32.exe 0x0047E500: kinds 1, 2, 6 and 7 are the attack buffs of fire, ice, light and dark (other kinds look for
+// bits 0); the effects after the head node
+int BattleUnit::HasEffectKind(i16 kind) const
+{
+    const EffectNode* node = this->effects.next.get();
+
+    if (node == nullptr)
+    {
+        return 0;
+    }
+
+    u32 bits = 0;
+
+    switch (kind)
+    {
+        case 1:
+            bits = 0x1000000;
+            break;
+
+        case 2:
+            bits = 0x800000;
+            break;
+
+        case 6:
+            bits = 0x400000;
+            break;
+
+        case 7:
+            bits = 0x200000;
+            break;
+
+        default:
+            break;
+    }
+
+    for (; node != nullptr; node = node->next.get())
+    {
+        if (bits == node->bits)
+        {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+// swd32.exe 0x0047E580: the effects after the head node
+int BattleUnit::HasEffectBits(u16 bits) const
+{
+    for (const EffectNode* node = this->effects.next.get(); node != nullptr; node = node->next.get())
+    {
+        if ((node->bits & bits) != 0)
+        {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+// swd32.exe 0x0047E5C0: applies the pending damage (bit 15: healing) with its number; true when the unit fell
+bool BattleUnit::ApplyPendingDamage(BattleServices& services)
+{
+    if (this->pendingDamage == 0)
+    {
+        return false;
+    }
+
+    this->PushTarget(kDamageTarget);
+
+    if ((this->pendingDamage & 0x8000) != 0)
+    {
+        this->PushTarget(kHealTarget);
+    }
+
+    this->SetDamageDigits(services, static_cast<i16>(this->pendingDamage));
+    this->StepTargetCount(1);
+
+    if ((this->pendingDamage & 0x8000) == 0)
+    {
+        this->RaiseFlag26B8();
+    }
+
+    const int result = this->Damage(services, static_cast<i16>(this->pendingDamage), 0, 0);
+    this->pendingDamage = 0;
+    return result == 1;
+}
+
+// swd32.exe 0x0047E650: animates the first effect with an act (the head node itself when it has one) above the unit,
+// then the stone (status bit 2) or freeze (bit 12) overlay of the shadow picture at (x, y)
+void BattleUnit::DrawEffects(BattleServices& services, int x, int y)
+{
+    if (this->effects.next == nullptr)
+    {
+        return;
+    }
+
+    EffectNode* node = &this->effects;
+
+    if (this->effects.act.id <= 0)
+    {
+        do
+        {
+            node = node->next.get();
+        } while (node != nullptr && node->act.id <= 0);
+    }
+
+    if (node != nullptr)
+    {
+        node->act.hold = this->held == 1 ? 1 : 0;
+
+        if (services.acts.Run(node->act) == 0)
+        {
+            return;
+        }
+
+        this->picture = services.archive.GetPicture(node->act.frame, node->act.picture);
+
+        if (this->picture != nullptr && static_cast<i32>(this->unk26B8) >= 0)
+        {
+            services.painter.SetSource(this->picture->data.data());
+            services.painter.DrawPicture(
+                this->placement.x - node->act.x,
+                this->placement.y - (this->picture->height >> 1) - this->mainAct.y,
+                this->picture->width,
+                this->picture->height,
+                node->act.flags
+            );
+        }
+    }
+
+    const Picture* body = this->shadowPicture;
+
+    if ((this->status & 4) != 0)
+    {
+        const u32 flags = (this->drawFlags & 0x80000000u) | (this->drawFlags & 3) | 0x28;
+        this->unk26A4 = flags;
+
+        if (body != nullptr)
+        {
+            services.painter.SetSource(body->data.data());
+            services.painter.DrawPicture(x, y, body->width, body->height, flags);
+        }
+
+        return;
+    }
+
+    if ((this->status & 0x1000) != 0)
+    {
+        this->unk26A4 = this->drawFlags & 0x80000003u;
+        DrawOptions& options = services.painter.Options();
+        options.tintRed = -12;
+        options.tintGreen = 0;
+        options.tintBlue = -12;
+
+        if (body != nullptr)
+        {
+            services.painter.SetSource(body->data.data());
+            services.painter.DrawPicture(x, y, body->width, body->height, this->unk26A4 | 0x10);
+        }
+    }
+}
+
+// swd32.exe 0x0047E7F0: the icons (picture 0x241D, frame icon - 1) of the effects in a row, the head node first
+void BattleUnit::DrawEffectIcons(BattleServices& services, int x, int y)
+{
+    if (this->effects.next == nullptr)
+    {
+        return;
+    }
+
+    int count = 0;
+
+    for (const EffectNode* node = &this->effects; node != nullptr; node = node->next.get())
+    {
+        if (node->icon != 0 && static_cast<i32>(node->bits) >= 0)
+        {
+            this->picture = services.archive.GetPicture(kEffectIcons, static_cast<u16>(node->icon - 1u));
+
+            if (this->picture != nullptr)
+            {
+                services.painter.SetSource(this->picture->data.data());
+                services.painter
+                    .DrawPicture(x + count * this->picture->width, y, this->picture->width, this->picture->height, 0);
+            }
+
+            ++count;
+        }
+    }
+}
+
+// swd32.exe 0x0047E950: with `clearAll` 0, every effect whose turns ran out loses its status and is announced, then
+// freed; the effect following a freed one is not looked at in this pass. Otherwise all effects are freed and the
+// status cleared.
+void BattleUnit::ExpireEffects(BattleServices& services, int clearAll)
+{
+    if (clearAll != 0)
+    {
+        this->marks = static_cast<u16>(this->marks & 0xFEBD);
+        this->status = 0;
+        this->effects.next.reset();
+        return;
+    }
+
+    std::unique_ptr<EffectNode>* link = &this->effects.next;
+
+    for (;;)
+    {
+        EffectNode* node = link->get();
+
+        if (node == nullptr)
+        {
+            return;
+        }
+
+        if (node->turns == 0)
+        {
+            bool clearHeld = false;
+
+            switch (node->bits)
+            {
+                case 1:
+                    this->status &= ~1u;
+                    clearHeld = (this->status & 0xC) == 0;
+                    this->held = 0;
+                    break;
+
+                case 2:
+                    this->marks = static_cast<u16>(this->marks & ~2);
+                    this->status &= ~2u;
+                    break;
+
+                case 4:
+                    this->status &= ~4u;
+                    clearHeld = (this->status & 9) == 0;
+                    this->held = 0;
+                    break;
+
+                case 8:
+                    this->status &= ~8u;
+                    clearHeld = (this->status & 5) == 0;
+                    this->held = 0;
+                    break;
+
+                case 0x10:
+                    this->marks = static_cast<u16>(this->marks & ~0x100);
+                    this->status &= ~0x10u;
+                    break;
+
+                case 0x20:
+                case 0x40:
+                case 0x80:
+                case 0x100:
+                case 0x1000:
+                    this->status &= ~node->bits;
+                    break;
+
+                case 0x200:
+                    this->status &= ~0x200u;
+
+                    if (this->kind == BattleUnit::kHero)
+                    {
+                        ScaleHeroStats(*this->heroStats, 1);
+                    }
+
+                    break;
+
+                case 0x80000:
+                    this->Announce(services, battle_text::kDefenseDownEnd, kAnnounceFlags);
+                    this->status &= ~0x100000u;
+                    break;
+
+                case 0x100000:
+                    this->Announce(services, battle_text::kSpeedDownEnd, kAnnounceFlags);
+                    this->status &= ~0x8000000u;
+                    break;
+
+                case 0x200000:
+                    this->Announce(services, battle_text::kDarkAttackUpEnd, kAnnounceFlags);
+                    break;
+
+                case 0x400000:
+                    this->Announce(services, battle_text::kLightAttackUpEnd, kAnnounceFlags);
+                    break;
+
+                case 0x800000:
+                    this->Announce(services, battle_text::kIceAttackUpEnd, kFramedFlags);
+                    break;
+
+                case 0x1000000:
+                    this->Announce(services, battle_text::kFireAttackUpEnd, kFramedFlags);
+                    break;
+
+                case 0x2000000:
+                    this->Announce(services, battle_text::kBarrierEnd, kAnnounceFlags);
+                    this->status &= ~0x4000000u;
+                    break;
+
+                case 0x8000000:
+                    this->Announce(services, battle_text::kAttackDownEnd, kAnnounceFlags);
+                    this->status &= ~0x1000000u;
+                    this->unk26CC &= ~0x100u;
+                    break;
+
+                case 0x10000000:
+                    this->marks = static_cast<u16>(this->marks | 0x400);
+                    this->status &= 0x7FFFFFFF;
+                    this->unk2958 = 0;
+
+                    if (this->kind != 0)
+                    {
+                        this->Announce(services, battle_text::kInvisibleEnd, kAnnounceFlags);
+                    }
+
+                    break;
+
+                case 0x20000000:
+                    this->Announce(services, battle_text::kDefenseUpEnd, kAnnounceFlags);
+                    this->status &= ~0x40000000u;
+                    break;
+
+                case 0x40000000:
+                    this->Announce(services, battle_text::kSpeedUpEnd, kAnnounceFlags);
+                    this->status &= ~0x20000000u;
+                    break;
+
+                case 0x80000000:
+                    this->Announce(services, battle_text::kAttackUpEnd, kAnnounceFlags);
+                    this->status &= ~0x10000000u;
+                    break;
+
+                default:
+                    break;
+            }
+
+            if (clearHeld)
+            {
+                this->marks = static_cast<u16>(this->marks & ~0x40);
+            }
+
+            static constexpr std::array<const char*, 10> kResistEnd = {
+                nullptr,
+                battle_text::kResistFireEnd,
+                battle_text::kResistIceEnd,
+                battle_text::kResistWindEnd,
+                battle_text::kResistEarthEnd,
+                battle_text::kResistPoisonEnd,
+                battle_text::kResistLightEnd,
+                battle_text::kResistDarkEnd,
+                battle_text::kResistThunderEnd,
+                battle_text::kResistPhysicalEnd,
+            };
+
+            if (node->element < kResistEnd.size() && kResistEnd[node->element] != nullptr)
+            {
+                this->Announce(services, kResistEnd[node->element], kAnnounceFlags);
+            }
+
+            std::unique_ptr<EffectNode> next = std::move(node->next);
+
+            if (next == nullptr)
+            {
+                link->reset();
+                return;
+            }
+
+            *link = std::move(next);
+        }
+
+        EffectNode* current = link->get();
+
+        if (current->next == nullptr)
+        {
+            return;
+        }
+
+        link = &current->next;
+    }
+}
+
+// swd32.exe 0x0047F150: applies hit point damage and spirit and stamina changes; 1 when the unit falls. A hero with
+// the gold guard pays the damage from the gold while it is not zero (the gold can go below zero); an enemy with an
+// override loses that first.
+int BattleUnit::Damage(BattleServices& services, int hitPoints, i16 spirit, i16 stamina)
+{
+    if (hitPoints > 0 && ((this->marks & 0x8000) != 0 || (this->status & kRaiseBlocked) != 0))
+    {
+        return 0;
+    }
+
+    if (this->defeated == 1 || this->EffectFlag3() == 1)
+    {
+        return 0;
+    }
+
+    if (this->kind != BattleUnit::kHero)
+    {
+        ObjectData& block = this->data->data;
+        const i32 shield = this->hitPointsOverride;
+
+        if (shield != 0)
+        {
+            this->hitPointsOverride = hitPoints < shield ? shield - hitPoints : 0;
+
+            if (this->hitPointsOverride > block.maxHitPoints)
+            {
+                this->hitPointsOverride = block.maxHitPoints;
+            }
+
+            if (this->hitPointsOverride > 0)
+            {
+                return 0;
+            }
+
+            block.hitPoints = 0;
+            this->hitPointsOverride = 0;
+        }
+        else
+        {
+            const i16 life = block.hitPoints;
+            block.hitPoints = static_cast<i16>(hitPoints < life ? life - hitPoints : 0);
+
+            if (block.hitPoints < 0)
+            {
+                block.hitPoints = static_cast<i16>(block.maxHitPoints);
+            }
+
+            if (block.hitPoints > block.maxHitPoints)
+            {
+                block.hitPoints = static_cast<i16>(block.maxHitPoints);
+            }
+
+            if (block.hitPoints > 0)
+            {
+                return 0;
+            }
+
+            block.hitPoints = 0;
+        }
+
+        const u8 pose = this->defeatPose;
+        this->unk2ABC = 1;
+        this->unk2958 = 0;
+
+        if (pose == 0)
+        {
+            this->defeatPose = static_cast<u8>(services.random.Below(10) + 1);
+        }
+
+        return 1;
+    }
+
+    HeroRecord& record = *this->hero;
+    i32& gold = services.party.variables[0];
+
+    if (this->goldGuard == 1 && gold != 0)
+    {
+        gold -= hitPoints;
+    }
+    else
+    {
+        record.hitPoints = static_cast<i16>(record.hitPoints - hitPoints);
+
+        if (record.hitPoints > record.maxHitPoints)
+        {
+            record.hitPoints = record.maxHitPoints;
+        }
+    }
+
+    record.spirit = static_cast<i16>(record.spirit + spirit);
+
+    if (record.spirit > record.maxSpirit)
+    {
+        record.spirit = record.maxSpirit;
+    }
+
+    record.stamina = static_cast<i16>(record.stamina + stamina);
+
+    if (record.stamina > record.maxStamina)
+    {
+        record.stamina = record.maxStamina;
+    }
+
+    if (record.spirit <= 0)
+    {
+        record.spirit = 0;
+    }
+
+    if (record.stamina <= 0)
+    {
+        record.stamina = 0;
+    }
+
+    if (record.hitPoints > 0)
+    {
+        return 0;
+    }
+
+    record.hitPoints = 0;
+    this->unk2ABC = 1;
+
+    if (this->unk2B00 == 1)
+    {
+        this->defeatPose = 6;
+    }
+
+    return 1;
+}
+
+// swd32.exe 0x0047F340
+int BattleUnit::EffectFlag2() const
+{
+    return static_cast<int>((this->equipmentFlags >> 2) & 1);
+}
+
+// swd32.exe 0x0047F360
+int BattleUnit::EffectFlag3() const
+{
+    return static_cast<int>((this->equipmentFlags >> 3) & 1);
+}
+
+// swd32.exe 0x0047F380: a fixed pose overrides the requested one
+void BattleUnit::SetDefeatPose(u8 pose)
+{
+    this->defeatPose = pose;
+
+    if (this->fixedPose != 0)
+    {
+        this->defeatPose = this->fixedPose;
+    }
+}
+
+// swd32.exe 0x0047F3A0
+void BattleUnit::SetDefeatPoseFixed(u8 pose)
+{
+    this->fixedPose = pose;
+    this->defeatPose = pose;
 }
 
 }  // namespace swd3

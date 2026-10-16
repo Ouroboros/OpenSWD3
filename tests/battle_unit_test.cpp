@@ -1,16 +1,23 @@
+#include <cstring>
+#include <string_view>
+
 #include <SDL3/SDL.h>
 
 #include "audio/audio_manager.h"
 #include "battle/battle_hud.h"
+#include "battle/battle_message.h"
 #include "battle/battle_services.h"
 #include "battle/battle_state.h"
+#include "battle/battle_text.h"
 #include "battle/battle_unit.h"
 #include "config/config.h"
 #include "draw/painter.h"
+#include "font/text_font.h"
 #include "org/object_record.h"
 #include "party/party.h"
 #include "pic/rle.h"
 #include "platform/audio_device.h"
+#include "platform/glyph_rasterizer.h"
 #include "platform/surface.h"
 #include "random/random.h"
 #include "recording_reporter.h"
@@ -21,11 +28,28 @@
 namespace
 {
 
+class NullRasterizer : public swd3::GlyphRasterizer
+{
+public:
+    void RenderText(swd3::Surface&, std::string_view, int, std::string_view, swd3::u32) override
+    {
+    }
+};
+
 struct Services
 {
     Services()
         : screen(640, 480), codec(this->painter), archive(this->codec, this->errors), acts(this->errors),
           audio(this->device), hud(this->painter, this->archive, this->acts, this->random, this->audio),
+          panelFont(this->rasterizer), messageFont(this->rasterizer), messages(
+                                                                          this->painter,
+                                                                          this->archive,
+                                                                          this->acts,
+                                                                          this->hud,
+                                                                          this->state,
+                                                                          this->panelFont,
+                                                                          this->messageFont
+                                                                      ),
           services{
               this->state,
               this->random,
@@ -34,6 +58,7 @@ struct Services
               this->painter,
               this->audio,
               this->hud,
+              this->messages,
               this->config,
               this->party,
           }
@@ -55,6 +80,10 @@ struct Services
     swd3::AudioManager audio;
     swd3::BattleHud hud;
     swd3::BattleState state;
+    NullRasterizer rasterizer;
+    swd3::TextFont panelFont;
+    swd3::TextFont messageFont;
+    swd3::BattleMessages messages;
     swd3::Config config;
     swd3::Party party;
     swd3::BattleServices services;
@@ -116,7 +145,7 @@ TEST_CASE("battle unit: construction, commands, turns and hits")
     unit.hero = &hero;
     unit.StartDefeat(1);
     CHECK_EQ(hero.hitPoints, 0);
-    CHECK_EQ(unit.unk2A94, 6);
+    CHECK_EQ(unit.defeatPose, 6);
     unit.status = 0x2000000;
     unit.RaiseFlag26B8();
     CHECK_EQ(unit.Flag26B8(), 0);
@@ -180,4 +209,78 @@ TEST_CASE("battle unit: evasion, vitals and scaling")
     unit.SetGuarding(1);
     unit.ClearStatus(0x1000);
     CHECK(!unit.IsGuarding());
+}
+
+TEST_CASE("battle unit: ailments, buffs, expiry and damage")
+{
+    Services all;
+    swd3::HeroRecord stats;
+    stats.ailmentChance = 10;
+    stats.attackBonus = 100;
+    swd3::HeroRecord hero;
+    hero.hitPoints = 50;
+    hero.maxHitPoints = 60;
+    hero.spirit = 5;
+    hero.maxSpirit = 20;
+    swd3::BattleUnit unit;
+    unit.kind = swd3::BattleUnit::kHero;
+    unit.heroStats = &stats;
+    unit.hero = &hero;
+    unit.displayName = "A";
+
+    swd3::SkillScript poison;
+    poison.ailment = 0x200;
+    poison.turns = 3;
+    CHECK_EQ(unit.AddAilment(all.services, poison), 1);
+    CHECK_EQ(stats.attackBonus, 90);
+    CHECK(unit.effects.next != nullptr);
+    CHECK_EQ(unit.effects.next->icon, 0xB);
+    CHECK_EQ(unit.effects.next->act.id, 0x2AF8);
+    CHECK_EQ(unit.status & 0x200, 0x200u);
+    poison.turns = 5;
+    CHECK_EQ(unit.AddAilment(all.services, poison), 1);
+    CHECK_EQ(unit.effects.next->turns, 5);
+    CHECK(unit.effects.next->next == nullptr);
+    CHECK_EQ(unit.HasEffectBits(0x200), 1);
+
+    swd3::SkillScript defenseUp;
+    defenseUp.statusBits = 0x20000000;
+    defenseUp.turns = 2;
+    CHECK_EQ(unit.AddBuff(all.services, defenseUp), 1);
+    CHECK_EQ(unit.status & 0x40000000, 0x40000000u);
+    CHECK(all.messages.messages != nullptr);
+    CHECK(std::strcmp(all.state.text.data(), "A\274W\245[30%\250\276\277m\244O") == 0);
+
+    unit.effects.next->turns = 0;
+    unit.effects.next->next->turns = 0;
+    unit.ExpireEffects(all.services, 0);
+    CHECK_EQ(stats.attackBonus, 99);
+    CHECK_EQ(unit.status & 0x200, 0u);
+    CHECK(unit.effects.next != nullptr);
+    CHECK_EQ(unit.effects.next->bits, 0x20000000u);
+    unit.ExpireEffects(all.services, 0);
+    CHECK(unit.effects.next == nullptr);
+    CHECK_EQ(unit.status & 0x40000000, 0u);
+    unit.ExpireEffects(all.services, 0);
+
+    CHECK_EQ(unit.Damage(all.services, 20, 30, 0), 0);
+    CHECK_EQ(hero.hitPoints, 30);
+    CHECK_EQ(hero.spirit, 20);
+    unit.goldGuard = 1;
+    all.party.variables[0] = 10;
+    CHECK_EQ(unit.Damage(all.services, 25, 0, 0), 0);
+    CHECK_EQ(all.party.variables[0], -15);
+    CHECK_EQ(hero.hitPoints, 30);
+    unit.goldGuard = 0;
+    CHECK_EQ(unit.Damage(all.services, 40, 0, 0), 1);
+    CHECK_EQ(hero.hitPoints, 0);
+
+    unit.targetCount = 2;
+    unit.SetDamageDigits(all.services, 1234);
+    CHECK_EQ(unit.damageDigits[2][0], 1);
+    CHECK_EQ(unit.damageDigits[2][3], 4);
+    unit.SetDamageDigits(all.services, static_cast<swd3::i16>(-75));
+    CHECK_EQ(unit.damageDigits[2][1], 0);
+    CHECK_EQ(unit.damageDigits[2][2], 7);
+    CHECK_EQ(unit.damageDigits[2][3], 5);
 }

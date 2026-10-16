@@ -46,7 +46,9 @@ struct ObjectData
     u16 attack = 0;                      // +0x56
     u16 defense = 0;                     // +0x58
     u16 agility = 0;                     // +0x5A the battle speed
-    std::array<u8, 8> unk5C = {};        // +0x5C
+    u16 unk5C = 0;                       // +0x5C
+    u16 ailmentChance = 0;               // +0x5E an ailment lands on a roll of 1..10 up to it
+    std::array<u8, 4> unk60 = {};        // +0x60
     i16 hitPoints = 0;                   // +0x64
     std::array<u8, 0x2C> unk66 = {};     // +0x66
     std::array<u8, 9> resistances = {};  // +0x92 tag 0x7D0: per element
@@ -70,19 +72,19 @@ struct ObjectRecord
 struct SkillScript
 {
     u32 unk00 = 0;
-    u32 flags = 0;  // +0x04 opcodes 3, 6, 9, 0xB, 0xE..0x16, 0x18, 0x19
-    u32 unk08 = 0;  // +0x08 opcode 0xC
-    u32 unk0C = 0;  // +0x0C opcode 0
-    u32 unk10 = 0;  // +0x10 opcode 0
-    u16 unk14 = 0;  // +0x14 opcode 8
-    u16 unk16 = 0;  // +0x16 opcode 4
-    u16 unk18 = 0;  // +0x18 opcodes 6, 7
-    u16 unk1A = 0;  // +0x1A opcode 0xE
-    u16 unk1C = 0;  // +0x1C opcode 0xD
-    u16 unk1E = 0;  // +0x1E opcode 0xA (bit 15 set with it)
-    u16 unk20 = 0;  // +0x20 opcode 0x16
-    u16 unk22 = 0;  // +0x22 opcode 0x17
-    u8 unk24 = 0;   // +0x24 opcodes 2, 0x16
+    u32 flags = 0;       // +0x04 opcodes 3, 6, 9, 0xB, 0xE..0x16, 0x18, 0x19
+    u32 statusBits = 0;  // +0x08 opcode 0xC: the status bits of a buff
+    u32 unk0C = 0;       // +0x0C opcode 0
+    u32 unk10 = 0;       // +0x10 opcode 0
+    u16 unk14 = 0;       // +0x14 opcode 8
+    u16 unk16 = 0;       // +0x16 opcode 4
+    u16 ailment = 0;     // +0x18 opcodes 6, 7 (bit 13: none, bit 15: refresh only)
+    u16 element = 0;     // +0x1A opcode 0xE: the element of a resistance buff
+    u16 unk1C = 0;       // +0x1C opcode 0xD
+    u16 unk1E = 0;       // +0x1E opcode 0xA (bit 15 set with it)
+    u16 unk20 = 0;       // +0x20 opcode 0x16
+    u16 unk22 = 0;       // +0x22 opcode 0x17
+    u8 turns = 0;        // +0x24 opcodes 2, 0x16: the turns of an effect
 };
 
 }  // namespace swd3

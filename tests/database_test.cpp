@@ -73,18 +73,25 @@ public:
         std::vector<u8> out;
         golden::Append32(out, result ? 1 : 0);
         golden::Append32(out, skill.flags);
-        golden::Append32(out, skill.unk08);
+        golden::Append32(out, skill.statusBits);
         golden::Append32(out, skill.unk0C);
         golden::Append32(out, skill.unk10);
 
         for (const u16 word :
-             {skill.unk14, skill.unk16, skill.unk18, skill.unk1A, skill.unk1C, skill.unk1E, skill.unk20, skill.unk22})
+             {skill.unk14,
+              skill.unk16,
+              skill.ailment,
+              skill.element,
+              skill.unk1C,
+              skill.unk1E,
+              skill.unk20,
+              skill.unk22})
         {
             out.push_back(static_cast<u8>(word));
             out.push_back(static_cast<u8>(word >> 8));
         }
 
-        out.push_back(skill.unk24);
+        out.push_back(skill.turns);
         return out;
     }
 

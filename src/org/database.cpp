@@ -175,7 +175,7 @@ bool Database::LoadSkill(SkillScript& skill, u16 id)
                 break;
 
             case 2:
-                skill.unk24 = code.ByteAt(at);
+                skill.turns = code.ByteAt(at);
                 code.position += 2;
                 break;
 
@@ -189,13 +189,13 @@ bool Database::LoadSkill(SkillScript& skill, u16 id)
                 break;
 
             case 6:
-                skill.unk18 = code.WordAt(at);
+                skill.ailment = code.WordAt(at);
                 code.position += 2;
                 skill.flags |= 0x80;
                 break;
 
             case 7:
-                skill.unk18 = code.WordAt(at);
+                skill.ailment = code.WordAt(at);
                 code.position += 2;
                 break;
 
@@ -219,7 +219,7 @@ bool Database::LoadSkill(SkillScript& skill, u16 id)
                 break;
 
             case 0xC:
-                skill.unk08 = code.DwordAt(at);
+                skill.statusBits = code.DwordAt(at);
                 code.position += 4;
                 break;
 
@@ -230,7 +230,7 @@ bool Database::LoadSkill(SkillScript& skill, u16 id)
 
             case 0xE:
                 skill.flags |= 8;
-                skill.unk1A = code.WordAt(at);
+                skill.element = code.WordAt(at);
                 code.position += 2;
                 break;
 
@@ -265,7 +265,7 @@ bool Database::LoadSkill(SkillScript& skill, u16 id)
             case 0x16:
                 skill.flags |= 0x1000;
                 skill.unk20 = code.WordAt(at);
-                skill.unk24 = code.ByteAt(at + 2);
+                skill.turns = code.ByteAt(at + 2);
                 code.position += 4;
                 break;
 

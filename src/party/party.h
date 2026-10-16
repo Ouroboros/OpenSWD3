@@ -28,7 +28,7 @@ struct HeroRecord
     i16 agility = 0;               // +0x16 (inferred)
     i16 unk18 = 0;                 // +0x18
     i16 unk1A = 0;                 // +0x1A
-    i16 unk1C = 0;                 // +0x1C
+    i16 ailmentChance = 0;         // +0x1C an ailment lands on a roll of 1..10 up to it
     i16 unk1E = 0;                 // +0x1E
     i32 experience = 0;            // +0x20 (inferred: the level.dat dword)
     u16 unk24 = 0;                 // +0x24

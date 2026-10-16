@@ -6,6 +6,7 @@ namespace swd3
 class ActArchive;
 class AudioManager;
 class BattleHud;
+class BattleMessages;
 class BattleState;
 class Config;
 class Painter;
@@ -23,6 +24,7 @@ struct BattleServices
     Painter& painter;
     AudioManager& audio;
     BattleHud& hud;
+    BattleMessages& messages;
     Config& config;
     Party& party;
 };
