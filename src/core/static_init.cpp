@@ -232,6 +232,21 @@ void RegisterFile4CF6E0Destructor() { crt::atexit(&DestroyFile4CF6E0); }
 // swd32.exe 0x004272F0
 void DestroyFile4CF6E0() { G.file_4CF6E0.~File(); }
 
+// swd32.exe 0x00451860
+void InitBattleUnit() {
+    ConstructBattleUnit();
+    RegisterBattleUnitDestructor();
+}
+
+// swd32.exe 0x00451870
+void ConstructBattleUnit() { new (&G.battleUnit) BattleUnit(); }
+
+// swd32.exe 0x00451880
+void RegisterBattleUnitDestructor() { crt::atexit(&DestroyBattleUnit); }
+
+// swd32.exe 0x00451890
+void DestroyBattleUnit() { G.battleUnit.~BattleUnit(); }
+
 // swd32.exe 0x00451900
 void InitFile521538() {
     ConstructFile521538();

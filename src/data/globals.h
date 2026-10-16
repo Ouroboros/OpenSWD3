@@ -7,6 +7,7 @@
 #include "data/image.h"
 #include "swd3/w32.h"
 #include "audio/audio.h"
+#include "battle/battle_unit.h"
 #include "file/file.h"
 #include "font/text_font.h"
 #include "game/game_state.h"
@@ -2785,7 +2786,7 @@ struct Globals {
     std::uint8_t pad_4A74C1[0x3];
     std::uint8_t byte_4A74C4[4];  // 0x004A74C4
     std::int32_t dword_4A74C8;  // 0x004A74C8
-    std::int32_t dword_4A74CC;  // 0x004A74CC
+    std::int32_t gaugeFull;  // 0x004A74CC full action gauge
     std::uint8_t unk_4A74D0;  // 0x004A74D0
     std::uint8_t pad_4A74D1[0x5];
     std::int16_t word_4A74D6[47];  // 0x004A74D6
@@ -3411,7 +3412,7 @@ struct Globals {
     std::int32_t dword_4AB37C;  // 0x004AB37C
     std::uint8_t pad_4AB380[0x4];
     std::uint8_t gameFlags[1024];  // 0x004AB384 bit flags (GameFlag); also saved with the game
-    std::int32_t dword_4AB784;  // 0x004AB784
+    std::int32_t soundVolume;  // 0x004AB784 0..11
     std::int32_t dword_4AB788;  // 0x004AB788
     std::uint8_t pad_4AB78C[0x4];
     std::int32_t dword_4AB790;  // 0x004AB790
@@ -3972,7 +3973,7 @@ struct Globals {
     float flt_4C9A00;  // 0x004C9A00
     std::int32_t dword_4C9A04;  // 0x004C9A04
     std::int32_t dword_4C9A08;  // 0x004C9A08
-    std::int32_t dword_4C9A0C;  // 0x004C9A0C
+    std::int32_t musicVolume;  // 0x004C9A0C 0..11
     std::int32_t dword_4C9A10;  // 0x004C9A10
     std::int32_t dword_4C9A14;  // 0x004C9A14
     std::int32_t dword_4C9A18;  // 0x004C9A18
@@ -5112,10 +5113,8 @@ struct Globals {
     std::uint8_t Rect[16];  // 0x00521528
     File file_521538;  // 0x00521538 constructed by 0x00451900
     std::uint8_t pad_521588[0x10];
-    std::uint8_t unk_521598;  // 0x00521598
-    std::uint8_t pad_521599[0x2B23];
-    std::int16_t word_5240BC;  // 0x005240BC
-    std::uint8_t pad_5240BE[0x6];
+    BattleUnit battleUnit;  // 0x00521598 constructed by 0x00451860
+    std::uint8_t pad_5240C0[0x4];
     std::int16_t word_5240C4;  // 0x005240C4
     std::uint8_t pad_5240C6[0x2];
     std::int32_t dword_5240C8;  // 0x005240C8
@@ -5532,7 +5531,7 @@ struct Globals {
     std::int32_t dword_53CEAC;  // 0x0053CEAC
     std::int32_t dword_53CEB0;  // 0x0053CEB0
     std::int32_t dword_53CEB4;  // 0x0053CEB4
-    std::int32_t dword_53CEB8;  // 0x0053CEB8
+    std::int32_t evadeDisabled;  // 0x0053CEB8
     std::int32_t dword_53CEBC;  // 0x0053CEBC
     std::uint8_t pad_53CEC0[0x80];
     std::int32_t dword_53CF40;  // 0x0053CF40
@@ -5545,8 +5544,8 @@ struct Globals {
     std::uint8_t pad_53CF98[0x88];
     std::int32_t dword_53D020;  // 0x0053D020
     std::int32_t dword_53D024;  // 0x0053D024
-    std::uint8_t byte_53D028;  // 0x0053D028
-    std::uint8_t byte_53D029;  // 0x0053D029
+    std::uint8_t evadeStreak;  // 0x0053D028 failed evasion rolls in a row
+    std::uint8_t evadeJustSucceeded;  // 0x0053D029
     std::uint8_t pad_53D02A[0x2];
     std::uint8_t byte_53D02C[64];  // 0x0053D02C
     std::int32_t dword_53D06C;  // 0x0053D06C
@@ -5715,6 +5714,7 @@ static_assert(offsetof(Globals, tswCacheLimit) == 0xD020);
 static_assert(offsetof(Globals, actCacheLimit) == 0xD098);
 static_assert(offsetof(Globals, r250Table) == 0xD610);
 static_assert(offsetof(Globals, lcgState) == 0xD9F8);
+static_assert(offsetof(Globals, gaugeFull) == 0xE4CC);
 static_assert(offsetof(Globals, file_4A9380) == 0x10380);
 static_assert(offsetof(Globals, gameDir) == 0x104BC);
 static_assert(offsetof(Globals, file_4A98C8) == 0x108C8);
@@ -5726,6 +5726,7 @@ static_assert(offsetof(Globals, tswPath) == 0x11ED0);
 static_assert(offsetof(Globals, walkSpeed) == 0x122D0);
 static_assert(offsetof(Globals, playerRole) == 0x12378);
 static_assert(offsetof(Globals, gameFlags) == 0x12384);
+static_assert(offsetof(Globals, soundVolume) == 0x12784);
 static_assert(offsetof(Globals, graphics) == 0x12870);
 static_assert(offsetof(Globals, textFont_4AB998) == 0x12998);
 static_assert(offsetof(Globals, eventList) == 0x13AC0);
@@ -5750,6 +5751,7 @@ static_assert(offsetof(Globals, clickRegionFlags) == 0x2FBE8);
 static_assert(offsetof(Globals, clickRegions) == 0x2FBEC);
 static_assert(offsetof(Globals, clickRegionState) == 0x2FBF0);
 static_assert(offsetof(Globals, streamPlayer) == 0x30288);
+static_assert(offsetof(Globals, musicVolume) == 0x30A0C);
 static_assert(offsetof(Globals, mainWindow) == 0x30A1C);
 static_assert(offsetof(Globals, textFont_4C9A28) == 0x30A28);
 static_assert(offsetof(Globals, file_4CAA28) == 0x31A28);
@@ -5878,6 +5880,10 @@ static_assert(offsetof(Globals, tswPackedBuf) == 0x6255C);
 static_assert(offsetof(Globals, textInputLeadPending) == 0x627E8);
 static_assert(offsetof(Globals, r250Index) == 0x627F0);
 static_assert(offsetof(Globals, file_521538) == 0x88538);
+static_assert(offsetof(Globals, battleUnit) == 0x88598);
+static_assert(offsetof(Globals, evadeDisabled) == 0xA3EB8);
+static_assert(offsetof(Globals, evadeStreak) == 0xA4028);
+static_assert(offsetof(Globals, evadeJustSucceeded) == 0xA4029);
 static_assert(offsetof(Globals, waveFormat) == 0xA4110);
 #if defined(__clang__)
 #pragma clang diagnostic pop

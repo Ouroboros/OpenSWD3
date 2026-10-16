@@ -233,3 +233,12 @@ addr	type	name	module	notes
 0x004B7BCC	std::int32_t	inputLock	game
 0x004CC2D4	std::int32_t	marchingPhase	game
 0x0049F250	std::int16_t[90]	sineTable	game	sin(degree) * 8192
+@include	battle/battle_unit.h
+@size	BattleUnit	11048
+0x00521598	BattleUnit	battleUnit	battle	constructed by 0x00451860
+0x004A74CC	std::int32_t	gaugeFull	battle	full action gauge
+0x004AB784	std::int32_t	soundVolume	config	0..11
+0x004C9A0C	std::int32_t	musicVolume	config	0..11
+0x0053CEB8	std::int32_t	evadeDisabled	battle
+0x0053D028	std::uint8_t	evadeStreak	battle	failed evasion rolls in a row
+0x0053D029	std::uint8_t	evadeJustSucceeded	battle

@@ -12,7 +12,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 if(MSVC)
     add_compile_options(/arch:SSE2 /clang:-ffp-contract=off)
 else()
-    add_compile_options(-msse2 -mfpmath=sse -ffp-contract=off)
+    add_compile_options(-msse2 -mfpmath=sse -ffp-contract=off -fno-strict-aliasing)
 endif()
 
 if(WIN32)

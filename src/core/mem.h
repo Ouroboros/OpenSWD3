@@ -33,6 +33,13 @@ inline void put32(void* base, std::intptr_t offset, std::uint32_t value) {
     std::memcpy(static_cast<std::uint8_t*>(base) + offset, &value, 4);
 }
 
+// Typed reference to a field of a raw record (the build disables strict aliasing; x86 tolerates the unaligned
+// fields of the original layouts).
+template <typename T>
+T& ref(void* base, std::intptr_t offset) {
+    return *reinterpret_cast<T*>(static_cast<std::uint8_t*>(base) + offset);
+}
+
 template <typename T>
 T* ptr(const void* base, std::intptr_t offset = 0) {
     return reinterpret_cast<T*>(static_cast<std::uintptr_t>(u32(base, offset)));
