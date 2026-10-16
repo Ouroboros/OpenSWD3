@@ -12,11 +12,20 @@ void ShowErrorMessage(std::string_view title, std::string_view text);
 
 // Where modules report the errors the original shows in a message box. The game uses DialogErrorReporter; tests use
 // a reporter that only records, so that they never open a window.
+// The answers of the maintenance assertion box (MB_ABORTRETRYIGNORE).
+enum class AssertChoice
+{
+    Abort,
+    Retry,
+    Ignore,
+};
+
 class ErrorReporter
 {
 public:
     virtual ~ErrorReporter() = default;
     virtual void ShowError(std::string_view title, std::string_view text) = 0;
+    virtual AssertChoice AskAssertion(std::string_view title, std::string_view text) = 0;
 };
 
 // MessageBeep(0): the default system sound (nothing where there is none).
@@ -26,6 +35,7 @@ class DialogErrorReporter : public ErrorReporter
 {
 public:
     void ShowError(std::string_view title, std::string_view text) override;
+    AssertChoice AskAssertion(std::string_view title, std::string_view text) override;
 };
 
 }  // namespace swd3

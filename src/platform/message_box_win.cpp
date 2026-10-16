@@ -42,6 +42,32 @@ void DialogErrorReporter::ShowError(std::string_view title, std::string_view tex
     ShowErrorMessage(title, text);
 }
 
+AssertChoice DialogErrorReporter::AskAssertion(std::string_view title, std::string_view text)
+{
+    const std::string utf8Title = Utf8FromBig5(title);
+    const std::string utf8Text = Utf8FromBig5(text);
+    const SDL_MessageBoxButtonData buttons[] = {
+        {0, static_cast<int>(AssertChoice::Abort), "Abort"},
+        {0, static_cast<int>(AssertChoice::Retry), "Retry"},
+        {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, static_cast<int>(AssertChoice::Ignore), "Ignore"},
+    };
+
+    SDL_MessageBoxData data{};
+    data.flags = SDL_MESSAGEBOX_ERROR;
+    data.title = utf8Title.c_str();
+    data.message = utf8Text.c_str();
+    data.numbuttons = 3;
+    data.buttons = buttons;
+    int pressed = static_cast<int>(AssertChoice::Ignore);
+
+    if (!SDL_ShowMessageBox(&data, &pressed))
+    {
+        return AssertChoice::Ignore;
+    }
+
+    return static_cast<AssertChoice>(pressed);
+}
+
 }  // namespace swd3
 
 namespace swd3

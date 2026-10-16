@@ -27,6 +27,12 @@ void DialogErrorReporter::ShowError(std::string_view title, std::string_view tex
     ShowErrorMessage(title, text);
 }
 
+AssertChoice DialogErrorReporter::AskAssertion(std::string_view title, std::string_view text)
+{
+    ShowErrorMessage(title, text);
+    return AssertChoice::Ignore;
+}
+
 }  // namespace swd3
 
 namespace swd3

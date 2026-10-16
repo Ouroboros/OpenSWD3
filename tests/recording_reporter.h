@@ -18,6 +18,12 @@ public:
         this->messages.emplace_back(std::string(title) + ": " + std::string(text));
     }
 
+    swd3::AssertChoice AskAssertion(std::string_view title, std::string_view text) override
+    {
+        this->messages.emplace_back(std::string(title) + ": " + std::string(text));
+        return swd3::AssertChoice::Ignore;
+    }
+
     std::vector<std::string> messages;
 };
 

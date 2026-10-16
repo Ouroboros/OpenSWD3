@@ -388,7 +388,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 387	swd32.exe	0x00430D80	sub_430D80	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 388	swd32.exe	0x00430EB0	sub_430EB0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 389	swd32.exe	0x00430FF0	sub_430FF0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-390	swd32.exe	0x00431150	sub_431150	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
+390	swd32.exe	0x00431150	sub_431150	core	src/core/assertion.cpp:MaintenanceAssert	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=FRAME
 391	swd32.exe	0x004311C0	sub_4311C0	gfx	src/gfx/graphics.cpp:ShowDeviceError	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "DDERR_OUTOFMEMORY "; legacy: src/gfx/graphics.cpp:ShowDirectDrawError
 392	swd32.exe	0x004315C0	sub_4315C0	res	src/res/tsw_archive.cpp:TswArchive::SetCacheLimit	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/res/tsw.cpp:TswSetCacheLimit
 393	swd32.exe	0x004315D0	sub_4315D0	res	src/res/tsw_archive.cpp:TswArchive::GetPicture	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "all_char.tsw"; legacy: src/res/tsw.cpp:TswGetPicture
@@ -1048,7 +1048,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1047	swd32.exe	0x00476A80	sub_476A80	org	src/org/database.cpp:Database::LoadSkill	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	file offset words read before the first ReadFile result (stack garbage on a failed read) zero-initialized; legacy: src/battle/battle_enemy.cpp:LoadMonsterSkill
 1048	swd32.exe	0x00476DB0	sub_476DB0	org	src/org/database.cpp:Database::LoadObject	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	file offset words read before the first ReadFile result (stack garbage on a failed read) zero-initialized; legacy: src/battle/battle_enemy.cpp:LoadMonster
 1049	swd32.exe	0x00477290	sub_477290	org	src/org/database.cpp:Database::LoadLevelEntry	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	file offset words read before the first ReadFile result (stack garbage on a failed read) zero-initialized; legacy: src/battle/battle_enemy.cpp:LoadLevelEntry
-1050	swd32.exe	0x00477400	sub_477400	org		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "level.dat"
+1050	swd32.exe	0x00477400	sub_477400	org	src/org/level.cpp:LevelUp	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "level.dat"
 1051	swd32.exe	0x004776A0	sub_4776A0	org	src/org/database.cpp:Database::CloseFiles	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between org anchors 0x00477400 and 0x00477BD0; legacy: src/battle/fame.cpp:CloseRecordFiles
 1052	swd32.exe	0x004776F0	sub_4776F0	org	src/org/fame.cpp:ClearCounterList	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between org anchors 0x00477400 and 0x00477BD0; legacy: src/battle/fame.cpp:ClearCounterList
 1053	swd32.exe	0x00477710	sub_477710	org	src/org/fame.cpp:AddCounterCapped	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between org anchors 0x00477400 and 0x00477BD0; legacy: src/battle/fame.cpp:AddCounterCapped
@@ -1059,7 +1059,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1058	swd32.exe	0x004779F0	sub_4779F0	org	src/org/fame.cpp:FindCounterPercent	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between org anchors 0x00477400 and 0x00477BD0; legacy: src/battle/fame.cpp:FindCounterPercent
 1059	swd32.exe	0x00477A20	sub_477A20	org	src/org/fame.cpp:SetProficiency	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between org anchors 0x00477400 and 0x00477BD0
 1060	swd32.exe	0x00477B40	sub_477B40	org	src/org/fame.cpp:GetProficiency	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between org anchors 0x00477400 and 0x00477BD0
-1061	swd32.exe	0x00477BD0	sub_477BD0	org		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "C:\Project\swd102aDVD\org.cpp"
+1061	swd32.exe	0x00477BD0	sub_477BD0	org	src/org/level.cpp:LearnSkill	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "C:\Project\swd102aDVD\org.cpp"
 1062	swd32.exe	0x00477C90	sub_477C90	org	src/org/fame.cpp:Fame::Save	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "save fame compress false !!"
 1063	swd32.exe	0x00477F10	sub_477F10	org	src/org/fame.cpp:Fame::Load	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Load fame decompress false !!"; legacy: src/battle/fame.cpp:LoadFame
 1064	swd32.exe	0x00478110	sub_478110	org	src/org/fame.cpp:Fame::Free	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/fame.cpp:FreeFame
