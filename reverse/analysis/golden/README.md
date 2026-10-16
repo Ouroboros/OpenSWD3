@@ -21,3 +21,7 @@ GOLDEN_OUT=<工作区>/tests/golden/draw_golden.txt SWD3_GAME_DIR=/mnt/e/Game/sw
 `GOLDEN_DUMP=<场景名前缀> GOLDEN_DUMP_FILE=<文件>` 可在两侧导出某个场景后的整屏像素，用于定位差异。
 
 不能在旧实现上运行的场景（原程序会崩溃）：未分配的模式（空表项）、带 0x8000 段的镜像 Alpha 映射（空查找表）、原始图片的翻转与镜像半透明模式（空表项）。新实现对这些情况的行为由 `tests/painter_test.cpp` 覆盖，并记录在 `deviations.md`。
+
+## RLE 编解码（tests/golden/rle_golden.txt）
+
+场景定义：`tests/golden/rle_scenarios.h`。生成器：`rle_golden_legacy.cpp`（同样复制到旧树的 tests/ 下），运行 `./swd3_tests "rle codec"` 并设置 `GOLDEN_OUT`。

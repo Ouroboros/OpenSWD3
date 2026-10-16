@@ -77,11 +77,11 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 76	swd32.exe	0x004014C0	sub_4014C0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern; legacy: src/core/static_init.cpp:ConstructInput
 77	swd32.exe	0x004014D0	sub_4014D0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern; legacy: src/core/static_init.cpp:RegisterInputDestructor
 78	swd32.exe	0x004014E0	sub_4014E0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern; legacy: src/core/static_init.cpp:DestroyInput
-79	swd32.exe	0x004014F0	sub_4014F0	pic		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/pic/rle.cpp:RleEncode
-80	swd32.exe	0x004019A0	sub_4019A0	pic		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/pic/rle.cpp:RleDecode
-81	swd32.exe	0x00401B70	sub_401B70	pic		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/pic/rle.cpp:RleCheck16
-82	swd32.exe	0x00401C70	sub_401C70	pic		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/pic/rle.cpp:RleConvert8To16
-83	swd32.exe	0x00401E50	sub_401E50	pic		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/pic/rle.cpp:RleConvertTile8To16
+79	swd32.exe	0x004014F0	sub_4014F0	pic	src/pic/rle.cpp:RleCodec::Encode	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/pic/rle.cpp:RleEncode
+80	swd32.exe	0x004019A0	sub_4019A0	pic	src/pic/rle.cpp:RleCodec::Decode	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/pic/rle.cpp:RleDecode
+81	swd32.exe	0x00401B70	sub_401B70	pic	src/pic/rle.cpp:RleCodec::ConvertToDisplay	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/pic/rle.cpp:RleCheck16
+82	swd32.exe	0x00401C70	sub_401C70	pic	src/pic/rle.cpp:RleCodec::ConvertTo16	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/pic/rle.cpp:RleConvert8To16
+83	swd32.exe	0x00401E50	sub_401E50	pic	src/pic/rle.cpp:RleCodec::ConvertTileTo16	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/pic/rle.cpp:RleConvertTile8To16
 84	swd32.exe	0x00402030	sub_402030	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathPoolInit
 85	swd32.exe	0x004020C0	sub_4020C0	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathPoolRelease
 86	swd32.exe	0x00402120	sub_402120	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathPoolAlloc
