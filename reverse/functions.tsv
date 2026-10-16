@@ -504,32 +504,32 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 503	swd32.exe	0x00437EF0	sub_437EF0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 504	swd32.exe	0x00437F40	sub_437F40	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 505	swd32.exe	0x00437F90	sub_437F90	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-506	swd32.exe	0x00438000	sub_438000	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/file/file.cpp:File::File
-507	swd32.exe	0x00438030	sub_438030	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!UnmapViewOfFile; legacy: src/file/file.cpp:File::~File
-508	swd32.exe	0x004380B0	sub_4380B0	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438030 and 0x00438150; legacy: src/file/file.cpp:File::Open
-509	swd32.exe	0x00438150	sub_438150	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!UnmapViewOfFile; legacy: src/file/file.cpp:File::Close
-510	swd32.exe	0x004381E0	sub_4381E0	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!CreateFileMappingA; legacy: src/file/file.cpp:File::CreateMapping
-511	swd32.exe	0x00438230	sub_438230	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!UnmapViewOfFile; legacy: src/file/file.cpp:File::CloseMapping
-512	swd32.exe	0x00438290	sub_438290	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!MapViewOfFile; legacy: src/file/file.cpp:File::MapView
-513	swd32.exe	0x004382E0	sub_4382E0	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "cFile ,CloseView Src/Dest difference "; legacy: src/file/file.cpp:File::UnmapView
-514	swd32.exe	0x00438340	sub_438340	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x004382E0 and 0x00438360; legacy: src/file/file.cpp:File::GetSize
-515	swd32.exe	0x00438360	sub_438360	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!SetEndOfFile; legacy: src/file/file.cpp:File::SetEnd
-516	swd32.exe	0x00438380	sub_438380	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570; legacy: src/file/file.cpp:File::Read
-517	swd32.exe	0x004383E0	sub_4383E0	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570; legacy: src/file/file.cpp:File::Write
-518	swd32.exe	0x00438440	sub_438440	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570; legacy: src/file/file.cpp:File::Seek
-519	swd32.exe	0x004384A0	sub_4384A0	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570; legacy: src/file/file.cpp:File::SeekCurrent
-520	swd32.exe	0x004384B0	sub_4384B0	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570; legacy: src/file/file.cpp:File::SeekBegin
-521	swd32.exe	0x004384C0	sub_4384C0	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570; legacy: src/file/file.cpp:File::SeekEnd
-522	swd32.exe	0x004384D0	sub_4384D0	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570; legacy: src/file/file.cpp:File::Tell
-523	swd32.exe	0x00438520	sub_438520	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570; legacy: src/file/file.cpp:File::WriteExact
-524	swd32.exe	0x00438570	sub_438570	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!GetFileTime; legacy: src/file/file.cpp:File::GetTime
-525	swd32.exe	0x004385A0	sub_4385A0	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/file/file.cpp:File::WriteByte
-526	swd32.exe	0x004385B0	sub_4385B0	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/file/file.cpp:File::WriteDword
-527	swd32.exe	0x004385C0	sub_4385C0	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/file/file.cpp:File::ReadExact
-528	swd32.exe	0x00438600	sub_438600	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/file/file.cpp:File::ReadByte
-529	swd32.exe	0x00438610	sub_438610	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/file/file.cpp:File::ReadDword
-530	swd32.exe	0x00438620	sub_438620	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/file/file.cpp:File::SetError
-531	swd32.exe	0x00438640	sub_438640	file		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/file/file.cpp:File::ErrorText
+506	swd32.exe	0x00438000	sub_438000	file	src/file/file.cpp:File::File	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/file/file.cpp:File::File
+507	swd32.exe	0x00438030	sub_438030	file	src/file/file.cpp:File::~File	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!UnmapViewOfFile; legacy: src/file/file.cpp:File::~File
+508	swd32.exe	0x004380B0	sub_4380B0	file	src/file/file.cpp:File::Open	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438030 and 0x00438150; legacy: src/file/file.cpp:File::Open
+509	swd32.exe	0x00438150	sub_438150	file	src/file/file.cpp:File::Close	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!UnmapViewOfFile; legacy: src/file/file.cpp:File::Close
+510	swd32.exe	0x004381E0	sub_4381E0	file	src/file/file.cpp:File::CreateMapping	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!CreateFileMappingA; legacy: src/file/file.cpp:File::CreateMapping
+511	swd32.exe	0x00438230	sub_438230	file	src/file/file.cpp:File::CloseMapping	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!UnmapViewOfFile; legacy: src/file/file.cpp:File::CloseMapping
+512	swd32.exe	0x00438290	sub_438290	file	src/file/file.cpp:File::MapView	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!MapViewOfFile; legacy: src/file/file.cpp:File::MapView
+513	swd32.exe	0x004382E0	sub_4382E0	file	src/file/file.cpp:File::UnmapView	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "cFile ,CloseView Src/Dest difference "; legacy: src/file/file.cpp:File::UnmapView
+514	swd32.exe	0x00438340	sub_438340	file	src/file/file.cpp:File::Size	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x004382E0 and 0x00438360; legacy: src/file/file.cpp:File::GetSize
+515	swd32.exe	0x00438360	sub_438360	file	src/file/file.cpp:File::Truncate	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!SetEndOfFile; legacy: src/file/file.cpp:File::SetEnd
+516	swd32.exe	0x00438380	sub_438380	file	src/file/file.cpp:File::Read	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570; legacy: src/file/file.cpp:File::Read
+517	swd32.exe	0x004383E0	sub_4383E0	file	src/file/file.cpp:File::Write	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570; legacy: src/file/file.cpp:File::Write
+518	swd32.exe	0x00438440	sub_438440	file	src/file/file.cpp:File::Seek	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570; legacy: src/file/file.cpp:File::Seek
+519	swd32.exe	0x004384A0	sub_4384A0	file	src/file/file.cpp:File::SeekCurrent	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570; legacy: src/file/file.cpp:File::SeekCurrent
+520	swd32.exe	0x004384B0	sub_4384B0	file	src/file/file.cpp:File::SeekBegin	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570; legacy: src/file/file.cpp:File::SeekBegin
+521	swd32.exe	0x004384C0	sub_4384C0	file	src/file/file.cpp:File::SeekEnd	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570; legacy: src/file/file.cpp:File::SeekEnd
+522	swd32.exe	0x004384D0	sub_4384D0	file	src/file/file.cpp:File::Tell	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570; legacy: src/file/file.cpp:File::Tell
+523	swd32.exe	0x00438520	sub_438520	file	src/file/file.cpp:File::WriteExact	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between file anchors 0x00438360 and 0x00438570; legacy: src/file/file.cpp:File::WriteExact
+524	swd32.exe	0x00438570	sub_438570	file	src/file/file.cpp:File::LastWriteTime	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import KERNEL32!GetFileTime; legacy: src/file/file.cpp:File::GetTime
+525	swd32.exe	0x004385A0	sub_4385A0	file	src/file/file.cpp:File::WriteByte	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/file/file.cpp:File::WriteByte
+526	swd32.exe	0x004385B0	sub_4385B0	file	src/file/file.cpp:File::WriteDword	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/file/file.cpp:File::WriteDword
+527	swd32.exe	0x004385C0	sub_4385C0	file	src/file/file.cpp:File::ReadExact	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/file/file.cpp:File::ReadExact
+528	swd32.exe	0x00438600	sub_438600	file	src/file/file.cpp:File::ReadByte	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/file/file.cpp:File::ReadByte
+529	swd32.exe	0x00438610	sub_438610	file	src/file/file.cpp:File::ReadDword	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/file/file.cpp:File::ReadDword
+530	swd32.exe	0x00438620	sub_438620	file	src/file/file.cpp:File::SetError	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/file/file.cpp:File::SetError
+531	swd32.exe	0x00438640	sub_438640	file	src/file/file.cpp:File::ErrorText	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/file/file.cpp:File::ErrorText
 532	swd32.exe	0x00438650	sub_438650	memmgr		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "MemMgr"; legacy: src/memmgr/memory_manager.cpp:MemoryManager::MemoryManager
 533	swd32.exe	0x004386E0	sub_4386E0	memmgr		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "MemMgr report"; legacy: src/memmgr/memory_manager.cpp:MemoryManager::~MemoryManager
 534	swd32.exe	0x00438800	sub_438800	memmgr		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/memmgr/memory_manager.cpp:MemoryManager::NewNode
@@ -734,7 +734,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 733	swd32.exe	0x0044A0D0	sub_44A0D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 734	swd32.exe	0x0044A160	sub_44A160	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 735	swd32.exe	0x0044A1D0	sub_44A1D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-736	swd32.exe	0x0044A240	nullsub_1	pic		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=HIDDEN; legacy: src/pic/pixel_format.cpp:PixelConvertNone
+736	swd32.exe	0x0044A240	nullsub_1	core	src/core/debug_log.h:DebugLog	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=HIDDEN; legacy: src/pic/pixel_format.cpp:PixelConvertNone
 737	swd32.exe	0x0044A250	sub_44A250	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 738	swd32.exe	0x0044A280	sub_44A280	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 739	swd32.exe	0x0044AB00	sub_44AB00	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	

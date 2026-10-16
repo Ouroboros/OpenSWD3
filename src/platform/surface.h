@@ -15,17 +15,17 @@ public:
     void Resize(int width, int height);
     void Fill(std::uint16_t color);
 
-    int Width() const { return m_width; }
-    int Height() const { return m_height; }
-    std::uint16_t* Pixels() { return m_pixels.data(); }
-    const std::uint16_t* Pixels() const { return m_pixels.data(); }
-    std::uint16_t* Row(int y) { return m_pixels.data() + static_cast<std::size_t>(y) * m_width; }
-    const std::uint16_t* Row(int y) const { return m_pixels.data() + static_cast<std::size_t>(y) * m_width; }
+    int Width() const { return this->width; }
+    int Height() const { return this->height; }
+    std::uint16_t* Pixels() { return this->pixels.data(); }
+    const std::uint16_t* Pixels() const { return this->pixels.data(); }
+    std::uint16_t* Row(int y) { return this->pixels.data() + static_cast<std::size_t>(y) * this->width; }
+    const std::uint16_t* Row(int y) const { return this->pixels.data() + static_cast<std::size_t>(y) * this->width; }
 
 private:
-    int m_width = 0;
-    int m_height = 0;
-    std::vector<std::uint16_t> m_pixels;
+    int width = 0;
+    int height = 0;
+    std::vector<std::uint16_t> pixels;
 };
 
 }  // namespace swd3

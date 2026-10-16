@@ -5,7 +5,7 @@
 namespace swd3test {
 namespace {
 
-int g_failures = 0;
+int failures = 0;
 
 }  // namespace
 
@@ -15,7 +15,7 @@ std::vector<Case>& registry() {
 }
 
 void fail(const char* file, int line, const std::string& message) {
-    ++g_failures;
+    ++failures;
     std::fprintf(stderr, "%s:%d: %s\n", file, line, message.c_str());
 }
 
@@ -28,11 +28,11 @@ int main(int argc, char** argv) {
         if (argc > 1 && std::strstr(c.name, argv[1]) == nullptr) {
             continue;
         }
-        int before = swd3test::g_failures;
+        int before = swd3test::failures;
         c.body();
         ++run;
-        std::printf("%s %s\n", swd3test::g_failures == before ? "[ OK ]" : "[FAIL]", c.name);
+        std::printf("%s %s\n", swd3test::failures == before ? "[ OK ]" : "[FAIL]", c.name);
     }
-    std::printf("%d test cases, %d failures\n", run, swd3test::g_failures);
-    return swd3test::g_failures == 0 ? 0 : 1;
+    std::printf("%d test cases, %d failures\n", run, swd3test::failures);
+    return swd3test::failures == 0 ? 0 : 1;
 }

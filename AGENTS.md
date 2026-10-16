@@ -67,7 +67,26 @@ SDL3与FFmpeg由构建脚本自行下载源码并构建，不查找或复用本�
 - 只读常量表与可写全局的初值写成带类型的constexpr表或成员默认值，并以单元测试与exe字节比对。
 - 常量、模式、状态、声音编号写成具名常量或enum class；函数指针表按用途改写为虚函数、成员函数指针或枚举分派。
 - 命名写出依据（读写它的函数、取值范围、对应的界面行为）；推断与已确认结论分开标注。
-- 提交前检查改动文件：没有dword_/word_/byte_/unk_形式的地址占位名，没有数字偏移访问。
+- 提交前运行scripts/check_style.sh（成员前缀、地址占位名、匈牙利前缀、C 风格内存管理），并检查改动文件没有数字偏移访问。函数登记用scripts/register.sh。
+
+## 代码风格
+
+命名：
+
+- 类型（class、struct、enum class、别名）、函数与成员函数用 PascalCase，例如 `TextFont`、`DrawGlyph`。
+- 成员变量、局部变量与参数用 camelCase，不加前缀或后缀：不用 `m_`、`g_`、`s_`、尾下划线，也不用匈牙利前缀（`dw`、`n`、`p`、`lp`、`sz`、`b`、`h` 等）。
+- 常量（`constexpr`、`static constexpr`）用 `k` 加 PascalCase，例如 `kWidth`；`enum class` 的枚举值用 PascalCase。
+- 命名空间用小写（`swd3`）；文件与目录用小写下划线（`text_font.cpp`）。
+- 名字表达含义；原地址只写在注释里，不进入标识符。
+
+写法：
+
+- 在成员函数内访问本类成员变量与成员函数一律显式写 `this->`，例如 `this->width`、`this->Present(screen)`。静态成员与类内常量用类名限定，例如 `Display::kWidth`。
+- 每个还原函数的定义前写 `// swd32.exe 0x<地址>` 注释，可附简要说明（行为、保留的原有BUG、偏差）。默认实现的构造函数也写出定义以附注释。
+- 用 C++ 类型转换（`static_cast` 等），不用 C 风格转换；不用裸 `new`／`delete` 与 `malloc`／`free`，用容器与 `std::unique_ptr`；不用宏（单元测试框架除外）。
+- 头文件用 `#pragma once`，不在头文件中写 `using namespace`。
+- 缩进 4 空格，行宽 120；大括号不换行；`switch` 的 `case` 缩进一级。
+- 代码注释用英文，说明原行为与依据；不写逐行翻译汇编的注释。
 
 ## C++ 构建要求
 

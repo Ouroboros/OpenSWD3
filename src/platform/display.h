@@ -44,21 +44,21 @@ public:
     Display& operator=(const Display&) = delete;
 
     bool Open(const char* title);
-    bool IsOpen() const { return m_renderer != nullptr; }
+    bool IsOpen() const { return this->renderer != nullptr; }
     void Present(const Surface& screen);
     // Handles Alt+Enter; true when the event was consumed.
     bool HandleEvent(const SDL_Event& event);
     void ToggleFullscreen();
     // A window position (as reported by mouse events) in logical screen coordinates.
     LogicalPoint WindowToLogical(float windowX, float windowY) const;
-    SDL_Window* Window() const { return m_window; }
+    SDL_Window* Window() const { return this->window; }
 
 private:
     Viewport CurrentViewport() const;
 
-    SDL_Window* m_window = nullptr;
-    SDL_Renderer* m_renderer = nullptr;
-    SDL_Texture* m_texture = nullptr;
+    SDL_Window* window = nullptr;
+    SDL_Renderer* renderer = nullptr;
+    SDL_Texture* texture = nullptr;
 };
 
 }  // namespace swd3
