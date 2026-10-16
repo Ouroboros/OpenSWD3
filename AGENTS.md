@@ -78,6 +78,7 @@ SDL3与FFmpeg由构建脚本自行下载源码并构建，不查找或复用本�
 - 常量（`constexpr`、`static constexpr`）用 `k` 加 PascalCase，例如 `kWidth`；`enum class` 的枚举值用 PascalCase。
 - 命名空间用小写（`swd3`）；文件与目录用小写下划线（`text_font.cpp`）。
 - 名字表达含义；原地址只写在注释里，不进入标识符。
+- 整数类型用项目别名（src/core/types.h）：`u8`、`u16`、`u32`、`u64`、`i8`、`i16`、`i32`、`i64`，不写 `std::uint16_t` 等；显示像素用 `Pixel`。有领域含义的值优先定义具名类型（结构体、`enum class` 或别名）。这些基础别名沿用标准库式的小写，是类型名 PascalCase 规则的例外。
 
 写法：
 

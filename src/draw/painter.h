@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <span>
 
+#include "core/types.h"
+
 namespace swd3
 {
 
@@ -15,39 +17,39 @@ class Surface;
 namespace draw_mode
 {
 
-constexpr std::uint32_t kMirror = 0x1;
-constexpr std::uint32_t kFlip = 0x2;
-constexpr std::uint32_t kRle = 0x80000000u;
-constexpr std::uint32_t kEffectMask = 0xFFFC;
+constexpr u32 kMirror = 0x1;
+constexpr u32 kFlip = 0x2;
+constexpr u32 kRle = 0x80000000u;
+constexpr u32 kEffectMask = 0xFFFC;
 
 // RLE effects.
-constexpr std::uint32_t kCopy = 0x00;         // literal pixels copied
-constexpr std::uint32_t kAdditive = 0x04;     // saturating add, optionally tinted
-constexpr std::uint32_t kAlphaMap = 0x08;     // per-pixel level from a byte map (DrawArgument::alphaMap)
-constexpr std::uint32_t kShadow = 0x0C;       // sheared and scaled tint of the destination
-constexpr std::uint32_t kTint = 0x10;         // tint of the destination under the picture
-constexpr std::uint32_t kTranslucent = 0x14;  // blend at DrawOptions::alpha
-constexpr std::uint32_t kEdgeMark = 0x18;     // copy, first and last pixel of each run marked
-constexpr std::uint32_t kFadeDown = 0x1C;     // blend level falling from the top
-constexpr std::uint32_t kScaledGlow = 0x20;   // vertically scaled tinted add
-constexpr std::uint32_t kSilhouette = 0x24;   // literal pixels filled with DrawArgument::color
-constexpr std::uint32_t kGray = 0x28;         // destination under the picture turned grey
-constexpr std::uint32_t kSubtractive = 0x2C;  // saturating subtract, tinted
-constexpr std::uint32_t kSmear = 0x30;        // destination smeared under the picture
+constexpr u32 kCopy = 0x00;         // literal pixels copied
+constexpr u32 kAdditive = 0x04;     // saturating add, optionally tinted
+constexpr u32 kAlphaMap = 0x08;     // per-pixel level from a byte map (DrawArgument::alphaMap)
+constexpr u32 kShadow = 0x0C;       // sheared and scaled tint of the destination
+constexpr u32 kTint = 0x10;         // tint of the destination under the picture
+constexpr u32 kTranslucent = 0x14;  // blend at DrawOptions::alpha
+constexpr u32 kEdgeMark = 0x18;     // copy, first and last pixel of each run marked
+constexpr u32 kFadeDown = 0x1C;     // blend level falling from the top
+constexpr u32 kScaledGlow = 0x20;   // vertically scaled tinted add
+constexpr u32 kSilhouette = 0x24;   // literal pixels filled with DrawArgument::color
+constexpr u32 kGray = 0x28;         // destination under the picture turned grey
+constexpr u32 kSubtractive = 0x2C;  // saturating subtract, tinted
+constexpr u32 kSmear = 0x30;        // destination smeared under the picture
 
 // Raw effects (16-bit pixels or palette indices).
-constexpr std::uint32_t kRawCopy = 0x00;
-constexpr std::uint32_t kRawKeyed = 0x04;        // fill colour transparent
-constexpr std::uint32_t kRawGradient = 0x08;     // destination blended towards the first source pixel
-constexpr std::uint32_t kRawTranslucent = 0x14;  // blend at DrawOptions::alpha, fill colour transparent
+constexpr u32 kRawCopy = 0x00;
+constexpr u32 kRawKeyed = 0x04;        // fill colour transparent
+constexpr u32 kRawGradient = 0x08;     // destination blended towards the first source pixel
+constexpr u32 kRawTranslucent = 0x14;  // blend at DrawOptions::alpha, fill colour transparent
 
 }  // namespace draw_mode
 
 // Extra data of the effects that take one (the original passes a pointer as the sixth argument).
 struct DrawArgument
 {
-    const std::uint8_t* alphaMap = nullptr;  // kAlphaMap: one level byte (multiple of 4) per picture pixel
-    std::uint32_t colorPair = 0;             // kSilhouette: the colour in both 16-bit halves
+    const u8* alphaMap = nullptr;  // kAlphaMap: one level byte (multiple of 4) per picture pixel
+    u32 colorPair = 0;             // kSilhouette: the colour in both 16-bit halves
 };
 
 // Options read by the next DrawPicture and reset after it (the original's draw option globals).
@@ -66,28 +68,28 @@ struct DrawOptions
 // One colour channel of the display format.
 struct ColorChannel
 {
-    std::uint32_t mask = 0;
-    std::uint32_t inverseMask = 0;  // 0xFFFFFFFF - mask
+    u32 mask = 0;
+    u32 inverseMask = 0;  // 0xFFFFFFFF - mask
     int shift = 0;
     // halves[k]: the mask shifted right by k with the bits of the channel kept; halves[4] is one tint step.
-    std::array<std::uint32_t, 6> halves{};
+    std::array<u32, 6> halves{};
     // steps[k]: (k + 1) << shift.
-    std::array<std::uint32_t, 5> steps{};
+    std::array<u32, 5> steps{};
     // Saturating sum lookup: 32 zero entries, the ramp k * halves[4] for k = 0..31, 32 entries of the mask.
-    std::array<std::uint32_t, 96> ramp{};
+    std::array<u32, 96> ramp{};
 
-    std::uint32_t Ramp(int index) const;
+    u32 Ramp(int index) const;
 };
 
 // Colours of the RLE format in the display format (the codes 0x8000 / 0xC000 stand for runs of them).
 struct RleColors
 {
-    std::uint32_t magic = 0xFFFF;
-    std::uint16_t fill16 = 0x26B;   // 0xC000 runs
-    std::uint16_t skip16 = 0x319F;  // 0x8000 runs
-    std::uint8_t fill8 = 1;
-    std::uint8_t reserved8 = 2;
-    std::uint8_t skip8 = 3;
+    u32 magic = 0xFFFF;
+    u16 fill16 = 0x26B;   // 0xC000 runs
+    u16 skip16 = 0x319F;  // 0x8000 runs
+    u8 fill8 = 1;
+    u8 reserved8 = 2;
+    u8 skip8 = 3;
 };
 
 // The drawing kernel (0x00416D30-0x004239D0): pixel format detection and colour tables, clipping, and the blitters
@@ -109,34 +111,34 @@ public:
     // Pixel format and screen geometry of the screen surface; without a surface the RGB555 defaults are used.
     bool Init(Surface& screen);
     bool InitPixelFormat(const Surface* screen);
-    void ColorMasks(std::uint32_t& red, std::uint32_t& green, std::uint32_t& blue) const;
-    void ConvertPixels(std::span<std::uint16_t> pixels) const;
-    void ConvertPixelsBack(std::span<std::uint16_t> pixels) const;
-    std::uint32_t MakeColor(std::uint32_t red, std::uint32_t green, std::uint32_t blue) const;
+    void ColorMasks(u32& red, u32& green, u32& blue) const;
+    void ConvertPixels(std::span<u16> pixels) const;
+    void ConvertPixelsBack(std::span<u16> pixels) const;
+    u32 MakeColor(u32 red, u32 green, u32 blue) const;
     const RleColors& Rle() const;
     const ColorChannel& Red() const;
     const ColorChannel& Green() const;
     const ColorChannel& Blue() const;
 
     // Target surface and clipping.
-    std::uint16_t* LockSurface(Surface& surface);
+    u16* LockSurface(Surface& surface);
     void UnlockSurface(Surface& surface);
-    void SetTarget(std::uint16_t* pixels);
-    std::uint16_t* Target() const;
+    void SetTarget(u16* pixels);
+    u16* Target() const;
     bool SetClip(int left, int top, int right, int bottom);
     void SetClipClamped(int left, int top, int right, int bottom);
 
     // Source and persistent effect state.
     void SetSource(const void* data);
     const void* Source() const;
-    void SetPalette(const std::uint16_t* palette);
+    void SetPalette(const u16* palette);
     DrawOptions& Options();
     void SetWave(int mode);
     void SetZoom(int anchorX, int anchorY, int zoomX, int zoomY);
 
     // Drawing.
-    int DrawPicture(int x, int y, int width, int height, std::uint32_t mode, const DrawArgument& argument = {});
-    void DrawOutline(int x, int y, int width, int height, std::uint32_t mode, const DrawArgument& argument = {});
+    int DrawPicture(int x, int y, int width, int height, u32 mode, const DrawArgument& argument = {});
+    void DrawOutline(int x, int y, int width, int height, u32 mode, const DrawArgument& argument = {});
     void DrawTile16(int x, int y);
     void DrawTile16Keyed(int x, int y);
     void DrawTile8(int x, int y);
@@ -145,16 +147,16 @@ public:
     void DrawZoomedMirrored(int x, int y, int width, int height);
 
     // Pixel operations on arrays of display pixels.
-    void BlendPairsWithColor(std::span<std::uint32_t> pairs, std::uint32_t colorPair) const;
-    void TintPixels(std::span<std::uint16_t> pixels, int red, int green, int blue) const;
-    void ShiftRed(std::span<std::uint16_t> pixels, int delta) const;
-    void ShiftGreenPairs(std::span<std::uint16_t> pixels, int delta) const;
-    void ShiftBluePairs(std::span<std::uint16_t> pixels, int delta) const;
-    void MixPixels(std::span<const std::uint16_t> other, std::span<std::uint16_t> pixels);
-    void GrayPixels(std::span<std::uint16_t> pixels) const;
+    void BlendPairsWithColor(std::span<u32> pairs, u32 colorPair) const;
+    void TintPixels(std::span<u16> pixels, int red, int green, int blue) const;
+    void ShiftRed(std::span<u16> pixels, int delta) const;
+    void ShiftGreenPairs(std::span<u16> pixels, int delta) const;
+    void ShiftBluePairs(std::span<u16> pixels, int delta) const;
+    void MixPixels(std::span<const u16> other, std::span<u16> pixels);
+    void GrayPixels(std::span<u16> pixels) const;
 
     // Per-line horizontal offsets of the wave effect: 15 rows of 33 (0x004A06A8).
-    static std::span<const std::int32_t> WaveOffsets();
+    static std::span<const i32> WaveOffsets();
 
 private:
     // Placement of the current DrawPicture after clipping.
@@ -165,11 +167,11 @@ private:
         int skipLeft = 0;
         int width = 0;  // visible columns
         int rows = 0;   // visible lines
-        std::uint16_t* dest = nullptr;
+        u16* dest = nullptr;
         int pitch = 0;  // pixels between lines, negative when flipped
-        const std::uint8_t* sourceLine = nullptr;
+        const u8* sourceLine = nullptr;
         int ditherPhase = 0;
-        std::uint32_t scaleFraction = 0;
+        u32 scaleFraction = 0;
         bool scaleUp = false;
         int shearStep = 0;
         int shearDirection = 0;
@@ -186,12 +188,12 @@ private:
 
     struct Tint
     {
-        std::uint32_t red = 0;
-        std::uint32_t green = 0;
-        std::uint32_t blue = 0;
-        std::uint32_t redSaturated = 0;
-        std::uint32_t greenSaturated = 0;
-        std::uint32_t blueSaturated = 0;
+        u32 red = 0;
+        u32 green = 0;
+        u32 blue = 0;
+        u32 redSaturated = 0;
+        u32 greenSaturated = 0;
+        u32 blueSaturated = 0;
     };
 
     struct LineWalk
@@ -207,34 +209,34 @@ private:
     using Blitter = int (Painter::*)(int x, int y, int width, int height, const DrawArgument& argument);
 
     void BuildBlitTables();
-    int Dispatch(std::uint32_t index, int x, int y, int width, int height, const DrawArgument& argument);
-    std::uint16_t* Pixel(int x, int y) const;
+    int Dispatch(u32 index, int x, int y, int width, int height, const DrawArgument& argument);
+    u16* Pixel(int x, int y) const;
     std::ptrdiff_t RowOffset(int y) const;
 
     // Pixel helpers.
-    std::uint16_t Blend(std::uint16_t dest, std::uint16_t source, int level) const;
-    std::uint16_t AlphaBlend(std::uint16_t dest, std::uint16_t source, int level) const;
-    std::uint32_t AlphaBlendPair(std::uint32_t dest, std::uint32_t source, int level) const;
+    u16 Blend(u16 dest, u16 source, int level) const;
+    u16 AlphaBlend(u16 dest, u16 source, int level) const;
+    u32 AlphaBlendPair(u32 dest, u32 source, int level) const;
     Tint MakeTint(int red, int green, int blue) const;
     Tint CurrentTint() const;
     bool Tinted() const;
-    std::uint16_t TintPixel(const Tint& tint, std::uint16_t dest) const;
-    std::uint16_t AddTinted(const Tint& tint, std::uint16_t source, std::uint16_t dest) const;
-    std::uint16_t Add(std::uint16_t source, std::uint16_t dest) const;
-    std::uint16_t SubtractTintedSource(const Tint& tint, std::uint16_t source, std::uint16_t dest) const;
-    std::uint16_t SubtractFromTintedDest(const Tint& tint, std::uint16_t source, std::uint16_t dest) const;
-    std::uint16_t Gray(std::uint16_t dest) const;
-    void Smear(std::uint16_t* at);
+    u16 TintPixel(const Tint& tint, u16 dest) const;
+    u16 AddTinted(const Tint& tint, u16 source, u16 dest) const;
+    u16 Add(u16 source, u16 dest) const;
+    u16 SubtractTintedSource(const Tint& tint, u16 source, u16 dest) const;
+    u16 SubtractFromTintedDest(const Tint& tint, u16 source, u16 dest) const;
+    u16 Gray(u16 dest) const;
+    void Smear(u16* at);
 
     // RLE line walking.
     void WaveBegin(int stride);
-    std::uint16_t* WaveLine(std::uint16_t* dest);
+    u16* WaveLine(u16* dest);
     void WaveAdvance();
-    std::uint32_t ScaleStep(std::uint32_t& fraction) const;
-    const std::uint8_t* ScaledSkipTop(const std::uint8_t* lines, std::uint32_t& fraction) const;
-    const std::uint8_t* ScaledNextLine(const std::uint8_t* line, std::uint32_t& fraction) const;
+    u32 ScaleStep(u32& fraction) const;
+    const u8* ScaledSkipTop(const u8* lines, u32& fraction) const;
+    const u8* ScaledNextLine(const u8* line, u32& fraction) const;
     template <typename RunOp>
-    void ForEachRun(const std::uint8_t* codes, int start, int width, RunOp&& op) const;
+    void ForEachRun(const u8* codes, int start, int width, RunOp&& op) const;
     template <typename LineOp, typename SkipHook>
     void ForEachLine(const LineWalk& walk, LineOp&& op, SkipHook&& skippedLine);
     template <typename RunOp>
@@ -278,19 +280,19 @@ private:
     int BlitRawGradient(int x, int y, int width, int height, const DrawArgument& argument);
 
     // Display format.
-    static const std::array<std::int32_t, 495> kWaveOffsets;
-    std::uint32_t displayRed = 0;
-    std::uint32_t displayGreen = 0;
-    std::uint32_t displayBlue = 0;
+    static const std::array<i32, 495> kWaveOffsets;
+    u32 displayRed = 0;
+    u32 displayGreen = 0;
+    u32 displayBlue = 0;
     Conversion conversion = Conversion::None;
     Conversion conversionBack = Conversion::None;
     ColorChannel red;
     ColorChannel green;
     ColorChannel blue;
-    std::array<std::uint32_t, 5> halfMaskPairs{};  // channel bits kept by (pair >> (k + 1))
-    std::uint32_t greenMaskPair = 0;               // edge mark colour (green mask in both halves)
-    std::uint32_t fillColorPair = 0;
-    std::uint32_t skipColorPair = 0;
+    std::array<u32, 5> halfMaskPairs{};  // channel bits kept by (pair >> (k + 1))
+    u32 greenMaskPair = 0;               // edge mark colour (green mask in both halves)
+    u32 fillColorPair = 0;
+    u32 skipColorPair = 0;
     RleColors rleColors;
 
     // Screen geometry and target.
@@ -298,17 +300,17 @@ private:
     int screenHeight = 0;
     int screenPitch = 0;   // pixels
     int surfacePitch = 0;  // pixels of the last locked surface
-    std::uint16_t* target = nullptr;
+    u16* target = nullptr;
     // y * pitch for the screen rows; the rest of the 1024 entries stay 0, so rows below the screen land on row 0.
-    std::array<std::int32_t, 1024> rowOffsets{};
+    std::array<i32, 1024> rowOffsets{};
     int clipX = 0;
     int clipY = 0;
     int clipWidth = 0;
     int clipHeight = 0;
 
     // Source and options.
-    const std::uint8_t* source = nullptr;
-    const std::uint16_t* palette = nullptr;
+    const u8* source = nullptr;
+    const u16* palette = nullptr;
     DrawOptions options;
     Placement placement;
     int mirrorStart = 0;  // first drawn picture column of a mirrored walk

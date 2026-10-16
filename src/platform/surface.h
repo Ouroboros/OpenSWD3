@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "core/types.h"
+
 namespace swd3
 {
 
@@ -15,29 +17,29 @@ class Surface
 {
 public:
     // The display format (the game window shows RGB565).
-    static constexpr std::uint32_t kRedMask = 0xF800;
-    static constexpr std::uint32_t kGreenMask = 0x7E0;
-    static constexpr std::uint32_t kBlueMask = 0x1F;
+    static constexpr u32 kRedMask = 0xF800;
+    static constexpr u32 kGreenMask = 0x7E0;
+    static constexpr u32 kBlueMask = 0x1F;
 
     Surface() = default;
     Surface(int width, int height);
 
     void Resize(int width, int height);
-    void Fill(std::uint16_t color);
+    void Fill(u16 color);
 
     int Width() const;
     int Height() const;
-    std::uint16_t* Pixels();
-    const std::uint16_t* Pixels() const;
-    std::uint16_t* Row(int y);
-    const std::uint16_t* Row(int y) const;
+    u16* Pixels();
+    const u16* Pixels() const;
+    u16* Row(int y);
+    const u16* Row(int y) const;
 
 private:
     std::size_t Guard() const;
 
     int width = 0;
     int height = 0;
-    std::vector<std::uint16_t> storage;
+    std::vector<u16> storage;
 };
 
 }  // namespace swd3

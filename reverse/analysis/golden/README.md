@@ -25,3 +25,7 @@ GOLDEN_OUT=<工作区>/tests/golden/draw_golden.txt SWD3_GAME_DIR=/mnt/e/Game/sw
 ## RLE 编解码（tests/golden/rle_golden.txt）
 
 场景定义：`tests/golden/rle_scenarios.h`。生成器：`rle_golden_legacy.cpp`（同样复制到旧树的 tests/ 下），运行 `./swd3_tests "rle codec"` 并设置 `GOLDEN_OUT`。
+
+## tsw 档案（tests/golden/tsw_golden.txt）
+
+场景定义：`tests/golden/tsw_scenarios.h`。生成器：`tsw_golden_legacy.cpp`，运行 `./swd3_tests "tsw archives"`。场景只请求实际存在的帧（越界帧号会把图形数据当作帧记录读取，原程序同样不可用）；直接载入的魔法图片不比较调色板（原程序带未初始化指针）。

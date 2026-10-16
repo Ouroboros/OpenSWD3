@@ -21,8 +21,7 @@ enum class Step
 
 }  // namespace
 
-LzoDecoder::LzoDecoder(std::span<const std::uint8_t> input, std::span<std::uint8_t> output)
-    : input(input), output(output)
+LzoDecoder::LzoDecoder(std::span<const u8> input, std::span<u8> output) : input(input), output(output)
 {
 }
 
@@ -31,7 +30,7 @@ std::size_t LzoDecoder::Written() const
     return this->outputPosition;
 }
 
-bool LzoDecoder::ReadByte(std::uint32_t& value)
+bool LzoDecoder::ReadByte(u32& value)
 {
     if (this->inputPosition >= this->input.size())
     {
@@ -43,9 +42,9 @@ bool LzoDecoder::ReadByte(std::uint32_t& value)
 }
 
 // A run length: `base` plus 255 for every zero byte, plus the first non-zero byte.
-bool LzoDecoder::ReadLength(std::uint32_t base, std::uint32_t& length)
+bool LzoDecoder::ReadLength(u32 base, u32& length)
 {
-    std::uint32_t value = 0;
+    u32 value = 0;
     length = 0;
 
     while (true)
@@ -67,7 +66,7 @@ bool LzoDecoder::ReadLength(std::uint32_t base, std::uint32_t& length)
     return true;
 }
 
-LzoStatus LzoDecoder::CopyLiterals(std::uint32_t count)
+LzoStatus LzoDecoder::CopyLiterals(u32 count)
 {
     if (count > this->input.size() - this->inputPosition)
     {
@@ -79,7 +78,7 @@ LzoStatus LzoDecoder::CopyLiterals(std::uint32_t count)
         return LzoStatus::OutputOverrun;
     }
 
-    for (std::uint32_t i = 0; i < count; ++i)
+    for (u32 i = 0; i < count; ++i)
     {
         this->output[this->outputPosition++] = this->input[this->inputPosition++];
     }
@@ -88,7 +87,7 @@ LzoStatus LzoDecoder::CopyLiterals(std::uint32_t count)
 }
 
 // Byte by byte, so that a distance shorter than the count repeats the bytes just written.
-LzoStatus LzoDecoder::CopyMatch(std::size_t distance, std::uint32_t count)
+LzoStatus LzoDecoder::CopyMatch(std::size_t distance, u32 count)
 {
     if (distance == 0 || distance > this->outputPosition)
     {
@@ -100,7 +99,7 @@ LzoStatus LzoDecoder::CopyMatch(std::size_t distance, std::uint32_t count)
         return LzoStatus::OutputOverrun;
     }
 
-    for (std::uint32_t i = 0; i < count; ++i)
+    for (u32 i = 0; i < count; ++i)
     {
         this->output[this->outputPosition] = this->output[this->outputPosition - distance];
         ++this->outputPosition;
@@ -110,7 +109,7 @@ LzoStatus LzoDecoder::CopyMatch(std::size_t distance, std::uint32_t count)
 }
 
 // The low two bits of the byte two before the read position give the literal count after a match.
-std::uint32_t LzoDecoder::TrailingLiterals() const
+u32 LzoDecoder::TrailingLiterals() const
 {
     return this->input[this->inputPosition - 2] & 3u;
 }
@@ -120,12 +119,12 @@ LzoStatus LzoDecoder::Run()
 {
     this->inputPosition = 0;
     this->outputPosition = 0;
-    std::uint32_t instruction = 0;
+    u32 instruction = 0;
     Step step = Step::Instruction;
 
     if (!this->input.empty() && this->input[0] > 17)
     {
-        const std::uint32_t count = this->input[0] - 17u;
+        const u32 count = this->input[0] - 17u;
         this->inputPosition = 1;
 
         if (const LzoStatus status = this->CopyLiterals(count); status != LzoStatus::Ok)
@@ -165,7 +164,7 @@ LzoStatus LzoDecoder::Run()
                     break;
                 }
 
-                std::uint32_t count = instruction;
+                u32 count = instruction;
 
                 if (count == 0 && !this->ReadLength(15, count))
                 {
@@ -194,7 +193,7 @@ LzoStatus LzoDecoder::Run()
                     break;
                 }
 
-                std::uint32_t high = 0;
+                u32 high = 0;
 
                 if (!this->ReadByte(high))
                 {
@@ -215,11 +214,11 @@ LzoStatus LzoDecoder::Run()
             case Step::Match:
             {
                 std::size_t distance = 0;
-                std::uint32_t count = 0;
+                u32 count = 0;
 
                 if (instruction >= 64)
                 {
-                    std::uint32_t high = 0;
+                    u32 high = 0;
 
                     if (!this->ReadByte(high))
                     {
@@ -238,8 +237,8 @@ LzoStatus LzoDecoder::Run()
                         return LzoStatus::InputOverrun;
                     }
 
-                    std::uint32_t low = 0;
-                    std::uint32_t high = 0;
+                    u32 low = 0;
+                    u32 high = 0;
 
                     if (!this->ReadByte(low) || !this->ReadByte(high))
                     {
@@ -259,8 +258,8 @@ LzoStatus LzoDecoder::Run()
                         return LzoStatus::InputOverrun;
                     }
 
-                    std::uint32_t low = 0;
-                    std::uint32_t high = 0;
+                    u32 low = 0;
+                    u32 high = 0;
 
                     if (!this->ReadByte(low) || !this->ReadByte(high))
                     {
@@ -285,7 +284,7 @@ LzoStatus LzoDecoder::Run()
                 }
                 else
                 {
-                    std::uint32_t high = 0;
+                    u32 high = 0;
 
                     if (!this->ReadByte(high))
                     {
@@ -307,7 +306,7 @@ LzoStatus LzoDecoder::Run()
 
             case Step::MatchDone:
             {
-                const std::uint32_t count = this->TrailingLiterals();
+                const u32 count = this->TrailingLiterals();
 
                 if (count == 0)
                 {

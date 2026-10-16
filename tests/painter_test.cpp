@@ -2,10 +2,15 @@
 #include <cstring>
 #include <vector>
 
+#include "core/types.h"
 #include "draw/painter.h"
 #include "game_data.h"
 #include "platform/surface.h"
 #include "test.h"
+
+using swd3::u16;
+using swd3::u32;
+using swd3::u8;
 
 using swd3::DrawArgument;
 using swd3::Painter;
@@ -15,14 +20,13 @@ namespace
 {
 
 // RLE picture: magic, width, height, flags 0x10, then lines (byte length header + codes), 0 terminator.
-std::vector<std::uint16_t> RlePicture(int width, const std::vector<std::vector<std::uint16_t>>& lines)
+std::vector<u16> RlePicture(int width, const std::vector<std::vector<u16>>& lines)
 {
-    std::vector<std::uint16_t>
-        data{0xFFFF, static_cast<std::uint16_t>(width), static_cast<std::uint16_t>(lines.size()), 0x10};
+    std::vector<u16> data{0xFFFF, static_cast<u16>(width), static_cast<u16>(lines.size()), 0x10};
 
     for (const auto& line : lines)
     {
-        data.push_back(static_cast<std::uint16_t>((line.size() + 1) * 2));
+        data.push_back(static_cast<u16>((line.size() + 1) * 2));
         data.insert(data.end(), line.begin(), line.end());
     }
 
@@ -34,7 +38,7 @@ std::vector<std::uint16_t> RlePicture(int width, const std::vector<std::vector<s
 
 TEST_CASE("painter: wave offsets match swd32.exe")
 {
-    const std::vector<std::uint8_t> exe = swd3test::ReadGameFile("swd32.exe");
+    const std::vector<u8> exe = swd3test::ReadGameFile("swd32.exe");
 
     if (exe.empty())
     {
@@ -51,9 +55,9 @@ TEST_CASE("painter: RGB565 display tables")
     Surface screen(640, 480);
     Painter painter;
     CHECK(painter.Init(screen));
-    std::uint32_t red = 0;
-    std::uint32_t green = 0;
-    std::uint32_t blue = 0;
+    u32 red = 0;
+    u32 green = 0;
+    u32 blue = 0;
     painter.ColorMasks(red, green, blue);
     CHECK_EQ(red, 0xF800u);
     CHECK_EQ(green, 0x7E0u);
@@ -84,7 +88,7 @@ TEST_CASE("painter: rows below the screen land on row 0")
     Painter painter;
     painter.Init(screen);
     painter.SetTarget(screen.Pixels());
-    std::vector<std::uint16_t> tile(256, 0x5555);
+    std::vector<u16> tile(256, 0x5555);
     painter.SetSource(tile.data());
     painter.DrawTile16(100, 480);
     CHECK_EQ(screen.Row(0)[100], 0x5555u);
@@ -99,7 +103,7 @@ TEST_CASE("painter: skip runs of the mirrored alpha map leave the destination")
     painter.Init(screen);
     painter.SetTarget(screen.Pixels());
     const auto picture = RlePicture(4, {{0x0002, 0xFFFF, 0xFFFF, 0x8002}});
-    std::vector<std::uint8_t> levels(4, 60);
+    std::vector<u8> levels(4, 60);
     painter.SetSource(picture.data());
     DrawArgument argument;
     argument.alphaMap = levels.data();

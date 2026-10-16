@@ -7,11 +7,17 @@
 #include <vector>
 
 #include "codec/lzo.h"
+#include "core/types.h"
 #include "draw/painter.h"
 #include "game_data.h"
 #include "golden/draw_scenarios.h"
 #include "platform/surface.h"
 #include "test.h"
+
+using swd3::u16;
+using swd3::u32;
+using swd3::u64;
+using swd3::u8;
 
 namespace
 {
@@ -25,7 +31,7 @@ public:
         this->painter.Init(*this->surface);
     }
 
-    void Reset(std::uint32_t seed) override
+    void Reset(u32 seed) override
     {
         this->surface = std::make_unique<swd3::Surface>(golden::kScreenWidth, golden::kScreenHeight);
 
@@ -89,7 +95,7 @@ public:
         }
     }
 
-    void Tile(int kind, const void* source, const std::uint16_t* palette, int x, int y) override
+    void Tile(int kind, const void* source, const u16* palette, int x, int y) override
     {
         this->painter.SetSource(source);
         this->painter.SetPalette(palette);
@@ -118,15 +124,15 @@ public:
 
     void Pixels(
         golden::PixelOperation operation,
-        std::uint16_t* pixels,
+        u16* pixels,
         std::size_t count,
-        const std::uint16_t* other,
+        const u16* other,
         int a,
         int b,
         int c
     ) override
     {
-        const std::span<std::uint16_t> span(pixels, count);
+        const std::span<u16> span(pixels, count);
 
         switch (operation)
         {
@@ -147,7 +153,7 @@ public:
                 break;
 
             case golden::PixelOperation::Mix:
-                this->painter.MixPixels(std::span<const std::uint16_t>(other, count), span);
+                this->painter.MixPixels(std::span<const u16>(other, count), span);
                 break;
 
             case golden::PixelOperation::Gray:
@@ -156,21 +162,21 @@ public:
 
             case golden::PixelOperation::BlendPairs:
             {
-                std::vector<std::uint32_t> pairs(count / 2);
+                std::vector<u32> pairs(count / 2);
                 std::memcpy(pairs.data(), pixels, pairs.size() * 4);
-                this->painter.BlendPairsWithColor(pairs, static_cast<std::uint32_t>(a));
+                this->painter.BlendPairsWithColor(pairs, static_cast<u32>(a));
                 std::memcpy(pixels, pairs.data(), pairs.size() * 4);
                 break;
             }
         }
     }
 
-    std::uint32_t MakeColor(std::uint32_t red, std::uint32_t green, std::uint32_t blue) override
+    u32 MakeColor(u32 red, u32 green, u32 blue) override
     {
         return this->painter.MakeColor(red, green, blue);
     }
 
-    const std::uint16_t* Screen() const override
+    const u16* Screen() const override
     {
         return this->surface->Pixels();
     }
@@ -220,7 +226,7 @@ TEST_CASE("painter: matches the golden hashes of the legacy drawing kernel")
 {
     const std::map<std::string, std::string> golden = LoadGolden(SWD3_SOURCE_DIR "/tests/golden/draw_golden.txt");
 
-    auto decompress = [](const std::uint8_t* input, std::size_t size, std::vector<std::uint8_t>& out)
+    auto decompress = [](const u8* input, std::size_t size, std::vector<u8>& out)
     {
         swd3::LzoDecoder decoder({input, size}, out);
         return decoder.Run() == swd3::LzoStatus::Ok && decoder.Written() == out.size();
@@ -247,7 +253,7 @@ TEST_CASE("painter: matches the golden hashes of the legacy drawing kernel")
     golden::Run(
         backend,
         frames,
-        [&](const std::string& name, std::uint64_t hash)
+        [&](const std::string& name, u64 hash)
         {
             char text[17];
             std::snprintf(text, sizeof(text), "%016llx", static_cast<unsigned long long>(hash));

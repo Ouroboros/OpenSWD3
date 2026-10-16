@@ -6,6 +6,8 @@
 #include <string_view>
 #include <vector>
 
+#include "core/types.h"
+
 namespace swd3
 {
 
@@ -36,7 +38,7 @@ public:
         End
     };
 
-    static constexpr std::uint32_t kInvalidPosition = 0xFFFFFFFFu;
+    static constexpr u32 kInvalidPosition = 0xFFFFFFFFu;
 
     File();
     ~File();
@@ -59,32 +61,32 @@ public:
     bool CreateMapping();
     bool CloseMapping();
     // The bytes [offset, offset + size) of the mapping (to the end of the file for size 0); nullptr on failure.
-    const std::uint8_t* MapView(std::uint32_t offset, std::uint32_t size);
-    bool UnmapView(const std::uint8_t* view);
+    const u8* MapView(u32 offset, u32 size);
+    bool UnmapView(const u8* view);
 
     // kInvalidPosition when the file is not open.
-    std::uint32_t Size();
+    u32 Size();
     bool Truncate();
     // `bytes` is the request on entry and the count transferred on success (0 when the call failed).
-    bool Read(void* buffer, std::uint32_t& bytes);
-    bool Write(const void* buffer, std::uint32_t& bytes);
+    bool Read(void* buffer, u32& bytes);
+    bool Write(const void* buffer, u32& bytes);
     // The new position, kInvalidPosition on failure (0 when the file is not open).
-    std::uint32_t Seek(Origin origin, std::int32_t distance);
+    u32 Seek(Origin origin, i32 distance);
     // The new position plus one: 0 exactly when the seek failed.
-    std::uint32_t SeekCurrent(std::int32_t distance);
-    std::uint32_t SeekBegin(std::int32_t distance);
-    std::uint32_t SeekEnd(std::int32_t distance);
-    bool Tell(std::uint32_t& position);
+    u32 SeekCurrent(i32 distance);
+    u32 SeekBegin(i32 distance);
+    u32 SeekEnd(i32 distance);
+    bool Tell(u32& position);
     // Last write time as a Windows FILETIME (100 ns units since 1601-01-01 UTC).
-    bool LastWriteTime(std::uint64_t& fileTime) const;
+    bool LastWriteTime(u64& fileTime) const;
 
     bool WriteExact(const void* buffer, int bytes);
-    bool WriteByte(std::uint8_t value);
-    bool WriteDword(std::uint32_t value);
+    bool WriteByte(u8 value);
+    bool WriteDword(u32 value);
     // Succeeds whenever the read call succeeds, also when fewer bytes were available.
     bool ReadExact(void* buffer, int bytes);
-    bool ReadByte(std::uint8_t& value);
-    bool ReadDword(std::uint32_t& value);
+    bool ReadByte(u8& value);
+    bool ReadDword(u32& value);
 
     const std::string& ErrorText() const;
 
@@ -95,7 +97,7 @@ private:
     std::FILE* file = nullptr;
     bool mapped = false;
     bool viewed = false;
-    std::vector<std::uint8_t> view;
+    std::vector<u8> view;
     std::string name;
     std::string error;
 };

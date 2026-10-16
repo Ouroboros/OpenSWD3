@@ -8,9 +8,9 @@ namespace swd3
 namespace
 {
 
-std::uint16_t Word(const std::uint8_t* bytes, std::ptrdiff_t index = 0)
+u16 Word(const u8* bytes, std::ptrdiff_t index = 0)
 {
-    std::uint16_t value = 0;
+    u16 value = 0;
     std::memcpy(&value, bytes + 2 * index, 2);
     return value;
 }
@@ -43,7 +43,7 @@ void Painter::DrawZoomed(int x, int y, int width, int height)
     std::ptrdiff_t rowClipLeft = row * pitch + this->clipX;
     std::ptrdiff_t rowClipRight = rowClipLeft + this->clipWidth;
     std::ptrdiff_t rowDest = row * pitch + left;
-    const std::uint8_t* line = this->source + 8;
+    const u8* line = this->source + 8;
     int rowFraction = 0;
 
     if (Word(line) != 0)
@@ -104,15 +104,15 @@ void Painter::DrawZoomed(int x, int y, int width, int height)
             }
 
             std::ptrdiff_t dest = rowDest;
-            const std::uint8_t* code = line + 2;
+            const u8* code = line + 2;
             int columnFraction = 0;
 
-            for (std::uint16_t value = Word(code); value != 0; value = Word(code))
+            for (u16 value = Word(code); value != 0; value = Word(code))
             {
                 const int count = value & 0x3FFF;
                 const bool literal = (value & 0xC000) == 0;
                 const int scaled = scaleX * count / 1024;
-                const std::uint8_t* pixels = code + 2;
+                const u8* pixels = code + 2;
                 const std::ptrdiff_t fromLeft = dest - rowClipLeft;
                 const std::ptrdiff_t over = dest + scaled - rowClipRight;
                 std::ptrdiff_t lower = 0;
@@ -230,7 +230,7 @@ void Painter::DrawZoomedMirrored(int x, int y, int width, int height)
     std::ptrdiff_t rowClipLeft = row * pitch + this->clipX;
     std::ptrdiff_t rowClipRight = rowClipLeft + this->clipWidth;
     std::ptrdiff_t rowDest = row * pitch + right;
-    const std::uint8_t* line = this->source + 8;
+    const u8* line = this->source + 8;
     int rowFraction = 0;
 
     if (Word(line) != 0)
@@ -291,15 +291,15 @@ void Painter::DrawZoomedMirrored(int x, int y, int width, int height)
             }
 
             std::ptrdiff_t dest = rowDest;
-            const std::uint8_t* code = line + 2;
+            const u8* code = line + 2;
             int columnFraction = 0;
 
-            for (std::uint16_t value = Word(code); value != 0; value = Word(code))
+            for (u16 value = Word(code); value != 0; value = Word(code))
             {
                 const int count = value & 0x3FFF;
                 const bool literal = (value & 0xC000) == 0;
                 const int scaled = scaleX * count / 1024;
-                const std::uint8_t* pixels = code + 2;
+                const u8* pixels = code + 2;
                 const std::ptrdiff_t next = dest - scaled;
                 const std::ptrdiff_t fromLeft = next - rowClipLeft;
                 const std::ptrdiff_t over = dest - rowClipRight;

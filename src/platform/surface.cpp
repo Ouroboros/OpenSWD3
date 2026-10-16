@@ -17,7 +17,7 @@ void Surface::Resize(int width, int height)
     this->storage.assign(3 * this->Guard(), 0);
 }
 
-void Surface::Fill(std::uint16_t color)
+void Surface::Fill(u16 color)
 {
     std::fill_n(this->Pixels(), this->Guard(), color);
 }
@@ -32,22 +32,22 @@ int Surface::Height() const
     return this->height;
 }
 
-std::uint16_t* Surface::Pixels()
+u16* Surface::Pixels()
 {
     return this->storage.data() + this->Guard();
 }
 
-const std::uint16_t* Surface::Pixels() const
+const u16* Surface::Pixels() const
 {
     return this->storage.data() + this->Guard();
 }
 
-std::uint16_t* Surface::Row(int y)
+u16* Surface::Row(int y)
 {
     return this->Pixels() + static_cast<std::size_t>(y) * this->width;
 }
 
-const std::uint16_t* Surface::Row(int y) const
+const u16* Surface::Row(int y) const
 {
     return this->Pixels() + static_cast<std::size_t>(y) * this->width;
 }

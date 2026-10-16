@@ -16,30 +16,37 @@
 namespace golden
 {
 
+// The project integer types, repeated here because these headers are also built in the legacy tree.
+using u8 = std::uint8_t;
+using u16 = std::uint16_t;
+using u32 = std::uint32_t;
+using u64 = std::uint64_t;
+using i32 = std::int32_t;
+
 constexpr int kScreenWidth = 640;
 constexpr int kScreenHeight = 480;
 
 struct Frame
 {
-    std::vector<std::uint8_t> rle;
+    std::vector<u8> rle;
     int width = 0;
     int height = 0;
 };
 
 // Decompresses `size` bytes into `output` (sized to the expected length); false on failure.
-using Decompress = std::function<bool(const std::uint8_t* input, std::size_t size, std::vector<std::uint8_t>& output)>;
+using Decompress = std::function<bool(const u8* input, std::size_t size, std::vector<u8>& output)>;
 
-inline std::uint32_t ReadU32(std::ifstream& file, std::uint32_t offset)
+inline u32 ReadU32(std::ifstream& file, u32 offset)
 {
-    std::uint32_t value = 0;
+    u32 value = 0;
     file.seekg(offset);
     file.read(reinterpret_cast<char*>(&value), 4);
     return value;
 }
 
-inline std::uint16_t ReadU16(std::ifstream& file, std::uint32_t offset)
+inline u16 ReadU16(std::ifstream& file, u32 offset)
 {
-    std::uint16_t value = 0;
+    u16 value = 0;
     file.seekg(offset);
     file.read(reinterpret_cast<char*>(&value), 2);
     return value;
@@ -60,28 +67,28 @@ LoadFrames(const std::string& path, const std::vector<int>& entries, int perEntr
 
     for (int entry : entries)
     {
-        const std::uint32_t base = ReadU32(file, 0x1C + 0x2C * static_cast<std::uint32_t>(entry - 1) + 0x18);
+        const u32 base = ReadU32(file, 0x1C + 0x2C * static_cast<u32>(entry - 1) + 0x18);
 
         if (base == 0 || ReadU16(file, base + 4) != 0xABCD)
         {
             continue;
         }
 
-        const std::uint16_t count = ReadU16(file, base + 6);
-        const std::uint16_t format = ReadU16(file, base + 8);
-        const std::uint32_t table = base + 12 + (format == 8 ? 0x200 : 0);
+        const u16 count = ReadU16(file, base + 6);
+        const u16 format = ReadU16(file, base + 8);
+        const u32 table = base + 12 + (format == 8 ? 0x200 : 0);
 
         for (int index = 0; index < count && index < perEntry; ++index)
         {
-            const std::uint32_t offset = ReadU32(file, table + 0x24 * index);
-            const std::uint32_t packed = ReadU32(file, table + 0x24 * index + 4);
-            const std::uint32_t size = ReadU32(file, table + 0x24 * index + 8);
-            std::vector<std::uint8_t> input(packed);
+            const u32 offset = ReadU32(file, table + 0x24 * index);
+            const u32 packed = ReadU32(file, table + 0x24 * index + 4);
+            const u32 size = ReadU32(file, table + 0x24 * index + 8);
+            std::vector<u8> input(packed);
             file.seekg(base + offset);
             file.read(reinterpret_cast<char*>(input.data()), packed);
             Frame frame;
             frame.rle.assign(size + 64, 0);
-            std::vector<std::uint8_t> output(size);
+            std::vector<u8> output(size);
 
             if (!decompress(input.data(), packed, output))
             {
@@ -89,7 +96,7 @@ LoadFrames(const std::string& path, const std::vector<int>& entries, int perEntr
             }
 
             std::memcpy(frame.rle.data(), output.data(), size);
-            std::uint16_t header[4] = {};
+            u16 header[4] = {};
             std::memcpy(header, output.data(), 8);
 
             if (header[0] != 0xFFFF || (header[3] & 0x10) == 0)
@@ -122,12 +129,12 @@ LoadGoldenFrames(const std::function<std::string(const std::string&)>& gameFile,
 struct DrawCall
 {
     const void* source = nullptr;
-    const std::uint16_t* palette = nullptr;
+    const u16* palette = nullptr;
     int x = 0;
     int y = 0;
     int width = 0;
     int height = 0;
-    std::uint32_t mode = 0;
+    u32 mode = 0;
     int alpha = 0;
     int tintRed = 0;
     int tintGreen = 0;
@@ -136,8 +143,8 @@ struct DrawCall
     int scaleHeight = 0;
     int shear = 0;
     int wave = 0;
-    const std::uint8_t* alphaMap = nullptr;
-    std::uint32_t colorPair = 0;
+    const u8* alphaMap = nullptr;
+    u32 colorPair = 0;
 };
 
 enum class PixelOperation
@@ -156,7 +163,7 @@ class Backend
 public:
     virtual ~Backend() = default;
     // A fresh screen filled with the background pattern of `seed`, the clip rectangle on the whole screen.
-    virtual void Reset(std::uint32_t seed) = 0;
+    virtual void Reset(u32 seed) = 0;
     virtual void SetClip(int left, int top, int right, int bottom) = 0;
     virtual int Draw(const DrawCall& call) = 0;
     virtual void Outline(const DrawCall& call) = 0;
@@ -173,24 +180,25 @@ public:
         int zoomY
     ) = 0;
     // kind 0: 16-bit, 1: 16-bit keyed, 2: palette, 3: palette keyed
-    virtual void Tile(int kind, const void* source, const std::uint16_t* palette, int x, int y) = 0;
-    virtual void Pixels(
-        PixelOperation operation,
-        std::uint16_t* pixels,
-        std::size_t count,
-        const std::uint16_t* other,
-        int a,
-        int b,
-        int c
-    ) = 0;
-    virtual std::uint32_t MakeColor(std::uint32_t red, std::uint32_t green, std::uint32_t blue) = 0;
-    virtual const std::uint16_t* Screen() const = 0;
+    virtual void Tile(int kind, const void* source, const u16* palette, int x, int y) = 0;
+    virtual void
+    Pixels(PixelOperation operation, u16* pixels, std::size_t count, const u16* other, int a, int b, int c) = 0;
+    virtual u32 MakeColor(u32 red, u32 green, u32 blue) = 0;
+    virtual const u16* Screen() const = 0;
 };
 
-inline std::uint64_t Hash(const void* data, std::size_t bytes)
+inline void Append32(std::vector<u8>& out, u32 value)
 {
-    std::uint64_t hash = 1469598103934665603ull;
-    const auto* p = static_cast<const std::uint8_t*>(data);
+    for (int i = 0; i < 4; ++i)
+    {
+        out.push_back(static_cast<u8>(value >> (8 * i)));
+    }
+}
+
+inline u64 Hash(const void* data, std::size_t bytes)
+{
+    u64 hash = 1469598103934665603ull;
+    const auto* p = static_cast<const u8*>(data);
 
     for (std::size_t i = 0; i < bytes; ++i)
     {
@@ -201,7 +209,7 @@ inline std::uint64_t Hash(const void* data, std::size_t bytes)
     return hash;
 }
 
-inline std::uint32_t Mix32(std::uint32_t value)
+inline u32 Mix32(u32 value)
 {
     value ^= value >> 16;
     value *= 0x7FEB352Du;
@@ -212,21 +220,21 @@ inline std::uint32_t Mix32(std::uint32_t value)
 }
 
 // The background pattern of a scenario (also used by the backends' Reset).
-inline std::uint16_t Background(std::uint32_t seed, int x, int y)
+inline u16 Background(u32 seed, int x, int y)
 {
-    return static_cast<std::uint16_t>(Mix32(seed * 0x9E3779B9u + static_cast<std::uint32_t>(y * kScreenWidth + x)));
+    return static_cast<u16>(Mix32(seed * 0x9E3779B9u + static_cast<u32>(y * kScreenWidth + x)));
 }
 
 // A raw 16-bit picture from an RLE frame: literal pixels, fill runs 0x04CB and skip runs 0x631F (the converted RLE
 // fill and skip colours of an RGB565 display).
-inline std::vector<std::uint16_t> RawPixels(const Frame& frame)
+inline std::vector<u16> RawPixels(const Frame& frame)
 {
-    std::vector<std::uint16_t> pixels(static_cast<std::size_t>(frame.width) * frame.height, 0x631F);
-    const std::uint8_t* line = frame.rle.data() + 8;
+    std::vector<u16> pixels(static_cast<std::size_t>(frame.width) * frame.height, 0x631F);
+    const u8* line = frame.rle.data() + 8;
 
     for (int y = 0; y < frame.height; ++y)
     {
-        std::uint16_t header = 0;
+        u16 header = 0;
         std::memcpy(&header, line, 2);
 
         if (header == 0)
@@ -234,12 +242,12 @@ inline std::vector<std::uint16_t> RawPixels(const Frame& frame)
             break;
         }
 
-        const std::uint8_t* code = line + 2;
+        const u8* code = line + 2;
         int x = 0;
 
         while (x < frame.width)
         {
-            std::uint16_t value = 0;
+            u16 value = 0;
             std::memcpy(&value, code, 2);
             const int count = value & 0x3FFF;
             code += 2;
@@ -251,7 +259,7 @@ inline std::vector<std::uint16_t> RawPixels(const Frame& frame)
 
             for (int i = 0; i < count && x + i < frame.width; ++i)
             {
-                std::uint16_t pixel = (value & 0x8000) != 0 ? 0x631F : 0x04CB;
+                u16 pixel = (value & 0x8000) != 0 ? 0x631F : 0x04CB;
 
                 if ((value & 0xC000) == 0)
                 {
@@ -277,15 +285,13 @@ inline std::vector<std::uint16_t> RawPixels(const Frame& frame)
 
 inline void
 
-Run(Backend& backend,
-    const std::vector<Frame>& frames,
-    const std::function<void(const std::string&, std::uint64_t)>& reportHash)
+Run(Backend& backend, const std::vector<Frame>& frames, const std::function<void(const std::string&, u64)>& reportHash)
 {
     // GOLDEN_DUMP=<scenario name prefix>: the screen after that scenario is written to <GOLDEN_DUMP_FILE>.
     const char* dumpName = std::getenv("GOLDEN_DUMP");
     const char* dumpFile = std::getenv("GOLDEN_DUMP_FILE");
 
-    auto report = [&](const std::string& name, std::uint64_t hash)
+    auto report = [&](const std::string& name, u64 hash)
     {
         if (dumpName != nullptr && dumpFile != nullptr && name.rfind(dumpName, 0) == 0)
         {
@@ -304,7 +310,7 @@ Run(Backend& backend,
     struct Variant
     {
         const char* name;
-        std::uint32_t mode;
+        u32 mode;
         int alpha;
         int tintRed;
         int tintGreen;
@@ -370,16 +376,16 @@ Run(Backend& backend,
         int dy;
     };
 
-    std::uint32_t seed = 1;
+    u32 seed = 1;
 
     for (std::size_t f = 0; f < frames.size(); ++f)
     {
         const Frame& frame = frames[f];
-        std::vector<std::uint8_t> alphaMap(static_cast<std::size_t>(frame.width) * frame.height);
+        std::vector<u8> alphaMap(static_cast<std::size_t>(frame.width) * frame.height);
 
         for (std::size_t i = 0; i < alphaMap.size(); ++i)
         {
-            alphaMap[i] = static_cast<std::uint8_t>((Mix32(static_cast<std::uint32_t>(i) + 77u) % 16) * 4);
+            alphaMap[i] = static_cast<u8>((Mix32(static_cast<u32>(i) + 77u) % 16) * 4);
         }
 
         const Position positions[] = {
@@ -445,24 +451,24 @@ Run(Backend& backend,
         backend.Outline(outline);
         report("outline/" + std::to_string(f), screenHash());
 
-        const std::vector<std::uint16_t> raw = RawPixels(frame);
-        std::array<std::uint16_t, 256> palette{};
+        const std::vector<u16> raw = RawPixels(frame);
+        std::array<u16, 256> palette{};
 
         for (std::size_t i = 0; i < palette.size(); ++i)
         {
-            palette[i] = static_cast<std::uint16_t>(Mix32(static_cast<std::uint32_t>(i) * 31u));
+            palette[i] = static_cast<u16>(Mix32(static_cast<u32>(i) * 31u));
         }
 
-        std::vector<std::uint8_t> indexed(raw.size());
+        std::vector<u8> indexed(raw.size());
 
         for (std::size_t i = 0; i < raw.size(); ++i)
         {
-            indexed[i] = static_cast<std::uint8_t>(raw[i] % 7 == 0 ? 1 : raw[i] & 0xFF);
+            indexed[i] = static_cast<u8>(raw[i] % 7 == 0 ? 1 : raw[i] & 0xFF);
         }
 
-        const std::uint32_t rawModes[] = {0x00, 0x01, 0x04, 0x05, 0x08, 0x14};
+        const u32 rawModes[] = {0x00, 0x01, 0x04, 0x05, 0x08, 0x14};
 
-        for (std::uint32_t mode : rawModes)
+        for (u32 mode : rawModes)
         {
             for (int kind = 0; kind < 2; ++kind)
             {
@@ -536,15 +542,15 @@ Run(Backend& backend,
         }
     }
 
-    std::vector<std::uint16_t> tile16(256);
-    std::vector<std::uint8_t> tile8(256);
-    std::array<std::uint16_t, 256> palette{};
+    std::vector<u16> tile16(256);
+    std::vector<u8> tile8(256);
+    std::array<u16, 256> palette{};
 
     for (int i = 0; i < 256; ++i)
     {
-        tile16[static_cast<std::size_t>(i)] = static_cast<std::uint16_t>(i % 5 == 0 ? 0x04CB : Mix32(i + 5u));
-        tile8[static_cast<std::size_t>(i)] = static_cast<std::uint8_t>(i % 6 == 0 ? 1 : Mix32(i + 9u));
-        palette[static_cast<std::size_t>(i)] = static_cast<std::uint16_t>(Mix32(static_cast<std::uint32_t>(i) * 13u));
+        tile16[static_cast<std::size_t>(i)] = static_cast<u16>(i % 5 == 0 ? 0x04CB : Mix32(i + 5u));
+        tile8[static_cast<std::size_t>(i)] = static_cast<u8>(i % 6 == 0 ? 1 : Mix32(i + 9u));
+        palette[static_cast<std::size_t>(i)] = static_cast<u16>(Mix32(static_cast<u32>(i) * 13u));
     }
 
     for (int kind = 0; kind < 4; ++kind)
@@ -556,8 +562,8 @@ Run(Backend& backend,
         report("tile/" + std::to_string(kind), screenHash());
     }
 
-    std::vector<std::uint16_t> pixels(1000);
-    std::vector<std::uint16_t> other(1000);
+    std::vector<u16> pixels(1000);
+    std::vector<u16> other(1000);
 
     const struct
     {
@@ -585,8 +591,8 @@ Run(Backend& backend,
     {
         for (std::size_t i = 0; i < pixels.size(); ++i)
         {
-            pixels[i] = static_cast<std::uint16_t>(Mix32(static_cast<std::uint32_t>(i) * 3u + 1u));
-            other[i] = static_cast<std::uint16_t>(Mix32(static_cast<std::uint32_t>(i) * 7u + 2u));
+            pixels[i] = static_cast<u16>(Mix32(static_cast<u32>(i) * 3u + 1u));
+            other[i] = static_cast<u16>(Mix32(static_cast<u32>(i) * 7u + 2u));
         }
 
         backend.Pixels(
@@ -601,13 +607,13 @@ Run(Backend& backend,
         report(std::string("pixels/") + operation.name, Hash(pixels.data(), pixels.size() * 2));
     }
 
-    std::vector<std::uint32_t> colors;
+    std::vector<u32> colors;
 
-    for (std::uint32_t red = 0; red < 32; red += 3)
+    for (u32 red = 0; red < 32; red += 3)
     {
-        for (std::uint32_t green = 0; green < 32; green += 5)
+        for (u32 green = 0; green < 32; green += 5)
         {
-            for (std::uint32_t blue = 0; blue < 32; blue += 7)
+            for (u32 blue = 0; blue < 32; blue += 7)
             {
                 colors.push_back(backend.MakeColor(red, green, blue));
             }

@@ -2,8 +2,12 @@
 #include <cstring>
 #include <filesystem>
 
+#include "core/types.h"
 #include "file/file.h"
 #include "test.h"
+
+using swd3::u32;
+using swd3::u8;
 
 using swd3::File;
 
@@ -31,13 +35,13 @@ TEST_CASE("file: open always creates, writes and reads back")
         CHECK(file.WriteByte(0xAB));
         CHECK_EQ(file.Size(), 5u);
         CHECK_EQ(file.SeekBegin(0), 1u);
-        std::uint32_t value = 0;
+        u32 value = 0;
         CHECK(file.ReadDword(value));
         CHECK_EQ(value, 0x12345678u);
-        std::uint32_t position = 0;
+        u32 position = 0;
         CHECK(file.Tell(position));
         CHECK_EQ(position, 4u);
-        std::uint8_t byte = 0;
+        u8 byte = 0;
         CHECK(file.ReadByte(byte));
         CHECK_EQ(byte, 0xABu);
         CHECK(file.Close());
@@ -54,7 +58,7 @@ TEST_CASE("file: empty read fails, short read succeeds")
     CHECK(file.WriteByte(7));
     file.SeekBegin(0);
     char buffer[8] = {};
-    std::uint32_t bytes = 0;
+    u32 bytes = 0;
     CHECK(!file.Read(buffer, bytes));
     CHECK(file.ReadExact(buffer, 8));
     file.Close();
@@ -69,10 +73,10 @@ TEST_CASE("file: mapping views the whole file; only the current view can be rele
     file.WriteExact("abcdef", 6);
     CHECK(file.MapView(0, 0) == nullptr);
     CHECK(file.CreateMapping());
-    const std::uint8_t* view = file.MapView(0, 0);
+    const u8* view = file.MapView(0, 0);
     CHECK(view != nullptr);
     CHECK(std::memcmp(view, "abcdef", 6) == 0);
-    std::uint8_t other = 0;
+    u8 other = 0;
     CHECK(!file.UnmapView(&other));
     CHECK(file.UnmapView(view));
     CHECK(file.CloseMapping());

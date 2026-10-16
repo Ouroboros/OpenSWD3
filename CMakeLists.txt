@@ -58,10 +58,10 @@ if(WIN32)
 endif()
 
 if(EXISTS "${SWD3_MAIN_SOURCE}")
-    add_executable(swd3 "${SWD3_MAIN_SOURCE}")
-    target_link_libraries(swd3 PRIVATE swd3_core SDL3::SDL3-static swd3::ffmpeg)
+    add_executable(swd3r "${SWD3_MAIN_SOURCE}")
+    target_link_libraries(swd3r PRIVATE swd3_core SDL3::SDL3-static swd3::ffmpeg)
     if(WIN32)
-        set_target_properties(swd3 PROPERTIES WIN32_EXECUTABLE ON)
+        set_target_properties(swd3r PROPERTIES WIN32_EXECUTABLE ON)
     endif()
 endif()
 

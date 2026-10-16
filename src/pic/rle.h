@@ -5,6 +5,7 @@
 #include <span>
 #include <vector>
 
+#include "core/types.h"
 #include "pic/picture.h"
 
 namespace swd3
@@ -14,9 +15,9 @@ class Painter;
 
 struct RleHeader
 {
-    std::uint16_t width = 0;
-    std::uint16_t height = 0;
-    std::uint16_t format = 0;
+    u16 width = 0;
+    u16 height = 0;
+    u16 format = 0;
 };
 
 // The RLE picture format: a header of four words (magic 0xFFFF, width, height, format: 0x10 for 16-bit pixels, 8 for
@@ -29,11 +30,11 @@ class RleCodec
 public:
     explicit RleCodec(const Painter& painter);
 
-    std::vector<std::uint8_t> Encode(const void* pixels, int width, int height, int format) const;
-    std::optional<RawPicture> Decode(std::span<const std::uint8_t> rle) const;
-    bool ConvertToDisplay(std::span<std::uint8_t> rle, RleHeader& header) const;
+    std::vector<u8> Encode(const void* pixels, int width, int height, int format) const;
+    std::optional<RawPicture> Decode(std::span<const u8> rle) const;
+    bool ConvertToDisplay(std::span<u8> rle, RleHeader& header) const;
     void ConvertTo16(Picture& picture) const;
-    void ConvertTileTo16(std::vector<std::uint8_t>& tile) const;
+    void ConvertTileTo16(std::vector<u8>& tile) const;
 
 private:
     const Painter& painter;

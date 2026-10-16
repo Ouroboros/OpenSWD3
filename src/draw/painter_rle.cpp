@@ -9,38 +9,38 @@ namespace
 {
 
 // RLE data is a byte stream; its 16-bit words are not necessarily aligned.
-std::uint16_t Word(const std::uint8_t* bytes, std::ptrdiff_t index = 0)
+u16 Word(const u8* bytes, std::ptrdiff_t index = 0)
 {
-    std::uint16_t value = 0;
+    u16 value = 0;
     std::memcpy(&value, bytes + 2 * index, 2);
     return value;
 }
 
-std::uint32_t ReadPair(const std::uint16_t* pixels)
+u32 ReadPair(const u16* pixels)
 {
-    std::uint32_t value = 0;
+    u32 value = 0;
     std::memcpy(&value, pixels, 4);
     return value;
 }
 
-void WritePair(std::uint16_t* pixels, std::uint32_t value)
+void WritePair(u16* pixels, u32 value)
 {
     std::memcpy(pixels, &value, 4);
 }
 
 // Whether a pixel pointer is not on a 4-byte boundary (the pair loops of the original align on it).
-bool OddAligned(const std::uint16_t* pixel)
+bool OddAligned(const u16* pixel)
 {
     return (reinterpret_cast<std::uintptr_t>(pixel) & 2) != 0;
 }
 
-constexpr std::uint16_t kAlphaMapMarker = 0xFFF0;
+constexpr u16 kAlphaMapMarker = 0xFFF0;
 // The smear effect steps a fixed 640-pixel row up and down, whatever the pitch.
 constexpr std::ptrdiff_t kSmearRow = 640;
 
 }  // namespace
 
-std::uint16_t Painter::Blend(std::uint16_t dest, std::uint16_t source, int level) const
+u16 Painter::Blend(u16 dest, u16 source, int level) const
 {
     if (level <= 0)
     {
@@ -52,11 +52,11 @@ std::uint16_t Painter::Blend(std::uint16_t dest, std::uint16_t source, int level
         return source;
     }
 
-    const std::uint32_t half = ((level & 8) != 0 ? source : dest) >> 1;
-    const std::uint32_t quarter = ((level & 4) != 0 ? source : dest) >> 2;
-    const std::uint32_t eighth = ((level & 2) != 0 ? source : dest) >> 3;
-    const std::uint32_t sixteenth = ((level & 1) != 0 ? source : dest) >> 4;
-    return static_cast<std::uint16_t>(
+    const u32 half = ((level & 8) != 0 ? source : dest) >> 1;
+    const u32 quarter = ((level & 4) != 0 ? source : dest) >> 2;
+    const u32 eighth = ((level & 2) != 0 ? source : dest) >> 3;
+    const u32 sixteenth = ((level & 1) != 0 ? source : dest) >> 4;
+    return static_cast<u16>(
         (half & this->halfMaskPairs[0]) + (quarter & this->halfMaskPairs[1]) + (eighth & this->halfMaskPairs[2]) +
         (sixteenth & this->halfMaskPairs[3])
     );
@@ -64,7 +64,7 @@ std::uint16_t Painter::Blend(std::uint16_t dest, std::uint16_t source, int level
 
 // The alpha map holds premultiplied sources: the destination terms 1/2, 1/4, 1/8 and 1/16 are added for the bits
 // (8, 4, 2, 1) that are clear in the level.
-std::uint16_t Painter::AlphaBlend(std::uint16_t dest, std::uint16_t source, int level) const
+u16 Painter::AlphaBlend(u16 dest, u16 source, int level) const
 {
     if (level == 0)
     {
@@ -76,40 +76,40 @@ std::uint16_t Painter::AlphaBlend(std::uint16_t dest, std::uint16_t source, int 
         return source;
     }
 
-    std::uint32_t value = source;
+    u32 value = source;
 
     if ((level & 8) == 0)
     {
-        value += (static_cast<std::uint32_t>(dest) >> 1) & this->halfMaskPairs[0];
+        value += (static_cast<u32>(dest) >> 1) & this->halfMaskPairs[0];
     }
 
     if ((level & 4) == 0)
     {
-        value += (static_cast<std::uint32_t>(dest) >> 2) & this->halfMaskPairs[1];
+        value += (static_cast<u32>(dest) >> 2) & this->halfMaskPairs[1];
     }
 
     if ((level & 2) == 0)
     {
-        value += (static_cast<std::uint32_t>(dest) >> 3) & this->halfMaskPairs[2];
+        value += (static_cast<u32>(dest) >> 3) & this->halfMaskPairs[2];
     }
 
     if ((level & 1) == 0)
     {
-        value += (static_cast<std::uint32_t>(dest) >> 4) & this->halfMaskPairs[3];
+        value += (static_cast<u32>(dest) >> 4) & this->halfMaskPairs[3];
     }
 
-    return static_cast<std::uint16_t>(value);
+    return static_cast<u16>(value);
 }
 
 // Two pixels at once: carries of the low pixel run into the high one, as in the original's 32-bit arithmetic.
-std::uint32_t Painter::AlphaBlendPair(std::uint32_t dest, std::uint32_t source, int level) const
+u32 Painter::AlphaBlendPair(u32 dest, u32 source, int level) const
 {
     if (level == 15)
     {
         return source;
     }
 
-    std::uint32_t value = 0;
+    u32 value = 0;
 
     if ((level & 8) == 0)
     {
@@ -140,9 +140,9 @@ std::uint32_t Painter::AlphaBlendPair(std::uint32_t dest, std::uint32_t source, 
 Painter::Tint Painter::MakeTint(int red, int green, int blue) const
 {
     Tint tint;
-    tint.red = static_cast<std::uint32_t>(static_cast<std::int32_t>(this->red.halves[4]) * red);
-    tint.green = static_cast<std::uint32_t>(static_cast<std::int32_t>(this->green.halves[4]) * green);
-    tint.blue = static_cast<std::uint32_t>(static_cast<std::int32_t>(this->blue.halves[4]) * blue);
+    tint.red = static_cast<u32>(static_cast<i32>(this->red.halves[4]) * red);
+    tint.green = static_cast<u32>(static_cast<i32>(this->green.halves[4]) * green);
+    tint.blue = static_cast<u32>(static_cast<i32>(this->blue.halves[4]) * blue);
     tint.redSaturated = red >= 0 ? this->red.mask : 0;
     tint.greenSaturated = green >= 0 ? this->green.mask : 0;
     tint.blueSaturated = blue >= 0 ? this->blue.mask : 0;
@@ -159,38 +159,38 @@ bool Painter::Tinted() const
     return this->options.tintRed != 0 || this->options.tintGreen != 0 || this->options.tintBlue != 0;
 }
 
-std::uint16_t Painter::TintPixel(const Tint& tint, std::uint16_t dest) const
+u16 Painter::TintPixel(const Tint& tint, u16 dest) const
 {
-    std::uint32_t red = (dest & this->red.mask) + tint.red;
+    u32 red = (dest & this->red.mask) + tint.red;
 
     if ((this->red.inverseMask & red) != 0)
     {
         red = tint.redSaturated;
     }
 
-    std::uint32_t green = (dest & this->green.mask) + tint.green;
+    u32 green = (dest & this->green.mask) + tint.green;
 
     if ((this->green.inverseMask & green) != 0)
     {
         green = tint.greenSaturated;
     }
 
-    std::uint32_t blue = (dest & this->blue.mask) + tint.blue;
+    u32 blue = (dest & this->blue.mask) + tint.blue;
 
     if ((this->blue.inverseMask & blue) != 0)
     {
         blue = tint.blueSaturated;
     }
 
-    return static_cast<std::uint16_t>(red | green | blue);
+    return static_cast<u16>(red | green | blue);
 }
 
 // Per channel: the source plus its tint step (saturated), then plus the destination (saturated to the mask).
-std::uint16_t Painter::AddTinted(const Tint& tint, std::uint16_t source, std::uint16_t dest) const
+u16 Painter::AddTinted(const Tint& tint, u16 source, u16 dest) const
 {
-    auto channel = [source, dest](const ColorChannel& color, std::uint32_t step, std::uint32_t saturated)
+    auto channel = [source, dest](const ColorChannel& color, u32 step, u32 saturated)
     {
-        std::uint32_t value = (source & color.mask) + step;
+        u32 value = (source & color.mask) + step;
 
         if ((color.inverseMask & value) != 0)
         {
@@ -207,17 +207,17 @@ std::uint16_t Painter::AddTinted(const Tint& tint, std::uint16_t source, std::ui
         return value;
     };
 
-    return static_cast<std::uint16_t>(
+    return static_cast<u16>(
         channel(this->red, tint.red, tint.redSaturated) | channel(this->green, tint.green, tint.greenSaturated) |
         channel(this->blue, tint.blue, tint.blueSaturated)
     );
 }
 
-std::uint16_t Painter::Add(std::uint16_t source, std::uint16_t dest) const
+u16 Painter::Add(u16 source, u16 dest) const
 {
     auto channel = [source, dest](const ColorChannel& color)
     {
-        std::uint32_t value = (source & color.mask) + (dest & color.mask);
+        u32 value = (source & color.mask) + (dest & color.mask);
 
         if ((color.inverseMask & value) != 0)
         {
@@ -227,22 +227,22 @@ std::uint16_t Painter::Add(std::uint16_t source, std::uint16_t dest) const
         return value;
     };
 
-    return static_cast<std::uint16_t>(channel(this->red) | channel(this->green) | channel(this->blue));
+    return static_cast<u16>(channel(this->red) | channel(this->green) | channel(this->blue));
 }
 
 // dest - (source + tint) per channel, clamped at 0.
-std::uint16_t Painter::SubtractTintedSource(const Tint& tint, std::uint16_t source, std::uint16_t dest) const
+u16 Painter::SubtractTintedSource(const Tint& tint, u16 source, u16 dest) const
 {
-    auto channel = [source, dest](const ColorChannel& color, std::uint32_t step, std::uint32_t saturated)
+    auto channel = [source, dest](const ColorChannel& color, u32 step, u32 saturated)
     {
-        std::uint32_t subtracted = (source & color.mask) + step;
+        u32 subtracted = (source & color.mask) + step;
 
         if ((color.inverseMask & subtracted) != 0)
         {
             subtracted = saturated;
         }
 
-        std::uint32_t value = (dest & color.mask) - subtracted;
+        u32 value = (dest & color.mask) - subtracted;
 
         if ((value & 0x80000000u) != 0)
         {
@@ -252,18 +252,18 @@ std::uint16_t Painter::SubtractTintedSource(const Tint& tint, std::uint16_t sour
         return value & color.mask;
     };
 
-    return static_cast<std::uint16_t>(
+    return static_cast<u16>(
         channel(this->red, tint.red, tint.redSaturated) | channel(this->green, tint.green, tint.greenSaturated) |
         channel(this->blue, tint.blue, tint.blueSaturated)
     );
 }
 
 // (dest + tint) - source per channel, clamped at 0 (the mirrored subtractive effect adds the tint to the other side).
-std::uint16_t Painter::SubtractFromTintedDest(const Tint& tint, std::uint16_t source, std::uint16_t dest) const
+u16 Painter::SubtractFromTintedDest(const Tint& tint, u16 source, u16 dest) const
 {
-    auto channel = [source, dest](const ColorChannel& color, std::uint32_t step, std::uint32_t saturated)
+    auto channel = [source, dest](const ColorChannel& color, u32 step, u32 saturated)
     {
-        std::uint32_t value = (dest & color.mask) + step;
+        u32 value = (dest & color.mask) + step;
 
         if ((color.inverseMask & value) != 0)
         {
@@ -280,27 +280,27 @@ std::uint16_t Painter::SubtractFromTintedDest(const Tint& tint, std::uint16_t so
         return value & color.mask;
     };
 
-    return static_cast<std::uint16_t>(
+    return static_cast<u16>(
         channel(this->red, tint.red, tint.redSaturated) | channel(this->green, tint.green, tint.greenSaturated) |
         channel(this->blue, tint.blue, tint.blueSaturated)
     );
 }
 
 // (r + g + b) / 4 in every channel.
-std::uint16_t Painter::Gray(std::uint16_t dest) const
+u16 Painter::Gray(u16 dest) const
 {
-    const std::uint32_t red = (dest & this->red.mask) >> this->red.shift;
-    const std::uint32_t green = (dest & this->green.mask) >> this->green.shift;
-    const std::uint32_t blue = (dest & this->blue.mask) >> this->blue.shift;
-    const std::uint32_t average = (red + green + blue) >> 2;
-    return static_cast<std::uint16_t>(
+    const u32 red = (dest & this->red.mask) >> this->red.shift;
+    const u32 green = (dest & this->green.mask) >> this->green.shift;
+    const u32 blue = (dest & this->blue.mask) >> this->blue.shift;
+    const u32 average = (red + green + blue) >> 2;
+    return static_cast<u16>(
         (average << this->red.shift) + (average << this->green.shift) + (average << this->blue.shift)
     );
 }
 
 // The smear counter cycles 1..16 and copies the left neighbour, the pixel one row below, one row above or the right
 // neighbour; the 17th step resets the counter without writing.
-void Painter::Smear(std::uint16_t* at)
+void Painter::Smear(u16* at)
 {
     const int step = this->smearCounter + 1;
 
@@ -342,7 +342,7 @@ void Painter::WaveBegin(int stride)
     }
 }
 
-std::uint16_t* Painter::WaveLine(std::uint16_t* dest)
+u16* Painter::WaveLine(u16* dest)
 {
     if (this->waveMode == 0)
     {
@@ -351,13 +351,13 @@ std::uint16_t* Painter::WaveLine(std::uint16_t* dest)
 
     int position = this->wavePosition + 4;
 
-    if (static_cast<std::uint32_t>(position) >= static_cast<std::uint32_t>(this->waveEnd))
+    if (static_cast<u32>(position) >= static_cast<u32>(this->waveEnd))
     {
         position = this->waveStart;
     }
 
     this->wavePosition = position;
-    const std::size_t index = static_cast<std::uint32_t>(position) / 4;
+    const std::size_t index = static_cast<u32>(position) / 4;
     return dest + (index < Painter::kWaveOffsets.size() ? Painter::kWaveOffsets[index] : 0);
 }
 
@@ -367,7 +367,7 @@ void Painter::WaveAdvance()
     {
         this->wavePhase += 4;
 
-        if (static_cast<std::uint32_t>(this->wavePhase) >= 0x84u)
+        if (static_cast<u32>(this->wavePhase) >= 0x84u)
         {
             this->wavePhase = 0;
         }
@@ -375,9 +375,9 @@ void Painter::WaveAdvance()
 }
 
 // One output line of vertical scaling: the number of further source lines to move on.
-std::uint32_t Painter::ScaleStep(std::uint32_t& fraction) const
+u32 Painter::ScaleStep(u32& fraction) const
 {
-    const std::uint32_t sum = fraction + this->placement.scaleFraction;
+    const u32 sum = fraction + this->placement.scaleFraction;
     fraction = sum & 0x3FF;
     return sum >> 10;
 }
@@ -385,7 +385,7 @@ std::uint32_t Painter::ScaleStep(std::uint32_t& fraction) const
 // Skipping the clipped top lines of a scaled picture: each round passes one line plus the scaled extra lines, and the
 // round counter goes up twice per round, so only about half of the requested rounds are made. nullptr when the end
 // of the picture is reached.
-const std::uint8_t* Painter::ScaledSkipTop(const std::uint8_t* lines, std::uint32_t& fraction) const
+const u8* Painter::ScaledSkipTop(const u8* lines, u32& fraction) const
 {
     int counter = 0;
 
@@ -393,13 +393,13 @@ const std::uint8_t* Painter::ScaledSkipTop(const std::uint8_t* lines, std::uint3
     {
         ++counter;
         lines += Word(lines) & 0x7FFF;
-        std::uint32_t step = this->ScaleStep(fraction);
+        u32 step = this->ScaleStep(fraction);
 
         if (!this->placement.scaleUp)
         {
             while (step-- != 0)
             {
-                const std::uint16_t header = Word(lines);
+                const u16 header = Word(lines);
 
                 if (header == 0)
                 {
@@ -411,7 +411,7 @@ const std::uint8_t* Painter::ScaledSkipTop(const std::uint8_t* lines, std::uint3
         }
         else if (step != 0)
         {
-            const std::uint16_t header = Word(lines);
+            const u16 header = Word(lines);
 
             if (header == 0)
             {
@@ -433,16 +433,16 @@ const std::uint8_t* Painter::ScaledSkipTop(const std::uint8_t* lines, std::uint3
 }
 
 // The source line of the next output line of a scaled picture; nullptr ends the picture.
-const std::uint8_t* Painter::ScaledNextLine(const std::uint8_t* line, std::uint32_t& fraction) const
+const u8* Painter::ScaledNextLine(const u8* line, u32& fraction) const
 {
-    std::uint32_t step = this->ScaleStep(fraction);
-    const std::uint8_t* next = line + (Word(line) & 0x7FFF);
+    u32 step = this->ScaleStep(fraction);
+    const u8* next = line + (Word(line) & 0x7FFF);
 
     if (!this->placement.scaleUp)
     {
         while (step-- != 0)
         {
-            const std::uint16_t header = Word(next);
+            const u16 header = Word(next);
 
             if (header == 0)
             {
@@ -467,14 +467,14 @@ const std::uint8_t* Painter::ScaledNextLine(const std::uint8_t* line, std::uint3
 // offset) receives the visible part, its literal pixels and its distance from the first drawn column. A zero count
 // ends the line, as does reaching the right edge.
 template <typename RunOp>
-void Painter::ForEachRun(const std::uint8_t* codes, int start, int width, RunOp&& op) const
+void Painter::ForEachRun(const u8* codes, int start, int width, RunOp&& op) const
 {
     const int end = start + width;
     int x = 0;
 
     while (true)
     {
-        const std::uint16_t code = Word(codes);
+        const u16 code = Word(codes);
         const int count = code & 0x3FFF;
         codes += 2;
 
@@ -494,7 +494,7 @@ void Painter::ForEachRun(const std::uint8_t* codes, int start, int width, RunOp&
             kind = RunKind::Skip;
         }
 
-        const std::uint8_t* pixels = codes;
+        const u8* pixels = codes;
 
         if (kind == RunKind::Literal)
         {
@@ -525,12 +525,12 @@ template <typename LineOp, typename SkipHook>
 void Painter::ForEachLine(const LineWalk& walk, LineOp&& op, SkipHook&& lineHook)
 {
     this->WaveBegin(walk.waveStride);
-    const std::uint8_t* lines = this->source;
+    const u8* lines = this->source;
 
     if ((Word(lines, 3) & 0x10) != 0)
     {
         lines += 8;
-        std::uint32_t fraction = 0;
+        u32 fraction = 0;
 
         if (walk.scaled)
         {
@@ -545,15 +545,15 @@ void Painter::ForEachLine(const LineWalk& walk, LineOp&& op, SkipHook&& lineHook
             }
         }
 
-        std::uint16_t* dest = this->placement.dest + (walk.mirrored ? this->placement.width : 0);
+        u16* dest = this->placement.dest + (walk.mirrored ? this->placement.width : 0);
         const int pitch = walk.signedPitch ? this->placement.pitch : this->screenPitch;
         int line = 0;
 
         while (lines != nullptr)
         {
-            const std::uint16_t header = Word(lines);
-            std::uint16_t* lineDest = dest;
-            std::uint16_t* drawn = this->WaveLine(dest);
+            const u16 header = Word(lines);
+            u16* lineDest = dest;
+            u16* drawn = this->WaveLine(dest);
             lineHook();
 
             if (header == 0)
@@ -604,13 +604,13 @@ void Painter::WalkRuns(const LineWalk& walk, RunOp&& op)
     const int start = walk.mirrored ? this->mirrorStart : this->placement.skipLeft;
     this->ForEachLine(
         walk,
-        [this, &walk, &op, start, width](const std::uint8_t* codes, std::uint16_t* lineDest, int)
+        [this, &walk, &op, start, width](const u8* codes, u16* lineDest, int)
         {
             this->ForEachRun(
                 codes,
                 start,
                 width,
-                [&walk, &op, lineDest](RunKind kind, const std::uint8_t* pixels, int count, int offset)
+                [&walk, &op, lineDest](RunKind kind, const u8* pixels, int count, int offset)
                 {
                     op(kind, pixels, count, walk.mirrored ? lineDest - offset : lineDest + offset);
                 }
@@ -629,7 +629,7 @@ int Painter::BlitCopy(int, int, int, int, const DrawArgument&)
     const LineWalk walk{.signedPitch = true};
     this->WalkRuns(
         walk,
-        [](RunKind kind, const std::uint8_t* pixels, int count, std::uint16_t* at)
+        [](RunKind kind, const u8* pixels, int count, u16* at)
         {
             if (kind == RunKind::Literal)
             {
@@ -647,7 +647,7 @@ int Painter::BlitCopyMirrored(int, int, int width, int, const DrawArgument&)
     const LineWalk walk{.mirrored = true, .signedPitch = true, .advanceWave = false};
     this->WalkRuns(
         walk,
-        [](RunKind kind, const std::uint8_t* pixels, int count, std::uint16_t* at)
+        [](RunKind kind, const u8* pixels, int count, u16* at)
         {
             if (kind == RunKind::Literal)
             {
@@ -670,7 +670,7 @@ int Painter::BlitAdditive(int, int, int, int, const DrawArgument&)
     const Tint tint = this->CurrentTint();
     this->WalkRuns(
         walk,
-        [this, tinted, &tint](RunKind kind, const std::uint8_t* pixels, int count, std::uint16_t* at)
+        [this, tinted, &tint](RunKind kind, const u8* pixels, int count, u16* at)
         {
             if (kind != RunKind::Literal)
             {
@@ -679,7 +679,7 @@ int Painter::BlitAdditive(int, int, int, int, const DrawArgument&)
 
             for (int i = 0; i < count; ++i)
             {
-                const std::uint16_t source = Word(pixels, i);
+                const u16 source = Word(pixels, i);
                 at[i] = tinted ? this->AddTinted(tint, source, at[i]) : this->Add(source, at[i]);
             }
         }
@@ -697,7 +697,7 @@ int Painter::BlitAdditiveMirrored(int, int, int width, int, const DrawArgument&)
     const Tint tint = this->CurrentTint();
     this->WalkRuns(
         walk,
-        [this, tinted, &tint](RunKind kind, const std::uint8_t* pixels, int count, std::uint16_t* at)
+        [this, tinted, &tint](RunKind kind, const u8* pixels, int count, u16* at)
         {
             if (kind != RunKind::Literal)
             {
@@ -706,8 +706,8 @@ int Painter::BlitAdditiveMirrored(int, int, int width, int, const DrawArgument&)
 
             for (int i = 0; i < count; ++i)
             {
-                std::uint16_t& dest = at[-1 - i];
-                const std::uint16_t source = Word(pixels, i);
+                u16& dest = at[-1 - i];
+                const u16 source = Word(pixels, i);
                 dest = tinted ? this->AddTinted(tint, source, dest) : this->Add(source, dest);
             }
         }
@@ -728,17 +728,17 @@ int Painter::BlitAlphaMap(int, int, int width, int, const DrawArgument& argument
     const int skipTop = this->placement.skipTop;
     this->ForEachLine(
         walk,
-        [this, &argument, width, start, columns, skipTop](const std::uint8_t* codes, std::uint16_t* lineDest, int line)
+        [this, &argument, width, start, columns, skipTop](const u8* codes, u16* lineDest, int line)
         {
-            const std::uint8_t* levels = argument.alphaMap + static_cast<std::ptrdiff_t>(skipTop + line - 1) * width;
+            const u8* levels = argument.alphaMap + static_cast<std::ptrdiff_t>(skipTop + line - 1) * width;
             this->ForEachRun(
                 codes,
                 start,
                 columns,
-                [this, levels, lineDest, start](RunKind kind, const std::uint8_t* pixels, int count, int offset)
+                [this, levels, lineDest, start](RunKind kind, const u8* pixels, int count, int offset)
                 {
-                    std::uint16_t* at = lineDest + offset;
-                    const std::uint8_t* level = levels + start + offset;
+                    u16* at = lineDest + offset;
+                    const u8* level = levels + start + offset;
 
                     if (kind == RunKind::Skip)
                     {
@@ -794,24 +794,24 @@ int Painter::BlitAlphaMapMirrored(int, int, int width, int, const DrawArgument& 
     const int skipTop = this->placement.skipTop;
     this->ForEachLine(
         walk,
-        [this, &argument, width, start, columns, skipTop](const std::uint8_t* codes, std::uint16_t* lineDest, int line)
+        [this, &argument, width, start, columns, skipTop](const u8* codes, u16* lineDest, int line)
         {
-            const std::uint8_t* levels = argument.alphaMap + static_cast<std::ptrdiff_t>(skipTop + line - 1) * width;
+            const u8* levels = argument.alphaMap + static_cast<std::ptrdiff_t>(skipTop + line - 1) * width;
             this->ForEachRun(
                 codes,
                 start,
                 columns,
-                [this, levels, lineDest, start](RunKind kind, const std::uint8_t* pixels, int count, int offset)
+                [this, levels, lineDest, start](RunKind kind, const u8* pixels, int count, int offset)
                 {
                     if (kind != RunKind::Literal)
                     {
                         return;
                     }
 
-                    std::uint16_t* at = lineDest - offset;
-                    const std::uint8_t* level = levels + start + offset;
+                    u16* at = lineDest - offset;
+                    const u8* level = levels + start + offset;
 
-                    auto clamp = [](std::uint8_t value)
+                    auto clamp = [](u8 value)
                     {
                         return value >> 2 > 15 ? 15 : value >> 2;
                     };
@@ -820,7 +820,7 @@ int Painter::BlitAlphaMapMirrored(int, int, int width, int, const DrawArgument& 
                     {
                         for (int i = 0; i < count; ++i)
                         {
-                            std::uint16_t& dest = at[-1 - i];
+                            u16& dest = at[-1 - i];
                             dest = this->AlphaBlend(dest, Word(pixels, i), clamp(level[i]));
                         }
 
@@ -844,9 +844,8 @@ int Painter::BlitAlphaMapMirrored(int, int, int width, int, const DrawArgument& 
                             continue;
                         }
 
-                        std::uint16_t* pair = at - 1 - i;
-                        const std::uint32_t sourcePair =
-                            Word(pixels, i + 1) | (static_cast<std::uint32_t>(Word(pixels, i)) << 16);
+                        u16* pair = at - 1 - i;
+                        const u32 sourcePair = Word(pixels, i + 1) | (static_cast<u32>(Word(pixels, i)) << 16);
                         WritePair(pair, this->AlphaBlendPair(ReadPair(pair), sourcePair, value));
                     }
                 }
@@ -873,7 +872,7 @@ int Painter::BlitTint(int, int, int, int, const DrawArgument&)
     const LineWalk walk{.waveStride = 0x528};
     this->WalkRuns(
         walk,
-        [this, &tint](RunKind kind, const std::uint8_t*, int count, std::uint16_t* at)
+        [this, &tint](RunKind kind, const u8*, int count, u16* at)
         {
             if (kind == RunKind::Literal)
             {
@@ -900,7 +899,7 @@ int Painter::BlitTintMirrored(int, int, int width, int, const DrawArgument&)
     const LineWalk walk{.mirrored = true};
     this->WalkRuns(
         walk,
-        [this, &tint](RunKind kind, const std::uint8_t*, int count, std::uint16_t* at)
+        [this, &tint](RunKind kind, const u8*, int count, u16* at)
         {
             if (kind == RunKind::Literal)
             {
@@ -921,7 +920,7 @@ int Painter::BlitTranslucent(int, int, int, int, const DrawArgument&)
     const LineWalk walk{.signedPitch = true};
     this->WalkRuns(
         walk,
-        [this, level](RunKind kind, const std::uint8_t* pixels, int count, std::uint16_t* at)
+        [this, level](RunKind kind, const u8* pixels, int count, u16* at)
         {
             if (kind == RunKind::Literal)
             {
@@ -943,7 +942,7 @@ int Painter::BlitTranslucentMirrored(int, int, int width, int, const DrawArgumen
     const LineWalk walk{.mirrored = true, .signedPitch = true};
     this->WalkRuns(
         walk,
-        [this, level](RunKind kind, const std::uint8_t* pixels, int count, std::uint16_t* at)
+        [this, level](RunKind kind, const u8* pixels, int count, u16* at)
         {
             if (kind == RunKind::Literal)
             {
@@ -961,11 +960,11 @@ int Painter::BlitTranslucentMirrored(int, int, int width, int, const DrawArgumen
 // green mask)
 int Painter::BlitEdgeMark(int, int, int, int, const DrawArgument&)
 {
-    const auto mark = static_cast<std::uint16_t>(this->greenMaskPair);
+    const auto mark = static_cast<u16>(this->greenMaskPair);
     const LineWalk walk{};
     this->WalkRuns(
         walk,
-        [mark](RunKind kind, const std::uint8_t* pixels, int count, std::uint16_t* at)
+        [mark](RunKind kind, const u8* pixels, int count, u16* at)
         {
             if (kind == RunKind::Literal)
             {
@@ -983,11 +982,11 @@ int Painter::BlitEdgeMark(int, int, int, int, const DrawArgument&)
 int Painter::BlitEdgeMarkMirrored(int, int, int width, int, const DrawArgument&)
 {
     this->mirrorStart = width - (this->placement.skipLeft + this->placement.width);
-    const auto mark = static_cast<std::uint16_t>(this->greenMaskPair);
+    const auto mark = static_cast<u16>(this->greenMaskPair);
     const LineWalk walk{.mirrored = true, .advanceWave = false};
     this->WalkRuns(
         walk,
-        [mark](RunKind kind, const std::uint8_t* pixels, int count, std::uint16_t* at)
+        [mark](RunKind kind, const u8* pixels, int count, u16* at)
         {
             if (kind == RunKind::Literal)
             {
@@ -1017,17 +1016,17 @@ int Painter::BlitFadeDown(int, int, int, int height, const DrawArgument&)
     const LineWalk walk{};
     this->ForEachLine(
         walk,
-        [this, &level, start, columns](const std::uint8_t* codes, std::uint16_t* lineDest, int)
+        [this, &level, start, columns](const u8* codes, u16* lineDest, int)
         {
             this->ForEachRun(
                 codes,
                 start,
                 columns,
-                [this, level, lineDest](RunKind kind, const std::uint8_t* pixels, int count, int offset)
+                [this, level, lineDest](RunKind kind, const u8* pixels, int count, int offset)
                 {
                     if (kind == RunKind::Literal)
                     {
-                        std::uint16_t* at = lineDest + offset;
+                        u16* at = lineDest + offset;
 
                         for (int i = 0; i < count; ++i)
                         {
@@ -1059,7 +1058,7 @@ int Painter::BlitScaledGlow(int, int, int, int, const DrawArgument&)
     const LineWalk walk{.scaled = true};
     this->WalkRuns(
         walk,
-        [this, &tint](RunKind kind, const std::uint8_t* pixels, int count, std::uint16_t* at)
+        [this, &tint](RunKind kind, const u8* pixels, int count, u16* at)
         {
             if (kind == RunKind::Literal)
             {
@@ -1081,7 +1080,7 @@ int Painter::BlitScaledGlowMirrored(int, int, int width, int, const DrawArgument
     const LineWalk walk{.mirrored = true, .scaled = true};
     this->WalkRuns(
         walk,
-        [this, &tint](RunKind kind, const std::uint8_t* pixels, int count, std::uint16_t* at)
+        [this, &tint](RunKind kind, const u8* pixels, int count, u16* at)
         {
             if (kind == RunKind::Literal)
             {
@@ -1099,12 +1098,12 @@ int Painter::BlitScaledGlowMirrored(int, int, int width, int, const DrawArgument
 // pixels take the low half, the pair loop writes whole pairs (every second pixel gets the high half)
 int Painter::BlitSilhouette(int, int, int, int, const DrawArgument& argument)
 {
-    const std::uint32_t color = argument.colorPair;
-    const auto low = static_cast<std::uint16_t>(color);
+    const u32 color = argument.colorPair;
+    const auto low = static_cast<u16>(color);
     const LineWalk walk{.signedPitch = true};
     this->WalkRuns(
         walk,
-        [color, low](RunKind kind, const std::uint8_t*, int count, std::uint16_t* at)
+        [color, low](RunKind kind, const u8*, int count, u16* at)
         {
             if (kind != RunKind::Literal)
             {
@@ -1142,13 +1141,13 @@ int Painter::BlitSilhouette(int, int, int, int, const DrawArgument& argument)
 int Painter::BlitSilhouetteMirrored(int, int, int width, int, const DrawArgument& argument)
 {
     this->mirrorStart = width - (this->placement.skipLeft + this->placement.width);
-    const std::uint32_t color = argument.colorPair;
-    const auto low = static_cast<std::uint16_t>(color);
-    const std::uint32_t swapped = (color << 16) | (color >> 16);
+    const u32 color = argument.colorPair;
+    const auto low = static_cast<u16>(color);
+    const u32 swapped = (color << 16) | (color >> 16);
     const LineWalk walk{.mirrored = true, .signedPitch = true, .advanceWave = false};
     this->WalkRuns(
         walk,
-        [low, swapped](RunKind kind, const std::uint8_t*, int count, std::uint16_t* at)
+        [low, swapped](RunKind kind, const u8*, int count, u16* at)
         {
             if (kind != RunKind::Literal)
             {
@@ -1198,7 +1197,7 @@ int Painter::BlitGray(int, int, int, int, const DrawArgument&)
     const LineWalk walk{.waveStride = 0x528};
     this->WalkRuns(
         walk,
-        [this](RunKind kind, const std::uint8_t*, int count, std::uint16_t* at)
+        [this](RunKind kind, const u8*, int count, u16* at)
         {
             if (kind == RunKind::Literal)
             {
@@ -1224,7 +1223,7 @@ int Painter::BlitGrayMirrored(int, int, int width, int, const DrawArgument&)
     const LineWalk walk{.mirrored = true};
     this->WalkRuns(
         walk,
-        [this](RunKind kind, const std::uint8_t*, int count, std::uint16_t* at)
+        [this](RunKind kind, const u8*, int count, u16* at)
         {
             if (kind == RunKind::Literal)
             {
@@ -1245,7 +1244,7 @@ int Painter::BlitSubtractive(int, int, int, int, const DrawArgument&)
     const LineWalk walk{.dropLines = true};
     this->WalkRuns(
         walk,
-        [this, &tint](RunKind kind, const std::uint8_t* pixels, int count, std::uint16_t* at)
+        [this, &tint](RunKind kind, const u8* pixels, int count, u16* at)
         {
             if (kind == RunKind::Literal)
             {
@@ -1267,7 +1266,7 @@ int Painter::BlitSubtractiveMirrored(int, int, int width, int, const DrawArgumen
     const LineWalk walk{.mirrored = true, .dropLines = true};
     this->WalkRuns(
         walk,
-        [this, &tint](RunKind kind, const std::uint8_t* pixels, int count, std::uint16_t* at)
+        [this, &tint](RunKind kind, const u8* pixels, int count, u16* at)
         {
             if (kind == RunKind::Literal)
             {
@@ -1287,7 +1286,7 @@ int Painter::BlitSmear(int, int, int, int, const DrawArgument&)
     const LineWalk walk{.signedPitch = true};
     this->WalkRuns(
         walk,
-        [this](RunKind kind, const std::uint8_t*, int count, std::uint16_t* at)
+        [this](RunKind kind, const u8*, int count, u16* at)
         {
             if (kind == RunKind::Literal)
             {
@@ -1309,7 +1308,7 @@ int Painter::BlitSmearMirrored(int, int, int width, int, const DrawArgument&)
     const LineWalk walk{.mirrored = true, .signedPitch = true, .advanceWave = false};
     this->WalkRuns(
         walk,
-        [this](RunKind kind, const std::uint8_t*, int count, std::uint16_t* at)
+        [this](RunKind kind, const u8*, int count, u16* at)
         {
             if (kind == RunKind::Literal)
             {
@@ -1335,19 +1334,19 @@ void Painter::WalkShear(bool mirrored, int x, int y, int width, LiteralOp&& lite
         x = -this->placement.skipLeft;
     }
 
-    std::uint32_t scaleFraction = 0;
-    std::uint32_t shearFraction = 0;
+    u32 scaleFraction = 0;
+    u32 shearFraction = 0;
 
     auto advanceShear = [this, &shearFraction]
     {
-        const std::uint32_t sum = shearFraction + static_cast<std::uint32_t>(this->placement.shearStep);
+        const u32 sum = shearFraction + static_cast<u32>(this->placement.shearStep);
         shearFraction = sum & 0x3FF;
         this->options.shear += this->placement.shearDirection * static_cast<int>(sum >> 10);
     };
 
     this->WaveBegin(0x84);
-    const std::uint8_t* lines = this->source;
-    std::uint16_t* dest = this->placement.dest;
+    const u8* lines = this->source;
+    u16* dest = this->placement.dest;
     bool finished = (Word(lines, 3) & 0x10) == 0;
 
     if (!finished)
@@ -1356,7 +1355,7 @@ void Painter::WalkShear(bool mirrored, int x, int y, int width, LiteralOp&& lite
 
         for (int counter = 0;; ++counter)
         {
-            const std::uint16_t header = Word(lines);
+            const u16 header = Word(lines);
 
             if (header == 0)
             {
@@ -1365,20 +1364,20 @@ void Painter::WalkShear(bool mirrored, int x, int y, int width, LiteralOp&& lite
             }
 
             lines += header & 0x7FFF;
-            std::uint32_t step = this->ScaleStep(scaleFraction);
+            u32 step = this->ScaleStep(scaleFraction);
 
             if (!this->placement.scaleUp)
             {
                 while (!finished && step-- != 0)
                 {
-                    const std::uint16_t next = Word(lines);
+                    const u16 next = Word(lines);
                     finished = next == 0;
                     lines += next & 0x7FFF;
                 }
             }
             else if (step != 0)
             {
-                const std::uint16_t next = Word(lines);
+                const u16 next = Word(lines);
                 finished = next == 0;
                 lines += next & 0x7FFF;
             }
@@ -1399,7 +1398,7 @@ void Painter::WalkShear(bool mirrored, int x, int y, int width, LiteralOp&& lite
 
     for (int line = 0; !finished && lines != nullptr;)
     {
-        const std::uint16_t header = Word(lines);
+        const u16 header = Word(lines);
         dest = this->WaveLine(dest);
 
         if (header == 0)
@@ -1451,12 +1450,12 @@ void Painter::WalkShear(bool mirrored, int x, int y, int width, LiteralOp&& lite
             }
 
             dest = this->Pixel(position, row);
-            std::uint16_t* lineDest = dest;
+            u16* lineDest = dest;
             this->ForEachRun(
                 lines + 2,
                 start,
                 columns,
-                [&literal, lineDest, mirrored](RunKind kind, const std::uint8_t*, int count, int offset)
+                [&literal, lineDest, mirrored](RunKind kind, const u8*, int count, int offset)
                 {
                     if (kind == RunKind::Literal)
                     {
@@ -1486,7 +1485,7 @@ int Painter::BlitShadow(int x, int y, int width, int, const DrawArgument&)
         x,
         y,
         width,
-        [this, &tint](std::uint16_t* at, int count)
+        [this, &tint](u16* at, int count)
         {
             for (int i = 0; i < count; ++i)
             {
@@ -1506,7 +1505,7 @@ int Painter::BlitShadowMirrored(int x, int y, int width, int, const DrawArgument
         x,
         y,
         width,
-        [this, &tint](std::uint16_t* at, int count)
+        [this, &tint](u16* at, int count)
         {
             for (int i = 0; i < count; ++i)
             {

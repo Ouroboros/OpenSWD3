@@ -9,7 +9,7 @@
 namespace swd3test
 {
 
-std::string GameFile(const std::string& name)
+std::string GameDirectory()
 {
     const char* configured = std::getenv("SWD3_GAME_DIR");
 #if defined(_WIN32)
@@ -17,10 +17,15 @@ std::string GameFile(const std::string& name)
 #else
     const std::string directory = configured != nullptr ? configured : "/mnt/e/Game/swd3";
 #endif
-    return swd3::ResolvePath(directory + "/" + name);
+    return directory + "/";
 }
 
-std::vector<std::uint8_t> ReadGameFile(const std::string& name)
+std::string GameFile(const std::string& name)
+{
+    return swd3::ResolvePath(GameDirectory() + name);
+}
+
+std::vector<u8> ReadGameFile(const std::string& name)
 {
     std::ifstream stream(GameFile(name), std::ios::binary);
 

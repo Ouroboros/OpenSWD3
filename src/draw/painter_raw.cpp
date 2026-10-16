@@ -8,9 +8,9 @@ namespace swd3
 namespace
 {
 
-std::uint16_t Word(const std::uint8_t* bytes, std::ptrdiff_t index = 0)
+u16 Word(const u8* bytes, std::ptrdiff_t index = 0)
 {
-    std::uint16_t value = 0;
+    u16 value = 0;
     std::memcpy(&value, bytes + 2 * index, 2);
     return value;
 }
@@ -22,8 +22,8 @@ std::uint16_t Word(const std::uint8_t* bytes, std::ptrdiff_t index = 0)
 int Painter::BlitRawCopy(int, int, int width, int, const DrawArgument&)
 {
     const Placement& place = this->placement;
-    const std::uint8_t* line = place.sourceLine;
-    std::uint16_t* dest = place.dest;
+    const u8* line = place.sourceLine;
+    u16* dest = place.dest;
 
     for (int row = 0; row < place.rows; ++row)
     {
@@ -43,8 +43,8 @@ int Painter::BlitRawCopy(int, int, int width, int, const DrawArgument&)
 int Painter::BlitRawCopyMirrored(int, int, int width, int, const DrawArgument&)
 {
     const Placement& place = this->placement;
-    const std::uint8_t* line = place.sourceLine;
-    std::uint16_t* dest = place.dest;
+    const u8* line = place.sourceLine;
+    u16* dest = place.dest;
 
     for (int row = 0; row < place.rows; ++row)
     {
@@ -64,9 +64,9 @@ int Painter::BlitRawCopyMirrored(int, int, int width, int, const DrawArgument&)
 int Painter::BlitRawKeyed(int, int, int width, int, const DrawArgument&)
 {
     const Placement& place = this->placement;
-    const std::uint8_t* line = place.sourceLine;
-    std::uint16_t* dest = place.dest;
-    const auto key = static_cast<std::uint16_t>(this->fillColorPair);
+    const u8* line = place.sourceLine;
+    u16* dest = place.dest;
+    const auto key = static_cast<u16>(this->fillColorPair);
 
     for (int row = 0; row < place.rows; ++row)
     {
@@ -74,7 +74,7 @@ int Painter::BlitRawKeyed(int, int, int width, int, const DrawArgument&)
         {
             if (this->palette == nullptr)
             {
-                const std::uint16_t pixel = Word(line, column);
+                const u16 pixel = Word(line, column);
 
                 if (pixel != key)
                 {
@@ -99,18 +99,18 @@ int Painter::BlitRawKeyed(int, int, int width, int, const DrawArgument&)
 int Painter::BlitRawKeyedMirrored(int, int, int width, int, const DrawArgument&)
 {
     const Placement& place = this->placement;
-    const std::uint8_t* line = place.sourceLine;
-    std::uint16_t* dest = place.dest;
+    const u8* line = place.sourceLine;
+    u16* dest = place.dest;
 
     for (int row = 0; row < place.rows; ++row)
     {
         for (int column = 0; column < place.width; ++column)
         {
-            const std::uint32_t pixel = Word(line, -column);
+            const u32 pixel = Word(line, -column);
 
             if (pixel != this->fillColorPair)
             {
-                dest[column] = static_cast<std::uint16_t>(pixel);
+                dest[column] = static_cast<u16>(pixel);
             }
         }
 
@@ -125,16 +125,16 @@ int Painter::BlitRawKeyedMirrored(int, int, int width, int, const DrawArgument&)
 int Painter::BlitRawTranslucent(int, int, int width, int, const DrawArgument&)
 {
     const Placement& place = this->placement;
-    const std::uint8_t* line = place.sourceLine;
-    std::uint16_t* dest = place.dest;
-    const auto key = static_cast<std::uint16_t>(this->fillColorPair);
+    const u8* line = place.sourceLine;
+    u16* dest = place.dest;
+    const auto key = static_cast<u16>(this->fillColorPair);
     const int level = this->options.alpha - 1;
 
     for (int row = 0; row < place.rows; ++row)
     {
         for (int column = 0; column < place.width; ++column)
         {
-            const std::uint16_t pixel = Word(line, column);
+            const u16 pixel = Word(line, column);
 
             if (pixel != key)
             {
@@ -154,11 +154,11 @@ int Painter::BlitRawTranslucent(int, int, int width, int, const DrawArgument&)
 int Painter::BlitRawGradient(int, int, int, int height, const DrawArgument&)
 {
     const Placement& place = this->placement;
-    const std::uint16_t color = Word(this->source);
+    const u16 color = Word(this->source);
     const int rowsPerStep = height >> 4;
     int level = 15;
     int rowInStep = 0;
-    std::uint16_t* dest = place.dest;
+    u16* dest = place.dest;
 
     for (int row = 0; row < place.rows; ++row)
     {
@@ -181,11 +181,11 @@ int Painter::BlitRawGradient(int, int, int, int height, const DrawArgument&)
 }
 
 // swd32.exe 0x00417DE0: pair = pair / 2 + color / 4 + pair / 8 + pair / 16 per channel, two pixels at a time
-void Painter::BlendPairsWithColor(std::span<std::uint32_t> pairs, std::uint32_t colorPair) const
+void Painter::BlendPairsWithColor(std::span<u32> pairs, u32 colorPair) const
 {
-    for (std::uint32_t& pair : pairs)
+    for (u32& pair : pairs)
     {
-        const std::uint32_t value = pair;
+        const u32 value = pair;
         pair = ((value >> 1) & this->halfMaskPairs[0]) + ((colorPair >> 2) & this->halfMaskPairs[1]) +
                ((value >> 3) & this->halfMaskPairs[2]) + ((value >> 4) & this->halfMaskPairs[3]);
     }

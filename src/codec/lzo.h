@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <span>
 
+#include "core/types.h"
+
 namespace swd3
 {
 
@@ -22,21 +24,21 @@ enum class LzoStatus
 class LzoDecoder
 {
 public:
-    LzoDecoder(std::span<const std::uint8_t> input, std::span<std::uint8_t> output);
+    LzoDecoder(std::span<const u8> input, std::span<u8> output);
 
     LzoStatus Run();
 
     std::size_t Written() const;
 
 private:
-    bool ReadByte(std::uint32_t& value);
-    bool ReadLength(std::uint32_t base, std::uint32_t& length);
-    LzoStatus CopyLiterals(std::uint32_t count);
-    LzoStatus CopyMatch(std::size_t distance, std::uint32_t count);
-    std::uint32_t TrailingLiterals() const;
+    bool ReadByte(u32& value);
+    bool ReadLength(u32 base, u32& length);
+    LzoStatus CopyLiterals(u32 count);
+    LzoStatus CopyMatch(std::size_t distance, u32 count);
+    u32 TrailingLiterals() const;
 
-    std::span<const std::uint8_t> input;
-    std::span<std::uint8_t> output;
+    std::span<const u8> input;
+    std::span<u8> output;
     std::size_t inputPosition = 0;
     std::size_t outputPosition = 0;
 };

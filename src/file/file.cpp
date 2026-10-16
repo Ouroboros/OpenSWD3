@@ -158,7 +158,7 @@ bool File::CloseMapping()
 }
 
 // swd32.exe 0x00438290: a previous view is released first
-const std::uint8_t* File::MapView(std::uint32_t offset, std::uint32_t size)
+const u8* File::MapView(u32 offset, u32 size)
 {
     if (this->viewed && !this->ReleaseView())
     {
@@ -172,14 +172,14 @@ const std::uint8_t* File::MapView(std::uint32_t offset, std::uint32_t size)
         return nullptr;
     }
 
-    const std::uint32_t fileSize = this->Size();
+    const u32 fileSize = this->Size();
 
     if (offset > fileSize || (size != 0 && size > fileSize - offset))
     {
         return nullptr;
     }
 
-    const std::uint32_t length = size != 0 ? size : fileSize - offset;
+    const u32 length = size != 0 ? size : fileSize - offset;
     const long position = std::ftell(this->file);
     this->view.assign(length, 0);
     std::fseek(this->file, static_cast<long>(offset), SEEK_SET);
@@ -196,9 +196,9 @@ const std::uint8_t* File::MapView(std::uint32_t offset, std::uint32_t size)
 }
 
 // swd32.exe 0x004382E0: only the current view can be released
-bool File::UnmapView(const std::uint8_t* view)
+bool File::UnmapView(const u8* view)
 {
-    const std::uint8_t* current = this->viewed ? this->view.data() : nullptr;
+    const u8* current = this->viewed ? this->view.data() : nullptr;
 
     if (current != view)
     {
@@ -224,7 +224,7 @@ bool File::ReleaseView()
 }
 
 // swd32.exe 0x00438340
-std::uint32_t File::Size()
+u32 File::Size()
 {
     if (this->file == nullptr)
     {
@@ -235,7 +235,7 @@ std::uint32_t File::Size()
     std::fseek(this->file, 0, SEEK_END);
     const long size = std::ftell(this->file);
     std::fseek(this->file, position, SEEK_SET);
-    return static_cast<std::uint32_t>(size);
+    return static_cast<u32>(size);
 }
 
 // swd32.exe 0x00438360: SetEndOfFile at the current position
@@ -254,7 +254,7 @@ bool File::Truncate()
 }
 
 // swd32.exe 0x00438380: an empty request fails
-bool File::Read(void* buffer, std::uint32_t& bytes)
+bool File::Read(void* buffer, u32& bytes)
 {
     if (this->file != nullptr && buffer != nullptr && bytes != 0)
     {
@@ -262,7 +262,7 @@ bool File::Read(void* buffer, std::uint32_t& bytes)
 
         if (done == bytes || !std::ferror(this->file))
         {
-            bytes = static_cast<std::uint32_t>(done);
+            bytes = static_cast<u32>(done);
             return true;
         }
 
@@ -275,7 +275,7 @@ bool File::Read(void* buffer, std::uint32_t& bytes)
 }
 
 // swd32.exe 0x004383E0: an empty request fails
-bool File::Write(const void* buffer, std::uint32_t& bytes)
+bool File::Write(const void* buffer, u32& bytes)
 {
     if (this->file != nullptr && buffer != nullptr && bytes != 0)
     {
@@ -283,7 +283,7 @@ bool File::Write(const void* buffer, std::uint32_t& bytes)
 
         if (done == bytes)
         {
-            bytes = static_cast<std::uint32_t>(done);
+            bytes = static_cast<u32>(done);
             return true;
         }
 
@@ -296,7 +296,7 @@ bool File::Write(const void* buffer, std::uint32_t& bytes)
 }
 
 // swd32.exe 0x00438440
-std::uint32_t File::Seek(Origin origin, std::int32_t distance)
+u32 File::Seek(Origin origin, i32 distance)
 {
     if (this->file == nullptr)
     {
@@ -310,29 +310,29 @@ std::uint32_t File::Seek(Origin origin, std::int32_t distance)
         return kInvalidPosition;
     }
 
-    return static_cast<std::uint32_t>(std::ftell(this->file));
+    return static_cast<u32>(std::ftell(this->file));
 }
 
 // swd32.exe 0x004384A0
-std::uint32_t File::SeekCurrent(std::int32_t distance)
+u32 File::SeekCurrent(i32 distance)
 {
     return this->Seek(Origin::Current, distance) + 1;
 }
 
 // swd32.exe 0x004384B0
-std::uint32_t File::SeekBegin(std::int32_t distance)
+u32 File::SeekBegin(i32 distance)
 {
     return this->Seek(Origin::Begin, distance) + 1;
 }
 
 // swd32.exe 0x004384C0
-std::uint32_t File::SeekEnd(std::int32_t distance)
+u32 File::SeekEnd(i32 distance)
 {
     return this->Seek(Origin::End, distance) + 1;
 }
 
 // swd32.exe 0x004384D0
-bool File::Tell(std::uint32_t& position)
+bool File::Tell(u32& position)
 {
     if (this->file != nullptr)
     {
@@ -340,7 +340,7 @@ bool File::Tell(std::uint32_t& position)
 
         if (current >= 0)
         {
-            position = static_cast<std::uint32_t>(current);
+            position = static_cast<u32>(current);
             return true;
         }
     }
@@ -352,9 +352,9 @@ bool File::Tell(std::uint32_t& position)
 // swd32.exe 0x00438520
 bool File::WriteExact(const void* buffer, int bytes)
 {
-    auto done = static_cast<std::uint32_t>(bytes);
+    auto done = static_cast<u32>(bytes);
 
-    if (this->Write(buffer, done) && done == static_cast<std::uint32_t>(bytes))
+    if (this->Write(buffer, done) && done == static_cast<u32>(bytes))
     {
         return true;
     }
@@ -364,7 +364,7 @@ bool File::WriteExact(const void* buffer, int bytes)
 }
 
 // swd32.exe 0x00438570: GetFileTime (the game only uses the last write time)
-bool File::LastWriteTime(std::uint64_t& fileTime) const
+bool File::LastWriteTime(u64& fileTime) const
 {
     if (this->file == nullptr)
     {
@@ -379,22 +379,22 @@ bool File::LastWriteTime(std::uint64_t& fileTime) const
         return false;
     }
 
-    using FileTimeTicks = std::chrono::duration<std::int64_t, std::ratio<1, 10000000>>;
+    using FileTimeTicks = std::chrono::duration<i64, std::ratio<1, 10000000>>;
     const auto sinceEpoch = std::chrono::clock_cast<std::chrono::system_clock>(written).time_since_epoch();
     const auto since1970 = std::chrono::duration_cast<FileTimeTicks>(sinceEpoch);
-    constexpr std::int64_t kFrom1601To1970 = 116444736000000000;
-    fileTime = static_cast<std::uint64_t>(since1970.count() + kFrom1601To1970);
+    constexpr i64 kFrom1601To1970 = 116444736000000000;
+    fileTime = static_cast<u64>(since1970.count() + kFrom1601To1970);
     return true;
 }
 
 // swd32.exe 0x004385A0
-bool File::WriteByte(std::uint8_t value)
+bool File::WriteByte(u8 value)
 {
     return this->WriteExact(&value, 1);
 }
 
 // swd32.exe 0x004385B0
-bool File::WriteDword(std::uint32_t value)
+bool File::WriteDword(u32 value)
 {
     return this->WriteExact(&value, 4);
 }
@@ -402,7 +402,7 @@ bool File::WriteDword(std::uint32_t value)
 // swd32.exe 0x004385C0: succeeds whenever the read call does, also on a short read
 bool File::ReadExact(void* buffer, int bytes)
 {
-    auto done = static_cast<std::uint32_t>(bytes);
+    auto done = static_cast<u32>(bytes);
 
     if (this->Read(buffer, done))
     {
@@ -414,13 +414,13 @@ bool File::ReadExact(void* buffer, int bytes)
 }
 
 // swd32.exe 0x00438600
-bool File::ReadByte(std::uint8_t& value)
+bool File::ReadByte(u8& value)
 {
     return this->ReadExact(&value, 1);
 }
 
 // swd32.exe 0x00438610
-bool File::ReadDword(std::uint32_t& value)
+bool File::ReadDword(u32& value)
 {
     return this->ReadExact(&value, 4);
 }
