@@ -469,17 +469,17 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 468	swd32.exe	0x004369C0	sub_4369C0	font_gdi	src/font/text_font.cpp:TextFont::InsertGlyph	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/font/text_font.cpp:TextFont::InsertGlyph
 469	swd32.exe	0x00436AD0	sub_436AD0	font_gdi	src/font/text_font.cpp:TextFont::DrawText	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/font/text_font.cpp:TextFont::DrawText
 470	swd32.exe	0x00436EA0	sub_436EA0	font_gdi	src/font/text_font.cpp:TextFont::FillRect	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/font/text_font.cpp:TextFont::FillRect
-471	swd32.exe	0x00436F70	sub_436F70	input		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/input/input.cpp:Input::Input
-472	swd32.exe	0x00436FA0	sub_436FA0	input		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=THUNK; legacy: src/input/input.cpp:Input::~Input
-473	swd32.exe	0x00436FB0	sub_436FB0	input		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	data format of the keyboard (c_dfDIKeyboard in the code section) reproduced as a constant without its object table; legacy: src/input/input.cpp:Input::Init
-474	swd32.exe	0x004372B0	sub_4372B0	input		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/input/input.cpp:Input::PollKeyboard
-475	swd32.exe	0x004372D0	sub_4372D0	input		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/input/input.cpp:Input::IsKeyDown
-476	swd32.exe	0x004372E0	sub_4372E0	input		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/input/input.cpp:Input::FirstKeyDown
-477	swd32.exe	0x00437300	sub_437300	input		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/input/input.cpp:Input::PressKey
-478	swd32.exe	0x00437310	sub_437310	input		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/input/input.cpp:Input::ReadMouse
-479	swd32.exe	0x00437430	sub_437430	input		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/input/input.cpp:Input::SetMousePosition
-480	swd32.exe	0x004374C0	sub_4374C0	input		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/input/input.cpp:Input::SetSensitivity
-481	swd32.exe	0x004374E0	sub_4374E0	input		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/input/input.cpp:Input::Release
+471	swd32.exe	0x00436F70	sub_436F70	input	src/input/input.cpp:Input::Input	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/input/input.cpp:Input::Input
+472	swd32.exe	0x00436FA0	sub_436FA0	input	src/input/input.cpp:Input::~Input	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	ida_flags=THUNK; legacy: src/input/input.cpp:Input::~Input
+473	swd32.exe	0x00436FB0	sub_436FB0	input	src/input/input.cpp:Input::Init	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	data format of the keyboard (c_dfDIKeyboard in the code section) reproduced as a constant without its object table; legacy: src/input/input.cpp:Input::Init
+474	swd32.exe	0x004372B0	sub_4372B0	input	src/input/input.cpp:Input::PollKeyboard	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/input/input.cpp:Input::PollKeyboard
+475	swd32.exe	0x004372D0	sub_4372D0	input	src/input/input.cpp:Input::IsKeyDown	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/input/input.cpp:Input::IsKeyDown
+476	swd32.exe	0x004372E0	sub_4372E0	input	src/input/input.cpp:Input::FirstKeyDown	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/input/input.cpp:Input::FirstKeyDown
+477	swd32.exe	0x00437300	sub_437300	input	src/input/input.cpp:Input::PressKey	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/input/input.cpp:Input::PressKey
+478	swd32.exe	0x00437310	sub_437310	input	src/input/input.cpp:Input::ReadMouse	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/input/input.cpp:Input::ReadMouse
+479	swd32.exe	0x00437430	sub_437430	input	src/input/input.cpp:Input::SetMousePosition	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/input/input.cpp:Input::SetMousePosition
+480	swd32.exe	0x004374C0	sub_4374C0	input	src/input/input.cpp:Input::SetSensitivity	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/input/input.cpp:Input::SetSensitivity
+481	swd32.exe	0x004374E0	sub_4374E0	input	src/input/input.cpp:Input::Release	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/input/input.cpp:Input::Release
 482	swd32.exe	0x00437560	sub_437560	gfx	src/gfx/graphics.cpp:Graphics::Graphics	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::Graphics
 483	swd32.exe	0x00437570	sub_437570	gfx	src/gfx/graphics.cpp:Graphics::Init	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/gfx/graphics.cpp:Graphics::Init
 484	swd32.exe	0x00437610	sub_437610	gfx	src/gfx/graphics.cpp:Graphics::CreateDevice	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "DirectDraw Create Error!!"; legacy: src/gfx/graphics.cpp:Graphics::CreateDirectDraw
@@ -1322,7 +1322,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1321	swd32.exe	0x004895D0	sub_4895D0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1322	swd32.exe	0x00489600	sub_489600	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1323	swd32.exe	0x00489610	sub_489610	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
-1324	swd32.exe	0x00489654	sub_489654	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME; legacy: src/crt/crt.cpp:ftol
+1324	swd32.exe	0x00489654	sub_489654	crt	src/crt/msvc.cpp:Ftol	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME; legacy: src/crt/crt.cpp:ftol
 1325	swd32.exe	0x00489680	sub_489680	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1326	swd32.exe	0x004896C0	sub_4896C0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings)
 1327	swd32.exe	0x004896D0	sub_4896D0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings)
@@ -1341,7 +1341,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1340	swd32.exe	0x00489AF6	sub_489AF6	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings)
 1341	swd32.exe	0x00489B10	sub_489B10	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME; legacy: src/crt/crt.cpp:srand
 1342	swd32.exe	0x00489B20	sub_489B20	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME; legacy: src/crt/crt.cpp:rand
-1343	swd32.exe	0x00489B50	sub_489B50	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME; legacy: src/crt/crt.cpp:difftime
+1343	swd32.exe	0x00489B50	sub_489B50	crt	src/crt/msvc.cpp:Difftime	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME; legacy: src/crt/crt.cpp:difftime
 1344	swd32.exe	0x00489B70	sub_489B70	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME; legacy: src/crt/crt.cpp:time
 1345	swd32.exe	0x00489D00	sub_489D00	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME; legacy: src/crt/crt.cpp:operator_delete
 1346	swd32.exe	0x00489D90	sub_489D90	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
