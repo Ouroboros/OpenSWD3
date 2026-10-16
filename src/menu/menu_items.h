@@ -26,5 +26,7 @@ void MenuPreviousPage();
 void MenuNextPage();
 void InitNumberList();
 void CopyItemsForMenu(int mode);
+void FreeRecordBuffers();
+int OpenRecordsPage();
 
 }  // namespace swd3

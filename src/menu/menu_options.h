@@ -10,5 +10,6 @@ void OptionCursorFirst();
 void OptionDecrease();
 void OptionIncrease();
 void OptionPageCursorDown();
+void OptionSelect();
 
 }  // namespace swd3

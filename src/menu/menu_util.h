@@ -28,5 +28,7 @@ void CountMenuPointers();
 std::uint32_t* AdvanceByDwords(int count, std::uint32_t base, std::uint32_t* out);
 void FormatEstimate(char* out, const char* name, int known, int level, int value, int maximum);
 void DrawMenuTabs();
+int DrawActAlpha(ActState* state, int x, int y, int level);
+void DrawSignedChange(int change, int x, int y, int value);
 
 }  // namespace swd3

@@ -723,13 +723,13 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 722	swd32.exe	0x00448CA0	sub_448CA0	menu	src/menu/menu_options.cpp:OptionDecrease	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
 723	swd32.exe	0x00448DA0	sub_448DA0	menu	src/menu/menu_options.cpp:OptionIncrease	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
 724	swd32.exe	0x00448EB0	sub_448EB0	menu	src/menu/menu_options.cpp:OptionPageCursorDown	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
-725	swd32.exe	0x00448EE0	sub_448EE0	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
+725	swd32.exe	0x00448EE0	sub_448EE0	menu	src/menu/menu_options.cpp:OptionSelect	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
 726	swd32.exe	0x00449050	sub_449050	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
 727	swd32.exe	0x004490C0	sub_4490C0	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between menu anchors 0x0043FDE0 and 0x00449C30
-728	swd32.exe	0x00449C30	sub_449C30	menu		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Menu:...)"
+728	swd32.exe	0x00449C30	sub_449C30	menu	src/menu/menu_util.cpp:DrawActAlpha	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Menu:...)"
 729	swd32.exe	0x00449D80	sub_449D80	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 730	swd32.exe	0x00449FF0	sub_449FF0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-731	swd32.exe	0x0044A030	sub_44A030	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+731	swd32.exe	0x0044A030	sub_44A030	menu	src/menu/menu_items.cpp:FreeRecordBuffers	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 732	swd32.exe	0x0044A050	sub_44A050	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 733	swd32.exe	0x0044A0D0	sub_44A0D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 734	swd32.exe	0x0044A160	sub_44A160	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
@@ -738,8 +738,8 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 737	swd32.exe	0x0044A250	sub_44A250	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 738	swd32.exe	0x0044A280	sub_44A280	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 739	swd32.exe	0x0044AB00	sub_44AB00	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-740	swd32.exe	0x0044AE70	sub_44AE70	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-741	swd32.exe	0x0044AF30	sub_44AF30	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+740	swd32.exe	0x0044AE70	sub_44AE70	menu	src/menu/menu_util.cpp:DrawSignedChange	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+741	swd32.exe	0x0044AF30	sub_44AF30	menu	src/menu/menu_items.cpp:OpenRecordsPage	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 742	swd32.exe	0x0044B010	sub_44B010	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 743	swd32.exe	0x0044B070	sub_44B070	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 744	swd32.exe	0x0044B560	sub_44B560	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	

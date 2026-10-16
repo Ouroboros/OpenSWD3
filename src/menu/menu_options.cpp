@@ -1,6 +1,12 @@
 #include "menu/menu_options.h"
 
+#include <cstring>
+#include <new>
+
 #include "audio/audio.h"
+#include "crt/crt.h"
+#include "res/act_anim.h"
+#include "text/text_input.h"
 #include "data/globals.h"
 #include "game/game_state.h"
 
@@ -176,6 +182,51 @@ void OptionPageCursorDown() {
         if (++G.optionPageCursor > 3) {
             G.optionPageCursor = 3;
         }
+    }
+}
+
+// swd32.exe 0x00448EE0: Enter on the page list: 1 opens the name entry (game flag 0x50, a 0x20 byte buffer and a
+// TextInput of 8 bytes at (300, 230)), 2 the settings page (panel act 0x232A / 0x22), 3 fades the music out
+void OptionSelect() {
+    if (G.optionPage != 1) {
+        return;
+    }
+    G.optionRow = 0x64;
+    G.optionPage = 2;
+    switch (G.optionPageCursor) {
+        case 1: {
+            G.optionRow = 0x61;
+            SetGameFlag(0x50);
+            G.dword_4FC208 = 1;
+            G.dword_4FC210 = 0x46;
+            G.dword_4FC23C = 0;
+            G.dword_4FD2A0 = 0;
+            auto* buffer = static_cast<std::uint8_t*>(crt::malloc(0x20));
+            G.dword_4FD2D0 = static_cast<std::int32_t>(reinterpret_cast<std::uintptr_t>(buffer));
+            std::memset(buffer, 0, 0x20);
+            ++G.optionRow;
+            void* storage = crt::operator_new(0x20);
+            if (storage == nullptr) {
+                G.dword_4CACD8 = 0;
+                return;
+            }
+            auto* input = new (storage) TextInput(reinterpret_cast<const char*>(&G.sz), 8, 0x12C, 0xE6);
+            G.dword_4CACD8 = static_cast<std::int32_t>(reinterpret_cast<std::uintptr_t>(input));
+            break;
+        }
+        case 2:
+            ActRun(&G.panelAct);
+            G.optionPage = 5;
+            G.optionRow = 0;
+            G.dword_4FC650 = 0x232A;
+            G.dword_4FC658 = 0x22;
+            break;
+        case 3:
+            SetMusicFade(0x10, 0x19);
+            PollMusicFade();
+            break;
+        default:
+            break;
     }
 }
 

@@ -10,6 +10,8 @@
 #include "core/mem.h"
 #include "data/globals.h"
 #include "draw/draw.h"
+#include "font/text_font.h"
+#include "pic/pixel_format.h"
 #include "res/act_anim.h"
 #include "res/tsw.h"
 #include "swd3/w32.h"
@@ -371,6 +373,60 @@ void DrawMenuTabs() {
     G.drawSource = reinterpret_cast<uint8_t*>(selected->pixels);
     DrawPicture(0x56, 0x3A, selected->width, selected->height, 0, 0);
     SetClipRectClamped(0, 1, 0x280, 0x1DE);
+}
+
+// swd32.exe 0x00449C30: one step of `state` drawn darkened by -25 - `level`, then from `level` up to -13 echoes
+// moving out to both sides (offset -12 - `level` falling by one per echo, the left one at half the distance), each
+// lighter by one. A failed step is logged through the empty function at 0x0044A240.
+int DrawActAlpha(ActState* state, int x, int y, int level) {
+    if (ActRun(state) == 0) {
+        return DebugLog("Act Err(Menu::DrawActAlpha)", reinterpret_cast<const char*>(&G.unk_49FD0C), state->id,
+                        state->action, state->direction);
+    }
+    Picture* picture = TswGetPicture(state->fr, state->ap);
+    const int dark = -0x19 - level;
+    G.drawOption304 = dark;
+    G.drawOption30C = dark;
+    G.drawOption71C = dark;
+    G.drawSource = reinterpret_cast<uint8_t*>(picture->pixels);
+    int result = DrawPicture(x - state->x, y - state->y, picture->width, picture->height, 4, 0);
+    int offset = -0xC - level;
+    for (int shade = level; shade < -0xC; ++shade, --offset) {
+        G.drawOption304 = shade;
+        G.drawOption30C = shade;
+        G.drawOption71C = shade;
+        DrawPicture(offset - state->x + x, y - state->y, picture->width, picture->height, 4, 0);
+        G.drawOption304 = shade;
+        G.drawOption30C = shade;
+        G.drawOption71C = shade;
+        result = DrawPicture(x - offset / 2 - state->x, y - state->y, picture->width, picture->height, 4, 0);
+    }
+    return result;
+}
+
+// swd32.exe 0x0044AE70: a signed change ("%c%-3d") placed after the digits of `value`: white, dark red when
+// negative; nothing for 0
+void DrawSignedChange(int change, int x, int y, int value) {
+    if (change == 0) {
+        return;
+    }
+    std::uint32_t color = MakeColor(0x1F, 0x1F, 0x1F);
+    if (change < 0) {
+        color = MakeColor(0x1A, 0, 0);
+    }
+    int shift = 0;
+    if (value >= 0x3E8) {
+        shift = 0x2C;
+    } else if (value >= 0x64) {
+        shift = 0x21;
+    } else if (value >= 0xA) {
+        shift = 0x16;
+    } else if (value >= 1) {
+        shift = 0xB;
+    }
+    w32::wsprintfA(G.menuText, "%c%-3d", change <= 0 ? '-' : '+', change < 0 ? -change : change);
+    G.textFont_4A9ED0.DrawText(reinterpret_cast<std::uint16_t*>(G.drawSurface), shift + x + 4, y, G.menuText,
+                               static_cast<std::uint16_t>(color), 4);
 }
 
 }  // namespace swd3

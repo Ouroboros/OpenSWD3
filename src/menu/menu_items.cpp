@@ -473,4 +473,40 @@ void CopyItemsForMenu(int mode) {
     }
 }
 
+// swd32.exe 0x0044A030: the return value is unused by callers
+void FreeRecordBuffers() {
+    crt::free(reinterpret_cast<void*>(static_cast<std::uintptr_t>(G.dword_4FD2DC)));
+    crt::free(reinterpret_cast<void*>(static_cast<std::uintptr_t>(G.dword_4FD2D8)));
+}
+
+// swd32.exe 0x0044AF30: opens the records page (hero slot 5): G.menuEntries lists the record ids 1.. whose game
+// flags 0xE75..0xF9F are set; returns the level G.dword_4A9ECC (kept in G.dword_4FD304)
+int OpenRecordsPage() {
+    G.dword_4FBECC = static_cast<std::int32_t>((static_cast<uint32_t>(G.dword_4FBECC) & 0xFFFF0000u) | 5);
+    G.dword_4FD310 = 0;
+    G.dword_4FD2F8 = 0;
+    G.dword_4FD3A8 = 0;
+    G.menuEntries = static_cast<uint16_t*>(crt::malloc(0x100));
+    std::memset(G.menuEntries, 0, 0x100);
+    G.dword_4FD320 = 0;
+    for (int flag = 0xE75; flag < 0xFA0; ++flag) {
+        if (GameFlag(flag)) {
+            G.menuEntries[G.dword_4FD320++] = static_cast<uint16_t>(flag - 0xE74);
+        }
+    }
+    G.dword_4FC4F0 = 0;
+    G.dword_4FC500 = 0;
+    G.dword_4FC4F4 = 0;
+    G.dword_4FC504 = 0;
+    G.dword_4FC4F8 = 0;
+    G.dword_4FC508 = 0;
+    G.dword_4FD308 = 0;
+    G.dword_4FD300 = 0;
+    G.dword_4FD2E0 = 0;
+    G.dword_4FD304 = G.dword_4A9ECC;
+    G.dword_4FC4FC = 0;
+    G.dword_4FC50C = 0;
+    return G.dword_4A9ECC;
+}
+
 }  // namespace swd3
