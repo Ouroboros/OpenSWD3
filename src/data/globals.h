@@ -16,6 +16,7 @@
 #include "gfx/graphics.h"
 #include "input/input.h"
 #include "memmgr/memory_manager.h"
+#include "movie/movie.h"
 #include "res/act.h"
 #include "res/act_anim.h"
 #include "res/tsw.h"
@@ -5486,8 +5487,8 @@ struct Globals {
     std::uint8_t evadeJustSucceeded;  // 0x0053D029
     std::uint8_t pad_53D02A[0x2];
     char battleText[64];  // 0x0053D02C formatted text of the battle messages
-    std::int32_t dword_53D06C;  // 0x0053D06C
-    std::int32_t dword_53D070;  // 0x0053D070
+    std::int32_t movieSurfaceType;  // 0x0053D06C BinkDDSurfaceType of the primary surface
+    Movie* movie;  // 0x0053D070
     std::uint8_t pad_53D074[0x9C];
     mss::PCMWAVEFORMAT waveFormat;  // 0x0053D110 output format requested by SoundEffects::Open
     std::int32_t dword_53D120;  // 0x0053D120
@@ -5911,6 +5912,8 @@ static_assert(offsetof(Globals, evadeDisabled) == 0xA3EB8);
 static_assert(offsetof(Globals, evadeStreak) == 0xA4028);
 static_assert(offsetof(Globals, evadeJustSucceeded) == 0xA4029);
 static_assert(offsetof(Globals, battleText) == 0xA402C);
+static_assert(offsetof(Globals, movieSurfaceType) == 0xA406C);
+static_assert(offsetof(Globals, movie) == 0xA4070);
 static_assert(offsetof(Globals, waveFormat) == 0xA4110);
 #if defined(__clang__)
 #pragma clang diagnostic pop

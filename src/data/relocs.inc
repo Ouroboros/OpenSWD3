@@ -30,3 +30,4 @@
 {0x5214F8u, 1u, image::RelocKind::Data},  // battleMessages
 {0x524468u, 10u, image::RelocKind::Data},  // lootNames
 {0x53C4B8u, 1u, image::RelocKind::Data},  // panelUnit
+{0x53D070u, 1u, image::RelocKind::Data},  // movie

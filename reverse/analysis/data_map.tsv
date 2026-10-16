@@ -335,3 +335,6 @@ addr	type	name	module	notes
 0x004A7F00	char[19]	poisonResistUpText	battle	"%s增加50%%毒系抗力"
 0x004A7F14	char[19]	waterResistUpText	battle	"%s增加50%%水系抗力"
 0x004A7F28	char[19]	fireResistUpText	battle	"%s增加50%%火系抗力"
+@include	movie/movie.h
+0x0053D06C	std::int32_t	movieSurfaceType	movie_bink	BinkDDSurfaceType of the primary surface
+0x0053D070	Movie*	movie	movie_bink
