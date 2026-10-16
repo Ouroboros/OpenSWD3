@@ -116,8 +116,27 @@ struct SkillScript
         RefreshOnly = 0x8000,    // an effect of the same kind only gets new turns and value
     };
 
-    static constexpr u32 NoAilmentFlag = 0x80;  // in `flags`: the skill brings no ailment
-    static constexpr u32 ElementBuff = 8;       // in `flags`: the buff raises the resistance to `element`
+    // The bits of `flags`, each set by an opcode of the skill script.
+    enum Flag : u32
+    {
+        UnkFlag1 = 1,      // opcode 3
+        UnkFlag2 = 2,      // opcode 9
+        UnkFlag4 = 4,      // opcode 0xB
+        ElementBuff = 8,   // opcode 0xE: the buff raises the resistance to `element`
+        UnkFlag10 = 0x10,  // opcodes 0xF..0x15 set 0x10..0x800 in turn (0x80 excepted)
+        UnkFlag20 = 0x20,
+        UnkFlag40 = 0x40,
+        NoAilmentFlag = 0x80,  // opcode 6: the skill brings no ailment
+        UnkFlag100 = 0x100,
+        UnkFlag200 = 0x200,
+        UnkFlag400 = 0x400,
+        UnkFlag800 = 0x800,
+        UnkFlag1000 = 0x1000,  // opcode 0x16, with unk20 and turns
+        UnkFlag2000 = 0x2000,  // opcode 0x18
+        UnkFlag4000 = 0x4000,  // opcode 0x19
+    };
+
+    static constexpr u16 Unk1EMark = 0x8000;  // set in unk1E by opcode 0xA
 
     // The values of `element` (names from the battle messages of each resistance).
     enum Element : u16
@@ -164,6 +183,69 @@ struct SkillScript
     u16 unk20 = 0;       // +0x20 opcode 0x16
     u16 unk22 = 0;       // +0x22 opcode 0x17
     u8 turns = 0;        // +0x24 opcodes 2, 0x16: the turns of an effect
+};
+
+// The opcodes of a skill script of mon.dat (Database::LoadSkill); 5 ends the script.
+enum class SkillOpcode : u16
+{
+    Values = 0,  // unk0C and unk10
+    Turns = 2,
+    SetUnkFlag1 = 3,
+    Unk16 = 4,
+    End = 5,
+    NoAilment = 6,
+    Ailment = 7,
+    Unk14 = 8,
+    SetUnkFlag2 = 9,
+    Unk1E = 0xA,
+    SetUnkFlag4 = 0xB,
+    StatusBits = 0xC,
+    Unk1C = 0xD,
+    Element = 0xE,
+    SetUnkFlag10 = 0xF,
+    SetUnkFlag20 = 0x10,
+    SetUnkFlag40 = 0x11,
+    SetUnkFlag100 = 0x12,
+    SetUnkFlag200 = 0x13,
+    SetUnkFlag400 = 0x14,
+    SetUnkFlag800 = 0x15,
+    Unk20 = 0x16,
+    Unk22 = 0x17,
+    SetUnkFlag2000 = 0x18,
+    SetUnkFlag4000 = 0x19,
+};
+
+// The tags of an object script of mon.dat (Database::LoadObject); 5 ends the script.
+enum class ObjectTag : u16
+{
+    Unk50Block = 1,  // 0x4D bytes from unk50
+    End = 5,
+    Unk40 = 6,
+    Unk24 = 7,
+    Unk26 = 8,
+    Unk2C = 9,
+    Unk32 = 0xA,
+    Price = 0xB,
+    Unk42 = 0xC,
+    Unk44 = 0xD,
+    Unk50 = 0xE,
+    Unk28 = 0xF,
+    Unk2A = 0x10,
+    Unk2E = 0x11,
+    Unk30 = 0x12,
+    Unk34 = 0x13,
+    Unk36 = 0x14,
+    Unk38 = 0x15,
+    Unk48 = 0x16,
+    Kind = 0x19,
+    UsableBy = 0x1A,
+    Unk3C = 0x1B,
+    Unk9B = 0x1C,
+    Unk9C = 0x1D,
+    Description = 0x1E,
+    Unk3E = 0x64,
+    Name = 0x3E8,
+    Resistances = 0x7D0,  // the resistances, unk9B, unk9C, the level and unk52
 };
 
 }  // namespace swd3

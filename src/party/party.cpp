@@ -1,4 +1,5 @@
 #include "party/party.h"
+#include "core/byte_reader.h"
 #include "org/database.h"
 #include "text/big5.h"
 
@@ -9,45 +10,36 @@
 namespace swd3
 {
 
-namespace
-{
-
-u16 Word(std::span<const u8> bytes, std::size_t offset)
-{
-    return static_cast<u16>(bytes[offset] | bytes[offset + 1] << 8);
-}
-
-}  // namespace
-
 // swd32.exe 0x0040DD60: a role of the starting state in maps.dat (0x34 bytes): the maxima come before the current
 // values, the experience is a word
 void RoleRecord::Load(std::span<const u8> record)
 {
-    this->unk00 = static_cast<i32>(Word(record, 0) | static_cast<u32>(Word(record, 2)) << 16);
-    this->maxHitPoints = static_cast<i16>(Word(record, 4));
-    this->maxSpirit = static_cast<i16>(Word(record, 6));
-    this->maxStamina = static_cast<i16>(Word(record, 8));
-    this->hitPoints = static_cast<i16>(Word(record, 0xA));
-    this->spirit = static_cast<i16>(Word(record, 0xC));
-    this->stamina = static_cast<i16>(Word(record, 0xE));
-    this->attack = static_cast<i16>(Word(record, 0x10));
-    this->defense = static_cast<i16>(Word(record, 0x12));
-    this->unk14 = static_cast<i16>(Word(record, 0x14));
-    this->agility = static_cast<i16>(Word(record, 0x16));
-    this->unk18 = static_cast<i16>(Word(record, 0x18));
-    this->unk1A = static_cast<i16>(Word(record, 0x1A));
-    this->ailmentChance = static_cast<i16>(Word(record, 0x1C));
-    this->unk1E = static_cast<i16>(Word(record, 0x1E));
-    this->unk2A = Word(record, 0x20);
-    this->experience = static_cast<i32>(Word(record, 0x22));
-    this->unk24 = Word(record, 0x24);
-    this->attackBonus = Word(record, 0x26);
-    this->defenseBonus = Word(record, 0x28);
-    this->level = record[0x2A];
+    ByteReader reader(record);
+    this->unk00 = static_cast<i32>(reader.Word32());
+    this->maxHitPoints = static_cast<i16>(reader.Word16());
+    this->maxSpirit = static_cast<i16>(reader.Word16());
+    this->maxStamina = static_cast<i16>(reader.Word16());
+    this->hitPoints = static_cast<i16>(reader.Word16());
+    this->spirit = static_cast<i16>(reader.Word16());
+    this->stamina = static_cast<i16>(reader.Word16());
+    this->attack = static_cast<i16>(reader.Word16());
+    this->defense = static_cast<i16>(reader.Word16());
+    this->unk14 = static_cast<i16>(reader.Word16());
+    this->agility = static_cast<i16>(reader.Word16());
+    this->unk18 = static_cast<i16>(reader.Word16());
+    this->unk1A = static_cast<i16>(reader.Word16());
+    this->ailmentChance = static_cast<i16>(reader.Word16());
+    this->unk1E = static_cast<i16>(reader.Word16());
+    this->unk2A = reader.Word16();
+    this->experience = static_cast<i32>(reader.Word16());
+    this->unk24 = reader.Word16();
+    this->attackBonus = reader.Word16();
+    this->defenseBonus = reader.Word16();
+    this->level = reader.Byte();
 
-    for (std::size_t index = 0; index < this->unk2D.size(); ++index)
+    for (u8& value : this->unk2D)
     {
-        this->unk2D[index] = record[0x2B + index];
+        value = reader.Byte();
     }
 }
 
@@ -69,6 +61,30 @@ constexpr std::u8string_view kHongShanHu = u8"紅珊瑚";   // 0x004A710C
 constexpr std::u8string_view kNingCaiChen = u8"寧采臣";  // 0x004A7104
 constexpr std::u8string_view kYanChiXia = u8"燕赤霞";    // 0x004A70FC
 constexpr std::u8string_view kXiaoQian = u8"小倩";       // 0x004A70F4
+
+// The values the name codes set.
+constexpr i16 kHeRanAttributes = 0x19;
+constexpr i16 kJiangRuHongUnk14 = 0x64;
+constexpr i16 kJiangRuHongSpirit = 0x12C;
+constexpr i16 kYangKunShuoAttack = 0x32;
+constexpr i16 kYangKunShuoHitPoints = 0xC8;
+constexpr u8 kGuYueShengUnk2D = 0xFB;
+constexpr i16 kFuZiCheAttributes = 0x1E;
+constexpr u8 kWenJinUnk2D = 0xF9;
+constexpr i16 kZhuShiZiDefense = 0x64;
+constexpr i16 kZhuShiZiStamina = 0x12C;
+constexpr i16 kLeLeUnk14 = 0x46;
+constexpr i16 kLeLeSpirit = 0xFA;
+constexpr i16 kDaMiUnk14 = 0x64;
+constexpr u8 kDaMiUnk2D = 2;
+constexpr i16 kZhenMengDefense = 0x64;
+constexpr i16 kZhenMengStamina = 0x12C;
+constexpr i16 kHongShanHuAttack = 0x32;
+constexpr i16 kHongShanHuHitPoints = 0xC8;
+constexpr i16 kNingCaiChenLoss = 5;
+constexpr i16 kNingCaiChenAttackLoss = 0xA;
+constexpr i32 kNingCaiChenGold = 0x1F4;
+constexpr i16 kXiaoQianValue = 5;
 
 bool Named(const Party::Name& name, std::u8string_view text)
 {
@@ -97,79 +113,79 @@ void Party::ApplyNameCheats()
 
     if (Named(firstName, kHeRan))
     {
-        attributes(first, 0x19);
+        attributes(first, kHeRanAttributes);
     }
 
     if (Named(secondName, kJiangRuHong))
     {
-        second.unk14 = 0x64;
-        second.spirit = 0x12C;
-        second.maxSpirit = 0x12C;
+        second.unk14 = kJiangRuHongUnk14;
+        second.spirit = kJiangRuHongSpirit;
+        second.maxSpirit = kJiangRuHongSpirit;
     }
 
     if (Named(firstName, kYangKunShuo))
     {
-        first.attack = 0x32;
-        first.hitPoints = 0xC8;
-        first.maxHitPoints = 0xC8;
+        first.attack = kYangKunShuoAttack;
+        first.hitPoints = kYangKunShuoHitPoints;
+        first.maxHitPoints = kYangKunShuoHitPoints;
     }
 
     if (Named(firstName, kGuYueSheng))
     {
-        first.unk2D.fill(0xFB);
+        first.unk2D.fill(kGuYueShengUnk2D);
     }
 
     if (Named(firstName, kFuZiChe))
     {
-        attributes(first, 0x1E);
+        attributes(first, kFuZiCheAttributes);
     }
 
     if (Named(secondName, kWenJin))
     {
-        second.unk2D.fill(0xF9);
+        second.unk2D.fill(kWenJinUnk2D);
     }
 
     if (Named(firstName, kZhuShiZi))
     {
-        first.defense = 0x64;
-        first.stamina = 0x12C;
-        first.maxStamina = 0x12C;
+        first.defense = kZhuShiZiDefense;
+        first.stamina = kZhuShiZiStamina;
+        first.maxStamina = kZhuShiZiStamina;
     }
 
     if (Named(firstName, kLeLe))
     {
-        first.unk14 = 0x46;
-        first.spirit = 0xFA;
-        first.maxSpirit = 0xFA;
+        first.unk14 = kLeLeUnk14;
+        first.spirit = kLeLeSpirit;
+        first.maxSpirit = kLeLeSpirit;
     }
 
     if (Named(firstName, kDaMi))
     {
-        first.unk14 = 0x64;
-        first.unk2D.fill(2);
+        first.unk14 = kDaMiUnk14;
+        first.unk2D.fill(kDaMiUnk2D);
     }
 
     if (Named(secondName, kZhenMeng))
     {
-        second.defense = 0x64;
-        second.stamina = 0x12C;
-        second.maxStamina = 0x12C;
+        second.defense = kZhenMengDefense;
+        second.stamina = kZhenMengStamina;
+        second.maxStamina = kZhenMengStamina;
     }
 
     if (Named(secondName, kHongShanHu))
     {
-        second.attack = 0x32;
-        second.hitPoints = 0xC8;
-        second.maxHitPoints = 0xC8;
+        second.attack = kHongShanHuAttack;
+        second.hitPoints = kHongShanHuHitPoints;
+        second.maxHitPoints = kHongShanHuHitPoints;
     }
 
     if (Named(firstName, kNingCaiChen))
     {
-        first.defense = static_cast<i16>(first.defense - 5);
-        first.unk14 = static_cast<i16>(first.unk14 - 5);
-        first.agility = static_cast<i16>(first.agility - 5);
-        this->variables[Party::Gold] = 0x1F4;
-        first.attack = static_cast<i16>(first.attack - 0xA);
+        first.defense = static_cast<i16>(first.defense - kNingCaiChenLoss);
+        first.unk14 = static_cast<i16>(first.unk14 - kNingCaiChenLoss);
+        first.agility = static_cast<i16>(first.agility - kNingCaiChenLoss);
+        this->variables[Party::Gold] = kNingCaiChenGold;
+        first.attack = static_cast<i16>(first.attack - kNingCaiChenAttackLoss);
     }
 
     if (Named(firstName, kYanChiXia))
@@ -181,9 +197,9 @@ void Party::ApplyNameCheats()
 
     if (Named(secondName, kXiaoQian))
     {
-        second.unk14 = 5;
-        second.spirit = 5;
-        second.maxSpirit = 5;
+        second.unk14 = kXiaoQianValue;
+        second.spirit = kXiaoQianValue;
+        second.maxSpirit = kXiaoQianValue;
     }
 }
 
@@ -211,7 +227,7 @@ std::array<Party::Name, Party::Roles> Party::DefaultNames()
 void Party::SetRoleStat(int field, int value, int role, Database& database)
 {
     RoleRecord& record = this->roles[static_cast<std::size_t>(role)];
-    const std::array<i16*, 14> words = {
+    const std::array<i16*, Party::WordStats> words = {
         &record.hitPoints,
         &record.spirit,
         &record.stamina,
@@ -228,19 +244,19 @@ void Party::SetRoleStat(int field, int value, int role, Database& database)
         &record.unk1E,
     };
 
-    if (field >= 0 && field < 0xE)
+    if (field >= 0 && field < Party::WordStats)
     {
         *words[static_cast<std::size_t>(field)] = static_cast<i16>(value);
     }
-    else if (field == 0xE)
+    else if (field == Party::ExperienceStat)
     {
         record.experience = value;
     }
-    else if (field == 0xF)
+    else if (field == Party::Unk00Stat)
     {
         record.unk00 = value;
     }
-    else if (field == 0x10)
+    else if (field == Party::LevelStat)
     {
         record.level = static_cast<u8>(value);
         u32 experience = 0;
@@ -256,7 +272,7 @@ void Party::SetRoleStat(int field, int value, int role, Database& database)
 int Party::RoleStat(int field, int role) const
 {
     const RoleRecord& record = this->roles[static_cast<std::size_t>(role)];
-    const std::array<i16, 14> words = {
+    const std::array<i16, Party::WordStats> words = {
         record.hitPoints,
         record.spirit,
         record.stamina,
@@ -273,27 +289,27 @@ int Party::RoleStat(int field, int role) const
         record.unk1E,
     };
 
-    if (field >= 0 && field < 6)
+    if (field >= 0 && field < Party::SignedStats)
     {
         return words[static_cast<std::size_t>(field)];
     }
 
-    if (field >= 6 && field < 0xE)
+    if (field >= Party::SignedStats && field < Party::WordStats)
     {
         return static_cast<u16>(words[static_cast<std::size_t>(field)]);
     }
 
-    if (field == 0xE)
+    if (field == Party::ExperienceStat)
     {
         return record.experience;
     }
 
-    if (field == 0xF)
+    if (field == Party::Unk00Stat)
     {
         return record.unk00;
     }
 
-    if (field == 0x10)
+    if (field == Party::LevelStat)
     {
         return record.level;
     }

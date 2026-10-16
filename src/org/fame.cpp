@@ -18,6 +18,11 @@ constexpr std::size_t kHeaderBytes = 0xA;
 constexpr std::size_t kBlockHeaderBytes = 0xA;
 constexpr std::size_t kSlackBytes = 0x1E;
 constexpr int kFameBits = 15;
+constexpr std::size_t kCountAt = sizeof(u32);  // a list header: its bytes, then its node count
+constexpr std::size_t kVersionAt = 0;          // the save block: 1, the unpacked and the packed size
+constexpr u8 kBlockVersion = 1;
+constexpr std::size_t kUnpackedAt = 2;
+constexpr std::size_t kPackedAt = 6;
 
 // The node `id` of a fame lookup: the head first, then every node; `last` is left on the last node visited.
 CounterNode* FindNode(CounterList& list, i16 id, CounterNode*& last)
@@ -305,7 +310,7 @@ bool Fame::Save(std::vector<u8>& block, ErrorReporter& reporter) const
         if (nodes != 0)
         {
             PutDword(data, section, static_cast<u32>(kHeaderBytes + CounterNode::SavedBytes * nodes));
-            std::memcpy(data.data() + section + 4, &nodes, 2);
+            std::memcpy(data.data() + section + kCountAt, &nodes, sizeof(u16));
         }
 
         section = entry;
@@ -320,9 +325,9 @@ bool Fame::Save(std::vector<u8>& block, ErrorReporter& reporter) const
     }
 
     block.assign(kBlockHeaderBytes + packed.size(), 0);
-    block[0] = 1;
-    PutDword(block, 2, static_cast<u32>(size));
-    PutDword(block, 6, static_cast<u32>(packed.size()));
+    block[kVersionAt] = kBlockVersion;
+    PutDword(block, kUnpackedAt, static_cast<u32>(size));
+    PutDword(block, kPackedAt, static_cast<u32>(packed.size()));
     std::memcpy(block.data() + kBlockHeaderBytes, packed.data(), packed.size());
     return true;
 }
@@ -330,8 +335,8 @@ bool Fame::Save(std::vector<u8>& block, ErrorReporter& reporter) const
 // swd32.exe 0x00477F10: replaces the three lists from a save block (the count goes into the low word of the head)
 bool Fame::Load(std::span<const u8> block, ErrorReporter& reporter)
 {
-    const u32 size = GetDword(block, 2);
-    const u32 packedSize = GetDword(block, 6);
+    const u32 size = GetDword(block, kUnpackedAt);
+    const u32 packedSize = GetDword(block, kPackedAt);
     std::vector<u8> data(size, 0);
     const std::span<const u8> packed =
         block.subspan(std::min<std::size_t>(kBlockHeaderBytes, block.size()))
@@ -356,9 +361,9 @@ bool Fame::Load(std::span<const u8> block, ErrorReporter& reporter)
     {
         u16 count = 0;
 
-        if (at + 6 <= data.size())
+        if (at + kCountAt + sizeof(u16) <= data.size())
         {
-            std::memcpy(&count, data.data() + at + 4, 2);
+            std::memcpy(&count, data.data() + at + kCountAt, sizeof(u16));
         }
 
         list.id = static_cast<i16>(count);

@@ -66,6 +66,9 @@ struct MapMovie
 {
     static constexpr u32 FileHeaderBytes = 0xC;  // the chunk offsets count from after it
     static constexpr u32 PaletteColors = 0x100;
+    static constexpr std::size_t RedAt = 0;  // a palette entry: red, green and blue bytes
+    static constexpr std::size_t GreenAt = 1;
+    static constexpr std::size_t BlueAt = 2;
     static constexpr u32 PaletteBytes = 3 * PaletteColors;    // RGB triplets, stored before PaletteTailBytes at the end
     static constexpr u32 PaletteTailBytes = 0x400;            // the frames the palettes change at (u16 each)
     static constexpr u16 IndexedBits = 8;                     // MovieHeader::bitsPerPixel of a paletted movie

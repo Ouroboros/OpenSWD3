@@ -17,7 +17,18 @@ constexpr u32 kDataBase = 0x200;
 constexpr u32 kLevelIndex = 0x70;
 constexpr int kLevelsPerGroup = 0x64;
 constexpr int kTextSearch = 0xFF;
-constexpr u16 kEnd = 5;
+constexpr u16 kEnd = static_cast<u16>(ObjectTag::End);
+constexpr std::size_t kUnk50Bytes = 0x4D;
+constexpr std::size_t kTextEndBytes = 2;   // the "$$" after a text
+constexpr std::size_t kResistUnk9BAt = 9;  // tag 0x7D0: nine resistances, two bytes and two words
+constexpr std::size_t kResistUnk9CAt = 10;
+constexpr std::size_t kResistLevelAt = 11;
+constexpr std::size_t kResistUnk52At = 13;
+constexpr std::size_t kResistBytes = 15;
+constexpr u16 kLevelStats = 0;  // level.dat opcodes: the stats (kLevelStatBytes), a skipped word
+constexpr u16 kLevelSkip = 1;
+constexpr std::size_t kLevelStatBytes = 0x1A;
+constexpr std::size_t kExperienceAt = 0x16;
 
 // Reads the script words; past the 0x400-byte buffer (where the original reads on) the script ends.
 class ScriptReader
@@ -162,127 +173,127 @@ bool Database::LoadSkill(SkillScript& skill, u16 id)
     {
         const u16 opcode = code.Word();
 
-        if (opcode == kEnd)
+        if (opcode == static_cast<u16>(SkillOpcode::End))
         {
             break;
         }
 
         const std::size_t at = code.position;
 
-        switch (opcode)
+        switch (static_cast<SkillOpcode>(opcode))
         {
-            case 0:
+            case SkillOpcode::Values:
                 skill.unk0C = code.DwordAt(at);
-                skill.unk10 = code.DwordAt(at + 4);
-                code.position += 8;
+                skill.unk10 = code.DwordAt(at + sizeof(u32));
+                code.position += 2 * sizeof(u32);
                 break;
 
-            case 2:
+            case SkillOpcode::Turns:
                 skill.turns = code.ByteAt(at);
-                code.position += 2;
+                code.position += sizeof(u16);
                 break;
 
-            case 3:
-                skill.flags |= 1;
+            case SkillOpcode::SetUnkFlag1:
+                skill.flags |= SkillScript::UnkFlag1;
                 break;
 
-            case 4:
+            case SkillOpcode::Unk16:
                 skill.unk16 = code.WordAt(at);
-                code.position += 2;
+                code.position += sizeof(u16);
                 break;
 
-            case 6:
+            case SkillOpcode::NoAilment:
                 skill.ailment = code.WordAt(at);
-                code.position += 2;
-                skill.flags |= 0x80;
+                code.position += sizeof(u16);
+                skill.flags |= SkillScript::NoAilmentFlag;
                 break;
 
-            case 7:
+            case SkillOpcode::Ailment:
                 skill.ailment = code.WordAt(at);
-                code.position += 2;
+                code.position += sizeof(u16);
                 break;
 
-            case 8:
+            case SkillOpcode::Unk14:
                 skill.unk14 = code.WordAt(at);
-                code.position += 2;
+                code.position += sizeof(u16);
                 break;
 
-            case 9:
-                skill.flags |= 2;
+            case SkillOpcode::SetUnkFlag2:
+                skill.flags |= SkillScript::UnkFlag2;
                 break;
 
-            case 0xA:
+            case SkillOpcode::Unk1E:
                 skill.unk1E = code.WordAt(at);
-                code.position += 2;
-                skill.unk1E |= 0x8000;
+                code.position += sizeof(u16);
+                skill.unk1E |= SkillScript::Unk1EMark;
                 break;
 
-            case 0xB:
-                skill.flags |= 4;
+            case SkillOpcode::SetUnkFlag4:
+                skill.flags |= SkillScript::UnkFlag4;
                 break;
 
-            case 0xC:
+            case SkillOpcode::StatusBits:
                 skill.statusBits = code.DwordAt(at);
-                code.position += 4;
+                code.position += sizeof(u32);
                 break;
 
-            case 0xD:
+            case SkillOpcode::Unk1C:
                 skill.unk1C = code.WordAt(at);
-                code.position += 2;
+                code.position += sizeof(u16);
                 break;
 
-            case 0xE:
-                skill.flags |= 8;
+            case SkillOpcode::Element:
+                skill.flags |= SkillScript::ElementBuff;
                 skill.element = code.WordAt(at);
-                code.position += 2;
+                code.position += sizeof(u16);
                 break;
 
-            case 0xF:
-                skill.flags |= 0x10;
+            case SkillOpcode::SetUnkFlag10:
+                skill.flags |= SkillScript::UnkFlag10;
                 break;
 
-            case 0x10:
-                skill.flags |= 0x20;
+            case SkillOpcode::SetUnkFlag20:
+                skill.flags |= SkillScript::UnkFlag20;
                 break;
 
-            case 0x11:
-                skill.flags |= 0x40;
+            case SkillOpcode::SetUnkFlag40:
+                skill.flags |= SkillScript::UnkFlag40;
                 break;
 
-            case 0x12:
-                skill.flags |= 0x100;
+            case SkillOpcode::SetUnkFlag100:
+                skill.flags |= SkillScript::UnkFlag100;
                 break;
 
-            case 0x13:
-                skill.flags |= 0x200;
+            case SkillOpcode::SetUnkFlag200:
+                skill.flags |= SkillScript::UnkFlag200;
                 break;
 
-            case 0x14:
-                skill.flags |= 0x400;
+            case SkillOpcode::SetUnkFlag400:
+                skill.flags |= SkillScript::UnkFlag400;
                 break;
 
-            case 0x15:
-                skill.flags |= 0x800;
+            case SkillOpcode::SetUnkFlag800:
+                skill.flags |= SkillScript::UnkFlag800;
                 break;
 
-            case 0x16:
-                skill.flags |= 0x1000;
+            case SkillOpcode::Unk20:
+                skill.flags |= SkillScript::UnkFlag1000;
                 skill.unk20 = code.WordAt(at);
-                skill.turns = code.ByteAt(at + 2);
-                code.position += 4;
+                skill.turns = code.ByteAt(at + sizeof(u16));
+                code.position += sizeof(u32);
                 break;
 
-            case 0x17:
+            case SkillOpcode::Unk22:
                 skill.unk22 = code.WordAt(at);
-                code.position += 2;
+                code.position += sizeof(u16);
                 break;
 
-            case 0x18:
-                skill.flags |= 0x2000;
+            case SkillOpcode::SetUnkFlag2000:
+                skill.flags |= SkillScript::UnkFlag2000;
                 break;
 
-            case 0x19:
-                skill.flags |= 0x4000;
+            case SkillOpcode::SetUnkFlag4000:
+                skill.flags |= SkillScript::UnkFlag4000;
                 break;
 
             default:
@@ -315,7 +326,7 @@ bool Database::LoadObject(ObjectRecord& record, u16 id)
 
     file->SeekBegin(static_cast<i32>(kIndexBase));
     ReadDword(*file);
-    file->SeekCurrent(static_cast<i32>(4 * id - 4));
+    file->SeekCurrent(static_cast<i32>(sizeof(u32) * (id - 1)));
     const u32 offset = ReadDword(*file);
     std::vector<u8> script;
     this->ReadScript(*file, offset, script);
@@ -333,7 +344,7 @@ bool Database::LoadObject(ObjectRecord& record, u16 id)
     {
         const u16 tag = code.Word();
 
-        if (tag == kEnd)
+        if (tag == static_cast<u16>(ObjectTag::End))
         {
             break;
         }
@@ -343,108 +354,108 @@ bool Database::LoadObject(ObjectRecord& record, u16 id)
         auto word = [&](u16& field)
         {
             field = code.WordAt(at);
-            code.position += 2;
+            code.position += sizeof(u16);
         };
 
-        switch (tag)
+        switch (static_cast<ObjectTag>(tag))
         {
-            case 1:
-                code.Copy(bytes + offsetof(ObjectData, unk50), 0x4D);
-                code.position += 0x4D;
+            case ObjectTag::Unk50Block:
+                code.Copy(bytes + offsetof(ObjectData, unk50), kUnk50Bytes);
+                code.position += kUnk50Bytes;
                 break;
 
-            case 6:
+            case ObjectTag::Unk40:
                 word(data.unk40);
                 break;
 
-            case 7:
+            case ObjectTag::Unk24:
                 word(data.unk24);
                 break;
 
-            case 8:
+            case ObjectTag::Unk26:
                 word(data.unk26);
                 break;
 
-            case 9:
+            case ObjectTag::Unk2C:
                 word(data.unk2C);
                 break;
 
-            case 0xA:
+            case ObjectTag::Unk32:
                 word(data.unk32);
                 break;
 
-            case 0xB:
+            case ObjectTag::Price:
                 word(data.price);
                 break;
 
-            case 0xC:
+            case ObjectTag::Unk42:
                 word(data.unk42);
                 break;
 
-            case 0xD:
+            case ObjectTag::Unk44:
                 word(data.unk44);
                 break;
 
-            case 0xE:
+            case ObjectTag::Unk50:
                 word(data.unk50);
                 break;
 
-            case 0xF:
+            case ObjectTag::Unk28:
                 word(data.unk28);
                 break;
 
-            case 0x10:
+            case ObjectTag::Unk2A:
                 word(data.unk2A);
                 break;
 
-            case 0x11:
+            case ObjectTag::Unk2E:
                 word(data.unk2E);
                 break;
 
-            case 0x12:
+            case ObjectTag::Unk30:
                 word(data.unk30);
                 break;
 
-            case 0x13:
+            case ObjectTag::Unk34:
                 word(data.unk34);
                 break;
 
-            case 0x14:
+            case ObjectTag::Unk36:
                 word(data.unk36);
                 break;
 
-            case 0x15:
+            case ObjectTag::Unk38:
                 word(data.unk38);
                 break;
 
-            case 0x16:
+            case ObjectTag::Unk48:
                 word(data.unk48);
                 break;
 
-            case 0x19:
-                data.kind = code.DwordAt(at + 2);
-                code.position += 6;
+            case ObjectTag::Kind:
+                data.kind = code.DwordAt(at + sizeof(u16));
+                code.position += sizeof(u16) + sizeof(u32);
                 break;
 
-            case 0x1A:
+            case ObjectTag::UsableBy:
                 word(data.usableBy);
                 break;
 
-            case 0x1B:
+            case ObjectTag::Unk3C:
                 word(data.unk3C);
                 break;
 
-            case 0x1C:
+            case ObjectTag::Unk9B:
                 data.unk9B = code.ByteAt(at);
-                code.position += 1;
+                code.position += sizeof(u8);
                 break;
 
-            case 0x1D:
+            case ObjectTag::Unk9C:
                 data.unk9C = code.ByteAt(at);
-                code.position += 1;
+                code.position += sizeof(u8);
                 break;
 
-            case 0x1E:
+            case ObjectTag::Description:
             {
                 const int length = code.TextLength();
 
@@ -457,16 +468,16 @@ bool Database::LoadObject(ObjectRecord& record, u16 id)
                 std::string text(static_cast<std::size_t>(length), '\0');
                 code.Copy(text.data(), text.size());
                 record.description = std::move(text);
-                code.position += static_cast<std::size_t>(length) + 2;
+                code.position += static_cast<std::size_t>(length) + kTextEndBytes;
                 this->descriptionBytes += length + 1;
                 break;
             }
 
-            case 0x64:
+            case ObjectTag::Unk3E:
                 word(data.unk3E);
                 break;
 
-            case Database::NameTag:
+            case ObjectTag::Name:
             {
                 const int length = code.TextLength();
 
@@ -475,17 +486,17 @@ bool Database::LoadObject(ObjectRecord& record, u16 id)
                     code.Copy(bytes, std::min(static_cast<std::size_t>(length), sizeof(ObjectData)));
                 }
 
-                code.position += static_cast<std::size_t>(length) + 2;
+                code.position += static_cast<std::size_t>(length) + kTextEndBytes;
                 break;
             }
 
-            case 0x7D0:
+            case ObjectTag::Resistances:
                 code.Copy(data.resistances.data(), data.resistances.size());
-                data.unk9B = code.ByteAt(at + 9);
-                data.unk9C = code.ByteAt(at + 10);
-                data.level = code.WordAt(at + 11);
-                data.unk52 = code.WordAt(at + 13);
-                code.position += 15;
+                data.unk9B = code.ByteAt(at + kResistUnk9BAt);
+                data.unk9C = code.ByteAt(at + kResistUnk9CAt);
+                data.level = code.WordAt(at + kResistLevelAt);
+                data.unk52 = code.WordAt(at + kResistUnk52At);
+                code.position += kResistBytes;
                 break;
 
             default:
@@ -523,14 +534,14 @@ bool Database::LoadLevelEntry(int group, int index, u32& experience)
             break;
         }
 
-        if (opcode == 0)
+        if (opcode == kLevelStats)
         {
-            experience = code.DwordAt(code.position + 0x16);
-            code.position += 0x1A;
+            experience = code.DwordAt(code.position + kExperienceAt);
+            code.position += kLevelStatBytes;
         }
-        else if (opcode == 1)
+        else if (opcode == kLevelSkip)
         {
-            code.position += 2;
+            code.position += sizeof(u16);
         }
     }
 
@@ -546,7 +557,7 @@ bool Database::ReadLevelScript(int group, int index, std::vector<u8>& script)
         return false;
     }
 
-    file->SeekBegin(4 * (index + kLevelsPerGroup * group) + static_cast<i32>(kLevelIndex));
+    file->SeekBegin(static_cast<i32>(sizeof(u32)) * (index + kLevelsPerGroup * group) + static_cast<i32>(kLevelIndex));
     const u32 offset = ReadDword(*file);
     this->ReadScript(*file, offset, script);
     return true;

@@ -184,9 +184,6 @@ constexpr int kFastFactor = 2;
 constexpr int kTimerX = 0x190;
 constexpr int kTimerY = 8;
 constexpr int kLayerSwing = 2;
-constexpr std::size_t kRedAt = 0;  // a palette entry of a map movie
-constexpr std::size_t kGreenAt = 1;
-constexpr std::size_t kBlueAt = 2;
 constexpr std::size_t kRowTargetAt = sizeof(u32);  // a movie row: its length and target, then its pixels
 constexpr u32 kRowHeaderBytes = 2 * sizeof(u32);
 constexpr int kDarkenStep = 2;
@@ -2558,7 +2555,8 @@ int FieldView::ReadMovieFrame()
             for (std::size_t index = 0; index < MapMovie::PaletteColors; ++index)
             {
                 const u8* color = colors.data() + MapMovie::PaletteBytes / MapMovie::PaletteColors * index;
-                film.palette[index] = MapMovie::Rgb555(color[kRedAt], color[kGreenAt], color[kBlueAt]);
+                film.palette[index] =
+                    MapMovie::Rgb555(color[MapMovie::RedAt], color[MapMovie::GreenAt], color[MapMovie::BlueAt]);
             }
 
             owner.painter.ConvertPixels(film.palette);

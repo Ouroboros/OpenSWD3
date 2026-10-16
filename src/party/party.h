@@ -71,6 +71,13 @@ public:
 
     static constexpr int SlotsPerRole = 16;
     static constexpr int Variables = 64;
+    // Party::SetRoleStat and RoleStat fields: the words of RoleRecord from hitPoints (the first SignedStats
+    // signed), then the experience, unk00 and the level.
+    static constexpr int SignedStats = 6;
+    static constexpr int WordStats = 0xE;
+    static constexpr int ExperienceStat = 0xE;
+    static constexpr int Unk00Stat = 0xF;
+    static constexpr int LevelStat = 0x10;
     static constexpr std::size_t Gold = 0;  // the variable that holds the gold
     // The variables talk command VariableNamePlate may name a plate by.
     static constexpr u16 FirstNameVariable = 0xB;

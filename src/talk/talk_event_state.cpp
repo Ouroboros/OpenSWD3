@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <climits>
 #include <cmath>
 #include <cstring>
 
@@ -365,7 +366,7 @@ bool Talk::RunStateCommand(EventRun& run)
             const u16 first = this->Word(run, 1);
             const u16 second = this->Word(run, 2);
             const u16 marks = this->Word(run, 3);
-            std::array<i32, 6>& tunes = view.musicTunes;
+            auto& tunes = view.musicTunes;
             tunes[Scene::StoryFade] = static_cast<i32>(Scene::FadePending | AudioManager::StopAtOnce);
             tunes[Scene::StoryFirst] = first;
             tunes[Scene::StorySecond] = second;
@@ -587,23 +588,26 @@ bool Talk::RunStateCommand(EventRun& run)
             const u16 operand = this->Word(run, 1);
             const u16 map = operand == Talk::Current ? static_cast<u16>(owner.currentMap) : operand;
             std::vector<u8>& data = owner.databases.mapsData;
-            std::size_t at = MapsDword(data, MapsDword(data, MapsTable(data, MapsDataTable::Music) + 4));
+            std::size_t at = MapsDword(
+                data,
+                MapsDword(data, MapsTable(data, MapsDataTable::Music) + sizeof(u32) * MapsRecord::SceneMusicItem)
+            );
             run.valueA = 0;
 
             while (MapsWord(data, at) != 0 && at + 1 < data.size() && MapsWord(data, at) != map)
             {
-                at += 8;
+                at += MapsRecord::MusicBytes;
             }
 
             constexpr std::size_t kRecordWords = 3;  // the map and its two tunes; the marks stay
 
-            if (MapsWord(data, at) != 0 && at + 5 < data.size())
+            if (MapsWord(data, at) != 0 && at + MapsRecord::MusicMarksAt - 1 < data.size())
             {
                 for (std::size_t index = 0; index < kRecordWords; ++index)
                 {
                     const u16 value = this->Word(run, 1 + index);
-                    data[at + 2 * index] = static_cast<u8>(value);
-                    data[at + 2 * index + 1] = static_cast<u8>(value >> 8);
+                    data[at + sizeof(u16) * index] = static_cast<u8>(value);
+                    data[at + sizeof(u16) * index + 1] = static_cast<u8>(value >> CHAR_BIT);
                 }
             }
 

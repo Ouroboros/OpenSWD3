@@ -422,7 +422,8 @@ bool Talk::OpenMapMovie(EventRun& run)
     }
 
     constexpr std::size_t kNameBytes = 0x20;  // copied from the script; the copy is 0x400 bytes
-    std::array<u8, 0x400> copy = {};
+    constexpr std::size_t kCopyBytes = 0x400;
+    std::array<u8, kCopyBytes> copy = {};
 
     for (std::size_t index = 0; index < kNameBytes; ++index)
     {
@@ -547,7 +548,8 @@ bool Talk::OpenMapMovie(EventRun& run)
         for (std::size_t index = 0; index < MapMovie::PaletteColors; ++index)
         {
             const u8* color = colors.data() + MapMovie::PaletteBytes / MapMovie::PaletteColors * index;
-            film.palette[index] = MapMovie::Rgb555(color[0], color[1], color[2]);
+            film.palette[index] =
+                MapMovie::Rgb555(color[MapMovie::RedAt], color[MapMovie::GreenAt], color[MapMovie::BlueAt]);
         }
 
         owner.painter.ConvertPixels(film.palette);

@@ -2,9 +2,11 @@
 
 #include <array>
 #include <cstring>
+#include <span>
 #include <vector>
 
 #include "core/assertion.h"
+#include "core/byte_reader.h"
 #include "org/database.h"
 #include "party/party.h"
 #include "text/big5.h"
@@ -23,6 +25,9 @@ constexpr u32 kLevelSkillLine = 0x330;
 constexpr u32 kSkillLine = 0x50A;
 constexpr i16 kNoSkill = static_cast<i16>(0x8000);
 constexpr int kStatWords = 13;
+constexpr i8 kLevelStats = 0;  // the opcodes of a level.dat script: the stats, a skill learned, the end
+constexpr i8 kLevelSkill = 1;
+constexpr i8 kLevelEnd = 5;
 
 u16 WordAt(const std::vector<u8>& script, std::size_t at)
 {
@@ -99,41 +104,35 @@ bool LevelUp(
     while (at + 1 < script.size())
     {
         const auto opcode = static_cast<i8>(script[at]);
-        at += 2;
+        at += sizeof(u16);
 
-        if (opcode == 5)
+        if (opcode == kLevelEnd)
         {
             break;
         }
 
-        if (opcode == 0)
+        if (opcode == kLevelStats)
         {
-            std::array<u16, kStatWords> words = {};
-
-            for (std::size_t i = 0; i < words.size(); ++i)
-            {
-                words[i] = WordAt(script, at + 2 * i);
-            }
-
-            role.maxHitPoints = static_cast<i16>(words[0]);
-            role.maxSpirit = static_cast<i16>(words[1]);
-            role.maxStamina = static_cast<i16>(words[2]);
-            role.attack = static_cast<i16>(words[3]);
-            role.defense = static_cast<i16>(words[4]);
-            role.unk14 = static_cast<i16>(words[5]);
-            role.agility = static_cast<i16>(words[6]);
-            role.unk18 = static_cast<i16>(words[7]);
-            role.unk1A = static_cast<i16>(words[8]);
-            role.ailmentChance = static_cast<i16>(words[9]);
-            role.unk1E = static_cast<i16>(words[10]);
-            role.experience = static_cast<i32>(words[11] | (static_cast<u32>(words[12]) << 16));
-            at += 2 * kStatWords;
+            ByteReader stats(std::span<const u8>(script).subspan(at));
+            role.maxHitPoints = static_cast<i16>(stats.Word16());
+            role.maxSpirit = static_cast<i16>(stats.Word16());
+            role.maxStamina = static_cast<i16>(stats.Word16());
+            role.attack = static_cast<i16>(stats.Word16());
+            role.defense = static_cast<i16>(stats.Word16());
+            role.unk14 = static_cast<i16>(stats.Word16());
+            role.agility = static_cast<i16>(stats.Word16());
+            role.unk18 = static_cast<i16>(stats.Word16());
+            role.unk1A = static_cast<i16>(stats.Word16());
+            role.ailmentChance = static_cast<i16>(stats.Word16());
+            role.unk1E = static_cast<i16>(stats.Word16());
+            role.experience = static_cast<i32>(stats.Word32());
+            at += sizeof(u16) * kStatWords;
             role.level = static_cast<u8>(level);
             role.hitPoints = role.maxHitPoints;
             role.spirit = role.maxSpirit;
             role.stamina = role.maxStamina;
         }
-        else if (opcode == 1)
+        else if (opcode == kLevelSkill)
         {
             const auto id = static_cast<i16>(WordAt(script, at));
 
@@ -147,7 +146,7 @@ bool LevelUp(
                 learned = 1;
             }
 
-            at += 2;
+            at += sizeof(u16);
         }
     }
 
