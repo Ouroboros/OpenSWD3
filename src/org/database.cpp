@@ -371,7 +371,7 @@ bool Database::LoadObject(ObjectRecord& record, u16 id)
                 break;
 
             case 0xB:
-                word(data.unk46);
+                word(data.price);
                 break;
 
             case 0xC:

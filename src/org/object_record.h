@@ -35,7 +35,7 @@ struct ObjectData
     u16 unk40 = 0;                     // +0x40 tag 6
     u16 unk42 = 0;                     // +0x42 tag 0xC
     u16 unk44 = 0;                     // +0x44 tag 0xD
-    u16 unk46 = 0;                     // +0x46 tag 0xB
+    u16 price = 0;                     // +0x46 tag 0xB (the shop value)
     u16 unk48 = 0;                     // +0x48 tag 0x16
     std::array<u8, 6> unk4A = {};      // +0x4A
     // +0x50..+0x9C: the 0x4D-byte block of tag 1; tags 0xE, 0x7D0, 0x1C and 0x1D set parts of it.

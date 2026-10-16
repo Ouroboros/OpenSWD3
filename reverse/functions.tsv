@@ -778,16 +778,16 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 777	swd32.exe	0x0044E4A0	sub_44E4A0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 778	swd32.exe	0x0044E9D0	sub_44E9D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 779	swd32.exe	0x0044EA60	sub_44EA60	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-780	swd32.exe	0x0044F770	sub_44F770	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:TotalItemValue
-781	swd32.exe	0x0044F7D0	sub_44F7D0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:CountListB
-782	swd32.exe	0x0044F800	sub_44F800	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:SortBattleItems
-783	swd32.exe	0x0044F8E0	sub_44F8E0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:FreeBattleItems
+780	swd32.exe	0x0044F770	sub_44F770	battle	src/battle/battle_items.cpp:TotalItemValue	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:TotalItemValue
+781	swd32.exe	0x0044F7D0	sub_44F7D0	battle	src/battle/battle_items.cpp:CountListB	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:CountListB
+782	swd32.exe	0x0044F800	sub_44F800	battle	src/battle/battle_items.cpp:SortBattleItems	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:SortBattleItems
+783	swd32.exe	0x0044F8E0	sub_44F8E0	battle	src/battle/battle_items.cpp:FreeBattleItems	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:FreeBattleItems
 784	swd32.exe	0x0044F920	sub_44F920	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-785	swd32.exe	0x0044FA40	sub_44FA40	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:CountItemTotal
+785	swd32.exe	0x0044FA40	sub_44FA40	battle	src/battle/battle_items.cpp:CountItemTotal	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:CountItemTotal
 786	swd32.exe	0x0044FAF0	sub_44FAF0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 787	swd32.exe	0x0044FD30	sub_44FD30	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-788	swd32.exe	0x0044FF90	sub_44FF90	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:ItemPriority
-789	swd32.exe	0x0044FFC0	sub_44FFC0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:SetGaugeFull
+788	swd32.exe	0x0044FF90	sub_44FF90	battle	src/battle/battle_items.cpp:ItemPriority	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:ItemPriority
+789	swd32.exe	0x0044FFC0	sub_44FFC0	battle	src/battle/battle_items.cpp:SetGaugeFull	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:SetGaugeFull
 790	swd32.exe	0x0044FFE0	sub_44FFE0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 791	swd32.exe	0x00450270	sub_450270	battle	src/battle/battle_hud.cpp:BattleHud::DrawPictureFrame0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawPictureFrame0
 792	swd32.exe	0x004502B0	sub_4502B0	battle	src/battle/battle_hud.cpp:BattleHud::DrawPortrait	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawPortrait
@@ -838,8 +838,8 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 837	swd32.exe	0x00451930	sub_451930	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern; legacy: src/core/static_init.cpp:DestroyFile521538
 838	swd32.exe	0x00451940	sub_451940	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 839	swd32.exe	0x00451A20	sub_451A20	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-840	swd32.exe	0x00451A90	sub_451A90	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:CreateBattleSurfaces
-841	swd32.exe	0x00451AE0	sub_451AE0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:ReleaseBattleSurfaces
+840	swd32.exe	0x00451A90	sub_451A90	battle	src/battle/battle_items.cpp:CreateBattleSurfaces	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:CreateBattleSurfaces
+841	swd32.exe	0x00451AE0	sub_451AE0	battle	src/battle/battle_items.cpp:ReleaseBattleSurfaces	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:ReleaseBattleSurfaces
 842	swd32.exe	0x00451B10	sub_451B10	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "battle.ffd"
 843	swd32.exe	0x004527E0	sub_4527E0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "music\Battle_Europa01.mp3"
 844	swd32.exe	0x004530A0	sub_4530A0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between battle anchors 0x004527E0 and 0x00453200
