@@ -24,7 +24,6 @@ public:
 
 private:
     SDL_AudioStream* stream = nullptr;
-    bool startedAudio = false;
 };
 
 }  // namespace swd3

@@ -69,3 +69,7 @@
 | 0x00425150 | 平台替换 | 目录已存在时 SetCurrentDirectoryA 把它设为当前目录（最后一个已存在的目录成为当前目录） | 只在缺失时创建，不改变当前目录（游戏所有路径都以安装目录开头） | 架构 v3 |
 | 0x004242B0、0x00424330、0x00411D90 | 平台替换 | GetDriveTypeA 逐个盘符检查光驱；GlobalMemoryStatus 的物理内存；KERNEL32 的 GetDiskFreeSpaceExA | Windows 仍逐个盘符检查，Linux 没有盘符视为无光驱；内存取 SDL_GetSystemRAM（上限 0xFFFFFFFF，与 4 GB 以上时的 GlobalMemoryStatus 相同）；剩余空间取 std::filesystem::space | 架构 v3 |
 | 0x00424B90 | 平台替换 | GetSystemMetrics 取屏幕大小设置字体目标（独占全屏 640×480 下即 640×480） | 固定 640×480 | 架构 v3 |
+| 0x00423FB0（安装目录） | 平台替换 | Env.dat 记录的 Windows 安装目录（如 E:\Game\swd3\）直接作为路径前缀 | Windows 不变；Linux 把盘符路径映射为 WSL 的 /mnt/<盘符>/ | 架构 v3 |
+| 0x0040A0D0、0x00438B50 | 平台替换 | 输入框收到 WM_KEYDOWN 与 Big5 的 WM_CHAR（含输入法） | SDL 的按键与 UTF-8 文字经代码页 950 转为同样的消息；Linux 无代码页转换时只传 ASCII | 架构 v3 |
+| 0x0043A380 | 越界 | 四个角色都在队时，把第五个标签位置（0x004A6AB4，属于后面的字符串）写成另一个字 | 只在少于四个标签时复制 | 架构 v3 |
+| 0x004149B0 | 平台替换 | 鼠标指针以图片缓存槽 +4 的数据为绘制参数 | 新的 Picture 不带该指针，按空参数绘制（指针动作的绘制模式不使用该参数时结果相同） | 架构 v3 |

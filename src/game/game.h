@@ -3,6 +3,8 @@
 #include <memory>
 #include <string>
 
+#include <SDL3/SDL.h>
+
 #include "audio/audio_manager.h"
 #include "battle/battle_enemy.h"
 #include "battle/battle_hud.h"
@@ -12,16 +14,19 @@
 #include "battle/battle_state.h"
 #include "config/config.h"
 #include "core/types.h"
+#include "crt/msvc.h"
 #include "draw/painter.h"
 #include "font/text_font.h"
 #include "game/databases.h"
 #include "game/game_state.h"
+#include "game/notices.h"
 #include "game/scene.h"
 #include "gfx/graphics.h"
 #include "input/controls.h"
 #include "input/input.h"
 #include "launcher/launcher.h"
 #include "map/map_cache.h"
+#include "menu/menu.h"
 
 #include "movie/movie.h"
 #include "org/database.h"
@@ -39,7 +44,10 @@
 #include "res/act_archive.h"
 #include "res/tsw_archive.h"
 #include "role/path_finder.h"
+#include "save/save_slots.h"
 #include "talk/text_colors.h"
+#include "text/text_input.h"
+#include "ui/act_draw.h"
 
 namespace swd3
 {
@@ -48,6 +56,8 @@ namespace swd3
 // objects. Built step by step along the start of the game.
 class Game
 {
+    friend class Menu;
+
 public:
     static constexpr char kWindowTitle[] =
         "\xE8\xBB\x92\xE8\xBD\x85\xE5\x8A\x8D\xE5\x8F\x83 DVD";  // 0x0049FAC4 (Big5 there)
@@ -76,6 +86,19 @@ private:
     static u32 DiskFreeMegabytes();
     void ResetBattle();
     void NewGame();
+    void RefreshCursor();
+    void ShowFrame();
+    std::string MusicPath(int index) const;
+    void PlayMusic(const std::string& path);
+    void ResetSaveSlots();
+    void StartStory(int withMap);
+    void LoadFameFile();
+    void DrawTextInput(const TextInput& box);
+    void MainFrame();
+    void MusicCue();
+    void AudioPump();
+    void HandleEvent(const SDL_Event& event);
+    void SendText(TextMessage message, u32 parameter);
     void Destroy();
 
     DialogErrorReporter errors;
@@ -97,6 +120,7 @@ private:
     AudioManager audio;
     Movie movie;
     Random random;
+    crt::Random crtRandom;
     GameState state;
     Config config;
     Controls controls;
@@ -114,10 +138,40 @@ private:
     BattleServices battleServices;
     std::array<BattleRole, 10> battleRoles;    // 0x005029D0
     std::array<BattleEnemy, 8> battleEnemies;  // 0x00525508
+    ActDrawer actDrawer;
+    Notices notices;
+    i32 unk4B7518 = 0;
+    i32 unk4B7920 = 0;
+    i32 lastPointerAction = 0;  // 0x004CC2E0
+    Menu menu;
+    SaveSlots saveSlots;
+    std::unique_ptr<TextInput> textInput;  // 0x004CACD8 the text box the keyboard goes to (with flag 0x50)
+    ActState unk4CC200;
+    u8 unk4CC160 = 0;
+    u8 unk4CC161 = 0;
+    i32 unk4CC298 = 0;
+    i32 unk4CB240 = 0;
+    u32 systemFlags = 0;   // 0x004B7A9C bit 2: quit at the end of the frame
+    i32 counterAlpha = 0;  // 0x004C9A24
+    i32 unk4A9484 = 0;
+    i32 unk4A9920 = 0;
+    i32 unk4A9A10 = 0;
+    i32 unk4AB990 = 0;
+    i32 unk4ACEF4 = 0;
+    i32 unk4B7BC4 = 0;
+    TextEntryState textEntry;
+    i32 running = 0;     // 0x004CC2AC frames run (F8 toggles)
+    u32 lastFrame = 0;   // 0x004CC2B0
+    u32 frameStart = 0;  // 0x004AAECC
+    u32 unk4C844C = 0;
+    u32 unk4C8444 = 0;
+    i32 frameTime = 0;  // 0x0049E1C8
+    i32 unk4A99FC = 0;
+    i32 unk4CAD24 = 0;
     ExeResources resources;
     SystemSound systemSound;
     std::unique_ptr<Surface> offscreen;  // 0x004ACBA0 the frame drawn by the game
-    u16* drawSurface = nullptr;          // 0x004CD76C
+    u16* drawSurface = nullptr;          // 0x004CD76C the locked frame (the target of the painter and the fonts)
     std::array<u8, 0x20> cdDrives = {};  // 0x004B74F8 the CD-ROM drive letters, 0xFF after the last
     i32 cdDriveCount = 0;                // 0x004ACEF8
     i32 unknown14 = 0;                   // the dword of Env.dat at +0x14

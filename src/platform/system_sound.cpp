@@ -5,14 +5,10 @@
 namespace swd3
 {
 
+// The audio subsystem stays for the Miles device; SDL_Quit ends it.
 SystemSound::~SystemSound()
 {
     this->Stop();
-
-    if (this->startedAudio)
-    {
-        SDL_QuitSubSystem(SDL_INIT_AUDIO);
-    }
 }
 
 bool SystemSound::Play(std::span<const u8> wave)
@@ -24,14 +20,9 @@ bool SystemSound::Play(std::span<const u8> wave)
         return false;
     }
 
-    if (!SDL_WasInit(SDL_INIT_AUDIO))
+    if (!SDL_WasInit(SDL_INIT_AUDIO) && !SDL_InitSubSystem(SDL_INIT_AUDIO))
     {
-        if (!SDL_InitSubSystem(SDL_INIT_AUDIO))
-        {
-            return false;
-        }
-
-        this->startedAudio = true;
+        return false;
     }
 
     SDL_AudioSpec spec{};

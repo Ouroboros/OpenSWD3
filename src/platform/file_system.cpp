@@ -59,7 +59,7 @@ fs::path matchComponent(const fs::path& directory, const std::string& name)
 
 std::string ResolvePath(std::string_view gamePath)
 {
-    std::string path(gamePath);
+    std::string path = DrivePath(gamePath);
 
     for (char& c : path)
     {

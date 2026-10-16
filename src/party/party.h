@@ -56,6 +56,16 @@ class Party
 {
 public:
     static constexpr int kRoles = 4;
+    static constexpr std::size_t kNameBytes = 0x10;
+    using Name = std::array<char, kNameBytes>;
+    // swd32.exe 0x0049E188: the names a new game offers (the first two can be changed).
+    static constexpr std::array<Name, kRoles> kDefaultNames = {{
+        {"\301\311\257S"},  // 賽特
+        {"\251g\245i"},     // 妮可
+        {"\245d\272\277"},  // 卡瑪
+        {"\247\365\271t"},  // 李靖
+    }};
+
     static constexpr int kSlotsPerRole = 16;
     static constexpr int kVariables = 64;
 
@@ -66,6 +76,9 @@ public:
     i32 unk4ACDB0 = 0;                                                        // 0x004ACDB0
     std::array<i32, kVariables> variables = {};                               // 0x004ACBD0 [0]: the gold
     Fame fame;
+    std::array<Name, kRoles> names = kDefaultNames;  // 0x0049E148
+
+    void ApplyNameCheats();
     std::array<RoleBattleBlock, kRoles> battleBlocks;  // 0x004ACF50
 };
 

@@ -184,4 +184,9 @@ void AudioManager::SetFadeState(int mode, int length, int fading)
     this->musicFading = fading;
 }
 
+void AudioManager::SetFadeMode(int mode)
+{
+    this->musicFadeMode = mode;
+}
+
 }  // namespace swd3

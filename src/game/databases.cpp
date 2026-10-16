@@ -31,10 +31,9 @@ bool GameDatabases::Open(const std::string& installDirectory, ErrorReporter& err
     return true;
 }
 
-// Part of the draw kernel start (0x00424B90): the scratch buffer and maps.dat past its header
+// maps.dat past its header (read again for every new game).
 void GameDatabases::LoadMaps()
 {
-    this->scratch.assign(GameDatabases::kScratchBytes, 0);
     u32 bytes = this->maps.Size() - GameDatabases::kMapsHeader;
     this->mapsData.assign(bytes, 0);
     this->maps.SeekBegin(static_cast<i32>(GameDatabases::kMapsHeader));

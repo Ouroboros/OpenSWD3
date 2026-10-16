@@ -1,5 +1,7 @@
 #include "party/party.h"
 
+#include <string_view>
+
 namespace swd3
 {
 
@@ -42,6 +44,141 @@ void RoleRecord::Load(std::span<const u8> record)
     for (std::size_t index = 0; index < this->unk2D.size(); ++index)
     {
         this->unk2D[index] = record[0x2B + index];
+    }
+}
+
+namespace
+{
+
+// The names that change the starting roles (swd32.exe 0x004A70F4..0x004A715C).
+constexpr char kHeRan[] = "\246\363\265M";                   // 0x004A715C 何然
+constexpr char kJiangRuHong[] = "\246\277\246p\254\365";     // 0x004A7154 江如紅
+constexpr char kYangKunShuo[] = "\267\250\251[\272\323";     // 0x004A714C 楊坤碩
+constexpr char kGuYueSheng[] = "\245j\244\353\270t";         // 0x004A7144 古月聖
+constexpr char kFuZiChe[] = "\273\262\244l\271\375";         // 0x004A713C 輔子徹
+constexpr char kWenJin[] = "\257\276\300A";                  // 0x004A7134 紋錦
+constexpr char kZhuShiZi[] = "\305\261\245\333\244l";        // 0x004A712C 鑄石子
+constexpr char kLeLe[] = "\274\326\274\326";                 // 0x004A7124 樂樂
+constexpr char kDaMi[] = "\244j\246\314";                    // 0x004A711C 大米
+constexpr char kZhenMeng[] = "\257u\271\332";                // 0x004A7114 真夢
+constexpr char kHongShanHu[] = "\254\365\254\300\267\344";   // 0x004A710C 紅珊瑚
+constexpr char kNingCaiChen[] = "\271\347\252\366\246\332";  // 0x004A7104 寧采臣
+constexpr char kYanChiXia[] = "\277P\250\252\301\370";       // 0x004A70FC 燕赤霞
+constexpr char kXiaoQian[] = "\244p\255\305";                // 0x004A70F4 小倩
+
+bool Named(const Party::Name& name, const char* text)
+{
+    return std::string_view(name.data()) == text;
+}
+
+}  // namespace
+
+// swd32.exe 0x00449D80: the codes typed as the names of the first two roles: each sets attributes or hit points,
+// spirit and stamina of that role, one the gold
+void Party::ApplyNameCheats()
+{
+    RoleRecord& first = this->roles[0];
+    RoleRecord& second = this->roles[1];
+    const Name& firstName = this->names[0];
+    const Name& secondName = this->names[1];
+
+    auto attributes = [](RoleRecord& role, i16 value)
+    {
+        role.attack = value;
+        role.defense = value;
+        role.unk14 = value;
+        role.agility = value;
+    };
+
+    if (Named(firstName, kHeRan))
+    {
+        attributes(first, 0x19);
+    }
+
+    if (Named(secondName, kJiangRuHong))
+    {
+        second.unk14 = 0x64;
+        second.spirit = 0x12C;
+        second.maxSpirit = 0x12C;
+    }
+
+    if (Named(firstName, kYangKunShuo))
+    {
+        first.attack = 0x32;
+        first.hitPoints = 0xC8;
+        first.maxHitPoints = 0xC8;
+    }
+
+    if (Named(firstName, kGuYueSheng))
+    {
+        first.unk2D.fill(0xFB);
+    }
+
+    if (Named(firstName, kFuZiChe))
+    {
+        attributes(first, 0x1E);
+    }
+
+    if (Named(secondName, kWenJin))
+    {
+        second.unk2D.fill(0xF9);
+    }
+
+    if (Named(firstName, kZhuShiZi))
+    {
+        first.defense = 0x64;
+        first.stamina = 0x12C;
+        first.maxStamina = 0x12C;
+    }
+
+    if (Named(firstName, kLeLe))
+    {
+        first.unk14 = 0x46;
+        first.spirit = 0xFA;
+        first.maxSpirit = 0xFA;
+    }
+
+    if (Named(firstName, kDaMi))
+    {
+        first.unk14 = 0x64;
+        first.unk2D.fill(2);
+    }
+
+    if (Named(secondName, kZhenMeng))
+    {
+        second.defense = 0x64;
+        second.stamina = 0x12C;
+        second.maxStamina = 0x12C;
+    }
+
+    if (Named(secondName, kHongShanHu))
+    {
+        second.attack = 0x32;
+        second.hitPoints = 0xC8;
+        second.maxHitPoints = 0xC8;
+    }
+
+    if (Named(firstName, kNingCaiChen))
+    {
+        first.defense = static_cast<i16>(first.defense - 5);
+        first.unk14 = static_cast<i16>(first.unk14 - 5);
+        first.agility = static_cast<i16>(first.agility - 5);
+        this->variables[0] = 0x1F4;
+        first.attack = static_cast<i16>(first.attack - 0xA);
+    }
+
+    if (Named(firstName, kYanChiXia))
+    {
+        first.defense = 0;
+        first.stamina = 0;
+        first.maxStamina = 0;
+    }
+
+    if (Named(secondName, kXiaoQian))
+    {
+        second.unk14 = 5;
+        second.spirit = 5;
+        second.maxSpirit = 5;
     }
 }
 
