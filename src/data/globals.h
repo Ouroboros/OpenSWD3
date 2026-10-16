@@ -3369,7 +3369,7 @@ struct Globals {
     std::int32_t dword_4A9934;  // 0x004A9934
     std::int32_t dword_4A9938;  // 0x004A9938
     std::uint8_t pad_4A993C[0x4];
-    std::int32_t dword_4A9940;  // 0x004A9940
+    std::uint8_t* inventory;  // 0x004A9940 party item list
     std::uint8_t pad_4A9944[0xAC];
     std::int32_t dword_4A99F0;  // 0x004A99F0
     std::int32_t dword_4A99F4;  // 0x004A99F4
@@ -4674,7 +4674,7 @@ struct Globals {
     std::int32_t dword_4FD3A4;  // 0x004FD3A4
     std::int32_t dword_4FD3A8;  // 0x004FD3A8
     std::uint8_t pad_4FD3AC[0x4];
-    std::int32_t dword_4FD3B0;  // 0x004FD3B0
+    std::int32_t battleListBCount;  // 0x004FD3B0 entries of battleListB, at most 13
     std::int16_t word_4FD3B4;  // 0x004FD3B4
     std::uint8_t pad_4FD3B6[0x2];
     std::int16_t word_4FD3B8;  // 0x004FD3B8
@@ -4699,15 +4699,15 @@ struct Globals {
     std::uint8_t pad_4FD434[0x28];
     std::int32_t dword_4FD45C;  // 0x004FD45C
     std::uint8_t pad_4FD460[0x60];
-    std::int32_t dword_4FD4C0;  // 0x004FD4C0
+    std::uint8_t* battleListB;  // 0x004FD4C0
     std::uint8_t pad_4FD4C4[0x4];
     std::int32_t dword_4FD4C8;  // 0x004FD4C8
     std::uint8_t pad_4FD4CC[0xAC];
-    std::int32_t dword_4FD578;  // 0x004FD578
+    std::int32_t battleMode;  // 0x004FD578 bits 0..1: shop / sell modes of the item lists
     std::int32_t dword_4FD57C;  // 0x004FD57C
-    std::int32_t dword_4FD580;  // 0x004FD580
+    std::uint8_t* battleItems;  // 0x004FD580 sorted item list
     std::uint8_t pad_4FD584[0x4];
-    std::int16_t word_4FD588;  // 0x004FD588
+    std::uint16_t battleItemCursor;  // 0x004FD588
     std::uint8_t pad_4FD58A[0xA6];
     std::int32_t dword_4FD630;  // 0x004FD630
     std::uint8_t pad_4FD634[0x4];
@@ -5063,8 +5063,7 @@ struct Globals {
     std::int32_t dword_524490;  // 0x00524490
     std::uint8_t pad_524494[0x2C];
     std::int32_t dword_5244C0;  // 0x005244C0
-    std::int32_t dword_5244C4;  // 0x005244C4
-    std::int32_t dword_5244C8;  // 0x005244C8
+    IDirectDrawSurface4* battleSurfaces[2];  // 0x005244C4 screen sized offscreen surfaces
     std::int32_t dword_5244CC;  // 0x005244CC
     std::uint8_t pad_5244D0[0x8];
     std::int32_t dword_5244D8;  // 0x005244D8
@@ -5665,6 +5664,7 @@ static_assert(offsetof(Globals, gameDir) == 0x104BC);
 static_assert(offsetof(Globals, file_4A98C8) == 0x108C8);
 static_assert(offsetof(Globals, pointerX) == 0x10924);
 static_assert(offsetof(Globals, pointerY) == 0x10928);
+static_assert(offsetof(Globals, inventory) == 0x10940);
 static_assert(offsetof(Globals, audioSystem) == 0x10AC8);
 static_assert(offsetof(Globals, textFont_4A9ED0) == 0x10ED0);
 static_assert(offsetof(Globals, pathBuffer) == 0x11ED0);
@@ -5834,6 +5834,11 @@ static_assert(offsetof(Globals, panelAct) == 0x635B0);
 static_assert(offsetof(Globals, menuFirst) == 0x642F4);
 static_assert(offsetof(Globals, menuEntries) == 0x64318);
 static_assert(offsetof(Globals, menuVisible) == 0x6431C);
+static_assert(offsetof(Globals, battleListBCount) == 0x643B0);
+static_assert(offsetof(Globals, battleListB) == 0x644C0);
+static_assert(offsetof(Globals, battleMode) == 0x64578);
+static_assert(offsetof(Globals, battleItems) == 0x64580);
+static_assert(offsetof(Globals, battleItemCursor) == 0x64588);
 static_assert(offsetof(Globals, scrollAct) == 0x64638);
 static_assert(offsetof(Globals, effectAct) == 0x646D0);
 static_assert(offsetof(Globals, timingCounter) == 0x64768);
@@ -5865,6 +5870,7 @@ static_assert(offsetof(Globals, file_521538) == 0x88538);
 static_assert(offsetof(Globals, battleUnit) == 0x88598);
 static_assert(offsetof(Globals, portraitHighlight) == 0x8B118);
 static_assert(offsetof(Globals, lootNames) == 0x8B468);
+static_assert(offsetof(Globals, battleSurfaces) == 0x8B4C4);
 static_assert(offsetof(Globals, lootCounts) == 0x8C434);
 static_assert(offsetof(Globals, battleEnemies) == 0x8C508);
 static_assert(offsetof(Globals, projector) == 0xA20B8);

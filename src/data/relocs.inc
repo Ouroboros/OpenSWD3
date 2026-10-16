@@ -3,6 +3,7 @@
 {0x4A0E6Cu, 1u, image::RelocKind::Code},  // pixelConvert
 {0x4A0E70u, 1u, image::RelocKind::Code},  // pixelConvertBack
 {0x4A79A8u, 9u, image::RelocKind::Data},  // elementNames
+{0x4A9940u, 1u, image::RelocKind::Data},  // inventory
 {0x4ACAC0u, 1u, image::RelocKind::Data},  // eventList
 {0x4B7948u, 1u, image::RelocKind::Data},  // mapBlocking
 {0x4C8AD0u, 64u, image::RelocKind::Data},  // heroItemSlots
@@ -28,8 +29,11 @@
 {0x4FB558u, 1u, image::RelocKind::Data},  // tswPackedBufB
 {0x4FB55Cu, 1u, image::RelocKind::Data},  // tswPackedBuf
 {0x4FD318u, 1u, image::RelocKind::Data},  // menuEntries
+{0x4FD4C0u, 1u, image::RelocKind::Data},  // battleListB
+{0x4FD580u, 1u, image::RelocKind::Data},  // battleItems
 {0x4FD78Cu, 1u, image::RelocKind::Data},  // uiPicture
 {0x5214F8u, 1u, image::RelocKind::Data},  // battleMessages
 {0x524468u, 10u, image::RelocKind::Data},  // lootNames
+{0x5244C4u, 2u, image::RelocKind::Data},  // battleSurfaces
 {0x53C4B8u, 1u, image::RelocKind::Data},  // panelUnit
 {0x53D070u, 1u, image::RelocKind::Data},  // movie
