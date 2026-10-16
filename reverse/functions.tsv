@@ -996,18 +996,18 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 995	swd32.exe	0x004717D0	sub_4717D0	battle	src/battle/battle_hero.cpp:BattleHero::ActionFlag13	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 996	swd32.exe	0x004717E0	sub_4717E0	battle	src/battle/battle_hero.cpp:BattleHero::ActionFlag12	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 997	swd32.exe	0x004717F0	sub_4717F0	battle	src/battle/battle_hero.cpp:BattleHero::DrawLeap	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-998	swd32.exe	0x00471AD0	sub_471AD0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-999	swd32.exe	0x00471D60	sub_471D60	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-1000	swd32.exe	0x00471FC0	sub_471FC0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-1001	swd32.exe	0x004721F0	sub_4721F0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+998	swd32.exe	0x00471AD0	sub_471AD0	battle	src/battle/battle_hero.cpp:BattleHero::DrawLeapBack	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+999	swd32.exe	0x00471D60	sub_471D60	battle	src/battle/battle_hero.cpp:BattleHero::DrawFlicker	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+1000	swd32.exe	0x00471FC0	sub_471FC0	battle	src/battle/battle_hero.cpp:BattleHero::DrawProjectile	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+1001	swd32.exe	0x004721F0	sub_4721F0	battle	src/battle/battle_hero.cpp:BattleHero::DrawStandAt	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1002	swd32.exe	0x00472430	sub_472430	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-1003	swd32.exe	0x004724D0	sub_4724D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+1003	swd32.exe	0x004724D0	sub_4724D0	battle	src/battle/battle_hero.cpp:BattleHero::DrawCastPose	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1004	swd32.exe	0x00472710	sub_472710	battle	src/battle/battle_hero.cpp:GetEnemyDataAlways	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-1005	swd32.exe	0x00472730	sub_472730	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+1005	swd32.exe	0x00472730	sub_472730	battle	src/battle/battle_hero.cpp:BattleHero::CanCatch	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1006	swd32.exe	0x004728D0	sub_4728D0	battle	src/battle/battle_hero.cpp:BattleHero::Mark800Clear	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1007	swd32.exe	0x004728E0	sub_4728E0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1008	swd32.exe	0x00472C70	sub_472C70	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-1009	swd32.exe	0x00472CE0	sub_472CE0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+1009	swd32.exe	0x00472CE0	sub_472CE0	battle	src/battle/battle_hero.cpp:BattleHero::DrawCastAt	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1010	swd32.exe	0x00473010	sub_473010	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1011	swd32.exe	0x004731A0	sub_4731A0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1012	swd32.exe	0x004735B0	sub_4735B0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
@@ -1210,7 +1210,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1209	swd32.exe	0x00484020	sub_484020	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1210	swd32.exe	0x004841B0	sub_4841B0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1211	swd32.exe	0x00484230	sub_484230	battle	src/battle/battle_unit.cpp:BattleUnit::DrawStateAt	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-1212	swd32.exe	0x00484500	sub_484500	battle	src/battle/battle_unit.cpp:BattleUnit::GetBasePosition	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+1212	swd32.exe	0x00484500	sub_484500	battle	src/battle/battle_unit.cpp:BattleUnit::GetHitPoints	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1213	swd32.exe	0x00484550	sub_484550	movie_bink	src/movie/movie.cpp:MovieInit	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import binkw32!_BinkDDSurfaceType@4
 1214	swd32.exe	0x00484590	sub_484590	movie_bink	src/movie/movie.cpp:Movie::Movie	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between movie_bink anchors 0x00484550 and 0x004845A0
 1215	swd32.exe	0x004845A0	sub_4845A0	movie_bink	src/movie/movie.cpp:Movie::Open	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import binkw32!_BinkGetError@0

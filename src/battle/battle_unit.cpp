@@ -2633,19 +2633,19 @@ int BattleUnit::SetFacing(int facing) {
     return 1;
 }
 
-// swd32.exe 0x00484500: hero values +4 / +0xA of +4, or enemy +0x64 (overridden by +0x26B4) / +0x4C of +0xC.
-// The return value is unused by callers.
-void BattleUnit::GetBasePosition(int32_t* x, int32_t* y) {
+// swd32.exe 0x00484500: hit points: hero +4 (current) / +0xA (maximum) of +4, enemy +0x64 (current, replaced by
+// +0x26B4 when set) / +0x4C (maximum) of +0xC. The return value is unused by callers.
+void BattleUnit::GetHitPoints(int32_t* current, int32_t* maximum) {
     if (at<int32_t>(0x2AA0) == 1) {
-        *y = mem::s16(at<uint8_t*>(4), 0xA);
-        *x = mem::s16(at<uint8_t*>(4), 4);
+        *maximum = mem::s16(at<uint8_t*>(4), 0xA);
+        *current = mem::s16(at<uint8_t*>(4), 4);
         return;
     }
-    *x = mem::s16(at<uint8_t*>(0xC), 0x64);
+    *current = mem::s16(at<uint8_t*>(0xC), 0x64);
     if (at<int32_t>(0x26B4) != 0) {
-        *x = at<int32_t>(0x26B4);
+        *current = at<int32_t>(0x26B4);
     }
-    *y = mem::s32(at<uint8_t*>(0xC), 0x4C);
+    *maximum = mem::s32(at<uint8_t*>(0xC), 0x4C);
 }
 
 namespace {

@@ -137,7 +137,7 @@ public:
     int SetAAC(int value);
     int SetName(int name);
     int SetFacing(int facing);
-    void GetBasePosition(std::int32_t* x, std::int32_t* y);
+    void GetHitPoints(std::int32_t* current, std::int32_t* maximum);
     void DrawState(BattleUnit* target, struct ActState* state);
     int DrawExtraState(struct ActState* state, std::int16_t offsetY);
     void DrawStateAt(std::int16_t x, std::int16_t y, struct ActState* state);

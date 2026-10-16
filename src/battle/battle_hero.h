@@ -33,6 +33,13 @@ public:
     bool RollLevelChance(std::uint16_t level);
     int DrawRecoil(int mode);
     int DrawLeap(BattleUnit* target);
+    int DrawLeapBack(BattleUnit* target);
+    int DrawFlicker(int x, int y);
+    int DrawProjectile(int id, int action, int slot, std::int16_t x, std::int16_t y, int speed);
+    int DrawStandAt(BattleUnit* target);
+    std::uint16_t DrawCastPose(int x, int y);
+    bool CanCatch(BattleUnit* target);
+    int DrawCastAt(BattleUnit* target, int act);
 
     std::uint8_t m_heroData[0x2F34 - 0x2B28];
 };

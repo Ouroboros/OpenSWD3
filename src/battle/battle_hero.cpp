@@ -572,4 +572,434 @@ int BattleHero::DrawLeap(BattleUnit* target) {
     return 0;
 }
 
+// swd32.exe 0x00471AD0: leap back (act 0x186B, entry 1) from `target` to the hero's place, 8 more steps every
+// frame. Returns 1 on arrival.
+int BattleHero::DrawLeapBack(BattleUnit* target) {
+    auto* state = reinterpret_cast<ActState*>(raw(0x500));
+    uint32_t targetX = 0;
+    uint32_t targetY = 0;
+    uint32_t originX = 0;
+    uint32_t originY = 0;
+    at<int32_t>(0x500) = 0x186B;
+    at<int32_t>(0x508) = 1;
+    at<int32_t>(0x590) = 0;
+    if (at<int32_t>(0x2AD0) == 1) {
+        at<int32_t>(0x590) = 1;
+    }
+    if (ActRun(state) == 0) {
+        return 0;
+    }
+    Picture* picture = TswGetPicture(at<uint16_t>(0x54A), at<uint16_t>(0x54C));
+    at<Picture*>(0x254C) = picture;
+    G.drawSource = reinterpret_cast<uint8_t*>(picture->pixels);
+    target->GetOffset(reinterpret_cast<uint16_t*>(&targetX), reinterpret_cast<uint16_t*>(&targetY));
+    uint16_t startX;
+    uint16_t startY;
+    if (static_cast<uint16_t>(targetX) != 0 && static_cast<uint16_t>(targetY) != 0) {
+        target->GetOrigin(reinterpret_cast<uint16_t*>(&originX), reinterpret_cast<uint16_t*>(&originY));
+        startX = static_cast<uint16_t>(originX + static_cast<uint16_t>(targetX - static_cast<uint16_t>(at<int32_t>(0x510))));
+        startY = static_cast<uint16_t>(originY + static_cast<uint16_t>(targetY - static_cast<uint16_t>(at<int32_t>(0x514))));
+    } else {
+        target->GetDrawPosition(reinterpret_cast<uint16_t*>(&targetX), reinterpret_cast<uint16_t*>(&targetY));
+        startX = static_cast<uint16_t>(targetX - static_cast<uint16_t>(at<int32_t>(0x510)));
+        startY = static_cast<uint16_t>(targetY - static_cast<uint16_t>(at<int32_t>(0x514)));
+    }
+    auto* walker = reinterpret_cast<LineWalker*>(raw(0xDF4));
+    std::memset(walker, 0, 0x20);
+    walker->fromX = static_cast<int16_t>(startX);
+    walker->fromY = static_cast<int16_t>(startY);
+    walker->toX = at<int16_t>(0x316) + at<int16_t>(0xD66) - at<int16_t>(0x29B2) - at<int32_t>(0x510);
+    walker->toY = at<int16_t>(0x318) + at<int16_t>(0xD68) - at<int32_t>(0x2B4) - at<int32_t>(0x514);
+    bool arrived = false;
+    for (int steps = 0; steps < 8 * at<int32_t>(0x2680); ++steps) {
+        LineStep(walker);
+        if (walker->x + walker->fromX == walker->toX) {
+            arrived = true;
+            break;
+        }
+    }
+    ++at<int32_t>(0x2680);
+    PlaySound(at<uint16_t>(0x558), G.soundVolume);
+    const uint32_t flags = at<uint32_t>(0x518);
+    Picture* current = at<Picture*>(0x254C);
+    at<uint16_t>(0x558) = 0;
+    if (arrived) {
+        DrawPicture(walker->toX, walker->toY, current->width, current->height, static_cast<int>(flags), 0);
+        at<int32_t>(0x2680) = 0;
+        std::memset(walker, 0, 0x20);
+        std::memset(state, 0, sizeof(ActState));
+        return 1;
+    }
+    DrawPicture(walker->fromX + walker->x, walker->fromY + walker->y, current->width, current->height,
+                static_cast<int>(flags), 0);
+    return 0;
+}
+
+// swd32.exe 0x00471D60: the action +0x2F14 (entry 0x24) drawn at (x, y) brightening by 2 per frame up to 62, then
+// darkening back (counting +0x2F26) to 0, which plays sound 0x6A and returns 1
+int BattleHero::DrawFlicker(int x, int y) {
+    auto* state = reinterpret_cast<ActState*>(raw(0x500));
+    at<int32_t>(0x500) = at<uint16_t>(0x2F14);
+    at<int32_t>(0x508) = 0x24;
+    at<int32_t>(0x590) = 0;
+    if (at<int32_t>(0x2AD0) == 1) {
+        at<int32_t>(0x590) = 1;
+    }
+    if (ActRun(state) == 0) {
+        return 0;
+    }
+    at<Picture*>(0x254C) = TswGetPicture(at<uint16_t>(0x54A), at<uint16_t>(0x54C));
+    PlaySound(at<uint16_t>(0x558), G.soundVolume);
+    uint32_t flags = at<uint32_t>(0x518);
+    const int32_t originX = at<int32_t>(0x510);
+    at<uint16_t>(0x4C0) = 0;
+    at<uint32_t>(0x2688) = flags;
+    at<int32_t>(0x268C) = originX;
+    if (at<int32_t>(0x2B08) == 0) {
+        flags = (flags & 1) != 0 ? flags & ~1u : flags | 1;
+        at<uint32_t>(0x2688) = flags;
+        at<int32_t>(0x268C) = at<Picture*>(0x254C)->width - originX;
+    }
+    auto shade = [this]() {
+        const int level = at<int16_t>(0x2958) / 2 - 0x1F;
+        G.drawOption71C = level;
+        G.drawOption30C = level;
+        G.drawOption304 = level;
+    };
+    if (at<uint16_t>(0x2A66) == 0) {
+        shade();
+        at<int16_t>(0x2958) = static_cast<int16_t>(at<int16_t>(0x2958) + 2);
+        if (at<int16_t>(0x2958) > 0x3E) {
+            at<uint16_t>(0x2A66) = 1;
+        }
+    }
+    if (at<uint16_t>(0x2A66) == 1) {
+        shade();
+        at<int16_t>(0x2958) = static_cast<int16_t>(at<int16_t>(0x2958) - 2);
+        ++at<uint16_t>(0x2F26);
+        if (at<int16_t>(0x2958) <= 0) {
+            at<uint16_t>(0x2A66) = 2;
+        }
+    }
+    Picture* picture = at<Picture*>(0x254C);
+    G.drawSource = reinterpret_cast<uint8_t*>(picture->pixels);
+    DrawPicture(x - at<int32_t>(0x268C), y - at<int32_t>(0x514), picture->width, picture->height,
+                static_cast<int>(at<uint32_t>(0x2688) | 4), 0);
+    if (at<uint16_t>(0x2A66) != 2) {
+        return 0;
+    }
+    PlaySound(0x6A, G.soundVolume);
+    at<int16_t>(0x2958) = 0;
+    at<int32_t>(0x2688) = 0;
+    at<int32_t>(0x268C) = 0;
+    at<uint16_t>(0x2A66) = 0;
+    at<uint16_t>(0x2F26) = 0;
+    at<uint16_t>(0x2A78) = 0;
+    std::memset(state, 0, sizeof(ActState));
+    std::memset(raw(0x2BC8), 0, 0x2F8);
+    return 1;
+}
+
+// swd32.exe 0x00471FC0: projectile `slot` (state +0x2BC8 + 0x98 * slot, act `id` entry `action`) flying from
+// (x, y) back to the hero, `speed` times its frame count (+0x2EF8) line steps per frame. Returns 1 on arrival.
+int BattleHero::DrawProjectile(int id, int action, int slot, int16_t x, int16_t y, int speed) {
+    uint8_t* bytes = raw(0x2BC8 + 0x98 * slot);
+    auto* state = reinterpret_cast<ActState*>(bytes);
+    int32_t& frames = at<int32_t>(0x2EF8 + 4 * slot);
+    state->id = id;
+    state->action = action;
+    mem::put32(bytes, 0x90, 0);
+    if (at<int32_t>(0x2AD0) == 1) {
+        mem::put32(bytes, 0x90, 1);
+    }
+    if (ActRun(state) == 0) {
+        return 0;
+    }
+    Picture* picture = TswGetPicture(state->fr, state->ap);
+    at<Picture*>(0x254C) = picture;
+    G.drawSource = reinterpret_cast<uint8_t*>(picture->pixels);
+    const auto startY = static_cast<int16_t>(y - static_cast<uint16_t>(state->y));
+    const auto startX = static_cast<int16_t>(x - static_cast<uint16_t>(state->x));
+    auto* walker = reinterpret_cast<LineWalker*>(raw(0xDF4));
+    std::memset(walker, 0, 0x20);
+    walker->fromX = startX;
+    walker->fromY = startY;
+    walker->toX = at<int16_t>(0xD66) - at<int16_t>(0x29B2) + at<int16_t>(0x316) - state->x;
+    walker->toY = at<int16_t>(0xD68) + at<int16_t>(0x318) - at<int32_t>(0x2B4) - state->y;
+    for (int steps = 0; steps < frames * speed; ++steps) {
+        LineStep(walker);
+    }
+    ++frames;
+    PlaySound(mem::u16(bytes, 0x58), G.soundVolume);
+    mem::put16(bytes, 0x58, 0);
+    const int endX = walker->toX - at<int32_t>(0x2674);
+    const int currentX = walker->x + walker->fromX;
+    Picture* current = at<Picture*>(0x254C);
+    if (currentX >= endX) {
+        DrawPicture(endX, walker->toY, current->width, current->height, static_cast<int>(state->flags), 0);
+        frames = 0;
+        std::memset(walker, 0, 0x20);
+        return 1;
+    }
+    DrawPicture(currentX, walker->fromY + walker->y, current->width, current->height, static_cast<int>(state->flags),
+                0);
+    return 0;
+}
+
+// swd32.exe 0x004721F0: the hero's stand action (0x2B of +0x2A0C, state +0x338) drawn with shadow at the draw
+// position of `target`, mirrored once for mirrored heroes (bit 15 of the stored flags marks it). Returns 1 when
+// the action finished.
+int BattleHero::DrawStandAt(BattleUnit* target) {
+    auto* state = reinterpret_cast<ActState*>(raw(0x338));
+    at<int32_t>(0x340) = 0x2B;
+    at<int32_t>(0x3C8) = 0;
+    at<int32_t>(0x338) = at<uint16_t>(0x2A0C);
+    if (at<int32_t>(0x2AD0) == 1) {
+        at<int32_t>(0x3C8) = 1;
+    }
+    const int running = ActRun(state);
+    if (running == 0) {
+        return running;
+    }
+    Picture* picture = TswGetPicture(at<uint16_t>(0x382), at<uint16_t>(0x384));
+    at<Picture*>(0x254C) = picture;
+    G.drawSource = reinterpret_cast<uint8_t*>(picture->pixels);
+    if (at<int32_t>(0x3C4) != 0) {
+        std::memset(state, 0, sizeof(ActState));
+        return 1;
+    }
+    if (at<int32_t>(0x2B08) == 1 && at<int32_t>(0x354) == 0) {
+        uint32_t flags = at<uint32_t>(0x350);
+        flags = (flags & 1) != 0 ? flags & ~1u : flags | 1;
+        at<uint32_t>(0x350) = flags;
+        at<uint32_t>(0x354) = flags;
+        at<int32_t>(0x348) = at<Picture*>(0x254C)->width - at<int32_t>(0x348);
+        at<uint32_t>(0x354) = flags | 0x8000;
+    }
+    uint16_t targetX = 0;
+    uint16_t targetY = 0;
+    target->GetDrawPosition(&targetX, &targetY);
+    const auto x = static_cast<int16_t>(targetX - static_cast<uint16_t>(at<int32_t>(0x348)));
+    const auto y = static_cast<int16_t>(targetY - static_cast<uint16_t>(at<int32_t>(0x34C)));
+    Picture* current = at<Picture*>(0x254C);
+    G.drawScaleHeight = current->height / 3;
+    G.drawOption304 = -6;
+    G.drawShear = current->height >> 2;
+    G.drawOption30C = -6;
+    G.drawOption71C = -6;
+    if (at<int32_t>(0x2B00) == 1) {
+        G.drawOption304 = -1;
+        G.drawOption30C = -1;
+        G.drawOption71C = -1;
+    }
+    PlaySound(at<uint16_t>(0x390), G.soundVolume);
+    SetSoundPan(at<uint16_t>(0x390), x <= 0x140 ? -0x10 : 0x10);
+    const uint32_t shadowFlags = (at<uint32_t>(0x350) & 0x8000000F) | 0xC;
+    at<uint32_t>(0x26A4) = shadowFlags;
+    at<uint16_t>(0x390) = 0;
+    current = at<Picture*>(0x254C);
+    DrawPicture(x - 5, y - G.drawScaleHeight + at<int32_t>(0x34C), current->width, current->height,
+                static_cast<int>(shadowFlags), 0);
+    current = at<Picture*>(0x254C);
+    DrawPicture(x, y, current->width, current->height, static_cast<int>(at<uint32_t>(0x350)), 0);
+    return 0;
+}
+
+namespace {
+
+void standShadow(BattleHero& hero, int x, uint32_t flags) {
+    Picture* picture = hero.at<Picture*>(0x254C);
+    const uint32_t shadowFlags = (flags & 0x8000000F) | 0xC;
+    hero.at<uint32_t>(0x26A4) = shadowFlags;
+    DrawPicture(x, hero.at<int16_t>(0xD68) - G.drawScaleHeight, picture->width, picture->height,
+                static_cast<int>(shadowFlags), 0);
+}
+
+void standOptions(BattleHero& hero, bool ghost) {
+    Picture* picture = hero.at<Picture*>(0x254C);
+    G.drawScaleHeight = picture->height / 3;
+    G.drawShear = picture->height >> 2;
+    G.drawOption304 = -6;
+    G.drawOption30C = -6;
+    G.drawOption71C = -6;
+    if (ghost) {
+        G.drawOption304 = -1;
+        G.drawOption30C = -1;
+        G.drawOption71C = -1;
+    }
+}
+
+}  // namespace
+
+// swd32.exe 0x004724D0: casting pose (0x28 of +0x2A0C, state +0x338) with shadow at the unmirrored origin +0x348
+// (mirroring only updates +0x29B4 / +0x26A0). On a frame with flags 9 the cast act +0xDA4 is returned with bit 15
+// set; 2 when the pose ended, else 0. `x` and `y` are unused.
+uint16_t BattleHero::DrawCastPose(int x, int y) {
+    static_cast<void>(x);
+    static_cast<void>(y);
+    auto* state = reinterpret_cast<ActState*>(raw(0x338));
+    at<int32_t>(0x338) = at<uint16_t>(0x2A0C);
+    at<int32_t>(0x2AAC) = 1;
+    at<int32_t>(0x340) = 0x28;
+    at<int32_t>(0x3C8) = 0;
+    if (at<int32_t>(0x2AD0) == 1) {
+        at<int32_t>(0x3C8) = 1;
+    }
+    if (ActRun(state) == 0) {
+        return 0;
+    }
+    Picture* picture = TswGetPicture(at<uint16_t>(0x382), at<uint16_t>(0x384));
+    at<Picture*>(0x254C) = picture;
+    G.drawSource = reinterpret_cast<uint8_t*>(picture->pixels);
+    uint32_t flags = at<uint32_t>(0x350);
+    at<uint16_t>(0x29B4) = at<uint16_t>(0x348);
+    const uint16_t overlay = at<uint16_t>(0x3AE);
+    at<uint32_t>(0x26A0) = flags;
+    at<uint16_t>(0x29AC) = overlay;
+    if (at<int32_t>(0x2B08) == 1) {
+        flags = (flags & 1) != 0 ? flags & ~1u : flags | 1;
+        at<uint32_t>(0x26A0) = flags;
+        Picture* current = at<Picture*>(0x254C);
+        at<uint16_t>(0x29B4) = static_cast<uint16_t>(current->width - at<uint16_t>(0x348));
+        if (overlay != 0) {
+            at<uint16_t>(0x29AC) = static_cast<uint16_t>(current->width - overlay);
+        }
+    }
+    Picture* current = at<Picture*>(0x254C);
+    G.drawScaleHeight = current->height / 3;
+    G.drawOption304 = -6;
+    G.drawOption30C = -6;
+    G.drawOption71C = -6;
+    G.drawShear = current->height >> 2;
+    PlaySound(at<uint16_t>(0x390), G.soundVolume);
+    SetSoundPan(at<uint16_t>(0x390), -0x10);
+    at<uint16_t>(0x390) = 0;
+    const int drawX = at<int16_t>(0xD66) - at<int32_t>(0x348);
+    standShadow(*this, drawX, at<uint32_t>(0x350));
+    current = at<Picture*>(0x254C);
+    DrawPicture(drawX, at<int16_t>(0xD68) - at<int32_t>(0x34C), current->width, current->height,
+                static_cast<int>(at<uint32_t>(0x350)), 0);
+    if ((at<uint8_t>(0x392) & 9) != 0) {
+        const uint16_t cast = at<uint16_t>(0xDA4);
+        at<uint16_t>(0x392) = 0;
+        return static_cast<uint16_t>(cast | 0x8000);
+    }
+    if (at<int32_t>(0x3C4) != 1) {
+        return 0;
+    }
+    at<int32_t>(0x2AAC) = 0;
+    std::memset(state, 0, sizeof(ActState));
+    return 2;
+}
+
+// swd32.exe 0x00472730: whether `target` can be caught: enemies with flag 0x800 (not 0x20) up to level 0x15,
+// by the level difference to the hero: 10+ below always, 7..11 above when at a quarter of its hit points, 5..9
+// below at a third or 80%, 1..6 above at a third or 20 - 5 * difference %, 0..4 below at a third or
+// 20 + 10 * difference %
+bool BattleHero::CanCatch(BattleUnit* target) {
+    auto* data = reinterpret_cast<uint8_t*>(static_cast<std::uintptr_t>(target->GetData0C()));
+    int32_t current = 0;
+    int32_t maximum = 0;
+    target->GetHitPoints(&current, &maximum);
+    const uint32_t flags = mem::u32(data, 0x20);
+    if ((flags & 0x20) != 0 || (flags & 0x800) == 0 || mem::u16(data, 0x52) > 0x15) {
+        return false;
+    }
+    const int own = at<uint8_t*>(0)[0x2C];
+    const int level = mem::u16(data, 0x54);
+    const int above = level - own;
+    if (above >= 0xC) {
+        return false;
+    }
+    const int below = own - level;
+    if (below >= 0xA) {
+        return true;
+    }
+    if (above >= 7 && above <= 0xB) {
+        return current <= maximum / 4;
+    }
+    if (below >= 5 && below < 0xA) {
+        return current <= maximum / 3 || static_cast<int>(R250Below(100)) <= 0x50;
+    }
+    if (above < 7 && above >= 1) {
+        return current <= maximum / 3 || static_cast<int>(R250Below(100)) <= 0x14 - 5 * above;
+    }
+    if (below >= 5 || below < 0) {
+        return false;
+    }
+    return current <= maximum / 3 || static_cast<int>(R250Below(100)) <= 0xA * below + 0x14;
+}
+
+// swd32.exe 0x00472CE0: casting pose 0x2D with shadow; from the first frame with flags 9 the spell act `act`
+// (state +0x630) is drawn at the draw position of `target`. Returns 1 when the spell ended.
+int BattleHero::DrawCastAt(BattleUnit* target, int act) {
+    auto* pose = reinterpret_cast<ActState*>(raw(0x338));
+    at<int32_t>(0x2AAC) = 1;
+    at<int32_t>(0x338) = at<uint16_t>(0x2A0C);
+    at<int32_t>(0x340) = 0x2D;
+    if (ActRun(pose) == 0) {
+        return 0;
+    }
+    Picture* picture = TswGetPicture(at<uint16_t>(0x382), at<uint16_t>(0x384));
+    at<Picture*>(0x254C) = picture;
+    G.drawSource = reinterpret_cast<uint8_t*>(picture->pixels);
+    const uint16_t overlay = at<uint16_t>(0x3AE);
+    uint32_t flags = at<uint32_t>(0x350);
+    uint16_t originX = at<uint16_t>(0x348);
+    at<uint16_t>(0x29AC) = overlay;
+    if (at<int32_t>(0x2B08) == 1) {
+        flags = (flags & 1) != 0 ? flags & ~1u : flags | 1;
+        Picture* current = at<Picture*>(0x254C);
+        originX = static_cast<uint16_t>(current->width - at<uint16_t>(0x348));
+        if (overlay != 0) {
+            at<uint16_t>(0x29AC) = static_cast<uint16_t>(current->width - overlay);
+        }
+    }
+    standOptions(*this, at<int32_t>(0x2B00) == 1);
+    PlaySound(at<uint16_t>(0x390), G.soundVolume);
+    const int drawX = at<int16_t>(0xD66) - static_cast<int16_t>(originX);
+    SetSoundPan(at<uint16_t>(0x390), drawX >= 0x140 ? 0x10 : -0x10);
+    at<uint16_t>(0x390) = 0;
+    standShadow(*this, drawX, flags);
+    Picture* current = at<Picture*>(0x254C);
+    DrawPicture(drawX, at<int16_t>(0xD68) - at<int32_t>(0x34C), current->width, current->height,
+                static_cast<int>(flags), 0);
+    if ((at<uint8_t>(0x392) & 9) == 0) {
+        return 0;
+    }
+    auto* spell = reinterpret_cast<ActState*>(raw(0x630));
+    at<int32_t>(0x630) = act;
+    at<int32_t>(0x638) = 0;
+    if (ActRun(spell) == 0) {
+        return 0;
+    }
+    Picture* effect = TswGetPicture(at<uint16_t>(0x67A), at<uint16_t>(0x67C));
+    at<Picture*>(0x254C) = effect;
+    G.drawSource = reinterpret_cast<uint8_t*>(effect->pixels);
+    const uint16_t effectOverlay = at<uint16_t>(0x6A6);
+    uint32_t effectFlags = at<uint32_t>(0x648);
+    uint16_t effectX = at<uint16_t>(0x640);
+    at<uint16_t>(0x29AC) = effectOverlay;
+    if (at<int32_t>(0x2B08) == 1) {
+        effectFlags = (effectFlags & 1) != 0 ? effectFlags & ~1u : effectFlags | 1;
+        Picture* shown = at<Picture*>(0x254C);
+        effectX = static_cast<uint16_t>(shown->width - at<uint16_t>(0x640));
+        if (effectOverlay != 0) {
+            at<uint16_t>(0x29AC) = static_cast<uint16_t>(shown->width - effectOverlay);
+        }
+    }
+    uint16_t targetX = 0;
+    uint16_t targetY = 0;
+    target->GetDrawPosition(&targetX, &targetY);
+    Picture* shown = at<Picture*>(0x254C);
+    DrawPicture(static_cast<int16_t>(targetX - effectX), static_cast<int16_t>(targetY - at<uint16_t>(0x644)),
+                shown->width, shown->height, static_cast<int>(effectFlags), 0);
+    if (at<int32_t>(0x6BC) != 1) {
+        return 0;
+    }
+    std::memset(spell, 0, sizeof(ActState));
+    std::memset(pose, 0, sizeof(ActState));
+    return 1;
+}
+
 }  // namespace swd3
