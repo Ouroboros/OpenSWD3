@@ -45,9 +45,7 @@ endif()
 find_package(SDL3 CONFIG REQUIRED COMPONENTS SDL3-static)
 include(cmake/FFmpegStatic.cmake)
 add_library(swd3_core STATIC ${SWD3_SOURCES})
-target_include_directories(swd3_core PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_include_directories(swd3_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_compile_options(swd3_core PRIVATE ${SWD3_WARNINGS})
 target_link_libraries(swd3_core PUBLIC SDL3::SDL3-static swd3::ffmpeg)
 if(NOT WIN32)
