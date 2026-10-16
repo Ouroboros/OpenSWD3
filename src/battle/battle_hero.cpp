@@ -30,6 +30,22 @@ BattleHero::BattleHero() {
     std::memset(stats, 0, 0x38);
 }
 
+// swd32.exe 0x0046E4D0
+BattleHero::~BattleHero() { Release(); }
+
+// swd32.exe 0x00475180: frees the buffer at +0x2BC4 and the stats block; the return value is unused by callers
+int BattleHero::Release() {
+    if (at<uint8_t*>(0x2BC4) != nullptr) {
+        crt::free(at<uint8_t*>(0x2BC4));
+        at<uint8_t*>(0x2BC4) = nullptr;
+    }
+    if (at<uint8_t*>(0) != nullptr) {
+        crt::free(at<uint8_t*>(0));
+        at<uint8_t*>(0) = nullptr;
+    }
+    return 0;
+}
+
 // swd32.exe 0x0046E090
 int BattleHero::Flag2B00() { return at<int32_t>(0x2B00); }
 

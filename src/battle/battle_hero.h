@@ -11,6 +11,8 @@ namespace swd3 {
 class BattleHero : public BattleUnit {
 public:
     BattleHero();
+    ~BattleHero();
+    int Release();
     int Flag2B00();
     int Flag2B04();
     int StepGauge(int quick);

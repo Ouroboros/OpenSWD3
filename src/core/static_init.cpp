@@ -247,6 +247,48 @@ void RegisterBattleUnitDestructor() { crt::atexit(&DestroyBattleUnit); }
 // swd32.exe 0x00451890
 void DestroyBattleUnit() { G.battleUnit.~BattleUnit(); }
 
+namespace {
+
+// thiscall entries 0x0046E490 / 0x0046E4D0 / 0x00475560 / 0x00475590 as passed to the vector iterators
+void constructHero(void* object) { new (object) BattleHero(); }
+void destroyHero(void* object) { static_cast<BattleHero*>(object)->~BattleHero(); }
+void constructEnemy(void* object) { new (object) BattleEnemy(); }
+void destroyEnemy(void* object) { static_cast<BattleEnemy*>(object)->~BattleEnemy(); }
+
+}  // namespace
+
+// swd32.exe 0x004517A0
+void InitBattleHeroes() {
+    ConstructBattleHeroes();
+    RegisterBattleHeroesDestructor();
+}
+
+// swd32.exe 0x004517B0
+void ConstructBattleHeroes() { crt::vectorConstruct(G.battleHeroes, sizeof(BattleHero), 10, &constructHero, &destroyHero); }
+
+// swd32.exe 0x004517D0
+void RegisterBattleHeroesDestructor() { crt::atexit(&DestroyBattleHeroes); }
+
+// swd32.exe 0x004517E0
+void DestroyBattleHeroes() { crt::vectorDestruct(G.battleHeroes, sizeof(BattleHero), 10, &destroyHero); }
+
+// swd32.exe 0x00451800
+void InitBattleEnemies() {
+    ConstructBattleEnemies();
+    RegisterBattleEnemiesDestructor();
+}
+
+// swd32.exe 0x00451810
+void ConstructBattleEnemies() {
+    crt::vectorConstruct(G.battleEnemies, sizeof(BattleEnemy), 8, &constructEnemy, &destroyEnemy);
+}
+
+// swd32.exe 0x00451830
+void RegisterBattleEnemiesDestructor() { crt::atexit(&DestroyBattleEnemies); }
+
+// swd32.exe 0x00451840
+void DestroyBattleEnemies() { crt::vectorDestruct(G.battleEnemies, sizeof(BattleEnemy), 8, &destroyEnemy); }
+
 // swd32.exe 0x004518A0
 void InitProjector() {
     ConstructProjector();

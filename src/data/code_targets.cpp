@@ -31,6 +31,8 @@ const CodeTarget kTargets[] = {
     {0x00401450u, reinterpret_cast<void*>(&InitFile4A9380)},
     {0x004272C0u, reinterpret_cast<void*>(&InitFile4CF6E0)},
     {0x00451860u, reinterpret_cast<void*>(&InitBattleUnit)},
+    {0x004517A0u, reinterpret_cast<void*>(&InitBattleHeroes)},
+    {0x00451800u, reinterpret_cast<void*>(&InitBattleEnemies)},
     {0x004518A0u, reinterpret_cast<void*>(&InitProjector)},
     {0x00451900u, reinterpret_cast<void*>(&InitFile521538)},
     {0x004011D0u, reinterpret_cast<void*>(&InitTextFont4AB998)},

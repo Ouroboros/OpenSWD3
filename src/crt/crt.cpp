@@ -86,6 +86,26 @@ std::int32_t time(std::int32_t* result) {
     return now;
 }
 
+// swd32.exe 0x0048A4C0 `eh vector constructor iterator`: constructs `count` objects; the unwinding of the
+// already constructed ones (0x0048A610) only runs when a constructor throws, which never happens here
+void vectorConstruct(void* base, std::uint32_t size, int count, void (*construct)(void*), void (*destroy)(void*)) {
+    static_cast<void>(destroy);
+    auto* object = static_cast<std::uint8_t*>(base);
+    for (int i = 0; i < count; ++i) {
+        construct(object);
+        object += size;
+    }
+}
+
+// swd32.exe 0x0048A560 `eh vector destructor iterator`: destroys `count` objects from the last
+void vectorDestruct(void* base, std::uint32_t size, int count, void (*destroy)(void*)) {
+    auto* object = static_cast<std::uint8_t*>(base) + static_cast<std::size_t>(size) * count;
+    while (--count >= 0) {
+        object -= size;
+        destroy(object);
+    }
+}
+
 // swd32.exe 0x00487BA0 atexit
 int atexit(void (*function)()) { return std::atexit(function) == 0 ? 0 : -1; }
 

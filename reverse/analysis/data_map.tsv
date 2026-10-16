@@ -345,3 +345,9 @@ addr	type	name	module	notes
 @include	battle/battle_hero.h
 @size	BattleHero	12084
 0x005029D0	BattleHero[10]	battleHeroes	battle	constructed by 0x004517A0
+@include	battle/battle_enemy.h
+@size	BattleEnemy	11048
+0x00525508	BattleEnemy[8]	battleEnemies	battle	constructed by 0x00451800
+0x004ACBA8	std::uint32_t[5]	fameList1	battle	counter list holder: head, count
+0x004B9F00	std::uint32_t[5]	fameList2	battle
+0x004B8A00	std::uint32_t[5]	fameList3	battle

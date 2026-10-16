@@ -27,6 +27,8 @@ std::int32_t time(std::int32_t* result);
 
 // Registers a function run at exit, last registered first (host atexit).
 int atexit(void (*function)());
+void vectorConstruct(void* base, std::uint32_t size, int count, void (*construct)(void*), void (*destroy)(void*));
+void vectorDestruct(void* base, std::uint32_t size, int count, void (*destroy)(void*));
 
 // Calls the non-null function pointers of [begin, end) (code addresses of the data image, relocated).
 void initterm(const std::uint32_t* begin, const std::uint32_t* end);

@@ -8,6 +8,7 @@
 #include "swd3/w32.h"
 #include "audio/audio.h"
 #include "battle/battle_draw.h"
+#include "battle/battle_enemy.h"
 #include "battle/battle_hero.h"
 #include "battle/battle_message.h"
 #include "battle/battle_unit.h"
@@ -3501,11 +3502,7 @@ struct Globals {
     std::uint8_t pad_4ACB9C[0x4];
     std::int32_t dword_4ACBA0;  // 0x004ACBA0
     std::uint8_t pad_4ACBA4[0x4];
-    std::int32_t dword_4ACBA8;  // 0x004ACBA8
-    std::int32_t dword_4ACBAC;  // 0x004ACBAC
-    std::int32_t dword_4ACBB0;  // 0x004ACBB0
-    std::int32_t dword_4ACBB4;  // 0x004ACBB4
-    std::int32_t dword_4ACBB8;  // 0x004ACBB8
+    std::uint32_t fameList1[5];  // 0x004ACBA8 counter list holder: head, count
     std::int16_t word_4ACBBC;  // 0x004ACBBC
     std::uint8_t pad_4ACBBE[0x2];
     std::int32_t dword_4ACBC0;  // 0x004ACBC0
@@ -3826,11 +3823,7 @@ struct Globals {
     std::int32_t dword_4B89F4;  // 0x004B89F4
     std::int32_t dword_4B89F8;  // 0x004B89F8
     std::uint8_t pad_4B89FC[0x4];
-    std::int32_t dword_4B8A00;  // 0x004B8A00
-    std::int32_t dword_4B8A04;  // 0x004B8A04
-    std::int32_t dword_4B8A08;  // 0x004B8A08
-    std::int32_t dword_4B8A0C;  // 0x004B8A0C
-    std::int32_t dword_4B8A10;  // 0x004B8A10
+    std::uint32_t fameList3[5];  // 0x004B8A00
     std::int32_t ExistingFileName;  // 0x004B8A14
     std::int32_t dword_4B8A18;  // 0x004B8A18
     std::int32_t dword_4B8A1C;  // 0x004B8A1C
@@ -3845,11 +3838,7 @@ struct Globals {
     std::uint8_t pad_4B9035[0xEC3];
     std::int32_t dword_4B9EF8;  // 0x004B9EF8
     std::int32_t dword_4B9EFC;  // 0x004B9EFC
-    std::int32_t dword_4B9F00;  // 0x004B9F00
-    std::int32_t dword_4B9F04;  // 0x004B9F04
-    std::int32_t dword_4B9F08;  // 0x004B9F08
-    std::int32_t dword_4B9F0C;  // 0x004B9F0C
-    std::int32_t dword_4B9F10;  // 0x004B9F10
+    std::uint32_t fameList2[5];  // 0x004B9F00
     std::uint8_t pad_4B9F14[0x4];
     File file_4B9F18;  // 0x004B9F18 constructed by 0x00401350
     std::int32_t dword_4B9F68;  // 0x004B9F68
@@ -5136,14 +5125,7 @@ struct Globals {
     std::uint8_t pad_52546C[0x4];
     std::uint8_t unk_525470;  // 0x00525470
     std::uint8_t pad_525471[0x97];
-    std::uint8_t unk_525508;  // 0x00525508
-    std::uint8_t pad_525509[0xD8F];
-    std::uint8_t unk_526298;  // 0x00526298
-    std::uint8_t pad_526299[0x189F];
-    std::uint8_t byte_527B38;  // 0x00527B38
-    std::uint8_t pad_527B39[0x47F];
-    std::int32_t dword_527FB8;  // 0x00527FB8
-    std::uint8_t pad_527FBC[0x12E8C];
+    BattleEnemy battleEnemies[8];  // 0x00525508 constructed by 0x00451800
     std::int32_t dword_53AE48;  // 0x0053AE48
     std::uint8_t pad_53AE4C[0x24];
     std::int32_t dword_53AE70;  // 0x0053AE70
@@ -5701,6 +5683,7 @@ static_assert(offsetof(Globals, soundVolume) == 0x12784);
 static_assert(offsetof(Globals, graphics) == 0x12870);
 static_assert(offsetof(Globals, textFont_4AB998) == 0x12998);
 static_assert(offsetof(Globals, eventList) == 0x13AC0);
+static_assert(offsetof(Globals, fameList1) == 0x13BA8);
 static_assert(offsetof(Globals, gold) == 0x13BD0);
 static_assert(offsetof(Globals, memoryManager) == 0x1DC78);
 static_assert(offsetof(Globals, musicFading) == 0x1E378);
@@ -5715,6 +5698,8 @@ static_assert(offsetof(Globals, inputLock) == 0x1EBCC);
 static_assert(offsetof(Globals, midiPlayer) == 0x1EEB8);
 static_assert(offsetof(Globals, input) == 0x1F748);
 static_assert(offsetof(Globals, mapCacheFile) == 0x1F868);
+static_assert(offsetof(Globals, fameList3) == 0x1FA00);
+static_assert(offsetof(Globals, fameList2) == 0x20F00);
 static_assert(offsetof(Globals, file_4B9F18) == 0x20F18);
 static_assert(offsetof(Globals, musicQueue) == 0x216E8);
 static_assert(offsetof(Globals, roles) == 0x21BA8);
@@ -5885,6 +5870,7 @@ static_assert(offsetof(Globals, battleUnit) == 0x88598);
 static_assert(offsetof(Globals, portraitHighlight) == 0x8B118);
 static_assert(offsetof(Globals, lootNames) == 0x8B468);
 static_assert(offsetof(Globals, lootCounts) == 0x8C434);
+static_assert(offsetof(Globals, battleEnemies) == 0x8C508);
 static_assert(offsetof(Globals, projector) == 0xA20B8);
 static_assert(offsetof(Globals, battleUiFlags) == 0xA2C24);
 static_assert(offsetof(Globals, pendingActionRow) == 0xA2F1E);
