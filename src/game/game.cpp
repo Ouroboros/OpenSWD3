@@ -570,7 +570,7 @@ void Game::NewGame()
     this->audio.SetFadeState(1, 0, 0);
     scene.unk4ACDBC = 0;
     scene.unk4A94B0 = 0x40000000;
-    scene.shake.fill(static_cast<i16>(0xCFCF));
+    scene.shake.fill(Scene::ShakeEnd);
     scene.unk4ACDB8 = 3;
     scene.talkWindows.reset();
     game.SetWalkSpeed(0x10);
@@ -886,7 +886,7 @@ void Game::StartStory(int withMap)
 
     if (withMap == 1)
     {
-        this->unk4A9A10 = 0x51;
+        this->currentMap = Field::VeniceTavern;
         this->LoadCity(
             MapsWord(data, start),
             MapsWord(data, start + 2),

@@ -17,6 +17,7 @@ public:
     static constexpr int EnvKeys = 16;
     static constexpr u32 EnvBytes = 0x1000;
     static constexpr u32 CurrentFormat = 0xFFFFFFFF;
+    static constexpr int MaxVolume = 0xB;  // the sound and music volumes run from 0 to MaxVolume
     // The key slots in the order Env.dat stores them (from offset 4).
     static constexpr std::array<int, EnvKeys> EnvKeyOrder = {4, 6, 3, 5, 1, 12, 9, 0, 10, 2, 16, 17, 18, 19, 7, 8};
     // RGB555 channel masks (swd32.exe 0x0049E0B4), converted to the display format at startup.

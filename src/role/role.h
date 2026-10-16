@@ -14,7 +14,13 @@ namespace swd3
 // the playback of its action script. Offsets of the original are given for reference.
 struct Role
 {
-    static constexpr u32 CellShadeShift = 20;  // CellShades to a shade index (0..15)
+    static constexpr u16 NoId = 0xFFFF;  // in `id`: an unused role
+    // `soundTimer`: the low word counts the frames to the next play, the high word is the period.
+    static constexpr u32 SoundCountMask = 0xFFFF;
+    static constexpr u32 SoundPeriodMask = 0xFFFF0000;
+    static constexpr u32 SoundPeriodShift = 16;
+    static constexpr u32 SoundPlaysOnce = 0xFFFF0000;  // period 0xFFFF: the sound plays once
+    static constexpr u32 CellShadeShift = 20;          // CellShades to a shade index (0..15)
 
     // Role::flags bits, named by what tests and sets them.
     enum Flag : u32
@@ -57,7 +63,7 @@ struct Role
     u16 event = 0;         // +0x1E the event run when the role is triggered
     u16 unk20 = 0;         // +0x20
     u16 unk22 = 0;         // +0x22
-    u16 id = 0;            // +0x24 0xFFFF: unused
+    u16 id = 0;            // +0x24 NoId: unused
     u16 unk26 = 0;         // +0x26
     u16 unk28 = 0;         // +0x28 bits 12..15 of the placement word
     u16 unk2A = 0;         // +0x2A bits 8..11 of the placement word

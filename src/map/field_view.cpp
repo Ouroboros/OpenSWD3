@@ -18,6 +18,110 @@ namespace
 constexpr int kEffectAct = 0x232B;
 constexpr int kTimerAct = 0x232C;
 
+constexpr int kScreenColumns = Display::Width / MapHeader::TileSize;
+constexpr int kScreenRows = Display::Height / MapHeader::TileSize;
+constexpr int kRoleMarginX = Display::Width / 2;  // roles this far beside the screen are still drawn
+constexpr int kReflectionRowsAbove = 5;           // the reflections are drawn from this many rows above the camera
+constexpr u32 kNoFrame = 0xFFFF;                  // the frame of a role without an act
+constexpr int kPerMille = 1000;                   // random.Below(kPerMille): the chances are in thousandths
+constexpr int kSoundRange = 0x200;                // the distance (pixels) a role is heard from
+constexpr int kSoundScale = 0x80;                 // the volume and the distance kept for the sounds
+constexpr int kPanScale = 0x40;                   // the pan at kSoundRange to the side
+
+constexpr int kSpriteMargin = 0x48;   // sprites this far off the screen are still drawn
+constexpr int kSpriteArrival = 0x20;  // a sprite this near its target is freed
+
+// The script lines (0x00414E50): each column moves kLineStep pixels a frame plus twice a random jitter.
+constexpr int kLineStep = 0x30;
+constexpr int kFallJitter = 6;
+constexpr int kRiseJitter = 0x18;
+constexpr int kOpenJitter = 0x30;  // opening and closing
+
+// The weather (0x00415B70).
+constexpr std::size_t kWeatherParticles = 2;
+constexpr int kWeatherMarginX = Display::Width;  // a particle this far off the map is placed again
+constexpr int kWeatherMarginY = 0x140;
+constexpr int kWeatherReturnRoll = 0x3DE;  // a particle off the map returns on a roll (per mille) from this
+constexpr int kWeatherSpeedStep = 0xC8;    // the returning roll gives the speed: roll / kWeatherSpeedStep + 1
+constexpr int kWeatherBelow = 0x76;        // a particle rising again starts this far below the map
+constexpr int kWeatherAbove = 0x12C;       // a falling one this far above it
+constexpr int kWeatherDrift = 2;           // the steps: Below(kWeatherDrift), less kWeatherDrift for the left
+constexpr int kWalkQuarter = 2;            // the particles follow a quarter of the walk
+constexpr int kWeatherSpeedChance = 0x19;  // per mille: the speed target changes to 1..kWeatherSpeeds
+constexpr int kWeatherSpeeds = 5;
+constexpr int kWeatherTintChance = 5;  // per mille: the tint target changes
+constexpr int kWeatherTints = 4;       // to -kWeatherDarkest + Below(kWeatherTints)
+constexpr int kWeatherDarkest = 5;
+
+// The leaves (0x004161C0).
+constexpr int kLeafMargin = 0x78;  // a leaf this far off the map is placed again
+constexpr int kLeafEntry = 0x40;   // beside the map, where a leaf enters
+constexpr int kLeafStartDown = 2;  // the first vertical step: -kLeafStartDown..kLeafStartDown
+constexpr int kLeafStartSide = 3;  // the first sideways step: -kLeafStartSide..kLeafStartSide
+constexpr int kLeafZeroSide = 2;   // what a first sideways step of zero becomes
+constexpr int kLeafMaxDown = 3;
+constexpr int kLeafMaxSide = 5;
+
+// The heat haze (0x004163C0): strips of kHeatStrip x kHeatStrip pixels, changed every kHeatPeriod frames.
+constexpr int kHeatStrip = 0x50;
+constexpr int kHeatPeriod = 4;
+constexpr int kHeatLengthMin = 0x4C;  // bytes copied per line: kHeatLengthMin + 2 * Below(kHeatLengthJitter)
+constexpr int kHeatLengthJitter = 0x26;
+constexpr int kHeatLines = 0x4E;  // lines moved: 1 + Below(kHeatLines)
+
+// Lightning (0x00416590) and fireflies (0x004167B0): streaks down the screen, their numbers changing on a
+// tenth of the frames.
+constexpr int kMaxBolts = 8;
+constexpr int kMaxFireflies = 1;
+constexpr int kSlopes = 3;           // a streak slants 0..2 subpixels a line, away from the nearer side
+constexpr int kBoltSpeedMin = 0x10;  // lines a frame: kBoltSpeedMin + Below(kBoltSpeedJitter)
+constexpr int kBoltSpeedJitter = 0x1E;
+constexpr int kBoltLengthMin = 8;  // lines: kBoltLengthMin + Below(kBoltLengthJitter)
+constexpr int kBoltLengthJitter = 0x10;
+constexpr int kShortLife = 0x10;    // frames of a slower bolt (none is)
+constexpr int kBrightLife = 0x20;   // frames of a bolt; a streak with this life brightens twice as fast
+constexpr int kFireflySpeeds = 3;   // lines a frame: 1..kFireflySpeeds
+constexpr int kFireflyLife = 0xA0;  // frames: kFireflyLife x speed less Below(kFireflyLife)
+constexpr int kFireflyGlow = 0x1F;  // the brightness at full life, less one per kFireflyFade frames lived
+constexpr int kFireflyFade = 0x18;
+constexpr u32 kFireflyDark = 0x3E8;  // a brightness above this (a negative one) is 0
+constexpr int kSwayFrames = 4;       // frames per step of kFireflySway
+
+constexpr int kSpotlightRimAction = 0x4E;  // of the effect act
+constexpr int kSpotlightDarkAction = 0x4F;
+constexpr int kFramesPerSecond = 0x1E;  // the timers count frames
+constexpr int kSecondsPerMinute = 0x3C;
+constexpr int kTensBase = 0xA;    // the timer digits are decimal
+constexpr int kTimerColon = 0xA;  // the action of the timer act after the ten digits
+
+constexpr int kGoldX = 0x27C;  // the gold counter at the bottom right
+constexpr int kGoldY = 0x1CC;
+
+// The debug text: lines of kDebugLine pixels from kDebugLeft.
+constexpr int kDebugLeft = 8;
+constexpr int kDebugLine = 0x10;
+constexpr u32 kMillisecondsPerSecond = 1000;
+
+constexpr int DebugRow(int row)
+{
+    return row * kDebugLine;
+}
+
+// The bubbles (0x00415EE0).
+constexpr int kBubbleMargin = 0x40;     // drawn while the role is this near the camera
+constexpr int kBubbleAction = 0x3B;     // the bubble of the effect act
+constexpr int kBubbleMarkLimit = 0x18;  // a mark starts bubbles while its count is below this
+constexpr int kBubbleSpread = 0x10;     // the start and the drift of a bubble are spread over this many units
+constexpr int kWarmLife = 0x10;         // frames: kWarmLife + Below(kWarmLife) on Field::MonasteryOutside
+constexpr int kColdLife = 0x1E;         // frames: kColdLife + Below(kColdLife) elsewhere
+constexpr int kBubbleAgeChance = 0x32;  // a bubble ages unless the roll (per mille) is at most this
+constexpr int kWarmRed = 0x1E;          // the tints subtracted from the life of a warm bubble
+constexpr int kWarmGreen = 0x26;
+constexpr int kWarmBlue = 0x32;
+constexpr int kColdTint = 0x1E;  // subtracted from half the life of the other bubbles
+constexpr int kSwayRange = 5;    // the sway of a frame: Below(kSwayRange) - kSwayShift
+constexpr int kSwayShift = 3;
+
 // Particle (bubble, lightning, firefly) coordinates are kept in 1/16 pixels.
 constexpr int kSubpixels = 0x10;
 
@@ -81,8 +185,9 @@ void FieldView::SetTileSource(const TileSet& tiles, int index)
 {
     const std::span<const u8> view = this->game.mapCache.unitFile.View();
     const std::size_t tile = this->Tile(index);
-    const std::size_t offset = tiles.indexed ? 0x100 * tile + 0x200 : 0x200 * tile;
-    const std::size_t bytes = tiles.indexed ? 0x100 : 0x200;
+    const std::size_t offset =
+        tiles.indexed ? MapHeader::IndexedTileBytes * tile + MapHeader::PaletteBytes : MapHeader::TileBytes * tile;
+    const std::size_t bytes = tiles.indexed ? MapHeader::IndexedTileBytes : MapHeader::TileBytes;
     this->game.painter.SetSource(offset + bytes <= view.size() ? view.data() + offset : view.data());
 }
 
@@ -109,7 +214,7 @@ void FieldView::DrawTileGrid(const TileSet& tiles)
     }
 
     const int width = state.map.width;
-    int skip = width - 0x28;
+    int skip = width - kScreenColumns;
 
     if (left != 0)
     {
@@ -160,22 +265,22 @@ void FieldView::DrawTileGridScrolled(const TileSet& tiles)
     const int fractionY = field.cameraTop & MapHeader::TileFraction;
     int row = field.cameraTop >> MapHeader::TileShift;
     int column = field.cameraLeft >> MapHeader::TileShift;
-    int columns = 0x28;
-    int rows = 0x1E;
+    int columns = kScreenColumns;
+    int rows = kScreenRows;
     this->tileX = -fractionX;
     this->tileY = -fractionY;
 
     if (row < 0)
     {
         row = 0;
-        rows = 0x1D;
+        rows = kScreenRows - 1;
         this->tileY = MapHeader::TileSize - fractionY;
     }
 
     if (column < 0)
     {
         column = 0;
-        columns = 0x27;
+        columns = kScreenColumns - 1;
         this->tileX = MapHeader::TileSize - fractionX;
     }
 
@@ -366,7 +471,7 @@ void FieldView::DrawRoles()
         const std::vector<Role*>& rows = this->game.field.rows[static_cast<std::size_t>(layer)];
         auto row = static_cast<u32>(this->game.field.cameraTop / MapHeader::TileSize - Field::RowMargin);
 
-        for (int count = 0; count < 0x46; ++count, ++row)
+        for (int count = 0; count < kScreenRows + 2 * Field::RowMargin; ++count, ++row)
         {
             const std::size_t index = row + Field::RowMargin;
 
@@ -393,7 +498,7 @@ void FieldView::DrawRoles()
 // to it, its bubbles and, while no event runs, its label. Act roles are skipped while story flag 0xB is set.
 int FieldView::DrawRole(Role& role)
 {
-    if ((role.flags & (Role::Visible | Role::Hidden)) != 0x8000)
+    if ((role.flags & (Role::Visible | Role::Hidden)) != Role::Visible)
     {
         return 0;
     }
@@ -406,12 +511,12 @@ int FieldView::DrawRole(Role& role)
     const int cameraLeft = field.cameraLeft;
     const int cameraTop = field.cameraTop;
 
-    if (x - cameraLeft < -0x140 || x - cameraLeft > 0x3C0)
+    if (x - cameraLeft < -kRoleMarginX || x - cameraLeft > Display::Width + kRoleMarginX)
     {
         return 1;
     }
 
-    u32 frame = 0xFFFF;
+    u32 frame = kNoFrame;
 
     if (role.act.id != 0)
     {
@@ -519,7 +624,7 @@ int FieldView::DrawRole(Role& role)
         this->DrawBubbles(x, y, role.id);
     }
 
-    if (this->game.state.leader.id == 0xFFFF && !role.label.empty())
+    if (this->game.state.leader.id == Role::NoId && !role.label.empty())
     {
         const auto length = static_cast<int>(role.label.size());
         const auto color = static_cast<Pixel>(this->game.textColors.primary[static_cast<std::size_t>(role.labelColor)]);
@@ -549,11 +654,11 @@ void FieldView::UpdateRoleSound(Role& role)
     const int squared = dx * dx + (role.y - player.y) * (role.y - player.y);
     const auto distance = static_cast<int>(crt::Ftol(std::sqrt(static_cast<double>(squared))));
     bool due = true;
-    u32 timer = role.soundTimer & 0xFFFF0000;
+    u32 timer = role.soundTimer & Role::SoundPeriodMask;
 
-    if (timer != 0xFFFF0000)
+    if (timer != Role::SoundPlaysOnce)
     {
-        const u32 left = (role.soundTimer & 0xFFFF) - 1;
+        const u32 left = (role.soundTimer & Role::SoundCountMask) - 1;
 
         if (left != 0)
         {
@@ -563,7 +668,7 @@ void FieldView::UpdateRoleSound(Role& role)
         }
     }
 
-    if (distance > 0x200 || (role.flags & Role::Visible) == 0)
+    if (distance > kSoundRange || (role.flags & Role::Visible) == 0)
     {
         if ((role.flags & Role::SoundOnce) != 0)
         {
@@ -579,10 +684,10 @@ void FieldView::UpdateRoleSound(Role& role)
 
     if ((role.flags & Role::SoundOnce) == 0 && due)
     {
-        const u32 reloaded = (role.soundTimer >> 16) + (role.soundTimer & 0xFFFF0000);
+        const u32 reloaded = (role.soundTimer >> Role::SoundPeriodShift) + (role.soundTimer & Role::SoundPeriodMask);
         role.soundTimer = reloaded;
 
-        if ((reloaded & 0xFFFF0000) == 0xFFFF0000)
+        if ((reloaded & Role::SoundPeriodMask) == Role::SoundPlaysOnce)
         {
             role.flags |= Role::SoundOnce;
         }
@@ -591,15 +696,18 @@ void FieldView::UpdateRoleSound(Role& role)
 
         if (index < view.soundDistance.size())
         {
-            view.soundDistance[index] = static_cast<i16>((distance << 7) / 0x200);
+            view.soundDistance[index] = static_cast<i16>(distance * kSoundScale / kSoundRange);
             const auto rise =
-                static_cast<i16>(static_cast<u16>(static_cast<u16>(role.y) - static_cast<u16>(player.y)) << 6);
-            view.soundRise[index] = static_cast<i16>(rise / 0x200);
+                static_cast<i16>(static_cast<u16>(static_cast<u16>(role.y) - static_cast<u16>(player.y)) * kPanScale);
+            view.soundRise[index] = static_cast<i16>(rise / kSoundRange);
         }
     }
 
-    effects.SetVolume(role.sound, this->game.config.soundVolume * (0x80 - (distance << 7) / 0x200) / 0xB);
-    effects.SetPan(role.sound, ((role.x - player.x) << 6) / 0x200);
+    effects.SetVolume(
+        role.sound,
+        this->game.config.soundVolume * (kSoundScale - distance * kSoundScale / kSoundRange) / Config::MaxVolume
+    );
+    effects.SetPan(role.sound, (role.x - player.x) * kPanScale / kSoundRange);
 }
 
 // swd32.exe 0x004145F0: the shadow of a role: its picture squashed to half its height (a quarter with bit 3 of
@@ -653,9 +761,9 @@ void FieldView::DrawShadow(const Role& role, const Picture& picture, int x, int 
 void FieldView::DrawReflections()
 {
     const std::vector<Role*>& rows = this->game.field.rows[0];
-    int row = this->game.field.cameraTop / MapHeader::TileSize - 5;
+    int row = this->game.field.cameraTop / MapHeader::TileSize - kReflectionRowsAbove;
 
-    for (int count = -10; count < 0x1E; ++count, ++row)
+    for (int count = -2 * kReflectionRowsAbove; count < kScreenRows; ++count, ++row)
     {
         if (row >= this->game.state.map.height)
         {
@@ -682,7 +790,7 @@ void FieldView::DrawReflections()
 // swd32.exe 0x00413F00: a role's picture flipped below it at translucency 4
 int FieldView::DrawReflection(const Role& role)
 {
-    if ((role.flags & (Role::Visible | Role::Hidden)) != 0x8000)
+    if ((role.flags & (Role::Visible | Role::Hidden)) != Role::Visible)
     {
         return 1;
     }
@@ -690,12 +798,12 @@ int FieldView::DrawReflection(const Role& role)
     const Field& field = this->game.field;
     const int x = role.x;
 
-    if (x - field.cameraLeft <= -0x140 || x - field.cameraLeft >= 0x3C0)
+    if (x - field.cameraLeft <= -kRoleMarginX || x - field.cameraLeft >= Display::Width + kRoleMarginX)
     {
         return 1;
     }
 
-    const u32 frame = role.act.id != 0 ? role.act.frame : 0xFFFF;
+    const u32 frame = role.act.id != 0 ? role.act.frame : kNoFrame;
     const Picture* picture = this->game.archive.GetPicture(frame, role.act.picture);
 
     if (picture == nullptr)
@@ -723,8 +831,8 @@ void FieldView::DrawBubbles(int x, int y, u16 role)
 {
     const Field& field = this->game.field;
 
-    if (x <= field.cameraLeft - 0x40 || x >= field.cameraRight + 0x40 || y <= field.cameraTop - 0x40 ||
-        y >= field.cameraBottom + 0x40)
+    if (x <= field.cameraLeft - kBubbleMargin || x >= field.cameraRight + kBubbleMargin ||
+        y <= field.cameraTop - kBubbleMargin || y >= field.cameraBottom + kBubbleMargin)
     {
         return;
     }
@@ -733,12 +841,12 @@ void FieldView::DrawBubbles(int x, int y, u16 role)
     Random& random = owner.random;
     Scene& view = owner.scene;
     Painter& painter = owner.painter;
-    const int sway = static_cast<int>(random.Below(5)) - 3;
+    const int sway = static_cast<int>(random.Below(kSwayRange)) - kSwayShift;
     view.unk4ACAF8.id = kEffectAct;
-    view.unk4ACAF8.action = 0x3B;
+    view.unk4ACAF8.action = kBubbleAction;
     owner.acts.Run(view.unk4ACAF8);
     const Picture* picture = owner.archive.GetPicture(view.unk4ACAF8.frame, view.unk4ACAF8.picture);
-    const bool warm = owner.unk4A9A10 == 0x32;
+    const bool warm = owner.currentMap == Field::MonasteryOutside;
 
     for (RoleMark& mark : view.marks)
     {
@@ -754,20 +862,23 @@ void FieldView::DrawBubbles(int x, int y, u16 role)
         mark.x = static_cast<u16>(source.x);
         mark.y = static_cast<u16>(source.y);
 
-        if (random.Below(0x3E8) > 0xFA)
+        if (random.Below(kPerMille) > kPerMille / 4)
         {
             mark.flags |= RoleMark::Emitting;
         }
 
-        if (mark.unk08 < 0x18 && (mark.flags & RoleMark::Emitting) != 0)
+        if (mark.unk08 < kBubbleMarkLimit && (mark.flags & RoleMark::Emitting) != 0)
         {
             auto bubble = std::make_unique<RoleMarkNode>();
             bubble->next = std::move(mark.nodes);
             bubble->y = static_cast<i16>(mark.y);
-            bubble->x = static_cast<i16>(kSubpixels * (mark.x - 8 + static_cast<int>(random.Below(0x10))));
-            bubble->life = static_cast<i16>(warm ? random.Below(0x10) + 0x10 : random.Below(0x1E) + 0x1E);
-            bubble->stepX = static_cast<i16>(static_cast<int>(random.Below(0x10)) - 8);
-            bubble->stepY = static_cast<i16>(0xFFFF - random.Below(1));
+            bubble->x = static_cast<i16>(
+                kSubpixels * (mark.x - kBubbleSpread / 2 + static_cast<int>(random.Below(kBubbleSpread)))
+            );
+            bubble->life =
+                static_cast<i16>(warm ? random.Below(kWarmLife) + kWarmLife : random.Below(kColdLife) + kColdLife);
+            bubble->stepX = static_cast<i16>(static_cast<int>(random.Below(kBubbleSpread)) - kBubbleSpread / 2);
+            bubble->stepY = static_cast<i16>(-1 - static_cast<int>(random.Below(1)));
             mark.nodes = std::move(bubble);
         }
 
@@ -776,11 +887,11 @@ void FieldView::DrawBubbles(int x, int y, u16 role)
         while (*link != nullptr)
         {
             RoleMarkNode& bubble = **link;
-            const u32 roll = random.Below(0x3E8);
+            const u32 roll = random.Below(kPerMille);
             bubble.y = static_cast<i16>(bubble.y + bubble.stepY);
             bubble.x = static_cast<i16>(bubble.x + sway + bubble.stepX);
 
-            if (roll > 0x32)
+            if (roll > kBubbleAgeChance)
             {
                 --bubble.life;
             }
@@ -793,15 +904,15 @@ void FieldView::DrawBubbles(int x, int y, u16 role)
 
                     if (warm)
                     {
-                        options.tintRed = bubble.life - 0x1E;
-                        options.tintGreen = bubble.life - 0x26;
-                        options.tintBlue = bubble.life - 0x32;
+                        options.tintRed = bubble.life - kWarmRed;
+                        options.tintGreen = bubble.life - kWarmGreen;
+                        options.tintBlue = bubble.life - kWarmBlue;
                     }
                     else
                     {
-                        options.tintBlue = (bubble.life >> 1) - 0x1E;
-                        options.tintGreen = (bubble.life >> 1) - 0x1E;
-                        options.tintRed = (bubble.life >> 1) - 0x1E;
+                        options.tintBlue = (bubble.life >> 1) - kColdTint;
+                        options.tintGreen = (bubble.life >> 1) - kColdTint;
+                        options.tintRed = (bubble.life >> 1) - kColdTint;
                     }
 
                     painter.SetSource(picture->data.data());
@@ -949,7 +1060,8 @@ void FieldView::DrawSprites()
         const auto screenY = static_cast<int>(crt::Ftol(sprite.y)) - field.cameraTop;
         owner.acts.Run(sprite.act);
 
-        if (screenX > -0x48 && screenX < 0x2C8 && screenY > -0x48 && screenY < 0x228)
+        if (screenX > -kSpriteMargin && screenX < Display::Width + kSpriteMargin && screenY > -kSpriteMargin &&
+            screenY < Display::Height + kSpriteMargin)
         {
             const Picture* picture = owner.archive.GetPicture(sprite.act.frame, sprite.act.picture);
 
@@ -981,8 +1093,8 @@ void FieldView::DrawSprites()
         const auto movedX = static_cast<int>(crt::Ftol(nextX));
         const auto movedY = static_cast<int>(crt::Ftol(nextY));
 
-        if (movedX <= sprite.targetX - 0x20 || movedX >= sprite.targetX + 0x20 || movedY <= sprite.targetY - 0x20 ||
-            movedY >= sprite.targetY + 0x20)
+        if (movedX <= sprite.targetX - kSpriteArrival || movedX >= sprite.targetX + kSpriteArrival ||
+            movedY <= sprite.targetY - kSpriteArrival || movedY >= sprite.targetY + kSpriteArrival)
         {
             link = &sprite.next;
         }
@@ -1020,12 +1132,12 @@ void FieldView::DrawRoleHeads()
             );
         }
 
-        if ((head.headSpeed & 0x7FFF) != 0)
+        if ((head.headSpeed & ScriptSprite::HeadSpeedMask) != 0)
         {
             head.headX = static_cast<i16>(head.headX + head.headSpeed);
             head.headSpeed = static_cast<i16>(3 * head.headSpeed);
 
-            if (head.headX <= -0x78 || head.headX >= 0x2F8)
+            if (head.headX <= -ScriptSprite::HeadMargin || head.headX >= Display::Width + ScriptSprite::HeadMargin)
             {
                 *link = std::move(head.next);
                 continue;
@@ -1080,7 +1192,7 @@ void FieldView::DrawLines()
     while (*link != nullptr)
     {
         ScriptEffect& line = **link;
-        const u32 color = owner.textColors.primary[static_cast<std::size_t>(line.color) & 0xF];
+        const u32 color = owner.textColors.primary[static_cast<std::size_t>(line.color) & (TextColors::Colors - 1)];
 
         const auto column = [](int index) -> std::size_t
         {
@@ -1119,7 +1231,7 @@ void FieldView::DrawLines()
             for (int index = line.count - 1; index >= 0; --index)
             {
                 i16& length = line.lengths[column(index)];
-                length = static_cast<i16>(length + 2 * static_cast<int>(random.Below(6)) + 0x30);
+                length = static_cast<i16>(length + 2 * static_cast<int>(random.Below(kFallJitter)) + kLineStep);
 
                 if (length >= line.limit)
                 {
@@ -1143,7 +1255,7 @@ void FieldView::DrawLines()
             for (int index = line.count - 1; index >= 0; --index)
             {
                 i16& offset = line.offsets[column(index)];
-                offset = static_cast<i16>(offset + 0xFFD0 - 2 * static_cast<int>(random.Below(0x18)));
+                offset = static_cast<i16>(offset - kLineStep - 2 * static_cast<int>(random.Below(kRiseJitter)));
 
                 if (offset <= 0)
                 {
@@ -1170,7 +1282,7 @@ void FieldView::DrawLines()
             for (int index = line.count - 1; index >= 0; --index)
             {
                 i16& offset = line.offsets[column(index)];
-                offset = static_cast<i16>(offset + 2 * static_cast<int>(random.Below(0x30)) + 0x30);
+                offset = static_cast<i16>(offset + 2 * static_cast<int>(random.Below(kOpenJitter)) + kLineStep);
 
                 if (offset >= line.limit)
                 {
@@ -1199,7 +1311,7 @@ void FieldView::DrawLines()
             for (int index = line.count - 1; index >= 0; --index)
             {
                 i16& length = line.lengths[column(index)];
-                length = static_cast<i16>(length + 0xFFD0 - 2 * static_cast<int>(random.Below(0x30)));
+                length = static_cast<i16>(length - kLineStep - 2 * static_cast<int>(random.Below(kOpenJitter)));
 
                 if (length <= 2)
                 {
@@ -1232,7 +1344,7 @@ void FieldView::DrawOverlays()
     Painter& painter = owner.painter;
     const Field& field = owner.field;
 
-    for (int order = 0; order < 0x1F; ++order)
+    for (int order = 0; order < MapOverlay::Orders; ++order)
     {
         for (const MapOverlay* overlay = field.overlays.get(); overlay != nullptr; overlay = overlay->next.get())
         {
@@ -1260,13 +1372,13 @@ void FieldView::DrawOverlays()
             painter.SetClip(clipLeft, clipTop, right - field.cameraLeft, bottom - field.cameraTop);
             int offsetX = 0;
 
-            if (overlay->parallaxX == 8)
+            if (overlay->parallaxX == MapOverlay::FixedToMap)
             {
                 offsetX = field.cameraLeft >= areaLeft ? field.cameraLeft - areaLeft : 0;
             }
             else
             {
-                offsetX = overlay->parallaxX * (field.cameraRight - areaLeft) / 0x10;
+                offsetX = overlay->parallaxX * (field.cameraRight - areaLeft) / MapOverlay::ParallaxUnit;
 
                 if (field.cameraLeft < areaLeft)
                 {
@@ -1276,13 +1388,13 @@ void FieldView::DrawOverlays()
 
             int offsetY = 0;
 
-            if (overlay->parallaxY == 8)
+            if (overlay->parallaxY == MapOverlay::FixedToMap)
             {
                 offsetY = field.cameraTop >= areaTop ? field.cameraTop - areaTop : 0;
             }
             else
             {
-                offsetY = overlay->parallaxY * (field.cameraBottom - areaTop) / 0x10;
+                offsetY = overlay->parallaxY * (field.cameraBottom - areaTop) / MapOverlay::ParallaxUnit;
 
                 if (field.cameraTop < areaTop)
                 {
@@ -1315,54 +1427,54 @@ void FieldView::DrawWeather()
     Painter& painter = owner.painter;
     const Field& field = owner.field;
 
-    for (std::size_t particle = 0; particle < 2; ++particle)
+    for (std::size_t particle = 0; particle < kWeatherParticles; ++particle)
     {
-        const auto roll = static_cast<int>(random.Below(0x3E8));
+        const auto roll = static_cast<int>(random.Below(kPerMille));
         const int width = state.map.width;
         MapParticle& drop = view.weather[particle];
         WeatherShade& shade = view.weatherShades[particle];
         WeatherMotion& motion = view.weatherMotion[particle];
 
-        if (drop.x <= -0x280 || drop.x >= 0x10 * (width + 0x28) || drop.y <= -0x140 ||
-            drop.y >= 0x10 * (state.map.height + 0x14))
+        if (drop.x <= -kWeatherMarginX || drop.x >= MapHeader::TileSize * width + kWeatherMarginX ||
+            drop.y <= -kWeatherMarginY || drop.y >= MapHeader::TileSize * state.map.height + kWeatherMarginY)
         {
-            if (roll < 0x3DE)
+            if (roll < kWeatherReturnRoll)
             {
                 continue;
             }
 
             shade.tintTarget = 0;
-            motion.speedTarget = roll / 0xC8 + 1;
-            motion.action = view.unk4ACEF0 + roll * view.unk4C97F6 / 0x3E8;
+            motion.speedTarget = roll / kWeatherSpeedStep + 1;
+            motion.action = view.weatherAction + roll * view.weatherActions / kPerMille;
 
             switch (view.unk4B7EB4)
             {
                 case 0:
                     drop.x = static_cast<i32>(random.Below(static_cast<u32>(MapHeader::TileSize * width)));
-                    drop.y = MapHeader::TileSize * state.map.height + 0x76;
-                    drop.stepX = static_cast<i32>(random.Below(1)) - 2;
-                    drop.stepY = static_cast<i32>(random.Below(1)) - 2;
+                    drop.y = MapHeader::TileSize * state.map.height + kWeatherBelow;
+                    drop.stepX = static_cast<i32>(random.Below(1)) - kWeatherDrift;
+                    drop.stepY = static_cast<i32>(random.Below(1)) - kWeatherDrift;
                     break;
 
                 case 1:
                     drop.x = static_cast<i32>(random.Below(static_cast<u32>(MapHeader::TileSize * width)));
-                    drop.y = MapHeader::TileSize * state.map.height + 0x76;
-                    drop.stepX = static_cast<i32>(random.Below(2));
-                    drop.stepY = static_cast<i32>(random.Below(2));
+                    drop.y = MapHeader::TileSize * state.map.height + kWeatherBelow;
+                    drop.stepX = static_cast<i32>(random.Below(kWeatherDrift));
+                    drop.stepY = static_cast<i32>(random.Below(kWeatherDrift));
                     break;
 
                 case 2:
                     drop.x = static_cast<i32>(random.Below(static_cast<u32>(MapHeader::TileSize * width)));
-                    drop.y = -0x12C;
-                    drop.stepX = static_cast<i32>(random.Below(2)) - 2;
-                    drop.stepY = static_cast<i32>(random.Below(2)) - 2;
+                    drop.y = -kWeatherAbove;
+                    drop.stepX = static_cast<i32>(random.Below(kWeatherDrift)) - kWeatherDrift;
+                    drop.stepY = static_cast<i32>(random.Below(kWeatherDrift)) - kWeatherDrift;
                     break;
 
                 case 3:
                     drop.x = static_cast<i32>(random.Below(static_cast<u32>(MapHeader::TileSize * width)));
-                    drop.y = -0x12C;
-                    drop.stepX = static_cast<i32>(random.Below(2));
-                    drop.stepY = static_cast<i32>(random.Below(2));
+                    drop.y = -kWeatherAbove;
+                    drop.stepX = static_cast<i32>(random.Below(kWeatherDrift));
+                    drop.stepY = static_cast<i32>(random.Below(kWeatherDrift));
                     break;
 
                 default:
@@ -1377,12 +1489,12 @@ void FieldView::DrawWeather()
         if (++motion.counter > speed)
         {
             motion.counter = 0;
-            drop.x += drop.stepX + ((owner.unk4B7518 * owner.state.walkSpeed) >> 2);
-            drop.y += drop.stepY + ((owner.state.walkSpeed * owner.unk4B7920) >> 2);
+            drop.x += drop.stepX + ((owner.unk4B7518 * owner.state.walkSpeed) >> kWalkQuarter);
+            drop.y += drop.stepY + ((owner.state.walkSpeed * owner.unk4B7920) >> kWalkQuarter);
 
-            if (roll < 0x19)
+            if (roll < kWeatherSpeedChance)
             {
-                motion.speedTarget = static_cast<i32>(random.Below(5)) + 1;
+                motion.speedTarget = static_cast<i32>(random.Below(kWeatherSpeeds)) + 1;
             }
 
             if (motion.speed != motion.speedTarget)
@@ -1390,9 +1502,9 @@ void FieldView::DrawWeather()
                 motion.speed += motion.speed <= motion.speedTarget ? 1 : -1;
             }
 
-            if (roll < 5)
+            if (roll < kWeatherTintChance)
             {
-                shade.tintTarget = static_cast<i32>(random.Below(4)) - 5;
+                shade.tintTarget = static_cast<i32>(random.Below(kWeatherTints)) - kWeatherDarkest;
             }
 
             if (shade.tint != shade.tintTarget)
@@ -1422,7 +1534,7 @@ void FieldView::DrawWeather()
             drop.y - view.unk4ACAF8.y - field.cameraTop,
             picture->width,
             picture->height,
-            view.unk4C97F6 == 4 ? 4u : 0x2Cu
+            view.weatherActions == Scene::GlowWeatherActions ? Painter::Additive : Painter::Subtractive
         );
     }
 }
@@ -1451,33 +1563,34 @@ void FieldView::DrawLeaves()
         MapParticle& leaf = view.leaves[index];
         ActState& act = view.unk4AD0D8[index];
 
-        if (leaf.x <= -0x78 || leaf.x >= width + 0x78 || leaf.y <= -0x78 || leaf.y >= height + 0x78)
+        if (leaf.x <= -kLeafMargin || leaf.x >= width + kLeafMargin || leaf.y <= -kLeafMargin ||
+            leaf.y >= height + kLeafMargin)
         {
-            leaf.x = 0x7FFFFFFF;
+            leaf.x = MapParticle::Unplaced;
         }
 
-        if (leaf.x == 0x7FFFFFFF)
+        if (leaf.x == MapParticle::Unplaced)
         {
-            leaf.x = -0x40;
+            leaf.x = -kLeafEntry;
             leaf.y = static_cast<i32>(random.Below(static_cast<u32>(height)));
-            leaf.stepY = static_cast<i32>(random.Below(5)) - 2;
-            leaf.stepX = static_cast<i32>(random.Below(7)) - 3;
+            leaf.stepY = static_cast<i32>(random.Below(2 * kLeafStartDown + 1)) - kLeafStartDown;
+            leaf.stepX = static_cast<i32>(random.Below(2 * kLeafStartSide + 1)) - kLeafStartSide;
 
             if (leaf.stepX == 0)
             {
-                leaf.stepX = 2;
+                leaf.stepX = kLeafZeroSide;
             }
 
             if (leaf.stepX < 0)
             {
-                leaf.x = width + 0x40;
+                leaf.x = width + kLeafEntry;
             }
         }
-        else if (random.Below(0x3E8) > 0xFA)
+        else if (random.Below(kPerMille) > kPerMille / 4)
         {
             const int turn = static_cast<int>(random.Below(3)) - 1;
-            leaf.stepY = std::clamp(static_cast<int>(random.Below(3)) - 1 + leaf.stepY, -3, 3);
-            leaf.stepX = std::clamp(turn + leaf.stepX, -5, 5);
+            leaf.stepY = std::clamp(static_cast<int>(random.Below(3)) - 1 + leaf.stepY, -kLeafMaxDown, kLeafMaxDown);
+            leaf.stepX = std::clamp(turn + leaf.stepX, -kLeafMaxSide, kLeafMaxSide);
 
             if (leaf.stepX == 0)
             {
@@ -1485,7 +1598,9 @@ void FieldView::DrawLeaves()
             }
         }
 
-        act.action = kLeafActions[static_cast<std::size_t>(std::clamp(leaf.stepY + 3, 0, 7))];
+        act.action = kLeafActions[static_cast<std::size_t>(
+            std::clamp(leaf.stepY + kLeafMaxDown, 0, static_cast<int>(kLeafActions.size()) - 1)
+        )];
 
         if (leaf.stepX > 0)
         {
@@ -1528,19 +1643,19 @@ void FieldView::DrawHeat()
 
     auto newLength = [&random]()
     {
-        return static_cast<i16>(2 * random.Below(0x26) + 0x4C);
+        return static_cast<i16>(2 * random.Below(kHeatLengthJitter) + kHeatLengthMin);
     };
 
     auto newOffset = [&random](int column, int line)
     {
-        return line + static_cast<i32>(random.Below(3)) + column + 0x27F;
+        return line + static_cast<i32>(random.Below(3)) + column + Display::Width - 1;
     };
 
     if (view.heatFrame != 0)
     {
-        if ((view.heatFrame & 3) == 0)
+        if (view.heatFrame % kHeatPeriod == 0)
         {
-            switch ((view.heatFrame >> 2) & 3)
+            switch (view.heatFrame / kHeatPeriod % kHeatPeriod)
             {
                 case 0:
                     for (i16& length : view.heatLengths)
@@ -1554,9 +1669,9 @@ void FieldView::DrawHeat()
                 {
                     std::size_t index = 0;
 
-                    for (int column = 0; column < Display::Width; column += 0x50)
+                    for (int column = 0; column < Display::Width; column += kHeatStrip)
                     {
-                        for (int line = 0; line < Display::Pixels; line += 0xC800)
+                        for (int line = 0; line < Display::Pixels; line += kHeatStrip * Display::Width)
                         {
                             view.heatOffsets[index++] = newOffset(column, line);
                         }
@@ -1568,7 +1683,7 @@ void FieldView::DrawHeat()
                 case 2:
                     for (i16& count : view.heatCounts)
                     {
-                        count = static_cast<i16>(random.Below(0x4E) + 1);
+                        count = static_cast<i16>(random.Below(kHeatLines) + 1);
                     }
 
                     break;
@@ -1582,13 +1697,13 @@ void FieldView::DrawHeat()
     {
         std::size_t index = 0;
 
-        for (int column = 0; column < Display::Width; column += 0x50)
+        for (int column = 0; column < Display::Width; column += kHeatStrip)
         {
-            for (int line = 0; line < Display::Pixels; line += 0xC800)
+            for (int line = 0; line < Display::Pixels; line += kHeatStrip * Display::Width)
             {
                 view.heatLengths[index] = newLength();
                 view.heatOffsets[index] = newOffset(column, line);
-                view.heatCounts[index] = static_cast<i16>(random.Below(0x4E) + 1);
+                view.heatCounts[index] = static_cast<i16>(random.Below(kHeatLines) + 1);
                 ++index;
             }
         }
@@ -1597,7 +1712,7 @@ void FieldView::DrawHeat()
     ++view.heatFrame;
     auto* bytes = reinterpret_cast<u8*>(owner.drawSurface);
     constexpr std::size_t kScreenBytes = 2 * Display::Pixels;
-    constexpr int kLineBytes = 0x500;
+    constexpr int kLineBytes = 2 * Display::Width;
 
     for (std::size_t index = 0; index < view.heatOffsets.size(); ++index)
     {
@@ -1626,13 +1741,13 @@ void FieldView::DrawLightning()
     Random& random = owner.random;
     bool draw = false;
 
-    if (random.Below(0x3E8) > 0x384)
+    if (random.Below(kPerMille) > kPerMille * 9 / 10)
     {
         if (owner.state.GameFlag(GameState::Lightning))
         {
-            if (++view.lightningCount > 8)
+            if (++view.lightningCount > kMaxBolts)
             {
-                view.lightningCount = 8;
+                view.lightningCount = kMaxBolts;
                 draw = true;
             }
         }
@@ -1666,11 +1781,11 @@ void FieldView::DrawLightning()
             {
                 bolt.x = static_cast<i16>(kSubpixels * random.Below(Display::Width));
                 bolt.y = 0;
-                const auto slope = static_cast<i16>(random.Below(3));
+                const auto slope = static_cast<i16>(random.Below(kSlopes));
                 bolt.slope = bolt.x <= Display::Width / 2 * kSubpixels ? slope : static_cast<i16>(-slope);
-                bolt.speed = static_cast<i16>(random.Below(0x1E) + 0x10);
-                bolt.length = static_cast<i16>(random.Below(0x10) + 8);
-                bolt.life = bolt.speed <= 0xF ? 0x10 : 0x20;
+                bolt.speed = static_cast<i16>(random.Below(kBoltSpeedJitter) + kBoltSpeedMin);
+                bolt.length = static_cast<i16>(random.Below(kBoltLengthJitter) + kBoltLengthMin);
+                bolt.life = bolt.speed < kBoltSpeedMin ? kShortLife : kBrightLife;
                 bolt.phase = 0;
                 bolt.active = 1;
                 ++started;
@@ -1710,7 +1825,7 @@ void FieldView::DrawLightning()
             row += pitch;
             ++level;
 
-            if (bolt.life == 0x20)
+            if (bolt.life == kBrightLife)
             {
                 ++level;
             }
@@ -1744,13 +1859,13 @@ void FieldView::DrawFireflies()
     Random& random = owner.random;
     bool draw = false;
 
-    if (random.Below(0x3E8) > 0x384)
+    if (random.Below(kPerMille) > kPerMille * 9 / 10)
     {
         if (owner.state.GameFlag(GameState::Fireflies))
         {
-            if (++view.fireflyCount > 1)
+            if (++view.fireflyCount > kMaxFireflies)
             {
-                view.fireflyCount = 1;
+                view.fireflyCount = kMaxFireflies;
                 draw = true;
             }
         }
@@ -1774,8 +1889,8 @@ void FieldView::DrawFireflies()
     Painter& painter = owner.painter;
     const int pitch = painter.ScreenPitch();
     const auto pixels = static_cast<std::ptrdiff_t>(pitch) * Display::Height;
-    const std::ptrdiff_t firstLine = 0x500 / 2;
-    const std::ptrdiff_t lastLine = (0x95B00 / 2);
+    const std::ptrdiff_t firstLine = Display::Width;
+    const std::ptrdiff_t lastLine = Display::Pixels - Display::Width;
     view.firefliesShown = 0;
     int started = 0;
 
@@ -1795,11 +1910,11 @@ void FieldView::DrawFireflies()
             {
                 fly.x = static_cast<i16>(kSubpixels * random.Below(Display::Width));
                 fly.y = 0;
-                const auto slope = static_cast<i16>(random.Below(3));
+                const auto slope = static_cast<i16>(random.Below(kSlopes));
                 fly.slope = fly.x <= Display::Width / 2 * kSubpixels ? slope : static_cast<i16>(-slope);
-                fly.speed = static_cast<i16>(random.Below(3) + 1);
+                fly.speed = static_cast<i16>(random.Below(kFireflySpeeds) + 1);
                 fly.length = 1;
-                fly.life = static_cast<i16>(0xA0 * fly.speed - static_cast<int>(random.Below(0xA0)));
+                fly.life = static_cast<i16>(kFireflyLife * fly.speed - static_cast<int>(random.Below(kFireflyLife)));
                 fly.phase = 0;
                 fly.active = 1;
                 ++started;
@@ -1808,15 +1923,15 @@ void FieldView::DrawFireflies()
             continue;
         }
 
-        auto level = static_cast<u32>(0x1F - (0x1E0 - fly.life) / 0x18);
+        auto level = static_cast<u32>(kFireflyGlow - (kFireflySpeeds * kFireflyLife - fly.life) / kFireflyFade);
 
-        if (level > 0x3E8)
+        if (level > kFireflyDark)
         {
             level = 0;
         }
 
         int x = fly.x;
-        const int sway = kFireflySway[static_cast<std::size_t>(fly.phase / 4) & 7];
+        const int sway = kFireflySway[static_cast<std::size_t>(fly.phase / kSwayFrames) % kFireflySway.size()];
         std::ptrdiff_t row = static_cast<std::ptrdiff_t>(pitch) * fly.y;
 
         for (int segment = 0; fly.length > 0;)
@@ -1853,7 +1968,7 @@ void FieldView::DrawFireflies()
             row += pitch;
             ++level;
 
-            if (fly.life == 0x20)
+            if (fly.life == kBrightLife)
             {
                 ++level;
             }
@@ -1867,7 +1982,7 @@ void FieldView::DrawFireflies()
         fly.x = static_cast<i16>(fly.x + fly.speed * fly.slope);
         fly.y = static_cast<i16>(fly.y + fly.speed);
 
-        if (++fly.phase > 0x1C)
+        if (++fly.phase > kSwayFrames * (static_cast<int>(kFireflySway.size()) - 1))
         {
             fly.phase = 0;
         }
@@ -1900,7 +2015,7 @@ void FieldView::DrawSpotlight()
     Painter& painter = owner.painter;
     ActState& act = view.unk4AD3F0;
     act.id = kEffectAct;
-    act.action = 0x4E;
+    act.action = kSpotlightRimAction;
     owner.acts.Run(act);
     const Picture* rim = owner.archive.GetPicture(act.frame, act.picture);
 
@@ -1922,7 +2037,7 @@ void FieldView::DrawSpotlight()
         );
     }
 
-    act.action = 0x4F;
+    act.action = kSpotlightDarkAction;
     owner.acts.Run(act);
     const Picture* dark = owner.archive.GetPicture(act.frame, act.picture);
     painter.SetClipClamped(
@@ -1940,7 +2055,7 @@ void FieldView::DrawSpotlight()
             view.spotlightY - (dark->height >> 1),
             dark->width,
             dark->height,
-            0x2C
+            Painter::Subtractive
         );
     }
 
@@ -2012,7 +2127,7 @@ void FieldView::DrawTimer(int x, int y, int which)
 
     Scene& view = owner.scene;
     Painter& painter = owner.painter;
-    int seconds = (which != 0 ? view.unk4A9918 : view.unk4CAD20) / 0x1E;
+    int seconds = (which != 0 ? view.unk4A9918 : view.unk4CAD20) / kFramesPerSecond;
 
     if (seconds < 0)
     {
@@ -2038,16 +2153,16 @@ void FieldView::DrawTimer(int x, int y, int which)
         }
     };
 
-    if (seconds / 0x258 != 0)
+    if (seconds / (kTensBase * kSecondsPerMinute) != 0)
     {
-        draw(seconds / 0x258);
+        draw(seconds / (kTensBase * kSecondsPerMinute));
     }
 
-    draw(seconds / 0x3C % 0xA);
-    draw(0xA);
-    const int rest = seconds % 0x3C;
-    draw(rest / 0xA);
-    draw(rest % 0xA);
+    draw(seconds / kSecondsPerMinute % kTensBase);
+    draw(kTimerColon);
+    const int rest = seconds % kSecondsPerMinute;
+    draw(rest / kTensBase);
+    draw(rest % kTensBase);
 }
 
 // swd32.exe 0x00430180: the outline of a cell mark: the top and bottom lines as `width / 2` pixel pairs, the sides
@@ -2099,7 +2214,7 @@ void FieldView::MarkCells(u32 mask, int color, int offsetX, int offsetY, int ins
                width * ((field.cameraTop + MapHeader::TileSize) >> MapHeader::TileShift);
     int y = inset - shiftY + MapHeader::TileSize;
 
-    for (int row = 0; row < 0x1C; ++row)
+    for (int row = 0; row < kScreenRows - 2; ++row)
     {
         for (int x = MapHeader::TileSize; x < Display::Width - MapHeader::TileSize - 1; x += MapHeader::TileSize)
         {
@@ -2110,14 +2225,20 @@ void FieldView::MarkCells(u32 mask, int color, int offsetX, int offsetY, int ins
 
             if ((mask & value) != 0)
             {
-                this->FillCellMark(inset + x + shiftX, y, 0xF - inset, 0xF - inset, color);
+                this->FillCellMark(
+                    inset + x + shiftX,
+                    y,
+                    MapHeader::TileFraction - inset,
+                    MapHeader::TileFraction - inset,
+                    color
+                );
             }
 
             ++cell;
         }
 
         y += MapHeader::TileSize;
-        cell += width - 0x26;
+        cell += width - (kScreenColumns - 2);
     }
 }
 
@@ -2159,14 +2280,14 @@ void FieldView::ShakeCamera()
     Field& field = this->game.field;
     Scene& view = this->game.scene;
 
-    if (view.shake[0] == static_cast<i16>(0xCFCF) || this->game.unk4A9A10 == 0x16)
+    if (view.shake[0] == Scene::ShakeEnd || this->game.currentMap == Field::DemonRefiningPot)
     {
         return;
     }
 
     auto at = static_cast<std::size_t>(view.shakeIndex);
 
-    if (at >= view.shake.size() || view.shake[at] == static_cast<i16>(0xCFCF))
+    if (at >= view.shake.size() || view.shake[at] == Scene::ShakeEnd)
     {
         at = 0;
         view.shakeIndex = 0;
@@ -2275,7 +2396,7 @@ int FieldView::ReadMovieFrame()
         if (chunk->frame == film.frameIndex)
         {
             const u32 bytes = chunk->size;
-            film.file.SeekBegin(static_cast<i32>(chunk->offset + 0xC));
+            film.file.SeekBegin(static_cast<i32>(chunk->offset + MapMovie::FileHeaderBytes));
 
             if (bytes != 0)
             {
@@ -2295,7 +2416,7 @@ int FieldView::ReadMovieFrame()
 
     u32 offset = previous->offset + previous->size;
     i32 frame = previous->frame + 1;
-    film.file.SeekBegin(static_cast<i32>(offset + 0xC));
+    film.file.SeekBegin(static_cast<i32>(offset + MapMovie::FileHeaderBytes));
     MovieChunk* chunk = nullptr;
 
     for (;;)
@@ -2322,14 +2443,16 @@ int FieldView::ReadMovieFrame()
             film.frameIndex == film.paletteFrames[film.paletteIndex])
         {
             owner.AudioPump();
-            const i32 back = 0x300 * (film.paletteCount - film.paletteIndex++) + 0x400;
-            std::array<u8, 0x300> colors = {};
+            const auto back = static_cast<i32>(
+                MapMovie::PaletteBytes * (film.paletteCount - film.paletteIndex++) + MapMovie::PaletteTailBytes
+            );
+            std::array<u8, MapMovie::PaletteBytes> colors = {};
             film.file.SeekEnd(-back);
-            u32 bytes = 0x300;
+            u32 bytes = MapMovie::PaletteBytes;
             film.file.Read(colors.data(), bytes);
-            film.palette.assign(0x100, 0);
+            film.palette.assign(MapMovie::PaletteColors, 0);
 
-            for (std::size_t index = 0; index < 0x100; ++index)
+            for (std::size_t index = 0; index < MapMovie::PaletteColors; ++index)
             {
                 const u8* color = colors.data() + 3 * index;
                 const u32 high = (color[1] & 0xF8u) | 0x20u * (color[0] & 0xF8u);
@@ -2350,9 +2473,9 @@ int FieldView::ReadMovieFrame()
                        : 0;
         };
 
-        fresh->nextUnk0C = tail(0xC);
-        fresh->nextRows = tail(8);
-        fresh->nextSize = tail(4);
+        fresh->nextUnk0C = tail(MovieChunk::TrailerBytes);
+        fresh->nextRows = tail(MovieChunk::TrailerBytes - sizeof(u32));
+        fresh->nextSize = tail(sizeof(u32));
         offset += fresh->size;
         chunk = fresh.get();
         previous->next = std::move(fresh);
@@ -2366,7 +2489,7 @@ int FieldView::ReadMovieFrame()
         ++frame;
     }
 
-    const u32 packed = chunk->size - 0xC;
+    const u32 packed = chunk->size - MovieChunk::TrailerBytes;
 
     if (packed != 0)
     {
@@ -2563,7 +2686,7 @@ void FieldView::Paint()
             const bool scrolled =
                 (field.cameraLeft & MapHeader::TileFraction) != 0 || (field.cameraTop & MapHeader::TileFraction) != 0;
 
-            if (state.map.bitsPerPixel == 0x10)
+            if (state.map.bitsPerPixel == MapHeader::TrueColorBits)
             {
                 scrolled ? this->DrawTiles16Scrolled(0) : this->DrawTiles16(0);
             }
@@ -2613,14 +2736,14 @@ void FieldView::Paint()
     owner.talk.Draw();
     this->DrawRoleHeads();
 
-    if ((state.leader.id == 0xFFFF || state.leader.unk20 < 8) && !state.GameFlag(GameState::HideHud))
+    if ((state.leader.id == Role::NoId || state.leader.unk20 < 8) && !state.GameFlag(GameState::HideHud))
     {
-        owner.actDrawer.DrawCounter(0x27C, 0x1CC, static_cast<u32>(owner.party.variables[0]), owner.counterAlpha);
+        owner.actDrawer.DrawCounter(kGoldX, kGoldY, static_cast<u32>(owner.party.variables[0]), owner.counterAlpha);
     }
 
     if ((!state.GameFlag(GameState::NoPointer) && !state.GameFlag(GameState::NoChoicePointer) &&
          !state.GameFlag(GameState::HideHud)) ||
-        owner.input.IsKeyDown(0x2E) != 0)
+        owner.input.IsKeyDown(Input::C) != 0)
     {
         owner.RefreshCursor();
     }
@@ -2631,7 +2754,7 @@ void FieldView::Paint()
 
 void FieldView::DrawSmallText(int x, int y, u32 color, const std::string& text)
 {
-    this->game.smallFont.DrawText(this->game.drawSurface, x, y, text, static_cast<Pixel>(color), 0x10);
+    this->game.smallFont.DrawText(this->game.drawSurface, x, y, text, static_cast<Pixel>(color), TextFont::BoldOutline);
 }
 
 // swd32.exe 0x00413FE0: the debug display: the cell marks of the walls (F2) and the lines of the state, the region
@@ -2679,11 +2802,11 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
     const std::size_t pointerCell = (static_cast<u32>(field.cameraLeft + state.pointerX) >> MapHeader::TileShift) +
                                     static_cast<std::size_t>(state.map.width) *
                                         (static_cast<u32>(state.pointerY + field.cameraTop) >> MapHeader::TileShift);
-    const u32 region = pointerCell < blocks.size() ? blocks[pointerCell] & 0xFF : 0;
+    const u32 region = pointerCell < blocks.size() ? blocks[pointerCell] & MapHeader::RegionMask : 0;
     const Role& player = state.roles[static_cast<std::size_t>(state.playerRole)];
     this->DrawDebugText(
-        8,
-        0,
+        kDebugLeft,
+        DebugRow(0),
         white,
         u8"MAct[%4.1f/%4.1f] LTCor[%4d/%4d]",
         static_cast<double>(static_cast<u32>(player.x)) * 0.0625,
@@ -2692,8 +2815,8 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
         field.cameraTop >> MapHeader::TileShift
     );
     this->DrawDebugText(
-        8,
-        0x10,
+        kDebugLeft,
+        DebugRow(1),
         white,
         u8"Mouse :OnMap[%4d/%4d] OnScr[%4d/%4d]",
         (static_cast<u32>(state.pointerX) >> MapHeader::TileShift) +
@@ -2705,28 +2828,28 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
     );
     const ButtonState& click = owner.controls.At(Button::MouseLeft);
     this->DrawDebugText(
-        8,
-        0x20,
+        kDebugLeft,
+        DebugRow(2),
         white,
         u8"FPS[%2d] FUsed(%d),kr.d[%1d] ,kr.p[%4d] _IPA[%4d]",
-        owner.frameTime != 0 ? 0x3E8u / static_cast<u32>(owner.frameTime) : 0u,
+        owner.frameTime != 0 ? kMillisecondsPerSecond / static_cast<u32>(owner.frameTime) : 0u,
         owner.unk4C8448,
         click.press,
         click.heldFrames,
         owner.controls.mouseSuppressed
     );
     this->DrawDebugText(
-        8,
-        0x30,
+        kDebugLeft,
+        DebugRow(3),
         white,
         u8"MapID[%d] MapCyc[%d] %d",
-        owner.unk4A9A10,
+        owner.currentMap,
         view.unk49E0BC,
         owner.state.walkSpeed
     );
     this->DrawDebugText(
-        8,
-        0x40,
+        kDebugLeft,
+        DebugRow(4),
         white,
         u8"ULck[%x] UIpt[%x] gTm[%d] Fsc[%d] ,BtlM[%d] ,BtnIp[%d]",
         view.unk4A9920,
@@ -2737,8 +2860,8 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
         owner.talk.choice
     );
     this->DrawDebugText(
-        8,
-        0x50,
+        kDebugLeft,
+        DebugRow(5),
         white,
         u8"T.Gd[%d] T.Tid[%d] dbg1[%d] dbg2[%d]",
         static_cast<u32>(state.leader.id),
@@ -2758,8 +2881,8 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
     };
 
     this->DrawDebugText(
-        8,
-        0x60,
+        kDebugLeft,
+        DebugRow(6),
         white,
         kMusicLine,
         view.unk4B7C74[1],
@@ -2779,26 +2902,33 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
         if (found != nullptr)
         {
             const std::string_view name(found->name.data(), found->name.size());
-            this->DrawDebugText(8, 0x1C0, white, u8"%s", std::string(name.substr(0, name.find('\0'))));
-            const auto flag = static_cast<u32>(found->flag);
-            const std::u8string_view passable = state.GameFlag(static_cast<int>(flag >> 16)) ? kBlocked : kPassable;
-            const std::u8string_view clickable =
-                state.GameFlag(static_cast<int>(flag & 0xFFFF)) ? kClickable : kNotClickable;
             this->DrawDebugText(
-                8,
-                0x1D0,
+                kDebugLeft,
+                DebugRow(kScreenRows - 2),
+                white,
+                u8"%s",
+                std::string(name.substr(0, name.find('\0')))
+            );
+            const auto flag = static_cast<u32>(found->flag);
+            const std::u8string_view passable =
+                state.GameFlag(static_cast<int>(flag >> MapRegion::BlockFlagShift)) ? kBlocked : kPassable;
+            const std::u8string_view clickable =
+                state.GameFlag(static_cast<int>(flag & MapRegion::ClickFlagMask)) ? kClickable : kNotClickable;
+            this->DrawDebugText(
+                kDebugLeft,
+                DebugRow(kScreenRows - 1),
                 white,
                 kRegionLine,
-                found->event & 0x7FFF,
-                flag & 0xFFFF,
+                found->event & MapRegion::EventMask,
+                flag & MapRegion::ClickFlagMask,
                 clickable,
-                flag >> 16,
+                flag >> MapRegion::BlockFlagShift,
                 passable
             );
         }
         else
         {
-            this->DrawDebugText(8, 0x1B0, white, kBadRegion, region);
+            this->DrawDebugText(kDebugLeft, DebugRow(kScreenRows - 3), white, kBadRegion, region);
         }
     }
 
@@ -2815,19 +2945,21 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
             continue;
         }
 
-        if (mapX > static_cast<u32>(role.x - 0x10) && mapX < static_cast<u32>(role.x + 0x30) &&
-            mapY > static_cast<u32>(role.y - 0x40) && mapY < static_cast<u32>(role.y + 0x10))
+        if (mapX > static_cast<u32>(role.x - MapHeader::TileSize) &&
+            mapX < static_cast<u32>(role.x + 3 * MapHeader::TileSize) &&
+            mapY > static_cast<u32>(role.y - 4 * MapHeader::TileSize) &&
+            mapY < static_cast<u32>(role.y + MapHeader::TileSize))
         {
             ++overlapping;
 
             if (overlapping >= 2)
             {
-                this->DrawDebugText(8, 0x190, white, kOverlap);
+                this->DrawDebugText(kDebugLeft, DebugRow(kScreenRows - 5), white, kOverlap);
             }
 
             this->DrawDebugText(
-                8,
-                0x1A0,
+                kDebugLeft,
+                DebugRow(kScreenRows - 4),
                 owner.textColors.primary[3],
                 kRoleLine,
                 static_cast<u32>(role.id),
@@ -2836,8 +2968,8 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
                 role.act.direction
             );
             this->DrawDebugText(
-                8,
-                0x1B0,
+                kDebugLeft,
+                DebugRow(kScreenRows - 3),
                 white,
                 u8"[GUID %d] [Talk %d] [Path %d] [Argu %4x] [ArrIdx %d]",
                 static_cast<u32>(role.id),
@@ -2925,7 +3057,7 @@ void FieldView::Render()
 
     for (MoveRecord& move : state.moves)
     {
-        if (move.role == 0xFFFF || move.step >= 0x7FFF)
+        if (move.role == MoveRecord::NoRole || move.step >= MoveRecord::StepMask)
         {
             continue;
         }
@@ -2971,7 +3103,7 @@ void FieldView::Render()
 
             const u8 direction = move.directions[static_cast<std::size_t>(move.step) % move.directions.size()];
 
-            if (direction != 0xFF && direction < 8)
+            if (direction != MoveRecord::EndOfPath && direction < 8)
             {
                 role.act.direction = kFacing[direction];
             }
@@ -2991,7 +3123,7 @@ void FieldView::Render()
                 if (role.x == move.x && role.y == move.y)
                 {
                     role.act.speed = 0;
-                    role.flags = (role.flags & ~(Role::Stepping | Role::FastMove | Role::Arrived)) | 0x2000000;
+                    role.flags = (role.flags & ~(Role::Stepping | Role::FastMove | Role::Arrived)) | Role::Arrived;
 
                     if (move.act != -1)
                     {
@@ -3034,7 +3166,7 @@ void FieldView::Render()
 
                 field.ClearRoleCells(role, leaderId);
 
-                if (direction != 0xFF)
+                if (direction != MoveRecord::EndOfPath)
                 {
                     moveCell(role, direction);
                 }
@@ -3044,7 +3176,7 @@ void FieldView::Render()
                 this->UpdateRoleCellFlags(role);
             }
 
-            if (state.leader.id == 0xFFFF && (role.flags & Role::TouchEvent) != 0)
+            if (state.leader.id == Role::NoId && (role.flags & Role::TouchEvent) != 0)
             {
                 const std::ptrdiff_t cell = role.cell != nullptr ? role.cell - state.map.blocks.data() : 0;
 
@@ -3073,14 +3205,14 @@ void FieldView::Render()
     {
         MoveRecord& move = view.followerMoves[follower];
 
-        if (move.role == 0xFFFF || move.role >= GameState::Roles)
+        if (move.role == MoveRecord::NoRole || move.role >= GameState::Roles)
         {
             continue;
         }
 
         Role& role = state.roles[move.role];
 
-        if (move.step >= 0x7FFF)
+        if (move.step >= MoveRecord::StepMask)
         {
             owner.acts.Run(role.act);
             continue;
@@ -3188,7 +3320,7 @@ void FieldView::Render()
         view.unk4B873C = layer * view.unk4B7A98;
     }
 
-    if (view.shake[0] != static_cast<i16>(0xCFCF) && owner.unk4A9A10 != 0x16)
+    if (view.shake[0] != Scene::ShakeEnd && owner.currentMap != Field::DemonRefiningPot)
     {
         field.cameraLeft = view.unk4A93E4;
         field.cameraTop = view.unk4A992C;

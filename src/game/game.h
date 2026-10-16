@@ -215,7 +215,7 @@ private:
     i32 unk4A94AC = 0;           // bit 31: a battle to start, the low word its number
     i32 inBattle = 0;            // 0x004CAEB4 a battle from the map runs
     std::vector<u16> unk4B7928;  // the words of talk command 0x85 for menu 2, ended by 0
-    i32 unk4A9A10 = 0;
+    i32 currentMap = 0;          // 0x004A9A10 the number of the map shown
     i32 unk4AB990 = 0;
     i32 unk4ACEF4 = 0;
     i32 unk4B7BC4 = 0;

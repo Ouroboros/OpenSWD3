@@ -31,6 +31,8 @@ struct MapHeader
 
     static constexpr u32 ShadeShift = 8;  // from ShadeMask to Role::CellShades
 
+    static constexpr i32 TrueColorBits = 16;                      // in `bitsPerPixel`: 16-bit tiles
+    static constexpr i32 IndexedBits = 8;                         // indices into the city palette
     static constexpr int TileSize = 0x10;                         // pixels per tile side (one cell)
     static constexpr int TileShift = 4;                           // pixels to tiles
     static constexpr int TileFraction = TileSize - 1;             // the pixels inside a tile
@@ -61,6 +63,8 @@ enum class MoveKind : u8
 // The movement of a role along a path (0x21C bytes, 72 of them at 0x004AD490); filled with 0xFF when unused.
 struct MoveRecord
 {
+    static constexpr u16 NoRole = 0xFFFF;  // in `role`: an unused record
+
     // The bits of `step`.
     enum Step : u16
     {
@@ -77,7 +81,7 @@ struct MoveRecord
 
     static constexpr u8 EndOfPath = 0xFF;  // in `directions`
 
-    u16 role = 0;                           // +0x00 the role moving (0xFFFF: unused)
+    u16 role = 0;                           // +0x00 the role moving (NoRole: unused)
     u16 step = 0;                           // +0x02 bits 0..14: the step reached, Done once taken
     u16 x = 0;                              // +0x04 the end of the move (pixels)
     u16 y = 0;                              // +0x06

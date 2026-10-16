@@ -19,6 +19,7 @@ public:
     {
         Tab = 0x0F,
         Q = 0x10,
+        C = 0x2E,
         LeftControl = 0x1D,
         S = 0x1F,
         L = 0x26,

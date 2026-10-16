@@ -20,10 +20,14 @@ struct Role;
 // A named region of the map (0x34 bytes; the list at 0x004ACAC0 starts with a node of its own).
 struct MapRegion
 {
+    static constexpr i32 EventMask = 0x7FFF;      // in `event`
+    static constexpr u32 ClickFlagMask = 0xFFFF;  // in `flag`: the story flag that lets it be clicked
+    static constexpr u32 BlockFlagShift = 16;     // in `flag`: above it, the story flag that blocks it
+
     std::unique_ptr<MapRegion> next;   // +0x00
     i32 id = 0;                        // +0x04
     i32 event = 0;                     // +0x08 bit 15 aside: the event run when the region is clicked
-    i32 flag = 0;                      // +0x0C low word: the story flag that enables it
+    i32 flag = 0;                      // +0x0C ClickFlagMask and BlockFlagShift
     i32 unk10 = 0;                     // +0x10
     std::array<char, 0x20> name = {};  // +0x14
 };
@@ -31,6 +35,10 @@ struct MapRegion
 // A picture laid over the map (0x20 bytes, the list at 0x004AB2F4): its RLE picture and placement.
 struct MapOverlay
 {
+    static constexpr int Orders = 0x1F;        // the drawing orders 0..30
+    static constexpr u16 FixedToMap = 8;       // a parallax that moves with the map
+    static constexpr int ParallaxUnit = 0x10;  // other parallaxes are in sixteenths of the camera's distance
+
     std::vector<u8> picture;           // +0x00 a 16-bit RLE picture
     u16 kind = 0;                      // +0x04 the drawing order (0..30)
     u16 width = 0;                     // +0x06
@@ -39,7 +47,7 @@ struct MapOverlay
     u16 top = 0;                       // +0x0C
     u16 right = 0;                     // +0x0E
     u16 bottom = 0;                    // +0x10
-    u16 parallaxX = 0;                 // +0x16 8: moves with the map, in eighths
+    u16 parallaxX = 0;                 // +0x16 FixedToMap or sixteenths (ParallaxUnit)
     u16 parallaxY = 0;                 // +0x18
     std::unique_ptr<MapOverlay> next;  // +0x1C
 };
@@ -49,6 +57,17 @@ struct MapOverlay
 class Field : public MapPictureSource
 {
 public:
+    // Map numbers the code tests, named by their place names in maps.dat (table 0x14).
+    enum Map : int
+    {
+        TwoRiversPlain = 6,             // 兩河平原
+        WesternRegions = 8,             // 西域
+        DemonRefiningPot = 0x16,        // 煉妖壺
+        MonasteryOutside = 0x32,        // 修道院外
+        VeniceTavern = 0x51,            // 威尼斯酒屋
+        MediterraneanEastCoast = 0xC8,  // 地中海東岸
+    };
+
     static constexpr int Layers = 3;
     static constexpr int RowMargin = 0x14;
     static constexpr int Units = 0x300;

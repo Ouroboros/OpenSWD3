@@ -559,7 +559,7 @@ void RoleControl::ControlPlayer()
             state.SetWalkSpeed(speed);
         }
 
-        if (!state.GameFlag(owner.unk4A9A10 + GameState::MapNoEncounter))
+        if (!state.GameFlag(owner.currentMap + GameState::MapNoEncounter))
         {
             ++view.unk4C9A20;
 

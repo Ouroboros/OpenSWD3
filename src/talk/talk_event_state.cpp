@@ -458,7 +458,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
             if (id != TalkWindow::NoRole && !state.FindRoleOrPlayer(id, run.found))
             {
-                DebugLog(u8"Talk(wait_dlg2)", id, owner.unk4A9A10);
+                DebugLog(u8"Talk(wait_dlg2)", id, owner.currentMap);
                 this->Advance(run, 4);
                 return true;
             }
@@ -553,7 +553,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
         case EventCommand::SceneMusic:
         {
-            const u16 map = this->Word(run, 1) == 0xFFF0 ? static_cast<u16>(owner.unk4A9A10) : this->Word(run, 1);
+            const u16 map = this->Word(run, 1) == 0xFFF0 ? static_cast<u16>(owner.currentMap) : this->Word(run, 1);
             std::vector<u8>& data = owner.databases.mapsData;
             std::size_t at = MapsDword(data, MapsDword(data, MapsTable(data, 2) + 4));
             run.valueA = 0;
@@ -1030,7 +1030,7 @@ bool Talk::RunSystemCommand(EventRun& run)
             return this->RunStateCommand(run);
 
         case EventCommand::EnterMap22:
-            if (owner.unk4A9A10 == 0x16)
+            if (owner.currentMap == Field::DemonRefiningPot)
             {
                 DebugLog(u8"already on map 22");
             }
@@ -1038,7 +1038,7 @@ bool Talk::RunSystemCommand(EventRun& run)
             {
                 view.unk4A9930 = static_cast<i32>(static_cast<u32>(player.x) >> 4);
                 view.unk4A9938 = static_cast<i32>(static_cast<u32>(player.y) >> 4);
-                view.unk4CAE88 = owner.unk4A9A10;
+                view.unk4CAE88 = owner.currentMap;
                 owner.ChangeMap(0x16, 0x3B, 0x3B, player.act.id, 0, 1, 1);
             }
 
@@ -1100,7 +1100,7 @@ bool Talk::RunSystemCommand(EventRun& run)
         {
             run.valueA = static_cast<i16>(this->Word(run, 1));
 
-            if ((run.code == EventCommand::JumpIfNotMap) == (run.valueA == owner.unk4A9A10))
+            if ((run.code == EventCommand::JumpIfNotMap) == (run.valueA == owner.currentMap))
             {
                 this->Advance(run, 8);
                 return true;

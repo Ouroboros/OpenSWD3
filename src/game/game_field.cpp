@@ -18,6 +18,16 @@ namespace swd3
 namespace
 {
 
+// The effect bits of a map (maps.dat table 3, byte 5).
+constexpr u8 kFireflies = 1;
+constexpr u8 kSpotlight = 2;
+constexpr u8 kLightning = 4;
+constexpr u8 kHeatHaze = 8;
+constexpr u8 kLeaves = 0x10;
+constexpr u8 kShadeWeather = 0x20;
+constexpr u8 kGlowWeather = 0x40;
+constexpr u8 kOverlaysFirst = 0x80;
+
 constexpr int kRecordWords = 0xB;
 constexpr u16 kTableEnd = 0xFFFF;
 constexpr u16 kNameEnd = 0x5125;
@@ -214,7 +224,7 @@ void Game::BuildTriggers(MapTrigger& head)
 
     for (u32 at = MapsTable(data, 7); MapsWord(data, at) != kTableEnd; at += 0xE)
     {
-        if (MapsWord(data, at) == static_cast<u16>(this->unk4A9A10))
+        if (MapsWord(data, at) == static_cast<u16>(this->currentMap))
         {
             auto node = std::make_unique<MapTrigger>();
             node->left = MapsWord(data, at + 2);
@@ -464,7 +474,7 @@ void Game::SaveRoleStates(i16 x, i16 y)
                 static_cast<i16>(copy.unk1C),
                 static_cast<i16>(copy.flags),
                 0,
-                static_cast<i16>(this->unk4A9A10)
+                static_cast<i16>(this->currentMap)
             );
         }
     }
@@ -573,7 +583,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
 {
     Scene& view = this->scene;
     GameState& game = this->state;
-    const int previous = this->unk4A9A10;
+    const int previous = this->currentMap;
     game.ClearFrameInterval();
 
     if (this->drawSurface != nullptr)
@@ -637,28 +647,34 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
         view.unk4ACDB4 = (kind & 0x10) == 0 ? 1 : 0;
         game.ClearGameFlag(GameState::OverlaysFirst);
 
-        if (static_cast<i8>(effects) < 0)
+        if ((effects & kOverlaysFirst) != 0)
         {
             game.SetGameFlag(GameState::OverlaysFirst);
         }
 
-        view.unk4ACEF0 = 0x40;
-        view.unk4C97F6 = 4;
+        view.weatherAction = Scene::WeatherFirstAction;
+        view.weatherActions = Scene::GlowWeatherActions;
         game.ClearGameFlag(GameState::Weather);
 
-        if ((effects & 0x40) != 0)
+        if ((effects & kGlowWeather) != 0)
         {
             game.SetGameFlag(GameState::Weather);
         }
 
-        if ((effects & 0x20) != 0)
+        if ((effects & kShadeWeather) != 0)
         {
             game.SetGameFlag(GameState::Weather);
-            view.unk4ACEF0 = 0x40;
-            view.unk4C97F6 = 8;
+            view.weatherAction = Scene::WeatherFirstAction;
+            view.weatherActions = Scene::ShadeWeatherActions;
         }
 
-        constexpr std::array<std::pair<u8, int>, 5> kEffectFlags = {{{0x10, 6}, {8, 7}, {4, 8}, {2, 0x13}, {1, 0x16}}};
+        constexpr std::array<std::pair<u8, int>, 5> kEffectFlags = {{
+            {kLeaves, GameState::Leaves},
+            {kHeatHaze, GameState::HeatHaze},
+            {kLightning, GameState::Lightning},
+            {kSpotlight, GameState::Spotlight},
+            {kFireflies, GameState::Fireflies},
+        }};
 
         for (const auto& [bit, flag] : kEffectFlags)
         {
@@ -718,7 +734,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
 
     this->ShowLoading(2);
     this->AudioPump();
-    this->unk4A9A10 = map;
+    this->currentMap = map;
     view.unk49E0C0 = 1;
     game.SetGameFlag(map + 0x1388);
 
@@ -771,7 +787,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
 
     MapHeader& header = game.map;
 
-    if (header.bitsPerPixel == 8 && header.pixels != nullptr)
+    if (header.bitsPerPixel == MapHeader::IndexedBits && header.pixels != nullptr)
     {
         this->field.palette.assign(0x100, 0);
         std::memcpy(this->field.palette.data(), header.pixels, 0x200);
@@ -784,7 +800,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
     view.unk4B7A98 = header.width * header.height;
     std::string name;
 
-    if (!this->MapName(this->unk4A9A10, name))
+    if (!this->MapName(this->currentMap, name))
     {
         name = Big5(Game::UnknownPlace);
     }
@@ -799,9 +815,9 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
         for (std::size_t particle = 0; particle < 4; ++particle)
         {
             view.weatherMotion[particle].speedTarget = static_cast<i32>(this->random.Below(3)) + 1;
-            const u32 spread = this->random.Below(view.unk4C97F6);
+            const u32 spread = this->random.Below(view.weatherActions);
             view.weatherShades[particle].tintTarget = 0;
-            view.weatherMotion[particle].action = view.unk4ACEF0 + static_cast<i32>(spread);
+            view.weatherMotion[particle].action = view.weatherAction + static_cast<i32>(spread);
             view.weather[particle].x = static_cast<i32>(this->random.Below(static_cast<u32>(0x10 * header.width)));
             view.weather[particle].y = static_cast<i32>(this->random.Below(static_cast<u32>(0x10 * header.height)));
             view.weather[particle].stepX = static_cast<i32>(this->random.Below(2)) - 2;
@@ -829,7 +845,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
         u8"\n"
         u8"MapName[%s] id[%d]",
         std::string_view(header.name.data(), header.name.size()),
-        this->unk4A9A10
+        this->currentMap
     );
     DebugLog(
         u8"\n"
@@ -950,7 +966,8 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
 
         if (role.id == kPartyLeader)
         {
-            if (previous == 0x16 && this->unk4A9A10 != 0x16 && view.unk4C8BE0 != 0)
+            if (previous == Field::DemonRefiningPot && this->currentMap != Field::DemonRefiningPot &&
+                view.unk4C8BE0 != 0)
             {
                 role.act.id = view.unk4C8BE0;
             }
@@ -959,7 +976,8 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
             {
                 role.act.id = 0x60;
 
-                if (this->unk4A9A10 == 6 || this->unk4A9A10 == 8 || this->unk4A9A10 == 0xC8)
+                if (this->currentMap == Field::TwoRiversPlain || this->currentMap == Field::WesternRegions ||
+                    this->currentMap == Field::MediterraneanEastCoast)
                 {
                     for (const ItemNode* item = this->party.inventory.get(); item != nullptr; item = item->next.get())
                     {
@@ -999,7 +1017,7 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
                 this->FollowLeader(slot);
                 role.flags |= Role::Visible;
 
-                if (this->unk4A9A10 == 0x16 || (view.unk4B88C0 & 0x8000) != 0)
+                if (this->currentMap == Field::DemonRefiningPot || (view.unk4B88C0 & 0x8000) != 0)
                 {
                     role.flags &= ~Role::Visible;
                 }

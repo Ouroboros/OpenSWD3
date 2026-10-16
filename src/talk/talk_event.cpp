@@ -324,7 +324,7 @@ void Talk::EndEvent(EventRun& run)
         }
         else if (state.GameFlag(GameState::DebugReports) && run.found >= 0x100)
         {
-            DebugLog(u8"TalkEnd role", id, owner.unk4A9A10);
+            DebugLog(u8"TalkEnd role", id, owner.currentMap);
         }
     }
 
@@ -851,7 +851,7 @@ bool Talk::RunRoleCommand(EventRun& run)
             }
             else
             {
-                DebugLog(u8"Talk(Step)", id, owner.unk4A9A10);
+                DebugLog(u8"Talk(Step)", id, owner.currentMap);
             }
 
             this->Advance(run, 4);

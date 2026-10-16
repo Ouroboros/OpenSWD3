@@ -20,8 +20,8 @@ namespace
 
 constexpr u16 kTextEnd = 0x5125;  // "%Q"
 constexpr u16 kListEnd = 0xFF00;
-constexpr u16 kEvenPixels = 0xFFFE;  // the line effects keep to even pixels
-constexpr i16 kShakeEnd = static_cast<i16>(0xCFCF);
+constexpr u16 kPlaceAtTarget = 0x8000;  // in the y of HeadIn: the head is placed at its target
+constexpr u16 kEvenPixels = 0xFFFE;     // the line effects keep to even pixels
 
 // The nodes of a list for which `match` holds are freed (`first`: only the first of them).
 template <typename Node, typename Match>
@@ -240,7 +240,7 @@ bool Talk::PlaceRole(EventRun& run)
 
     run.code = EventCommand::None;
     const i16 map =
-        this->Word(run, 2) == 0xFFFF ? static_cast<i16>(owner.unk4A9A10) : static_cast<i16>(this->Word(run, 2));
+        this->Word(run, 2) == 0xFFFF ? static_cast<i16>(owner.currentMap) : static_cast<i16>(this->Word(run, 2));
     const i16 tileY = this->Word(run, 5) == 0xFFFF ? static_cast<i16>(static_cast<u32>(player.y) >> 4)
                                                    : static_cast<i16>(this->Word(run, 5));
     const i16 tileX = this->Word(run, 4) == 0xFFFF ? static_cast<i16>(static_cast<u32>(player.x) >> 4)
@@ -266,9 +266,9 @@ bool Talk::PlaceRole(EventRun& run)
         return true;
     }
 
-    const u16 target = this->Word(run, 2) == 0xFFFF ? static_cast<u16>(owner.unk4A9A10) : this->Word(run, 2);
+    const u16 target = this->Word(run, 2) == 0xFFFF ? static_cast<u16>(owner.currentMap) : this->Word(run, 2);
 
-    if (static_cast<u16>(owner.unk4A9A10) == target)
+    if (static_cast<u16>(owner.currentMap) == target)
     {
         Role loaded;
         owner.LoadRoleRecord(loaded, this->Word(run, 1));
@@ -766,7 +766,7 @@ bool Talk::RunSceneCommand(EventRun& run)
                 return false;
             }
 
-            view.shake.fill(kShakeEnd);
+            view.shake.fill(Scene::ShakeEnd);
 
             for (std::size_t index = 0; index < count; ++index)
             {
@@ -784,7 +784,7 @@ bool Talk::RunSceneCommand(EventRun& run)
         }
 
         case EventCommand::StopQuake:
-            view.shake.fill(kShakeEnd);
+            view.shake.fill(Scene::ShakeEnd);
             this->Advance(run, 2);
             return true;
 
@@ -994,10 +994,10 @@ bool Talk::RunSceneCommand(EventRun& run)
             sprite->act.id = this->Word(run, 1);
             sprite->act.direction = 0;
             sprite->act.action = this->Word(run, 2);
-            sprite->headX = static_cast<i16>(0x10 * this->Word(run, 3));
-            sprite->headSpeed = static_cast<i16>(0x10 * this->Word(run, 4));
-            sprite->targetX = static_cast<i16>(0x10 * this->Word(run, 5));
-            sprite->targetY = static_cast<i16>(0x10 * this->Word(run, 6));
+            sprite->headX = static_cast<i16>(MapHeader::TileSize * this->Word(run, 3));
+            sprite->headSpeed = static_cast<i16>(MapHeader::TileSize * this->Word(run, 4));
+            sprite->targetX = static_cast<i16>(MapHeader::TileSize * this->Word(run, 5));
+            sprite->targetY = static_cast<i16>(MapHeader::TileSize * this->Word(run, 6));
             const i32 fromX = sprite->headX;
             const i32 fromY = sprite->headSpeed;
             const auto speed = static_cast<double>(static_cast<i16>(this->Word(run, 7)));
@@ -1027,20 +1027,20 @@ bool Talk::RunSceneCommand(EventRun& run)
             sprite->act.action = this->Word(run, 2);
             const u16 target = this->Word(run, 3);
             sprite->targetX = static_cast<i16>(target);
-            sprite->headX = static_cast<i16>(0xFF88);
-            sprite->targetY = static_cast<i16>(this->Word(run, 4) & 0x7FFF);
+            sprite->headX = static_cast<i16>(-ScriptSprite::HeadMargin);
+            sprite->targetY = static_cast<i16>(this->Word(run, 4) & (kPlaceAtTarget - 1));
 
-            if (target > 0x140)
+            if (target > Display::Width / 2)
             {
-                sprite->headX = 0x2F8;
+                sprite->headX = static_cast<i16>(Display::Width + ScriptSprite::HeadMargin);
             }
 
             sprite->headSpeed = 0;
 
-            if ((this->Word(run, 4) & 0x8000) != 0)
+            if ((this->Word(run, 4) & kPlaceAtTarget) != 0)
             {
                 sprite->headX = static_cast<i16>(target);
-                sprite->headSpeed = static_cast<i16>(0x8000);
+                sprite->headSpeed = ScriptSprite::HeadPlaced;
             }
 
             sprite->next = std::move(view.spritesB);
@@ -1057,11 +1057,11 @@ bool Talk::RunSceneCommand(EventRun& run)
                 {
                     if (sprite->headSpeed >= 0)
                     {
-                        sprite->headSpeed = static_cast<u16>(sprite->headX) <= 0x140 ? i16{-1} : i16{1};
+                        sprite->headSpeed = static_cast<u16>(sprite->headX) <= Display::Width / 2 ? i16{-1} : i16{1};
                     }
                     else
                     {
-                        sprite->headSpeed = 0x2710;
+                        sprite->headSpeed = ScriptSprite::HeadDropSpeed;
                     }
 
                     break;

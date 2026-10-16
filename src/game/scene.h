@@ -142,6 +142,11 @@ struct ScriptEffect
 // until within 32 pixels of the target; the role heads of the second list slide along x towards targetX.
 struct ScriptSprite
 {
+    static constexpr int HeadMargin = 0x78;  // a head starts and is freed this far beside the screen
+    static constexpr i16 HeadPlaced = static_cast<i16>(0x8000);  // `headSpeed`: placed at its target, no slide in
+    static constexpr i16 HeadSpeedMask = 0x7FFF;
+    static constexpr i16 HeadDropSpeed = 0x2710;  // the speed a placed head leaves with (off the screen at once)
+
     ActState act;                        // +0x00
     i16 headX = 0;                       // +0x98
     i16 headSpeed = 0;                   // +0x9A
@@ -194,6 +199,8 @@ struct ScriptObject
 // A particle of the weather or the leaves: its place on the map and its speed.
 struct MapParticle
 {
+    static constexpr i32 Unplaced = 0x7FFFFFFF;  // in `x`: a leaf to be placed again
+
     i32 x = 0;
     i32 y = 0;
     i32 stepX = 0;
@@ -251,7 +258,11 @@ struct ColorFade
 // are restored): the pointer roles, the animations of the screen elements and tables of maps.dat.
 struct Scene
 {
-    static constexpr int SpotlightRadius = 0xC0;  // half the side of the lit square
+    static constexpr i16 ShakeEnd = static_cast<i16>(0xCFCF);  // ends the pairs of `shake`
+    static constexpr u16 WeatherFirstAction = 0x40;
+    static constexpr u16 GlowWeatherActions = 4;   // the weather added to the screen
+    static constexpr u16 ShadeWeatherActions = 8;  // the weather subtracted from it
+    static constexpr int SpotlightRadius = 0xC0;   // half the side of the lit square
     static constexpr int PointerAct = 0x2329;
     static constexpr u32 PointerFlags = 0x9000;
 
@@ -277,7 +288,7 @@ struct Scene
     i32 unk4ACDB8 = 0;
     i32 unk4ACDBC = 0;
     u32 unk4ACE40 = 0;                 // an offset into maps.dat (its table 1)
-    std::array<i16, 0x40> shake = {};  // 0x004ACE70 camera offsets of the quake in pairs, ended by 0xCFCF
+    std::array<i16, 0x40> shake = {};  // 0x004ACE70 camera offsets of the quake in pairs, ended by ShakeEnd
     i32 shakeIndex = 0;                // 0x004B7EB0
     i32 shakeFrames = 0;               // 0x004A94A4
     i32 shakeHold = 0;                 // 0x004AD0D0
@@ -320,9 +331,9 @@ struct Scene
     i32 unk4ACE4C = 0;
     i32 unk4ACE50 = 0;
     i32 unk4ACE54 = 0;
-    i32 spotlightStepX = 0;  // 0x004ACE58 pixels per frame
-    i32 spotlightStepY = 0;  // 0x004ACE5C
-    u16 unk4ACEF0 = 0;
+    i32 spotlightStepX = 0;          // 0x004ACE58 pixels per frame
+    i32 spotlightStepY = 0;          // 0x004ACE5C
+    u16 weatherAction = 0;           // 0x004ACEF0 the first action of the weather particles in the effect act
     i16 lightningCount = 0;          // 0x004AAEC8 bolts wanted (up to 8)
     i16 firefliesShown = 0;          // 0x004B737C
     std::array<Streak, 0x40> bolts;  // 0x004B7520 (a new map clears the first 0x30)
@@ -333,7 +344,7 @@ struct Scene
     i32 unk4B7A98 = 0;
     std::array<i32, 8> unk4B7C8C = {};  // the roles following the leader
     i32 unk4B7EB4 = 0;
-    std::array<MapParticle, 4> leaves = {};  // 0x004B86F8 (x 0x7FFFFFFF: to be placed)
+    std::array<MapParticle, 4> leaves = {};  // 0x004B86F8 (x MapParticle::Unplaced: to be placed)
     i32 unk4B873C = 0;
     i32 unk4B88C0 = 0;
     i16 lightningShown = 0;  // 0x004B88BC
@@ -354,7 +365,7 @@ struct Scene
     i32 unk4ACE64 = 0;  // shown as dbg2
     i32 unk4BABA0 = 0;  // followers in unk4B7C8C
     i32 unk4C8BD8 = 0;
-    u16 unk4C97F6 = 0;
+    u16 weatherActions = 0;  // 0x004C97F6 how many actions follow it
     i32 unk4C9A18 = 0;
     i32 unk4C9A20 = 0;
     i32 spotlightTargetY = 0;  // 0x004CAE80

@@ -22,6 +22,8 @@ struct ScriptObject;
 // size, rows and word of the chunk after it (read from its last 12 bytes).
 struct MovieChunk
 {
+    static constexpr u32 TrailerBytes = 0xC;  // the next chunk's word, rows and size end each chunk
+
     u32 offset = 0;                    // +0x00
     u32 size = 0;                      // +0x04
     u32 rows = 0;                      // +0x08
@@ -37,6 +39,11 @@ struct MovieChunk
 // 8-bit frames through palettes changing at given frames, faded in and out with black bars.
 struct MapMovie
 {
+    static constexpr u32 FileHeaderBytes = 0xC;  // the chunk offsets count from after it
+    static constexpr u32 PaletteColors = 0x100;
+    static constexpr u32 PaletteBytes = 3 * PaletteColors;  // RGB triplets, stored before PaletteTailBytes at the end
+    static constexpr u32 PaletteTailBytes = 0x400;
+
     // The bits of `options`.
     enum Option : u32
     {

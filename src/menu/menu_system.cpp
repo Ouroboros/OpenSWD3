@@ -34,7 +34,6 @@ constexpr i32 kHiddenGlow = -0x10;
 constexpr i32 kEffectsOffFlag = 0x48;
 constexpr i32 kNameEntryFlag = 0x50;
 constexpr int kVolumeSound = 0x2E;
-constexpr int kMaximumVolume = 0xB;
 constexpr int kTitleMusic = 0xA;
 constexpr int kNameBoxX = 300;
 constexpr int kNameBoxY = 0xE6;
@@ -158,7 +157,7 @@ void Menu::SystemFrame()
 
         if (onBar)
         {
-            settings.soundVolume = static_cast<i32>(std::min<u32>(step, kMaximumVolume));
+            settings.soundVolume = static_cast<i32>(std::min<u32>(step, Config::MaxVolume));
             owner.audio.PlaySound(kVolumeSound, settings.soundVolume);
         }
 
@@ -171,7 +170,7 @@ void Menu::SystemFrame()
 
         if (onBar)
         {
-            settings.musicVolume = static_cast<i32>(std::min<u32>(step, kMaximumVolume));
+            settings.musicVolume = static_cast<i32>(std::min<u32>(step, Config::MaxVolume));
             owner.audio.SetMusicVolume(settings.musicVolume);
         }
 
@@ -227,7 +226,7 @@ void Menu::SystemFrame()
 
         if (onBar)
         {
-            settings.battleSpeed = static_cast<i32>(std::min<u32>(step, kMaximumVolume));
+            settings.battleSpeed = static_cast<i32>(std::min<u32>(step, Config::MaxVolume));
         }
 
         return;
@@ -424,10 +423,10 @@ void Menu::SystemRight()
         {
             int volume = ++settings.soundVolume;
 
-            if (settings.soundVolume > kMaximumVolume)
+            if (settings.soundVolume > Config::MaxVolume)
             {
-                volume = kMaximumVolume;
-                settings.soundVolume = kMaximumVolume;
+                volume = Config::MaxVolume;
+                settings.soundVolume = Config::MaxVolume;
             }
 
             owner.audio.PlaySound(kVolumeSound, volume);
@@ -438,7 +437,7 @@ void Menu::SystemRight()
         {
             int volume = ++settings.musicVolume;
 
-            if (settings.musicVolume > kMaximumVolume)
+            if (settings.musicVolume > Config::MaxVolume)
             {
                 volume = 0xA;
                 settings.musicVolume = 0xA;
@@ -477,9 +476,9 @@ void Menu::SystemRight()
         }
 
         case 5:
-            if (++settings.battleSpeed > kMaximumVolume)
+            if (++settings.battleSpeed > Config::MaxVolume)
             {
-                settings.battleSpeed = kMaximumVolume;
+                settings.battleSpeed = Config::MaxVolume;
             }
 
             break;
