@@ -94,7 +94,8 @@ TEST_CASE("pic.explosion emits particles once and finishes") {
     G.rleFillColor16 = 0xF81F;
     G.rleSkipColor16 = 0xF81F;
     G.particleRange = 0;
-    std::vector<std::uint16_t> pixels(8 * 6, 0x1234);
+    // blocks of the last row reach one row (and a pixel) past the picture, as in the original
+    std::vector<std::uint16_t> pixels(8 * 6 + 8 + 2, 0x1234);
     std::vector<std::uint16_t> screen(640 * 480, 0);
     ParticleEffect effect{};
     effect.pixels = pixels.data();

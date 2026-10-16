@@ -15,13 +15,22 @@ namespace {
 // The user size is kept in a 16-byte prefix so that allocation works during static initialisation.
 constexpr std::size_t kPrefix = 16;
 
+// Slack after every block, filled like the debug heap's no-man's land: the original runs past some blocks (the
+// 2 x 2 particle blocks of the last picture row reach one row beyond the decoded picture), which overwrote the next
+// heap block there; here those accesses stay inside the slack.
+constexpr std::uint8_t kNoMansLandFill = 0xFD;
+
+std::size_t slackFor(std::uint32_t size) { return size / 4 + 64; }
+
 void* allocate(std::uint32_t size) {
-    auto* raw = static_cast<std::uint8_t*>(std::malloc(kPrefix + size));
+    const std::size_t slack = slackFor(size);
+    auto* raw = static_cast<std::uint8_t*>(std::malloc(kPrefix + size + slack));
     if (!raw) {
         return nullptr;
     }
     std::memcpy(raw, &size, sizeof(size));
     std::memset(raw + kPrefix, kCleanLandFill, size);
+    std::memset(raw + kPrefix + size, kNoMansLandFill, slack);
     return raw + kPrefix;
 }
 

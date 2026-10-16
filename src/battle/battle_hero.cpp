@@ -1251,4 +1251,262 @@ int BattleHero::SelectSkill(int kind, int index) {
     return 0;
 }
 
+namespace {
+
+// item kinds of the inventory queries
+uint32_t itemMask(int kind) {
+    switch (kind) {
+        case 0:
+            return 0x10;
+        case 1:
+            return 0xC;
+        case 2:
+            return 0x1001;
+        case 3:
+            return 0x800;
+        case 4:
+            return 0x2000;
+        case 5:
+            return 0x8000000;
+        default:
+            return static_cast<uint32_t>(kind);
+    }
+}
+
+// count left of an item: +8 + +0xA - +6 (+6 is reserved by actions this turn)
+int itemsLeft(const uint8_t* item) { return mem::s16(item, 0xA) - mem::u16(item, 6) + mem::s16(item, 8); }
+
+uint8_t* nextItem(BattleHero& hero) {
+    uint8_t* item = mem::ptr<uint8_t>(hero.at<uint8_t*>(0x2EC8), 0);
+    hero.at<uint8_t*>(0x2EC8) = item;
+    return item;
+}
+
+}  // namespace
+
+// swd32.exe 0x00470910: name and count left of the `index`th usable item of kind `kind` (0..3) with items left;
+// *flags gets bit 15, and bit 14 when the stamina cost (+0x4C bit 14) exceeds the stamina. `unused` is ignored.
+int BattleHero::GetUsableItem(int kind, int index, char* name, int16_t* flags, uint16_t* count) {
+    int found = 0;
+    Restore2EC8();
+    const uint32_t mask = kind <= 3 ? itemMask(kind) : static_cast<uint32_t>(kind);
+    *flags = 0;
+    uint8_t* item;
+    do {
+        item = nextItem(*this);
+        if (item == nullptr) {
+            *flags = 0;
+            return 0;
+        }
+        if ((mask & mem::u32(item, 0x2C)) != 0 && (item[0x46] & 5) != 0 && itemsLeft(item) > 0) {
+            ++found;
+        }
+    } while (found != index);
+    if ((mask & mem::u32(item, 0x2C)) == 0 || (item[0x46] & 5) == 0) {
+        return 1;
+    }
+    w32::lstrcpyA(name, reinterpret_cast<const char*>(item + 0xC));
+    uint8_t* current = at<uint8_t*>(0x2EC8);
+    *count = static_cast<uint16_t>(mem::u16(current, 0xA) - mem::u16(current, 6) + mem::u16(current, 8));
+    *reinterpret_cast<uint8_t*>(reinterpret_cast<uint8_t*>(flags) + 1) |= 0x80;
+    const uint16_t cost = mem::u16(at<uint8_t*>(0x2EC8), 0x4C);
+    if ((cost & 0x4000) != 0 && static_cast<int16_t>(cost & 0x3FFF) > mem::s16(at<uint8_t*>(4), 8)) {
+        *flags = static_cast<int16_t>(*flags | 0x4000);
+    }
+    return 1;
+}
+
+// swd32.exe 0x00470A10: counts the usable items of kind `kind` (0..5) with items left; for kind 4 every item with
+// bit 13 of +0x4C counts once more. The return value is unused by callers.
+void BattleHero::CountItems(int kind, uint16_t* count) {
+    const uint32_t mask = itemMask(kind);
+    Restore2EC8();
+    for (uint8_t* item = nextItem(*this); item != nullptr; item = nextItem(*this)) {
+        if ((mask & mem::u32(item, 0x2C)) != 0 && (item[0x46] & 5) != 0 && itemsLeft(item) > 0) {
+            ++*count;
+        }
+        if (mask == 0x2000 && (at<uint8_t*>(0x2EC8)[0x4D] & 0x20) != 0) {
+            ++*count;
+        }
+    }
+}
+
+// swd32.exe 0x00470E20: uses up the reserved item (+0x2ED0): items with bit 10 of +0x48 count their uses down in
+// its low byte first; consumable kinds (not 0x80 unless 0x8000000) lose one (+8, else +0xA) and their reservation
+// (+6); an item with none left is unlinked and freed. Returns its id (+0x2F14) unless the item (or, after freeing,
+// its predecessor) has bit 13 of +0x4C.
+uint16_t BattleHero::ConsumeReservedItem(int unused1, int unused2) {
+    static_cast<void>(unused1);
+    static_cast<void>(unused2);
+    int position = 0;
+    Restore2EC8();
+    uint8_t* reserved = at<uint8_t*>(0x2ED0);
+    if (reserved == nullptr) {
+        return 0;
+    }
+    uint8_t* item;
+    do {
+        ++position;
+        item = nextItem(*this);
+        if (item == nullptr) {
+            return 0;
+        }
+    } while (mem::u16(item, 4) != mem::u16(reserved, 4));
+    at<uint8_t*>(0x2EC8) = reserved;
+    at<uint16_t>(0x2F14) = mem::u16(item, 4);
+    const uint16_t uses = mem::u16(reserved, 0x48);
+    bool consume = true;
+    if ((uses & 0x400) != 0 && (uses & 0xFF) != 0) {
+        const auto left = static_cast<uint16_t>((uses & 0xFF) - 1);
+        mem::put16(reserved, 0x48, uses & 0xFF00);
+        mem::ref<uint16_t>(at<uint8_t*>(0x2EC8), 0x48) |= left;
+        consume = left == 0;
+    }
+    if (consume) {
+        uint8_t* current = at<uint8_t*>(0x2EC8);
+        const uint32_t kind = mem::u32(current, 0x2C);
+        if ((kind & 0x80) == 0 || (kind & 0x8000000) != 0) {
+            if (mem::u16(current, 8) != 0) {
+                mem::put16(current, 8, static_cast<uint16_t>(mem::u16(current, 8) - 1));
+            } else if (mem::u16(current, 0xA) != 0) {
+                mem::put16(current, 0xA, static_cast<uint16_t>(mem::u16(current, 0xA) - 1));
+            }
+            uint8_t* again = at<uint8_t*>(0x2EC8);
+            if (mem::u16(again, 6) > 0) {
+                mem::put16(again, 6, static_cast<uint16_t>(mem::u16(again, 6) - 1));
+            }
+            at<int32_t>(0x2ED0) = 0;
+        }
+    }
+    uint8_t* current = at<uint8_t*>(0x2EC8);
+    if (mem::u16(current, 8) == 0 && mem::u16(current, 0xA) == 0) {
+        uint8_t* next = mem::ptr<uint8_t>(current, 0);
+        crt::free(current);
+        Restore2EC8();
+        for (int step = position - 1; step > 0; --step) {
+            at<uint8_t*>(0x2EC8) = mem::ptr<uint8_t>(at<uint8_t*>(0x2EC8), 0);
+        }
+        mem::putPtr(at<uint8_t*>(0x2EC8), 0, next);
+    }
+    if ((at<uint8_t*>(0x2EC8)[0x4D] & 0x20) != 0) {
+        return 0;
+    }
+    return at<uint16_t>(0x2F14);
+}
+
+// swd32.exe 0x00470F70: name and count of the `index`th item with bit 13 of +0x4C
+int BattleHero::GetMarkedItem(int unused, int index, char* name, uint16_t* count) {
+    static_cast<void>(unused);
+    int found = 0;
+    Restore2EC8();
+    uint8_t* item;
+    do {
+        item = nextItem(*this);
+        if (item == nullptr) {
+            return 0;
+        }
+        if ((mem::u16(item, 0x4C) & 0x2000) != 0) {
+            ++found;
+        }
+    } while (found != index);
+    w32::lstrcpyA(name, reinterpret_cast<const char*>(item + 0xC));
+    *count = static_cast<uint16_t>(mem::u16(at<uint8_t*>(0x2EC8), 8) + mem::u16(at<uint8_t*>(0x2EC8), 0xA));
+    return 1;
+}
+
+// swd32.exe 0x00470FE0: with `mode` the `index`th item of kind bit 0x800 of +0x2C (not id 0x300) is reserved;
+// without, the first item reserved is the first one (counting 0 matches) unless id 0x300 comes first, which is
+// shown but not reserved. Name and count are given for usable items.
+int BattleHero::ReserveItem(int mode, int index, char* name, uint16_t* count) {
+    int found = 0;
+    Restore2EC8();
+    uint8_t* item;
+    for (;;) {
+        item = nextItem(*this);
+        if (item == nullptr) {
+            return 0;
+        }
+        if (mode == 0) {
+            if (mem::u16(item, 4) == 0x300) {
+                break;
+            }
+        } else if ((item[0x2F] & 8) != 0 && mem::u16(item, 4) != 0x300) {
+            ++found;
+        }
+        if (found == index) {
+            at<uint8_t*>(0x2ED0) = item;
+            break;
+        }
+    }
+    uint8_t* current = at<uint8_t*>(0x2EC8);
+    if ((current[0x46] & 5) != 0) {
+        w32::lstrcpyA(name, reinterpret_cast<const char*>(current + 0xC));
+        *count = static_cast<uint16_t>(mem::u16(at<uint8_t*>(0x2EC8), 0xA) + mem::u16(at<uint8_t*>(0x2EC8), 8));
+    }
+    return 1;
+}
+
+// swd32.exe 0x00471080: total count of the usable kind 0x8000000 items (not id 0x300). The return value is unused
+// by callers.
+void BattleHero::CountKind8000000(int unused, uint16_t* count) {
+    static_cast<void>(unused);
+    Restore2EC8();
+    *count = 0;
+    for (uint8_t* item = nextItem(*this); item != nullptr; item = nextItem(*this)) {
+        if ((mem::u32(item, 0x2C) & 0x8000000) != 0 && mem::u16(item, 4) != 0x300 && (item[0x46] & 5) != 0) {
+            *count = static_cast<uint16_t>(*count + mem::u16(item, 8) + mem::u16(item, 0xA));
+        }
+    }
+}
+
+// swd32.exe 0x00471270: one frame of the explosion set up by StartExplosion; while it runs, up to five sparks
+// (act 0x186A, slots 0..4, added after 0, 10, 20, 30 and 40 frames) fly from the picture to the hero. Returns 1
+// when the explosion ended, which frees the decoded picture and clears the effect.
+int BattleHero::DrawExplosionFrame() {
+    ++at<uint16_t>(0x2F26);
+    at<int32_t>(0xE40) = 5;
+    at<int32_t>(0xE44) = 5;
+    at<int32_t>(0xE48) = 5;
+    at<int32_t>(0x2AFC) = 1;
+    auto* effect = reinterpret_cast<ParticleEffect*>(raw(0xE14));
+    if (G.projector.DrawExplosion(reinterpret_cast<uint16_t*>(G.drawSurface), effect) == 1) {
+        uint16_t* pixels = effect->pixels;
+        at<uint16_t>(0x2F26) = 0;
+        at<int32_t>(0x2AFC) = 0;
+        if (pixels != nullptr) {
+            crt::free(pixels);
+        }
+        std::memset(effect, 0, sizeof(ParticleEffect));
+        for (int slot = 0; slot < 5; ++slot) {
+            at<int32_t>(0x2EF8 + 4 * slot) = 0;
+        }
+        std::memset(raw(0xDF4), 0, 0x20);
+        std::memset(raw(0x500), 0, sizeof(ActState));
+        return 1;
+    }
+    const uint16_t bursts = effect->bursts;
+    if (bursts == 0) {
+        return 0;
+    }
+    const auto x = static_cast<int16_t>(effect->x + (effect->width >> 2));
+    auto sparkY = [effect](int offset) {
+        return static_cast<int16_t>(effect->height - effect->bursts + effect->y + offset);
+    };
+    DrawProjectile(0x186A, 1, 0, x, sparkY(-5), 0xE);
+    const int16_t frames = at<int16_t>(0x2F26);
+    if (frames >= 0xA) {
+        DrawProjectile(0x186A, 2, 1, x, sparkY(-0xA), 0xA);
+    }
+    if (at<int16_t>(0x2F26) >= 0x14) {
+        DrawProjectile(0x186A, 3, 2, x, sparkY(-0xF), 0xC);
+    }
+    if (at<int16_t>(0x2F26) >= 0x1E) {
+        DrawProjectile(0x186A, 1, 3, x, sparkY(0), 8);
+    }
+    if (at<int16_t>(0x2F26) >= 0x28) {
+        DrawProjectile(0x186A, 1, 4, x, sparkY(5), 0x10);
+    }
+    return 0;
+}
+
 }  // namespace swd3

@@ -46,6 +46,13 @@ public:
     void ApplyEquipmentEffect(const std::uint8_t* item);
     void CountSkills(int kind, int type, std::uint8_t* count);
     int SelectSkill(int kind, int index);
+    int GetUsableItem(int kind, int index, char* name, std::int16_t* flags, std::uint16_t* count);
+    void CountItems(int kind, std::uint16_t* count);
+    std::uint16_t ConsumeReservedItem(int unused1, int unused2);
+    int GetMarkedItem(int unused, int index, char* name, std::uint16_t* count);
+    int ReserveItem(int mode, int index, char* name, std::uint16_t* count);
+    void CountKind8000000(int unused, std::uint16_t* count);
+    int DrawExplosionFrame();
 
     std::uint8_t m_heroData[0x2F34 - 0x2B28];
 };

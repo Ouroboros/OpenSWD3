@@ -982,15 +982,15 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 981	swd32.exe	0x00470890	sub_470890	battle	src/battle/battle_hero.cpp:BattleHero::ApplyPendingMpCost	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
 982	swd32.exe	0x004708C0	sub_4708C0	battle	src/battle/battle_hero.cpp:BattleHero::MarkGuarded	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
 983	swd32.exe	0x00470900	sub_470900	battle	src/battle/battle_hero.cpp:BattleHero::Restore2EC8	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
-984	swd32.exe	0x00470910	sub_470910	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
-985	swd32.exe	0x00470A10	sub_470A10	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
+984	swd32.exe	0x00470910	sub_470910	battle	src/battle/battle_hero.cpp:BattleHero::GetUsableItem	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
+985	swd32.exe	0x00470A10	sub_470A10	battle	src/battle/battle_hero.cpp:BattleHero::CountItems	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
 986	swd32.exe	0x00470AC0	sub_470AC0	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "C:\Project\swd102aDVD\manrole.cpp"
-987	swd32.exe	0x00470E20	sub_470E20	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-988	swd32.exe	0x00470F70	sub_470F70	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-989	swd32.exe	0x00470FE0	sub_470FE0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-990	swd32.exe	0x00471080	sub_471080	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+987	swd32.exe	0x00470E20	sub_470E20	battle	src/battle/battle_hero.cpp:BattleHero::ConsumeReservedItem	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+988	swd32.exe	0x00470F70	sub_470F70	battle	src/battle/battle_hero.cpp:BattleHero::GetMarkedItem	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+989	swd32.exe	0x00470FE0	sub_470FE0	battle	src/battle/battle_hero.cpp:BattleHero::ReserveItem	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+990	swd32.exe	0x00471080	sub_471080	battle	src/battle/battle_hero.cpp:BattleHero::CountKind8000000	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 991	swd32.exe	0x004710D0	sub_4710D0	battle	src/battle/battle_hero.cpp:BattleHero::StartExplosion	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-992	swd32.exe	0x00471270	sub_471270	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+992	swd32.exe	0x00471270	sub_471270	battle	src/battle/battle_hero.cpp:BattleHero::DrawExplosionFrame	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 993	swd32.exe	0x004714B0	sub_4714B0	battle	src/battle/battle_hero.cpp:BattleHero::RollLevelChance	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 994	swd32.exe	0x00471540	sub_471540	battle	src/battle/battle_hero.cpp:BattleHero::DrawRecoil	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 995	swd32.exe	0x004717D0	sub_4717D0	battle	src/battle/battle_hero.cpp:BattleHero::ActionFlag13	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
@@ -1298,7 +1298,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1297	swd32.exe	0x00487AF0	sub_487AF0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1298	swd32.exe	0x00487BA0	sub_487BA0	crt	src/crt/crt.cpp:atexit	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1299	swd32.exe	0x00487BC0	sub_487BC0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
-1300	swd32.exe	0x00487C10	sub_487C10	crt	src/crt/crt.cpp:malloc	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
+1300	swd32.exe	0x00487C10	sub_487C10	crt	src/crt/crt.cpp:malloc	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	host blocks keep size/4+64 bytes of 0xFD slack so that overruns of the original (e.g. 0x00434DD0 last-row particle blocks) stay out of the host heap
 1301	swd32.exe	0x00487C30	sub_487C30	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1302	swd32.exe	0x00487C60	sub_487C60	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1303	swd32.exe	0x00487C80	sub_487C80	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
