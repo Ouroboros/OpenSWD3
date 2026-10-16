@@ -45,6 +45,16 @@ public:
         0xFFF0;  // an operand standing for the role of the event, the controlled role or the map
     static constexpr u16 Keep = 0xFFFF;  // an operand that leaves its value as it is
 
+    // ExpandText measures a text as lines << LinesShift | characters, LineCharacters to a line.
+    static constexpr int LinesShift = 16;
+    static constexpr u32 LineCharacters = 0x14;
+    static constexpr int LineCells = 2;          // the cells a line of text is high
+    static constexpr int SpeedScale = 2;         // the typing speed is twice the text speed setting
+    static constexpr int SurfaceColumns = 0x28;  // the cells of the surface the windows are drawn through
+    static constexpr int SurfaceRows = 0xB;
+    static constexpr i32 AdvanceHoldsPage =
+        2;  // `advance`: the text moves on without turning a full page (no setter is known)
+
     // Talk<n>.dat: a header, then an offset per event, the scripts after the header.
     static constexpr u32 EventsPerFile = 2000;
     static constexpr u32 FileHeaderBytes = 0x200;

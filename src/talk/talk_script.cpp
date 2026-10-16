@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <climits>
 #include <cstring>
 
 #include "core/debug_log.h"
@@ -14,12 +15,54 @@ namespace
 {
 
 constexpr std::size_t kTextBytes = 0x200;
+constexpr int kExpandLimit = 0x1FE;     // the bytes a replacement may grow the text to
+constexpr std::size_t kItemDigits = 5;  // "%T" with this many digits or more fails
+constexpr int kSkippedCodeBytes = 4;    // an object name code that fails is passed over by this much
+
+// The script records of the talk windows: the speaker and the frame act, then by layout the place (Sized), the size
+// in cells (Sized, Record), then the text.
+constexpr std::size_t kSpeechWords = 2;
+constexpr std::size_t kRecordWords = 4;
+constexpr std::size_t kSizedWords = 6;
+constexpr std::size_t kPlaceWord = 2;
+constexpr std::size_t kSizedWidthWord = 4;
+constexpr std::size_t kRecordWidthWord = 2;
+
+// The window sizes in cells by the lines of the text.
+constexpr u32 kMediumLines = 4;
+constexpr int kSmallColumns = 0x10;
+constexpr int kSmallRows = 6;
+constexpr int kMediumColumns = 0x12;
+constexpr int kMediumRows = 8;
+constexpr int kLargeColumns = 0x14;
+constexpr int kLargeRows = 0xA;
+
+constexpr u16 kTextColor = 4;  // of the text tables
+constexpr u16 kOverlayColor = 5;
+constexpr int kOverlayLiftDown = 0x20;  // an overlay text is moved off its speaker
+constexpr int kOverlayLiftUp = 0x30;
+constexpr int kNarratorX = 0x40;  // role 0 speaks from here on the screen
+constexpr int kNarratorY = 0x10;
+constexpr u16 kLineMargin = 0x10;  // the screen margin of a single line
+constexpr int kAboveSpeaker = 0x68;
+
+// The bounds a window is kept in, and where it may go when it would cover its speaker.
+constexpr int kWindowLeft = 0x1E;
+constexpr int kWindowTop = 0x28;
+constexpr int kWindowRight = 0x240;
+constexpr int kWindowBottom = 0x1C8;
+constexpr int kSpeakerLeft = 0x10;
+constexpr int kSpeakerRight = 0x30;
+constexpr u32 kSpeakerAbove = 0x10;
+constexpr u32 kSpeakerBelow = 0x40;
+constexpr u16 kMovedLeft = 0x18;
+constexpr u16 kMovedTop = 0x20;
 
 u16 ReadWord(std::span<const u8> bytes, std::size_t at)
 {
     const u16 low = at < bytes.size() ? bytes[at] : u16{0};
     const u16 high = at + 1 < bytes.size() ? bytes[at + 1] : u16{0};
-    return static_cast<u16>(low | high << 8);
+    return static_cast<u16>(low | high << CHAR_BIT);
 }
 
 u16 ReadWord(const std::string& text, std::size_t at)
@@ -113,10 +156,10 @@ u32 Talk::ExpandText(std::string& text)
             break;
         }
 
-        if (ReadWord(text, at) == 0x5425)
+        if (ReadWord(text, at) == kItemName)
         {
             std::string code = "%T";
-            std::size_t digit = at + 2;
+            std::size_t digit = at + kCodeBytes;
 
             while (digit < text.size() && text[digit] != '.')
             {
@@ -124,9 +167,9 @@ u32 Talk::ExpandText(std::string& text)
                 ++digit;
             }
 
-            std::string number = code.substr(2);
+            std::string number = code.substr(kCodeBytes);
 
-            if (code.size() >= 7)
+            if (code.size() >= kCodeBytes + kItemDigits)
             {
                 number.push_back('.');
                 DebugLog(u8"物品名稱代換", code);
@@ -142,22 +185,22 @@ u32 Talk::ExpandText(std::string& text)
                 {
                     const auto* raw = reinterpret_cast<const char*>(&record.data);
                     const std::string_view name(raw, strnlen(raw, sizeof(record.data)));
-                    Talk::ReplacePrefix(text, at, code + ".", name, 0x1FE - consumed);
+                    Talk::ReplacePrefix(text, at, code + ".", name, kExpandLimit - consumed);
                     at += name.size();
                     consumed += static_cast<int>(name.size());
                 }
                 else
                 {
                     DebugLog(u8"物品名稱代換", id);
-                    at += 4;
-                    consumed += 4;
+                    at += kSkippedCodeBytes;
+                    consumed += kSkippedCodeBytes;
                 }
             }
             else
             {
                 DebugLog(u8"物品名稱代換", code);
-                at += 4;
-                consumed += 4;
+                at += kSkippedCodeBytes;
+                consumed += kSkippedCodeBytes;
             }
 
             continue;
@@ -165,8 +208,8 @@ u32 Talk::ExpandText(std::string& text)
 
         int skip = 0;
 
-        if (Talk::ReplacePrefix(text, at, firstDefault, firstName, 0x1FE - consumed) ||
-            Talk::ReplacePrefix(text, at, secondDefault, secondName, 0x1FE - consumed))
+        if (Talk::ReplacePrefix(text, at, firstDefault, firstName, kExpandLimit - consumed) ||
+            Talk::ReplacePrefix(text, at, secondDefault, secondName, kExpandLimit - consumed))
         {
             skip = static_cast<int>(firstName.size()) - 1;
         }
@@ -182,7 +225,7 @@ u32 Talk::ExpandText(std::string& text)
 
     if (ReadWord(text, 0) == kTextEnd)
     {
-        return characters + (lines << 16);
+        return characters + (lines << Talk::LinesShift);
     }
 
     for (;;)
@@ -191,29 +234,29 @@ u32 Talk::ExpandText(std::string& text)
 
         switch (ReadWord(text, cursor))
         {
-            case 0x4E25:
-            case 0x4C25:
-            case 0x4B25:
-            case 0x5025:
-                cursor += 2;
+            case kNewLine:
+            case kLine:
+            case kKey:
+            case kPage:
+                cursor += kCodeBytes;
                 lineEnds = true;
                 break;
 
-            case 0x5325:
-            case 0x4325:
-            case 0x4425:
-                cursor += 3;
+            case kSpeed:
+            case kColor:
+            case kShadeCode:
+                cursor += kCodeDigitBytes;
                 break;
 
-            case 0x4225:
-            case 0x4125:
-                cursor += 2;
+            case kChoice:
+            case kSound:
+                cursor += kCodeBytes;
                 break;
 
             default:
                 ++cursor;
                 ++characters;
-                lineEnds = ++column > 0x14;
+                lineEnds = ++column > Talk::LineCharacters;
                 break;
         }
 
@@ -225,7 +268,7 @@ u32 Talk::ExpandText(std::string& text)
 
         if (cursor >= text.size() || text[cursor] == '\0' || ReadWord(text, cursor) == kTextEnd)
         {
-            return characters + (lines << 16);
+            return characters + (lines << Talk::LinesShift);
         }
     }
 }
@@ -252,16 +295,16 @@ void Talk::ShowMessage(u16 role, std::u8string_view message)
     constexpr u16 kCellY = 3;
     constexpr u16 kColumns = 0x28;
     constexpr u16 kRows = 0xA;
-    constexpr std::size_t kTextAt = 0xC;  // the record's text after its six header words
+    constexpr std::size_t kTextAt = kWordBytes * kSizedWords;  // the text after the header words
     constexpr std::size_t kRecordBytes = 0x100;
     const std::string text = Big5(message);
     std::array<u8, kRecordBytes> record = {};
-    const std::array<u16, 6> header = {role, kFrameAct, kCellX, kCellY, kColumns, kRows};
+    const std::array<u16, kSizedWords> header = {role, kFrameAct, kCellX, kCellY, kColumns, kRows};
 
     for (std::size_t index = 0; index < header.size(); ++index)
     {
-        record[2 * index] = static_cast<u8>(header[index]);
-        record[2 * index + 1] = static_cast<u8>(header[index] >> 8);
+        record[kWordBytes * index] = static_cast<u8>(header[index]);
+        record[kWordBytes * index + 1] = static_cast<u8>(header[index] >> CHAR_BIT);
     }
 
     std::copy_n(
@@ -270,7 +313,7 @@ void Talk::ShowMessage(u16 role, std::u8string_view message)
         record.begin() + kTextAt
     );
     auto window = std::make_unique<TalkWindow>();
-    this->SetupDialog(*window, record, "", 1, 0, 0);
+    this->SetupDialog(*window, record, "", Talk::SizedLayout, 0, 0);
     this->AppendWindow(std::move(window));
 }
 
@@ -296,26 +339,26 @@ bool Talk::SetupDialog(
     const bool fixed = (window.flags & TalkWindow::FixedPlace) != 0;
     const u32 mode = options & Talk::LayoutMask;
     const bool singleLine = (options & Talk::OneLine) != 0;
-    std::size_t textAt = 4;
+    std::size_t textAt = kWordBytes * kSpeechWords;
 
     auto word = [&record](std::size_t index)
     {
-        return ReadWord(record, 2 * index);
+        return ReadWord(record, kWordBytes * index);
     };
 
-    if (mode == 1)
+    if (mode == Talk::SizedLayout)
     {
-        textAt = 0xC;
+        textAt = kWordBytes * kSizedWords;
     }
 
-    if (mode == 2)
+    if (mode == Talk::RecordLayout)
     {
-        textAt = 8;
+        textAt = kWordBytes * kRecordWords;
     }
 
     if (singleLine && fixed)
     {
-        textAt = 4;
+        textAt = kWordBytes * kSpeechWords;
     }
 
     std::size_t end = textAt;
@@ -328,14 +371,14 @@ bool Talk::SetupDialog(
     window.text.assign(kTextBytes, '\0');
     std::copy_n(
         record.begin() + static_cast<std::ptrdiff_t>(textAt),
-        std::min(end - textAt + 2, kTextBytes),
+        std::min(end - textAt + kWordBytes, kTextBytes),
         window.text.begin()
     );
     window.page = 0;
     window.typed = 0;
     const u32 measured = this->ExpandText(window.text);
-    const u32 lines = measured >> 16;
-    const u32 characters = measured & 0xFFFF;
+    const u32 lines = measured >> Talk::LinesShift;
+    const u32 characters = measured & ((1u << Talk::LinesShift) - 1);
 
     if ((options & Talk::LogText) != 0)
     {
@@ -347,17 +390,17 @@ bool Talk::SetupDialog(
     if (singleLine)
     {
         window.width = static_cast<u16>(characters * static_cast<u32>(unit));
-        window.height = static_cast<u16>(2 * unit);
+        window.height = static_cast<u16>(Talk::LineCells * unit);
     }
-    else if (mode == 1)
+    else if (mode == Talk::SizedLayout)
     {
-        window.width = static_cast<u16>(unit * word(4));
-        window.height = static_cast<u16>(unit * word(5));
+        window.width = static_cast<u16>(unit * word(kSizedWidthWord));
+        window.height = static_cast<u16>(unit * word(kSizedWidthWord + 1));
     }
-    else if (mode == 2)
+    else if (mode == Talk::RecordLayout)
     {
-        window.width = static_cast<u16>(unit * word(2));
-        window.height = static_cast<u16>(unit * word(3));
+        window.width = static_cast<u16>(unit * word(kRecordWidthWord));
+        window.height = static_cast<u16>(unit * word(kRecordWidthWord + 1));
     }
     else
     {
@@ -366,20 +409,20 @@ bool Talk::SetupDialog(
 
     if (!sized)
     {
-        if (lines > 4)
+        if (lines > kMediumLines)
         {
-            window.width = static_cast<u16>(0x14 * unit);
-            window.height = static_cast<u16>(0xA * unit);
+            window.width = static_cast<u16>(kLargeColumns * unit);
+            window.height = static_cast<u16>(kLargeRows * unit);
         }
-        else if (lines == 4)
+        else if (lines == kMediumLines)
         {
-            window.width = static_cast<u16>(0x12 * unit);
-            window.height = static_cast<u16>(8 * unit);
+            window.width = static_cast<u16>(kMediumColumns * unit);
+            window.height = static_cast<u16>(kMediumRows * unit);
         }
         else
         {
-            window.width = static_cast<u16>(0x10 * unit);
-            window.height = static_cast<u16>(6 * unit);
+            window.width = static_cast<u16>(kSmallColumns * unit);
+            window.height = static_cast<u16>(kSmallRows * unit);
         }
     }
 
@@ -412,7 +455,7 @@ bool Talk::SetupDialog(
     if (!name.empty())
     {
         window.nameAct = &owner.scene.unk4A9120[frame];
-        window.name = std::string(name.substr(0, 0x1F));
+        window.name = std::string(name.substr(0, this->dialogName.size() - 1));
         owner.acts.Run(owner.scene.unk4A9120[frame]);
     }
 
@@ -420,33 +463,34 @@ bool Talk::SetupDialog(
     window.openStep = 0;
     window.unk26 = 0;
     window.delay = 0;
-    window.speed = static_cast<u16>(2 * owner.config.textSpeed);
-    window.color = 4;
-    window.shade = 4;
-    window.style = 4;
+    window.speed = static_cast<u16>(Talk::SpeedScale * owner.config.textSpeed);
+    window.color = kTextColor;
+    window.shade = kTextColor;
+    window.style = TextFont::BoldShadow;
     window.next.reset();
     int lift = 0;
 
     if ((window.flags & TalkWindow::Overlay) != 0)
     {
-        window.color = 5;
-        window.shade = 5;
+        window.color = kOverlayColor;
+        window.shade = kOverlayColor;
 
         if (window.role != TalkWindow::NoRole && window.role < GameState::Roles)
         {
-            const auto facing = static_cast<std::size_t>(state.roles[window.role].act.direction) & 7;
-            lift = Talk::WindowShiftY[facing] <= 0 ? 0x20 : -0x30;
+            const auto facing =
+                static_cast<std::size_t>(state.roles[window.role].act.direction) % Talk::WindowShiftY.size();
+            lift = Talk::WindowShiftY[facing] <= 0 ? kOverlayLiftDown : -kOverlayLiftUp;
         }
     }
 
     if (window.role == 0)
     {
-        state.roles[0].x = field.cameraLeft + 0x40;
-        state.roles[0].y = field.cameraTop + 0x10;
+        state.roles[0].x = field.cameraLeft + kNarratorX;
+        state.roles[0].y = field.cameraTop + kNarratorY;
     }
 
-    window.x = word(2);
-    window.y = word(3);
+    window.x = word(kPlaceWord);
+    window.y = word(kPlaceWord + 1);
 
     if ((options & Talk::Centred) != 0)
     {
@@ -456,32 +500,33 @@ bool Talk::SetupDialog(
     if (singleLine && fixed)
     {
         const u16 height = window.height;
-        window.x = static_cast<u16>(offsetY - height - 0x10);
+        // The original tests the far edges the wrong way round, pushing short lines to the right and bottom.
+        window.x = static_cast<u16>(offsetY - height - kLineMargin);
 
-        if (window.x < 0x10)
+        if (window.x < kLineMargin)
         {
-            window.x = 0x10;
+            window.x = kLineMargin;
         }
 
-        if (window.y < 0x10)
+        if (window.y < kLineMargin)
         {
-            window.y = 0x10;
+            window.y = kLineMargin;
         }
 
-        if (window.width + window.x < 0x260)
+        if (window.width + window.x < Display::Width - 2 * kLineMargin)
         {
-            window.x = static_cast<u16>(0x260 - window.width);
+            window.x = static_cast<u16>(Display::Width - 2 * kLineMargin - window.width);
         }
 
-        if (window.y + height < 0x1D0)
+        if (window.y + height < Display::Height - kLineMargin)
         {
-            window.y = static_cast<u16>(0x1D0 - height);
+            window.y = static_cast<u16>(Display::Height - kLineMargin - height);
         }
 
         return true;
     }
 
-    if (mode != 0 && mode != 2)
+    if (mode != Talk::SpeechLayout && mode != Talk::RecordLayout)
     {
         return true;
     }
@@ -504,11 +549,13 @@ bool Talk::SetupDialog(
     }
 
     const std::size_t facing =
-        window.role < GameState::Roles ? static_cast<std::size_t>(state.roles[window.role].act.direction) & 7 : 0;
+        window.role < GameState::Roles
+            ? static_cast<std::size_t>(state.roles[window.role].act.direction) % Talk::WindowShiftX.size()
+            : 0;
 
     if (fixed || window.role == TalkWindow::NoRole)
     {
-        window.y = static_cast<u16>(window.y - 0x68);
+        window.y = static_cast<u16>(window.y - kAboveSpeaker);
     }
     else if ((options & Talk::UseOffset) == 0)
     {
@@ -528,9 +575,9 @@ bool Talk::SetupDialog(
             window.x = static_cast<u16>(left);
         }
 
-        if (window.width + window.x >= 0x240)
+        if (window.width + window.x >= kWindowRight)
         {
-            window.x = static_cast<u16>(0x240 - window.width);
+            window.x = static_cast<u16>(kWindowRight - window.width);
         }
 
         if (static_cast<i16>(window.y) < top)
@@ -538,13 +585,13 @@ bool Talk::SetupDialog(
             window.y = static_cast<u16>(top);
         }
 
-        if (window.height + window.y >= 0x1C8)
+        if (window.height + window.y >= kWindowBottom)
         {
-            window.y = static_cast<u16>(0x1C8 - window.height);
+            window.y = static_cast<u16>(kWindowBottom - window.height);
         }
     };
 
-    clamp(0x1E, 0x28);
+    clamp(kWindowLeft, kWindowTop);
 
     if ((options & Talk::UseOffset) == 0 && (window.flags & TalkWindow::Overlay) == 0 &&
         window.role != TalkWindow::NoRole && window.role < GameState::Roles)
@@ -553,34 +600,36 @@ bool Talk::SetupDialog(
         const auto screenX = static_cast<u32>(role.x - field.cameraLeft);
         const int left = window.x;
 
-        if (screenX > static_cast<u32>(left - 0x10) && screenX < static_cast<u32>(left + window.width + 0x30))
+        if (screenX > static_cast<u32>(left - kSpeakerLeft) &&
+            screenX < static_cast<u32>(left + window.width + kSpeakerRight))
         {
             const u16 top = window.y;
             const auto screenY = static_cast<u32>(role.y - field.cameraTop);
 
-            if (screenY > static_cast<u32>(top) - 0x10 && screenY < static_cast<u32>(top) + window.height + 0x40)
+            if (screenY > static_cast<u32>(top) - kSpeakerAbove &&
+                screenY < static_cast<u32>(top) + window.height + kSpeakerBelow)
             {
                 window.x = static_cast<u16>(window.x + Talk::WindowShiftX[facing]);
                 window.y = static_cast<u16>(top + Talk::WindowShiftY[facing]);
 
-                if (static_cast<i16>(window.x) < 0x18)
+                if (static_cast<i16>(window.x) < kMovedLeft)
                 {
-                    window.x = 0x18;
+                    window.x = kMovedLeft;
                 }
 
-                if (window.width + window.x >= 0x240)
+                if (window.width + window.x >= kWindowRight)
                 {
-                    window.x = static_cast<u16>(0x240 - window.width);
+                    window.x = static_cast<u16>(kWindowRight - window.width);
                 }
 
-                if (static_cast<i16>(window.y) < 0x20)
+                if (static_cast<i16>(window.y) < kMovedTop)
                 {
-                    window.y = 0x20;
+                    window.y = kMovedTop;
                 }
 
-                if (window.height + window.y >= 0x1C8)
+                if (window.height + window.y >= kWindowBottom)
                 {
-                    window.y = static_cast<u16>(0x1C8 - window.height);
+                    window.y = static_cast<u16>(kWindowBottom - window.height);
                 }
             }
         }
@@ -595,7 +644,7 @@ bool Talk::SeekScript(Role& context, u32 offset)
     this->game.AudioPump();
     context.unk14 = static_cast<i32>(offset);
     context.unk20 = 0;
-    this->game.databases.story.SeekBegin(static_cast<i32>(offset + 0x200));
+    this->game.databases.story.SeekBegin(static_cast<i32>(offset + Talk::FileHeaderBytes));
     u32 bytes = static_cast<u32>(this->game.databases.script.size());
     this->game.databases.story.Read(this->game.databases.script.data(), bytes);
     return true;
@@ -607,7 +656,8 @@ bool Talk::OpenScript(Role& context, u32 index)
 {
     Game& owner = this->game;
     this->game.databases.story.Close();
-    const std::string path = WinFormat("%sTalk%d.dat", {owner.config.installDirectory, index / 0x7D0 + 1});
+    const std::string path =
+        WinFormat("%sTalk%d.dat", {owner.config.installDirectory, index / Talk::EventsPerFile + 1});
     owner.AudioPump();
 
     if (!this->game.databases.story.Open(path, File::Disposition::OpenExisting, File::Access::Read))
@@ -617,13 +667,15 @@ bool Talk::OpenScript(Role& context, u32 index)
         return false;
     }
 
-    this->game.databases.story.SeekBegin(static_cast<i32>(4 * (index % 0x7D0) + 0x200));
+    this->game.databases.story.SeekBegin(
+        static_cast<i32>(sizeof(u32) * (index % Talk::EventsPerFile) + Talk::FileHeaderBytes)
+    );
     u32 offset = 0;
     this->game.databases.story.ReadDword(offset);
     context.unk14 = static_cast<i32>(offset);
     context.unk20 = 0;
     owner.AudioPump();
-    this->game.databases.story.SeekBegin(static_cast<i32>(offset + 0x200));
+    this->game.databases.story.SeekBegin(static_cast<i32>(offset + Talk::FileHeaderBytes));
     u32 bytes = static_cast<u32>(this->game.databases.script.size());
     this->game.databases.story.Read(this->game.databases.script.data(), bytes);
     owner.AudioPump();
@@ -633,15 +685,15 @@ bool Talk::OpenScript(Role& context, u32 index)
 // swd32.exe 0x0042E740: whether a command (0xA, 0xB or 0x2D) names role `role`
 bool Talk::CommandsRole(std::span<const u8> command, u32 role)
 {
-    const u16 code = ReadWord(command, 0);
+    const auto code = static_cast<EventCommand>(ReadWord(command, 0));
 
-    if (code != 0xA && code != 0xB && code != 0x2D)
+    if (code != EventCommand::SetAction && code != EventCommand::SetDirection && code != EventCommand::SetAct)
     {
         return false;
     }
 
     u32 found = 0;
-    return this->game.state.FindRoleOrPlayer(ReadWord(command, 2), found) && found == role;
+    return this->game.state.FindRoleOrPlayer(ReadWord(command, kOpcodeBytes), found) && found == role;
 }
 
 }  // namespace swd3

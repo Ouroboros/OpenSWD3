@@ -44,6 +44,9 @@ struct TalkWindow
 
     static constexpr std::size_t Closed = static_cast<std::size_t>(-1);
     static constexpr u16 NoRole = 0xFFFD;
+    static constexpr u16 NoTimeout = 0xFFFF;  // in `timeout`
+    static constexpr u16 StyleMask = 0xFF;    // in `style`: the style drawn; the page saves its own above
+    static constexpr int SavedStyleShift = 8;
 
     const ActState* frameAct = nullptr;  // +0x00 its frame picks the window frame
     const ActState* nameAct = nullptr;   // +0x04 its frame picks the frame of the name plate
@@ -312,6 +315,11 @@ struct Scene
     static constexpr u16 ShadeWeatherActions = 8;  // the weather subtracted from it
     static constexpr int SpotlightRadius = 0xC0;   // half the side of the lit square
     static constexpr int PointerAct = 0x2329;
+    // Actions of the pointer act besides the directions 0..7.
+    static constexpr i32 TalkPointer = 9;
+    static constexpr i32 ExaminePointer = 0xA;
+    static constexpr i32 RegionPointer = 0xB;
+    static constexpr i32 ChoicePointer = 0xD;
     static constexpr u32 PointerFlags = 0x9000;
 
     i32 unk4A93D4 = 0;  // the event run when the first timer runs out

@@ -1,11 +1,13 @@
 #include "talk/talk.h"
 
+#include <climits>
 #include <span>
 #include <string>
 
 #include "core/debug_log.h"
 #include "game/direction.h"
 #include "game/game.h"
+#include "talk/script_text.h"
 #include "ui/ui_draw.h"
 
 namespace swd3
@@ -14,21 +16,52 @@ namespace swd3
 namespace
 {
 
-constexpr u16 kEnd = 0x5125;      // "%Q"
-constexpr u16 kNewLine = 0x4E25;  // "%N"
-constexpr u16 kLine = 0x4C25;     // "%L"
-constexpr u16 kPage = 0x5025;     // "%P"
-constexpr u16 kSpeed = 0x5325;    // "%S" and a digit
-constexpr u16 kColor = 0x4325;    // "%C" and a digit
-constexpr u16 kShade = 0x2544;    // "D%" and a digit
-constexpr u16 kStyle = 0x4725;    // "%G" and a digit
-constexpr u16 kChoice = 0x4225;   // "%B" text "." (made "%b" once its click area is added)
-constexpr u16 kChoiceSeen = 0x6225;
-constexpr u16 kSound = 0x4125;  // "%A" number "." (made "%a" once its sound played)
-constexpr u16 kSoundSeen = 0x6125;
-constexpr u16 kKey = 0x4B25;  // "%K"
-constexpr u16 kKeySeen = 0x6B25;
 constexpr u16 kChoiceSound = 0xC0;
+constexpr int kDecimalBase = 0xA;
+constexpr int kMaxDigits = 9;  // ParseNumber takes at most this many digits
+
+// The talk windows open in kOpenSteps frames, or fade in (kOpenStep a frame) and out (kFadeStep a frame).
+constexpr int kOpenSteps = 4;
+constexpr int kOpenStep = 4;
+constexpr int kFadeStep = 2;
+constexpr int kFadeFrames = 8;
+constexpr int kAlphaMask = 0xF;
+constexpr int kFrameAbove = 4;  // the frame of an opening window reaches past its text
+constexpr int kFrameBelow = 8;
+constexpr int kFramePadCells = 2;  // cells the frame adds to the width
+constexpr int kFrameBorder = 0x10;
+constexpr u16 kSkipDelay = 0x8FFF;        // the delay of a window when every talk is skipped
+constexpr u16 kFastest = 0xFFFF;          // the speed and delay of a skipped window
+constexpr u32 kTenthMilliseconds = 0x64;  // the timeouts count tenths of a second
+constexpr u32 kUntimedHold = 0x10018;     // a fading window without a timeout stays this many tenths
+constexpr u16 kShownCounter = 0x10;       // the counter of a shown fading window (it fades over kFadeFrames)
+constexpr u16 kTypingCounter = 0x24;
+constexpr u16 kChoiceCounter = 0x20;
+constexpr i32 kMouseRest = 0xC;          // polls the left button is ignored after a blocking window closes
+constexpr std::size_t kChosenColor = 2;  // the colour of the chosen choice
+constexpr u16 kWhite = 0xFFFF;
+constexpr u16 kOffWhite = 0xFFFE;
+constexpr int kMarkRight = 4;  // the page mark sits this far inside the frame's corner
+constexpr int kMarkBottom = 8;
+constexpr int kPixelsPerPair = 2;
+
+// The name plate over a window: its frame, the shade under it and its text.
+constexpr int kPlateLeft = 6;
+constexpr int kPlateTop = 0x1B;
+constexpr int kPlateRight = 0x10;
+constexpr int kPlateBottom = 8;
+constexpr int kPlateBorder = 4;
+constexpr int kPlateByteWidth = 8;  // pixels per byte of the name
+constexpr int kPlateShadeRows = 0xF;
+constexpr int kPlateShadeAbove = 0x10;
+constexpr int kPlateShadeLeft = 0x10;
+constexpr int kPlateShadePad = 0x1C;
+constexpr int kPlateTextX = 0xC;
+constexpr int kPlateTextY = 0x1A;
+constexpr std::size_t kPlateColor = 4;
+
+constexpr u32 kNoIndex = 0xFFFFFFFF;  // no role under the pointer
+constexpr i32 kIdleAction = 0x34;     // the controlled role stands idle (like action 0)
 
 }  // namespace
 
@@ -43,8 +76,15 @@ void Talk::DrawColoredText(u16* pixels, int x, int y, int color, int shade, std:
     TextFont& font = this->game.largeFont;
     const TextColors& colors = this->game.textColors;
     font.SetBackground(TextFont::NoBackground);
-    font.SetShadow(static_cast<Pixel>(colors.secondary[static_cast<std::size_t>(shade) & 0xF]));
-    font.DrawText(pixels, x, y, text, static_cast<Pixel>(colors.primary[static_cast<std::size_t>(color) & 0xF]), style);
+    font.SetShadow(static_cast<Pixel>(colors.secondary[static_cast<std::size_t>(shade) & (TextColors::Colors - 1)]));
+    font.DrawText(
+        pixels,
+        x,
+        y,
+        text,
+        static_cast<Pixel>(colors.primary[static_cast<std::size_t>(color) & (TextColors::Colors - 1)]),
+        style
+    );
     font.SetBackground(TextFont::NoBackground);
     font.SetShadow(0);
 }
@@ -66,7 +106,7 @@ bool Talk::ParseNumber(std::string_view text, int& value)
 
     for (std::size_t index = at; index < text.size() && text[index] != '\0'; ++index)
     {
-        if (static_cast<u8>(text[index] - '0') > 9)
+        if (static_cast<u8>(text[index] - '0') >= kDecimalBase)
         {
             return false;
         }
@@ -74,7 +114,7 @@ bool Talk::ParseNumber(std::string_view text, int& value)
         ++digits;
     }
 
-    if (digits > 9)
+    if (digits > kMaxDigits)
     {
         return false;
     }
@@ -85,7 +125,7 @@ bool Talk::ParseNumber(std::string_view text, int& value)
     for (int index = digits - 1; index >= 0; --index)
     {
         value += scale * (text[at + static_cast<std::size_t>(index)] - '0');
-        scale *= 0xA;
+        scale *= kDecimalBase;
     }
 
     return true;
@@ -102,9 +142,10 @@ void Talk::Draw()
         return;
     }
 
-    std::unique_ptr<Surface> surface = owner.graphics.CreateOffscreen(0x28 * this->unit, 0xB * this->unit);
+    std::unique_ptr<Surface> surface =
+        owner.graphics.CreateOffscreen(Talk::SurfaceColumns * this->unit, Talk::SurfaceRows * this->unit);
     owner.graphics.ClearSurface(*surface);
-    owner.largeFont.SetTarget(0x28 * this->unit, 0xB * this->unit);
+    owner.largeFont.SetTarget(Talk::SurfaceColumns * this->unit, Talk::SurfaceRows * this->unit);
     u16* pixels = owner.painter.LockSurface(*surface);
     owner.painter.UnlockSurface(*surface);
     const i32 heldAdvance = this->advance;
@@ -115,7 +156,7 @@ void Talk::Draw()
     }
 
     surface.reset();
-    owner.painter.SetClipClamped(0, 0, 0x27F, 0x1DF);
+    owner.painter.SetClipClamped(0, 0, Display::Width - 1, Display::Height - 1);
     this->advance = 0;
     std::unique_ptr<TalkWindow>* link = &owner.scene.talkWindows;
 
@@ -142,7 +183,7 @@ void Talk::Draw()
     i32 pitch = 0;
     i32 height = 0;
     owner.graphics.BackSize(pitch, height);
-    owner.largeFont.SetTarget(pitch / 2, height);
+    owner.largeFont.SetTarget(pitch / static_cast<i32>(sizeof(u16)), height);
 }
 
 void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 heldAdvance)
@@ -159,7 +200,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
     {
         const u16 low = at < text.size() ? static_cast<u8>(text[at]) : u16{0};
         const u16 high = at + 1 < text.size() ? static_cast<u8>(text[at + 1]) : u16{0};
-        return static_cast<u16>(low | high << 8);
+        return static_cast<u16>(low | high << CHAR_BIT);
     };
 
     auto byte = [&text](std::size_t at) -> char
@@ -172,14 +213,14 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
         if (at + 1 < text.size())
         {
             text[at] = static_cast<char>(value);
-            text[at + 1] = static_cast<char>(value >> 8);
+            text[at + 1] = static_cast<char>(value >> CHAR_BIT);
         }
     };
 
     std::size_t cursor = window.page;
     int color = window.color;
     int shade = window.shade;
-    int style = window.style & 0xFF;
+    int style = window.style & TalkWindow::StyleMask;
     int column = 0;
     std::size_t consumed = 0;
     int x = 1;
@@ -200,25 +241,25 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
 
         if ((window.flags & TalkWindow::Typed) != 0)
         {
-            if (window.counter < 8)
+            if (window.counter < kFadeFrames)
             {
-                alpha = 2 * window.counter;
+                alpha = kFadeStep * window.counter;
             }
         }
         else
         {
-            if (++window.openStep > 4)
+            if (++window.openStep > kOpenSteps)
             {
-                window.openStep = 4;
+                window.openStep = kOpenSteps;
             }
 
-            alpha = 4 * window.openStep;
+            alpha = kOpenStep * window.openStep;
         }
 
-        alpha &= 0xF;
+        alpha &= kAlphaMask;
         left = window.x;
         top = window.y;
-        right = window.x + window.width + 2 * unit;
+        right = window.x + window.width + kFramePadCells * unit;
         bottom = window.height + window.y;
     }
     else
@@ -230,56 +271,56 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
 
         if ((window.flags & TalkWindow::FixedPlace) != 0)
         {
-            if (++window.openStep > 4)
+            if (++window.openStep > kOpenSteps)
             {
-                window.openStep = 4;
+                window.openStep = kOpenSteps;
                 opening = false;
             }
 
             step = window.openStep;
-            x0 = window.fromX + step * ((window.x - window.fromX) / 4);
+            x0 = window.fromX + step * ((window.x - window.fromX) / kOpenSteps);
             y0 = window.fromY;
-            offsetY = step * ((window.y - window.fromY) / 4);
+            offsetY = step * ((window.y - window.fromY) / kOpenSteps);
         }
         else if (window.role != TalkWindow::NoRole)
         {
-            if (++window.openStep > 4)
+            if (++window.openStep > kOpenSteps)
             {
-                window.openStep = 4;
+                window.openStep = kOpenSteps;
                 opening = false;
             }
 
             const Role& speaker = state.roles[std::min<std::size_t>(window.role, GameState::Roles - 1)];
             step = window.openStep;
-            x0 = speaker.x + step * (field.cameraLeft + window.x - speaker.x) / 4 - field.cameraLeft;
+            x0 = speaker.x + step * (field.cameraLeft + window.x - speaker.x) / kOpenSteps - field.cameraLeft;
             y0 = speaker.y;
-            offsetY = step * (field.cameraTop + window.y - speaker.y) / 4 - field.cameraTop;
+            offsetY = step * (field.cameraTop + window.y - speaker.y) / kOpenSteps - field.cameraTop;
         }
         else
         {
-            if (++window.openStep > 4)
+            if (++window.openStep > kOpenSteps)
             {
-                window.openStep = 4;
+                window.openStep = kOpenSteps;
                 opening = false;
             }
 
             step = window.openStep;
-            x0 = window.fromX + step * (field.cameraLeft + window.x - window.fromX) / 4 - field.cameraLeft;
+            x0 = window.fromX + step * (field.cameraLeft + window.x - window.fromX) / kOpenSteps - field.cameraLeft;
             y0 = window.fromY;
-            offsetY = step * (field.cameraTop + window.y - window.fromY) / 4 - field.cameraTop;
+            offsetY = step * (field.cameraTop + window.y - window.fromY) / kOpenSteps - field.cameraTop;
         }
 
         left = x0;
-        top = y0 + offsetY - 4;
-        right = x0 + step * ((window.width + 2 * unit) / 4);
-        bottom = step * (window.height >> 2) + top + 8;
+        top = y0 + offsetY - kFrameAbove;
+        right = x0 + step * ((window.width + kFramePadCells * unit) / kOpenSteps);
+        bottom = step * (window.height / kOpenSteps) + top + kFrameBelow;
     }
 
     if ((window.flags & TalkWindow::Overlay) != 0)
     {
         opening = false;
         left = window.x;
-        right = window.x + 2 * unit + window.width;
+        right = window.x + kFramePadCells * unit + window.width;
         top = window.y;
         bottom = window.y + window.height;
         edge = window.x;
@@ -288,7 +329,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
     {
         edge = left;
         const int frame = window.frameAct != nullptr ? window.frameAct->frame : 0;
-        DrawWindowFrame(painter, owner.archive, frame, left, top, right, bottom, alpha, 0x10);
+        DrawWindowFrame(painter, owner.archive, frame, left, top, right, bottom, alpha, kFrameBorder);
     }
 
     painter.SetClipClamped(edge, top, edge + right, top + bottom);
@@ -297,7 +338,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
 
     if (this->skipAll != 0)
     {
-        window.delay = 0x8FFF;
+        window.delay = kSkipDelay;
         this->advance = 1;
         space.heldFrames = 1;
     }
@@ -309,16 +350,17 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
 
     if ((window.flags & TalkWindow::Skippable) != 0 && space.heldFrames == 1)
     {
-        window.flags |= static_cast<i32>(window.flags) < 0 ? TalkWindow::Skipping : TalkWindow::SkipRequested;
+        window.flags |=
+            (window.flags & TalkWindow::SkipRequested) != 0 ? TalkWindow::Skipping : TalkWindow::SkipRequested;
     }
 
     if ((window.flags & TalkWindow::Skipping) != 0)
     {
-        window.speed = 0xFFFF;
+        window.speed = kFastest;
 
         if ((window.flags & TalkWindow::SpeedSet) == 0)
         {
-            window.delay = 0xFFFF;
+            window.delay = kFastest;
             window.flags |= TalkWindow::SpeedSet;
         }
     }
@@ -352,14 +394,16 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
                 window.flags |= TalkWindow::Skipping;
             }
 
-            if (window.timeout == 0xFFFF)
+            if (window.timeout == TalkWindow::NoTimeout)
             {
                 if ((window.flags & TalkWindow::NoAdvance) != 0)
                 {
                     this->advance = heldAdvance;
                 }
             }
-            else if ((now - window.shownAt) / 0x64 > window.timeout && (window.flags & TalkWindow::Timed) != 0)
+            else if (
+                (now - window.shownAt) / kTenthMilliseconds > window.timeout && (window.flags & TalkWindow::Timed) != 0
+            )
             {
                 window.shownAt = 0;
                 timedOut = true;
@@ -383,7 +427,8 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
                 window.flags &= ~TalkWindow::Advanced;
             }
 
-            timedOut = window.timeout != 0xFFFF && (now - window.shownAt) / 0x64 > window.timeout &&
+            timedOut = window.timeout != TalkWindow::NoTimeout &&
+                       (now - window.shownAt) / kTenthMilliseconds > window.timeout &&
                        (window.flags & TalkWindow::Timed) != 0;
         }
 
@@ -396,13 +441,13 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
         if ((window.flags & TalkWindow::Fade) != 0)
         {
             this->advance = 0;
-            const u32 elapsed = (now - window.shownAt) / 0x64;
+            const u32 elapsed = (now - window.shownAt) / kTenthMilliseconds;
 
-            if (window.timeout == 0xFFFF)
+            if (window.timeout == TalkWindow::NoTimeout)
             {
-                if (elapsed < 0x10018)
+                if (elapsed < kUntimedHold)
                 {
-                    window.counter = 0x10;
+                    window.counter = kShownCounter;
                 }
             }
             else if (elapsed > window.timeout)
@@ -422,7 +467,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
     }
     else
     {
-        window.counter = 0x24;
+        window.counter = kTypingCounter;
 
         if ((window.flags & TalkWindow::Skippable) != 0)
         {
@@ -438,7 +483,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
 
     if ((window.flags & TalkWindow::Choices) != 0)
     {
-        window.counter = 0x20;
+        window.counter = kChoiceCounter;
 
         if (regions.regions.empty())
         {
@@ -452,14 +497,14 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
 
     auto flush = [&]()
     {
-        this->DrawColoredText(pixels, x * unit, 2 * line * unit, color, shade, shown, style);
+        this->DrawColoredText(pixels, x * unit, Talk::LineCells * line * unit, color, shade, shown, style);
     };
 
     auto savePage = [&]()
     {
         window.pageColor = static_cast<u16>(color);
         window.pageShade = static_cast<u16>(shade);
-        window.style = static_cast<u16>(window.style | style << 8);
+        window.style = static_cast<u16>(window.style | style << TalkWindow::SavedStyleShift);
     };
 
     bool done = opening;
@@ -481,12 +526,12 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
         {
             if ((window.flags & TalkWindow::Skippable) == 0)
             {
-                window.delay = 0x8FFF;
+                window.delay = kSkipDelay;
             }
 
             if (regions.regions.empty())
             {
-                if ((window.flags & TalkWindow::PageFull) != 0 && this->advance != 2)
+                if ((window.flags & TalkWindow::PageFull) != 0 && this->advance != Talk::AdvanceHoldsPage)
                 {
                     nextPage = true;
                     break;
@@ -512,7 +557,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
 
                         if ((window.flags & TalkWindow::Blocking) != 0)
                         {
-                            owner.controls.mouseSuppressed = 0xC;
+                            owner.controls.mouseSuppressed = kMouseRest;
                             const i32 kept = owner.scene.playerHold & Scene::HoldLocked;
                             const i32 locks = std::max((owner.scene.playerHold & ~Scene::HoldLocked) - 1, 0);
                             owner.scene.playerHold = kept | locks;
@@ -552,7 +597,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
 
         const u16 code = word(cursor);
 
-        if (code == kEnd)
+        if (code == kTextEnd)
         {
             flush();
 
@@ -565,7 +610,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
 
                 if ((window.flags & TalkWindow::Fade) != 0)
                 {
-                    window.counter = 0x10;
+                    window.counter = kShownCounter;
                 }
             }
 
@@ -585,7 +630,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
         {
             flush();
 
-            if (2 * unit * (line + 1) >= window.height)
+            if (Talk::LineCells * unit * (line + 1) >= window.height)
             {
                 window.flags |= TalkWindow::PageFull;
 
@@ -596,8 +641,8 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
 
                 if (word(cursor) == kNewLine)
                 {
-                    window.typed = consumed + 2 + window.page;
-                    consumed += 2;
+                    window.typed = consumed + kCodeBytes + window.page;
+                    consumed += kCodeBytes;
                 }
 
                 if (window.shownAt == 0)
@@ -621,8 +666,8 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
 
             if (code == kNewLine)
             {
-                cursor += 2;
-                consumed += 2;
+                cursor += kCodeBytes;
+                consumed += kCodeBytes;
             }
 
             if (firstLine == 0)
@@ -640,13 +685,13 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
                 {
                     flush();
                     window.page += static_cast<std::size_t>(firstLine);
-                    window.typed += 2;
+                    window.typed += kCodeBytes;
                     done = true;
                     break;
                 }
 
-                cursor += 2;
-                consumed += 2;
+                cursor += kCodeBytes;
+                consumed += kCodeBytes;
                 break;
 
             case kPage:
@@ -657,8 +702,8 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
                     regions.flags |= ClickRegions::TalkChoices;
                 }
 
-                window.typed = consumed + 2 + window.page;
-                consumed += 2;
+                window.typed = consumed + kCodeBytes + window.page;
+                consumed += kCodeBytes;
 
                 if (window.shownAt == 0)
                 {
@@ -677,10 +722,10 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
 
             case kSpeed:
             {
-                const auto digit = static_cast<u8>(byte(cursor + 2) - '0');
-                cursor += 3;
-                consumed += 3;
-                window.speed = static_cast<u16>(2 * (owner.config.textSpeed + digit));
+                const auto digit = static_cast<u8>(byte(cursor + kCodeBytes) - '0');
+                cursor += kCodeDigitBytes;
+                consumed += kCodeDigitBytes;
+                window.speed = static_cast<u16>(Talk::SpeedScale * (owner.config.textSpeed + digit));
 
                 if ((window.flags & TalkWindow::Skipping) != 0)
                 {
@@ -691,11 +736,11 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
             }
 
             case kColor:
-            case kShade:
+            case kSwappedShadeCode:
             case kStyle:
             {
-                cursor += 3;
-                consumed += 3;
+                cursor += kCodeDigitBytes;
+                consumed += kCodeDigitBytes;
                 flush();
                 const int digit = byte(cursor - 1) - '0';
                 x = after;
@@ -707,13 +752,13 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
                     color = digit;
                     shade = digit;
                 }
-                else if (code == kShade)
+                else if (code == kSwappedShadeCode)
                 {
                     shade = digit;
                 }
                 else
                 {
-                    style = digit == 0 ? 4 : digit == 1 ? 0x10 : digit;
+                    style = digit == 0 ? TextFont::BoldShadow : digit == 1 ? TextFont::BoldOutline : digit;
                 }
 
                 break;
@@ -725,7 +770,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
                 window.flags |= TalkWindow::Choices;
                 ++choiceIndex;
                 flush();
-                std::size_t at = cursor + 2;
+                std::size_t at = cursor + kCodeBytes;
                 std::string label;
 
                 while (byte(at) != '.' && at < text.size())
@@ -735,7 +780,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
                 }
 
                 count = static_cast<int>(label.size());
-                consumed += 2 + label.size() + 1;
+                consumed += kCodeBytes + label.size() + 1;
                 cursor = at + 1;
                 const int labelX = after * unit;
 
@@ -744,16 +789,23 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
                     owner.largeFont.DrawText(
                         pixels,
                         labelX,
-                        2 * line * unit,
+                        Talk::LineCells * line * unit,
                         label,
-                        static_cast<Pixel>(owner.textColors.primary[2]),
-                        0x84
+                        static_cast<Pixel>(owner.textColors.primary[kChosenColor]),
+                        TextFont::GradientUp | TextFont::BoldShadow
                     );
-                    this->marker.Draw(surface, painter, labelX, 2 * line * unit, count * unit, 2 * unit);
+                    this->marker.Draw(
+                        surface,
+                        painter,
+                        labelX,
+                        Talk::LineCells * line * unit,
+                        count * unit,
+                        Talk::LineCells * unit
+                    );
                 }
                 else
                 {
-                    this->DrawColoredText(pixels, labelX, 2 * line * unit, color, shade, label, style);
+                    this->DrawColoredText(pixels, labelX, Talk::LineCells * line * unit, color, shade, label, style);
                 }
 
                 owner.largeFont.SetBackground(TextFont::NoBackground);
@@ -766,9 +818,9 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
                     ClickRegion region;
                     region.unk00 = 1;
                     region.left = static_cast<u16>(window.x + unit * (x - count));
-                    region.top = static_cast<u16>(window.y + 2 * line * unit);
+                    region.top = static_cast<u16>(window.y + Talk::LineCells * line * unit);
                     region.right = static_cast<u16>(region.left + count * unit);
-                    region.bottom = static_cast<u16>(region.top + 2 * unit);
+                    region.bottom = static_cast<u16>(region.top + Talk::LineCells * unit);
                     regions.regions.push_back(region);
                 }
 
@@ -779,7 +831,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
             case kSound:
             case kSoundSeen:
             {
-                std::size_t at = cursor + 2;
+                std::size_t at = cursor + kCodeBytes;
                 std::string number;
 
                 while (byte(at) != '.' && at < text.size())
@@ -805,9 +857,9 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
             case kKeySeen:
                 window.speed = 0;
                 window.delay = 0;
-                cursor += 2;
+                cursor += kCodeBytes;
                 window.flags |= TalkWindow::Skipping;
-                consumed += 2;
+                consumed += kCodeBytes;
                 break;
 
             default:
@@ -845,7 +897,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
         window.flags &= ~(TalkWindow::PageFull | TalkWindow::Advanced | TalkWindow::Instant);
         window.color = window.pageColor;
         window.shade = window.pageShade;
-        window.style = static_cast<u16>(window.style >> 8);
+        window.style = static_cast<u16>(window.style >> TalkWindow::SavedStyleShift);
     }
 
     if (!opening)
@@ -855,13 +907,20 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
 
     painter.SetSource(pixels);
 
-    if (pixels != nullptr && pixels[0] == 0xFFFF)
+    // The first pixel is the keyed colour of the surface: a white one is made off-white so white stays visible.
+    if (pixels != nullptr && pixels[0] == kWhite)
     {
-        pixels[0] = 0xFFFE;
+        pixels[0] = kOffWhite;
     }
 
     painter.Options().alpha = alpha;
-    painter.DrawPicture(window.x, window.y, 0x28 * unit, 0xB * unit, alpha != 0 ? 0x14 : 4);
+    painter.DrawPicture(
+        window.x,
+        window.y,
+        Talk::SurfaceColumns * unit,
+        Talk::SurfaceRows * unit,
+        alpha != 0 ? Painter::RawTranslucent : Painter::RawKeyed
+    );
     owner.graphics.ClearSurface(surface);
 
     if ((window.flags & (TalkWindow::PageFull | TalkWindow::Typed)) != 0 &&
@@ -874,7 +933,13 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
         if (picture != nullptr)
         {
             painter.SetSource(picture->data.data());
-            painter.DrawPicture(right - mark.x - 4, bottom - mark.y - 8, picture->width, picture->height, 0);
+            painter.DrawPicture(
+                right - mark.x - kMarkRight,
+                bottom - mark.y - kMarkBottom,
+                picture->width,
+                picture->height,
+                Painter::Copy
+            );
         }
     }
 
@@ -882,26 +947,27 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
     {
         const auto length = static_cast<int>(window.name.size());
         const int pitch = painter.ScreenPitch();
-        const std::span<u16> screen(owner.drawSurface, static_cast<std::size_t>(pitch) * 0x1E0);
+        const std::span<u16> screen(owner.drawSurface, static_cast<std::size_t>(pitch) * Display::Height);
 
-        for (int row = 0; row < 0xF; ++row)
+        for (int row = 0; row < kPlateShadeRows; ++row)
         {
-            const int at = edge + pitch * (top + row - 0x10) + 0x10;
+            const int at = edge + pitch * (top + row - kPlateShadeAbove) + kPlateShadeLeft;
 
-            for (int pair = 0; pair < 8 * length + 0x1C; ++pair)
+            for (int pair = 0; pair < kPlateByteWidth * length + kPlateShadePad; ++pair)
             {
-                const int first = at + 2 * pair;
+                const int first = at + kPixelsPerPair * pair;
 
                 if (first < 0 || static_cast<std::size_t>(first) + 1 >= screen.size())
                 {
                     continue;
                 }
 
+                constexpr int kPixelBits = CHAR_BIT * sizeof(u16);
                 u32 value = screen[static_cast<std::size_t>(first)] |
-                            static_cast<u32>(screen[static_cast<std::size_t>(first) + 1]) << 16;
+                            static_cast<u32>(screen[static_cast<std::size_t>(first) + 1]) << kPixelBits;
                 painter.BlendPairsWithColor(std::span<u32>(&value, 1), 0);
                 screen[static_cast<std::size_t>(first)] = static_cast<u16>(value);
-                screen[static_cast<std::size_t>(first) + 1] = static_cast<u16>(value >> 16);
+                screen[static_cast<std::size_t>(first) + 1] = static_cast<u16>(value >> kPixelBits);
             }
         }
 
@@ -910,21 +976,21 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
             painter,
             owner.archive,
             frame,
-            edge + 6,
-            top - 0x1B,
-            length + edge + 8 * length + 0x10,
-            top - 8,
+            edge + kPlateLeft,
+            top - kPlateTop,
+            length + edge + kPlateByteWidth * length + kPlateRight,
+            top - kPlateBottom,
             alpha,
-            4
+            kPlateBorder
         );
-        owner.mediumFont.SetShadow(static_cast<Pixel>(owner.textColors.secondary[4]));
+        owner.mediumFont.SetShadow(static_cast<Pixel>(owner.textColors.secondary[kPlateColor]));
         owner.mediumFont.DrawText(
             owner.drawSurface,
-            edge + 0xC,
-            top - 0x1A,
+            edge + kPlateTextX,
+            top - kPlateTextY,
             window.name,
-            static_cast<Pixel>(owner.textColors.primary[4]),
-            4
+            static_cast<Pixel>(owner.textColors.primary[kPlateColor]),
+            TextFont::BoldShadow
         );
         owner.mediumFont.SetShadow(0);
     }
@@ -947,10 +1013,10 @@ void Talk::HandlePointer()
     Role& player = state.roles[static_cast<std::size_t>(state.playerRole)];
     const int cameraLeft = field.cameraLeft;
     const int cameraTop = field.cameraTop;
-    u32 found = 0xFFFFFFFF;
+    u32 found = kNoIndex;
     bool regionsAllowed = true;
 
-    if (state.leader.id == Role::NoId && (player.act.action == 0 || player.act.action == 0x34))
+    if (state.leader.id == Role::NoId && (player.act.action == 0 || player.act.action == kIdleAction))
     {
         for (found = 1; found < static_cast<u32>(state.roleCount); ++found)
         {
@@ -975,11 +1041,11 @@ void Talk::HandlePointer()
 
         if (found < static_cast<u32>(state.roleCount) && (state.roles[found].flags & Role::NoTalkPointer) == 0)
         {
-            cursor = 9;
+            cursor = Scene::TalkPointer;
 
             if ((state.roles[found].flags & Role::Examine) != 0)
             {
-                cursor = 0xA;
+                cursor = Scene::ExaminePointer;
                 regionsAllowed = false;
             }
         }
@@ -987,19 +1053,19 @@ void Talk::HandlePointer()
 
     auto faceAway = [](int direction)
     {
-        return (direction & 0xFFFE) + ((direction - 1) & 1);
+        return (direction & ~1) + ((direction - 1) & 1);  // the opposite direction of its pair
     };
 
     auto standing = [&player]()
     {
-        return player.act.action == 0x34 || player.act.action == 0;
+        return player.act.action == kIdleAction || player.act.action == 0;
     };
 
     if (!state.GameFlag(GameState::NoChoicePointer) && !state.clickRegions.regions.empty() && standing())
     {
         ClickRegion* region = nullptr;
         const int index = state.clickRegions.Find(state.pointerX, state.pointerY, region);
-        cursor = 0xD;
+        cursor = Scene::ChoicePointer;
 
         if (region != nullptr)
         {
@@ -1020,21 +1086,22 @@ void Talk::HandlePointer()
         return;
     }
 
-    if (found == 0xFFFFFFFF || found == static_cast<u32>(state.roleCount) ||
+    if (found == kNoIndex || found == static_cast<u32>(state.roleCount) ||
         found == static_cast<u32>(state.playerRole) || state.leader.id != Role::NoId ||
         state.roles[found].talkState != Role::NoTalk || left.press == 0 || left.heldFrames != 1)
     {
         const std::vector<u32>& blocks = state.map.blocks;
-        const auto cellX = static_cast<u32>(cameraLeft + state.pointerX) >> 4;
-        const auto cellY = static_cast<u32>(cameraTop + state.pointerY) >> 4;
+        const auto cellX = static_cast<u32>(cameraLeft + state.pointerX) >> MapHeader::TileShift;
+        const auto cellY = static_cast<u32>(cameraTop + state.pointerY) >> MapHeader::TileShift;
         const std::size_t cell = cellX + static_cast<std::size_t>(state.map.width) * cellY;
-        const u8 regionId = cell < blocks.size() ? static_cast<u8>(blocks[cell]) : u8{0};
+        const u8 regionId = cell < blocks.size() ? static_cast<u8>(blocks[cell] & MapHeader::RegionMask) : u8{0};
         MapRegion* region = nullptr;
 
         if (state.leader.id == Role::NoId && regionsAllowed && standing() && regionId != 0 &&
-            (region = owner.field.FindRegion(regionId)) != nullptr && state.GameFlag(region->flag & 0xFFFF))
+            (region = owner.field.FindRegion(regionId)) != nullptr &&
+            state.GameFlag(region->flag & MapRegion::ClickFlagMask))
         {
-            cursor = 0xB;
+            cursor = Scene::RegionPointer;
 
             if (left.press == 0 || left.heldFrames != 1)
             {
@@ -1045,10 +1112,10 @@ void Talk::HandlePointer()
             leader.unk14 = 0;
             leader.unk20 = 0;
             leader.flags = 0;
-            leader.event = static_cast<u16>(region->event & 0x7FFF);
-            leader.x = cameraLeft + (state.pointerX & ~0xF);
-            leader.id = 0xFFFD;
-            leader.y = cameraTop + (state.pointerY & ~0xF);
+            leader.event = static_cast<u16>(region->event & MapRegion::EventMask);
+            leader.x = cameraLeft + (state.pointerX & ~MapHeader::TileFraction);
+            leader.id = TalkWindow::NoRole;
+            leader.y = cameraTop + (state.pointerY & ~MapHeader::TileFraction);
             const int direction = state.DirectionToPlayer(cameraLeft + state.pointerX, cameraTop + state.pointerY);
             player.act.savedDirection = player.act.direction;
             player.act.savedAction = player.act.action;
@@ -1069,37 +1136,38 @@ void Talk::HandlePointer()
         const int angle = AngleBetween(
             state.pointerX,
             state.pointerY,
-            player.x + 8 * player.act.width - cameraLeft,
-            player.y + 8 * player.act.height - cameraTop,
+            player.x + MapHeader::TileSize / 2 * player.act.width - cameraLeft,
+            player.y + MapHeader::TileSize / 2 * player.act.height - cameraTop,
             distance
         );
         const int direction = AngleToDirection(angle);
 
-        if (cursor == 0xD)
+        if (cursor == Scene::ChoicePointer)
         {
             cursor = direction;
         }
 
         const ButtonState& right = controls.At(Button::MouseRight);
 
-        if (((player.x | player.y) & 0xF) == 0 && owner.scene.playerHold == 0 && right.press != 0 && distance >= 0x10)
+        if (((player.x | player.y) & MapHeader::TileFraction) == 0 && owner.scene.playerHold == 0 && right.press != 0 &&
+            distance >= MapHeader::TileSize)
         {
-            if (direction == 0 || direction == 4 || direction == 7)
+            if (direction == ActState::Up || direction == ActState::UpLeft || direction == ActState::UpRight)
             {
                 controls.At(Button::Up).press = right.press;
             }
 
-            if (direction == 1 || direction == 5 || direction == 6)
+            if (direction == ActState::Down || direction == ActState::DownRight || direction == ActState::DownLeft)
             {
                 controls.At(Button::Down).press = right.press;
             }
 
-            if (direction == 2 || direction == 4 || direction == 6)
+            if (direction == ActState::Left || direction == ActState::UpLeft || direction == ActState::DownLeft)
             {
                 controls.At(Button::Left).press = right.press;
             }
 
-            if (direction == 3 || direction == 5 || direction == 7)
+            if (direction == ActState::Right || direction == ActState::DownRight || direction == ActState::UpRight)
             {
                 controls.At(Button::Right).press = right.press;
             }
@@ -1116,7 +1184,10 @@ void Talk::HandlePointer()
     }
 
     Role& target = state.roles[found];
-    const int direction = state.DirectionToPlayer(target.x + 8 * target.act.width, target.y + 8 * target.act.height);
+    const int direction = state.DirectionToPlayer(
+        target.x + MapHeader::TileSize / 2 * target.act.width,
+        target.y + MapHeader::TileSize / 2 * target.act.height
+    );
 
     if ((target.flags & Role::FacesTalker) != 0)
     {
