@@ -121,4 +121,7 @@ struct ActState
     i32 mask = 0;           // +0x94 'MS'
 };
 
+// Back to the start of the script: the step position, delays, speed and hold cleared.
+void ResetPlayback(ActState& state);
+
 }  // namespace swd3
