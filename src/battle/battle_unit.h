@@ -95,6 +95,9 @@ public:
     int EffectFlag3();
     std::uint8_t SetDefeatPose(std::uint8_t pose);
     std::uint8_t SetDefeatPoseFixed(std::uint8_t pose);
+    void SetDamageDigits(int amount);
+    bool ApplyPendingDamage();
+    void ExpireEffects(int clearAll);
 
     template <typename T>
     T& at(std::intptr_t offset) {

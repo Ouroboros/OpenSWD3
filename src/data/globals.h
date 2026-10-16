@@ -3058,8 +3058,8 @@ struct Globals {
     std::uint8_t pad_4A7E0F[0x1];
     std::int16_t word_4A7E10;  // 0x004A7E10
     std::uint8_t pad_4A7E12[0xE];
-    char aS_8[2];  // 0x004A7E20
-    std::uint8_t pad_4A7E22[0x12];
+    char resistAllEndText[19];  // 0x004A7E20 "%s抵抗所有攻擊解除"
+    std::uint8_t pad_4A7E33[0x1];
     char aS_14[2];  // 0x004A7E34
     std::uint8_t pad_4A7E36[0x12];
     char aS_13[2];  // 0x004A7E48
@@ -3088,48 +3088,48 @@ struct Globals {
     std::uint8_t pad_4A7F16[0x12];
     char aS_29[2];  // 0x004A7F28
     std::uint8_t pad_4A7F2A[0x12];
-    char aS_28[2];  // 0x004A7F3C
-    std::uint8_t pad_4A7F3E[0x16];
-    char aS_27[2];  // 0x004A7F54
-    std::uint8_t pad_4A7F56[0x12];
-    char aS_26[2];  // 0x004A7F68
-    std::uint8_t pad_4A7F6A[0x12];
-    char aS_43[2];  // 0x004A7F7C
-    std::uint8_t pad_4A7F7E[0x12];
-    char aS_42[2];  // 0x004A7F90
-    std::uint8_t pad_4A7F92[0x12];
-    char aS_41[2];  // 0x004A7FA4
-    std::uint8_t pad_4A7FA6[0x12];
-    char aS_40[2];  // 0x004A7FB8
-    std::uint8_t pad_4A7FBA[0x12];
-    char aS_39[2];  // 0x004A7FCC
-    std::uint8_t pad_4A7FCE[0x12];
-    char aS_38[2];  // 0x004A7FE0
-    std::uint8_t pad_4A7FE2[0x12];
-    char aS_25[2];  // 0x004A7FF4
-    std::uint8_t pad_4A7FF6[0x12];
-    char aS_24[2];  // 0x004A8008
-    std::uint8_t pad_4A800A[0x16];
-    char aS_23[2];  // 0x004A8020
-    std::uint8_t pad_4A8022[0x16];
-    char aS_22[2];  // 0x004A8038
-    std::uint8_t pad_4A803A[0x16];
-    char aS_37[2];  // 0x004A8050
-    std::uint8_t pad_4A8052[0xE];
-    char aS_21[2];  // 0x004A8060
-    std::uint8_t pad_4A8062[0xE];
-    char aS_20[2];  // 0x004A8070
-    std::uint8_t pad_4A8072[0x16];
-    char aS_19[2];  // 0x004A8088
-    std::uint8_t pad_4A808A[0x16];
-    char aS_18[2];  // 0x004A80A0
-    std::uint8_t pad_4A80A2[0x16];
-    char aS_17[2];  // 0x004A80B8
-    std::uint8_t pad_4A80BA[0x12];
-    char aS_16[2];  // 0x004A80CC
-    std::uint8_t pad_4A80CE[0x16];
-    char aS_15[2];  // 0x004A80E4
-    std::uint8_t pad_4A80E6[0x16];
+    char resistPhysicalEndText[21];  // 0x004A7F3C "%s抵抗物理系效果解除"
+    std::uint8_t pad_4A7F51[0x3];
+    char resistThunderEndText[19];  // 0x004A7F54 "%s抵抗電系效果解除"
+    std::uint8_t pad_4A7F67[0x1];
+    char resistDarkEndText[19];  // 0x004A7F68 "%s抵抗暗系效果解除"
+    std::uint8_t pad_4A7F7B[0x1];
+    char resistLightEndText[19];  // 0x004A7F7C "%s抵抗光系效果解除"
+    std::uint8_t pad_4A7F8F[0x1];
+    char resistPoisonEndText[19];  // 0x004A7F90 "%s抵抗毒系效果解除"
+    std::uint8_t pad_4A7FA3[0x1];
+    char resistEarthEndText[19];  // 0x004A7FA4 "%s抵抗土系效果解除"
+    std::uint8_t pad_4A7FB7[0x1];
+    char resistWindEndText[19];  // 0x004A7FB8 "%s抵抗風系效果解除"
+    std::uint8_t pad_4A7FCB[0x1];
+    char resistIceEndText[19];  // 0x004A7FCC "%s抵抗冰系效果解除"
+    std::uint8_t pad_4A7FDF[0x1];
+    char resistFireEndText[19];  // 0x004A7FE0 "%s抵抗火系效果解除"
+    std::uint8_t pad_4A7FF3[0x1];
+    char speedUpEndText[19];  // 0x004A7FF4 "%s增加速度效果解除"
+    std::uint8_t pad_4A8007[0x1];
+    char attackUpEndText[21];  // 0x004A8008 "%s增加攻擊力效果解除"
+    std::uint8_t pad_4A801D[0x3];
+    char defenseUpEndText[21];  // 0x004A8020 "%s增加防禦力效果解除"
+    std::uint8_t pad_4A8035[0x3];
+    char attackDownEndText[21];  // 0x004A8038 "%s降低攻擊力效果解除"
+    std::uint8_t pad_4A804D[0x3];
+    char invisibleEndText[15];  // 0x004A8050 "%s隱形效果解除"
+    std::uint8_t pad_4A805F[0x1];
+    char barrierEndText[15];  // 0x004A8060 "%s護罩效果解除"
+    std::uint8_t pad_4A806F[0x1];
+    char iceAttackUpEndText[23];  // 0x004A8070 "%s增加冰系攻擊效果解除"
+    std::uint8_t pad_4A8087[0x1];
+    char fireAttackUpEndText[23];  // 0x004A8088 "%s增加火系攻擊效果解除"
+    std::uint8_t pad_4A809F[0x1];
+    char lightAttackUpEndText[23];  // 0x004A80A0 "%s增加光系攻擊效果解除"
+    std::uint8_t pad_4A80B7[0x1];
+    char speedDownEndText[19];  // 0x004A80B8 "%s降低速度效果解除"
+    std::uint8_t pad_4A80CB[0x1];
+    char darkAttackUpEndText[23];  // 0x004A80CC "%s增加暗系攻擊效果解除"
+    std::uint8_t pad_4A80E3[0x1];
+    char defenseDownEndText[21];  // 0x004A80E4 "%s降低防禦力效果解除"
+    std::uint8_t pad_4A80F9[0x3];
     char aBinkcopytobuff[22];  // 0x004A80FC
     std::uint8_t pad_4A8112[0x2];
     char aFail[5];  // 0x004A8114
@@ -5489,7 +5489,7 @@ struct Globals {
     std::uint8_t evadeStreak;  // 0x0053D028 failed evasion rolls in a row
     std::uint8_t evadeJustSucceeded;  // 0x0053D029
     std::uint8_t pad_53D02A[0x2];
-    std::uint8_t byte_53D02C[64];  // 0x0053D02C
+    char battleText[64];  // 0x0053D02C formatted text of the battle messages
     std::int32_t dword_53D06C;  // 0x0053D06C
     std::int32_t dword_53D070;  // 0x0053D070
     std::uint8_t pad_53D074[0x9C];
@@ -5667,6 +5667,28 @@ static_assert(offsetof(Globals, nothingGainedText) == 0xEB14);
 static_assert(offsetof(Globals, craftFailedText) == 0xEB24);
 static_assert(offsetof(Globals, craftGotText) == 0xEB30);
 static_assert(offsetof(Globals, craftSuccessText) == 0xEB3C);
+static_assert(offsetof(Globals, resistAllEndText) == 0xEE20);
+static_assert(offsetof(Globals, resistPhysicalEndText) == 0xEF3C);
+static_assert(offsetof(Globals, resistThunderEndText) == 0xEF54);
+static_assert(offsetof(Globals, resistDarkEndText) == 0xEF68);
+static_assert(offsetof(Globals, resistLightEndText) == 0xEF7C);
+static_assert(offsetof(Globals, resistPoisonEndText) == 0xEF90);
+static_assert(offsetof(Globals, resistEarthEndText) == 0xEFA4);
+static_assert(offsetof(Globals, resistWindEndText) == 0xEFB8);
+static_assert(offsetof(Globals, resistIceEndText) == 0xEFCC);
+static_assert(offsetof(Globals, resistFireEndText) == 0xEFE0);
+static_assert(offsetof(Globals, speedUpEndText) == 0xEFF4);
+static_assert(offsetof(Globals, attackUpEndText) == 0xF008);
+static_assert(offsetof(Globals, defenseUpEndText) == 0xF020);
+static_assert(offsetof(Globals, attackDownEndText) == 0xF038);
+static_assert(offsetof(Globals, invisibleEndText) == 0xF050);
+static_assert(offsetof(Globals, barrierEndText) == 0xF060);
+static_assert(offsetof(Globals, iceAttackUpEndText) == 0xF070);
+static_assert(offsetof(Globals, fireAttackUpEndText) == 0xF088);
+static_assert(offsetof(Globals, lightAttackUpEndText) == 0xF0A0);
+static_assert(offsetof(Globals, speedDownEndText) == 0xF0B8);
+static_assert(offsetof(Globals, darkAttackUpEndText) == 0xF0CC);
+static_assert(offsetof(Globals, defenseDownEndText) == 0xF0E4);
 static_assert(offsetof(Globals, file_4A9380) == 0x10380);
 static_assert(offsetof(Globals, gameDir) == 0x104BC);
 static_assert(offsetof(Globals, file_4A98C8) == 0x108C8);
@@ -5875,6 +5897,7 @@ static_assert(offsetof(Globals, panelHeight) == 0xA34BC);
 static_assert(offsetof(Globals, evadeDisabled) == 0xA3EB8);
 static_assert(offsetof(Globals, evadeStreak) == 0xA4028);
 static_assert(offsetof(Globals, evadeJustSucceeded) == 0xA4029);
+static_assert(offsetof(Globals, battleText) == 0xA402C);
 static_assert(offsetof(Globals, waveFormat) == 0xA4110);
 #if defined(__clang__)
 #pragma clang diagnostic pop

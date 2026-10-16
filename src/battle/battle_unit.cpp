@@ -8,6 +8,8 @@
 #include "res/act_anim.h"
 #include "res/tsw.h"
 #include "audio/audio.h"
+#include "battle/battle_message.h"
+#include "swd3/w32.h"
 #include "draw/draw.h"
 
 namespace swd3 {
@@ -1152,6 +1154,232 @@ uint8_t BattleUnit::SetDefeatPoseFixed(uint8_t pose) {
     at<uint8_t>(0x2A95) = pose;
     at<uint8_t>(0x2A94) = pose;
     return pose;
+}
+
+namespace {
+
+void announce(const char* format, const char* name, int flags) {
+    w32::wsprintfA(G.battleText, format, name);
+    AddBattleMessage(0x118, 0xA, 0x28, G.battleText, flags);
+}
+
+void announceWithSound(const char* format, const char* name, int flags) {
+    announce(format, name, flags);
+    PlaySound(0x117, G.soundVolume);
+}
+
+}  // namespace
+
+// swd32.exe 0x0047D640: splits `amount` into the four digits of the current target slot (a set bit 15 negates it).
+// While the barrier status (0x2000000) is up against act 0x235E, a non-negated hit only counts the barrier down
+// and ends it with "抵抗所有攻擊解除".
+void BattleUnit::SetDamageDigits(int amount) {
+    if ((at<uint8_t>(0x26D1) & 0x80) != 0) {
+        return;
+    }
+    const uint16_t slot = at<uint16_t>(0x2A7C);
+    if (at<uint16_t>(0x29C4 + 2 * slot) == 0x235E && (at<uint32_t>(0x26C0) & 0x2000000) != 0 &&
+        (amount & 0x8000) == 0) {
+        if (--at<uint16_t>(0x2A90) != 0) {
+            return;
+        }
+        announceWithSound(G.resistAllEndText, at<const char*>(0x2560), kMessageBlackBar | kMessageCentered);
+        at<uint32_t>(0x26C0) &= ~0x2000000u;
+        return;
+    }
+    if ((amount & 0x8000) != 0) {
+        amount = -amount;
+    }
+    at<int16_t>(0x2724 + 8 * slot) = 0;
+    at<int16_t>(0x2724 + 8 * at<uint16_t>(0x2A7C)) = static_cast<int16_t>(amount / 1000);
+    uint8_t* digits = raw(8 * at<uint16_t>(0x2A7C));
+    amount -= 1000 * mem::s16(digits, 0x2724);
+    mem::put16(digits, 0x2726, static_cast<uint16_t>(amount / 100));
+    digits = raw(8 * at<uint16_t>(0x2A7C));
+    amount -= 100 * mem::s16(digits, 0x2726);
+    mem::put16(digits, 0x2728, static_cast<uint16_t>(amount / 10));
+    digits = raw(8 * at<uint16_t>(0x2A7C));
+    mem::put16(digits, 0x272A, static_cast<uint16_t>(amount - static_cast<uint16_t>(mem::u16(digits, 0x2728) * 10)));
+}
+
+// swd32.exe 0x0047E5C0: applies the pending damage at +0x2A84 (bit 15: healing); true when the unit fell
+bool BattleUnit::ApplyPendingDamage() {
+    if (at<uint16_t>(0x2A84) == 0) {
+        return false;
+    }
+    PushTarget(0x235E);
+    if ((at<uint16_t>(0x2A84) & 0x8000) != 0) {
+        PushTarget(0x246F);
+    }
+    SetDamageDigits(at<int16_t>(0x2A84));
+    StepTargetCount(1);
+    if ((at<uint16_t>(0x2A84) & 0x8000) == 0) {
+        RaiseFlag26B8();
+    }
+    const int result = Damage(at<int16_t>(0x2A84), 0, 0);
+    at<uint16_t>(0x2A84) = 0;
+    return result == 1;
+}
+
+// swd32.exe 0x0047E950: with `clearAll` 0, every effect whose turns (+0xA2) ran out loses its status bit and is
+// announced, then freed. The list must not be empty, and the effect following a freed one is skipped. Otherwise
+// all effects are freed and the status cleared. The return value is unused by callers.
+void BattleUnit::ExpireEffects(int clearAll) {
+    if (clearAll != 0) {
+        uint8_t* node = at<uint8_t*>(0x2584);
+        at<uint16_t>(0x26D0) &= 0xFEBD;
+        at<uint32_t>(0x26C0) = 0;
+        at<uint8_t*>(0x2584) = nullptr;
+        while (node != nullptr) {
+            uint8_t* next = mem::ptr<uint8_t>(node, 0);
+            crt::free(node);
+            node = next;
+        }
+        return;
+    }
+    const char* name = at<const char*>(0x2560);
+    uint32_t& status = at<uint32_t>(0x26C0);
+    uint16_t& marks = at<uint16_t>(0x26D0);
+    auto** link = reinterpret_cast<uint8_t**>(raw(0x2584));
+    for (;;) {
+        uint8_t* node = *link;
+        if (mem::u16(node, 0xA2) == 0) {
+            bool clearMark40 = false;
+            switch (mem::u32(node, 0x9C)) {
+                case 1:
+                    status &= ~1u;
+                    clearMark40 = (status & 0xC) == 0;
+                    at<int32_t>(0x2AD0) = 0;
+                    break;
+                case 2:
+                    marks &= ~2;
+                    status &= ~2u;
+                    break;
+                case 4:
+                    status &= ~4u;
+                    clearMark40 = (status & 9) == 0;
+                    at<int32_t>(0x2AD0) = 0;
+                    break;
+                case 8:
+                    status &= ~8u;
+                    clearMark40 = (status & 5) == 0;
+                    at<int32_t>(0x2AD0) = 0;
+                    break;
+                case 0x10:
+                    marks &= ~0x100;
+                    status &= ~0x10u;
+                    break;
+                case 0x20:
+                    status &= ~0x20u;
+                    break;
+                case 0x40:
+                    status &= ~0x40u;
+                    break;
+                case 0x80:
+                    status &= ~0x80u;
+                    break;
+                case 0x100:
+                    status &= ~0x100u;
+                    break;
+                case 0x200:
+                    status &= ~0x200u;
+                    if (at<int32_t>(0x2AA0) == 1) {
+                        uint8_t* stats = at<uint8_t*>(0);
+                        for (const std::intptr_t offset : {0x26, 0x28, 0x16, 0x14}) {
+                            const uint16_t value = mem::u16(stats, offset);
+                            mem::put16(stats, offset, static_cast<uint16_t>(value + 10 * value / 100));
+                        }
+                    }
+                    break;
+                case 0x1000:
+                    status &= ~0x1000u;
+                    break;
+                case 0x80000:
+                    announceWithSound(G.defenseDownEndText, name, kMessageBlackBar | kMessageCentered);
+                    status &= ~0x100000u;
+                    break;
+                case 0x100000:
+                    announceWithSound(G.speedDownEndText, name, kMessageBlackBar | kMessageCentered);
+                    status &= ~0x8000000u;
+                    break;
+                case 0x200000:
+                    announceWithSound(G.darkAttackUpEndText, name, kMessageBlackBar | kMessageCentered);
+                    break;
+                case 0x400000:
+                    announceWithSound(G.lightAttackUpEndText, name, kMessageBlackBar | kMessageCentered);
+                    break;
+                case 0x800000:
+                    announceWithSound(G.iceAttackUpEndText, name, kMessageFrame | kMessageCentered);
+                    break;
+                case 0x1000000:
+                    announceWithSound(G.fireAttackUpEndText, name, kMessageFrame | kMessageCentered);
+                    break;
+                case 0x2000000:
+                    announceWithSound(G.barrierEndText, name, kMessageBlackBar | kMessageCentered);
+                    status &= ~0x4000000u;
+                    break;
+                case 0x8000000:
+                    announceWithSound(G.attackDownEndText, name, kMessageBlackBar | kMessageCentered);
+                    status &= ~0x1000000u;
+                    at<uint32_t>(0x26CC) &= ~0x100u;
+                    break;
+                case 0x10000000:
+                    at<uint8_t>(0x26D1) |= 4;
+                    status &= 0x7FFFFFFF;
+                    at<uint16_t>(0x2958) = 0;
+                    if (at<int32_t>(0x2AA0) != 0) {
+                        announceWithSound(G.invisibleEndText, name, kMessageBlackBar | kMessageCentered);
+                    }
+                    break;
+                case 0x20000000:
+                    announceWithSound(G.defenseUpEndText, name, kMessageBlackBar | kMessageCentered);
+                    status &= ~0x40000000u;
+                    break;
+                case 0x40000000:
+                    announceWithSound(G.speedUpEndText, name, kMessageBlackBar | kMessageCentered);
+                    status &= ~0x20000000u;
+                    break;
+                case 0x80000000:
+                    announceWithSound(G.attackUpEndText, name, kMessageBlackBar | kMessageCentered);
+                    status &= ~0x10000000u;
+                    break;
+                default:
+                    break;
+            }
+            if (clearMark40) {
+                marks &= ~0x40;
+            }
+            const char* resistEnd = nullptr;
+            switch (mem::u16(node, 0xA4)) {
+                case 1: resistEnd = G.resistFireEndText; break;
+                case 2: resistEnd = G.resistIceEndText; break;
+                case 3: resistEnd = G.resistWindEndText; break;
+                case 4: resistEnd = G.resistEarthEndText; break;
+                case 5: resistEnd = G.resistPoisonEndText; break;
+                case 6: resistEnd = G.resistLightEndText; break;
+                case 7: resistEnd = G.resistDarkEndText; break;
+                case 8: resistEnd = G.resistThunderEndText; break;
+                case 9: resistEnd = G.resistPhysicalEndText; break;
+                default: break;
+            }
+            if (resistEnd != nullptr) {
+                announceWithSound(resistEnd, name, kMessageBlackBar | kMessageCentered);
+            }
+            uint8_t* next = mem::ptr<uint8_t>(*link, 0);
+            if (next == nullptr) {
+                crt::free(*link);
+                *link = nullptr;
+                return;
+            }
+            crt::free(*link);
+            *link = next;
+        }
+        uint8_t* current = *link;
+        if (mem::ptr<uint8_t>(current, 0) == nullptr) {
+            return;
+        }
+        link = reinterpret_cast<uint8_t**>(current);
+    }
 }
 
 }  // namespace swd3
