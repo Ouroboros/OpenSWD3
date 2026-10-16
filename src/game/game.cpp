@@ -43,9 +43,6 @@ constexpr std::u8string_view kErrorTitle = u8"SWD3";
 constexpr u32 kStopVideoButtons = kLeftButton | kRightButton | kControlKey | kMiddleButton;
 
 // The defaults of the settings (before Env.dat).
-constexpr u8 kDefaultVolume = 6;
-constexpr i32 kDefaultCacheMegabytes = 0x3C;
-constexpr i32 kDefaultTextSpeed = 2;
 constexpr i32 kDefaultBattleSpeed = 0xB;
 constexpr u64 kTileCacheShare = 6;  // a sixth of the physical memory
 constexpr int kMegabyteShift = 20;
@@ -366,10 +363,10 @@ void Game::InitInstall()
 {
     Config& settings = this->config;
     settings.installType = Config::FullInstall;
-    settings.soundVolume = kDefaultVolume;
-    settings.musicVolume = kDefaultVolume;
-    settings.cacheSize = kDefaultCacheMegabytes;
-    settings.textSpeed = kDefaultTextSpeed;
+    settings.soundVolume = Config::DefaultVolume;
+    settings.musicVolume = Config::DefaultVolume;
+    settings.cacheSize = Config::DefaultCacheMegabytes;
+    settings.textSpeed = Config::DefaultTextSpeed;
     settings.battleSpeed = kDefaultBattleSpeed;
     this->cdDriveCount = this->FindCdDrives(settings.cdRoot);
     settings.Load(this->unknown14, this->effectsOff);

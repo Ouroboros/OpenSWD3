@@ -1,5 +1,7 @@
 #include "codec/lzo.h"
 
+#include <climits>
+
 namespace swd3
 {
 
@@ -10,6 +12,38 @@ namespace
 constexpr std::size_t kShortMatchDistance = 0x800;
 // Distance offset of the 16..31 instructions (M3_MAX_OFFSET + 1 style window base).
 constexpr std::size_t kFarMatchBase = 0x4000;
+
+// The LZO1X format: an instruction byte below kM4Marker is a literal run; from kM4Marker a match of kind M4, from
+// kM3Marker M3, from kM2Marker M2. Lengths beyond the bits of an instruction continue in zero bytes worth
+// kLengthByte each; distances keep kDistanceLowBits bits in the instruction.
+constexpr u32 kM2Marker = 0x40;
+constexpr u32 kM3Marker = 0x20;
+constexpr u32 kM4Marker = 0x10;
+constexpr u32 kM2MaxOffset = kShortMatchDistance;
+constexpr u32 kM3MaxOffset = kFarMatchBase;
+constexpr u32 kFirstLiteralBias = 0x11;  // a first byte above it starts with that many literals less it
+constexpr u32 kEndMarker = 0x11;         // an M4 match of distance 0
+constexpr u32 kMaxFirstRun = 0xFF - kFirstLiteralBias;
+constexpr u32 kShortFirstRun = 4;
+constexpr u32 kLiteralLengthMask = 0xF;
+constexpr u32 kM3LengthMask = 0x1F;
+constexpr u32 kM4LengthMask = 7;
+constexpr u32 kMinLiteralRun = 3;
+constexpr u32 kMaxPackedLiterals = 3;  // literals after a match kept in the low bits of its instruction
+constexpr u32 kMaxShortLiterals = kLiteralLengthMask + kMinLiteralRun;
+constexpr u32 kTrailingMask = kMaxPackedLiterals;
+constexpr u32 kM1Length = 3;          // the match right after a literal run
+constexpr u32 kShortMatchLength = 2;  // a short match of a byte instruction
+constexpr u32 kMinMatchExtra = 2;     // a match length is its count plus this
+constexpr u32 kLengthByte = 0xFF;
+constexpr int kDistanceLowBits = 2;
+constexpr u32 kM2DistanceMask = 7;
+constexpr int kM2HighShift = 3;
+constexpr int kM2LengthShift = 5;
+constexpr u32 kM2MaxLength = 8;
+constexpr u32 kM4FarBit = 8;
+constexpr int kM4FarShift = 11;
+constexpr std::size_t kOffsetBytes = 2;  // the two distance bytes of a match; the first keeps the trailing literals
 
 enum class Step
 {
@@ -61,7 +95,7 @@ bool LzoDecoder::ReadLength(u32 base, u32& length)
             break;
         }
 
-        length += 255;
+        length += kLengthByte;
     }
 
     length += base + value;
@@ -113,7 +147,7 @@ LzoStatus LzoDecoder::CopyMatch(std::size_t distance, u32 count)
 // The low two bits of the byte two before the read position give the literal count after a match.
 u32 LzoDecoder::TrailingLiterals() const
 {
-    return this->input[this->inputPosition - 2] & 3u;
+    return this->input[this->inputPosition - kOffsetBytes] & kTrailingMask;
 }
 
 // swd32.exe 0x004399E0: lzo1x_decompress
@@ -124,9 +158,9 @@ LzoStatus LzoDecoder::Run()
     u32 instruction = 0;
     Step step = Step::Instruction;
 
-    if (!this->input.empty() && this->input[0] > 17)
+    if (!this->input.empty() && this->input[0] > kFirstLiteralBias)
     {
-        const u32 count = this->input[0] - 17u;
+        const u32 count = this->input[0] - kFirstLiteralBias;
         this->inputPosition = 1;
 
         if (const LzoStatus status = this->CopyLiterals(count); status != LzoStatus::Ok)
@@ -134,7 +168,7 @@ LzoStatus LzoDecoder::Run()
             return status;
         }
 
-        if (count < 4)
+        if (count < kShortFirstRun)
         {
             if (!this->ReadByte(instruction))
             {
@@ -160,7 +194,7 @@ LzoStatus LzoDecoder::Run()
                     return LzoStatus::InputOverrun;
                 }
 
-                if (instruction >= 16)
+                if (instruction >= kM4Marker)
                 {
                     step = Step::Match;
                     break;
@@ -168,12 +202,12 @@ LzoStatus LzoDecoder::Run()
 
                 u32 count = instruction;
 
-                if (count == 0 && !this->ReadLength(15, count))
+                if (count == 0 && !this->ReadLength(kLiteralLengthMask, count))
                 {
                     return LzoStatus::InputOverrun;
                 }
 
-                if (const LzoStatus status = this->CopyLiterals(count + 3); status != LzoStatus::Ok)
+                if (const LzoStatus status = this->CopyLiterals(count + kMinLiteralRun); status != LzoStatus::Ok)
                 {
                     return status;
                 }
@@ -189,7 +223,7 @@ LzoStatus LzoDecoder::Run()
                     return LzoStatus::InputOverrun;
                 }
 
-                if (instruction >= 16)
+                if (instruction >= kM4Marker)
                 {
                     step = Step::Match;
                     break;
@@ -202,9 +236,10 @@ LzoStatus LzoDecoder::Run()
                     return LzoStatus::InputOverrun;
                 }
 
-                const std::size_t distance = 1 + kShortMatchDistance + (instruction >> 2) + (high << 2);
+                const std::size_t distance =
+                    1 + kShortMatchDistance + (instruction >> kDistanceLowBits) + (high << kDistanceLowBits);
 
-                if (const LzoStatus status = this->CopyMatch(distance, 3); status != LzoStatus::Ok)
+                if (const LzoStatus status = this->CopyMatch(distance, kM1Length); status != LzoStatus::Ok)
                 {
                     return status;
                 }
@@ -218,7 +253,7 @@ LzoStatus LzoDecoder::Run()
                 std::size_t distance = 0;
                 u32 count = 0;
 
-                if (instruction >= 64)
+                if (instruction >= kM2Marker)
                 {
                     u32 high = 0;
 
@@ -227,14 +262,14 @@ LzoStatus LzoDecoder::Run()
                         return LzoStatus::InputOverrun;
                     }
 
-                    distance = 1 + ((instruction >> 2) & 7) + (high << 3);
-                    count = (instruction >> 5) + 1;
+                    distance = 1 + ((instruction >> kDistanceLowBits) & kM2DistanceMask) + (high << kM2HighShift);
+                    count = (instruction >> kM2LengthShift) + 1;
                 }
-                else if (instruction >= 32)
+                else if (instruction >= kM3Marker)
                 {
-                    count = instruction & 31;
+                    count = instruction & kM3LengthMask;
 
-                    if (count == 0 && !this->ReadLength(31, count))
+                    if (count == 0 && !this->ReadLength(kM3LengthMask, count))
                     {
                         return LzoStatus::InputOverrun;
                     }
@@ -247,15 +282,15 @@ LzoStatus LzoDecoder::Run()
                         return LzoStatus::InputOverrun;
                     }
 
-                    distance = 1 + ((low | (high << 8)) >> 2);
-                    count += 2;
+                    distance = 1 + ((low | (high << CHAR_BIT)) >> kDistanceLowBits);
+                    count += kMinMatchExtra;
                 }
-                else if (instruction >= 16)
+                else if (instruction >= kM4Marker)
                 {
-                    std::size_t far = (instruction & 8) << 11;
-                    count = instruction & 7;
+                    std::size_t far = (instruction & kM4FarBit) << kM4FarShift;
+                    count = instruction & kM4LengthMask;
 
-                    if (count == 0 && !this->ReadLength(7, count))
+                    if (count == 0 && !this->ReadLength(kM4LengthMask, count))
                     {
                         return LzoStatus::InputOverrun;
                     }
@@ -268,7 +303,7 @@ LzoStatus LzoDecoder::Run()
                         return LzoStatus::InputOverrun;
                     }
 
-                    far += (low | (high << 8)) >> 2;
+                    far += (low | (high << CHAR_BIT)) >> kDistanceLowBits;
 
                     if (far == 0)
                     {
@@ -282,7 +317,7 @@ LzoStatus LzoDecoder::Run()
                     }
 
                     distance = far + kFarMatchBase;
-                    count += 2;
+                    count += kMinMatchExtra;
                 }
                 else
                 {
@@ -293,8 +328,8 @@ LzoStatus LzoDecoder::Run()
                         return LzoStatus::InputOverrun;
                     }
 
-                    distance = 1 + (instruction >> 2) + (high << 2);
-                    count = 2;
+                    distance = 1 + (instruction >> kDistanceLowBits) + (high << kDistanceLowBits);
+                    count = kShortMatchLength;
                 }
 
                 if (const LzoStatus status = this->CopyMatch(distance, count); status != LzoStatus::Ok)
@@ -338,13 +373,17 @@ namespace
 
 constexpr std::size_t kMinCompress = 0xD;
 constexpr std::size_t kTailMargin = 0xD;
-constexpr u32 kM2MaxOffset = 0x800;
-constexpr u32 kM3MaxOffset = 0x4000;
 constexpr u32 kMaxOffset = 0xBFFF;
 constexpr u32 kM3MaxLength = 0x21;
 constexpr u32 kM4MaxLength = 9;
-constexpr u8 kM3Marker = 0x20;
-constexpr u8 kM4Marker = 0x10;
+constexpr u32 kSecondaryProbe = 0x1F;  // the second dictionary slot of a hash
+constexpr u32 kSecondaryMask = 0x7FF;
+constexpr std::size_t kFirstProbe = 4;  // the first bytes are never matched
+constexpr std::size_t kHashBytes = 4;
+constexpr u32 kHashMultiplier = 0x21;
+constexpr u32 kHashStep = 0x20;
+constexpr int kHashFourthShift = 6;
+constexpr int kHashShift = 5;
 
 // Appends a length beyond the bits of the opcode: a zero byte per 255 and the rest (the zeros add one each to the
 // final byte, as the original's wrap-around count does).
@@ -352,9 +391,9 @@ void PushLongLength(std::vector<u8>& output, u32 length)
 {
     u8 last = static_cast<u8>(length);
 
-    if (length > 0xFF)
+    if (length > kLengthByte)
     {
-        const u32 zeros = (length - 1) / 0xFF;
+        const u32 zeros = (length - 1) / kLengthByte;
         output.insert(output.end(), zeros, 0);
         last = static_cast<u8>(last + zeros);
     }
@@ -364,8 +403,8 @@ void PushLongLength(std::vector<u8>& output, u32 length)
 
 void PushOffset(std::vector<u8>& output, u32 offset)
 {
-    output.push_back(static_cast<u8>(4 * offset));
-    output.push_back(static_cast<u8>(offset >> 6));
+    output.push_back(static_cast<u8>(offset << kDistanceLowBits));
+    output.push_back(static_cast<u8>(offset >> (CHAR_BIT - kDistanceLowBits)));
 }
 
 }  // namespace
@@ -381,18 +420,18 @@ void LzoEncoder::EmitLiterals(std::vector<u8>& output, std::span<const u8> liter
 {
     const auto count = static_cast<u32>(literals.size());
 
-    if (count <= 3)
+    if (count <= kMaxPackedLiterals)
     {
-        output[output.size() - 2] |= static_cast<u8>(count);
+        output[output.size() - kOffsetBytes] |= static_cast<u8>(count);
     }
-    else if (count <= 0x12)
+    else if (count <= kMaxShortLiterals)
     {
-        output.push_back(static_cast<u8>(count - 3));
+        output.push_back(static_cast<u8>(count - kMinLiteralRun));
     }
     else
     {
         output.push_back(0);
-        PushLongLength(output, count - 0x12);
+        PushLongLength(output, count - kMaxShortLiterals);
     }
 
     output.insert(output.end(), literals.begin(), literals.end());
@@ -409,17 +448,20 @@ std::size_t LzoEncoder::CompressCore(std::span<const u8> input, std::vector<u8>&
     const std::size_t size = input.size();
     const std::size_t limit = size - kTailMargin;
     const u32 mask = (1u << this->dictionaryBits) - 1;
-    const u32 secondary = (1u << (this->dictionaryBits - 1)) | 0x1F;
+    const u32 secondary = (1u << (this->dictionaryBits - 1)) | kSecondaryProbe;
     std::size_t literal = 0;
-    std::size_t ip = 4;
+    std::size_t ip = kFirstProbe;
 
     do
     {
         for (;;)
         {
-            const u32 fourth = input[ip + 3];
-            const u32 hash = 0x21 * (input[ip] ^ (0x20 * (input[ip + 1] ^ (0x20 * (input[ip + 2] ^ (fourth << 6))))));
-            u32 index = (hash >> 5) & mask;
+            const u32 fourth = input[ip + kHashBytes - 1];
+            const u32 hash =
+                kHashMultiplier *
+                (input[ip] ^
+                 (kHashStep * (input[ip + 1] ^ (kHashStep * (input[ip + 2] ^ (fourth << kHashFourthShift))))));
+            u32 index = (hash >> kHashShift) & mask;
             i64 match = this->dictionary[index];
             bool found = false;
             u32 offset = 0;
@@ -430,20 +472,21 @@ std::size_t LzoEncoder::CompressCore(std::span<const u8> input, std::vector<u8>&
 
                 if (static_cast<i64>(ip) != match && offset <= kMaxOffset)
                 {
-                    if (offset <= kM2MaxOffset || input[static_cast<std::size_t>(match) + 3] == fourth)
+                    if (offset <= kM2MaxOffset || input[static_cast<std::size_t>(match) + kHashBytes - 1] == fourth)
                     {
                         found = true;
                     }
                     else
                     {
-                        index = ((hash >> 5) & 0x7FF) ^ secondary;
+                        index = ((hash >> kHashShift) & kSecondaryMask) ^ secondary;
                         match = this->dictionary[index];
 
                         if (match >= 0)
                         {
                             offset = static_cast<u32>(static_cast<i64>(ip) - match);
                             found = static_cast<i64>(ip) != match && offset <= kMaxOffset &&
-                                    (offset <= kM2MaxOffset || input[static_cast<std::size_t>(match) + 3] == fourth);
+                                    (offset <= kM2MaxOffset ||
+                                     input[static_cast<std::size_t>(match) + kHashBytes - 1] == fourth);
                         }
                     }
                 }
@@ -467,10 +510,10 @@ std::size_t LzoEncoder::CompressCore(std::span<const u8> input, std::vector<u8>&
                 literal = ip;
             }
 
-            std::size_t end = ip + 3;
+            std::size_t end = ip + kM1Length;
             bool longMatch = true;
 
-            for (std::size_t k = 3; k <= 8; ++k)
+            for (std::size_t k = kM1Length; k <= kM2MaxLength; ++k)
             {
                 ++end;
 
@@ -483,7 +526,7 @@ std::size_t LzoEncoder::CompressCore(std::span<const u8> input, std::vector<u8>&
 
             if (longMatch)
             {
-                std::size_t at = from + 9;
+                std::size_t at = from + kM2MaxLength + 1;
 
                 while (end < size && input[at] == input[end])
                 {
@@ -499,11 +542,13 @@ std::size_t LzoEncoder::CompressCore(std::span<const u8> input, std::vector<u8>&
 
                     if (length <= kM4MaxLength)
                     {
-                        output.push_back(static_cast<u8>((length - 2) | ((far >> 11) & 8) | kM4Marker));
+                        output.push_back(
+                            static_cast<u8>((length - kMinMatchExtra) | ((far >> kM4FarShift) & kM4FarBit) | kM4Marker)
+                        );
                     }
                     else
                     {
-                        output.push_back(static_cast<u8>(((far >> 11) & 8) | kM4Marker));
+                        output.push_back(static_cast<u8>(((far >> kM4FarShift) & kM4FarBit) | kM4Marker));
                         PushLongLength(output, length - kM4MaxLength);
                     }
 
@@ -515,7 +560,7 @@ std::size_t LzoEncoder::CompressCore(std::span<const u8> input, std::vector<u8>&
 
                     if (length <= kM3MaxLength)
                     {
-                        output.push_back(static_cast<u8>((length - 2) | kM3Marker));
+                        output.push_back(static_cast<u8>((length - kMinMatchExtra) | kM3Marker));
                     }
                     else
                     {
@@ -536,20 +581,26 @@ std::size_t LzoEncoder::CompressCore(std::span<const u8> input, std::vector<u8>&
                     if (offset > kM3MaxOffset)
                     {
                         const u32 far = offset - kM3MaxOffset;
-                        output.push_back(static_cast<u8>((length - 2) | ((far >> 11) & 8) | kM4Marker));
+                        output.push_back(
+                            static_cast<u8>((length - kMinMatchExtra) | ((far >> kM4FarShift) & kM4FarBit) | kM4Marker)
+                        );
                         PushOffset(output, far);
                     }
                     else
                     {
-                        output.push_back(static_cast<u8>((length - 2) | kM3Marker));
+                        output.push_back(static_cast<u8>((length - kMinMatchExtra) | kM3Marker));
                         PushOffset(output, offset - 1);
                     }
                 }
                 else
                 {
                     const u32 near = offset - 1;
-                    output.push_back(static_cast<u8>((4 * (near & 7)) | (0x20 * (length + 7))));
-                    output.push_back(static_cast<u8>(near >> 3));
+                    output.push_back(
+                        static_cast<u8>(
+                            ((near & kM2DistanceMask) << kDistanceLowBits) | ((length - 1) << kM2LengthShift)
+                        )
+                    );
+                    output.push_back(static_cast<u8>(near >> kM2HighShift));
                 }
             }
 
@@ -586,9 +637,9 @@ std::vector<u8> LzoEncoder::Compress(std::span<const u8> input)
     {
         const std::span<const u8> literals = input.subspan(input.size() - trailing);
 
-        if (output.empty() && trailing <= 0xEE)
+        if (output.empty() && trailing <= kMaxFirstRun)
         {
-            output.push_back(static_cast<u8>(trailing + 0x11));
+            output.push_back(static_cast<u8>(trailing + kFirstLiteralBias));
             output.insert(output.end(), literals.begin(), literals.end());
         }
         else
@@ -597,7 +648,7 @@ std::vector<u8> LzoEncoder::Compress(std::span<const u8> input)
         }
     }
 
-    output.push_back(0x11);
+    output.push_back(kEndMarker);
     output.push_back(0);
     output.push_back(0);
     return output;

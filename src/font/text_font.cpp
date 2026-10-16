@@ -1,5 +1,6 @@
 #include "font/text_font.h"
 
+#include <climits>
 #include <cstring>
 
 #include "gfx/graphics.h"
@@ -16,6 +17,9 @@ namespace
 constexpr int kGlyphSurfaceSize = 0x40;
 constexpr int kMaxFontSize = 0x40;
 constexpr int kCacheFull = 0x7CF;
+constexpr int kHighBit = 0x80;  // the leftmost pixel of a glyph byte; a lead byte of Big5 from here
+constexpr u32 kWhite = 0xFFFFFF;
+constexpr int kBackgroundPad = 2;  // the background of the last character reaches past it
 
 // The colour step per glyph row: -1 for kGradientDown, +1 for kGradientUp, else 0.
 int RowStep(int style)
@@ -101,8 +105,8 @@ int TextFont::Init(Graphics& graphics)
     i32 pitch = 0;
     i32 height = 0;
     graphics.BackSize(pitch, height);
-    this->SetTarget(pitch / 2, height);
-    this->SetGlyphSize(16, 16);
+    this->SetTarget(pitch / static_cast<i32>(sizeof(Pixel)), height);
+    this->SetGlyphSize(TextFont::DefaultGlyphSize, TextFont::DefaultGlyphSize);
     this->SetFont(TextFont::DefaultFace, this->glyphWidth);
     this->SetAdvance(this->glyphWidth);
     this->SetBackground(TextFont::NoBackground);
@@ -167,11 +171,11 @@ void TextFont::FreeGlyphPixels()
 void TextFont::AllocGlyphCache()
 {
     this->FreeGlyphCache();
-    this->glyphRowBytes = this->glyphWidth / 8;
+    this->glyphRowBytes = this->glyphWidth / CHAR_BIT;
 
-    if (this->glyphWidth % 8 != 0)
+    if (this->glyphWidth % CHAR_BIT != 0)
     {
-        this->glyphRowBytes = this->glyphWidth / 8 + 1;
+        this->glyphRowBytes = this->glyphWidth / CHAR_BIT + 1;
     }
 
     this->glyphs.assign(static_cast<std::size_t>(TextFont::MaxGlyphs) * this->glyphRowBytes * this->glyphHeight, 0);
@@ -205,7 +209,7 @@ void TextFont::SetTarget(int width, int height)
     this->targetRows.assign(static_cast<std::size_t>(height), 0);
     this->targetWidth = width;
     this->targetHeight = height;
-    this->targetBytes = 2 * height * width;
+    this->targetBytes = static_cast<i32>(sizeof(Pixel)) * height * width;
     i32 offset = 0;
 
     for (i32& row : this->targetRows)
@@ -268,13 +272,13 @@ void TextFont::DrawGlyph(Pixel* target, int x, int y, int glyph, Pixel color, in
             const std::ptrdiff_t base = x + this->RowOffset(y);
             int column = x;
 
-            for (int byte = 0; byte < this->glyphRowBytes; ++byte, column += 8)
+            for (int byte = 0; byte < this->glyphRowBytes; ++byte, column += CHAR_BIT)
             {
-                for (int k = 0; k < 8; ++k)
+                for (int k = 0; k < CHAR_BIT; ++k)
                 {
-                    if ((bits[byte] & (0x80 >> k)) != 0 && column >= left - k && column + k + 1 < right)
+                    if ((bits[byte] & (kHighBit >> k)) != 0 && column >= left - k && column + k + 1 < right)
                     {
-                        target[base + 8 * byte + k] = color;
+                        target[base + CHAR_BIT * byte + k] = color;
                     }
                 }
             }
@@ -308,13 +312,13 @@ void TextFont::DrawGlyphBold(Pixel* target, int x, int y, int glyph, Pixel color
             const std::ptrdiff_t base = x + this->RowOffset(y);
             int column = x;
 
-            for (int byte = 0; byte < this->glyphRowBytes; ++byte, column += 8)
+            for (int byte = 0; byte < this->glyphRowBytes; ++byte, column += CHAR_BIT)
             {
-                for (int k = 0; k < 8; ++k)
+                for (int k = 0; k < CHAR_BIT; ++k)
                 {
-                    if ((bits[byte] & (0x80 >> k)) != 0 && column >= left - k && column + k + 2 < right)
+                    if ((bits[byte] & (kHighBit >> k)) != 0 && column >= left - k && column + k + 2 < right)
                     {
-                        PutPair(target, base + 8 * byte + k, color);
+                        PutPair(target, base + CHAR_BIT * byte + k, color);
                     }
                 }
             }
@@ -351,13 +355,13 @@ void TextFont::DrawGlyphShadow(Pixel* target, int x, int y, int glyph, Pixel col
             const std::ptrdiff_t base = x + this->RowOffset(line);
             int column = x;
 
-            for (int byte = 0; byte < this->glyphRowBytes; ++byte, column += 8)
+            for (int byte = 0; byte < this->glyphRowBytes; ++byte, column += CHAR_BIT)
             {
-                const std::ptrdiff_t pixel = base + 8 * byte;
+                const std::ptrdiff_t pixel = base + CHAR_BIT * byte;
 
-                for (int k = 0; k < 8; ++k)
+                for (int k = 0; k < CHAR_BIT; ++k)
                 {
-                    if ((bits[byte] & (0x80 >> k)) != 0 && column >= left - k && column + k + 1 < right)
+                    if ((bits[byte] & (kHighBit >> k)) != 0 && column >= left - k && column + k + 1 < right)
                     {
                         target[pixel + k] = color;
                         PutPair(target, pixel + this->targetWidth + k, this->shadow);
@@ -396,13 +400,13 @@ void TextFont::DrawGlyphBoldShadow(Pixel* target, int x, int y, int glyph, Pixel
             const std::ptrdiff_t base = x + this->RowOffset(line);
             int column = x;
 
-            for (int byte = 0; byte < this->glyphRowBytes; ++byte, column += 8)
+            for (int byte = 0; byte < this->glyphRowBytes; ++byte, column += CHAR_BIT)
             {
-                const std::ptrdiff_t pixel = base + 8 * byte;
+                const std::ptrdiff_t pixel = base + CHAR_BIT * byte;
 
-                for (int k = 0; k < 8; ++k)
+                for (int k = 0; k < CHAR_BIT; ++k)
                 {
-                    if ((bits[byte] & (0x80 >> k)) != 0 && column >= left - k && column + k + 2 < right)
+                    if ((bits[byte] & (kHighBit >> k)) != 0 && column >= left - k && column + k + 2 < right)
                     {
                         PutPair(target, pixel + k, color);
                         PutPair(target, pixel + this->targetWidth + k + 1, this->shadow);
@@ -443,13 +447,13 @@ void TextFont::DrawGlyphOutline(Pixel* target, int x, int y, int glyph, Pixel co
             const std::ptrdiff_t width = this->targetWidth;
             int column = x;
 
-            for (int byte = 0; byte < this->glyphRowBytes; ++byte, column += 8)
+            for (int byte = 0; byte < this->glyphRowBytes; ++byte, column += CHAR_BIT)
             {
-                const std::ptrdiff_t pixel = base + 8 * byte;
+                const std::ptrdiff_t pixel = base + CHAR_BIT * byte;
 
-                for (int k = 0; k < 8; ++k)
+                for (int k = 0; k < CHAR_BIT; ++k)
                 {
-                    if ((bits[byte] & (0x80 >> k)) != 0 && column >= left - (k + 1) && column + k + 1 < right)
+                    if ((bits[byte] & (kHighBit >> k)) != 0 && column >= left - (k + 1) && column + k + 1 < right)
                     {
                         target[pixel + k - width] = this->shadow;
                         PutPair(target, pixel + k - 1, this->shadow);
@@ -493,13 +497,13 @@ void TextFont::DrawGlyphBoldOutline(Pixel* target, int x, int y, int glyph, Pixe
             const std::ptrdiff_t width = this->targetWidth;
             int column = x;
 
-            for (int byte = 0; byte < this->glyphRowBytes; ++byte, column += 8)
+            for (int byte = 0; byte < this->glyphRowBytes; ++byte, column += CHAR_BIT)
             {
-                const std::ptrdiff_t pixel = base + 8 * byte;
+                const std::ptrdiff_t pixel = base + CHAR_BIT * byte;
 
-                for (int k = 0; k < 8; ++k)
+                for (int k = 0; k < CHAR_BIT; ++k)
                 {
-                    if ((bits[byte] & (0x80 >> k)) != 0 && column >= left - (k + 1) && column + k + 2 < right)
+                    if ((bits[byte] & (kHighBit >> k)) != 0 && column >= left - (k + 1) && column + k + 2 < right)
                     {
                         target[pixel + k - width] = this->shadow;
                         target[pixel + k - 1] = this->shadow;
@@ -528,7 +532,7 @@ void TextFont::CaptureGlyphSurface()
         std::memcpy(
             this->glyphPixels.data() + static_cast<std::ptrdiff_t>(row) * this->glyphWidth,
             source + static_cast<std::ptrdiff_t>(row) * this->surfacePitch,
-            2 * static_cast<std::size_t>(this->glyphWidth)
+            sizeof(Pixel) * static_cast<std::size_t>(this->glyphWidth)
         );
     }
 }
@@ -536,17 +540,17 @@ void TextFont::CaptureGlyphSurface()
 // swd32.exe 0x004368D0: draws `text` in white and ORs its non-black pixels into the 1-bit `bitmap`
 void TextFont::RasterizeGlyph(std::string_view text, u8* bitmap)
 {
-    this->RenderString(0, 0, text, 0xFFFFFF);
+    this->RenderString(0, 0, text, kWhite);
     this->CaptureGlyphSurface();
 
     for (int row = 0; row < this->glyphHeight; ++row)
     {
         for (int byte = 0; byte < this->glyphRowBytes; ++byte)
         {
-            int mask = 0x80;
-            int column = 8 * byte;
+            int mask = kHighBit;
+            int column = CHAR_BIT * byte;
 
-            for (int bit = 0; bit < 8 && column < this->glyphWidth; ++bit, ++column)
+            for (int bit = 0; bit < CHAR_BIT && column < this->glyphWidth; ++bit, ++column)
             {
                 if (this->glyphPixels[static_cast<std::size_t>(this->glyphWidth * row + column)] != 0)
                 {
@@ -638,7 +642,7 @@ void TextFont::DrawText(Pixel* target, int x, int y, std::string_view text, Pixe
         int half = 0;
         this->character[0] = text[static_cast<std::size_t>(index)];
 
-        if (static_cast<u8>(this->character[0]) < 0x80)
+        if (static_cast<u8>(this->character[0]) < kHighBit)
         {
             this->character[1] = 0;
             half = this->advance >> 1;
@@ -650,7 +654,7 @@ void TextFont::DrawText(Pixel* target, int x, int y, std::string_view text, Pixe
         }
 
         u16 code = 0;
-        std::memcpy(&code, this->character.data(), 2);
+        std::memcpy(&code, this->character.data(), sizeof(code));
         int glyph = this->FindGlyph(code);
         const bool cached = glyph >= 0;
 
@@ -658,7 +662,7 @@ void TextFont::DrawText(Pixel* target, int x, int y, std::string_view text, Pixe
         {
             glyph = this->InsertGlyph(code);
             this->RasterizeGlyph(
-                std::string_view(this->character.data(), this->character[1] == '\0' ? 1 : 2),
+                std::string_view(this->character.data(), this->character[1] == '\0' ? 1 : this->character.size()),
                 this->GlyphBits(glyph)
             );
         }
@@ -667,7 +671,14 @@ void TextFont::DrawText(Pixel* target, int x, int y, std::string_view text, Pixe
         {
             if (index == last)
             {
-                this->FillRect(target, x + offset, y, this->glyphWidth - half + 2, this->glyphHeight, this->background);
+                this->FillRect(
+                    target,
+                    x + offset,
+                    y,
+                    this->glyphWidth - half + kBackgroundPad,
+                    this->glyphHeight,
+                    this->background
+                );
             }
             else
             {
@@ -748,7 +759,7 @@ void TextFont::FillRect(Pixel* target, int x, int y, int width, int height, Pixe
 
     if (left < right)
     {
-        rowBytes = 2 * static_cast<std::size_t>(right - left);
+        rowBytes = sizeof(Pixel) * static_cast<std::size_t>(right - left);
 
         for (int column = left; column < right; ++column)
         {

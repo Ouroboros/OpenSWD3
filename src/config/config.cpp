@@ -2,10 +2,13 @@
 #include "core/format.h"
 
 #include <algorithm>
+#include <climits>
 #include <cstring>
 #include <vector>
 
 #include "file/file.h"
+#include "input/controls.h"
+#include "input/input.h"
 
 namespace swd3
 {
@@ -22,6 +25,20 @@ constexpr std::size_t kDebugOffset = 0x24;
 constexpr std::size_t kOldStringsOffset = 0x2A;
 constexpr std::size_t kStringsOffset = 0x2E;
 constexpr std::size_t kClearedEnd = 0x2E;
+constexpr std::size_t kSoundVolumeAt = 0;  // the settings bytes
+constexpr std::size_t kMusicVolumeAt = 1;
+constexpr std::size_t kCacheSizeAt = 2;
+constexpr std::size_t kEffectsOffAt = 3;
+constexpr std::size_t kTextSpeedAt = 4;
+constexpr std::size_t kBattleSpeedAt = 5;
+constexpr u8 kDebugBit = 1;
+constexpr i32 kDefaultUnknown14 = 0x64;
+constexpr u8 kEnvBattleSpeed = 0xA;  // the battle speed a converted Env.dat gets (a fresh install takes 0xB)
+
+constexpr int Slot(Button button)
+{
+    return static_cast<int>(button);
+}
 
 u32 ReadDword(const std::vector<u8>& data, std::size_t offset)
 {
@@ -116,7 +133,7 @@ void Config::Update(std::string_view installDirectory, std::string_view cdRoot, 
 
     if (ReadDword(data, 0) != Config::CurrentFormat)
     {
-        std::memmove(data.data() + 4, data.data(), Config::EnvBytes - 4);
+        std::memmove(data.data() + sizeof(u32), data.data(), Config::EnvBytes - sizeof(u32));
         oldFormat = true;
     }
 
@@ -129,12 +146,12 @@ void Config::Update(std::string_view installDirectory, std::string_view cdRoot, 
     }
 
     WriteDword(data, kUnknown14Offset, static_cast<u32>(settings.unknown14));
-    data[kSettingsOffset] = settings.soundVolume;
-    data[kSettingsOffset + 1] = settings.musicVolume;
-    data[kSettingsOffset + 2] = settings.cacheSize;
-    data[kSettingsOffset + 3] = settings.effectsOff;
-    data[kSettingsOffset + 4] = settings.textSpeed;
-    data[kSettingsOffset + 5] = settings.battleSpeed;
+    data[kSettingsOffset + kSoundVolumeAt] = settings.soundVolume;
+    data[kSettingsOffset + kMusicVolumeAt] = settings.musicVolume;
+    data[kSettingsOffset + kCacheSizeAt] = settings.cacheSize;
+    data[kSettingsOffset + kEffectsOffAt] = settings.effectsOff;
+    data[kSettingsOffset + kTextSpeedAt] = settings.textSpeed;
+    data[kSettingsOffset + kBattleSpeedAt] = settings.battleSpeed;
 
     if (oldFormat)
     {
@@ -207,13 +224,13 @@ bool Config::Load(i32& unknown14, u8& effectsOff)
         this->SetDefaultKeys();
         const std::string directory = StringAt(data, kOldStringsOffset);
         Settings defaults;
-        defaults.soundVolume = 6;
-        defaults.musicVolume = 6;
-        defaults.cacheSize = 0x3C;
-        defaults.unknown14 = 0x64;
+        defaults.soundVolume = Config::DefaultVolume;
+        defaults.musicVolume = Config::DefaultVolume;
+        defaults.cacheSize = Config::DefaultCacheMegabytes;
+        defaults.unknown14 = kDefaultUnknown14;
         defaults.effectsOff = 1;
-        defaults.textSpeed = 2;
-        defaults.battleSpeed = 0xA;
+        defaults.textSpeed = Config::DefaultTextSpeed;
+        defaults.battleSpeed = kEnvBattleSpeed;
         this->Update(directory, StringAt(data, firstEnd + 1), defaults);
         current = false;
         file.Open(Concat({directory, kEnvFile}), File::Disposition::OpenExisting, File::Access::Read);
@@ -229,19 +246,21 @@ bool Config::Load(i32& unknown14, u8& effectsOff)
     }
 
     unknown14 = static_cast<i32>(ReadDword(data, kUnknown14Offset));
-    SetLowByte(this->soundVolume, data[kSettingsOffset]);
-    SetLowByte(this->musicVolume, data[kSettingsOffset + 1]);
-    SetLowByte(this->cacheSize, data[kSettingsOffset + 2]);
-    effectsOff = data[kSettingsOffset + 3];
-    SetLowByte(this->textSpeed, data[kSettingsOffset + 4]);
-    SetLowByte(this->battleSpeed, data[kSettingsOffset + 5]);
+    SetLowByte(this->soundVolume, data[kSettingsOffset + kSoundVolumeAt]);
+    SetLowByte(this->musicVolume, data[kSettingsOffset + kMusicVolumeAt]);
+    SetLowByte(this->cacheSize, data[kSettingsOffset + kCacheSizeAt]);
+    effectsOff = data[kSettingsOffset + kEffectsOffAt];
+    SetLowByte(this->textSpeed, data[kSettingsOffset + kTextSpeedAt]);
+    SetLowByte(this->battleSpeed, data[kSettingsOffset + kBattleSpeedAt]);
 
     for (std::size_t i = 0; i < this->channelMasks.size(); ++i)
     {
-        this->channelMasks[i] = static_cast<u16>(data[kMasksOffset + 2 * i] | (data[kMasksOffset + 2 * i + 1] << 8));
+        this->channelMasks[i] = static_cast<u16>(
+            data[kMasksOffset + sizeof(u16) * i] | (data[kMasksOffset + sizeof(u16) * i + 1] << CHAR_BIT)
+        );
     }
 
-    this->debugMode = data[kDebugOffset] & 1;
+    this->debugMode = data[kDebugOffset] & kDebugBit;
     this->installDirectory = StringAt(data, kStringsOffset);
     const std::size_t rootStart = StringEnd(data, kStringsOffset) + 1;
     this->cdRoot = StringAt(data, rootStart);
@@ -253,22 +272,22 @@ bool Config::Load(i32& unknown14, u8& effectsOff)
 void Config::SetDefaultKeys()
 {
     constexpr std::array<std::pair<int, i32>, Config::EnvKeys> kDefaults = {{
-        {0, 0x01},
-        {1, 0x39},
-        {2, 0x36},
-        {3, 0xCB},
-        {4, 0xC8},
-        {5, 0xCD},
-        {6, 0xD0},
-        {7, 0xC9},
-        {8, 0xD1},
-        {9, 0x9D},
-        {10, 0xCF},
-        {12, 0x1C},
-        {16, 0x13},
-        {17, 0x1E},
-        {18, 0x22},
-        {19, 0x3B},
+        {Slot(Button::Escape), Input::Escape},
+        {Slot(Button::Space), Input::Space},
+        {Slot(Button::RightShift), Input::RightShift},
+        {Slot(Button::Left), Input::Left},
+        {Slot(Button::Up), Input::Up},
+        {Slot(Button::Right), Input::Right},
+        {Slot(Button::Down), Input::Down},
+        {Slot(Button::PageUp), Input::PageUp},
+        {Slot(Button::PageDown), Input::PageDown},
+        {Slot(Button::RightControl), Input::RightControl},
+        {Slot(Button::End), Input::End},
+        {Slot(Button::Enter), Input::Enter},
+        {Slot(Button::KeyR), Input::R},
+        {Slot(Button::KeyA), Input::A},
+        {Slot(Button::KeyG), Input::G},
+        {Slot(Button::F1), Input::F1},
     }};
 
     for (const auto& [slot, key] : kDefaults)

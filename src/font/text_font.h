@@ -34,6 +34,7 @@ public:
     };
 
     static constexpr int MaxGlyphs = 2000;
+    static constexpr int DefaultGlyphSize = 16;
     static constexpr Pixel NoBackground = 0xFFFE;
     static constexpr std::u8string_view DefaultFace = u8"細明體";  // swd32.exe 0x0049FB74 "MingLiU" in Big5
 
@@ -94,8 +95,8 @@ private:
     std::array<char, 2> character = {};  // the current character (one or two bytes)
     std::string fontFace;
     int fontSize = 0;
-    int glyphWidth = 16;
-    int glyphHeight = 16;
+    int glyphWidth = DefaultGlyphSize;
+    int glyphHeight = DefaultGlyphSize;
     int surfacePitch = 0;  // pixels per row of the glyph surface
     int surfaceHeight = 0;
     int advance = 0;  // horizontal advance of a double-byte character

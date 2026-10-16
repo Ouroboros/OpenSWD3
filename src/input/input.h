@@ -17,8 +17,13 @@ public:
     // DirectInput keyboard scan codes (DIK_*) the game tests directly.
     enum Key : int
     {
+        Escape = 0x01,
         Tab = 0x0F,
         Q = 0x10,
+        R = 0x13,
+        Enter = 0x1C,
+        A = 0x1E,
+        G = 0x22,
         C = 0x2E,
         LeftControl = 0x1D,
         S = 0x1F,
@@ -37,7 +42,13 @@ public:
         F12 = 0x58,
         RightControl = 0x9D,
         Home = 0xC7,
+        Up = 0xC8,
+        PageUp = 0xC9,
+        Left = 0xCB,
+        Right = 0xCD,
         End = 0xCF,
+        Down = 0xD0,
+        PageDown = 0xD1,
     };
 
     static constexpr int ScreenRight = 0x27F;

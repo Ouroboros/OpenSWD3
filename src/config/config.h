@@ -18,6 +18,9 @@ public:
     static constexpr u32 EnvBytes = 0x1000;
     static constexpr u32 CurrentFormat = 0xFFFFFFFF;
     static constexpr int MaxVolume = 0xB;  // the sound and music volumes run from 0 to MaxVolume
+    static constexpr u8 DefaultVolume = 6;
+    static constexpr u8 DefaultCacheMegabytes = 0x3C;
+    static constexpr u8 DefaultTextSpeed = 2;
 
     // Config::installType values.
     enum InstallType : u8
