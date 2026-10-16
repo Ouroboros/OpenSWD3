@@ -1347,8 +1347,6 @@ bool Talk::RunRoleCommand(EventRun& run)
 
         case EventCommand::JumpByChoice:
         {
-            constexpr u32 kChoicesEnd = 0xFF00FF00;  // ends the targets
-
             auto targetAt = [](i32 index)
             {
                 return kOpcodeBytes + sizeof(u32) * static_cast<std::size_t>(index);
@@ -1357,7 +1355,7 @@ bool Talk::RunRoleCommand(EventRun& run)
             i32 choice = this->choice;
             i32 count = 0;
 
-            while (this->Dword(run, targetAt(count)) != kChoicesEnd && run.cursor + targetAt(count) < script.size())
+            while (this->Dword(run, targetAt(count)) != kTargetsEnd && run.cursor + targetAt(count) < script.size())
             {
                 ++count;
             }

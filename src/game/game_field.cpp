@@ -130,7 +130,7 @@ void Game::MusicZone(int map)
 {
     Scene& view = this->scene;
     const std::vector<u8>& data = this->databases.mapsData;
-    const u32 lists = MapsTable(data, 2);
+    const u32 lists = MapsTable(data, MapsDataTable::Music);
     u32 at = MapsDword(data, MapsDword(data, lists + 4));
 
     for (;; at += 8)
@@ -197,7 +197,7 @@ bool Game::LoadRoleSound(Role& role)
 {
     const std::vector<u8>& data = this->databases.mapsData;
 
-    for (u32 at = MapsTable(data, 0x15); at + 1 < data.size(); at += 6)
+    for (u32 at = MapsTable(data, MapsDataTable::RoleSounds); at + 1 < data.size(); at += 6)
     {
         const u16 id = MapsWord(data, at);
 
@@ -223,7 +223,7 @@ void Game::BuildTriggers(MapTrigger& head)
 {
     const std::vector<u8>& data = this->databases.mapsData;
 
-    for (u32 at = MapsTable(data, 7); MapsWord(data, at) != kTableEnd; at += 0xE)
+    for (u32 at = MapsTable(data, MapsDataTable::EncounterAreas); MapsWord(data, at) != kTableEnd; at += 0xE)
     {
         if (MapsWord(data, at) == static_cast<u16>(this->currentMap))
         {
@@ -277,7 +277,7 @@ void Game::InitRole(Role& role)
 bool Game::MapName(int map, std::string& name) const
 {
     const std::vector<u8>& data = this->databases.mapsData;
-    std::size_t at = MapsTable(data, 0x14);
+    std::size_t at = MapsTable(data, MapsDataTable::PlaceNames);
     u16 code = MapsWord(data, at);
 
     if (code == kTableEnd)
@@ -551,7 +551,7 @@ void Game::FollowLeader(int index)
 int Game::CheckCd(const std::string& root, int& drive)
 {
     drive = 0;
-    this->systemFlags |= 0x10;
+    this->systemFlags |= Game::CheckingCd;
     int drives = 0;
 
     while (drives < static_cast<int>(this->cdDrives.size()) && this->cdDrives[static_cast<std::size_t>(drives)] != 0xFF)
@@ -571,8 +571,8 @@ int Game::CheckCd(const std::string& root, int& drive)
             path[0] = static_cast<char>(this->cdDrives[0]);
             Game::ProbeFile(path);
             drive = static_cast<u8>(path[0]);
-            this->systemFlags &= ~0x10u;
-            return 1;
+            this->systemFlags &= ~Game::CheckingCd;
+            return Game::CdFound;
         }
 
         this->input.PollKeyboard();
@@ -583,8 +583,8 @@ int Game::CheckCd(const std::string& root, int& drive)
         }
     }
 
-    this->systemFlags |= 4;
-    return 2;
+    this->systemFlags |= Game::QuitRequested;
+    return Game::CdMissing;
 }
 
 // swd32.exe 0x0040C130: enters map `map` with the leader at (x, y) tiles in act `act`, action and direction. The map's
@@ -610,7 +610,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
         this->ShowLoading(-1);
     }
 
-    view.unk4C9A18 = 0;
+    view.screenFlags = 0;
     this->AudioPump();
     game.ClearGameFlag(GameState::Weather);
     game.ClearGameFlag(GameState::Leaves);
@@ -641,7 +641,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
     const std::vector<u8>& data = this->databases.mapsData;
     u16 unit = kTableEnd;
 
-    for (u32 at = MapsTable(data, 3); MapsWord(data, at) != kTableEnd; at += 0xE)
+    for (u32 at = MapsTable(data, MapsDataTable::MapSettings); MapsWord(data, at) != kTableEnd; at += 0xE)
     {
         if (MapsWord(data, at) != static_cast<u16>(map))
         {
@@ -726,7 +726,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
     {
         int drive = 0;
 
-        if (this->CheckCd(this->config.cdRoot, drive) == 2)
+        if (this->CheckCd(this->config.cdRoot, drive) == Game::CdMissing)
         {
             return;
         }
@@ -1009,7 +1009,8 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
             u32 follow = 1;
             const u32 story = static_cast<u32>(view.unk4B88C0) & 0x7FFF;
 
-            for (std::size_t list = MapsTable(data, 0x19); MapsWord(data, list) != kTableEnd; list += 0x12)
+            for (std::size_t list = MapsTable(data, MapsDataTable::Followers); MapsWord(data, list) != kTableEnd;
+                 list += 0x12)
             {
                 if (MapsWord(data, list) == role.id)
                 {

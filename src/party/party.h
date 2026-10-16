@@ -72,6 +72,9 @@ public:
     static constexpr int SlotsPerRole = 16;
     static constexpr int Variables = 64;
     static constexpr std::size_t Gold = 0;  // the variable that holds the gold
+    // The variables talk command VariableNamePlate may name a plate by.
+    static constexpr u16 FirstNameVariable = 0xB;
+    static constexpr u16 SecondNameVariable = 0xC;
 
     std::array<RoleRecord, Roles> roles;                                    // 0x004AB790
     ItemLink inventory;                                                     // 0x004A9940

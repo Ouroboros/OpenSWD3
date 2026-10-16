@@ -95,6 +95,20 @@ public:
 
     static constexpr u32 TitleMenu = MenuEntering | TitleScreenMenu;
 
+    // The bits of `systemFlags`.
+    enum SystemFlag : u32
+    {
+        UnkSystem1 = 1,       // the map frame is skipped (no setter is known)
+        MovieOpened = 2,      // a map movie plays (talk command MapMovie)
+        QuitRequested = 4,    // the game ends after the frame
+        CheckingCd = 0x10,    // CheckCd waits for the disc; the map frame is skipped
+        VideoPlaying = 0x20,  // a full-screen video plays
+    };
+
+    // The results of CheckCd.
+    static constexpr int CdFound = 1;
+    static constexpr int CdMissing = 2;
+
     // `storyState`: 0 while the story runs, SaveSlotsState while the save slots are shown.
     static constexpr i32 StoryRunning = 0;
     static constexpr i32 SaveSlotsState = 3;
@@ -233,13 +247,14 @@ private:
     u8 unk4CC161 = 0;
     i32 unk4CC298 = 0;
     i32 unk4CB240 = 0;
-    u32 systemFlags = 0;   // 0x004B7A9C bit 2: quit at the end of the frame
+    u32 systemFlags = 0;   // 0x004B7A9C SystemFlag bits
     i32 counterAlpha = 0;  // 0x004C9A24
     i32 unk4A9484 = 0;
-    i32 unk4A94AC = 0;           // bit 31: a battle to start, the low word its number
-    i32 inBattle = 0;            // 0x004CAEB4 a battle from the map runs
-    std::vector<u16> unk4B7928;  // the words of talk command 0x85 for menu 2, ended by 0
-    i32 currentMap = 0;          // 0x004A9A10 the number of the map shown
+    static constexpr u32 ScriptedBattle = 0x80000000;  // in `battleRequest`: started by a talk command
+    i32 battleRequest = 0;                             // 0x004A94AC a battle to start (its number in the low word)
+    i32 inBattle = 0;                                  // 0x004CAEB4 a battle from the map runs
+    std::vector<u16> unk4B7928;                        // the words of talk command 0x85 for menu 2, ended by 0
+    i32 currentMap = 0;                                // 0x004A9A10 the number of the map shown
     i32 unk4AB990 = 0;
     i32 unk4ACEF4 = 0;
     i32 unk4B7BC4 = 0;

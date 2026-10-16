@@ -42,10 +42,30 @@ inline u32 MapsDword(const std::vector<u8>& data, std::size_t offset)
     return static_cast<u32>(MapsWord(data, offset) | static_cast<u32>(MapsWord(data, offset + 2)) << 16);
 }
 
-// The offset of table `index` of maps.dat (the dwords at its start).
-inline u32 MapsTable(const std::vector<u8>& data, int index)
+// The tables of maps.dat (see reverse/analysis/maps-dat.md).
+enum class MapsDataTable : int
 {
-    return MapsDword(data, static_cast<std::size_t>(4 * index));
+    Roles = 1,
+    Music = 2,
+    MapSettings = 3,
+    NewStory = 4,
+    StartItems = 5,
+    StartRoles = 6,
+    EncounterAreas = 7,
+    NamePlates = 8,
+    StartSkills = 9,       // 9..0xC, one per role
+    StartEquipment = 0xD,  // 0xD..0x10, one per role
+    MapGroups = 0x12,
+    PlaceNames = 0x14,
+    RoleSounds = 0x15,
+    Unk18 = 0x18,
+    Followers = 0x19,
+};
+
+// The offset of `table` of maps.dat (the dwords at its start); `entry` picks among the per-role tables.
+inline u32 MapsTable(const std::vector<u8>& data, MapsDataTable table, std::size_t entry = 0)
+{
+    return MapsDword(data, sizeof(u32) * (static_cast<std::size_t>(table) + entry));
 }
 
 }  // namespace swd3

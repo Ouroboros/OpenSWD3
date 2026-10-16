@@ -185,7 +185,7 @@ bool Game::ChangeMap(int map, int x, int y, int act, int action, int direction, 
     this->unk4B7518 = 0;
     this->unk4A948C = 0;
     this->unk4A9488 = 0;
-    this->scene.unk4C9A18 |= 1;
+    this->scene.screenFlags |= Scene::BlackScreen;
     const i32 newAct = act == Talk::Keep ? player.act.id : act;
     const i32 newAction = action == Talk::Keep ? player.act.action : action;
     const i32 newDirection = direction == Talk::Keep ? player.act.direction : direction;
@@ -198,7 +198,7 @@ bool Game::ChangeMap(int map, int x, int y, int act, int action, int direction, 
         static_cast<i16>(newDirection),
         options
     );
-    this->scene.unk4C9A18 &= ~1;
+    this->scene.screenFlags &= ~Scene::BlackScreen;
     return true;
 }
 
@@ -233,9 +233,9 @@ bool Game::PlayVideo(std::size_t& cursor, u16& pc)
     const std::span<const u8> script(this->databases.script);
     int drive = 0;
 
-    if (this->CheckCd(this->config.cdRoot, drive) == 2)
+    if (this->CheckCd(this->config.cdRoot, drive) == Game::CdMissing)
     {
-        this->systemFlags |= 4;
+        this->systemFlags |= Game::QuitRequested;
         return false;
     }
 
@@ -280,8 +280,8 @@ bool Game::PlayVideo(std::size_t& cursor, u16& pc)
     }
 
     this->movie.Close();
-    this->movie.Open(path, (this->config.musicVolume << 0xF) / 0xB);
-    this->systemFlags |= 0x20;
+    this->movie.Open(path, this->config.musicVolume * Movie::MaxVolume / Config::MaxVolume);
+    this->systemFlags |= Game::VideoPlaying;
     return true;
 }
 
@@ -295,7 +295,7 @@ int Game::VideoPosition() const
 void Game::StopVideo()
 {
     this->movie.Close();
-    this->systemFlags &= ~0x20u;
+    this->systemFlags &= ~Game::VideoPlaying;
 }
 
 // swd32.exe 0x00484950: the next frame of the movie (unless it waits for its time) centred on the frame drawn and

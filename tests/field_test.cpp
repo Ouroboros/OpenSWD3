@@ -66,11 +66,12 @@ TEST_CASE("field: the first map of a new game from HUGE.lmf")
     }
 
     maps.erase(maps.begin(), maps.begin() + 0x200);
-    const u32 start = swd3::MapsTable(maps, 4);
+    const u32 start = swd3::MapsTable(maps, swd3::MapsDataTable::NewStory);
     const u16 map = swd3::MapsWord(maps, start);
     u16 unit = 0xFFFF;
 
-    for (u32 at = swd3::MapsTable(maps, 3); swd3::MapsWord(maps, at) != 0xFFFF; at += 0xE)
+    for (u32 at = swd3::MapsTable(maps, swd3::MapsDataTable::MapSettings); swd3::MapsWord(maps, at) != 0xFFFF;
+         at += 0xE)
     {
         if (swd3::MapsWord(maps, at) == map)
         {

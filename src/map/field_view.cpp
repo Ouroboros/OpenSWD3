@@ -1,6 +1,7 @@
 #include "map/field_view.h"
 
 #include <algorithm>
+#include <climits>
 #include <cmath>
 #include <cstring>
 #include <span>
@@ -146,6 +147,45 @@ struct FieldView::TileSet
 {
     bool indexed = false;
 };
+
+// The fields of a movie header, little-endian.
+MovieHeader MovieHeader::Read(std::span<const u8, MovieHeader::Bytes> bytes)
+{
+    auto word = [bytes](std::size_t at)
+    {
+        return static_cast<u16>(bytes[at] | bytes[at + 1] << CHAR_BIT);
+    };
+
+    auto dword = [&word](std::size_t at)
+    {
+        return static_cast<u32>(word(at) | static_cast<u32>(word(at + sizeof(u16))) << (CHAR_BIT * sizeof(u16)));
+    };
+
+    MovieHeader header;
+    header.unk00 = dword(0x00);
+    header.lastFrame = dword(0x04);
+    header.bitsPerPixel = word(0x08);
+    header.unk0A = word(0x0A);
+    header.unk0C = word(0x0C);
+    header.active = word(0x0E);
+    header.height = word(0x10);
+    header.unk12 = word(0x12);
+    header.paletteCount = word(0x14);
+    header.unk16 = word(0x16);
+    header.nextUnk0C = dword(0x18);
+    header.nextRows = dword(0x1C);
+    header.nextSize = dword(0x20);
+    return header;
+}
+
+u16 MapMovie::Rgb555(u8 red, u8 green, u8 blue)
+{
+    constexpr int kChannelBits = 5;
+    constexpr int kDropped = CHAR_BIT - kChannelBits;
+    return static_cast<u16>(
+        (red >> kDropped) << (2 * kChannelBits) | (green >> kDropped) << kChannelBits | blue >> kDropped
+    );
+}
 
 FieldView::FieldView(Game& game)
     : game(game)
@@ -2246,27 +2286,27 @@ void FieldView::PanCamera()
     Field& field = this->game.field;
     Scene& view = this->game.scene;
 
-    if (view.unk4A99F0 == 0 && view.unk4A98C0 == 0)
+    if (view.panAcross == 0 && view.panDown == 0)
     {
         return;
     }
 
-    field.cameraLeft += view.unk4A9480;
-    field.cameraRight += view.unk4A9480;
-    field.cameraTop += view.unk4A93D8;
-    const int remaining = view.unk4A98C0 - view.unk4A93D8;
-    field.cameraBottom += view.unk4A93D8;
-    view.unk4A99F0 -= view.unk4A9480;
-    view.unk4A98C0 -= view.unk4A93D8;
+    field.cameraLeft += view.panStepX;
+    field.cameraRight += view.panStepX;
+    field.cameraTop += view.panStepY;
+    const int remaining = view.panDown - view.panStepY;
+    field.cameraBottom += view.panStepY;
+    view.panAcross -= view.panStepX;
+    view.panDown -= view.panStepY;
 
-    if (view.unk4A99F0 == 0)
+    if (view.panAcross == 0)
     {
-        view.unk4A9480 = 0;
+        view.panStepX = 0;
     }
 
     if (remaining == 0)
     {
-        view.unk4A93D8 = 0;
+        view.panStepY = 0;
     }
 }
 
@@ -2451,9 +2491,8 @@ int FieldView::ReadMovieFrame()
 
             for (std::size_t index = 0; index < MapMovie::PaletteColors; ++index)
             {
-                const u8* color = colors.data() + 3 * index;
-                const u32 high = (color[1] & 0xF8u) | 0x20u * (color[0] & 0xF8u);
-                film.palette[index] = static_cast<u16>((color[2] >> 3) | 4 * high);
+                const u8* color = colors.data() + MapMovie::PaletteBytes / MapMovie::PaletteColors * index;
+                film.palette[index] = MapMovie::Rgb555(color[0], color[1], color[2]);
             }
 
             owner.painter.ConvertPixels(film.palette);
@@ -2570,9 +2609,9 @@ int FieldView::UpdateMovie()
         else
         {
             film.active = 0;
-            owner.scene.unk4C9A18 &= ~1;
+            owner.scene.screenFlags &= ~Scene::BlackScreen;
             this->Paint();
-            owner.scene.unk4C9A18 |= 1;
+            owner.scene.screenFlags |= Scene::BlackScreen;
             film.active = active;
             const auto bytes = static_cast<std::size_t>(
                 std::max(0, 2 * 2 * pitch * (MapMovie::FadeOutStart + MapMovie::CloseFrames - film.frameIndex))
@@ -2606,7 +2645,7 @@ int FieldView::UpdateMovie()
             film.active = 0;
             film.frameIndex = 0;
             film.file.Close();
-            owner.systemFlags &= ~2u;
+            owner.systemFlags &= ~Game::MovieOpened;
             owner.state.SetFrameInterval(Game::FrameInterval);
         }
 
@@ -2649,7 +2688,7 @@ void FieldView::Paint()
 
     painter.SetClipClamped(0, 0, Display::Width, Display::Height);
 
-    if ((view.unk4C9A18 & 4) != 0)
+    if ((view.screenFlags & Scene::SpotlightClip) != 0)
     {
         lightClip();
     }
@@ -2667,7 +2706,7 @@ void FieldView::Paint()
             std::memset(owner.drawSurface, 0, 2 * Display::Pixels);
         }
 
-        if ((view.unk4C9A18 & 1) != 0)
+        if ((view.screenFlags & Scene::BlackScreen) != 0)
         {
             std::memset(owner.drawSurface, 0, 2 * Display::Pixels);
         }
@@ -2704,7 +2743,7 @@ void FieldView::Paint()
             this->DrawAnimations(view.animationsA);
             this->DrawSprites();
 
-            if (!state.GameFlag(GameState::PlainScreen) && (view.unk4C9A18 & 1) == 0)
+            if (!state.GameFlag(GameState::PlainScreen) && (view.screenFlags & Scene::BlackScreen) == 0)
             {
                 this->DrawLeaves();
                 this->DrawLightning();
@@ -3157,7 +3196,7 @@ void FieldView::Render()
                         owner.unk4A948C = 0;
                         owner.unk4A9488 = 0;
 
-                        if ((view.unk4C9A18 & 2) == 0)
+                        if ((view.screenFlags & Scene::CameraHeld) == 0)
                         {
                             field.CenterCamera();
                         }
@@ -3196,7 +3235,7 @@ void FieldView::Render()
 
         owner.acts.Run(role.act);
 
-        if (index == state.playerRole && (view.unk4C9A18 & 2) == 0)
+        if (index == state.playerRole && (view.screenFlags & Scene::CameraHeld) == 0)
         {
             field.CenterCamera();
         }

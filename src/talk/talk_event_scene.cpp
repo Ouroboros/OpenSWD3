@@ -62,9 +62,10 @@ bool Talk::PanCamera(EventRun& run)
     GameState& state = owner.state;
     Scene& view = owner.scene;
     const Field& field = owner.field;
-    i32 across = view.unk4A99F0;
-    i32 down = view.unk4A98C0;
-    std::size_t steps = 3;
+    constexpr i32 kDefaultPanStep = 4;  // a step that does not divide the distance becomes this
+    i32 across = view.panAcross;
+    i32 down = view.panDown;
+    std::size_t steps = 3;  // the operand the steps start at
 
     if ((across | down) != 0)
     {
@@ -74,17 +75,17 @@ bool Talk::PanCamera(EventRun& run)
     if (run.code == EventCommand::PanCamera)
     {
         across = static_cast<i16>(this->Word(run, 1));
-        view.unk4A99F0 = across;
+        view.panAcross = across;
         down = static_cast<i16>(this->Word(run, 2));
-        view.unk4A98C0 = down;
+        view.panDown = down;
     }
     else if (run.code == EventCommand::PanCameraTo)
     {
         run.valueA = static_cast<i16>(this->Word(run, 1));
-        across = run.valueA - (field.cameraLeft >> 4);
-        view.unk4A99F0 = across;
-        down = static_cast<i16>(this->Word(run, 2)) - (field.cameraTop >> 4);
-        view.unk4A98C0 = down;
+        across = run.valueA - (field.cameraLeft >> MapHeader::TileShift);
+        view.panAcross = across;
+        down = static_cast<i16>(this->Word(run, 2)) - (field.cameraTop >> MapHeader::TileShift);
+        view.panDown = down;
     }
     else
     {
@@ -92,47 +93,47 @@ bool Talk::PanCamera(EventRun& run)
         const Role* role = this->FoundRole(run);
         std::array<i32, 4> rect = {field.cameraLeft, field.cameraTop, field.cameraRight, field.cameraBottom};
         field.CameraAround(role != nullptr ? role->x : 0, role != nullptr ? role->y : 0, rect);
-        across = (rect[0] - field.cameraLeft) >> 4;
-        down = (rect[1] - field.cameraTop) >> 4;
-        view.unk4A99F0 = across;
-        view.unk4A98C0 = down;
-        steps = 2;
+        across = (rect[0] - field.cameraLeft) >> MapHeader::TileShift;
+        down = (rect[1] - field.cameraTop) >> MapHeader::TileShift;
+        view.panAcross = across;
+        view.panDown = down;
+        steps = 2;  // after the role
     }
 
     run.valueB = static_cast<i32>(steps);
     i32 stepX = this->Word(run, steps);
     i32 stepY = this->Word(run, steps + 1);
-    view.unk4A9480 = stepX;
-    view.unk4A93D8 = stepY;
+    view.panStepX = stepX;
+    view.panStepY = stepY;
 
     if (across == 0)
     {
         stepX = 0;
-        view.unk4A9480 = 0;
+        view.panStepX = 0;
     }
 
     if (down == 0)
     {
         stepY = 0;
-        view.unk4A93D8 = 0;
+        view.panStepY = 0;
     }
 
-    i32 pixelsDown = 0x10 * down;
-    view.unk4A99F0 = 0x10 * across;
-    view.unk4A98C0 = pixelsDown;
+    i32 pixelsDown = MapHeader::TileSize * down;
+    view.panAcross = MapHeader::TileSize * across;
+    view.panDown = pixelsDown;
 
-    if (view.unk4A99F0 != 0 && stepX == 0)
+    if (view.panAcross != 0 && stepX == 0)
     {
         Fault(owner.errors, u8"Integer divide by zero (0x00427920 pan)");
     }
 
-    if (view.unk4A99F0 != 0 && view.unk4A99F0 % stepX != 0)
+    if (view.panAcross != 0 && view.panAcross % stepX != 0)
     {
         DebugLog(u8"pan step across", stepX);
-        pixelsDown = view.unk4A98C0;
-        stepY = view.unk4A93D8;
-        stepX = 4;
-        view.unk4A9480 = 4;
+        pixelsDown = view.panDown;
+        stepY = view.panStepY;
+        stepX = kDefaultPanStep;
+        view.panStepX = kDefaultPanStep;
     }
 
     if (pixelsDown != 0 && stepY == 0)
@@ -143,49 +144,49 @@ bool Talk::PanCamera(EventRun& run)
     if (pixelsDown != 0 && pixelsDown % stepY != 0)
     {
         DebugLog(u8"pan step down", stepY);
-        pixelsDown = view.unk4A98C0;
-        stepX = view.unk4A9480;
-        stepY = 4;
-        view.unk4A93D8 = 4;
+        pixelsDown = view.panDown;
+        stepX = view.panStepX;
+        stepY = kDefaultPanStep;
+        view.panStepY = kDefaultPanStep;
     }
 
-    i32 pixelsAcross = view.unk4A99F0;
+    i32 pixelsAcross = view.panAcross;
 
-    if (view.unk4A99F0 < 0)
+    if (view.panAcross < 0)
     {
-        view.unk4A9480 = -stepX;
+        view.panStepX = -stepX;
     }
 
     if (pixelsDown < 0)
     {
-        view.unk4A93D8 = -stepY;
+        view.panStepY = -stepY;
     }
 
     bool clamped = false;
 
-    if (view.unk4A99F0 + field.cameraLeft < 0)
+    if (view.panAcross + field.cameraLeft < 0)
     {
         clamped = true;
         pixelsAcross = -field.cameraLeft;
-        view.unk4A99F0 = -field.cameraLeft;
+        view.panAcross = -field.cameraLeft;
     }
 
-    if (field.cameraRight + pixelsAcross > 0x10 * state.map.width)
+    if (field.cameraRight + pixelsAcross > MapHeader::TileSize * state.map.width)
     {
         clamped = true;
-        view.unk4A99F0 = 0x10 * state.map.width - field.cameraRight;
+        view.panAcross = MapHeader::TileSize * state.map.width - field.cameraRight;
     }
 
     if (pixelsDown + field.cameraTop < 0)
     {
         clamped = true;
         pixelsDown = -field.cameraTop;
-        view.unk4A98C0 = -field.cameraTop;
+        view.panDown = -field.cameraTop;
     }
 
-    if (field.cameraBottom + pixelsDown > 0x10 * state.map.height)
+    if (field.cameraBottom + pixelsDown > MapHeader::TileSize * state.map.height)
     {
-        view.unk4A98C0 = 0x10 * state.map.height - field.cameraBottom;
+        view.panDown = MapHeader::TileSize * state.map.height - field.cameraBottom;
         clamped = true;
     }
 
@@ -195,12 +196,12 @@ bool Talk::PanCamera(EventRun& run)
             u8"pan past the map",
             this->Word(run, 1),
             this->Word(run, 2),
-            field.cameraLeft >> 4,
-            field.cameraTop >> 4
+            field.cameraLeft >> MapHeader::TileShift,
+            field.cameraTop >> MapHeader::TileShift
         );
     }
 
-    const int length = static_cast<int>(2 * steps + 4);
+    const int length = CommandBytes(run.code);
     run.valueB = length;
     this->Advance(run, length);
     return true;
@@ -215,7 +216,15 @@ bool Talk::PlaceRole(EventRun& run)
     Game& owner = this->game;
     GameState& state = owner.state;
     const Role& player = state.roles[static_cast<std::size_t>(state.playerRole)];
-    const u16 id = this->EventRoleId(run, this->Word(run, 1));
+    const u16 operand = this->Word(run, 1);
+    const u16 mapOperand = this->Word(run, 2);
+    const auto talk = static_cast<i16>(this->Word(run, 3));
+    const u16 column = this->Word(run, 4);
+    const u16 row = this->Word(run, 5);
+    const auto act = static_cast<i16>(this->Word(run, 6));
+    const auto action = static_cast<i16>(this->Word(run, 7));
+    const auto direction = static_cast<i16>(this->Word(run, 8));
+    const u16 id = this->EventRoleId(run, operand);
     i16 setBits = 0;
     i16 event = -1;
     run.valueA = id;
@@ -239,39 +248,26 @@ bool Talk::PlaceRole(EventRun& run)
     }
 
     run.code = EventCommand::None;
-    const i16 map =
-        this->Word(run, 2) == 0xFFFF ? static_cast<i16>(owner.currentMap) : static_cast<i16>(this->Word(run, 2));
-    const i16 tileY = this->Word(run, 5) == 0xFFFF ? static_cast<i16>(static_cast<u32>(player.y) >> 4)
-                                                   : static_cast<i16>(this->Word(run, 5));
-    const i16 tileX = this->Word(run, 4) == 0xFFFF ? static_cast<i16>(static_cast<u32>(player.x) >> 4)
-                                                   : static_cast<i16>(this->Word(run, 4));
+    const i16 map = mapOperand == Talk::Keep ? static_cast<i16>(owner.currentMap) : static_cast<i16>(mapOperand);
+    const i16 tileY = row == Talk::Keep ? static_cast<i16>(static_cast<u32>(player.y) >> MapHeader::TileShift)
+                                        : static_cast<i16>(row);
+    const i16 tileX = column == Talk::Keep ? static_cast<i16>(static_cast<u32>(player.x) >> MapHeader::TileShift)
+                                           : static_cast<i16>(column);
     run.valueA = map;
 
-    if (!owner.UpdateRoleRecord(
-            id,
-            static_cast<i16>(this->Word(run, 6)),
-            static_cast<i16>(this->Word(run, 7)),
-            static_cast<i16>(this->Word(run, 8)),
-            tileX,
-            tileY,
-            event,
-            static_cast<i16>(this->Word(run, 3)),
-            setBits,
-            Game::KeepValue,
-            map
-        ))
+    if (!owner.UpdateRoleRecord(id, act, action, direction, tileX, tileY, event, talk, setBits, Game::KeepValue, map))
     {
-        DebugLog(u8"maps.dat role missing", this->Word(run, 1));
+        DebugLog(u8"maps.dat role missing", operand);
         this->Next(run);
         return true;
     }
 
-    const u16 target = this->Word(run, 2) == 0xFFFF ? static_cast<u16>(owner.currentMap) : this->Word(run, 2);
+    const u16 target = mapOperand == Talk::Keep ? static_cast<u16>(owner.currentMap) : mapOperand;
 
     if (static_cast<u16>(owner.currentMap) == target)
     {
         Role loaded;
-        owner.LoadRoleRecord(loaded, this->Word(run, 1));
+        owner.LoadRoleRecord(loaded, operand);
         owner.InitRole(loaded);
         Role* placed = nullptr;
         int index = 1;
@@ -342,7 +338,7 @@ bool Talk::LoadName(EventRun& run)
         const u16 variable = this->Word(run, 1);
         run.found = variable;
 
-        if (variable != 0xB && variable != 0xC)
+        if (variable != Party::FirstNameVariable && variable != Party::SecondNameVariable)
         {
             DebugLog(u8"對話系統(Caption2)u8", u8"設定的變數(%d)和系統衝突", variable);
             this->Next(run);
@@ -361,7 +357,7 @@ bool Talk::LoadName(EventRun& run)
     }
 
     const std::vector<u8>& data = owner.databases.mapsData;
-    const u32 at = MapsDword(data, MapsTable(data, 8) + 4 * index);
+    const u32 at = MapsDword(data, MapsTable(data, MapsDataTable::NamePlates) + sizeof(u32) * index);
 
     for (std::size_t offset = 0; offset < this->dialogName.size(); ++offset)
     {
@@ -381,14 +377,14 @@ bool Talk::LoadName(EventRun& run)
         0,
         Big5(Party::RoleNames[0]),
         std::string_view(party.names[0].data(), strnlen(party.names[0].data(), party.names[0].size())),
-        0x20
+        static_cast<int>(this->dialogName.size())
     );
     Talk::ReplacePrefix(
         name,
         0,
         Big5(Party::RoleNames[1]),
         std::string_view(party.names[1].data(), strnlen(party.names[1].data(), party.names[1].size())),
-        0x20
+        static_cast<int>(this->dialogName.size())
     );
     std::copy_n(name.begin(), this->dialogName.size(), this->dialogName.begin());
     this->Next(run);
@@ -405,8 +401,9 @@ bool Talk::OpenMapMovie(EventRun& run)
     GameState& state = owner.state;
     MapMovie& film = owner.fieldView.movie;
     const std::vector<u8>& script = owner.databases.script;
+    constexpr int kMovieFrameInterval = 0x46;  // milliseconds a frame while a map movie plays
     state.ClearFrameInterval();
-    state.SetFrameInterval(0x46);
+    state.SetFrameInterval(kMovieFrameInterval);
     film.options = 0;
     this->Advance(run, kOpcodeBytes);
 
@@ -424,9 +421,10 @@ bool Talk::OpenMapMovie(EventRun& run)
         ++run.context.unk20;
     }
 
+    constexpr std::size_t kNameBytes = 0x20;  // copied from the script; the copy is 0x400 bytes
     std::array<u8, 0x400> copy = {};
 
-    for (std::size_t index = 0; index < 0x20; ++index)
+    for (std::size_t index = 0; index < kNameBytes; ++index)
     {
         copy[index] = run.cursor + index < script.size() ? script[run.cursor + index] : u8{0};
     }
@@ -440,8 +438,8 @@ bool Talk::OpenMapMovie(EventRun& run)
         ++run.cursor;
     }
 
-    run.cursor += 2;
-    run.context.unk20 = static_cast<u16>(run.context.unk20 + 2);
+    run.cursor += kWordBytes;
+    run.context.unk20 = static_cast<u16>(run.context.unk20 + kWordBytes);
     copy[end] = 0;
     const std::string name(reinterpret_cast<const char*>(copy.data()), end);
     ErrorLog(u8"Talk:ani_open:cd:%s:%s", owner.config.cdRoot, name);
@@ -459,9 +457,9 @@ bool Talk::OpenMapMovie(EventRun& run)
         probe.Close();
         int drive = 0;
 
-        if (owner.CheckCd(owner.config.cdRoot, drive) == 2)
+        if (owner.CheckCd(owner.config.cdRoot, drive) == Game::CdMissing)
         {
-            owner.systemFlags |= 4;
+            owner.systemFlags |= Game::QuitRequested;
             run.stopped = true;
             return false;
         }
@@ -487,76 +485,69 @@ bool Talk::OpenMapMovie(EventRun& run)
 
     film.chunks.next.reset();
     owner.AudioPump();
-    std::array<u8, 0x24> header = {};
-    u32 bytes = static_cast<u32>(header.size());
-    film.file.Read(header.data(), bytes);
+    constexpr u32 kReadRetryWait = 0xFA;  // milliseconds
+    std::array<u8, MovieHeader::Bytes> bytes = {};
+    u32 read = static_cast<u32>(bytes.size());
+    film.file.Read(bytes.data(), read);
 
-    if (bytes != header.size())
+    if (read != bytes.size())
     {
         ErrorLog(u8"Talk:Ani_Open Header read fail ,%s", film.file.ErrorText());
-        SleepMilliseconds(0xFA);
+        SleepMilliseconds(kReadRetryWait);
     }
 
-    auto word = [&header](std::size_t at)
-    {
-        return static_cast<u16>(header[at] | header[at + 1] << 8);
-    };
-
-    auto dword = [&word](std::size_t at)
-    {
-        return static_cast<u32>(word(at) | static_cast<u32>(word(at + 2)) << 16);
-    };
-
+    const MovieHeader header = MovieHeader::Read(bytes);
     MovieChunk& head = film.chunks;
     head.offset = 0;
-    head.unk0C = 0x18;
+    head.unk0C = MovieHeader::FirstChunkBytes;
     head.rows = 1;
-    head.size = 0x18;
-    head.nextUnk0C = dword(0x18);
-    head.nextRows = dword(0x1C);
-    head.nextSize = dword(0x20);
+    head.size = MovieHeader::FirstChunkBytes;
+    head.nextUnk0C = header.nextUnk0C;
+    head.nextRows = header.nextRows;
+    head.nextSize = header.nextSize;
     head.frame = 0;
     head.next.reset();
-    film.lastFrame = static_cast<i32>(dword(4));
-    film.active = word(0xE);
-    film.height = word(0x10);
-    film.frame.assign(0x9C400, 0);
-    film.buffer.assign(0x9C400, 0);
+    film.lastFrame = static_cast<i32>(header.lastFrame);
+    film.active = header.active;
+    film.height = header.height;
+    film.frame.assign(MapMovie::FrameBufferBytes, 0);
+    film.buffer.assign(MapMovie::FrameBufferBytes, 0);
     film.palette.clear();
     film.paletteFrames.clear();
-    film.paletteCount = word(0x14);
+    film.paletteCount = header.paletteCount;
     film.paletteIndex = 0;
 
-    if (word(8) == 8)
+    if (header.bitsPerPixel == MapMovie::IndexedBits)
     {
         if (film.paletteCount != 0)
         {
             owner.AudioPump();
-            film.paletteFrames.assign(0x200, 0);
-            u32 frames = 0x400;
-            film.file.SeekEnd(-0x400);
+            film.paletteFrames.assign(MapMovie::PaletteTailBytes / sizeof(u16), 0);
+            u32 frames = MapMovie::PaletteTailBytes;
+            film.file.SeekEnd(-static_cast<i32>(MapMovie::PaletteTailBytes));
             film.file.Read(film.paletteFrames.data(), frames);
         }
 
-        i32 back = 0x300;
+        auto back = static_cast<i32>(MapMovie::PaletteBytes);
 
         if (film.paletteCount != 0)
         {
-            back = 0x300 * (film.paletteCount - film.paletteIndex++) + 0x400;
+            back = static_cast<i32>(
+                MapMovie::PaletteBytes * (film.paletteCount - film.paletteIndex++) + MapMovie::PaletteTailBytes
+            );
         }
 
         owner.AudioPump();
-        std::array<u8, 0x300> colors = {};
+        std::array<u8, MapMovie::PaletteBytes> colors = {};
         film.file.SeekEnd(-back);
-        u32 read = 0x300;
-        film.file.Read(colors.data(), read);
-        film.palette.assign(0x100, 0);
+        u32 colorBytes = MapMovie::PaletteBytes;
+        film.file.Read(colors.data(), colorBytes);
+        film.palette.assign(MapMovie::PaletteColors, 0);
 
-        for (std::size_t index = 0; index < 0x100; ++index)
+        for (std::size_t index = 0; index < MapMovie::PaletteColors; ++index)
         {
-            const u8* color = colors.data() + 3 * index;
-            const u32 high = (color[1] & 0xF8u) | 0x20u * (color[0] & 0xF8u);
-            film.palette[index] = static_cast<u16>((color[2] >> 3) | 4 * high);
+            const u8* color = colors.data() + MapMovie::PaletteBytes / MapMovie::PaletteColors * index;
+            film.palette[index] = MapMovie::Rgb555(color[0], color[1], color[2]);
         }
 
         owner.painter.ConvertPixels(film.palette);
@@ -573,7 +564,7 @@ bool Talk::OpenMapMovie(EventRun& run)
     }
 
     film.saved = 0;
-    owner.systemFlags |= 2;
+    owner.systemFlags |= Game::MovieOpened;
     return false;
 }
 
@@ -595,7 +586,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             return this->PanCamera(run);
 
         case EventCommand::WaitPan:
-            if (view.unk4A99F0 == 0 && view.unk4A98C0 == 0 && view.unk4A9480 == 0 && view.unk4A93D8 == 0)
+            if (view.panAcross == 0 && view.panDown == 0 && view.panStepX == 0 && view.panStepY == 0)
             {
                 this->Next(run);
                 return true;
@@ -640,8 +631,10 @@ bool Talk::RunSceneCommand(EventRun& run)
 
         case EventCommand::SeekAct:
         {
-            state.FindRoleOrPlayer(this->EventRoleId(run, this->Word(run, 1)), run.found);
-            run.valueB = static_cast<i16>(this->Word(run, 2));
+            const u16 id = this->EventRoleId(run, this->Word(run, 1));
+            const auto steps = static_cast<i16>(this->Word(run, 2));
+            state.FindRoleOrPlayer(id, run.found);
+            run.valueB = steps;
             run.valueA = 0;
 
             if (Role* role = this->FoundRole(run))
@@ -676,7 +669,8 @@ bool Talk::RunSceneCommand(EventRun& run)
         case EventCommand::LayerMiddle:
         case EventCommand::LayerBack:
         {
-            state.FindRoleOrPlayer(this->EventRoleId(run, this->Word(run, 1)), run.found);
+            const u16 id = this->EventRoleId(run, this->Word(run, 1));
+            state.FindRoleOrPlayer(id, run.found);
 
             if (Role* role = this->FoundRole(run))
             {
@@ -686,18 +680,18 @@ bool Talk::RunSceneCommand(EventRun& run)
 
                 if (run.code == EventCommand::LayerFront)
                 {
-                    role->flags |= 1;
+                    role->flags |= Role::FrontLayer;
                 }
 
                 if (run.code == EventCommand::LayerBack)
                 {
-                    role->flags |= 2;
+                    role->flags |= Role::BackLayer;
                 }
 
                 owner.field.RemoveRole(
                     role->id,
                     static_cast<int>(layer),
-                    static_cast<int>(static_cast<u32>(role->y) >> 4) - 1,
+                    static_cast<int>(static_cast<u32>(role->y) >> MapHeader::TileShift) - 1,
                     0
                 );
             }
@@ -721,13 +715,16 @@ bool Talk::RunSceneCommand(EventRun& run)
         }
 
         case EventCommand::Sound:
-            owner.audio.PlaySound(this->Word(run, 1), owner.config.soundVolume);
+        {
+            const u16 sound = this->Word(run, 1);
+            owner.audio.PlaySound(sound, owner.config.soundVolume);
             this->Next(run);
             return false;
+        }
 
         case EventCommand::ShowScreen:
         case EventCommand::BlackScreen:
-            view.unk4C9A18 &= ~1;
+            view.screenFlags &= ~Scene::BlackScreen;
 
             if (run.code == EventCommand::BlackScreen)
             {
@@ -736,7 +733,7 @@ bool Talk::RunSceneCommand(EventRun& run)
                     owner.offscreen->Fill(0);
                 }
 
-                view.unk4C9A18 |= 1;
+                view.screenFlags |= Scene::BlackScreen;
             }
 
             this->Next(run);
@@ -747,17 +744,20 @@ bool Talk::RunSceneCommand(EventRun& run)
 
         case EventCommand::Quake:
         {
+            constexpr std::size_t kShakesAt = 2;  // after the frames: the offsets, ended by kListEnd
+            constexpr std::size_t kMaxShakes = 0x38;
+            const u16 frames = this->Word(run, 1);
             std::size_t count = 0;
 
-            while (this->Word(run, 2 + count) != kListEnd &&
-                   run.cursor + 2 * (2 + count) + 1 < owner.databases.script.size())
+            while (this->Word(run, kShakesAt + count) != kListEnd &&
+                   run.cursor + kWordBytes * (kShakesAt + count) + 1 < owner.databases.script.size())
             {
                 ++count;
             }
 
             run.valueA = static_cast<i32>(count);
 
-            if (count > 0x38)
+            if (count > kMaxShakes)
             {
                 DebugLog(u8"quake list too long");
                 return false;
@@ -767,13 +767,13 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             for (std::size_t index = 0; index < count; ++index)
             {
-                view.shake[index] = static_cast<i16>(this->Word(run, 2 + index));
+                view.shake[index] = static_cast<i16>(this->Word(run, kShakesAt + index));
             }
 
-            const int length = static_cast<int>(2 * count + 6);
+            const auto length = static_cast<int>(kWordBytes * (kShakesAt + count + 1));
             run.valueA = length;
-            view.shakeHold = this->Word(run, 1);
-            view.shakeFrames = this->Word(run, 1);
+            view.shakeHold = frames;
+            view.shakeFrames = frames;
             view.unk4A992C = field.cameraTop;
             view.unk4A93E4 = field.cameraLeft;
             this->Advance(run, length);
@@ -786,36 +786,42 @@ bool Talk::RunSceneCommand(EventRun& run)
             return true;
 
         case EventCommand::JoinFollowers:
-            if (state.FindRoleOrPlayer(this->Word(run, 1), run.found))
+        {
+            const u16 id = this->Word(run, 1);
+
+            if (state.FindRoleOrPlayer(id, run.found))
             {
                 owner.FollowLeader(static_cast<int>(run.found));
             }
 
             this->Next(run);
             return false;
+        }
 
         case EventCommand::LeaveFollowers:
-            owner.LeaveParty(
-                this->Word(run, 1),
-                this->Word(run, 2),
-                this->Word(run, 3),
-                this->Word(run, 4),
-                this->Word(run, 5),
-                this->Word(run, 6),
-                this->Word(run, 7)
-            );
+        {
+            const u16 id = this->Word(run, 1);
+            const u16 path = this->Word(run, 2);
+            const u16 event = this->Word(run, 3);
+            const u16 act = this->Word(run, 4);
+            const u16 action = this->Word(run, 5);
+            const u16 direction = this->Word(run, 6);
+            const u16 flags = this->Word(run, 7);
+            owner.LeaveParty(id, path, event, act, action, direction, flags);
             this->Next(run);
             return false;
+        }
 
         case EventCommand::Wait:
         {
+            constexpr u16 kWaiting = 0x8000;  // the command marks its length while it waits
             const u16 length = this->Word(run, 1);
             run.found = length;
 
-            if ((length & 0x8000) == 0)
+            if ((length & kWaiting) == 0)
             {
                 this->waitLength = length;
-                this->SetWord(run, 1, static_cast<u16>(length | 0x8000));
+                this->SetWord(run, 1, static_cast<u16>(length | kWaiting));
                 this->waitStart = owner.frameStart;
                 return false;
             }
@@ -825,7 +831,7 @@ bool Talk::RunSceneCommand(EventRun& run)
                 return false;
             }
 
-            this->SetWord(run, 1, static_cast<u16>(length & 0x7FFF));
+            this->SetWord(run, 1, static_cast<u16>(length & ~kWaiting));
             this->Next(run);
             return true;
         }
@@ -879,23 +885,31 @@ bool Talk::RunSceneCommand(EventRun& run)
         }
 
         case EventCommand::AttachAct:
-            if (state.FindRoleOrPlayer(this->Word(run, 1), run.found))
+        {
+            const u16 id = this->Word(run, 1);
+            const u16 act = this->Word(run, 2);
+
+            if (state.FindRoleOrPlayer(id, run.found))
             {
-                const u16 act = this->Word(run, 2);
                 state.roles[run.found].attached = act < view.unk4B9F68.size() ? &view.unk4B9F68[act] : nullptr;
             }
 
             this->Next(run);
             return false;
+        }
 
         case EventCommand::DetachAct:
-            if (state.FindRoleOrPlayer(this->Word(run, 1), run.found))
+        {
+            const u16 id = this->Word(run, 1);
+
+            if (state.FindRoleOrPlayer(id, run.found))
             {
                 state.roles[run.found].attached = nullptr;
             }
 
             this->Next(run);
             return false;
+        }
 
         case EventCommand::StopFade:
             view.fade.stepRed = 0;
@@ -918,7 +932,9 @@ bool Talk::RunSceneCommand(EventRun& run)
 
         case EventCommand::TurnToFace:
         {
+            constexpr i32 kTurnDistance = 4;  // nearer than this the role faces direction 0
             const u16 id = this->EventRoleId(run, this->Word(run, 1));
+            const u16 otherId = this->Word(run, 2);
 
             if (!state.FindRoleOrPlayer(id, run.found))
             {
@@ -927,9 +943,9 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             u32 other = 0;
 
-            if (!state.FindRoleOrPlayer(this->Word(run, 2), other))
+            if (!state.FindRoleOrPlayer(otherId, other))
             {
-                DebugLog(u8"Act Err(Talk:TurnFace[2])", this->Word(run, 2));
+                DebugLog(u8"Act Err(Talk:TurnFace[2])", otherId);
             }
 
             Role* role = this->FoundRole(run);
@@ -937,10 +953,10 @@ bool Talk::RunSceneCommand(EventRun& run)
             const Role& faced = other < GameState::Roles ? state.roles[other] : blank;
             i32 distance = 0;
             const int angle = AngleBetween(
-                faced.x + 8 * faced.act.width,
-                faced.y + 8 * faced.act.height,
-                turning.x + 8 * turning.act.width,
-                turning.y + 8 * turning.act.height,
+                faced.x + MapHeader::TileSize / 2 * faced.act.width,
+                faced.y + MapHeader::TileSize / 2 * faced.act.height,
+                turning.x + MapHeader::TileSize / 2 * turning.act.width,
+                turning.y + MapHeader::TileSize / 2 * turning.act.height,
                 distance
             );
             const int direction = AngleToDirection(angle);
@@ -952,7 +968,7 @@ bool Talk::RunSceneCommand(EventRun& run)
                 role->act.action = 0;
                 role->act.direction = 0;
 
-                if (distance >= 4)
+                if (distance >= kTurnDistance)
                 {
                     role->act.direction = direction;
                 }
@@ -974,20 +990,22 @@ bool Talk::RunSceneCommand(EventRun& run)
         case EventCommand::FixSpeed:
         case EventCommand::FreeSpeed:
         {
+            // The length is left in valueB only when the role is found; otherwise the last one is used (an
+            // original bug).
             const u16 id = this->EventRoleId(run, this->Word(run, 1));
 
             if (state.FindRoleOrPlayer(id, run.found))
             {
                 Role& role = state.roles[run.found];
+                run.valueB = CommandBytes(run.code);
 
                 if (run.code == EventCommand::FixSpeed)
                 {
-                    role.act.speed = static_cast<i16>(this->Word(run, 2) | 0x8000);
-                    run.valueB = 6;
+                    const u16 delay = this->Word(run, 2);
+                    role.act.speed = static_cast<i16>(delay | static_cast<u16>(ActState::FixedDelay));
                 }
                 else
                 {
-                    run.valueB = 4;
                     role.act.speed = 0;
                 }
 
@@ -1118,13 +1136,23 @@ bool Talk::RunSceneCommand(EventRun& run)
                 run.valueA = 1;
             }
 
+            constexpr u16 kRisingLines = 1;  // the line kinds of the command (0: falling)
+            constexpr u16 kStillLines = 2;
+            constexpr int kSpareColumns = 4;  // past the count in the column buffers
+            constexpr i16 kLineStart = 2;     // pixels a line starts with
+            const u16 color = this->Word(run, 2);
+            const u16 lines = this->Word(run, 3);
+            const u16 x = this->Word(run, 4);
+            const u16 y = this->Word(run, 5);
+            const u16 limit = this->Word(run, 6);
+            const u16 count = this->Word(run, 7);
             auto effect = std::make_unique<ScriptEffect>();
             effect->mode = mode;
-            effect->color = static_cast<i16>(this->Word(run, 2));
-            effect->x = static_cast<i16>(this->Word(run, 4) & kEvenPixels);
-            effect->y = static_cast<i16>(this->Word(run, 5) & kEvenPixels);
-            effect->limit = static_cast<i16>(this->Word(run, 6) & kEvenPixels);
-            effect->count = static_cast<i16>(this->Word(run, 7) & kEvenPixels);
+            effect->color = static_cast<i16>(color);
+            effect->x = static_cast<i16>(x & kEvenPixels);
+            effect->y = static_cast<i16>(y & kEvenPixels);
+            effect->limit = static_cast<i16>(limit & kEvenPixels);
+            effect->count = static_cast<i16>(count & kEvenPixels);
 
             if (effect->x < 0 || effect->y < 0 || effect->limit + effect->x > Display::Width ||
                 effect->count + effect->y > Display::Height)
@@ -1134,19 +1162,19 @@ bool Talk::RunSceneCommand(EventRun& run)
                 return true;
             }
 
-            const auto columns = static_cast<std::size_t>(std::max<int>(effect->count, 0) + 4);
+            const auto columns = static_cast<std::size_t>(std::max<int>(effect->count, 0) + kSpareColumns);
             effect->offsets.assign(columns, 0);
             effect->lengths.assign(columns, 0);
             run.valueB = 0;
             u16 kind = ScriptEffect::Falling;
 
-            if (this->Word(run, 3) == 1)
+            if (lines == kRisingLines)
             {
-                run.valueB = effect->limit - 2;
+                run.valueB = effect->limit - kLineStart;
                 kind = ScriptEffect::Rising;
             }
 
-            if (this->Word(run, 3) == 2)
+            if (lines == kStillLines)
             {
                 kind = ScriptEffect::Still;
                 run.valueB = 0;
@@ -1157,7 +1185,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             for (int column = 0; column < effect->count; ++column)
             {
                 effect->offsets[static_cast<std::size_t>(column)] = static_cast<i16>(run.valueB);
-                effect->lengths[static_cast<std::size_t>(column)] = 2;
+                effect->lengths[static_cast<std::size_t>(column)] = kLineStart;
                 run.valueA = column + 1;
             }
 
@@ -1195,19 +1223,22 @@ bool Talk::RunSceneCommand(EventRun& run)
                 return true;
             }
 
+            constexpr u16 kOpen = 0;  // the changes of LineEffectMode
+            constexpr u16 kClose = 1;
+            constexpr u16 kRemove = 2;
             const u16 change = this->Word(run, 2);
 
-            if (change == 0)
+            if (change == kOpen)
             {
                 run.valueA = ScriptEffect::Opening;
             }
 
-            if (change == 1)
+            if (change == kClose)
             {
                 run.valueA = ScriptEffect::Closing;
             }
 
-            if (change == 2)
+            if (change == kRemove)
             {
                 EraseNodes(
                     view.effects,
@@ -1254,10 +1285,15 @@ bool Talk::RunSceneCommand(EventRun& run)
 
         case EventCommand::RandomJump:
         {
+            auto targetAt = [](u32 index)
+            {
+                return kOpcodeBytes + sizeof(u32) * static_cast<std::size_t>(index);
+            };
+
             u32 count = 0;
 
-            while (this->Dword(run, 2 + 4 * static_cast<std::size_t>(count)) != 0xFF00FF00 &&
-                   run.cursor + 2 + 4 * static_cast<std::size_t>(count) < owner.databases.script.size())
+            while (this->Dword(run, targetAt(count)) != kTargetsEnd &&
+                   run.cursor + targetAt(count) < owner.databases.script.size())
             {
                 ++count;
             }
@@ -1270,16 +1306,20 @@ bool Talk::RunSceneCommand(EventRun& run)
             }
 
             run.valueB = static_cast<i32>(owner.random.Below(count));
-            this->Jump(run, this->Dword(run, 2 + 4 * static_cast<std::size_t>(run.valueB)));
+            this->Jump(run, this->Dword(run, targetAt(static_cast<u32>(run.valueB))));
             return true;
         }
 
         case EventCommand::StartBattle:
             view.FreeEffects();
+
             view.FreeSpritesB();
-            owner.unk4A94AC = static_cast<i16>(this->Word(run, 1)) | static_cast<i32>(0x80000000u);
-            this->Next(run);
-            return false;
+            {
+                const auto battle = static_cast<i16>(this->Word(run, 1));
+                owner.battleRequest = battle | static_cast<i32>(Game::ScriptedBattle);
+                this->Next(run);
+                return false;
+            }
 
         case EventCommand::RecordDialogWait:
         case EventCommand::RecordDialog:
@@ -1288,28 +1328,28 @@ bool Talk::RunSceneCommand(EventRun& run)
         case EventCommand::RoleNamePlate:
             return this->LoadName(run);
 
-        case EventCommand::SetCueFlag:
-        case EventCommand::ClearCueFlag:
+        case EventCommand::SetInParty:
+        case EventCommand::ClearInParty:
         {
-            run.found = static_cast<u32>(this->Word(run, 1) - 1);
+            run.found = static_cast<u32>(this->Word(run, 1) - 1);  // the roles count from 1
 
-            if (run.found > 3)
+            if (run.found >= Party::Roles)
             {
                 DebugLog(u8"cue number", run.found);
             }
 
-            this->SetStoryFlag(static_cast<int>(run.found + 0x1E), run.code == EventCommand::SetCueFlag);
+            this->SetStoryFlag(static_cast<int>(run.found + GameState::InParty), run.code == EventCommand::SetInParty);
             this->Next(run);
             return true;
         }
 
         case EventCommand::CameraHold:
-            view.unk4C9A18 |= 2;
+            view.screenFlags |= Scene::CameraHeld;
             this->Next(run);
             return false;
 
         case EventCommand::CameraFollow:
-            view.unk4C9A18 &= ~2;
+            view.screenFlags &= ~Scene::CameraHeld;
             this->Next(run);
             return false;
 
@@ -1324,7 +1364,7 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             this->Next(run);
             state.ClearFrameInterval();
-            state.SetFrameInterval(0x23);
+            state.SetFrameInterval(Game::FrameInterval);
             return true;
 
         case EventCommand::Skip:

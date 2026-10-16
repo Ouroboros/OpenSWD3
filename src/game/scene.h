@@ -296,6 +296,14 @@ struct Scene
 
     static constexpr i32 EncounterStepMask = 0x7FFFFFFF;  // `encounterSteps` without bit 31
 
+    // The bits of `screenFlags`.
+    enum ScreenFlag : i32
+    {
+        BlackScreen = 1,    // the map is not drawn (talk commands BlackScreen and ChangeMap)
+        CameraHeld = 2,     // the camera does not follow the controlled role
+        SpotlightClip = 4,  // the screen is clipped to the spotlight (no setter is known)
+    };
+
     // `playerHold`: the controlled role does not move while it is nonzero.
     static constexpr i32 HoldLocked = 0x8000;     // set by the talk commands that hold it
     static constexpr i32 HoldCountMask = 0x7FFF;  // the blocking talk windows still open
@@ -334,10 +342,10 @@ struct Scene
     i32 shakeHold = 0;                 // 0x004AD0D0
     i32 unk4A93E4 = 0;                 // the camera before the quake
     i32 unk4A992C = 0;
-    i32 unk4A99F0 = 0;                        // the pan still to go across
-    i32 unk4A98C0 = 0;                        // and down
-    i32 unk4A9480 = 0;                        // the step of the pan across
-    i32 unk4A93D8 = 0;                        // and down
+    i32 panAcross = 0;                        // 0x004A99F0 the pan still to go across (pixels)
+    i32 panDown = 0;                          // 0x004A98C0 and down
+    i32 panStepX = 0;                         // 0x004A9480 the step of the pan across
+    i32 panStepY = 0;                         // 0x004A93D8 and down
     std::unique_ptr<TalkWindow> talkWindows;  // 0x004ACF48
     std::array<ActState, 4> unk4AD0D8;
     ActState unk4AD3F0;
@@ -405,8 +413,8 @@ struct Scene
     i32 unk4ACE64 = 0;  // shown as dbg2
     i32 unk4BABA0 = 0;  // followers in unk4B7C8C
     i32 unk4C8BD8 = 0;
-    u16 weatherActions = 0;  // 0x004C97F6 how many actions follow it
-    i32 unk4C9A18 = 0;
+    u16 weatherActions = 0;    // 0x004C97F6 how many actions follow it
+    i32 screenFlags = 0;       // 0x004C9A18 ScreenFlag bits
     i32 encounterSteps = 0;    // 0x004C9A20 steps on the map since the last battle (bit 31 aside)
     i32 spotlightTargetY = 0;  // 0x004CAE80
     i32 unk4CC2DC = 0;

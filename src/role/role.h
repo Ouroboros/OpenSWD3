@@ -29,7 +29,9 @@ struct Role
     // Role::flags bits, named by what tests and sets them.
     enum Flag : u32
     {
-        LayerMask = 3,         // the drawing layer
+        LayerMask = 3,   // the drawing layer
+        FrontLayer = 1,  // the layers in LayerMask (0: the middle one)
+        BackLayer = 2,
         Unk10 = 0x10,          // its cells get bit 23 too (Field::MarkRoleCells)
         NoTalkPointer = 0x20,  // the pointer does not offer to talk to it
         Examine = 0x40,        // the pointer offers to examine it instead

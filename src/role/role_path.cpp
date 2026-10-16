@@ -1299,7 +1299,7 @@ int RolePath::ScriptStep(int index)
             owner.unk4A948C = 0;
             owner.unk4A9488 = 0;
 
-            if ((owner.scene.unk4C9A18 & 2) == 0)
+            if ((owner.scene.screenFlags & Scene::CameraHeld) == 0)
             {
                 owner.field.CenterCamera();
             }
@@ -1448,7 +1448,7 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
         {
             stopKeys();
 
-            if ((owner.scene.unk4C9A18 & 2) == 0)
+            if ((owner.scene.screenFlags & Scene::CameraHeld) == 0)
             {
                 owner.field.CenterCamera();
             }
@@ -1488,7 +1488,7 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
         placeCell(role);
         owner.field.MarkRoleCells(role, leader);
 
-        if (index == state.playerRole && (owner.scene.unk4C9A18 & 2) == 0)
+        if (index == state.playerRole && (owner.scene.screenFlags & Scene::CameraHeld) == 0)
         {
             owner.field.CenterCamera();
         }

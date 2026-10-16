@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cstddef>
 #include <memory>
+#include <span>
 #include <string_view>
 #include <vector>
 
@@ -35,14 +37,42 @@ struct MovieChunk
     std::unique_ptr<MovieChunk> next;  // +0x20
 };
 
+// The header of a map movie (0x24 bytes): its first chunk (FirstChunkBytes) and that chunk's trailer.
+struct MovieHeader
+{
+    static constexpr std::size_t Bytes = 0x24;
+    static constexpr u32 FirstChunkBytes = 0x18;
+
+    u32 unk00 = 0;         // +0x00
+    u32 lastFrame = 0;     // +0x04
+    u16 bitsPerPixel = 0;  // +0x08 8: the frames index the palettes
+    u16 unk0A = 0;         // +0x0A
+    u16 unk0C = 0;         // +0x0C
+    u16 active = 0;        // +0x0E
+    u16 height = 0;        // +0x10 the rows of a frame
+    u16 unk12 = 0;         // +0x12
+    u16 paletteCount = 0;  // +0x14
+    u16 unk16 = 0;         // +0x16
+    u32 nextUnk0C = 0;     // +0x18 the trailer of the first chunk
+    u32 nextRows = 0;      // +0x1C
+    u32 nextSize = 0;      // +0x20
+
+    static MovieHeader Read(std::span<const u8, Bytes> bytes);
+};
+
 // The movie played over the map (opened by the talk scripts from Video\): LZO-packed frames of rows drawn centred,
 // 8-bit frames through palettes changing at given frames, faded in and out with black bars.
 struct MapMovie
 {
     static constexpr u32 FileHeaderBytes = 0xC;  // the chunk offsets count from after it
     static constexpr u32 PaletteColors = 0x100;
-    static constexpr u32 PaletteBytes = 3 * PaletteColors;  // RGB triplets, stored before PaletteTailBytes at the end
-    static constexpr u32 PaletteTailBytes = 0x400;
+    static constexpr u32 PaletteBytes = 3 * PaletteColors;    // RGB triplets, stored before PaletteTailBytes at the end
+    static constexpr u32 PaletteTailBytes = 0x400;            // the frames the palettes change at (u16 each)
+    static constexpr u16 IndexedBits = 8;                     // MovieHeader::bitsPerPixel of a paletted movie
+    static constexpr std::size_t FrameBufferBytes = 0x9C400;  // the unpacked frame and the packed chunk buffers
+
+    // An RGB triplet of a palette as an RGB555 pixel (the top five bits of each channel).
+    static u16 Rgb555(u8 red, u8 green, u8 blue);
 
     // The bits of `options`.
     enum Option : u32

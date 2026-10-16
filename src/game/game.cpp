@@ -138,12 +138,12 @@ int Game::Run()
             }
         }
 
-        if (this->running != 0 && (this->systemFlags & 0x20) != 0)
+        if (this->running != 0 && (this->systemFlags & Game::VideoPlaying) != 0)
         {
             this->VideoFrame();
             this->AudioPump();
         }
-        else if (this->running != 0 && (this->systemFlags & 1) == 0 && this->inactive == 0)
+        else if (this->running != 0 && (this->systemFlags & Game::UnkSystem1) == 0 && this->inactive == 0)
         {
             this->MainFrame();
         }
@@ -635,7 +635,7 @@ void Game::NewGame()
     }
 
     const std::vector<u8>& data = this->databases.mapsData;
-    const u32 records = MapsTable(data, 0x12);
+    const u32 records = MapsTable(data, MapsDataTable::MapGroups);
     u32 words = 0;
 
     while (records + 2 * words + 1 < data.size() && MapsWord(data, records + 2 * words) != kTableEnd)
@@ -655,14 +655,14 @@ void Game::NewGame()
     }
 
     scene.unk4C8BD4 = 0;
-    scene.unk4ACE40 = MapsTable(data, 1);
+    scene.unk4ACE40 = MapsTable(data, MapsDataTable::Roles);
 
     for (u32 at = scene.unk4ACE40; at + 1 < data.size() && MapsWord(data, at) != kTableEnd; at += 0x16)
     {
         scene.unk4C8BD4 = static_cast<u16>(scene.unk4C8BD4 + 0x16);
     }
 
-    const u32 roles = MapsTable(data, 6);
+    const u32 roles = MapsTable(data, MapsDataTable::StartRoles);
 
     for (std::size_t role = 0; role < Party::Roles; ++role)
     {
@@ -676,9 +676,9 @@ void Game::NewGame()
 
     this->party.battleBlocks = {};
     FreeItemList(this->party.inventory);
-    scene.unk4C97E4 = MapsTable(data, 0x18);
+    scene.unk4C97E4 = MapsTable(data, MapsDataTable::Unk18);
 
-    for (u32 at = MapsTable(data, 5); at + 1 < data.size() && MapsWord(data, at) != 0; at += 4)
+    for (u32 at = MapsTable(data, MapsDataTable::StartItems); at + 1 < data.size() && MapsWord(data, at) != 0; at += 4)
     {
         AddItem(
             this->party.inventory,
@@ -692,7 +692,7 @@ void Game::NewGame()
     for (std::size_t role = 0; role < Party::Roles; ++role)
     {
         this->party.skills[role] = NewEmptyItem();
-        const u32 list = MapsTable(data, 9 + static_cast<int>(role));
+        const u32 list = MapsTable(data, MapsDataTable::StartSkills, role);
 
         for (u32 at = list; at + 1 < data.size() && MapsWord(data, at) != 0; at += 2)
         {
@@ -707,7 +707,7 @@ void Game::NewGame()
 
     for (std::size_t role = 0; role < Party::Roles; ++role)
     {
-        const u32 list = MapsTable(data, 0xD + static_cast<int>(role));
+        const u32 list = MapsTable(data, MapsDataTable::StartEquipment, role);
 
         for (std::size_t slot = 0; slot < kEquipmentFromData; ++slot)
         {
@@ -829,7 +829,7 @@ void Game::ShowFrame()
 std::string Game::MusicPath(int index) const
 {
     const std::vector<u8>& data = this->databases.mapsData;
-    const u32 names = MapsTable(data, 2);
+    const u32 names = MapsTable(data, MapsDataTable::Music);
     const u32 entry = MapsWord(data, names + 4 * static_cast<u32>(index)) |
                       static_cast<u32>(MapsWord(data, names + 4 * static_cast<u32>(index) + 2)) << 16;
     std::string path = this->config.installDirectory + "Music\\";
@@ -872,7 +872,7 @@ void Game::StartStory(int withMap)
     this->menu.InitActs();
     this->state.ClearWorld();
     const std::vector<u8>& data = this->databases.mapsData;
-    const u32 start = MapsTable(data, 4);
+    const u32 start = MapsTable(data, MapsDataTable::NewStory);
     const u16 leader = MapsWord(data, start + 0xC);
     Role& lead = this->state.leader;
     lead.unk14 = 0;
@@ -1028,7 +1028,7 @@ void Game::MusicCue()
 // their modules): at most one frame every frameInterval milliseconds
 void Game::MainFrame()
 {
-    if ((this->systemFlags & 0x10) != 0)
+    if ((this->systemFlags & Game::CheckingCd) != 0)
     {
         return;
     }
@@ -1107,7 +1107,7 @@ void Game::MainFrame()
 
             this->talk.RunEvent(this->state.leader);
 
-            if ((this->systemFlags & 5) == 0)
+            if ((this->systemFlags & (Game::UnkSystem1 | Game::QuitRequested)) == 0)
             {
                 this->rolePath.Update();
                 this->largeFont.SetAdvance(0x16);
@@ -1122,7 +1122,7 @@ void Game::MainFrame()
 
     this->AudioPump();
 
-    if ((this->systemFlags & 4) != 0)
+    if ((this->systemFlags & Game::QuitRequested) != 0)
     {
         this->Destroy();
     }
@@ -1155,19 +1155,19 @@ void Game::HandleEvent(const SDL_Event& event)
 
     this->inputDevice.HandleEvent(event);
 
-    if (event.type == SDL_EVENT_KEY_UP && event.key.key == SDLK_ESCAPE && (this->systemFlags & 0x20) != 0)
+    if (event.type == SDL_EVENT_KEY_UP && event.key.key == SDLK_ESCAPE && (this->systemFlags & Game::VideoPlaying) != 0)
     {
         this->StopVideo();
     }
     else if (event.type == SDL_EVENT_KEY_UP && event.key.key == SDLK_F8)
     {
-        this->running = ((this->systemFlags & 0x20) != 0 || this->running == 0) ? 1 : 0;
+        this->running = ((this->systemFlags & Game::VideoPlaying) != 0 || this->running == 0) ? 1 : 0;
     }
 
     // WM_LBUTTONDOWN: the original compares its key state (wParam) with VK_ESCAPE, so 0x1B (the left, right and middle
     // buttons with Ctrl) stops a movie.
     if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT &&
-        (this->systemFlags & 0x20) != 0)
+        (this->systemFlags & Game::VideoPlaying) != 0)
     {
         const SDL_MouseButtonFlags buttons = SDL_GetMouseState(nullptr, nullptr);
         const SDL_Keymod modifiers = SDL_GetModState();

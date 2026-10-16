@@ -587,7 +587,7 @@ bool Talk::RunStateCommand(EventRun& run)
             const u16 operand = this->Word(run, 1);
             const u16 map = operand == Talk::Current ? static_cast<u16>(owner.currentMap) : operand;
             std::vector<u8>& data = owner.databases.mapsData;
-            std::size_t at = MapsDword(data, MapsDword(data, MapsTable(data, 2) + 4));
+            std::size_t at = MapsDword(data, MapsDword(data, MapsTable(data, MapsDataTable::Music) + 4));
             run.valueA = 0;
 
             while (MapsWord(data, at) != 0 && at + 1 < data.size() && MapsWord(data, at) != map)
@@ -1438,7 +1438,7 @@ bool Talk::RunSystemCommand(EventRun& run)
         }
 
         case EventCommand::WaitCameraY:
-            if ((view.unk4A99F0 == 0 && view.unk4A98C0 == 0) || field.cameraTop == static_cast<i16>(this->Word(run, 1)))
+            if ((view.panAcross == 0 && view.panDown == 0) || field.cameraTop == static_cast<i16>(this->Word(run, 1)))
             {
                 this->Next(run);
                 return true;

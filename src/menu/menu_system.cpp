@@ -845,7 +845,7 @@ void Menu::ActOnEntry()
             break;
 
         case 3:
-            owner.systemFlags |= 4;
+            owner.systemFlags |= Game::QuitRequested;
             break;
 
         default:

@@ -108,7 +108,7 @@ void RoleControl::ControlPlayer()
             {
                 owner.inactive = 1;
                 state.ClearFrameInterval();
-                owner.systemFlags |= 4;
+                owner.systemFlags |= Game::QuitRequested;
                 state.ClearGameFlag(GameState::Running);
                 return;
             }
@@ -563,18 +563,18 @@ void RoleControl::ControlPlayer()
         {
             ++view.encounterSteps;
 
-            if (owner.inBattle == 0 && state.GameFlag(GameState::Encounters) && owner.unk4A94AC == 0 &&
+            if (owner.inBattle == 0 && state.GameFlag(GameState::Encounters) && owner.battleRequest == 0 &&
                 leader.id == Role::NoId)
             {
-                owner.unk4A94AC = static_cast<i32>(owner.RollEncounter(view.encounterSteps, 0));
+                owner.battleRequest = static_cast<i32>(owner.RollEncounter(view.encounterSteps, 0));
 
-                if (owner.unk4A94AC != 0)
+                if (owner.battleRequest != 0)
                 {
                     owner.audio.StopMusic();
                     owner.audio.StopAllSounds();
                     owner.acts.CloseAll();
                     owner.archive.CloseAll();
-                    owner.StartBattle(static_cast<u16>(owner.unk4A94AC));
+                    owner.StartBattle(static_cast<u16>(owner.battleRequest));
                     owner.inBattle = 1;
                     owner.unk4B7920 = 0;
                     owner.unk4B7518 = 0;
@@ -600,7 +600,7 @@ void RoleControl::ControlPlayer()
             }
         }
 
-        owner.unk4A94AC = 0;
+        owner.battleRequest = 0;
     }
     else
     {

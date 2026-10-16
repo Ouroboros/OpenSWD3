@@ -8,6 +8,7 @@
 #include "config/config.h"
 #include "core/debug_log.h"
 #include "core/format.h"
+#include "game/game.h"
 #include "game/game_state.h"
 #include "map/map_cache.h"
 #include "pic/picture.h"
@@ -327,7 +328,7 @@ bool Field::LoadMap(u32 map, u32& systemFlags)
 
     if (entry >= entries)
     {
-        systemFlags |= 4;
+        systemFlags |= Game::QuitRequested;
         ErrorLog(u8"Load(%d)  ,MapCode fail:%d", map, map);
         return false;
     }
@@ -370,7 +371,7 @@ bool Field::LoadMap(u32 map, u32& systemFlags)
 
     if (Word(block, 0x8E) != 0)
     {
-        systemFlags |= 4;
+        systemFlags |= Game::QuitRequested;
         ErrorLog(u8"Load(%d)  ,Tile TOO much:%d", map, (Word(block, 0x8E) << 0x10) + Word(block, 0x8A));
         return false;
     }

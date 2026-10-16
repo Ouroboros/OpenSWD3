@@ -103,8 +103,8 @@ enum class EventCommand : u16
     RecordDialogWait = 0x59,
     RecordDialog = 0x5A,
     RoleNamePlate = 0x5B,
-    SetCueFlag = 0x5C,
-    ClearCueFlag = 0x5D,
+    SetInParty = 0x5C,
+    ClearInParty = 0x5D,
     CameraHold = 0x5E,
     CameraFollow = 0x5F,
     MapMovie = 0x60,
@@ -214,6 +214,7 @@ enum class EventCommand : u16
 
 // The command number in the first word of a command (bits 14 and 15 mark a command in progress).
 constexpr u16 kCommandMask = 0x3FFF;
+constexpr u32 kTargetsEnd = 0xFF00FF00;  // ends the jump targets of JumpByChoice and RandomJump
 
 constexpr int kOpcodeBytes = 2;        // the command word
 constexpr std::size_t kWordBytes = 2;  // an operand
@@ -223,8 +224,8 @@ constexpr std::array<u8, 0xC2> kCommandBytes = {
     0,  0,  0,  0,  0,  0,  0,  2,  4,  2,  6,  6,  8, 4, 4,  0,   // 0x00
     8,  8,  4,  2,  0,  8,  8,  0,  0,  4,  4,  14, 6, 6, 6,  6,   // 0x10
     10, 10, 4,  8,  8,  2,  4,  4,  8,  0,  2,  2,  6, 6, 4,  4,   // 0x20
-    4,  4,  0,  2,  16, 2,  6,  4,  4,  4,  10, 4,  2, 2, 18, 0,   // 0x30
-    2,  4,  16, 4,  4,  4,  0,  6,  4,  0,  2,  4,  6, 0, 0,  16,  // 0x40
+    4,  4,  10, 2,  16, 2,  6,  4,  4,  4,  10, 4,  2, 2, 18, 0,   // 0x30
+    2,  4,  16, 4,  4,  4,  10, 6,  4,  8,  2,  4,  6, 6, 4,  16,  // 0x40
     2,  10, 6,  16, 6,  0,  10, 0,  4,  0,  0,  4,  4, 4, 2,  2,   // 0x50
     0,  2,  4,  4,  6,  4,  6,  6,  6,  2,  4,  6,  6, 0, 6,  6,   // 0x60
     2,  6,  8,  4,  0,  6,  4,  4,  10, 2,  2,  10, 2, 0, 10, 10,  // 0x70
