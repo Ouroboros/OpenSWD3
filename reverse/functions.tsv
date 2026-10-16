@@ -82,29 +82,29 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 81	swd32.exe	0x00401B70	sub_401B70	pic	src/pic/rle.cpp:RleCodec::ConvertToDisplay	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/pic/rle.cpp:RleCheck16
 82	swd32.exe	0x00401C70	sub_401C70	pic	src/pic/rle.cpp:RleCodec::ConvertTo16	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/pic/rle.cpp:RleConvert8To16
 83	swd32.exe	0x00401E50	sub_401E50	pic	src/pic/rle.cpp:RleCodec::ConvertTileTo16	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/pic/rle.cpp:RleConvertTile8To16
-84	swd32.exe	0x00402030	sub_402030	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathPoolInit
-85	swd32.exe	0x004020C0	sub_4020C0	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathPoolRelease
-86	swd32.exe	0x00402120	sub_402120	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathPoolAlloc
-87	swd32.exe	0x004021A0	sub_4021A0	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathPoolFree
-88	swd32.exe	0x004021D0	sub_4021D0	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::PathFinder
-89	swd32.exe	0x00402200	sub_402200	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::~PathFinder
-90	swd32.exe	0x00402230	sub_402230	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	search result accepted only when m_found (left from the previous call) is 0 or the path is empty; legacy: src/role/path_finder.cpp:PathFinder::FindPath
-91	swd32.exe	0x00402390	sub_402390	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::IsUsable
-92	swd32.exe	0x004023C0	sub_4023C0	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::TileIndex
-93	swd32.exe	0x004023E0	sub_4023E0	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::IsWalkable
-94	swd32.exe	0x00402410	sub_402410	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::Reset
-95	swd32.exe	0x00402450	sub_402450	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::Search
-96	swd32.exe	0x00402520	sub_402520	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "aStar ,Path find fail"; legacy: src/role/path_finder.cpp:PathFinder::PopBest
-97	swd32.exe	0x00402560	sub_402560	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::Expand
-98	swd32.exe	0x00402690	sub_402690	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	improved open nodes keep their list position; closed-node direction written to parent child[0]; legacy: src/role/path_finder.cpp:PathFinder::TryNeighbour
-99	swd32.exe	0x00402940	sub_402940	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::FindOpen
-100	swd32.exe	0x00402960	sub_402960	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::FindClosed
-101	swd32.exe	0x00402980	sub_402980	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::InsertOpen
-102	swd32.exe	0x004029C0	sub_4029C0	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::Propagate
-103	swd32.exe	0x00402A90	sub_402A90	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::Push
-104	swd32.exe	0x00402AC0	sub_402AC0	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::Pop
-105	swd32.exe	0x00402AE0	sub_402AE0	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	footprints of at most 2 tiles take the unrolled path (sizes below 1 read like 1); legacy: src/role/path_finder.cpp:PathFinder::UpdateBlocked
-106	swd32.exe	0x00402F70	sub_402F70	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::SetMask
+84	swd32.exe	0x00402030	sub_402030	role_path	src/role/path_finder.cpp:PathNodePool::Init	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathPoolInit
+85	swd32.exe	0x004020C0	sub_4020C0	role_path	src/role/path_finder.cpp:PathNodePool::Release	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathPoolRelease
+86	swd32.exe	0x00402120	sub_402120	role_path	src/role/path_finder.cpp:PathNodePool::Alloc	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathPoolAlloc
+87	swd32.exe	0x004021A0	sub_4021A0	role_path	src/role/path_finder.cpp:PathNodePool::Free	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathPoolFree
+88	swd32.exe	0x004021D0	sub_4021D0	role_path	src/role/path_finder.cpp:PathFinder::PathFinder	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::PathFinder
+89	swd32.exe	0x00402200	sub_402200	role_path	src/role/path_finder.cpp:PathFinder::~PathFinder	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::~PathFinder
+90	swd32.exe	0x00402230	sub_402230	role_path	src/role/path_finder.cpp:PathFinder::FindPath	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	search result accepted only when m_found (left from the previous call) is 0 or the path is empty; legacy: src/role/path_finder.cpp:PathFinder::FindPath
+91	swd32.exe	0x00402390	sub_402390	role_path	src/role/path_finder.cpp:PathFinder::IsUsable	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::IsUsable
+92	swd32.exe	0x004023C0	sub_4023C0	role_path	src/role/path_finder.cpp:PathFinder::TileIndex	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::TileIndex
+93	swd32.exe	0x004023E0	sub_4023E0	role_path	src/role/path_finder.cpp:PathFinder::IsWalkable	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::IsWalkable
+94	swd32.exe	0x00402410	sub_402410	role_path	src/role/path_finder.cpp:PathFinder::Reset	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::Reset
+95	swd32.exe	0x00402450	sub_402450	role_path	src/role/path_finder.cpp:PathFinder::Search	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::Search
+96	swd32.exe	0x00402520	sub_402520	role_path	src/role/path_finder.cpp:PathFinder::PopBest	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "aStar ,Path find fail"; legacy: src/role/path_finder.cpp:PathFinder::PopBest
+97	swd32.exe	0x00402560	sub_402560	role_path	src/role/path_finder.cpp:PathFinder::Expand	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::Expand
+98	swd32.exe	0x00402690	sub_402690	role_path	src/role/path_finder.cpp:PathFinder::TryNeighbour	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	improved open nodes keep their list position; closed-node direction written to parent child[0]; legacy: src/role/path_finder.cpp:PathFinder::TryNeighbour
+99	swd32.exe	0x00402940	sub_402940	role_path	src/role/path_finder.cpp:PathFinder::FindOpen	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::FindOpen
+100	swd32.exe	0x00402960	sub_402960	role_path	src/role/path_finder.cpp:PathFinder::FindClosed	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::FindClosed
+101	swd32.exe	0x00402980	sub_402980	role_path	src/role/path_finder.cpp:PathFinder::InsertOpen	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::InsertOpen
+102	swd32.exe	0x004029C0	sub_4029C0	role_path	src/role/path_finder.cpp:PathFinder::Propagate	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::Propagate
+103	swd32.exe	0x00402A90	sub_402A90	role_path	src/role/path_finder.cpp:PathFinder::Push	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::Push
+104	swd32.exe	0x00402AC0	sub_402AC0	role_path	src/role/path_finder.cpp:PathFinder::Pop	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::Pop
+105	swd32.exe	0x00402AE0	sub_402AE0	role_path	src/role/path_finder.cpp:PathFinder::UpdateBlocked	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	footprints of at most 2 tiles take the unrolled path (sizes below 1 read like 1); legacy: src/role/path_finder.cpp:PathFinder::UpdateBlocked
+106	swd32.exe	0x00402F70	sub_402F70	role_path	src/role/path_finder.cpp:PathFinder::SetMask	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::SetMask
 107	swd32.exe	0x00402F80	sub_402F80	role_event		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(KeyCole:...)"
 108	swd32.exe	0x004040B0	sub_4040B0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 109	swd32.exe	0x00404510	sub_404510	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	

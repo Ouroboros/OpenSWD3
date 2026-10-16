@@ -41,3 +41,7 @@ GOLDEN_OUT=<工作区>/tests/golden/draw_golden.txt SWD3_GAME_DIR=/mnt/e/Game/sw
 ## 投影与图片操作（tests/golden/projector_golden.txt）
 
 场景定义：`tests/golden/projector_scenarios.h`。生成器：`projector_golden_legacy.cpp`，运行 `./swd3_tests "golden: legacy projector"`。爆炸场景先标记为已开始并以场景种子调用 srand（首帧原本以当前时间播种）。原程序越界读写的位置，旧实现一侧的缓冲区补上跳过色、填充色或 0，使其结果等于新实现按 deviations.md 记录的处理。
+
+## 寻路（tests/golden/path_golden.txt）
+
+场景定义：`tests/golden/path_scenarios.h`（随机地图，四周四格宽的阻挡边框）。生成器：`path_golden_legacy.cpp`，运行 `./swd3_tests "golden: legacy path finder"`（不需要游戏数据）。旧实现一侧的阻挡数组前后补上全阻挡格。
