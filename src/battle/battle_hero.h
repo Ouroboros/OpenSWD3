@@ -42,6 +42,7 @@ public:
     std::uint16_t DrawCastPose(int x, int y);
     bool CanCatch(BattleUnit* target);
     int DrawCastAt(BattleUnit* target, int act);
+    void Regenerate();
 
     std::uint8_t m_heroData[0x2F34 - 0x2B28];
 };

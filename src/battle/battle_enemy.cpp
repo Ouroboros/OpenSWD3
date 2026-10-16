@@ -2,7 +2,11 @@
 
 #include <cstring>
 
+#include "audio/audio.h"
 #include "core/random.h"
+#include "draw/draw.h"
+#include "res/act_anim.h"
+#include "res/tsw.h"
 #include "crt/crt.h"
 #include "data/globals.h"
 #include "swd3/w32.h"
@@ -545,6 +549,62 @@ int LoadLevelEntry(int group, int index, uint32_t* value) {
     }
     crt::free(script);
     return 1;
+}
+
+// swd32.exe 0x004763D0: recoil of an enemy (action 0x24 of +0x2A0C, state +0x468) while +0x2668 counts down above
+// 6, pushed 25 pixels back per frame; sound 0x10F on frame 1 and 0x2F at the start. Returns 1 when done.
+int BattleEnemy::DrawRecoil() {
+    if (at<int32_t>(0x2668) <= 6) {
+        std::memset(raw(0x468), 0, sizeof(ActState));
+        return 1;
+    }
+    if (at<uint16_t>(0x4B4) == 1) {
+        PlaySound(0x10F, G.soundVolume);
+    }
+    auto* state = reinterpret_cast<ActState*>(raw(0x468));
+    at<int32_t>(0x468) = at<uint16_t>(0x2A0C);
+    at<int32_t>(0x2AAC) = 1;
+    at<int32_t>(0x470) = 0x24;
+    at<int32_t>(0x4F8) = 0;
+    if (at<int32_t>(0x2AD0) == 1) {
+        at<int32_t>(0x4F8) = 1;
+    }
+    if (ActRun(state) == 0) {
+        return 1;
+    }
+    Picture* picture = TswGetPicture(at<uint16_t>(0x4B2), at<uint16_t>(0x4B4));
+    const uint32_t flags = at<uint32_t>(0x480);
+    const uint16_t originX = at<uint16_t>(0x478);
+    at<Picture*>(0x254C) = picture;
+    at<uint32_t>(0x26A0) = flags;
+    at<uint16_t>(0x29B4) = originX;
+    if (at<int32_t>(0x2668) == 0xF) {
+        at<uint16_t>(0x4C0) = 0x2F;
+        PlaySound(0x2F, G.soundVolume);
+        SetSoundPan(at<uint16_t>(0x4C0), at<int32_t>(0x2B08) == 1 ? 0x10 : -0x10);
+        at<uint16_t>(0x4C0) = 0;
+    }
+    const uint32_t toggled = at<uint32_t>(0x26A0);
+    at<uint32_t>(0x26A0) = (toggled & 1) != 0 ? toggled & ~1u : toggled | 1;
+    if (at<int32_t>(0x2B08) == 1) {
+        const uint32_t mirrored = at<uint32_t>(0x26A0);
+        at<uint32_t>(0x26A0) = (mirrored & 1) != 0 ? mirrored & ~1u : mirrored | 1;
+        if (at<int32_t>(0x478) != 0) {
+            at<uint16_t>(0x29B4) = static_cast<uint16_t>(at<Picture*>(0x254C)->width - at<uint16_t>(0x478));
+        }
+    }
+    uint32_t x = 0;
+    uint32_t y = 0;
+    GetPosition(reinterpret_cast<uint16_t*>(&x), reinterpret_cast<uint16_t*>(&y));
+    x = at<int32_t>(0x2B08) == 1 ? x + 0x19 : x - 0x19;
+    SetPosition(static_cast<int16_t>(x), static_cast<int16_t>(y));
+    Picture* current = at<Picture*>(0x254C);
+    G.drawSource = reinterpret_cast<uint8_t*>(current->pixels);
+    DrawPicture(at<int16_t>(0xD66) - at<int16_t>(0x29B4), at<int16_t>(0xD68) - at<int32_t>(0x47C), current->width,
+                current->height, static_cast<int>(at<uint32_t>(0x26A0)),
+                static_cast<int>(reinterpret_cast<std::uintptr_t>(current->reserved4)));
+    --at<int32_t>(0x2668);
+    return 0;
 }
 
 }  // namespace swd3

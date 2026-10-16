@@ -24,6 +24,7 @@ public:
     int StepGauge(int quick);
     int ChooseHealing();
     bool RollSteal(std::uint8_t level);
+    int DrawRecoil();
 };
 
 static_assert(sizeof(BattleEnemy) == 0x2B28);

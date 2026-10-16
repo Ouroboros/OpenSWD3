@@ -963,7 +963,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 962	swd32.exe	0x0046E890	sub_46E890	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "C:\Project\swd102aDVD\manrole.cpp"
 963	swd32.exe	0x0046E9C0	sub_46E9C0	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "C:\Project\swd102aDVD\manrole.cpp"
 964	swd32.exe	0x0046EBB0	sub_46EBB0	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "C:\Project\swd102aDVD\manrole.cpp"
-965	swd32.exe	0x0046EE60	sub_46EE60	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
+965	swd32.exe	0x0046EE60	sub_46EE60	battle	src/battle/battle_hero.cpp:BattleHero::Regenerate	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
 966	swd32.exe	0x0046F030	sub_46F030	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
 967	swd32.exe	0x0046F1F0	sub_46F1F0	manrole		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
 968	swd32.exe	0x0046F5B0	sub_46F5B0	battle	src/battle/battle_hero.cpp:BattleHero::AddRecordProgress	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between manrole anchors 0x0046EBB0 and 0x00470AC0
@@ -1035,7 +1035,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1034	swd32.exe	0x00476250	sub_476250	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1035	swd32.exe	0x004762F0	sub_4762F0	battle	src/battle/battle_enemy.cpp:BattleEnemy::RollDrop	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1036	swd32.exe	0x00476330	sub_476330	battle	src/battle/battle_enemy.cpp:BattleEnemy::RollSteal	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-1037	swd32.exe	0x004763D0	sub_4763D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+1037	swd32.exe	0x004763D0	sub_4763D0	battle	src/battle/battle_enemy.cpp:BattleEnemy::DrawRecoil	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1038	swd32.exe	0x00476600	sub_476600	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1039	swd32.exe	0x00476780	sub_476780	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1040	swd32.exe	0x00476860	sub_476860	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	

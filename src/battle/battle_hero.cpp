@@ -1018,4 +1018,57 @@ int BattleHero::DrawCastAt(BattleUnit* target, int act) {
     return 1;
 }
 
+// swd32.exe 0x0046EE60: per-turn regeneration of heroes not marked by bit 7 of +0x25 in the data: +0x2F1E percent
+// of the maximum hit points (+0xA) heals (at least 1), +0x2F20 percent of +0xC and +0x2F22 percent of +0xE are
+// passed to Damage as given; each shows a number (acts 0x246F / 0x2367 / 0x2366) delayed by 0, 6, 12
+void BattleHero::Regenerate() {
+    int delay = 0;
+    if ((at<uint8_t*>(4)[0x25] & 0x80) != 0) {
+        return;
+    }
+    if (at<uint16_t>(0x2F1E) != 0) {
+        const int amount = at<uint16_t>(0x2F1E) * mem::s16(at<uint8_t*>(4), 0xA) / 100;
+        at<int16_t>(0x29A6) = static_cast<int16_t>(amount);
+        if (static_cast<int16_t>(amount) == 0) {
+            at<int16_t>(0x29A6) = 1;
+        }
+        const auto heal = static_cast<int16_t>(-at<int16_t>(0x29A6));
+        at<int16_t>(0x29A6) = heal;
+        Damage(heal, 0, 0);
+        PushTarget(0x246F);
+        SetDamageDigits(at<int16_t>(0x29A6));
+        PushTargetAlt(0);
+        StepTargetCount(1);
+        delay = 6;
+        at<int16_t>(0x29A6) = 0;
+    }
+    if (at<uint16_t>(0x2F20) != 0) {
+        const int amount = at<uint16_t>(0x2F20) * mem::s16(at<uint8_t*>(4), 0xC) / 100;
+        at<int16_t>(0x29A8) = static_cast<int16_t>(amount);
+        if (static_cast<int16_t>(amount) == 0) {
+            at<int16_t>(0x29A8) = 1;
+        }
+        Damage(0, at<int16_t>(0x29A8), 0);
+        PushTarget(0x2367);
+        SetDamageDigits(at<int16_t>(0x29A8));
+        PushTargetAlt(static_cast<uint16_t>(delay));
+        StepTargetCount(1);
+        delay += 6;
+        at<int16_t>(0x29A8) = 0;
+    }
+    if (at<uint16_t>(0x2F22) != 0) {
+        const int amount = at<uint16_t>(0x2F22) * mem::s16(at<uint8_t*>(4), 0xE) / 100;
+        at<int16_t>(0x29AA) = static_cast<int16_t>(amount);
+        if (static_cast<int16_t>(amount) == 0) {
+            at<int16_t>(0x29AA) = 1;
+        }
+        Damage(0, 0, at<int16_t>(0x29AA));
+        PushTarget(0x2366);
+        SetDamageDigits(at<int16_t>(0x29AA));
+        PushTargetAlt(static_cast<uint16_t>(delay));
+        StepTargetCount(1);
+        at<int16_t>(0x29AA) = 0;
+    }
+}
+
 }  // namespace swd3
