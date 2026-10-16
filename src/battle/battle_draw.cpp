@@ -8,6 +8,7 @@
 #include "crt/crt.h"
 #include "data/globals.h"
 #include "draw/draw.h"
+#include "pic/pic_ops.h"
 #include "res/act_anim.h"
 #include "res/tsw.h"
 
@@ -493,6 +494,95 @@ int BattleAnimationFree(std::uint8_t* animation) {
     mem::put32(animation, 0xBC, 0);
     std::memset(animation, 0, sizeof(ActState));
     return 0;
+}
+
+// swd32.exe 0x00451420: loads every frame picture of act `id` (run to its end) into the animation, each shifted
+// right by 640 / `divisor`; the wave mode of 'WT' is kept at +0xBC. `unused` is ignored. Always returns 0.
+int BattleAnimationLoad(std::uint8_t* animation, int unused, int x, int y, std::uint16_t id, std::uint16_t divisor) {
+    static_cast<void>(unused);
+    std::uint16_t loaded[6] = {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
+    auto* state = reinterpret_cast<ActState*>(animation);
+    mem::put16(animation, 0xC0, id);
+    mem::put32(animation, 0xB4, static_cast<std::uint32_t>(x));
+    mem::put32(animation, 0xB8, static_cast<std::uint32_t>(y));
+    state->id = id;
+    state->action = 0;
+    if (ActRun(state) == 0) {
+        return 0;
+    }
+    for (;;) {
+        if (state->wt != 0) {
+            mem::put32(animation, 0xBC, state->wt);
+        }
+        const std::uint16_t frame = state->ap;
+        if (loaded[frame] == 0xFFFF) {
+            Picture* picture = TswLoadPictureDirect(state->fr, state->ap);
+            mem::putPtr(animation, 0x9C + 4 * state->ap, picture);
+            loaded[state->ap] = state->ap;
+            ShiftPicture(static_cast<std::uint16_t*>(mem::ptr<Picture>(animation, 0x9C + 4 * state->ap)->pixels),
+                         kShiftRight, 0x280 / divisor);
+        }
+        if (state->pc == 0) {
+            break;
+        }
+        state->action = 0;
+        state->id = mem::u16(animation, 0xC0);
+        if (ActRun(state) == 0) {
+            return 0;
+        }
+    }
+    std::memset(animation, 0, sizeof(ActState));
+    return 0;
+}
+
+// swd32.exe 0x004515E0: plays the loaded animation to its end in one call, every new frame shifted by `amount`
+// (right when positive, left when negative) and drawn; returns 1 when it ended, 0 without an animation. `unused`
+// is ignored.
+int BattleAnimationPlayShifted(std::uint8_t* animation, int unused, int amount) {
+    static_cast<void>(unused);
+    std::uint16_t shown[6] = {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
+    if (mem::u16(animation, 0xC0) == 0) {
+        return 0;
+    }
+    auto* state = reinterpret_cast<ActState*>(animation);
+    std::memset(animation, 0, sizeof(ActState));
+    state->action = 0;
+    state->id = mem::u16(animation, 0xC0);
+    if (ActRun(state) == 0) {
+        return 0;
+    }
+    for (;;) {
+        const std::uint16_t frame = state->ap;
+        if (shown[frame] == 0xFFFF) {
+            shown[frame] = frame;
+            if (amount != 0) {
+                auto* pixels = static_cast<std::uint16_t*>(mem::ptr<Picture>(animation, 0x9C + 4 * frame)->pixels);
+                if (amount > 0) {
+                    ShiftPicture(pixels, kShiftRight, amount);
+                } else {
+                    ShiftPicture(pixels, kShiftLeft, -amount);
+                }
+            }
+            Picture* picture = mem::ptr<Picture>(animation, 0x9C + 4 * state->ap);
+            G.drawSource = reinterpret_cast<std::uint8_t*>(picture->pixels);
+            Picture* current = mem::ptr<Picture>(animation, 0x9C + 4 * state->ap);
+            DrawPicture(mem::s32(animation, 0xB4) - state->x, mem::s32(animation, 0xB8) - state->y, current->width,
+                        current->height, static_cast<int>(state->flags), 0);
+        }
+        const bool ended = state->pc == 0;
+        state->delay = 0;
+        state->frameDelay = 0;
+        if (ended) {
+            break;
+        }
+        state->action = 0;
+        state->id = mem::u16(animation, 0xC0);
+        if (ActRun(state) == 0) {
+            return 0;
+        }
+    }
+    std::memset(animation, 0, sizeof(ActState));
+    return 1;
 }
 
 }  // namespace swd3

@@ -31,5 +31,7 @@ int DrawTallGauge(int x, int y, int level);
 // +0xBC, act id +0xC0.
 int BattleAnimationDraw(std::uint8_t* animation);
 int BattleAnimationFree(std::uint8_t* animation);
+int BattleAnimationLoad(std::uint8_t* animation, int unused, int x, int y, std::uint16_t id, std::uint16_t divisor);
+int BattleAnimationPlayShifted(std::uint8_t* animation, int unused, int amount);
 
 }  // namespace swd3

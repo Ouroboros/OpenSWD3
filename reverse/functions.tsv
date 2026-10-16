@@ -810,9 +810,9 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 809	swd32.exe	0x00450F90	sub_450F90	battle	src/battle/battle_draw.cpp:DrawCoinToss	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 810	swd32.exe	0x00451100	sub_451100	battle	src/battle/battle_draw.cpp:DrawTimingBar	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 811	swd32.exe	0x004512B0	sub_4512B0	battle	src/battle/battle_draw.cpp:DrawTallGauge	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-812	swd32.exe	0x00451420	sub_451420	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+812	swd32.exe	0x00451420	sub_451420	battle	src/battle/battle_draw.cpp:BattleAnimationLoad	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 813	swd32.exe	0x00451540	sub_451540	battle	src/battle/battle_draw.cpp:BattleAnimationDraw	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-814	swd32.exe	0x004515E0	sub_4515E0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+814	swd32.exe	0x004515E0	sub_4515E0	battle	src/battle/battle_draw.cpp:BattleAnimationPlayShifted	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 815	swd32.exe	0x00451730	sub_451730	battle	src/battle/battle_draw.cpp:BattleAnimationFree	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 816	swd32.exe	0x004517A0	sub_4517A0	static_init	src/core/static_init.cpp:InitBattleHeroes	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
 817	swd32.exe	0x004517B0	sub_4517B0	static_init	src/core/static_init.cpp:ConstructBattleHeroes	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern
