@@ -2104,4 +2104,390 @@ int BattleUnit::AddBuff(const uint8_t* skill) {
     return 1;
 }
 
+// swd32.exe 0x004800F0: appends a 0x1DC byte action to the list at +0x236C and counts it in +0x2A80
+uint8_t* BattleUnit::QueueAction(int kind, int target, int16_t x, int16_t y, int16_t width, int16_t height,
+                                 int16_t delay, int16_t speed, int data) {
+    auto** link = reinterpret_cast<uint8_t**>(raw(0x236C));
+    while (*link != nullptr) {
+        link = reinterpret_cast<uint8_t**>(*link);
+    }
+    auto* action = static_cast<uint8_t*>(crt::malloc(0x1DC));
+    *link = action;
+    std::memset(action, 0, 0x1DC);
+    action = *link;
+    mem::put32(action, 4, static_cast<uint32_t>(kind));
+    mem::put32(action, 0xC, static_cast<uint32_t>(target));
+    mem::put32(action, 0x9C, static_cast<uint32_t>(data));
+    mem::put16(action, 0x1D0, static_cast<uint16_t>(x));
+    mem::put16(action, 0x1D2, static_cast<uint16_t>(y));
+    mem::put16(action, 0x1CC, static_cast<uint16_t>(width));
+    mem::put16(action, 0x1CE, static_cast<uint16_t>(height));
+    mem::put16(action, 0x1D4, static_cast<uint16_t>(speed));
+    mem::put16(action, 0x1D6, static_cast<uint16_t>(delay));
+    action[0x1DA] = 0;
+    ++at<uint16_t>(0x2A80);
+    return action;
+}
+
+// swd32.exe 0x004801A0: marks the last queued action (the list head fields of the unit when the list is empty)
+// as final and, once, gives it the follow-up (first, second, third) with eight empty hit slots
+uint8_t* BattleUnit::FinishQueuedAction(int first, int second, int third) {
+    uint8_t* last = raw(0x236C);
+    for (uint8_t* node = mem::ptr<uint8_t>(last, 0); node != nullptr; node = mem::ptr<uint8_t>(node, 0)) {
+        last = node;
+    }
+    last[0x1DB] = 1;
+    if (mem::u16(last, 0x1C6) != 0) {
+        return last;
+    }
+    mem::put16(last, 0x1C6, 1);
+    for (int slot = 0; slot < 8; ++slot) {
+        mem::put16(last, 0x138 + 0x10 * slot, 0xFFFF);
+    }
+    mem::put32(last, 0x1B4, static_cast<uint32_t>(first));
+    mem::put32(last, 0x1B8, static_cast<uint32_t>(second));
+    mem::put32(last, 0x1BC, static_cast<uint32_t>(third));
+    mem::put16(last, 0x1C4, 2);
+    last[0x1C8] = 3;
+    return last;
+}
+
+// swd32.exe 0x00480AD0
+int BattleUnit::GetData0C() { return at<int32_t>(0xC); }
+
+// swd32.exe 0x00480AE0: the cast action (act +0x2C4, action +0x2C8, state +0x3D0) started by flag 2 of the
+// main action; flag 0x200 of it pauses the main action. Returns 0 while the cast state stops, else 1.
+int BattleUnit::DrawCastAction() {
+    const uint16_t mainFlags = at<uint16_t>(0x2FA);
+    if ((mainFlags & 2) != 0) {
+        if (at<int32_t>(0x2C4) != 0) {
+            at<uint32_t>(0x267C) |= 0x4000;
+        }
+        if (at<uint16_t>(0xDA2) > 0) {
+            at<uint32_t>(0x267C) |= 0x8000;
+        }
+        if ((mainFlags & 0x200) != 0) {
+            at<int32_t>(0x330) = 1;
+        }
+        at<uint16_t>(0x2FA) = mainFlags & 0xFFFD;
+        std::memset(raw(0x3D0), 0, sizeof(ActState));
+    }
+    if ((at<uint32_t>(0x267C) & 0x4000) == 0) {
+        return 1;
+    }
+    at<int32_t>(0x3D8) = at<int32_t>(0x2C8);
+    at<int32_t>(0x3D0) = at<int32_t>(0x2C4);
+    const int running = ActRun(reinterpret_cast<ActState*>(raw(0x3D0)));
+    if (running == 0) {
+        return running;
+    }
+    PlaySound(at<uint16_t>(0x428), G.soundVolume);
+    if (at<uint16_t>(0x428) != 0) {
+        SetSoundPan(at<uint16_t>(0x428), at<int16_t>(0xD66) < 0x140 ? -0x10 : 0x10);
+    }
+    at<uint16_t>(0x428) = 0;
+    Picture* picture = TswGetPicture(at<uint16_t>(0x41A), at<uint16_t>(0x41C));
+    at<Picture*>(0x254C) = picture;
+    G.drawSource = reinterpret_cast<uint8_t*>(picture->pixels);
+    uint32_t flags = at<uint32_t>(0x3E8);
+    int originX = at<int32_t>(0x3E0);
+    if (at<int32_t>(0x2B08) == 1) {
+        flags = (flags & 1) != 0 ? flags & ~1u : flags | 1;
+        if (originX != 0) {
+            originX = at<Picture*>(0x254C)->width - originX;
+        }
+    }
+    picture = at<Picture*>(0x254C);
+    const int x = at<int16_t>(0xD66) - at<int16_t>(0x29B2) + at<int16_t>(0x29AC) - originX;
+    const int y = at<int16_t>(0xD68) - at<int32_t>(0x3E4) + at<int16_t>(0x318) - at<int32_t>(0x2B4);
+    DrawPicture(x, y, picture->width, picture->height, static_cast<int>(flags), 0);
+    if (at<int32_t>(0x45C) != 1) {
+        return 1;
+    }
+    at<uint16_t>(0x2FA) &= 0xFDFF;
+    at<uint32_t>(0x267C) &= ~0x4000u;
+    at<uint16_t>(0x2954) = 0;
+    at<uint16_t>(0x29AC) = 0;
+    at<int32_t>(0x2ACC) = 0;
+    at<int32_t>(0x330) = 0;
+    at<int32_t>(0x2C4) = 0;
+    std::memset(raw(0x3D0), 0, sizeof(ActState));
+    return 1;
+}
+
+// swd32.exe 0x00480D40: the follow-up action of act +0xDA2 (state +0x500) while flag 0x8000 of +0x267C is set;
+// its end clears the action flags. Returns 0 while the state stops, else 1.
+int BattleUnit::DrawFollowUpAction() {
+    if ((at<uint32_t>(0x267C) & 0x8000) == 0) {
+        return 1;
+    }
+    at<int32_t>(0x500) = at<uint16_t>(0xDA2);
+    at<int32_t>(0x508) = 0;
+    const int running = ActRun(reinterpret_cast<ActState*>(raw(0x500)));
+    if (running == 0) {
+        return running;
+    }
+    PlaySound(at<uint16_t>(0x558), G.soundVolume);
+    if (at<uint16_t>(0x558) != 0) {
+        SetSoundPan(at<uint16_t>(0x558), at<int16_t>(0xD66) < 0x140 ? -0x10 : 0x10);
+    }
+    at<uint16_t>(0x558) = 0;
+    Picture* picture = TswGetPicture(at<uint16_t>(0x54A), at<uint16_t>(0x54C));
+    at<Picture*>(0x254C) = picture;
+    G.drawSource = reinterpret_cast<uint8_t*>(picture->pixels);
+    uint32_t flags = at<uint32_t>(0x518);
+    int originX = at<int32_t>(0x510);
+    if (at<int32_t>(0x2B08) == 1) {
+        flags = (flags & 1) != 0 ? flags & ~1u : flags | 1;
+        originX = at<Picture*>(0x254C)->width - originX;
+    }
+    picture = at<Picture*>(0x254C);
+    DrawPicture(at<int16_t>(0xD66) - originX, at<int16_t>(0xD68) - at<int32_t>(0x514), picture->width,
+                picture->height, static_cast<int>(flags), 0);
+    if (at<int32_t>(0x58C) != 1) {
+        return 1;
+    }
+    at<uint32_t>(0x267C) = 0;
+    at<uint16_t>(0x2954) = 0;
+    at<uint16_t>(0x2FA) = 0;
+    at<uint16_t>(0x29AC) = 0;
+    at<int32_t>(0x2ACC) = 0;
+    at<int32_t>(0x330) = 0;
+    at<int32_t>(0x2C4) = 0;
+    std::memset(raw(0x500), 0, sizeof(ActState));
+    return 1;
+}
+
+// swd32.exe 0x00480EE0: defence (hero stats +0x28, enemy data +0x58) with +30% (status 0x40000000), -30%
+// (0x100000) and, for heroes, +70% (barrier 0x4000000). For an enemy without either effect the high half of the
+// result is the high half of +0x2AA0 (the register it was loaded from).
+uint32_t BattleUnit::Defense() {
+    uint32_t up = 0;
+    uint32_t barrier = 0;
+    uint32_t down = 0;
+    const uint32_t kind = at<uint32_t>(0x2AA0);
+    const uint32_t status = at<uint32_t>(0x26C0);
+    if (kind == 1) {
+        const uint32_t base = mem::u16(at<uint8_t*>(0), 0x28);
+        if ((status & 0x40000000) != 0) {
+            up = 30 * base / 100;
+        }
+        if ((status & 0x100000) != 0) {
+            down = 30 * base / 100;
+        }
+        if ((status & 0x4000000) != 0) {
+            barrier = 70 * base / 100;
+        }
+        return base - down + barrier + up;
+    }
+    uint32_t high = kind & 0xFFFF0000u;
+    const uint32_t base = mem::u16(at<uint8_t*>(0xC), 0x58);
+    if ((status & 0x40000000) != 0) {
+        up = 30 * base / 100;
+        high = 0;
+    }
+    if ((status & 0x100000) != 0) {
+        down = 30 * base / 100;
+        high = 0;
+    }
+    return (high | base) - down + up;
+}
+
+// swd32.exe 0x00481FB0: 1 while mark 0x100 is clear
+uint32_t BattleUnit::Mark100Clear() { return (static_cast<uint32_t>(~at<uint16_t>(0x26D0)) >> 8) & 1; }
+
+// swd32.exe 0x00481FC0
+int BattleUnit::Mark2() { return (at<uint8_t>(0x26D0) >> 1) & 1; }
+
+// swd32.exe 0x00481FD0: action flag 0x10 resets the x of the caller (0x280 for enemies and mirrored heroes when
+// flag 1 of +0xD9C is set), action flag 0x20 its y. The return value is unused by callers.
+void BattleUnit::ResetActionPosition(uint16_t* x, uint16_t* y) {
+    if ((at<uint8_t>(0xD94) & 0x10) != 0) {
+        *x = 0;
+        if ((at<uint8_t>(0xD9C) & 1) != 0) {
+            if (at<int32_t>(0x2AA0) == 1 && at<int32_t>(0x2B08) == 1) {
+                *x = 0x280;
+            }
+            if (at<int32_t>(0x2AA0) == 0) {
+                *x = 0x280;
+            }
+        }
+    }
+    if ((at<uint8_t>(0xD94) & 0x20) != 0) {
+        *y = 0;
+    }
+}
+
+// swd32.exe 0x00482030: ends the main action (state +0x2A0) once it finished (+0x32C) or when forced
+int BattleUnit::EndAction(int16_t next, int force) {
+    if (at<int32_t>(0x32C) != 1 && force != 1) {
+        return 0;
+    }
+    std::memset(raw(0x2A0), 0, sizeof(ActState));
+    at<int32_t>(0x45C) = 1;
+    at<int16_t>(0x26D2) = next;
+    return 1;
+}
+
+// swd32.exe 0x00482080
+int16_t BattleUnit::SetWords26D6(int16_t first, int16_t second) {
+    at<int16_t>(0x26D6) = first;
+    at<int16_t>(0x26D8) = second;
+    return first;
+}
+
+// swd32.exe 0x004820A0: afterimages of picture `id` kept in `trail` (16 byte entries: flags, frame, fade, x, y;
+// +0x80 tint, +0x90 layout, +0x94 count, +0x95 fade step, +0x96 delay): every third call the entries move down
+// and the current frame is added; each entry fades and is drawn translucent (tinted when fading above 1), or
+// darkened with flag 4. An entry is still drawn on the frame it fades out. The return value is unused.
+void BattleUnit::DrawAfterimages(uint8_t* trail, int id, int16_t frame, uint32_t flags, int16_t x, int16_t y) {
+    int spacing = 0x1E;
+    if (mem::u16(trail, 0x90) == 1) {
+        spacing = -0x1E;
+    }
+    if (trail[0x96] != 0) {
+        --trail[0x96];
+    } else {
+        for (int entry = static_cast<int8_t>(trail[0x94]) - 1; entry > 0; --entry) {
+            std::memcpy(trail + 0x10 * entry, trail + 0x10 * (entry - 1), 0x10);
+        }
+        mem::put16(trail, 6, 0xC);
+        mem::put16(trail, 4, static_cast<uint16_t>(frame));
+        if ((flags & 4) != 0) {
+            mem::put16(trail, 6, 0x18);
+        }
+        mem::put32(trail, 0, flags);
+        mem::put16(trail, 8, static_cast<uint16_t>(x));
+        mem::put16(trail, 0xA, static_cast<uint16_t>(y));
+        trail[0x96] = 2;
+    }
+    for (int index = 0; index < static_cast<int8_t>(trail[0x94]); ++index) {
+        uint8_t* entry = trail + 0x10 * index;
+        const uint16_t entryFrame = mem::u16(entry, 4);
+        if (entryFrame == 0xFFFF) {
+            continue;
+        }
+        int offset = 0xC - mem::s16(entry, 8);
+        const uint16_t layout = mem::u16(trail, 0x90);
+        if (layout == 1) {
+            offset = mem::s16(entry, 0xA) - 0xC;
+        }
+        if (layout == 2) {
+            offset = 0;
+            spacing = 0;
+        }
+        Picture* picture = TswGetPicture(static_cast<uint32_t>(id), entryFrame);
+        at<Picture*>(0x2550) = picture;
+        G.drawSource = reinterpret_cast<uint8_t*>(picture->pixels);
+        int16_t fade = mem::s16(entry, 6);
+        if (fade > 0) {
+            fade = static_cast<int16_t>(fade - static_cast<int8_t>(trail[0x95]));
+            mem::put16(entry, 6, static_cast<uint16_t>(fade));
+            if (fade <= 0) {
+                mem::put16(entry, 4, 0xFFFF);
+                mem::put16(entry, 6, 0);
+            }
+        }
+        fade = mem::s16(entry, 6);
+        const int drawX = mem::s16(entry, 8) + spacing * index + offset;
+        const int drawY = mem::s16(entry, 0xA);
+        if ((flags & 4) != 0) {
+            G.drawOption71C = fade - 0x1F;
+            G.drawOption304 = -0xC;
+            G.drawOption30C = fade - 0x1F;
+            DrawPicture(drawX, drawY, at<Picture*>(0x2550)->width, at<Picture*>(0x2550)->height,
+                        static_cast<int>(flags), 0);
+            continue;
+        }
+        G.drawAlpha = fade;
+        DrawPicture(drawX, drawY, at<Picture*>(0x2550)->width, at<Picture*>(0x2550)->height,
+                    static_cast<int>(flags | 0x14), 0);
+        if (mem::s16(entry, 6) > 1) {
+            G.drawOption71C = mem::s32(trail, 0x80);
+            G.drawOption30C = mem::s32(trail, 0x84);
+            G.drawOption304 = mem::s32(trail, 0x88);
+            DrawPicture(drawX, drawY, at<Picture*>(0x2550)->width, at<Picture*>(0x2550)->height,
+                        static_cast<int>(flags | 0x10), 0);
+        }
+    }
+}
+
+// swd32.exe 0x00482DA0: fills the gauge (*+8, full at 0x38) by amount / (speed +4 +0xA) * 47 of it; -1 fills it,
+// 0 empties it. The carry at +0x26B0 is meant for amounts rounding to 0 but is compared before rounding, so it
+// is always reset. Plays sound 0xBC when full.
+void BattleUnit::AddGauge(int amount) {
+    if (at<int32_t>(0x2B00) == 1 || at<int32_t>(0x2B04) == 1) {
+        return;
+    }
+    if (amount == -1) {
+        *at<int32_t*>(8) = 0x38;
+    } else if (amount == 0) {
+        *at<int32_t*>(8) = 0;
+    }
+    int32_t* gauge = at<int32_t*>(8);
+    const int32_t level = *gauge;
+    if (level >= 0x38 || amount <= 0) {
+        return;
+    }
+    const int speed = mem::s16(at<uint8_t*>(4), 0xA);
+    if (amount < speed) {
+        const int32_t carry = at<int32_t>(0x26B0);
+        if (carry > 0) {
+            amount += carry;
+        }
+        const double share = static_cast<double>(amount) / static_cast<double>(speed) * 47.0;
+        *gauge = level + static_cast<int32_t>(crt::ftol(share));
+        if (share == 0.0) {
+            at<int32_t>(0x26B0) += amount;
+        } else {
+            at<int32_t>(0x26B0) = 0;
+        }
+    } else {
+        *gauge = 0x38;
+    }
+    int32_t* full = at<int32_t*>(8);
+    if (*full >= 0x38) {
+        *full = 0x38;
+        PlaySound(0xBC, G.soundVolume);
+    }
+}
+
+// swd32.exe 0x00482E80
+bool BattleUnit::GaugeIsFull() { return *at<int32_t*>(8) == 0x38; }
+
+// swd32.exe 0x00482E90: guard kind of the action flags (+0xD94): 0x100 gives 8 with status bit 5 of +0x26C8,
+// else 1; 0x200 gives 2; otherwise flag 0x400 gives 4. The high half of the result is left from the flags.
+uint32_t BattleUnit::GuardKind() {
+    const uint32_t flags = at<uint32_t>(0xD94);
+    if ((flags & 0x100) != 0) {
+        return (at<uint8_t>(0x26C8) & 0x20) != 0 ? 8 : 1;
+    }
+    if ((flags & 0x200) != 0) {
+        return (flags & 0xFFFF0000u) | 2;
+    }
+    const uint32_t shifted = flags >> 8;
+    return (shifted & 0xFFFF0000u) | (shifted & 4);
+}
+
+// swd32.exe 0x00482EC0: whether the main action is on frame `frame` + 1, or finished for frame -1
+bool BattleUnit::IsActionFrame(int16_t frame) {
+    if (at<uint16_t>(0x2A0E) == 0) {
+        return false;
+    }
+    if (frame == -1) {
+        return at<int32_t>(0x32C) == 1;
+    }
+    return at<uint16_t>(0x2EC) == frame - 1;
+}
+
+// swd32.exe 0x00482F70: low 14 bits of +0x198 of the first of the two 0xA4 byte records (+0x1A0) with id `id`
+uint32_t BattleUnit::RecordValue(int id) {
+    for (int record = 0; record < 2; ++record) {
+        if (at<int16_t>(0x1A0 + 0xA4 * record) == id) {
+            return at<uint16_t>(0x198 + 0xA4 * record) & 0x3FFF;
+        }
+    }
+    return 0;
+}
+
 }  // namespace swd3

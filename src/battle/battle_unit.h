@@ -109,6 +109,25 @@ public:
     int DrawGuardText();
     int AddAilment(const std::uint8_t* skill);
     int AddBuff(const std::uint8_t* skill);
+    std::uint8_t* QueueAction(int kind, int target, std::int16_t x, std::int16_t y, std::int16_t width,
+                              std::int16_t height, std::int16_t delay, std::int16_t speed, int data);
+    std::uint8_t* FinishQueuedAction(int first, int second, int third);
+    int GetData0C();
+    int DrawCastAction();
+    int DrawFollowUpAction();
+    std::uint32_t Defense();
+    std::uint32_t Mark100Clear();
+    int Mark2();
+    void ResetActionPosition(std::uint16_t* x, std::uint16_t* y);
+    int EndAction(std::int16_t next, int force);
+    std::int16_t SetWords26D6(std::int16_t first, std::int16_t second);
+    void DrawAfterimages(std::uint8_t* trail, int id, std::int16_t frame, std::uint32_t flags, std::int16_t x,
+                         std::int16_t y);
+    void AddGauge(int amount);
+    bool GaugeIsFull();
+    std::uint32_t GuardKind();
+    bool IsActionFrame(std::int16_t frame);
+    std::uint32_t RecordValue(int id);
 
     template <typename T>
     T& at(std::intptr_t offset) {
