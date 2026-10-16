@@ -1,0 +1,23 @@
+# 黄金数据（golden）
+
+用旧逐句转写实现（标签 `legacy-transliteration`）对同一组场景生成哈希，作为新架构实现的逐像素对照依据。旧实现本身仍以汇编对照为准（第 3 阶段），黄金数据只证明新旧实现等价。
+
+## 绘制核心（tests/golden/draw_golden.txt）
+
+场景定义：`tests/golden/draw_scenarios.h`（两侧共用）。生成器：`draw_golden_legacy.cpp`。
+
+```
+git worktree add -f tmp/legacy legacy-transliteration
+mkdir -p tmp/legacy/tests/golden
+cp tests/golden/draw_scenarios.h tmp/legacy/tests/golden/
+cp reverse/analysis/golden/draw_golden_legacy.cpp tmp/legacy/tests/
+cd tmp/legacy
+cmake --preset linux -DSWD3_DEPS_PREFIX=<工作区>/third_party/install/linux
+cmake --build --preset linux
+cd build/linux
+GOLDEN_OUT=<工作区>/tests/golden/draw_golden.txt SWD3_GAME_DIR=/mnt/e/Game/swd3 ./swd3_tests golden
+```
+
+`GOLDEN_DUMP=<场景名前缀> GOLDEN_DUMP_FILE=<文件>` 可在两侧导出某个场景后的整屏像素，用于定位差异。
+
+不能在旧实现上运行的场景（原程序会崩溃）：未分配的模式（空表项）、带 0x8000 段的镜像 Alpha 映射（空查找表）、原始图片的翻转与镜像半透明模式（空表项）。新实现对这些情况的行为由 `tests/painter_test.cpp` 覆盖，并记录在 `deviations.md`。
