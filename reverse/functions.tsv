@@ -789,31 +789,31 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 788	swd32.exe	0x0044FF90	sub_44FF90	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:ItemPriority
 789	swd32.exe	0x0044FFC0	sub_44FFC0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:SetGaugeFull
 790	swd32.exe	0x0044FFE0	sub_44FFE0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-791	swd32.exe	0x00450270	sub_450270	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawPictureFrame0
-792	swd32.exe	0x004502B0	sub_4502B0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawPortrait
-793	swd32.exe	0x00450400	sub_450400	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawArrow
-794	swd32.exe	0x00450490	sub_450490	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawBar
-795	swd32.exe	0x004504E0	sub_4504E0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawPictureFrame
-796	swd32.exe	0x00450530	sub_450530	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawGauge
-797	swd32.exe	0x004505B0	sub_4505B0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawGaugeAlt
-798	swd32.exe	0x00450630	sub_450630	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawGaugeWide
-799	swd32.exe	0x004506B0	sub_4506B0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawSmallNumber
-800	swd32.exe	0x004507A0	sub_4507A0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawNumber
-801	swd32.exe	0x00450900	sub_450900	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawNumberDigit
-802	swd32.exe	0x004509D0	sub_4509D0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawSlotAnimation
-803	swd32.exe	0x00450A50	sub_450A50	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:FillBox
-804	swd32.exe	0x00450A80	sub_450A80	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawEffectAt
-805	swd32.exe	0x00450B40	sub_450B40	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:ResetEffectAt
-806	swd32.exe	0x00450B60	sub_450B60	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawCursorAnimation
-807	swd32.exe	0x00450BD0	sub_450BD0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawDigit
-808	swd32.exe	0x00450C50	sub_450C50	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawScrollBar
-809	swd32.exe	0x00450F90	sub_450F90	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawCoinToss
-810	swd32.exe	0x00451100	sub_451100	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawTimingBar
-811	swd32.exe	0x004512B0	sub_4512B0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawTallGauge
-812	swd32.exe	0x00451420	sub_451420	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:BattleAnimationLoad
-813	swd32.exe	0x00451540	sub_451540	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:BattleAnimationDraw
-814	swd32.exe	0x004515E0	sub_4515E0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:BattleAnimationPlayShifted
-815	swd32.exe	0x00451730	sub_451730	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:BattleAnimationFree
+791	swd32.exe	0x00450270	sub_450270	battle	src/battle/battle_hud.cpp:BattleHud::DrawPictureFrame0	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawPictureFrame0
+792	swd32.exe	0x004502B0	sub_4502B0	battle	src/battle/battle_hud.cpp:BattleHud::DrawPortrait	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawPortrait
+793	swd32.exe	0x00450400	sub_450400	battle	src/battle/battle_hud.cpp:BattleHud::DrawArrow	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawArrow
+794	swd32.exe	0x00450490	sub_450490	battle	src/battle/battle_hud.cpp:BattleHud::DrawBar	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawBar
+795	swd32.exe	0x004504E0	sub_4504E0	battle	src/battle/battle_hud.cpp:BattleHud::DrawPictureFrame	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawPictureFrame
+796	swd32.exe	0x00450530	sub_450530	battle	src/battle/battle_hud.cpp:BattleHud::DrawGauge	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawGauge
+797	swd32.exe	0x004505B0	sub_4505B0	battle	src/battle/battle_hud.cpp:BattleHud::DrawGaugeAlt	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawGaugeAlt
+798	swd32.exe	0x00450630	sub_450630	battle	src/battle/battle_hud.cpp:BattleHud::DrawGaugeWide	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawGaugeWide
+799	swd32.exe	0x004506B0	sub_4506B0	battle	src/battle/battle_hud.cpp:BattleHud::DrawSmallNumber	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawSmallNumber
+800	swd32.exe	0x004507A0	sub_4507A0	battle	src/battle/battle_hud.cpp:BattleHud::DrawNumber	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawNumber
+801	swd32.exe	0x00450900	sub_450900	battle	src/battle/battle_hud.cpp:BattleHud::DrawNumberDigit	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawNumberDigit
+802	swd32.exe	0x004509D0	sub_4509D0	battle	src/battle/battle_hud.cpp:BattleHud::DrawSlotAnimation	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawSlotAnimation
+803	swd32.exe	0x00450A50	sub_450A50	battle	src/battle/battle_hud.cpp:BattleHud::FillColor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:FillBox
+804	swd32.exe	0x00450A80	sub_450A80	battle	src/battle/battle_hud.cpp:BattleHud::DrawEffectAt	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawEffectAt
+805	swd32.exe	0x00450B40	sub_450B40	battle	src/battle/battle_hud.cpp:BattleHud::ResetEffectAt	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:ResetEffectAt
+806	swd32.exe	0x00450B60	sub_450B60	battle	src/battle/battle_hud.cpp:BattleHud::DrawCursorAnimation	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawCursorAnimation
+807	swd32.exe	0x00450BD0	sub_450BD0	battle	src/battle/battle_hud.cpp:BattleHud::DrawDigit	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawDigit
+808	swd32.exe	0x00450C50	sub_450C50	battle	src/battle/battle_hud.cpp:BattleHud::DrawScrollBar	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawScrollBar
+809	swd32.exe	0x00450F90	sub_450F90	battle	src/battle/battle_hud.cpp:BattleHud::DrawCoinToss	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawCoinToss
+810	swd32.exe	0x00451100	sub_451100	battle	src/battle/battle_hud.cpp:BattleHud::DrawTimingBar	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawTimingBar
+811	swd32.exe	0x004512B0	sub_4512B0	battle	src/battle/battle_hud.cpp:BattleHud::DrawTallGauge	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:DrawTallGauge
+812	swd32.exe	0x00451420	sub_451420	battle	src/battle/battle_hud.cpp:BattleHud::LoadAnimation	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:BattleAnimationLoad
+813	swd32.exe	0x00451540	sub_451540	battle	src/battle/battle_hud.cpp:BattleHud::DrawAnimation	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:BattleAnimationDraw
+814	swd32.exe	0x004515E0	sub_4515E0	battle	src/battle/battle_hud.cpp:BattleHud::PlayAnimationShifted	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:BattleAnimationPlayShifted
+815	swd32.exe	0x00451730	sub_451730	battle	src/battle/battle_hud.cpp:BattleHud::FreeAnimation	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_draw.cpp:BattleAnimationFree
 816	swd32.exe	0x004517A0	sub_4517A0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern; legacy: src/core/static_init.cpp:InitBattleHeroes
 817	swd32.exe	0x004517B0	sub_4517B0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern; legacy: src/core/static_init.cpp:ConstructBattleHeroes
 818	swd32.exe	0x004517D0	sub_4517D0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern; legacy: src/core/static_init.cpp:RegisterBattleHeroesDestructor

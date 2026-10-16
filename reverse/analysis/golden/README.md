@@ -53,3 +53,7 @@ GOLDEN_OUT=<工作区>/tests/golden/draw_golden.txt SWD3_GAME_DIR=/mnt/e/Game/sw
 ## 填色框与窗口边框（tests/golden/ui_golden.txt）
 
 场景定义：`tests/golden/ui_scenarios.h`。生成器：`ui_golden_legacy.cpp`，运行 `./swd3_tests "golden: legacy ui drawing"`。边框图片取 all_sys.tsw 中帧数不少于 9 的条目（0x234A 需 10 帧）；混色模式不比较 1 像素宽的框（原程序循环失控），由 `tests/ui_draw_test.cpp` 单独覆盖。
+
+## 战斗界面绘制辅助（tests/golden/hud_golden.txt）
+
+场景定义：`tests/golden/hud_scenarios.h`（同一个对象上的一串调用，逐步比较返回值、整屏与保留的状态）。生成器：`hud_golden_legacy.cpp`，以 `SDL_AUDIO_DRIVER=dummy` 运行 `./swd3_tests "golden: legacy battle hud"`。战斗动画（0x00451420 等）需要 battle.ffd 中的动画编号，待阵型读取实现后补充。
