@@ -3,6 +3,7 @@
 #include <new>
 #include <vector>
 
+#include "crt/crt.h"
 #include "data/globals.h"
 #include "pic/pic_ops.h"
 #include "pic/projector.h"
@@ -83,4 +84,56 @@ TEST_CASE("pic.hit test literal runs with inclusive bounds") {
     CHECK_EQ(PictureHitTest(&picture, 13, 20, 10, 20), 1);
     CHECK_EQ(PictureHitTest(&picture, 9, 20, 10, 20), 0);
     CHECK_EQ(PictureHitTest(&picture, 10, 22, 10, 20), 0);
+}
+
+TEST_CASE("pic.explosion emits particles once and finishes") {
+    std::unique_ptr<std::uint8_t[]> storage{new std::uint8_t[sizeof(Projector)]()};
+    auto* projector = new (storage.get()) Projector();
+    const std::int32_t savedFill = G.rleFillColor16;
+    const std::int32_t savedSkip = G.rleSkipColor16;
+    G.rleFillColor16 = 0xF81F;
+    G.rleSkipColor16 = 0xF81F;
+    G.particleRange = 0;
+    std::vector<std::uint16_t> pixels(8 * 6, 0x1234);
+    std::vector<std::uint16_t> screen(640 * 480, 0);
+    ParticleEffect effect{};
+    effect.pixels = pixels.data();
+    effect.width = 8;
+    effect.height = 6;
+    effect.x = 100;
+    effect.y = 100;
+    effect.targetLeft = 300;
+    effect.targetWidth = 10;
+    effect.targetTop = 300;
+    effect.targetHeight = 10;
+    effect.lifeBase = 400;
+    effect.speed = 4;
+    effect.bursts = 1;
+    effect.divisor = 1;
+    CHECK_EQ(projector->DrawExplosion(screen.data(), &effect), 0);
+    CHECK_EQ(effect.started, 1);
+    CHECK_EQ(effect.pixelCount, 48);
+    CHECK_EQ(effect.bursts, 0);
+    CHECK(effect.particles > 0);
+    int frames = 1;
+    while (projector->DrawExplosion(screen.data(), &effect) == 0 && frames < 1000) {
+        ++frames;
+    }
+    CHECK(frames < 1000);
+    // the empty successor also counts down, so the effect can end with one particle still listed
+    CHECK(effect.particles <= 0);
+    while (effect.head != nullptr) {
+        Particle* next = effect.head->next;
+        crt::free(effect.head);
+        effect.head = next;
+    }
+    int drawn = 0;
+    for (std::uint16_t pixel : screen) {
+        drawn += pixel == 0x1234;
+    }
+    CHECK(drawn > 0);
+    G.rleFillColor16 = savedFill;
+    G.rleSkipColor16 = savedSkip;
+    G.particleRange = 0;
+    projector->Release();
 }

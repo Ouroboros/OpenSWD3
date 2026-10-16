@@ -4,6 +4,7 @@
 #include "data/globals.h"
 
 #include <cmath>
+#include <ctime>
 #include <cstdlib>
 #include <cstring>
 #include <limits>
@@ -74,6 +75,15 @@ std::int64_t ftol(double value) {
 // swd32.exe 0x00489B50 difftime: (double)(int)(end - start)
 double difftime(std::int32_t end, std::int32_t start) {
     return static_cast<double>(static_cast<std::int32_t>(static_cast<std::uint32_t>(end) - static_cast<std::uint32_t>(start)));
+}
+
+// swd32.exe 0x00489B70 time: seconds since 1970 (the original converts the local time with the time zone)
+std::int32_t time(std::int32_t* result) {
+    const auto now = static_cast<std::int32_t>(std::time(nullptr));
+    if (result != nullptr) {
+        *result = now;
+    }
+    return now;
 }
 
 // swd32.exe 0x00487BA0 atexit

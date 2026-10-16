@@ -4265,7 +4265,7 @@ struct Globals {
     std::uint8_t* tswPackedBufB;  // 0x004FB558
     std::uint8_t* tswPackedBuf;  // 0x004FB55C
     std::uint8_t pad_4FB560[0x8];
-    std::int32_t dword_4FB568;  // 0x004FB568
+    std::int32_t particleRange;  // 0x004FB568 pixel range of ParticlePut with flag 0x40, grows by burstStep
     std::uint8_t pad_4FB56C[0x27C];
     std::int32_t textInputLeadPending;  // 0x004FB7E8 1 after a WM_CHAR lead byte
     std::uint8_t pad_4FB7EC[0x4];
@@ -5867,6 +5867,7 @@ static_assert(offsetof(Globals, tswPackedCapB) == 0x62514);
 static_assert(offsetof(Globals, tswErrorText) == 0x62518);
 static_assert(offsetof(Globals, tswPackedBufB) == 0x62558);
 static_assert(offsetof(Globals, tswPackedBuf) == 0x6255C);
+static_assert(offsetof(Globals, particleRange) == 0x62568);
 static_assert(offsetof(Globals, textInputLeadPending) == 0x627E8);
 static_assert(offsetof(Globals, r250Index) == 0x627F0);
 static_assert(offsetof(Globals, panelAct) == 0x635B0);

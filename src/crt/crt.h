@@ -23,6 +23,7 @@ std::uint32_t randSeed();
 
 std::int64_t ftol(double value);
 double difftime(std::int32_t end, std::int32_t start);
+std::int32_t time(std::int32_t* result);
 
 // Registers a function run at exit, last registered first (host atexit).
 int atexit(void (*function)());
