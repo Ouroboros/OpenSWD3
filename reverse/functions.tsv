@@ -556,10 +556,10 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 555	swd32.exe	0x00439070	sub_439070	random	src/random/random.cpp:Random::Below	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/core/random.cpp:R250Below
 556	swd32.exe	0x004390F0	sub_4390F0	random	src/random/random.cpp:Random::LcgNext	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/core/random.cpp:LcgNext
 557	swd32.exe	0x00439110	sub_439110	random	src/random/random.cpp:Random::LcgSeed	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/core/random.cpp:LcgSeed
-558	swd32.exe	0x00439120	sub_439120	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-559	swd32.exe	0x00439210	sub_439210	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-560	swd32.exe	0x00439580	sub_439580	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-561	swd32.exe	0x00439670	sub_439670	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+558	swd32.exe	0x00439120	sub_439120	codec	src/codec/lzo.cpp:LzoEncoder::Compress	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+559	swd32.exe	0x00439210	sub_439210	codec	src/codec/lzo.cpp:LzoEncoder::CompressCore	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+560	swd32.exe	0x00439580	sub_439580	codec	src/codec/lzo.cpp:LzoEncoder::Compress	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+561	swd32.exe	0x00439670	sub_439670	codec	src/codec/lzo.cpp:LzoEncoder::CompressCore	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 562	swd32.exe	0x004399E0	sub_4399E0	codec	src/codec/lzo.cpp:LzoDecoder::Run	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/codec/lzo.cpp:Lzo1xDecompress
 563	swd32.exe	0x00439C20	sub_439C20	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 564	swd32.exe	0x00439DE0	sub_439DE0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	

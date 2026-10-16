@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <vector>
 
 #include "core/types.h"
 
@@ -41,6 +42,23 @@ private:
     std::span<u8> output;
     std::size_t inputPosition = 0;
     std::size_t outputPosition = 0;
+};
+
+// LZO1X-1 compression (the "1" level of LZO 1.0x) with a dictionary of 2^bits entries: 14 bits for the save data, 15
+// for the fame block.
+class LzoEncoder
+{
+public:
+    explicit LzoEncoder(int dictionaryBits);
+
+    std::vector<u8> Compress(std::span<const u8> input);
+
+private:
+    std::size_t CompressCore(std::span<const u8> input, std::vector<u8>& output);
+    void EmitLiterals(std::vector<u8>& output, std::span<const u8> literals);
+
+    int dictionaryBits;
+    std::vector<i64> dictionary;
 };
 
 }  // namespace swd3
