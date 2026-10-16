@@ -91,10 +91,10 @@ bool Talk::PanCamera(EventRun& run)
     {
         state.FindRoleOrPlayer(this->Word(run, 1), run.found);
         const Role* role = this->FoundRole(run);
-        std::array<i32, 4> rect = {field.cameraLeft, field.cameraTop, field.cameraRight, field.cameraBottom};
+        CameraRect rect = {field.cameraLeft, field.cameraTop, field.cameraRight, field.cameraBottom};
         field.CameraAround(role != nullptr ? role->x : 0, role != nullptr ? role->y : 0, rect);
-        across = (rect[0] - field.cameraLeft) >> MapHeader::TileShift;
-        down = (rect[1] - field.cameraTop) >> MapHeader::TileShift;
+        across = (rect.left - field.cameraLeft) >> MapHeader::TileShift;
+        down = (rect.top - field.cameraTop) >> MapHeader::TileShift;
         view.panAcross = across;
         view.panDown = down;
         steps = 2;  // after the role

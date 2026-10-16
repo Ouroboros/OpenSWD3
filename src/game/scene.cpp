@@ -49,7 +49,7 @@ void Scene::ResetLeaves()
 {
     for (MapParticle& leaf : this->leaves)
     {
-        leaf.x = 0x7FFFFFFF;
+        leaf.x = MapParticle::Unplaced;
     }
 }
 

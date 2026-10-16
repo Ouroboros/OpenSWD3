@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <climits>
 #include <list>
 #include <vector>
 
@@ -80,7 +81,8 @@ struct MoveRecord
         HoldAtEnd = 0x80,  // the role stays held by the event when it arrives
     };
 
-    static constexpr u8 EndOfPath = 0xFF;  // in `directions`
+    static constexpr u8 EndOfPath = 0xFF;   // in `directions`
+    static constexpr u8 UnusedByte = 0xFF;  // `unk1A` and `mode` of a cleared record
 
     u16 role = 0;                           // +0x00 the role moving (NoRole: unused)
     u16 step = 0;                           // +0x02 bits 0..14: the step reached, Done once taken
@@ -199,6 +201,10 @@ public:
     static constexpr int FlagBytes = 0x400;
     // 1 << n (swd32.exe 0x004994EC).
     static constexpr std::array<u8, 8> BitMasks = {1, 2, 4, 8, 16, 32, 64, 128};
+    static constexpr int FlagByteShift = 3;           // a flag number to its byte
+    static constexpr int FlagBitMask = CHAR_BIT - 1;  // and to its bit in BitMasks
+    static constexpr u32 NotFound = 0xFFFFFFFF;       // FindRole: no role
+    static constexpr u16 PlayerId = 0xFFFE;           // FindRoleOrPlayer: the controlled role
 
     bool GameFlag(int flag) const;
     u8 SetGameFlag(int flag);

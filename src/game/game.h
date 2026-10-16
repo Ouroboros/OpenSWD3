@@ -231,8 +231,8 @@ private:
     BattleMessages battleMessages;
     FightTalk fightTalk;
     BattleServices battleServices;
-    std::array<BattleRole, 10> battleRoles;    // 0x005029D0
-    std::array<BattleEnemy, 8> battleEnemies;  // 0x00525508
+    std::array<BattleRole, BattleState::RoleUnits> battleRoles;   // 0x005029D0
+    std::array<BattleEnemy, BattleState::Enemies> battleEnemies;  // 0x00525508
     ActDrawer actDrawer;
     Notices notices;
     i32 unk4B7518 = 0;          // the step of the camera and the controlled role across (-1, 0, 1)

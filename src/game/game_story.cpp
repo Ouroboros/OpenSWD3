@@ -1,44 +1,60 @@
+#include <climits>
 #include <cstring>
 #include <span>
 #include <string>
+#include <string_view>
 
 #include "core/debug_log.h"
 #include "game/game.h"
+#include "platform/display.h"
 
 namespace swd3
 {
 
-// swd32.exe 0x0040D160: the camera around (x, y): 320 x 240 pixels before it, held inside the map
-void Field::CameraAround(int x, int y, std::array<i32, 4>& rect) const
+namespace
 {
-    rect[0] = x - 0x140;
 
-    if (x - 0x140 < 0)
+constexpr i32 kTimerFrames = 30;  // the timers count frames, 30 a second
+constexpr i32 kSecondsPerMinute = 60;
+constexpr std::string_view kBink = "bik";  // .avi and .mpg movies are played as .bik
+
+}  // namespace
+
+// swd32.exe 0x0040D160: the camera around (x, y): 320 x 240 pixels before it, held inside the map
+void Field::CameraAround(int x, int y, CameraRect& rect) const
+{
+    constexpr i32 kHalfWidth = Display::Width / 2;
+    constexpr i32 kHalfHeight = Display::Height / 2;
+    constexpr i32 kColumns = Display::Width / MapHeader::TileSize;
+    constexpr i32 kRows = Display::Height / MapHeader::TileSize;
+    rect.left = x - kHalfWidth;
+
+    if (x - kHalfWidth < 0)
     {
-        rect[0] = 0;
+        rect.left = 0;
     }
 
-    rect[1] = y - 0xF0;
+    rect.top = y - kHalfHeight;
 
-    if (y - 0xF0 < 0)
+    if (y - kHalfHeight < 0)
     {
-        rect[1] = 0;
+        rect.top = 0;
     }
 
-    rect[2] = rect[0] + 0x280;
+    rect.right = rect.left + Display::Width;
 
-    if (rect[2] >= 0x10 * this->state.map.width)
+    if (rect.right >= MapHeader::TileSize * this->state.map.width)
     {
-        rect[0] = 0x10 * (this->state.map.width - 0x28);
-        rect[2] = 0x10 * this->state.map.width;
+        rect.left = MapHeader::TileSize * (this->state.map.width - kColumns);
+        rect.right = MapHeader::TileSize * this->state.map.width;
     }
 
-    rect[3] = rect[1] + 0x1E0;
+    rect.bottom = rect.top + Display::Height;
 
-    if (rect[3] >= 0x10 * this->state.map.height)
+    if (rect.bottom >= MapHeader::TileSize * this->state.map.height)
     {
-        rect[1] = 0x10 * (this->state.map.height - 0x1E);
-        rect[3] = 0x10 * this->state.map.height;
+        rect.top = MapHeader::TileSize * (this->state.map.height - kRows);
+        rect.bottom = MapHeader::TileSize * this->state.map.height;
     }
 }
 
@@ -48,28 +64,29 @@ u32 Game::LoadRoleRecord(Role& role, u16 id)
 {
     const std::vector<u8>& data = this->databases.mapsData;
 
-    for (std::size_t at = this->scene.unk4ACE40; MapsWord(data, at) != 0xFFFF; at += 0x16)
+    for (std::size_t at = this->scene.unk4ACE40; MapsWord(data, at) != MapsRecord::TableEnd;
+         at += sizeof(u16) * MapsRecord::RoleWords)
     {
-        if (MapsWord(data, at + 2) != id)
+        if (MapsWord(data, at + sizeof(u16) * MapsRecord::RoleId) != id)
         {
             continue;
         }
 
         role.id = id;
-        role.act.id = MapsWord(data, at + 4);
-        role.act.action = MapsWord(data, at + 6);
-        role.act.direction = MapsWord(data, at + 8);
-        role.x = 0x10 * MapsWord(data, at + 0xA);
-        role.y = 0x10 * MapsWord(data, at + 0xC);
-        role.event = MapsWord(data, at + 0xE);
-        role.unk1C = MapsWord(data, at + 0x10);
+        role.act.id = MapsWord(data, at + sizeof(u16) * MapsRecord::RoleAct);
+        role.act.action = MapsWord(data, at + sizeof(u16) * MapsRecord::RoleAction);
+        role.act.direction = MapsWord(data, at + sizeof(u16) * MapsRecord::RoleDirection);
+        role.x = MapHeader::TileSize * MapsWord(data, at + sizeof(u16) * MapsRecord::RoleColumn);
+        role.y = MapHeader::TileSize * MapsWord(data, at + sizeof(u16) * MapsRecord::RoleRow);
+        role.event = MapsWord(data, at + sizeof(u16) * MapsRecord::RoleEvent);
+        role.unk1C = MapsWord(data, at + sizeof(u16) * MapsRecord::RolePath);
         role.unk18 = 0;
-        role.flags = MapsWord(data, at + 0x14);
+        role.flags = MapsWord(data, at + sizeof(u16) * MapsRecord::RoleFlags);
         return MapsWord(data, at);
     }
 
     DebugLog(u8"role record missing", id);
-    return 0xFFFFFFFF;
+    return GameState::NotFound;
 }
 
 // swd32.exe 0x0040D790: role `id` leaves the followers: a role between tiles is moved on to the next one along its
@@ -85,13 +102,14 @@ void Game::LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 dire
     {
         std::vector<u8>& data = this->databases.mapsData;
 
-        for (std::size_t at = view.unk4ACE40; MapsWord(data, at) != 0xFFFF; at += 0x16)
+        for (std::size_t at = view.unk4ACE40; MapsWord(data, at) != MapsRecord::TableEnd;
+             at += sizeof(u16) * MapsRecord::RoleWords)
         {
-            if (MapsWord(data, at + 2) == id)
+            if (MapsWord(data, at + sizeof(u16) * MapsRecord::RoleId) == id)
             {
-                if (at + 0x15 < data.size())
+                if (at + sizeof(u16) * MapsRecord::RoleFlags + 1 < data.size())
                 {
-                    data[at + 0x14] &= static_cast<u8>(~0x80);
+                    data[at + sizeof(u16) * MapsRecord::RoleFlags] &= static_cast<u8>(~Role::Follower);
                 }
 
                 return;
@@ -119,25 +137,31 @@ void Game::LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 dire
     MoveRecord& move = view.followerMoves[follower];
     const auto leader = static_cast<u16>(this->unk4B7BC4);
 
-    if (move.step < MoveRecord::StepMask && ((role.x & 0xF) != 0 || (role.y & 0xF) != 0))
+    if (move.step < MoveRecord::StepMask &&
+        ((role.x & MapHeader::TileFraction) != 0 || (role.y & MapHeader::TileFraction) != 0))
     {
         this->field.ClearRoleCells(role, leader);
         const u8 last = move.CurrentDirection();
 
-        if (last != 0xFF && last < 8)
+        if (last != MoveRecord::EndOfPath && last < RolePath::Directions)
         {
-            while ((role.x & 0xF) != 0)
+            while ((role.x & MapHeader::TileFraction) != 0)
             {
                 role.x += RolePath::StepX[last];
             }
 
-            while ((role.y & 0xF) != 0)
+            while ((role.y & MapHeader::TileFraction) != 0)
             {
                 role.y += RolePath::StepY[last];
             }
         }
 
-        this->field.RemoveRole(role.id, static_cast<int>(role.flags & Role::LayerMask), (role.y >> 4) - 1, 0);
+        this->field.RemoveRole(
+            role.id,
+            static_cast<int>(role.flags & Role::LayerMask),
+            (role.y >> MapHeader::TileShift) - 1,
+            0
+        );
     }
 
     move.Clear();
@@ -212,14 +236,14 @@ void Game::StartTimer(int minutes, int seconds, int event, int which)
     {
         view.unk4BAB78 = 0;
         view.unk4BAB7C = 0;
-        view.unk4A9918 = 0x1E * (seconds + 0x3C * minutes);
+        view.unk4A9918 = kTimerFrames * (seconds + kSecondsPerMinute * minutes);
         this->state.SetGameFlag(GameState::SecondTimer);
         return;
     }
 
     view.unk4C97E8 = 0;
     view.unk4C97EC = 0;
-    view.unk4CAD20 = 0x1E * (seconds + 0x3C * minutes);
+    view.unk4CAD20 = kTimerFrames * (seconds + kSecondsPerMinute * minutes);
     view.unk4A93D4 = event;
     this->state.SetGameFlag(GameState::Timer);
     this->state.SetGameFlag(GameState::TimerEvent);
@@ -244,21 +268,21 @@ bool Game::PlayVideo(std::size_t& cursor, u16& pc)
 
     auto word = [&script](std::size_t at)
     {
-        return at + 1 < script.size() ? static_cast<u16>(script[at] | script[at + 1] << 8) : u16{0};
+        return at + 1 < script.size() ? static_cast<u16>(script[at] | script[at + 1] << CHAR_BIT) : u16{0};
     };
 
-    pc = static_cast<u16>(pc + 2);
-    cursor += 2;
+    pc = static_cast<u16>(pc + sizeof(u16));
+    cursor += sizeof(u16);
 
-    while (word(cursor) != 0x5125 && cursor < script.size())
+    while (word(cursor) != MapsRecord::NameEnd && cursor < script.size())
     {
         ++pc;
         name.push_back(static_cast<char>(script[cursor]));
         ++cursor;
     }
 
-    pc = static_cast<u16>(pc + 2);
-    cursor += 2;
+    pc = static_cast<u16>(pc + sizeof(u16));
+    cursor += sizeof(u16);
 
     if (static_cast<u8>(drive) != 0)
     {
@@ -275,7 +299,7 @@ bool Game::PlayVideo(std::size_t& cursor, u16& pc)
 
         if (found != std::string::npos)
         {
-            path.replace(found + 1, 3, "bik");
+            path.replace(found + 1, kBink.size(), kBink);
         }
     }
 
@@ -314,8 +338,8 @@ void Game::VideoFrame()
         return;
     }
 
-    const int y = (0x1E0 - this->movie.Height()) / 2;
-    const int x = (0x280 - this->movie.Width()) / 2;
+    const int y = (Display::Height - this->movie.Height()) / 2;
+    const int x = (Display::Width - this->movie.Width()) / 2;
     const int left = this->movie.Frame(*this->offscreen, x, y, this->errors);
     this->ShowFrame();
 

@@ -54,6 +54,15 @@ struct MapOverlay
 
 // The map the party is on: HUGE.lmf's map (its blocks, tiles, units and roles), the drawing order of the roles by row
 // for the three layers, the regions, the overlays and the camera.
+// A camera rectangle in pixels (four dwords in the original).
+struct CameraRect
+{
+    i32 left = 0;
+    i32 top = 0;
+    i32 right = 0;
+    i32 bottom = 0;
+};
+
 class Field : public MapPictureSource
 {
 public:
@@ -87,7 +96,7 @@ public:
     void ClearRoleCells(const Role& role, u16 leader);
     MapRegion* FindRegion(int id);
     u32 ProbeCells(std::ptrdiff_t cell, int width, int height, u32 mask) const;
-    void CameraAround(int x, int y, std::array<i32, 4>& rect) const;
+    void CameraAround(int x, int y, CameraRect& rect) const;
 
     MapRegion regions;                            // 0x004ACAC0
     std::unique_ptr<MapOverlay> overlays;         // 0x004AB2F4

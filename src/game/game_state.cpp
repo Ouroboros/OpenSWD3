@@ -43,22 +43,23 @@ void ClickRegions::Free()
 // swd32.exe 0x0040DC50
 bool GameState::GameFlag(int flag) const
 {
-    return (this->flags[static_cast<std::size_t>(flag >> 3)] & GameState::BitMasks[flag & 7]) != 0;
+    return (this->flags[static_cast<std::size_t>(flag >> GameState::FlagByteShift)] &
+            GameState::BitMasks[flag & GameState::FlagBitMask]) != 0;
 }
 
 // swd32.exe 0x0040DC80
 u8 GameState::SetGameFlag(int flag)
 {
-    u8& byte = this->flags[static_cast<std::size_t>(flag >> 3)];
-    byte = static_cast<u8>(byte | GameState::BitMasks[flag & 7]);
+    u8& byte = this->flags[static_cast<std::size_t>(flag >> GameState::FlagByteShift)];
+    byte = static_cast<u8>(byte | GameState::BitMasks[flag & GameState::FlagBitMask]);
     return byte;
 }
 
 // swd32.exe 0x0040DCB0
 u8 GameState::ClearGameFlag(int flag)
 {
-    u8& byte = this->flags[static_cast<std::size_t>(flag >> 3)];
-    byte = static_cast<u8>(byte & (0xFF - GameState::BitMasks[flag & 7]));
+    u8& byte = this->flags[static_cast<std::size_t>(flag >> GameState::FlagByteShift)];
+    byte = static_cast<u8>(byte & static_cast<u8>(~GameState::BitMasks[flag & GameState::FlagBitMask]));
     return byte;
 }
 
@@ -92,7 +93,13 @@ int GameState::DirectionToPlayer(int x, int y) const
 {
     const Role& role = this->Player();
     i32 distance = 0;
-    const int angle = AngleBetween(role.x + 8 * role.act.width, role.y + 8 * role.act.height, x, y, distance);
+    const int angle = AngleBetween(
+        role.x + MapHeader::TileSize / 2 * role.act.width,
+        role.y + MapHeader::TileSize / 2 * role.act.height,
+        x,
+        y,
+        distance
+    );
     return AngleToDirection(angle);
 }
 
@@ -109,22 +116,22 @@ const Role& GameState::Player() const
 // swd32.exe 0x0040DD40
 void MoveRecord::Clear()
 {
-    this->role = 0xFFFF;
-    this->step = 0xFFFF;
-    this->x = 0xFFFF;
-    this->y = 0xFFFF;
-    this->nextRole = 0xFFFF;
-    this->unk0A = 0xFFFF;
-    this->nextX = 0xFFFF;
-    this->nextY = 0xFFFF;
+    this->role = MoveRecord::NoRole;
+    this->step = MoveRecord::Unused;
+    this->x = MoveRecord::Unused;
+    this->y = MoveRecord::Unused;
+    this->nextRole = MoveRecord::NoRole;
+    this->unk0A = MoveRecord::Unused;
+    this->nextX = MoveRecord::Unused;
+    this->nextY = MoveRecord::Unused;
     this->act = -1;
     this->action = -1;
     this->direction = -1;
     this->stepX = -1;
     this->stepY = -1;
-    this->unk1A = 0xFF;
-    this->mode = 0xFF;
-    this->directions.fill(0xFF);
+    this->unk1A = MoveRecord::UnusedByte;
+    this->mode = MoveRecord::UnusedByte;
+    this->directions.fill(MoveRecord::EndOfPath);
 }
 
 // swd32.exe 0x00425B50: frees the map buffers and the roles' buffers, clears the roles, fills the leader with 0xFF and
@@ -168,7 +175,7 @@ u32 GameState::FindRole(u16 id) const
 {
     if (this->roleCount == 0)
     {
-        return 0xFFFFFFFF;
+        return GameState::NotFound;
     }
 
     u32 index = 0;
@@ -177,7 +184,7 @@ u32 GameState::FindRole(u16 id) const
     {
         if (++index >= static_cast<u32>(this->roleCount) || index >= this->roles.size())
         {
-            return 0xFFFFFFFF;
+            return GameState::NotFound;
         }
     }
 
@@ -188,7 +195,7 @@ u32 GameState::FindRole(u16 id) const
 bool GameState::FindRole(u16 id, u32& index) const
 {
     index = this->FindRole(id);
-    return index != 0xFFFFFFFF;
+    return index != GameState::NotFound;
 }
 
 // swd32.exe 0x0040C0D0: id 0xFFFE stands for the controlled role
@@ -196,7 +203,7 @@ bool GameState::FindRoleOrPlayer(u16 id, u32& index) const
 {
     index = 0;
 
-    if (id != 0xFFFE)
+    if (id != GameState::PlayerId)
     {
         return this->FindRole(id, index);
     }

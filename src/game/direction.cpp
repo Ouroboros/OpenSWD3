@@ -14,6 +14,10 @@ namespace
 constexpr int kQuadrant = 0x5A;
 constexpr int kStep = 5;
 constexpr int kFarthest = 0x2328;
+constexpr int kSineShift = 13;  // kSineTable holds sines times 1 << kSineShift
+constexpr int kLastDegree = kQuadrant - 1;
+constexpr int kFullTurn = 4 * kQuadrant;
+constexpr int kSectors = 16;
 
 }  // namespace
 
@@ -31,7 +35,7 @@ int AngleBetween(int fromX, int fromY, int toX, int toY, i32& distance)
         return 0;
     }
 
-    const int sine = std::abs((dy << 13) / length);
+    const int sine = std::abs((dy << kSineShift) / length);
     int base = 0;
     int index = 0;
     int step = kStep;
@@ -39,7 +43,7 @@ int AngleBetween(int fromX, int fromY, int toX, int toY, i32& distance)
     if (dy < 0)
     {
         base = kQuadrant;
-        index = 0x59;
+        index = kLastDegree;
         step = -kStep;
 
         if (dx >= 0)
@@ -51,14 +55,14 @@ int AngleBetween(int fromX, int fromY, int toX, int toY, i32& distance)
     }
     else
     {
-        base = 0xB4;
+        base = 2 * kQuadrant;
         index = 0;
         step = kStep;
 
         if (dx >= 0)
         {
-            base = 0x10E;
-            index = 0x59;
+            base = 3 * kQuadrant;
+            index = kLastDegree;
             step = -kStep;
         }
     }
@@ -86,7 +90,7 @@ int AngleBetween(int fromX, int fromY, int toX, int toY, i32& distance)
 int AngleToDirection(int angle)
 {
     constexpr std::array<int, 17> kDirections = {3, 7, 7, 0, 0, 4, 4, 2, 2, 6, 6, 1, 1, 5, 5, 3, 0};
-    return kDirections[static_cast<std::size_t>(0x10 * angle / 0x168)];
+    return kDirections[static_cast<std::size_t>(kSectors * angle / kFullTurn)];
 }
 
 }  // namespace swd3
