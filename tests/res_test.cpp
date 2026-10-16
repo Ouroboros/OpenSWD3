@@ -19,9 +19,9 @@ const char* kGameDir = "/mnt/e/Game/swd3/";
 
 bool prepareGameDir() {
     std::strcpy(G.gameDir, kGameDir);
-    std::strcpy(G.tswPath, kGameDir);
-    std::strcat(G.tswPath, "all_sys.tsw");
-    HANDLE probe = TswOpenFile(G.tswPath);
+    std::strcpy(G.pathBuffer, kGameDir);
+    std::strcat(G.pathBuffer, "all_sys.tsw");
+    HANDLE probe = TswOpenFile(G.pathBuffer);
     if (!probe) {
         std::printf("  (game data not found at %s, skipped)\n", kGameDir);
         return false;

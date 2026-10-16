@@ -10,24 +10,24 @@ namespace swd3 {
 namespace {
 
 void openArchives() {
-    w32::lstrcpyA(G.tswPath, G.gameDir);
-    w32::lstrcatA(G.tswPath, G.aAllCharAct);
-    G.actFiles[0] = ActOpenFile(G.tswPath);
-    w32::lstrcpyA(G.tswPath, G.gameDir);
-    w32::lstrcatA(G.tswPath, G.aAllItemAct);
-    G.actFiles[1] = ActOpenFile(G.tswPath);
-    w32::lstrcpyA(G.tswPath, G.gameDir);
-    w32::lstrcatA(G.tswPath, G.aAllMagicAct);
-    G.actFiles[2] = ActOpenFile(G.tswPath);
-    w32::lstrcpyA(G.tswPath, G.gameDir);
-    w32::lstrcatA(G.tswPath, G.aAllSysAct);
-    G.actFiles[3] = ActOpenFile(G.tswPath);
-    w32::lstrcpyA(G.tswPath, G.gameDir);
-    w32::lstrcatA(G.tswPath, G.aAllMap1Act);
-    G.actFiles[4] = ActOpenFile(G.tswPath);
-    w32::lstrcpyA(G.tswPath, G.gameDir);
-    w32::lstrcatA(G.tswPath, G.aAllMap2Act);
-    G.actFiles[5] = ActOpenFile(G.tswPath);
+    w32::lstrcpyA(G.pathBuffer, G.gameDir);
+    w32::lstrcatA(G.pathBuffer, G.aAllCharAct);
+    G.actFiles[0] = ActOpenFile(G.pathBuffer);
+    w32::lstrcpyA(G.pathBuffer, G.gameDir);
+    w32::lstrcatA(G.pathBuffer, G.aAllItemAct);
+    G.actFiles[1] = ActOpenFile(G.pathBuffer);
+    w32::lstrcpyA(G.pathBuffer, G.gameDir);
+    w32::lstrcatA(G.pathBuffer, G.aAllMagicAct);
+    G.actFiles[2] = ActOpenFile(G.pathBuffer);
+    w32::lstrcpyA(G.pathBuffer, G.gameDir);
+    w32::lstrcatA(G.pathBuffer, G.aAllSysAct);
+    G.actFiles[3] = ActOpenFile(G.pathBuffer);
+    w32::lstrcpyA(G.pathBuffer, G.gameDir);
+    w32::lstrcatA(G.pathBuffer, G.aAllMap1Act);
+    G.actFiles[4] = ActOpenFile(G.pathBuffer);
+    w32::lstrcpyA(G.pathBuffer, G.gameDir);
+    w32::lstrcatA(G.pathBuffer, G.aAllMap2Act);
+    G.actFiles[5] = ActOpenFile(G.pathBuffer);
     G.actOpened = 1;
 }
 

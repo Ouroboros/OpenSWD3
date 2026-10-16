@@ -14,6 +14,8 @@ constexpr std::uint8_t kDeadLandFill = 0xDD;
 
 void* malloc(std::uint32_t size);
 void free(void* block);
+std::uint32_t msizeDebug(void* block, int type);
+std::uint32_t msize(void* block);
 void* operator_new(std::uint32_t size);
 void operator_delete(void* block);
 

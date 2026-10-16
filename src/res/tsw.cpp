@@ -24,24 +24,24 @@ TswFrameEntry& magicFrame(int slot, int frame) {
 }
 
 void openArchives() {
-    w32::lstrcpyA(G.tswPath, G.gameDir);
-    w32::lstrcatA(G.tswPath, G.aAllCharTsw);
-    G.tswFiles[0] = TswOpenFile(G.tswPath);
-    w32::lstrcpyA(G.tswPath, G.gameDir);
-    w32::lstrcatA(G.tswPath, G.aAllItemTsw);
-    G.tswFiles[1] = TswOpenFile(G.tswPath);
-    w32::lstrcpyA(G.tswPath, G.gameDir);
-    w32::lstrcatA(G.tswPath, G.aAllMagicTsw);
-    G.tswFiles[2] = TswOpenFile(G.tswPath);
-    w32::lstrcpyA(G.tswPath, G.gameDir);
-    w32::lstrcatA(G.tswPath, G.aAllSysTsw);
-    G.tswFiles[3] = TswOpenFile(G.tswPath);
-    w32::lstrcpyA(G.tswPath, G.gameDir);
-    w32::lstrcatA(G.tswPath, G.aAllMap1Tsw);
-    G.tswFiles[4] = TswOpenFile(G.tswPath);
-    w32::lstrcpyA(G.tswPath, G.gameDir);
-    w32::lstrcatA(G.tswPath, G.aAllMap2Tsw);
-    G.tswFiles[5] = TswOpenFile(G.tswPath);
+    w32::lstrcpyA(G.pathBuffer, G.gameDir);
+    w32::lstrcatA(G.pathBuffer, G.aAllCharTsw);
+    G.tswFiles[0] = TswOpenFile(G.pathBuffer);
+    w32::lstrcpyA(G.pathBuffer, G.gameDir);
+    w32::lstrcatA(G.pathBuffer, G.aAllItemTsw);
+    G.tswFiles[1] = TswOpenFile(G.pathBuffer);
+    w32::lstrcpyA(G.pathBuffer, G.gameDir);
+    w32::lstrcatA(G.pathBuffer, G.aAllMagicTsw);
+    G.tswFiles[2] = TswOpenFile(G.pathBuffer);
+    w32::lstrcpyA(G.pathBuffer, G.gameDir);
+    w32::lstrcatA(G.pathBuffer, G.aAllSysTsw);
+    G.tswFiles[3] = TswOpenFile(G.pathBuffer);
+    w32::lstrcpyA(G.pathBuffer, G.gameDir);
+    w32::lstrcatA(G.pathBuffer, G.aAllMap1Tsw);
+    G.tswFiles[4] = TswOpenFile(G.pathBuffer);
+    w32::lstrcpyA(G.pathBuffer, G.gameDir);
+    w32::lstrcatA(G.pathBuffer, G.aAllMap2Tsw);
+    G.tswFiles[5] = TswOpenFile(G.pathBuffer);
     std::memset(G.tswMagicDir, 0, sizeof(G.tswMagicDir));
     std::memset(G.tswMagicFrames, 0, sizeof(G.tswMagicFrames));
     TswReadMagicDirectory(G.tswFiles[2]);

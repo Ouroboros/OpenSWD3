@@ -35,7 +35,7 @@ addr	type	name	module	notes
 0x004A6020	std::int32_t	tswCacheLimit	res	initial 0x600000
 0x004A6098	std::int32_t	actCacheLimit	res	initial 0x100000
 0x004A94BC	char[260]	gameDir	core	game root directory with trailing backslash
-0x004AAED0	char[260]	tswPath	res	scratch path used to open archives
+0x004AAED0	char[260]	pathBuffer	core	scratch path (archives, mon.dat, level.dat, figtalk.dat; also a small record in 0x00405500 and 0x0042E480)
 0x004B8868	File	mapCacheFile	map	constructed by 0x004012D0
 0x004C9A1C	HWND	mainWindow	winmain
 0x004CDEA4	std::int32_t	mapUnitCount	map
@@ -351,3 +351,8 @@ addr	type	name	module	notes
 0x004ACBA8	std::uint32_t[5]	fameList1	battle	counter list holder: head, count
 0x004B9F00	std::uint32_t[5]	fameList2	battle
 0x004B8A00	std::uint32_t[5]	fameList3	battle
+0x0053D020	std::int32_t	monsterFile	battle	HANDLE of mon.dat (-1 when closed)
+0x0053D024	std::int32_t	monsterFile2	battle	HANDLE (-1 when closed)
+0x0053CF40	std::int32_t	monsterFileOpen	battle
+0x0053CF44	std::int32_t	monsterFile2Open	battle
+0x0053CF48	std::int32_t	monsterTextBytes	battle	bytes allocated for monster descriptions

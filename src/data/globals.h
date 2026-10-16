@@ -3400,7 +3400,7 @@ struct Globals {
     std::int16_t word_4AAEC8;  // 0x004AAEC8
     std::uint8_t pad_4AAECA[0x2];
     std::int32_t dword_4AAECC;  // 0x004AAECC
-    char tswPath[260];  // 0x004AAED0 scratch path used to open archives
+    char pathBuffer[260];  // 0x004AAED0 scratch path (archives, mon.dat, level.dat, figtalk.dat; also a small record in 0x00405500 and 0x0042E480)
     std::uint8_t pad_4AAFD4[0x2FC];
     std::int32_t walkSpeed;  // 0x004AB2D0
     std::uint8_t pad_4AB2D4[0x20];
@@ -5438,16 +5438,16 @@ struct Globals {
     std::int32_t evadeDisabled;  // 0x0053CEB8
     std::int32_t dword_53CEBC;  // 0x0053CEBC
     std::uint8_t pad_53CEC0[0x80];
-    std::int32_t dword_53CF40;  // 0x0053CF40
-    std::int32_t dword_53CF44;  // 0x0053CF44
-    std::int32_t dword_53CF48;  // 0x0053CF48
+    std::int32_t monsterFileOpen;  // 0x0053CF40
+    std::int32_t monsterFile2Open;  // 0x0053CF44
+    std::int32_t monsterTextBytes;  // 0x0053CF48 bytes allocated for monster descriptions
     std::uint8_t pad_53CF4C[0x4];
     std::uint8_t unk_53CF50;  // 0x0053CF50
     std::uint8_t pad_53CF51[0x43];
     std::int32_t dword_53CF94;  // 0x0053CF94
     std::uint8_t pad_53CF98[0x88];
-    std::int32_t dword_53D020;  // 0x0053D020
-    std::int32_t dword_53D024;  // 0x0053D024
+    std::int32_t monsterFile;  // 0x0053D020 HANDLE of mon.dat (-1 when closed)
+    std::int32_t monsterFile2;  // 0x0053D024 HANDLE (-1 when closed)
     std::uint8_t evadeStreak;  // 0x0053D028 failed evasion rolls in a row
     std::uint8_t evadeJustSucceeded;  // 0x0053D029
     std::uint8_t pad_53D02A[0x2];
@@ -5675,7 +5675,7 @@ static_assert(offsetof(Globals, pointerX) == 0x10924);
 static_assert(offsetof(Globals, pointerY) == 0x10928);
 static_assert(offsetof(Globals, audioSystem) == 0x10AC8);
 static_assert(offsetof(Globals, textFont_4A9ED0) == 0x10ED0);
-static_assert(offsetof(Globals, tswPath) == 0x11ED0);
+static_assert(offsetof(Globals, pathBuffer) == 0x11ED0);
 static_assert(offsetof(Globals, walkSpeed) == 0x122D0);
 static_assert(offsetof(Globals, playerRole) == 0x12378);
 static_assert(offsetof(Globals, gameFlags) == 0x12384);
@@ -5881,6 +5881,11 @@ static_assert(offsetof(Globals, craftSucceeded) == 0xA34B4);
 static_assert(offsetof(Globals, panelUnit) == 0xA34B8);
 static_assert(offsetof(Globals, panelHeight) == 0xA34BC);
 static_assert(offsetof(Globals, evadeDisabled) == 0xA3EB8);
+static_assert(offsetof(Globals, monsterFileOpen) == 0xA3F40);
+static_assert(offsetof(Globals, monsterFile2Open) == 0xA3F44);
+static_assert(offsetof(Globals, monsterTextBytes) == 0xA3F48);
+static_assert(offsetof(Globals, monsterFile) == 0xA4020);
+static_assert(offsetof(Globals, monsterFile2) == 0xA4024);
 static_assert(offsetof(Globals, evadeStreak) == 0xA4028);
 static_assert(offsetof(Globals, evadeJustSucceeded) == 0xA4029);
 static_assert(offsetof(Globals, battleText) == 0xA402C);

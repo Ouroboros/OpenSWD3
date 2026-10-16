@@ -1023,18 +1023,18 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1022	swd32.exe	0x004751C0	sub_4751C0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1023	swd32.exe	0x00475560	sub_475560	battle	src/battle/battle_enemy.cpp:BattleEnemy::BattleEnemy	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1024	swd32.exe	0x00475590	sub_475590	battle	src/battle/battle_enemy.cpp:BattleEnemy::~BattleEnemy	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-1025	swd32.exe	0x004755E0	sub_4755E0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+1025	swd32.exe	0x004755E0	sub_4755E0	battle	src/battle/battle_enemy.cpp:BattleEnemy::StepGauge	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1026	swd32.exe	0x00475720	sub_475720	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1027	swd32.exe	0x00475820	sub_475820	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1028	swd32.exe	0x00475870	sub_475870	battle	src/battle/battle_enemy.cpp:BattleEnemy::GetDropInfo	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1029	swd32.exe	0x004758A0	sub_4758A0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-1030	swd32.exe	0x00476080	sub_476080	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+1030	swd32.exe	0x00476080	sub_476080	battle	src/battle/battle_enemy.cpp:BattleEnemy::ChooseHealing	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1031	swd32.exe	0x00476140	sub_476140	battle	src/battle/battle_enemy.cpp:BattleEnemy::StatusFlag1000Or10000000	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1032	swd32.exe	0x00476160	sub_476160	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1033	swd32.exe	0x004761D0	sub_4761D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1034	swd32.exe	0x00476250	sub_476250	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1035	swd32.exe	0x004762F0	sub_4762F0	battle	src/battle/battle_enemy.cpp:BattleEnemy::RollDrop	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-1036	swd32.exe	0x00476330	sub_476330	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+1036	swd32.exe	0x00476330	sub_476330	battle	src/battle/battle_enemy.cpp:BattleEnemy::RollSteal	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1037	swd32.exe	0x004763D0	sub_4763D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1038	swd32.exe	0x00476600	sub_476600	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1039	swd32.exe	0x00476780	sub_476780	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
@@ -1045,9 +1045,9 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1044	swd32.exe	0x004769A0	sub_4769A0	battle	src/battle/battle_enemy.cpp:BattleEnemy::SetStats66	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1045	swd32.exe	0x00476A10	sub_476A10	battle	src/battle/battle_enemy.cpp:BattleEnemy::SetStats72	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1046	swd32.exe	0x00476A60	sub_476A60	battle	src/battle/battle_enemy.cpp:BattleEnemy::FreeData	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-1047	swd32.exe	0x00476A80	sub_476A80	org		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "mon.dat"
-1048	swd32.exe	0x00476DB0	sub_476DB0	org		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "mon.dat"
-1049	swd32.exe	0x00477290	sub_477290	org		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "level.dat"
+1047	swd32.exe	0x00476A80	sub_476A80	battle	src/battle/battle_enemy.cpp:LoadMonsterSkill	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	file offset words read before the first ReadFile result (stack garbage on a failed read) zero-initialized
+1048	swd32.exe	0x00476DB0	sub_476DB0	battle	src/battle/battle_enemy.cpp:LoadMonster	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	file offset words read before the first ReadFile result (stack garbage on a failed read) zero-initialized
+1049	swd32.exe	0x00477290	sub_477290	battle	src/battle/battle_enemy.cpp:LoadLevelEntry	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	file offset words read before the first ReadFile result (stack garbage on a failed read) zero-initialized
 1050	swd32.exe	0x00477400	sub_477400	org		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "level.dat"
 1051	swd32.exe	0x004776A0	sub_4776A0	battle	src/battle/fame.cpp:CloseRecordFiles	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between org anchors 0x00477400 and 0x00477BD0
 1052	swd32.exe	0x004776F0	sub_4776F0	battle	src/battle/fame.cpp:ClearCounterList	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between org anchors 0x00477400 and 0x00477BD0
@@ -1308,8 +1308,8 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1307	swd32.exe	0x00488080	sub_488080	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1308	swd32.exe	0x004885A0	sub_4885A0	crt	src/crt/crt.cpp:free	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1309	swd32.exe	0x004885C0	sub_4885C0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
-1310	swd32.exe	0x004889B0	sub_4889B0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
-1311	swd32.exe	0x004889D0	sub_4889D0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
+1310	swd32.exe	0x004889B0	sub_4889B0	crt	src/crt/crt.cpp:msize	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
+1311	swd32.exe	0x004889D0	sub_4889D0	crt	src/crt/crt.cpp:msizeDebug	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1312	swd32.exe	0x00488B20	sub_488B20	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1313	swd32.exe	0x00488BB0	sub_488BB0	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME
 1314	swd32.exe	0x00488F10	sub_488F10	crt		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	statically linked MSVC debug CRT range 0x487AF0-0x497FCC (CRT source-file assert strings); ida_flags=FRAME

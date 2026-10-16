@@ -77,18 +77,18 @@ void freeList(uint32_t* holder) {
 
 // swd32.exe 0x004776A0
 void CloseRecordFiles() {
-    auto first = static_cast<w32::HANDLE>(reinterpret_cast<void*>(static_cast<std::uintptr_t>(G.dword_53D020)));
+    auto first = static_cast<w32::HANDLE>(reinterpret_cast<void*>(static_cast<std::uintptr_t>(G.monsterFile)));
     if (first != w32::INVALID_HANDLE_VALUE && first != nullptr) {
         w32::CloseHandle(first);
-        G.dword_53D020 = -1;
+        G.monsterFile = -1;
     }
-    auto second = static_cast<w32::HANDLE>(reinterpret_cast<void*>(static_cast<std::uintptr_t>(G.dword_53D024)));
+    auto second = static_cast<w32::HANDLE>(reinterpret_cast<void*>(static_cast<std::uintptr_t>(G.monsterFile2)));
     if (second != w32::INVALID_HANDLE_VALUE && second != nullptr) {
         w32::CloseHandle(second);
-        G.dword_53D024 = -1;
+        G.monsterFile2 = -1;
     }
-    G.dword_53CF40 = 0;
-    G.dword_53CF44 = 0;
+    G.monsterFileOpen = 0;
+    G.monsterFile2Open = 0;
 }
 
 // swd32.exe 0x004776F0

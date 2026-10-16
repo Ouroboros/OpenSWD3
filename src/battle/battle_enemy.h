@@ -21,8 +21,15 @@ public:
     std::int16_t SetStats66(std::int16_t first, std::int16_t second, std::int16_t third, std::int16_t fourth,
                             std::int16_t fifth, std::int16_t sixth);
     std::int16_t SetStats72(std::int16_t first, std::int16_t second, std::int16_t third, std::int16_t fourth);
+    int StepGauge(int quick);
+    int ChooseHealing();
+    bool RollSteal(std::uint8_t level);
 };
 
 static_assert(sizeof(BattleEnemy) == 0x2B28);
+
+int LoadMonsterSkill(std::uint8_t* skill, std::uint16_t id);
+int LoadMonster(std::uint8_t* data, std::uint16_t id);
+int LoadLevelEntry(int group, int index, std::uint32_t* value);
 
 }  // namespace swd3

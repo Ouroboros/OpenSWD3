@@ -47,6 +47,17 @@ void* malloc(std::uint32_t size) { return allocate(size); }
 // swd32.exe 0x004885A0 free -> _free_dbg(block, _NORMAL_BLOCK)
 void free(void* block) { release(block); }
 
+// swd32.exe 0x004889D0 _msize_dbg: the user size of a block (the block type is not checked here)
+std::uint32_t msizeDebug(void* block, int type) {
+    static_cast<void>(type);
+    std::uint32_t size;
+    std::memcpy(&size, static_cast<std::uint8_t*>(block) - kPrefix, sizeof(size));
+    return size;
+}
+
+// swd32.exe 0x004889B0 _msize -> _msize_dbg(block, _NORMAL_BLOCK)
+std::uint32_t msize(void* block) { return msizeDebug(block, 1); }
+
 // swd32.exe 0x00489E90 operator new -> _nh_malloc(size, 1)
 void* operator_new(std::uint32_t size) { return allocate(size); }
 
