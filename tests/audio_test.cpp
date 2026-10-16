@@ -58,6 +58,7 @@ TEST_CASE("audio.sound effects index, RIFF rebuild and playback bookkeeping") {
     CHECK_EQ(effects->m_table[id - 1].users, 0);
     CHECK(effects->m_table[id - 1].data == nullptr);
     effects->~SoundEffects();
+    std::memset(static_cast<void*>(&G.soundEffects), 0, sizeof(G.soundEffects));
 }
 
 TEST_CASE("audio.clamps and fade steps") {

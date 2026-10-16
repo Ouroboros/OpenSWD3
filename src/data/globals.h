@@ -3046,48 +3046,44 @@ struct Globals {
     std::uint8_t pad_4A7D6A[0x2];
     char aLoadFameDecomp[30];  // 0x004A7D6C
     std::uint8_t pad_4A7D8A[0x2];
-    std::int32_t dword_4A7D8C;  // 0x004A7D8C
-    std::uint8_t pad_4A7D90[0x24];
+    std::int32_t numberPopOffsets[10];  // 0x004A7D8C height of a popping damage digit by phase
     std::int32_t dword_4A7DB4;  // 0x004A7DB4
     std::uint8_t pad_4A7DB8[0x38];
-    std::int32_t dword_4A7DF0;  // 0x004A7DF0
-    std::int32_t dword_4A7DF4;  // 0x004A7DF4
-    std::uint8_t pad_4A7DF8[0x10];
-    std::uint8_t byte_4A7E08;  // 0x004A7E08
-    char a12[6];  // 0x004A7E09
-    std::uint8_t pad_4A7E0F[0x1];
+    std::int32_t attackLunge[6];  // 0x004A7DF0 read from +4 by stages 1..5 of BattleUnit::DrawAttack (stage 5 reads 0x004A7E08)
+    std::int8_t attackStepX[6];  // 0x004A7E08
+    std::uint8_t pad_4A7E0E[0x2];
     std::int16_t word_4A7E10;  // 0x004A7E10
     std::uint8_t pad_4A7E12[0xE];
     char resistAllEndText[19];  // 0x004A7E20 "%s抵抗所有攻擊解除"
     std::uint8_t pad_4A7E33[0x1];
-    char aS_14[2];  // 0x004A7E34
-    std::uint8_t pad_4A7E36[0x12];
-    char aS_13[2];  // 0x004A7E48
-    std::uint8_t pad_4A7E4A[0xE];
-    char aS_12[2];  // 0x004A7E58
-    std::uint8_t pad_4A7E5A[0x12];
-    char aS_36[2];  // 0x004A7E6C
-    std::uint8_t pad_4A7E6E[0xE];
-    char aS_35[2];  // 0x004A7E7C
-    std::uint8_t pad_4A7E7E[0x12];
-    char aS_34[2];  // 0x004A7E90
-    std::uint8_t pad_4A7E92[0xE];
-    char aS_33[2];  // 0x004A7EA0
-    std::uint8_t pad_4A7EA2[0x12];
-    char aS_32[2];  // 0x004A7EB4
-    std::uint8_t pad_4A7EB6[0xE];
-    char aS_11[2];  // 0x004A7EC4
-    std::uint8_t pad_4A7EC6[0x12];
-    char aS_10[2];  // 0x004A7ED8
-    std::uint8_t pad_4A7EDA[0x12];
-    char aS_9[2];  // 0x004A7EEC
-    std::uint8_t pad_4A7EEE[0x12];
-    char aS_31[2];  // 0x004A7F00
-    std::uint8_t pad_4A7F02[0x12];
-    char aS_30[2];  // 0x004A7F14
-    std::uint8_t pad_4A7F16[0x12];
-    char aS_29[2];  // 0x004A7F28
-    std::uint8_t pad_4A7F2A[0x12];
+    char defenseUpText[17];  // 0x004A7E34 "%s增加30%%防禦力"
+    std::uint8_t pad_4A7E45[0x3];
+    char speedUpText[15];  // 0x004A7E48 "%s增加30%%速度"
+    std::uint8_t pad_4A7E57[0x1];
+    char attackUpText[17];  // 0x004A7E58 "%s增加30%%攻擊力"
+    std::uint8_t pad_4A7E69[0x3];
+    char invisibleStartText[15];  // 0x004A7E6C "%s隱形效果啟動"
+    std::uint8_t pad_4A7E7B[0x1];
+    char attackDownText[17];  // 0x004A7E7C "%s降低攻擊力30%%"
+    std::uint8_t pad_4A7E8D[0x3];
+    char barrierStartText[15];  // 0x004A7E90 "%s護罩效果啟動"
+    std::uint8_t pad_4A7E9F[0x1];
+    char defenseDownText[17];  // 0x004A7EA0 "%s降低防禦力30%%"
+    std::uint8_t pad_4A7EB1[0x3];
+    char speedDownText[15];  // 0x004A7EB4 "%s降低速度30%%"
+    std::uint8_t pad_4A7EC3[0x1];
+    char physicalResistUpText[19];  // 0x004A7EC4 "%s增加50%%物理抗力"
+    std::uint8_t pad_4A7ED7[0x1];
+    char darkResistUpText[19];  // 0x004A7ED8 "%s增加50%%暗系抗力"
+    std::uint8_t pad_4A7EEB[0x1];
+    char lightResistUpText[19];  // 0x004A7EEC "%s增加50%%光系抗力"
+    std::uint8_t pad_4A7EFF[0x1];
+    char poisonResistUpText[19];  // 0x004A7F00 "%s增加50%%毒系抗力"
+    std::uint8_t pad_4A7F13[0x1];
+    char waterResistUpText[19];  // 0x004A7F14 "%s增加50%%水系抗力"
+    std::uint8_t pad_4A7F27[0x1];
+    char fireResistUpText[19];  // 0x004A7F28 "%s增加50%%火系抗力"
+    std::uint8_t pad_4A7F3B[0x1];
     char resistPhysicalEndText[21];  // 0x004A7F3C "%s抵抗物理系效果解除"
     std::uint8_t pad_4A7F51[0x3];
     char resistThunderEndText[19];  // 0x004A7F54 "%s抵抗電系效果解除"
@@ -5667,7 +5663,24 @@ static_assert(offsetof(Globals, nothingGainedText) == 0xEB14);
 static_assert(offsetof(Globals, craftFailedText) == 0xEB24);
 static_assert(offsetof(Globals, craftGotText) == 0xEB30);
 static_assert(offsetof(Globals, craftSuccessText) == 0xEB3C);
+static_assert(offsetof(Globals, numberPopOffsets) == 0xED8C);
+static_assert(offsetof(Globals, attackLunge) == 0xEDF0);
+static_assert(offsetof(Globals, attackStepX) == 0xEE08);
 static_assert(offsetof(Globals, resistAllEndText) == 0xEE20);
+static_assert(offsetof(Globals, defenseUpText) == 0xEE34);
+static_assert(offsetof(Globals, speedUpText) == 0xEE48);
+static_assert(offsetof(Globals, attackUpText) == 0xEE58);
+static_assert(offsetof(Globals, invisibleStartText) == 0xEE6C);
+static_assert(offsetof(Globals, attackDownText) == 0xEE7C);
+static_assert(offsetof(Globals, barrierStartText) == 0xEE90);
+static_assert(offsetof(Globals, defenseDownText) == 0xEEA0);
+static_assert(offsetof(Globals, speedDownText) == 0xEEB4);
+static_assert(offsetof(Globals, physicalResistUpText) == 0xEEC4);
+static_assert(offsetof(Globals, darkResistUpText) == 0xEED8);
+static_assert(offsetof(Globals, lightResistUpText) == 0xEEEC);
+static_assert(offsetof(Globals, poisonResistUpText) == 0xEF00);
+static_assert(offsetof(Globals, waterResistUpText) == 0xEF14);
+static_assert(offsetof(Globals, fireResistUpText) == 0xEF28);
 static_assert(offsetof(Globals, resistPhysicalEndText) == 0xEF3C);
 static_assert(offsetof(Globals, resistThunderEndText) == 0xEF54);
 static_assert(offsetof(Globals, resistDarkEndText) == 0xEF68);

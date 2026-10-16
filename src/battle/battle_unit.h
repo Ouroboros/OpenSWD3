@@ -104,6 +104,11 @@ public:
     int SetB08(int value);
     std::int16_t GetWord2A0C();
     int IsHeld();
+    int DrawDamageNumbers();
+    int DrawAttack();
+    int DrawGuardText();
+    int AddAilment(const std::uint8_t* skill);
+    int AddBuff(const std::uint8_t* skill);
 
     template <typename T>
     T& at(std::intptr_t offset) {

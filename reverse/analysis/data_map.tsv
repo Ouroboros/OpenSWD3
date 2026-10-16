@@ -318,3 +318,20 @@ addr	type	name	module	notes
 0x004A80B8	char[19]	speedDownEndText	battle	"%s降低速度效果解除"
 0x004A80CC	char[23]	darkAttackUpEndText	battle	"%s增加暗系攻擊效果解除"
 0x004A80E4	char[21]	defenseDownEndText	battle	"%s降低防禦力效果解除"
+0x004A7D8C	std::int32_t[10]	numberPopOffsets	battle	height of a popping damage digit by phase
+0x004A7DF0	std::int32_t[6]	attackLunge	battle	read from +4 by stages 1..5 of BattleUnit::DrawAttack (stage 5 reads 0x004A7E08)
+0x004A7E08	std::int8_t[6]	attackStepX	battle
+0x004A7E34	char[17]	defenseUpText	battle	"%s增加30%%防禦力"
+0x004A7E48	char[15]	speedUpText	battle	"%s增加30%%速度"
+0x004A7E58	char[17]	attackUpText	battle	"%s增加30%%攻擊力"
+0x004A7E6C	char[15]	invisibleStartText	battle	"%s隱形效果啟動"
+0x004A7E7C	char[17]	attackDownText	battle	"%s降低攻擊力30%%"
+0x004A7E90	char[15]	barrierStartText	battle	"%s護罩效果啟動"
+0x004A7EA0	char[17]	defenseDownText	battle	"%s降低防禦力30%%"
+0x004A7EB4	char[15]	speedDownText	battle	"%s降低速度30%%"
+0x004A7EC4	char[19]	physicalResistUpText	battle	"%s增加50%%物理抗力"
+0x004A7ED8	char[19]	darkResistUpText	battle	"%s增加50%%暗系抗力"
+0x004A7EEC	char[19]	lightResistUpText	battle	"%s增加50%%光系抗力"
+0x004A7F00	char[19]	poisonResistUpText	battle	"%s增加50%%毒系抗力"
+0x004A7F14	char[19]	waterResistUpText	battle	"%s增加50%%水系抗力"
+0x004A7F28	char[19]	fireResistUpText	battle	"%s增加50%%火系抗力"

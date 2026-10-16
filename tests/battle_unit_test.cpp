@@ -109,3 +109,72 @@ TEST_CASE("battle.unit expired effects lose their status and skip the effect aft
     CHECK(f.unit.at<std::uint8_t*>(0x2584) == nullptr);
     CHECK_EQ(f.unit.at<std::uint32_t>(0x26C0), 0u);
 }
+
+namespace {
+
+void freeMessages() {
+    while (G.battleMessages != nullptr) {
+        BattleMessage* next = G.battleMessages->next;
+        crt::free(G.battleMessages);
+        G.battleMessages = next;
+    }
+}
+
+}  // namespace
+
+TEST_CASE("battle.unit buffs are appended once, refreshed and announced") {
+    UnitFixture f;
+    G.battleMessages = nullptr;
+    char name[] = "unit";
+    f.unit.at<char*>(0x2560) = name;
+    f.unit.at<std::int32_t>(0x2AA0) = 1;
+    std::uint8_t skill[0x30] = {};
+    mem::put32(skill, 8, 0x80000000u);
+    skill[0x24] = 3;
+    mem::put16(skill, 0xE, 0x55);
+    CHECK_EQ(f.unit.AddBuff(skill), 1);
+    std::uint8_t* node = f.unit.at<std::uint8_t*>(0x2584);
+    CHECK(node != nullptr);
+    CHECK_EQ(mem::u32(node, 0x9C), 0x80000000u);
+    CHECK_EQ(mem::u16(node, 0xA2), 3);
+    CHECK_EQ(mem::u16(node, 0xA8), 0x55);
+    CHECK_EQ(f.unit.at<std::uint32_t>(0x26C0), 0x10000000u);
+    CHECK(G.battleMessages != nullptr);
+    skill[0x24] = 5;
+    CHECK_EQ(f.unit.AddBuff(skill), 1);
+    CHECK(f.unit.at<std::uint8_t*>(0x2584) == node);
+    CHECK(mem::ptr<std::uint8_t>(node, 0) == nullptr);
+    CHECK_EQ(mem::u16(node, 0xA2), 5);
+    mem::put32(skill, 8, 0x4000000u);
+    CHECK_EQ(f.unit.AddBuff(skill), 1);
+    CHECK_EQ(f.unit.at<std::uint16_t>(0x2A90), 5);
+    CHECK_EQ(f.unit.at<std::uint32_t>(0x26C0), 0x12000000u);
+    f.unit.ExpireEffects(1);
+    freeMessages();
+}
+
+TEST_CASE("battle.unit ailments roll against the resistance and are prepended") {
+    UnitFixture f;
+    std::uint8_t stats[0x40] = {};
+    f.unit.at<std::uint8_t*>(0) = stats;
+    f.unit.at<std::int32_t>(0x2AA0) = 1;
+    std::uint8_t skill[0x30] = {};
+    mem::put16(skill, 0x18, 0x20);
+    skill[0x24] = 2;
+    mem::put16(stats, 0x1C, 0);
+    CHECK_EQ(f.unit.AddAilment(skill), 0);
+    CHECK(f.unit.at<std::uint8_t*>(0x2584) == nullptr);
+    mem::put16(stats, 0x1C, 10);
+    CHECK_EQ(f.unit.AddAilment(skill), 1);
+    std::uint8_t* node = f.unit.at<std::uint8_t*>(0x2584);
+    CHECK(node != nullptr);
+    CHECK_EQ(mem::u32(node, 0x9C), 0x20u);
+    CHECK_EQ(mem::u32(node, 4), 0x2AF8u);
+    CHECK_EQ(mem::u32(node, 0xC), 4u);
+    CHECK_EQ(mem::u16(node, 0xA6), 9);
+    CHECK_EQ(f.unit.at<std::uint32_t>(0x26C0), 0x20u);
+    mem::put16(skill, 0x18, 0x2000);
+    CHECK_EQ(f.unit.AddAilment(skill), 0);
+    CHECK_EQ(f.unit.at<std::uint8_t>(0x26D0), 0x20);
+    f.unit.ExpireEffects(1);
+}

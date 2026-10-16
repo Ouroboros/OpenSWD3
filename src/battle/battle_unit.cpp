@@ -5,9 +5,11 @@
 #include "core/random.h"
 #include "crt/crt.h"
 #include "data/globals.h"
+#include "data/image.h"
 #include "res/act_anim.h"
 #include "res/tsw.h"
 #include "audio/audio.h"
+#include "battle/battle_draw.h"
 #include "battle/battle_message.h"
 #include "swd3/w32.h"
 #include "draw/draw.h"
@@ -1528,6 +1530,576 @@ std::int16_t BattleUnit::GetWord2A0C() { return at<int16_t>(0x2A0C); }
 int BattleUnit::IsHeld() {
     if ((at<uint8_t>(0x26D0) & 0x40) == 0) {
         return at<int32_t>(0x2AD0);
+    }
+    return 1;
+}
+
+// swd32.exe 0x0047C1F0: damage numbers from slot +0x2A7E up to the slot count +0x2A7C: after their delay
+// (+0x26DE) the four digits (+0x2724) pop in one after another (phases +0x283C, offsets G.numberPopOffsets),
+// then rise and fade out (+0x295A) and the next slot follows. A queued extra number (+0x2AE8, digits in
+// G.dword_53AEDC..G.dword_53AEE4) is appended once the digits have landed. Returns 1 when all are done.
+int BattleUnit::DrawDamageNumbers() {
+    if (at<int32_t>(0x2AD8) == 0) {
+        return 0;
+    }
+    const int x = at<int16_t>(0xD66);
+    const int top = at<int16_t>(0xD68) - 0x1E;
+    for (int slot = at<uint16_t>(0x2A7E); slot < at<uint16_t>(0x2A7C); ++slot) {
+        int16_t* digits = &at<int16_t>(0x2724 + 8 * slot);
+        int16_t* phases = &at<int16_t>(0x283C + 8 * slot);
+        uint16_t& delay = at<uint16_t>(0x26DE + 2 * slot);
+        int16_t& rise = at<int16_t>(0x295A + 2 * slot);
+        const auto font = static_cast<int16_t>(at<uint16_t>(0x29C4 + 2 * slot));
+        if (delay > 0) {
+            --delay;
+            continue;
+        }
+        if (phases[0] == 9 && phases[1] == 9 && phases[2] == 9 && phases[3] == 9) {
+            if (at<int32_t>(0x2AE8) == 1) {
+                at<int32_t>(0x2AE8) = 0;
+                at<int16_t>(0x2724 + 8 * at<uint16_t>(0x2A7C)) = static_cast<int16_t>(G.dword_53AEDC);
+                at<int16_t>(0x2726 + 8 * at<uint16_t>(0x2A7C)) = static_cast<int16_t>(G.dword_53AEE0);
+                at<int16_t>(0x2728 + 8 * at<uint16_t>(0x2A7C)) = static_cast<int16_t>(G.dword_53AEE4);
+                ++at<uint16_t>(0x2A7C);
+            }
+            if (rise >= 0x30) {
+                phases[0] = 0;
+                phases[1] = 0;
+                phases[2] = 0;
+                phases[3] = 0;
+                rise = 0;
+                G.digitMode = 0;
+                ++at<uint16_t>(0x2A7E);
+                std::memset(digits, 0, 8);
+                continue;
+            }
+            if (at<int32_t>(0x2AD0) == 0) {
+                rise = static_cast<int16_t>(rise + 2);
+            }
+            auto fade = [&rise]() {
+                G.drawOption71C = -rise;
+                G.drawOption30C = -rise;
+                G.drawOption304 = -rise;
+                G.drawScaleHeight = rise + 0x1A;
+            };
+            if (digits[0] != 0) {
+                fade();
+                DrawNumber(font, digits[0], x - 0xC, top - rise);
+            }
+            if (digits[0] != 0 || digits[1] != 0) {
+                fade();
+                DrawNumber(font, digits[1], x, top - rise);
+            }
+            fade();
+            if (digits[0] != 0 || digits[1] != 0 || digits[2] != 0) {
+                DrawNumber(font, digits[2], x + 0xC, top - rise);
+            }
+            DrawNumber(font, digits[3], x + 0x18, top - rise);
+            G.digitMode = 0;
+            continue;
+        }
+        G.digitMode = 0;
+        if (digits[0] != 0) {
+            DrawNumber(font, digits[0], x - 0xC, top - G.numberPopOffsets[phases[0]]);
+        }
+        if ((digits[1] != 0 || digits[0] != 0) && phases[0] > 0) {
+            DrawNumber(font, digits[1], x, top - G.numberPopOffsets[phases[1]]);
+        }
+        if (phases[1] > 0) {
+            if (digits[0] != 0 || digits[1] != 0 || digits[2] != 0) {
+                DrawNumber(font, digits[2], x + 0xC, top - G.numberPopOffsets[phases[2]]);
+            }
+            DrawNumber(font, digits[3], x + 0x18, top - G.numberPopOffsets[phases[3]]);
+        }
+        if (at<int32_t>(0x2AD0) == 0) {
+            for (int digit = 0; digit < 4; ++digit) {
+                if (++phases[digit] > 9) {
+                    phases[digit] = 9;
+                }
+                if (phases[digit] <= 0) {
+                    break;
+                }
+            }
+        }
+    }
+    if (at<uint16_t>(0x2A7E) < at<uint16_t>(0x2A7C)) {
+        return 0;
+    }
+    G.digitMode = 0;
+    at<uint16_t>(0x2A7C) = 0;
+    at<uint16_t>(0x2A7E) = 0;
+    at<int32_t>(0x2AD8) = 0;
+    return 1;
+}
+
+// swd32.exe 0x0047BA80: one frame of the attack action (state +0x500, act of +0x2A0C): the unit steps forward by
+// G.attackStepX per stage (+0x2A78, 1..5, advanced every second frame), a lunge copy (G.attackLunge read from
+// +4, so stage 5 reads the bytes of G.attackStepX) is drawn for heroes, then shadow, body, highlight, effects,
+// overlay and the weapon action (+0x3D0). Returns 1 when the action ended or after stage 5.
+int BattleUnit::DrawAttack() {
+    auto* attack = reinterpret_cast<ActState*>(raw(0x500));
+    at<int32_t>(0x500) = at<uint16_t>(0x2A0C);
+    if (at<int32_t>(0x2AA0) != 1 || at<int32_t>(0x2B00) != 0 || at<int32_t>(0x2B04) != 0) {
+        at<int32_t>(0x508) = 0x24;
+    } else {
+        at<int32_t>(0x508) = 0x25;
+        if ((GetGuard() == 1 || (at<uint8_t>(0x26D0) & 1) != 0) && (at<uint8_t>(0x26D0) & 0x40) == 0) {
+            at<int32_t>(0x508) = 0x27;
+        }
+        if ((at<uint32_t>(0x26C0) & 0x1000) != 0) {
+            at<int32_t>(0x508) = 0x25;
+        }
+    }
+    at<int32_t>(0x590) = 0;
+    if (at<int32_t>(0x2AD0) == 1) {
+        at<int32_t>(0x590) = 1;
+    }
+    if (ActRun(attack) == 0) {
+        return 1;
+    }
+    if (at<int32_t>(0x2AF4) == 1 && at<int32_t>(0x2AA0) == 0) {
+        at<uint16_t>(0x54C) = at<uint16_t>(0x2EC);
+    }
+    if (at<int32_t>(0x2AF0) == 1) {
+        return 1;
+    }
+    if ((at<uint8_t>(0x26C0) & 4) != 0) {
+        std::memcpy(raw(0x500), raw(0x2A0), sizeof(ActState));
+    }
+    Picture* body = TswGetPicture(at<uint16_t>(0x54A), at<uint16_t>(0x54C));
+    at<Picture*>(0x2548) = body;
+    G.drawSource = reinterpret_cast<uint8_t*>(body->pixels);
+    PlaySound(at<uint16_t>(0x558), G.soundVolume);
+    if (at<uint16_t>(0x558) != 0) {
+        SetSoundPan(at<uint16_t>(0x558), at<int32_t>(0x2B08) == 1 ? -0x10 : 0x10);
+    }
+    const int baseX = at<int16_t>(0xD66);
+    const int originX = at<int32_t>(0x510);
+    const uint16_t stage = at<uint16_t>(0x2A78);
+    at<uint16_t>(0x558) = 0;
+    int y = at<int16_t>(0xD68) - at<int32_t>(0x514);
+    at<int32_t>(0x2670) = originX;
+    const int step = G.attackStepX[stage];
+    int x = baseX - originX + step;
+    if (at<int32_t>(0x2B00) == 1) {
+        if (at<int32_t>(0x2B08) != 0) {
+            x = baseX - step - originX;
+        } else {
+            at<int32_t>(0x2670) = at<Picture*>(0x2548)->width - at<int32_t>(0x510);
+            x = G.attackStepX[stage] - at<int32_t>(0x2670) + baseX;
+        }
+    }
+    if (at<int32_t>(0x2B08) == 1 && at<int32_t>(0x2B00) == 0) {
+        at<int32_t>(0x2670) = at<Picture*>(0x2548)->width - at<int32_t>(0x510);
+        x = baseX - G.attackStepX[stage] - at<int32_t>(0x2670);
+    }
+    const uint32_t mirrored = at<uint32_t>(0x26C0) & 4;
+    if (mirrored != 0) {
+        x = baseX - at<int32_t>(0x2670);
+    }
+    if (at<int32_t>(0x2AA0) == 0 && mirrored == 0) {
+        G.drawOption71C = 0xF;
+        G.drawOption30C = 0;
+        G.drawOption304 = 0;
+        const uint32_t flags = at<uint32_t>(0x2694) & 0x80000003;
+        at<uint32_t>(0x26A4) = flags;
+        Picture* picture = at<Picture*>(0x2548);
+        const int lungeNext = image::at<int32_t>(0x004A7DF4u + 4u * at<uint16_t>(0x2A78));
+        if (at<int32_t>(0x2B10) == 0) {
+            if (at<int32_t>(0x2B08) == 0) {
+                DrawPicture(at<int16_t>(0xD66) - lungeNext - at<int32_t>(0x2670),
+                            at<int16_t>(0xD68) - at<int32_t>(0x514), picture->width, picture->height,
+                            static_cast<int>(flags | 0x10), 0);
+                x = at<int16_t>(0xD66) - G.attackLunge[at<uint16_t>(0x2A78)] - at<int32_t>(0x2670);
+            } else {
+                DrawPicture(lungeNext - at<int32_t>(0x2670) + at<int16_t>(0xD66),
+                            at<int16_t>(0xD68) - at<int32_t>(0x514), picture->width, picture->height,
+                            static_cast<int>(flags | 0x10), 0);
+                x = G.attackLunge[at<uint16_t>(0x2A78)] - at<int32_t>(0x2670) + at<int16_t>(0xD66);
+            }
+        } else {
+            DrawPicture(at<int16_t>(0xD66) - at<int32_t>(0x2670),
+                        at<int16_t>(0xD68) - lungeNext - at<int32_t>(0x514), picture->width, picture->height,
+                        static_cast<int>(flags | 0x10), 0);
+            x = at<int16_t>(0xD66) - at<int32_t>(0x2670);
+            y = at<int16_t>(0xD68) - G.attackLunge[at<uint16_t>(0x2A78)] - at<int32_t>(0x514);
+        }
+    }
+    G.drawScaleHeight = at<Picture*>(0x2548)->height / 3;
+    G.drawOption304 = -6;
+    G.drawShear = at<Picture*>(0x2548)->height >> 2;
+    G.drawOption30C = -6;
+    G.drawOption71C = -6;
+    if (at<int32_t>(0x2B00) == 1) {
+        G.drawOption304 = -1;
+        G.drawOption30C = -1;
+        G.drawOption71C = -1;
+    }
+    Picture* picture = at<Picture*>(0x2548);
+    const uint32_t shadowFlags = (at<uint32_t>(0x2694) & 0x8000000F) | 0xC;
+    at<uint32_t>(0x26A4) = shadowFlags;
+    DrawPicture(x, at<int16_t>(0xD68) - G.drawScaleHeight, picture->width, picture->height,
+                static_cast<int>(shadowFlags), 0);
+    const uint32_t flags = at<uint32_t>(0x2694) & 0x80000003;
+    at<uint32_t>(0x2694) = flags;
+    picture = at<Picture*>(0x2548);
+    DrawPicture(x, y, picture->width, picture->height, static_cast<int>(flags), 0);
+    if ((at<uint8_t>(0x26C0) & 4) == 0 && at<int32_t>(0x508) != 0x27) {
+        G.drawOption71C = 0x10;
+        picture = at<Picture*>(0x2548);
+        DrawPicture(x, y, picture->width, picture->height, static_cast<int>(at<uint32_t>(0x2694) | 0x10), 0);
+    }
+    DrawEffects(x, y);
+    if ((at<uint8_t>(0x26C0) & 4) == 0 && at<uint16_t>(0x54E) != 0 && at<uint16_t>(0x550) != 0) {
+        Picture* overlay = TswGetPicture(at<uint16_t>(0x54E), static_cast<uint16_t>(at<uint16_t>(0x550) - 1));
+        at<Picture*>(0x2554) = overlay;
+        G.drawSource = reinterpret_cast<uint8_t*>(overlay->pixels);
+        overlay = at<Picture*>(0x2554);
+        DrawPicture(at<int16_t>(0x55E) - at<int32_t>(0x2670) + at<int16_t>(0xD66),
+                    at<int16_t>(0x560) - at<int32_t>(0x514) + at<int16_t>(0xD68), overlay->width, overlay->height,
+                    static_cast<int>(at<uint32_t>(0x2694) | 4), 0);
+    }
+    if ((at<uint8_t>(0x55A) & 2) != 0) {
+        at<int32_t>(0x3D8) = at<int32_t>(0x528);
+        at<int32_t>(0x3D0) = at<int32_t>(0x524);
+        if (ActRun(reinterpret_cast<ActState*>(raw(0x3D0))) == 0) {
+            return 0;
+        }
+        PlaySound(at<uint16_t>(0x428), G.soundVolume);
+        at<uint16_t>(0x428) = 0;
+        Picture* weapon = TswGetPicture(at<uint16_t>(0x41A), at<uint16_t>(0x41C));
+        at<Picture*>(0x254C) = weapon;
+        G.drawSource = reinterpret_cast<uint8_t*>(weapon->pixels);
+        uint32_t weaponFlags = at<uint32_t>(0x3E8);
+        int weaponX = at<int32_t>(0x3E0);
+        if (at<uint16_t>(0x576) != 0) {
+            at<uint16_t>(0x29AC) = at<uint16_t>(0x576);
+        }
+        if (at<int32_t>(0x2B08) == 1) {
+            weaponFlags = (weaponFlags & 1) != 0 ? weaponFlags & ~1u : weaponFlags | 1;
+            weaponX = at<Picture*>(0x254C)->width - weaponX;
+            at<uint16_t>(0x29AC) =
+                static_cast<uint16_t>(at<Picture*>(0x2548)->width - at<uint16_t>(0x576));
+        }
+        weapon = at<Picture*>(0x254C);
+        DrawPicture(at<int16_t>(0x29AC) - weaponX + x, at<int16_t>(0x578) - at<int32_t>(0x3E4) + y, weapon->width,
+                    weapon->height, static_cast<int>(weaponFlags), 0);
+    }
+    if (at<int32_t>(0x2AD0) == 0) {
+        if (++at<uint16_t>(0x2A66) == 2) {
+            ++at<uint16_t>(0x2A78);
+            at<uint16_t>(0x2A66) = 0;
+        }
+    }
+    at<int32_t>(0x2AAC) = 1;
+    if (at<uint16_t>(0x2A78) <= 5) {
+        return 0;
+    }
+    G.word_53BF46 = 0;
+    G.word_53BF48 = 0;
+    at<uint16_t>(0x2A78) = 1;
+    G.drawShear = 0;
+    at<int32_t>(0x2AAC) = 0;
+    at<int32_t>(0x2AC4) = 1;
+    at<int32_t>(0x2B10) = 0;
+    at<uint16_t>(0x55A) = 0;
+    std::memset(raw(0x500), 0, sizeof(ActState));
+    at<int32_t>(0x2A56) = -1;
+    at<int32_t>(0x2A5A) = -1;
+    at<int32_t>(0x2A5E) = -1;
+    at<int32_t>(0x2A62) = -1;
+    return 1;
+}
+
+// swd32.exe 0x0047CF20: while mark 1 is set, the four letters (frames 0..3 of digit font 0) pop in one after
+// another (phases +0x2884, the later ones only advance while the first is past 0), then rise and fade out
+// (+0x29A0, 4 per frame). Returns 1 when done.
+int BattleUnit::DrawGuardText() {
+    if ((at<uint8_t>(0x26D0) & 1) == 0) {
+        return 0;
+    }
+    const int top = at<int16_t>(0xD68) - 0x14;
+    const int left = at<int16_t>(0xD66) - 0x14;
+    int16_t* phases = &at<int16_t>(0x2884);
+    if (phases[0] == 9 && phases[1] == 9 && phases[2] == 9 && phases[3] == 9) {
+        const int16_t rise = at<int16_t>(0x29A0);
+        if (rise >= 0x18) {
+            phases[0] = 0;
+            phases[1] = 0;
+            phases[2] = 0;
+            phases[3] = 0;
+            at<int16_t>(0x29A0) = 0;
+            G.digitMode = 0;
+            at<uint16_t>(0x26D0) &= 0xFFFE;
+            at<uint16_t>(0x2A0E) = 0;
+            at<int32_t>(0x26A8) = 0;
+            at<int32_t>(0x26AC) = 0;
+            return 1;
+        }
+        if (at<int32_t>(0x2AD0) == 0) {
+            at<int16_t>(0x29A0) = static_cast<int16_t>(rise + 4);
+        }
+        uint32_t offset = 0;
+        for (int letter = 0; letter < 4; ++letter) {
+            const int16_t current = at<int16_t>(0x29A0);
+            G.drawOption71C = -current;
+            G.drawOption30C = -current;
+            G.drawOption304 = -current;
+            G.drawScaleHeight = current + 0x1A;
+            offset += DrawDigit(0, letter, static_cast<uint16_t>(offset) + left, top - current);
+        }
+        return 0;
+    }
+    G.digitMode = 0;
+    uint32_t offset = DrawDigit(0, 0, left, top - G.numberPopOffsets[phases[0]]);
+    for (int letter = 1; letter < 4 && phases[0] > 0; ++letter) {
+        offset += DrawDigit(0, letter, static_cast<uint16_t>(offset) + left, top - G.numberPopOffsets[phases[letter]]);
+        if (at<int32_t>(0x2AD0) == 0) {
+            ++phases[letter];
+        }
+        if (phases[letter] > 9) {
+            phases[letter] = 9;
+        }
+    }
+    if (++phases[0] > 9) {
+        phases[0] = 9;
+    }
+    return 0;
+}
+
+namespace {
+
+uint8_t* newEffect() {
+    auto* node = static_cast<uint8_t*>(crt::malloc(0xAC));
+    std::memset(node, 0, 0xAC);
+    return node;
+}
+
+void setEffectIcon(uint8_t* node, int frame, int16_t icon) {
+    mem::put32(node, 4, 0x2AF8);
+    mem::put32(node, 0xC, static_cast<uint32_t>(frame));
+    mem::put16(node, 0xA6, static_cast<uint16_t>(icon));
+}
+
+}  // namespace
+
+// swd32.exe 0x0047DBD0: ailment `kind` (+0x18) of `skill` lands unless bit 13 (mark 0x20 instead) or the
+// skill's +4 bit 7 is set, or a roll of 1..10 exceeds the resistance (hero stats +0x1C, enemy data +0x5E). The
+// search for an existing effect starts with the effect fields of the unit itself (+0x2620). A refreshed or
+// new effect gets the turns (+0x24) and value (+0xE); kind bit 15 adds nothing new.
+int BattleUnit::AddAilment(const uint8_t* skill) {
+    const uint16_t kind = mem::u16(skill, 0x18);
+    auto** head = reinterpret_cast<uint8_t**>(raw(0x2584));
+    if ((kind & 0x2000) != 0) {
+        at<uint8_t>(0x26D0) |= 0x20;
+        return 0;
+    }
+    if (kind == 0 || (skill[4] & 0x80) != 0) {
+        return 0;
+    }
+    const int roll = static_cast<int>(R250Below(10)) + 1;
+    if (at<int32_t>(0x2AA0) == 1) {
+        if (roll > mem::u16(at<uint8_t*>(0), 0x1C)) {
+            return 0;
+        }
+    } else if (roll > mem::u16(at<uint8_t*>(0xC), 0x5E)) {
+        return 0;
+    }
+    bool found = false;
+    for (uint8_t* node = raw(0x2584); node != nullptr; node = mem::ptr<uint8_t>(node, 0)) {
+        if (mem::u32(node, 0x9C) == mem::u16(skill, 0x18)) {
+            mem::put16(node, 0xA2, skill[0x24]);
+            mem::put16(node, 0xA8, mem::u16(skill, 0xE));
+            found = true;
+            break;
+        }
+    }
+    if ((skill[0x19] & 0x80) != 0 || found) {
+        return 1;
+    }
+    uint8_t* node = newEffect();
+    mem::putPtr(node, 0, *head);
+    *head = node;
+    mem::put16(node, 0xA2, skill[0x24]);
+    mem::put32(node, 0x9C, mem::u16(skill, 0x18));
+    mem::put16(node, 0xA8, mem::u16(skill, 0xE));
+    uint32_t& status = at<uint32_t>(0x26C0);
+    switch (mem::u16(skill, 0x18)) {
+        case 1:
+            setEffectIcon(node, 1, 2);
+            status |= 1;
+            at<uint8_t>(0x26D0) |= 0x40;
+            break;
+        case 2:
+            setEffectIcon(node, 7, 8);
+            status |= 2;
+            at<uint16_t>(0x26D0) |= 2;
+            break;
+        case 4:
+            status |= 4;
+            mem::put16(node, 0xA6, 3);
+            at<uint8_t>(0x26D0) |= 0x40;
+            break;
+        case 8:
+            setEffectIcon(node, 0, 4);
+            status |= 8;
+            at<uint8_t>(0x26D0) |= 0x40;
+            break;
+        case 0x10:
+            setEffectIcon(node, 5, 5);
+            status |= 0x10;
+            at<uint8_t>(0x26D1) |= 1;
+            break;
+        case 0x20:
+            setEffectIcon(node, 4, 9);
+            status |= 0x20;
+            break;
+        case 0x40:
+            setEffectIcon(node, 3, 6);
+            status |= 0x40;
+            break;
+        case 0x80:
+            setEffectIcon(node, 2, 7);
+            status |= 0x80;
+            break;
+        case 0x100:
+            setEffectIcon(node, 8, 0xA);
+            status |= 0x100;
+            break;
+        case 0x200:
+            setEffectIcon(node, 6, 0xB);
+            status |= 0x200;
+            if (at<int32_t>(0x2AA0) == 1) {
+                uint8_t* stats = at<uint8_t*>(0);
+                for (const std::intptr_t offset : {0x26, 0x28, 0x16, 0x14}) {
+                    const uint16_t value = mem::u16(stats, offset);
+                    mem::put16(stats, offset, static_cast<uint16_t>(value - 10 * value / 100));
+                }
+            }
+            break;
+        case 0x1000:
+            status |= 0x1000;
+            mem::put16(node, 0xA6, 1);
+            break;
+        default:
+            break;
+    }
+    return 1;
+}
+
+// swd32.exe 0x0047E070: buff of `skill` (status bits +8, element +0x1A when +4 bit 3): 0x4000000 is the hit
+// barrier (turns in +0x2A90); otherwise an effect with the same bits or element is refreshed or a new one is
+// appended (the search starts with the effect fields of the unit itself), then it is announced.
+int BattleUnit::AddBuff(const uint8_t* skill) {
+    const uint32_t bits = mem::u32(skill, 8);
+    if (bits == 0 && (skill[4] & 8) == 0) {
+        return 0;
+    }
+    if ((bits & 0x4000000) != 0) {
+        at<uint32_t>(0x26C0) |= 0x2000000;
+        at<uint16_t>(0x2A90) = skill[0x24];
+        return 1;
+    }
+    uint8_t* node = raw(0x2584);
+    bool refreshed = false;
+    for (;;) {
+        const uint32_t kind = mem::u32(node, 0x9C);
+        if (kind != 0 && kind == bits) {
+            refreshed = true;
+            break;
+        }
+        const uint16_t element = mem::u16(node, 0xA4);
+        if (element != 0 && element == mem::u32(skill, 4)) {
+            refreshed = true;
+            break;
+        }
+        if (mem::ptr<uint8_t>(node, 0) == nullptr) {
+            break;
+        }
+        node = mem::ptr<uint8_t>(node, 0);
+    }
+    if (refreshed) {
+        mem::put16(node, 0xA2, skill[0x24]);
+    } else {
+        uint8_t* added = newEffect();
+        mem::putPtr(node, 0, added);
+        node = added;
+        mem::putPtr(node, 0, static_cast<uint8_t*>(nullptr));
+        mem::put16(node, 0xA2, skill[0x24]);
+        mem::put16(node, 0xA8, mem::u16(skill, 0xE));
+        if (mem::u32(skill, 8) != 0) {
+            mem::put32(node, 0x9C, mem::u32(skill, 8));
+        }
+        if ((skill[4] & 8) != 0) {
+            mem::put16(node, 0xA4, mem::u16(skill, 0x1A));
+        }
+    }
+    const char* name = at<const char*>(0x2560);
+    const char* resistUp = nullptr;
+    switch (mem::u16(skill, 0x1A)) {
+        case 1: resistUp = G.fireResistUpText; break;
+        case 2: resistUp = G.waterResistUpText; break;
+        case 5: resistUp = G.poisonResistUpText; break;
+        case 6: resistUp = G.lightResistUpText; break;
+        case 7: resistUp = G.darkResistUpText; break;
+        case 9: resistUp = G.physicalResistUpText; break;
+        default: break;
+    }
+    if (resistUp != nullptr) {
+        announceWithSound(resistUp, name, kMessageBlackBar | kMessageCentered);
+    }
+    uint32_t& status = at<uint32_t>(0x26C0);
+    const char* text = nullptr;
+    switch (mem::u32(skill, 8)) {
+        case 0x80000:
+            mem::put32(node, 0xC, 0);
+            status |= 0x100000;
+            text = G.defenseDownText;
+            break;
+        case 0x100000:
+            mem::put32(node, 0xC, 0);
+            status |= 0x8000000;
+            text = G.speedDownText;
+            break;
+        case 0x2000000:
+            mem::put32(node, 0xC, 0);
+            status |= 0x4000000;
+            if (at<int32_t>(0x2AA0) != 0) {
+                text = G.barrierStartText;
+            }
+            break;
+        case 0x8000000:
+            mem::put32(node, 0xC, 0);
+            status |= 0x1000000;
+            text = G.attackDownText;
+            break;
+        case 0x10000000:
+            mem::put32(node, 0xC, 0);
+            at<uint8_t>(0x26D0) |= 0x80;
+            if (at<int32_t>(0x2AA0) != 0) {
+                text = G.invisibleStartText;
+            }
+            break;
+        case 0x20000000:
+            mem::put32(node, 0xC, 0);
+            status |= 0x40000000;
+            text = G.defenseUpText;
+            break;
+        case 0x40000000:
+            mem::put32(node, 0xC, 0);
+            status |= 0x20000000;
+            text = G.speedUpText;
+            break;
+        case 0x80000000:
+            mem::put32(node, 0xC, 0);
+            status |= 0x10000000;
+            text = G.attackUpText;
+            break;
+        default:
+            break;
+    }
+    if (text != nullptr) {
+        announceWithSound(text, name, kMessageBlackBar | kMessageCentered);
     }
     return 1;
 }
