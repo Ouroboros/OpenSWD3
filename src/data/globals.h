@@ -3028,12 +3028,12 @@ struct Globals {
     std::uint8_t pad_4A7C7F[0x15];
     std::uint8_t byte_4A7C94;  // 0x004A7C94
     std::uint8_t pad_4A7C95[0x1B];
-    std::uint8_t byte_4A7CB0;  // 0x004A7CB0
-    std::uint8_t pad_4A7CB1[0xF];
-    std::uint8_t byte_4A7CC0;  // 0x004A7CC0
-    std::uint8_t pad_4A7CC1[0xF];
-    std::uint8_t byte_4A7CD0;  // 0x004A7CD0
-    std::uint8_t pad_4A7CD1[0xB];
+    char noStaminaText[13];  // 0x004A7CB0 "體力值不夠!!"
+    std::uint8_t pad_4A7CBD[0x3];
+    char noSpiritText[13];  // 0x004A7CC0 "靈力值不夠!!"
+    std::uint8_t pad_4A7CCD[0x3];
+    char noItemText[11];  // 0x004A7CD0 "物品不夠!!"
+    std::uint8_t pad_4A7CDB[0x1];
     char aD_4[2];  // 0x004A7CDC
     std::uint8_t pad_4A7CDE[0x12];
     char aMonDat[8];  // 0x004A7CF0
@@ -5629,6 +5629,9 @@ static_assert(offsetof(Globals, nothingGainedText) == 0xEB14);
 static_assert(offsetof(Globals, craftFailedText) == 0xEB24);
 static_assert(offsetof(Globals, craftGotText) == 0xEB30);
 static_assert(offsetof(Globals, craftSuccessText) == 0xEB3C);
+static_assert(offsetof(Globals, noStaminaText) == 0xECB0);
+static_assert(offsetof(Globals, noSpiritText) == 0xECC0);
+static_assert(offsetof(Globals, noItemText) == 0xECD0);
 static_assert(offsetof(Globals, numberPopOffsets) == 0xED8C);
 static_assert(offsetof(Globals, attackLunge) == 0xEDF0);
 static_assert(offsetof(Globals, attackStepX) == 0xEE08);

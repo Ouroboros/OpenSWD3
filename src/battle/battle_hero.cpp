@@ -5,6 +5,8 @@
 #include "core/random.h"
 #include "crt/crt.h"
 #include "audio/audio.h"
+#include "battle/battle_message.h"
+#include "battle/fame.h"
 #include "data/globals.h"
 #include "draw/draw.h"
 #include "pic/projector.h"
@@ -1069,6 +1071,184 @@ void BattleHero::Regenerate() {
         StepTargetCount(1);
         at<int16_t>(0x29AA) = 0;
     }
+}
+
+// swd32.exe 0x0046F030: effect `+0x48` of the equipment `item`: 50 and 53..57 set bits 0, 2..6 of +0x26C8; 51
+// lowers the first non-zero element resistance of the item from the hero resistances (+0x2D of the stats) by
+// ((int8)(-resistance * 10) * its fame percent / 100, as 16 bits) / -10; 52 adds 10% plus half the fame percent
+// of the attack (+0x26). The return value is unused by callers.
+void BattleHero::ApplyEquipmentEffect(const uint8_t* item) {
+    switch (mem::s16(item, 0x48)) {
+        case 0x32:
+            at<uint32_t>(0x26C8) |= 1;
+            break;
+        case 0x33: {
+            const auto percent = static_cast<uint16_t>(FindCounterPercent(reinterpret_cast<uint8_t*>(G.fameList3),
+                                                                          mem::s16(item, 0x50)));
+            uint8_t* resistances = at<uint8_t*>(0) + 0x2D;
+            for (uint16_t element = 0; element < 9; ++element) {
+                const auto resistance = static_cast<int8_t>(item[0x92 + element]);
+                if (resistance == 0) {
+                    continue;
+                }
+                const auto tenth = static_cast<int8_t>(static_cast<uint8_t>(-resistance) * 10);
+                const auto scaled = static_cast<uint16_t>(tenth * percent / 100);
+                resistances[element] = static_cast<uint8_t>(resistances[element] + static_cast<int>(scaled) / -10);
+                break;
+            }
+            break;
+        }
+        case 0x34: {
+            const uint16_t half =
+                static_cast<uint16_t>(FindCounterPercent(reinterpret_cast<uint8_t*>(G.fameList3), mem::s16(item, 0x50))) >>
+                1;
+            uint8_t* stats = at<uint8_t*>(0);
+            const uint16_t attack = mem::u16(stats, 0x26);
+            const int bonus = half != 0 ? attack * half / 100 : 0;
+            mem::put16(stats, 0x26, static_cast<uint16_t>(10 * attack / 100 + attack + bonus));
+            break;
+        }
+        case 0x35:
+            at<uint32_t>(0x26C8) |= 4;
+            break;
+        case 0x36:
+            at<uint32_t>(0x26C8) |= 8;
+            break;
+        case 0x37:
+            at<uint32_t>(0x26C8) |= 0x10;
+            break;
+        case 0x38:
+            at<uint32_t>(0x26C8) |= 0x20;
+            break;
+        case 0x39:
+            at<uint32_t>(0x26C8) |= 0x40;
+            break;
+        default:
+            break;
+    }
+}
+
+namespace {
+
+uint32_t skillMask(int kind) {
+    switch (kind) {
+        case 0:
+            return 0x10;
+        case 1:
+            return 0xC;
+        case 2:
+            return 0x1001;
+        default:
+            return static_cast<uint32_t>(kind);
+    }
+}
+
+void noResource(const char* text) {
+    if (G.battleMessages != nullptr) {
+        return;
+    }
+    AddBattleMessage(0x118, 0xA, 0x14, text, kMessageBlackBar | kMessageCentered);
+    PlaySound(0x8C, G.soundVolume);
+}
+
+}  // namespace
+
+// swd32.exe 0x004702E0: counts in *count the usable skills (+0x46 flags 5) of kind `kind`
+// (0: 0x10, 1: 0xC, 2: 0x1001 in +0x2C; other kinds are the mask) with target type +0x5E 0x1B..0x1E
+// (`type` 0) or 0x1F (any other type); the cursor +0x2EC0 ends past the list. The return value is
+// unused by callers.
+void BattleHero::CountSkills(int kind, int type, uint8_t* count) {
+    const uint32_t mask = kind == 0 ? 0x10 : kind == 1 ? 0xC : kind == 2 ? 0x1001 : static_cast<uint32_t>(kind);
+    const int wanted = type == 0 ? 0x1C : type == 1 ? 0x1F : type;
+    Restore2EC0();
+    for (;;) {
+        uint8_t* skill = mem::ptr<uint8_t>(at<uint8_t*>(0x2EC0), 0);
+        at<uint8_t*>(0x2EC0) = skill;
+        if (skill == nullptr) {
+            return;
+        }
+        if ((skill[0x46] & 5) == 0 || (mask & mem::u32(skill, 0x2C)) == 0) {
+            continue;
+        }
+        const uint16_t target = mem::u16(skill, 0x5E);
+        if (wanted == 0x1C) {
+            if (target >= 0x1B && target <= 0x1E) {
+                ++*count;
+            }
+        } else if (target == 0x1F) {
+            ++*count;
+        }
+    }
+}
+
+// swd32.exe 0x00470380: selects the `index`th usable skill of kind `kind` (target 0x1B..0x1E) and checks its
+// costs (+0x4C: bit 15 spirit, bit 14 stamina, bit 11 an item reserved in +0x2ED0); a missing resource is
+// announced once. Returns 1 when the skill can be used.
+int BattleHero::SelectSkill(int kind, int index) {
+    const uint32_t mask = skillMask(kind);
+    if (index == 0) {
+        return 0;
+    }
+    Restore2EC0();
+    int found = 0;
+    uint8_t* skill = nullptr;
+    do {
+        skill = mem::ptr<uint8_t>(at<uint8_t*>(0x2EC0), 0);
+        at<uint8_t*>(0x2EC0) = skill;
+        if (skill == nullptr) {
+            return 0;
+        }
+        if ((skill[0x46] & 5) != 0 && (mask & mem::u32(skill, 0x2C)) != 0) {
+            const uint16_t target = mem::u16(skill, 0x5E);
+            if (target >= 0x1B && target <= 0x1E) {
+                ++found;
+            }
+        }
+    } while (found != index);
+    const uint16_t cost = mem::u16(skill, 0x4C);
+    if ((cost & 0x8000) != 0) {
+        at<int32_t>(0x2ED0) = 0;
+        at<uint16_t>(0x2F10) = cost & 0x7FFF;
+    }
+    const uint16_t staminaCost = mem::u16(at<uint8_t*>(0x2EC0), 0x4C);
+    if ((staminaCost & 0x4000) != 0) {
+        at<int32_t>(0x2ED0) = 0;
+        at<uint16_t>(0x2F12) = staminaCost & 0x3FFF;
+    }
+    const uint16_t itemCost = mem::u16(at<uint8_t*>(0x2EC0), 0x4C);
+    if ((itemCost & 0x800) != 0) {
+        at<uint16_t>(0x2F10) = itemCost & 0x7FF;
+        Restore2EC8();
+        uint8_t* item = nullptr;
+        do {
+            item = mem::ptr<uint8_t>(at<uint8_t*>(0x2EC8), 0);
+            at<uint8_t*>(0x2EC8) = item;
+            if (item == nullptr) {
+                noResource(G.noItemText);
+                return 0;
+            }
+        } while (mem::u16(item, 4) != at<uint16_t>(0x2F10));
+        if (mem::s16(item, 8) > 0 || mem::s16(item, 0xA) > 0) {
+            at<uint8_t*>(0x2ED0) = item;
+            return 1;
+        }
+        noResource(G.noItemText);
+        return 0;
+    }
+    Restore2EC0();
+    if (at<uint16_t>(0x2F10) != 0) {
+        if (mem::s16(at<uint8_t*>(4), 6) >= static_cast<int>(at<uint16_t>(0x2F10))) {
+            return 1;
+        }
+        noResource(G.noSpiritText);
+    }
+    if (at<uint16_t>(0x2F12) != 0) {
+        if (mem::s16(at<uint8_t*>(4), 8) >= static_cast<int>(at<uint16_t>(0x2F12))) {
+            return 1;
+        }
+        noResource(G.noStaminaText);
+    }
+    return 0;
 }
 
 }  // namespace swd3

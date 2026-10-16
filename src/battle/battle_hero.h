@@ -43,6 +43,9 @@ public:
     bool CanCatch(BattleUnit* target);
     int DrawCastAt(BattleUnit* target, int act);
     void Regenerate();
+    void ApplyEquipmentEffect(const std::uint8_t* item);
+    void CountSkills(int kind, int type, std::uint8_t* count);
+    int SelectSkill(int kind, int index);
 
     std::uint8_t m_heroData[0x2F34 - 0x2B28];
 };
