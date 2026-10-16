@@ -1,7 +1,9 @@
 #include "game/game.h"
 #include "core/format.h"
 
+#include <array>
 #include <filesystem>
+#include <limits>
 #include <span>
 #include <system_error>
 #include <utility>
@@ -28,7 +30,7 @@ constexpr u32 kShiftKey = 0x4;     // MK_SHIFT
 constexpr u32 kControlKey = 0x8;   // MK_CONTROL
 constexpr u32 kMiddleButton = 0x10;
 constexpr Uint32 kLauncherWait = 16;
-constexpr int kEffectsOffFlag = 0x48;
+constexpr int kEffectsOffFlag = GameState::PlainScreen;
 constexpr int kMinimumTileCache = 0x400000;
 constexpr int kMaximumTileCache = 0x1000000;
 constexpr int kActCache = 0x80000;
@@ -38,6 +40,99 @@ constexpr std::u8string_view kDrawKernelFailed = u8"DrawKernel init Failed.";
 constexpr std::u8string_view kDirectDrawFailed = u8"DDraw init Failed.";
 constexpr std::u8string_view kTimerFailed = u8"mmTimer init Failed.";
 constexpr std::u8string_view kErrorTitle = u8"SWD3";
+constexpr u32 kStopVideoButtons = kLeftButton | kRightButton | kControlKey | kMiddleButton;
+
+// The defaults of the settings (before Env.dat).
+constexpr u8 kDefaultVolume = 6;
+constexpr i32 kDefaultCacheMegabytes = 0x3C;
+constexpr i32 kDefaultTextSpeed = 2;
+constexpr i32 kDefaultBattleSpeed = 0xB;
+constexpr u64 kTileCacheShare = 6;  // a sixth of the physical memory
+constexpr int kMegabyteShift = 20;
+constexpr u32 kMegabyte = 1u << kMegabyteShift;
+constexpr int kStartPointerX = 0x1E0;
+constexpr int kStartPointerY = 0x168;
+constexpr u32 kInputFailed = 2;  // Game::deviceFlags
+constexpr int kDisplayBits = 16;
+
+// The fonts: MingLiU at three sizes; the advances on the map and in the menus.
+constexpr int kLargeFontSize = 20;
+constexpr int kMediumFontSize = 16;
+constexpr int kSmallFontSize = 12;
+constexpr int kLargeFontAdvance = 24;
+constexpr int kMediumFontAdvance = 18;
+constexpr int kMapLargeAdvance = 22;
+constexpr int kMapSmallAdvance = 16;
+constexpr i32 kTalkUnit = 0xB;
+
+// A new game.
+constexpr std::array<int, 5> kNewGameFlags = {
+    GameState::Running,
+    GameState::Music,
+    GameState::SoundEffects,
+    GameState::NoPointer,
+    GameState::NoLoadingScreen,
+};
+
+constexpr std::array<int, 19> kNewGameClearedFlags = {
+    GameState::Unk0,
+    GameState::DebugReports,
+    GameState::Weather,
+    GameState::Leaves,
+    GameState::HeatHaze,
+    GameState::Lightning,
+    GameState::NoChoicePointer,
+    GameState::HideActRoles,
+    GameState::Encounters,
+    GameState::UnkD,
+    GameState::UnkE,
+    GameState::OverlaysFirst,
+    GameState::Timer,
+    GameState::TimerExpired,
+    GameState::TimerEvent,
+    GameState::Spotlight,
+    GameState::NoSlide,
+    GameState::Fireflies,
+    GameState::Unk17,
+};
+
+constexpr i32 kStartGold = 100;
+constexpr i32 kStartUnk4A94B0 = 0x40000000;
+constexpr i32 kStartUnk4ACDB8 = 3;
+constexpr i32 kStartUnk4ACBC8 = 2;
+constexpr int kStartWalkSpeed = 0x10;
+constexpr int kUnk232EAct = 0x232E;
+constexpr int kUnk232EActs = 4;
+constexpr int kUnk4C83A8Action = 8;
+constexpr i32 kUnk4ACAF8Action = 0x38;
+constexpr u32 kGroupSlackBytes = 0x80;  // the encounter groups get 0x10 spare words
+constexpr u16 kOpeningEvent = 100;      // the leader's event of a new story
+
+// The menu button in the top right corner.
+constexpr i32 kButtonDelay = 0x10;
+constexpr u32 kButtonLeft = 0x262;
+constexpr u32 kButtonBottom = 0x18;
+constexpr u16 kUnkLeader20Limit = 8;
+constexpr i32 kCounterHidden = 0x400;
+constexpr i32 kCounterOpaque = 0x10;
+
+constexpr int kStreamVolume = 0x80;
+constexpr int kPlayOnce = 1;
+constexpr std::size_t kFameWords = 0x200;  // Fame.dat
+constexpr int kFameCounters = 500;
+
+// The name box.
+constexpr u32 kNameBoxPicture = 0x2449;
+constexpr int kNameBoxLeft = 0x6C;
+constexpr int kNameBoxUp = 0x2E;
+constexpr std::size_t kNameBytes = 0x40;
+constexpr int kNameRed = 0x15;
+constexpr int kNameGreen = 0xF;
+constexpr int kNameBlue = 8;
+constexpr int kNameGlyphWidth = 0xB;
+constexpr int kCursorHeight = 0x16;
+constexpr int kCursorRed = 0x14;
+constexpr int kCursorGreen = 0xD;
 
 // The wParam of a mouse message: the buttons and the modifier keys held.
 u32 MouseKeys(SDL_MouseButtonFlags buttons)
@@ -270,12 +365,12 @@ Launcher::Choice Game::RunLauncher()
 void Game::InitInstall()
 {
     Config& settings = this->config;
-    settings.installType = 2;
-    settings.soundVolume = 6;
-    settings.musicVolume = 6;
-    settings.cacheSize = 0x3C;
-    settings.textSpeed = 2;
-    settings.battleSpeed = 0xB;
+    settings.installType = Config::FullInstall;
+    settings.soundVolume = kDefaultVolume;
+    settings.musicVolume = kDefaultVolume;
+    settings.cacheSize = kDefaultCacheMegabytes;
+    settings.textSpeed = kDefaultTextSpeed;
+    settings.battleSpeed = kDefaultBattleSpeed;
     this->cdDriveCount = this->FindCdDrives(settings.cdRoot);
     settings.Load(this->unknown14, this->effectsOff);
     this->SizeCaches();
@@ -297,7 +392,7 @@ void Game::InitInstall()
 // `firstDrive`
 int Game::FindCdDrives(std::string& firstDrive)
 {
-    this->cdDrives.fill(0xFF);
+    this->cdDrives.fill(Game::NoDrive);
     int count = 0;
 
     for (const char letter : CdRomDrives())
@@ -317,7 +412,7 @@ int Game::FindCdDrives(std::string& firstDrive)
 // swd32.exe 0x00424330: a sixth of the physical memory (4 to 16 MB) for the picture cache, 512 KB for the scripts
 void Game::SizeCaches()
 {
-    int bytes = static_cast<int>(TotalPhysicalMemory() / 6);
+    int bytes = static_cast<int>(TotalPhysicalMemory() / kTileCacheShare);
 
     if (bytes < kMinimumTileCache)
     {
@@ -355,7 +450,7 @@ void Game::InitDrawKernel()
     SDL_HideCursor();
     this->InitDevices();
     this->input.SetSensitivity(2.0);
-    this->input.SetMousePosition(0x1E0, 0x168);
+    this->input.SetMousePosition(kStartPointerX, kStartPointerY);
     this->audio.SetMusicVolume(this->config.musicVolume);
 
     if (this->offscreen == nullptr || !this->painter.Init(*this->offscreen))
@@ -365,7 +460,7 @@ void Game::InitDrawKernel()
         return;
     }
 
-    const u32 cachedMegabytes = (this->mapCache.Check(MapCache::CheckColorMasks) + 0xFFFFF) >> 0x14;
+    const u32 cachedMegabytes = (this->mapCache.Check(MapCache::CheckColorMasks) + kMegabyte - 1) >> kMegabyteShift;
 
     if (static_cast<u32>(this->config.cacheSize) - cachedMegabytes + kDiskReserve >= Game::DiskFreeMegabytes())
     {
@@ -384,10 +479,10 @@ void Game::InitDrawKernel()
     }
 
     this->graphics.SetClearColor(this->painter.FillColorPair());
-    this->SetupFont(this->largeFont, 0x14);
-    this->SetupFont(this->mediumFont, 0x10);
-    this->SetupFont(this->smallFont, 0xC);
-    this->talk.unit = 0xB;
+    this->SetupFont(this->largeFont, kLargeFontSize);
+    this->SetupFont(this->mediumFont, kMediumFontSize);
+    this->SetupFont(this->smallFont, kSmallFontSize);
+    this->talk.unit = kTalkUnit;
     this->painter.SetClip(0, 0, Display::Width, Display::Height);
     this->textColors.Convert(this->painter);
     this->drawSurface = this->painter.LockSurface(*this->offscreen);
@@ -424,7 +519,7 @@ bool Game::InitDevices()
 
     if (this->input.Init() != 0)
     {
-        this->deviceFlags |= 2;
+        this->deviceFlags |= kInputFailed;
         this->errors.ShowError(Game::Title, Game::DirectInputFailed);
         this->Destroy();
         return false;
@@ -435,7 +530,7 @@ bool Game::InitDevices()
     this->audio.Midi().Open(this->audio.Effects().HasDriver() ? 1 : 0);
     this->audio.Streams().Open();
 
-    if (!this->graphics.Init(Graphics::FullScreen, Display::Width, Display::Height, 0x10))
+    if (!this->graphics.Init(Graphics::FullScreen, Display::Width, Display::Height, kDisplayBits))
     {
         this->errors.ShowError(kDirectDrawFailed, kErrorTitle);
         this->Destroy();
@@ -457,13 +552,13 @@ void Game::SetupFont(TextFont& font, int size)
     font.SetTarget(Display::Width, Display::Height);
     font.SetFont(TextFont::DefaultFace, size);
 
-    if (size == 0x14)
+    if (size == kLargeFontSize)
     {
-        font.SetAdvance(0x18);
+        font.SetAdvance(kLargeFontAdvance);
     }
-    else if (size == 0x10)
+    else if (size == kMediumFontSize)
     {
-        font.SetAdvance(0x12);
+        font.SetAdvance(kMediumFontAdvance);
     }
 
     font.SetBackground(TextFont::NoBackground);
@@ -478,10 +573,10 @@ u32 Game::DiskFreeMegabytes()
 
     if (error)
     {
-        return 0xFFFFFFFF;
+        return std::numeric_limits<u32>::max();
     }
 
-    const u64 megabytes = space.available >> 0x14;
+    const u64 megabytes = space.available >> kMegabyteShift;
     return static_cast<u32>(megabytes);
 }
 
@@ -511,7 +606,6 @@ void Game::ResetBattle()
 namespace
 {
 
-constexpr u16 kTableEnd = 0xFFFF;
 constexpr int kEquipmentFromData = 11;
 
 void ResetAct(ActState& state, int id, int action)
@@ -534,24 +628,24 @@ void Game::NewGame()
     Scene& scene = this->scene;
     game.flags = {};
 
-    for (const int flag : {1, 3, 4, 0xA, 0x46})
+    for (const int flag : kNewGameFlags)
     {
         game.SetGameFlag(flag);
     }
 
-    for (const int flag : {0, 2, 5, 6, 7, 8, 9, 0xB, 0xC, 0xD, 0xE, 0xF, 0x10, 0x11, 0x12, 0x13, 0x14, 0x16, 0x17})
+    for (const int flag : kNewGameClearedFlags)
     {
         game.ClearGameFlag(flag);
     }
 
-    for (int flag = 0x48; flag <= 0x53; ++flag)
+    for (int flag = GameState::PlainScreen; flag <= GameState::SecondDisc; ++flag)
     {
         game.ClearGameFlag(flag);
     }
 
     game.SetGameFlag(GameState::InParty);
     game.ClearGameFlag(GameState::Unk15);
-    this->party.variables[Party::Gold] = 0x64;
+    this->party.variables[Party::Gold] = kStartGold;
     scene.returnColumn = -1;
     scene.returnRow = -1;
     scene.unk4CAD20 = -1;
@@ -569,11 +663,11 @@ void Game::NewGame()
     scene.unk4AB788 = 1;
     this->audio.SetFadeState(1, 0, 0);
     scene.musicCue = 0;
-    scene.unk4A94B0 = 0x40000000;
+    scene.unk4A94B0 = kStartUnk4A94B0;
     scene.shake.fill(Scene::ShakeEnd);
-    scene.unk4ACDB8 = 3;
+    scene.unk4ACDB8 = kStartUnk4ACDB8;
     scene.talkWindows.reset();
-    game.SetWalkSpeed(0x10);
+    game.SetWalkSpeed(kStartWalkSpeed);
 
     auto setPointer = [this](Role& role, int action)
     {
@@ -586,8 +680,8 @@ void Game::NewGame()
     };
 
     setPointer(scene.pointerRole, 0);
-    setPointer(scene.pointerButtonRole, 0xC);
-    setPointer(scene.pointerPageRole, 0xE);
+    setPointer(scene.pointerButtonRole, Scene::ButtonPointer);
+    setPointer(scene.pointerPageRole, Scene::PagePointer);
     scene.unk4A9A30 = ActState{};
     ResetPlayback(scene.unk4A9A30);
     scene.unk4B751C.reset();
@@ -599,23 +693,23 @@ void Game::NewGame()
         ResetPlayback(scene.unk4B9F68[index]);
     }
 
-    for (int index = 0; index < 4; ++index)
+    for (int index = 0; index < kUnk232EActs; ++index)
     {
-        scene.unk4B9F68[static_cast<std::size_t>(index)].id = 0x232E;
+        scene.unk4B9F68[static_cast<std::size_t>(index)].id = kUnk232EAct;
         scene.unk4B9F68[static_cast<std::size_t>(index)].action = index;
     }
 
-    ResetAct(scene.unk4C83A8, 0x2329, 8);
+    ResetAct(scene.unk4C83A8, Scene::PointerAct, kUnk4C83A8Action);
     scene.viewWidth = Display::Width;
     scene.viewHeight = Display::Height;
-    scene.unk4ACBC8 = 2;
+    scene.unk4ACBC8 = kStartUnk4ACBC8;
     scene.unk4ACBCC = 0;
     ResetPlayback(scene.unk4AD3F0);
     ResetPlayback(scene.unk4A93E8);
     constexpr std::array<int, 4> kScreenActs = {0x232D, 0x232F, 0x2330, 0x2331};
     constexpr std::array<int, 4> kPanelActs = {0x2337, 0x2339, 0x233A, 0x233B};
 
-    for (std::size_t index = 0; index < 4; ++index)
+    for (std::size_t index = 0; index < kScreenActs.size(); ++index)
     {
         ResetAct(scene.unk4CAA78[index], kScreenActs[index], 0);
         ResetAct(scene.unk4A9120[index], kPanelActs[index], 0);
@@ -623,54 +717,56 @@ void Game::NewGame()
 
     ResetPlayback(scene.unk4ACAF8);
 
-    scene.weather.fill({0x0F0F0F0F, 0x0F0F0F0F, 0x0F0F0F0F, 0x0F0F0F0F});
+    scene.weather.fill({MapParticle::Filled, MapParticle::Filled, MapParticle::Filled, MapParticle::Filled});
 
-    scene.unk4ACAF8.id = 0x232B;
-    scene.unk4ACAF8.action = 0x38;
+    scene.unk4ACAF8.id = Scene::EffectAct;
+    scene.unk4ACAF8.action = kUnk4ACAF8Action;
 
     for (ActState& state : scene.unk4AD0D8)
     {
         ResetPlayback(state);
-        state.id = 0x232B;
+        state.id = Scene::EffectAct;
     }
 
     const std::vector<u8>& data = this->databases.mapsData;
     const u32 records = MapsTable(data, MapsDataTable::MapGroups);
     u32 words = 0;
 
-    while (records + 2 * words + 1 < data.size() && MapsWord(data, records + 2 * words) != kTableEnd)
+    while (records + sizeof(u16) * words + 1 < data.size() &&
+           MapsWord(data, records + sizeof(u16) * words) != MapsRecord::TableEnd)
     {
         ++words;
     }
 
-    scene.unk4CAE78.assign((8 * words + 0x80) / 8, 0);
-    scene.unk4CAE78[0] = static_cast<u16>(words / 8);
+    scene.unk4CAE78.assign((MapsRecord::GroupWords * words + kGroupSlackBytes) / MapsRecord::GroupWords, 0);
+    scene.unk4CAE78.front() = static_cast<u16>(words / MapsRecord::GroupWords);
 
-    if ((words & 7) == 0)
+    if (words % MapsRecord::GroupWords == 0)
     {
         for (u32 word = 0; word < words; ++word)
         {
-            scene.unk4CAE78[1 + word] = MapsWord(data, records + 2 * word);
+            scene.unk4CAE78[MapsRecord::GroupsAt + word] = MapsWord(data, records + sizeof(u16) * word);
         }
     }
 
     scene.unk4C8BD4 = 0;
     scene.unk4ACE40 = MapsTable(data, MapsDataTable::Roles);
 
-    for (u32 at = scene.unk4ACE40; at + 1 < data.size() && MapsWord(data, at) != kTableEnd; at += 0x16)
+    for (u32 at = scene.unk4ACE40; at + 1 < data.size() && MapsWord(data, at) != MapsRecord::TableEnd;
+         at += sizeof(u16) * MapsRecord::RoleWords)
     {
-        scene.unk4C8BD4 = static_cast<u16>(scene.unk4C8BD4 + 0x16);
+        scene.unk4C8BD4 = static_cast<u16>(scene.unk4C8BD4 + sizeof(u16) * MapsRecord::RoleWords);
     }
 
     const u32 roles = MapsTable(data, MapsDataTable::StartRoles);
 
     for (std::size_t role = 0; role < Party::Roles; ++role)
     {
-        const std::size_t at = roles + 0x34 * role;
+        const std::size_t at = roles + MapsRecord::StartRoleBytes * role;
 
-        if (at + 0x34 <= data.size())
+        if (at + MapsRecord::StartRoleBytes <= data.size())
         {
-            this->party.roles[role].Load(std::span<const u8>(data).subspan(at, 0x34));
+            this->party.roles[role].Load(std::span<const u8>(data).subspan(at, MapsRecord::StartRoleBytes));
         }
     }
 
@@ -678,12 +774,13 @@ void Game::NewGame()
     FreeItemList(this->party.inventory);
     scene.unk4C97E4 = MapsTable(data, MapsDataTable::Unk18);
 
-    for (u32 at = MapsTable(data, MapsDataTable::StartItems); at + 1 < data.size() && MapsWord(data, at) != 0; at += 4)
+    for (u32 at = MapsTable(data, MapsDataTable::StartItems); at + 1 < data.size() && MapsWord(data, at) != 0;
+         at += MapsRecord::StartItemBytes)
     {
         AddItem(
             this->party.inventory,
             MapsWord(data, at),
-            static_cast<i16>(MapsWord(data, at + 2)),
+            static_cast<i16>(MapsWord(data, at + MapsRecord::StartItemCountAt)),
             ItemCountMode::Count,
             this->database
         );
@@ -694,7 +791,7 @@ void Game::NewGame()
         this->party.skills[role] = NewEmptyItem();
         const u32 list = MapsTable(data, MapsDataTable::StartSkills, role);
 
-        for (u32 at = list; at + 1 < data.size() && MapsWord(data, at) != 0; at += 2)
+        for (u32 at = list; at + 1 < data.size() && MapsWord(data, at) != 0; at += sizeof(u16))
         {
             AddItem(this->party.skills[role]->next, MapsWord(data, at), 1, ItemCountMode::Count, this->database);
         }
@@ -711,7 +808,7 @@ void Game::NewGame()
 
         for (std::size_t slot = 0; slot < kEquipmentFromData; ++slot)
         {
-            const u16 id = MapsWord(data, list + 2 * slot);
+            const u16 id = MapsWord(data, list + sizeof(u16) * slot);
             ItemLink item;
 
             if (id != 0)
@@ -740,7 +837,7 @@ void Game::RefreshCursor()
 
     if (this->input.IsKeyDown(kWaitKey) != 0)
     {
-        pointer.act.action = 0xF;
+        pointer.act.action = Scene::WaitPointer;
     }
 
     if (this->menuState == Game::NoMenu)
@@ -754,7 +851,7 @@ void Game::RefreshCursor()
                 view.unk4ACBC8 = 0;
             }
         }
-        else if (++view.unk4ACBCC > 0x10)
+        else if (++view.unk4ACBCC > kButtonDelay)
         {
             if (--view.unk4ACBC8 < kButtonHidden)
             {
@@ -763,14 +860,14 @@ void Game::RefreshCursor()
 
             const ButtonState& click = this->controls.At(Button::MouseLeft);
 
-            if (click.press != 0 && static_cast<u32>(this->state.pointerX) > 0x262 &&
-                static_cast<u32>(this->state.pointerY) < 0x18 && this->state.leader.id == Role::NoId)
+            if (click.press != 0 && static_cast<u32>(this->state.pointerX) > kButtonLeft &&
+                static_cast<u32>(this->state.pointerY) < kButtonBottom && this->state.leader.id == Role::NoId)
             {
                 this->menuState = Game::MenuEntering | Game::MainMenu;
             }
         }
 
-        if (this->state.leader.id != Role::NoId && this->state.leader.unk20 >= 8)
+        if (this->state.leader.id != Role::NoId && this->state.leader.unk20 >= kUnkLeader20Limit)
         {
             button = false;
         }
@@ -830,11 +927,12 @@ std::string Game::MusicPath(int index) const
 {
     const std::vector<u8>& data = this->databases.mapsData;
     const u32 names = MapsTable(data, MapsDataTable::Music);
-    const u32 entry = MapsWord(data, names + 4 * static_cast<u32>(index)) |
-                      static_cast<u32>(MapsWord(data, names + 4 * static_cast<u32>(index) + 2)) << 16;
+    const u32 entry = MapsDword(data, names + sizeof(u32) * static_cast<u32>(index));
     std::string path = this->config.installDirectory + "Music\\";
 
-    for (std::size_t at = static_cast<std::size_t>(entry) + 4; at < data.size() && data[at] != '.'; ++at)
+    for (std::size_t at = static_cast<std::size_t>(entry) + MapsRecord::MusicNameAt;
+         at < data.size() && data[at] != '.';
+         ++at)
     {
         path.push_back(static_cast<char>(data[at]));
     }
@@ -847,7 +945,8 @@ void Game::PlayMusic(const std::string& path)
 {
     if (this->state.GameFlag(GameState::Music))
     {
-        this->audio.Streams().Play(path, AudioManager::MusicId, (this->config.musicVolume << 7) / 0xB, 1);
+        this->audio.Streams()
+            .Play(path, AudioManager::MusicId, this->config.musicVolume * kStreamVolume / Config::MaxVolume, kPlayOnce);
     }
 }
 
@@ -873,13 +972,13 @@ void Game::StartStory(int withMap)
     this->state.ClearWorld();
     const std::vector<u8>& data = this->databases.mapsData;
     const u32 start = MapsTable(data, MapsDataTable::NewStory);
-    const u16 leader = MapsWord(data, start + 0xC);
+    const u16 leader = MapsWord(data, start + MapsRecord::NewStoryLeaderAt);
     Role& lead = this->state.leader;
     lead.unk14 = 0;
     this->unk4B7BC4 = leader;
     lead.id = leader;
     lead.unk20 = 0;
-    lead.event = 0x64;
+    lead.event = kOpeningEvent;
     lead.flags = 0;
     this->scene.musicTunes = {};
     this->scene.musicCue = 0;
@@ -889,11 +988,11 @@ void Game::StartStory(int withMap)
         this->currentMap = Field::VeniceTavern;
         this->LoadCity(
             MapsWord(data, start),
-            MapsWord(data, start + 2),
-            MapsWord(data, start + 4),
-            static_cast<i16>(MapsWord(data, start + 6)),
-            static_cast<i16>(MapsWord(data, start + 8)),
-            static_cast<i16>(MapsWord(data, start + 0xA)),
+            MapsWord(data, start + MapsRecord::NewStoryColumnAt),
+            MapsWord(data, start + MapsRecord::NewStoryRowAt),
+            static_cast<i16>(MapsWord(data, start + MapsRecord::NewStoryActAt)),
+            static_cast<i16>(MapsWord(data, start + MapsRecord::NewStoryActionAt)),
+            static_cast<i16>(MapsWord(data, start + MapsRecord::NewStoryDirectionAt)),
             0
         );
     }
@@ -902,7 +1001,7 @@ void Game::StartStory(int withMap)
 // swd32.exe 0x00409DD0: the fame of Fame.dat (0x200 words, zeros when missing) as counters 1..500 of the second list
 void Game::LoadFameFile()
 {
-    std::array<u16, 0x200> values = {};
+    std::array<u16, kFameWords> values = {};
     File file;
 
     if (file.Open(
@@ -917,7 +1016,7 @@ void Game::LoadFameFile()
 
     file.Close();
 
-    for (int id = 1; id <= 0x1F4; ++id)
+    for (int id = 1; id <= kFameCounters; ++id)
     {
         SetCounterCapped(
             this->party.fame.lists[Fame::FameList],
@@ -933,15 +1032,15 @@ void Game::DrawTextInput(const TextInput& box)
 {
     const int x = box.GetX();
     const int y = box.GetY();
-    const Picture* picture = this->archive.GetPicture(0x2449, 0);
+    const Picture* picture = this->archive.GetPicture(kNameBoxPicture, 0);
 
     if (picture != nullptr)
     {
         this->painter.SetSource(picture->data.data());
-        this->painter.DrawPicture(x - 0x6C, y - 0x2E, picture->width, picture->height, 0);
+        this->painter.DrawPicture(x - kNameBoxLeft, y - kNameBoxUp, picture->width, picture->height, 0);
     }
 
-    std::string text = box.CopyText(0x40);
+    std::string text = box.CopyText(kNameBytes);
 
     for (std::size_t at = 0; at < text.size();)
     {
@@ -955,10 +1054,20 @@ void Game::DrawTextInput(const TextInput& box)
         at = next;
     }
 
-    const auto color = static_cast<Pixel>(this->painter.MakeColor(0x15, 0xF, 8));
-    this->largeFont.DrawText(this->painter.Target(), x, y, text, color, 4);
+    const auto color = static_cast<Pixel>(this->painter.MakeColor(kNameRed, kNameGreen, kNameBlue));
+    this->largeFont.DrawText(this->painter.Target(), x, y, text, color, TextFont::BoldShadow);
     const int cursor = box.GetCursor();
-    FillBox(this->painter, x + 0xB * cursor, y, 0xB, 0x16, 0x14, 0xD, 0, FillMode::Gradient);
+    FillBox(
+        this->painter,
+        x + kNameGlyphWidth * cursor,
+        y,
+        kNameGlyphWidth,
+        kCursorHeight,
+        kCursorRed,
+        kCursorGreen,
+        0,
+        FillMode::Gradient
+    );
 }
 
 // swd32.exe 0x0040CF10: the music queue, the streams, the MIDI player and the sound effects
@@ -986,7 +1095,7 @@ void Game::MusicCue()
     const bool second = (cue & Scene::StoryMusic) != 0;
     const u32 thirdMark = second ? Scene::StoryLoops : Scene::SceneLoops;
     const u32 secondMark = second ? Scene::StoryRepeatFirst : Scene::SceneRepeatFirst;
-    std::array<i32, 6>& tunes = view.musicTunes;
+    auto& tunes = view.musicTunes;
 
     if (tunes[Scene::StoryFade] < 0)
     {
@@ -1010,7 +1119,7 @@ void Game::MusicCue()
             return;
         }
 
-        next = (cue & secondMark) != 0 ? 1 : 2;
+        next = static_cast<int>((cue & secondMark) != 0 ? Scene::SceneFirst : Scene::SceneSecond);
     }
 
     if (next >= 1)
@@ -1065,25 +1174,25 @@ void Game::MainFrame()
     this->unk4C8444 = now;
     this->input.PollKeyboard();
     this->controls.Poll(this->input, this->config, this->state, static_cast<i32>(this->frameStart));
-    this->scene.pointerRole.act.action = 0xD;
+    this->scene.pointerRole.act.action = Scene::ChoicePointer;
     this->MusicCue();
 
     if (this->menuState != Game::NoMenu)
     {
-        this->unk4CAD24 = 0x400;
-        this->counterAlpha = 0x10;
+        this->unk4CAD24 = kCounterHidden;
+        this->counterAlpha = kCounterOpaque;
         this->AudioPump();
-        this->largeFont.SetAdvance(0x16);
-        this->mediumFont.SetAdvance(0x12);
-        this->smallFont.SetAdvance(0x10);
+        this->largeFont.SetAdvance(kMapLargeAdvance);
+        this->mediumFont.SetAdvance(kMediumFontAdvance);
+        this->smallFont.SetAdvance(kMapSmallAdvance);
 
         switch (this->menuState & Game::MenuNumberMask)
         {
-            case 1:
-            case 3:
-            case 4:
-            case 5:
-            case 6:
+            case Game::MainMenu:
+            case Game::TitleScreenMenu:
+            case Game::SystemMenuA:
+            case Game::SystemMenuB:
+            case Game::NameEntryMenu:
                 this->menu.Run();
                 break;
 
@@ -1114,9 +1223,9 @@ void Game::MainFrame()
             if ((this->systemFlags & (Game::UnkSystem1 | Game::QuitRequested)) == 0)
             {
                 this->rolePath.Update();
-                this->largeFont.SetAdvance(0x16);
-                this->mediumFont.SetAdvance(0x12);
-                this->smallFont.SetAdvance(0x10);
+                this->largeFont.SetAdvance(kMapLargeAdvance);
+                this->mediumFont.SetAdvance(kMediumFontAdvance);
+                this->smallFont.SetAdvance(kMapSmallAdvance);
                 this->fieldView.Render();
             }
 
@@ -1176,13 +1285,13 @@ void Game::HandleEvent(const SDL_Event& event)
         const SDL_MouseButtonFlags buttons = SDL_GetMouseState(nullptr, nullptr);
         const SDL_Keymod modifiers = SDL_GetModState();
         u32 held = 0;
-        held |= (buttons & SDL_BUTTON_LMASK) != 0 ? 1u : 0u;
-        held |= (buttons & SDL_BUTTON_RMASK) != 0 ? 2u : 0u;
-        held |= (modifiers & SDL_KMOD_SHIFT) != 0 ? 4u : 0u;
-        held |= (modifiers & SDL_KMOD_CTRL) != 0 ? 8u : 0u;
-        held |= (buttons & SDL_BUTTON_MMASK) != 0 ? 0x10u : 0u;
+        held |= (buttons & SDL_BUTTON_LMASK) != 0 ? kLeftButton : 0u;
+        held |= (buttons & SDL_BUTTON_RMASK) != 0 ? kRightButton : 0u;
+        held |= (modifiers & SDL_KMOD_SHIFT) != 0 ? kShiftKey : 0u;
+        held |= (modifiers & SDL_KMOD_CTRL) != 0 ? kControlKey : 0u;
+        held |= (buttons & SDL_BUTTON_MMASK) != 0 ? kMiddleButton : 0u;
 
-        if (held == 0x1B)
+        if (held == kStopVideoButtons)
         {
             this->StopVideo();
         }
@@ -1198,30 +1307,30 @@ void Game::HandleEvent(const SDL_Event& event)
         struct KeyCode
         {
             SDL_Keycode key;
-            u32 virtualKey;
+            TextKey virtualKey;
             bool character;
         };
 
         constexpr std::array<KeyCode, 8> kKeys = {{
-            {SDLK_BACKSPACE, 8, true},
-            {SDLK_RETURN, 0xD, true},
-            {SDLK_ESCAPE, 0x1B, true},
-            {SDLK_LEFT, 0x25, false},
-            {SDLK_RIGHT, 0x27, false},
-            {SDLK_HOME, 0x24, false},
-            {SDLK_END, 0x23, false},
-            {SDLK_DELETE, 0x2E, false},
+            {SDLK_BACKSPACE, TextKey::Back, true},
+            {SDLK_RETURN, TextKey::Return, true},
+            {SDLK_ESCAPE, TextKey::Escape, true},
+            {SDLK_LEFT, TextKey::Left, false},
+            {SDLK_RIGHT, TextKey::Right, false},
+            {SDLK_HOME, TextKey::Home, false},
+            {SDLK_END, TextKey::End, false},
+            {SDLK_DELETE, TextKey::Delete, false},
         }};
 
         for (const KeyCode& code : kKeys)
         {
             if (event.key.key == code.key)
             {
-                this->SendText(TextMessage::KeyDown, code.virtualKey);
+                this->SendText(TextMessage::KeyDown, static_cast<u32>(code.virtualKey));
 
                 if (code.character)
                 {
-                    this->SendText(TextMessage::Char, code.virtualKey);
+                    this->SendText(TextMessage::Char, static_cast<u32>(code.virtualKey));
                 }
             }
         }

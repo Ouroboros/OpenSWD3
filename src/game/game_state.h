@@ -151,6 +151,7 @@ public:
     // Story flags (GameState::flags) the code tests by number.
     enum StoryFlag : int
     {
+        Unk0 = 0,          // cleared by a new game
         Running = 1,       // cleared when the debug quit key ends the game
         DebugReports = 2,  // the internal errors are reported
         Music = 3,         // music plays (cleared without DirectInput)
@@ -163,6 +164,8 @@ public:
         NoPointer = 0xA,      // the pointer is not drawn
         HideActRoles = 0xB,   // roles drawn by an act alone are skipped
         Encounters = 0xC,     // enemies are met on the map
+        UnkD = 0xD,           // cleared by a new game
+        UnkE = 0xE,
         OverlaysFirst = 0xF,  // the map's overlays are drawn before the roles (map effect bit 7)
         Timer = 0x10,         // the first timer runs
         TimerExpired = 0x11,
@@ -171,6 +174,7 @@ public:
         NoSlide = 0x14,  // steps into walls do not slide (debug key Ctrl+F3)
         Unk15 = 0x15,    // cleared by a new game
         Fireflies = 0x16,
+        Unk17 = 0x17,    // cleared by a new game
         InParty = 0x1E,  // 0x1E..0x21: the four roles are in the party
         NoLoadingScreen = 0x46,
         PlainScreen = 0x48,  // the spotlight, the bubbles, the ripples and the screen effects are off

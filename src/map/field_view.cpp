@@ -18,9 +18,6 @@ namespace swd3
 namespace
 {
 
-constexpr int kEffectAct = 0x232B;
-constexpr int kTimerAct = 0x232C;
-
 constexpr int kScreenColumns = Display::Width / MapHeader::TileSize;
 constexpr int kScreenRows = Display::Height / MapHeader::TileSize;
 constexpr int kRoleMarginX = Display::Width / 2;  // roles this far beside the screen are still drawn
@@ -946,7 +943,7 @@ void FieldView::DrawBubbles(int x, int y, u16 role)
     Scene& view = owner.scene;
     Painter& painter = owner.painter;
     const int sway = static_cast<int>(random.Below(kSwayRange)) - kSwayShift;
-    view.unk4ACAF8.id = kEffectAct;
+    view.unk4ACAF8.id = Scene::EffectAct;
     view.unk4ACAF8.action = kBubbleAction;
     owner.acts.Run(view.unk4ACAF8);
     const Picture* picture = owner.archive.GetPicture(view.unk4ACAF8.frame, view.unk4ACAF8.picture);
@@ -1621,7 +1618,7 @@ void FieldView::DrawWeather()
             }
         }
 
-        view.unk4ACAF8.id = kEffectAct;
+        view.unk4ACAF8.id = Scene::EffectAct;
         view.unk4ACAF8.action = motion.action;
         owner.acts.Run(view.unk4ACAF8);
         const Picture* picture = owner.archive.GetPicture(view.unk4ACAF8.frame, view.unk4ACAF8.picture);
@@ -2123,7 +2120,7 @@ void FieldView::DrawSpotlight()
     Scene& view = owner.scene;
     Painter& painter = owner.painter;
     ActState& act = view.unk4AD3F0;
-    act.id = kEffectAct;
+    act.id = Scene::EffectAct;
     act.action = kSpotlightRimAction;
     owner.acts.Run(act);
     const Picture* rim = owner.archive.GetPicture(act.frame, act.picture);
@@ -2244,7 +2241,7 @@ void FieldView::DrawTimer(int x, int y, int which)
     }
 
     ActState& digits = view.unk4A9A30;
-    digits.id = kTimerAct;
+    digits.id = Scene::TimerAct;
     digits.direction = 0;
     int at = x;
 

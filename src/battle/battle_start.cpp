@@ -175,7 +175,7 @@ void Game::StartBattle(u16 number)
     battle.unk4FF578.fill(1);
     ResetPlayback(this->talk.endAct);
     this->talk.endAct.id = Scene::PointerAct;
-    this->talk.endAct.action = Scene::UnkPointerC;
+    this->talk.endAct.action = Scene::ButtonPointer;
     this->graphics.SetClearColor(this->painter.FillColorPair());
 
     for (int role = 0; role < Party::Roles; ++role)

@@ -108,6 +108,7 @@ public:
     // The results of CheckCd.
     static constexpr int CdFound = 1;
     static constexpr int CdMissing = 2;
+    static constexpr u8 NoDrive = 0xFF;  // ends cdDrives
 
     // `storyState`: 0 while the story runs, SaveSlotsState while the save slots are shown.
     static constexpr i32 StoryRunning = 0;

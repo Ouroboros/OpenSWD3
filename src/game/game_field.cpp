@@ -33,7 +33,6 @@ constexpr u8 kGlowWeather = 0x40;
 constexpr u8 kOverlaysFirst = 0x80;
 
 constexpr int kSceneFadeLength = 0xF;  // the fade of the scene music when the map changes it
-constexpr int kLoadingAct = 0x232A;
 constexpr int kLoadingAction = 0x4F;
 constexpr int kLoadingBarWidth = 0x18A;
 constexpr std::size_t kScreenBytes = sizeof(Pixel) * Display::Pixels;
@@ -90,7 +89,6 @@ constexpr i32 kLeaderSpecialAct = 0x5F;  // with kSpecialItem on the maps of the
 constexpr u32 kFollowUnlisted = 1;       // a flagged role not in the follower table follows
 constexpr u32 kFollowStory = 2;          // a listed one follows for the story values it lists
 
-constexpr u8 kNoDrive = 0xFF;       // ends Game::cdDrives
 constexpr u32 kShortCdWait = 1000;  // milliseconds of uptime before the CD is looked for (one drive: kLongCdWait)
 constexpr u32 kLongCdWait = 3000;
 
@@ -99,10 +97,8 @@ constexpr int kSoundScale = 0x80;
 constexpr int kPanScale = 0x40;
 constexpr int kPlayOnce = 1;
 
-// The encounter sets (maps.dat table 0x12): their count, then kSetWords words each: kSetPairs pairs of a step
-// threshold and a chance in percent.
-constexpr std::size_t kSetsAt = 1;
-constexpr std::size_t kSetWords = 8;
+// The encounter sets (maps.dat table 0x12): their count, then MapsRecord::GroupWords words each: kSetPairs pairs of a
+// step threshold and a chance in percent.
 constexpr int kSetPairs = 4;
 constexpr std::size_t kPairWords = 2;
 constexpr u32 kPercent = 100;
@@ -168,7 +164,7 @@ void Game::ShowLoading(int percent)
         }
 
         this->loadingPercent = shown;
-        view.unk4A93E8.id = kLoadingAct;
+        view.unk4A93E8.id = Scene::LoadingAct;
         view.unk4A93E8.action = kLoadingAction;
         view.unk4A93E8.direction = 0;
         view.unk4A93E8.x = 0;
@@ -621,7 +617,7 @@ int Game::CheckCd(const std::string& root, int& drive)
     int drives = 0;
 
     while (drives < static_cast<int>(this->cdDrives.size()) &&
-           this->cdDrives[static_cast<std::size_t>(drives)] != kNoDrive)
+           this->cdDrives[static_cast<std::size_t>(drives)] != Game::NoDrive)
     {
         ++drives;
     }
@@ -668,7 +664,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
 
     if (this->drawSurface != nullptr)
     {
-        view.unk4A93E8.id = kLoadingAct;
+        view.unk4A93E8.id = Scene::LoadingAct;
         view.unk4A93E8.action = kLoadingAction;
         view.unk4A93E8.direction = 0;
         view.unk4A93E8.x = 0;
@@ -1212,7 +1208,7 @@ u32 Game::RollEncounter(int steps, int force)
     const Role& player = this->state.roles[static_cast<std::size_t>(this->state.playerRole)];
     const auto roll = static_cast<int>(this->random.Below(kPercent));
     const std::vector<u16>& sets = view.unk4CAE78;
-    std::size_t at = kSetsAt + kSetWords * static_cast<std::size_t>(view.unk4B896C - 1);
+    std::size_t at = MapsRecord::GroupsAt + MapsRecord::GroupWords * static_cast<std::size_t>(view.unk4B896C - 1);
     int threshold = 0;
     int pair = kSetPairs;
 

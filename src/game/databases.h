@@ -62,6 +62,9 @@ struct MapsRecord
     static constexpr std::size_t MusicSecondAt = 4;
     static constexpr std::size_t MusicMarksAt = 6;
 
+    // Table 2: a tune record, its file name from MusicNameAt.
+    static constexpr std::size_t MusicNameAt = 4;
+
     // Table 3: the settings of a map.
     static constexpr std::size_t SettingsBytes = 0xE;
     static constexpr std::size_t SettingsUnitAt = 2;
@@ -72,6 +75,19 @@ struct MapsRecord
     static constexpr std::size_t SettingsUnk4B896CAt = 0xA;
     static constexpr std::size_t SettingsUnk4B88C0At = 0xC;
 
+    // Table 4: where a new story starts.
+    static constexpr std::size_t NewStoryColumnAt = 2;
+    static constexpr std::size_t NewStoryRowAt = 4;
+    static constexpr std::size_t NewStoryActAt = 6;
+    static constexpr std::size_t NewStoryActionAt = 8;
+    static constexpr std::size_t NewStoryDirectionAt = 0xA;
+    static constexpr std::size_t NewStoryLeaderAt = 0xC;
+
+    // Table 5: a start item and its count; table 6: the start records of the roles.
+    static constexpr std::size_t StartItemBytes = 4;
+    static constexpr std::size_t StartItemCountAt = 2;
+    static constexpr std::size_t StartRoleBytes = 0x34;
+
     // Table 7: an encounter area in tiles and its encounter table.
     static constexpr std::size_t AreaBytes = 0xE;
     static constexpr std::size_t AreaLeftAt = 2;
@@ -79,6 +95,10 @@ struct MapsRecord
     static constexpr std::size_t AreaRightAt = 6;
     static constexpr std::size_t AreaBottomAt = 8;
     static constexpr std::size_t AreaTableAt = 0xA;
+
+    // Table 0x12: the encounter groups of GroupWords words (copied after their count).
+    static constexpr std::size_t GroupWords = 8;
+    static constexpr std::size_t GroupsAt = 1;
 
     // Table 0x14: a place name after its map number.
     static constexpr std::size_t PlaceNameAt = sizeof(u16);

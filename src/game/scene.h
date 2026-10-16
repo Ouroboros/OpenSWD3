@@ -289,6 +289,7 @@ struct Scene
     static constexpr std::size_t StoryFade = 3;
     static constexpr std::size_t StoryFirst = 4;
     static constexpr std::size_t StorySecond = 5;
+    static constexpr std::size_t MusicSlots = 6;
     static constexpr u32 FadePending = 0x80000000;  // in a fade slot: the mode is still to be set
     static constexpr u32 FadeModeMask = 0xF;
     static constexpr i32 NoTune = 0x8000;  // in a tune: none
@@ -315,12 +316,18 @@ struct Scene
     static constexpr u16 GlowWeatherActions = 4;   // the weather added to the screen
     static constexpr u16 ShadeWeatherActions = 8;  // the weather subtracted from it
     static constexpr int SpotlightRadius = 0xC0;   // half the side of the lit square
+    // The acts of the screen (the system act archive).
     static constexpr int PointerAct = 0x2329;
+    static constexpr int LoadingAct = 0x232A;
+    static constexpr int EffectAct = 0x232B;
+    static constexpr int TimerAct = 0x232C;
     // Actions of the pointer act besides the directions 0..7.
     static constexpr i32 TalkPointer = 9;
     static constexpr i32 ExaminePointer = 0xA;
     static constexpr i32 RegionPointer = 0xB;
-    static constexpr i32 UnkPointerC = 0xC;  // the end act of a battle
+    static constexpr i32 ButtonPointer = 0xC;  // also the end act of a battle
+    static constexpr i32 PagePointer = 0xE;
+    static constexpr i32 WaitPointer = 0xF;  // while the wait key is held
     static constexpr i32 ChoicePointer = 0xD;
     static constexpr u32 PointerFlags = 0x9000;
 
@@ -359,9 +366,9 @@ struct Scene
     std::unique_ptr<TalkWindow> talkWindows;  // 0x004ACF48
     std::array<ActState, 4> unk4AD0D8;
     ActState unk4AD3F0;
-    std::optional<std::string> unk4B74F4;  // a name of up to 0x33 bytes (flag 0x4E)
-    std::optional<std::string> unk4B751C;  // (flag 0x4D)
-    std::array<i32, 6> musicTunes = {};    // 0x004B7C74 by MusicSlot
+    std::optional<std::string> unk4B74F4;         // a name of up to 0x33 bytes (flag 0x4E)
+    std::optional<std::string> unk4B751C;         // (flag 0x4D)
+    std::array<i32, MusicSlots> musicTunes = {};  // 0x004B7C74 by MusicSlot
     std::array<ActState, 8> unk4B9F68;
     ActState unk4C83A8;
     i32 unk4C8BE0 = 0;
