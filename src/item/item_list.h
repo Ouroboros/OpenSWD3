@@ -50,5 +50,7 @@ ItemNode* FindItemOfKind(const ItemLink& list, i16 id);
 ItemNode* ItemAt(const ItemLink& list, u16 index);
 ItemNode* AddFlaggedItem(ItemLink& list, u16 id, i16 amount, i16 flagged, Database& database);
 ItemNode* AddItem(ItemLink& list, u16 id, i16 amount, ItemCountMode mode, Database& database);
+void SortItems(ItemLink& list);
+void SortSkills(std::span<std::unique_ptr<ItemNode>> heads);
 
 }  // namespace swd3

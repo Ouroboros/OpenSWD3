@@ -10,6 +10,7 @@ namespace swd3
 class BattleEnemy : public BattleUnit
 {
 public:
+    void Setup(const UnitPlacement& at, u16 id, Database& database);
     BattleEnemy();
 };
 

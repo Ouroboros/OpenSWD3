@@ -48,9 +48,12 @@ struct ObjectData
     u16 agility = 0;                     // +0x5A the battle speed
     u16 unk5C = 0;                       // +0x5C
     u16 ailmentChance = 0;               // +0x5E an ailment lands on a roll of 1..10 up to it
-    std::array<u8, 4> unk60 = {};        // +0x60
+    u16 skill = 0;                       // +0x60 an enemy's skill script (mon.dat)
+    u16 unk62 = 0;                       // +0x62
     i16 hitPoints = 0;                   // +0x64
-    std::array<u8, 0x2C> unk66 = {};     // +0x66
+    std::array<u8, 0x2A> unk66 = {};     // +0x66
+    u8 battleLevel = 0;                  // +0x90 a unit's level byte in battle
+    u8 unk91 = 0;                        // +0x91
     std::array<u8, 9> resistances = {};  // +0x92 tag 0x7D0: per element
     u8 unk9B = 0;                        // +0x9B tag 0x1C, 0x7D0
     u8 unk9C = 0;                        // +0x9C tag 0x1D, 0x7D0

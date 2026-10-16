@@ -14,6 +14,7 @@
 #include "core/format.h"
 #include "crt/msvc.h"
 #include "draw/painter.h"
+#include "org/database.h"
 #include "party/party.h"
 #include "pic/picture.h"
 #include "random/random.h"
@@ -2322,6 +2323,172 @@ void BattleUnit::Reset(BattleServices& services)
     this->facing = 0;
     this->unk2B0C = 0;
     this->name = 0;
+}
+
+// swd32.exe 0x0047F900
+int BattleUnit::SetFacing(int value)
+{
+    this->facing = value;
+    return value;
+}
+
+// swd32.exe 0x00483FE0
+void BattleUnit::SetDisplayName(std::span<const char> name)
+{
+    this->displayName = name;
+}
+
+// swd32.exe 0x00483870: a party role's maximum stamina and its stamina (nothing for an enemy)
+void BattleUnit::GetStamina(u16& maximum, u16& value) const
+{
+    if (this->kind == BattleUnit::kPartyRole)
+    {
+        maximum = static_cast<u16>(this->roleRecord->maxStamina);
+        value = static_cast<u16>(this->roleRecord->stamina);
+    }
+}
+
+// swd32.exe 0x004838A0: a party role's maximum spirit and its spirit (nothing for an enemy)
+void BattleUnit::GetSpirit(u16& maximum, u16& value) const
+{
+    if (this->kind == BattleUnit::kPartyRole)
+    {
+        maximum = static_cast<u16>(this->roleRecord->maxSpirit);
+        value = static_cast<u16>(this->roleRecord->spirit);
+    }
+}
+
+// swd32.exe 0x00484500: the hit points and their maximum: a party role's from its record, an enemy's from its object
+// (its current hit points when overridden)
+void BattleUnit::GetHitPoints(i32& value, i32& maximum) const
+{
+    if (this->kind == BattleUnit::kPartyRole)
+    {
+        maximum = this->roleRecord->maxHitPoints;
+        value = this->roleRecord->hitPoints;
+        return;
+    }
+
+    value = this->data->data.hitPoints;
+
+    if (this->hitPointsOverride != 0)
+    {
+        value = this->hitPointsOverride;
+    }
+
+    maximum = this->data->data.maxHitPoints;
+}
+
+// swd32.exe 0x004755E0: the action gauge filled by a quarter of the agility (an eighth while slowed, with a quarter
+// more and one when boosted; status bits 29 and 27 add and take 30%, bit 31 takes 10% more) while below full; a full
+// gauge marks the unit ready (true). Held and bit-14 units do not move.
+int BattleUnit::AdvanceGauge(const BattleServices& services, int boost)
+{
+    if ((this->marks & 0x40) != 0 || (this->marks & 0x4000) != 0)
+    {
+        return 0;
+    }
+
+    const u16 gauge = this->gauge;
+
+    if (gauge < static_cast<u32>(services.state.gaugeFull))
+    {
+        int step = this->data->data.agility >> 2;
+
+        if ((this->status & 0x40) != 0)
+        {
+            step = this->data->data.agility >> 3;
+        }
+
+        if (boost == 1)
+        {
+            step += step / 4 + 1;
+        }
+
+        int gain = 0;
+        int loss = 0;
+
+        if ((this->status & 0x20000000) != 0)
+        {
+            gain = 0x1E * step / 0x64;
+        }
+
+        if ((this->status & 0x8000000) != 0)
+        {
+            loss = 0x1E * step / 0x64;
+        }
+
+        if ((this->status & 0x80000000) != 0)
+        {
+            loss = static_cast<u16>(0xA * step / 0x64 + loss);
+        }
+
+        this->unk2AB0 = 0;
+        this->gauge = static_cast<u16>(step + gain + gauge - loss);
+        return 0;
+    }
+
+    this->unk2AB0 = 1;
+    this->unk2AEC = 0;
+
+    if (this->name == 1)
+    {
+        this->name = 0;
+        this->facing = 0;
+    }
+
+    return 1;
+}
+
+// The skill script `id` read into the command (0x00476A80 on the record at +0xD90; it sets only the fields its
+// opcodes name).
+void BattleUnit::LoadCommand(Database& database, u16 id)
+{
+    SkillScript skill;
+    skill.unk00 = static_cast<u32>(this->command.unk00);
+    skill.flags = this->command.actionFlags;
+    skill.statusBits = static_cast<u32>(this->command.unk08);
+    skill.unk0C = this->command.flags | static_cast<u32>(this->command.unk0E[0]) << 16 |
+                  static_cast<u32>(this->command.unk0E[1]) << 24;
+    skill.unk10 = this->command.unk0E[2] | static_cast<u32>(this->command.unk0E[3]) << 8 |
+                  static_cast<u32>(this->command.followAct) << 16;
+    skill.unk14 = this->command.castAct;
+    skill.unk16 = this->command.unk16;
+    skill.ailment = static_cast<u16>(this->command.unk18[0] | this->command.unk18[1] << 8);
+    skill.element = static_cast<u16>(this->command.unk18[2] | this->command.unk18[3] << 8);
+    skill.unk1C = static_cast<u16>(this->command.unk18[4] | this->command.unk18[5] << 8);
+    skill.unk1E = static_cast<u16>(this->command.unk1E);
+    skill.unk20 = this->command.unk20;
+    skill.unk22 = this->command.target;
+    skill.turns = this->command.unk24;
+    database.LoadSkill(skill, id);
+    this->command.unk00 = static_cast<i32>(skill.unk00);
+    this->command.actionFlags = skill.flags;
+    this->command.unk08 = static_cast<i32>(skill.statusBits);
+    this->command.flags = static_cast<u16>(skill.unk0C);
+    this->command.unk0E = {
+        static_cast<u8>(skill.unk0C >> 16),
+        static_cast<u8>(skill.unk0C >> 24),
+        static_cast<u8>(skill.unk10),
+        static_cast<u8>(skill.unk10 >> 8),
+    };
+
+    this->command.followAct = static_cast<u16>(skill.unk10 >> 16);
+    this->command.castAct = skill.unk14;
+    this->command.unk16 = skill.unk16;
+    this->command.unk18 = {
+        static_cast<u8>(skill.ailment),
+        static_cast<u8>(skill.ailment >> 8),
+        static_cast<u8>(skill.element),
+        static_cast<u8>(skill.element >> 8),
+        static_cast<u8>(skill.unk1C),
+        static_cast<u8>(skill.unk1C >> 8),
+    };
+
+    this->command.unk1E = static_cast<i16>(skill.unk1E);
+    this->command.unk20 = skill.unk20;
+    this->command.target = skill.unk22;
+    this->command.unk24 = skill.turns;
 }
 
 }  // namespace swd3

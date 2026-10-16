@@ -73,6 +73,9 @@ struct UnitCommand
 
 // A unit in battle (0x2B28 bytes in the original; the base of BattleRole and BattleEnemy). Offsets of the original are
 // given for reference; fields not yet named keep their offset.
+class Database;
+class ErrorReporter;
+
 class BattleUnit
 {
 public:
@@ -173,6 +176,13 @@ public:
     void SetDefeatPose(u8 pose);
     void SetDefeatPoseFixed(u8 pose);
     void SetDamageDigits(BattleServices& services, int amount);
+    int AdvanceGauge(const BattleServices& services, int boost);
+    void LoadCommand(Database& database, u16 id);
+    int SetFacing(int value);
+    void SetDisplayName(std::span<const char> name);
+    void GetStamina(u16& maximum, u16& value) const;
+    void GetSpirit(u16& maximum, u16& value) const;
+    void GetHitPoints(i32& value, i32& maximum) const;
 
     // swd32.exe 0x004A7D8C: the height of a popping letter or digit by phase.
     static constexpr std::array<i32, 10> kPopOffsets = {0, 12, 18, 12, 8, 4, 0, 2, 0, 0};
@@ -190,6 +200,8 @@ public:
     ObjectRecord* data = nullptr;      // +0x0C an enemy's mon.dat object (usually `object`)
     std::unique_ptr<ObjectRecord> ownedData;  // a party role's block at +0x0C (freed by Reset)
     ObjectRecord object;                      // +0x10 (its description at +0xB0)
+    ObjectRecord weapon;                      // +0xB4 a party role's weapon (equipment slot 0)
+    std::array<ObjectRecord, 2> accessories;  // +0x158 equipment slots 7 and 8
 
     ActState mainAct;                          // +0x2A0
     ActState standAct;                         // +0x338
@@ -221,6 +233,7 @@ public:
     i32 unk2670 = 0;
     i32 unk2674 = 0;
     u32 unk267C = 0;  // +0x267C bit 15: the follow-up action runs
+    i32 unk2684 = 0;
     i32 unk2690 = 0;
     u32 drawFlags = 0;   // +0x2694 bit 0: mirrored
     u32 frameFlags = 0;  // +0x26A0 flag 1 toggled for mirrored frames

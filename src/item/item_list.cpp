@@ -432,4 +432,77 @@ ItemNode* AddItem(ItemLink& list, u16 id, i16 amount, ItemCountMode mode, Databa
     return list.get();
 }
 
+namespace
+{
+
+// The node at `link` swapped with the node after it.
+void SwapWithNext(ItemLink& link)
+{
+    std::unique_ptr<ItemNode> first = std::move(link);
+    std::unique_ptr<ItemNode> second = std::move(first->next);
+    first->next = std::move(second->next);
+    second->next = std::move(first);
+    link = std::move(second);
+}
+
+}  // namespace
+
+// swd32.exe 0x0045D250: the items sorted by id: a pair out of order is swapped and the pass starts over from the head;
+// every node passed has its +6 word cleared (the last node keeps it)
+void SortItems(ItemLink& list)
+{
+    if (list == nullptr || list->next == nullptr)
+    {
+        return;
+    }
+
+    ItemLink* link = &list;
+
+    while ((*link)->next != nullptr)
+    {
+        ItemNode& node = **link;
+        node.unk06 = 0;
+
+        if (node.id <= node.next->id)
+        {
+            link = &node.next;
+        }
+        else
+        {
+            SwapWithNext(*link);
+            link = &list;
+        }
+    }
+}
+
+// swd32.exe 0x0045D2A0: the skill lists (the entries after each "無" head) sorted by id the same way, nothing cleared
+void SortSkills(std::span<std::unique_ptr<ItemNode>> heads)
+{
+    for (std::unique_ptr<ItemNode>& head : heads)
+    {
+        if (head == nullptr || head->next == nullptr || head->next->next == nullptr)
+        {
+            continue;
+        }
+
+        ItemLink& list = head->next;
+        ItemLink* link = &list;
+
+        while ((*link)->next != nullptr)
+        {
+            ItemNode& node = **link;
+
+            if (node.id <= node.next->id)
+            {
+                link = &node.next;
+            }
+            else
+            {
+                SwapWithNext(*link);
+                link = &list;
+            }
+        }
+    }
+}
+
 }  // namespace swd3
