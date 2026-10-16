@@ -3,6 +3,7 @@
 #include <cstring>
 
 #include "audio/audio.h"
+#include "core/debug_log.h"
 #include "core/mem.h"
 #include "crt/crt.h"
 #include "data/globals.h"
@@ -400,6 +401,76 @@ void InitNumberList() {
         ++G.dword_4FD298;
     }
     image::at<uint16_t>(0x004A6A00u + 2u * static_cast<uint32_t>(G.dword_4FD298)) = 0;
+}
+
+// swd32.exe 0x00448020: copies the inventory items (with their descriptions) that suit `mode` into the id sorted list
+// G.dword_4FD1E8: mode 0 takes items with a pending count, modes 3 / 6 items of the kinds 0x0049E334 / 0x0049E340
+// with a count, other modes items of kind table 0x0049E328[`mode`] but none of those two; items of kind 0 are always
+// taken (logged through the empty function at 0x0044A240 with game flag 2). The taken copy keeps one count and the
+// original the other. The insertion compares with the list variable read as a node first. The return value is
+// unused by callers.
+void CopyItemsForMenu(int mode) {
+    G.dword_4FD1E8 = 0;
+    G.word_4FD1F0 = 0;
+    for (uint8_t* item = G.inventory; item != nullptr; item = mem::ptr<uint8_t>(item, 0)) {
+        auto* copy = static_cast<uint8_t*>(crt::malloc(0xB0));
+        std::memcpy(copy, item, 0xB0);
+        const char* text = mem::ptr<const char>(item, 0xAC);
+        auto* description = static_cast<char*>(crt::malloc(static_cast<uint32_t>(w32::lstrlenA(text) + 1)));
+        mem::putPtr(copy, 0xAC, description);
+        w32::lstrcpyA(description, mem::ptr<const char>(item, 0xAC));
+        bool keep = false;
+        const uint32_t kind = mem::u32(copy, 0x2C);
+        const uint32_t kindA = image::at<uint32_t>(0x0049E334u);
+        const uint32_t kindB = image::at<uint32_t>(0x0049E340u);
+        if (mode == 0) {
+            keep = mem::u16(copy, 0xA) != 0;
+        } else if (mode == 3) {
+            keep = mem::u16(copy, 8) != 0 && (kind & kindA) != 0;
+        } else if (mode == 6) {
+            keep = mem::u16(copy, 8) != 0 && (kind & kindB) != 0;
+        } else if (mem::u16(copy, 8) != 0 &&
+                   (kind & image::at<uint32_t>(0x0049E328u + 4u * static_cast<uint32_t>(mode))) != 0) {
+            keep = (kind & (kindB + kindA)) == 0;
+        }
+        if (mem::u32(item, 0x2C) == 0) {
+            if (GameFlag(2)) {
+                w32::wsprintfA(G.menuText, G.asc_4A7038, mem::u16(item, 4), mem::u32(item, 0x2C));
+                DebugLog(G.menuText, 1);
+            }
+            keep = true;
+        }
+        if (!keep) {
+            crt::free(mem::ptr<uint8_t>(copy, 0xAC));
+            crt::free(copy);
+            continue;
+        }
+        if (mode == 0) {
+            mem::put16(copy, 8, 0);
+            mem::put16(item, 0xA, 0);
+        } else {
+            mem::put16(copy, 0xA, 0);
+            mem::put16(item, 8, 0);
+        }
+        auto* previous = reinterpret_cast<uint8_t*>(&G.dword_4FD1E8);
+        auto* current = reinterpret_cast<uint8_t*>(static_cast<std::uintptr_t>(G.dword_4FD1E8));
+        const bool empty = current == nullptr;
+        const uint16_t id = mem::u16(copy, 4);
+        while (current != nullptr) {
+            if (mem::u16(current, 4) >= id && mem::u16(previous, 4) < id) {
+                break;
+            }
+            current = mem::ptr<uint8_t>(current, 0);
+            previous = mem::ptr<uint8_t>(previous, 0);
+        }
+        if (current == nullptr || !empty) {
+            mem::putPtr(copy, 0, mem::ptr<uint8_t>(previous, 0));
+            mem::putPtr(previous, 0, copy);
+        } else {
+            G.dword_4FD1E8 = static_cast<std::int32_t>(reinterpret_cast<std::uintptr_t>(copy));
+            mem::putPtr(copy, 0, static_cast<uint8_t*>(nullptr));
+        }
+    }
 }
 
 }  // namespace swd3

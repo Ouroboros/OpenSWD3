@@ -25,5 +25,6 @@ int ReturnThree();
 void MenuPreviousPage();
 void MenuNextPage();
 void InitNumberList();
+void CopyItemsForMenu(int mode);
 
 }  // namespace swd3
