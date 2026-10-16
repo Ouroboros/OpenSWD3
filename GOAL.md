@@ -23,18 +23,18 @@
 - 当前阶段：第 2 阶段（还原），按版本 3 架构重建。
 - 已识别函数数：1626（无 FLIRT 数据库导出；函数外代码头 0）。
 - 函数总数：待确定（间接调用目标与函数指针表尚未全部核对，见 reverse/analysis/scope-and-gaps.md）。
-- 已实现／总数：439／待确定（已识别 1626）；旧逐句转写实现（804 个）保存在标签 legacy-transliteration，仅作参考。
+- 已实现／总数：604／待确定（已识别 1626）；旧逐句转写实现（804 个）保存在标签 legacy-transliteration，仅作参考。
 - 已验证／总数：0／待确定（已识别 1626）。
-- 待实现／待验证：1187／1626（按已识别函数计）。
+- 待实现／待验证：1022／1626（按已识别函数计）。
 - 模块初分：已归属 884，unknown 742（reverse/analysis/module_assignment.tsv）。
 
 ## 当前工作
 
-按 reverse/analysis/architecture.md 自底向上重建。已完成：骨架与窗口 Display、文件、LZO、绘制核心 Painter、RLE 编解码、tsw/act 档案与动作脚本、Graphics、MemMgr、TextFont（自带细明体点阵字库 GlyphLibrary）、Input、音频（AudioDevice 与 Miles 封装）、Bink 影片（Movie 与 MediaDecoder）、随机数、游戏状态基础、文字输入框、配置（Env.dat）、按键状态、投影与粒子效果、A* 寻路、数据库（mon.dat／level.dat）、道具链表、LZO 压缩器（经原版存档逐字节验证）、名声与计数表（经原版存档逐字节验证）、队伍数据与升级、界面绘制、战斗界面绘制辅助（BattleHud）、战斗道具列表（BattleState）；各模块以旧实现生成的黄金数据逐项对照（reverse/analysis/golden/）。
+按 reverse/analysis/architecture.md 自底向上重建。已完成：骨架与窗口 Display、文件、LZO、绘制核心 Painter、RLE 编解码、tsw/act 档案与动作脚本、Graphics、MemMgr、TextFont（自带细明体点阵字库 GlyphLibrary）、Input、音频（AudioDevice 与 Miles 封装）、Bink 影片（Movie 与 MediaDecoder）、随机数、游戏状态基础、文字输入框、配置（Env.dat）、按键状态、投影与粒子效果、A* 寻路、数据库（mon.dat／level.dat）、道具链表、LZO 压缩器（经原版存档逐字节验证）、名声与计数表（经原版存档逐字节验证）、队伍数据与升级、界面绘制、战斗界面绘制辅助（BattleHud）、战斗道具列表（BattleState）、战斗单位（BattleUnit 大部分方法与状态效果、BattleRole／BattleEnemy 构造与复位）、战斗讯息、启动器、游戏初始化链、新游戏起始状态、菜单核心与系统页（标题、设定、姓名输入）、存档预览；各模块以旧实现生成的黄金数据逐项对照（reverse/analysis/golden/）。
 
 ## 下一步
 
-战斗单位（BattleUnit／BattleRole／BattleEnemy，0x2B28 字节按用途命名）、战斗阵型与讯息、菜单状态（0x4FB000–0x4FDFFF 归类）、角色与移动、地图、对话、战斗、菜单与主循环。
+可进入标题画面（菜单状态 3）。下一步按启动路径补齐：存档读取（继续游戏）、剧情与地图入口（LoadCity 0x40C130、LoadMap 0x425BE0、地图缓存）、主循环的剧情／战斗／地图分支、窗口过程其余消息；之后是角色与移动、对话与剧本、战斗主体、其余菜单页。部分已登记函数依赖尚缺的部分，在函数表中保持待实现：菜单 Run／SetPage／InitActs（角色页）、StartStory（LoadCity）、主循环与窗口过程。
 
 ## GOAL完成条件
 
