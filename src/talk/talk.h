@@ -101,6 +101,7 @@ private:
     u8 Byte(const EventRun& run, std::size_t at) const;
     void SetWord(EventRun& run, std::size_t index, u16 value);
     void Advance(EventRun& run, int bytes);
+    void Next(EventRun& run);
     void SyncOffset(EventRun& run);
     void Jump(EventRun& run, u32 offset);
     Role* FoundRole(const EventRun& run);

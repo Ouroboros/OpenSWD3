@@ -166,6 +166,12 @@ void Talk::Advance(EventRun& run, int bytes)
     run.context.unk20 = static_cast<u16>(run.context.unk20 + bytes);
 }
 
+// Past a command of fixed length (CommandBytes).
+void Talk::Next(EventRun& run)
+{
+    this->Advance(run, CommandBytes(run.code));
+}
+
 // The offset of the role set to where the cursor is.
 void Talk::SyncOffset(EventRun& run)
 {
@@ -233,14 +239,14 @@ bool Talk::RunCommand(EventRun& run)
         {
             if (code == EventCommand::RunOff)
             {
-                this->Advance(run, 2);
+                this->Next(run);
                 run.running = false;
                 return false;
             }
 
             if (code == EventCommand::SkipQuick)
             {
-                this->Advance(run, 2);
+                this->Next(run);
                 return true;
             }
 
@@ -255,7 +261,7 @@ bool Talk::RunCommand(EventRun& run)
 
         if (code == EventCommand::RunOn)
         {
-            this->Advance(run, 2);
+            this->Next(run);
             run.running = true;
             return false;
         }
@@ -269,7 +275,7 @@ bool Talk::RunCommand(EventRun& run)
 
         if (this->game.fieldView.movie.frameIndex > run.valueA)
         {
-            this->Advance(run, 4);
+            this->Next(run);
             return true;
         }
 
@@ -732,18 +738,18 @@ bool Talk::RunRoleCommand(EventRun& run)
 
         case EventCommand::DialogNoSkip:
             this->dialogOptions &= 0x7FFFFFFF;
-            this->Advance(run, 2);
+            this->Next(run);
             return true;
 
         case EventCommand::DialogTimeout:
             this->dialogTimed = 1;
             this->dialogTimeout = this->Word(run, 1);
-            this->Advance(run, 4);
+            this->Next(run);
             return true;
 
         case EventCommand::DialogNoAdvance:
             this->dialogOptions &= 0xBFFFFFFF;
-            this->Advance(run, 2);
+            this->Next(run);
             return true;
 
         case EventCommand::SetAction:
@@ -789,7 +795,7 @@ bool Talk::RunRoleCommand(EventRun& run)
                 owner.UpdateRoleRecord(id, -1, -1, static_cast<i16>(value), -1, -1, -1, -1, 0x1000, -1, -1);
             }
 
-            this->Advance(run, 6);
+            this->Next(run);
             return true;
         }
 
@@ -800,7 +806,7 @@ bool Talk::RunRoleCommand(EventRun& run)
             if (!state.FindRoleOrPlayer(id, run.found))
             {
                 DebugLog(u8"setpos", id);
-                this->Advance(run, 8);
+                this->Next(run);
 
                 if (static_cast<i32>(run.found) == state.playerRole)
                 {
@@ -828,7 +834,7 @@ bool Talk::RunRoleCommand(EventRun& run)
                 -1,
                 -1
             );
-            this->Advance(run, 8);
+            this->Next(run);
 
             if (static_cast<i32>(run.found) == state.playerRole)
             {
@@ -854,7 +860,7 @@ bool Talk::RunRoleCommand(EventRun& run)
                 DebugLog(u8"Talk(Step)", id, owner.currentMap);
             }
 
-            this->Advance(run, 4);
+            this->Next(run);
             return false;
         }
 
@@ -866,7 +872,7 @@ bool Talk::RunRoleCommand(EventRun& run)
             {
                 if (context.unk26 == 0)
                 {
-                    this->Advance(run, 4);
+                    this->Next(run);
                 }
 
                 return false;
@@ -880,7 +886,7 @@ bool Talk::RunRoleCommand(EventRun& run)
                 return false;
             }
 
-            this->Advance(run, 4);
+            this->Next(run);
             return false;
         }
 
@@ -911,7 +917,7 @@ bool Talk::RunRoleCommand(EventRun& run)
 
             if (slot == GameState::Moves)
             {
-                this->Advance(run, 8);
+                this->Next(run);
                 return true;
             }
 
@@ -926,7 +932,7 @@ bool Talk::RunRoleCommand(EventRun& run)
 
             if (run.found < GameState::Roles && owner.rolePath.ResumeMove(static_cast<int>(run.found)))
             {
-                this->Advance(run, 4);
+                this->Next(run);
             }
 
             if (Role* role = this->FoundRole(run))
@@ -951,7 +957,7 @@ bool Talk::RunRoleCommand(EventRun& run)
                 }
             }
 
-            this->Advance(run, 2);
+            this->Next(run);
             return true;
 
         case EventCommand::MoveRoles:
@@ -965,7 +971,7 @@ bool Talk::RunRoleCommand(EventRun& run)
                 return true;
             }
 
-            this->Advance(run, 8);
+            this->Next(run);
             return true;
 
         case EventCommand::JumpIfAllFlags:
@@ -1007,7 +1013,7 @@ bool Talk::RunRoleCommand(EventRun& run)
         case EventCommand::ClearFlag:
             this->SetStoryFlag(this->Word(run, 1), run.code == EventCommand::SetFlag);
             DebugLog(run.code == EventCommand::SetFlag ? u8"fON [%d]" : u8"fOFF[%d]", this->Word(run, 1));
-            this->Advance(run, 4);
+            this->Next(run);
             return true;
 
         case EventCommand::ChangeMap:
@@ -1020,7 +1026,7 @@ bool Talk::RunRoleCommand(EventRun& run)
                 this->Word(run, 6),
                 1
             );
-            this->Advance(run, 0xE);
+            this->Next(run);
             return true;
 
         case EventCommand::SetRoleTalk:
@@ -1031,7 +1037,7 @@ bool Talk::RunRoleCommand(EventRun& run)
             {
                 owner
                     .UpdateRoleRecord(id, -1, -1, -1, -1, -1, -1, static_cast<i16>(this->Word(run, 2)), 0x1000, -1, -1);
-                this->Advance(run, 6);
+                this->Next(run);
                 return false;
             }
 
@@ -1095,7 +1101,7 @@ bool Talk::RunRoleCommand(EventRun& run)
             role.flags |= Role::StepsAct;
             role.unk1C = this->Word(run, 2);
             role.unk18 = 0;
-            this->Advance(run, 6);
+            this->Next(run);
             return false;
         }
 
@@ -1114,13 +1120,13 @@ bool Talk::RunRoleCommand(EventRun& run)
                 owner.party.unk4ACDB0 = 0;
             }
 
-            this->Advance(run, 4);
+            this->Next(run);
             return true;
 
         case EventCommand::JumpIfClockReached:
             if (this->Byte(run, 2) > static_cast<u16>(owner.party.unk4ACDB0))
             {
-                this->Advance(run, 8);
+                this->Next(run);
                 return true;
             }
 
@@ -1131,17 +1137,17 @@ bool Talk::RunRoleCommand(EventRun& run)
             if (static_cast<u32>(owner.party.unk4ACDB0) <=
                 static_cast<u32>(this->Word(run, 1)) + static_cast<u32>(owner.rolePath.timeMark))
             {
-                this->Advance(run, 8);
+                this->Next(run);
                 return true;
             }
 
             this->SeekScript(state.leader, this->Dword(run, 4));
-            this->Advance(run, 8);
+            this->Next(run);
             return true;
 
         case EventCommand::MarkClock:
             owner.rolePath.timeMark = owner.party.unk4ACDB0;
-            this->Advance(run, 2);
+            this->Next(run);
             return true;
 
         case EventCommand::RemoveRole:
@@ -1185,7 +1191,7 @@ bool Talk::RunRoleCommand(EventRun& run)
                     .UpdateRoleRecord(this->Word(run, 1), -1, -1, -1, -1, -1, -1, -1, static_cast<i16>(0x8000), -1, -1);
             }
 
-            this->Advance(run, 4);
+            this->Next(run);
             return true;
         }
 
@@ -1228,7 +1234,7 @@ bool Talk::RunRoleCommand(EventRun& run)
                 );
             }
 
-            this->Advance(run, 8);
+            this->Next(run);
             return true;
 
         case EventCommand::JumpByChoice:
@@ -1271,7 +1277,7 @@ bool Talk::RunRoleCommand(EventRun& run)
                 owner.scene.unk4A9920 &= ~0x8000;
             }
 
-            this->Advance(run, 2);
+            this->Next(run);
             return true;
 
         case EventCommand::SetSpeed:
@@ -1289,7 +1295,7 @@ bool Talk::RunRoleCommand(EventRun& run)
                 }
             }
 
-            this->Advance(run, 6);
+            this->Next(run);
             return true;
         }
 
@@ -1322,7 +1328,7 @@ bool Talk::RunRoleCommand(EventRun& run)
                     .UpdateRoleRecord(id, static_cast<i16>(this->Word(run, 2)), -1, -1, -1, -1, -1, -1, 0x1000, -1, -1);
             }
 
-            this->Advance(run, 6);
+            this->Next(run);
             return true;
         }
 
@@ -1371,7 +1377,7 @@ bool Talk::RunRoleCommand(EventRun& run)
                 }
             }
 
-            this->Advance(run, 4);
+            this->Next(run);
             return true;
         }
 

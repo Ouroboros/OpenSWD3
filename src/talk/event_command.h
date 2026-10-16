@@ -1,5 +1,8 @@
 #pragma once
 
+#include <array>
+#include <cstddef>
+
 #include "core/types.h"
 
 namespace swd3
@@ -211,6 +214,36 @@ enum class EventCommand : u16
 
 // The command number in the first word of a command (bits 14 and 15 mark a command in progress).
 constexpr u16 kCommandMask = 0x3FFF;
+
+constexpr int kOpcodeBytes = 2;  // the command word
+
+// The bytes of each command below 0xC2 (0: its length depends on its operands), as 0x00427920 advances past them.
+constexpr std::array<u8, 0xC2> kCommandBytes = {
+    0, 0,  0,  0,  0,  0,  0,  2,  4,  2,  6,  6,  8, 4, 4,  0,   // 0x00
+    8, 8,  4,  2,  0,  8,  8,  0,  0,  4,  4,  14, 6, 0, 0,  0,   // 0x10
+    0, 0,  4,  8,  8,  2,  4,  4,  8,  0,  2,  2,  6, 6, 4,  4,   // 0x20
+    4, 4,  0,  2,  16, 2,  6,  4,  4,  4,  10, 4,  2, 2, 18, 0,   // 0x30
+    2, 4,  16, 4,  4,  4,  0,  6,  4,  0,  2,  4,  6, 0, 0,  16,  // 0x40
+    2, 10, 6,  16, 6,  0,  10, 0,  4,  0,  0,  4,  4, 4, 2,  2,   // 0x50
+    0, 2,  4,  4,  6,  4,  6,  6,  6,  2,  4,  6,  6, 0, 6,  6,   // 0x60
+    2, 6,  8,  4,  0,  6,  4,  4,  10, 2,  2,  10, 2, 0, 10, 10,  // 0x70
+    6, 8,  8,  6,  8,  0,  10, 2,  6,  2,  14, 4,  6, 6, 8,  2,   // 0x80
+    4, 6,  6,  2,  2,  2,  6,  10, 2,  10, 4,  2,  2, 8, 0,  0,   // 0x90
+    2, 0,  4,  8,  8,  10, 10, 8,  8,  0,  2,  2,  2, 2, 6,  2,   // 0xA0
+    2, 2,  4,  10, 2,  0,  0,  0,  0,  0,  10, 10, 6, 6, 6,  4,   // 0xB0
+    2, 2,                                                         // 0xC0
+};
+
+constexpr int CommandBytes(EventCommand code)
+{
+    if (code == EventCommand::RunOn || code == EventCommand::RunOff || code == EventCommand::SkipQuick)
+    {
+        return kOpcodeBytes;
+    }
+
+    const auto index = static_cast<std::size_t>(code);
+    return index < kCommandBytes.size() ? kCommandBytes[index] : 0;
+}
 
 // The odd dialog commands wait for their window.
 constexpr bool WaitsForWindow(EventCommand command)

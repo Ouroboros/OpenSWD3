@@ -262,7 +262,7 @@ bool Talk::PlaceRole(EventRun& run)
         ))
     {
         DebugLog(u8"maps.dat role missing", this->Word(run, 1));
-        this->Advance(run, 0x12);
+        this->Next(run);
         return true;
     }
 
@@ -321,7 +321,7 @@ bool Talk::PlaceRole(EventRun& run)
         }
     }
 
-    this->Advance(run, 0x12);
+    this->Next(run);
     return true;
 }
 
@@ -345,7 +345,7 @@ bool Talk::LoadName(EventRun& run)
         if (variable != 0xB && variable != 0xC)
         {
             DebugLog(u8"對話系統(Caption2)u8", u8"設定的變數(%d)和系統衝突", variable);
-            this->Advance(run, 4);
+            this->Next(run);
             return true;
         }
 
@@ -355,7 +355,7 @@ bool Talk::LoadName(EventRun& run)
         if (index == 0)
         {
             DebugLog(u8"對話系統(Caption2)u8", u8"設定的變數(0)和系統衝突");
-            this->Advance(run, 4);
+            this->Next(run);
             return true;
         }
     }
@@ -394,7 +394,7 @@ bool Talk::LoadName(EventRun& run)
         0x20
     );
     std::copy_n(name.begin(), this->dialogName.size(), this->dialogName.begin());
-    this->Advance(run, 4);
+    this->Next(run);
     return true;
 }
 
@@ -411,7 +411,7 @@ bool Talk::OpenMapMovie(EventRun& run)
     state.ClearFrameInterval();
     state.SetFrameInterval(0x46);
     film.options = 0;
-    this->Advance(run, 2);
+    this->Advance(run, kOpcodeBytes);
 
     if (this->Byte(run, 0) == '%')
     {
@@ -600,7 +600,7 @@ bool Talk::RunSceneCommand(EventRun& run)
         case EventCommand::WaitPan:
             if (view.unk4A99F0 == 0 && view.unk4A98C0 == 0 && view.unk4A9480 == 0 && view.unk4A93D8 == 0)
             {
-                this->Advance(run, 2);
+                this->Next(run);
                 return true;
             }
 
@@ -628,14 +628,14 @@ bool Talk::RunSceneCommand(EventRun& run)
                 static_cast<float>(static_cast<double>(green - static_cast<i32>(crt::Ftol(fade.green))) / frames);
             fade.stepBlue =
                 static_cast<float>(static_cast<double>(blue - static_cast<i32>(crt::Ftol(fade.blue))) / frames);
-            this->Advance(run, 0x10);
+            this->Next(run);
             return true;
         }
 
         case EventCommand::WaitFade:
             if (view.fade.frames <= 0)
             {
-                this->Advance(run, 2);
+                this->Next(run);
                 return true;
             }
 
@@ -671,7 +671,7 @@ bool Talk::RunSceneCommand(EventRun& run)
                 }
             }
 
-            this->Advance(run, 6);
+            this->Next(run);
             return true;
         }
 
@@ -705,7 +705,7 @@ bool Talk::RunSceneCommand(EventRun& run)
                 );
             }
 
-            this->Advance(run, 4);
+            this->Next(run);
             return false;
         }
 
@@ -719,13 +719,13 @@ bool Talk::RunSceneCommand(EventRun& run)
             animation->act.action = this->Word(run, 4);
             animation->next = std::move(view.animationsA);
             view.animationsA = std::move(animation);
-            this->Advance(run, 0xA);
+            this->Next(run);
             return false;
         }
 
         case EventCommand::Sound:
             owner.audio.PlaySound(this->Word(run, 1), owner.config.soundVolume);
-            this->Advance(run, 4);
+            this->Next(run);
             return false;
 
         case EventCommand::ShowScreen:
@@ -742,7 +742,7 @@ bool Talk::RunSceneCommand(EventRun& run)
                 view.unk4C9A18 |= 1;
             }
 
-            this->Advance(run, 2);
+            this->Next(run);
             return false;
 
         case EventCommand::PlaceRoleOnMap:
@@ -785,7 +785,7 @@ bool Talk::RunSceneCommand(EventRun& run)
 
         case EventCommand::StopQuake:
             view.shake.fill(Scene::ShakeEnd);
-            this->Advance(run, 2);
+            this->Next(run);
             return true;
 
         case EventCommand::JoinFollowers:
@@ -794,7 +794,7 @@ bool Talk::RunSceneCommand(EventRun& run)
                 owner.FollowLeader(static_cast<int>(run.found));
             }
 
-            this->Advance(run, 4);
+            this->Next(run);
             return false;
 
         case EventCommand::LeaveFollowers:
@@ -807,7 +807,7 @@ bool Talk::RunSceneCommand(EventRun& run)
                 this->Word(run, 6),
                 this->Word(run, 7)
             );
-            this->Advance(run, 0x10);
+            this->Next(run);
             return false;
 
         case EventCommand::Wait:
@@ -829,7 +829,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             }
 
             this->SetWord(run, 1, static_cast<u16>(length & 0x7FFF));
-            this->Advance(run, 4);
+            this->Next(run);
             return true;
         }
 
@@ -853,7 +853,7 @@ bool Talk::RunSceneCommand(EventRun& run)
                 owner.UpdateRoleRecord(id, -1, -1, -1, -1, -1, -1, -1, 0x400, -1, -1);
             }
 
-            this->Advance(run, 4);
+            this->Next(run);
             return false;
         }
 
@@ -864,7 +864,7 @@ bool Talk::RunSceneCommand(EventRun& run)
                 state.roles[run.found].attached = act < view.unk4B9F68.size() ? &view.unk4B9F68[act] : nullptr;
             }
 
-            this->Advance(run, 6);
+            this->Next(run);
             return false;
 
         case EventCommand::DetachAct:
@@ -873,7 +873,7 @@ bool Talk::RunSceneCommand(EventRun& run)
                 state.roles[run.found].attached = nullptr;
             }
 
-            this->Advance(run, 4);
+            this->Next(run);
             return false;
 
         case EventCommand::StopFade:
@@ -881,7 +881,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             view.fade.stepGreen = 0;
             view.fade.stepBlue = 0;
             view.fade.frames = 0;
-            this->Advance(run, 2);
+            this->Next(run);
             return true;
 
         case EventCommand::HoldRole:
@@ -892,7 +892,7 @@ bool Talk::RunSceneCommand(EventRun& run)
                 owner.rolePath.HoldRole(static_cast<int>(run.found));
             }
 
-            this->Advance(run, 4);
+            this->Next(run);
             return true;
 
         case EventCommand::TurnToFace:
@@ -946,7 +946,7 @@ bool Talk::RunSceneCommand(EventRun& run)
                 owner.rolePath.HoldRole(static_cast<int>(run.found));
             }
 
-            this->Advance(run, 6);
+            this->Next(run);
             return true;
         }
 
@@ -1010,13 +1010,13 @@ bool Talk::RunSceneCommand(EventRun& run)
             sprite->y = static_cast<float>(fromY);
             sprite->next = std::move(view.spritesA);
             view.spritesA = std::move(sprite);
-            this->Advance(run, 0x10);
+            this->Next(run);
             return true;
         }
 
         case EventCommand::DialogOverlay:
             this->dialogOptions &= 0xDFFFFFFF;
-            this->Advance(run, 2);
+            this->Next(run);
             return true;
 
         case EventCommand::HeadIn:
@@ -1045,7 +1045,7 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             sprite->next = std::move(view.spritesB);
             view.spritesB = std::move(sprite);
-            this->Advance(run, 0xA);
+            this->Next(run);
             return true;
         }
 
@@ -1068,7 +1068,7 @@ bool Talk::RunSceneCommand(EventRun& run)
                 }
             }
 
-            this->Advance(run, 6);
+            this->Next(run);
             return true;
         }
 
@@ -1079,7 +1079,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             if (mode > ScriptEffect::NumberMask)
             {
                 DebugLog(u8"effect number", run.context.event, mode);
-                this->Advance(run, 0x10);
+                this->Next(run);
                 return true;
             }
 
@@ -1109,7 +1109,7 @@ bool Talk::RunSceneCommand(EventRun& run)
                 effect->count + effect->y > Display::Height)
             {
                 DebugLog(u8"effect off the screen", effect->x, effect->y, effect->limit, effect->count);
-                this->Advance(run, 0x10);
+                this->Next(run);
                 return true;
             }
 
@@ -1142,7 +1142,7 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             effect->next = std::move(view.effects);
             view.effects = std::move(effect);
-            this->Advance(run, 0x10);
+            this->Next(run);
             return true;
         }
 
@@ -1153,7 +1153,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             if (mode > ScriptEffect::NumberMask)
             {
                 DebugLog(u8"effect number", run.context.id, mode);
-                this->Advance(run, 6);
+                this->Next(run);
                 return true;
             }
 
@@ -1170,7 +1170,7 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             if (found == nullptr)
             {
-                this->Advance(run, 6);
+                this->Next(run);
                 return true;
             }
 
@@ -1202,7 +1202,7 @@ bool Talk::RunSceneCommand(EventRun& run)
                 found->mode = static_cast<u16>(run.valueA | static_cast<u8>(found->mode));
             }
 
-            this->Advance(run, 6);
+            this->Next(run);
             return true;
         }
 
@@ -1228,7 +1228,7 @@ bool Talk::RunSceneCommand(EventRun& run)
                 }
             }
 
-            this->Advance(run, 0xA);
+            this->Next(run);
             return true;
 
         case EventCommand::RandomJump:
@@ -1257,7 +1257,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             view.FreeEffects();
             view.FreeSpritesB();
             owner.unk4A94AC = static_cast<i16>(this->Word(run, 1)) | static_cast<i32>(0x80000000u);
-            this->Advance(run, 4);
+            this->Next(run);
             return false;
 
         case EventCommand::RecordDialogWait:
@@ -1278,18 +1278,18 @@ bool Talk::RunSceneCommand(EventRun& run)
             }
 
             this->SetStoryFlag(static_cast<int>(run.found + 0x1E), run.code == EventCommand::SetCueFlag);
-            this->Advance(run, 4);
+            this->Next(run);
             return true;
         }
 
         case EventCommand::CameraHold:
             view.unk4C9A18 |= 2;
-            this->Advance(run, 2);
+            this->Next(run);
             return false;
 
         case EventCommand::CameraFollow:
             view.unk4C9A18 &= ~2;
-            this->Advance(run, 2);
+            this->Next(run);
             return false;
 
         case EventCommand::MapMovie:
@@ -1301,13 +1301,13 @@ bool Talk::RunSceneCommand(EventRun& run)
                 return false;
             }
 
-            this->Advance(run, 2);
+            this->Next(run);
             state.ClearFrameInterval();
             state.SetFrameInterval(0x23);
             return true;
 
         case EventCommand::Skip:
-            this->Advance(run, 4);
+            this->Next(run);
             return false;
 
         default:

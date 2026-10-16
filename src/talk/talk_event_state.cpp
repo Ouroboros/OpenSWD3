@@ -133,7 +133,7 @@ bool Talk::RunStateCommand(EventRun& run)
                 owner.UpdateRoleRecord(id, -1, -1, -1, -1, -1, static_cast<i16>(event), -1, 0, -1, -1);
             }
 
-            this->Advance(run, 6);
+            this->Next(run);
             return true;
         }
 
@@ -143,7 +143,7 @@ bool Talk::RunStateCommand(EventRun& run)
                 state.roles[run.found].flags |= Role::FastMove;
             }
 
-            this->Advance(run, 4);
+            this->Next(run);
             return true;
 
         case EventCommand::RoleExamine:
@@ -192,7 +192,7 @@ bool Talk::RunStateCommand(EventRun& run)
                 );
             }
 
-            this->Advance(run, 6);
+            this->Next(run);
             return true;
         }
 
@@ -200,12 +200,12 @@ bool Talk::RunStateCommand(EventRun& run)
             this->dialogOptions &= ~0x10000000u;
             this->dialogOffsetX = static_cast<i16>(this->Word(run, 1));
             this->dialogOffsetY = static_cast<i16>(this->Word(run, 2));
-            this->Advance(run, 6);
+            this->Next(run);
             return true;
 
         case EventCommand::DialogSingleLine:
             this->dialogOptions &= 0xF7FFFFFF;
-            this->Advance(run, 2);
+            this->Next(run);
             return true;
 
         case EventCommand::WaitAnimationA:
@@ -216,7 +216,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
             if (first == nullptr || (first->act.counter >> 8) > this->Word(run, 1))
             {
-                this->Advance(run, 4);
+                this->Next(run);
                 return true;
             }
 
@@ -230,7 +230,7 @@ bool Talk::RunStateCommand(EventRun& run)
             if (!state.FindRoleOrPlayer(id, run.found))
             {
                 DebugLog(u8"Talk(tilpa1)", this->Word(run, 2));
-                this->Advance(run, 6);
+                this->Next(run);
                 return true;
             }
 
@@ -240,13 +240,13 @@ bool Talk::RunStateCommand(EventRun& run)
             if ((rounds & 0xFF) < wanted)
             {
                 DebugLog(u8"Talk(tilpa1)", wanted, rounds & 0xFF);
-                this->Advance(run, 6);
+                this->Next(run);
                 return true;
             }
 
             if ((rounds >> 8) >= wanted)
             {
-                this->Advance(run, 6);
+                this->Next(run);
                 return true;
             }
 
@@ -270,7 +270,7 @@ bool Talk::RunStateCommand(EventRun& run)
             }
 
             this->dialogOrigin = origin;
-            this->Advance(run, 6);
+            this->Next(run);
             return true;
         }
 
@@ -311,7 +311,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
             if (moving)
             {
-                this->Advance(run, 6);
+                this->Next(run);
             }
             else
             {
@@ -329,14 +329,14 @@ bool Talk::RunStateCommand(EventRun& run)
 
             if (view.spritesB == nullptr)
             {
-                this->Advance(run, 2);
+                this->Next(run);
             }
 
             return false;
 
         case EventCommand::SoundLong:
             owner.audio.PlaySound(this->Word(run, 1), owner.config.soundVolume);
-            this->Advance(run, 6);
+            this->Next(run);
             return false;
 
         case EventCommand::ChangeMusic:
@@ -372,7 +372,7 @@ bool Talk::RunStateCommand(EventRun& run)
             }
 
             view.unk4ACDBC = static_cast<i32>(marks & ~0xFFu);
-            this->Advance(run, 8);
+            this->Next(run);
             DebugLog(u8"S_M[%d,%d]", tunes[4], tunes[5]);
             return true;
         }
@@ -382,7 +382,7 @@ bool Talk::RunStateCommand(EventRun& run)
             const u16 volume = this->Word(run, 1);
             run.valueA = volume <= 0xB ? volume : 0xB;
             owner.audio.SetMusicVolume(run.valueA);
-            this->Advance(run, 4);
+            this->Next(run);
             return false;
         }
 
@@ -446,7 +446,7 @@ bool Talk::RunStateCommand(EventRun& run)
                 view.unk4A9920 = run.valueA | run.valueB;
             }
 
-            this->Advance(run, 4);
+            this->Next(run);
             return true;
         }
 
@@ -459,7 +459,7 @@ bool Talk::RunStateCommand(EventRun& run)
             if (id != TalkWindow::NoRole && !state.FindRoleOrPlayer(id, run.found))
             {
                 DebugLog(u8"Talk(wait_dlg2)", id, owner.currentMap);
-                this->Advance(run, 4);
+                this->Next(run);
                 return true;
             }
 
@@ -472,7 +472,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
             if (window == nullptr)
             {
-                this->Advance(run, 4);
+                this->Next(run);
                 return true;
             }
 
@@ -481,7 +481,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
             if (done != 0)
             {
-                this->Advance(run, 4);
+                this->Next(run);
                 return true;
             }
 
@@ -537,18 +537,18 @@ bool Talk::RunStateCommand(EventRun& run)
                 );
             }
 
-            this->Advance(run, 0xA);
+            this->Next(run);
             return true;
         }
 
         case EventCommand::DialogBubble:
             this->dialogOptions &= 0xFBFFFFFF;
-            this->Advance(run, 2);
+            this->Next(run);
             return true;
 
         case EventCommand::StopSkipping:
             this->skipAll = 0;
-            this->Advance(run, 2);
+            this->Next(run);
             return true;
 
         case EventCommand::SceneMusic:
@@ -584,13 +584,13 @@ bool Talk::RunStateCommand(EventRun& run)
                 );
             }
 
-            this->Advance(run, 0xA);
+            this->Next(run);
             return true;
         }
 
         case EventCommand::DialogLogged:
             this->dialogOptions &= 0xFDFFFFFF;
-            this->Advance(run, 2);
+            this->Next(run);
             return true;
 
         case EventCommand::AddLog:
@@ -642,7 +642,7 @@ bool Talk::RunStateCommand(EventRun& run)
             }
             else
             {
-                this->Advance(run, 0xA);
+                this->Next(run);
             }
 
             return true;
@@ -658,7 +658,7 @@ bool Talk::RunStateCommand(EventRun& run)
                 owner.database
             );
             DebugLog(u8"%s,%d", item != nullptr ? item->id : this->Word(run, 1), static_cast<i16>(this->Word(run, 2)));
-            this->Advance(run, 6);
+            this->Next(run);
             return false;
         }
 
@@ -679,7 +679,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
             if (wanted == (carried != nullptr || worn != nullptr))
             {
-                this->Advance(run, 8);
+                this->Next(run);
                 return true;
             }
 
@@ -696,7 +696,7 @@ bool Talk::RunStateCommand(EventRun& run)
             if (role >= 4)
             {
                 DebugLog(u8"skill role", role);
-                this->Advance(run, 6);
+                this->Next(run);
                 return true;
             }
 
@@ -718,7 +718,7 @@ bool Talk::RunStateCommand(EventRun& run)
                 }
             }
 
-            this->Advance(run, 6);
+            this->Next(run);
             return true;
         }
 
@@ -731,7 +731,7 @@ bool Talk::RunStateCommand(EventRun& run)
             if (role > 3 || slot > 0xB)
             {
                 DebugLog(u8"equipment slot", role, slot);
-                this->Advance(run, 8);
+                this->Next(run);
                 return true;
             }
 
@@ -740,7 +740,7 @@ bool Talk::RunStateCommand(EventRun& run)
             if (item == nullptr)
             {
                 DebugLog(u8"item missing", this->Word(run, 3));
-                this->Advance(run, 8);
+                this->Next(run);
                 return true;
             }
 
@@ -761,7 +761,7 @@ bool Talk::RunStateCommand(EventRun& run)
             worn->unk06 = 0;
             AddItem(party.inventory, oldId, 1, ItemCountMode::Pending, owner.database);
             AddItem(party.inventory, newId, -1, ItemCountMode::Pending, owner.database);
-            this->Advance(run, 8);
+            this->Next(run);
             return true;
         }
 
@@ -795,7 +795,7 @@ bool Talk::RunStateCommand(EventRun& run)
             if (index >= 4)
             {
                 DebugLog(u8"party role", index);
-                this->Advance(run, 0xA);
+                this->Next(run);
                 return true;
             }
 
@@ -816,7 +816,7 @@ bool Talk::RunStateCommand(EventRun& run)
             record.spirit = std::max<i16>(record.spirit, 0);
             record.stamina = std::max<i16>(record.stamina, 0);
             record.unk24 = 0;
-            this->Advance(run, 0xA);
+            this->Next(run);
             return true;
         }
 
@@ -826,7 +826,7 @@ bool Talk::RunStateCommand(EventRun& run)
             owner.unk4CAEC0 = 0;
             owner.storyState = 3;
             owner.ResetSaveSlots();
-            this->Advance(run, 2);
+            this->Next(run);
             owner.AudioPump();
             return false;
 
@@ -847,7 +847,7 @@ bool Talk::RunStateCommand(EventRun& run)
             view.unk4B7C74[4] = 0;
             view.unk4B7C74[5] = 0;
             view.unk4ACDBC &= static_cast<i32>(0xFF5CFF00u);
-            this->Advance(run, 2);
+            this->Next(run);
             DebugLog(u8"S_M_off[%d,%d]", view.unk4B7C74[1], view.unk4B7C74[2]);
             return true;
 
@@ -874,7 +874,7 @@ bool Talk::RunStateCommand(EventRun& run)
                 DebugLog(u8"distance role", id);
             }
 
-            this->Advance(run, 0xE);
+            this->Next(run);
             return true;
         }
 
@@ -884,14 +884,14 @@ bool Talk::RunStateCommand(EventRun& run)
             const u16 length = this->Word(run, 2);
             owner.audio.SetFadeMode(mode);
             owner.audio.SetFadeLength(length);
-            this->Advance(run, 6);
+            this->Next(run);
             DebugLog(u8"Fmode[%d,%d]", mode, length);
             return true;
         }
 
         case EventCommand::StartTimer:
             owner.StartTimer(this->Word(run, 1), this->Word(run, 2), this->Word(run, 3), 0);
-            this->Advance(run, 8);
+            this->Next(run);
             return false;
 
         case EventCommand::StopTimer:
@@ -899,7 +899,7 @@ bool Talk::RunStateCommand(EventRun& run)
             state.ClearGameFlag(GameState::Timer);
             state.ClearGameFlag(GameState::HideTimer);
             state.ClearGameFlag(GameState::TimerEvent);
-            this->Advance(run, 2);
+            this->Next(run);
             return false;
 
         default:
@@ -928,7 +928,7 @@ bool Talk::RunSystemCommand(EventRun& run)
             owner.unk4CAEBC = 0;
             owner.unk4CAEC0 = 0;
             owner.menuMode = 0;
-            this->Advance(run, 4);
+            this->Next(run);
             return false;
 
         case EventCommand::RoleTouchEvent:
@@ -938,17 +938,17 @@ bool Talk::RunSystemCommand(EventRun& run)
 
         case EventCommand::HideLoadingScreen:
             state.SetGameFlag(GameState::NoLoadingScreen);
-            this->Advance(run, 2);
+            this->Next(run);
             return false;
 
         case EventCommand::SpotlightOn:
             state.SetGameFlag(GameState::Spotlight);
-            this->Advance(run, 2);
+            this->Next(run);
             return false;
 
         case EventCommand::SpotlightOff:
             state.ClearGameFlag(GameState::Spotlight);
-            this->Advance(run, 2);
+            this->Next(run);
             return false;
 
         case EventCommand::SpotlightAt:
@@ -992,7 +992,7 @@ bool Talk::RunSystemCommand(EventRun& run)
             view.spotlightTargetX = x;
             view.spotlightStepX = 0;
             view.spotlightStepY = 0;
-            this->Advance(run, 6);
+            this->Next(run);
             return false;
         }
 
@@ -1001,13 +1001,13 @@ bool Talk::RunSystemCommand(EventRun& run)
             view.spotlightTargetY = MapHeader::TileSize * static_cast<i16>(this->Word(run, 2));
             view.spotlightStepX = static_cast<i16>(this->Word(run, 3));
             view.spotlightStepY = static_cast<i16>(this->Word(run, 4));
-            this->Advance(run, 0xA);
+            this->Next(run);
             return false;
 
         case EventCommand::WaitSpotlight:
             if (view.spotlightX == view.spotlightTargetX && view.spotlightY == view.spotlightTargetY)
             {
-                this->Advance(run, 2);
+                this->Next(run);
             }
 
             return false;
@@ -1022,7 +1022,7 @@ bool Talk::RunSystemCommand(EventRun& run)
             animation->act.action = this->Word(run, 4);
             animation->next = std::move(view.animationsB);
             view.animationsB = std::move(animation);
-            this->Advance(run, 0xA);
+            this->Next(run);
             return false;
         }
 
@@ -1042,7 +1042,7 @@ bool Talk::RunSystemCommand(EventRun& run)
                 owner.ChangeMap(0x16, 0x3B, 0x3B, player.act.id, 0, 1, 1);
             }
 
-            this->Advance(run, 2);
+            this->Next(run);
             return false;
 
         case EventCommand::ReturnFromMap22:
@@ -1058,7 +1058,7 @@ bool Talk::RunSystemCommand(EventRun& run)
                 view.unk4CAE88 = 0;
             }
 
-            this->Advance(run, 2);
+            this->Next(run);
             return false;
 
         case EventCommand::SetReturnMap:
@@ -1073,7 +1073,7 @@ bool Talk::RunSystemCommand(EventRun& run)
                 view.unk4A9938 = static_cast<i16>(this->Word(run, 3));
             }
 
-            this->Advance(run, 8);
+            this->Next(run);
             return true;
 
         case EventCommand::CopyMedia:
@@ -1082,7 +1082,7 @@ bool Talk::RunSystemCommand(EventRun& run)
 
         case EventCommand::DialogCentred:
             this->dialogCentred = 1;
-            this->Advance(run, 2);
+            this->Next(run);
             return true;
 
         case EventCommand::OpenScript:
@@ -1102,7 +1102,7 @@ bool Talk::RunSystemCommand(EventRun& run)
 
             if ((run.code == EventCommand::JumpIfNotMap) == (run.valueA == owner.currentMap))
             {
-                this->Advance(run, 8);
+                this->Next(run);
                 return true;
             }
 
@@ -1139,7 +1139,7 @@ bool Talk::RunSystemCommand(EventRun& run)
                 return true;
             }
 
-            this->Advance(run, 0xA);
+            this->Next(run);
             return true;
         }
 
@@ -1173,7 +1173,7 @@ bool Talk::RunSystemCommand(EventRun& run)
             }
             else
             {
-                this->Advance(run, 2);
+                this->Next(run);
             }
 
             const bool second = run.code > EventCommand::SetFileNameA;
@@ -1195,12 +1195,12 @@ bool Talk::RunSystemCommand(EventRun& run)
         }
 
         case EventCommand::PauseMapMovie:
-            this->Advance(run, 2);
+            this->Next(run);
             owner.fieldView.movie.options |= 0x10;
             return true;
 
         case EventCommand::ResumeMapMovie:
-            this->Advance(run, 2);
+            this->Next(run);
             owner.fieldView.movie.options &= ~0x10u;
             return false;
 
@@ -1253,7 +1253,7 @@ bool Talk::RunSystemCommand(EventRun& run)
             if (run.valueB + 1 == view.unk4BABA0)
             {
                 this->SetWord(run, 0, static_cast<u16>(command & 0x7FFF));
-                this->Advance(run, 2);
+                this->Next(run);
             }
 
             return false;
@@ -1268,7 +1268,7 @@ bool Talk::RunSystemCommand(EventRun& run)
                 state.roles[run.found].flags |= Role::PassWalls;
             }
 
-            this->Advance(run, 4);
+            this->Next(run);
             return true;
         }
 
@@ -1284,13 +1284,13 @@ bool Talk::RunSystemCommand(EventRun& run)
             ripple->Splash(radius, radius, 0x18, depth, owner.crtRandom);
             ripple->next = std::move(view.objects);
             view.objects = std::move(ripple);
-            this->Advance(run, 0xA);
+            this->Next(run);
             return true;
         }
 
         case EventCommand::PauseGame:
             owner.running = 0;
-            this->Advance(run, 2);
+            this->Next(run);
             return false;
 
         case EventCommand::SetVariableWide:
@@ -1318,7 +1318,7 @@ bool Talk::RunSystemCommand(EventRun& run)
 
             if (run.code == EventCommand::JumpIfStatAtLeast ? value < wanted : value > wanted)
             {
-                this->Advance(run, 0xA);
+                this->Next(run);
                 return true;
             }
 
@@ -1353,14 +1353,14 @@ bool Talk::RunSystemCommand(EventRun& run)
                 party.SetRoleStat(field, party.RoleStat(field, 1) - value, 1, owner.database);
             }
 
-            this->Advance(run, 6);
+            this->Next(run);
             return true;
         }
 
         case EventCommand::WaitCameraY:
             if ((view.unk4A99F0 == 0 && view.unk4A98C0 == 0) || field.cameraTop == static_cast<i16>(this->Word(run, 1)))
             {
-                this->Advance(run, 4);
+                this->Next(run);
                 return true;
             }
 
@@ -1369,7 +1369,7 @@ bool Talk::RunSystemCommand(EventRun& run)
         case EventCommand::WaitMusicFade:
             if (owner.audio.FadeMode() != 2 && owner.audio.Fading() == 0)
             {
-                this->Advance(run, 2);
+                this->Next(run);
             }
 
             return false;
@@ -1382,7 +1382,7 @@ bool Talk::RunSystemCommand(EventRun& run)
                 return false;
             }
 
-            this->Advance(run, 2);
+            this->Next(run);
             return true;
 
         default:
