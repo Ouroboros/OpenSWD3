@@ -252,7 +252,7 @@ uint32_t BattleHero::CompleteRecord(uint8_t* list) {
 }
 
 // swd32.exe 0x0046FF00: whether the hero strikes first (+0x2F30): always with status bit 0 of +0x26C8, after
-// G.dword_53BCE4 + 8 counted turns (low byte of G.dword_53CEB4), or past 8 turns on a roll above 5 of 10;
+// G.heroCount + 8 counted turns (low byte of G.dword_53CEB4), or past 8 turns on a roll above 5 of 10;
 // never twice in a row for the same hero (+0xD64 kept in G.dword_53CEBC)
 int BattleHero::TryFirstStrike() {
     if (at<int32_t>(0x2B00) == 1 || at<int32_t>(0x2B04) == 1 || at<int32_t>(0x26CC) != 0 ||
@@ -264,7 +264,7 @@ int BattleHero::TryFirstStrike() {
         return 1;
     }
     auto& counter = *reinterpret_cast<uint8_t*>(&G.dword_53CEB4);
-    if (counter >= static_cast<uint32_t>(G.dword_53BCE4 + 8)) {
+    if (counter >= static_cast<uint32_t>(G.heroCount + 8)) {
         at<uint8_t>(0x2F30) = 1;
         counter = 0;
         G.dword_53CEBC = at<uint16_t>(0xD64);

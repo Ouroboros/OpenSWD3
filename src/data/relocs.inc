@@ -3,6 +3,7 @@
 {0x4A0E6Cu, 1u, image::RelocKind::Code},  // pixelConvert
 {0x4A0E70u, 1u, image::RelocKind::Code},  // pixelConvertBack
 {0x4A79A8u, 9u, image::RelocKind::Data},  // elementNames
+{0x4A9490u, 4u, image::RelocKind::Data},  // itemLists
 {0x4A9940u, 1u, image::RelocKind::Data},  // inventory
 {0x4ACAC0u, 1u, image::RelocKind::Data},  // eventList
 {0x4B7948u, 1u, image::RelocKind::Data},  // mapBlocking

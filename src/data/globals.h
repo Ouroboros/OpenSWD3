@@ -3343,10 +3343,7 @@ struct Globals {
     std::int32_t dword_4A9484;  // 0x004A9484
     std::int32_t dword_4A9488;  // 0x004A9488
     std::int32_t dword_4A948C;  // 0x004A948C
-    std::int32_t dword_4A9490;  // 0x004A9490
-    std::int32_t dword_4A9494;  // 0x004A9494
-    std::int32_t dword_4A9498;  // 0x004A9498
-    std::int32_t dword_4A949C;  // 0x004A949C
+    std::uint8_t* itemLists[4];  // 0x004A9490 sorted by SortItemLists
     std::int32_t dword_4A94A0;  // 0x004A94A0
     std::int32_t dword_4A94A4;  // 0x004A94A4
     std::int32_t dword_4A94A8;  // 0x004A94A8
@@ -4933,23 +4930,17 @@ struct Globals {
     std::int32_t dword_520338;  // 0x00520338
     std::uint8_t pad_52033C[0xA1C];
     float flt_520D58;  // 0x00520D58
-    std::int32_t dword_520D5C;  // 0x00520D5C
-    std::uint8_t pad_520D60[0x1C];
-    std::int32_t dword_520D7C;  // 0x00520D7C
-    std::uint8_t pad_520D80[0x24];
+    std::int32_t drawOrderUsed[18];  // 0x00520D5C
     std::int32_t dword_520DA4;  // 0x00520DA4
     std::int32_t dword_520DA8;  // 0x00520DA8
     std::uint8_t pad_520DAC[0x24];
     std::int32_t dword_520DD0;  // 0x00520DD0
     std::uint8_t pad_520DD4[0x20];
     std::int32_t dword_520DF4;  // 0x00520DF4
-    std::int32_t dword_520DF8[8];  // 0x00520DF8
+    std::int32_t enemyDrawOrder[8];  // 0x00520DF8
     std::int32_t dword_520E18;  // 0x00520E18
     std::uint8_t pad_520E1C[0x24];
-    std::int32_t dword_520E40;  // 0x00520E40
-    std::uint8_t pad_520E44[0x1C];
-    std::int32_t dword_520E60;  // 0x00520E60
-    std::uint8_t pad_520E64[0x24];
+    std::int32_t unitDepths[18];  // 0x00520E40 draw y: enemies 0..7, heroes 8..17
     std::int32_t dword_520E88;  // 0x00520E88
     std::uint8_t pad_520E8C[0x4];
     std::int32_t dword_520E90;  // 0x00520E90
@@ -5006,8 +4997,7 @@ struct Globals {
     std::int32_t dword_5214A4;  // 0x005214A4
     std::int16_t word_5214A8;  // 0x005214A8
     std::uint8_t pad_5214AA[0x2];
-    std::int32_t dword_5214AC;  // 0x005214AC
-    std::int32_t dword_5214B0[17];  // 0x005214B0
+    std::int32_t drawOrder[18];  // 0x005214AC unit indices back to front
     std::int32_t dword_5214F4;  // 0x005214F4
     BattleMessage* battleMessages;  // 0x005214F8
     std::uint8_t pad_5214FC[0x20];
@@ -5168,8 +5158,8 @@ struct Globals {
     std::int32_t dword_53BC6C;  // 0x0053BC6C
     std::uint8_t pad_53BC70[0x6C];
     std::int32_t dword_53BCDC;  // 0x0053BCDC
-    std::int32_t dword_53BCE0;  // 0x0053BCE0
-    std::int32_t dword_53BCE4;  // 0x0053BCE4
+    std::uint32_t enemyCount;  // 0x0053BCE0
+    std::uint32_t heroCount;  // 0x0053BCE4
     std::int32_t dword_53BCE8;  // 0x0053BCE8
     std::int32_t dword_53BCEC;  // 0x0053BCEC
     std::int32_t dword_53BCF0;  // 0x0053BCF0
@@ -5660,6 +5650,7 @@ static_assert(offsetof(Globals, speedDownEndText) == 0xF0B8);
 static_assert(offsetof(Globals, darkAttackUpEndText) == 0xF0CC);
 static_assert(offsetof(Globals, defenseDownEndText) == 0xF0E4);
 static_assert(offsetof(Globals, file_4A9380) == 0x10380);
+static_assert(offsetof(Globals, itemLists) == 0x10490);
 static_assert(offsetof(Globals, gameDir) == 0x104BC);
 static_assert(offsetof(Globals, file_4A98C8) == 0x108C8);
 static_assert(offsetof(Globals, pointerX) == 0x10924);
@@ -5865,6 +5856,10 @@ static_assert(offsetof(Globals, coinFrames) == 0x64F70);
 static_assert(offsetof(Globals, coinState) == 0x64F74);
 static_assert(offsetof(Globals, battleHeroes) == 0x699D0);
 static_assert(offsetof(Globals, actionQueue) == 0x8722C);
+static_assert(offsetof(Globals, drawOrderUsed) == 0x87D5C);
+static_assert(offsetof(Globals, enemyDrawOrder) == 0x87DF8);
+static_assert(offsetof(Globals, unitDepths) == 0x87E40);
+static_assert(offsetof(Globals, drawOrder) == 0x884AC);
 static_assert(offsetof(Globals, battleMessages) == 0x884F8);
 static_assert(offsetof(Globals, file_521538) == 0x88538);
 static_assert(offsetof(Globals, battleUnit) == 0x88598);
@@ -5875,6 +5870,8 @@ static_assert(offsetof(Globals, lootCounts) == 0x8C434);
 static_assert(offsetof(Globals, battleEnemies) == 0x8C508);
 static_assert(offsetof(Globals, projector) == 0xA20B8);
 static_assert(offsetof(Globals, battleUiFlags) == 0xA2C24);
+static_assert(offsetof(Globals, enemyCount) == 0xA2CE0);
+static_assert(offsetof(Globals, heroCount) == 0xA2CE4);
 static_assert(offsetof(Globals, pendingActionRow) == 0xA2F1E);
 static_assert(offsetof(Globals, pendingAction) == 0xA2F20);
 static_assert(offsetof(Globals, battlePaused) == 0xA300C);

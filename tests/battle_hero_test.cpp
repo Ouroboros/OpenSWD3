@@ -56,7 +56,7 @@ TEST_CASE("battle.hero mp cost and first strike bookkeeping") {
 
     G.dword_53CEBC = 0;
     G.dword_53CEB4 = 0;
-    G.dword_53BCE4 = 2;
+    G.heroCount = 2;
     f.hero.at<std::uint16_t>(0xD64) = 3;
     CHECK_EQ(f.hero.TryFirstStrike(), 0);
     G.dword_53CEB4 = 10;
@@ -66,7 +66,7 @@ TEST_CASE("battle.hero mp cost and first strike bookkeeping") {
     CHECK_EQ(G.dword_53CEBC, 3);
     CHECK_EQ(f.hero.TryFirstStrike(), 0);
     G.dword_53CEBC = 0;
-    G.dword_53BCE4 = 0;
+    G.heroCount = 0;
 }
 
 namespace {
