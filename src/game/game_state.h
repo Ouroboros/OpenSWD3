@@ -46,8 +46,8 @@ public:
     u8 ClearGameFlag(int flag);
     u8 SetGameFlagTo(int flag, int value);
     void SetWalkSpeed(int speed);
-    int SetInputLock(int value);
-    void ClearInputLock();
+    int SetFrameInterval(int value);
+    void ClearFrameInterval();
     int DirectionToPlayer(int x, int y) const;
     Role& Player();
     const Role& Player() const;
@@ -58,7 +58,7 @@ public:
     i32 playerRole = 0;                     // 0x004AB378 the controlled role
     std::array<Role, kRoles> roles;         // 0x004BABA8
     i32 walkSpeed = 0;                      // 0x004AB2D0
-    i32 inputLock = 0;                      // 0x004B7BCC
+    i32 frameInterval = 0;                  // 0x004B7BCC milliseconds between the frames of the main loop
     ClickRegions clickRegions;
 };
 

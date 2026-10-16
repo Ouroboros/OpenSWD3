@@ -112,6 +112,7 @@ public:
     bool Init(Surface& screen);
     bool InitPixelFormat(const Surface* screen);
     void ColorMasks(u32& red, u32& green, u32& blue) const;
+    u32 FillColorPair() const;
     void ConvertPixels(std::span<u16> pixels) const;
     void ConvertPixelsBack(std::span<u16> pixels) const;
     u32 MakeColor(u32 red, u32 green, u32 blue) const;

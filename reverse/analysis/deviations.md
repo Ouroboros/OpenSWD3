@@ -66,3 +66,6 @@
 | 0x00424440 | 平台替换 | 启动器为 Win32 对话框 0x6B（静态位图控件，居中于游戏窗口所在屏幕） | 在游戏窗口内绘制同一组位图（资源从游戏目录的 swd32.exe 读取），热点、高亮与音效逻辑不变；WM_COMMAND 0x3FE 的姓名输入对话框不显示（无控件发送该命令） | 架构 v3 |
 | 0x00424930、0x00424A60 | 平台替换 | 从注册表 HKEY_CLASSES_ROOT 取浏览器或文本程序并 WinExec | 交给系统默认处理程序（SDL_OpenURL） | 架构 v3 |
 | 0x0040A0D0、0x00424440 | 平台替换 | PlaySoundA 播放 exe 内的 WAVE 资源 | 资源经独立 SDL 音频流播放，新声音停止旧声音 | 架构 v3 |
+| 0x00425150 | 平台替换 | 目录已存在时 SetCurrentDirectoryA 把它设为当前目录（最后一个已存在的目录成为当前目录） | 只在缺失时创建，不改变当前目录（游戏所有路径都以安装目录开头） | 架构 v3 |
+| 0x004242B0、0x00424330、0x00411D90 | 平台替换 | GetDriveTypeA 逐个盘符检查光驱；GlobalMemoryStatus 的物理内存；KERNEL32 的 GetDiskFreeSpaceExA | Windows 仍逐个盘符检查，Linux 没有盘符视为无光驱；内存取 SDL_GetSystemRAM（上限 0xFFFFFFFF，与 4 GB 以上时的 GlobalMemoryStatus 相同）；剩余空间取 std::filesystem::space | 架构 v3 |
+| 0x00424B90 | 平台替换 | GetSystemMetrics 取屏幕大小设置字体目标（独占全屏 640×480 下即 640×480） | 固定 640×480 | 架构 v3 |

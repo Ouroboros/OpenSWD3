@@ -75,16 +75,16 @@ void GameState::SetWalkSpeed(int speed)
 }
 
 // swd32.exe 0x0040DD20: always 1
-int GameState::SetInputLock(int value)
+int GameState::SetFrameInterval(int value)
 {
-    this->inputLock = value;
+    this->frameInterval = value;
     return 1;
 }
 
 // swd32.exe 0x0040DD30
-void GameState::ClearInputLock()
+void GameState::ClearFrameInterval()
 {
-    this->inputLock = 0;
+    this->frameInterval = 0;
 }
 
 // swd32.exe 0x0040E030: the direction code from the centre of the controlled role towards (x, y)

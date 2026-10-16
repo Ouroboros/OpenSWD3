@@ -123,5 +123,6 @@ struct ActState
 
 // Back to the start of the script: the step position, delays, speed and hold cleared.
 void ResetPlayback(ActState& state);
+void FillUnused(ActState& state);
 
 }  // namespace swd3

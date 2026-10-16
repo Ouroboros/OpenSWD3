@@ -762,4 +762,9 @@ void Painter::DrawTile8Keyed(int x, int y)
     }
 }
 
+u32 Painter::FillColorPair() const
+{
+    return this->fillColorPair;
+}
+
 }  // namespace swd3

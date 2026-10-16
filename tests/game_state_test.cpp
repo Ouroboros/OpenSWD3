@@ -40,8 +40,8 @@ TEST_CASE("game state: story flags")
     CHECK_EQ(state.SetGameFlagTo(13, 2), 0x01);
     CHECK(!state.GameFlag(13));
     CHECK_EQ(state.ClearGameFlag(8), 0);
-    CHECK_EQ(state.SetInputLock(5), 1);
-    CHECK_EQ(state.inputLock, 5);
+    CHECK_EQ(state.SetFrameInterval(5), 1);
+    CHECK_EQ(state.frameInterval, 5);
 }
 
 TEST_CASE("game state: click regions are matched strictly inside, the head first")
