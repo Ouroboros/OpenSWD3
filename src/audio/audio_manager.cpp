@@ -177,4 +177,11 @@ int AudioManager::SetMusicFade(int mode, int length)
     return mode;
 }
 
+void AudioManager::SetFadeState(int mode, int length, int fading)
+{
+    this->musicFadeMode = mode;
+    this->musicFadeLength = length;
+    this->musicFading = fading;
+}
+
 }  // namespace swd3

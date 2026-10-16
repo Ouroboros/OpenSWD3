@@ -2,6 +2,7 @@
 
 #include <array>
 #include <memory>
+#include <span>
 
 #include "core/types.h"
 #include "item/item_list.h"
@@ -38,9 +39,17 @@ struct RoleRecord
     u8 level = 0;                  // +0x2C
     std::array<u8, 9> unk2D = {};  // +0x2D
     std::array<u8, 2> unk36 = {};  // +0x36
+
+    void Load(std::span<const u8> record);
 };
 
 static_assert(sizeof(RoleRecord) == 0x38);
+
+// The 0x60-byte battle block of a party role (four of them at 0x004ACF50).
+struct RoleBattleBlock
+{
+    std::array<i32, 0x18> unk00 = {};
+};
 
 // The data of the party saved with the game.
 class Party
@@ -57,6 +66,7 @@ public:
     i32 unk4ACDB0 = 0;                                                        // 0x004ACDB0
     std::array<i32, kVariables> variables = {};                               // 0x004ACBD0 [0]: the gold
     Fame fame;
+    std::array<RoleBattleBlock, kRoles> battleBlocks;  // 0x004ACF50
 };
 
 }  // namespace swd3

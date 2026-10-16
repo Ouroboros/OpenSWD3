@@ -4,8 +4,10 @@
 #include <SDL3/SDL.h>
 
 #include "audio/audio_manager.h"
+#include "battle/battle_enemy.h"
 #include "battle/battle_hud.h"
 #include "battle/battle_message.h"
+#include "battle/battle_role.h"
 #include "battle/battle_services.h"
 #include "battle/battle_state.h"
 #include "battle/battle_text.h"
@@ -283,4 +285,30 @@ TEST_CASE("battle unit: ailments, buffs, expiry and damage")
     CHECK_EQ(unit.damageDigits[2][1], 0);
     CHECK_EQ(unit.damageDigits[2][2], 7);
     CHECK_EQ(unit.damageDigits[2][3], 5);
+}
+
+TEST_CASE("battle unit: role and enemy blocks, reset")
+{
+    Services all;
+    swd3::BattleRole role;
+    CHECK(role.battleRecord != nullptr);
+    swd3::BattleEnemy enemy;
+    CHECK(enemy.data != nullptr);
+    role.kind = swd3::BattleUnit::kPartyRole;
+    role.gauge = 9;
+    role.slotActs[9].id = 4;
+    role.slotActs[3].id = 4;
+    role.targets[1] = 2;
+    role.effects.next = std::make_unique<swd3::EffectNode>();
+    role.Reset(all.services);
+    CHECK_EQ(role.gauge, 0);
+    CHECK_EQ(role.kind, 0);
+    CHECK_EQ(role.slotActs[3].id, 0);
+    CHECK_EQ(role.slotActs[9].id, 4);
+    CHECK_EQ(role.targets[1], 0xFFFFFFFFu);
+    CHECK_EQ(role.fadeLevel, 0xF);
+    CHECK(role.effects.next == nullptr);
+    CHECK(role.battleRecord != nullptr);
+    enemy.Reset(all.services);
+    CHECK(enemy.data != nullptr);
 }

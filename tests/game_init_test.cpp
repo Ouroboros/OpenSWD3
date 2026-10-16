@@ -2,6 +2,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -10,6 +11,7 @@
 #include "game/game_state.h"
 #include "game_data.h"
 #include "map/map_cache.h"
+#include "party/party.h"
 #include "platform/surface.h"
 #include "talk/text_colors.h"
 #include "test.h"
@@ -109,4 +111,29 @@ TEST_CASE("game init: clearing the world")
     CHECK_EQ(world.leader.act.id, -1);
     CHECK(world.map.unk18.empty());
     CHECK_EQ(world.moves[71].unk000[5], 0xFF);
+}
+
+TEST_CASE("game init: the starting roles of maps.dat")
+{
+    std::vector<u8> maps = swd3test::ReadGameFile("maps.dat");
+
+    if (maps.size() <= 0x200)
+    {
+        std::printf("  (maps.dat not found, skipped)\n");
+        return;
+    }
+
+    maps.erase(maps.begin(), maps.begin() + 0x200);
+    u32 table = 0;
+    std::memcpy(&table, maps.data() + 4 * 6, 4);
+    CHECK(table + 4 * 0x34 <= maps.size());
+
+    for (int index = 0; index < 4; ++index)
+    {
+        swd3::RoleRecord role;
+        role.Load(std::span<const u8>(maps).subspan(table + 0x34 * static_cast<std::size_t>(index), 0x34));
+        CHECK(role.maxHitPoints > 0);
+        CHECK(role.hitPoints <= role.maxHitPoints);
+        CHECK(role.level >= 1);
+    }
 }

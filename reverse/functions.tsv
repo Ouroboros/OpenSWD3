@@ -184,11 +184,11 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 183	swd32.exe	0x0040DD20	sub_40DD20	game	src/game/game_state.cpp:GameState::SetFrameInterval	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:SetInputLock
 184	swd32.exe	0x0040DD30	sub_40DD30	game	src/game/game_state.cpp:GameState::ClearFrameInterval	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:ClearInputLock
 185	swd32.exe	0x0040DD40	sub_40DD40	game	src/game/game_state.cpp:MoveRecord::Clear	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:ClearFollower
-186	swd32.exe	0x0040DD60	sub_40DD60	game		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:LoadRoleRecord
+186	swd32.exe	0x0040DD60	sub_40DD60	party	src/party/party.cpp:RoleRecord::Load	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:LoadRoleRecord
 187	swd32.exe	0x0040DE50	sub_40DE50	game	src/ui/marching_rect.cpp:MarchingRect::Draw	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:DrawMarchingRect
 188	swd32.exe	0x0040E030	sub_40E030	game	src/game/game_state.cpp:GameState::DirectionToPlayer	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:DirectionToPlayer
 189	swd32.exe	0x0040E080	sub_40E080	game	src/ui/marching_rect.cpp:ShrinkScreenQuarter	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:ShrinkScreenQuarter
-190	swd32.exe	0x0040E0B0	sub_40E0B0	misc		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Misc:...)"
+190	swd32.exe	0x0040E0B0	sub_40E0B0	game_init	src/game/game.cpp:Game::NewGame	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Misc:...)"
 191	swd32.exe	0x0040EB60	sub_40EB60	music		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Music\"
 192	swd32.exe	0x0040EBF0	sub_40EBF0	misc		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Misc:...)"
 193	swd32.exe	0x0040EC80	sub_40EC80	misc		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between misc anchors 0x0040EBF0 and 0x0040ECC0
@@ -837,7 +837,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 836	swd32.exe	0x00451920	sub_451920	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern; legacy: src/core/static_init.cpp:RegisterFile521538Destructor
 837	swd32.exe	0x00451930	sub_451930	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern; legacy: src/core/static_init.cpp:DestroyFile521538
 838	swd32.exe	0x00451940	sub_451940	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-839	swd32.exe	0x00451A20	sub_451A20	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+839	swd32.exe	0x00451A20	sub_451A20	game_init	src/game/game.cpp:Game::ResetBattle	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 840	swd32.exe	0x00451A90	sub_451A90	battle	src/battle/battle_items.cpp:CreateBattleSurfaces	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:CreateBattleSurfaces
 841	swd32.exe	0x00451AE0	sub_451AE0	battle	src/battle/battle_items.cpp:ReleaseBattleSurfaces	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:ReleaseBattleSurfaces
 842	swd32.exe	0x00451B10	sub_451B10	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "battle.ffd"
@@ -953,7 +953,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 952	swd32.exe	0x0046E260	sub_46E260	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 953	swd32.exe	0x0046E290	sub_46E290	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 954	swd32.exe	0x0046E390	sub_46E390	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-955	swd32.exe	0x0046E490	sub_46E490	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_hero.cpp:BattleHero::BattleHero
+955	swd32.exe	0x0046E490	sub_46E490	battle	src/battle/battle_role.cpp:BattleRole::BattleRole	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_hero.cpp:BattleHero::BattleHero
 956	swd32.exe	0x0046E4D0	sub_46E4D0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_hero.cpp:BattleHero::~BattleHero
 957	swd32.exe	0x0046E520	sub_46E520	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_hero.cpp:BattleHero::StepGauge
 958	swd32.exe	0x0046E6A0	sub_46E6A0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_hero.cpp:BattleHero::ResetHeroState
@@ -1021,7 +1021,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1020	swd32.exe	0x00475160	sub_475160	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 1021	swd32.exe	0x00475180	sub_475180	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_hero.cpp:BattleHero::Release
 1022	swd32.exe	0x004751C0	sub_4751C0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-1023	swd32.exe	0x00475560	sub_475560	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_enemy.cpp:BattleEnemy::BattleEnemy
+1023	swd32.exe	0x00475560	sub_475560	battle	src/battle/battle_enemy.cpp:BattleEnemy::BattleEnemy	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_enemy.cpp:BattleEnemy::BattleEnemy
 1024	swd32.exe	0x00475590	sub_475590	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_enemy.cpp:BattleEnemy::~BattleEnemy
 1025	swd32.exe	0x004755E0	sub_4755E0	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_enemy.cpp:BattleEnemy::StepGauge
 1026	swd32.exe	0x00475720	sub_475720	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
@@ -1125,7 +1125,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1124	swd32.exe	0x0047CF00	sub_47CF00	battle	src/battle/battle_unit.cpp:BattleUnit::PushTargetAlt	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::PushTargetAlt
 1125	swd32.exe	0x0047CF20	sub_47CF20	battle	src/battle/battle_unit.cpp:BattleUnit::DrawGuardText	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::DrawGuardText
 1126	swd32.exe	0x0047D2E0	sub_47D2E0	battle	src/battle/battle_unit.cpp:ScaleByTenths	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:ScaleByTenths
-1127	swd32.exe	0x0047D350	sub_47D350	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+1127	swd32.exe	0x0047D350	sub_47D350	battle	src/battle/battle_unit.cpp:BattleUnit::Reset	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 1128	swd32.exe	0x0047D640	sub_47D640	battle	src/battle/battle_unit.cpp:BattleUnit::SetDamageDigits	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::SetDamageDigits
 1129	swd32.exe	0x0047D7D0	sub_47D7D0	battle	src/battle/battle_unit.cpp:BattleUnit::ResetAfterGuard	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::ResetAfterGuard
 1130	swd32.exe	0x0047D7F0	sub_47D7F0	battle	src/battle/battle_unit.cpp:BattleUnit::GetGuard	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_unit.cpp:BattleUnit::GetGuard

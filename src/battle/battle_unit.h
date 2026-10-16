@@ -154,6 +154,7 @@ public:
     void SetLevel(i16 level);
     int SetB00(int value);
     int SetB04(int value);
+    void Reset(BattleServices& services);
     void DrawGuardText(BattleServices& services);
     int AddAilment(BattleServices& services, const SkillScript& skill);
     int AddBuff(BattleServices& services, const SkillScript& skill);
@@ -185,18 +186,21 @@ public:
     RoleRecord* roleRecord = nullptr;  // +0x04 the role's party record
     const i32* roleBlock = nullptr;    // +0x08 the role's 0x60-byte block at 0x004ACF50
     ObjectRecord* data = nullptr;      // +0x0C an enemy's mon.dat object (usually `object`)
-    ObjectRecord object;               // +0x10 (its description at +0xB0)
+    std::unique_ptr<ObjectRecord> ownedData;  // a party role's block at +0x0C (freed by Reset)
+    ObjectRecord object;                      // +0x10 (its description at +0xB0)
 
     ActState mainAct;                          // +0x2A0
     ActState standAct;                         // +0x338
     ActState castAct;                          // +0x3D0
     ActState recoilAct;                        // +0x468
     ActState attackAct;                        // +0x500
+    ActState unk598;                           // +0x598
     std::array<ActState, kSlotActs> slotActs;  // +0x630
     ActState stepAct;                          // +0xCB8
     UnitPlacement placement;                   // +0xD50
     UnitPlacement savedPlacement;              // +0xD70
     UnitCommand command;                       // +0xD90
+    std::array<ActState, 8> unkFCC;            // +0xFCC
     std::unique_ptr<QueuedAction> actions;     // +0x236C
     const Picture* shadowPicture = nullptr;    // +0x2548
     const Picture* picture = nullptr;          // +0x254C the current picture
@@ -208,6 +212,8 @@ public:
     i32 unk2634 = 0;
     i32 unk2638 = 0;
     i32 unk263C = 0;
+    i32 unk2660 = 0;
+    i32 unk2664 = 0;
     i32 fadeLevel = 0xF;  // +0x2668
     i32 brightLevel = 1;  // +0x266C
     i32 unk2670 = 0;
@@ -233,11 +239,13 @@ public:
     u16 unk26DC = 0;                                         // +0x26DC
     std::array<u16, 0x23> damageDelays = {};                 // +0x26DE
     std::array<std::array<i16, 4>, 0x23> damageDigits = {};  // +0x2724 the four digits per target slot
+    std::array<std::array<i16, 4>, 0x23> unk283C = {};       // +0x283C
     std::array<i16, 4> guardPhases = {};  // +0x2884 the pop phases of the four letters of the guard text
     u16 unk2954 = 0;
     u16 unk2956 = 0;
     u16 unk2958 = 0;
-    i16 guardRise = 0;  // +0x29A0
+    std::array<u16, 0x23> unk295A = {};  // +0x295A
+    i16 guardRise = 0;                   // +0x29A0
     u16 unk29A2 = 0xFFFF;
     u16 unk29A4 = 0;
     u16 unk29A6 = 0;
@@ -252,33 +260,39 @@ public:
     u16 unk29BA = 0;
     std::array<u16, 0x23> pushedTargets = {};  // +0x29C4
     u16 unk2A0A = 4;
-    u16 actId = 0;                                                                  // +0x2A0C the unit's act
-    u16 action = 0;                                                                 // +0x2A0E
-    u16 gauge = 0;                                                                  // +0x2A12 the action gauge
+    u16 actId = 0;   // +0x2A0C the unit's act
+    u16 action = 0;  // +0x2A0E
+    u16 gauge = 0;   // +0x2A12 the action gauge
+    u16 unk2A14 = 0;
     std::array<u32, 4> targets = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};  // +0x2A56
     u16 unk2A66 = 0;
     u16 unk2A68 = 2;
     u16 unk2A6A = 0x18;
     u16 commandA = 0;  // +0x2A6C
+    u16 unk2A6E = 0;
     u16 commandB = 0;  // +0x2A70 commands 2, 3, 6, 13, 14 and 15
     u16 unk2A72 = 0;
     u16 unk2A74 = 0;
     u16 unk2A76 = 0;
     u16 attackStage = 0;  // +0x2A78 1..5
     u16 unk2A7A = 0;
-    u16 targetCount = 0;    // +0x2A7C
-    u16 damageSlot = 0;     // +0x2A7E
-    u16 actionCount = 0;    // +0x2A80
+    u16 targetCount = 0;  // +0x2A7C
+    u16 damageSlot = 0;   // +0x2A7E
+    u16 actionCount = 0;  // +0x2A80
+    u16 unk2A82 = 0;
     u16 pendingDamage = 0;  // +0x2A84 bit 15: healing
     u16 unk2A86 = 0;        // +0x2A86 (high byte at +0x2A87)
     u16 unk2A8A = 0;
     u16 unk2A8C = 0;
     u16 barrierTurns = 0;  // +0x2A90
+    u8 unk2A92 = 0;
     u8 unk2A93 = 0;
     u8 defeatPose = 0;  // +0x2A94 the pose of the defeat (a fixed pose overrides it)
     u8 fixedPose = 0;   // +0x2A95
+    std::array<u8, 4> unk2A97 = {};
     u8 healChoice = 0;  // +0x2A9C
     i32 kind = 0;       // +0x2AA0 1: a party role
+    i32 unk2AA4 = 0;
     i32 unk2AA8 = 0;
     i32 unk2AAC = 0;
     i32 unk2AB0 = 0;
@@ -292,6 +306,7 @@ public:
     i32 held = 0;  // +0x2AD0
     i32 unk2AD4 = 0;
     i32 unk2AD8 = 0;
+    i32 unk2ADC = 0;
     i32 unk2AE0 = 0;
     i32 target = 0;       // +0x2AE4
     i32 extraNumber = 0;  // +0x2AE8
@@ -299,6 +314,7 @@ public:
     i32 guarding = 0;  // +0x2AF0
     i32 unk2AF4 = 0;
     i32 unk2AF8 = 0;
+    i32 unk2AFC = 0;
     i32 unk2B00 = 0;
     i32 unk2B04 = 0;
     i32 facing = 0;  // +0x2B08

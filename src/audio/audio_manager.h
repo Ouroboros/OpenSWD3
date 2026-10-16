@@ -53,6 +53,8 @@ public:
     int UpdateMusicFade();
     int PollMusicFade();
     int SetMusicFade(int mode, int length);
+    // The fade globals as a new game sets them.
+    void SetFadeState(int mode, int length, int fading);
 
 private:
     AudioSystem system;

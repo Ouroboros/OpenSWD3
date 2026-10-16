@@ -4,12 +4,19 @@
 #include <string>
 
 #include "audio/audio_manager.h"
+#include "battle/battle_enemy.h"
+#include "battle/battle_hud.h"
+#include "battle/battle_message.h"
+#include "battle/battle_role.h"
+#include "battle/battle_services.h"
+#include "battle/battle_state.h"
 #include "config/config.h"
 #include "core/types.h"
 #include "draw/painter.h"
 #include "font/text_font.h"
 #include "game/databases.h"
 #include "game/game_state.h"
+#include "game/scene.h"
 #include "gfx/graphics.h"
 #include "input/controls.h"
 #include "input/input.h"
@@ -17,6 +24,8 @@
 #include "map/map_cache.h"
 
 #include "movie/movie.h"
+#include "org/database.h"
+#include "party/party.h"
 #include "pic/rle.h"
 #include "platform/audio_device.h"
 #include "platform/display.h"
@@ -65,6 +74,8 @@ private:
     bool InitDevices();
     void SetupFont(TextFont& font, int size);
     static u32 DiskFreeMegabytes();
+    void ResetBattle();
+    void NewGame();
     void Destroy();
 
     DialogErrorReporter errors;
@@ -94,6 +105,15 @@ private:
     GameDatabases databases;
     PathNodePool pathNodes;
     TextColors textColors;
+    Database database;
+    Party party;
+    Scene scene;
+    BattleState battleState;
+    BattleHud battleHud;
+    BattleMessages battleMessages;
+    BattleServices battleServices;
+    std::array<BattleRole, 10> battleRoles;    // 0x005029D0
+    std::array<BattleEnemy, 8> battleEnemies;  // 0x00525508
     ExeResources resources;
     SystemSound systemSound;
     std::unique_ptr<Surface> offscreen;  // 0x004ACBA0 the frame drawn by the game

@@ -2219,4 +2219,108 @@ void BattleUnit::SetDefeatPoseFixed(u8 pose)
     this->defeatPose = pose;
 }
 
+// swd32.exe 0x0047D350: clears the unit between battles: its actions (the slot actions 0..7 and 10), placement,
+// command and target lists, effects (all freed), a party role's block, and its state words; the targets back to -1
+void BattleUnit::Reset(BattleServices& services)
+{
+    this->mainAct = ActState{};
+    this->standAct = ActState{};
+    this->castAct = ActState{};
+    this->recoilAct = ActState{};
+    this->attackAct = ActState{};
+    this->unk598 = ActState{};
+    this->slotActs[10] = ActState{};
+
+    for (int slot = 0; slot < kSlotActsPerTurn; ++slot)
+    {
+        this->slotActs[static_cast<std::size_t>(slot)] = ActState{};
+    }
+
+    this->placement = UnitPlacement{};
+    this->command = UnitCommand{};
+    this->unk295A = {};
+    this->pushedTargets = {};
+    this->unkFCC = {};
+    this->unk283C = {};
+    this->ExpireEffects(services, 1);
+
+    if (this->kind == BattleUnit::kPartyRole && this->data != nullptr)
+    {
+        this->ownedData.reset();
+        this->data = nullptr;
+    }
+
+    this->targets = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};
+    this->unk29A2 = 0xFFFF;
+    this->fadeLevel = 0xF;
+    this->brightLevel = 1;
+    this->unk2A68 = 2;
+    this->unk2A6A = 0x18;
+    this->unk2954 = 0;
+    this->unk2660 = 0;
+    this->unk2664 = 0;
+    this->marks = 0;
+    this->status = 0;
+    this->unk26D2 = 0;
+    this->unk2958 = 0;
+    this->action = 0;
+    this->unk29A4 = 0;
+    this->actId = 0;
+    this->gauge = 0;
+    this->unk2A14 = 0;
+    this->unk2A66 = 0;
+    this->commandA = 0;
+    this->unk2A6E = 0;
+    this->unk2A72 = 0;
+    this->unk2A74 = 0;
+    this->attackStage = 0;
+    this->unk2A7A = 0;
+    this->targetCount = 0;
+    this->actionCount = 0;
+    this->damageSlot = 0;
+    this->unk2A82 = 0;
+    this->unk26B8 = 0;
+    this->healChoice = 0;
+    this->unk2A92 = 0;
+    this->unk2A93 = 0;
+    this->defeatPose = 0;
+    this->fixedPose = 0;
+    this->unk2A86 = 0;
+    this->unk2A97 = {};
+    this->pendingDamage = 0;
+    this->equipmentFlags = 0;
+    this->unk26CC = 0;
+    this->kind = 0;
+    this->unk2AA4 = 0;
+    this->unk2AA8 = 0;
+    this->unk2AAC = 0;
+    this->unk2AB0 = 0;
+    this->unk2AB4 = 0;
+    this->defeated = 0;
+    this->outline = 0;
+    this->unk2AC4 = 0;
+    this->unk2AC8 = 0;
+    this->unk267C = 0;
+    this->held = 0;
+    this->unk2AD4 = 0;
+    this->unk2AD8 = 0;
+    this->unk2ADC = 0;
+    this->unk2AE0 = 0;
+    this->unk2A8C = 0;
+    this->target = 0;
+    this->extraNumber = 0;
+    this->unk2AEC = 0;
+    this->guarding = 0;
+    this->unk2AF4 = 0;
+    this->unk2ABC = 0;
+    this->unk2ACC = 0;
+    this->unk2AF8 = 0;
+    this->unk2AFC = 0;
+    this->unk2B00 = 0;
+    this->unk2B04 = 0;
+    this->facing = 0;
+    this->unk2B0C = 0;
+    this->name = 0;
+}
+
 }  // namespace swd3

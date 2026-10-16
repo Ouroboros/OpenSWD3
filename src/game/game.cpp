@@ -53,7 +53,30 @@ Game::Game(std::string installDirectory)
     : screen(Display::kWidth, Display::kHeight), inputDevice(this->display), input(this->inputDevice),
       graphics(this->display, this->errors), codec(this->painter), archive(this->codec, this->errors),
       acts(this->errors), rasterizer(this->glyphs), largeFont(this->rasterizer), mediumFont(this->rasterizer),
-      smallFont(this->rasterizer), audio(this->audioDevice), mapCache(this->config, this->painter)
+      smallFont(this->rasterizer), audio(this->audioDevice), mapCache(this->config, this->painter),
+      database(installDirectory), battleHud(this->painter, this->archive, this->acts, this->random, this->audio),
+      battleMessages(
+          this->painter,
+          this->archive,
+          this->acts,
+          this->battleHud,
+          this->battleState,
+          this->mediumFont,
+          this->largeFont
+      ),
+      battleServices{
+          this->battleState,
+          this->random,
+          this->archive,
+          this->acts,
+          this->painter,
+          this->audio,
+          this->battleHud,
+          this->battleMessages,
+          this->config,
+          this->party,
+      }
+
 {
     this->config.installDirectory = std::move(installDirectory);
     this->glyphs.Load(GlyphLibraryPath());
@@ -336,6 +359,7 @@ void Game::InitDrawKernel()
 
     this->databases.LoadMaps();
     this->pathNodes.Init();
+    this->NewGame();
     this->state.ClearWorld();
     this->menuState = Game::kTitleMenu;
 }
@@ -407,6 +431,257 @@ u32 Game::DiskFreeMegabytes()
 
     const u64 megabytes = space.available >> 0x14;
     return static_cast<u32>(megabytes);
+}
+
+// swd32.exe 0x00451A20: frees the fame lists, clears the battle blocks of the roles and resets every battle unit
+void Game::ResetBattle()
+{
+    this->party.fame.Free();
+
+    for (CounterList& list : this->party.fame.lists)
+    {
+        ClearCounterList(list);
+    }
+
+    this->party.battleBlocks = {};
+
+    for (BattleEnemy& enemy : this->battleEnemies)
+    {
+        enemy.Reset(this->battleServices);
+    }
+
+    for (BattleRole& role : this->battleRoles)
+    {
+        role.Reset(this->battleServices);
+    }
+}
+
+namespace
+{
+
+constexpr u16 kTableEnd = 0xFFFF;
+constexpr int kEquipmentFromData = 11;
+
+// The word at `offset` of maps.dat past its header.
+u16 MapsWord(const std::vector<u8>& data, std::size_t offset)
+{
+    return offset + 1 < data.size() ? static_cast<u16>(data[offset] | data[offset + 1] << 8) : u16{kTableEnd};
+}
+
+// The offset of table `index` of maps.dat (the dwords at its start).
+u32 MapsTable(const std::vector<u8>& data, int index)
+{
+    const auto at = static_cast<std::size_t>(4 * index);
+    return static_cast<u32>(MapsWord(data, at) | static_cast<u32>(MapsWord(data, at + 2)) << 16);
+}
+
+void ResetAct(ActState& state, int id, int action)
+{
+    state = ActState{};
+    ResetPlayback(state);
+    state.id = id;
+    state.action = action;
+}
+
+}  // namespace
+
+// swd32.exe 0x0040E0B0: the state a new game starts from: the story flags, the gold, the pointer roles and the screen
+// animations, and from maps.dat the record tables, the four roles, the inventory, the skills and the equipment
+void Game::NewGame()
+{
+    this->ResetBattle();
+    this->acts.SetUseCache(1);
+    GameState& game = this->state;
+    Scene& scene = this->scene;
+    game.flags = {};
+
+    for (const int flag : {1, 3, 4, 0xA, 0x46})
+    {
+        game.SetGameFlag(flag);
+    }
+
+    for (const int flag : {0, 2, 5, 6, 7, 8, 9, 0xB, 0xC, 0xD, 0xE, 0xF, 0x10, 0x11, 0x12, 0x13, 0x14, 0x16, 0x17})
+    {
+        game.ClearGameFlag(flag);
+    }
+
+    for (int flag = 0x48; flag <= 0x53; ++flag)
+    {
+        game.ClearGameFlag(flag);
+    }
+
+    game.SetGameFlag(0x1E);
+    game.ClearGameFlag(0x15);
+    this->party.variables[0] = 0x64;
+    scene.unk4A9930 = -1;
+    scene.unk4A9938 = -1;
+    scene.unk4CAD20 = -1;
+    scene.unk4A9918 = -1;
+    scene.unk4CAE88 = 0;
+    scene.unk4C8BE0 = 0;
+    scene.unk4A93D4 = 0;
+    scene.unk4A9A04.clear();
+    scene.unk4A9A08.clear();
+    scene.unk4A9A0C.clear();
+    scene.unk4B7C74 = {};
+    scene.unk4AB788 = 1;
+    this->audio.SetFadeState(1, 0, 0);
+    scene.unk4ACDBC = 0;
+    scene.unk4A94B0 = 0x40000000;
+    scene.unk4ACE70.fill(0xCF);
+    scene.unk4ACDB8 = 3;
+    scene.unk4ACF00 = SceneNode{};
+    game.SetWalkSpeed(0x10);
+
+    auto setPointer = [this](Role& role, int action)
+    {
+        role = Role{};
+        ResetPlayback(role.act);
+        role.act.id = Scene::kPointerAct;
+        role.act.action = action;
+        role.flags = Scene::kPointerFlags;
+        return this->acts.Run(role.act) != 0;
+    };
+
+    setPointer(scene.pointerRole, 0);
+    setPointer(scene.pointerButtonRole, 0xC);
+    setPointer(scene.pointerPageRole, 0xE);
+    scene.unk4A9A30 = ActState{};
+    ResetPlayback(scene.unk4A9A30);
+    scene.unk4B751C = 0;
+    scene.unk4B74F4 = 0;
+
+    for (std::size_t index = 0; index < scene.unk4B9F68.size(); ++index)
+    {
+        scene.unk4B9F68[index] = ActState{};
+        ResetPlayback(scene.unk4B9F68[index]);
+    }
+
+    for (int index = 0; index < 4; ++index)
+    {
+        scene.unk4B9F68[static_cast<std::size_t>(index)].id = 0x232E;
+        scene.unk4B9F68[static_cast<std::size_t>(index)].action = index;
+    }
+
+    ResetAct(scene.unk4C83A8, 0x2329, 8);
+    scene.viewWidth = Display::kWidth;
+    scene.viewHeight = Display::kHeight;
+    scene.unk4ACBC8 = 2;
+    scene.unk4ACBCC = 0;
+    ResetPlayback(scene.unk4AD3F0);
+    ResetPlayback(scene.unk4A93E8);
+    constexpr std::array<int, 4> kScreenActs = {0x232D, 0x232F, 0x2330, 0x2331};
+    constexpr std::array<int, 4> kPanelActs = {0x2337, 0x2339, 0x233A, 0x233B};
+
+    for (std::size_t index = 0; index < 4; ++index)
+    {
+        ResetAct(scene.unk4CAA78[index], kScreenActs[index], 0);
+        ResetAct(scene.unk4A9120[index], kPanelActs[index], 0);
+    }
+
+    ResetPlayback(scene.unk4ACAF8);
+    scene.unk4C97A0.fill(0xF);
+    scene.unk4ACAF8.id = 0x232B;
+    scene.unk4ACAF8.action = 0x38;
+
+    for (ActState& state : scene.unk4AD0D8)
+    {
+        ResetPlayback(state);
+        state.id = 0x232B;
+    }
+
+    const std::vector<u8>& data = this->databases.mapsData;
+    const u32 records = MapsTable(data, 0x12);
+    u32 words = 0;
+
+    while (records + 2 * words + 1 < data.size() && MapsWord(data, records + 2 * words) != kTableEnd)
+    {
+        ++words;
+    }
+
+    scene.unk4CAE78.assign((8 * words + 0x80) / 8, 0);
+    scene.unk4CAE78[0] = static_cast<u16>(words / 8);
+
+    if ((words & 7) == 0)
+    {
+        for (u32 word = 0; word < words; ++word)
+        {
+            scene.unk4CAE78[1 + word] = MapsWord(data, records + 2 * word);
+        }
+    }
+
+    scene.unk4C8BD4 = 0;
+    scene.unk4ACE40 = MapsTable(data, 1);
+
+    for (u32 at = scene.unk4ACE40; at + 1 < data.size() && MapsWord(data, at) != kTableEnd; at += 0x16)
+    {
+        scene.unk4C8BD4 = static_cast<u16>(scene.unk4C8BD4 + 0x16);
+    }
+
+    const u32 roles = MapsTable(data, 6);
+
+    for (std::size_t role = 0; role < Party::kRoles; ++role)
+    {
+        const std::size_t at = roles + 0x34 * role;
+
+        if (at + 0x34 <= data.size())
+        {
+            this->party.roles[role].Load(std::span<const u8>(data).subspan(at, 0x34));
+        }
+    }
+
+    this->party.battleBlocks = {};
+    FreeItemList(this->party.inventory);
+    scene.unk4C97E4 = MapsTable(data, 0x18);
+
+    for (u32 at = MapsTable(data, 5); at + 1 < data.size() && MapsWord(data, at) != 0; at += 4)
+    {
+        AddItem(
+            this->party.inventory,
+            MapsWord(data, at),
+            static_cast<i16>(MapsWord(data, at + 2)),
+            ItemCountMode::Count,
+            this->database
+        );
+    }
+
+    for (std::size_t role = 0; role < Party::kRoles; ++role)
+    {
+        this->party.skills[role] = NewEmptyItem();
+        const u32 list = MapsTable(data, 9 + static_cast<int>(role));
+
+        for (u32 at = list; at + 1 < data.size() && MapsWord(data, at) != 0; at += 2)
+        {
+            AddItem(this->party.skills[role]->next, MapsWord(data, at), 1, ItemCountMode::Count, this->database);
+        }
+    }
+
+    for (std::unique_ptr<ItemNode>& slot : this->party.equipment)
+    {
+        slot = NewEmptyItem();
+    }
+
+    for (std::size_t role = 0; role < Party::kRoles; ++role)
+    {
+        const u32 list = MapsTable(data, 0xD + static_cast<int>(role));
+
+        for (std::size_t slot = 0; slot < kEquipmentFromData; ++slot)
+        {
+            const u16 id = MapsWord(data, list + 2 * slot);
+            ItemLink item;
+
+            if (id != 0)
+            {
+                AddItem(item, id, 1, ItemCountMode::Count, this->database);
+            }
+            else
+            {
+                item = NewEmptyItem();
+            }
+
+            this->party.equipment[role * Party::kSlotsPerRole + slot] = std::move(item);
+        }
+    }
 }
 
 }  // namespace swd3
