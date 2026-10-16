@@ -118,7 +118,7 @@ inline void RunDatabase(
         report("skill/" + std::to_string(id), Hash(skill.data(), skill.size()));
     }
 
-    // The game reads groups 1..4 (hero + 1); group 5 lies past the table (an empty script read past the buffer).
+    // The game reads groups 1..4 (role + 1); group 5 lies past the table (an empty script read past the buffer).
     for (int group = 0; group < 5; ++group)
     {
         std::vector<u8> levels;

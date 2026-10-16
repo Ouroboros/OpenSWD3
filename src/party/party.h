@@ -13,7 +13,7 @@ namespace swd3
 // A party member (0x38 bytes in the original, four of them at 0x004AB790). The attribute names follow the status
 // screen (attack and defence shown with their equipment bonus) and the battle checks of spirit and stamina costs;
 // those marked inferred are not yet confirmed by a label.
-struct HeroRecord
+struct RoleRecord
 {
     i32 unk00 = 0;                 // +0x00
     i16 hitPoints = 0;             // +0x04 生命
@@ -40,22 +40,22 @@ struct HeroRecord
     std::array<u8, 2> unk36 = {};  // +0x36
 };
 
-static_assert(sizeof(HeroRecord) == 0x38);
+static_assert(sizeof(RoleRecord) == 0x38);
 
 // The data of the party saved with the game.
 class Party
 {
 public:
-    static constexpr int kHeroes = 4;
-    static constexpr int kSlotsPerHero = 16;
+    static constexpr int kRoles = 4;
+    static constexpr int kSlotsPerRole = 16;
     static constexpr int kVariables = 64;
 
-    std::array<HeroRecord, kHeroes> heroes;                                    // 0x004AB790
-    ItemLink inventory;                                                        // 0x004A9940
-    std::array<std::unique_ptr<ItemNode>, kHeroes> skills;                     // 0x004A9490 each headed by "無"
-    std::array<std::unique_ptr<ItemNode>, kHeroes * kSlotsPerHero> equipment;  // 0x004C8AD0
-    i32 unk4ACDB0 = 0;                                                         // 0x004ACDB0
-    std::array<i32, kVariables> variables = {};                                // 0x004ACBD0 [0]: the gold
+    std::array<RoleRecord, kRoles> roles;                                     // 0x004AB790
+    ItemLink inventory;                                                       // 0x004A9940
+    std::array<std::unique_ptr<ItemNode>, kRoles> skills;                     // 0x004A9490 each headed by "無"
+    std::array<std::unique_ptr<ItemNode>, kRoles * kSlotsPerRole> equipment;  // 0x004C8AD0
+    i32 unk4ACDB0 = 0;                                                        // 0x004ACDB0
+    std::array<i32, kVariables> variables = {};                               // 0x004ACBD0 [0]: the gold
     Fame fame;
 };
 

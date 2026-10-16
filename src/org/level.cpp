@@ -28,8 +28,8 @@ u16 WordAt(const std::vector<u8>& script, std::size_t at)
     return at + 1 < script.size() ? static_cast<u16>(script[at] | (script[at + 1] << 8)) : u16{0};
 }
 
-// The skill list of a hero gets `id` unless the list (its "無" head included) has it: a new node at its end with the
-// object of mon.dat. True when one was added.
+// The skill list of a party role gets `id` unless the list (its "無" head included) has it: a new node at its end with
+// the object of mon.dat. True when one was added.
 bool AppendSkill(ItemNode& head, i16 id, Database& database, LearnedSkill& last)
 {
     ItemNode* node = &head;
@@ -67,12 +67,12 @@ bool AppendSkill(ItemNode& head, i16 id, Database& database, LearnedSkill& last)
 
 }  // namespace
 
-// swd32.exe 0x00477400: level `level` of hero `hero1` (1..4) from level.dat: opcode 0 brings the 13 words of the
+// swd32.exe 0x00477400: level `level` of role `role1` (1..4) from level.dat: opcode 0 brings the 13 words of the
 // maxima, attributes and experience and fills hit points, spirit and stamina; opcode 1 teaches a skill (an id of 0
 // raises the maintenance assertion). The opcodes are read as the sign-extended low byte of each word.
 bool LevelUp(
-    HeroRecord& hero,
-    int hero1,
+    RoleRecord& role,
+    int role1,
     int level,
     int& learned,
     Party& party,
@@ -83,7 +83,7 @@ bool LevelUp(
 {
     std::vector<u8> script;
 
-    if (!database.ReadLevelScript(hero1, level, script))
+    if (!database.ReadLevelScript(role1, level, script))
     {
         return false;
     }
@@ -114,23 +114,23 @@ bool LevelUp(
                 words[i] = WordAt(script, at + 2 * i);
             }
 
-            hero.maxHitPoints = static_cast<i16>(words[0]);
-            hero.maxSpirit = static_cast<i16>(words[1]);
-            hero.maxStamina = static_cast<i16>(words[2]);
-            hero.attack = static_cast<i16>(words[3]);
-            hero.defense = static_cast<i16>(words[4]);
-            hero.unk14 = static_cast<i16>(words[5]);
-            hero.agility = static_cast<i16>(words[6]);
-            hero.unk18 = static_cast<i16>(words[7]);
-            hero.unk1A = static_cast<i16>(words[8]);
-            hero.ailmentChance = static_cast<i16>(words[9]);
-            hero.unk1E = static_cast<i16>(words[10]);
-            hero.experience = static_cast<i32>(words[11] | (static_cast<u32>(words[12]) << 16));
+            role.maxHitPoints = static_cast<i16>(words[0]);
+            role.maxSpirit = static_cast<i16>(words[1]);
+            role.maxStamina = static_cast<i16>(words[2]);
+            role.attack = static_cast<i16>(words[3]);
+            role.defense = static_cast<i16>(words[4]);
+            role.unk14 = static_cast<i16>(words[5]);
+            role.agility = static_cast<i16>(words[6]);
+            role.unk18 = static_cast<i16>(words[7]);
+            role.unk1A = static_cast<i16>(words[8]);
+            role.ailmentChance = static_cast<i16>(words[9]);
+            role.unk1E = static_cast<i16>(words[10]);
+            role.experience = static_cast<i32>(words[11] | (static_cast<u32>(words[12]) << 16));
             at += 2 * kStatWords;
-            hero.level = static_cast<u8>(level);
-            hero.hitPoints = hero.maxHitPoints;
-            hero.spirit = hero.maxSpirit;
-            hero.stamina = hero.maxStamina;
+            role.level = static_cast<u8>(level);
+            role.hitPoints = role.maxHitPoints;
+            role.spirit = role.maxSpirit;
+            role.stamina = role.maxStamina;
         }
         else if (opcode == 1)
         {
@@ -141,7 +141,7 @@ bool LevelUp(
                 MaintenanceAssert(reporter, kLevelSkillZero, 0, kOrgFile, kLevelSkillLine);
             }
 
-            if (AppendSkill(*party.skills[static_cast<std::size_t>(hero1 - 1)], id, database, last))
+            if (AppendSkill(*party.skills[static_cast<std::size_t>(role1 - 1)], id, database, last))
             {
                 learned = 1;
             }
@@ -153,16 +153,16 @@ bool LevelUp(
     return true;
 }
 
-// swd32.exe 0x00477BD0: hero `hero` (0..3) learns skill `id`; 0 when the list has it already, 1 otherwise (also for the
+// swd32.exe 0x00477BD0: role `role` (0..3) learns skill `id`; 0 when the list has it already, 1 otherwise (also for the
 // "no skill" id 0x8000, which adds nothing). An id of 0 raises the maintenance assertion.
-int LearnSkill(int hero, i16 id, Party& party, Database& database, LearnedSkill& last, ErrorReporter& reporter)
+int LearnSkill(int role, i16 id, Party& party, Database& database, LearnedSkill& last, ErrorReporter& reporter)
 {
     if (id == 0)
     {
         MaintenanceAssert(reporter, kSkillZero, 0, kOrgFile, kSkillLine);
     }
 
-    ItemNode& head = *party.skills[static_cast<std::size_t>(hero)];
+    ItemNode& head = *party.skills[static_cast<std::size_t>(role)];
     ItemNode* node = &head;
 
     if (static_cast<i16>(node->id) == id)

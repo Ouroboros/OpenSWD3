@@ -45,7 +45,7 @@ ItemLink CopyItemList(const ItemLink& list);
 void FreeItemList(ItemLink& list);
 std::unique_ptr<ItemNode> NewEmptyItem();
 std::unique_ptr<ItemNode> UnlinkItem(ItemLink& list, i16 id);
-ItemNode* FindHeroItem(std::span<const std::unique_ptr<ItemNode>> slots, i16 id);
+ItemNode* FindRoleItem(std::span<const std::unique_ptr<ItemNode>> slots, i16 id);
 ItemNode* FindItemOfKind(const ItemLink& list, i16 id);
 ItemNode* ItemAt(const ItemLink& list, u16 index);
 ItemNode* AddFlaggedItem(ItemLink& list, u16 id, i16 amount, i16 flagged, Database& database);

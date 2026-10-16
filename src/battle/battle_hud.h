@@ -68,7 +68,7 @@ public:
     int LoadAnimation(BattleAnimation& animation, int unused, int x, int y, u16 id, u16 divisor);
     int PlayAnimationShifted(BattleAnimation& animation, int unused, int amount);
 
-    std::array<u8, 8> portraitHighlight = {};      // 0x00524118 heroes outlined in green
+    std::array<u8, 8> portraitHighlight = {};      // 0x00524118 roles outlined in green
     ActState scrollAct;                            // 0x004FD638 shared by the scroll bar and the coin toss
     ActState effectAct;                            // 0x004FD6D0
     i32 timingCounter = 0;                         // 0x004FD768 low word: the needle * 2 (0x8000 when done)

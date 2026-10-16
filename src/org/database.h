@@ -22,7 +22,7 @@ public:
     bool LoadObject(ObjectRecord& record, u16 id);
     bool LoadLevelEntry(int group, int index, u32& experience);
     void CloseFiles();
-    // The level.dat script of (group, index) (also read by the level-up of a hero).
+    // The level.dat script of (group, index) (also read by the level-up of a party role).
     bool ReadLevelScript(int group, int index, std::vector<u8>& script);
     // Frees the description without uncounting it.
     static void FreeDescription(ObjectRecord& record);

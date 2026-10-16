@@ -34,7 +34,7 @@
 
 ## 下一步
 
-战斗单位（BattleUnit／BattleHero／BattleEnemy，0x2B28 字节按用途命名）、战斗阵型与讯息、菜单状态（0x4FB000–0x4FDFFF 归类）、角色与移动、地图、对话、战斗、菜单与主循环。
+战斗单位（BattleUnit／BattleRole／BattleEnemy，0x2B28 字节按用途命名）、战斗阵型与讯息、菜单状态（0x4FB000–0x4FDFFF 归类）、角色与移动、地图、对话、战斗、菜单与主循环。
 
 ## GOAL完成条件
 

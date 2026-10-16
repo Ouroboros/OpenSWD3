@@ -199,15 +199,15 @@ const Picture* BattleUnit::StepIdleAction(BattleServices& services)
     return this->picture;
 }
 
-// swd32.exe 0x00478670: the battle attributes (second) or the party record of a hero
+// swd32.exe 0x00478670: the battle attributes (second) or the party record of a party role
 const void* BattleUnit::SelectEntry(int second) const
 {
     if (second != 0)
     {
-        return this->heroStats;
+        return this->battleRecord;
     }
 
-    return this->hero;
+    return this->roleRecord;
 }
 
 // swd32.exe 0x00478690
@@ -313,7 +313,7 @@ int BattleUnit::PushTarget(u16 value)
     return count;
 }
 
-// swd32.exe 0x004787F0: a defeated hero has its hit points set to 0
+// swd32.exe 0x004787F0: a defeated role has its hit points set to 0
 int BattleUnit::StartDefeat(int defeat)
 {
     this->defeated = defeat;
@@ -324,9 +324,9 @@ int BattleUnit::StartDefeat(int defeat)
         this->defeatPose = 6;
     }
 
-    if (this->kind == BattleUnit::kHero && this->hero != nullptr)
+    if (this->kind == BattleUnit::kPartyRole && this->roleRecord != nullptr)
     {
-        this->hero->hitPoints = 0;
+        this->roleRecord->hitPoints = 0;
     }
 
     return 1;
@@ -340,7 +340,7 @@ int BattleUnit::ToggleAF8()
     return value;
 }
 
-// swd32.exe 0x00478850: clears the state of a turn; heroes get a random gauge of 50..189. The slot actions cleared
+// swd32.exe 0x00478850: clears the state of a turn; roles get a random gauge of 50..189. The slot actions cleared
 // are the first eight.
 int BattleUnit::ResetTurn(BattleServices& services)
 {
@@ -421,7 +421,7 @@ int BattleUnit::ResetTurn(BattleServices& services)
     this->targets = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};
     int result = this->kind;
 
-    if (result == BattleUnit::kHero)
+    if (result == BattleUnit::kPartyRole)
     {
         result = static_cast<int>(services.random.Below(0x8C)) + 0x32;
         this->gauge = static_cast<u16>(result);
@@ -795,7 +795,7 @@ int BattleUnit::DrawFlash(BattleServices& services)
 }
 
 // swd32.exe 0x0047CD60: the evasion roll. Invisible units (status bit 31) evade 9 in 10; a given chance is out of 10;
-// otherwise the hero's evasion (+0x2A93) is rolled, never right after a success, forced after 24 failures in a row and
+// otherwise the role's evasion (+0x2A93) is rolled, never right after a success, forced after 24 failures in a row and
 // one in three after 20 (a low evasion first passes an 80% no).
 int BattleUnit::RollEvade(BattleServices& services, u16 chance)
 {
@@ -1044,13 +1044,13 @@ bool BattleUnit::IsGuarding() const
     return this->guarding == 1 || (this->marks & 0x1000) != 0;
 }
 
-// swd32.exe 0x0047D950: heroes set the current and maximum hit points, spirit and stamina of their party record
+// swd32.exe 0x0047D950: roles set the current and maximum hit points, spirit and stamina of their party record
 // (positive values; -1 refills the current value); enemies take the hit points as their maximum and current value
 void BattleUnit::SetVitals(i16 hitPoints, i16 spirit, i16 stamina)
 {
-    if (this->kind == BattleUnit::kHero)
+    if (this->kind == BattleUnit::kPartyRole)
     {
-        HeroRecord* record = this->hero;
+        RoleRecord* record = this->roleRecord;
 
         if (record == nullptr)
         {
@@ -1100,13 +1100,13 @@ void BattleUnit::SetVitals(i16 hitPoints, i16 spirit, i16 stamina)
     }
 }
 
-// swd32.exe 0x0047DA10: positive values replace the attack, defence and agility (a hero's battle copy, not checked
-// for null in the original; an enemy's data)
+// swd32.exe 0x0047DA10: positive values replace the attack, defence and agility (a party role's battle copy, not
+// checked for null in the original; an enemy's data)
 i16 BattleUnit::SetAttributes(i16 attack, i16 defense, i16 agility)
 {
-    if (this->kind == BattleUnit::kHero)
+    if (this->kind == BattleUnit::kPartyRole)
     {
-        HeroRecord* record = this->heroStats;
+        RoleRecord* record = this->battleRecord;
 
         if (record != nullptr)
         {
@@ -1155,7 +1155,7 @@ i16 BattleUnit::SetAttributes(i16 attack, i16 defense, i16 agility)
 // swd32.exe 0x0047DA90: an enemy's level
 void BattleUnit::SetLevel(i16 level)
 {
-    if (this->kind != BattleUnit::kHero && this->data != nullptr)
+    if (this->kind != BattleUnit::kPartyRole && this->data != nullptr)
     {
         this->data->data.level = static_cast<u16>(level);
     }
@@ -1211,7 +1211,7 @@ void ScaleStat(Field& field, int sign)
     field = static_cast<Field>(static_cast<u16>(value + sign * (10 * value / 100)));
 }
 
-void ScaleHeroStats(HeroRecord& stats, int sign)
+void ScaleRoleStats(RoleRecord& stats, int sign)
 {
     ScaleStat(stats.attackBonus, sign);
     ScaleStat(stats.defenseBonus, sign);
@@ -1371,9 +1371,9 @@ int BattleUnit::AddAilment(BattleServices& services, const SkillScript& skill)
 
     const int roll = static_cast<int>(services.random.Below(10)) + 1;
 
-    if (this->kind == BattleUnit::kHero)
+    if (this->kind == BattleUnit::kPartyRole)
     {
-        if (roll > static_cast<u16>(this->heroStats->ailmentChance))
+        if (roll > static_cast<u16>(this->battleRecord->ailmentChance))
         {
             return 0;
         }
@@ -1465,9 +1465,9 @@ int BattleUnit::AddAilment(BattleServices& services, const SkillScript& skill)
             SetEffectIcon(node, 6, 0xB);
             this->status |= 0x200;
 
-            if (this->kind == BattleUnit::kHero)
+            if (this->kind == BattleUnit::kPartyRole)
             {
-                ScaleHeroStats(*this->heroStats, -1);
+                ScaleRoleStats(*this->battleRecord, -1);
             }
 
             break;
@@ -1940,9 +1940,9 @@ void BattleUnit::ExpireEffects(BattleServices& services, int clearAll)
                 case 0x200:
                     this->status &= ~0x200u;
 
-                    if (this->kind == BattleUnit::kHero)
+                    if (this->kind == BattleUnit::kPartyRole)
                     {
-                        ScaleHeroStats(*this->heroStats, 1);
+                        ScaleRoleStats(*this->battleRecord, 1);
                     }
 
                     break;
@@ -2060,8 +2060,8 @@ void BattleUnit::ExpireEffects(BattleServices& services, int clearAll)
     }
 }
 
-// swd32.exe 0x0047F150: applies hit point damage and spirit and stamina changes; 1 when the unit falls. A hero with
-// the gold guard pays the damage from the gold while it is not zero (the gold can go below zero); an enemy with an
+// swd32.exe 0x0047F150: applies hit point damage and spirit and stamina changes; 1 when the unit falls. A party role
+// with the gold guard pays the damage from the gold while it is not zero (the gold can go below zero); an enemy with an
 // override loses that first.
 int BattleUnit::Damage(BattleServices& services, int hitPoints, i16 spirit, i16 stamina)
 {
@@ -2075,7 +2075,7 @@ int BattleUnit::Damage(BattleServices& services, int hitPoints, i16 spirit, i16 
         return 0;
     }
 
-    if (this->kind != BattleUnit::kHero)
+    if (this->kind != BattleUnit::kPartyRole)
     {
         ObjectData& block = this->data->data;
         const i32 shield = this->hitPointsOverride;
@@ -2132,7 +2132,7 @@ int BattleUnit::Damage(BattleServices& services, int hitPoints, i16 spirit, i16 
         return 1;
     }
 
-    HeroRecord& record = *this->hero;
+    RoleRecord& record = *this->roleRecord;
     i32& gold = services.party.variables[0];
 
     if (this->goldGuard == 1 && gold != 0)

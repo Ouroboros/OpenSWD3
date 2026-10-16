@@ -17,7 +17,7 @@ constexpr int kShopRate = 0x3C;
 constexpr int kFullRate = 0x64;
 constexpr i32 kListBLimit = 0xD;
 constexpr u32 kNoPriceKind = 0x40;
-constexpr int kFirstHeroFlag = 0x1E;
+constexpr int kFirstRoleFlag = 0x1E;
 // The kind the sort reads for the list variable itself (taken as the node before the first position): the global at
 // 0x004FD5AC, which nothing writes.
 constexpr u32 kHeadKind = 0;
@@ -125,7 +125,7 @@ void FreeBattleItems(BattleState& battle)
 }
 
 // swd32.exe 0x0044FA40: the count (count and pending) of item `id` in the inventory; outside the shop modes also the
-// counts in the slots of the heroes present (game flags 0x1E..0x21)
+// counts in the slots of the roles present (game flags 0x1E..0x21)
 int CountItemTotal(const BattleState& battle, const Party& party, const GameState& state, int id)
 {
     int total = 0;
@@ -143,16 +143,16 @@ int CountItemTotal(const BattleState& battle, const Party& party, const GameStat
         return total;
     }
 
-    for (int hero = 0; hero < Party::kHeroes; ++hero)
+    for (int role = 0; role < Party::kRoles; ++role)
     {
-        if (!state.GameFlag(hero + kFirstHeroFlag))
+        if (!state.GameFlag(role + kFirstRoleFlag))
         {
             continue;
         }
 
-        for (int slot = 0; slot < Party::kSlotsPerHero; ++slot)
+        for (int slot = 0; slot < Party::kSlotsPerRole; ++slot)
         {
-            const ItemNode* item = party.equipment[static_cast<std::size_t>(hero * Party::kSlotsPerHero + slot)].get();
+            const ItemNode* item = party.equipment[static_cast<std::size_t>(role * Party::kSlotsPerRole + slot)].get();
 
             if (item != nullptr && item->id == static_cast<u32>(id))
             {

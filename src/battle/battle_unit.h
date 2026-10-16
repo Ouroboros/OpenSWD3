@@ -11,7 +11,7 @@ namespace swd3
 {
 
 struct BattleServices;
-struct HeroRecord;
+struct RoleRecord;
 struct Picture;
 struct SkillScript;
 
@@ -47,7 +47,7 @@ struct UnitPlacement
     i16 x = 0;      // +0x16
     i16 y = 0;      // +0x18
     u16 unk1A = 0;
-    i32 kind = 0;  // +0x1C 1: a hero
+    i32 kind = 0;  // +0x1C 1: a party role
 };
 
 // The command block of a unit (0x28 bytes, cleared whole).
@@ -69,13 +69,13 @@ struct UnitCommand
     std::array<u8, 3> unk25 = {};
 };
 
-// A unit in battle (0x2B28 bytes in the original; the base of BattleHero and BattleEnemy). Offsets of the original are
+// A unit in battle (0x2B28 bytes in the original; the base of BattleRole and BattleEnemy). Offsets of the original are
 // given for reference; fields not yet named keep their offset.
 class BattleUnit
 {
 public:
     static constexpr int kSlotActs = 11;
-    static constexpr i32 kHero = 1;
+    static constexpr i32 kPartyRole = 1;
 
     BattleUnit();
     ~BattleUnit();
@@ -180,11 +180,12 @@ private:
 
 public:
     // +0x00..+0x0F: what the unit is.
-    HeroRecord* heroStats = nullptr;  // +0x00 the battle copy of a hero's record (+0x26, +0x28: attack, defence)
-    HeroRecord* hero = nullptr;       // +0x04 the hero's party record
-    const i32* heroBlock = nullptr;   // +0x08 the hero's 0x60-byte block at 0x004ACF50
-    ObjectRecord* data = nullptr;     // +0x0C an enemy's mon.dat object (usually `object`)
-    ObjectRecord object;              // +0x10 (its description at +0xB0)
+    RoleRecord* battleRecord =
+        nullptr;                       // +0x00 the battle copy of a party role's record (+0x26, +0x28: attack, defence)
+    RoleRecord* roleRecord = nullptr;  // +0x04 the role's party record
+    const i32* roleBlock = nullptr;    // +0x08 the role's 0x60-byte block at 0x004ACF50
+    ObjectRecord* data = nullptr;      // +0x0C an enemy's mon.dat object (usually `object`)
+    ObjectRecord object;               // +0x10 (its description at +0xB0)
 
     ActState mainAct;                          // +0x2A0
     ActState standAct;                         // +0x338
@@ -277,7 +278,7 @@ public:
     u8 defeatPose = 0;  // +0x2A94 the pose of the defeat (a fixed pose overrides it)
     u8 fixedPose = 0;   // +0x2A95
     u8 healChoice = 0;  // +0x2A9C
-    i32 kind = 0;       // +0x2AA0 1: a hero
+    i32 kind = 0;       // +0x2AA0 1: a party role
     i32 unk2AA8 = 0;
     i32 unk2AAC = 0;
     i32 unk2AB0 = 0;

@@ -115,7 +115,7 @@ TEST_CASE("battle unit: construction, commands, turns and hits")
     unit.guarding = 1;
     unit.slotActs[9].id = 5;
     unit.slotActs[2].id = 5;
-    unit.kind = swd3::BattleUnit::kHero;
+    unit.kind = swd3::BattleUnit::kPartyRole;
     all.random.Seed(7);
     const int gauge = unit.ResetTurn(all.services);
     CHECK(gauge >= 50 && gauge < 190);
@@ -140,11 +140,11 @@ TEST_CASE("battle unit: construction, commands, turns and hits")
     unit.GetDrawPosition(x, y);
     CHECK_EQ(x, 30);
     CHECK_EQ(y, 40);
-    swd3::HeroRecord hero;
-    hero.hitPoints = 99;
-    unit.hero = &hero;
+    swd3::RoleRecord role;
+    role.hitPoints = 99;
+    unit.roleRecord = &role;
     unit.StartDefeat(1);
-    CHECK_EQ(hero.hitPoints, 0);
+    CHECK_EQ(role.hitPoints, 0);
     CHECK_EQ(unit.defeatPose, 6);
     unit.status = 0x2000000;
     unit.RaiseFlag26B8();
@@ -171,15 +171,15 @@ TEST_CASE("battle unit: evasion, vitals and scaling")
     all.state.evadeDisabled = 0;
     CHECK_EQ(unit.RollEvade(all.services, 10), 1);
 
-    swd3::HeroRecord hero;
-    hero.hitPoints = 5;
-    hero.maxHitPoints = 80;
-    unit.kind = swd3::BattleUnit::kHero;
-    unit.hero = &hero;
+    swd3::RoleRecord role;
+    role.hitPoints = 5;
+    role.maxHitPoints = 80;
+    unit.kind = swd3::BattleUnit::kPartyRole;
+    unit.roleRecord = &role;
     unit.SetVitals(-1, 30, 0);
-    CHECK_EQ(hero.hitPoints, 80);
-    CHECK_EQ(hero.spirit, 30);
-    CHECK_EQ(hero.maxSpirit, 30);
+    CHECK_EQ(role.hitPoints, 80);
+    CHECK_EQ(role.spirit, 30);
+    CHECK_EQ(role.maxSpirit, 30);
     swd3::ObjectRecord enemy;
     swd3::BattleUnit other;
     other.data = &enemy;
@@ -214,18 +214,18 @@ TEST_CASE("battle unit: evasion, vitals and scaling")
 TEST_CASE("battle unit: ailments, buffs, expiry and damage")
 {
     Services all;
-    swd3::HeroRecord stats;
+    swd3::RoleRecord stats;
     stats.ailmentChance = 10;
     stats.attackBonus = 100;
-    swd3::HeroRecord hero;
-    hero.hitPoints = 50;
-    hero.maxHitPoints = 60;
-    hero.spirit = 5;
-    hero.maxSpirit = 20;
+    swd3::RoleRecord role;
+    role.hitPoints = 50;
+    role.maxHitPoints = 60;
+    role.spirit = 5;
+    role.maxSpirit = 20;
     swd3::BattleUnit unit;
-    unit.kind = swd3::BattleUnit::kHero;
-    unit.heroStats = &stats;
-    unit.hero = &hero;
+    unit.kind = swd3::BattleUnit::kPartyRole;
+    unit.battleRecord = &stats;
+    unit.roleRecord = &role;
     unit.displayName = "A";
 
     swd3::SkillScript poison;
@@ -264,16 +264,16 @@ TEST_CASE("battle unit: ailments, buffs, expiry and damage")
     unit.ExpireEffects(all.services, 0);
 
     CHECK_EQ(unit.Damage(all.services, 20, 30, 0), 0);
-    CHECK_EQ(hero.hitPoints, 30);
-    CHECK_EQ(hero.spirit, 20);
+    CHECK_EQ(role.hitPoints, 30);
+    CHECK_EQ(role.spirit, 20);
     unit.goldGuard = 1;
     all.party.variables[0] = 10;
     CHECK_EQ(unit.Damage(all.services, 25, 0, 0), 0);
     CHECK_EQ(all.party.variables[0], -15);
-    CHECK_EQ(hero.hitPoints, 30);
+    CHECK_EQ(role.hitPoints, 30);
     unit.goldGuard = 0;
     CHECK_EQ(unit.Damage(all.services, 40, 0, 0), 1);
-    CHECK_EQ(hero.hitPoints, 0);
+    CHECK_EQ(role.hitPoints, 0);
 
     unit.targetCount = 2;
     unit.SetDamageDigits(all.services, 1234);

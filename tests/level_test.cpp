@@ -8,7 +8,7 @@
 #include "recording_reporter.h"
 #include "test.h"
 
-TEST_CASE("level: level.dat raises a hero and teaches skills once")
+TEST_CASE("level: level.dat raises a party role and teaches skills once")
 {
     if (swd3test::ReadGameFile("LEVEL.DAT").empty() || swd3test::ReadGameFile("MON.DAT").empty())
     {
@@ -32,17 +32,17 @@ TEST_CASE("level: level.dat raises a hero and teaches skills once")
     // Entry 1 of the table is not a level script in the game data (its first word is not 0).
     for (int level = 2; level <= 20; ++level)
     {
-        swd3::HeroRecord& hero = party.heroes[0];
+        swd3::RoleRecord& role = party.roles[0];
         int learned = 0;
-        CHECK(swd3::LevelUp(hero, 1, level, learned, party, database, last, reporter));
-        CHECK_EQ(hero.level, level);
-        CHECK(hero.maxHitPoints > 0);
-        CHECK_EQ(hero.hitPoints, hero.maxHitPoints);
-        CHECK_EQ(hero.spirit, hero.maxSpirit);
-        CHECK_EQ(hero.stamina, hero.maxStamina);
+        CHECK(swd3::LevelUp(role, 1, level, learned, party, database, last, reporter));
+        CHECK_EQ(role.level, level);
+        CHECK(role.maxHitPoints > 0);
+        CHECK_EQ(role.hitPoints, role.maxHitPoints);
+        CHECK_EQ(role.spirit, role.maxSpirit);
+        CHECK_EQ(role.stamina, role.maxStamina);
         swd3::u32 experience = 0;
         CHECK(database.LoadLevelEntry(1, level, experience));
-        CHECK_EQ(static_cast<swd3::u32>(hero.experience), experience);
+        CHECK_EQ(static_cast<swd3::u32>(role.experience), experience);
         learnedAny += learned;
     }
 

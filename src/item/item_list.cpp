@@ -147,7 +147,7 @@ std::unique_ptr<ItemNode> UnlinkItem(ItemLink& list, i16 id)
 }
 
 // swd32.exe 0x0044D650: the first equipment slot holding `id`
-ItemNode* FindHeroItem(std::span<const std::unique_ptr<ItemNode>> slots, i16 id)
+ItemNode* FindRoleItem(std::span<const std::unique_ptr<ItemNode>> slots, i16 id)
 {
     for (const std::unique_ptr<ItemNode>& slot : slots)
     {

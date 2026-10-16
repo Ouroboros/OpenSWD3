@@ -120,7 +120,7 @@ TEST_CASE("item list: merge, reverse copy, unlink, lookups")
     CHECK_EQ(Length(list), 3);
     CHECK(swd3::UnlinkItem(list, 0x0006) == nullptr);
     std::array<std::unique_ptr<ItemNode>, 3> slots = {swd3::NewEmptyItem(), nullptr, std::move(taken)};
-    CHECK(swd3::FindHeroItem(slots, 6) == slots[2].get());
-    CHECK(swd3::FindHeroItem(slots, 9) == nullptr);
+    CHECK(swd3::FindRoleItem(slots, 6) == slots[2].get());
+    CHECK(swd3::FindRoleItem(slots, 9) == nullptr);
     CHECK(swd3::NewEmptyItem()->record.data.name[0] == '\265');
 }

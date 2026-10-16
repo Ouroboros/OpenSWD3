@@ -342,9 +342,9 @@ addr	type	name	module	notes
 @size	Projector	2924
 0x0053B0B8	Projector	projector	pic	constructed by 0x004518A0
 0x004FB568	std::int32_t	particleRange	pic	pixel range of ParticlePut with flag 0x40, grows by burstStep
-@include	battle/battle_hero.h
-@size	BattleHero	12084
-0x005029D0	BattleHero[10]	battleHeroes	battle	constructed by 0x004517A0
+@include	battle/battle_role.h
+@size	BattleRole	12084
+0x005029D0	BattleRole[10]	battleRoles	battle	constructed by 0x004517A0
 @include	battle/battle_enemy.h
 @size	BattleEnemy	11048
 0x00525508	BattleEnemy[8]	battleEnemies	battle	constructed by 0x00451800
@@ -360,7 +360,7 @@ addr	type	name	module	notes
 0x004A7CC0	char[13]	noSpiritText	battle	"靈力值不夠!!"
 0x004A7CD0	char[11]	noItemText	battle	"物品不夠!!"
 @include	item/item_list.h
-0x004C8AD0	std::uint8_t*[64]	heroItemSlots	item	16 item nodes per hero
+0x004C8AD0	std::uint8_t*[64]	roleItemSlots	item	16 item nodes per role
 0x0049F9FC	char[3]	emptyItemName	item	Big5 name of an empty item
 0x004FD318	std::uint16_t*	menuEntries	item
 0x004FD2F4	std::int32_t	menuFirst	item
@@ -372,12 +372,12 @@ addr	type	name	module	notes
 0x004FD3B0	std::int32_t	battleListBCount	battle	entries of battleListB, at most 13
 0x004A9940	std::uint8_t*	inventory	item	party item list
 0x005244C4	IDirectDrawSurface4*[2]	battleSurfaces	battle	screen sized offscreen surfaces
-0x00520E40	std::int32_t[18]	unitDepths	battle	draw y: enemies 0..7, heroes 8..17
+0x00520E40	std::int32_t[18]	unitDepths	battle	draw y: enemies 0..7, party roles 8..17
 0x005214AC	std::int32_t[18]	drawOrder	battle	unit indices back to front
 0x00520D5C	std::int32_t[18]	drawOrderUsed	battle
 0x00520DF8	std::int32_t[8]	enemyDrawOrder	battle
 0x0053BCE0	std::uint32_t	enemyCount	battle
-0x0053BCE4	std::uint32_t	heroCount	battle
+0x0053BCE4	std::uint32_t	battleRoleCount	battle
 0x004A9490	std::uint8_t*[4]	itemLists	item	sorted by SortItemLists
 @include	battle/battle_formation.h
 @size	BattleFormation	12792
