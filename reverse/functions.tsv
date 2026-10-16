@@ -114,13 +114,13 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 113	swd32.exe	0x004050B0	sub_4050B0	role	src/role/role_control.cpp:RoleControl::FindTouchRoleAt	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 114	swd32.exe	0x004050E0	sub_4050E0	input_dinput	src/input/controls.cpp:Controls::Poll	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 115	swd32.exe	0x004053C0	sub_4053C0	input_dinput	src/input/controls.cpp:Controls::Update	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-116	swd32.exe	0x00405430	sub_405430	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Path:...)"
-117	swd32.exe	0x00405500	sub_405500	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Path:...)"
-118	swd32.exe	0x00406390	sub_406390	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between role_path anchors 0x00405500 and 0x00406770
-119	swd32.exe	0x00406580	sub_406580	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between role_path anchors 0x00405500 and 0x00406770
-120	swd32.exe	0x00406710	sub_406710	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between role_path anchors 0x00405500 and 0x00406770
-121	swd32.exe	0x00406770	sub_406770	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Pth:rndwlk,g(%d)NoFreePath"
-122	swd32.exe	0x00406960	sub_406960	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "CompanyWalk"
+116	swd32.exe	0x00405430	sub_405430	role	src/role/role_path.cpp:RolePath::Update	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Path:...)"
+117	swd32.exe	0x00405500	sub_405500	role	src/role/role_path.cpp:RolePath::RunScript	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Path:...)"
+118	swd32.exe	0x00406390	sub_406390	role	src/role/role_path.cpp:RolePath::FindPath	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between role_path anchors 0x00405500 and 0x00406770
+119	swd32.exe	0x00406580	sub_406580	role	src/role/role_path.cpp:RolePath::Step	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between role_path anchors 0x00405500 and 0x00406770
+120	swd32.exe	0x00406710	sub_406710	role	src/role/role_path.cpp:RolePath::JumpTo	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between role_path anchors 0x00405500 and 0x00406770
+121	swd32.exe	0x00406770	sub_406770	role	src/role/role_path.cpp:RolePath::Wander	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Pth:rndwlk,g(%d)NoFreePath"
+122	swd32.exe	0x00406960	sub_406960	role	src/role/role_path.cpp:RolePath::Follow	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "CompanyWalk"
 123	swd32.exe	0x00406D30	sub_406D30	game	src/game/game.cpp:Game::ResetSaveSlots	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 124	swd32.exe	0x00406E00	sub_406E00	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 125	swd32.exe	0x00406E30	sub_406E30	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
@@ -153,7 +153,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 152	swd32.exe	0x0040BB20	sub_40BB20	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 153	swd32.exe	0x0040BB50	sub_40BB50	map	src/map/field.cpp:Field::ProbeCells	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 154	swd32.exe	0x0040C020	sub_40C020	game	src/game/game_state.cpp:GameState::FindRole	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-155	swd32.exe	0x0040C060	sub_40C060	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+155	swd32.exe	0x0040C060	sub_40C060	role	src/role/role_path.cpp:RolePath::RoleId	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 156	swd32.exe	0x0040C0D0	sub_40C0D0	game	src/game/game_state.cpp:GameState::FindRoleOrPlayer	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 157	swd32.exe	0x0040C100	sub_40C100	game	src/game/game_state.cpp:GameState::FindRole	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 158	swd32.exe	0x0040C130	sub_40C130	game	src/game/game_field.cpp:Game::LoadCity	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "LoadCity ,gMap.Pixel==NULL"

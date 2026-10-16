@@ -30,6 +30,7 @@
 #include "map/map_cache.h"
 #include "menu/menu.h"
 #include "role/role_control.h"
+#include "role/role_path.h"
 #include "talk/talk.h"
 
 #include "movie/movie.h"
@@ -65,6 +66,7 @@ class Game
     friend class FieldView;
     friend class Talk;
     friend class RoleControl;
+    friend class RolePath;
 
 public:
     static constexpr std::u8string_view kWindowTitle = u8"軒轅劍參 DVD";                    // 0x0049FAC4
@@ -165,6 +167,7 @@ private:
     FieldView fieldView;
     Talk talk;
     RoleControl roleControl;
+    RolePath rolePath;
 
     GameDatabases databases;
     PathNodePool pathNodes;

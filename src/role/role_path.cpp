@@ -1,0 +1,1110 @@
+#include "role/role_path.h"
+
+#include <cmath>
+#include <cstdlib>
+#include <span>
+
+#include "core/debug_log.h"
+#include "core/format.h"
+#include "crt/msvc.h"
+#include "game/game.h"
+#include "map/blocking_map.h"
+#include "role/path_finder.h"
+
+namespace swd3
+{
+
+namespace
+{
+
+constexpr u16 kFree = 0xFFFF;
+constexpr u8 kPathEnd = 0xFF;
+constexpr u32 kFastWalk = 0x4000000;
+
+}  // namespace
+
+RolePath::RolePath(Game& game) : game(game)
+{
+}
+
+BlockingMap RolePath::Grid() const
+{
+    const MapHeader& map = this->game.state.map;
+    BlockingMap grid;
+    grid.width = map.width;
+    grid.height = map.height;
+    grid.cells = map.blocks;
+    return grid;
+}
+
+// swd32.exe 0x0040C060: the id of role `index`; an index past the roles in use shows "Illegal Role id" first
+u16 RolePath::RoleId(u32 index)
+{
+    GameState& state = this->game.state;
+    const u16 id = state.roles[std::min<std::size_t>(index, GameState::kRoles - 1)].id;
+
+    if (index >= static_cast<u32>(state.roleCount))
+    {
+        this->game.errors.ShowError(WinFormat("%d", {static_cast<u32>(id)}), "Illegal Role id");
+    }
+
+    return id;
+}
+
+// swd32.exe 0x00405430: every visible role but the first: followers trail the leader, held roles (flag bit 31 or
+// talking) and roles without a path keep their cells (a role with flag 0x1000 steps its act unless controlled), the
+// others run their path script
+void RolePath::Update()
+{
+    GameState& state = this->game.state;
+    const auto leader = static_cast<u16>(this->game.unk4B7BC4);
+
+    for (u32 index = 1; index < static_cast<u32>(state.roleCount) && index < GameState::kRoles; ++index)
+    {
+        Role& role = state.roles[index];
+
+        if ((role.flags & 0x8000) == 0)
+        {
+            continue;
+        }
+
+        if ((role.flags & 0x80) != 0)
+        {
+            this->Follow(static_cast<int>(index));
+            continue;
+        }
+
+        if (static_cast<i32>(role.flags) < 0 || role.unk26 == 1)
+        {
+            if (role.act.id != 0)
+            {
+                this->game.field.MarkRoleCells(role, leader);
+            }
+
+            continue;
+        }
+
+        if (role.unk1C == 0)
+        {
+            if ((role.flags & 0x1000) == 0 || index == static_cast<u32>(state.playerRole))
+            {
+                continue;
+            }
+
+            this->game.acts.Run(role.act);
+
+            if (role.act.id != 0)
+            {
+                this->game.field.MarkRoleCells(role, leader);
+            }
+
+            continue;
+        }
+
+        this->RunScript(static_cast<int>(index));
+    }
+}
+
+// swd32.exe 0x00406390: a path from role `index` to tile (tileX, tileY) into a free move; a target past the map is
+// refused, an unreachable one moves the role there at once. False only when the move taken is the 33rd.
+bool RolePath::FindPath(int index, u16 tileX, u16 tileY)
+{
+    GameState& state = this->game.state;
+    int slot = 0;
+
+    while (state.moves[static_cast<std::size_t>(slot)].role != kFree)
+    {
+        if (++slot >= RolePath::kMoves)
+        {
+            return slot != 0x20;
+        }
+    }
+
+    Role& role = state.roles[static_cast<std::size_t>(index)];
+    const BlockingMap grid = this->Grid();
+    PathFinder finder(this->game.pathNodes, grid, this->game.errors);
+    const u32 x = 0x10u * tileX;
+    const u32 y = 0x10u * tileY;
+
+    if (x > 0x10u * static_cast<u32>(state.map.width) || y > 0x10u * static_cast<u32>(state.map.height))
+    {
+        DebugLog("path target outside", slot, index, role.x >> 4, role.y >> 4, x >> 4, y >> 4);
+        return false;
+    }
+
+    MoveRecord& move = state.moves[static_cast<std::size_t>(slot)];
+
+    if (finder.FindPath(
+            role.x,
+            role.y,
+            static_cast<int>(x),
+            static_cast<int>(y),
+            role.act.width,
+            role.act.height,
+            move.directions
+        ) == 1)
+    {
+        move.act = -1;
+        move.action = -1;
+        move.direction = -1;
+        move.role = static_cast<u16>(index);
+        move.step = 0;
+        move.x = static_cast<u16>(x);
+        move.y = static_cast<u16>(y);
+        move.mode = static_cast<u8>((move.mode & 0xF0) | 1);
+    }
+    else
+    {
+        DebugLog(
+            "path not found",
+            slot,
+            this->RoleId(static_cast<u32>(index)),
+            role.x >> 4,
+            role.y >> 4,
+            x >> 4,
+            y >> 4
+        );
+        role.x = static_cast<i32>(x);
+        role.y = static_cast<i32>(y);
+    }
+
+    return slot != 0x20;
+}
+
+// swd32.exe 0x00406580: the next step of role `index` along its move: held while it talks; at the path's end the move
+// is freed (2); otherwise the step is taken unless the cells ahead are blocked (walls only after 8 tries) (1). 0 when
+// the move is a scripted one, 2 when it has none.
+int RolePath::Step(int index)
+{
+    GameState& state = this->game.state;
+    Role& role = state.roles[static_cast<std::size_t>(index)];
+    int slot = 0;
+
+    for (; slot < RolePath::kMoves; ++slot)
+    {
+        const MoveRecord& move = state.moves[static_cast<std::size_t>(slot)];
+
+        if (move.role == index)
+        {
+            if ((move.mode & 0xF) == 2)
+            {
+                return 0;
+            }
+
+            if ((move.mode & 0xF) == 1)
+            {
+                break;
+            }
+        }
+    }
+
+    if (slot == RolePath::kMoves)
+    {
+        DebugLog("no path", this->RoleId(static_cast<u32>(index)), role.act.id, role.act.action, role.unk1C);
+        return 2;
+    }
+
+    MoveRecord& move = state.moves[static_cast<std::size_t>(slot)];
+
+    if (role.unk26 == 1)
+    {
+        move.step |= MoveRecord::kDone;
+        return 0;
+    }
+
+    const u8 direction = move.directions[static_cast<std::size_t>(move.step & 0x7FFF) % move.directions.size()];
+
+    if (direction == kPathEnd)
+    {
+        move.Clear();
+        return 2;
+    }
+
+    const u32 mask = move.unk1A > 8 ? 0x40000000u : 0x60000000u;
+    const std::ptrdiff_t cell = role.cell != nullptr ? role.cell - state.map.blocks.data() : 0;
+    const u32 probe = this->game.field.ProbeCells(cell, role.act.width, role.act.height, mask);
+    move.step |= MoveRecord::kDone;
+    ++move.unk1A;
+    move.stepY = 0;
+    move.stepX = 0;
+
+    if (direction < 8 && (probe & RolePath::kBlockedBy[direction]) == 0)
+    {
+        move.step &= static_cast<u16>(~MoveRecord::kDone);
+        move.unk1A = 0;
+        move.stepX = static_cast<i16>(RolePath::kStepX[direction]);
+        move.stepY = static_cast<i16>(RolePath::kStepY[direction]);
+    }
+
+    return 1;
+}
+
+// swd32.exe 0x00406710: the script of role `index` continues at `offset` of path.dat; its step is set from the start of
+// its path. The new position is returned.
+std::size_t RolePath::JumpTo(int index, u32 offset)
+{
+    Role& role = this->game.state.roles[static_cast<std::size_t>(index)];
+    const std::span<const u8> data = this->game.databases.paths.View();
+    const std::size_t table = 0x200 + 4 * static_cast<std::size_t>(role.unk1C);
+    u32 start = 0;
+
+    if (table + 4 <= data.size())
+    {
+        start = static_cast<u32>(data[table] | data[table + 1] << 8 | data[table + 2] << 16 | data[table + 3] << 24);
+    }
+
+    role.unk18 = static_cast<i32>(static_cast<std::ptrdiff_t>(offset) - static_cast<std::ptrdiff_t>(start)) >> 1;
+    return 0x200 + static_cast<std::size_t>(offset);
+}
+
+// swd32.exe 0x00406770: a random step of role `index` (four in five frames it rests): a move of one step is taken
+// (a new one from a free record when it has none, a scripted move leaves it alone); the direction is new one time in
+// ten. False when no record is free.
+int RolePath::Wander(int index)
+{
+    GameState& state = this->game.state;
+    Role& role = state.roles[static_cast<std::size_t>(index)];
+    this->game.crtRandom.Next();
+    const auto chance = static_cast<int>(this->game.random.Below(0x50));
+    bool found = false;
+    int slot = 0;
+
+    for (int at = 0; at < RolePath::kMoves; ++at)
+    {
+        const MoveRecord& move = state.moves[static_cast<std::size_t>(at)];
+
+        if (move.role == index)
+        {
+            if ((move.mode & 0xF) == 2)
+            {
+                return 1;
+            }
+
+            if ((move.mode & 0xF) == 1)
+            {
+                found = true;
+                slot = at;
+            }
+        }
+    }
+
+    if (!found)
+    {
+        slot = 0;
+
+        while (state.moves[static_cast<std::size_t>(slot)].role != kFree)
+        {
+            if (++slot >= RolePath::kMoves)
+            {
+                DebugLog(
+                    WinFormat("Pth:rndwlk,g(%d)NoFreePath", {static_cast<u32>(this->RoleId(static_cast<u32>(index)))})
+                );
+                return 0;
+            }
+        }
+
+        MoveRecord& fresh = state.moves[static_cast<std::size_t>(slot)];
+        fresh.role = static_cast<u16>(index);
+        fresh.step = 0;
+        fresh.x = 0;
+        fresh.y = 0;
+        fresh.mode = static_cast<u8>((fresh.mode & 0xF0) | 1);
+        fresh.directions[0] = 1;
+    }
+
+    MoveRecord& move = state.moves[static_cast<std::size_t>(slot)];
+
+    if (role.unk26 == 1 || chance > 0x3C)
+    {
+        move.step |= MoveRecord::kDone;
+        role.act.action = 0;
+        return 1;
+    }
+
+    role.act.action = 8;
+
+    if (chance < 8)
+    {
+        move.directions[0] = static_cast<u8>(chance);
+    }
+
+    const u8 direction = move.directions[0];
+
+    if (direction == kPathEnd)
+    {
+        return 1;
+    }
+
+    const u32 mask = move.unk1A > 8 ? 0x40000000u : 0x60000000u;
+    const std::ptrdiff_t cell = role.cell != nullptr ? role.cell - state.map.blocks.data() : 0;
+    const u32 probe = this->game.field.ProbeCells(cell, role.act.width, role.act.height, mask);
+    ++move.unk1A;
+    move.step = MoveRecord::kDone;
+    move.stepY = 0;
+    move.stepX = 0;
+
+    if (direction < 8 && (probe & RolePath::kBlockedBy[direction]) == 0)
+    {
+        move.step = 0;
+        move.unk1A = 0;
+        move.stepX = static_cast<i16>(RolePath::kStepX[direction]);
+        move.stepY = static_cast<i16>(RolePath::kStepY[direction]);
+    }
+
+    return 1;
+}
+
+// swd32.exe 0x00406960: follower `index` walks after the leader: on a tile it finds a path to its place in the
+// leader's trail (unless its move still has steps), skipping the steps off screen at once; then it takes the next step
+// at double speed unless blocked (walls are ignored with story flag 0x4F), facing the leader's way at the end
+void RolePath::Follow(int index)
+{
+    Game& owner = this->game;
+    GameState& state = owner.state;
+    Scene& view = owner.scene;
+    Role& role = state.roles[static_cast<std::size_t>(index)];
+
+    if (((role.x | role.y) & 0xF) != 0)
+    {
+        return;
+    }
+
+    u32 follower = 1;
+
+    while (follower < static_cast<u32>(view.unk4BABA0) && follower < view.unk4B7C8C.size() &&
+           view.unk4B7C8C[follower] != index)
+    {
+        ++follower;
+    }
+
+    if (follower == static_cast<u32>(view.unk4BABA0) || follower >= view.followerMoves.size())
+    {
+        DebugLog("CompanyWalk", role.id);
+        return;
+    }
+
+    MoveRecord& move = view.followerMoves[follower];
+    const u16 leaderId = static_cast<u16>(owner.unk4B7BC4);
+
+    auto direction = [&move]()
+    {
+        return move.directions[static_cast<std::size_t>(move.step & 0x7FFF) % move.directions.size()];
+    };
+
+    if (move.role == kFree || move.unk1A != 0 || direction() == kPathEnd)
+    {
+        const BlockingMap grid = this->Grid();
+        PathFinder finder(owner.pathNodes, grid, owner.errors);
+        move.Clear();
+        const i32 targetX = view.unk4B7A18[2 * follower];
+        const i32 targetY = view.unk4B7998[2 * follower];
+
+        if (state.GameFlag(0x4F))
+        {
+            finder.SetMask(0);
+        }
+
+        if (finder.FindPath(role.x, role.y, targetX, targetY, role.act.width, role.act.height, move.directions) == 0)
+        {
+            ErrorLog(
+                "CmpyWalk PathFind fail ,G(%d) sx(%d/%d) sy(%d/%d) dx(%d/%d) dy(%d/%d)",
+                role.id,
+                role.x,
+                role.x >> 4,
+                role.y,
+                role.y >> 4,
+                targetX,
+                targetX >> 4,
+                targetY,
+                targetY >> 4
+            );
+        }
+        else
+        {
+            move.mode = static_cast<u8>((move.mode & 0xF0) | 1);
+            move.role = static_cast<u16>(index);
+            move.step = 0;
+            move.x = static_cast<u16>(targetX);
+            move.y = static_cast<u16>(targetY);
+            move.unk1A = 0;
+            owner.field.ClearRoleCells(role, leaderId);
+            const Field& field = owner.field;
+            const auto bottom = static_cast<u32>(field.cameraBottom + 0xA0);
+            auto top = static_cast<u32>(field.cameraTop - 0x50);
+            auto left = static_cast<u32>(field.cameraLeft - 0x50);
+            const auto right = static_cast<u32>(field.cameraRight + 0x50);
+
+            if (field.cameraTop - 0x50 < 0)
+            {
+                top = 0;
+            }
+
+            if (field.cameraLeft - 0x50 < 0)
+            {
+                left = 0;
+            }
+
+            for (;;)
+            {
+                const u8 step = direction();
+                const auto x = static_cast<u32>(role.x);
+                const auto y = static_cast<u32>(role.y);
+
+                if (x > left && x < right && y > top && y < bottom)
+                {
+                    if (step != kPathEnd && step < 8)
+                    {
+                        role.act.direction = RolePath::kFacing[step];
+                    }
+
+                    break;
+                }
+
+                if (step == kPathEnd || step >= 8)
+                {
+                    break;
+                }
+
+                ++move.step;
+                role.x += 4 * RolePath::kStepX[step];
+                role.y += 4 * RolePath::kStepY[step];
+            }
+
+            move.step |= MoveRecord::kDone;
+            const std::size_t at = (static_cast<u32>(role.x) >> 4) +
+                                   static_cast<std::size_t>(state.map.width) * (static_cast<u32>(role.y) >> 4);
+            role.cell = at < state.map.blocks.size() ? &state.map.blocks[at] : nullptr;
+            owner.field.MarkRoleCells(role, leaderId);
+            owner.field.RemoveRole(role.id, static_cast<int>(role.flags & 3), 0, 0);
+        }
+    }
+
+    const u32 mask = state.GameFlag(0x4F) ? 0u : 0x40000000u;
+    const u8 step = direction();
+    const std::ptrdiff_t cell = role.cell != nullptr ? role.cell - state.map.blocks.data() : 0;
+    const u32 probe = owner.field.ProbeCells(cell, role.act.width, role.act.height, mask);
+    move.step |= MoveRecord::kDone;
+    const u16 taken = move.step;
+    move.stepY = 0;
+    move.stepX = 0;
+
+    if (step == kPathEnd)
+    {
+        role.act.action = 0;
+        role.act.direction = state.roles[static_cast<std::size_t>(state.playerRole)].act.direction;
+    }
+    else if (step >= 8 || (probe & RolePath::kBlockedBy[step]) != 0)
+    {
+        role.act.action = 0;
+    }
+    else
+    {
+        move.step = static_cast<u16>(taken & 0x7FFF);
+        ++move.unk1A;
+        role.act.action = 8;
+        move.stepX = static_cast<i16>(2 * RolePath::kStepX[step]);
+        move.stepY = static_cast<i16>(2 * RolePath::kStepY[step]);
+    }
+}
+
+// swd32.exe 0x00405500: the path script of role `index` (path.dat, its path at the role's step): commands run until
+// one waits for the next frame (an act change, a count, a step, a move, a label, a sound). Command 0xB takes one word
+// only, so its operand runs as the next command; command 0x24 keeps no offset for a role facing direction 1 (here 0,
+// the original reads leftovers of the stack). A role of command 0x18 that is not found is left alone here (the
+// original writes before the role table).
+void RolePath::RunScript(int index)
+{
+    Game& owner = this->game;
+    GameState& state = owner.state;
+    Role& role = state.roles[static_cast<std::size_t>(index)];
+    const std::span<const u8> data = owner.databases.paths.View();
+    auto& variables = owner.party.variables;
+    const u16 leaderId = static_cast<u16>(owner.unk4B7BC4);
+
+    auto word = [&data](std::size_t at) -> u16
+    {
+        return at + 1 < data.size() ? static_cast<u16>(data[at] | data[at + 1] << 8) : u16{0};
+    };
+
+    auto dword = [&word](std::size_t at) -> u32
+    {
+        return static_cast<u32>(word(at) | static_cast<u32>(word(at + 2)) << 16);
+    };
+
+    std::size_t at =
+        0x200 + dword(0x200 + 4 * static_cast<std::size_t>(role.unk1C)) + 2 * static_cast<std::size_t>(role.unk18);
+    i32& time = owner.party.unk4ACDB0;
+
+    auto advance = [&role, &at](int words)
+    {
+        at += 2 * static_cast<std::size_t>(words);
+        role.unk18 += words;
+    };
+
+    auto jump = [this, index, &at](u32 offset)
+    {
+        at = this->JumpTo(index, offset);
+    };
+
+    for (;;)
+    {
+        const u16 code = word(at);
+
+        switch (code)
+        {
+            case 0:
+                role.unk18 = 0;
+                return;
+
+            case 1:
+                role.unk1C = 0;
+                role.unk18 = 0;
+                return;
+
+            case 2:
+                role.act.action = word(at + 2);
+                role.unk18 += 2;
+                owner.acts.Run(role.act);
+                return;
+
+            case 3:
+                role.act.direction = word(at + 2);
+                role.unk18 += 2;
+                owner.acts.Run(role.act);
+                return;
+
+            case 4:
+                role.unk22 = word(at + 2);
+                advance(2);
+                continue;
+
+            case 5:
+                if (role.unk22 != 0)
+                {
+                    --role.unk22;
+                }
+                else
+                {
+                    ++role.unk18;
+                }
+
+                return;
+
+            case 6:
+                if (role.unk22 != 0)
+                {
+                    --role.unk22;
+                }
+                else
+                {
+                    ++role.unk18;
+                }
+
+                owner.acts.Run(role.act);
+                return;
+
+            case 7:
+                this->FindPath(index, word(at + 2), word(at + 4));
+                advance(3);
+                continue;
+
+            case 8:
+                if (((role.x | role.y) & 0xF) != 0 || this->Step(index) != 2)
+                {
+                    return;
+                }
+
+                advance(1);
+                role.flags &= ~kFastWalk;
+                continue;
+
+            case 9:
+            {
+                bool passed = false;
+
+                if (word(at + 2) <= static_cast<u32>(time))
+                {
+                    advance(2);
+                    passed = true;
+                }
+
+                if ((role.flags & 0x1000) != 0)
+                {
+                    owner.acts.Run(role.act);
+                }
+
+                if (passed)
+                {
+                    continue;
+                }
+
+                return;
+            }
+
+            case 0xA:
+                if (word(at + 2) > static_cast<u16>(time))
+                {
+                    advance(4);
+                    continue;
+                }
+
+                jump(dword(at + 4));
+                continue;
+
+            case 0xB:
+                time = word(at + 2);
+
+                if (static_cast<u32>(time) > 0x3E8)
+                {
+                    time = 0;
+                }
+
+                advance(1);
+                continue;
+
+            case 0xC:
+                jump(dword(at + 2));
+                continue;
+
+            case 0xD:
+            case 0xE:
+                if ((static_cast<int>(state.GameFlag(word(at + 2))) ^ static_cast<int>(code == 0xE)) == 1)
+                {
+                    jump(dword(at + 4));
+                    continue;
+                }
+
+                advance(4);
+                continue;
+
+            case 0xF:
+            case 0x10:
+            {
+                int count = 0;
+                int set = 0;
+                std::size_t flag = at + 2;
+
+                while (word(flag) != 0xFFFF && flag < data.size())
+                {
+                    if (state.GameFlag(word(flag)))
+                    {
+                        ++set;
+                    }
+
+                    ++count;
+                    flag += 2;
+                }
+
+                const bool taken = code == 0xF ? count == 0 || count == set : count != 0 && set != 0;
+
+                if (taken)
+                {
+                    jump(dword(flag + 2));
+                    continue;
+                }
+
+                advance(count + 4);
+                continue;
+            }
+
+            case 0x11:
+                state.SetGameFlag(word(at + 2));
+                advance(2);
+                continue;
+
+            case 0x12:
+                state.ClearGameFlag(word(at + 2));
+                advance(2);
+                continue;
+
+            case 0x13:
+            case 0x14:
+            case 0x15:
+            case 0x16:
+            case 0x17:
+            {
+                const u16 slot = word(at + 2);
+                const u16 value = word(at + 4);
+
+                if (slot >= 0x40 || slot >= variables.size())
+                {
+                    DebugLog("path variable", slot, value);
+                    return;
+                }
+
+                if (value > 0x3E8)
+                {
+                    DebugLog("path value", slot, value);
+                }
+
+                i32& variable = variables[slot];
+                int length = 0;
+
+                switch (code)
+                {
+                    case 0x13:
+                        variable = value;
+                        length = 3;
+                        break;
+
+                    case 0x14:
+                    {
+                        const i32 before = variable;
+                        variable = value + before;
+
+                        if (static_cast<u32>(value) + static_cast<u32>(before) > 0x3E8)
+                        {
+                            variable = 0x3E8;
+                        }
+
+                        length = 3;
+                        break;
+                    }
+
+                    case 0x15:
+                    {
+                        const i32 before = variable;
+                        variable = before - value;
+
+                        if (before - value < 0)
+                        {
+                            variable = 0;
+                        }
+
+                        length = 3;
+                        break;
+                    }
+
+                    default:
+                        length = 5;
+
+                        if (code == 0x16 ? variable >= value : variable <= value)
+                        {
+                            jump(dword(at + 6));
+                            length = 0;
+                        }
+
+                        break;
+                }
+
+                advance(length);
+                continue;
+            }
+
+            case 0x18:
+            {
+                u32 target = 0;
+                state.FindRoleOrPlayer(word(at + 2), target);
+
+                if (target < GameState::kRoles)
+                {
+                    Role& other = state.roles[target];
+
+                    for (int slot = 0; slot < RolePath::kMoves; ++slot)
+                    {
+                        MoveRecord& move = state.moves[static_cast<std::size_t>(slot)];
+
+                        if (move.role != target)
+                        {
+                            continue;
+                        }
+
+                        if ((move.mode & 0xF) == 2)
+                        {
+                            move.nextRole = 0xFFFF;
+                            move.unk0A = 0xFFFF;
+                            move.nextX = 0xFFFF;
+                            move.nextY = 0xFFFF;
+                        }
+
+                        if ((move.mode & 0xF) == 1)
+                        {
+                            if (((other.x | other.y) & 0xF) != 0)
+                            {
+                                const int row = other.y >> 4;
+                                owner.field.ClearRoleCells(other, leaderId);
+                                const u8 back =
+                                    move.directions
+                                        [static_cast<std::size_t>(move.step & 0x7FFF) % move.directions.size()];
+
+                                while ((other.x & 0xF) != 0 && back < 8)
+                                {
+                                    other.x -= RolePath::kStepX[back];
+                                }
+
+                                while ((other.y & 0xF) != 0 && back < 8)
+                                {
+                                    other.y -= RolePath::kStepY[back];
+                                }
+
+                                owner.field.RemoveRole(other.id, static_cast<int>(other.flags & 3), row, 0);
+                            }
+
+                            move.Clear();
+                        }
+
+                        break;
+                    }
+                }
+
+                role.unk18 += 3;
+                at += 6;
+                const u16 path = word(at - 2);
+
+                if (target < GameState::kRoles)
+                {
+                    Role& other = state.roles[target];
+                    other.unk1C = path;
+                    other.unk18 = 0;
+
+                    if (target == static_cast<u32>(index))
+                    {
+                        at = 0x200 + dword(0x200 + 4 * static_cast<std::size_t>(path));
+                    }
+                }
+
+                continue;
+            }
+
+            case 0x19:
+                if (static_cast<u32>(time) > static_cast<u32>(word(at + 2) + this->timeMark))
+                {
+                    jump(dword(at + 4));
+                    continue;
+                }
+
+                advance(4);
+                continue;
+
+            case 0x1A:
+                this->timeMark = time;
+                advance(1);
+                continue;
+
+            case 0x1B:
+            {
+                u32 target = 0;
+                state.FindRoleOrPlayer(word(at + 2), target);
+
+                if (target < GameState::kRoles)
+                {
+                    Role& other = state.roles[target];
+                    other.flags &= 0xFFFF3FFF;
+                    owner.field.ClearRoleCells(other, leaderId);
+                }
+
+                advance(2);
+                continue;
+            }
+
+            case 0x1C:
+            {
+                u32 target = 0;
+                state.FindRoleOrPlayer(word(at + 2), target);
+
+                if (target < GameState::kRoles)
+                {
+                    state.roles[target].flags |= 0xC000;
+                }
+
+                advance(2);
+                continue;
+            }
+
+            case 0x1D:
+            {
+                owner.field.ClearRoleCells(role, leaderId);
+                role.x = 0x10 * word(at + 2);
+                role.y = 0x10 * word(at + 4);
+                const std::size_t cell = (static_cast<u32>(role.x) >> 4) +
+                                         static_cast<std::size_t>(state.map.width) * (static_cast<u32>(role.y) >> 4);
+                role.cell = cell < state.map.blocks.size() ? &state.map.blocks[cell] : nullptr;
+                owner.acts.Run(role.act);
+                owner.field.MarkRoleCells(role, leaderId);
+                role.unk18 += 3;
+                owner.field.RemoveRole(role.id, static_cast<int>(role.flags & 3), 0, 0);
+                return;
+            }
+
+            case 0x1E:
+                if ((role.x & 0xF) == 0 && (role.y & 0xF) == 0)
+                {
+                    this->Wander(index);
+                }
+
+                return;
+
+            case 0x1F:
+                if (word(at + 2) != 0xFFFF)
+                {
+                    role.act.id = word(at + 2);
+                }
+
+                if (word(at + 4) != 0xFFFF)
+                {
+                    role.act.action = word(at + 4);
+                }
+
+                if (word(at + 6) != 0xFFFF)
+                {
+                    role.act.direction = word(at + 6);
+                }
+
+                role.unk18 += 4;
+                owner.acts.Run(role.act);
+                return;
+
+            case 0x20:
+                owner.PlaySoundAt(word(at + 2), role.x, role.y);
+                role.unk18 += 2;
+                return;
+
+            case 0x21:
+            case 0x24:
+            {
+                u32 target = 0;
+
+                if (!state.FindRoleOrPlayer(word(at + 2), target) || target >= GameState::kRoles)
+                {
+                    DebugLog("Path(Follow)", word(at + 2));
+                    role.unk18 += 2;
+                    return;
+                }
+
+                const Role& other = state.roles[target];
+                const i32 otherX = other.x;
+                const i32 otherY = other.y;
+
+                if (((otherX | otherY) & 0xF) != 0)
+                {
+                    return;
+                }
+
+                u16 tileX = static_cast<u16>(otherX >> 4);
+                u16 tileY = static_cast<u16>(otherY >> 4);
+
+                if (code == 0x24)
+                {
+                    const int ahead = static_cast<i16>(word(at + 4));
+                    const int side = static_cast<i16>(word(at + 6));
+                    int offsetX = 0;
+                    int offsetY = 0;
+
+                    switch (other.act.direction)
+                    {
+                        case 0:
+                            offsetX = ahead;
+                            offsetY = -side;
+                            break;
+
+                        case 2:
+                            offsetX = -side;
+                            offsetY = ahead;
+                            break;
+
+                        case 3:
+                            offsetX = side;
+                            offsetY = -ahead;
+                            break;
+
+                        case 4:
+                            offsetX = side + ahead;
+                            offsetY = side - ahead;
+                            break;
+
+                        case 5:
+                            offsetX = -(side + ahead);
+                            offsetY = ahead - side;
+                            break;
+
+                        case 6:
+                            offsetX = side - ahead;
+                            offsetY = -(ahead + side);
+                            break;
+
+                        case 7:
+                            offsetX = ahead - side;
+                            offsetY = ahead + side;
+                            break;
+
+                        default:
+                            break;
+                    }
+
+                    tileY = static_cast<u16>((otherY >> 4) + offsetY);
+                    tileX = static_cast<u16>((otherX >> 4) + offsetX);
+                    const std::size_t cell = tileX + static_cast<std::size_t>(state.map.width) * tileY;
+                    const std::vector<u32>& blocks = state.map.blocks;
+                    const u32 here = cell < blocks.size() ? blocks[cell] : 0xFFFFFFFF;
+                    const u32 next = cell + 1 < blocks.size() ? blocks[cell + 1] : 0xFFFFFFFF;
+
+                    if ((here & 0x40000000) != 0 || (next & 0x40000000) != 0)
+                    {
+                        tileX = static_cast<u16>(otherX >> 4);
+                        tileY = static_cast<u16>(otherY >> 4);
+                    }
+                }
+
+                this->FindPath(index, tileX, tileY);
+                advance(2);
+
+                if (code == 0x24)
+                {
+                    advance(2);
+                }
+
+                const auto own = static_cast<u32>(role.y) * static_cast<u32>(role.y) +
+                                 static_cast<u32>(role.x) * static_cast<u32>(role.x);
+                const auto theirs = static_cast<u32>(other.x) * static_cast<u32>(other.x) +
+                                    static_cast<u32>(other.y) * static_cast<u32>(other.y);
+                const double ownRoot = std::sqrt(static_cast<double>(own));
+                const auto theirRoot = static_cast<i32>(crt::Ftol(std::sqrt(static_cast<double>(theirs))));
+                const auto gap = static_cast<i32>(crt::Ftol(ownRoot - static_cast<double>(theirRoot)));
+
+                if (std::abs(gap) > 0x80)
+                {
+                    role.flags |= kFastWalk;
+                }
+
+                continue;
+            }
+
+            case 0x22:
+            {
+                role.label.clear();
+                role.labelColor = word(at + 2);
+
+                if (static_cast<u32>(role.labelColor) > 0xA)
+                {
+                    role.labelColor = 0;
+                }
+
+                std::size_t end = at + 4;
+
+                while (end + 1 < data.size() && word(end) != 0x5125)
+                {
+                    ++end;
+                }
+
+                role.unk18 += static_cast<u16>((end - at + 2) / 2);
+                role.label.assign(
+                    data.begin() + static_cast<std::ptrdiff_t>(at + 4),
+                    data.begin() + static_cast<std::ptrdiff_t>(end)
+                );
+                return;
+            }
+
+            case 0x23:
+                role.label.clear();
+                role.labelColor = 0;
+                advance(1);
+                continue;
+
+            default:
+                DebugLog("path command", this->RoleId(static_cast<u32>(index)), code);
+                return;
+        }
+    }
+}
+
+}  // namespace swd3

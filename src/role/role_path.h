@@ -1,0 +1,49 @@
+#pragma once
+
+#include <array>
+#include <cstddef>
+
+#include "core/types.h"
+
+namespace swd3
+{
+
+class Game;
+class PathFinder;
+struct BlockingMap;
+
+// The roles walking on the map (the original's Path, 0x00405430..0x00406960): each role runs its script of path.dat
+// (moves, waits, jumps on time, flags and variables, follows, labels), steps along its found path or wanders, and
+// the followers trail the leader.
+class RolePath
+{
+public:
+    // swd32.exe 0x0049941C: the probe bits (Field::ProbeCells) that block a step in each path direction.
+    static constexpr std::array<u32, 8> kBlockedBy = {0x10, 0x20, 0x40, 0x80, 1, 2, 4, 8};
+    // swd32.exe 0x0049943C and 0x0049945C: the pixels of a step in each path direction.
+    static constexpr std::array<i32, 8> kStepX = {4, 0, -4, -4, -4, 0, 4, 4};
+    static constexpr std::array<i32, 8> kStepY = {4, 4, 4, 0, -4, -4, -4, 0};
+    // swd32.exe 0x0049947C: the act direction of each path direction.
+    static constexpr std::array<i32, 8> kFacing = {5, 1, 6, 2, 4, 0, 7, 3};
+    static constexpr int kMoves = 72;
+
+    explicit RolePath(Game& game);
+
+    void Update();
+    void RunScript(int index);
+    bool FindPath(int index, u16 tileX, u16 tileY);
+    int Step(int index);
+    std::size_t JumpTo(int index, u32 offset);
+    int Wander(int index);
+    void Follow(int index);
+    u16 RoleId(u32 index);
+
+    i32 timeMark = 0;  // 0x004BA42C
+
+private:
+    BlockingMap Grid() const;
+
+    Game& game;
+};
+
+}  // namespace swd3
