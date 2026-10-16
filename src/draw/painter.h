@@ -141,6 +141,8 @@ public:
     void SetPalette(const u16* palette);
     DrawOptions& Options();
     void SetWave(int mode);
+    int WavePhase() const;
+    void SetWavePhase(int phase);
     void SetZoom(int anchorX, int anchorY, int zoomX, int zoomY);
 
     // Drawing.

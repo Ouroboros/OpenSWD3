@@ -45,11 +45,11 @@ void Scene::FreeMarks()
 }
 
 // swd32.exe 0x0040F670
-void Scene::ResetUnk4B86F8()
+void Scene::ResetLeaves()
 {
-    for (std::array<i32, 4>& entry : this->unk4B86F8)
+    for (Particle& leaf : this->leaves)
     {
-        entry[0] = 0x7FFFFFFF;
+        leaf.x = 0x7FFFFFFF;
     }
 }
 

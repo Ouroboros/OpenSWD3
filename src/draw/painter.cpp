@@ -446,6 +446,16 @@ void Painter::SetWave(int mode)
     this->waveMode = mode;
 }
 
+int Painter::WavePhase() const
+{
+    return this->wavePhase;
+}
+
+void Painter::SetWavePhase(int phase)
+{
+    this->wavePhase = phase;
+}
+
 void Painter::SetZoom(int anchorX, int anchorY, int zoomX, int zoomY)
 {
     this->zoomAnchorX = anchorX;

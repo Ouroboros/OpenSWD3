@@ -113,7 +113,17 @@ void MoveRecord::Clear()
     this->step = 0xFFFF;
     this->x = 0xFFFF;
     this->y = 0xFFFF;
-    this->unk08.fill(0xFF);
+    this->nextRole = 0xFFFF;
+    this->unk0A = 0xFFFF;
+    this->nextX = 0xFFFF;
+    this->nextY = 0xFFFF;
+    this->act = -1;
+    this->action = -1;
+    this->direction = -1;
+    this->stepX = -1;
+    this->stepY = -1;
+    this->unk1A = 0xFF;
+    this->mode = 0xFF;
     this->directions.fill(0xFF);
 }
 
@@ -143,7 +153,7 @@ void GameState::ClearRoles()
 {
     for (int index = 0; index <= this->roleCount && index < GameState::kRoles; ++index)
     {
-        this->roles[static_cast<std::size_t>(index)].unk38.clear();
+        this->roles[static_cast<std::size_t>(index)].label.clear();
     }
 
     for (Role& role : this->roles)
@@ -151,6 +161,48 @@ void GameState::ClearRoles()
         role = Role{};
         ResetPlayback(role.act);
     }
+}
+
+// swd32.exe 0x0040C020: the first role in use with `id` that is not hidden (flag 0x10000000); 0xFFFFFFFF when none
+u32 GameState::FindRole(u16 id) const
+{
+    if (this->roleCount == 0)
+    {
+        return 0xFFFFFFFF;
+    }
+
+    u32 index = 0;
+
+    while (this->roles[index].id != id || (this->roles[index].flags & 0x10000000) != 0)
+    {
+        if (++index >= static_cast<u32>(this->roleCount) || index >= this->roles.size())
+        {
+            return 0xFFFFFFFF;
+        }
+    }
+
+    return index;
+}
+
+// swd32.exe 0x0040C100
+bool GameState::FindRole(u16 id, u32& index) const
+{
+    index = this->FindRole(id);
+    return index != 0xFFFFFFFF;
+}
+
+// swd32.exe 0x0040C0D0: id 0xFFFE stands for the controlled role
+bool GameState::FindRoleOrPlayer(u16 id, u32& index) const
+{
+    index = 0;
+
+    if (id != 0xFFFE)
+    {
+        return this->FindRole(id, index);
+    }
+
+    index = static_cast<u32>(this->playerRole);
+    return true;
 }
 
 }  // namespace swd3

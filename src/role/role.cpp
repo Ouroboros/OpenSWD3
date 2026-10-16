@@ -30,13 +30,13 @@ void Role::FillUnused()
 
     ones(this->unk28);
     ones(this->unk2A);
-    ones(this->unk2C);
+    ones(this->sound);
     ones(this->unk2E);
-    ones(this->colorPair);
-    ones(this->unk34);
+    ones(this->soundTimer);
+    ones(this->labelColor);
 
-    this->unk38.clear();
-    ones(this->unk3C);
+    this->label.clear();
+    this->attached = nullptr;
     swd3::FillUnused(this->act);
 }
 

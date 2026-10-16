@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <span>
 #include <string>
@@ -7,6 +8,7 @@
 
 #include "core/debug_log.h"
 #include "core/format.h"
+#include "crt/msvc.h"
 #include "game/game.h"
 #include "platform/system_info.h"
 
@@ -178,8 +180,9 @@ void Game::MusicZone(int map)
     }
 }
 
-// swd32.exe 0x0040D060: the colour of a role from maps.dat's colour table (in both halves); false when it has none
-bool Game::LoadRoleColor(Role& role)
+// swd32.exe 0x0040D060: the sound of a role and its period (in both halves of the timer) from maps.dat's sound table;
+// false when it has none
+bool Game::LoadRoleSound(Role& role)
 {
     const std::vector<u8>& data = this->databases.mapsData;
 
@@ -194,9 +197,9 @@ bool Game::LoadRoleColor(Role& role)
 
         if (id == role.id)
         {
-            role.unk2C = MapsWord(data, at + 2);
-            const u32 color = MapsWord(data, at + 4);
-            role.colorPair = color << 16 | color;
+            role.sound = MapsWord(data, at + 2);
+            const u32 period = MapsWord(data, at + 4);
+            role.soundTimer = period << 16 | period;
             return true;
         }
     }
@@ -589,24 +592,21 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
     game.ClearGameFlag(5);
     game.ClearGameFlag(6);
 
-    for (std::array<i32, 4>& particle : view.unk4C97A0)
-    {
-        particle.fill(0x0F0F0F0F);
-    }
+    view.weather.fill({0x0F0F0F0F, 0x0F0F0F0F, 0x0F0F0F0F, 0x0F0F0F0F});
 
     ResetPlayback(view.unk4ACAF8);
-    view.ResetUnk4B86F8();
+    view.ResetLeaves();
     game.ClearGameFlag(7);
     game.ClearGameFlag(8);
-    view.unk4B7520 = {};
-    view.unk4B88BC = 0;
-    view.unk4AAEC8 = 0;
+    std::fill_n(view.bolts.begin(), 0x30, Streak{});
+    view.lightningShown = 0;
+    view.lightningCount = 0;
     game.ClearGameFlag(0x16);
-    view.unk4B7520 = {};
-    view.unk4B737C = 0;
+    std::fill_n(view.bolts.begin(), 0x30, Streak{});
+    view.firefliesShown = 0;
     view.unk4B9EF8 = 0x140;
     view.unk4A94A8 = 0x140;
-    view.unk4BAB80 = 0;
+    view.fireflyCount = 0;
     view.unk4B9EFC = 0xF0;
     view.unk4CAE80 = 0xF0;
     view.unk4ACE58 = 0;
@@ -728,7 +728,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
     }
 
     view.unk4C9A20 = 0;
-    view.unk4BA430 = {};
+    view.soundRise = {};
     view.triggers.next.reset();
     view.FreeAnimations();
     view.FreeEffects();
@@ -737,7 +737,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
     game.clickRegions.Free();
     view.FreeNodes();
     view.FreeMarks();
-    view.ResetUnk4B86F8();
+    view.ResetLeaves();
     view.FreeObjects();
     this->controls.buttons = {};
     game.ClearRoles();
@@ -798,14 +798,14 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
     {
         for (std::size_t particle = 0; particle < 4; ++particle)
         {
-            view.unk4ACE04[particle][1] = static_cast<i32>(this->random.Below(3)) + 1;
+            view.weatherMotion[particle].speedTarget = static_cast<i32>(this->random.Below(3)) + 1;
             const u32 spread = this->random.Below(view.unk4C97F6);
-            view.unk4ACDC8[particle][0] = 0;
-            view.unk4ACE04[particle][0] = view.unk4ACEF0 + static_cast<i32>(spread);
-            view.unk4C97A0[particle][0] = static_cast<i32>(this->random.Below(static_cast<u32>(0x10 * header.width)));
-            view.unk4C97A0[particle][1] = static_cast<i32>(this->random.Below(static_cast<u32>(0x10 * header.height)));
-            view.unk4C97A0[particle][2] = static_cast<i32>(this->random.Below(2)) - 2;
-            view.unk4C97A0[particle][3] = static_cast<i32>(this->random.Below(2)) - 2;
+            view.weatherShades[particle].tintTarget = 0;
+            view.weatherMotion[particle].action = view.unk4ACEF0 + static_cast<i32>(spread);
+            view.weather[particle].x = static_cast<i32>(this->random.Below(static_cast<u32>(0x10 * header.width)));
+            view.weather[particle].y = static_cast<i32>(this->random.Below(static_cast<u32>(0x10 * header.height)));
+            view.weather[particle].stepX = static_cast<i32>(this->random.Below(2)) - 2;
+            view.weather[particle].stepY = static_cast<i32>(this->random.Below(2)) - 2;
         }
     }
 
@@ -945,7 +945,7 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
         role.unk26 = 0;
         role.unk14 = 0;
         role.unk20 = 0;
-        this->LoadRoleColor(role);
+        this->LoadRoleSound(role);
         this->field.InsertRole(role, static_cast<int>(role.flags & 3));
 
         if (role.id == kPartyLeader)
@@ -1013,7 +1013,7 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
             entry.x = static_cast<u16>(role.x);
             entry.y = static_cast<u16>(role.y);
             entry.unk08 = 0;
-            entry.unk0A = 0;
+            entry.flags = 0;
             entry.unk0E = 0;
         }
 
@@ -1069,6 +1069,25 @@ bool Game::ProbeFile(const std::string& path)
     const bool opened = file.Open(path, File::Disposition::OpenExisting, File::Access::Read);
     file.Close();
     return opened;
+}
+
+// swd32.exe 0x00485750: sound `sound` from (x, y) of the map when within 512 pixels of the controlled role, quieter and
+// panned by the distance
+void Game::PlaySoundAt(u16 sound, int x, int y)
+{
+    const Role& player = this->state.roles[static_cast<std::size_t>(this->state.playerRole)];
+    const int squared = (player.x - x) * (player.x - x) + (player.y - y) * (player.y - y);
+    const auto distance = static_cast<int>(crt::Ftol(std::sqrt(static_cast<double>(squared))));
+
+    if (distance >= 0x200)
+    {
+        return;
+    }
+
+    SoundEffects& effects = this->audio.Effects();
+    effects.Play(sound, 0, 0, 1);
+    effects.SetVolume(sound, this->config.soundVolume * (0x80 - (distance << 7) / 0x200) / 0xB);
+    effects.SetPan(sound, ((x - player.x) << 6) / 0x200);
 }
 
 }  // namespace swd3

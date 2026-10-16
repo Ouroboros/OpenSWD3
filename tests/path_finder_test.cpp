@@ -100,19 +100,20 @@ TEST_CASE("path finder: a path around a wall, and the second search of one finde
     pool.Init();
     swd3::BlockingMap map;
     map.width = 10;
-    map.cells.assign(100, 0);
+    std::vector<swd3::u32> cells(100, 0);
+    map.cells = cells;
 
     for (int y = 0; y < 10; ++y)
     {
-        map.cells[static_cast<std::size_t>(y) * 10] = 0xFFFFFFFF;
-        map.cells[static_cast<std::size_t>(y) * 10 + 9] = 0xFFFFFFFF;
-        map.cells[static_cast<std::size_t>(y)] = 0xFFFFFFFF;
-        map.cells[90 + static_cast<std::size_t>(y)] = 0xFFFFFFFF;
+        cells[static_cast<std::size_t>(y) * 10] = 0xFFFFFFFF;
+        cells[static_cast<std::size_t>(y) * 10 + 9] = 0xFFFFFFFF;
+        cells[static_cast<std::size_t>(y)] = 0xFFFFFFFF;
+        cells[90 + static_cast<std::size_t>(y)] = 0xFFFFFFFF;
     }
 
     for (int y = 1; y < 7; ++y)
     {
-        map.cells[static_cast<std::size_t>(y) * 10 + 5] = 0x40000000;
+        cells[static_cast<std::size_t>(y) * 10 + 5] = 0x40000000;
     }
 
     swd3test::RecordingReporter reporter;

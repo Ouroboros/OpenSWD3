@@ -59,7 +59,7 @@ Game::Game(std::string installDirectory)
       graphics(this->display, this->errors), codec(this->painter), archive(this->codec, this->errors),
       acts(this->errors), rasterizer(this->glyphs), largeFont(this->rasterizer), mediumFont(this->rasterizer),
       smallFont(this->rasterizer), audio(this->audioDevice), mapCache(this->config, this->painter),
-      field(this->state, this->mapCache, this->config, this->codec), database(installDirectory),
+      field(this->state, this->mapCache, this->config, this->codec), fieldView(*this), database(installDirectory),
       battleHud(this->painter, this->archive, this->acts, this->random, this->audio), battleMessages(
                                                                                           this->painter,
                                                                                           this->archive,
@@ -549,7 +549,7 @@ void Game::NewGame()
     this->audio.SetFadeState(1, 0, 0);
     scene.unk4ACDBC = 0;
     scene.unk4A94B0 = 0x40000000;
-    scene.unk4ACE70.fill(0xCF);
+    scene.shake.fill(static_cast<i16>(0xCFCF));
     scene.unk4ACDB8 = 3;
     scene.unk4ACF00 = SceneNode{};
     game.SetWalkSpeed(0x10);
@@ -602,10 +602,7 @@ void Game::NewGame()
 
     ResetPlayback(scene.unk4ACAF8);
 
-    for (std::array<i32, 4>& particle : scene.unk4C97A0)
-    {
-        particle.fill(0x0F0F0F0F);
-    }
+    scene.weather.fill({0x0F0F0F0F, 0x0F0F0F0F, 0x0F0F0F0F, 0x0F0F0F0F});
 
     scene.unk4ACAF8.id = 0x232B;
     scene.unk4ACAF8.action = 0x38;

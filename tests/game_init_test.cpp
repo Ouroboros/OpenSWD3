@@ -100,11 +100,11 @@ TEST_CASE("game init: the session mark of env.dat empties the map cache")
 TEST_CASE("game init: clearing the world")
 {
     swd3::GameState world;
-    world.roles[3].unk38.assign(4, 1);
+    world.roles[3].label.assign(4, 'a');
     world.roles[3].x = 9;
     world.map.blocks.assign(8, 1);
     world.ClearWorld();
-    CHECK(world.roles[3].unk38.empty());
+    CHECK(world.roles[3].label.empty());
     CHECK_EQ(world.roles[3].x, 0);
     CHECK_EQ(world.roleCount, 0);
     CHECK_EQ(world.leader.id, 0xFFFF);

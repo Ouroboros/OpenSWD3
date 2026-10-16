@@ -31,15 +31,15 @@ struct MapRegion
 struct MapOverlay
 {
     std::vector<u8> picture;           // +0x00 a 16-bit RLE picture
-    u16 kind = 0;                      // +0x04
+    u16 kind = 0;                      // +0x04 the drawing order (0..30)
     u16 width = 0;                     // +0x06
     u16 height = 0;                    // +0x08
-    u16 unk0A = 0;                     // +0x0A
-    u16 unk0C = 0;                     // +0x0C
-    u16 unk0E = 0;                     // +0x0E
-    u16 unk10 = 0;                     // +0x10
-    u16 unk16 = 0;                     // +0x16
-    u16 unk18 = 0;                     // +0x18
+    u16 left = 0;                      // +0x0A map pixels of the area it shows in
+    u16 top = 0;                       // +0x0C
+    u16 right = 0;                     // +0x0E
+    u16 bottom = 0;                    // +0x10
+    u16 parallaxX = 0;                 // +0x16 8: moves with the map, in eighths
+    u16 parallaxY = 0;                 // +0x18
     std::unique_ptr<MapOverlay> next;  // +0x1C
 };
 

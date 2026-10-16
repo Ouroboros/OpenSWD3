@@ -28,12 +28,24 @@ struct MapHeader
 // The movement of a role along a path (0x21C bytes, 72 of them at 0x004AD490); filled with 0xFF when unused.
 struct MoveRecord
 {
-    u16 role = 0;                           // +0x00 the role moving
-    u16 step = 0;                           // +0x02 bits 0..14: the step reached
-    u16 x = 0;                              // +0x04 the end of the move
+    static constexpr u16 kDone = 0x8000;  // in `step`: the step was taken
+
+    u16 role = 0;                           // +0x00 the role moving (0xFFFF: unused)
+    u16 step = 0;                           // +0x02 bits 0..14: the step reached, kDone once taken
+    u16 x = 0;                              // +0x04 the end of the move (pixels)
     u16 y = 0;                              // +0x06
-    std::array<u8, 0x14> unk08 = {};        // +0x08
-    std::array<u8, 0x200> directions = {};  // +0x1C the direction of every step
+    u16 nextRole = 0;                       // +0x08 a move queued after this one (0xFFFF: none)
+    u16 unk0A = 0;                          // +0x0A
+    u16 nextX = 0;                          // +0x0C
+    u16 nextY = 0;                          // +0x0E
+    i16 act = 0;                            // +0x10 the act at the end (-1: kept)
+    i16 action = 0;                         // +0x12
+    i16 direction = 0;                      // +0x14
+    i16 stepX = 0;                          // +0x16 pixels per frame
+    i16 stepY = 0;                          // +0x18
+    u8 unk1A = 0;                           // +0x1A
+    u8 mode = 0;                            // +0x1B low nibble: the kind of move, bit 7: the event keeps running
+    std::array<u8, 0x200> directions = {};  // +0x1C the direction of every step (0xFF ends)
 
     void Clear();
 };
@@ -83,6 +95,9 @@ public:
     const Role& Player() const;
     void ClearWorld();
     void ClearRoles();
+    u32 FindRole(u16 id) const;
+    bool FindRole(u16 id, u32& index) const;
+    bool FindRoleOrPlayer(u16 id, u32& index) const;
 
     std::array<u8, kFlagBytes> flags = {};  // 0x004AB384 story flags, saved with the game
     i32 pointerX = 0;                       // 0x004A9924 pointer position on the screen

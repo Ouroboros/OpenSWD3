@@ -26,6 +26,7 @@
 #include "input/input.h"
 #include "launcher/launcher.h"
 #include "map/field.h"
+#include "map/field_view.h"
 #include "map/map_cache.h"
 #include "menu/menu.h"
 
@@ -59,6 +60,7 @@ namespace swd3
 class Game
 {
     friend class Menu;
+    friend class FieldView;
 
 public:
     static constexpr std::u8string_view kWindowTitle = u8"軒轅劍參 DVD";                    // 0x0049FAC4
@@ -103,7 +105,7 @@ private:
     void SendText(TextMessage message, u32 parameter);
     void ShowLoading(int percent);
     void MusicZone(int map);
-    bool LoadRoleColor(Role& role);
+    bool LoadRoleSound(Role& role);
     void BuildTriggers(MapTrigger& head);
     void InitRole(Role& role);
     bool MapName(int map, std::string& name) const;
@@ -128,6 +130,7 @@ private:
     void LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, int options);
     void PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction, int previous);
     void Destroy();
+    void PlaySoundAt(u16 sound, int x, int y);
 
     DialogErrorReporter errors;
     Display display;
@@ -154,6 +157,7 @@ private:
     Controls controls;
     MapCache mapCache;
     Field field;
+    FieldView fieldView;
 
     GameDatabases databases;
     PathNodePool pathNodes;

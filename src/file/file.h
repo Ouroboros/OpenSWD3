@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -63,6 +64,8 @@ public:
     // The bytes [offset, offset + size) of the mapping (to the end of the file for size 0); nullptr on failure.
     const u8* MapView(u32 offset, u32 size);
     bool UnmapView(const u8* view);
+    // The bytes of the current view (empty without one).
+    std::span<const u8> View() const;
 
     // kInvalidPosition when the file is not open.
     u32 Size();

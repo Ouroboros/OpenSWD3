@@ -1,6 +1,6 @@
 #pragma once
 
-#include <vector>
+#include <span>
 
 #include "core/types.h"
 
@@ -25,7 +25,7 @@ struct BlockingMap
 
     i32 width = 0;  // 0x004B7930 tiles
     i32 height = 0;
-    std::vector<u32> cells;
+    std::span<const u32> cells;  // the grid of the map (MapHeader::blocks)
 };
 
 }  // namespace swd3

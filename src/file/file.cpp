@@ -217,6 +217,11 @@ bool File::UnmapView(const u8* view)
     return true;
 }
 
+std::span<const u8> File::View() const
+{
+    return this->viewed ? std::span<const u8>(this->view) : std::span<const u8>();
+}
+
 bool File::ReleaseView()
 {
     this->view.clear();
