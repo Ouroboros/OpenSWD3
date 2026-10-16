@@ -382,3 +382,6 @@ addr	type	name	module	notes
 @include	battle/battle_formation.h
 @size	BattleFormation	12792
 0x004FF5B8	BattleFormation	battleFormation	battle	constructed by 0x004518E0
+0x004C9A10	std::uint8_t*	itemText	item	names: offsets at +0x4C, texts end with 0x5125
+0x004FC2A0	char[128]	itemNameBuffer	menu
+0x004FB8AC	std::int32_t	menuMouseButtons	menu	bits 0..1 left click / hold, 2..3 right click / hold

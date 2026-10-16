@@ -9,6 +9,7 @@
 {0x4B7948u, 1u, image::RelocKind::Data},  // mapBlocking
 {0x4C8AD0u, 64u, image::RelocKind::Data},  // heroItemSlots
 {0x4C8BECu, 1u, image::RelocKind::Data},  // clickRegions
+{0x4C9A10u, 1u, image::RelocKind::Data},  // itemText
 {0x4CB1FCu, 1u, image::RelocKind::Data},  // pathNodePool
 {0x4CD318u, 128u, image::RelocKind::Code},  // drawRleTable
 {0x4CD518u, 128u, image::RelocKind::Code},  // drawRawTable

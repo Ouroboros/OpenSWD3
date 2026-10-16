@@ -3947,7 +3947,7 @@ struct Globals {
     std::int32_t dword_4C9A04;  // 0x004C9A04
     std::int32_t dword_4C9A08;  // 0x004C9A08
     std::int32_t musicVolume;  // 0x004C9A0C 0..11
-    std::int32_t dword_4C9A10;  // 0x004C9A10
+    std::uint8_t* itemText;  // 0x004C9A10 names: offsets at +0x4C, texts end with 0x5125
     std::int32_t dword_4C9A14;  // 0x004C9A14
     std::int32_t dword_4C9A18;  // 0x004C9A18
     HWND mainWindow;  // 0x004C9A1C
@@ -4257,7 +4257,7 @@ struct Globals {
     std::uint8_t pad_4FB888[0x20];
     std::int16_t word_4FB8A8;  // 0x004FB8A8
     std::uint8_t pad_4FB8AA[0x2];
-    std::int32_t dword_4FB8AC;  // 0x004FB8AC
+    std::int32_t menuMouseButtons;  // 0x004FB8AC bits 0..1 left click / hold, 2..3 right click / hold
     std::int32_t dword_4FB8B0;  // 0x004FB8B0
     std::int32_t dword_4FB8B4;  // 0x004FB8B4
     std::int32_t dword_4FB8B8;  // 0x004FB8B8
@@ -4361,8 +4361,7 @@ struct Globals {
     std::uint8_t pad_4FC214[0x28];
     std::int32_t dword_4FC23C;  // 0x004FC23C
     std::uint8_t pad_4FC240[0x60];
-    std::uint8_t byte_4FC2A0;  // 0x004FC2A0
-    std::uint8_t pad_4FC2A1[0x7F];
+    char itemNameBuffer[128];  // 0x004FC2A0
     std::int32_t dword_4FC320;  // 0x004FC320
     std::uint8_t pad_4FC324[0x4];
     std::int32_t dword_4FC328;  // 0x004FC328
@@ -5689,6 +5688,7 @@ static_assert(offsetof(Globals, clickRegions) == 0x2FBEC);
 static_assert(offsetof(Globals, clickRegionState) == 0x2FBF0);
 static_assert(offsetof(Globals, streamPlayer) == 0x30288);
 static_assert(offsetof(Globals, musicVolume) == 0x30A0C);
+static_assert(offsetof(Globals, itemText) == 0x30A10);
 static_assert(offsetof(Globals, mainWindow) == 0x30A1C);
 static_assert(offsetof(Globals, textFont_4C9A28) == 0x30A28);
 static_assert(offsetof(Globals, file_4CAA28) == 0x31A28);
@@ -5817,6 +5817,8 @@ static_assert(offsetof(Globals, tswPackedBuf) == 0x6255C);
 static_assert(offsetof(Globals, particleRange) == 0x62568);
 static_assert(offsetof(Globals, textInputLeadPending) == 0x627E8);
 static_assert(offsetof(Globals, r250Index) == 0x627F0);
+static_assert(offsetof(Globals, menuMouseButtons) == 0x628AC);
+static_assert(offsetof(Globals, itemNameBuffer) == 0x632A0);
 static_assert(offsetof(Globals, panelAct) == 0x635B0);
 static_assert(offsetof(Globals, menuFirst) == 0x642F4);
 static_assert(offsetof(Globals, menuEntries) == 0x64318);
