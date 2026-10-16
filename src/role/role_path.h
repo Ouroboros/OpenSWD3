@@ -49,6 +49,11 @@ public:
     static constexpr i16 Keep = -1;             // an act, action or direction left as it is
 
     int MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 action, i16 direction);
+    // The results of ScriptStep.
+    static constexpr int NoScriptedMove = 0;
+    static constexpr int Stepped = 1;
+    static constexpr int PathEnded = 2;
+
     int ScriptStep(int index);
     int HoldRole(int index);
 

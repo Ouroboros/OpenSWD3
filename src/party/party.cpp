@@ -168,7 +168,7 @@ void Party::ApplyNameCheats()
         first.defense = static_cast<i16>(first.defense - 5);
         first.unk14 = static_cast<i16>(first.unk14 - 5);
         first.agility = static_cast<i16>(first.agility - 5);
-        this->variables[0] = 0x1F4;
+        this->variables[Party::Gold] = 0x1F4;
         first.attack = static_cast<i16>(first.attack - 0xA);
     }
 

@@ -150,16 +150,16 @@ void Game::LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 dire
     role.flags = flags;
     this->UpdateRoleRecord(
         role.id,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
+        Game::KeepValue,
+        Game::KeepValue,
+        Game::KeepValue,
+        Game::KeepValue,
+        Game::KeepValue,
         static_cast<i16>(event),
         static_cast<i16>(path),
         0,
-        static_cast<i16>(0xFF7F),
-        -1
+        static_cast<i16>(~Role::Follower),
+        Game::KeepValue
     );
     this->field.MarkRoleCells(role, leader);
     std::move(

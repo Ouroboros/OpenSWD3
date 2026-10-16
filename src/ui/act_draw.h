@@ -14,6 +14,9 @@ struct ActState;
 class ActDrawer
 {
 public:
+    static constexpr int GoldX = 0x27C;  // the gold counter at the bottom right
+    static constexpr int GoldY = 0x1CC;
+
     static constexpr u16 Digits = 0x2354;
     static constexpr u16 CounterLabel = 0x245E;
 

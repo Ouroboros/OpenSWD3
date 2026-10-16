@@ -257,7 +257,7 @@ bool Talk::PlaceRole(EventRun& run)
             event,
             static_cast<i16>(this->Word(run, 3)),
             setBits,
-            -1,
+            Game::KeepValue,
             map
         ))
     {
@@ -843,11 +843,35 @@ bool Talk::RunSceneCommand(EventRun& run)
             }
             else if (run.code == EventCommand::ClearRoleHidden)
             {
-                owner.UpdateRoleRecord(id, -1, -1, -1, -1, -1, -1, -1, 0, static_cast<i16>(0xFBFF), -1);
+                owner.UpdateRoleRecord(
+                    id,
+                    Game::KeepValue,
+                    Game::KeepValue,
+                    Game::KeepValue,
+                    Game::KeepValue,
+                    Game::KeepValue,
+                    Game::KeepValue,
+                    Game::KeepValue,
+                    0,
+                    static_cast<i16>(~Role::Hidden),
+                    Game::KeepValue
+                );
             }
             else
             {
-                owner.UpdateRoleRecord(id, -1, -1, -1, -1, -1, -1, -1, 0x400, -1, -1);
+                owner.UpdateRoleRecord(
+                    id,
+                    Game::KeepValue,
+                    Game::KeepValue,
+                    Game::KeepValue,
+                    Game::KeepValue,
+                    Game::KeepValue,
+                    Game::KeepValue,
+                    Game::KeepValue,
+                    Role::Hidden,
+                    Game::KeepValue,
+                    Game::KeepValue
+                );
             }
 
             this->Next(run);

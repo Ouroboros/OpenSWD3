@@ -58,6 +58,8 @@ struct ActState
     static constexpr u16 RoundsMask = 0xFF;
     static constexpr int RoundShift = 8;
     static constexpr i16 FixedDelay = static_cast<i16>(0x8000);  // in `speed`: the low bits are a fixed delay
+    static constexpr i32 NotSaved = -1;                          // in `savedAction` and `savedDirection`
+    static constexpr i32 NoLast = -1;  // in `lastAction` and `lastDirection`: the act runs from the start
 
     // The act directions (RolePath::Facing maps the steps onto them).
     enum Direction : u16

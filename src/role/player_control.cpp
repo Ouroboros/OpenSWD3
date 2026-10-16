@@ -182,7 +182,7 @@ void RoleControl::ControlPlayer()
 
         if (input.IsKeyDown(Input::F7))
         {
-            owner.party.variables[0] += 0x3E8;
+            owner.party.variables[Party::Gold] += 0x3E8;
             SleepMilliseconds(0xFA);
         }
 
@@ -276,7 +276,7 @@ void RoleControl::ControlPlayer()
         const u32 found =
             this->FindRoleAhead(state.playerRole, RoleControl::AheadX[facing], RoleControl::AheadY[facing]);
 
-        if (found < GameState::Roles && state.roles[found].unk26 == 0)
+        if (found < GameState::Roles && state.roles[found].talkState == Role::NoTalk)
         {
             this->Approach(player, state.roles[found], false);
             owner.talk.advance = 0;

@@ -71,13 +71,16 @@ public:
 
     static constexpr int SlotsPerRole = 16;
     static constexpr int Variables = 64;
+    static constexpr std::size_t Gold = 0;  // the variable that holds the gold
 
     std::array<RoleRecord, Roles> roles;                                    // 0x004AB790
     ItemLink inventory;                                                     // 0x004A9940
     std::array<std::unique_ptr<ItemNode>, Roles> skills;                    // 0x004A9490 each headed by "無"
     std::array<std::unique_ptr<ItemNode>, Roles * SlotsPerRole> equipment;  // 0x004C8AD0
-    i32 unk4ACDB0 = 0;                                                      // 0x004ACDB0
-    std::array<i32, Variables> variables = {};                              // 0x004ACBD0 [0]: the gold
+    static constexpr u32 ClockLimit = 1000;                                 // the clock goes back to 0 past it
+    i32 clock = 0;  // 0x004ACDB0 the game clock: a tick every Game::ClockFrames + 1 frames on the map (talk commands
+                    // 0x22..0x25)
+    std::array<i32, Variables> variables = {};  // 0x004ACBD0 [0]: the gold
     Fame fame;
     std::array<Name, Roles> names = Party::DefaultNames();  // 0x0049E148
 

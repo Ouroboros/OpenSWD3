@@ -129,7 +129,19 @@ bool Talk::RunStateCommand(EventRun& run)
             }
             else
             {
-                owner.UpdateRoleRecord(id, -1, -1, -1, -1, -1, static_cast<i16>(event), -1, 0, -1, -1);
+                owner.UpdateRoleRecord(
+                    id,
+                    Game::KeepValue,
+                    Game::KeepValue,
+                    Game::KeepValue,
+                    Game::KeepValue,
+                    Game::KeepValue,
+                    static_cast<i16>(event),
+                    Game::KeepValue,
+                    0,
+                    Game::KeepValue,
+                    Game::KeepValue
+                );
             }
 
             this->Next(run);
@@ -183,16 +195,16 @@ bool Talk::RunStateCommand(EventRun& run)
                 run.valueB = set ? -1 : static_cast<i32>(~bit);
                 owner.UpdateRoleRecord(
                     id,
-                    -1,
-                    -1,
-                    -1,
-                    -1,
-                    -1,
-                    -1,
-                    -1,
+                    Game::KeepValue,
+                    Game::KeepValue,
+                    Game::KeepValue,
+                    Game::KeepValue,
+                    Game::KeepValue,
+                    Game::KeepValue,
+                    Game::KeepValue,
                     static_cast<i16>(set ? bit : 0),
                     static_cast<i16>(set ? ~0u : ~bit),
-                    -1
+                    Game::KeepValue
                 );
             }
 
@@ -452,7 +464,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
                 if (window.role != TalkWindow::NoRole && window.role < GameState::Roles)
                 {
-                    state.roles[window.role].unk26 = 0;
+                    state.roles[window.role].talkState = Role::NoTalk;
                 }
 
                 std::unique_ptr<TalkWindow> gone = std::move(*link);
@@ -546,13 +558,13 @@ bool Talk::RunStateCommand(EventRun& run)
                     static_cast<i16>(act),
                     static_cast<i16>(action),
                     static_cast<i16>(direction),
-                    -1,
-                    -1,
-                    -1,
-                    -1,
+                    Game::KeepValue,
+                    Game::KeepValue,
+                    Game::KeepValue,
+                    Game::KeepValue,
                     Role::StepsAct,
-                    -1,
-                    -1
+                    Game::KeepValue,
+                    Game::KeepValue
                 );
             }
 

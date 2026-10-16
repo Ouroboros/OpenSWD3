@@ -15,6 +15,10 @@ namespace swd3
 struct Role
 {
     static constexpr u16 NoId = 0xFFFF;  // in `id`: an unused role
+    // `talkState`: the talk window of the role.
+    static constexpr u16 NoTalk = 0;
+    static constexpr u16 TalkWaiting = 1;  // its window is waited for (the role stands still)
+    static constexpr u16 TalkOpen = 2;
     // `soundTimer`: the low word counts the frames to the next play, the high word is the period.
     static constexpr u32 SoundCountMask = 0xFFFF;
     static constexpr u32 SoundPeriodMask = 0xFFFF0000;
@@ -52,26 +56,26 @@ struct Role
         Held = 0x80000000,       // held by an event
     };
 
-    Role* next = nullptr;  // +0x00 the next role in its row of the drawing order
-    i32 x = 0;             // +0x04 pixels (16 per tile)
-    i32 y = 0;             // +0x08
-    u32* cell = nullptr;   // +0x0C its cell of the map's block grid
-    u32 flags = 0;         // +0x10
-    i32 unk14 = 0;         // +0x14
-    i32 unk18 = 0;         // +0x18
-    u16 unk1C = 0;         // +0x1C
-    u16 event = 0;         // +0x1E the event run when the role is triggered
-    u16 unk20 = 0;         // +0x20
-    u16 unk22 = 0;         // +0x22
-    u16 id = 0;            // +0x24 NoId: unused
-    u16 unk26 = 0;         // +0x26
-    u16 unk28 = 0;         // +0x28 bits 12..15 of the placement word
-    u16 unk2A = 0;         // +0x2A bits 8..11 of the placement word
-    u16 sound = 0;         // +0x2C its sound (maps.dat table 0x15)
-    u16 unk2E = 0;         // +0x2E
-    u32 soundTimer = 0;    // +0x30 low word: frames to the next play, high word: the period (0xFFFF: plays once)
-    i32 labelColor = 0;    // +0x34 the text colour of the label
-    std::string label;     // +0x38 a name drawn over the role while no event runs (freed when the map is left)
+    Role* next = nullptr;          // +0x00 the next role in its row of the drawing order
+    i32 x = 0;                     // +0x04 pixels (16 per tile)
+    i32 y = 0;                     // +0x08
+    u32* cell = nullptr;           // +0x0C its cell of the map's block grid
+    u32 flags = 0;                 // +0x10
+    i32 unk14 = 0;                 // +0x14
+    i32 unk18 = 0;                 // +0x18
+    u16 unk1C = 0;                 // +0x1C
+    u16 event = 0;                 // +0x1E the event run when the role is triggered
+    u16 unk20 = 0;                 // +0x20
+    u16 unk22 = 0;                 // +0x22
+    u16 id = 0;                    // +0x24 NoId: unused
+    u16 talkState = Role::NoTalk;  // +0x26 NoTalk, TalkWaiting or TalkOpen
+    u16 unk28 = 0;                 // +0x28 bits 12..15 of the placement word
+    u16 unk2A = 0;                 // +0x2A bits 8..11 of the placement word
+    u16 sound = 0;                 // +0x2C its sound (maps.dat table 0x15)
+    u16 unk2E = 0;                 // +0x2E
+    u32 soundTimer = 0;  // +0x30 low word: frames to the next play, high word: the period (0xFFFF: plays once)
+    i32 labelColor = 0;  // +0x34 the text colour of the label
+    std::string label;   // +0x38 a name drawn over the role while no event runs (freed when the map is left)
     ActState* attached = nullptr;  // +0x3C an act drawn with the role
     ActState act;                  // +0x40
     i32 unkD4 = 0;                 // +0xD4 0: the steps of a move count twice

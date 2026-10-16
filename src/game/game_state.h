@@ -64,6 +64,7 @@ enum class MoveKind : u8
 struct MoveRecord
 {
     static constexpr u16 NoRole = 0xFFFF;  // in `role`: an unused record
+    static constexpr u16 Unused = 0xFFFF;  // in `unk0A`, `nextX` and `nextY`: no queued move
 
     // The bits of `step`.
     enum Step : u16

@@ -94,9 +94,6 @@ constexpr int kSecondsPerMinute = 0x3C;
 constexpr int kTensBase = 0xA;    // the timer digits are decimal
 constexpr int kTimerColon = 0xA;  // the action of the timer act after the ten digits
 
-constexpr int kGoldX = 0x27C;  // the gold counter at the bottom right
-constexpr int kGoldY = 0x1CC;
-
 // The debug text: lines of kDebugLine pixels from kDebugLeft.
 constexpr int kDebugLeft = 8;
 constexpr int kDebugLine = 0x10;
@@ -2738,7 +2735,12 @@ void FieldView::Paint()
 
     if ((state.leader.id == Role::NoId || state.leader.unk20 < 8) && !state.GameFlag(GameState::HideHud))
     {
-        owner.actDrawer.DrawCounter(kGoldX, kGoldY, static_cast<u32>(owner.party.variables[0]), owner.counterAlpha);
+        owner.actDrawer.DrawCounter(
+            ActDrawer::GoldX,
+            ActDrawer::GoldY,
+            static_cast<u32>(owner.party.variables[Party::Gold]),
+            owner.counterAlpha
+        );
     }
 
     if ((!state.GameFlag(GameState::NoPointer) && !state.GameFlag(GameState::NoChoicePointer) &&
@@ -2854,7 +2856,7 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
         u8"ULck[%x] UIpt[%x] gTm[%d] Fsc[%d] ,BtlM[%d] ,BtnIp[%d]",
         view.playerHold,
         owner.talk.advance,
-        owner.party.unk4ACDB0,
+        owner.party.clock,
         view.encounterSteps & Scene::EncounterStepMask,
         view.unk4B896C,
         owner.talk.choice
@@ -3079,7 +3081,7 @@ void FieldView::Render()
         const u16 id = role.id;
 
         if ((id == state.leader.id && move.Kind() == MoveKind::Path) ||
-            ((role.flags & Role::FacesTalker) != 0 && role.unk26 == 1))
+            ((role.flags & Role::FacesTalker) != 0 && role.talkState == Role::TalkWaiting))
         {
             continue;
         }

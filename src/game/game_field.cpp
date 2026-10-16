@@ -514,7 +514,19 @@ void Game::FollowLeader(int index)
                 this->field.RemoveRole(role.id, static_cast<int>(role.flags & Role::LayerMask), (role.y >> 4) - 1, 0);
             }
 
-            this->UpdateRoleRecord(role.id, -1, -1, -1, -1, -1, -1, -1, 0x80, -1, -1);
+            this->UpdateRoleRecord(
+                role.id,
+                Game::KeepValue,
+                Game::KeepValue,
+                Game::KeepValue,
+                Game::KeepValue,
+                Game::KeepValue,
+                Game::KeepValue,
+                Game::KeepValue,
+                0x80,
+                Game::KeepValue,
+                Game::KeepValue
+            );
             move.Clear();
             break;
         }
@@ -959,7 +971,7 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
         role.unk1C = word(record + 8);
         role.unk18 = static_cast<i16>(word(record + 9));
         role.flags = word(record + 0xA);
-        role.unk26 = 0;
+        role.talkState = Role::NoTalk;
         role.unk14 = 0;
         role.unk20 = 0;
         this->LoadRoleSound(role);

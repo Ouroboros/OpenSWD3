@@ -45,6 +45,11 @@ public:
         0xFFF0;  // an operand standing for the role of the event, the controlled role or the map
     static constexpr u16 Keep = 0xFFFF;  // an operand that leaves its value as it is
 
+    // Talk<n>.dat: a header, then an offset per event, the scripts after the header.
+    static constexpr u32 EventsPerFile = 2000;
+    static constexpr u32 FileHeaderBytes = 0x200;
+    static constexpr u8 ScriptFill = 0xC;  // the script buffer is filled with it before a script is read
+
     // The bits of `dialogOptions`: all set after each dialog; a command clears one to turn its feature on.
     enum DialogOption : u32
     {

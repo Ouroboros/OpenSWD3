@@ -137,6 +137,8 @@ private:
     void BuildTriggers(MapTrigger& head);
     void InitRole(Role& role);
     bool MapName(int map, std::string& name) const;
+    static constexpr i16 KeepValue = -1;      // an UpdateRoleRecord argument that leaves its field
+    static constexpr u32 ClockFrames = 0x14;  // frames between the ticks of Party::clock, less one
     bool UpdateRoleRecord(
         u16 id,
         i16 act,

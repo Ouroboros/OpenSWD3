@@ -551,7 +551,7 @@ void Game::NewGame()
 
     game.SetGameFlag(GameState::InParty);
     game.ClearGameFlag(GameState::Unk15);
-    this->party.variables[0] = 0x64;
+    this->party.variables[Party::Gold] = 0x64;
     scene.returnColumn = -1;
     scene.returnRow = -1;
     scene.unk4CAD20 = -1;
@@ -1095,13 +1095,13 @@ void Game::MainFrame()
         if (this->running != 0 && this->inactive == 0 && this->menuState == Game::NoMenu && this->inBattle == 0 &&
             this->storyState == Game::StoryRunning)
         {
-            if (static_cast<u32>(++this->frameCounter) > 0x14)
+            if (static_cast<u32>(++this->frameCounter) > Game::ClockFrames)
             {
                 this->frameCounter = 0;
 
-                if (static_cast<u32>(++this->party.unk4ACDB0) > 0x3E8)
+                if (static_cast<u32>(++this->party.clock) > Party::ClockLimit)
                 {
-                    this->party.unk4ACDB0 = 0;
+                    this->party.clock = 0;
                 }
             }
 

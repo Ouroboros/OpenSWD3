@@ -76,7 +76,7 @@ void RolePath::Update()
             continue;
         }
 
-        if (static_cast<i32>(role.flags) < 0 || role.unk26 == 1)
+        if (static_cast<i32>(role.flags) < 0 || role.talkState == Role::TalkWaiting)
         {
             if (role.act.id != 0)
             {
@@ -208,7 +208,7 @@ int RolePath::Step(int index)
 
     MoveRecord& move = state.moves[static_cast<std::size_t>(slot)];
 
-    if (role.unk26 == 1)
+    if (role.talkState == Role::TalkWaiting)
     {
         move.step |= MoveRecord::Done;
         return 0;
@@ -317,7 +317,7 @@ int RolePath::Wander(int index)
 
     MoveRecord& move = state.moves[static_cast<std::size_t>(slot)];
 
-    if (role.unk26 == 1 || chance > 0x3C)
+    if (role.talkState == Role::TalkWaiting || chance > 0x3C)
     {
         move.step |= MoveRecord::Done;
         role.act.action = 0;
@@ -536,7 +536,7 @@ void RolePath::RunScript(int index)
 
     std::size_t at =
         0x200 + dword(0x200 + 4 * static_cast<std::size_t>(role.unk1C)) + 2 * static_cast<std::size_t>(role.unk18);
-    i32& time = owner.party.unk4ACDB0;
+    i32& time = owner.party.clock;
 
     auto advance = [&role, &at](int words)
     {
@@ -1275,7 +1275,7 @@ int RolePath::ScriptStep(int index)
 
     if (found == nullptr)
     {
-        return 0;
+        return RolePath::NoScriptedMove;
     }
 
     MoveRecord& move = *found;
@@ -1305,7 +1305,7 @@ int RolePath::ScriptStep(int index)
             }
         }
 
-        return 2;
+        return RolePath::PathEnded;
     }
 
     u32 probe = 0;
@@ -1328,7 +1328,7 @@ int RolePath::ScriptStep(int index)
     }
 
     role.flags |= Role::Stepping;
-    return 1;
+    return RolePath::Stepped;
 }
 
 // swd32.exe 0x0042DAF0: role `index` sent to (x, y) by the script, taking the act, action and direction given there

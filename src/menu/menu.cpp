@@ -444,7 +444,12 @@ void Menu::Present()
 
         if (this->code == 1)
         {
-            owner.actDrawer.DrawCounter(0x27C, 0x1CC, static_cast<u32>(owner.party.variables[0]), owner.counterAlpha);
+            owner.actDrawer.DrawCounter(
+                ActDrawer::GoldX,
+                ActDrawer::GoldY,
+                static_cast<u32>(owner.party.variables[Party::Gold]),
+                owner.counterAlpha
+            );
         }
 
         owner.scene.pointerRole.act.action = 0xD;

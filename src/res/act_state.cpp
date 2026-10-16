@@ -9,8 +9,8 @@ namespace swd3
 void ResetPlayback(ActState& state)
 {
     state.unknown1C = -1;
-    state.savedAction = -1;
-    state.savedDirection = -1;
+    state.savedAction = ActState::NotSaved;
+    state.savedDirection = ActState::NotSaved;
     state.speed = 0;
     state.frameDelay = 0;
     state.delay = 0;

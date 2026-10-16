@@ -131,7 +131,7 @@ void Talk::Draw()
 
         if (window.role != TalkWindow::NoRole && window.role < GameState::Roles)
         {
-            owner.state.roles[window.role].unk26 = 0;
+            owner.state.roles[window.role].talkState = Role::NoTalk;
         }
 
         *link = std::move(window.next);
@@ -498,7 +498,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
                     {
                         if (window.role == TalkWindow::NoRole)
                         {
-                            state.leader.unk26 = 0;
+                            state.leader.talkState = Role::NoTalk;
                         }
                         else if (window.role < GameState::Roles)
                         {
@@ -956,7 +956,7 @@ void Talk::HandlePointer()
         {
             const Role& role = state.roles[found];
 
-            if ((role.flags & Role::Visible) == 0 || role.event == 0 || role.unk26 != 0)
+            if ((role.flags & Role::Visible) == 0 || role.event == 0 || role.talkState != Role::NoTalk)
             {
                 continue;
             }
@@ -1021,8 +1021,8 @@ void Talk::HandlePointer()
     }
 
     if (found == 0xFFFFFFFF || found == static_cast<u32>(state.roleCount) ||
-        found == static_cast<u32>(state.playerRole) || state.leader.id != Role::NoId || state.roles[found].unk26 != 0 ||
-        left.press == 0 || left.heldFrames != 1)
+        found == static_cast<u32>(state.playerRole) || state.leader.id != Role::NoId ||
+        state.roles[found].talkState != Role::NoTalk || left.press == 0 || left.heldFrames != 1)
     {
         const std::vector<u32>& blocks = state.map.blocks;
         const auto cellX = static_cast<u32>(cameraLeft + state.pointerX) >> 4;

@@ -26,7 +26,7 @@ void Role::FillUnused()
     ones(this->unk20);
     ones(this->unk22);
     ones(this->id);
-    ones(this->unk26);
+    ones(this->talkState);
 
     ones(this->unk28);
     ones(this->unk2A);

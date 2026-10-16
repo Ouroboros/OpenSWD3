@@ -2134,7 +2134,7 @@ int BattleUnit::Damage(BattleServices& services, int hitPoints, i16 spirit, i16 
     }
 
     RoleRecord& record = *this->roleRecord;
-    i32& gold = services.party.variables[0];
+    i32& gold = services.party.variables[Party::Gold];
 
     if (this->goldGuard == 1 && gold != 0)
     {
