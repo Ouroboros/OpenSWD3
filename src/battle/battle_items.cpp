@@ -18,6 +18,15 @@ constexpr int kFullRate = 0x64;
 constexpr i32 kListBLimit = 0xD;
 constexpr u32 kNoPriceKind = 0x40;
 constexpr int kFirstRoleFlag = 0x1E;
+constexpr int kKindShift = 16;     // ItemPriority: the kind moved up by default
+constexpr u32 kFirstKind = 0x100;  // a kind with this bit sorts first
+constexpr u32 kFirstPriority = 1;
+constexpr u32 kTopByteKind = 0x200;  // a kind with this bit sorts by its top byte
+constexpr int kTopByteShift = 24;
+constexpr u32 kLastKind = 0x400;  // a kind with this bit sorts last
+constexpr u32 kLastPriority = 0x800;
+constexpr int kGaugePerSpeed = 100;  // the gauge fills at kGaugePerSpeed * (kSpeeds - speed)
+constexpr int kSpeeds = 20;
 // The kind the sort reads for the list variable itself (taken as the node before the first position): the global at
 // 0x004FD5AC, which nothing writes.
 constexpr u32 kHeadKind = 0;
@@ -27,12 +36,12 @@ constexpr u32 kHeadKind = 0;
 // swd32.exe 0x0044F770: the value of the item list: price times the count (+6) of every item, 60% in mode bit 0
 int TotalItemValue(const BattleState& battle)
 {
-    const int rate = (battle.mode & 1) == 1 ? kShopRate : kFullRate;
+    const int rate = (battle.mode & BattleState::SellMode) == BattleState::SellMode ? kShopRate : kFullRate;
     int total = 0;
 
     for (const ItemNode* item = battle.items.get(); item != nullptr; item = item->next.get())
     {
-        total += static_cast<int>(item->record.data.price * static_cast<u16>(item->unk06) * rate) / 100;
+        total += static_cast<int>(item->record.data.price * static_cast<u16>(item->unk06) * rate) / kFullRate;
     }
 
     return total;
@@ -54,21 +63,21 @@ void CountListB(BattleState& battle)
 // top byte, bit 10 0x800
 u32 ItemPriority(u32 kind)
 {
-    u32 priority = kind << 16;
+    u32 priority = kind << kKindShift;
 
-    if ((kind & 0x100) != 0)
+    if ((kind & kFirstKind) != 0)
     {
-        priority = 1;
+        priority = kFirstPriority;
     }
 
-    if ((kind & 0x200) != 0)
+    if ((kind & kTopByteKind) != 0)
     {
-        priority = kind >> 24;
+        priority = kind >> kTopByteShift;
     }
 
-    if ((kind & 0x400) != 0)
+    if ((kind & kLastKind) != 0)
     {
-        return 0x800;
+        return kLastPriority;
     }
 
     return priority;
@@ -88,7 +97,8 @@ void SortBattleItems(BattleState& battle, ItemLink& source)
         ItemNode& item = **link;
         item.unk06 = 0;
 
-        if ((battle.mode & 3) == 1 && (item.record.data.price == 0 || (item.record.data.kind & kNoPriceKind) != 0))
+        if ((battle.mode & BattleState::ListModes) == BattleState::SellMode &&
+            (item.record.data.price == 0 || (item.record.data.kind & kNoPriceKind) != 0))
         {
             link = &item.next;
             continue;
@@ -138,7 +148,7 @@ int CountItemTotal(const BattleState& battle, const Party& party, const GameStat
         }
     }
 
-    if ((battle.mode & 3) != 0)
+    if ((battle.mode & BattleState::ListModes) != 0)
     {
         return total;
     }
@@ -167,7 +177,7 @@ int CountItemTotal(const BattleState& battle, const Party& party, const GameStat
 // swd32.exe 0x0044FFC0: the gauge fills at 100 * (20 - speed)
 int SetGaugeFull(BattleState& battle, int speed)
 {
-    battle.gaugeFull = 0x64 * (0x14 - speed);
+    battle.gaugeFull = kGaugePerSpeed * (kSpeeds - speed);
     return battle.gaugeFull;
 }
 

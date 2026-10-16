@@ -919,7 +919,11 @@ void Game::LoadFameFile()
 
     for (int id = 1; id <= 0x1F4; ++id)
     {
-        SetCounterCapped(this->party.fame.lists[1], static_cast<i16>(id), values[static_cast<std::size_t>(id)]);
+        SetCounterCapped(
+            this->party.fame.lists[Fame::FameList],
+            static_cast<i16>(id),
+            values[static_cast<std::size_t>(id)]
+        );
     }
 }
 

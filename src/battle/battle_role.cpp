@@ -43,7 +43,11 @@ constexpr std::u8string_view kNoAct = u8"戰鬥角色actNumber為0!!";          
 constexpr std::u8string_view kNoGuestAct = u8"Npc角色actNumber為0!!";       // swd32.exe 0x004A7C7C
 constexpr std::u8string_view kNoWeaponAct = u8"武器%d號的強攻擊act沒設!!";  // swd32.exe 0x004A7C94
 constexpr i16 kStatLimit = 0x270F;
-constexpr u16 kCoinArmour = 0x39D;  // 投幣式鎧甲: the gold pays for the hits
+constexpr u16 kCoinArmour = 0x39D;       // 投幣式鎧甲: the gold pays for the hits
+constexpr u16 kDefeatedRecord = 0x8000;  // RoleRecord::unk24 bit 15: the role starts the battle defeated
+constexpr int kTenths = 10;
+constexpr int kPercent = 100;
+constexpr u32 kAttackRingPercent = 10;  // an attack ring adds 10% of the attack bonus besides its proficiency share
 
 // The value grown by a tenth per point of `scale` (the product kept to 16 bits as the original does).
 i16 Grown(i16 value, i16 scale)
@@ -70,8 +74,8 @@ void BattleRole::ClearExtras()
     this->unk2F18 = 0;
     this->unk2F16 = 0;
     this->unk2BC8.fill(ActState{});
-    this->slotActs[8] = ActState{};
-    this->slotActs[9] = ActState{};
+    this->slotActs[BattleUnit::UnkSlot8] = ActState{};
+    this->slotActs[BattleUnit::UnkSlot9] = ActState{};
     this->unk2B24 = ObjectRecord{};
 }
 
@@ -117,7 +121,7 @@ void BattleRole::Setup(
         }
     }
 
-    this->defeated = (this->battleRecord->unk24 & 0x8000) != 0 ? 1 : 0;
+    this->defeated = (this->battleRecord->unk24 & kDefeatedRecord) != 0 ? 1 : 0;
 }
 
 // swd32.exe 0x0046E9C0: a guest fighting with the party: its mon.dat object (by the act of its placement, asserted
@@ -151,9 +155,9 @@ void BattleRole::SetupGuest(
     record.attackBonus = static_cast<u16>(Grown(static_cast<i16>(base.attackBonus), scale));
     record.defenseBonus = static_cast<u16>(Grown(static_cast<i16>(base.defenseBonus), scale));
     record.unk14 = Grown(base.unk14, scale);
-    record.level = static_cast<u8>(base.level + static_cast<i8>(scale * base.level) / 0xA);
+    record.level = static_cast<u8>(base.level + static_cast<i8>(scale * base.level) / kTenths);
     record.unk1E = object.battleLevel;
-    record.agility = static_cast<i16>(base.agility + static_cast<i16>(base.agility * object.unk2C) / 0xA);
+    record.agility = static_cast<i16>(base.agility + static_cast<i16>(base.agility * object.unk2C) / kTenths);
     std::copy_n(object.resistances.begin(), record.unk2D.size(), record.unk2D.begin());
     this->unk2A93 = static_cast<u8>(record.unk1E);
     record.hitPoints = record.maxHitPoints;
@@ -276,10 +280,10 @@ void BattleRole::ApplyAccessory(const ObjectRecord& accessory, CounterList& prof
                 break;
             }
 
-            const auto scaled = static_cast<i8>(static_cast<u8>(0xF6 * accessory.data.resistances[element]));
+            const auto scaled = static_cast<i8>(static_cast<u8>(-kTenths * accessory.data.resistances[element]));
             const auto product = static_cast<i16>(percent * scaled);
-            const auto share = static_cast<u16>(product / 0x64);
-            record.unk2D[element] = static_cast<u8>(record.unk2D[element] + static_cast<int>(share) / -0xA);
+            const auto share = static_cast<u16>(product / kPercent);
+            record.unk2D[element] = static_cast<u8>(record.unk2D[element] + static_cast<int>(share) / -kTenths);
             break;
         }
 
@@ -288,9 +292,11 @@ void BattleRole::ApplyAccessory(const ObjectRecord& accessory, CounterList& prof
             const auto half = static_cast<u16>(
                 static_cast<u16>(FindCounterPercent(proficiency, static_cast<i16>(accessory.data.unk50))) >> 1
             );
-            const u16 extra = half != 0 ? static_cast<u16>(half * static_cast<u32>(record.attackBonus) / 0x64) : u16{0};
-            record.attackBonus =
-                static_cast<u16>(record.attackBonus + extra + 0xA * static_cast<u32>(record.attackBonus) / 0x64);
+            const u16 extra =
+                half != 0 ? static_cast<u16>(half * static_cast<u32>(record.attackBonus) / kPercent) : u16{0};
+            record.attackBonus = static_cast<u16>(
+                record.attackBonus + extra + kAttackRingPercent * static_cast<u32>(record.attackBonus) / kPercent
+            );
             break;
         }
 
@@ -352,7 +358,7 @@ void BattleRole::PayStamina()
 // swd32.exe 0x004708C0: flag 9 of +0x2A86 and +0x2B0C set, command A from +0x2F18 when set, slot acts 8 and 9 cleared
 void BattleRole::TakeCommand2F18()
 {
-    this->unk2A86 = static_cast<u16>(this->unk2A86 | 0x200);
+    this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag200);
     this->unk2B0C = 1;
 
     if (this->unk2F18 != 0)
@@ -360,8 +366,8 @@ void BattleRole::TakeCommand2F18()
         this->commandA = this->unk2F18;
     }
 
-    this->slotActs[8] = ActState{};
-    this->slotActs[9] = ActState{};
+    this->slotActs[BattleUnit::UnkSlot8] = ActState{};
+    this->slotActs[BattleUnit::UnkSlot9] = ActState{};
 }
 
 }  // namespace swd3

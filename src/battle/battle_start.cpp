@@ -25,8 +25,17 @@ constexpr std::array<u16, kGuests> kGuestActs = {3, 4, 10, 33, 34, 37, 38, 40};
 constexpr std::array<u32, Party::Roles> kRoleActs = {1, 2, 8, 0x17};
 constexpr i16 kGuestX = 0x2EE;
 constexpr i16 kGuestY = 0x136;
-constexpr i16 kScreenWidth = 0x280;
 constexpr i16 kPanelMirror = 0x270;
+constexpr u16 kShortTimingWindow = 0x12;  // with game flag 0x1BB0
+constexpr int kMediumAdvance = 0x10;
+constexpr int kLightRed = 0x1F;  // the light and dark colours of the battle panels
+constexpr int kLightGreen = 0x1D;
+constexpr int kLightBlue = 0x17;
+constexpr int kDarkRed = 0xF;
+constexpr int kDarkGreen = 0xE;
+constexpr int kDarkBlue = 0xB;
+constexpr int kPointerX = Display::Width / 2;  // the pointer starts in the middle of the screen
+constexpr int kPointerY = Display::Height / 2;
 constexpr int kBarLength = 56;  // the pixels of a full gauge of the role panels
 constexpr int kMaxEnemySteps = 6;
 constexpr int kScenes = 4;
@@ -72,7 +81,7 @@ void Game::LoadBattleBackground(int picture, u16 animation, int x, int y, u16 sc
     }
 
     this->codec.ConvertTo16(battle.background);
-    ShiftPicture(battle.background.data, ShiftMode::Right, kScreenWidth / scene);
+    ShiftPicture(battle.background.data, ShiftMode::Right, Display::Width / scene);
 
     if (battle.formation.animated != 0 && animation != 0)
     {
@@ -166,7 +175,7 @@ void Game::StartBattle(u16 number)
     battle.unk4FF578.fill(1);
     ResetPlayback(this->talk.endAct);
     this->talk.endAct.id = Scene::PointerAct;
-    this->talk.endAct.action = 0xC;
+    this->talk.endAct.action = Scene::UnkPointerC;
     this->graphics.SetClearColor(this->painter.FillColorPair());
 
     for (int role = 0; role < Party::Roles; ++role)
@@ -182,7 +191,7 @@ void Game::StartBattle(u16 number)
 
     for (u16 slot = 0; slot < battle.roleCount; ++slot)
     {
-        while (next <= 3 && battle.inParty[next] == 0)
+        while (next < Party::Roles && battle.inParty[next] == 0)
         {
             ++next;
         }
@@ -190,7 +199,7 @@ void Game::StartBattle(u16 number)
         battle.partyRoles[slot] = next;
         ++next;
 
-        if (next > 3)
+        if (next >= Party::Roles)
         {
             break;
         }
@@ -201,22 +210,22 @@ void Game::StartBattle(u16 number)
         battle.panelFlags |= BattleState::UnkPanel2;
     }
 
-    battle.timingWindow = 0x3C;
+    battle.timingWindow = BattleState::DefaultTimingWindow;
 
     if (state.GameFlag(GameState::Unk1BB0))
     {
-        battle.timingWindow = 0x12;
+        battle.timingWindow = kShortTimingWindow;
     }
 
-    this->mediumFont.SetAdvance(0x10);
-    battle.lightColor = static_cast<u16>(this->painter.MakeColor(0x1F, 0x1D, 0x17));
-    battle.darkColor = static_cast<u16>(this->painter.MakeColor(0xF, 0xE, 0xB));
+    this->mediumFont.SetAdvance(kMediumAdvance);
+    battle.lightColor = static_cast<u16>(this->painter.MakeColor(kLightRed, kLightGreen, kLightBlue));
+    battle.darkColor = static_cast<u16>(this->painter.MakeColor(kDarkRed, kDarkGreen, kDarkBlue));
     battle.projector.Init(this->graphics);
-    state.pointerX = 0x140;
-    battle.pointerX = 0x140;
-    state.pointerY = 0xC8;
-    battle.pointerY = 0xC8;
-    this->input.SetMousePosition(0x140, 0xC8);
+    state.pointerX = kPointerX;
+    battle.pointerX = kPointerX;
+    state.pointerY = kPointerY;
+    battle.pointerY = kPointerY;
+    this->input.SetMousePosition(kPointerX, kPointerY);
     ReleaseBattleSurfaces(battle);
     CreateBattleSurfaces(battle, this->graphics);
     this->fightTalk.Load(this->config.installDirectory, number);
@@ -256,7 +265,7 @@ void Game::StartBattle(u16 number)
         if (battle.mirrored == 1)
         {
             unit.SetFacing(1);
-            place.x = static_cast<i16>(kScreenWidth - place.x);
+            place.x = static_cast<i16>(Display::Width - place.x);
         }
 
         unit.Setup(place, static_cast<u16>(battle.formation.enemies[enemy]), this->database);
@@ -271,10 +280,10 @@ void Game::StartBattle(u16 number)
     {
         UnitPlacement& place = battle.rolePlaces[role];
         place.actId = static_cast<u16>(kRoleActs[static_cast<std::size_t>(battle.partyRoles[role])]);
-        place.kind = 1;
+        place.kind = BattleUnit::PartyRole;
     }
 
-    if (battle.roleCount >= 1 && battle.roleCount <= 4)
+    if (battle.roleCount >= 1 && battle.roleCount <= Party::Roles)
     {
         const std::array<Spot, 4>& spots = kPartySpots[battle.roleCount - 1];
 
@@ -300,7 +309,7 @@ void Game::StartBattle(u16 number)
         if (battle.mirrored == 1)
         {
             unit.SetFacing(1);
-            battle.rolePlaces[role].x = static_cast<i16>(kScreenWidth - battle.rolePlaces[role].x);
+            battle.rolePlaces[role].x = static_cast<i16>(Display::Width - battle.rolePlaces[role].x);
             battle.panelPlaces[2 * role] = kPanelMirror - battle.panelPlaces[2 * role];
         }
 
@@ -321,7 +330,7 @@ void Game::StartBattle(u16 number)
         const auto member = static_cast<std::size_t>(battle.partyRoles[role]);
         const auto slots = std::span<const std::unique_ptr<ItemNode>>(this->party.equipment)
                                .subspan(member * Party::SlotsPerRole, Party::SlotsPerRole);
-        unit.ApplyEquipment(slots, this->party.fame.lists[2], this->errors);
+        unit.ApplyEquipment(slots, this->party.fame.lists[Fame::ProficiencyList], this->errors);
         unit.SetSkills(this->party.skills[member].get());
         unit.SetInventory(&this->party.inventory);
         unit.SetDisplayName(this->party.names[member]);
@@ -372,11 +381,11 @@ void Game::StartBattle(u16 number)
         place.actId = kGuestActs[guest];
         place.x = kGuestX;
         place.y = kGuestY;
-        place.kind = 1;
+        place.kind = BattleUnit::PartyRole;
 
         if (battle.mirrored == 1)
         {
-            place.x = static_cast<i16>(kScreenWidth - place.x);
+            place.x = static_cast<i16>(Display::Width - place.x);
         }
 
         const auto* base = static_cast<const RoleRecord*>(this->battleRoles[0].SelectEntry(1));

@@ -34,6 +34,15 @@ public:
     static constexpr i32 InitialGaugeFull = 900;
     static constexpr int QueueRows = 4;
     static constexpr int QueueColumns = 10;
+    static constexpr u16 DefaultTimingWindow = 0x3C;
+
+    // BattleState::mode bits.
+    enum Mode : i32
+    {
+        SellMode = 1,  // prices at 60 percent
+        UnkMode2 = 2,
+        ListModes = SellMode | UnkMode2,
+    };
 
     // BattleState::panelFlags bits.
     enum PanelFlag : i32
@@ -84,7 +93,7 @@ public:
     u8 defeatedRoles = 0;                          // 0x0053BEFF the party roles entering defeated
     i32 result = 0;                                // 0x0053BCEC 0x67: the battle is lost before it starts
     i32 mirrored = 0;                              // 0x0053C000 the sides are swapped
-    u16 timingWindow = 0x3C;                       // 0x004A762A
+    u16 timingWindow = DefaultTimingWindow;        // 0x004A762A
     u16 lightColor = 0;                            // 0x004FF104
     u16 darkColor = 0;                             // 0x005240BC
     i32 pointerX = 0;                              // 0x005028A0

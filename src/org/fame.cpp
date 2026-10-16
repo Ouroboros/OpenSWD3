@@ -277,8 +277,10 @@ bool GetProficiency(CounterList& list, u16 id, u16& maximum, u16& value, Databas
 // in the original and left out of the compressed data, as here.
 bool Fame::Save(std::vector<u8>& block, ErrorReporter& reporter) const
 {
-    const auto counts =
-        static_cast<u16>(static_cast<u16>(this->lists[0].id) + static_cast<u16>(this->lists[1].id) + this->lists[2].id);
+    const auto counts = static_cast<u16>(
+        static_cast<u16>(this->lists[Fame::UnkList0].id) + static_cast<u16>(this->lists[Fame::FameList].id) +
+        this->lists[Fame::ProficiencyList].id
+    );
     const std::size_t size = CounterNode::SavedBytes * counts + kSlackBytes;
     std::vector<u8> data(size, 0);
     std::size_t section = 0;

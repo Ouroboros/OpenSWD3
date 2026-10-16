@@ -224,6 +224,7 @@ public:
     };
 
     static constexpr int UnkSlot8 = 8;
+    static constexpr int UnkSlot9 = 9;
     static constexpr u32 NoTarget = 0xFFFFFFFF;
     static constexpr u16 NoUnk29A2 = 0xFFFF;
     static constexpr u16 MaxTargets = 0x23;      // pushedTargets entries

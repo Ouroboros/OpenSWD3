@@ -319,6 +319,7 @@ struct Scene
     static constexpr i32 TalkPointer = 9;
     static constexpr i32 ExaminePointer = 0xA;
     static constexpr i32 RegionPointer = 0xB;
+    static constexpr i32 UnkPointerC = 0xC;  // the end act of a battle
     static constexpr i32 ChoicePointer = 0xD;
     static constexpr u32 PointerFlags = 0x9000;
 

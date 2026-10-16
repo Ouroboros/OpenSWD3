@@ -44,12 +44,21 @@ bool GetProficiency(CounterList& list, u16 id, u16& maximum, u16& value, Databas
 // proficiencies).
 struct Fame
 {
+    // The index of each list in `lists`.
+    enum List : std::size_t
+    {
+        UnkList0 = 0,
+        FameList = 1,         // the fame of Fame.dat
+        ProficiencyList = 2,  // also holds the proficiencies
+        Lists = 3,
+    };
+
     // The save block: 1, the unpacked size, the packed size, then the 15-bit LZO data of the three lists.
     bool Save(std::vector<u8>& block, ErrorReporter& reporter) const;
     bool Load(std::span<const u8> block, ErrorReporter& reporter);
     void Free();
 
-    std::array<CounterList, 3> lists;
+    std::array<CounterList, Lists> lists;
 };
 
 }  // namespace swd3
