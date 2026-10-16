@@ -45,7 +45,7 @@ TEST_CASE("text input: editing keeps whole characters within the capacity")
     swd3::AudioDevice device;
     swd3::AudioManager audio(device);
     swd3::TextEntryState entry;
-    TextInput input(swd3::Big5(u8"一乙xyz"), 6, 30, 40);
+    TextInput input(u8"一乙xyz", 6, 30, 40);
     CHECK_EQ(input.GetX(), 30);
     CHECK_EQ(input.GetY(), 40);
     CHECK_EQ(input.GetCursor(), 0);
@@ -80,7 +80,7 @@ TEST_CASE("text input: lead bytes typed one by one, refused characters")
     swd3::AudioDevice device;
     swd3::AudioManager audio(device);
     swd3::TextEntryState entry;
-    TextInput input("", 8, 0, 0);
+    TextInput input(u8"", 8, 0, 0);
     Char(input, 0xA4, entry, audio);
     CHECK_EQ(entry.leadPending, 1);
     Char(input, 0xB0, entry, audio);

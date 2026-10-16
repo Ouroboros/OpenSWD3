@@ -5,38 +5,28 @@
 namespace swd3
 {
 
-void ShowErrorMessage(std::string_view title, std::string_view text)
+void ShowErrorMessage(std::u8string_view title, std::u8string_view text)
 {
     std::fprintf(
         stderr,
         "swd3: %.*s: %.*s\n",
         static_cast<int>(title.size()),
-        title.data(),
+        reinterpret_cast<const char*>(title.data()),
         static_cast<int>(text.size()),
-        text.data()
+        reinterpret_cast<const char*>(text.data())
     );
 }
 
-}  // namespace swd3
-
-namespace swd3
-{
-
-void DialogErrorReporter::ShowError(std::string_view title, std::string_view text)
+void DialogErrorReporter::ShowError(std::u8string_view title, std::u8string_view text)
 {
     ShowErrorMessage(title, text);
 }
 
-AssertChoice DialogErrorReporter::AskAssertion(std::string_view title, std::string_view text)
+AssertChoice DialogErrorReporter::AskAssertion(std::u8string_view title, std::u8string_view text)
 {
     ShowErrorMessage(title, text);
     return AssertChoice::Ignore;
 }
-
-}  // namespace swd3
-
-namespace swd3
-{
 
 void PlaySystemBeep()
 {

@@ -9,7 +9,8 @@
 namespace swd3
 {
 
-// An argument of WinFormat: an integer (for %d, %i, %u, %x, %X, %c) or a string (for %s).
+// An argument of WinFormat: an integer (for %d, %i, %u, %x, %X, %c) or a string (for %s). A char string is game text
+// (Big5 or ASCII); a u8 string is UTF-8. Each is converted to the encoding of the output.
 class FormatArgument
 {
 public:
@@ -18,7 +19,6 @@ public:
     FormatArgument(i64 value);
     FormatArgument(std::string_view text);
     FormatArgument(const std::string& text);
-    // A u8 text, converted to Big5.
     FormatArgument(std::u8string_view text);
 
     template <std::size_t N>
@@ -29,10 +29,12 @@ public:
 
     bool IsText() const;
     i64 Number() const;
-    std::string_view Text() const;
+    std::string Big5Text() const;
+    std::string Utf8Text() const;
 
 private:
     bool text = false;
+    bool utf8 = false;
     i64 number = 0;
     std::string string;
 };
@@ -40,8 +42,13 @@ private:
 // USER32 wsprintfA as the game uses it: %[-][0][width][.precision] with c, d, i, u, x, X and s (an h or l size prefix
 // is accepted), "%%" for a percent sign; the result is cut to 1023 characters like the 1024-byte limit of wsprintfA.
 std::string WinFormat(std::string_view format, std::initializer_list<FormatArgument> arguments);
-// A u8 format, converted to Big5.
+// A UTF-8 format, the result in Big5 (game text).
 std::string WinFormat(std::u8string_view format, std::initializer_list<FormatArgument> arguments);
+// The same with the result in UTF-8 (messages, logs).
+std::u8string Utf8Format(std::u8string_view format, std::initializer_list<FormatArgument> arguments);
+
+// ASCII text or a system message taken as UTF-8.
+std::u8string Utf8Bytes(std::string_view text);
 
 // The strings one after the other.
 std::string Concat(std::initializer_list<std::string_view> parts);

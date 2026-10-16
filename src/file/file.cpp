@@ -204,7 +204,7 @@ bool File::UnmapView(const u8* view)
 
     if (current != view)
     {
-        DebugLog("cFile ,CloseView Src/Dest difference ");
+        DebugLog(u8"cFile ,CloseView Src/Dest difference ");
         return false;
     }
 

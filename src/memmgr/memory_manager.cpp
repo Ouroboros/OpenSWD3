@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 
+#include "core/format.h"
 #include "platform/message_box.h"
 
 namespace swd3
@@ -12,7 +13,7 @@ namespace swd3
 namespace
 {
 
-constexpr std::string_view kTitle = "MemMgr";
+constexpr std::u8string_view kTitle = u8"MemMgr";
 
 u32 ReadDword(const std::vector<u8>& block, std::size_t offset)
 {
@@ -42,7 +43,7 @@ MemoryManager::MemoryManager(ErrorReporter& errors)
         }
         else
         {
-            this->errors.ShowError(kTitle, "MemMgrObject node Create Failed");
+            this->errors.ShowError(kTitle, u8"MemMgrObject node Create Failed");
         }
     }
 }
@@ -58,8 +59,8 @@ MemoryManager::~MemoryManager()
             bucket.pop_back();
             char message[64];
             std::snprintf(message, sizeof(message), "Resource not release ,Size[%d]", static_cast<int>(node->size));
-            this->text = message;
-            this->errors.ShowError("MemMgr report", this->text);
+            this->text = Utf8Bytes(message);
+            this->errors.ShowError(u8"MemMgr report", this->text);
 
             if (!this->FreeBlock(node.get()))
             {
@@ -83,7 +84,7 @@ MemoryManager::~MemoryManager()
 
     if (this->nodeCount != 0)
     {
-        this->errors.ShowError(kTitle, "Resource node not match");
+        this->errors.ShowError(kTitle, u8"Resource node not match");
     }
 }
 
@@ -118,7 +119,7 @@ bool MemoryManager::FreeBlock(MemoryNode* node)
 {
     if (node == nullptr)
     {
-        this->text = "Internal error : NodeContainFree";
+        this->text = u8"Internal error : NodeContainFree";
         return false;
     }
 
@@ -164,7 +165,7 @@ bool MemoryManager::FreeBlock(MemoryNode* node)
                 user[14],
                 user[15]
             );
-            this->text = message;
+            this->text = Utf8Bytes(message);
             intact = false;
         }
 
@@ -181,7 +182,7 @@ bool MemoryManager::FreeBlock(MemoryNode* node)
 // swd32.exe 0x004389A0: the text of the last system error
 u32 MemoryManager::FormatLastError()
 {
-    this->text = std::strerror(errno);
+    this->text = Utf8Bytes(std::strerror(errno));
     return static_cast<u32>(this->text.size());
 }
 

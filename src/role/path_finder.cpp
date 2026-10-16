@@ -195,7 +195,7 @@ int PathFinder::FindPath(int fromX, int fromY, int toX, int toY, int width, int 
 
         if (++steps > PathFinder::kMaxSteps)
         {
-            this->reporter.ShowError(Big5(kOverflowCaption), Big5(kOverflowText));
+            this->reporter.ShowError(kOverflowCaption, kOverflowText);
         }
 
         current = next;
@@ -296,7 +296,7 @@ PathNode* PathFinder::PopBest()
 
     if (node == nullptr)
     {
-        DebugLog("aStar ,Path find fail");
+        DebugLog(u8"aStar ,Path find fail");
         return nullptr;
     }
 

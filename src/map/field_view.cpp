@@ -2661,7 +2661,7 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
         8,
         0,
         white,
-        "MAct[%4.1f/%4.1f] LTCor[%4d/%4d]",
+        u8"MAct[%4.1f/%4.1f] LTCor[%4d/%4d]",
         static_cast<double>(static_cast<u32>(player.x)) * 0.0625,
         static_cast<double>(static_cast<u32>(player.y)) * 0.0625,
         field.cameraLeft >> 4,
@@ -2671,7 +2671,7 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
         8,
         0x10,
         white,
-        "Mouse :OnMap[%4d/%4d] OnScr[%4d/%4d]",
+        u8"Mouse :OnMap[%4d/%4d] OnScr[%4d/%4d]",
         (static_cast<u32>(state.pointerX) >> 4) + static_cast<u32>(field.cameraLeft >> 4),
         (static_cast<u32>(state.pointerY) >> 4) + static_cast<u32>(field.cameraTop >> 4),
         state.pointerX,
@@ -2682,7 +2682,7 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
         8,
         0x20,
         white,
-        "FPS[%2d] FUsed(%d),kr.d[%1d] ,kr.p[%4d] _IPA[%4d]",
+        u8"FPS[%2d] FUsed(%d),kr.d[%1d] ,kr.p[%4d] _IPA[%4d]",
         owner.frameTime != 0 ? 0x3E8u / static_cast<u32>(owner.frameTime) : 0u,
         owner.unk4C8448,
         click.press,
@@ -2693,7 +2693,7 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
         8,
         0x30,
         white,
-        "MapID[%d] MapCyc[%d] %d",
+        u8"MapID[%d] MapCyc[%d] %d",
         owner.unk4A9A10,
         view.unk49E0BC,
         owner.state.walkSpeed
@@ -2702,7 +2702,7 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
         8,
         0x40,
         white,
-        "ULck[%x] UIpt[%x] gTm[%d] Fsc[%d] ,BtlM[%d] ,BtnIp[%d]",
+        u8"ULck[%x] UIpt[%x] gTm[%d] Fsc[%d] ,BtlM[%d] ,BtnIp[%d]",
         view.unk4A9920,
         owner.talk.advance,
         owner.party.unk4ACDB0,
@@ -2714,7 +2714,7 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
         8,
         0x50,
         white,
-        "T.Gd[%d] T.Tid[%d] dbg1[%d] dbg2[%d]",
+        u8"T.Gd[%d] T.Tid[%d] dbg1[%d] dbg2[%d]",
         static_cast<u32>(state.leader.id),
         static_cast<u32>(state.leader.event),
         view.unk4C9A08,
@@ -2735,13 +2735,13 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
         8,
         0x60,
         white,
-        Big5(kMusicLine),
+        kMusicLine,
         view.unk4B7C74[1],
         view.unk4B7C74[2],
         view.unk4B7C74[4],
         view.unk4B7C74[5],
         static_cast<u32>(static_cast<u8>(view.unk4ACDBC)),
-        Big5((view.unk4ACDBC & 0x800000) != 0 ? kStory : kScene),
+        (view.unk4ACDBC & 0x800000) != 0 ? kStory : kScene,
         mode(0x80000, 0x40000),
         mode(0x20000, 0x10000)
     );
@@ -2753,16 +2753,16 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
         if (found != nullptr)
         {
             const std::string_view name(found->name.data(), found->name.size());
-            this->DrawDebugText(8, 0x1C0, white, "%s", std::string(name.substr(0, name.find('\0'))));
+            this->DrawDebugText(8, 0x1C0, white, u8"%s", std::string(name.substr(0, name.find('\0'))));
             const auto flag = static_cast<u32>(found->flag);
-            const std::string passable = Big5(state.GameFlag(static_cast<int>(flag >> 16)) ? kBlocked : kPassable);
-            const std::string clickable =
-                Big5(state.GameFlag(static_cast<int>(flag & 0xFFFF)) ? kClickable : kNotClickable);
+            const std::u8string_view passable = state.GameFlag(static_cast<int>(flag >> 16)) ? kBlocked : kPassable;
+            const std::u8string_view clickable =
+                state.GameFlag(static_cast<int>(flag & 0xFFFF)) ? kClickable : kNotClickable;
             this->DrawDebugText(
                 8,
                 0x1D0,
                 white,
-                Big5(kRegionLine),
+                kRegionLine,
                 found->event & 0x7FFF,
                 flag & 0xFFFF,
                 clickable,
@@ -2772,7 +2772,7 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
         }
         else
         {
-            this->DrawDebugText(8, 0x1B0, white, Big5(kBadRegion), region);
+            this->DrawDebugText(8, 0x1B0, white, kBadRegion, region);
         }
     }
 
@@ -2796,14 +2796,14 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
 
             if (overlapping >= 2)
             {
-                this->DrawDebugText(8, 0x190, white, Big5(kOverlap));
+                this->DrawDebugText(8, 0x190, white, kOverlap);
             }
 
             this->DrawDebugText(
                 8,
                 0x1A0,
                 owner.textColors.primary[3],
-                Big5(kRoleLine),
+                kRoleLine,
                 static_cast<u32>(role.id),
                 role.act.id,
                 role.act.action,
@@ -2813,7 +2813,7 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
                 8,
                 0x1B0,
                 white,
-                "[GUID %d] [Talk %d] [Path %d] [Argu %4x] [ArrIdx %d]",
+                u8"[GUID %d] [Talk %d] [Path %d] [Argu %4x] [ArrIdx %d]",
                 static_cast<u32>(role.id),
                 static_cast<u32>(role.event),
                 static_cast<u32>(role.unk1C),

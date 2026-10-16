@@ -41,9 +41,9 @@ bool ReadValue(File& file, Value& value)
     return file.Read(&value, bytes);
 }
 
-std::string Format(std::u8string_view format, int first, std::string_view name, int second = 0)
+std::u8string Format(std::u8string_view format, int first, std::string_view name, int second = 0)
 {
-    return WinFormat(Big5(format), {first, name, second});
+    return Utf8Format(format, {first, name, second});
 }
 
 // A heap block for `size` bytes, as malloc gives it: false where the original 32-bit process gets no memory (requests
@@ -139,9 +139,9 @@ TswFrameEntry& TswArchive::MagicFrame(int slot, int frame)
     return index < this->magicFrames.size() ? this->magicFrames[index] : this->spareFrame;
 }
 
-void TswArchive::ReportError(const std::string& text)
+void TswArchive::ReportError(std::u8string_view text)
 {
-    this->errors.ShowError(Big5(tsw_text::kErrorTitle), text);
+    this->errors.ShowError(tsw_text::kErrorTitle, text);
 }
 
 // swd32.exe 0x004315C0
@@ -469,7 +469,7 @@ bool TswArchive::LoadFromFile(const std::string& fileName, int index, u32 frame,
 
     if (!this->OpenFile(*file, fileName))
     {
-        this->ReportError(Big5(tsw_text::kOpenFailed));
+        this->ReportError(tsw_text::kOpenFailed);
         return false;
     }
 
@@ -568,7 +568,7 @@ bool TswArchive::Decompress(
             DebugLog(tsw_text::kNoBufferLog);
         }
 
-        this->ReportError(Big5(tsw_text::kNoBufferBox));
+        this->ReportError(tsw_text::kNoBufferBox);
         return false;
     }
 
@@ -582,7 +582,7 @@ bool TswArchive::Decompress(
     {
         buffer.bytes.clear();
         buffer.present = false;
-        this->ReportError(Big5(tsw_text::kDecompressFailed));
+        this->ReportError(tsw_text::kDecompressFailed);
         return false;
     }
 

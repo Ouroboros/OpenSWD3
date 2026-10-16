@@ -51,7 +51,7 @@ public:
     void FreeGlyphPixels();
     void AllocGlyphCache();
     void FreeGlyphCache();
-    void SetFont(std::string_view face, int size);
+    void SetFont(std::u8string_view face, int size);
     void SetTarget(int width, int height);
     void SetClip(int x, int y, int width, int height);
     void SetAdvance(int advance);

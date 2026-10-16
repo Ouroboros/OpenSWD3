@@ -139,7 +139,7 @@ bool LevelUp(
 
             if (id == 0)
             {
-                MaintenanceAssert(reporter, Big5(kLevelSkillZero), 0, kOrgFile, kLevelSkillLine);
+                MaintenanceAssert(reporter, kLevelSkillZero, 0, kOrgFile, kLevelSkillLine);
             }
 
             if (AppendSkill(*party.skills[static_cast<std::size_t>(role1 - 1)], id, database, last))
@@ -160,7 +160,7 @@ int LearnSkill(int role, i16 id, Party& party, Database& database, LearnedSkill&
 {
     if (id == 0)
     {
-        MaintenanceAssert(reporter, Big5(kSkillZero), 0, kOrgFile, kSkillLine);
+        MaintenanceAssert(reporter, kSkillZero, 0, kOrgFile, kSkillLine);
     }
 
     ItemNode& head = *party.skills[static_cast<std::size_t>(role)];

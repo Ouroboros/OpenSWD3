@@ -66,7 +66,7 @@ bool Talk::PanCamera(EventRun& run)
 
     if ((across | down) != 0)
     {
-        DebugLog("pan while panning", across, down);
+        DebugLog(u8"pan while panning", across, down);
     }
 
     if (run.code == EventCommand::PanCamera)
@@ -121,12 +121,12 @@ bool Talk::PanCamera(EventRun& run)
 
     if (view.unk4A99F0 != 0 && stepX == 0)
     {
-        Fault(owner.errors, "Integer divide by zero (0x00427920 pan)");
+        Fault(owner.errors, u8"Integer divide by zero (0x00427920 pan)");
     }
 
     if (view.unk4A99F0 != 0 && view.unk4A99F0 % stepX != 0)
     {
-        DebugLog("pan step across", stepX);
+        DebugLog(u8"pan step across", stepX);
         pixelsDown = view.unk4A98C0;
         stepY = view.unk4A93D8;
         stepX = 4;
@@ -135,12 +135,12 @@ bool Talk::PanCamera(EventRun& run)
 
     if (pixelsDown != 0 && stepY == 0)
     {
-        Fault(owner.errors, "Integer divide by zero (0x00427920 pan)");
+        Fault(owner.errors, u8"Integer divide by zero (0x00427920 pan)");
     }
 
     if (pixelsDown != 0 && pixelsDown % stepY != 0)
     {
-        DebugLog("pan step down", stepY);
+        DebugLog(u8"pan step down", stepY);
         pixelsDown = view.unk4A98C0;
         stepX = view.unk4A9480;
         stepY = 4;
@@ -190,7 +190,7 @@ bool Talk::PanCamera(EventRun& run)
     if (clamped)
     {
         DebugLog(
-            "pan past the map",
+            u8"pan past the map",
             this->Word(run, 1),
             this->Word(run, 2),
             field.cameraLeft >> 4,
@@ -259,7 +259,7 @@ bool Talk::PlaceRole(EventRun& run)
             map
         ))
     {
-        DebugLog("maps.dat role missing", this->Word(run, 1));
+        DebugLog(u8"maps.dat role missing", this->Word(run, 1));
         this->Advance(run, 0x12);
         return true;
     }
@@ -342,7 +342,7 @@ bool Talk::LoadName(EventRun& run)
 
         if (variable != 0xB && variable != 0xC)
         {
-            DebugLog(Big5(u8"對話系統(Caption2)"), Big5(u8"設定的變數(%d)和系統衝突"), variable);
+            DebugLog(u8"對話系統(Caption2)u8", u8"設定的變數(%d)和系統衝突", variable);
             this->Advance(run, 4);
             return true;
         }
@@ -352,7 +352,7 @@ bool Talk::LoadName(EventRun& run)
 
         if (index == 0)
         {
-            DebugLog(Big5(u8"對話系統(Caption2)"), Big5(u8"設定的變數(0)和系統衝突"));
+            DebugLog(u8"對話系統(Caption2)u8", u8"設定的變數(0)和系統衝突");
             this->Advance(run, 4);
             return true;
         }
@@ -445,7 +445,7 @@ bool Talk::OpenMapMovie(EventRun& run)
     run.context.unk20 = static_cast<u16>(run.context.unk20 + 2);
     copy[end] = 0;
     const std::string name(reinterpret_cast<const char*>(copy.data()), end);
-    ErrorLog("Talk:ani_open:cd:%s:%s", owner.config.cdRoot, name);
+    ErrorLog(u8"Talk:ani_open:cd:%s:%s", owner.config.cdRoot, name);
     std::string path = owner.config.installDirectory + "Video\\" + name;
     owner.AudioPump();
     File probe;
@@ -472,15 +472,15 @@ bool Talk::OpenMapMovie(EventRun& run)
     }
 
     path += name;
-    ErrorLog("Talk:Ani_Open::%s", path);
+    ErrorLog(u8"Talk:Ani_Open::%s", path);
     owner.AudioPump();
 
     if (!film.file.Open(path, File::Disposition::OpenExisting, File::Access::Read))
     {
         DebugLog(
-            "MAni Open Failure!",
-            "MAni File Error!\n"
-            "%s",
+            u8"MAni Open Failure!",
+            u8"MAni File Error!\n"
+            u8"%s",
             name
         );
         return false;
@@ -494,7 +494,7 @@ bool Talk::OpenMapMovie(EventRun& run)
 
     if (bytes != header.size())
     {
-        ErrorLog("Talk:Ani_Open Header read fail ,%s", film.file.ErrorText());
+        ErrorLog(u8"Talk:Ani_Open Header read fail ,%s", film.file.ErrorText());
         SleepMilliseconds(0xFA);
     }
 
@@ -652,7 +652,7 @@ bool Talk::RunSceneCommand(EventRun& run)
 
                 if (owner.acts.Run(role->act) == 0)
                 {
-                    LogActError("Act Err(Talk:SeekAct1)", *role);
+                    LogActError(u8"Act Err(Talk:SeekAct1)", *role);
                 }
 
                 for (int step = 0; step < run.valueB; ++step)
@@ -661,7 +661,7 @@ bool Talk::RunSceneCommand(EventRun& run)
 
                     if (owner.acts.Run(role->act) == 0)
                     {
-                        LogActError("Act Err(Talk:SeekAct2)", *role);
+                        LogActError(u8"Act Err(Talk:SeekAct2)", *role);
                     }
 
                     role->act.view = 0;
@@ -760,7 +760,7 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             if (count > 0x38)
             {
-                DebugLog("quake list too long");
+                DebugLog(u8"quake list too long");
                 return false;
             }
 
@@ -899,14 +899,14 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             if (!state.FindRoleOrPlayer(id, run.found))
             {
-                DebugLog("Act Err(Talk:TurnFace[1])", id);
+                DebugLog(u8"Act Err(Talk:TurnFace[1])", id);
             }
 
             u32 other = 0;
 
             if (!state.FindRoleOrPlayer(this->Word(run, 2), other))
             {
-                DebugLog("Act Err(Talk:TurnFace[2])", this->Word(run, 2));
+                DebugLog(u8"Act Err(Talk:TurnFace[2])", this->Word(run, 2));
             }
 
             Role* role = this->FoundRole(run);
@@ -938,7 +938,7 @@ bool Talk::RunSceneCommand(EventRun& run)
 
                 if (owner.acts.Run(role->act) == 0)
                 {
-                    LogActError("Act Err(Talk:TurnFace[3])", *role);
+                    LogActError(u8"Act Err(Talk:TurnFace[3])", *role);
                 }
 
                 owner.rolePath.HoldRole(static_cast<int>(run.found));
@@ -972,12 +972,12 @@ bool Talk::RunSceneCommand(EventRun& run)
 
                 if (owner.acts.Run(role.act) == 0)
                 {
-                    LogActError("Act Err(Talk:SetRoleSpd)", role);
+                    LogActError(u8"Act Err(Talk:SetRoleSpd)", role);
                 }
             }
             else
             {
-                const std::string text = WinFormat(Big5(u8"要設速度的角色(%d)不在地圖上%%Q"), {id});
+                const std::u8string text = Utf8Format(u8"要設速度的角色(%d)不在地圖上%%Q", {id});
                 this->ShowMessage(static_cast<u16>(owner.rolePath.RoleId(static_cast<u32>(state.playerRole))), text);
             }
 
@@ -1076,7 +1076,7 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             if (mode >= 0x100)
             {
-                DebugLog("effect number", run.context.event, mode);
+                DebugLog(u8"effect number", run.context.event, mode);
                 this->Advance(run, 0x10);
                 return true;
             }
@@ -1106,7 +1106,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             if (effect->x < 0 || effect->y < 0 || effect->limit + effect->x > 0x280 ||
                 effect->count + effect->y > 0x1E0)
             {
-                DebugLog("effect off the screen", effect->x, effect->y, effect->limit, effect->count);
+                DebugLog(u8"effect off the screen", effect->x, effect->y, effect->limit, effect->count);
                 this->Advance(run, 0x10);
                 return true;
             }
@@ -1150,7 +1150,7 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             if (mode >= 0x100)
             {
-                DebugLog("effect number", run.context.id, mode);
+                DebugLog(u8"effect number", run.context.id, mode);
                 this->Advance(run, 6);
                 return true;
             }
@@ -1243,7 +1243,7 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             if (count == 0)
             {
-                Fault(owner.errors, "Integer divide by zero (0x00439070)");
+                Fault(owner.errors, u8"Integer divide by zero (0x00439070)");
             }
 
             run.valueB = static_cast<i32>(owner.random.Below(count));
@@ -1272,7 +1272,7 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             if (run.found > 3)
             {
-                DebugLog("cue number", run.found);
+                DebugLog(u8"cue number", run.found);
             }
 
             this->SetStoryFlag(static_cast<int>(run.found + 0x1E), run.code == EventCommand::SetCueFlag);

@@ -35,6 +35,10 @@ namespace
 {
 
 constexpr std::string_view kManroleFile = "C:\\Project\\swd102aDVD\\manrole.cpp";
+// The source lines the assertions name.
+constexpr u32 kNoActLine = 0xDE;
+constexpr u32 kNoGuestActLine = 0x14E;
+constexpr u32 kNoWeaponActLine = 0x182;
 constexpr std::u8string_view kNoAct = u8"戰鬥角色actNumber為0!!";           // swd32.exe 0x004A7C2C
 constexpr std::u8string_view kNoGuestAct = u8"Npc角色actNumber為0!!";       // swd32.exe 0x004A7C7C
 constexpr std::u8string_view kNoWeaponAct = u8"武器%d號的強攻擊act沒設!!";  // swd32.exe 0x004A7C94
@@ -93,7 +97,7 @@ void BattleRole::Setup(
 
     if (this->actId == 0)
     {
-        MaintenanceAssert(reporter, Big5(kNoAct), 0, kManroleFile, 0xDE);
+        MaintenanceAssert(reporter, kNoAct, 0, kManroleFile, kNoActLine);
     }
 
     this->battleRecord->attackBonus = static_cast<u16>(this->battleRecord->attack);
@@ -137,7 +141,7 @@ void BattleRole::SetupGuest(
 
     if (this->actId == 0)
     {
-        MaintenanceAssert(reporter, Big5(kNoGuestAct), 0, kManroleFile, 0x14E);
+        MaintenanceAssert(reporter, kNoGuestAct, 0, kManroleFile, kNoGuestActLine);
     }
 
     RoleRecord& record = *this->battleRecord;
@@ -187,7 +191,7 @@ void BattleRole::ApplyEquipment(
 
             if (this->weapon.data.unk48 == 0)
             {
-                MaintenanceAssert(reporter, Big5(kNoWeaponAct), item.id, kManroleFile, 0x182);
+                MaintenanceAssert(reporter, kNoWeaponAct, item.id, kManroleFile, kNoWeaponActLine);
             }
         }
 

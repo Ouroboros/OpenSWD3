@@ -34,10 +34,10 @@ constexpr int kMaximumTileCache = 0x1000000;
 constexpr int kActCache = 0x80000;
 constexpr Uint32 kLowDiskPause = 0x400;
 constexpr int kDiskReserve = 0x40;
-constexpr std::string_view kDrawKernelFailed = "DrawKernel init Failed.";
-constexpr std::string_view kDirectDrawFailed = "DDraw init Failed.";
-constexpr std::string_view kTimerFailed = "mmTimer init Failed.";
-constexpr std::string_view kErrorTitle = "SWD3";
+constexpr std::u8string_view kDrawKernelFailed = u8"DrawKernel init Failed.";
+constexpr std::u8string_view kDirectDrawFailed = u8"DDraw init Failed.";
+constexpr std::u8string_view kTimerFailed = u8"mmTimer init Failed.";
+constexpr std::u8string_view kErrorTitle = u8"SWD3";
 
 // The wParam of a mouse message: the buttons and the modifier keys held.
 u32 MouseKeys(SDL_MouseButtonFlags buttons)
@@ -165,7 +165,7 @@ void Game::Start()
 {
     if (!this->resources.Open(Concat({this->config.installDirectory, Game::kExecutable})))
     {
-        this->errors.ShowError("swd3r", "swd32.exe not found in the game directory");
+        this->errors.ShowError(u8"swd3r", u8"swd32.exe not found in the game directory");
         this->quit = true;
         return;
     }
@@ -425,7 +425,7 @@ bool Game::InitDevices()
     if (this->input.Init() != 0)
     {
         this->deviceFlags |= 2;
-        this->errors.ShowError(Big5(Game::kTitle), Big5(Game::kDirectInputFailed));
+        this->errors.ShowError(Game::kTitle, Game::kDirectInputFailed);
         this->Destroy();
         return false;
     }
@@ -455,7 +455,7 @@ void Game::SetupFont(TextFont& font, int size)
     font.Shutdown();
     font.Init(this->graphics);
     font.SetTarget(Display::kWidth, Display::kHeight);
-    font.SetFont(Big5(TextFont::kDefaultFace), size);
+    font.SetFont(TextFont::kDefaultFace, size);
 
     if (size == 0x14)
     {

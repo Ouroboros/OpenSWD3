@@ -29,7 +29,7 @@ constexpr std::u8string_view kBadFrame = u8"<<TSW%d號>>(%s)的第%d張的圖形
 constexpr std::u8string_view kNoBufferBox = u8"配置解壓縮記憶體失敗!!,";
 constexpr std::u8string_view kNoBufferLog = u8"配置解壓縮記憶體失敗";
 constexpr std::u8string_view kDecompressFailed = u8"解壓失敗!!,";
-constexpr std::string_view kLoadFailedLog = "Mem error::tsw:%d pa:%d";
+constexpr std::u8string_view kLoadFailedLog = u8"Mem error::tsw:%d pa:%d";
 constexpr std::array<std::string_view, 6> kFileNames = {
     "all_char.tsw",
     "all_item.tsw",
@@ -155,7 +155,7 @@ private:
     File* ArchiveOf(u32 id);
     u32 MagicDirectoryOffset(int index) const;
     TswFrameEntry& MagicFrame(int slot, int frame);
-    void ReportError(const std::string& text);
+    void ReportError(std::u8string_view text);
 
     const RleCodec& codec;
     ErrorReporter& errors;
@@ -178,7 +178,7 @@ private:
     std::vector<u16> magicPalette;
     PackedBuffer packed;
     PackedBuffer packedB;
-    std::string errorText;
+    std::u8string errorText;
     TswFrameEntry spareFrame;
     // Files of failed LoadFromFile calls, which the original leaves open.
     std::vector<std::unique_ptr<File>> leakedFiles;

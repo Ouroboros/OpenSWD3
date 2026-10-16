@@ -49,7 +49,7 @@ public:
     static constexpr int kEscape = 2;
     static constexpr u16 kRejectedSound = 0x8C;
 
-    TextInput(std::string_view text, int capacity, int x, int y);
+    TextInput(std::u8string_view text, int capacity, int x, int y);
     ~TextInput();
 
     int HandleMessage(

@@ -228,7 +228,7 @@ void Game::StartBattle(u16 number)
 
     if (battle.formation.enemyCount == 0)
     {
-        ErrorLog(Big5(kBadBattle), number);
+        ErrorLog(kBadBattle, number);
         return;
     }
 

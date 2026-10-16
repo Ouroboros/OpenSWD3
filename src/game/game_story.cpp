@@ -68,7 +68,7 @@ u32 Game::LoadRoleRecord(Role& role, u16 id)
         return MapsWord(data, at);
     }
 
-    DebugLog("role record missing", id);
+    DebugLog(u8"role record missing", id);
     return 0xFFFFFFFF;
 }
 
@@ -98,7 +98,7 @@ void Game::LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 dire
             }
         }
 
-        DebugLog("LeaveParty", id);
+        DebugLog(u8"LeaveParty", id);
         return;
     }
 
@@ -111,7 +111,7 @@ void Game::LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 dire
 
     if (follower == view.unk4B7C8C.size() || index >= GameState::kRoles)
     {
-        DebugLog("LeaveParty", id);
+        DebugLog(u8"LeaveParty", id);
         return;
     }
 

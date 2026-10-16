@@ -8,9 +8,9 @@
 namespace swd3
 {
 
-void Fault(ErrorReporter& reporter, std::string_view what)
+void Fault(ErrorReporter& reporter, std::u8string_view what)
 {
-    reporter.ShowError("swd32.exe", what);
+    reporter.ShowError(u8"swd32.exe", what);
     std::abort();
 }
 

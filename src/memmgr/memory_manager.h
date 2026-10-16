@@ -48,7 +48,7 @@ private:
     int nodeCount = 0;
     std::array<std::vector<std::unique_ptr<MemoryNode>>, kBuckets> buckets;
     std::vector<std::unique_ptr<MemoryNode>> spareNodes;
-    std::string text;
+    std::u8string text;
 };
 
 }  // namespace swd3

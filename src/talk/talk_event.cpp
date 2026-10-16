@@ -20,7 +20,7 @@ constexpr u16 kListEnd = 0xFF00;
 
 }  // namespace
 
-void LogActError(std::string_view where, const Role& role)
+void LogActError(std::u8string_view where, const Role& role)
 {
     DebugLog(where, role.id, role.act.id, role.act.action, role.act.direction);
 }
@@ -67,7 +67,7 @@ void Talk::RunEvent(Role& context)
 
         if (!story.Open(path, File::Disposition::OpenExisting, File::Access::Read))
         {
-            DebugLog("SWD3-Talk", Big5(u8"找不到 Talk%d"), file + 1);
+            DebugLog(u8"SWD3-Talk", u8"找不到 Talk%d", file + 1);
             owner.Destroy();
             return;
         }
@@ -85,7 +85,7 @@ void Talk::RunEvent(Role& context)
 
         if (owner.acts.Run(player.act) == 0)
         {
-            LogActError("Act Err(Talk:LoadTalk)", player);
+            LogActError(u8"Act Err(Talk:LoadTalk)", player);
         }
 
         owner.AudioPump();
@@ -218,7 +218,7 @@ void Talk::SetStoryFlag(int flag, bool value)
 bool Talk::UnknownCommand(EventRun& run)
 {
     PlaySystemBeep();
-    DebugLog(Big5(u8"對話系統"), Big5(u8"沒有指令(%d,%x),(%d,%x)"), static_cast<u16>(run.code), this->lastCommand);
+    DebugLog(u8"對話系統", u8"沒有指令(%d,%x),(%d,%x)", static_cast<u16>(run.code), this->lastCommand);
     return false;
 }
 
@@ -313,7 +313,7 @@ void Talk::EndEvent(EventRun& run)
 
             if (owner.acts.Run(role.act) == 0)
             {
-                LogActError("Act Err(Talk:Talkend)", role);
+                LogActError(u8"Act Err(Talk:Talkend)", role);
             }
 
             if ((role.flags & role_flag::kInEvent) != 0)
@@ -324,7 +324,7 @@ void Talk::EndEvent(EventRun& run)
         }
         else if (state.GameFlag(story_flag::kDebugReports) && run.found >= 0x100)
         {
-            DebugLog("TalkEnd role", id, owner.unk4A9A10);
+            DebugLog(u8"TalkEnd role", id, owner.unk4A9A10);
         }
     }
 
@@ -350,7 +350,7 @@ void Talk::EndEvent(EventRun& run)
         }
     }
 
-    DebugLog("TalkEnd [%d]", run.context.event);
+    DebugLog(u8"TalkEnd [%d]", run.context.event);
     owner.scene.unk4A9920 &= ~0x8000;
     owner.databases.script[0] = 0xFF;
     owner.databases.script[1] = 0xFF;
@@ -385,7 +385,7 @@ bool Talk::OpenDialog(EventRun& run)
     {
         if (context.id != TalkWindow::kNoRole)
         {
-            DebugLog("talk window without a speaker", 1);
+            DebugLog(u8"talk window without a speaker", 1);
         }
 
         window->fromX = static_cast<u16>(context.x);
@@ -542,7 +542,7 @@ bool Talk::MoveRoles(EventRun& run)
 
             if (!state.FindRoleOrPlayer(id, run.found))
             {
-                DebugLog("Bmove", id);
+                DebugLog(u8"Bmove", id);
                 continue;
             }
 
@@ -643,7 +643,7 @@ bool Talk::ChangeVariable(EventRun& run)
 
     if (index < 0 || index >= Party::kVariables)
     {
-        DebugLog(Big5(u8"對話系統"), index, value);
+        DebugLog(u8"對話系統", index, value);
         return false;
     }
 
@@ -764,7 +764,7 @@ bool Talk::RunRoleCommand(EventRun& run)
 
                     if (!this->CommandsRole(next, run.found) && owner.acts.Run(role.act) == 0)
                     {
-                        LogActError("Act Err(Talk:ChangQQ)", role);
+                        LogActError(u8"Act Err(Talk:ChangQQ)", role);
                     }
                 }
                 else
@@ -774,7 +774,7 @@ bool Talk::RunRoleCommand(EventRun& run)
 
                     if (!this->CommandsRole(next, run.found) && owner.acts.Run(role.act) == 0)
                     {
-                        LogActError("Act Err(Talk:ChangDir)", role);
+                        LogActError(u8"Act Err(Talk:ChangDir)", role);
                     }
 
                     role.flags |= role_flag::kStepsAct;
@@ -799,7 +799,7 @@ bool Talk::RunRoleCommand(EventRun& run)
 
             if (!state.FindRoleOrPlayer(id, run.found))
             {
-                DebugLog("setpos", id);
+                DebugLog(u8"setpos", id);
                 this->Advance(run, 8);
 
                 if (static_cast<i32>(run.found) == state.playerRole)
@@ -851,7 +851,7 @@ bool Talk::RunRoleCommand(EventRun& run)
             }
             else
             {
-                DebugLog("Talk(Step)", id, owner.unk4A9A10);
+                DebugLog(u8"Talk(Step)", id, owner.unk4A9A10);
             }
 
             this->Advance(run, 4);
@@ -1006,7 +1006,7 @@ bool Talk::RunRoleCommand(EventRun& run)
         case EventCommand::SetFlag:
         case EventCommand::ClearFlag:
             this->SetStoryFlag(this->Word(run, 1), run.code == EventCommand::SetFlag);
-            DebugLog(run.code == EventCommand::SetFlag ? "fON [%d]" : "fOFF[%d]", this->Word(run, 1));
+            DebugLog(run.code == EventCommand::SetFlag ? u8"fON [%d]" : u8"fOFF[%d]", this->Word(run, 1));
             this->Advance(run, 4);
             return true;
 
@@ -1245,7 +1245,7 @@ bool Talk::RunRoleCommand(EventRun& run)
 
             if (this->choice > count)
             {
-                DebugLog("choice past the list", this->Word(run, 0), this->choice);
+                DebugLog(u8"choice past the list", this->Word(run, 0), this->choice);
                 choice = 0;
             }
 
@@ -1264,7 +1264,7 @@ bool Talk::RunRoleCommand(EventRun& run)
 
                 if (owner.acts.Run(player.act) == 0)
                 {
-                    LogActError("Act Err(Talk:Rmlock)", player);
+                    LogActError(u8"Act Err(Talk:Rmlock)", player);
                 }
             }
             else
@@ -1286,7 +1286,7 @@ bool Talk::RunRoleCommand(EventRun& run)
 
                 if (owner.acts.Run(role->act) == 0)
                 {
-                    LogActError("Act Err(Talk:ChangSpd)", *role);
+                    LogActError(u8"Act Err(Talk:ChangSpd)", *role);
                 }
             }
 
@@ -1304,7 +1304,7 @@ bool Talk::RunRoleCommand(EventRun& run)
 
                 if (this->Word(run, 2) == 0)
                 {
-                    DebugLog("act 0", id, 0);
+                    DebugLog(u8"act 0", id, 0);
                 }
 
                 role.act.id = this->Word(run, 2);
@@ -1312,7 +1312,7 @@ bool Talk::RunRoleCommand(EventRun& run)
 
                 if (!this->CommandsRole(next, run.found) && owner.acts.Run(role.act) == 0)
                 {
-                    LogActError("Act Err(Talk:ChangAct)", role);
+                    LogActError(u8"Act Err(Talk:ChangAct)", role);
                 }
 
                 role.flags |= role_flag::kStepsAct;
@@ -1368,7 +1368,7 @@ bool Talk::RunRoleCommand(EventRun& run)
 
                 if (owner.acts.Run(act) == 0)
                 {
-                    LogActError("Act Err(Talk:RestoreOpSet)", *role);
+                    LogActError(u8"Act Err(Talk:RestoreOpSet)", *role);
                 }
             }
 

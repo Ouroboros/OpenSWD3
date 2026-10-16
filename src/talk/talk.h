@@ -51,7 +51,7 @@ public:
     void HandlePointer();
     void DrawColoredText(u16* pixels, int x, int y, int color, int shade, std::string_view text, int style);
     static bool ParseNumber(std::string_view text, int& value);
-    void ShowMessage(u16 role, std::string_view text);
+    void ShowMessage(u16 role, std::u8string_view text);
     bool SetupDialog(
         TalkWindow& window,
         std::span<const u8> record,

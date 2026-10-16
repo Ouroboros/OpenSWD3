@@ -129,7 +129,7 @@ u32 Talk::ExpandText(std::string& text)
             if (code.size() >= 7)
             {
                 number.push_back('.');
-                DebugLog(Big5(u8"物品名稱代換"), code);
+                DebugLog(u8"物品名稱代換", code);
             }
 
             int id = static_cast<int>(code.size());
@@ -148,14 +148,14 @@ u32 Talk::ExpandText(std::string& text)
                 }
                 else
                 {
-                    DebugLog(Big5(u8"物品名稱代換"), id);
+                    DebugLog(u8"物品名稱代換", id);
                     at += 4;
                     consumed += 4;
                 }
             }
             else
             {
-                DebugLog(Big5(u8"物品名稱代換"), code);
+                DebugLog(u8"物品名稱代換", code);
                 at += 4;
                 consumed += 4;
             }
@@ -245,10 +245,18 @@ void Talk::AppendWindow(std::unique_ptr<TalkWindow> window)
 }
 
 // swd32.exe 0x0040AF70: a message in a plain window (frame act 0x232D, 40 x 10 cells, no name) over role `role`
-void Talk::ShowMessage(u16 role, std::string_view text)
+void Talk::ShowMessage(u16 role, std::u8string_view message)
 {
-    std::array<u8, 0x100> record = {};
-    const std::array<u16, 6> header = {role, 0x232D, 4, 3, 0x28, 0xA};
+    constexpr u16 kFrameAct = 0x232D;
+    constexpr u16 kCellX = 4;
+    constexpr u16 kCellY = 3;
+    constexpr u16 kColumns = 0x28;
+    constexpr u16 kRows = 0xA;
+    constexpr std::size_t kTextAt = 0xC;  // the record's text after its six header words
+    constexpr std::size_t kRecordBytes = 0x100;
+    const std::string text = Big5(message);
+    std::array<u8, kRecordBytes> record = {};
+    const std::array<u16, 6> header = {role, kFrameAct, kCellX, kCellY, kColumns, kRows};
 
     for (std::size_t index = 0; index < header.size(); ++index)
     {
@@ -256,7 +264,11 @@ void Talk::ShowMessage(u16 role, std::string_view text)
         record[2 * index + 1] = static_cast<u8>(header[index] >> 8);
     }
 
-    std::copy_n(text.begin(), std::min<std::size_t>(text.size(), record.size() - 0xD), record.begin() + 0xC);
+    std::copy_n(
+        text.begin(),
+        std::min<std::size_t>(text.size(), record.size() - kTextAt - 1),
+        record.begin() + kTextAt
+    );
     auto window = std::make_unique<TalkWindow>();
     this->SetupDialog(*window, record, "", 1, 0, 0);
     this->AppendWindow(std::move(window));
@@ -375,7 +387,7 @@ bool Talk::SetupDialog(
 
     if (word(0) != TalkWindow::kNoRole && !fixed && !state.FindRoleOrPlayer(word(0), speaker))
     {
-        DebugLog(Big5(u8"設定對話窗(SetupDialog)"), word(0));
+        DebugLog(u8"設定對話窗(SetupDialog)", word(0));
         window = TalkWindow{};
         window.page = TalkWindow::kClosed;
         return false;
@@ -390,7 +402,7 @@ bool Talk::SetupDialog(
 
     if (frame == owner.scene.unk4CAA78.size())
     {
-        DebugLog("SetupDialog", word(1));
+        DebugLog(u8"SetupDialog", word(1));
         frame = 0;
     }
 
@@ -600,7 +612,7 @@ bool Talk::OpenScript(Role& context, u32 index)
 
     if (!this->game.databases.story.Open(path, File::Disposition::OpenExisting, File::Access::Read))
     {
-        DebugLog(Big5(u8"檔案開啟"), Big5(u8"劇情資料(1)無法讀取/%s"));
+        DebugLog(u8"檔案開啟", u8"劇情資料(1)無法讀取/%s");
         owner.Destroy();
         return false;
     }

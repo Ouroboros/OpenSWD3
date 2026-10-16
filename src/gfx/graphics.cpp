@@ -31,98 +31,98 @@ Pixel DevicePixel(ColorRef color)
 
 // swd32.exe 0x004311C0: a message box naming the DirectDraw result (nothing for an unknown one). The original
 // returns a leftover value that no caller reads.
-void ShowDeviceError(ErrorReporter& errors, std::string_view caption, u32 result)
+void ShowDeviceError(ErrorReporter& errors, std::u8string_view caption, u32 result)
 {
-    std::string_view text;
+    std::u8string_view text;
 
     switch (result)
     {
         case 0x88760232u:
-            text = "DDERR_DIRECTDRAWALREADYCREATED ";
+            text = u8"DDERR_DIRECTDRAWALREADYCREATED ";
             break;
 
         case 0x88760233u:
-            text = "DDERR_NODIRECTDRAWHW ";
+            text = u8"DDERR_NODIRECTDRAWHW ";
             break;
 
         case 0x88760234u:
-            text = "DDERR_PRIMARYSURFACEALREADYEXISTS  ";
+            text = u8"DDERR_PRIMARYSURFACEALREADYEXISTS  ";
             break;
 
         case 0x88760235u:
-            text = "DDERR_NOEMULATION  ";
+            text = u8"DDERR_NOEMULATION  ";
             break;
 
         case 0x88760238u:
-            text = "DDERR_NOCLIPPERATTACHED  ";
+            text = u8"DDERR_NOCLIPPERATTACHED  ";
             break;
 
         case 0x8876023Au:
-            text = "DDERR_HWNDSUBCLASSED  ";
+            text = u8"DDERR_HWNDSUBCLASSED  ";
             break;
 
         case 0x8876023Bu:
-            text = "DDERR_HWNDALREADYSET  ";
+            text = u8"DDERR_HWNDALREADYSET  ";
             break;
 
         case 0x88760245u:
-            text = "DDERR_EXCLUSIVEMODEALREADYSET  ";
+            text = u8"DDERR_EXCLUSIVEMODEALREADYSET  ";
             break;
 
         case 0x8876024Eu:
-            text = "DDERR_UNSUPPORTEDMODE  ";
+            text = u8"DDERR_UNSUPPORTEDMODE  ";
             break;
 
         case 0x88760250u:
-            text = "DDERR_INVALIDSURFACETYPE  ";
+            text = u8"DDERR_INVALIDSURFACETYPE  ";
             break;
 
         case 0x88760231u:
-            text = "DDERR_INVALIDDIRECTDRAWGUID ";
+            text = u8"DDERR_INVALIDDIRECTDRAWGUID ";
             break;
 
         case 0x88760082u:
-            text = "DDERR_INVALIDOBJECT  ";
+            text = u8"DDERR_INVALIDOBJECT  ";
             break;
 
         case 0x887600D4u:
-            text = "DDERR_NOCOOPERATIVELEVELSET  ";
+            text = u8"DDERR_NOCOOPERATIVELEVELSET  ";
             break;
 
         case 0x887600E1u:
-            text = "DDERR_NOEXCLUSIVEMODE ";
+            text = u8"DDERR_NOEXCLUSIVEMODE ";
             break;
 
         case 0x887600E6u:
-            text = "DDERR_NOFLIPHW ";
+            text = u8"DDERR_NOFLIPHW ";
             break;
 
         case 0x8876017Cu:
-            text = "DDERR_OUTOFVIDEOMEMORY   ";
+            text = u8"DDERR_OUTOFVIDEOMEMORY   ";
             break;
 
         case 0x8876006Eu:
-            text = "DDERR_INVALIDCLIPLIST ";
+            text = u8"DDERR_INVALIDCLIPLIST ";
             break;
 
         case 0x8876005Fu:
-            text = "DDERR_INCOMPATIBLEPRIMARY  ";
+            text = u8"DDERR_INCOMPATIBLEPRIMARY  ";
             break;
 
         case 0x88760064u:
-            text = "DDERR_INVALIDCAPS ";
+            text = u8"DDERR_INVALIDCAPS ";
             break;
 
         case 0x80070057u:
-            text = "DDERR_INVALIDPARAMS  ";
+            text = u8"DDERR_INVALIDPARAMS  ";
             break;
 
         case 0x80004005u:
-            text = "DDERR_GENERIC ";
+            text = u8"DDERR_GENERIC ";
             break;
 
         case 0x8007000Eu:
-            text = "DDERR_OUTOFMEMORY ";
+            text = u8"DDERR_OUTOFMEMORY ";
             break;
 
         default:
@@ -203,7 +203,7 @@ bool Graphics::SetDisplayMode(int width, int height, int bitsPerPixel)
 {
     if (bitsPerPixel != 16)
     {
-        ShowDeviceError(this->errors, "DirectDraw SetDisplayMode Error!!", kUnsupportedMode);
+        ShowDeviceError(this->errors, u8"DirectDraw SetDisplayMode Error!!", kUnsupportedMode);
         this->device = false;
         return false;
     }
@@ -247,7 +247,7 @@ bool Graphics::CreateSurfaces()
 
     if (this->width <= 0 || this->height <= 0)
     {
-        ShowDeviceError(this->errors, "DirectDraw Create Primary Surface Error!!", kGenericError);
+        ShowDeviceError(this->errors, u8"DirectDraw Create Primary Surface Error!!", kGenericError);
         this->device = false;
         return false;
     }

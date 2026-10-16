@@ -1009,8 +1009,8 @@ void Talk::HandlePointer()
                 state.clickRegions.Free();
                 left = ButtonState{};
                 DebugLog(
-                    "\n"
-                    "Button[%d]Pressed",
+                    u8"\n"
+                    u8"Button[%d]Pressed",
                     this->choice
                 );
             }
@@ -1057,8 +1057,8 @@ void Talk::HandlePointer()
             owner.acts.Run(player.act);
             owner.scene.unk4A9920 = 0x8000;
             DebugLog(
-                "\n"
-                "MapEvent.Talk[%d]",
+                u8"\n"
+                u8"MapEvent.Talk[%d]",
                 leader.event
             );
             return;
@@ -1141,8 +1141,8 @@ void Talk::HandlePointer()
     leader.y = target.y;
     left = ButtonState{};
     DebugLog(
-        "\n"
-        "RoleEvent.GUID[%d].Talk[%d].Ridx[%d].RArgu[%x]",
+        u8"\n"
+        u8"RoleEvent.GUID[%d].Talk[%d].Ridx[%d].RArgu[%x]",
         target.id,
         target.event,
         state.FindRole(target.id),

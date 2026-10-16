@@ -24,7 +24,7 @@ bool GameDatabases::Open(const std::string& installDirectory, ErrorReporter& err
 
     if (!this->story.Open(installDirectory + "talk1.dat", File::Disposition::OpenExisting, File::Access::Read))
     {
-        errors.ShowError("StoryDataBase init Failed.", "SWD3");
+        errors.ShowError(u8"StoryDataBase init Failed.", u8"SWD3");
         return false;
     }
 

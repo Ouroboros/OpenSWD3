@@ -11,41 +11,30 @@ namespace swd3
 namespace
 {
 
-// Big5 (code page 950) to UTF-8 through UTF-16.
-std::string Utf8FromBig5(std::string_view text)
+// The NUL-terminated copy SDL takes.
+std::string Terminated(std::u8string_view text)
 {
-    const int wideLength = ::MultiByteToWideChar(950, 0, text.data(), static_cast<int>(text.size()), nullptr, 0);
-    std::wstring wide(static_cast<std::size_t>(wideLength), L'\0');
-    ::MultiByteToWideChar(950, 0, text.data(), static_cast<int>(text.size()), wide.data(), wideLength);
-    const int length = ::WideCharToMultiByte(CP_UTF8, 0, wide.data(), wideLength, nullptr, 0, nullptr, nullptr);
-    std::string utf8(static_cast<std::size_t>(length), '\0');
-    ::WideCharToMultiByte(CP_UTF8, 0, wide.data(), wideLength, utf8.data(), length, nullptr, nullptr);
-    return utf8;
+    return std::string(reinterpret_cast<const char*>(text.data()), text.size());
 }
 
 }  // namespace
 
-void ShowErrorMessage(std::string_view title, std::string_view text)
+void ShowErrorMessage(std::u8string_view title, std::u8string_view text)
 {
-    const std::string utf8Title = Utf8FromBig5(title);
-    const std::string utf8Text = Utf8FromBig5(text);
-    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, utf8Title.c_str(), utf8Text.c_str(), nullptr);
+    const std::string caption = Terminated(title);
+    const std::string message = Terminated(text);
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, caption.c_str(), message.c_str(), nullptr);
 }
 
-}  // namespace swd3
-
-namespace swd3
-{
-
-void DialogErrorReporter::ShowError(std::string_view title, std::string_view text)
+void DialogErrorReporter::ShowError(std::u8string_view title, std::u8string_view text)
 {
     ShowErrorMessage(title, text);
 }
 
-AssertChoice DialogErrorReporter::AskAssertion(std::string_view title, std::string_view text)
+AssertChoice DialogErrorReporter::AskAssertion(std::u8string_view title, std::u8string_view text)
 {
-    const std::string utf8Title = Utf8FromBig5(title);
-    const std::string utf8Text = Utf8FromBig5(text);
+    const std::string caption = Terminated(title);
+    const std::string message = Terminated(text);
     const SDL_MessageBoxButtonData buttons[] = {
         {0, static_cast<int>(AssertChoice::Abort), "Abort"},
         {0, static_cast<int>(AssertChoice::Retry), "Retry"},
@@ -54,8 +43,8 @@ AssertChoice DialogErrorReporter::AskAssertion(std::string_view title, std::stri
 
     SDL_MessageBoxData data{};
     data.flags = SDL_MESSAGEBOX_ERROR;
-    data.title = utf8Title.c_str();
-    data.message = utf8Text.c_str();
+    data.title = caption.c_str();
+    data.message = message.c_str();
     data.numbuttons = 3;
     data.buttons = buttons;
     int pressed = static_cast<int>(AssertChoice::Ignore);
@@ -67,11 +56,6 @@ AssertChoice DialogErrorReporter::AskAssertion(std::string_view title, std::stri
 
     return static_cast<AssertChoice>(pressed);
 }
-
-}  // namespace swd3
-
-namespace swd3
-{
 
 void PlaySystemBeep()
 {

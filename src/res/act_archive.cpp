@@ -172,9 +172,9 @@ ActScript ActArchive::Load(File* file, int fileIndex, int entry, int sub, u32& s
         return script;
     }
 
-    this->errorText = WinFormat(act_text::kBadEntry, {entry, sub});
+    this->errorText = Utf8Format(act_text::kBadEntry, {entry, sub});
     DebugLog(this->errorText);
-    this->errors.ShowError(Big5(act_text::kErrorTitle), this->errorText);
+    this->errors.ShowError(act_text::kErrorTitle, this->errorText);
     return nullptr;
 }
 
@@ -322,7 +322,7 @@ int ActArchive::CloseAll()
 
     if (remaining != 0)
     {
-        this->errors.ShowError(act_text::kMemoryErrorTitle, Big5(act_text::kMemoryError));
+        this->errors.ShowError(act_text::kMemoryErrorTitle, act_text::kMemoryError);
         return 1;
     }
 

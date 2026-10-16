@@ -5,7 +5,6 @@
 
 #include "core/format.h"
 #include "platform/message_box.h"
-#include "text/big5.h"
 
 namespace swd3
 {
@@ -20,12 +19,12 @@ constexpr std::u8string_view kTitle = u8"維護錯誤";
 }  // namespace
 
 // swd32.exe 0x00431150
-void MaintenanceAssert(ErrorReporter& reporter, std::string_view message, i32 value, std::string_view file, u32 line)
+void MaintenanceAssert(ErrorReporter& reporter, std::u8string_view message, i32 value, std::string_view file, u32 line)
 {
-    const std::string text = WinFormat(message, {value});
-    const std::string box = WinFormat(kLayout, {file, line, std::string_view(text)});
+    const std::u8string text = Utf8Format(message, {value});
+    const std::u8string box = Utf8Format(kLayout, {file, line, std::u8string_view(text)});
 
-    if (reporter.AskAssertion(Big5(kTitle), box) != AssertChoice::Ignore)
+    if (reporter.AskAssertion(kTitle, box) != AssertChoice::Ignore)
     {
         std::abort();
     }

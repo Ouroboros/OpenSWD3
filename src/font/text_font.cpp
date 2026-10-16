@@ -103,7 +103,7 @@ int TextFont::Init(Graphics& graphics)
     graphics.BackSize(pitch, height);
     this->SetTarget(pitch / 2, height);
     this->SetGlyphSize(16, 16);
-    this->SetFont(Big5(TextFont::kDefaultFace), this->glyphWidth);
+    this->SetFont(TextFont::kDefaultFace, this->glyphWidth);
     this->SetAdvance(this->glyphWidth);
     this->SetBackground(TextFont::kNoBackground);
     this->SetShadow(0);
@@ -186,14 +186,14 @@ void TextFont::FreeGlyphCache()
 }
 
 // swd32.exe 0x00435500: a Big5 font of `size` pixels (at most 64) with square glyphs; the cache restarts
-void TextFont::SetFont(std::string_view face, int size)
+void TextFont::SetFont(std::u8string_view face, int size)
 {
     if (size > kMaxFontSize)
     {
         size = kMaxFontSize;
     }
 
-    this->fontFace = face;
+    this->fontFace = Big5(face);
     this->fontSize = size;
     this->SetGlyphSize(size, size);
     this->AllocGlyphCache();

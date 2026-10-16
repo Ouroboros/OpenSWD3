@@ -31,7 +31,7 @@ void RoleControl::Approach(Role& player, Role& other, bool walking)
 
         if (game.acts.Run(other.act) == 0)
         {
-            DebugLog("Act Err(approach)", other.id);
+            DebugLog(u8"Act Err(approach)", other.id);
         }
     }
 
@@ -41,7 +41,7 @@ void RoleControl::Approach(Role& player, Role& other, bool walking)
 
     if (game.acts.Run(walking ? other.act : player.act) == 0)
     {
-        DebugLog("Act Err(approach)", player.id);
+        DebugLog(u8"Act Err(approach)", player.id);
     }
 
     Role& leader = game.state.leader;
@@ -50,7 +50,7 @@ void RoleControl::Approach(Role& player, Role& other, bool walking)
     leader.event = other.event;
     leader.id = other.id;
     leader.flags = other.flags;
-    DebugLog("talk to role", other.id);
+    DebugLog(u8"talk to role", other.id);
 }
 
 // swd32.exe 0x00402F80: the keys of the map. The debug keys (story flag 0x52, turned on in debug mode with Ctrl,
@@ -439,7 +439,7 @@ void RoleControl::ControlPlayer()
 
             if (region == nullptr)
             {
-                DebugLog(Big5(u8"錯誤的劇情點(%d)"), event);
+                DebugLog(u8"錯誤的劇情點(%d)", event);
             }
             else if (state.GameFlag(static_cast<int>(static_cast<u32>(region->flag) >> 16)))
             {
@@ -464,7 +464,7 @@ void RoleControl::ControlPlayer()
                     leader.flags = 0;
                     leader.x = player.x - 0x10 * RolePath::kStepX[facing];
                     leader.y = player.y - 0x10 * RolePath::kStepY[facing];
-                    DebugLog("map region event", region->event);
+                    DebugLog(u8"map region event", region->event);
                 }
             }
             else if (found < GameState::kRoles)
@@ -588,7 +588,7 @@ void RoleControl::ControlPlayer()
                     }
                     else
                     {
-                        ErrorLog("Fight by map ,CloseView fail ,%s", owner.mapCache.unitFile.ErrorText());
+                        ErrorLog(u8"Fight by map ,CloseView fail ,%s", owner.mapCache.unitFile.ErrorText());
                     }
 
                     owner.mapCache.unitFile.CloseMapping();

@@ -168,7 +168,7 @@ bool Talk::RunStateCommand(EventRun& run)
             }
             else
             {
-                DebugLog("set role flag", id);
+                DebugLog(u8"set role flag", id);
                 const bool set = this->Word(run, 2) != 0;
                 run.valueA = set ? static_cast<i32>(bit) : 0;
                 run.valueB = set ? -1 : static_cast<i32>(0xFFFFFFFF - bit);
@@ -224,7 +224,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
             if (!state.FindRoleOrPlayer(id, run.found))
             {
-                DebugLog("Talk(tilpa1)", this->Word(run, 2));
+                DebugLog(u8"Talk(tilpa1)", this->Word(run, 2));
                 this->Advance(run, 6);
                 return true;
             }
@@ -234,7 +234,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
             if ((rounds & 0xFF) < wanted)
             {
-                DebugLog("Talk(tilpa1)", wanted, rounds & 0xFF);
+                DebugLog(u8"Talk(tilpa1)", wanted, rounds & 0xFF);
                 this->Advance(run, 6);
                 return true;
             }
@@ -347,7 +347,7 @@ bool Talk::RunStateCommand(EventRun& run)
             }
 
             owner.audio.UpdateMusicFade();
-            DebugLog("StreamStartOut");
+            DebugLog(u8"StreamStartOut");
             view.unk4ACDBC |= 0x800000;
             const u16 cue = this->Word(run, 3);
             run.valueA = cue;
@@ -368,7 +368,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
             view.unk4ACDBC = static_cast<i32>(marks & ~0xFFu);
             this->Advance(run, 8);
-            DebugLog("S_M[%d,%d]", tunes[4], tunes[5]);
+            DebugLog(u8"S_M[%d,%d]", tunes[4], tunes[5]);
             return true;
         }
 
@@ -453,7 +453,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
             if (id != TalkWindow::kNoRole && !state.FindRoleOrPlayer(id, run.found))
             {
-                DebugLog("Talk(wait_dlg2)", id, owner.unk4A9A10);
+                DebugLog(u8"Talk(wait_dlg2)", id, owner.unk4A9A10);
                 this->Advance(run, 4);
                 return true;
             }
@@ -509,7 +509,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
                 if (owner.acts.Run(role.act) == 0)
                 {
-                    LogActError("TakeActData(Talk,TakeActData)", role);
+                    LogActError(u8"TakeActData(Talk,TakeActData)", role);
                 }
 
                 role.flags |= role_flag::kStepsAct;
@@ -570,7 +570,7 @@ bool Talk::RunStateCommand(EventRun& run)
             if (MapsWord(data, at) == 0)
             {
                 DebugLog(
-                    "TalkOp:Scene_Music",
+                    u8"TalkOp:Scene_Music",
                     this->Word(run, 1),
                     this->Word(run, 2),
                     this->Word(run, 3),
@@ -651,7 +651,7 @@ bool Talk::RunStateCommand(EventRun& run)
                 ItemCountMode::Pending,
                 owner.database
             );
-            DebugLog("%s,%d", item != nullptr ? item->id : this->Word(run, 1), static_cast<i16>(this->Word(run, 2)));
+            DebugLog(u8"%s,%d", item != nullptr ? item->id : this->Word(run, 1), static_cast<i16>(this->Word(run, 2)));
             this->Advance(run, 6);
             return false;
         }
@@ -689,7 +689,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
             if (role >= 4)
             {
-                DebugLog("skill role", role);
+                DebugLog(u8"skill role", role);
                 this->Advance(run, 6);
                 return true;
             }
@@ -706,7 +706,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
                     if ((learned->record.data.unk3A & (0x8000 >> role)) == 0)
                     {
-                        DebugLog("skill not for the role", role, learned->id);
+                        DebugLog(u8"skill not for the role", role, learned->id);
                         AddFlaggedItem(skills, learned->id, -1, 0, owner.database);
                     }
                 }
@@ -724,7 +724,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
             if (role > 3 || slot > 0xB)
             {
-                DebugLog("equipment slot", role, slot);
+                DebugLog(u8"equipment slot", role, slot);
                 this->Advance(run, 8);
                 return true;
             }
@@ -733,7 +733,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
             if (item == nullptr)
             {
-                DebugLog("item missing", this->Word(run, 3));
+                DebugLog(u8"item missing", this->Word(run, 3));
                 this->Advance(run, 8);
                 return true;
             }
@@ -788,7 +788,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
             if (index >= 4)
             {
-                DebugLog("party role", index);
+                DebugLog(u8"party role", index);
                 this->Advance(run, 0xA);
                 return true;
             }
@@ -835,14 +835,14 @@ bool Talk::RunStateCommand(EventRun& run)
                 owner.audio.SetFadeLength(0);
             }
 
-            DebugLog("StreamStartOut");
+            DebugLog(u8"StreamStartOut");
             view.unk4B7C74[0] = static_cast<i32>(0x80000001u);
             view.unk4B7C74[3] = 0;
             view.unk4B7C74[4] = 0;
             view.unk4B7C74[5] = 0;
             view.unk4ACDBC &= static_cast<i32>(0xFF5CFF00u);
             this->Advance(run, 2);
-            DebugLog("S_M_off[%d,%d]", view.unk4B7C74[1], view.unk4B7C74[2]);
+            DebugLog(u8"S_M_off[%d,%d]", view.unk4B7C74[1], view.unk4B7C74[2]);
             return true;
 
         case EventCommand::JumpIfFar:
@@ -865,7 +865,7 @@ bool Talk::RunStateCommand(EventRun& run)
             }
             else
             {
-                DebugLog("distance role", id);
+                DebugLog(u8"distance role", id);
             }
 
             this->Advance(run, 0xE);
@@ -879,7 +879,7 @@ bool Talk::RunStateCommand(EventRun& run)
             owner.audio.SetFadeMode(mode);
             owner.audio.SetFadeLength(length);
             this->Advance(run, 6);
-            DebugLog("Fmode[%d,%d]", mode, length);
+            DebugLog(u8"Fmode[%d,%d]", mode, length);
             return true;
         }
 
@@ -1025,7 +1025,7 @@ bool Talk::RunSystemCommand(EventRun& run)
         case EventCommand::EnterMap22:
             if (owner.unk4A9A10 == 0x16)
             {
-                DebugLog("already on map 22");
+                DebugLog(u8"already on map 22");
             }
             else
             {
@@ -1041,7 +1041,7 @@ bool Talk::RunSystemCommand(EventRun& run)
         case EventCommand::ReturnFromMap22:
             if (view.unk4CAE88 <= 0)
             {
-                DebugLog("no map to return to");
+                DebugLog(u8"no map to return to");
             }
             else
             {
@@ -1057,7 +1057,7 @@ bool Talk::RunSystemCommand(EventRun& run)
         case EventCommand::SetReturnMap:
             if (this->Word(run, 1) == 0x16)
             {
-                DebugLog("return map 22");
+                DebugLog(u8"return map 22");
             }
             else
             {
@@ -1301,7 +1301,7 @@ bool Talk::RunSystemCommand(EventRun& run)
 
             if (field > 0x10)
             {
-                DebugLog("attribute number", field);
+                DebugLog(u8"attribute number", field);
                 return false;
             }
 
@@ -1329,7 +1329,7 @@ bool Talk::RunSystemCommand(EventRun& run)
 
             if (field > 0x10)
             {
-                DebugLog("attribute number", field);
+                DebugLog(u8"attribute number", field);
                 return false;
             }
 

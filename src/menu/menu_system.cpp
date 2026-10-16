@@ -525,7 +525,7 @@ void Menu::SystemSelect()
         this->nameReply = 0;
         this->enteredNames.assign(0x20, 0);
         ++this->systemRow;
-        owner.textInput = std::make_unique<TextInput>(Big5(Party::kDefaultNames[0]), kNameLength, kNameBoxX, kNameBoxY);
+        owner.textInput = std::make_unique<TextInput>(Party::kDefaultNames[0], kNameLength, kNameBoxX, kNameBoxY);
     }
     else if (this->systemCursor == 2)
     {
@@ -783,8 +783,7 @@ bool Menu::DrawNameEntry()
 
         if (++this->systemRow == 0x63)
         {
-            owner.textInput =
-                std::make_unique<TextInput>(Big5(Party::kDefaultNames[1]), kNameLength, kNameBoxX, kNameBoxY);
+            owner.textInput = std::make_unique<TextInput>(Party::kDefaultNames[1], kNameLength, kNameBoxX, kNameBoxY);
             this->face.id = 2;
             this->face.action = 0x46;
         }

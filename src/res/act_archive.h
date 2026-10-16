@@ -22,8 +22,8 @@ namespace act_text
 constexpr std::u8string_view kErrorTitle = u8"ACT錯誤";  // "ACT error"
 constexpr std::u8string_view kBadEntry = u8"<<ACT:%d號>>動作的第%d段ACT號碼指定錯誤!!";
 constexpr std::u8string_view kMemoryError = u8"ACT記憶體管理有誤!!";  // "ACT memory management error!!"
-constexpr std::string_view kLoadFailedLog = "Act error::actno:%d qq:%d";
-constexpr std::string_view kMemoryErrorTitle = "ERR";
+constexpr std::u8string_view kLoadFailedLog = u8"Act error::actno:%d qq:%d";
+constexpr std::u8string_view kMemoryErrorTitle = u8"ERR";
 constexpr std::array<std::string_view, 6> kFileNames = {
     "all_char.act",
     "all_item.act",
@@ -102,7 +102,7 @@ private:
     std::array<u16, kChains> indexCounts{};
     ActScript current;
     ActScript direct;
-    std::string errorText;
+    std::u8string errorText;
 };
 
 }  // namespace swd3

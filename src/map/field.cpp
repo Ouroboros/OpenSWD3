@@ -307,7 +307,7 @@ bool Field::LoadMap(u32 map, u32& systemFlags)
 
     if (!lmf.Open(path, File::Disposition::OpenExisting, File::Access::Read))
     {
-        ErrorLog("Load(%d)  ,LMF can't open:%s", map, path);
+        ErrorLog(u8"Load(%d)  ,LMF can't open:%s", map, path);
         return false;
     }
 
@@ -328,7 +328,7 @@ bool Field::LoadMap(u32 map, u32& systemFlags)
     if (entry >= entries)
     {
         systemFlags |= 4;
-        ErrorLog("Load(%d)  ,MapCode fail:%d", map, map);
+        ErrorLog(u8"Load(%d)  ,MapCode fail:%d", map, map);
         return false;
     }
 
@@ -364,14 +364,14 @@ bool Field::LoadMap(u32 map, u32& systemFlags)
 
     if (lmf.SeekBegin(static_cast<i32>(dataOffset + this->unitBase)) == 0)
     {
-        ErrorLog("Load(%d)  ,Seek2Map fail:%d", map, map);
+        ErrorLog(u8"Load(%d)  ,Seek2Map fail:%d", map, map);
         return false;
     }
 
     if (Word(block, 0x8E) != 0)
     {
         systemFlags |= 4;
-        ErrorLog("Load(%d)  ,Tile TOO much:%d", map, (Word(block, 0x8E) << 0x10) + Word(block, 0x8A));
+        ErrorLog(u8"Load(%d)  ,Tile TOO much:%d", map, (Word(block, 0x8E) << 0x10) + Word(block, 0x8A));
         return false;
     }
 

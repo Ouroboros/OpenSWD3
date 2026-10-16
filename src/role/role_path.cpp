@@ -47,7 +47,7 @@ u16 RolePath::RoleId(u32 index)
 
     if (index >= static_cast<u32>(state.roleCount))
     {
-        this->game.errors.ShowError(WinFormat("%d", {static_cast<u32>(id)}), "Illegal Role id");
+        this->game.errors.ShowError(Utf8Format(u8"%d", {static_cast<u32>(id)}), u8"Illegal Role id");
     }
 
     return id;
@@ -130,7 +130,7 @@ bool RolePath::FindPath(int index, u16 tileX, u16 tileY)
 
     if (x > 0x10u * static_cast<u32>(state.map.width) || y > 0x10u * static_cast<u32>(state.map.height))
     {
-        DebugLog("path target outside", slot, index, role.x >> 4, role.y >> 4, x >> 4, y >> 4);
+        DebugLog(u8"path target outside", slot, index, role.x >> 4, role.y >> 4, x >> 4, y >> 4);
         return false;
     }
 
@@ -158,7 +158,7 @@ bool RolePath::FindPath(int index, u16 tileX, u16 tileY)
     else
     {
         DebugLog(
-            "path not found",
+            u8"path not found",
             slot,
             this->RoleId(static_cast<u32>(index)),
             role.x >> 4,
@@ -202,7 +202,7 @@ int RolePath::Step(int index)
 
     if (slot == RolePath::kMoves)
     {
-        DebugLog("no path", this->RoleId(static_cast<u32>(index)), role.act.id, role.act.action, role.unk1C);
+        DebugLog(u8"no path", this->RoleId(static_cast<u32>(index)), role.act.id, role.act.action, role.unk1C);
         return 2;
     }
 
@@ -298,9 +298,10 @@ int RolePath::Wander(int index)
         {
             if (++slot >= RolePath::kMoves)
             {
-                DebugLog(
-                    WinFormat("Pth:rndwlk,g(%d)NoFreePath", {static_cast<u32>(this->RoleId(static_cast<u32>(index)))})
-                );
+                DebugLog(Utf8Format(
+                    u8"Pth:rndwlk,g(%d)NoFreePath",
+                    {static_cast<u32>(this->RoleId(static_cast<u32>(index)))}
+                ));
                 return 0;
             }
         }
@@ -381,7 +382,7 @@ void RolePath::Follow(int index)
 
     if (follower == static_cast<u32>(view.unk4BABA0) || follower >= view.followerMoves.size())
     {
-        DebugLog("CompanyWalk", role.id);
+        DebugLog(u8"CompanyWalk", role.id);
         return;
     }
 
@@ -409,7 +410,7 @@ void RolePath::Follow(int index)
         if (finder.FindPath(role.x, role.y, targetX, targetY, role.act.width, role.act.height, move.directions) == 0)
         {
             ErrorLog(
-                "CmpyWalk PathFind fail ,G(%d) sx(%d/%d) sy(%d/%d) dx(%d/%d) dy(%d/%d)",
+                u8"CmpyWalk PathFind fail ,G(%d) sx(%d/%d) sy(%d/%d) dx(%d/%d) dy(%d/%d)",
                 role.id,
                 role.x,
                 role.x >> 4,
@@ -730,13 +731,13 @@ void RolePath::RunScript(int index)
 
                 if (slot >= 0x40 || slot >= variables.size())
                 {
-                    DebugLog("path variable", slot, value);
+                    DebugLog(u8"path variable", slot, value);
                     return;
                 }
 
                 if (value > 0x3E8)
                 {
-                    DebugLog("path value", slot, value);
+                    DebugLog(u8"path value", slot, value);
                 }
 
                 i32& variable = variables[slot];
@@ -973,7 +974,7 @@ void RolePath::RunScript(int index)
 
                 if (!state.FindRoleOrPlayer(word(at + 2), target) || target >= GameState::kRoles)
                 {
-                    DebugLog("Path(Follow)", word(at + 2));
+                    DebugLog(u8"Path(Follow)", word(at + 2));
                     role.unk18 += 2;
                     return;
                 }
@@ -1108,7 +1109,7 @@ void RolePath::RunScript(int index)
                 continue;
 
             default:
-                DebugLog("path command", this->RoleId(static_cast<u32>(index)), code);
+                DebugLog(u8"path command", this->RoleId(static_cast<u32>(index)), code);
                 return;
         }
     }
@@ -1159,7 +1160,7 @@ bool RolePath::ResumeMove(int index)
 
     if (finder.FindPath(role.x, role.y, move.x, move.y, role.act.width, role.act.height, move.directions) != 1)
     {
-        DebugLog("resume path not found", index, role.x >> 4, role.y >> 4, move.x / 0x10, move.y / 0x10);
+        DebugLog(u8"resume path not found", index, role.x >> 4, role.y >> 4, move.x / 0x10, move.y / 0x10);
     }
 
     return true;
@@ -1289,7 +1290,7 @@ int RolePath::ScriptStep(int index)
     {
         if (role.x != move.x || role.y != move.y)
         {
-            DebugLog("script move ends off its target", role.id, role.x, role.y, move.x, move.y);
+            DebugLog(u8"script move ends off its target", role.id, role.x, role.y, move.x, move.y);
         }
 
         role.act.speed = 0;
@@ -1438,7 +1439,7 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
     {
         if (state.GameFlag(story_flag::kDebugReports) && (options & 0xF) == 0)
         {
-            DebugLog("no free move", options, this->RoleId(static_cast<u32>(index)));
+            DebugLog(u8"no free move", options, this->RoleId(static_cast<u32>(index)));
         }
 
         owner.field.ClearRoleCells(role, leader);
@@ -1515,7 +1516,7 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
     if (finder.FindPath(role.x, role.y, x, y, role.act.width, role.act.height, move.directions) != 1)
     {
         DebugLog(
-            "script path not found",
+            u8"script path not found",
             slot,
             this->RoleId(static_cast<u32>(index)),
             role.x >> 4,

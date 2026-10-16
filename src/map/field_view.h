@@ -7,6 +7,7 @@
 #include "core/types.h"
 #include "crt/msvc.h"
 #include "file/file.h"
+#include "text/big5.h"
 
 namespace swd3
 {
@@ -97,11 +98,12 @@ public:
     void Render();
     void UpdateRoleCellFlags(Role& role);
 
-    // swd32.exe 0x004302F0: a formatted line in the small font
+    // swd32.exe 0x004302F0: a formatted line in the small font (a UTF-8 format; UTF-8 arguments are converted to Big5,
+    // char strings are game text already)
     template <typename... Args>
-    void DrawDebugText(int x, int y, u32 color, std::string_view format, const Args&... args)
+    void DrawDebugText(int x, int y, u32 color, std::u8string_view format, const Args&... args)
     {
-        this->DrawSmallText(x, y, color, crt::Sprintf(format, args...));
+        this->DrawSmallText(x, y, color, crt::Sprintf(Big5(format), GameArgument(args)...));
     }
 
     void DrawDebug(int cameraLeft, int cameraTop);

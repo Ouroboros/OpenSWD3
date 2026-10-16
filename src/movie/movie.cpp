@@ -53,7 +53,7 @@ int Movie::Frame(Surface& surface, int x, int y, ErrorReporter& reporter)
 
     if (!this->decoder.CopyTo(surface, x, y))
     {
-        reporter.ShowError("fail", "BinkCopyToBuffer Fial");
+        reporter.ShowError(u8"fail", u8"BinkCopyToBuffer Fial");
     }
 
     const u32 frames = this->decoder.Frames();

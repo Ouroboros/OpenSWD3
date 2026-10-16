@@ -87,7 +87,7 @@ private:
     u32 clearColor = 0;  // 0x004AB8F8 (+0x88) the fill colour pair of the painter, set by InitDrawKernel
 };
 
-void ShowDeviceError(ErrorReporter& errors, std::string_view caption, u32 result);
+void ShowDeviceError(ErrorReporter& errors, std::u8string_view caption, u32 result);
 void FillSurfaceColor(Surface& surface, ColorRef color);
 u32 MatchSurfaceColor(Surface& surface, ColorRef color);
 

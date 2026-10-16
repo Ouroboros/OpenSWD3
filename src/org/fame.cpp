@@ -313,7 +313,7 @@ bool Fame::Save(std::vector<u8>& block, ErrorReporter& reporter) const
 
     if (packed.size() >= size)
     {
-        reporter.ShowError("error", "save fame compress false !!");
+        reporter.ShowError(u8"error", u8"save fame compress false !!");
         return false;
     }
 
@@ -344,7 +344,7 @@ bool Fame::Load(std::span<const u8> block, ErrorReporter& reporter)
 
     if (decoder.Written() != size)
     {
-        reporter.ShowError("error", "Load fame decompress false !!");
+        reporter.ShowError(u8"error", u8"Load fame decompress false !!");
         return false;
     }
 

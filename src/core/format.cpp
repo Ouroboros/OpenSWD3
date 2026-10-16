@@ -13,6 +13,8 @@ namespace
 
 constexpr std::size_t kLimit = 1023;
 
+std::string FormatText(std::string_view format, std::initializer_list<FormatArgument> arguments, bool utf8);
+
 }  // namespace
 
 FormatArgument::FormatArgument(i32 value)
@@ -44,7 +46,8 @@ FormatArgument::FormatArgument(const std::string& text)
 
 FormatArgument::FormatArgument(std::u8string_view text)
     : text(true),
-      string(Big5(text))
+      utf8(true),
+      string(reinterpret_cast<const char*>(text.data()), text.size())
 {
 }
 
@@ -58,12 +61,26 @@ i64 FormatArgument::Number() const
     return this->number;
 }
 
-std::string_view FormatArgument::Text() const
+std::string FormatArgument::Big5Text() const
 {
-    return this->string;
+    return this->utf8 ? Big5FromUtf8(this->string) : this->string;
+}
+
+std::string FormatArgument::Utf8Text() const
+{
+    return this->utf8 ? this->string : Utf8FromBig5(this->string);
 }
 
 std::string WinFormat(std::string_view format, std::initializer_list<FormatArgument> arguments)
+{
+    return FormatText(format, arguments, false);
+}
+
+namespace
+{
+
+// The formatting itself; text arguments are taken in Big5 or, with `utf8`, in UTF-8.
+std::string FormatText(std::string_view format, std::initializer_list<FormatArgument> arguments, bool utf8)
 {
     std::string out;
     auto argument = arguments.begin();
@@ -129,8 +146,13 @@ std::string WinFormat(std::string_view format, std::initializer_list<FormatArgum
         {
             case 's':
             {
-                const std::string text =
-                    value != nullptr && value->IsText() ? std::string(value->Text()) : std::string();
+                std::string text;
+
+                if (value != nullptr && value->IsText())
+                {
+                    text = utf8 ? value->Utf8Text() : value->Big5Text();
+                }
+
                 std::snprintf(buffer.data(), buffer.size(), (spec + "s").c_str(), text.c_str());
                 break;
             }
@@ -182,9 +204,23 @@ std::string WinFormat(std::string_view format, std::initializer_list<FormatArgum
     return out;
 }
 
+}  // namespace
+
 std::string WinFormat(std::u8string_view format, std::initializer_list<FormatArgument> arguments)
 {
-    return WinFormat(Big5(format), arguments);
+    return FormatText(Big5(format), arguments, false);
+}
+
+std::u8string Utf8Format(std::u8string_view format, std::initializer_list<FormatArgument> arguments)
+{
+    const std::string text =
+        FormatText(std::string_view(reinterpret_cast<const char*>(format.data()), format.size()), arguments, true);
+    return std::u8string(reinterpret_cast<const char8_t*>(text.data()), text.size());
+}
+
+std::u8string Utf8Bytes(std::string_view text)
+{
+    return std::u8string(reinterpret_cast<const char8_t*>(text.data()), text.size());
 }
 
 std::string Concat(std::initializer_list<std::string_view> parts)

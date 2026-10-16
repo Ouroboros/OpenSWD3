@@ -158,7 +158,7 @@ void Game::MusicZone(int map)
                 this->audio.UpdateMusicFade();
             }
 
-            DebugLog("StreamStartOut");
+            DebugLog(u8"StreamStartOut");
         }
 
         view.unk4ACDBC &= 0x8FFFFF;
@@ -326,7 +326,7 @@ bool Game::UpdateRoleRecord(
     {
         if (at + 2 * kRecordWords > data.size() || MapsWord(data, at) == kTableEnd)
         {
-            DebugLog("role record missing", id);
+            DebugLog(u8"role record missing", id);
             return false;
         }
 
@@ -828,14 +828,14 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
 
     this->field.CenterCamera();
     DebugLog(
-        "\n"
-        "MapName[%s] id[%d]",
+        u8"\n"
+        u8"MapName[%s] id[%d]",
         std::string_view(header.name.data(), header.name.size()),
         this->unk4A9A10
     );
     DebugLog(
-        "\n"
-        "TotalRole[%d]",
+        u8"\n"
+        u8"TotalRole[%d]",
         game.roleCount
     );
     this->ShowLoading(0x5F);
