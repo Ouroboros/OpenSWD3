@@ -46,7 +46,8 @@ u32 ReadDword(const std::vector<u8>& data, std::size_t offset)
 
 }  // namespace
 
-ActArchive::ActArchive(ErrorReporter& errors) : errors(errors)
+ActArchive::ActArchive(ErrorReporter& errors)
+    : errors(errors)
 {
 }
 

@@ -495,6 +495,11 @@ void Painter::DrawOutline(int x, int y, int width, int height, u32 mode, const D
 // afterwards.
 int Painter::DrawPicture(int x, int y, int width, int height, u32 mode, const DrawArgument& argument)
 {
+    if (this->source == nullptr)
+    {
+        return 0;
+    }
+
     int result = 0;
     Placement& place = this->placement;
     // Only the scaled path sets the scale direction and only the sheared path the shear direction: both carry over to

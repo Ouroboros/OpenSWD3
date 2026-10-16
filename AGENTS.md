@@ -116,6 +116,17 @@ SDL3与FFmpeg由构建脚本自行下载源码并构建，不查找或复用本�
   ```
 
   函数声明与定义的参数表一行写不下时用同样的格式。不使用按左括号对齐的续行。
+- 构造函数的初始化列表按同样的换行规则：冒号起头，每个成员初始化单独一行、行尾逗号；成员的构造实参一行写不下时每个一行：
+
+  ```cpp
+  Game::Game(std::string installDirectory)
+      : screen(Display::kWidth, Display::kHeight),
+        input(this->inputDevice),
+        battleHud(
+            this->painter,
+            this->archive
+        ),
+  ```
 - 代码注释用英文，说明原行为与依据；不写逐行翻译汇编的注释。
 
 ## C++ 构建要求

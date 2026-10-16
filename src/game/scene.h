@@ -283,8 +283,9 @@ struct Scene
     i16 firefliesShown = 0;          // 0x004B737C
     std::array<Streak, 0x40> bolts;  // 0x004B7520 (a new map clears the first 0x30)
     i32 unk4B7944 = 0;
-    std::array<i32, 0x20> unk4B7998 = {};  // the trail of the leader: y
-    std::array<i32, 0x20> unk4B7A18 = {};  // the trail of the leader: x
+    std::array<i32, 0x20> trailY = {};          // 0x004B7998 the places of the leader, the latest first
+    std::array<i32, 0x20> trailDirection = {};  // 0x004C8C00
+    std::array<i32, 0x20> trailX = {};          // 0x004B7A18
     i32 unk4B7A98 = 0;
     std::array<i32, 8> unk4B7C8C = {};  // the roles following the leader
     i32 unk4B7EB4 = 0;
@@ -306,6 +307,8 @@ struct Scene
     u16 heatFrame = 0;                          // 0x004CAE90
     ColorFade fade;
     i32 unk4AB2D0 = 0;  // the pixels of a step of the camera
+    i32 unk4C9A08 = 0;  // shown as dbg1
+    i32 unk4ACE64 = 0;  // shown as dbg2
     i32 unk4BABA0 = 0;  // followers in unk4B7C8C
     i32 unk4C8BD8 = 0;
     u16 unk4C97F6 = 0;

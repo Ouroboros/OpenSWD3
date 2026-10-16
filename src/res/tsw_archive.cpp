@@ -73,7 +73,9 @@ bool TryAssign(std::vector<u8>& bytes, u32 size)
 
 }  // namespace
 
-TswArchive::TswArchive(const RleCodec& codec, ErrorReporter& errors) : codec(codec), errors(errors)
+TswArchive::TswArchive(const RleCodec& codec, ErrorReporter& errors)
+    : codec(codec),
+      errors(errors)
 {
 }
 

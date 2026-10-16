@@ -29,7 +29,8 @@ u32 ReadDword(const std::vector<u8>& block, std::size_t offset)
 }  // namespace
 
 // swd32.exe 0x00438650: the private heap (with the page size as initial size) and 32 spare nodes
-MemoryManager::MemoryManager(ErrorReporter& errors) : errors(errors)
+MemoryManager::MemoryManager(ErrorReporter& errors)
+    : errors(errors)
 {
     for (int i = 0; i < MemoryManager::kSpareNodes; ++i)
     {

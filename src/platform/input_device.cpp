@@ -70,7 +70,8 @@ u8 ScanCodeOf(int sdlScancode)
     return 0;
 }
 
-WindowInputDevice::WindowInputDevice(const Display& display) : display(display)
+WindowInputDevice::WindowInputDevice(const Display& display)
+    : display(display)
 {
 }
 

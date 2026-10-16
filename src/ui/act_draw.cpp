@@ -19,7 +19,9 @@ constexpr int kGlowBase = -25;
 }  // namespace
 
 ActDrawer::ActDrawer(ActArchive& acts, TswArchive& archive, Painter& painter)
-    : acts(acts), archive(archive), painter(painter)
+    : acts(acts),
+      archive(archive),
+      painter(painter)
 {
 }
 

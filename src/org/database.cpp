@@ -23,7 +23,8 @@ constexpr u16 kEnd = 5;
 class ScriptReader
 {
 public:
-    explicit ScriptReader(const std::vector<u8>& script) : script(script)
+    explicit ScriptReader(const std::vector<u8>& script)
+        : script(script)
     {
     }
 
@@ -102,7 +103,8 @@ u32 ReadDword(File& file)
 
 }  // namespace
 
-Database::Database(const std::string& directory) : directory(directory)
+Database::Database(const std::string& directory)
+    : directory(directory)
 {
 }
 

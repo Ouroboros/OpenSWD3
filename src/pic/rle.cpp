@@ -108,7 +108,8 @@ void EncodeLine(const Pixel*& source, int width, Pixel fill, Pixel skip, bool fi
 
 }  // namespace
 
-RleCodec::RleCodec(const Painter& painter) : painter(painter)
+RleCodec::RleCodec(const Painter& painter)
+    : painter(painter)
 {
 }
 

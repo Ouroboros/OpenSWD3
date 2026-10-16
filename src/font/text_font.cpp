@@ -38,7 +38,8 @@ void PutPair(Pixel* target, std::ptrdiff_t index, Pixel color)
 }  // namespace
 
 // swd32.exe 0x004350E0: 16x16 glyphs, no background, the screen as target
-TextFont::TextFont(GlyphRasterizer& rasterizer) : rasterizer(rasterizer)
+TextFont::TextFont(GlyphRasterizer& rasterizer)
+    : rasterizer(rasterizer)
 {
     this->SetBackground(TextFont::kNoBackground);
     this->SetTarget(Display::kWidth, Display::kHeight);

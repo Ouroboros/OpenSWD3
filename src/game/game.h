@@ -183,8 +183,10 @@ private:
     std::array<BattleEnemy, 8> battleEnemies;  // 0x00525508
     ActDrawer actDrawer;
     Notices notices;
-    i32 unk4B7518 = 0;
-    i32 unk4B7920 = 0;
+    i32 unk4B7518 = 0;          // the step of the camera and the controlled role across (-1, 0, 1)
+    i32 unk4B7920 = 0;          // and down
+    i32 unk4A9488 = 0;          // the step of the controlled role alone across
+    i32 unk4A948C = 0;          // and down
     i32 lastPointerAction = 0;  // 0x004CC2E0
     Menu menu;
     SaveSlots saveSlots;
@@ -207,7 +209,10 @@ private:
     u32 frameStart = 0;  // 0x004AAECC
     u32 unk4C844C = 0;
     u32 unk4C8444 = 0;
-    i32 frameTime = 0;  // 0x0049E1C8
+    u32 unk4C8448 = 0;   // the time the last frame took
+    i32 debugText = 0;   // 0x004CAE9C the debug lines (debug key F1)
+    i32 debugCells = 0;  // 0x004CAEA0 the debug cell marks (debug key F2)
+    i32 frameTime = 0;   // 0x0049E1C8
     i32 unk4A99FC = 0;
     i32 unk4CAD24 = 0;
     i32 loadingPercent = 0;  // 0x004CC2B8

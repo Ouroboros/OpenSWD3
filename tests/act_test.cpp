@@ -22,7 +22,8 @@ namespace
 class ArchiveBackend : public golden::ActBackend
 {
 public:
-    explicit ArchiveBackend(swd3::ActArchive& archive) : archive(archive)
+    explicit ArchiveBackend(swd3::ActArchive& archive)
+        : archive(archive)
     {
     }
 

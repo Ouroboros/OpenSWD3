@@ -49,7 +49,8 @@ struct FieldView::TileSet
     bool indexed = false;
 };
 
-FieldView::FieldView(Game& game) : game(game)
+FieldView::FieldView(Game& game)
+    : game(game)
 {
 }
 
@@ -2171,6 +2172,981 @@ void FieldView::ShakeCamera()
     field.cameraTop += dy;
     field.cameraRight += dx;
     field.cameraBottom += dy;
+}
+
+// swd32.exe 0x004157D0: the rows of the movie frame, centred vertically: 8-bit rows through the palette, 16-bit rows
+// converted to the display in the frame itself (so a frame drawn again is converted again) and copied
+void FieldView::DrawMovieFrame()
+{
+    Game& owner = this->game;
+    MapMovie& film = this->movie;
+    const int pitch = owner.painter.ScreenPitch();
+    auto* screen = reinterpret_cast<u8*>(owner.drawSurface);
+    const std::size_t screenBytes = 2 * static_cast<std::size_t>(pitch) * kScreenHeight;
+    const std::ptrdiff_t base = 2 * static_cast<std::ptrdiff_t>(pitch) * ((kScreenHeight - film.height) >> 1);
+    const u32 rows = film.current != nullptr ? film.current->rows : 0;
+    std::size_t at = 0;
+
+    auto dword = [&film](std::size_t offset) -> u32
+    {
+        return offset + 4 <= film.frame.size() ? static_cast<u32>(
+                                                     film.frame[offset] | film.frame[offset + 1] << 8 |
+                                                     film.frame[offset + 2] << 16 | film.frame[offset + 3] << 24
+                                                 )
+                                               : 0;
+    };
+
+    for (u32 row = 0; row < rows && static_cast<i32>(row) >= 0; ++row)
+    {
+        const u32 length = dword(at);
+        const std::ptrdiff_t target = base + static_cast<std::ptrdiff_t>(dword(at + 4));
+
+        if (length < 8 || at + length > film.frame.size())
+        {
+            break;
+        }
+
+        const std::size_t count = length - 8;
+        u8* pixels = film.frame.data() + at + 8;
+
+        if (!film.palette.empty())
+        {
+            for (std::size_t index = 0; index < count; ++index)
+            {
+                const std::ptrdiff_t out = target + 2 * static_cast<std::ptrdiff_t>(index);
+
+                if (out >= 0 && static_cast<std::size_t>(out) + 2 <= screenBytes)
+                {
+                    const u16 color = film.palette[pixels[index]];
+                    std::memcpy(screen + out, &color, 2);
+                }
+            }
+        }
+        else
+        {
+            std::vector<u16> converted(count / 2);
+            std::memcpy(converted.data(), pixels, converted.size() * 2);
+            owner.painter.ConvertPixels(converted);
+            std::memcpy(pixels, converted.data(), converted.size() * 2);
+
+            if (target >= 0 && static_cast<std::size_t>(target) + count <= screenBytes)
+            {
+                std::memcpy(screen + target, pixels, count);
+            }
+        }
+
+        at += length;
+    }
+}
+
+// swd32.exe 0x004158C0: the chunk of the current frame: from the chunks read before, or read on from the last one
+// (keeping every chunk; a palette due at this frame read from the file's end); past the last frame the screen is kept
+// as the frame and 1 returned
+int FieldView::ReadMovieFrame()
+{
+    Game& owner = this->game;
+    MapMovie& film = this->movie;
+
+    auto unpack = [&film](u32 bytes)
+    {
+        film.buffer.resize(std::max<std::size_t>(film.buffer.size(), bytes));
+        MapCache::Unpack(std::span<const u8>(film.buffer.data(), bytes), film.frame);
+    };
+
+    MovieChunk* previous = &film.chunks;
+
+    for (MovieChunk* chunk = film.chunks.next.get(); chunk != nullptr; chunk = chunk->next.get())
+    {
+        if (chunk->frame == film.frameIndex)
+        {
+            const u32 bytes = chunk->size;
+            film.file.SeekBegin(static_cast<i32>(chunk->offset + 0xC));
+
+            if (bytes != 0)
+            {
+                owner.AudioPump();
+                u32 read = bytes;
+                film.buffer.resize(std::max<std::size_t>(film.buffer.size(), bytes));
+                film.file.Read(film.buffer.data(), read);
+                unpack(bytes);
+            }
+
+            film.current = chunk;
+            return 0;
+        }
+
+        previous = chunk;
+    }
+
+    u32 offset = previous->offset + previous->size;
+    i32 frame = previous->frame + 1;
+    film.file.SeekBegin(static_cast<i32>(offset + 0xC));
+    MovieChunk* chunk = nullptr;
+
+    for (;;)
+    {
+        if (frame > film.lastFrame)
+        {
+            const std::size_t bytes = std::min<std::size_t>(film.frame.size(), 0x96000);
+            std::memcpy(film.frame.data(), owner.drawSurface, bytes);
+            return 1;
+        }
+
+        auto fresh = std::make_unique<MovieChunk>();
+        fresh->offset = offset;
+        fresh->unk0C = previous->nextUnk0C;
+        fresh->rows = previous->nextRows;
+        fresh->size = previous->nextSize;
+        fresh->frame = frame;
+        owner.AudioPump();
+        u32 read = fresh->size;
+        film.buffer.resize(std::max<std::size_t>(film.buffer.size(), fresh->size));
+        film.file.Read(film.buffer.data(), read);
+
+        if (film.paletteCount != 0 && film.paletteIndex < film.paletteFrames.size() &&
+            film.frameIndex == film.paletteFrames[film.paletteIndex])
+        {
+            owner.AudioPump();
+            const i32 back = 0x300 * (film.paletteCount - film.paletteIndex++) + 0x400;
+            std::array<u8, 0x300> colors = {};
+            film.file.SeekEnd(-back);
+            u32 bytes = 0x300;
+            film.file.Read(colors.data(), bytes);
+            film.palette.assign(0x100, 0);
+
+            for (std::size_t index = 0; index < 0x100; ++index)
+            {
+                const u8* color = colors.data() + 3 * index;
+                const u32 high = (color[1] & 0xF8u) | 0x20u * (color[0] & 0xF8u);
+                film.palette[index] = static_cast<u16>((color[2] >> 3) | 4 * high);
+            }
+
+            owner.painter.ConvertPixels(film.palette);
+        }
+
+        auto tail = [&film, &fresh](u32 back) -> u32
+        {
+            const std::size_t at = static_cast<std::size_t>(fresh->size) - back;
+            return fresh->size >= back && at + 4 <= film.buffer.size()
+                       ? static_cast<u32>(
+                             film.buffer[at] | film.buffer[at + 1] << 8 | film.buffer[at + 2] << 16 |
+                             film.buffer[at + 3] << 24
+                         )
+                       : 0;
+        };
+
+        fresh->nextUnk0C = tail(0xC);
+        fresh->nextRows = tail(8);
+        fresh->nextSize = tail(4);
+        offset += fresh->size;
+        chunk = fresh.get();
+        previous->next = std::move(fresh);
+        previous = chunk;
+
+        if (frame == film.frameIndex)
+        {
+            break;
+        }
+
+        ++frame;
+    }
+
+    const u32 packed = chunk->size - 0xC;
+
+    if (packed != 0)
+    {
+        unpack(packed);
+    }
+
+    film.current = chunk;
+    return 0;
+}
+
+// swd32.exe 0x004154A0: the movie over the map: while talk windows, lines or role heads show (or it is paused) the
+// screen is kept as it was; it fades in with black bars closing, plays a frame a call, and fades out (darkening, or the
+// map coming back between closing bars); at the end everything is freed and the frame rate restored. 1 while fading
+// out.
+int FieldView::UpdateMovie()
+{
+    Game& owner = this->game;
+    MapMovie& film = this->movie;
+    const i32 active = film.active;
+
+    if (active == 0)
+    {
+        return 0;
+    }
+
+    auto* screen = reinterpret_cast<u8*>(owner.drawSurface);
+    constexpr std::size_t kScreenBytes = 0x96000;
+
+    if (owner.scene.talkWindows != nullptr || owner.scene.effects != nullptr || owner.scene.spritesB != nullptr ||
+        (film.options & 0x10) != 0)
+    {
+        film.buffer.resize(std::max(film.buffer.size(), kScreenBytes));
+
+        if (film.saved == 0)
+        {
+            std::memcpy(film.buffer.data(), screen, kScreenBytes);
+            film.saved = 1;
+            return 0;
+        }
+
+        std::memcpy(screen, film.buffer.data(), kScreenBytes);
+        return 0;
+    }
+
+    if (film.saved == 1)
+    {
+        std::memcpy(screen, film.buffer.data(), std::min(film.buffer.size(), kScreenBytes));
+        film.saved = 0;
+        return 0;
+    }
+
+    const int pitch = owner.painter.ScreenPitch();
+
+    if (film.frameIndex <= 0)
+    {
+        this->DrawMovieFrame();
+        const int bar = 4 * film.frameIndex + 0x34;
+        const auto bytes = static_cast<std::size_t>(std::max(bar, 0)) * 2 * static_cast<std::size_t>(pitch);
+        std::memset(screen, 0, std::min(bytes, kScreenBytes));
+
+        if (bytes <= kScreenBytes)
+        {
+            std::memset(
+                screen + 2 * static_cast<std::size_t>(pitch) * static_cast<std::size_t>(kScreenHeight - bar),
+                0,
+                bytes
+            );
+        }
+
+        ++film.frameIndex;
+        return 0;
+    }
+
+    if (film.frameIndex >= 0x2710)
+    {
+        if ((film.options & 1) != 0)
+        {
+            const int level = 2 * (0x2710 - film.frameIndex);
+            owner.painter.TintPixels(std::span<u16>(owner.drawSurface, 0x4B000), level, level, level);
+        }
+        else
+        {
+            film.active = 0;
+            owner.scene.unk4C9A18 &= ~1;
+            this->Paint();
+            owner.scene.unk4C9A18 |= 1;
+            film.active = active;
+            const auto bytes = static_cast<std::size_t>(std::max(0, 2 * 2 * pitch * (0x272E - film.frameIndex)));
+            std::memset(screen, 0, std::min(bytes, kScreenBytes));
+
+            if (bytes <= kScreenBytes)
+            {
+                std::memset(screen + kScreenBytes - bytes, 0, bytes);
+            }
+        }
+
+        ++film.frameIndex;
+        const bool ended = (film.options & 1) != 0 ? film.frameIndex > 0x271F : film.frameIndex > 0x272E;
+
+        if (ended)
+        {
+            film.chunks.next.reset();
+            film.frame.clear();
+            film.buffer.clear();
+            film.palette.clear();
+            film.paletteFrames.clear();
+            film.chunks.offset = 0;
+            film.chunks.size = 0;
+            film.chunks.nextSize = 0;
+            film.chunks.frame = 0;
+            film.current = &film.chunks;
+            film.height = 0;
+            film.active = 0;
+            film.frameIndex = 0;
+            film.file.Close();
+            owner.systemFlags &= ~2u;
+            owner.state.SetFrameInterval(Game::kFrameInterval);
+        }
+
+        return 1;
+    }
+
+    if (this->ReadMovieFrame() != 0)
+    {
+        film.frameIndex = 0x2710;
+    }
+    else
+    {
+        this->DrawMovieFrame();
+        ++film.frameIndex;
+    }
+
+    return 0;
+}
+
+// swd32.exe 0x00412930: the frame of the map: the movie, or the overlays, the tiles (8-bit maps through their palette),
+// reflections, roles, animations, sprites and the screen effects (all but the spotlight left out with story flag
+// 0x48); then the lines, the talk windows, the role heads, the gold, the pointer, the fade and the notices
+void FieldView::Paint()
+{
+    Game& owner = this->game;
+    GameState& state = owner.state;
+    Painter& painter = owner.painter;
+    Scene& view = owner.scene;
+    const Field& field = owner.field;
+
+    auto lightClip = [&painter, &view]()
+    {
+        painter
+            .SetClipClamped(view.unk4B9EF8 - 0xC0, view.unk4B9EFC - 0xC0, view.unk4B9EF8 + 0xC0, view.unk4B9EFC + 0xC0);
+    };
+
+    painter.SetClipClamped(0, 0, kScreenWidth, kScreenHeight);
+
+    if ((view.unk4C9A18 & 4) != 0)
+    {
+        lightClip();
+    }
+
+    if (this->movie.active != 0)
+    {
+        this->UpdateMovie();
+    }
+    else
+    {
+        bool later = true;
+
+        if (state.GameFlag(0xF) || state.GameFlag(0x13))
+        {
+            std::memset(owner.drawSurface, 0, 0x96000);
+        }
+
+        if ((view.unk4C9A18 & 1) != 0)
+        {
+            std::memset(owner.drawSurface, 0, 0x96000);
+        }
+        else
+        {
+            this->DrawOverlays();
+
+            if (!state.GameFlag(0x48) && state.GameFlag(0x13))
+            {
+                lightClip();
+            }
+
+            const bool scrolled = (field.cameraLeft & 0xF) != 0 || (field.cameraTop & 0xF) != 0;
+
+            if (state.map.bitsPerPixel == 0x10)
+            {
+                scrolled ? this->DrawTiles16Scrolled(0) : this->DrawTiles16(0);
+            }
+            else
+            {
+                painter.SetPalette(field.palette.data());
+                scrolled ? this->DrawTiles8Scrolled(0) : this->DrawTiles8(0);
+            }
+
+            painter.SetPalette(nullptr);
+
+            if (!state.GameFlag(0xB))
+            {
+                this->DrawReflections();
+            }
+
+            this->DrawRoles();
+            this->DrawAnimations(view.animationsA);
+            this->DrawSprites();
+
+            if (!state.GameFlag(0x48) && (view.unk4C9A18 & 1) == 0)
+            {
+                this->DrawLeaves();
+                this->DrawLightning();
+                this->DrawFireflies();
+                this->DrawWeather();
+                this->DrawHeat();
+                this->DrawRipples();
+            }
+
+            if (!state.GameFlag(0x48))
+            {
+                this->DrawSpotlight();
+                this->DrawAnimations(view.animationsB);
+                later = false;
+            }
+        }
+
+        if (later)
+        {
+            this->DrawAnimations(view.animationsB);
+        }
+    }
+
+    painter.SetClipClamped(0, 0, kScreenWidth, kScreenHeight);
+    this->DrawLines();
+    owner.talk.Draw();
+    this->DrawRoleHeads();
+
+    if ((state.leader.id == 0xFFFF || state.leader.unk20 < 8) && !state.GameFlag(0x51))
+    {
+        owner.actDrawer.DrawCounter(0x27C, 0x1CC, static_cast<u32>(owner.party.variables[0]), owner.counterAlpha);
+    }
+
+    if ((!state.GameFlag(0xA) && !state.GameFlag(9) && !state.GameFlag(0x51)) || owner.input.IsKeyDown(0x2E) != 0)
+    {
+        owner.RefreshCursor();
+    }
+
+    this->FadeColors(1);
+    owner.notices.Draw(owner.smallFont, painter, state, owner.textColors);
+}
+
+void FieldView::DrawSmallText(int x, int y, u32 color, const std::string& text)
+{
+    this->game.smallFont.DrawText(this->game.drawSurface, x, y, text, static_cast<Pixel>(color), 0x10);
+}
+
+// swd32.exe 0x00413FE0: the debug display: the cell marks of the walls (F2) and the lines of the state, the region
+// and the roles under the pointer (F1)
+void FieldView::DrawDebug(int cameraLeft, int cameraTop)
+{
+    constexpr std::u8string_view kMusicLine = u8"[%d/%d][%d/%d][playing/%d][mode/%s],場景%s,劇情%s";  // 0x004A04F0
+    constexpr std::u8string_view kStory = u8"劇情";                                                   // 0x004A052C
+    constexpr std::u8string_view kScene = u8"場景";                                                   // 0x004A0524
+    constexpr std::u8string_view kBlocked = u8"不可通過";                                             // 0x004A04C8
+    constexpr std::u8string_view kPassable = u8"可通過";                                              // 0x004A04C0
+    constexpr std::u8string_view kClickable = u8"可點選";                                             // 0x004A04B8
+    constexpr std::u8string_view kNotClickable = u8"不可點選";                                        // 0x004A04AC
+    constexpr std::u8string_view kRegionLine = u8"劇情號碼[%d] [%d,%s] [%d,%s]";                      // 0x004A048C
+    constexpr std::u8string_view kBadRegion = u8"錯誤的地圖劇情號碼 (%d)";                            // 0x004A04D8
+    constexpr std::u8string_view kOverlap = u8"角色重疊";                                             // 0x004A0480
+    constexpr std::u8string_view kRoleLine = u8"角色 [GUID %d] [act %d] [qq %d] [dir %d]";            // 0x004A0454
+    Game& owner = this->game;
+    GameState& state = owner.state;
+    const Field& field = owner.field;
+    const Scene& view = owner.scene;
+    owner.smallFont.SetBackground(TextFont::kNoBackground);
+    owner.smallFont.SetShadow(0);
+    const std::array<u16, 3>& masks = owner.config.channelMasks;
+    const u32 red = masks[0];
+    const u32 green = masks[1];
+    const u32 blue = masks[2];
+
+    if (owner.debugCells == 1)
+    {
+        this->MarkCells(0x40000000, static_cast<int>(red + green + blue), cameraLeft, cameraTop, 0);
+        this->MarkCells(0x10000000, static_cast<int>(green + blue), cameraLeft, cameraTop, 2);
+        this->MarkCells(0xFF, static_cast<int>(red + green), cameraLeft, cameraTop, 4);
+        this->MarkCells(0x20000000, static_cast<int>(red), cameraLeft, cameraTop, 6);
+        this->MarkCells(0x800000, static_cast<int>(red + blue), cameraLeft, cameraTop, 8);
+    }
+
+    if (owner.debugText != 1)
+    {
+        return;
+    }
+
+    const u32 white = owner.textColors.primary[0];
+    const std::vector<u32>& blocks = state.map.blocks;
+    const std::size_t pointerCell =
+        (static_cast<u32>(field.cameraLeft + state.pointerX) >> 4) +
+        static_cast<std::size_t>(state.map.width) * (static_cast<u32>(state.pointerY + field.cameraTop) >> 4);
+    const u32 region = pointerCell < blocks.size() ? blocks[pointerCell] & 0xFF : 0;
+    const Role& player = state.roles[static_cast<std::size_t>(state.playerRole)];
+    this->DrawDebugText(
+        8,
+        0,
+        white,
+        "MAct[%4.1f/%4.1f] LTCor[%4d/%4d]",
+        static_cast<double>(static_cast<u32>(player.x)) * 0.0625,
+        static_cast<double>(static_cast<u32>(player.y)) * 0.0625,
+        field.cameraLeft >> 4,
+        field.cameraTop >> 4
+    );
+    this->DrawDebugText(
+        8,
+        0x10,
+        white,
+        "Mouse :OnMap[%4d/%4d] OnScr[%4d/%4d]",
+        (static_cast<u32>(state.pointerX) >> 4) + static_cast<u32>(field.cameraLeft >> 4),
+        (static_cast<u32>(state.pointerY) >> 4) + static_cast<u32>(field.cameraTop >> 4),
+        state.pointerX,
+        state.pointerY
+    );
+    const ButtonState& click = owner.controls.At(Button::MouseLeft);
+    this->DrawDebugText(
+        8,
+        0x20,
+        white,
+        "FPS[%2d] FUsed(%d),kr.d[%1d] ,kr.p[%4d] _IPA[%4d]",
+        owner.frameTime != 0 ? 0x3E8u / static_cast<u32>(owner.frameTime) : 0u,
+        owner.unk4C8448,
+        click.press,
+        click.heldFrames,
+        owner.controls.mouseSuppressed
+    );
+    this->DrawDebugText(8, 0x30, white, "MapID[%d] MapCyc[%d] %d", owner.unk4A9A10, view.unk49E0BC, view.unk4AB2D0);
+    this->DrawDebugText(
+        8,
+        0x40,
+        white,
+        "ULck[%x] UIpt[%x] gTm[%d] Fsc[%d] ,BtlM[%d] ,BtnIp[%d]",
+        view.unk4A9920,
+        owner.talk.advance,
+        owner.party.unk4ACDB0,
+        view.unk4C9A20 & 0x7FFFFFFF,
+        view.unk4B896C,
+        owner.talk.choice
+    );
+    this->DrawDebugText(
+        8,
+        0x50,
+        white,
+        "T.Gd[%d] T.Tid[%d] dbg1[%d] dbg2[%d]",
+        static_cast<u32>(state.leader.id),
+        static_cast<u32>(state.leader.event),
+        view.unk4C9A08,
+        view.unk4ACE64
+    );
+
+    auto mode = [&view](u32 used, u32 repeat) -> std::string
+    {
+        if ((view.unk4ACDBC & used) == 0)
+        {
+            return "Nil";
+        }
+
+        return (view.unk4ACDBC & repeat) != 0 ? "Rep1" : "Cyc2";
+    };
+
+    this->DrawDebugText(
+        8,
+        0x60,
+        white,
+        Big5(kMusicLine),
+        view.unk4B7C74[1],
+        view.unk4B7C74[2],
+        view.unk4B7C74[4],
+        view.unk4B7C74[5],
+        static_cast<u32>(static_cast<u8>(view.unk4ACDBC)),
+        Big5((view.unk4ACDBC & 0x800000) != 0 ? kStory : kScene),
+        mode(0x80000, 0x40000),
+        mode(0x20000, 0x10000)
+    );
+
+    if (region != 0)
+    {
+        const MapRegion* found = owner.field.FindRegion(static_cast<int>(region));
+
+        if (found != nullptr)
+        {
+            const std::string_view name(found->name.data(), found->name.size());
+            this->DrawDebugText(8, 0x1C0, white, "%s", std::string(name.substr(0, name.find('\0'))));
+            const auto flag = static_cast<u32>(found->flag);
+            const std::string passable = Big5(state.GameFlag(static_cast<int>(flag >> 16)) ? kBlocked : kPassable);
+            const std::string clickable =
+                Big5(state.GameFlag(static_cast<int>(flag & 0xFFFF)) ? kClickable : kNotClickable);
+            this->DrawDebugText(
+                8,
+                0x1D0,
+                white,
+                Big5(kRegionLine),
+                found->event & 0x7FFF,
+                flag & 0xFFFF,
+                clickable,
+                flag >> 16,
+                passable
+            );
+        }
+        else
+        {
+            this->DrawDebugText(8, 0x1B0, white, Big5(kBadRegion), region);
+        }
+    }
+
+    const auto mapX = static_cast<u32>(state.pointerX + field.cameraLeft);
+    const auto mapY = static_cast<u32>(state.pointerY + field.cameraTop);
+    int overlapping = 0;
+
+    for (u32 index = 1; index < static_cast<u32>(state.roleCount) && index < GameState::kRoles; ++index)
+    {
+        const Role& role = state.roles[index];
+
+        if (role.act.id == 0)
+        {
+            continue;
+        }
+
+        if (mapX > static_cast<u32>(role.x - 0x10) && mapX < static_cast<u32>(role.x + 0x30) &&
+            mapY > static_cast<u32>(role.y - 0x40) && mapY < static_cast<u32>(role.y + 0x10))
+        {
+            ++overlapping;
+
+            if (overlapping >= 2)
+            {
+                this->DrawDebugText(8, 0x190, white, Big5(kOverlap));
+            }
+
+            this->DrawDebugText(
+                8,
+                0x1A0,
+                owner.textColors.primary[3],
+                Big5(kRoleLine),
+                static_cast<u32>(role.id),
+                role.act.id,
+                role.act.action,
+                role.act.direction
+            );
+            this->DrawDebugText(
+                8,
+                0x1B0,
+                white,
+                "[GUID %d] [Talk %d] [Path %d] [Argu %4x] [ArrIdx %d]",
+                static_cast<u32>(role.id),
+                static_cast<u32>(role.event),
+                static_cast<u32>(role.unk1C),
+                role.flags,
+                index
+            );
+        }
+    }
+}
+
+// The flags a role takes from its cell on entering it (inline in the original): a reflecting cell (bit 11) sets flag
+// 29, the shade bits 12..15 go to flags 20..23
+void FieldView::UpdateRoleCellFlags(Role& role)
+{
+    if ((role.flags & 0x100) == 0)
+    {
+        return;
+    }
+
+    role.flags &= 0xDF0FFFFF;
+    const u32 cell = role.cell != nullptr ? *role.cell : 0;
+
+    if ((cell & 0x800) != 0)
+    {
+        role.flags |= 0x20000000;
+    }
+
+    if ((cell & 0xF000) != 0)
+    {
+        role.flags |= (cell & 0xF000) << 8;
+    }
+}
+
+// swd32.exe 0x004120B0: a frame of the map: the screen acts step, the camera and the controlled role move by their
+// step, every role on a move steps along it (twice as fast without flag 0xD4 or with flag 0x4000000; at the end it
+// takes the move's act, resumes a held move and, for role 1, stops the keys and recentres), touch roles start their
+// event, the followers step, the camera pans and shakes; then the frame is painted with the timer and the debug display
+// and shown; the controlled role's cells and trail follow its step, the tile layers cycle, and a shaken camera is put
+// back
+void FieldView::Render()
+{
+    // swd32.exe 0x00499574: the act direction of each path direction; 0x00499534 and 0x00499554: its cell step.
+    constexpr std::array<i32, 8> kFacing = {5, 1, 6, 2, 4, 0, 7, 3};
+    static constexpr std::array<i32, 8> kCellX = {1, 0, -1, -1, -1, 0, 1, 1};
+    static constexpr std::array<i32, 8> kCellY = {1, 1, 1, 0, -1, -1, -1, 0};
+    Game& owner = this->game;
+    GameState& state = owner.state;
+    Scene& view = owner.scene;
+    Field& field = owner.field;
+    const auto leaderId = static_cast<u16>(owner.unk4B7BC4);
+    const int width = state.map.width;
+
+    for (std::size_t act = view.unk4B9F68.size(); act-- > 0;)
+    {
+        if (view.unk4B9F68[act].id != 0)
+        {
+            owner.acts.Run(view.unk4B9F68[act]);
+        }
+    }
+
+    Role& player = state.roles[static_cast<std::size_t>(state.playerRole)];
+    const int scroll = view.unk4AB2D0;
+    player.x += scroll * (owner.unk4B7518 + owner.unk4A9488);
+    player.y += scroll * (owner.unk4B7920 + owner.unk4A948C);
+    field.cameraLeft += owner.unk4B7518 * scroll;
+    field.cameraTop += owner.unk4B7920 * scroll;
+    field.cameraRight += owner.unk4B7518 * scroll;
+    field.cameraBottom += owner.unk4B7920 * scroll;
+
+    auto moveCell = [&state, width](Role& role, int direction)
+    {
+        if (role.cell == nullptr || direction < 0 || direction >= 8)
+        {
+            return;
+        }
+
+        const std::ptrdiff_t at = role.cell - state.map.blocks.data() + kCellX[static_cast<std::size_t>(direction)] +
+                                  static_cast<std::ptrdiff_t>(width) * kCellY[static_cast<std::size_t>(direction)];
+        role.cell = at >= 0 && static_cast<std::size_t>(at) < state.map.blocks.size()
+                        ? &state.map.blocks[static_cast<std::size_t>(at)]
+                        : nullptr;
+    };
+
+    for (MoveRecord& move : state.moves)
+    {
+        if (move.role == 0xFFFF || move.step >= 0x7FFF)
+        {
+            continue;
+        }
+
+        const u16 index = move.role;
+
+        if (index >= GameState::kRoles)
+        {
+            continue;
+        }
+
+        Role& role = state.roles[index];
+
+        if ((role.flags & 0x8000) == 0)
+        {
+            continue;
+        }
+
+        const u16 id = role.id;
+
+        if ((id == state.leader.id && (move.mode & 0xF) == 1) || ((role.flags & 0x800) != 0 && role.unk26 == 1))
+        {
+            continue;
+        }
+
+        if (role.act.delay == 0)
+        {
+            int stepX = move.stepX;
+            int stepY = move.stepY;
+
+            if (role.unkD4 == 0)
+            {
+                stepX *= 2;
+                stepY *= 2;
+            }
+
+            if ((role.flags & 0x4000000) != 0)
+            {
+                stepX *= 2;
+                stepY *= 2;
+            }
+
+            const u8 direction = move.directions[static_cast<std::size_t>(move.step) % move.directions.size()];
+
+            if (direction != 0xFF && direction < 8)
+            {
+                role.act.direction = kFacing[direction];
+            }
+
+            role.x += stepX;
+            role.y += stepY;
+
+            if (((role.x | role.y) & 0xF) == 0)
+            {
+                field.RemoveRole(id, static_cast<int>(role.flags & 3), (static_cast<u32>(role.y) >> 4) - 1, 0);
+
+                if (role.x == move.x && role.y == move.y)
+                {
+                    role.act.speed = 0;
+                    role.flags = (role.flags & 0xB9FFFFFF) | 0x2000000;
+
+                    if (move.act != -1)
+                    {
+                        role.act.id = move.act;
+                    }
+
+                    if (move.action != -1)
+                    {
+                        role.act.action = move.action;
+                    }
+
+                    if (move.direction != -1)
+                    {
+                        role.act.direction = move.direction;
+                    }
+
+                    if (static_cast<i8>(move.mode) >= 0)
+                    {
+                        owner.rolePath.ResumeMove(index);
+                        role.act.delay = 0;
+                        role.flags &= 0x7FFFFFFF;
+                    }
+
+                    if (role.id == 1)
+                    {
+                        owner.unk4B7920 = 0;
+                        owner.controls.buttons = {};
+                        owner.unk4B7518 = 0;
+                        owner.unk4A948C = 0;
+                        owner.unk4A9488 = 0;
+
+                        if ((view.unk4C9A18 & 2) == 0)
+                        {
+                            field.CenterCamera();
+                        }
+                    }
+
+                    role.flags &= ~0x40000u;
+                }
+
+                field.ClearRoleCells(role, leaderId);
+
+                if (direction != 0xFF)
+                {
+                    moveCell(role, direction);
+                }
+
+                field.MarkRoleCells(role, leaderId);
+                move.step = static_cast<u16>((move.step + 1) | MoveRecord::kDone);
+                this->UpdateRoleCellFlags(role);
+            }
+
+            if (state.leader.id == 0xFFFF && (role.flags & 0x2000) != 0)
+            {
+                const std::ptrdiff_t cell = role.cell != nullptr ? role.cell - state.map.blocks.data() : 0;
+
+                if (static_cast<u8>(field.ProbeCells(cell, role.act.width, role.act.height, 0x100)) != 0)
+                {
+                    state.leader.unk14 = role.unk14;
+                    state.leader.unk20 = role.unk20;
+                    state.leader.event = role.event;
+                    state.leader.id = role.id;
+                    state.leader.flags = role.flags;
+                }
+            }
+        }
+
+        owner.acts.Run(role.act);
+
+        if (index == state.playerRole && (view.unk4C9A18 & 2) == 0)
+        {
+            field.CenterCamera();
+        }
+    }
+
+    for (u32 follower = 1; follower < static_cast<u32>(view.unk4BABA0) && follower < view.followerMoves.size();
+         ++follower)
+    {
+        MoveRecord& move = view.followerMoves[follower];
+
+        if (move.role == 0xFFFF || move.role >= GameState::kRoles)
+        {
+            continue;
+        }
+
+        Role& role = state.roles[move.role];
+
+        if (move.step >= 0x7FFF)
+        {
+            owner.acts.Run(role.act);
+            continue;
+        }
+
+        if (role.act.delay == 0)
+        {
+            const u8 direction = move.directions[static_cast<std::size_t>(move.step) % move.directions.size()];
+
+            if (direction < 8)
+            {
+                role.act.direction = kFacing[direction];
+            }
+
+            role.x += move.stepX;
+            role.y += move.stepY;
+
+            if (((role.x | role.y) & 0xF) == 0)
+            {
+                field.RemoveRole(role.id, static_cast<int>(role.flags & 3), 0, 0);
+                field.ClearRoleCells(role, leaderId);
+                moveCell(role, direction);
+                field.MarkRoleCells(role, leaderId);
+                move.step = static_cast<u16>((move.step + 1) | MoveRecord::kDone);
+                this->UpdateRoleCellFlags(role);
+            }
+        }
+
+        owner.acts.Run(role.act);
+    }
+
+    this->PanCamera();
+    this->ShakeCamera();
+    owner.AudioPump();
+    owner.drawSurface = owner.painter.LockSurface(*owner.offscreen);
+    owner.painter.SetTarget(owner.drawSurface);
+    owner.painter.UnlockSurface(*owner.offscreen);
+    this->Paint();
+    this->DrawTimer(0x190, 8, 0);
+
+    if (owner.config.debugMode == 1)
+    {
+        this->DrawDebug(field.cameraLeft, field.cameraTop);
+    }
+
+    owner.AudioPump();
+    owner.ShowFrame();
+
+    if ((player.x & 0xF) == 0 && (player.y & 0xF) == 0)
+    {
+        field.RemoveRole(player.id, static_cast<int>(player.flags & 3), (player.y >> 4) - 1, 0);
+        field.ClearRoleCells(player, leaderId);
+
+        if (player.cell != nullptr)
+        {
+            const std::ptrdiff_t at = player.cell - state.map.blocks.data() + owner.unk4B7518 + owner.unk4A9488 +
+                                      static_cast<std::ptrdiff_t>(width) * (owner.unk4B7920 + owner.unk4A948C);
+            player.cell = at >= 0 && static_cast<std::size_t>(at) < state.map.blocks.size()
+                              ? &state.map.blocks[static_cast<std::size_t>(at)]
+                              : nullptr;
+        }
+
+        field.MarkRoleCells(player, leaderId);
+        owner.unk4B7920 = 0;
+        owner.unk4A948C = 0;
+        owner.unk4B7518 = 0;
+        owner.unk4A9488 = 0;
+
+        if (view.trailX[0] != player.x || view.trailY[0] != player.y)
+        {
+            std::copy_backward(view.trailX.begin(), view.trailX.end() - 1, view.trailX.end());
+            std::copy_backward(view.trailY.begin(), view.trailY.end() - 1, view.trailY.end());
+            std::copy_backward(view.trailDirection.begin(), view.trailDirection.end() - 1, view.trailDirection.end());
+            view.trailX[0] = player.x;
+            view.trailY[0] = player.y;
+            view.trailDirection[0] = player.act.direction;
+        }
+
+        this->UpdateRoleCellFlags(player);
+    }
+
+    if ((player.flags & 0x40000000) == 0 && (player.flags & 0x1000) != 0)
+    {
+        owner.acts.Run(player.act);
+    }
+
+    if (++view.unk4CC2DC >= view.unk49E0BC && state.map.layers != 1)
+    {
+        int layer = view.unk49E0C0 + view.unk4B7944;
+        view.unk4CC2DC = 0;
+        view.unk4B7944 += view.unk49E0C0;
+
+        if (static_cast<u32>(view.unk4B7944) >= static_cast<u32>(state.map.layers))
+        {
+            view.unk49E0C0 = view.unk49E0C0 != 1 ? 1 : -1;
+            layer += 2 * view.unk49E0C0;
+            view.unk4B7944 = layer;
+        }
+
+        view.unk4B873C = layer * view.unk4B7A98;
+    }
+
+    if (view.shake[0] != static_cast<i16>(0xCFCF) && owner.unk4A9A10 != 0x16)
+    {
+        field.cameraLeft = view.unk4A93E4;
+        field.cameraTop = view.unk4A992C;
+        field.cameraRight = view.unk4A93E4 + kScreenWidth;
+        field.cameraBottom = view.unk4A992C + kScreenHeight;
+    }
 }
 
 // swd32.exe 0x00430CF0: its grid and screen copy freed

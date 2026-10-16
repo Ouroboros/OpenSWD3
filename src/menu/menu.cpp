@@ -42,7 +42,8 @@ bool Repeating(const ButtonState& button, i32 parity)
 
 }  // namespace
 
-Menu::Menu(Game& game) : game(game)
+Menu::Menu(Game& game)
+    : game(game)
 {
 }
 

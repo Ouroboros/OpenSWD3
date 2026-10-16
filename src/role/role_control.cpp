@@ -24,7 +24,8 @@ struct SlideRule
 
 }  // namespace
 
-RoleControl::RoleControl(Game& game) : game(game)
+RoleControl::RoleControl(Game& game)
+    : game(game)
 {
 }
 

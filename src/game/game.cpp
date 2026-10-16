@@ -55,21 +55,35 @@ u32 MouseKeys(SDL_MouseButtonFlags buttons)
 }  // namespace
 
 Game::Game(std::string installDirectory)
-    : screen(Display::kWidth, Display::kHeight), inputDevice(this->display), input(this->inputDevice),
-      graphics(this->display, this->errors), codec(this->painter), archive(this->codec, this->errors),
-      acts(this->errors), rasterizer(this->glyphs), largeFont(this->rasterizer), mediumFont(this->rasterizer),
-      smallFont(this->rasterizer), audio(this->audioDevice), mapCache(this->config, this->painter),
-      field(this->state, this->mapCache, this->config, this->codec), fieldView(*this), talk(*this), roleControl(*this),
-      rolePath(*this), database(installDirectory),
-      battleHud(this->painter, this->archive, this->acts, this->random, this->audio), battleMessages(
-                                                                                          this->painter,
-                                                                                          this->archive,
-                                                                                          this->acts,
-                                                                                          this->battleHud,
-                                                                                          this->battleState,
-                                                                                          this->mediumFont,
-                                                                                          this->largeFont
-                                                                                      ),
+    : screen(Display::kWidth, Display::kHeight),
+      inputDevice(this->display),
+      input(this->inputDevice),
+      graphics(this->display, this->errors),
+      codec(this->painter),
+      archive(this->codec, this->errors),
+      acts(this->errors),
+      rasterizer(this->glyphs),
+      largeFont(this->rasterizer),
+      mediumFont(this->rasterizer),
+      smallFont(this->rasterizer),
+      audio(this->audioDevice),
+      mapCache(this->config, this->painter),
+      field(this->state, this->mapCache, this->config, this->codec),
+      fieldView(*this),
+      talk(*this),
+      roleControl(*this),
+      rolePath(*this),
+      database(installDirectory),
+      battleHud(this->painter, this->archive, this->acts, this->random, this->audio),
+      battleMessages(
+          this->painter,
+          this->archive,
+          this->acts,
+          this->battleHud,
+          this->battleState,
+          this->mediumFont,
+          this->largeFont
+      ),
       battleServices{
           this->battleState,
           this->random,
@@ -82,10 +96,11 @@ Game::Game(std::string installDirectory)
           this->config,
           this->party,
       },
-
-      actDrawer(this->acts, this->archive, this->painter), menu(*this)
+      actDrawer(this->acts, this->archive, this->painter),
+      menu(*this)
 {
     this->config.installDirectory = std::move(installDirectory);
+    this->archive.SetMapPictureSource(&this->field);
     this->glyphs.Load(GlyphLibraryPath());
 }
 
@@ -1065,6 +1080,34 @@ void Game::MainFrame()
 
             default:
                 break;
+        }
+    }
+    else
+    {
+        this->talk.HandlePointer();
+
+        if (this->running != 0 && this->inactive == 0 && this->storyState == 0)
+        {
+            if (static_cast<u32>(++this->frameCounter) > 0x14)
+            {
+                this->frameCounter = 0;
+
+                if (static_cast<u32>(++this->party.unk4ACDB0) > 0x3E8)
+                {
+                    this->party.unk4ACDB0 = 0;
+                }
+            }
+
+            if ((this->systemFlags & 5) == 0)
+            {
+                this->rolePath.Update();
+                this->largeFont.SetAdvance(0x16);
+                this->mediumFont.SetAdvance(0x12);
+                this->smallFont.SetAdvance(0x10);
+                this->fieldView.Render();
+            }
+
+            this->unk4C8448 = this->frameStart - this->unk4C844C;
         }
     }
 

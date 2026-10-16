@@ -39,7 +39,8 @@ golden::PictureResult Result(const swd3::Picture* picture)
 class ArchiveBackend : public golden::TswBackend
 {
 public:
-    explicit ArchiveBackend(swd3::TswArchive& archive) : archive(archive)
+    explicit ArchiveBackend(swd3::TswArchive& archive)
+        : archive(archive)
     {
     }
 

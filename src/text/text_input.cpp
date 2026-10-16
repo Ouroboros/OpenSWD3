@@ -38,7 +38,10 @@ std::string CharacterText(char first, char second)
 
 // swd32.exe 0x004389D0: copies the whole characters of `text` that fit; the cursor starts at 0
 TextInput::TextInput(std::string_view text, int capacity, int x, int y)
-    : text(static_cast<std::size_t>(capacity) + 1, '\0'), x(x), y(y), capacity(capacity)
+    : text(static_cast<std::size_t>(capacity) + 1, '\0'),
+      x(x),
+      y(y),
+      capacity(capacity)
 {
     const std::string_view source = text.substr(0, text.find('\0'));
     const u32 length = TextFitLength(source, this->capacity);

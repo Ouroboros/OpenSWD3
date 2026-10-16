@@ -136,7 +136,9 @@ void ShowDeviceError(ErrorReporter& errors, std::string_view caption, u32 result
 }
 
 // swd32.exe 0x00437560: no device and no surfaces
-Graphics::Graphics(Display& display, ErrorReporter& errors) : display(display), errors(errors)
+Graphics::Graphics(Display& display, ErrorReporter& errors)
+    : display(display),
+      errors(errors)
 {
 }
 

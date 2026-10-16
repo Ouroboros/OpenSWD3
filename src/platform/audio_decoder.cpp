@@ -19,7 +19,9 @@ namespace
 class MemoryReader
 {
 public:
-    MemoryReader(const u8* data, std::size_t size) : data(data), size(size)
+    MemoryReader(const u8* data, std::size_t size)
+        : data(data),
+          size(size)
     {
     }
 

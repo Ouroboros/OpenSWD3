@@ -55,7 +55,8 @@ int SetFadeStep(SequenceNode& node, int steps)
 }
 
 // swd32.exe 0x00486580
-SequencePlayer::SequencePlayer(AudioDevice& device) : device(device)
+SequencePlayer::SequencePlayer(AudioDevice& device)
+    : device(device)
 {
 }
 
@@ -115,7 +116,8 @@ bool SequencePlayer::FreeNode(std::unique_ptr<SequenceNode> node)
     return true;
 }
 
-MidiPlayer::MidiPlayer(AudioDevice& device) : SequencePlayer(device)
+MidiPlayer::MidiPlayer(AudioDevice& device)
+    : SequencePlayer(device)
 {
 }
 
@@ -321,7 +323,8 @@ SequenceNode* MidiPlayer::Find(int id)
     return nullptr;
 }
 
-StreamPlayer::StreamPlayer(AudioDevice& device) : SequencePlayer(device)
+StreamPlayer::StreamPlayer(AudioDevice& device)
+    : SequencePlayer(device)
 {
 }
 

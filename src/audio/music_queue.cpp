@@ -7,7 +7,9 @@ namespace swd3
 {
 
 // swd32.exe 0x004853E0
-MusicQueue::MusicQueue(StreamPlayer& streams, MidiPlayer& midi) : streams(streams), midi(midi)
+MusicQueue::MusicQueue(StreamPlayer& streams, MidiPlayer& midi)
+    : streams(streams),
+      midi(midi)
 {
 }
 

@@ -26,7 +26,10 @@ Launcher::Launcher(
     SystemSound& sound,
     std::string installDirectory
 )
-    : resources(resources), state(state), sound(sound), installDirectory(std::move(installDirectory))
+    : resources(resources),
+      state(state),
+      sound(sound),
+      installDirectory(std::move(installDirectory))
 {
 }
 

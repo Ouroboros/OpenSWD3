@@ -129,7 +129,9 @@ int PathNodePool::Free(PathNode* node)
 
 // swd32.exe 0x004021D0
 PathFinder::PathFinder(PathNodePool& pool, const BlockingMap& map, ErrorReporter& reporter)
-    : pool(pool), map(map), reporter(reporter)
+    : pool(pool),
+      map(map),
+      reporter(reporter)
 {
 }
 

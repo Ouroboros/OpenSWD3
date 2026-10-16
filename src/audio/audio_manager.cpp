@@ -38,7 +38,10 @@ void AudioSystem::Shutdown()
 }
 
 AudioManager::AudioManager(AudioDevice& device)
-    : midi(device), streams(device), effects(device), queue(this->streams, this->midi)
+    : midi(device),
+      streams(device),
+      effects(device),
+      queue(this->streams, this->midi)
 {
 }
 

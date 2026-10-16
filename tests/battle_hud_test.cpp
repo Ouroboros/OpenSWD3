@@ -53,8 +53,12 @@ class HudBackend : public golden::HudBackend
 {
 public:
     HudBackend()
-        : screen(640, 480), codec(this->painter), archive(this->codec, this->errors), acts(this->errors),
-          audio(this->device), hud(this->painter, this->archive, this->acts, this->random, this->audio)
+        : screen(640, 480),
+          codec(this->painter),
+          archive(this->codec, this->errors),
+          acts(this->errors),
+          audio(this->device),
+          hud(this->painter, this->archive, this->acts, this->random, this->audio)
     {
         this->painter.Init(this->screen);
         this->archive.SetGameDirectory(swd3test::GameDirectory());

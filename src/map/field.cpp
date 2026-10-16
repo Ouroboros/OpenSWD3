@@ -58,7 +58,10 @@ std::vector<u8> ReadBlock(File& file, u32 bytes)
 }  // namespace
 
 Field::Field(GameState& state, MapCache& cache, const Config& config, const RleCodec& codec)
-    : state(state), cache(cache), config(config), codec(codec)
+    : state(state),
+      cache(cache),
+      config(config),
+      codec(codec)
 {
 }
 
@@ -221,8 +224,8 @@ bool Field::LoadUnitPicture(u32 unit, Picture& picture)
     picture.width = static_cast<u16>(0x10 * Word(block, 2));
     picture.height = static_cast<u16>(0x10 * Word(block, 4));
     const u16 format = Word(block, 6);
-    const u32 packed = Dword(block, 8);
-    const u32 unpacked = Dword(block, 0xC);
+    const u32 unpacked = Dword(block, 8);
+    const u32 packed = Dword(block, 0xC);
     picture.data.assign(unpacked, 0);
     MapCache::Unpack(
         std::span<const u8>(block).subspan(0x10, std::min<std::size_t>(packed, block.size() - 0x10)),
@@ -242,6 +245,12 @@ bool Field::LoadUnitPicture(u32 unit, Picture& picture)
     }
 
     return true;
+}
+
+// The pictures of the map units for the picture archive (id 0xFFFF).
+bool Field::LoadMapPicture(int unit, Picture& picture)
+{
+    return this->LoadUnitPicture(static_cast<u32>(unit), picture);
 }
 
 // swd32.exe 0x0040D0C0: the camera centred on the controlled role (304 pixels left of it, 240 above), held inside the

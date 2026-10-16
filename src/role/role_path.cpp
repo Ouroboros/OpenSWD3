@@ -23,7 +23,8 @@ constexpr u32 kFastWalk = 0x4000000;
 
 }  // namespace
 
-RolePath::RolePath(Game& game) : game(game)
+RolePath::RolePath(Game& game)
+    : game(game)
 {
 }
 
@@ -396,8 +397,8 @@ void RolePath::Follow(int index)
         const BlockingMap grid = this->Grid();
         PathFinder finder(owner.pathNodes, grid, owner.errors);
         move.Clear();
-        const i32 targetX = view.unk4B7A18[2 * follower];
-        const i32 targetY = view.unk4B7998[2 * follower];
+        const i32 targetX = view.trailX[2 * follower];
+        const i32 targetY = view.trailY[2 * follower];
 
         if (state.GameFlag(0x4F))
         {
@@ -1105,6 +1106,57 @@ void RolePath::RunScript(int index)
                 return;
         }
     }
+}
+
+// swd32.exe 0x0042D920: a held role (flag bit 31) leaving an event: its scripted move takes the move queued after it
+// (a new path from where the role stands) or, with none queued, is freed. False when it has no scripted move.
+bool RolePath::ResumeMove(int index)
+{
+    GameState& state = this->game.state;
+    Role& role = state.roles[static_cast<std::size_t>(index)];
+
+    if (static_cast<i32>(role.flags) >= 0)
+    {
+        return true;
+    }
+
+    int slot = 0;
+
+    while (state.moves[static_cast<std::size_t>(slot)].role != index ||
+           (state.moves[static_cast<std::size_t>(slot)].mode & 0xF) <= 1)
+    {
+        if (++slot >= RolePath::kMoves)
+        {
+            return false;
+        }
+    }
+
+    MoveRecord& move = state.moves[static_cast<std::size_t>(slot)];
+
+    if (move.nextRole == kFree)
+    {
+        if ((move.mode & 0xF) != 1)
+        {
+            move.Clear();
+        }
+
+        return true;
+    }
+
+    const BlockingMap grid = this->Grid();
+    PathFinder finder(this->game.pathNodes, grid, this->game.errors);
+    move.role = move.nextRole;
+    move.x = move.nextX;
+    move.y = move.nextY;
+    move.step = 0;
+    move.mode = static_cast<u8>((move.mode & 0xF0) | 1);
+
+    if (finder.FindPath(role.x, role.y, move.x, move.y, role.act.width, role.act.height, move.directions) != 1)
+    {
+        DebugLog("resume path not found", index, role.x >> 4, role.y >> 4, move.x / 0x10, move.y / 0x10);
+    }
+
+    return true;
 }
 
 }  // namespace swd3

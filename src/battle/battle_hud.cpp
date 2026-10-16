@@ -36,7 +36,11 @@ constexpr int kVisibleRows = 7;
 }  // namespace
 
 BattleHud::BattleHud(Painter& painter, TswArchive& archive, ActArchive& acts, Random& random, AudioManager& audio)
-    : painter(painter), archive(archive), acts(acts), random(random), audio(audio)
+    : painter(painter),
+      archive(archive),
+      acts(acts),
+      random(random),
+      audio(audio)
 {
 }
 

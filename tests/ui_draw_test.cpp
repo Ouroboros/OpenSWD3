@@ -46,7 +46,10 @@ std::map<std::string, std::string> LoadGolden(const std::string& path)
 class UiBackend : public golden::UiBackend
 {
 public:
-    UiBackend() : screen(640, 480), codec(this->painter), archive(this->codec, this->errors)
+    UiBackend()
+        : screen(640, 480),
+          codec(this->painter),
+          archive(this->codec, this->errors)
     {
         this->painter.Init(this->screen);
         this->archive.SetGameDirectory(swd3test::GameDirectory());

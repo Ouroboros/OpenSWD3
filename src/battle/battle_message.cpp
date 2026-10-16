@@ -43,7 +43,12 @@ BattleMessages::BattleMessages(
     TextFont& panelFont,
     TextFont& messageFont
 )
-    : painter(painter), archive(archive), acts(acts), hud(hud), state(state), panelFont(panelFont),
+    : painter(painter),
+      archive(archive),
+      acts(acts),
+      hud(hud),
+      state(state),
+      panelFont(panelFont),
       messageFont(messageFont)
 {
 }

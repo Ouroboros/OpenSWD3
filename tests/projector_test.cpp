@@ -49,7 +49,8 @@ std::map<std::string, std::string> LoadGolden(const std::string& path)
 class ProjectorBackend : public golden::ProjectorBackend
 {
 public:
-    ProjectorBackend() : screen(640, 480)
+    ProjectorBackend()
+        : screen(640, 480)
     {
         this->painter.Init(this->screen);
     }

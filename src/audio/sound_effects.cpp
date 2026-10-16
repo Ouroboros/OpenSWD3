@@ -33,7 +33,8 @@ void WriteDword(u8* bytes, u32 value)
 }  // namespace
 
 // swd32.exe 0x00485930
-SoundEffects::SoundEffects(AudioDevice& device) : device(device)
+SoundEffects::SoundEffects(AudioDevice& device)
+    : device(device)
 {
 }
 

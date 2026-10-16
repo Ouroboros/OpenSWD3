@@ -42,17 +42,23 @@ public:
 struct Services
 {
     Services()
-        : screen(640, 480), codec(this->painter), archive(this->codec, this->errors), acts(this->errors),
-          audio(this->device), hud(this->painter, this->archive, this->acts, this->random, this->audio),
-          panelFont(this->rasterizer), messageFont(this->rasterizer), messages(
-                                                                          this->painter,
-                                                                          this->archive,
-                                                                          this->acts,
-                                                                          this->hud,
-                                                                          this->state,
-                                                                          this->panelFont,
-                                                                          this->messageFont
-                                                                      ),
+        : screen(640, 480),
+          codec(this->painter),
+          archive(this->codec, this->errors),
+          acts(this->errors),
+          audio(this->device),
+          hud(this->painter, this->archive, this->acts, this->random, this->audio),
+          panelFont(this->rasterizer),
+          messageFont(this->rasterizer),
+          messages(
+              this->painter,
+              this->archive,
+              this->acts,
+              this->hud,
+              this->state,
+              this->panelFont,
+              this->messageFont
+          ),
           services{
               this->state,
               this->random,

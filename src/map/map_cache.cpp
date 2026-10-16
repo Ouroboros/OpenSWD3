@@ -22,7 +22,9 @@ constexpr i32 kMaskOffset = 0x1E;
 
 }  // namespace
 
-MapCache::MapCache(const Config& config, const Painter& painter) : config(config), painter(painter)
+MapCache::MapCache(const Config& config, const Painter& painter)
+    : config(config),
+      painter(painter)
 {
 }
 

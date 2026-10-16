@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "core/types.h"
+#include "res/tsw_archive.h"
 
 namespace swd3
 {
@@ -45,7 +46,7 @@ struct MapOverlay
 
 // The map the party is on: HUGE.lmf's map (its blocks, tiles, units and roles), the drawing order of the roles by row
 // for the three layers, the regions, the overlays and the camera.
-class Field
+class Field : public MapPictureSource
 {
 public:
     static constexpr int kLayers = 3;
@@ -61,6 +62,7 @@ public:
     void InsertRole(Role& role, int layer);
     Role* RemoveRole(u16 id, int layer, int row, int keep);
     bool LoadUnitPicture(u32 unit, Picture& picture);
+    bool LoadMapPicture(int unit, Picture& picture) override;
     void CenterCamera();
     void MarkRoleCells(const Role& role, u16 leader);
     void ClearRoleCells(const Role& role, u16 leader);

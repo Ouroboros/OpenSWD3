@@ -32,7 +32,8 @@ constexpr u16 kChoiceSound = 0xC0;
 
 }  // namespace
 
-Talk::Talk(Game& game) : game(game)
+Talk::Talk(Game& game)
+    : game(game)
 {
 }
 

@@ -37,6 +37,7 @@ public:
     int Wander(int index);
     void Follow(int index);
     u16 RoleId(u32 index);
+    bool ResumeMove(int index);
 
     i32 timeMark = 0;  // 0x004BA42C
 

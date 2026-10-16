@@ -25,7 +25,8 @@ namespace
 class CodecBackend : public golden::RleBackend
 {
 public:
-    explicit CodecBackend(const swd3::RleCodec& codec) : codec(codec)
+    explicit CodecBackend(const swd3::RleCodec& codec)
+        : codec(codec)
     {
     }
 

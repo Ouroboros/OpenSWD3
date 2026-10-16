@@ -22,7 +22,8 @@ public:
     FormatArgument(std::u8string_view text);
 
     template <std::size_t N>
-    FormatArgument(const char (&text)[N]) : FormatArgument(std::string_view(text, N - 1))
+    FormatArgument(const char (&text)[N])
+        : FormatArgument(std::string_view(text, N - 1))
     {
     }
 

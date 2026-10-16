@@ -905,8 +905,8 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
             put(record + 0xA, 0xD100);
             game.playerRole = placed + game.roleCount;
             view.unk4B7C8C[0] = placed + game.roleCount;
-            view.unk4B7998.fill(0x10 * y);
-            view.unk4B7A18.fill(0x10 * x);
+            view.trailY.fill(0x10 * y);
+            view.trailX.fill(0x10 * x);
         }
 
         if (word(record) != static_cast<u16>(map))

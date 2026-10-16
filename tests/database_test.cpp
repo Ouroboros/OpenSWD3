@@ -43,7 +43,8 @@ std::map<std::string, std::string> LoadGolden(const std::string& path)
 class DatabaseBackend : public golden::DatabaseBackend
 {
 public:
-    explicit DatabaseBackend(swd3::Database& database) : database(database)
+    explicit DatabaseBackend(swd3::Database& database)
+        : database(database)
     {
     }
 

@@ -115,7 +115,8 @@ const u8* GlyphLibrary::Find(int size, u16 code) const
     return strike->second.cells.data() + static_cast<std::size_t>(found - codes.begin()) * cellBytes;
 }
 
-LibraryGlyphRasterizer::LibraryGlyphRasterizer(const GlyphLibrary& library) : library(library)
+LibraryGlyphRasterizer::LibraryGlyphRasterizer(const GlyphLibrary& library)
+    : library(library)
 {
 }
 

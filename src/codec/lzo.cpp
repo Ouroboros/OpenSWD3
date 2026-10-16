@@ -21,7 +21,9 @@ enum class Step
 
 }  // namespace
 
-LzoDecoder::LzoDecoder(std::span<const u8> input, std::span<u8> output) : input(input), output(output)
+LzoDecoder::LzoDecoder(std::span<const u8> input, std::span<u8> output)
+    : input(input),
+      output(output)
 {
 }
 
@@ -368,7 +370,8 @@ void PushOffset(std::vector<u8>& output, u32 offset)
 
 }  // namespace
 
-LzoEncoder::LzoEncoder(int dictionaryBits) : dictionaryBits(dictionaryBits)
+LzoEncoder::LzoEncoder(int dictionaryBits)
+    : dictionaryBits(dictionaryBits)
 {
 }
 

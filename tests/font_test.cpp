@@ -33,7 +33,8 @@ public:
 class FontBackend : public golden::FontBackend
 {
 public:
-    explicit FontBackend(swd3::TextFont& font) : font(font)
+    explicit FontBackend(swd3::TextFont& font)
+        : font(font)
     {
     }
 

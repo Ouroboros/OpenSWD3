@@ -55,6 +55,8 @@ def process(lines):
             if number + 1 >= len(lines):
                 continue
             following = lines[number + 1].strip()
+            if text.endswith(","):
+                continue
             if not following or following.startswith(("}", ")", "else", "catch", "#", ",")):
                 continue
             if following.startswith("while") and following.endswith(";"):

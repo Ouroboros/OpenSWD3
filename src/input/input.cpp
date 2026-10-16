@@ -9,7 +9,8 @@ namespace swd3
 {
 
 // swd32.exe 0x00436F70: no devices, sensitivity 10 tenths
-Input::Input(InputDevice& device) : device(device)
+Input::Input(InputDevice& device)
+    : device(device)
 {
 }
 

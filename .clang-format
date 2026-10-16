@@ -34,3 +34,5 @@ MaxEmptyLinesToKeep: 1
 EmptyLineBeforeAccessModifier: LogicalBlock
 SeparateDefinitionBlocks: Always
 InsertBraces: true
+PackConstructorInitializers: Never
+BreakConstructorInitializers: BeforeColon

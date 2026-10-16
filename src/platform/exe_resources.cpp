@@ -20,7 +20,8 @@ constexpr int kMaxDepth = 3;
 class Reader
 {
 public:
-    explicit Reader(std::span<const u8> bytes) : bytes(bytes)
+    explicit Reader(std::span<const u8> bytes)
+        : bytes(bytes)
     {
     }
 

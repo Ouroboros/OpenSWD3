@@ -36,7 +36,9 @@ std::string MapDirectory()
 struct Fixture
 {
     Fixture()
-        : surface(640, 480), cache(this->config, this->painter), codec(this->painter),
+        : surface(640, 480),
+          cache(this->config, this->painter),
+          codec(this->painter),
           field(this->state, this->cache, this->config, this->codec)
     {
         this->painter.Init(this->surface);

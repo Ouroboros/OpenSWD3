@@ -15,27 +15,36 @@ constexpr std::size_t kLimit = 1023;
 
 }  // namespace
 
-FormatArgument::FormatArgument(i32 value) : number(value)
+FormatArgument::FormatArgument(i32 value)
+    : number(value)
 {
 }
 
-FormatArgument::FormatArgument(u32 value) : number(value)
+FormatArgument::FormatArgument(u32 value)
+    : number(value)
 {
 }
 
-FormatArgument::FormatArgument(i64 value) : number(value)
+FormatArgument::FormatArgument(i64 value)
+    : number(value)
 {
 }
 
-FormatArgument::FormatArgument(std::string_view text) : text(true), string(text)
+FormatArgument::FormatArgument(std::string_view text)
+    : text(true),
+      string(text)
 {
 }
 
-FormatArgument::FormatArgument(const std::string& text) : text(true), string(text)
+FormatArgument::FormatArgument(const std::string& text)
+    : text(true),
+      string(text)
 {
 }
 
-FormatArgument::FormatArgument(std::u8string_view text) : text(true), string(Big5(text))
+FormatArgument::FormatArgument(std::u8string_view text)
+    : text(true),
+      string(Big5(text))
 {
 }
 
