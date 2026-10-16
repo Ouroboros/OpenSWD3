@@ -37,3 +37,7 @@ GOLDEN_OUT=<工作区>/tests/golden/draw_golden.txt SWD3_GAME_DIR=/mnt/e/Game/sw
 ## TextFont（tests/golden/font_golden.txt）
 
 场景定义：`tests/golden/font_scenarios.h`。生成器：`font_golden_legacy.cpp`，在旧树中以 `SDL_VIDEO_DRIVER=dummy` 运行 `./swd3_tests "text font"`。Linux 上两侧都不栅格化字形，缓存填满后按字符码写入相同的合成位图，再比较各样式、裁剪、背景与渐变的绘制结果。
+
+## 投影与图片操作（tests/golden/projector_golden.txt）
+
+场景定义：`tests/golden/projector_scenarios.h`。生成器：`projector_golden_legacy.cpp`，运行 `./swd3_tests "golden: legacy projector"`。爆炸场景先标记为已开始并以场景种子调用 srand（首帧原本以当前时间播种）。原程序越界读写的位置，旧实现一侧的缓冲区补上跳过色、填充色或 0，使其结果等于新实现按 deviations.md 记录的处理。
