@@ -15,7 +15,7 @@ namespace swd3
 namespace
 {
 
-constexpr int kGuests = 8;
+constexpr int kGuests = BattleState::Guests;
 constexpr int kMaxGuests = 2;
 // swd32.exe 0x004A7600: the story flags of the guests who may join a battle, and 0x004A7610 their mon.dat objects:
 // 薇達, 麥爾斯, 慧彥, 張客, 慧榮, 夜行裝林明, 鎮邪 and 悟緣.

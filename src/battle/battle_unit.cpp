@@ -67,6 +67,9 @@ constexpr u32 kLikelyEvadeOdds = 3;
 constexpr u8 kLowEvadeSkill = 6;  // up to this evade skill a hit also needs a roll of kLowEvadeGate or more
 constexpr u16 kLowEvadeGate = 8;
 constexpr int kTenths = 10;
+constexpr int kThousands = 1000;  // the places of the four damage digits
+constexpr int kHundreds = 100;
+constexpr int kTens = 10;
 constexpr int kStatScalePercent = 10;  // StatsScaled moves the stats of a party role by this percent
 constexpr i16 kGuardPhaseEnd = 9;      // the last phase of a guard text letter
 constexpr i16 kGuardTextStep = 4;      // pixels the guard text rises a frame
@@ -165,7 +168,7 @@ i16 BattleUnit::GetOrigin(u16& x, u16& y) const
 
 // swd32.exe 0x004784A0: the rectangle of the shadow picture (action 0x24 of the unit's act, or the main action's,
 // 0x33 while defeated) under the unit
-void BattleUnit::GetShadowRect(BattleServices& services, std::array<i32, 4>& rect)
+void BattleUnit::GetShadowRect(BattleServices& services, UnitRect& rect)
 {
     if (this->defeated == 1 && this->kind == 0)
     {
@@ -204,10 +207,10 @@ void BattleUnit::GetShadowRect(BattleServices& services, std::array<i32, 4>& rec
         state.x = this->picture->width - state.x;
     }
 
-    rect[0] = this->placement.x - state.x;
-    rect[1] = this->placement.y - state.y;
-    rect[2] = this->picture->width;
-    rect[3] = this->picture->height;
+    rect.x = this->placement.x - state.x;
+    rect.y = this->placement.y - state.y;
+    rect.width = this->picture->width;
+    rect.height = this->picture->height;
 }
 
 // swd32.exe 0x004785A0
@@ -1300,7 +1303,7 @@ void BattleUnit::DrawGuardText(BattleServices& services)
     BattleHud& hud = services.hud;
     const int top = this->placement.y - kGuardTextOffset;
     const int left = this->placement.x - kGuardTextOffset;
-    std::array<i16, 4>& phases = this->guardPhases;
+    auto& phases = this->guardPhases;
 
     if (phases[0] == kGuardPhaseEnd && phases[1] == kGuardPhaseEnd && phases[2] == kGuardPhaseEnd &&
         phases[3] == kGuardPhaseEnd)
@@ -1399,13 +1402,13 @@ void BattleUnit::SetDamageDigits(BattleServices& services, int amount)
         amount = -amount;
     }
 
-    std::array<i16, 4>& digits = this->damageDigits[slot];
-    digits[0] = static_cast<i16>(amount / 1000);
-    amount -= 1000 * digits[0];
-    digits[1] = static_cast<i16>(amount / 100);
-    amount -= 100 * digits[1];
-    digits[2] = static_cast<i16>(amount / 10);
-    digits[3] = static_cast<i16>(amount - static_cast<u16>(static_cast<u16>(digits[2]) * 10));
+    auto& digits = this->damageDigits[slot];
+    digits[0] = static_cast<i16>(amount / kThousands);
+    amount -= kThousands * digits[0];
+    digits[1] = static_cast<i16>(amount / kHundreds);
+    amount -= kHundreds * digits[1];
+    digits[2] = static_cast<i16>(amount / kTens);
+    digits[3] = static_cast<i16>(amount - static_cast<u16>(static_cast<u16>(digits[2]) * kTens));
 }
 
 // swd32.exe 0x0047DBD0: the ailment of `skill` lands unless it is bit 13 (mark 0x20 instead) or the skill has flag 7,

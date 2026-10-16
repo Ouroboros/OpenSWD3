@@ -83,6 +83,15 @@ struct UnitPlacement
 };
 
 // The command block of a unit (0x28 bytes, cleared whole).
+// The rectangle GetShadowRect fills (four dwords in the original).
+struct UnitRect
+{
+    i32 x = 0;
+    i32 y = 0;
+    i32 width = 0;
+    i32 height = 0;
+};
+
 struct UnitCommand
 {
     // The bits of `actionFlags` (flag n is bit n).
@@ -234,6 +243,10 @@ public:
     static constexpr i32 DelayedFadeIn = -0x20;  // brightLevel of a unit that fades in 0x20 frames later
     static constexpr u16 FlashPeak = 0x18;       // the tint pulse rises from FlashStart to FlashPeak and falls back
     static constexpr u16 FlashStart = 2;
+    static constexpr std::size_t DamageDigits = 4;  // the decimal digits of a damage number
+    static constexpr std::size_t GuardLetters = 4;  // the letters of the guard text
+    static constexpr u16 DefaultFadeStep = 4;       // unk2A0A: the alpha step of a fade
+    static constexpr u32 DefaultColorPair = 0x062B062B;
 
     BattleUnit();
     ~BattleUnit();
@@ -247,7 +260,7 @@ public:
     void GetDrawPosition(u16& x, u16& y) const;
     void GetOffset(u16& x, u16& y) const;
     i16 GetOrigin(u16& x, u16& y) const;
-    void GetShadowRect(BattleServices& services, std::array<i32, 4>& rect);
+    void GetShadowRect(BattleServices& services, UnitRect& rect);
     i16 Move(i16 dx, i16 dy);
     i16 SetPosition(i16 x, i16 y);
     i16 GetPosition(u16& x, u16& y) const;
@@ -420,27 +433,27 @@ public:
     u32 unk26A4 = 0;
     i32 unk26A8 = 0;
     i32 unk26AC = 0;
-    i32 damageCarry = 0;         // +0x26B0
-    i32 hitPointsOverride = 0;   // +0x26B4 an enemy's current hit points when set
-    u32 unk26B8 = 0;             // +0x26B8 bit 31
-    u32 colorPair = 0x062B062B;  // +0x26BC
-    u32 status = 0;              // +0x26C0 status bits (2: stone, 12: frozen, ...)
-    u32 equipmentFlags = 0;      // +0x26C8 bits 0, 2..6 from the equipment
+    i32 damageCarry = 0;               // +0x26B0
+    i32 hitPointsOverride = 0;         // +0x26B4 an enemy's current hit points when set
+    u32 unk26B8 = 0;                   // +0x26B8 bit 31
+    u32 colorPair = DefaultColorPair;  // +0x26BC
+    u32 status = 0;                    // +0x26C0 status bits (2: stone, 12: frozen, ...)
+    u32 equipmentFlags = 0;            // +0x26C8 bits 0, 2..6 from the equipment
     u32 unk26CC = 0;
     u16 marks = 0;  // +0x26D0 (bit 1, 0x20, 0x40: held, 0x100, bit 13)
     i16 unk26D2 = 0;
-    u16 nudge = 0;                                           // +0x26D6
-    u16 drawAtSaved = 0;                                     // +0x26D8
-    u16 unk26DC = 0;                                         // +0x26DC
-    std::array<u16, 0x23> damageDelays = {};                 // +0x26DE
-    std::array<std::array<i16, 4>, 0x23> damageDigits = {};  // +0x2724 the four digits per target slot
-    std::array<std::array<i16, 4>, 0x23> unk283C = {};       // +0x283C
-    std::array<i16, 4> guardPhases = {};  // +0x2884 the pop phases of the four letters of the guard text
+    u16 nudge = 0;                                                            // +0x26D6
+    u16 drawAtSaved = 0;                                                      // +0x26D8
+    u16 unk26DC = 0;                                                          // +0x26DC
+    std::array<u16, MaxTargets> damageDelays = {};                            // +0x26DE
+    std::array<std::array<i16, DamageDigits>, MaxTargets> damageDigits = {};  // +0x2724 the four digits per target slot
+    std::array<std::array<i16, DamageDigits>, MaxTargets> unk283C = {};       // +0x283C
+    std::array<i16, GuardLetters> guardPhases = {};  // +0x2884 the pop phases of the four letters of the guard text
     u16 unk2954 = 0;
     u16 unk2956 = 0;
     u16 unk2958 = 0;
-    std::array<u16, 0x23> unk295A = {};  // +0x295A
-    i16 guardRise = 0;                   // +0x29A0
+    std::array<u16, MaxTargets> unk295A = {};  // +0x295A
+    i16 guardRise = 0;                         // +0x29A0
     u16 unk29A2 = NoUnk29A2;
     u16 unk29A4 = 0;
     u16 unk29A6 = 0;
@@ -454,14 +467,14 @@ public:
     u16 extraY = 0;  // +0x29B8
     u16 unk29BA = 0;
     std::array<u16, MaxTargets> pushedTargets = {};  // +0x29C4
-    u16 unk2A0A = 4;
+    u16 unk2A0A = DefaultFadeStep;
     u16 actId = 0;   // +0x2A0C the unit's act
     u16 action = 0;  // +0x2A0E
     u16 gauge = 0;   // +0x2A12 the action gauge
     u16 unk2A14 = 0;
     std::array<u32, 4> targets = {NoTarget, NoTarget, NoTarget, NoTarget};  // +0x2A56
     u16 unk2A66 = 0;
-    u16 unk2A68 = 2;
+    u16 unk2A68 = FlashStart;
     u16 unk2A6A = FlashPeak;
     u16 commandA = 0;  // +0x2A6C
     u16 unk2A6E = 0;
