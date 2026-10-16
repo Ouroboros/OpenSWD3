@@ -121,7 +121,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 120	swd32.exe	0x00406710	sub_406710	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between role_path anchors 0x00405500 and 0x00406770
 121	swd32.exe	0x00406770	sub_406770	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Pth:rndwlk,g(%d)NoFreePath"
 122	swd32.exe	0x00406960	sub_406960	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "CompanyWalk"
-123	swd32.exe	0x00406D30	sub_406D30	game_init	src/game/game.cpp:Game::ResetSaveSlots	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+123	swd32.exe	0x00406D30	sub_406D30	game	src/game/game.cpp:Game::ResetSaveSlots	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 124	swd32.exe	0x00406E00	sub_406E00	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 125	swd32.exe	0x00406E30	sub_406E30	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 126	swd32.exe	0x00406EB0	sub_406EB0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
@@ -138,14 +138,14 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 137	swd32.exe	0x00409B80	sub_409B80	saveload	src/save/save_slots.cpp:SaveSlots::ResetActs	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between saveload anchors 0x00409A10 and 0x00409C10
 138	swd32.exe	0x00409C10	sub_409C10	saveload	src/save/save_games.cpp:SaveGames::AnyExists	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "%ssave\%d.sav"
 139	swd32.exe	0x00409CE0	sub_409CE0	saveload		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "%sFame.dat"
-140	swd32.exe	0x00409DD0	sub_409DD0	game_init	src/game/game.cpp:Game::LoadFameFile	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "%sFame.dat"
-141	swd32.exe	0x00409EC0	_WinMain@16	game_init	src/game/game.cpp:Game::Run	pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	WinMain
-142	swd32.exe	0x0040A0D0	sub_40A0D0	game_init	src/game/game.cpp:Game::HandleEvent	pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "%sScrnShot\%05d.bmp"
-143	swd32.exe	0x0040A570	sub_40A570	game_init	src/game/game.cpp:Game::MainFrame	pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+140	swd32.exe	0x00409DD0	sub_409DD0	game	src/game/game.cpp:Game::LoadFameFile	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "%sFame.dat"
+141	swd32.exe	0x00409EC0	_WinMain@16	game	src/game/game.cpp:Game::Run	pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	WinMain
+142	swd32.exe	0x0040A0D0	sub_40A0D0	game	src/game/game.cpp:Game::HandleEvent	pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "%sScrnShot\%05d.bmp"
+143	swd32.exe	0x0040A570	sub_40A570	game	src/game/game.cpp:Game::MainFrame	pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 144	swd32.exe	0x0040AB50	sub_40AB50	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-145	swd32.exe	0x0040AD10	sub_40AD10	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/map/map_cache.cpp:LoadCachedMapPicture
-146	swd32.exe	0x0040AE20	sub_40AE20	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-147	swd32.exe	0x0040AEC0	sub_40AEC0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+145	swd32.exe	0x0040AD10	sub_40AD10	map	src/map/field.cpp:Field::LoadUnitPicture	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/map/map_cache.cpp:LoadCachedMapPicture
+146	swd32.exe	0x0040AE20	sub_40AE20	map	src/map/field.cpp:Field::ClearRoleCells	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+147	swd32.exe	0x0040AEC0	sub_40AEC0	map	src/map/field.cpp:Field::MarkRoleCells	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 148	swd32.exe	0x0040AF70	sub_40AF70	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 149	swd32.exe	0x0040AFF0	sub_40AFF0	dialog		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Dialog:...)"
 150	swd32.exe	0x0040B7F0	sub_40B7F0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
@@ -156,20 +156,20 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 155	swd32.exe	0x0040C060	sub_40C060	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 156	swd32.exe	0x0040C0D0	sub_40C0D0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 157	swd32.exe	0x0040C100	sub_40C100	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-158	swd32.exe	0x0040C130	sub_40C130	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "LoadCity ,gMap.Pixel==NULL"
-159	swd32.exe	0x0040CDD0	sub_40CDD0	game_init	src/game/game.cpp:Game::MusicCue	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-160	swd32.exe	0x0040CF10	sub_40CF10	game_init	src/game/game.cpp:Game::AudioPump	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-161	swd32.exe	0x0040CF40	sub_40CF40	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-162	swd32.exe	0x0040D060	sub_40D060	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-163	swd32.exe	0x0040D0C0	sub_40D0C0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+158	swd32.exe	0x0040C130	sub_40C130	game	src/game/game_field.cpp:Game::LoadCity	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "LoadCity ,gMap.Pixel==NULL"
+159	swd32.exe	0x0040CDD0	sub_40CDD0	game	src/game/game.cpp:Game::MusicCue	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+160	swd32.exe	0x0040CF10	sub_40CF10	game	src/game/game.cpp:Game::AudioPump	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+161	swd32.exe	0x0040CF40	sub_40CF40	game	src/game/game_field.cpp:Game::MusicZone	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+162	swd32.exe	0x0040D060	sub_40D060	game	src/game/game_field.cpp:Game::LoadRoleColor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+163	swd32.exe	0x0040D0C0	sub_40D0C0	map	src/map/field.cpp:Field::CenterCamera	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 164	swd32.exe	0x0040D160	sub_40D160	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-165	swd32.exe	0x0040D200	sub_40D200	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-166	swd32.exe	0x0040D3C0	sub_40D3C0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-167	swd32.exe	0x0040D460	sub_40D460	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+165	swd32.exe	0x0040D200	sub_40D200	game	src/game/game_field.cpp:Game::SaveRoleStates	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+166	swd32.exe	0x0040D3C0	sub_40D3C0	game	src/game/game_field.cpp:Game::StoreRole	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+167	swd32.exe	0x0040D460	sub_40D460	game	src/game/game_field.cpp:Game::UpdateRoleRecord	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 168	swd32.exe	0x0040D560	sub_40D560	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-169	swd32.exe	0x0040D610	sub_40D610	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+169	swd32.exe	0x0040D610	sub_40D610	game	src/game/game_field.cpp:Game::FollowLeader	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 170	swd32.exe	0x0040D790	sub_40D790	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-171	swd32.exe	0x0040D9E0	sub_40D9E0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+171	swd32.exe	0x0040D9E0	sub_40D9E0	game	src/game/game_field.cpp:Game::BuildTriggers	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 172	swd32.exe	0x0040DA60	sub_40DA60	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 173	swd32.exe	0x0040DB40	sub_40DB40	game	src/game/game_state.cpp:ClickRegions::Count	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:CountClickRegions
 174	swd32.exe	0x0040DB60	sub_40DB60	game	src/game/game_state.cpp:ClickRegions::Find	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:FindClickRegion
@@ -188,27 +188,27 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 187	swd32.exe	0x0040DE50	sub_40DE50	game	src/ui/marching_rect.cpp:MarchingRect::Draw	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:DrawMarchingRect
 188	swd32.exe	0x0040E030	sub_40E030	game	src/game/game_state.cpp:GameState::DirectionToPlayer	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:DirectionToPlayer
 189	swd32.exe	0x0040E080	sub_40E080	game	src/ui/marching_rect.cpp:ShrinkScreenQuarter	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:ShrinkScreenQuarter
-190	swd32.exe	0x0040E0B0	sub_40E0B0	game_init	src/game/game.cpp:Game::NewGame	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Misc:...)"
-191	swd32.exe	0x0040EB60	sub_40EB60	game_init	src/game/game.cpp:Game::MusicPath	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Music\"
+190	swd32.exe	0x0040E0B0	sub_40E0B0	game	src/game/game.cpp:Game::NewGame	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Misc:...)"
+191	swd32.exe	0x0040EB60	sub_40EB60	game	src/game/game.cpp:Game::MusicPath	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Music\"
 192	swd32.exe	0x0040EBF0	sub_40EBF0	ui	src/ui/act_draw.cpp:ActDrawer::Draw	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Misc:...)"
 193	swd32.exe	0x0040EC80	sub_40EC80	misc		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between misc anchors 0x0040EBF0 and 0x0040ECC0
 194	swd32.exe	0x0040ECC0	sub_40ECC0	ui	src/ui/act_draw.cpp:ActDrawer::DrawWithMode	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Misc:...)"
-195	swd32.exe	0x0040ED60	sub_40ED60	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-196	swd32.exe	0x0040EFD0	sub_40EFD0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+195	swd32.exe	0x0040ED60	sub_40ED60	game	src/game/game_field.cpp:Game::ShowLoading	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+196	swd32.exe	0x0040EFD0	sub_40EFD0	game	src/game/game_field.cpp:Game::MapName	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 197	swd32.exe	0x0040F040	sub_40F040	game_init	src/game/databases.cpp:GameDatabases::Open	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "RoleDataBase init Failed."
-198	swd32.exe	0x0040F160	sub_40F160	game_init	src/game/game.cpp:Game::StartStory	pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-199	swd32.exe	0x0040F280	sub_40F280	misc		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Misc:...)"
-200	swd32.exe	0x0040F340	sub_40F340	game_init	src/game/game.cpp:Game::SetupFont	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-201	swd32.exe	0x0040F3B0	sub_40F3B0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+198	swd32.exe	0x0040F160	sub_40F160	game	src/game/game.cpp:Game::StartStory	pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+199	swd32.exe	0x0040F280	sub_40F280	game	src/game/game_field.cpp:Game::InitRole	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Misc:...)"
+200	swd32.exe	0x0040F340	sub_40F340	game	src/game/game.cpp:Game::SetupFont	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+201	swd32.exe	0x0040F3B0	sub_40F3B0	game	src/game/game_state.cpp:GameState::ClearRoles	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 202	swd32.exe	0x0040F410	sub_40F410	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-203	swd32.exe	0x0040F500	sub_40F500	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-204	swd32.exe	0x0040F540	sub_40F540	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-205	swd32.exe	0x0040F570	sub_40F570	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-206	swd32.exe	0x0040F5A0	sub_40F5A0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-207	swd32.exe	0x0040F5E0	sub_40F5E0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-208	swd32.exe	0x0040F630	sub_40F630	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-209	swd32.exe	0x0040F670	sub_40F670	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-210	swd32.exe	0x0040F690	sub_40F690	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+203	swd32.exe	0x0040F500	sub_40F500	game	src/game/scene.cpp:Scene::FreeEffects	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+204	swd32.exe	0x0040F540	sub_40F540	game	src/game/scene.cpp:Scene::FreeSpritesA	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+205	swd32.exe	0x0040F570	sub_40F570	game	src/game/scene.cpp:Scene::FreeSpritesB	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+206	swd32.exe	0x0040F5A0	sub_40F5A0	game	src/game/scene.cpp:Scene::FreeNodes	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+207	swd32.exe	0x0040F5E0	sub_40F5E0	game	src/game/scene.cpp:Scene::FreeAnimations	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+208	swd32.exe	0x0040F630	sub_40F630	game	src/game/scene.cpp:Scene::FreeMarks	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+209	swd32.exe	0x0040F670	sub_40F670	game	src/game/scene.cpp:Scene::ResetUnk4B86F8	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+210	swd32.exe	0x0040F690	sub_40F690	game	src/game/scene.cpp:Scene::FreeObjects	pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 211	swd32.exe	0x0040F6D0	sub_40F6D0	talk		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Talk:...)"
 212	swd32.exe	0x0040F890	DialogFunc	cheat_dialog		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "CheatDialog"
 213	swd32.exe	0x004103C0	sub_4103C0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
@@ -217,20 +217,20 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 216	swd32.exe	0x00410730	sub_410730	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 217	swd32.exe	0x00411030	sub_411030	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 218	swd32.exe	0x004112B0	sub_4112B0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-219	swd32.exe	0x00411490	sub_411490	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-220	swd32.exe	0x00411530	sub_411530	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-221	swd32.exe	0x00411620	sub_411620	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-222	swd32.exe	0x00411700	sub_411700	game_init	src/game/game.cpp:Game::DrawTextInput	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import USER32!CharNextA
+219	swd32.exe	0x00411490	sub_411490	map	src/map/field.cpp:Field::InsertRole	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+220	swd32.exe	0x00411530	sub_411530	map	src/map/field.cpp:Field::RemoveRole	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+221	swd32.exe	0x00411620	sub_411620	map	src/map/field.cpp:Field::ResetRows	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+222	swd32.exe	0x00411700	sub_411700	game	src/game/game.cpp:Game::DrawTextInput	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	import USER32!CharNextA
 223	swd32.exe	0x004117F0	sub_4117F0	ui	src/ui/act_draw.cpp:ActDrawer::DrawCounter	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-224	swd32.exe	0x004118B0	sub_4118B0	cdcheck		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "CD checker ,looking for %s(%d)"
+224	swd32.exe	0x004118B0	sub_4118B0	game	src/game/game_field.cpp:Game::CheckCd	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "CD checker ,looking for %s(%d)"
 225	swd32.exe	0x00411C90	sub_411C90	cdcheck		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between cdcheck anchors 0x004118B0 and 0x00411D90
 226	swd32.exe	0x00411D00	sub_411D00	cdcheck		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between cdcheck anchors 0x004118B0 and 0x00411D90
-227	swd32.exe	0x00411D90	sub_411D90	game_init	src/game/game.cpp:Game::DiskFreeMegabytes	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "GetDiskFreeSpaceExA"
+227	swd32.exe	0x00411D90	sub_411D90	game	src/game/game.cpp:Game::DiskFreeMegabytes	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "GetDiskFreeSpaceExA"
 228	swd32.exe	0x00411E20	sub_411E20	game	src/game/direction.cpp:AngleBetween	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:AngleBetween
 229	swd32.exe	0x00411F00	sub_411F00	game	src/game/direction.cpp:AngleToDirection	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:AngleToDirection
-230	swd32.exe	0x00411F90	sub_411F90	core		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/core/debug_log.cpp:DebugLog
+230	swd32.exe	0x00411F90	sub_411F90	core	src/core/debug_log.h:ErrorLog	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/core/debug_log.cpp:DebugLog
 231	swd32.exe	0x00411FA0	sub_411FA0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-232	swd32.exe	0x00412050	sub_412050	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+232	swd32.exe	0x00412050	sub_412050	game	src/game/game_field.cpp:Game::ProbeFile	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 233	swd32.exe	0x004120B0	sub_4120B0	pic_paint		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(picPaint:...)"
 234	swd32.exe	0x00412930	sub_412930	pic_paint		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between pic_paint anchors 0x004120B0 and 0x004147E0
 235	swd32.exe	0x00412BE0	sub_412BE0	pic_paint		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between pic_paint anchors 0x004120B0 and 0x004147E0
@@ -248,7 +248,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 247	swd32.exe	0x004146F0	sub_4146F0	pic_paint		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between pic_paint anchors 0x004120B0 and 0x004147E0
 248	swd32.exe	0x004147E0	sub_4147E0	pic_paint		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(PicPaint:...)"
 249	swd32.exe	0x004148F0	sub_4148F0	pic_paint		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between pic_paint anchors 0x004147E0 and 0x004149B0
-250	swd32.exe	0x004149B0	sub_4149B0	game_init	src/game/game.cpp:Game::RefreshCursor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(RefrashCursor:...)"
+250	swd32.exe	0x004149B0	sub_4149B0	game	src/game/game.cpp:Game::RefreshCursor	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(RefrashCursor:...)"
 251	swd32.exe	0x00414B60	sub_414B60	pic_paint		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(PicPaint:...)"
 252	swd32.exe	0x00414CE0	sub_414CE0	pic_paint		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(PicPaint:...)"
 253	swd32.exe	0x00414E50	sub_414E50	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
@@ -330,17 +330,17 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 329	swd32.exe	0x00423AF0	sub_423AF0	config_env	src/config/config.cpp:Config::Update	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "%sEnv.dat"
 330	swd32.exe	0x00423E00	sub_423E00	config_env	src/config/config.cpp:Config::SaveKeys	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "%sEnv.dat"
 331	swd32.exe	0x00423FB0	sub_423FB0	config_env	src/config/config.cpp:Config::Load	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "%sEnv.dat"
-332	swd32.exe	0x004242B0	sub_4242B0	game_init	src/game/game.cpp:Game::FindCdDrives	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "a:\"
-333	swd32.exe	0x00424330	sub_424330	game_init	src/game/game.cpp:Game::SizeCaches	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between launcher anchors 0x004242B0 and 0x00424440
+332	swd32.exe	0x004242B0	sub_4242B0	game	src/game/game.cpp:Game::FindCdDrives	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "a:\"
+333	swd32.exe	0x00424330	sub_424330	game	src/game/game.cpp:Game::SizeCaches	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between launcher anchors 0x004242B0 and 0x00424440
 334	swd32.exe	0x00424390	sub_424390	config_env	src/config/config.cpp:Config::SetDefaultKeys	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between launcher anchors 0x004242B0 and 0x00424440
 335	swd32.exe	0x00424440	sub_424440	launcher	src/launcher/launcher.cpp:Launcher::OnClose	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "www.softstar.com.tw"
-336	swd32.exe	0x00424910	sub_424910	game_init	src/game/game.cpp:Game::StartGraphics	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between launcher anchors 0x00424440 and 0x00424930
+336	swd32.exe	0x00424910	sub_424910	game	src/game/game.cpp:Game::StartGraphics	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between launcher anchors 0x00424440 and 0x00424930
 337	swd32.exe	0x00424930	sub_424930	launcher	src/launcher/launcher.cpp:Launcher::RunBrowser	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "\shell\open\command"
 338	swd32.exe	0x00424A60	sub_424A60	launcher	src/launcher/launcher.cpp:Launcher::RunTextViewer	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "\shell\open\command"
-339	swd32.exe	0x00424B90	sub_424B90	game_init	src/game/game.cpp:Game::InitDrawKernel	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "DrawKernel init Failed."
-340	swd32.exe	0x00424EF0	sub_424EF0	game_init	src/game/game.cpp:Game::InitDevices	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "DDraw init Failed."
-341	swd32.exe	0x00425040	sub_425040	game_init	src/game/game.cpp:Game::InitInstall	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Born.avi"
-342	swd32.exe	0x00425150	sub_425150	game_init	src/game/game.cpp:Game::MakeDirectory	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between game_init anchors 0x00425040 and 0x004251B0
+339	swd32.exe	0x00424B90	sub_424B90	game	src/game/game.cpp:Game::InitDrawKernel	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "DrawKernel init Failed."
+340	swd32.exe	0x00424EF0	sub_424EF0	game	src/game/game.cpp:Game::InitDevices	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "DDraw init Failed."
+341	swd32.exe	0x00425040	sub_425040	game	src/game/game.cpp:Game::InitInstall	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "Born.avi"
+342	swd32.exe	0x00425150	sub_425150	game	src/game/game.cpp:Game::MakeDirectory	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between game_init anchors 0x00425040 and 0x004251B0
 343	swd32.exe	0x004251B0	sub_4251B0	game_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "ReleaseGame : RoleHandle.Close"
 344	swd32.exe	0x00425470	sub_425470	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 345	swd32.exe	0x00425570	sub_425570	map	src/map/map_cache.cpp:MapCache::Check	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "%sdata\%d.cm"
@@ -349,13 +349,13 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 348	swd32.exe	0x00425A70	sub_425A70	map	src/map/map_cache.cpp:MapCache::CacheBytes	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "%sdata\%d.cm"
 349	swd32.exe	0x00425B40	sub_425B40	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between map anchors 0x00425A70 and 0x00425BE0
 350	swd32.exe	0x00425B50	sub_425B50	game	src/game/game_state.cpp:GameState::ClearWorld	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between map anchors 0x00425A70 and 0x00425BE0
-351	swd32.exe	0x00425BE0	sub_425BE0	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "HUGE.lmf"
-352	swd32.exe	0x004267E0	sub_4267E0	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between map anchors 0x00425BE0 and 0x00426840
-353	swd32.exe	0x00426820	sub_426820	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between map anchors 0x00425BE0 and 0x00426840; legacy: src/map/map_cache.cpp:MapDecompress
-354	swd32.exe	0x00426840	sub_426840	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "mcache.dat"
-355	swd32.exe	0x00426DF0	sub_426DF0	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "%sdata\%d.cm"
-356	swd32.exe	0x004270F0	sub_4270F0	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	inferred: between map anchors 0x00426DF0 and 0x00427140
-357	swd32.exe	0x00427140	sub_427140	map		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "%sdata\%d.cm"
+351	swd32.exe	0x00425BE0	sub_425BE0	map	src/map/field.cpp:Field::LoadMap	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "HUGE.lmf"
+352	swd32.exe	0x004267E0	sub_4267E0	map	src/map/map_cache.cpp:MapCache::Pack	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between map anchors 0x00425BE0 and 0x00426840
+353	swd32.exe	0x00426820	sub_426820	map	src/map/map_cache.cpp:MapCache::Unpack	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between map anchors 0x00425BE0 and 0x00426840; legacy: src/map/map_cache.cpp:MapDecompress
+354	swd32.exe	0x00426840	sub_426840	map	src/map/map_cache.cpp:MapCache::GetCachedMap	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "mcache.dat"
+355	swd32.exe	0x00426DF0	sub_426DF0	map	src/map/map_cache.cpp:MapCache::DecompressMap	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "%sdata\%d.cm"
+356	swd32.exe	0x004270F0	sub_4270F0	map	src/map/map_cache.cpp:MapCache::ReadUnitBytes	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between map anchors 0x00426DF0 and 0x00427140
+357	swd32.exe	0x00427140	sub_427140	map	src/map/map_cache.cpp:MapCache::OpenUnit	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	string "%sdata\%d.cm"
 358	swd32.exe	0x004272C0	sub_4272C0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern; legacy: src/core/static_init.cpp:InitFile4CF6E0
 359	swd32.exe	0x004272D0	sub_4272D0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern; legacy: src/core/static_init.cpp:ConstructFile4CF6E0
 360	swd32.exe	0x004272E0	sub_4272E0	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern; legacy: src/core/static_init.cpp:RegisterFile4CF6E0Destructor
@@ -837,7 +837,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 836	swd32.exe	0x00451920	sub_451920	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern; legacy: src/core/static_init.cpp:RegisterFile521538Destructor
 837	swd32.exe	0x00451930	sub_451930	static_init		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	MSVC global ctor/atexit/dtor thunk pattern; legacy: src/core/static_init.cpp:DestroyFile521538
 838	swd32.exe	0x00451940	sub_451940	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-839	swd32.exe	0x00451A20	sub_451A20	game_init	src/game/game.cpp:Game::ResetBattle	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+839	swd32.exe	0x00451A20	sub_451A20	game	src/game/game.cpp:Game::ResetBattle	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 840	swd32.exe	0x00451A90	sub_451A90	battle	src/battle/battle_items.cpp:CreateBattleSurfaces	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:CreateBattleSurfaces
 841	swd32.exe	0x00451AE0	sub_451AE0	battle	src/battle/battle_items.cpp:ReleaseBattleSurfaces	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/battle/battle_items.cpp:ReleaseBattleSurfaces
 842	swd32.exe	0x00451B10	sub_451B10	battle		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "battle.ffd"
@@ -1244,7 +1244,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 1243	swd32.exe	0x00485610	sub_485610	audio_mss	src/audio/audio_manager.cpp:AudioManager::PlaySound	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0; legacy: src/audio/audio.cpp:PlaySound
 1244	swd32.exe	0x00485650	sub_485650	audio_mss	src/audio/audio_manager.cpp:AudioManager::SetSoundPan	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0; legacy: src/audio/audio.cpp:SetSoundPan
 1245	swd32.exe	0x00485670	sub_485670	audio_mss	src/audio/audio_manager.cpp:AudioManager::PlaySoundAt	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0; legacy: src/audio/audio.cpp:PlaySoundAt
-1246	swd32.exe	0x004856C0	sub_4856C0	game_init	src/game/game.cpp:Game::PlayMusic	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
+1246	swd32.exe	0x004856C0	sub_4856C0	game	src/game/game.cpp:Game::PlayMusic	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0
 1247	swd32.exe	0x00485710	sub_485710	audio_mss	src/audio/audio_manager.cpp:AudioManager::StopMusic	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0; legacy: src/audio/audio.cpp:StopMusic
 1248	swd32.exe	0x00485720	sub_485720	audio_mss	src/audio/audio_manager.cpp:AudioManager::StopSound	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0; legacy: src/audio/audio.cpp:StopSound
 1249	swd32.exe	0x00485740	sub_485740	audio_mss	src/audio/audio_manager.cpp:AudioManager::StopAllSounds	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	inferred: between audio_mss anchors 0x00485460 and 0x004859B0; legacy: src/audio/audio.cpp:StopAllSounds

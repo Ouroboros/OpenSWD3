@@ -846,7 +846,7 @@ void Game::ResetSaveSlots()
 }
 
 // swd32.exe 0x0040F160: a new story: maps.dat again, the starting state, the menus and an empty world, the leader of
-// maps.dat's table 4; with `withMap` 1 its first town is entered (0x0040C130, restored with the map)
+// maps.dat's table 4; with `withMap` 1 its first map is entered
 void Game::StartStory(int withMap)
 {
     this->databases.LoadMaps();
@@ -869,6 +869,15 @@ void Game::StartStory(int withMap)
     if (withMap == 1)
     {
         this->unk4A9A10 = 0x51;
+        this->LoadCity(
+            MapsWord(data, start),
+            MapsWord(data, start + 2),
+            MapsWord(data, start + 4),
+            static_cast<i16>(MapsWord(data, start + 6)),
+            static_cast<i16>(MapsWord(data, start + 8)),
+            static_cast<i16>(MapsWord(data, start + 0xA)),
+            0
+        );
     }
 }
 
@@ -878,7 +887,11 @@ void Game::LoadFameFile()
     std::array<u16, 0x200> values = {};
     File file;
 
-    if (file.Open(this->config.installDirectory + "Fame.dat", File::Disposition::OpenExisting, File::Access::ReadWrite))
+    if (file.Open(
+            Concat({this->config.installDirectory, "Fame.dat"}),
+            File::Disposition::OpenExisting,
+            File::Access::ReadWrite
+        ))
     {
         u32 bytes = sizeof(values);
         file.Read(values.data(), bytes);
