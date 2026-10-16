@@ -20,9 +20,11 @@ TEST_CASE("glyph library: MingLiU cells of the three sizes")
     for (int size : {12, 16, 20})
     {
         const u8* letter = library.Find(size, 'A');
-        const u8* han = library.Find(size, 0x40A4);  // Big5 A4 40: the character "one"
+        const u8* han = library.Find(size, 0x40A4);       // Big5 A4 40: the character "one"
+        const u8* cyrillic = library.Find(size, 0xB1C7);  // Big5 C7 B1: an ETen extension letter drawn from the outline
         CHECK(letter != nullptr);
         CHECK(han != nullptr);
+        CHECK(cyrillic != nullptr);
     }
 
     CHECK(library.Find(14, 'A') == nullptr);

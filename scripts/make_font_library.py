@@ -2,9 +2,11 @@
 
 The original draws text with GDI: TextOutA at (0, 0) with the Big5 font "細明體" of 12, 16 or 20 pixels, then keeps
 the non-black pixels of the size x size cell as a 1-bit glyph. MingLiU carries embedded 1-bit bitmaps (EBLC/EBDT) for
-these sizes, which is what GDI draws without smoothing. This script takes those bitmaps directly: every Big5 code
-(and the printable ASCII bytes) is mapped through cp950 and the font's Unicode cmap to a glyph, whose bitmap is placed
-in the cell as TextOutA places it (x = bearing X, y = ascent - bearing Y).
+these sizes, which is what GDI draws without smoothing. This script takes those bitmaps directly: every code of Big5
+with the ETen extensions (A140-F9FE) and every printable ASCII byte is mapped through cp950 (the ETen/HKSCS table for
+the codes cp950 leaves out) and the font's Unicode cmap to a glyph (face 0 first, then the other faces of the
+collection), whose bitmap is placed in the cell as TextOutA places it (x = bearing X, y = ascent - bearing Y).
+Characters the strike has no bitmap for are drawn from the hinted outline, as GDI does.
 
 Usage: python3 scripts/make_font_library.py <mingliu.ttc> <output file>
 
@@ -78,7 +80,13 @@ class Font:
                             if glyph != 0:
                                 glyph = (glyph + delta) & 0xFFFF
                         if glyph != 0:
-                            mapping[code] = glyph
+                            mapping.setdefault(code, glyph)
+            elif platform == 3 and encoding == 10 and u16(data, sub) == 12:
+                for g in range(u32(data, sub + 12)):
+                    group = sub + 16 + 12 * g
+                    first, last, glyph = u32(data, group), u32(data, group + 4), u32(data, group + 8)
+                    for code in range(first, last + 1):
+                        mapping[code] = glyph + code - first
         return mapping
 
     def outline_ascent(self, size):
@@ -186,6 +194,26 @@ class Strike:
         return rows, width, height, bearing_x, bearing_y
 
 
+def decode_big5(code_bytes):
+    """The character of a Big5 code: Microsoft cp950 first, the ETen/HKSCS table for the codes cp950 leaves out."""
+    for codec in ("cp950", "big5hkscs"):
+        try:
+            text = code_bytes.decode(codec)
+        except UnicodeDecodeError:
+            continue
+        if len(text) == 1:
+            return text
+    return None
+
+
+def is_big5(code_bytes):
+    """Big5 proper with the ETen extensions: A140-F9FE (the user-defined areas belong to HKSCS)."""
+    if len(code_bytes) == 1:
+        return True
+    code = code_bytes[0] << 8 | code_bytes[1]
+    return 0xA140 <= code <= 0xF9FE
+
+
 def big5_codes():
     for byte in range(0x20, 0x7F):
         yield bytes([byte])
@@ -194,29 +222,50 @@ def big5_codes():
             yield bytes([lead, trail])
 
 
+OUTLINE_FONTS = {}
+
+
+def outline_cell(source, face, size, ascent, text):
+    """The cell of a character the strike has no bitmap for: GDI then draws the hinted outline without smoothing,
+    approximated with FreeType's monochrome hinted rendering, baseline at the ascent."""
+    from PIL import Image, ImageDraw, ImageFont
+
+    key = (face, size)
+    if key not in OUTLINE_FONTS:
+        OUTLINE_FONTS[key] = ImageFont.truetype(source, size, index=face)
+    image = Image.new("1", (size, size), 0)
+    draw = ImageDraw.Draw(image)
+    draw.fontmode = "1"
+    draw.text((0, ascent), text, font=OUTLINE_FONTS[key], fill=1, anchor="ls")
+    return [[1 if image.getpixel((x, y)) else 0 for x in range(size)] for y in range(size)]
+
+
 def main():
     source, output = sys.argv[1], sys.argv[2]
     with open(source, "rb") as file:
         data = file.read()
-    font = Font(data, 0)
+    faces = [Font(data, index) for index in range(u32(data, 8))] if data[:4] == b"ttcf" else [Font(data, 0)]
+    font = faces[0]
     out = bytearray(b"SWD3FONT")
     out += struct.pack("<II", 1, len(SIZES))
     for size in SIZES:
-        strike = font.strike(size)
+        strikes = [face.strike(size) for face in faces]
+        strike = strikes[0]
         if strike is None:
             raise SystemExit("no %d pixel strike" % size)
-        ascent = strike.ascender
-        print("size %d: strike ascent %d, outline ascent %d" % (size, ascent, font.outline_ascent(size)))
+        print("size %d: strike ascent %d, outline ascent %d" % (size, strike.ascender, font.outline_ascent(size)))
         stride = (size + 7) // 8
         glyphs = []
+        outlined = 0
         for code_bytes in big5_codes():
-            try:
-                text = code_bytes.decode("cp950")
-            except UnicodeDecodeError:
+            text = decode_big5(code_bytes) if is_big5(code_bytes) else None
+            if text is None:
                 continue
-            if len(text) != 1 or ord(text) not in font.cmap:
+            owner = next((i for i, face in enumerate(faces) if ord(text) in face.cmap and strikes[i] is not None), None)
+            if owner is None:
                 continue
-            image = strike.glyph(font.cmap[ord(text)])
+            image = strikes[owner].glyph(faces[owner].cmap[ord(text)])
+            ascent = strikes[owner].ascender
             cell = [[0] * size for _ in range(size)]
             if image is not None:
                 rows, width, height, bearing_x, bearing_y = image
@@ -226,6 +275,9 @@ def main():
                         cx, cy = bearing_x + x, top + y
                         if rows[y][x] and 0 <= cx < size and 0 <= cy < size:
                             cell[cy][cx] = 1
+            else:
+                cell = outline_cell(source, owner, size, ascent, text)
+                outlined += 1
             code = code_bytes[0] | (code_bytes[1] << 8 if len(code_bytes) == 2 else 0)
             packed = bytearray()
             for row in cell:
@@ -241,7 +293,7 @@ def main():
         out += struct.pack("<II", size, len(glyphs))
         for code, packed in glyphs:
             out += struct.pack("<H", code) + packed
-        print("size %d: %d glyphs" % (size, len(glyphs)))
+        print("size %d: %d glyphs, %d drawn from the outline" % (size, len(glyphs), outlined))
     with open(output, "wb") as file:
         file.write(out)
 
