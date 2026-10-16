@@ -59,7 +59,7 @@ Game::Game(std::string installDirectory)
       graphics(this->display, this->errors), codec(this->painter), archive(this->codec, this->errors),
       acts(this->errors), rasterizer(this->glyphs), largeFont(this->rasterizer), mediumFont(this->rasterizer),
       smallFont(this->rasterizer), audio(this->audioDevice), mapCache(this->config, this->painter),
-      field(this->state, this->mapCache, this->config, this->codec), fieldView(*this), talk(*this),
+      field(this->state, this->mapCache, this->config, this->codec), fieldView(*this), talk(*this), roleControl(*this),
       database(installDirectory), battleHud(this->painter, this->archive, this->acts, this->random, this->audio),
       battleMessages(
           this->painter,

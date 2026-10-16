@@ -29,6 +29,7 @@
 #include "map/field_view.h"
 #include "map/map_cache.h"
 #include "menu/menu.h"
+#include "role/role_control.h"
 #include "talk/talk.h"
 
 #include "movie/movie.h"
@@ -63,6 +64,7 @@ class Game
     friend class Menu;
     friend class FieldView;
     friend class Talk;
+    friend class RoleControl;
 
 public:
     static constexpr std::u8string_view kWindowTitle = u8"軒轅劍參 DVD";                    // 0x0049FAC4
@@ -133,6 +135,7 @@ private:
     void PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction, int previous);
     void Destroy();
     void PlaySoundAt(u16 sound, int x, int y);
+    u32 RollEncounter(int steps, int force);
 
     DialogErrorReporter errors;
     Display display;
@@ -161,6 +164,7 @@ private:
     Field field;
     FieldView fieldView;
     Talk talk;
+    RoleControl roleControl;
 
     GameDatabases databases;
     PathNodePool pathNodes;

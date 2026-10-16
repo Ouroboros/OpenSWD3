@@ -135,3 +135,35 @@ TEST_CASE("field: the drawing order of the roles in a row")
     CHECK(all.field.RemoveRole(3, 0, 0, 0) == nullptr);
     CHECK(third.next == &second);
 }
+
+TEST_CASE("field: the cells around a footprint")
+{
+    Fixture all;
+    swd3::MapHeader& map = all.state.map;
+    map.width = 8;
+    map.height = 8;
+    map.blocks.assign(64, 0);
+
+    auto at = [](int x, int y)
+    {
+        return static_cast<std::size_t>(x + 8 * y);
+    };
+
+    map.blocks[at(2, 2)] = 0x40000000;  // up left of (3, 3)
+    map.blocks[at(4, 3)] = 0x20000000;  // right
+    map.blocks[at(3, 4)] = 0x00800000;  // down
+    map.blocks[at(2, 4)] = 0x00000001;  // down left, outside the mask
+    CHECK_EQ(all.field.ProbeCells(static_cast<std::ptrdiff_t>(at(3, 3)), 1, 1, 0x60800000), 0x01u | 0x08u | 0x20u);
+    CHECK_EQ(
+        all.field.ProbeCells(static_cast<std::ptrdiff_t>(at(0, 0)), 1, 1, 0x60800000),
+        0x01u | 0x02u | 0x04u | 0x80u
+    );  // the left column wraps to the row end
+
+    map.blocks.assign(64, 0);
+    map.blocks[at(5, 2)] = 0x20000000;  // right of a 3 x 3 footprint at (2, 2), its top row
+    map.blocks[at(3, 1)] = 0x20000000;  // above its middle
+    CHECK_EQ(
+        all.field.ProbeCells(static_cast<std::ptrdiff_t>(at(2, 2)), 3, 3, 0x60800000),
+        0x01u | 0x02u | 0x04u | 0x08u
+    );
+}

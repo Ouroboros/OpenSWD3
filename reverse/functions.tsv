@@ -106,12 +106,12 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 105	swd32.exe	0x00402AE0	sub_402AE0	role_path	src/role/path_finder.cpp:PathFinder::UpdateBlocked	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	footprints of at most 2 tiles take the unrolled path (sizes below 1 read like 1); legacy: src/role/path_finder.cpp:PathFinder::UpdateBlocked
 106	swd32.exe	0x00402F70	sub_402F70	role_path	src/role/path_finder.cpp:PathFinder::SetMask	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/role/path_finder.cpp:PathFinder::SetMask
 107	swd32.exe	0x00402F80	sub_402F80	role_event		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(KeyCole:...)"
-108	swd32.exe	0x004040B0	sub_4040B0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-109	swd32.exe	0x00404510	sub_404510	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-110	swd32.exe	0x00404610	sub_404610	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-111	swd32.exe	0x00404C00	sub_404C00	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-112	swd32.exe	0x00404FD0	sub_404FD0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-113	swd32.exe	0x004050B0	sub_4050B0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+108	swd32.exe	0x004040B0	sub_4040B0	role	src/role/role_control.cpp:RoleControl::Slide	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+109	swd32.exe	0x00404510	sub_404510	role	src/role/role_control.cpp:RoleControl::FreeLanes	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+110	swd32.exe	0x00404610	sub_404610	role	src/role/role_control.cpp:RoleControl::StepEvent	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+111	swd32.exe	0x00404C00	sub_404C00	role	src/role/role_control.cpp:RoleControl::FindRoleAhead	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+112	swd32.exe	0x00404FD0	sub_404FD0	role	src/role/role_control.cpp:RoleControl::FindRoleAt	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
+113	swd32.exe	0x004050B0	sub_4050B0	role	src/role/role_control.cpp:RoleControl::FindTouchRoleAt	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 114	swd32.exe	0x004050E0	sub_4050E0	input_dinput	src/input/controls.cpp:Controls::Poll	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 115	swd32.exe	0x004053C0	sub_4053C0	input_dinput	src/input/controls.cpp:Controls::Update	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 116	swd32.exe	0x00405430	sub_405430	role_path		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	string "Act Err(Path:...)"
@@ -151,7 +151,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 150	swd32.exe	0x0040B7F0	sub_40B7F0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 151	swd32.exe	0x0040BAA0	sub_40BAA0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 152	swd32.exe	0x0040BB20	sub_40BB20	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-153	swd32.exe	0x0040BB50	sub_40BB50	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+153	swd32.exe	0x0040BB50	sub_40BB50	map	src/map/field.cpp:Field::ProbeCells	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 154	swd32.exe	0x0040C020	sub_40C020	game	src/game/game_state.cpp:GameState::FindRole	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 155	swd32.exe	0x0040C060	sub_40C060	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 156	swd32.exe	0x0040C0D0	sub_40C0D0	game	src/game/game_state.cpp:GameState::FindRoleOrPlayer	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
@@ -170,7 +170,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 169	swd32.exe	0x0040D610	sub_40D610	game	src/game/game_field.cpp:Game::FollowLeader	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 170	swd32.exe	0x0040D790	sub_40D790	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 171	swd32.exe	0x0040D9E0	sub_40D9E0	game	src/game/game_field.cpp:Game::BuildTriggers	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
-172	swd32.exe	0x0040DA60	sub_40DA60	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+172	swd32.exe	0x0040DA60	sub_40DA60	game	src/game/game_field.cpp:Game::RollEncounter	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	
 173	swd32.exe	0x0040DB40	sub_40DB40	game	src/game/game_state.cpp:ClickRegions::Count	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:CountClickRegions
 174	swd32.exe	0x0040DB60	sub_40DB60	game	src/game/game_state.cpp:ClickRegions::Find	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:FindClickRegion
 175	swd32.exe	0x0040DBC0	sub_40DBC0	game	src/game/game_state.cpp:ClickRegions::Free	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	legacy: src/game/game_state.cpp:FreeClickRegions

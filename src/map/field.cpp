@@ -735,4 +735,154 @@ MapRegion* Field::FindRegion(int id)
     return nullptr;
 }
 
+// swd32.exe 0x0040BB50: the cells around a footprint of width x height cells at `cell` holding bits of `mask`, by
+// direction: 1 up left, 2 up, 4 up right, 8 right, 0x10 down right, 0x20 down, 0x40 down left, 0x80 left. Footprints of
+// at most 2 cells take an unrolled path that treats sizes below 1 like 1. The original keeps the four edges in one
+// 32-entry stack array whose parts overlap for footprints above 6 cells and run past it from 7 cells high; here they
+// are separate. A cell outside the grid has every bit set.
+u32 Field::ProbeCells(std::ptrdiff_t cell, int width, int height, u32 mask) const
+{
+    const std::vector<u32>& blocks = this->state.map.blocks;
+    const int mapWidth = this->state.map.width;
+
+    auto read = [&blocks, mask](std::ptrdiff_t at) -> u32
+    {
+        return (at >= 0 && static_cast<std::size_t>(at) < blocks.size() ? blocks[static_cast<std::size_t>(at)]
+                                                                        : 0xFFFFFFFF) &
+               mask;
+    };
+
+    u32 upLeft = 0;
+    u32 up = 0;
+    u32 upRight = 0;
+    u32 right = 0;
+    u32 downRight = 0;
+    u32 down = 0;
+    u32 downLeft = 0;
+    u32 left = 0;
+    const std::ptrdiff_t topBase = cell - (mapWidth + 1);
+    const std::ptrdiff_t bottomBase = cell + static_cast<std::ptrdiff_t>(height) * mapWidth - 1;
+    std::vector<u32> top(static_cast<std::size_t>(std::max(width + 2, 4)), 0);
+    std::vector<u32> bottom(top.size(), 0);
+
+    if (width > 2)
+    {
+        for (int index = 0; index < width + 2; ++index)
+        {
+            top[static_cast<std::size_t>(index)] |= read(topBase + index);
+            bottom[static_cast<std::size_t>(index)] |= read(bottomBase + index);
+        }
+
+        for (std::size_t index = 0; index < static_cast<std::size_t>(width); ++index)
+        {
+            up |= top[index + 1];
+            upLeft |= top[index];
+            upRight |= top[index + 2];
+            down |= bottom[index + 1];
+            downLeft |= bottom[index];
+            downRight |= bottom[index + 2];
+        }
+    }
+    else
+    {
+        for (int index = 0; index < 3; ++index)
+        {
+            top[static_cast<std::size_t>(index)] |= read(topBase + index);
+            bottom[static_cast<std::size_t>(index)] |= read(bottomBase + index);
+        }
+
+        if (width == 2)
+        {
+            top[3] |= read(topBase + 3);
+            bottom[3] |= read(bottomBase + 3);
+        }
+
+        upLeft = top[0];
+        downLeft = bottom[0];
+        up = top[1];
+        down = bottom[1];
+        downRight = bottom[2];
+        upRight = top[2];
+
+        if (width == 2)
+        {
+            upLeft = top[1] | top[0];
+            up = upRight | top[1];
+            upRight |= top[3];
+            downLeft = bottom[1] | bottom[0];
+            down = bottom[2] | bottom[1];
+            downRight = bottom[3] | bottom[2];
+        }
+    }
+
+    const std::ptrdiff_t leftBase = topBase;
+    const std::ptrdiff_t rightBase = cell + width - mapWidth;
+    std::vector<u32> leftSide(static_cast<std::size_t>(std::max(height + 2, 4)), 0);
+    std::vector<u32> rightSide(leftSide.size(), 0);
+
+    if (height > 2)
+    {
+        for (int index = 0; index < height + 2; ++index)
+        {
+            leftSide[static_cast<std::size_t>(index)] |= read(leftBase + static_cast<std::ptrdiff_t>(index) * mapWidth);
+            rightSide[static_cast<std::size_t>(index)] |=
+                read(rightBase + static_cast<std::ptrdiff_t>(index) * mapWidth);
+        }
+
+        for (std::size_t index = 0; index < static_cast<std::size_t>(height); ++index)
+        {
+            left |= leftSide[index + 1];
+            upLeft |= leftSide[index];
+            downLeft |= leftSide[index + 2];
+            right |= rightSide[index + 1];
+            upRight |= rightSide[index];
+            downRight |= rightSide[index + 2];
+        }
+    }
+    else
+    {
+        for (int index = 0; index < 3; ++index)
+        {
+            leftSide[static_cast<std::size_t>(index)] |= read(leftBase + static_cast<std::ptrdiff_t>(index) * mapWidth);
+            rightSide[static_cast<std::size_t>(index)] |=
+                read(rightBase + static_cast<std::ptrdiff_t>(index) * mapWidth);
+        }
+
+        if (height == 2)
+        {
+            leftSide[3] |= read(leftBase + 3 * static_cast<std::ptrdiff_t>(mapWidth));
+            rightSide[3] |= read(rightBase + 3 * static_cast<std::ptrdiff_t>(mapWidth));
+        }
+
+        upLeft |= leftSide[0];
+        left = leftSide[1];
+        downLeft |= leftSide[2];
+        upRight |= rightSide[0];
+        right = rightSide[1];
+        const u32 lowRight = rightSide[2];
+        downRight |= lowRight;
+
+        if (height == 2)
+        {
+            upLeft |= leftSide[1];
+            left = leftSide[2] | leftSide[1];
+            downLeft |= leftSide[3];
+            upRight |= rightSide[1];
+            right = lowRight | rightSide[1];
+            downRight |= rightSide[3];
+        }
+    }
+
+    u32 result = 0;
+    result |= up != 0 ? 2u : 0u;
+    result |= upLeft != 0 ? 1u : 0u;
+    result |= upRight != 0 ? 4u : 0u;
+    result |= down != 0 ? 0x20u : 0u;
+    result |= downLeft != 0 ? 0x40u : 0u;
+    result |= downRight != 0 ? 0x10u : 0u;
+    result |= left != 0 ? 0x80u : 0u;
+    result |= right != 0 ? 8u : 0u;
+    return result;
+}
+
 }  // namespace swd3

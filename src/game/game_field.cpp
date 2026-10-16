@@ -1090,4 +1090,71 @@ void Game::PlaySoundAt(u16 sound, int x, int y)
     effects.SetPan(sound, ((x - player.x) << 6) / 0x200);
 }
 
+// swd32.exe 0x0040DA60: a random encounter after `steps` steps: the map's encounter set (from maps.dat's table 0x12)
+// gives up to four step thresholds with their chances in percent; once one is passed and its roll succeeds (or with
+// `force` 1) the encounter area under the controlled role picks one of its battles at random. 0 for none.
+u32 Game::RollEncounter(int steps, int force)
+{
+    Scene& view = this->scene;
+
+    if (view.unk4B896C == 0)
+    {
+        return 0;
+    }
+
+    const Role& player = this->state.roles[static_cast<std::size_t>(this->state.playerRole)];
+    const auto roll = static_cast<int>(this->random.Below(0x64));
+    const std::vector<u16>& sets = view.unk4CAE78;
+    std::size_t at = 1 + 8 * static_cast<std::size_t>(view.unk4B896C - 1);
+    int threshold = 0;
+    int pair = 4;
+
+    auto word = [&sets](std::size_t index) -> i16
+    {
+        return index < sets.size() ? static_cast<i16>(sets[index]) : i16{0};
+    };
+
+    for (;;)
+    {
+        threshold += word(at);
+
+        if (steps < threshold || force == 1)
+        {
+            break;
+        }
+
+        at += 2;
+
+        if (--pair <= 0)
+        {
+            return 0;
+        }
+    }
+
+    if (word(at + 1) <= roll && force != 1)
+    {
+        return 0;
+    }
+
+    const int column = player.x >> 4;
+    const int row = player.y >> 4;
+    const MapTrigger* area = view.triggers.next.get();
+
+    while (area != nullptr && (column < area->left || column > area->right || row < area->top || row > area->bottom))
+    {
+        area = area->next.get();
+    }
+
+    if (area == nullptr)
+    {
+        return 0;
+    }
+
+    const std::vector<u8>& data = this->databases.mapsData;
+    const u16 count = MapsWord(data, area->table);
+    const u32 pick = this->random.Below(count);
+    view.unk4C9A20 = 0;
+    return MapsWord(data, area->table + 2 * (pick + 1));
+}
+
 }  // namespace swd3

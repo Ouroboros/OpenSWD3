@@ -65,6 +65,7 @@ public:
     void MarkRoleCells(const Role& role, u16 leader);
     void ClearRoleCells(const Role& role, u16 leader);
     MapRegion* FindRegion(int id);
+    u32 ProbeCells(std::ptrdiff_t cell, int width, int height, u32 mask) const;
 
     MapRegion regions;                             // 0x004ACAC0
     std::unique_ptr<MapOverlay> overlays;          // 0x004AB2F4
