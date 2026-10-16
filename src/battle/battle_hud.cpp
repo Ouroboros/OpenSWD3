@@ -605,7 +605,7 @@ int BattleHud::DrawCoinToss()
         return 0;
     }
 
-    this->coinDelay = BattleHud::kInitialCoinDelay;
+    this->coinDelay = BattleHud::InitialCoinDelay;
     this->coinFrames = 0;
 
     if (static_cast<u16>(this->coinState) == 1)
@@ -634,7 +634,7 @@ int BattleHud::DrawTimingBar(int x, int y)
 
     for (int mark = 0; mark < 3; ++mark)
     {
-        const u16 position = BattleHud::kTimingMarks[static_cast<std::size_t>(mark)];
+        const u16 position = BattleHud::TimingMarks[static_cast<std::size_t>(mark)];
         this->painter.SetClipClamped(x + position, y, x + position + 1, y + this->lastPicture->height);
         const Picture* line = this->Select(static_cast<int>(kTimingPicture), 1);
         this->Draw(line, x, y, line != nullptr ? line->width : 0, line != nullptr ? line->height : 0, 0);
@@ -730,7 +730,7 @@ int BattleHud::DrawAnimation(BattleAnimation& animation)
     state.action = 0;
     this->acts.Run(state);
     const Picture* picture =
-        state.picture < BattleAnimation::kPictures ? animation.pictures[state.picture].get() : nullptr;
+        state.picture < BattleAnimation::Pictures ? animation.pictures[state.picture].get() : nullptr;
 
     if (picture != nullptr)
     {
@@ -762,7 +762,7 @@ int BattleHud::FreeAnimation(BattleAnimation& animation)
 // by 640 / `divisor`; the wave mode of 'WT' is kept. `unused` is ignored. Always 0.
 int BattleHud::LoadAnimation(BattleAnimation& animation, int, int x, int y, u16 id, u16 divisor)
 {
-    std::array<u16, BattleAnimation::kPictures> loaded = {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
+    std::array<u16, BattleAnimation::Pictures> loaded = {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
     ActState& state = animation.act;
     animation.id = id;
     animation.x = x;
@@ -784,7 +784,7 @@ int BattleHud::LoadAnimation(BattleAnimation& animation, int, int x, int y, u16 
 
         const u16 frame = state.picture;
 
-        if (frame < BattleAnimation::kPictures && loaded[frame] == 0xFFFF)
+        if (frame < BattleAnimation::Pictures && loaded[frame] == 0xFFFF)
         {
             animation.pictures[frame] = this->archive.LoadPictureDirect(state.frame, state.picture);
             loaded[frame] = frame;
@@ -817,7 +817,7 @@ int BattleHud::LoadAnimation(BattleAnimation& animation, int, int x, int y, u16 
 // when positive, left when negative) and drawn; 1 when it ended, 0 without an animation. `unused` is ignored.
 int BattleHud::PlayAnimationShifted(BattleAnimation& animation, int, int amount)
 {
-    std::array<u16, BattleAnimation::kPictures> shown = {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
+    std::array<u16, BattleAnimation::Pictures> shown = {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
 
     if (animation.id == 0)
     {
@@ -838,7 +838,7 @@ int BattleHud::PlayAnimationShifted(BattleAnimation& animation, int, int amount)
     {
         const u16 frame = state.picture;
 
-        if (frame < BattleAnimation::kPictures && shown[frame] == 0xFFFF)
+        if (frame < BattleAnimation::Pictures && shown[frame] == 0xFFFF)
         {
             shown[frame] = frame;
             Picture* picture = animation.pictures[frame].get();

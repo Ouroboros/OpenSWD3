@@ -92,7 +92,7 @@ int AudioManager::PlaySoundAt(u16 id, u16 volume)
 // swd32.exe 0x00485710: fades the music out in one update
 int AudioManager::StopMusic()
 {
-    return this->streams.FadeOut(AudioManager::kMusicId, 1);
+    return this->streams.FadeOut(AudioManager::MusicId, 1);
 }
 
 // swd32.exe 0x00485720
@@ -112,13 +112,13 @@ int AudioManager::StopAllSounds()
 // swd32.exe 0x00485830
 bool AudioManager::IsMusicStopped()
 {
-    return this->streams.IsStopped(AudioManager::kMusicId);
+    return this->streams.IsStopped(AudioManager::MusicId);
 }
 
 // swd32.exe 0x00485850
 int AudioManager::SetMusicVolume(int volume)
 {
-    return this->streams.SetVolume(AudioManager::kMusicId, ScaledVolume(volume));
+    return this->streams.SetVolume(AudioManager::MusicId, ScaledVolume(volume));
 }
 
 // swd32.exe 0x00485880: mode 1 stops the music at once, mode 2 fades it over the set length
@@ -126,7 +126,7 @@ int AudioManager::UpdateMusicFade()
 {
     if (this->musicFadeMode == 1)
     {
-        this->streams.FadeOut(AudioManager::kMusicId, 1);
+        this->streams.FadeOut(AudioManager::MusicId, 1);
         this->musicFadeMode = 0;
         this->musicFading = 0;
         return 0;
@@ -134,7 +134,7 @@ int AudioManager::UpdateMusicFade()
 
     if (this->musicFadeMode == 2)
     {
-        const int result = this->streams.FadeOut(AudioManager::kMusicId, this->musicFadeLength);
+        const int result = this->streams.FadeOut(AudioManager::MusicId, this->musicFadeLength);
         this->musicFading = this->musicFadeLength;
         return result;
     }
@@ -155,7 +155,7 @@ int AudioManager::PollMusicFade()
         return this->musicFadeMode - 2;
     }
 
-    const bool stopped = this->streams.IsStopped(AudioManager::kMusicId);
+    const bool stopped = this->streams.IsStopped(AudioManager::MusicId);
 
     if (stopped)
     {

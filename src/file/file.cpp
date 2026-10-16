@@ -235,7 +235,7 @@ u32 File::Size()
 {
     if (this->file == nullptr)
     {
-        return kInvalidPosition;
+        return InvalidPosition;
     }
 
     const long position = std::ftell(this->file);
@@ -314,7 +314,7 @@ u32 File::Seek(Origin origin, i32 distance)
     if (std::fseek(this->file, distance, seekOrigin(origin)) != 0)
     {
         this->SetError(std::strerror(errno));
-        return kInvalidPosition;
+        return InvalidPosition;
     }
 
     return static_cast<u32>(std::ftell(this->file));

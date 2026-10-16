@@ -34,9 +34,9 @@ bool GameDatabases::Open(const std::string& installDirectory, ErrorReporter& err
 // maps.dat past its header (read again for every new game).
 void GameDatabases::LoadMaps()
 {
-    u32 bytes = this->maps.Size() - GameDatabases::kMapsHeader;
+    u32 bytes = this->maps.Size() - GameDatabases::MapsHeader;
     this->mapsData.assign(bytes, 0);
-    this->maps.SeekBegin(static_cast<i32>(GameDatabases::kMapsHeader));
+    this->maps.SeekBegin(static_cast<i32>(GameDatabases::MapsHeader));
     this->maps.Read(this->mapsData.data(), bytes);
 }
 

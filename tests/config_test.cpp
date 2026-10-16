@@ -57,7 +57,7 @@ TEST_CASE("config: channel masks match swd32.exe")
         return;
     }
 
-    CHECK(std::memcmp(exe.data() + (0x0049E0B4 - 0x400000), Config::kDefaultChannelMasks.data(), 6) == 0);
+    CHECK(std::memcmp(exe.data() + (0x0049E0B4 - 0x400000), Config::DefaultChannelMasks.data(), 6) == 0);
 }
 
 TEST_CASE("config: Env.dat written, then read back")
@@ -78,7 +78,7 @@ TEST_CASE("config: Env.dat written, then read back")
     Config loaded;
     loaded.installDirectory = directory;
     loaded.soundVolume = 0x106;
-    loaded.channelMasks = Config::kDefaultChannelMasks;
+    loaded.channelMasks = Config::DefaultChannelMasks;
     i32 unknown14 = 0;
     u8 effectsOff = 0;
     CHECK(loaded.Load(unknown14, effectsOff));

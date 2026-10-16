@@ -26,9 +26,9 @@ struct MemoryNode
 class MemoryManager
 {
 public:
-    static constexpr u32 kGuard = 0xABCDDCBAu;
-    static constexpr int kBuckets = 32;
-    static constexpr int kSpareNodes = 32;
+    static constexpr u32 Guard = 0xABCDDCBAu;
+    static constexpr int Buckets = 32;
+    static constexpr int SpareNodes = 32;
 
     explicit MemoryManager(ErrorReporter& errors);
     ~MemoryManager();
@@ -46,7 +46,7 @@ private:
     u32 allocatedBytes = 0;
     int peakNodes = 0;
     int nodeCount = 0;
-    std::array<std::vector<std::unique_ptr<MemoryNode>>, kBuckets> buckets;
+    std::array<std::vector<std::unique_ptr<MemoryNode>>, Buckets> buckets;
     std::vector<std::unique_ptr<MemoryNode>> spareNodes;
     std::u8string text;
 };

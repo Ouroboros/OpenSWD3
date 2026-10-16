@@ -21,10 +21,10 @@ TEST_CASE("random: initial table and LCG state match swd32.exe")
         return;
     }
 
-    CHECK(std::memcmp(exe.data() + (0x004A6610 - 0x400000), Random::kInitialTable.data(), Random::kSize * 4) == 0);
+    CHECK(std::memcmp(exe.data() + (0x004A6610 - 0x400000), Random::InitialTable.data(), Random::Size * 4) == 0);
     u32 lcg = 0;
     std::memcpy(&lcg, exe.data() + (0x004A69F8 - 0x400000), 4);
-    CHECK_EQ(lcg, Random::kInitialLcg);
+    CHECK_EQ(lcg, Random::InitialLcg);
 }
 
 TEST_CASE("random: LCG and the R250 sequence")
@@ -33,7 +33,7 @@ TEST_CASE("random: LCG and the R250 sequence")
     CHECK_EQ(random.LcgSeed(7), 7u);
     CHECK_EQ(random.LcgNext(), ((0x015A4E35u * 7u + 1u) >> 16) & 0x7FFFu);
     Random unseeded;
-    CHECK_EQ(unseeded.Next(), Random::kInitialTable[103] ^ Random::kInitialTable[0]);
+    CHECK_EQ(unseeded.Next(), Random::InitialTable[103] ^ Random::InitialTable[0]);
     Random first;
     Random second;
     first.Seed(0x12345678);

@@ -94,7 +94,7 @@ TEST_CASE("field: the first map of a new game from HUGE.lmf")
     CHECK_EQ(header.tiles.size(), static_cast<std::size_t>(header.width) * header.height * header.layers);
     CHECK(header.pixels != nullptr);
     CHECK(std::filesystem::exists(all.config.installDirectory + "data/mcache.dat"));
-    CHECK_EQ(all.field.rows[0].size(), static_cast<std::size_t>(header.height) + 2 * swd3::Field::kRowMargin);
+    CHECK_EQ(all.field.rows[0].size(), static_cast<std::size_t>(header.height) + 2 * swd3::Field::RowMargin);
 
     const int width = header.width;
     CHECK(all.field.LoadMap(unit, flags));
@@ -125,7 +125,7 @@ TEST_CASE("field: the drawing order of the roles in a row")
         all.field.InsertRole(*role, 0);
     }
 
-    swd3::Role* head = all.field.rows[0][2 + swd3::Field::kRowMargin];
+    swd3::Role* head = all.field.rows[0][2 + swd3::Field::RowMargin];
     CHECK(head == &third);
     CHECK(head->next == &first);
     CHECK(first.next == &second);

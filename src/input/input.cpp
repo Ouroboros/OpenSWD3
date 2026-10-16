@@ -90,9 +90,9 @@ int Input::ReadMouse(int& x, int& y)
         screenX = 0;
         this->mouseOriginX = state.x;
     }
-    else if (screenX > Input::kScreenRight)
+    else if (screenX > Input::ScreenRight)
     {
-        screenX = Input::kScreenRight;
+        screenX = Input::ScreenRight;
         this->mouseOriginX = state.x - 0x18F6 / this->sensitivity;
     }
 
@@ -101,9 +101,9 @@ int Input::ReadMouse(int& x, int& y)
         screenY = 0;
         this->mouseOriginY = state.y;
     }
-    else if (screenY > Input::kScreenBottom)
+    else if (screenY > Input::ScreenBottom)
     {
-        screenY = Input::kScreenBottom;
+        screenY = Input::ScreenBottom;
         this->mouseOriginY = state.y - 0x12B6 / this->sensitivity;
     }
 
@@ -118,7 +118,7 @@ void Input::SetMousePosition(int x, int y)
 {
     if (x >= 0x280)
     {
-        x = Input::kScreenRight;
+        x = Input::ScreenRight;
     }
     else if (x <= 0)
     {
@@ -127,7 +127,7 @@ void Input::SetMousePosition(int x, int y)
 
     if (y >= 0x1E0)
     {
-        y = Input::kScreenBottom;
+        y = Input::ScreenBottom;
     }
     else if (y <= 0)
     {

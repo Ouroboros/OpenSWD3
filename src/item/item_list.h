@@ -15,10 +15,10 @@ class Database;
 struct ItemNode
 {
     // The id of the empty entry ("無") heading every skill list and filling empty equipment slots.
-    static constexpr u16 kEmpty = 0xFFDC;
+    static constexpr u16 Empty = 0xFFDC;
     // ObjectData::kind bit of a node holding a pending count.
-    static constexpr u32 kPendingKind = 0x8000;
-    static constexpr i16 kMaxCount = 0x63;
+    static constexpr u32 PendingKind = 0x8000;
+    static constexpr i16 MaxCount = 0x63;
 
     std::unique_ptr<ItemNode> next;  // +0x00
     u16 id = 0;                      // +0x04

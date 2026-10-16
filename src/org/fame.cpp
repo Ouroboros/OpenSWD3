@@ -279,7 +279,7 @@ bool Fame::Save(std::vector<u8>& block, ErrorReporter& reporter) const
 {
     const auto counts =
         static_cast<u16>(static_cast<u16>(this->lists[0].id) + static_cast<u16>(this->lists[1].id) + this->lists[2].id);
-    const std::size_t size = CounterNode::kSavedBytes * counts + kSlackBytes;
+    const std::size_t size = CounterNode::SavedBytes * counts + kSlackBytes;
     std::vector<u8> data(size, 0);
     std::size_t section = 0;
 
@@ -290,19 +290,19 @@ bool Fame::Save(std::vector<u8>& block, ErrorReporter& reporter) const
 
         for (const CounterNode* node = list.next.get(); node != nullptr; node = node->next.get())
         {
-            if (entry + CounterNode::kSavedBytes > data.size())
+            if (entry + CounterNode::SavedBytes > data.size())
             {
-                data.resize(entry + CounterNode::kSavedBytes, 0);
+                data.resize(entry + CounterNode::SavedBytes, 0);
             }
 
             SaveNode(*node, data.data() + entry);
-            entry += CounterNode::kSavedBytes;
+            entry += CounterNode::SavedBytes;
             ++nodes;
         }
 
         if (nodes != 0)
         {
-            PutDword(data, section, static_cast<u32>(kHeaderBytes + CounterNode::kSavedBytes * nodes));
+            PutDword(data, section, static_cast<u32>(kHeaderBytes + CounterNode::SavedBytes * nodes));
             std::memcpy(data.data() + section + 4, &nodes, 2);
         }
 
@@ -367,12 +367,12 @@ bool Fame::Load(std::span<const u8> block, ErrorReporter& reporter)
         {
             *link = std::make_unique<CounterNode>();
 
-            if (at + CounterNode::kSavedBytes <= data.size())
+            if (at + CounterNode::SavedBytes <= data.size())
             {
                 LoadNode(**link, data.data() + at);
             }
 
-            at += CounterNode::kSavedBytes;
+            at += CounterNode::SavedBytes;
             link = &(*link)->next;
         }
     }

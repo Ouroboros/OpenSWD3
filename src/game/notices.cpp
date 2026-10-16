@@ -26,9 +26,9 @@ constexpr std::size_t kNoticeColor = 3;
 // counts its frames down and is freed after its last
 void Notices::Draw(TextFont& font, Painter& painter, const GameState& state, const TextColors& colors)
 {
-    font.SetBackground(TextFont::kNoBackground);
+    font.SetBackground(TextFont::NoBackground);
     font.SetShadow(0);
-    font.SetBackground(TextFont::kNoBackground);
+    font.SetBackground(TextFont::NoBackground);
     font.SetShadow(0);
     Notice* previous = &this->head;
     int y = kTop;
@@ -37,7 +37,7 @@ void Notices::Draw(TextFont& font, Painter& painter, const GameState& state, con
     {
         Notice& notice = *previous->next;
 
-        if (!state.GameFlag(Notices::kHiddenFlag))
+        if (!state.GameFlag(Notices::HiddenFlag))
         {
             const auto length = static_cast<int>(strnlen(notice.text.data(), notice.text.size()));
             font.DrawText(

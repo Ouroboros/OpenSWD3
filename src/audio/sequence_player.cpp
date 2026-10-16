@@ -244,7 +244,7 @@ bool MidiPlayer::Update()
         bool retire = false;
         SequenceNode& sequence = **node;
 
-        if ((sequence.flags & SequencePlayer::kFading) == 0)
+        if ((sequence.flags & SequencePlayer::Fading) == 0)
         {
             switch (this->device.Status(sequence.voice))
             {
@@ -445,7 +445,7 @@ int StreamPlayer::FadeOut(int id, int steps)
     int total = 0;
     int current = 0;
     this->device.Position(node->voice, total, current);
-    node->flags |= SequencePlayer::kFading;
+    node->flags |= SequencePlayer::Fading;
     SetFadeStep(*node, steps);
     return id;
 }
@@ -466,7 +466,7 @@ bool StreamPlayer::Update()
         bool retire = false;
         SequenceNode& stream = **node;
 
-        if ((stream.flags & SequencePlayer::kFading) == 0)
+        if ((stream.flags & SequencePlayer::Fading) == 0)
         {
             switch (this->device.Status(stream.voice))
             {

@@ -12,11 +12,11 @@ namespace swd3
 class Random
 {
 public:
-    static constexpr int kSize = 250;
-    static constexpr int kTap = 147;
+    static constexpr int Size = 250;
+    static constexpr int Tap = 147;
     // The R250 table and the LCG state as stored in swd32.exe (0x004A6610, 0x004A69F8): the values drawn before
     // WinMain seeds the generator.
-    static constexpr std::array<u32, kSize> kInitialTable = {
+    static constexpr std::array<u32, Size> InitialTable = {
         15301, 57764, 10921, 56345, 19316, 43154, 54727, 49252, 32360, 49582, 26124, 25833, 34404, 11030, 26232, 13965,
         16051, 63635, 55860, 5184,  15931, 39782, 16845, 11371, 38624, 10328, 9139,  1684,  48668, 59388, 13297, 1364,
         56028, 15687, 63279, 27771, 5277,  44628, 31973, 46977, 16327, 23408, 36065, 52272, 33610, 61549, 58364, 3472,
@@ -35,7 +35,7 @@ public:
         987,   11521, 55494, 38056, 20664, 2629,  50986, 31009, 54043, 59743
     };
 
-    static constexpr u32 kInitialLcg = 1;
+    static constexpr u32 InitialLcg = 1;
 
     void Seed(u32 seed);
     u32 Next();
@@ -46,9 +46,9 @@ public:
 private:
     u32 Step();
 
-    std::array<u32, kSize> table = Random::kInitialTable;
+    std::array<u32, Size> table = Random::InitialTable;
     i32 index = 0;
-    u32 lcg = Random::kInitialLcg;
+    u32 lcg = Random::InitialLcg;
 };
 
 }  // namespace swd3

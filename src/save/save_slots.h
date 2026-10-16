@@ -25,14 +25,14 @@ struct SavePreviewRole
 // The preview of a save slot (0x2A8 bytes in the original, three of them from 0x004CB968).
 struct SavePreview
 {
-    static constexpr u16 kMissing = 1;
-    static constexpr u16 kLoaded = 2;
+    static constexpr u16 Missing = 1;
+    static constexpr u16 Loaded = 2;
 
     std::array<SavePreviewRole, 4> roles;  // +0x00
     i32 unk20 = 0;                         // +0x20
     i32 unk24 = 0;                         // +0x24 2, or 3 with story flag 0x53
     i32 unk28 = 0;                         // +0x28 the dword at +4 of the saved data
-    u16 state = 0;                         // +0x30 kMissing, kLoaded
+    u16 state = 0;                         // +0x30 Missing, Loaded
     std::vector<u16> thumbnail;            // +0x294 160 x 120 pixels
     std::string date;                      // +0x298 "yyyy/mm/dd hh:mm"
     std::string location;                  // +0x29C
@@ -45,16 +45,16 @@ struct SavePreview
 class SaveSlots
 {
 public:
-    static constexpr int kVisible = 3;
-    static constexpr int kActsPerSlot = 4;
-    static constexpr u32 kHeaderBytes = 0xC;
-    static constexpr u32 kThumbnailPixels = 0x4B00;
-    static constexpr u32 kLocationBytes = 0x20;
-    static constexpr std::string_view kDateTemplate = "____/__/__ __:__";  // swd32.exe 0x0049FAA4
-    static constexpr std::u8string_view kHours = u8"%02d時";               // swd32.exe 0x0049FA9C
-    static constexpr std::u8string_view kMinutes = u8"%02d分";             // swd32.exe 0x0049FA94
-    static constexpr std::u8string_view kSeconds = u8"%02d秒";             // swd32.exe 0x0049FA8C
-    static constexpr std::array<i32, kActsPerSlot> kFrameActs = {1, 2, 8, 0x11};
+    static constexpr int Visible = 3;
+    static constexpr int ActsPerSlot = 4;
+    static constexpr u32 HeaderBytes = 0xC;
+    static constexpr u32 ThumbnailPixels = 0x4B00;
+    static constexpr u32 LocationBytes = 0x20;
+    static constexpr std::string_view DateTemplate = "____/__/__ __:__";  // swd32.exe 0x0049FAA4
+    static constexpr std::u8string_view Hours = u8"%02d時";               // swd32.exe 0x0049FA9C
+    static constexpr std::u8string_view Minutes = u8"%02d分";             // swd32.exe 0x0049FA94
+    static constexpr std::u8string_view Seconds = u8"%02d秒";             // swd32.exe 0x0049FA8C
+    static constexpr std::array<i32, ActsPerSlot> FrameActs = {1, 2, 8, 0x11};
 
     static void Free(SavePreview& preview);
     static void
@@ -63,9 +63,9 @@ public:
     void FindNewest(const std::string& installDirectory, const Painter& painter);
     void LoadPage(const std::string& installDirectory, const Painter& painter);
 
-    std::array<std::array<ActState, kActsPerSlot>, kVisible> acts;  // 0x004CB248
-    std::array<SavePreview, kVisible> previews;                     // 0x004CB968
-    i32 newest = 0;                                                 // 0x004CC2A0 the slot written last
+    std::array<std::array<ActState, ActsPerSlot>, Visible> acts;  // 0x004CB248
+    std::array<SavePreview, Visible> previews;                    // 0x004CB968
+    i32 newest = 0;                                               // 0x004CC2A0 the slot written last
 };
 
 }  // namespace swd3

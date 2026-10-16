@@ -54,8 +54,8 @@ TEST_CASE("game init: text colour tables match swd32.exe")
         return;
     }
 
-    CHECK(std::memcmp(exe.data() + (0x0049E0C8 - 0x400000), swd3::TextColors::kPrimary.data(), 0x40) == 0);
-    CHECK(std::memcmp(exe.data() + (0x0049E108 - 0x400000), swd3::TextColors::kSecondary.data(), 0x40) == 0);
+    CHECK(std::memcmp(exe.data() + (0x0049E0C8 - 0x400000), swd3::TextColors::Primary.data(), 0x40) == 0);
+    CHECK(std::memcmp(exe.data() + (0x0049E108 - 0x400000), swd3::TextColors::Secondary.data(), 0x40) == 0);
     swd3::Surface surface(640, 480);
     swd3::Painter painter;
     painter.Init(surface);

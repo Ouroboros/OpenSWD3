@@ -40,7 +40,7 @@ void Controls::Update(ButtonState& button, int down)
     {
         if (button.releasedAt != 0)
         {
-            const i32 next = Controls::kClickSequence[static_cast<std::size_t>(button.clicks)];
+            const i32 next = Controls::ClickSequence[static_cast<std::size_t>(button.clicks)];
             button.heldFrames = 0;
             button.press = next;
             button.clicks = next;
@@ -61,7 +61,7 @@ void Controls::Update(ButtonState& button, int down)
 
     button.press = 0;
 
-    if (static_cast<u32>(this->now - button.releasedAt) > Controls::kClickGap)
+    if (static_cast<u32>(this->now - button.releasedAt) > Controls::ClickGap)
     {
         button.clicks = 0;
     }
@@ -89,13 +89,13 @@ void Controls::Poll(Input& input, const Config& config, GameState& state, i32 fr
         --this->mouseSuppressed;
     }
 
-    state.ClearGameFlag(Controls::kIdleFlag);
+    state.ClearGameFlag(Controls::IdleFlag);
 
     if (state.pointerX == this->lastPointerX && state.pointerY == this->lastPointerY && mouse == 0)
     {
-        if (++this->idleFrames > Controls::kIdleFrames)
+        if (++this->idleFrames > Controls::IdleFrames)
         {
-            state.SetGameFlag(Controls::kIdleFlag);
+            state.SetGameFlag(Controls::IdleFlag);
         }
     }
     else

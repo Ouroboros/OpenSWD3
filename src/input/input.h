@@ -14,8 +14,33 @@ class InputDevice;
 class Input
 {
 public:
-    static constexpr int kScreenRight = 0x27F;
-    static constexpr int kScreenBottom = 0x1DF;
+    // DirectInput keyboard scan codes (DIK_*) the game tests directly.
+    enum Key : int
+    {
+        Tab = 0x0F,
+        Q = 0x10,
+        LeftControl = 0x1D,
+        S = 0x1F,
+        L = 0x26,
+        RightShift = 0x36,
+        Space = 0x39,
+        F1 = 0x3B,
+        F2 = 0x3C,
+        F3 = 0x3D,
+        F4 = 0x3E,
+        F6 = 0x40,
+        F7 = 0x41,
+        F9 = 0x43,
+        NumpadMinus = 0x4A,
+        NumpadPlus = 0x4E,
+        F12 = 0x58,
+        RightControl = 0x9D,
+        Home = 0xC7,
+        End = 0xCF,
+    };
+
+    static constexpr int ScreenRight = 0x27F;
+    static constexpr int ScreenBottom = 0x1DF;
 
     explicit Input(InputDevice& device);
     ~Input();

@@ -124,7 +124,7 @@ TEST_CASE("battle unit: construction, commands, turns and hits")
     unit.guarding = 1;
     unit.slotActs[9].id = 5;
     unit.slotActs[2].id = 5;
-    unit.kind = swd3::BattleUnit::kPartyRole;
+    unit.kind = swd3::BattleUnit::PartyRole;
     all.random.Seed(7);
     const int gauge = unit.ResetTurn(all.services);
     CHECK(gauge >= 50 && gauge < 190);
@@ -183,7 +183,7 @@ TEST_CASE("battle unit: evasion, vitals and scaling")
     swd3::RoleRecord role;
     role.hitPoints = 5;
     role.maxHitPoints = 80;
-    unit.kind = swd3::BattleUnit::kPartyRole;
+    unit.kind = swd3::BattleUnit::PartyRole;
     unit.roleRecord = &role;
     unit.SetVitals(-1, 30, 0);
     CHECK_EQ(role.hitPoints, 80);
@@ -232,7 +232,7 @@ TEST_CASE("battle unit: ailments, buffs, expiry and damage")
     role.spirit = 5;
     role.maxSpirit = 20;
     swd3::BattleUnit unit;
-    unit.kind = swd3::BattleUnit::kPartyRole;
+    unit.kind = swd3::BattleUnit::PartyRole;
     unit.battleRecord = &stats;
     unit.roleRecord = &role;
     unit.displayName = "A";
@@ -302,7 +302,7 @@ TEST_CASE("battle unit: role and enemy blocks, reset")
     CHECK(role.battleRecord != nullptr);
     swd3::BattleEnemy enemy;
     CHECK(enemy.data != nullptr);
-    role.kind = swd3::BattleUnit::kPartyRole;
+    role.kind = swd3::BattleUnit::PartyRole;
     role.gauge = 9;
     role.slotActs[9].id = 4;
     role.slotActs[3].id = 4;

@@ -25,7 +25,7 @@ u32 ConvertColor(const Painter& painter, u32 color)
 // Part of the draw kernel start (0x00424B90): the colour loop
 void TextColors::Convert(const Painter& painter)
 {
-    for (int index = 0; index < TextColors::kColors; ++index)
+    for (int index = 0; index < TextColors::Colors; ++index)
     {
         const auto at = static_cast<std::size_t>(index);
         this->primary[at] = ConvertColor(painter, this->primary[at]);

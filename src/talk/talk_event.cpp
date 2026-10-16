@@ -48,14 +48,14 @@ void Talk::RunEvent(Role& context)
             return;
         }
 
-        if (context.id != TalkWindow::kNoRole)
+        if (context.id != TalkWindow::NoRole)
         {
             u32 index = 0;
             state.FindRoleOrPlayer(context.id, index);
 
-            if (index < GameState::kRoles)
+            if (index < GameState::Roles)
             {
-                state.roles[index].flags |= role_flag::kInEvent;
+                state.roles[index].flags |= Role::InEvent;
             }
         }
 
@@ -182,7 +182,7 @@ void Talk::Jump(EventRun& run, u32 offset)
 // The role last looked up (nullptr when it was not found: the original goes on with role -1, before the roles).
 Role* Talk::FoundRole(const EventRun& run)
 {
-    return run.found < GameState::kRoles ? &this->game.state.roles[run.found] : nullptr;
+    return run.found < GameState::Roles ? &this->game.state.roles[run.found] : nullptr;
 }
 
 // The role of a command: 0xFFF0 stands for the role of the event.
@@ -194,12 +194,12 @@ u16 Talk::EventRoleId(const EventRun& run, u16 id) const
 // A story flag of a command (flags past the 0x400 bytes read as clear and are not set).
 bool Talk::StoryFlag(int flag) const
 {
-    return flag >= 0 && flag < 8 * GameState::kFlagBytes && this->game.state.GameFlag(flag);
+    return flag >= 0 && flag < 8 * GameState::FlagBytes && this->game.state.GameFlag(flag);
 }
 
 void Talk::SetStoryFlag(int flag, bool value)
 {
-    if (flag < 0 || flag >= 8 * GameState::kFlagBytes)
+    if (flag < 0 || flag >= 8 * GameState::FlagBytes)
     {
         return;
     }
@@ -287,15 +287,15 @@ void Talk::EndEvent(EventRun& run)
     GameState& state = owner.state;
     const u16 id = run.context.id;
 
-    if (id != 0xFFFF && id != TalkWindow::kNoRole)
+    if (id != 0xFFFF && id != TalkWindow::NoRole)
     {
         if (state.FindRoleOrPlayer(id, run.found))
         {
             Role& role = state.roles[run.found];
             owner.rolePath.ResumeMove(static_cast<int>(run.found));
-            role.flags &= ~role_flag::kHeld;
+            role.flags &= ~Role::Held;
 
-            if ((role.flags & role_flag::kFacesTalker) != 0)
+            if ((role.flags & Role::FacesTalker) != 0)
             {
                 if (role.act.savedAction != -1)
                 {
@@ -316,19 +316,19 @@ void Talk::EndEvent(EventRun& run)
                 LogActError(u8"Act Err(Talk:Talkend)", role);
             }
 
-            if ((role.flags & role_flag::kInEvent) != 0)
+            if ((role.flags & Role::InEvent) != 0)
             {
                 owner.rolePath.ResumeMove(static_cast<int>(run.found));
-                role.flags &= ~role_flag::kHeld;
+                role.flags &= ~Role::Held;
             }
         }
-        else if (state.GameFlag(story_flag::kDebugReports) && run.found >= 0x100)
+        else if (state.GameFlag(GameState::DebugReports) && run.found >= 0x100)
         {
             DebugLog(u8"TalkEnd role", id, owner.unk4A9A10);
         }
     }
 
-    for (int index = 0; index < state.roleCount && index < GameState::kRoles; ++index)
+    for (int index = 0; index < state.roleCount && index < GameState::Roles; ++index)
     {
         state.roles[static_cast<std::size_t>(index)].act.savedAction = -1;
         state.roles[static_cast<std::size_t>(index)].act.savedDirection = -1;
@@ -342,7 +342,7 @@ void Talk::EndEvent(EventRun& run)
         {
             move.Clear();
 
-            if (run.found < GameState::kRoles)
+            if (run.found < GameState::Roles)
             {
                 state.roles[run.found].unk1C = 0;
                 state.roles[run.found].unk18 = 0;
@@ -370,10 +370,10 @@ bool Talk::OpenDialog(EventRun& run)
     const Field& field = owner.field;
     Role& context = run.context;
     const EventCommand code = run.code;
-    run.found = TalkWindow::kNoRole;
+    run.found = TalkWindow::NoRole;
     const u16 speaker = this->EventRoleId(run, this->Word(run, 1));
 
-    if (speaker != TalkWindow::kNoRole)
+    if (speaker != TalkWindow::NoRole)
     {
         state.FindRoleOrPlayer(speaker, run.found);
     }
@@ -381,9 +381,9 @@ bool Talk::OpenDialog(EventRun& run)
     this->SetWord(run, 1, speaker);
     auto window = std::make_unique<TalkWindow>();
 
-    if (speaker == TalkWindow::kNoRole)
+    if (speaker == TalkWindow::NoRole)
     {
-        if (context.id != TalkWindow::kNoRole)
+        if (context.id != TalkWindow::NoRole)
         {
             DebugLog(u8"talk window without a speaker", 1);
         }
@@ -410,33 +410,33 @@ bool Talk::OpenDialog(EventRun& run)
         options = 2;
     }
 
-    window->flags = code == EventCommand::PlainDialogWait || code == EventCommand::PlainDialog ? window_flag::kFade : 0;
+    window->flags = code == EventCommand::PlainDialogWait || code == EventCommand::PlainDialog ? TalkWindow::Fade : 0;
     const u32 settings = this->dialogOptions;
 
     if ((settings & 0x80000000) == 0)
     {
-        window->flags |= window_flag::kSkippable;
+        window->flags |= TalkWindow::Skippable;
     }
 
     if (this->dialogTimed == 1)
     {
         window->timeout = this->dialogTimeout;
-        window->flags |= window_flag::kTimed;
+        window->flags |= TalkWindow::Timed;
     }
 
     if ((settings & 0x40000000) == 0)
     {
-        window->flags |= window_flag::kNoAdvance;
+        window->flags |= TalkWindow::NoAdvance;
     }
 
     if ((settings & 0x20000000) == 0)
     {
-        window->flags |= window_flag::kOverlay;
+        window->flags |= TalkWindow::Overlay;
     }
 
     if ((settings & 0x4000000) == 0)
     {
-        window->flags |= window_flag::kShowMark;
+        window->flags |= TalkWindow::ShowMark;
     }
 
     if ((settings & 0x10000000) == 0)
@@ -473,7 +473,7 @@ bool Talk::OpenDialog(EventRun& run)
     );
     Role* role = this->FoundRole(run);
 
-    if (run.found == TalkWindow::kNoRole)
+    if (run.found == TalkWindow::NoRole)
     {
         context.unk26 = 2;
     }
@@ -484,9 +484,9 @@ bool Talk::OpenDialog(EventRun& run)
 
     if (WaitsForWindow(code))
     {
-        window->flags |= window_flag::kBlocking;
+        window->flags |= TalkWindow::Blocking;
 
-        if (run.found == TalkWindow::kNoRole)
+        if (run.found == TalkWindow::NoRole)
         {
             context.unk26 = 1;
         }
@@ -550,7 +550,7 @@ bool Talk::MoveRoles(EventRun& run)
 
             if (id == run.context.id)
             {
-                role.flags &= ~role_flag::kInEvent;
+                role.flags &= ~Role::InEvent;
                 role.act.lastAction = -1;
                 role.act.lastDirection = -1;
             }
@@ -613,7 +613,7 @@ bool Talk::MoveRoles(EventRun& run)
             continue;
         }
 
-        if ((role->flags & role_flag::kArrived) != 0 || owner.rolePath.ScriptStep(static_cast<int>(run.found)) == 2)
+        if ((role->flags & Role::Arrived) != 0 || owner.rolePath.ScriptStep(static_cast<int>(run.found)) == 2)
         {
             ++arrived;
         }
@@ -641,7 +641,7 @@ bool Talk::ChangeVariable(EventRun& run)
     run.valueA = index;
     run.valueB = value;
 
-    if (index < 0 || index >= Party::kVariables)
+    if (index < 0 || index >= Party::Variables)
     {
         DebugLog(u8"對話系統", index, value);
         return false;
@@ -777,7 +777,7 @@ bool Talk::RunRoleCommand(EventRun& run)
                         LogActError(u8"Act Err(Talk:ChangDir)", role);
                     }
 
-                    role.flags |= role_flag::kStepsAct;
+                    role.flags |= Role::StepsAct;
                 }
             }
             else if (run.code == EventCommand::SetAction)
@@ -816,7 +816,7 @@ bool Talk::RunRoleCommand(EventRun& run)
             {
                 role.act.lastAction = -1;
                 role.act.lastDirection = -1;
-                role.flags &= ~role_flag::kInEvent;
+                role.flags &= ~Role::InEvent;
             }
 
             owner.rolePath.MoveRoleTo(
@@ -844,7 +844,7 @@ bool Talk::RunRoleCommand(EventRun& run)
 
             if (state.FindRoleOrPlayer(id, run.found))
             {
-                if ((state.roles[run.found].flags & role_flag::kArrived) == 0)
+                if ((state.roles[run.found].flags & Role::Arrived) == 0)
                 {
                     owner.rolePath.ScriptStep(static_cast<int>(run.found));
                 }
@@ -862,7 +862,7 @@ bool Talk::RunRoleCommand(EventRun& run)
         {
             const u16 id = this->EventRoleId(run, this->Word(run, 1));
 
-            if (id == TalkWindow::kNoRole)
+            if (id == TalkWindow::NoRole)
             {
                 if (context.unk26 == 0)
                 {
@@ -893,10 +893,10 @@ bool Talk::RunRoleCommand(EventRun& run)
         {
             state.FindRoleOrPlayer(this->Word(run, 1), run.found);
             const Role* role = this->FoundRole(run);
-            const u32 moving = role != nullptr ? role->flags & role_flag::kStepping : 0;
+            const u32 moving = role != nullptr ? role->flags & Role::Stepping : 0;
             int slot = 0;
 
-            while (slot < GameState::kMoves)
+            while (slot < GameState::Moves)
             {
                 const MoveRecord& move = state.moves[static_cast<std::size_t>(slot)];
 
@@ -909,7 +909,7 @@ bool Talk::RunRoleCommand(EventRun& run)
                 ++slot;
             }
 
-            if (slot == GameState::kMoves)
+            if (slot == GameState::Moves)
             {
                 this->Advance(run, 8);
                 return true;
@@ -924,14 +924,14 @@ bool Talk::RunRoleCommand(EventRun& run)
         {
             state.FindRoleOrPlayer(this->Word(run, 1), run.found);
 
-            if (run.found < GameState::kRoles && owner.rolePath.ResumeMove(static_cast<int>(run.found)))
+            if (run.found < GameState::Roles && owner.rolePath.ResumeMove(static_cast<int>(run.found)))
             {
                 this->Advance(run, 4);
             }
 
             if (Role* role = this->FoundRole(run))
             {
-                role->flags &= ~role_flag::kHeld;
+                role->flags &= ~Role::Held;
                 role->act.delay = 0;
             }
 
@@ -939,14 +939,14 @@ bool Talk::RunRoleCommand(EventRun& run)
         }
 
         case EventCommand::ResumeAllMoves:
-            for (int index = 1; index < state.roleCount && index < GameState::kRoles; ++index)
+            for (int index = 1; index < state.roleCount && index < GameState::Roles; ++index)
             {
                 Role& role = state.roles[static_cast<std::size_t>(index)];
 
-                if ((role.flags & role_flag::kHeld) != 0)
+                if ((role.flags & Role::Held) != 0)
                 {
                     owner.rolePath.ResumeMove(index);
-                    role.flags &= ~role_flag::kHeld;
+                    role.flags &= ~Role::Held;
                     role.act.delay = 0;
                 }
             }
@@ -1045,12 +1045,12 @@ bool Talk::RunRoleCommand(EventRun& run)
 
             int slot = 0;
 
-            while (slot < GameState::kMoves && state.moves[static_cast<std::size_t>(slot)].role != run.found)
+            while (slot < GameState::Moves && state.moves[static_cast<std::size_t>(slot)].role != run.found)
             {
                 ++slot;
             }
 
-            if (slot < GameState::kMoves)
+            if (slot < GameState::Moves)
             {
                 MoveRecord& move = state.moves[static_cast<std::size_t>(slot)];
 
@@ -1068,7 +1068,7 @@ bool Talk::RunRoleCommand(EventRun& run)
                     {
                         const int row = static_cast<int>(static_cast<u32>(role.y) >> 4) - 1;
 
-                        if ((role.flags & role_flag::kSolid) == 0)
+                        if ((role.flags & Role::Solid) == 0)
                         {
                             owner.field.ClearRoleCells(role, leader);
                         }
@@ -1077,22 +1077,22 @@ bool Talk::RunRoleCommand(EventRun& run)
 
                         while ((role.x & 0xF) != 0 && back < 8)
                         {
-                            role.x -= RolePath::kStepX[back];
+                            role.x -= RolePath::StepX[back];
                         }
 
                         while ((role.y & 0xF) != 0 && back < 8)
                         {
-                            role.y -= RolePath::kStepY[back];
+                            role.y -= RolePath::StepY[back];
                         }
 
-                        owner.field.RemoveRole(role.id, static_cast<int>(role.flags & role_flag::kLayerMask), row, 0);
+                        owner.field.RemoveRole(role.id, static_cast<int>(role.flags & Role::LayerMask), row, 0);
                     }
 
                     move.Clear();
                 }
             }
 
-            role.flags |= role_flag::kStepsAct;
+            role.flags |= Role::StepsAct;
             role.unk1C = this->Word(run, 2);
             role.unk18 = 0;
             this->Advance(run, 6);
@@ -1155,7 +1155,7 @@ bool Talk::RunRoleCommand(EventRun& run)
 
                 if (run.code == EventCommand::RemoveRole)
                 {
-                    role.flags &= role_flag::kBelowVisible;
+                    role.flags &= Role::BelowVisible;
                     owner.field.ClearRoleCells(role, leader);
                     const u32 index = state.FindRole(role.id);
 
@@ -1169,7 +1169,7 @@ bool Talk::RunRoleCommand(EventRun& run)
                 }
                 else
                 {
-                    role.flags |= role_flag::kVisible;
+                    role.flags |= Role::Visible;
                     owner.field.ClearRoleCells(role, leader);
                     role.act.savedAction = -1;
                     role.act.savedDirection = -1;
@@ -1203,7 +1203,7 @@ bool Talk::RunRoleCommand(EventRun& run)
                     -1
                 );
                 owner.rolePath.ResumeMove(static_cast<int>(run.found));
-                role.flags &= ~role_flag::kHeld;
+                role.flags &= ~Role::Held;
 
                 if (this->Word(run, 1) == context.id)
                 {
@@ -1314,7 +1314,7 @@ bool Talk::RunRoleCommand(EventRun& run)
                     LogActError(u8"Act Err(Talk:ChangAct)", role);
                 }
 
-                role.flags |= role_flag::kStepsAct;
+                role.flags |= Role::StepsAct;
             }
             else
             {

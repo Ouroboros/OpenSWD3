@@ -30,13 +30,13 @@ enum class AccessoryKind : u16
 class BattleRole : public BattleUnit
 {
 public:
-    // The equipment slots of a role (Party::kSlotsPerRole).
-    static constexpr std::size_t kWeaponSlot = 0;
-    static constexpr std::size_t kFirstAccessorySlot = 7;
-    static constexpr std::size_t kSecondAccessorySlot = 8;
-    static constexpr std::size_t kArmourSlots = 7;  // slots below it give the bonus words
-    static constexpr std::size_t kNoResistanceSlotA = 9;
-    static constexpr std::size_t kNoResistanceSlotB = 0xA;
+    // The equipment slots of a role (Party::SlotsPerRole).
+    static constexpr std::size_t WeaponSlot = 0;
+    static constexpr std::size_t FirstAccessorySlot = 7;
+    static constexpr std::size_t SecondAccessorySlot = 8;
+    static constexpr std::size_t ArmourSlots = 7;  // slots below it give the bonus words
+    static constexpr std::size_t NoResistanceSlotA = 9;
+    static constexpr std::size_t NoResistanceSlotB = 0xA;
 
     BattleRole();
     void SetSkills(ItemNode* list);

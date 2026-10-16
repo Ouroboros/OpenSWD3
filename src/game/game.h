@@ -70,14 +70,14 @@ class Game
     friend class RolePath;
 
 public:
-    static constexpr std::u8string_view kWindowTitle = u8"軒轅劍參 DVD";                    // 0x0049FAC4
-    static constexpr std::u8string_view kTitle = u8"軒轅劍三";                              // 0x004A0F78
-    static constexpr std::u8string_view kDirectInputFailed = u8"DirectInput 初始化錯誤%n";  // 0x004A0F5C
-    static constexpr std::string_view kExecutable = "swd32.exe";
-    static constexpr u32 kStartSound = 0x78;
-    static constexpr int kFrameInterval = 0x23;
-    static constexpr u32 kTitleMenu = 0x80000003;
-    static constexpr std::u8string_view kUnknownPlace = u8"不知道";  // 0x0049FEA4
+    static constexpr std::u8string_view WindowTitle = u8"軒轅劍參 DVD";                    // 0x0049FAC4
+    static constexpr std::u8string_view Title = u8"軒轅劍三";                              // 0x004A0F78
+    static constexpr std::u8string_view DirectInputFailed = u8"DirectInput 初始化錯誤%n";  // 0x004A0F5C
+    static constexpr std::string_view Executable = "swd32.exe";
+    static constexpr u32 StartSound = 0x78;
+    static constexpr int FrameInterval = 0x23;
+    static constexpr u32 TitleMenu = 0x80000003;
+    static constexpr std::u8string_view UnknownPlace = u8"不知道";  // 0x0049FEA4
 
     explicit Game(std::string installDirectory);
 

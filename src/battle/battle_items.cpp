@@ -143,16 +143,16 @@ int CountItemTotal(const BattleState& battle, const Party& party, const GameStat
         return total;
     }
 
-    for (int role = 0; role < Party::kRoles; ++role)
+    for (int role = 0; role < Party::Roles; ++role)
     {
         if (!state.GameFlag(role + kFirstRoleFlag))
         {
             continue;
         }
 
-        for (int slot = 0; slot < Party::kSlotsPerRole; ++slot)
+        for (int slot = 0; slot < Party::SlotsPerRole; ++slot)
         {
-            const ItemNode* item = party.equipment[static_cast<std::size_t>(role * Party::kSlotsPerRole + slot)].get();
+            const ItemNode* item = party.equipment[static_cast<std::size_t>(role * Party::SlotsPerRole + slot)].get();
 
             if (item != nullptr && item->id == static_cast<u32>(id))
             {
@@ -176,7 +176,7 @@ int CreateBattleSurfaces(BattleState& battle, Graphics& graphics)
 {
     for (std::unique_ptr<Surface>& surface : battle.surfaces)
     {
-        surface = graphics.CreateOffscreen(Display::kWidth, Display::kHeight);
+        surface = graphics.CreateOffscreen(Display::Width, Display::Height);
     }
 
     battle.unk4A7632 = {-1, -1, -1};

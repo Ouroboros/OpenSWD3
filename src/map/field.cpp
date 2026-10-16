@@ -70,7 +70,7 @@ void Field::ResetRows()
 {
     for (std::vector<Role*>& layer : this->rows)
     {
-        layer.assign(static_cast<std::size_t>(std::max(this->state.map.height, 0)) + 2 * Field::kRowMargin, nullptr);
+        layer.assign(static_cast<std::size_t>(std::max(this->state.map.height, 0)) + 2 * Field::RowMargin, nullptr);
     }
 }
 
@@ -79,7 +79,7 @@ void Field::ResetRows()
 void Field::InsertRole(Role& role, int layer)
 {
     const auto y = static_cast<u32>(role.y);
-    const auto row = static_cast<std::size_t>(static_cast<i32>(y) / 0x10 + Field::kRowMargin);
+    const auto row = static_cast<std::size_t>(static_cast<i32>(y) / 0x10 + Field::RowMargin);
     std::vector<Role*>& lists = this->rows[static_cast<std::size_t>(layer)];
 
     if (row >= lists.size())
@@ -151,7 +151,7 @@ Role* Field::RemoveRole(u16 id, int layer, int row, int keep)
 
     for (int at = row; at < this->state.map.height; ++at)
     {
-        const auto index = static_cast<std::size_t>(at + Field::kRowMargin);
+        const auto index = static_cast<std::size_t>(at + Field::RowMargin);
 
         if (index >= lists.size())
         {
@@ -213,7 +213,7 @@ bool Field::LoadUnitPicture(u32 unit, Picture& picture)
 {
     picture.data.clear();
 
-    if (unit > static_cast<u32>(this->unitCount) || unit >= Field::kUnits)
+    if (unit > static_cast<u32>(this->unitCount) || unit >= Field::Units)
     {
         return false;
     }
@@ -343,12 +343,12 @@ bool Field::LoadMap(u32 map, u32& systemFlags)
     const u32 unitSize = Dword(block, 0x20);
     int version = 0;
 
-    if (Dword(block, 0) == Field::kVersion1)
+    if (Dword(block, 0) == Field::Version1)
     {
         version = 1;
     }
 
-    if (Dword(block, 0) == Field::kVersion2)
+    if (Dword(block, 0) == Field::Version2)
     {
         version = 2;
     }
@@ -454,12 +454,12 @@ bool Field::LoadMap(u32 map, u32& systemFlags)
 
     this->unitCount = static_cast<i32>(Dword(block, at));
 
-    for (i32 unit = 0; unit < this->unitCount && unit < Field::kUnits; ++unit)
+    for (i32 unit = 0; unit < this->unitCount && unit < Field::Units; ++unit)
     {
         this->unitOffsets[static_cast<std::size_t>(unit)] = Dword(block, at + 4 + 4 * static_cast<std::size_t>(unit));
     }
 
-    for (i32 unit = 0; unit < this->unitCount && unit < Field::kUnits; ++unit)
+    for (i32 unit = 0; unit < this->unitCount && unit < Field::Units; ++unit)
     {
         lmf.SeekBegin(static_cast<i32>(this->unitOffsets[static_cast<std::size_t>(unit)] + this->unitBase + 0xC));
         lmf.ReadDword(this->unitSizes[static_cast<std::size_t>(unit)]);
@@ -481,7 +481,7 @@ bool Field::LoadMap(u32 map, u32& systemFlags)
 
     for (i32 index = 0; index < this->sectionRoles; ++index)
     {
-        if (this->state.roleCount < 0 || this->state.roleCount >= GameState::kRoles)
+        if (this->state.roleCount < 0 || this->state.roleCount >= GameState::Roles)
         {
             break;
         }
@@ -584,7 +584,7 @@ bool Field::LoadMap(u32 map, u32& systemFlags)
 
     for (u32 index = 0; index < extraCount; ++index)
     {
-        if (this->state.roleCount < 0 || this->state.roleCount >= GameState::kRoles)
+        if (this->state.roleCount < 0 || this->state.roleCount >= GameState::Roles)
         {
             break;
         }
@@ -602,12 +602,12 @@ bool Field::LoadMap(u32 map, u32& systemFlags)
         role.id = 0xFFFF;
         role.x *= 0x10;
         role.y *= 0x10;
-        role.flags |= role_flag::kVisible | role_flag::kStepsAct;
+        role.flags |= Role::Visible | Role::StepsAct;
         role.act.wait = 0;
 
         if (static_cast<u32>(role.y) < static_cast<u32>(0x10 * header.height))
         {
-            this->InsertRole(role, static_cast<int>(role.flags & role_flag::kLayerMask));
+            this->InsertRole(role, static_cast<int>(role.flags & Role::LayerMask));
         }
         else
         {
@@ -692,16 +692,16 @@ void ChangeRoleCells(std::vector<u32>& blocks, i32 mapWidth, const Role& role, C
 // bit 8 for the leader); the first cell is marked once more by the walk
 void Field::MarkRoleCells(const Role& role, u16 leader)
 {
-    u32 bits = (role.flags & role_flag::kSolid) != 0 ? 0x30000000u : 0x10000000u;
+    u32 bits = (role.flags & Role::Solid) != 0 ? MapHeader::RoleCell | MapHeader::SolidRole : MapHeader::RoleCell;
 
-    if ((role.flags & role_flag::kUnk10) != 0)
+    if ((role.flags & Role::Unk10) != 0)
     {
-        bits |= 0x800000;
+        bits |= MapHeader::Unk800000;
     }
 
     if (role.id == leader)
     {
-        bits |= 0x100;
+        bits |= MapHeader::LeaderCell;
     }
 
     ChangeRoleCells(
@@ -718,7 +718,9 @@ void Field::MarkRoleCells(const Role& role, u16 leader)
 // swd32.exe 0x0040AE20: the marks of a role taken off its cells (the leader's bit 8 too)
 void Field::ClearRoleCells(const Role& role, u16 leader)
 {
-    const u32 mask = role.id == leader ? 0xCF7FFEFFu : 0xCF7FFFFFu;
+    const u32 mask =
+        ~(MapHeader::RoleCell | MapHeader::SolidRole | MapHeader::Unk800000 |
+          (role.id == leader ? MapHeader::LeaderCell : 0u));
     ChangeRoleCells(
         this->state.map.blocks,
         this->state.map.width,

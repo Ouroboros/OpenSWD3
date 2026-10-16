@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "core/types.h"
+#include "game/game_state.h"
 
 namespace swd3
 {
@@ -36,7 +37,7 @@ struct PathNode
 class PathNodePool
 {
 public:
-    static constexpr int kInitial = 8;
+    static constexpr int Initial = 8;
 
     void Init();
     bool Release();
@@ -58,14 +59,14 @@ private:
 class PathFinder
 {
 public:
-    static constexpr int kMaxSteps = 0x1FE;
-    static constexpr u8 kEnd = 0xFF;
+    static constexpr int MaxSteps = 0x1FE;
+    static constexpr u8 End = 0xFF;
     // The direction byte of a step, by pathDeltaY[dy + 1] + pathDeltaX[dx + 1] + 4 (swd32.exe 0x00499348..0x0049936B).
-    static constexpr std::array<i8, 9> kDirectionByDelta = {0, 1, 2, 7, 0, 3, 6, 5, 4};
-    static constexpr std::array<i32, 3> kDeltaX = {-1, 0, 1};
-    static constexpr std::array<i32, 3> kDeltaY = {-3, 0, 3};
+    static constexpr std::array<i8, 9> DirectionByDelta = {0, 1, 2, 7, 0, 3, 6, 5, 4};
+    static constexpr std::array<i32, 3> DeltaX = {-1, 0, 1};
+    static constexpr std::array<i32, 3> DeltaY = {-3, 0, 3};
     // swd32.exe 0x0049936C
-    static constexpr std::array<u8, 8> kOppositeDirection = {4, 5, 6, 7, 0, 1, 2, 3};
+    static constexpr std::array<u8, 8> OppositeDirection = {4, 5, 6, 7, 0, 1, 2, 3};
 
     PathFinder(PathNodePool& pool, const BlockingMap& map, ErrorReporter& reporter);
     ~PathFinder();
@@ -97,10 +98,10 @@ public:
     i32 found = 0;                 // +0x10 1 after a successful FindPath, 0 after an impossible one
     i32 unk14 = 0;
     i32 unk18 = 0;
-    i32 width = 0;                    // +0x1C tiles
-    i32 height = 0;                   // +0x20
-    u32 mask = 0x40800000;            // +0x24 blocking bits
-    std::array<u32, 8> blocked = {};  // +0x28 N, NE, E, SE, S, SW, W, NW
+    i32 width = 0;                                      // +0x1C tiles
+    i32 height = 0;                                     // +0x20
+    u32 mask = MapHeader::Wall | MapHeader::Unk800000;  // +0x24 blocking bits
+    std::array<u32, 8> blocked = {};                    // +0x28 N, NE, E, SE, S, SW, W, NW
 
 private:
     PathNodePool& pool;

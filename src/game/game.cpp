@@ -55,7 +55,7 @@ u32 MouseKeys(SDL_MouseButtonFlags buttons)
 }  // namespace
 
 Game::Game(std::string installDirectory)
-    : screen(Display::kWidth, Display::kHeight),
+    : screen(Display::Width, Display::Height),
       inputDevice(this->display),
       input(this->inputDevice),
       graphics(this->display, this->errors),
@@ -107,7 +107,7 @@ Game::Game(std::string installDirectory)
 // swd32.exe 0x00409EC0: creates the window, sends itself the start message and runs the message loop
 int Game::Run()
 {
-    if (!this->display.Open(Utf8Chars(Game::kWindowTitle)))
+    if (!this->display.Open(Utf8Chars(Game::WindowTitle)))
     {
         return 0;
     }
@@ -126,9 +126,9 @@ int Game::Run()
             this->HandleEvent(event);
         }
 
-        if (this->state.GameFlag(story_flag::kTextBox) != SDL_TextInputActive(this->display.Window()))
+        if (this->state.GameFlag(GameState::TextBox) != SDL_TextInputActive(this->display.Window()))
         {
-            if (this->state.GameFlag(story_flag::kTextBox))
+            if (this->state.GameFlag(GameState::TextBox))
             {
                 SDL_StartTextInput(this->display.Window());
             }
@@ -163,21 +163,21 @@ int Game::Run()
 // the launcher, then the display for a new or continued game
 void Game::Start()
 {
-    if (!this->resources.Open(Concat({this->config.installDirectory, Game::kExecutable})))
+    if (!this->resources.Open(Concat({this->config.installDirectory, Game::Executable})))
     {
         this->errors.ShowError(u8"swd3r", u8"swd32.exe not found in the game directory");
         this->quit = true;
         return;
     }
 
-    this->systemSound.Play(this->resources.Find("WAVE", Game::kStartSound));
+    this->systemSound.Play(this->resources.Find("WAVE", Game::StartSound));
     this->config.SetDefaultKeys();
     this->InitInstall();
-    this->state.ClearGameFlag(Launcher::kSavedGameFlag);
+    this->state.ClearGameFlag(Launcher::SavedGameFlag);
 
     if (SaveGames::AnyExists(this->config.installDirectory))
     {
-        this->state.SetGameFlag(Launcher::kSavedGameFlag);
+        this->state.SetGameFlag(Launcher::SavedGameFlag);
     }
 
     switch (this->RunLauncher())
@@ -388,13 +388,13 @@ void Game::InitDrawKernel()
     this->SetupFont(this->mediumFont, 0x10);
     this->SetupFont(this->smallFont, 0xC);
     this->talk.unit = 0xB;
-    this->painter.SetClip(0, 0, Display::kWidth, Display::kHeight);
+    this->painter.SetClip(0, 0, Display::Width, Display::Height);
     this->textColors.Convert(this->painter);
     this->drawSurface = this->painter.LockSurface(*this->offscreen);
     this->painter.SetTarget(this->drawSurface);
     this->painter.UnlockSurface(*this->offscreen);
 
-    if (this->state.SetFrameInterval(Game::kFrameInterval) == 0)
+    if (this->state.SetFrameInterval(Game::FrameInterval) == 0)
     {
         this->errors.ShowError(kErrorTitle, kTimerFailed);
         this->inactive = 1;
@@ -407,13 +407,13 @@ void Game::InitDrawKernel()
         this->Destroy();
     }
 
-    this->databases.script.assign(GameDatabases::kScriptBytes, 0);
+    this->databases.script.assign(GameDatabases::ScriptBytes, 0);
     this->databases.LoadMaps();
     this->pathNodes.Init();
     this->NewGame();
     this->menu.InitActs();
     this->state.ClearWorld();
-    this->menuState = Game::kTitleMenu;
+    this->menuState = Game::TitleMenu;
 }
 
 // swd32.exe 0x00424EF0: DirectInput, Miles with the sound effects, the MIDI and stream players, the display (640 x 480
@@ -425,7 +425,7 @@ bool Game::InitDevices()
     if (this->input.Init() != 0)
     {
         this->deviceFlags |= 2;
-        this->errors.ShowError(Game::kTitle, Game::kDirectInputFailed);
+        this->errors.ShowError(Game::Title, Game::DirectInputFailed);
         this->Destroy();
         return false;
     }
@@ -435,14 +435,14 @@ bool Game::InitDevices()
     this->audio.Midi().Open(this->audio.Effects().HasDriver() ? 1 : 0);
     this->audio.Streams().Open();
 
-    if (!this->graphics.Init(Graphics::kFullScreen, Display::kWidth, Display::kHeight, 0x10))
+    if (!this->graphics.Init(Graphics::FullScreen, Display::Width, Display::Height, 0x10))
     {
         this->errors.ShowError(kDirectDrawFailed, kErrorTitle);
         this->Destroy();
         return false;
     }
 
-    this->offscreen = this->graphics.CreateOffscreen(Display::kWidth, Display::kHeight);
+    this->offscreen = this->graphics.CreateOffscreen(Display::Width, Display::Height);
     this->active = 1;
     Movie::Init(false, this->audio.Effects().HasDriver());
     return true;
@@ -454,8 +454,8 @@ void Game::SetupFont(TextFont& font, int size)
 {
     font.Shutdown();
     font.Init(this->graphics);
-    font.SetTarget(Display::kWidth, Display::kHeight);
-    font.SetFont(TextFont::kDefaultFace, size);
+    font.SetTarget(Display::Width, Display::Height);
+    font.SetFont(TextFont::DefaultFace, size);
 
     if (size == 0x14)
     {
@@ -466,7 +466,7 @@ void Game::SetupFont(TextFont& font, int size)
         font.SetAdvance(0x12);
     }
 
-    font.SetBackground(TextFont::kNoBackground);
+    font.SetBackground(TextFont::NoBackground);
     font.SetShadow(0);
 }
 
@@ -549,8 +549,8 @@ void Game::NewGame()
         game.ClearGameFlag(flag);
     }
 
-    game.SetGameFlag(story_flag::kInParty);
-    game.ClearGameFlag(story_flag::kUnk15);
+    game.SetGameFlag(GameState::InParty);
+    game.ClearGameFlag(GameState::Unk15);
     this->party.variables[0] = 0x64;
     scene.unk4A9930 = -1;
     scene.unk4A9938 = -1;
@@ -579,9 +579,9 @@ void Game::NewGame()
     {
         role = Role{};
         ResetPlayback(role.act);
-        role.act.id = Scene::kPointerAct;
+        role.act.id = Scene::PointerAct;
         role.act.action = action;
-        role.flags = Scene::kPointerFlags;
+        role.flags = Scene::PointerFlags;
         return this->acts.Run(role.act) != 0;
     };
 
@@ -606,8 +606,8 @@ void Game::NewGame()
     }
 
     ResetAct(scene.unk4C83A8, 0x2329, 8);
-    scene.viewWidth = Display::kWidth;
-    scene.viewHeight = Display::kHeight;
+    scene.viewWidth = Display::Width;
+    scene.viewHeight = Display::Height;
     scene.unk4ACBC8 = 2;
     scene.unk4ACBCC = 0;
     ResetPlayback(scene.unk4AD3F0);
@@ -664,7 +664,7 @@ void Game::NewGame()
 
     const u32 roles = MapsTable(data, 6);
 
-    for (std::size_t role = 0; role < Party::kRoles; ++role)
+    for (std::size_t role = 0; role < Party::Roles; ++role)
     {
         const std::size_t at = roles + 0x34 * role;
 
@@ -689,7 +689,7 @@ void Game::NewGame()
         );
     }
 
-    for (std::size_t role = 0; role < Party::kRoles; ++role)
+    for (std::size_t role = 0; role < Party::Roles; ++role)
     {
         this->party.skills[role] = NewEmptyItem();
         const u32 list = MapsTable(data, 9 + static_cast<int>(role));
@@ -705,7 +705,7 @@ void Game::NewGame()
         slot = NewEmptyItem();
     }
 
-    for (std::size_t role = 0; role < Party::kRoles; ++role)
+    for (std::size_t role = 0; role < Party::Roles; ++role)
     {
         const u32 list = MapsTable(data, 0xD + static_cast<int>(role));
 
@@ -723,7 +723,7 @@ void Game::NewGame()
                 item = NewEmptyItem();
             }
 
-            this->party.equipment[role * Party::kSlotsPerRole + slot] = std::move(item);
+            this->party.equipment[role * Party::SlotsPerRole + slot] = std::move(item);
         }
     }
 }
@@ -845,9 +845,9 @@ std::string Game::MusicPath(int index) const
 // swd32.exe 0x004856C0: the tune as stream 100 (once) while story flag 3 allows music
 void Game::PlayMusic(const std::string& path)
 {
-    if (this->state.GameFlag(story_flag::kMusic))
+    if (this->state.GameFlag(GameState::Music))
     {
-        this->audio.Streams().Play(path, AudioManager::kMusicId, (this->config.musicVolume << 7) / 0xB, 1);
+        this->audio.Streams().Play(path, AudioManager::MusicId, (this->config.musicVolume << 7) / 0xB, 1);
     }
 }
 
@@ -1052,8 +1052,8 @@ void Game::MainFrame()
 
     if ((this->deviceFlags & 1) != 0)
     {
-        this->state.ClearGameFlag(story_flag::kMusic);
-        this->state.ClearGameFlag(story_flag::kSoundEffects);
+        this->state.ClearGameFlag(GameState::Music);
+        this->state.ClearGameFlag(GameState::SoundEffects);
     }
 
     this->unk4C844C = now;
@@ -1184,7 +1184,7 @@ void Game::HandleEvent(const SDL_Event& event)
         }
     }
 
-    if (!this->state.GameFlag(story_flag::kTextBox))
+    if (!this->state.GameFlag(GameState::TextBox))
     {
         return;
     }

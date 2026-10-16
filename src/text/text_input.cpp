@@ -102,7 +102,7 @@ int TextInput::HandleMessage(
             {
                 if (static_cast<char>(parameter) == kRejected)
                 {
-                    audio.PlaySound(TextInput::kRejectedSound, soundVolume);
+                    audio.PlaySound(TextInput::RejectedSound, soundVolume);
                     return 1;
                 }
 
@@ -131,11 +131,11 @@ int TextInput::HandleMessage(
             return this->DeleteAtCursor();
 
         case TextKey::Return:
-            this->result = TextInput::kEnter;
+            this->result = TextInput::Enter;
             return 1;
 
         case TextKey::Escape:
-            this->result = TextInput::kEscape;
+            this->result = TextInput::Escape;
             return 1;
 
         case TextKey::End:

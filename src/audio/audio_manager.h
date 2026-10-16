@@ -32,7 +32,7 @@ private:
 class AudioManager
 {
 public:
-    static constexpr int kMusicId = 100;
+    static constexpr int MusicId = 100;
 
     explicit AudioManager(AudioDevice& device);
 

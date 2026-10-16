@@ -74,7 +74,7 @@ public:
             {
                 out.push_back(direction);
 
-                if (direction == swd3::PathFinder::kEnd)
+                if (direction == swd3::PathFinder::End)
                 {
                     break;
                 }
@@ -128,7 +128,7 @@ TEST_CASE("path finder: a path around a wall, and the second search of one finde
 
     for (const u8 direction : directions)
     {
-        if (direction == swd3::PathFinder::kEnd)
+        if (direction == swd3::PathFinder::End)
         {
             break;
         }
@@ -146,7 +146,7 @@ TEST_CASE("path finder: a path around a wall, and the second search of one finde
     CHECK_EQ(finder.found, 1);
     CHECK_EQ(finder.FindPath(2 * 16, 2 * 16, 7 * 16, 3 * 16, 1, 1, directions), 0);
     finder.Reset();
-    CHECK_EQ(pool.peak, swd3::PathNodePool::kInitial);
+    CHECK_EQ(pool.peak, swd3::PathNodePool::Initial);
     CHECK(pool.Release());
     CHECK(reporter.messages.empty());
 }

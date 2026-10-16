@@ -525,7 +525,7 @@ void Menu::SystemSelect()
         this->nameReply = 0;
         this->enteredNames.assign(0x20, 0);
         ++this->systemRow;
-        owner.textInput = std::make_unique<TextInput>(Party::kDefaultNames[0], kNameLength, kNameBoxX, kNameBoxY);
+        owner.textInput = std::make_unique<TextInput>(Party::RoleNames[0], kNameLength, kNameBoxX, kNameBoxY);
     }
     else if (this->systemCursor == 2)
     {
@@ -769,7 +769,7 @@ bool Menu::DrawNameEntry()
 
     this->systemClick = 0;
 
-    if (result == TextInput::kEnter)
+    if (result == TextInput::Enter)
     {
         owner.party.names = Party::DefaultNames();
         const std::string name = owner.textInput->CopyText(0x10);
@@ -783,19 +783,15 @@ bool Menu::DrawNameEntry()
 
         if (++this->systemRow == 0x63)
         {
-            owner.textInput = std::make_unique<TextInput>(Party::kDefaultNames[1], kNameLength, kNameBoxX, kNameBoxY);
+            owner.textInput = std::make_unique<TextInput>(Party::RoleNames[1], kNameLength, kNameBoxX, kNameBoxY);
             this->face.id = 2;
             this->face.action = 0x46;
         }
 
         if (this->systemRow == kFadeOut)
         {
-            std::copy_n(this->enteredNames.begin(), Party::kNameBytes, owner.party.names[0].begin());
-            std::copy_n(
-                this->enteredNames.begin() + Party::kNameBytes,
-                Party::kNameBytes,
-                owner.party.names[1].begin()
-            );
+            std::copy_n(this->enteredNames.begin(), Party::NameBytes, owner.party.names[0].begin());
+            std::copy_n(this->enteredNames.begin() + Party::NameBytes, Party::NameBytes, owner.party.names[1].begin());
             this->enteredNames.clear();
             owner.state.ClearGameFlag(kNameEntryFlag);
         }
@@ -803,7 +799,7 @@ bool Menu::DrawNameEntry()
         return false;
     }
 
-    if (result == TextInput::kEscape)
+    if (result == TextInput::Escape)
     {
         this->enteredNames.clear();
         this->systemState = kEntries;

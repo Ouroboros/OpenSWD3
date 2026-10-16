@@ -30,7 +30,7 @@ void Movie::Open(const std::string& path, int volume)
         return;
     }
 
-    this->decoder.SetVolume(volume > Movie::kMaxVolume ? Movie::kMaxVolume : volume);
+    this->decoder.SetVolume(volume > Movie::MaxVolume ? Movie::MaxVolume : volume);
 }
 
 // swd32.exe 0x00484620

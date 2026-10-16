@@ -41,10 +41,10 @@ public:
     using Handler = void (Menu::*)();
 
     // The code of the system page (the title and the settings).
-    static constexpr u16 kSystemPage = 0xEA60;
-    static constexpr int kTabs = 4;
+    static constexpr u16 SystemPage = 0xEA60;
+    static constexpr int Tabs = 4;
     // swd32.exe 0x004A6A38: the tabs as the executable holds them.
-    static constexpr std::array<MenuTab, kTabs> kInitialTabs = {{
+    static constexpr std::array<MenuTab, Tabs> InitialTabs = {{
         {0, 0x17, 0x16, 0xB4, 0x6D, 0, 0, 0, 0x232B, 0, 0x232C, 0, 0x232A, 0},
         {0, 0x17, 0x82, 0xB4, 0xE0, 0, 0, 0, 0x232B, 0, 0x232C, 0, 0x232A, 0},
         {0, 0x17, 0xE7, 0xB4, 0x153, 0, 0, 0, 0x232B, 0, 0x232C, 0, 0x232A, 0},
@@ -121,8 +121,8 @@ public:
     i32 slide = 0;        // 0x004FC3C8
     i32 lastPage = 0xB;   // 0x004A6AB0
     i32 titleGlow = 0;    // 0x004FC780
-    std::array<i8, kTabs> tabGlow = {12, 12, 12, 12};  // 0x004A6AAC
-    std::array<MenuTab, kTabs> tabs = kInitialTabs;    // 0x004A6A38
+    std::array<i8, Tabs> tabGlow = {12, 12, 12, 12};  // 0x004A6AAC
+    std::array<MenuTab, Tabs> tabs = InitialTabs;     // 0x004A6A38
 
     ActState background;            // 0x004FB970
     ActState unk4FB810;             // 0x004FB810

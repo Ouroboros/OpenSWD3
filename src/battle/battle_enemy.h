@@ -11,17 +11,17 @@ class BattleEnemy : public BattleUnit
 {
 public:
     // ObjectData::kind bit of the named characters and bosses (all with their own act).
-    static constexpr u32 kNamedKind = 0x20;
+    static constexpr u32 NamedKind = 0x20;
     // ObjectData::kind bit of the machines (蟹精魔機, 羯忍幻機, ...).
-    static constexpr u32 kMachineKind = 0x800;
-    static constexpr u16 kSmallMachineTypes = 0x15;
-    static constexpr u16 kNamedAgility = 6;
-    static constexpr u16 kNamedAttack = 0xA;
+    static constexpr u32 MachineKind = 0x800;
+    static constexpr u16 SmallMachineTypes = 0x15;
+    static constexpr u16 NamedAgility = 6;
+    static constexpr u16 NamedAttack = 0xA;
     // The acts of 撒旦 (mon.dat 0x1C) and 蚩尤 (0x2E) and the hit points they are given.
-    static constexpr u16 kSatanAct = 0x1C;
-    static constexpr i32 kSatanHitPoints = 41000;
-    static constexpr u16 kChiyouAct = 0x2E;
-    static constexpr i32 kChiyouHitPoints = 120000;
+    static constexpr u16 SatanAct = 0x1C;
+    static constexpr i32 SatanHitPoints = 41000;
+    static constexpr u16 ChiyouAct = 0x2E;
+    static constexpr i32 ChiyouHitPoints = 120000;
 
     void Setup(const UnitPlacement& at, u16 id, Database& database);
     void Reload(u16 id, Database& database);

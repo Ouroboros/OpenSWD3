@@ -25,7 +25,7 @@ struct Notice
 class Notices
 {
 public:
-    static constexpr int kHiddenFlag = 0xE;
+    static constexpr int HiddenFlag = 0xE;
 
     void Draw(TextFont& font, Painter& painter, const GameState& state, const TextColors& colors);
 

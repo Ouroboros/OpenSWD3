@@ -14,8 +14,8 @@ struct ActState;
 class ActDrawer
 {
 public:
-    static constexpr u16 kDigits = 0x2354;
-    static constexpr u16 kCounterLabel = 0x245E;
+    static constexpr u16 Digits = 0x2354;
+    static constexpr u16 CounterLabel = 0x245E;
 
     ActDrawer(ActArchive& acts, TswArchive& archive, Painter& painter);
 

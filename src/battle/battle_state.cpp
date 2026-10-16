@@ -11,11 +11,11 @@ void BattleState::TakePendingAction()
         return;
     }
 
-    for (int row = 0; row < BattleState::kQueueRows; ++row)
+    for (int row = 0; row < BattleState::QueueRows; ++row)
     {
-        for (int column = 0; column < BattleState::kQueueColumns; ++column)
+        for (int column = 0; column < BattleState::QueueColumns; ++column)
         {
-            i16& entry = this->actionQueue[static_cast<std::size_t>(row * BattleState::kQueueColumns + column)];
+            i16& entry = this->actionQueue[static_cast<std::size_t>(row * BattleState::QueueColumns + column)];
 
             if (entry != 0)
             {
@@ -39,13 +39,12 @@ void BattleState::SortDrawOrder()
     {
         u32 first = 0;
 
-        while (first < static_cast<u32>(BattleState::kUnits) &&
-               (this->unitY[first] == 0 || this->drawTaken[first] == 1))
+        while (first < static_cast<u32>(BattleState::Units) && (this->unitY[first] == 0 || this->drawTaken[first] == 1))
         {
             ++first;
         }
 
-        i32 lowest = first < static_cast<u32>(BattleState::kUnits) ? this->unitY[first] : 0;
+        i32 lowest = first < static_cast<u32>(BattleState::Units) ? this->unitY[first] : 0;
         u32 chosen = first;
 
         for (u32 enemy = first + 1; enemy < this->enemyCount; ++enemy)
@@ -57,7 +56,7 @@ void BattleState::SortDrawOrder()
             }
         }
 
-        for (u32 unit = BattleState::kFirstRoleUnit; unit < this->roleCount + BattleState::kFirstRoleUnit; ++unit)
+        for (u32 unit = BattleState::FirstRoleUnit; unit < this->roleCount + BattleState::FirstRoleUnit; ++unit)
         {
             if (this->drawTaken[unit] != 1 && this->unitY[unit] < lowest)
             {
@@ -66,7 +65,7 @@ void BattleState::SortDrawOrder()
             }
         }
 
-        if (chosen < static_cast<u32>(BattleState::kUnits))
+        if (chosen < static_cast<u32>(BattleState::Units))
         {
             this->drawTaken[chosen] = 1;
         }
@@ -84,7 +83,7 @@ void BattleState::ListEnemyOrder()
 
     for (const i32 unit : this->drawOrder)
     {
-        if (unit < BattleState::kFirstRoleUnit)
+        if (unit < BattleState::FirstRoleUnit)
         {
             this->enemyOrder[listed] = unit;
             ++listed;

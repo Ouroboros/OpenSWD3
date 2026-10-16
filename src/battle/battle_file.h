@@ -39,15 +39,15 @@ struct BattleFormation
 class BattleFile
 {
 public:
-    static constexpr u32 kHeaderBytes = 0x2714;
-    static constexpr u32 kRecordBytes = 0x10C;
-    static constexpr u32 kCountsAt = 0x1F44;
+    static constexpr u32 HeaderBytes = 0x2714;
+    static constexpr u32 RecordBytes = 0x10C;
+    static constexpr u32 CountsAt = 0x1F44;
 
     bool ReadHeader(std::string_view path);
     bool ReadFormation(std::string_view path, BattleFormation& formation, u16 battle, i8 choice);
     std::span<const u8> Counts() const;
 
-    std::array<u8, kHeaderBytes> header = {};  // +0x04
+    std::array<u8, HeaderBytes> header = {};  // +0x04
 };
 
 }  // namespace swd3

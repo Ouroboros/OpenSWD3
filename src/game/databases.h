@@ -16,8 +16,8 @@ class ErrorReporter;
 class GameDatabases
 {
 public:
-    static constexpr u32 kMapsHeader = 0x200;
-    static constexpr u32 kScriptBytes = 0x8000;
+    static constexpr u32 MapsHeader = 0x200;
+    static constexpr u32 ScriptBytes = 0x8000;
 
     bool Open(const std::string& installDirectory, ErrorReporter& errors);
     void LoadMaps();

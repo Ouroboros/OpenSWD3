@@ -31,9 +31,9 @@ struct BattleSlotRecord
 class BattleState
 {
 public:
-    static constexpr i32 kInitialGaugeFull = 900;
-    static constexpr int kQueueRows = 4;
-    static constexpr int kQueueColumns = 10;
+    static constexpr i32 InitialGaugeFull = 900;
+    static constexpr int QueueRows = 4;
+    static constexpr int QueueColumns = 10;
 
     void TakePendingAction();
     void SortDrawOrder();
@@ -44,23 +44,22 @@ public:
     i32 mode = 0;                                 // 0x004FD578 bits 0..1: the shop and sell modes of the item lists
     ItemLink items;                               // 0x004FD580 the sorted item list
     u16 itemCursor = 0;                           // 0x004FD588
-    i32 gaugeFull = kInitialGaugeFull;            // 0x004A74CC the full action gauge
+    i32 gaugeFull = InitialGaugeFull;             // 0x004A74CC the full action gauge
     std::array<i16, 3> unk4A7632 = {-1, -1, -1};  // 0x004A7632
     i32 evadeDisabled = 0;                        // 0x0053CEB8
     u8 evadeStreak = 0;                           // 0x0053D028 failed evasion rolls in a row
     u8 evadeJustSucceeded = 0;                    // 0x0053D029
-    std::array<std::unique_ptr<Surface>, 2> surfaces;  // 0x005244C4 screen sized off-screen surfaces
-    std::array<i16, kQueueRows * kQueueColumns> actionQueue =
-        {};                          // 0x0052022C 4 rows of 10, taken by TakePendingAction
-    i32 panelFlags = 0;              // 0x0053BC24 bit 5: the resistance panel
-    i16 pendingActionRow = 0;        // 0x0053BF1E
-    i16 pendingAction = 0;           // 0x0053BF20
-    i32 paused = 0;                  // 0x0053C00C messages do not slide while set
-    std::array<char, 64> text = {};  // 0x0053D02C the formatted text of the battle messages
+    std::array<std::unique_ptr<Surface>, 2> surfaces;            // 0x005244C4 screen sized off-screen surfaces
+    std::array<i16, QueueRows * QueueColumns> actionQueue = {};  // 0x0052022C 4 rows of 10, taken by TakePendingAction
+    i32 panelFlags = 0;                                          // 0x0053BC24 bit 5: the resistance panel
+    i16 pendingActionRow = 0;                                    // 0x0053BF1E
+    i16 pendingAction = 0;                                       // 0x0053BF20
+    i32 paused = 0;                                              // 0x0053C00C messages do not slide while set
+    std::array<char, 64> text = {};                              // 0x0053D02C the formatted text of the battle messages
 
     // Set by the battle start (0x00451B10).
-    static constexpr int kUnits = 0x12;  // eight enemies, then the party from 8
-    static constexpr int kFirstRoleUnit = 8;
+    static constexpr int Units = 0x12;  // eight enemies, then the party from 8
+    static constexpr int FirstRoleUnit = 8;
     u16 battle = 0;                                // 0x0053C052 the battle number
     BattleFile file;                               // 0x004FF5B8 battle.ffd
     BattleFormation formation;                     // 0x004FF1E0
@@ -98,10 +97,10 @@ public:
     std::array<i32, 10> stamina = {};      // 0x00520DA8
     std::array<i32, 10> blockValues = {};  // 0x005242FC and its copy 0x0052418C
     std::array<i32, 10> blockValuesShown = {};
-    std::array<i32, kUnits> unitY = {};      // 0x00520E40 the y of each unit
-    std::array<i32, kUnits> drawOrder = {};  // 0x005214AC the units from the top down
-    std::array<i32, kUnits> drawTaken = {};  // 0x00520D5C
-    std::array<i32, 8> enemyOrder = {};      // 0x00520DF8 the enemies from the top down
+    std::array<i32, Units> unitY = {};      // 0x00520E40 the y of each unit
+    std::array<i32, Units> drawOrder = {};  // 0x005214AC the units from the top down
+    std::array<i32, Units> drawTaken = {};  // 0x00520D5C
+    std::array<i32, 8> enemyOrder = {};     // 0x00520DF8 the enemies from the top down
     ActState unk525470;
     ObjectRecord unk5246E0;
     std::array<i32, 0x14> unk4FF168 = {};
@@ -136,7 +135,7 @@ public:
     i32 unk53AE70 = 0;
     u16 unk53BF22 = 0;
     i32 unk53C4B0 = 0;
-    std::array<BattleSlotRecord, kUnits> unk524788;
+    std::array<BattleSlotRecord, Units> unk524788;
     u16 unk53BF26 = 0;  // the high word of 0x0053BF24
 };
 

@@ -51,7 +51,7 @@ public:
         }
 
         this->font.SetClip(0, 0, golden::kScreenWidth, golden::kScreenHeight);
-        this->font.SetBackground(swd3::TextFont::kNoBackground);
+        this->font.SetBackground(swd3::TextFont::NoBackground);
         this->font.SetAdvance(16);
     }
 
@@ -149,7 +149,7 @@ TEST_CASE("text font: matches the golden results of the legacy renderer")
     swd3::Display display;
     swd3test::RecordingReporter errors;
     swd3::Graphics graphics(display, errors);
-    graphics.Init(swd3::Graphics::kFullScreen, 640, 480, 16);
+    graphics.Init(swd3::Graphics::FullScreen, 640, 480, 16);
     NullRasterizer rasterizer;
     swd3::TextFont font(rasterizer);
     font.Init(graphics);

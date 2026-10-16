@@ -42,8 +42,8 @@ class Talk
 {
 public:
     // swd32.exe 0x004994F4 and 0x00499514: where a speaker's talk window goes by the way it faces.
-    static constexpr std::array<i32, 8> kWindowShiftX = {0, 0, 160, -160, 80, -80, 80, -80};
-    static constexpr std::array<i32, 8> kWindowShiftY = {96, -104, -64, -56, 56, -112, -112, 56};
+    static constexpr std::array<i32, 8> WindowShiftX = {0, 0, 160, -160, 80, -80, 80, -80};
+    static constexpr std::array<i32, 8> WindowShiftY = {96, -104, -64, -56, 56, -112, -112, 56};
 
     explicit Talk(Game& game);
 

@@ -58,33 +58,33 @@ struct RoleBattleBlock
 class Party
 {
 public:
-    static constexpr int kRoles = 4;
-    static constexpr std::size_t kNameBytes = 0x10;
-    using Name = std::array<char, kNameBytes>;
+    static constexpr int Roles = 4;
+    static constexpr std::size_t NameBytes = 0x10;
+    using Name = std::array<char, NameBytes>;
     // swd32.exe 0x0049E188: the names a new game offers (the first two can be changed).
-    static constexpr std::array<std::u8string_view, kRoles> kDefaultNames = {u8"賽特", u8"妮可", u8"卡瑪", u8"李靖"};
+    static constexpr std::array<std::u8string_view, Roles> RoleNames = {u8"賽特", u8"妮可", u8"卡瑪", u8"李靖"};
 
     // A name buffer holding a Big5 text (cut to keep its NUL).
     static Name MakeName(std::string_view text);
     // The default names as the Big5 name buffers.
-    static std::array<Name, kRoles> DefaultNames();
+    static std::array<Name, Roles> DefaultNames();
 
-    static constexpr int kSlotsPerRole = 16;
-    static constexpr int kVariables = 64;
+    static constexpr int SlotsPerRole = 16;
+    static constexpr int Variables = 64;
 
-    std::array<RoleRecord, kRoles> roles;                                     // 0x004AB790
-    ItemLink inventory;                                                       // 0x004A9940
-    std::array<std::unique_ptr<ItemNode>, kRoles> skills;                     // 0x004A9490 each headed by "無"
-    std::array<std::unique_ptr<ItemNode>, kRoles * kSlotsPerRole> equipment;  // 0x004C8AD0
-    i32 unk4ACDB0 = 0;                                                        // 0x004ACDB0
-    std::array<i32, kVariables> variables = {};                               // 0x004ACBD0 [0]: the gold
+    std::array<RoleRecord, Roles> roles;                                    // 0x004AB790
+    ItemLink inventory;                                                     // 0x004A9940
+    std::array<std::unique_ptr<ItemNode>, Roles> skills;                    // 0x004A9490 each headed by "無"
+    std::array<std::unique_ptr<ItemNode>, Roles * SlotsPerRole> equipment;  // 0x004C8AD0
+    i32 unk4ACDB0 = 0;                                                      // 0x004ACDB0
+    std::array<i32, Variables> variables = {};                              // 0x004ACBD0 [0]: the gold
     Fame fame;
-    std::array<Name, kRoles> names = Party::DefaultNames();  // 0x0049E148
+    std::array<Name, Roles> names = Party::DefaultNames();  // 0x0049E148
 
     void ApplyNameCheats();
     void SetRoleStat(int field, int value, int role, Database& database);
     int RoleStat(int field, int role) const;
-    std::array<RoleBattleBlock, kRoles> battleBlocks;  // 0x004ACF50
+    std::array<RoleBattleBlock, Roles> battleBlocks;  // 0x004ACF50
 };
 
 }  // namespace swd3

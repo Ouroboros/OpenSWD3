@@ -11,13 +11,13 @@ namespace swd3
 struct BlockingMap
 {
     // A tile outside the map (the original reads the memory around the array) is blocked for every mask.
-    static constexpr u32 kOutside = 0xFFFFFFFF;
+    static constexpr u32 Outside = 0xFFFFFFFF;
 
     u32 Cell(int index) const
     {
         if (index < 0 || static_cast<std::size_t>(index) >= this->cells.size())
         {
-            return BlockingMap::kOutside;
+            return BlockingMap::Outside;
         }
 
         return this->cells[static_cast<std::size_t>(index)];

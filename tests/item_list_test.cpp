@@ -48,16 +48,16 @@ TEST_CASE("item list: counts, pending counts and the empty entry")
     ItemNode* herb = swd3::AddItem(list, 2, 3, ItemCountMode::Pending, database);
     CHECK_EQ(herb->pending, 3);
     CHECK_EQ(herb->count, 0);
-    CHECK((herb->record.data.kind & ItemNode::kPendingKind) != 0);
+    CHECK((herb->record.data.kind & ItemNode::PendingKind) != 0);
     CHECK(list.get() == herb);
     swd3::AddItem(list, 2, -1, ItemCountMode::Pending, database);
     CHECK_EQ(herb->pending, 2);
     CHECK(swd3::AddItem(list, 2, -5, ItemCountMode::Pending, database) == nullptr);
     CHECK_EQ(Length(list), 1);
     CHECK(swd3::AddItem(list, 3, 0, ItemCountMode::Count, database) == nullptr);
-    ItemNode* empty = swd3::AddItem(list, ItemNode::kEmpty, 7, ItemCountMode::Count, database);
+    ItemNode* empty = swd3::AddItem(list, ItemNode::Empty, 7, ItemCountMode::Count, database);
     CHECK_EQ(empty->count, 1);
-    swd3::AddItem(list, ItemNode::kEmpty, 7, ItemCountMode::Count, database);
+    swd3::AddItem(list, ItemNode::Empty, 7, ItemCountMode::Count, database);
     CHECK_EQ(empty->count, 1);
     swd3::FreeItemList(list);
     CHECK(list == nullptr);
@@ -97,7 +97,7 @@ TEST_CASE("item list: merge, reverse copy, unlink, lookups")
         node->id = id;
         node->count = 60;
         node->pending = 50;
-        node->record.data.kind = ItemNode::kPendingKind | 1;
+        node->record.data.kind = ItemNode::PendingKind | 1;
         node->next = std::move(list);
         list = std::move(node);
     }

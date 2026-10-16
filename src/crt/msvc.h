@@ -54,13 +54,13 @@ std::string Sprintf(std::string_view format, const Args&... args)
 class Random
 {
 public:
-    static constexpr u32 kInitialSeed = 1;
+    static constexpr u32 InitialSeed = 1;
 
     void Seed(u32 seed);
     int Next();
 
 private:
-    u32 holdrand = Random::kInitialSeed;
+    u32 holdrand = Random::InitialSeed;
 };
 
 }  // namespace swd3::crt

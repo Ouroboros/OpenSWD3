@@ -14,8 +14,8 @@ namespace swd3
 class FightTalk
 {
 public:
-    static constexpr u32 kHeaderBytes = 0x200;
-    static constexpr u32 kScriptBytes = 0x8000;
+    static constexpr u32 HeaderBytes = 0x200;
+    static constexpr u32 ScriptBytes = 0x8000;
 
     void Load(const std::string& installDirectory, u16 battle);
 

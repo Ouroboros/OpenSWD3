@@ -20,12 +20,12 @@ constexpr int kCacheFull = 0x7CF;
 // The colour step per glyph row: -1 for kGradientDown, +1 for kGradientUp, else 0.
 int RowStep(int style)
 {
-    if ((style & text_style::kGradientDown) != 0)
+    if ((style & TextFont::GradientDown) != 0)
     {
         return -1;
     }
 
-    return (style & text_style::kGradientUp) != 0 ? 1 : 0;
+    return (style & TextFont::GradientUp) != 0 ? 1 : 0;
 }
 
 // A pixel pair as the original writes it with one 32-bit store: the low half first.
@@ -41,8 +41,8 @@ void PutPair(Pixel* target, std::ptrdiff_t index, Pixel color)
 TextFont::TextFont(GlyphRasterizer& rasterizer)
     : rasterizer(rasterizer)
 {
-    this->SetBackground(TextFont::kNoBackground);
-    this->SetTarget(Display::kWidth, Display::kHeight);
+    this->SetBackground(TextFont::NoBackground);
+    this->SetTarget(Display::Width, Display::Height);
 }
 
 // swd32.exe 0x00435130
@@ -103,9 +103,9 @@ int TextFont::Init(Graphics& graphics)
     graphics.BackSize(pitch, height);
     this->SetTarget(pitch / 2, height);
     this->SetGlyphSize(16, 16);
-    this->SetFont(TextFont::kDefaultFace, this->glyphWidth);
+    this->SetFont(TextFont::DefaultFace, this->glyphWidth);
     this->SetAdvance(this->glyphWidth);
-    this->SetBackground(TextFont::kNoBackground);
+    this->SetBackground(TextFont::NoBackground);
     this->SetShadow(0);
     this->codes.fill(0);
     this->glyphCount = 0;
@@ -174,7 +174,7 @@ void TextFont::AllocGlyphCache()
         this->glyphRowBytes = this->glyphWidth / 8 + 1;
     }
 
-    this->glyphs.assign(static_cast<std::size_t>(TextFont::kMaxGlyphs) * this->glyphRowBytes * this->glyphHeight, 0);
+    this->glyphs.assign(static_cast<std::size_t>(TextFont::MaxGlyphs) * this->glyphRowBytes * this->glyphHeight, 0);
     this->codes.fill(0);
     this->glyphCount = 0;
 }
@@ -663,7 +663,7 @@ void TextFont::DrawText(Pixel* target, int x, int y, std::string_view text, Pixe
             );
         }
 
-        if (this->background != TextFont::kNoBackground)
+        if (this->background != TextFont::NoBackground)
         {
             if (index == last)
             {
@@ -675,23 +675,23 @@ void TextFont::DrawText(Pixel* target, int x, int y, std::string_view text, Pixe
             }
         }
 
-        if ((style & text_style::kPlain) != 0)
+        if ((style & TextFont::Plain) != 0)
         {
             this->DrawGlyph(target, x + offset, y, glyph, color, style);
         }
-        else if ((style & text_style::kShadow) != 0)
+        else if ((style & TextFont::Shadow) != 0)
         {
             this->DrawGlyphShadow(target, x + offset, y, glyph, color, style);
         }
-        else if ((style & text_style::kBoldShadow) != 0)
+        else if ((style & TextFont::BoldShadow) != 0)
         {
             this->DrawGlyphBoldShadow(target, x + offset, y, glyph, color, style);
         }
-        else if ((style & text_style::kOutline) != 0)
+        else if ((style & TextFont::Outline) != 0)
         {
             this->DrawGlyphOutline(target, x + offset, y, glyph, color, style);
         }
-        else if ((style & text_style::kBoldOutline) != 0)
+        else if ((style & TextFont::BoldOutline) != 0)
         {
             this->DrawGlyphBoldOutline(target, x + offset, y, glyph, color, style);
         }

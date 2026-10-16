@@ -327,7 +327,7 @@ int BattleUnit::StartDefeat(int defeat)
         this->defeatPose = 6;
     }
 
-    if (this->kind == BattleUnit::kPartyRole && this->roleRecord != nullptr)
+    if (this->kind == BattleUnit::PartyRole && this->roleRecord != nullptr)
     {
         this->roleRecord->hitPoints = 0;
     }
@@ -421,7 +421,7 @@ int BattleUnit::ResetTurn(BattleServices& services)
     this->targets = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};
     int result = this->kind;
 
-    if (result == BattleUnit::kPartyRole)
+    if (result == BattleUnit::PartyRole)
     {
         result = static_cast<int>(services.random.Below(0x8C)) + 0x32;
         this->gauge = static_cast<u16>(result);
@@ -1048,7 +1048,7 @@ bool BattleUnit::IsGuarding() const
 // (positive values; -1 refills the current value); enemies take the hit points as their maximum and current value
 void BattleUnit::SetVitals(i16 hitPoints, i16 spirit, i16 stamina)
 {
-    if (this->kind == BattleUnit::kPartyRole)
+    if (this->kind == BattleUnit::PartyRole)
     {
         RoleRecord* record = this->roleRecord;
 
@@ -1104,7 +1104,7 @@ void BattleUnit::SetVitals(i16 hitPoints, i16 spirit, i16 stamina)
 // checked for null in the original; an enemy's data)
 i16 BattleUnit::SetAttributes(i16 attack, i16 defense, i16 agility)
 {
-    if (this->kind == BattleUnit::kPartyRole)
+    if (this->kind == BattleUnit::PartyRole)
     {
         RoleRecord* record = this->battleRecord;
 
@@ -1155,7 +1155,7 @@ i16 BattleUnit::SetAttributes(i16 attack, i16 defense, i16 agility)
 // swd32.exe 0x0047DA90: an enemy's level
 void BattleUnit::SetLevel(i16 level)
 {
-    if (this->kind != BattleUnit::kPartyRole && this->data != nullptr)
+    if (this->kind != BattleUnit::PartyRole && this->data != nullptr)
     {
         this->data->data.level = static_cast<u16>(level);
     }
@@ -1182,8 +1182,8 @@ constexpr int kBattleTextLimit = 63;
 constexpr int kAnnounceX = 0x118;
 constexpr int kAnnounceY = 0xA;
 constexpr i16 kAnnounceFrames = 0x28;
-constexpr int kAnnounceFlags = BattleMessage::kBlackBar | BattleMessage::kCentered;
-constexpr int kFramedFlags = BattleMessage::kFrame | BattleMessage::kCentered;
+constexpr int kAnnounceFlags = BattleMessage::BlackBar | BattleMessage::Centered;
+constexpr int kFramedFlags = BattleMessage::Frame | BattleMessage::Centered;
 constexpr int kAnnounceSound = 0x117;
 constexpr i32 kEffectAct = 0x2AF8;
 constexpr u16 kEffectIcons = 0x241D;
@@ -1286,7 +1286,7 @@ void BattleUnit::DrawGuardText(BattleServices& services)
     }
 
     hud.digitMode = 0;
-    u32 offset = hud.DrawDigit(0, 0, left, top - BattleUnit::kPopOffsets[static_cast<std::size_t>(phases[0])]);
+    u32 offset = hud.DrawDigit(0, 0, left, top - BattleUnit::PopOffsets[static_cast<std::size_t>(phases[0])]);
 
     for (std::size_t letter = 1; letter < 4 && phases[0] > 0; ++letter)
     {
@@ -1294,7 +1294,7 @@ void BattleUnit::DrawGuardText(BattleServices& services)
             0,
             static_cast<int>(letter),
             static_cast<u16>(offset) + left,
-            top - BattleUnit::kPopOffsets[static_cast<std::size_t>(phases[letter])]
+            top - BattleUnit::PopOffsets[static_cast<std::size_t>(phases[letter])]
         );
 
         if (this->held == 0)
@@ -1372,7 +1372,7 @@ int BattleUnit::AddAilment(BattleServices& services, const SkillScript& skill)
 
     const int roll = static_cast<int>(services.random.Below(10)) + 1;
 
-    if (this->kind == BattleUnit::kPartyRole)
+    if (this->kind == BattleUnit::PartyRole)
     {
         if (roll > static_cast<u16>(this->battleRecord->ailmentChance))
         {
@@ -1466,7 +1466,7 @@ int BattleUnit::AddAilment(BattleServices& services, const SkillScript& skill)
             SetEffectIcon(node, 6, 0xB);
             this->status |= 0x200;
 
-            if (this->kind == BattleUnit::kPartyRole)
+            if (this->kind == BattleUnit::PartyRole)
             {
                 ScaleRoleStats(*this->battleRecord, -1);
             }
@@ -1594,19 +1594,19 @@ int BattleUnit::AddBuff(BattleServices& services, const SkillScript& skill)
     {
         case 0x80000:
             node->act.action = 0;
-            this->status |= unit_status::kDefenseDown;
+            this->status |= BattleUnit::DefenseDown;
             text = battle_text::kDefenseDown;
             break;
 
         case 0x100000:
             node->act.action = 0;
-            this->status |= unit_status::kSpeedDown;
+            this->status |= BattleUnit::SpeedDown;
             text = battle_text::kSpeedDown;
             break;
 
         case 0x2000000:
             node->act.action = 0;
-            this->status |= unit_status::kBarrier;
+            this->status |= BattleUnit::Barrier;
 
             if (this->kind != 0)
             {
@@ -1617,7 +1617,7 @@ int BattleUnit::AddBuff(BattleServices& services, const SkillScript& skill)
 
         case 0x8000000:
             node->act.action = 0;
-            this->status |= unit_status::kAttackDown;
+            this->status |= BattleUnit::AttackDown;
             text = battle_text::kAttackDown;
             break;
 
@@ -1634,19 +1634,19 @@ int BattleUnit::AddBuff(BattleServices& services, const SkillScript& skill)
 
         case 0x20000000:
             node->act.action = 0;
-            this->status |= unit_status::kDefenseUp;
+            this->status |= BattleUnit::DefenseUp;
             text = battle_text::kDefenseUp;
             break;
 
         case 0x40000000:
             node->act.action = 0;
-            this->status |= unit_status::kSpeedUp;
+            this->status |= BattleUnit::SpeedUp;
             text = battle_text::kSpeedUp;
             break;
 
         case 0x80000000:
             node->act.action = 0;
-            this->status |= unit_status::kAttackUp;
+            this->status |= BattleUnit::AttackUp;
             text = battle_text::kAttackUp;
             break;
 
@@ -1941,7 +1941,7 @@ void BattleUnit::ExpireEffects(BattleServices& services, int clearAll)
                 case 0x200:
                     this->status &= ~0x200u;
 
-                    if (this->kind == BattleUnit::kPartyRole)
+                    if (this->kind == BattleUnit::PartyRole)
                     {
                         ScaleRoleStats(*this->battleRecord, 1);
                     }
@@ -2076,7 +2076,7 @@ int BattleUnit::Damage(BattleServices& services, int hitPoints, i16 spirit, i16 
         return 0;
     }
 
-    if (this->kind != BattleUnit::kPartyRole)
+    if (this->kind != BattleUnit::PartyRole)
     {
         ObjectData& block = this->data->data;
         const i32 shield = this->hitPointsOverride;
@@ -2245,7 +2245,7 @@ void BattleUnit::Reset(BattleServices& services)
     this->unk283C = {};
     this->ExpireEffects(services, 1);
 
-    if (this->kind == BattleUnit::kPartyRole && this->data != nullptr)
+    if (this->kind == BattleUnit::PartyRole && this->data != nullptr)
     {
         this->ownedData.reset();
         this->data = nullptr;
@@ -2340,7 +2340,7 @@ void BattleUnit::SetDisplayName(std::span<const char> name)
 // swd32.exe 0x00483870: a party role's maximum stamina and its stamina (nothing for an enemy)
 void BattleUnit::GetStamina(u16& maximum, u16& value) const
 {
-    if (this->kind == BattleUnit::kPartyRole)
+    if (this->kind == BattleUnit::PartyRole)
     {
         maximum = static_cast<u16>(this->roleRecord->maxStamina);
         value = static_cast<u16>(this->roleRecord->stamina);
@@ -2350,7 +2350,7 @@ void BattleUnit::GetStamina(u16& maximum, u16& value) const
 // swd32.exe 0x004838A0: a party role's maximum spirit and its spirit (nothing for an enemy)
 void BattleUnit::GetSpirit(u16& maximum, u16& value) const
 {
-    if (this->kind == BattleUnit::kPartyRole)
+    if (this->kind == BattleUnit::PartyRole)
     {
         maximum = static_cast<u16>(this->roleRecord->maxSpirit);
         value = static_cast<u16>(this->roleRecord->spirit);
@@ -2361,7 +2361,7 @@ void BattleUnit::GetSpirit(u16& maximum, u16& value) const
 // (its current hit points when overridden)
 void BattleUnit::GetHitPoints(i32& value, i32& maximum) const
 {
-    if (this->kind == BattleUnit::kPartyRole)
+    if (this->kind == BattleUnit::PartyRole)
     {
         maximum = this->roleRecord->maxHitPoints;
         value = this->roleRecord->hitPoints;
@@ -2383,7 +2383,7 @@ void BattleUnit::GetHitPoints(i32& value, i32& maximum) const
 // a full gauge marks the unit ready (true). Held units do not move.
 int BattleUnit::AdvanceGauge(const BattleServices& services, int boost)
 {
-    if ((this->marks & unit_mark::kHeld) != 0 || (this->marks & unit_mark::kUnk4000) != 0)
+    if ((this->marks & BattleUnit::Held) != 0 || (this->marks & BattleUnit::Unk4000) != 0)
     {
         return 0;
     }
@@ -2394,7 +2394,7 @@ int BattleUnit::AdvanceGauge(const BattleServices& services, int boost)
     {
         int step = this->data->data.agility >> 2;
 
-        if ((this->status & unit_status::kSlowed) != 0)
+        if ((this->status & BattleUnit::Slowed) != 0)
         {
             step = this->data->data.agility >> 3;
         }
@@ -2407,17 +2407,17 @@ int BattleUnit::AdvanceGauge(const BattleServices& services, int boost)
         int gain = 0;
         int loss = 0;
 
-        if ((this->status & unit_status::kSpeedUp) != 0)
+        if ((this->status & BattleUnit::SpeedUp) != 0)
         {
             gain = 0x1E * step / 0x64;
         }
 
-        if ((this->status & unit_status::kSpeedDown) != 0)
+        if ((this->status & BattleUnit::SpeedDown) != 0)
         {
             loss = 0x1E * step / 0x64;
         }
 
-        if ((this->status & unit_status::kInvisible) != 0)
+        if ((this->status & BattleUnit::Invisible) != 0)
         {
             loss = static_cast<u16>(0xA * step / 0x64 + loss);
         }
@@ -2505,7 +2505,7 @@ bool BattleUnit::MarkBit11Clear() const
 // swd32.exe 0x0047F920: held (by a mark) or holding
 int BattleUnit::IsHeldOrHolding() const
 {
-    if ((this->marks & unit_mark::kHeld) != 0)
+    if ((this->marks & BattleUnit::Held) != 0)
     {
         return 1;
     }
@@ -2527,7 +2527,7 @@ u16 BattleUnit::DrainKind() const
 
     if ((flags & 0x100) != 0)
     {
-        return (this->equipmentFlags & equipment_flag::kLifeDrain) != 0 ? u16{8} : u16{1};
+        return (this->equipmentFlags & BattleUnit::LifeDrain) != 0 ? u16{8} : u16{1};
     }
 
     if ((flags & 0x200) != 0)
@@ -2559,7 +2559,7 @@ int BattleUnit::SetValueAAC(int value)
 // swd32.exe 0x00483FF0: the facing (and +0x2B20) set, unless the unit is a defeated party role
 int BattleUnit::SetFacingIfAble(int value)
 {
-    if (this->kind != BattleUnit::kPartyRole || this->defeated != 1)
+    if (this->kind != BattleUnit::PartyRole || this->defeated != 1)
     {
         this->name = value;
         this->facing = value;
@@ -2656,14 +2656,14 @@ bool BattleUnit::IsSmallMachine() const
 {
     const u32 kind = this->data->data.kind;
 
-    if ((kind & BattleEnemy::kNamedKind) != 0)
+    if ((kind & BattleEnemy::NamedKind) != 0)
     {
         return false;
     }
 
-    if ((kind & BattleEnemy::kMachineKind) != 0)
+    if ((kind & BattleEnemy::MachineKind) != 0)
     {
-        return this->data->data.unk52 <= BattleEnemy::kSmallMachineTypes;
+        return this->data->data.unk52 <= BattleEnemy::SmallMachineTypes;
     }
 
     return false;
@@ -2876,7 +2876,7 @@ void BattleUnit::ClearMoveAxes(u16& x, u16& y) const
 
         if ((this->command.flags & 1) != 0)
         {
-            if (this->kind == BattleUnit::kPartyRole && this->facing == 1)
+            if (this->kind == BattleUnit::PartyRole && this->facing == 1)
             {
                 x = 0x280;
             }

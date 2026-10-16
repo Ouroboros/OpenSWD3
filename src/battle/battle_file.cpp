@@ -75,7 +75,7 @@ bool BattleFile::ReadHeader(std::string_view path)
         return false;
     }
 
-    u32 bytes = BattleFile::kHeaderBytes;
+    u32 bytes = BattleFile::HeaderBytes;
     file.Read(this->header.data(), bytes);
     file.Close();
     return true;
@@ -92,7 +92,7 @@ bool BattleFile::ReadFormation(std::string_view path, BattleFormation& formation
         return false;
     }
 
-    u32 bytes = BattleFile::kHeaderBytes;
+    u32 bytes = BattleFile::HeaderBytes;
     file.Read(this->header.data(), bytes);
     const std::span<const u8> counts = this->Counts();
     const auto count = static_cast<i8>(battle < counts.size() ? counts[battle] : u8{0});
@@ -111,9 +111,9 @@ bool BattleFile::ReadFormation(std::string_view path, BattleFormation& formation
     }
 
     const u32 record = ReadU32(this->header, 4 + 4 * static_cast<std::size_t>(skipped + choice));
-    file.SeekBegin(static_cast<i32>(BattleFile::kRecordBytes * record + BattleFile::kHeaderBytes));
-    std::array<u8, BattleFile::kRecordBytes> data = {};
-    u32 read = BattleFile::kRecordBytes;
+    file.SeekBegin(static_cast<i32>(BattleFile::RecordBytes * record + BattleFile::HeaderBytes));
+    std::array<u8, BattleFile::RecordBytes> data = {};
+    u32 read = BattleFile::RecordBytes;
     file.Read(data.data(), read);
     formation.Load(data);
     file.Close();
@@ -123,7 +123,7 @@ bool BattleFile::ReadFormation(std::string_view path, BattleFormation& formation
 // The formation counts of the battles (0x005241FC points at them).
 std::span<const u8> BattleFile::Counts() const
 {
-    return std::span<const u8>(this->header).subspan(BattleFile::kCountsAt);
+    return std::span<const u8>(this->header).subspan(BattleFile::CountsAt);
 }
 
 }  // namespace swd3

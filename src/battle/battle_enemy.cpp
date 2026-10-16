@@ -25,10 +25,10 @@ void BattleEnemy::Setup(const UnitPlacement& at, u16 id, Database& database)
     database.LoadObject(*this->data, id);
     ObjectData& object = this->data->data;
 
-    if ((object.kind & BattleEnemy::kNamedKind) != 0)
+    if ((object.kind & BattleEnemy::NamedKind) != 0)
     {
-        object.agility = static_cast<u16>(object.agility + BattleEnemy::kNamedAgility);
-        object.attack = static_cast<u16>(object.attack + BattleEnemy::kNamedAttack);
+        object.agility = static_cast<u16>(object.agility + BattleEnemy::NamedAgility);
+        object.attack = static_cast<u16>(object.attack + BattleEnemy::NamedAttack);
     }
 
     this->kind = at.kind;
@@ -45,16 +45,16 @@ void BattleEnemy::Setup(const UnitPlacement& at, u16 id, Database& database)
     this->LoadCommand(database, object.skill);
     Database::FreeDescription(*this->data);
 
-    if (this->actId == BattleEnemy::kSatanAct)
+    if (this->actId == BattleEnemy::SatanAct)
     {
-        this->hitPointsOverride = BattleEnemy::kSatanHitPoints;
-        object.maxHitPoints = BattleEnemy::kSatanHitPoints;
+        this->hitPointsOverride = BattleEnemy::SatanHitPoints;
+        object.maxHitPoints = BattleEnemy::SatanHitPoints;
     }
 
-    if (this->actId == BattleEnemy::kChiyouAct)
+    if (this->actId == BattleEnemy::ChiyouAct)
     {
-        this->hitPointsOverride = BattleEnemy::kChiyouHitPoints;
-        object.maxHitPoints = BattleEnemy::kChiyouHitPoints;
+        this->hitPointsOverride = BattleEnemy::ChiyouHitPoints;
+        object.maxHitPoints = BattleEnemy::ChiyouHitPoints;
     }
 }
 

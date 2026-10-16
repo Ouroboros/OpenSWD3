@@ -48,12 +48,12 @@ enum class Button
 class Controls
 {
 public:
-    static constexpr int kButtons = 32;
-    static constexpr int kIdleFlag = 9;
-    static constexpr u32 kIdleFrames = 0x1C2;
-    static constexpr u32 kClickGap = 0x96;
+    static constexpr int Buttons = 32;
+    static constexpr int IdleFlag = 9;
+    static constexpr u32 IdleFrames = 0x1C2;
+    static constexpr u32 ClickGap = 0x96;
     // The next click count after a press (swd32.exe 0x0049940C).
-    static constexpr std::array<i32, 4> kClickSequence = {1, 2, 3, 3};
+    static constexpr std::array<i32, 4> ClickSequence = {1, 2, 3, 3};
 
     void Update(ButtonState& button, int down);
     void Poll(Input& input, const Config& config, GameState& state, i32 frameTime);
@@ -61,7 +61,7 @@ public:
     const ButtonState& At(Button button) const;
     int PressConfirm();
 
-    std::array<ButtonState, kButtons> buttons = {};
+    std::array<ButtonState, Buttons> buttons = {};
     i32 now = 0;              // 0x004CB224 the frame time of this poll
     i32 lastPoll = 0;         // 0x004CB23C
     i32 mouseSuppressed = 0;  // 0x004CAE94 polls left with the left button ignored

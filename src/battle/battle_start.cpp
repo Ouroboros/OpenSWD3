@@ -22,7 +22,7 @@ constexpr int kMaxGuests = 2;
 constexpr std::array<u16, kGuests> kGuestFlags = {34, 35, 38, 44, 45, 46, 47, 49};
 constexpr std::array<u16, kGuests> kGuestActs = {3, 4, 10, 33, 34, 37, 38, 40};
 // swd32.exe 0x004A75D8: the battle act of each party role (賽特, 妮可, 卡瑪, 李靖), dwords read as words.
-constexpr std::array<u32, Party::kRoles> kRoleActs = {1, 2, 8, 0x17};
+constexpr std::array<u32, Party::Roles> kRoleActs = {1, 2, 8, 0x17};
 constexpr i16 kGuestX = 0x2EE;
 constexpr i16 kGuestY = 0x136;
 constexpr i16 kScreenWidth = 0x280;
@@ -100,7 +100,7 @@ void Game::MeasureUnits()
     for (u32 role = 0; role < battle.roleCount; ++role)
     {
         this->battleRoles[role].GetDrawPosition(x, y);
-        battle.unitY[BattleState::kFirstRoleUnit + role] = static_cast<i16>(y);
+        battle.unitY[BattleState::FirstRoleUnit + role] = static_cast<i16>(y);
     }
 }
 
@@ -165,13 +165,13 @@ void Game::StartBattle(u16 number)
 
     battle.unk4FF578.fill(1);
     ResetPlayback(this->talk.endAct);
-    this->talk.endAct.id = Scene::kPointerAct;
+    this->talk.endAct.id = Scene::PointerAct;
     this->talk.endAct.action = 0xC;
     this->graphics.SetClearColor(this->painter.FillColorPair());
 
-    for (int role = 0; role < Party::kRoles; ++role)
+    for (int role = 0; role < Party::Roles; ++role)
     {
-        if (state.GameFlag(story_flag::kInParty + role))
+        if (state.GameFlag(GameState::InParty + role))
         {
             battle.inParty[static_cast<std::size_t>(role)] = 1;
             ++battle.roleCount;
@@ -196,14 +196,14 @@ void Game::StartBattle(u16 number)
         }
     }
 
-    if (state.GameFlag(story_flag::kUnkC9))
+    if (state.GameFlag(GameState::UnkC9))
     {
         battle.panelFlags |= 2;
     }
 
     battle.timingWindow = 0x3C;
 
-    if (state.GameFlag(story_flag::kUnk1BB0))
+    if (state.GameFlag(GameState::Unk1BB0))
     {
         battle.timingWindow = 0x12;
     }
@@ -267,7 +267,7 @@ void Game::StartBattle(u16 number)
         }
     }
 
-    for (u32 role = 0; role < battle.roleCount && role < Party::kRoles; ++role)
+    for (u32 role = 0; role < battle.roleCount && role < Party::Roles; ++role)
     {
         UnitPlacement& place = battle.rolePlaces[role];
         place.actId = static_cast<u16>(kRoleActs[static_cast<std::size_t>(battle.partyRoles[role])]);
@@ -291,7 +291,7 @@ void Game::StartBattle(u16 number)
         battle.panelPlaces[2 * panel + 1] = battle.rolePlaces[panel].y + kPanelOffsets[panel].y;
     }
 
-    for (u32 role = 0; role < battle.roleCount && role < Party::kRoles; ++role)
+    for (u32 role = 0; role < battle.roleCount && role < Party::Roles; ++role)
     {
         BattleRole& unit = this->battleRoles[role];
         const auto member = static_cast<std::size_t>(battle.partyRoles[role]);
@@ -315,19 +315,19 @@ void Game::StartBattle(u16 number)
     SortItems(this->party.inventory);
     SortSkills(this->party.skills);
 
-    for (u32 role = 0; role < battle.roleCount && role < Party::kRoles; ++role)
+    for (u32 role = 0; role < battle.roleCount && role < Party::Roles; ++role)
     {
         BattleRole& unit = this->battleRoles[role];
         const auto member = static_cast<std::size_t>(battle.partyRoles[role]);
         const auto slots = std::span<const std::unique_ptr<ItemNode>>(this->party.equipment)
-                               .subspan(member * Party::kSlotsPerRole, Party::kSlotsPerRole);
+                               .subspan(member * Party::SlotsPerRole, Party::SlotsPerRole);
         unit.ApplyEquipment(slots, this->party.fame.lists[2], this->errors);
         unit.SetSkills(this->party.skills[member].get());
         unit.SetInventory(&this->party.inventory);
         unit.SetDisplayName(this->party.names[member]);
     }
 
-    for (u32 role = 0; role < battle.roleCount && role < Party::kRoles; ++role)
+    for (u32 role = 0; role < battle.roleCount && role < Party::Roles; ++role)
     {
         BattleRole& unit = this->battleRoles[role];
         i32 hitPoints = 0;

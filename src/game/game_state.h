@@ -13,6 +13,22 @@ namespace swd3
 // The header of the current map (0x64 bytes at 0x004B7930); its two buffers are freed when the map is left.
 struct MapHeader
 {
+    // The bits of a word in `blocks`.
+    enum Cell : u32
+    {
+        RegionMask = 0xFF,       // the map region (event area) of the cell
+        LeaderCell = 0x100,      // the leader stands on it
+        Reflecting = 0x800,      // the roles on it are reflected
+        ShadeMask = 0xF000,      // the shade of the roles on it (Role::CellShades >> ShadeShift)
+        Unk800000 = 0x800000,    // under a role with Role::Unk10
+        RoleCell = 0x10000000,   // a role stands on it
+        SolidRole = 0x20000000,  // a solid role stands on it
+        Wall = 0x40000000,
+        Outside = 0xFFFFFFFF,  // read past the cells
+    };
+
+    static constexpr u32 ShadeShift = 8;  // from ShadeMask to Role::CellShades
+
     i32 width = 0;                     // +0x00 tiles
     i32 height = 0;                    // +0x04 tiles
     i32 bitsPerPixel = 0;              // +0x08 16: the map units hold 16-bit pixels, 8: indices into the city palette
@@ -25,7 +41,6 @@ struct MapHeader
     std::array<char, 0x40> name = {};  // +0x24
 };
 
-// The movement of a role along a path (0x21C bytes, 72 of them at 0x004AD490); filled with 0xFF when unused.
 // The kinds of move (the low nibble of MoveRecord::mode).
 enum class MoveKind : u8
 {
@@ -34,16 +49,27 @@ enum class MoveKind : u8
     Scripted = 2,  // a move given by an event
 };
 
+// The movement of a role along a path (0x21C bytes, 72 of them at 0x004AD490); filled with 0xFF when unused.
 struct MoveRecord
 {
-    static constexpr u16 kDone = 0x8000;      // in `step`: the step was taken
-    static constexpr u16 kStepMask = 0x7FFF;  // in `step`: the step reached
-    static constexpr u8 kKindMask = 0xF;      // in `mode`: the MoveKind
-    static constexpr u8 kHoldAtEnd = 0x80;    // in `mode`: the role stays held by the event when it arrives
-    static constexpr u8 kEndOfPath = 0xFF;    // in `directions`
+    // The bits of `step`.
+    enum Step : u16
+    {
+        StepMask = 0x7FFF,  // the step reached
+        Done = 0x8000,      // the step was taken
+    };
+
+    // The bits of `mode`.
+    enum Mode : u8
+    {
+        KindMask = 0xF,    // the MoveKind
+        HoldAtEnd = 0x80,  // the role stays held by the event when it arrives
+    };
+
+    static constexpr u8 EndOfPath = 0xFF;  // in `directions`
 
     u16 role = 0;                           // +0x00 the role moving (0xFFFF: unused)
-    u16 step = 0;                           // +0x02 bits 0..14: the step reached, kDone once taken
+    u16 step = 0;                           // +0x02 bits 0..14: the step reached, Done once taken
     u16 x = 0;                              // +0x04 the end of the move (pixels)
     u16 y = 0;                              // +0x06
     u16 nextRole = 0;                       // +0x08 a move queued after this one (0xFFFF: none)
@@ -63,18 +89,18 @@ struct MoveRecord
 
     MoveKind Kind() const
     {
-        return static_cast<MoveKind>(this->mode & MoveRecord::kKindMask);
+        return static_cast<MoveKind>(this->mode & MoveRecord::KindMask);
     }
 
     void SetKind(MoveKind kind)
     {
-        this->mode = static_cast<u8>((this->mode & ~MoveRecord::kKindMask) | static_cast<u8>(kind));
+        this->mode = static_cast<u8>((this->mode & ~MoveRecord::KindMask) | static_cast<u8>(kind));
     }
 
     // The direction of the step reached (kEndOfPath at the end).
     u8 CurrentDirection() const
     {
-        return this->directions[static_cast<std::size_t>(this->step & MoveRecord::kStepMask) % this->directions.size()];
+        return this->directions[static_cast<std::size_t>(this->step & MoveRecord::StepMask) % this->directions.size()];
     }
 };
 
@@ -97,65 +123,63 @@ public:
     void Free();
 
     // In `flags`: the regions are the choices of a talk window (Space or Enter frees them).
-    static constexpr i32 kTalkChoices = 0x1000;
+    static constexpr i32 TalkChoices = 0x1000;
 
     i32 flags = 0;                   // 0x004C8BE8
     std::list<ClickRegion> regions;  // 0x004C8BEC, the head first
     std::array<i32, 3> state = {};   // 0x004C8BF0
 };
 
-// The shared game state: the story flags, the pointer, the map characters and the player's control.
-// Story flags (GameState::flags) the code tests by number.
-namespace story_flag
-{
-
-constexpr int kRunning = 1;       // cleared when the debug quit key ends the game
-constexpr int kDebugReports = 2;  // the internal errors are reported
-constexpr int kMusic = 3;         // music plays (cleared without DirectInput)
-constexpr int kSoundEffects = 4;  // (cleared without DirectInput)
-constexpr int kWeather = 5;       // the map has weather particles
-constexpr int kLeaves = 6;        // leaves blow across the map
-constexpr int kHeatHaze = 7;
-constexpr int kLightning = 8;
-constexpr int kNoChoicePointer = 9;  // the pointer and the click choices of the talk windows are off
-constexpr int kNoPointer = 0xA;      // the pointer is not drawn
-constexpr int kHideActRoles = 0xB;   // roles drawn by an act alone are skipped
-constexpr int kEncounters = 0xC;     // enemies are met on the map
-constexpr int kOverlaysFirst = 0xF;  // the map's overlays are drawn before the roles (map effect bit 7)
-constexpr int kTimer = 0x10;         // the first timer runs
-constexpr int kTimerExpired = 0x11;
-constexpr int kTimerEvent = 0x12;  // the first timer runs an event when it expires
-constexpr int kSpotlight = 0x13;
-constexpr int kNoSlide = 0x14;  // steps into walls do not slide (debug key Ctrl+F3)
-constexpr int kUnk15 = 0x15;    // cleared by a new game
-constexpr int kFireflies = 0x16;
-constexpr int kInParty = 0x1E;  // 0x1E..0x21: the four roles are in the party
-constexpr int kNoLoadingScreen = 0x46;
-constexpr int kPlainScreen = 0x48;  // the spotlight, the bubbles, the ripples and the screen effects are off
-constexpr int kSecondTimer = 0x4A;
-constexpr int kSecondTimerExpired = 0x4B;
-constexpr int kHideTimer = 0x4C;
-constexpr int kFileNameA = 0x4D;  // talk commands 0xAA..0xAD
-constexpr int kFileNameB = 0x4E;
-constexpr int kFollowersPassWalls = 0x4F;
-constexpr int kTextBox = 0x50;           // the keyboard goes to the text box
-constexpr int kHideHud = 0x51;           // the gold counter and the pointer are not drawn
-constexpr int kDebugKeys = 0x52;         // the debug keys work
-constexpr int kSecondDisc = 0x53;        // the minimal installation reads the second disc file
-constexpr int kUnkC9 = 0xC9;             // the battle start sets panel flag 2
-constexpr int kMapNoEncounter = 0x1770;  // + the map number: no enemies on that map
-constexpr int kUnk1BB0 = 0x1BB0;         // the timing window of the battle is 0x12 frames instead of 0x3C
-
-}  // namespace story_flag
-
 class GameState
 {
 public:
-    static constexpr int kRoles = 256;
-    static constexpr int kMoves = 72;
-    static constexpr int kFlagBytes = 0x400;
+    // The shared game state: the story flags, the pointer, the map characters and the player's control.
+    // Story flags (GameState::flags) the code tests by number.
+    enum StoryFlag : int
+    {
+        Running = 1,       // cleared when the debug quit key ends the game
+        DebugReports = 2,  // the internal errors are reported
+        Music = 3,         // music plays (cleared without DirectInput)
+        SoundEffects = 4,  // (cleared without DirectInput)
+        Weather = 5,       // the map has weather particles
+        Leaves = 6,        // leaves blow across the map
+        HeatHaze = 7,
+        Lightning = 8,
+        NoChoicePointer = 9,  // the pointer and the click choices of the talk windows are off
+        NoPointer = 0xA,      // the pointer is not drawn
+        HideActRoles = 0xB,   // roles drawn by an act alone are skipped
+        Encounters = 0xC,     // enemies are met on the map
+        OverlaysFirst = 0xF,  // the map's overlays are drawn before the roles (map effect bit 7)
+        Timer = 0x10,         // the first timer runs
+        TimerExpired = 0x11,
+        TimerEvent = 0x12,  // the first timer runs an event when it expires
+        Spotlight = 0x13,
+        NoSlide = 0x14,  // steps into walls do not slide (debug key Ctrl+F3)
+        Unk15 = 0x15,    // cleared by a new game
+        Fireflies = 0x16,
+        InParty = 0x1E,  // 0x1E..0x21: the four roles are in the party
+        NoLoadingScreen = 0x46,
+        PlainScreen = 0x48,  // the spotlight, the bubbles, the ripples and the screen effects are off
+        SecondTimer = 0x4A,
+        SecondTimerExpired = 0x4B,
+        HideTimer = 0x4C,
+        FileNameA = 0x4D,  // talk commands 0xAA..0xAD
+        FileNameB = 0x4E,
+        FollowersPassWalls = 0x4F,
+        TextBox = 0x50,           // the keyboard goes to the text box
+        HideHud = 0x51,           // the gold counter and the pointer are not drawn
+        DebugKeys = 0x52,         // the debug keys work
+        SecondDisc = 0x53,        // the minimal installation reads the second disc file
+        UnkC9 = 0xC9,             // the battle start sets panel flag 2
+        MapNoEncounter = 0x1770,  // + the map number: no enemies on that map
+        Unk1BB0 = 0x1BB0,         // the timing window of the battle is 0x12 frames instead of 0x3C
+    };
+
+    static constexpr int Roles = 256;
+    static constexpr int Moves = 72;
+    static constexpr int FlagBytes = 0x400;
     // 1 << n (swd32.exe 0x004994EC).
-    static constexpr std::array<u8, 8> kBitMasks = {1, 2, 4, 8, 16, 32, 64, 128};
+    static constexpr std::array<u8, 8> BitMasks = {1, 2, 4, 8, 16, 32, 64, 128};
 
     bool GameFlag(int flag) const;
     u8 SetGameFlag(int flag);
@@ -173,17 +197,17 @@ public:
     bool FindRole(u16 id, u32& index) const;
     bool FindRoleOrPlayer(u16 id, u32& index) const;
 
-    std::array<u8, kFlagBytes> flags = {};  // 0x004AB384 story flags, saved with the game
-    i32 pointerX = 0;                       // 0x004A9924 pointer position on the screen
-    i32 pointerY = 0;                       // 0x004A9928
-    i32 playerRole = 0;                     // 0x004AB378 the controlled role
-    std::array<Role, kRoles> roles;         // 0x004BABA8
-    Role leader;                            // 0x004B72A0 the leading role (filled with 0xFF when unused)
-    i32 roleCount = 1;                      // 0x0049E0C4 roles in use
-    MapHeader map;                          // 0x004B7930
-    std::array<MoveRecord, kMoves> moves;   // 0x004AD490
-    i32 walkSpeed = 0;                      // 0x004AB2D0 the pixels of a step of the camera
-    i32 frameInterval = 0;                  // 0x004B7BCC milliseconds between the frames of the main loop
+    std::array<u8, FlagBytes> flags = {};  // 0x004AB384 story flags, saved with the game
+    i32 pointerX = 0;                      // 0x004A9924 pointer position on the screen
+    i32 pointerY = 0;                      // 0x004A9928
+    i32 playerRole = 0;                    // 0x004AB378 the controlled role
+    std::array<Role, Roles> roles;         // 0x004BABA8
+    Role leader;                           // 0x004B72A0 the leading role (filled with 0xFF when unused)
+    i32 roleCount = 1;                     // 0x0049E0C4 roles in use
+    MapHeader map;                         // 0x004B7930
+    std::array<MoveRecord, Moves> moves;   // 0x004AD490
+    i32 walkSpeed = 0;                     // 0x004AB2D0 the pixels of a step of the camera
+    i32 frameInterval = 0;                 // 0x004B7BCC milliseconds between the frames of the main loop
     ClickRegions clickRegions;
 };
 

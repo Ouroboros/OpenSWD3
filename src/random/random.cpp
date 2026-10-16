@@ -48,10 +48,10 @@ void Random::Seed(u32 seed)
 u32 Random::Step()
 {
     const i32 current = this->index;
-    const i32 other = current >= Random::kTap ? current - Random::kTap : current + (Random::kSize - Random::kTap);
+    const i32 other = current >= Random::Tap ? current - Random::Tap : current + (Random::Size - Random::Tap);
     const u32 value = this->table[static_cast<std::size_t>(other)] ^ this->table[static_cast<std::size_t>(current)];
     this->table[static_cast<std::size_t>(current)] = value;
-    this->index = current < Random::kSize - 1 ? current + 1 : 0;
+    this->index = current < Random::Size - 1 ? current + 1 : 0;
     return value;
 }
 

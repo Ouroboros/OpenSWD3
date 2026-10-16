@@ -24,14 +24,14 @@ constexpr u32 kDirectoryStart = 0x1C;
 // Bucket of the cache chains: by id, map pictures by unit.
 int ChainOf(u32 id, u32 frame)
 {
-    return static_cast<u16>(id) == TswArchive::kMapPicture ? static_cast<int>((frame & 0xFFFF) % 10)
-                                                           : static_cast<int>((id & 0xFFFF) % 10);
+    return static_cast<u16>(id) == TswArchive::MapPicture ? static_cast<int>((frame & 0xFFFF) % 10)
+                                                          : static_cast<int>((id & 0xFFFF) % 10);
 }
 
 bool IsMagic(u32 id)
 {
     const auto value = static_cast<u16>(id);
-    return value >= TswArchive::kMagicFirst && value <= TswArchive::kMagicLast;
+    return value >= TswArchive::MagicFirst && value <= TswArchive::MagicLast;
 }
 
 template <typename Value>
@@ -98,11 +98,11 @@ int TswArchive::CacheBytes() const
 // and 0x00431760).
 void TswArchive::OpenArchives()
 {
-    for (int i = 0; i < TswArchive::kFileCount; ++i)
+    for (int i = 0; i < TswArchive::FileCount; ++i)
     {
         this->OpenFile(
             this->files[static_cast<std::size_t>(i)],
-            Concat({this->gameDirectory, tsw_text::kFileNames[i]})
+            Concat({this->gameDirectory, TswArchive::FileNames[i]})
         );
     }
 
@@ -114,7 +114,7 @@ void TswArchive::OpenArchives()
 
 File* TswArchive::ArchiveOf(u32 id)
 {
-    const auto index = static_cast<std::size_t>((id & 0xFFFF) / TswArchive::kIndicesPerFile);
+    const auto index = static_cast<std::size_t>((id & 0xFFFF) / TswArchive::IndicesPerFile);
     // Ids from 18000 on index past the six handles in the original; they find no archive here.
     return index < this->files.size() ? &this->files[index] : nullptr;
 }
@@ -134,14 +134,14 @@ u32 TswArchive::MagicDirectoryOffset(int index) const
 // The five slots of 255 frame entries form one table; counts above 255 run into the next slot.
 TswFrameEntry& TswArchive::MagicFrame(int slot, int frame)
 {
-    const std::size_t index = static_cast<std::size_t>(slot) * TswArchive::kMagicFramesPerSlot + frame;
+    const std::size_t index = static_cast<std::size_t>(slot) * TswArchive::MagicFramesPerSlot + frame;
     // Records beyond the last slot lie outside the table in the original; they go to a spare record here.
     return index < this->magicFrames.size() ? this->magicFrames[index] : this->spareFrame;
 }
 
 void TswArchive::ReportError(std::u8string_view text)
 {
-    this->errors.ShowError(tsw_text::kErrorTitle, text);
+    this->errors.ShowError(TswArchive::ErrorTitle, text);
 }
 
 // swd32.exe 0x004315C0
@@ -185,7 +185,7 @@ std::unique_ptr<Picture> TswArchive::LoadPictureDirect(u32 id, u32 frame)
     if (IsMagic(id))
     {
         this->magicMode = true;
-        this->CacheMagicFrames(this->files[2], static_cast<int>((id & 0xFFFF) % TswArchive::kIndicesPerFile));
+        this->CacheMagicFrames(this->files[2], static_cast<int>((id & 0xFFFF) % TswArchive::IndicesPerFile));
     }
 
     auto picture = std::make_unique<Picture>();
@@ -194,7 +194,7 @@ std::unique_ptr<Picture> TswArchive::LoadPictureDirect(u32 id, u32 frame)
     {
         this->LoadPictureB(
             *archive,
-            static_cast<int>((id & 0xFFFF) % TswArchive::kIndicesPerFile),
+            static_cast<int>((id & 0xFFFF) % TswArchive::IndicesPerFile),
             frame & 0xFFFF,
             *picture
         );
@@ -253,7 +253,7 @@ void TswArchive::CacheMagicFrames(File& file, int index)
     int slot = 0;
     bool found = false;
 
-    for (; slot < TswArchive::kMagicSlots; ++slot)
+    for (; slot < TswArchive::MagicSlots; ++slot)
     {
         const int held = this->magicSlots[static_cast<std::size_t>(slot)];
 
@@ -282,7 +282,7 @@ void TswArchive::CacheMagicFrames(File& file, int index)
         int oldest = this->magicAges[0];
         slot = 0;
 
-        for (int i = 0; i < TswArchive::kMagicSlots; ++i)
+        for (int i = 0; i < TswArchive::MagicSlots; ++i)
         {
             if (oldest < this->magicAges[static_cast<std::size_t>(i)])
             {
@@ -323,7 +323,7 @@ bool TswArchive::CacheLoad(u32 id, u32 frame)
     entries.push_front(CacheEntry{static_cast<u16>(id), static_cast<u16>(frame), Picture{}});
     Picture& picture = entries.front().picture;
 
-    if (static_cast<u16>(id) == TswArchive::kMapPicture)
+    if (static_cast<u16>(id) == TswArchive::MapPicture)
     {
         if (this->mapPictures != nullptr)
         {
@@ -337,15 +337,15 @@ bool TswArchive::CacheLoad(u32 id, u32 frame)
         if (IsMagic(id))
         {
             this->magicMode = true;
-            this->CacheMagicFrames(this->files[2], static_cast<int>((id & 0xFFFF) % TswArchive::kIndicesPerFile));
+            this->CacheMagicFrames(this->files[2], static_cast<int>((id & 0xFFFF) % TswArchive::IndicesPerFile));
         }
 
         File* archive = this->ArchiveOf(id);
-        const int index = static_cast<int>((id & 0xFFFF) % TswArchive::kIndicesPerFile);
+        const int index = static_cast<int>((id & 0xFFFF) % TswArchive::IndicesPerFile);
 
         if (archive == nullptr || !this->LoadPicture(*archive, index, frame & 0xFFFF, picture))
         {
-            DebugLog(tsw_text::kLoadFailedLog, id & 0xFFFF, frame & 0xFFFF);
+            DebugLog(TswArchive::LoadFailedLog, id & 0xFFFF, frame & 0xFFFF);
             return false;
         }
 
@@ -469,7 +469,7 @@ bool TswArchive::LoadFromFile(const std::string& fileName, int index, u32 frame,
 
     if (!this->OpenFile(*file, fileName))
     {
-        this->ReportError(tsw_text::kOpenFailed);
+        this->ReportError(TswArchive::OpenFailed);
         return false;
     }
 
@@ -497,7 +497,7 @@ bool TswArchive::LoadPicture(File& file, int index, u32 frame, Picture& picture)
 
         for (;; ++slot)
         {
-            if (slot == TswArchive::kMagicSlots)
+            if (slot == TswArchive::MagicSlots)
             {
                 slot = this->magicSlot;
                 break;
@@ -521,7 +521,7 @@ bool TswArchive::LoadPicture(File& file, int index, u32 frame, Picture& picture)
 
         if (!this->ReadHeader(file, info, count))
         {
-            this->errorText = Format(tsw_text::kBadHeader, index, entry.Name());
+            this->errorText = Format(TswArchive::BadHeader, index, entry.Name());
             DebugLog(this->errorText);
             this->ReportError(this->errorText);
             return false;
@@ -530,7 +530,7 @@ bool TswArchive::LoadPicture(File& file, int index, u32 frame, Picture& picture)
 
     if (!this->ReadFrame(file, entry.offset, info, static_cast<int>(frame)))
     {
-        this->errorText = Format(tsw_text::kBadFrame, index, entry.Name(), static_cast<int>(frame));
+        this->errorText = Format(TswArchive::BadFrame, index, entry.Name(), static_cast<int>(frame));
         DebugLog(this->errorText);
         this->ReportError(this->errorText);
         return false;
@@ -565,10 +565,10 @@ bool TswArchive::Decompress(
     {
         if (logMissingBuffer)
         {
-            DebugLog(tsw_text::kNoBufferLog);
+            DebugLog(TswArchive::NoBufferLog);
         }
 
-        this->ReportError(tsw_text::kNoBufferBox);
+        this->ReportError(TswArchive::NoBufferBox);
         return false;
     }
 
@@ -582,7 +582,7 @@ bool TswArchive::Decompress(
     {
         buffer.bytes.clear();
         buffer.present = false;
-        this->ReportError(tsw_text::kDecompressFailed);
+        this->ReportError(TswArchive::DecompressFailed);
         return false;
     }
 
@@ -626,7 +626,7 @@ bool TswArchive::LoadPictureB(File& file, int index, u32 frame, Picture& picture
 
         for (;; ++slot)
         {
-            if (slot == TswArchive::kMagicSlots)
+            if (slot == TswArchive::MagicSlots)
             {
                 slot = this->magicSlot;
                 break;
@@ -650,7 +650,7 @@ bool TswArchive::LoadPictureB(File& file, int index, u32 frame, Picture& picture
 
         if (!this->ReadHeader(file, info, count))
         {
-            this->errorText = Format(tsw_text::kBadHeader, index, entry.Name());
+            this->errorText = Format(TswArchive::BadHeader, index, entry.Name());
             this->ReportError(this->errorText);
             return false;
         }
@@ -658,7 +658,7 @@ bool TswArchive::LoadPictureB(File& file, int index, u32 frame, Picture& picture
 
     if (!this->ReadFrameB(file, entry.offset, info, static_cast<int>(frame)))
     {
-        this->errorText = Format(tsw_text::kBadFrame, index, entry.Name(), static_cast<int>(frame));
+        this->errorText = Format(TswArchive::BadFrame, index, entry.Name(), static_cast<int>(frame));
         this->ReportError(this->errorText);
         return false;
     }

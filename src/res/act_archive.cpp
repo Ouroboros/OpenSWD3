@@ -17,7 +17,7 @@ constexpr int kDirectoryRecordBytes = 0x2C;
 
 int ChainOf(int id, int sub)
 {
-    return (id == ActArchive::kMapAct ? sub % 10 : id % 10) & 0xFFFF;
+    return (id == ActArchive::MapAct ? sub % 10 : id % 10) & 0xFFFF;
 }
 
 u16 ReadWord(const std::vector<u8>& data, std::size_t offset)
@@ -70,11 +70,11 @@ bool ActArchive::ScriptRestarted() const
 // Opens the six archives (inline at the start of 0x00432A50 and 0x00432BC0).
 void ActArchive::OpenArchives()
 {
-    for (int i = 0; i < ActArchive::kFileCount; ++i)
+    for (int i = 0; i < ActArchive::FileCount; ++i)
     {
         this->OpenFile(
             this->files[static_cast<std::size_t>(i)],
-            Concat({this->gameDirectory, act_text::kFileNames[i]})
+            Concat({this->gameDirectory, ActArchive::FileNames[i]})
         );
     }
 
@@ -172,9 +172,9 @@ ActScript ActArchive::Load(File* file, int fileIndex, int entry, int sub, u32& s
         return script;
     }
 
-    this->errorText = Utf8Format(act_text::kBadEntry, {entry, sub});
+    this->errorText = Utf8Format(ActArchive::BadEntry, {entry, sub});
     DebugLog(this->errorText);
-    this->errors.ShowError(act_text::kErrorTitle, this->errorText);
+    this->errors.ShowError(ActArchive::ErrorTitle, this->errorText);
     return nullptr;
 }
 
@@ -207,10 +207,10 @@ ActScript ActArchive::LoadDirect(int id, int sub)
         this->OpenArchives();
     }
 
-    const int fileIndex = id / ActArchive::kIndicesPerFile;
-    File* file = fileIndex < ActArchive::kFileCount ? &this->files[static_cast<std::size_t>(fileIndex)] : nullptr;
+    const int fileIndex = id / ActArchive::IndicesPerFile;
+    File* file = fileIndex < ActArchive::FileCount ? &this->files[static_cast<std::size_t>(fileIndex)] : nullptr;
     u32 size = 0;
-    this->direct = this->Load(file, fileIndex, id % ActArchive::kIndicesPerFile, sub, size);
+    this->direct = this->Load(file, fileIndex, id % ActArchive::IndicesPerFile, sub, size);
     return this->direct;
 }
 
@@ -222,14 +222,14 @@ bool ActArchive::CacheLoad(int id, int sub)
     std::list<CacheEntry>& entries = this->chains[static_cast<std::size_t>(chain)];
     entries.push_back(CacheEntry{id, sub, 0, nullptr});
     CacheEntry& entry = entries.back();
-    const int fileIndex = id / ActArchive::kIndicesPerFile;
+    const int fileIndex = id / ActArchive::IndicesPerFile;
     // Ids from 18000 on (the map id 0xFFFF among them) index past the six handles in the original.
-    File* file = fileIndex < ActArchive::kFileCount ? &this->files[static_cast<std::size_t>(fileIndex)] : nullptr;
-    this->current = this->Load(file, fileIndex, id % ActArchive::kIndicesPerFile, sub, entry.size);
+    File* file = fileIndex < ActArchive::FileCount ? &this->files[static_cast<std::size_t>(fileIndex)] : nullptr;
+    this->current = this->Load(file, fileIndex, id % ActArchive::IndicesPerFile, sub, entry.size);
 
     if (this->current == nullptr)
     {
-        DebugLog(act_text::kLoadFailedLog, fileIndex, sub);
+        DebugLog(ActArchive::LoadFailedLog, fileIndex, sub);
         return false;
     }
 
@@ -322,7 +322,7 @@ int ActArchive::CloseAll()
 
     if (remaining != 0)
     {
-        this->errors.ShowError(act_text::kMemoryErrorTitle, act_text::kMemoryError);
+        this->errors.ShowError(ActArchive::MemoryErrorTitle, ActArchive::MemoryError);
         return 1;
     }
 
@@ -426,19 +426,19 @@ int ActArchive::Run(ActState& state)
     if (state.direction != state.lastDirection)
     {
         state.lastDirection = state.direction;
-        this->Restart(state, act_flag::kKeptOnTurn);
+        this->Restart(state, ActState::KeptOnTurn);
     }
 
     if (state.action != state.lastAction)
     {
         state.lastAction = state.action;
-        this->Restart(state, act_flag::kKeptOnRestart);
+        this->Restart(state, ActState::KeptOnRestart);
     }
 
     if (state.id != state.lastId)
     {
         state.lastId = state.id;
-        this->Restart(state, act_flag::kKeptOnRestart);
+        this->Restart(state, ActState::KeptOnRestart);
     }
 
     const int sub = state.action + state.direction;
@@ -535,7 +535,7 @@ int ActArchive::Run(ActState& state)
                 break;
 
             case ActOpcode::Invisible:
-                state.flags |= act_flag::kInvisible;
+                state.flags |= ActState::Invisible;
                 break;
 
             case ActOpcode::Mask:
@@ -594,17 +594,17 @@ int ActArchive::Run(ActState& state)
                 break;
 
             case ActOpcode::Signal:
-                state.flags = (state.flags & act_flag::kKeptOnRestart) | act_flag::kSignal;
+                state.flags = (state.flags & ActState::KeptOnRestart) | ActState::Signal;
                 state.signal = static_cast<u8>(word(state.position++));
                 break;
 
             case ActOpcode::DrawLevel:
-                state.flags = (state.flags & act_flag::kKeptOnRestart) | act_flag::kDrawLevel;
+                state.flags = (state.flags & ActState::KeptOnRestart) | ActState::DrawLevel;
                 state.drawLevel = static_cast<u8>(word(state.position++));
                 break;
 
             case ActOpcode::Visible:
-                state.flags &= ~act_flag::kInvisible;
+                state.flags &= ~ActState::Invisible;
                 break;
 
             case ActOpcode::Lights:
@@ -646,15 +646,15 @@ int ActArchive::Run(ActState& state)
                 break;
 
             case ActOpcode::Half:
-                state.flags = (state.flags & act_flag::kKeptOnRestart) | act_flag::kHalf;
+                state.flags = (state.flags & ActState::KeptOnRestart) | ActState::Half;
                 break;
 
             case ActOpcode::MaskBlend:
-                state.flags = (state.flags & act_flag::kKeptOnRestart) | act_flag::kMaskBlend;
+                state.flags = (state.flags & ActState::KeptOnRestart) | ActState::MaskBlend;
                 break;
 
             case ActOpcode::NoBlend:
-                state.flags = (state.flags & act_flag::kKeptOnRestart) | act_flag::kNoBlend;
+                state.flags = (state.flags & ActState::KeptOnRestart) | ActState::NoBlend;
                 break;
 
             case ActOpcode::Target:

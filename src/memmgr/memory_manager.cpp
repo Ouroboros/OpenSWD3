@@ -33,7 +33,7 @@ u32 ReadDword(const std::vector<u8>& block, std::size_t offset)
 MemoryManager::MemoryManager(ErrorReporter& errors)
     : errors(errors)
 {
-    for (int i = 0; i < MemoryManager::kSpareNodes; ++i)
+    for (int i = 0; i < MemoryManager::SpareNodes; ++i)
     {
         std::unique_ptr<MemoryNode> node = this->NewNode();
 
@@ -130,9 +130,8 @@ bool MemoryManager::FreeBlock(MemoryNode* node)
         const std::vector<u8>& block = node->block;
         const std::size_t tail = node->size;
 
-        if (ReadDword(block, 0) != MemoryManager::kGuard || ReadDword(block, 4) != MemoryManager::kGuard ||
-            ReadDword(block, tail + 8) != MemoryManager::kGuard ||
-            ReadDword(block, tail + 0xC) != MemoryManager::kGuard)
+        if (ReadDword(block, 0) != MemoryManager::Guard || ReadDword(block, 4) != MemoryManager::Guard ||
+            ReadDword(block, tail + 8) != MemoryManager::Guard || ReadDword(block, tail + 0xC) != MemoryManager::Guard)
         {
             char message[160];
             u8 user[16] = {};

@@ -27,10 +27,10 @@ public:
     void ControlPlayer();
 
     // swd32.exe 0x004993C0: the run toggle.
-    static constexpr std::array<i32, 3> kRunToggle = {1, 0, 0};
+    static constexpr std::array<i32, 3> RunToggle = {1, 0, 0};
     // swd32.exe 0x004993CC and 0x004993EC: the tile in front of a role by its act direction.
-    static constexpr std::array<i32, 8> kAheadX = {0, 0, -1, 1, -1, 1, -1, 1};
-    static constexpr std::array<i32, 8> kAheadY = {-1, 1, 0, 0, -1, 1, 1, -1};
+    static constexpr std::array<i32, 8> AheadX = {0, 0, -1, 1, -1, 1, -1, 1};
+    static constexpr std::array<i32, 8> AheadY = {-1, 1, 0, 0, -1, 1, 1, -1};
 
     i32 running = 0;      // 0x004BA428 the run toggle (key slot 16)
     i32 scrollLeft = 0;   // 0x004CB210 the camera can follow a step left

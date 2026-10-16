@@ -81,14 +81,15 @@ SDL3与FFmpeg由构建脚本自行下载源码并构建，不查找或复用本�
 
 - 类型（class、struct、enum class、别名）、函数与成员函数用 PascalCase，例如 `TextFont`、`DrawGlyph`。
 - 成员变量、局部变量与参数用 camelCase，不加前缀或后缀：不用 `m_`、`g_`、`s_`、尾下划线，也不用匈牙利前缀（`dw`、`n`、`p`、`lp`、`sz`、`b`、`h` 等）。
-- 常量（`constexpr`、`static constexpr`）用 `k` 加 PascalCase，例如 `kWidth`；`enum class` 的枚举值用 PascalCase。
+- 不带限定名使用的常量（命名空间作用域与函数内的 `constexpr`）用 `k` 加 PascalCase，例如 `kTableEnd`；经类型限定使用的常量（类内 `static constexpr`、枚举值）用 PascalCase，不加 `k`，例如 `Display::Width`、`TalkWindow::Typed`。
+- 属于某个类型字段的取值（旗标位、掩码、模式、种类、特殊值）写在该类型内：成组的位与掩码写成类型内带底层类型的 `enum`（例如 `enum Flag : u32`，用法 `Role::Solid`），封闭的取值集合写成 `enum class`，单个特殊值写成 `static constexpr`。不为常量另建命名空间。
 - 命名空间用小写（`swd3`）；文件与目录用小写下划线（`text_font.cpp`）。
 - 名字表达含义；原地址只写在注释里，不进入标识符。
 - 整数类型用项目别名（src/core/types.h）：`u8`、`u16`、`u32`、`u64`、`i8`、`i16`、`i32`、`i64`，不写 `std::uint16_t` 等；显示像素用 `Pixel`。有领域含义的值优先定义具名类型（结构体、`enum class` 或别名）。这些基础别名沿用标准库式的小写，是类型名 PascalCase 规则的例外。
 
 写法：
 
-- 在成员函数内访问本类成员变量与成员函数一律显式写 `this->`，例如 `this->width`、`this->Present(screen)`。静态成员与类内常量用类名限定，例如 `Display::kWidth`。
+- 在成员函数内访问本类成员变量与成员函数一律显式写 `this->`，例如 `this->width`、`this->Present(screen)`。静态成员与类内常量用类名限定，例如 `Display::Width`。
 - 每个还原函数的定义前写 `// swd32.exe 0x<地址>` 注释，可附简要说明（行为、保留的原有BUG、偏差）。默认实现的构造函数也写出定义以附注释。
 - 用 C++ 类型转换（`static_cast` 等），不用 C 风格转换；不用裸 `new`／`delete` 与 `malloc`／`free`，用容器与 `std::unique_ptr`；不用宏（单元测试框架除外）。
 - 头文件用 `#pragma once`，不在头文件中写 `using namespace`。
@@ -124,7 +125,7 @@ SDL3与FFmpeg由构建脚本自行下载源码并构建，不查找或复用本�
 
   ```cpp
   Game::Game(std::string installDirectory)
-      : screen(Display::kWidth, Display::kHeight),
+      : screen(Display::Width, Display::Height),
         input(this->inputDevice),
         battleHud(
             this->painter,

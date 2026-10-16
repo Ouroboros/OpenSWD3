@@ -16,36 +16,34 @@
 namespace swd3
 {
 
-// TalkWindow::flags bits, named by how the window drawing (0x0042ED40) and the dialog commands use them.
-namespace window_flag
-{
-
-constexpr u32 kRead = 1;                    // advanced past its last page (waited for by WaitDialogRead)
-constexpr u32 kShowMark = 2;                // the page mark stays until it is read
-constexpr u32 kTimed = 8;                   // it advances by itself after its timeout
-constexpr u32 kBlocking = 0x10;             // the event waits for it
-constexpr u32 kSkippable = 0x20;            // Space skips its typing
-constexpr u32 kFade = 0x40;                 // it fades in and out instead of growing
-constexpr u32 kOverlay = 0x80;              // no frame, placed at its own place in colour 5
-constexpr u32 kInstant = 0x100;             // its text appears at once
-constexpr u32 kAdvanced = 0x200;            // a key or a click advanced it this frame
-constexpr u32 kNoAdvance = 0x400;           // the keys do not advance it
-constexpr u32 kFixedPlace = 0x800;          // it grows from fromX, fromY
-constexpr u32 kChoices = 0x2000;            // its text has choices
-constexpr u32 kPageFull = 0x4000;           // the page is typed and waits to turn
-constexpr u32 kTyped = 0x8000;              // the whole text is typed
-constexpr u32 kSpeedSet = 0x20000000;       // the skipping speed is set
-constexpr u32 kSkipping = 0x40000000;       // its typing is skipped
-constexpr u32 kSkipRequested = 0x80000000;  // Space asked once to skip
-
-}  // namespace window_flag
-
 // A talk window (0x4C bytes, the list at 0x004ACF48): its frame and place (growing out of the speaker or a point
 // over four frames), the text with the page shown and the typing position, the colours, the timeout and the name.
 struct TalkWindow
 {
-    static constexpr std::size_t kClosed = static_cast<std::size_t>(-1);
-    static constexpr u16 kNoRole = 0xFFFD;
+    // TalkWindow::flags bits, named by how the window drawing (0x0042ED40) and the dialog commands use them.
+    enum Flag : u32
+    {
+        Read = 1,                    // advanced past its last page (waited for by WaitDialogRead)
+        ShowMark = 2,                // the page mark stays until it is read
+        Timed = 8,                   // it advances by itself after its timeout
+        Blocking = 0x10,             // the event waits for it
+        Skippable = 0x20,            // Space skips its typing
+        Fade = 0x40,                 // it fades in and out instead of growing
+        Overlay = 0x80,              // no frame, placed at its own place in colour 5
+        Instant = 0x100,             // its text appears at once
+        Advanced = 0x200,            // a key or a click advanced it this frame
+        NoAdvance = 0x400,           // the keys do not advance it
+        FixedPlace = 0x800,          // it grows from fromX, fromY
+        Choices = 0x2000,            // its text has choices
+        PageFull = 0x4000,           // the page is typed and waits to turn
+        Typed = 0x8000,              // the whole text is typed
+        SpeedSet = 0x20000000,       // the skipping speed is set
+        Skipping = 0x40000000,       // its typing is skipped
+        SkipRequested = 0x80000000,  // Space asked once to skip
+    };
+
+    static constexpr std::size_t Closed = static_cast<std::size_t>(-1);
+    static constexpr u16 NoRole = 0xFFFD;
 
     const ActState* frameAct = nullptr;  // +0x00 its frame picks the window frame
     const ActState* nameAct = nullptr;   // +0x04 its frame picks the frame of the name plate
@@ -53,7 +51,7 @@ struct TalkWindow
     u32 timeout = 0;                     // +0x0C tenths of a second (0xFFFF: none)
     u32 shownAt = 0;                     // +0x10 the time the page was complete
     u16 openStep = 0;                    // +0x14 0..4
-    u16 role = 0;                        // +0x16 the speaking role (kNoRole: the point fromX, fromY)
+    u16 role = 0;                        // +0x16 the speaking role (NoRole: the point fromX, fromY)
     u16 counter = 0;                     // +0x18
     u16 x = 0;                           // +0x1A screen pixels
     u16 y = 0;                           // +0x1C
@@ -71,7 +69,7 @@ struct TalkWindow
     u16 style = 0;                       // +0x34 low byte the text style, high byte the style of the next page
     u16 unk36 = 0;                       // +0x36
     std::string text;                    // +0x38 Big5 with % codes, ended by "%Q"
-    std::size_t page = 0;                // +0x3C the start of the page shown (kClosed: the window is done)
+    std::size_t page = 0;                // +0x3C the start of the page shown (Closed: the window is done)
     std::size_t typed = 0;               // +0x40 the typing position
     std::string name;                    // +0x44 the name plate (empty: none)
     std::unique_ptr<TalkWindow> next;    // +0x48
@@ -102,7 +100,7 @@ struct RoleMarkNode
 // The bubbles of a role (0x10 bytes, four at 0x004CACE0).
 struct RoleMark
 {
-    static constexpr u16 kEmitting = 1;  // in `flags`
+    static constexpr u16 Emitting = 1;  // in `flags`
 
     std::unique_ptr<RoleMarkNode> nodes;  // +0x00
     u16 x = 0;                            // +0x04 the role's place
@@ -117,13 +115,17 @@ struct RoleMark
 // offsets and lengths the mode moves (high byte of `mode`: 0x80 down, 0x40 up, 0x20 open, 0x10 close, 0x08 still).
 struct ScriptEffect
 {
-    static constexpr u16 kNumberMask = 0xFF;  // in `mode`: the effect's number (below 0x100)
-    static constexpr u16 kKindMask = 0xFF00;  // in `mode`: what the lines do
-    static constexpr u16 kStill = 0x800;
-    static constexpr u16 kClosing = 0x1000;
-    static constexpr u16 kOpening = 0x2000;
-    static constexpr u16 kRising = 0x4000;
-    static constexpr u16 kFalling = 0x8000;
+    // The bits of `mode`.
+    enum Mode : u16
+    {
+        NumberMask = 0xFF,  // the effect's number (below 0x100)
+        Still = 0x800,
+        Closing = 0x1000,
+        Opening = 0x2000,
+        Rising = 0x4000,
+        Falling = 0x8000,
+        KindMask = 0xFF00,  // what the lines do
+    };
 
     i16 x = 0;                           // +0x00
     i16 y = 0;                           // +0x02
@@ -249,8 +251,8 @@ struct ColorFade
 // are restored): the pointer roles, the animations of the screen elements and tables of maps.dat.
 struct Scene
 {
-    static constexpr int kPointerAct = 0x2329;
-    static constexpr u32 kPointerFlags = 0x9000;
+    static constexpr int PointerAct = 0x2329;
+    static constexpr u32 PointerFlags = 0x9000;
 
     i32 unk4A93D4 = 0;  // the event run when the first timer runs out
     i32 unk4BAB78 = 0;

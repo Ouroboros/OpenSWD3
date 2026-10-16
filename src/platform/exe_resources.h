@@ -17,8 +17,8 @@ class Surface;
 class ExeResources
 {
 public:
-    static constexpr u32 kBitmap = 2;  // RT_BITMAP
-    static constexpr u32 kDialog = 5;  // RT_DIALOG
+    static constexpr u32 Bitmap = 2;  // RT_BITMAP
+    static constexpr u32 Dialog = 5;  // RT_DIALOG
 
     bool Open(const std::string& path);
     // A resource of a numbered type, or of a named type such as "WAVE"; empty when missing.

@@ -18,29 +18,6 @@ namespace swd3
 class ErrorReporter;
 class RleCodec;
 
-// Texts of the archive (Big5 in the executable; u8 here, converted where drawn).
-namespace tsw_text
-{
-
-constexpr std::u8string_view kOpenFailed = u8"TSW檔案開啟失敗!!";  // "TSW file open failed!!"
-constexpr std::u8string_view kErrorTitle = u8"錯誤";               // "Error"
-constexpr std::u8string_view kBadHeader = u8"<<TSW%d號>>(%s)的檔頭資料有誤!!";
-constexpr std::u8string_view kBadFrame = u8"<<TSW%d號>>(%s)的第%d張的圖形資料有誤!!";
-constexpr std::u8string_view kNoBufferBox = u8"配置解壓縮記憶體失敗!!,";
-constexpr std::u8string_view kNoBufferLog = u8"配置解壓縮記憶體失敗";
-constexpr std::u8string_view kDecompressFailed = u8"解壓失敗!!,";
-constexpr std::u8string_view kLoadFailedLog = u8"Mem error::tsw:%d pa:%d";
-constexpr std::array<std::string_view, 6> kFileNames = {
-    "all_char.tsw",
-    "all_item.tsw",
-    "all_magic.tsw",
-    "all_sys.tsw",
-    "all_map1.tsw",
-    "all_map2.tsw",
-};
-
-}  // namespace tsw_text
-
 // Directory record of a tsw file: 0x2C bytes at 0x1C + 0x2C * (index - 1).
 struct TswDirectoryEntry
 {
@@ -87,14 +64,32 @@ public:
 class TswArchive
 {
 public:
-    static constexpr int kFileCount = 6;
-    static constexpr int kIndicesPerFile = 3000;
-    static constexpr int kChains = 10;
-    static constexpr int kMagicSlots = 5;
-    static constexpr int kMagicFramesPerSlot = 255;
-    static constexpr int kMagicFirst = 6001;
-    static constexpr int kMagicLast = 9000;
-    static constexpr u16 kMapPicture = 0xFFFF;
+    // Texts of the archive (Big5 in the executable; u8 here, converted where drawn).
+    static constexpr std::u8string_view OpenFailed = u8"TSW檔案開啟失敗!!";  // "TSW file open failed!!"
+    static constexpr std::u8string_view ErrorTitle = u8"錯誤";               // "Error"
+    static constexpr std::u8string_view BadHeader = u8"<<TSW%d號>>(%s)的檔頭資料有誤!!";
+    static constexpr std::u8string_view BadFrame = u8"<<TSW%d號>>(%s)的第%d張的圖形資料有誤!!";
+    static constexpr std::u8string_view NoBufferBox = u8"配置解壓縮記憶體失敗!!,";
+    static constexpr std::u8string_view NoBufferLog = u8"配置解壓縮記憶體失敗";
+    static constexpr std::u8string_view DecompressFailed = u8"解壓失敗!!,";
+    static constexpr std::u8string_view LoadFailedLog = u8"Mem error::tsw:%d pa:%d";
+    static constexpr std::array<std::string_view, 6> FileNames = {
+        "all_char.tsw",
+        "all_item.tsw",
+        "all_magic.tsw",
+        "all_sys.tsw",
+        "all_map1.tsw",
+        "all_map2.tsw",
+    };
+
+    static constexpr int FileCount = 6;
+    static constexpr int IndicesPerFile = 3000;
+    static constexpr int Chains = 10;
+    static constexpr int MagicSlots = 5;
+    static constexpr int MagicFramesPerSlot = 255;
+    static constexpr int MagicFirst = 6001;
+    static constexpr int MagicLast = 9000;
+    static constexpr u16 MapPicture = 0xFFFF;
 
     TswArchive(const RleCodec& codec, ErrorReporter& errors);
 
@@ -161,19 +156,19 @@ private:
     ErrorReporter& errors;
     MapPictureSource* mapPictures = nullptr;
     std::string gameDirectory;
-    std::array<File, kFileCount> files;
+    std::array<File, FileCount> files;
     File extraFile;  // closed by CloseAll; opened by another module
     bool opened = false;
     int cacheLimit = 0x600000;
     int cacheBytes = 0;
-    std::array<std::list<CacheEntry>, kChains> chains;
-    std::array<u16, kChains> chainCounts{};
+    std::array<std::list<CacheEntry>, Chains> chains;
+    std::array<u16, Chains> chainCounts{};
     Picture* current = nullptr;
     bool magicMode = false;
-    std::array<TswDirectoryEntry, kIndicesPerFile> magicDirectory{};
-    std::vector<TswFrameEntry> magicFrames = std::vector<TswFrameEntry>(kMagicSlots * kMagicFramesPerSlot);
-    std::array<int, kMagicSlots> magicSlots{};
-    std::array<int, kMagicSlots> magicAges{};
+    std::array<TswDirectoryEntry, IndicesPerFile> magicDirectory{};
+    std::vector<TswFrameEntry> magicFrames = std::vector<TswFrameEntry>(MagicSlots * MagicFramesPerSlot);
+    std::array<int, MagicSlots> magicSlots{};
+    std::array<int, MagicSlots> magicAges{};
     int magicSlot = 0;
     std::vector<u16> magicPalette;
     PackedBuffer packed;

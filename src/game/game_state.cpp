@@ -43,14 +43,14 @@ void ClickRegions::Free()
 // swd32.exe 0x0040DC50
 bool GameState::GameFlag(int flag) const
 {
-    return (this->flags[static_cast<std::size_t>(flag >> 3)] & GameState::kBitMasks[flag & 7]) != 0;
+    return (this->flags[static_cast<std::size_t>(flag >> 3)] & GameState::BitMasks[flag & 7]) != 0;
 }
 
 // swd32.exe 0x0040DC80
 u8 GameState::SetGameFlag(int flag)
 {
     u8& byte = this->flags[static_cast<std::size_t>(flag >> 3)];
-    byte = static_cast<u8>(byte | GameState::kBitMasks[flag & 7]);
+    byte = static_cast<u8>(byte | GameState::BitMasks[flag & 7]);
     return byte;
 }
 
@@ -58,7 +58,7 @@ u8 GameState::SetGameFlag(int flag)
 u8 GameState::ClearGameFlag(int flag)
 {
     u8& byte = this->flags[static_cast<std::size_t>(flag >> 3)];
-    byte = static_cast<u8>(byte & (0xFF - GameState::kBitMasks[flag & 7]));
+    byte = static_cast<u8>(byte & (0xFF - GameState::BitMasks[flag & 7]));
     return byte;
 }
 
@@ -151,7 +151,7 @@ void GameState::ClearWorld()
 // swd32.exe 0x0040F3B0: the buffers of the roles in use freed, every role cleared with its action playback reset
 void GameState::ClearRoles()
 {
-    for (int index = 0; index <= this->roleCount && index < GameState::kRoles; ++index)
+    for (int index = 0; index <= this->roleCount && index < GameState::Roles; ++index)
     {
         this->roles[static_cast<std::size_t>(index)].label.clear();
     }
@@ -173,7 +173,7 @@ u32 GameState::FindRole(u16 id) const
 
     u32 index = 0;
 
-    while (this->roles[index].id != id || (this->roles[index].flags & role_flag::kRemoved) != 0)
+    while (this->roles[index].id != id || (this->roles[index].flags & Role::Removed) != 0)
     {
         if (++index >= static_cast<u32>(this->roleCount) || index >= this->roles.size())
         {

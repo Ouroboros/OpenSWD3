@@ -174,7 +174,7 @@ void BattleRole::ApplyEquipment(
     this->accessories.fill(ObjectRecord{});
     RoleRecord& record = *this->battleRecord;
 
-    for (std::size_t slot = 0; slot < static_cast<std::size_t>(Party::kSlotsPerRole) && slot < slots.size(); ++slot)
+    for (std::size_t slot = 0; slot < static_cast<std::size_t>(Party::SlotsPerRole) && slot < slots.size(); ++slot)
     {
         if (slots[slot] == nullptr)
         {
@@ -184,7 +184,7 @@ void BattleRole::ApplyEquipment(
         const ItemNode& item = *slots[slot];
         const ObjectData& stats = item.record.data;
 
-        if (slot == BattleRole::kWeaponSlot)
+        if (slot == BattleRole::WeaponSlot)
         {
             this->weapon = item.record;
             this->weaponId = item.id;
@@ -214,26 +214,26 @@ void BattleRole::ApplyEquipment(
             record.defenseBonus = static_cast<u16>(record.defenseBonus + stats.unk2A);
         }
 
-        if (slot == BattleRole::kFirstAccessorySlot || slot == BattleRole::kSecondAccessorySlot)
+        if (slot == BattleRole::FirstAccessorySlot || slot == BattleRole::SecondAccessorySlot)
         {
-            ObjectRecord& accessory = this->accessories[slot - BattleRole::kFirstAccessorySlot];
+            ObjectRecord& accessory = this->accessories[slot - BattleRole::FirstAccessorySlot];
             accessory = item.record;
 
-            if (item.id != ItemNode::kEmpty)
+            if (item.id != ItemNode::Empty)
             {
                 accessory.data.unk50 = item.id;
             }
 
             this->ApplyAccessory(accessory, proficiency);
         }
-        else if (slot != BattleRole::kNoResistanceSlotA && slot != BattleRole::kNoResistanceSlotB)
+        else if (slot != BattleRole::NoResistanceSlotA && slot != BattleRole::NoResistanceSlotB)
         {
             for (std::size_t element = 0; element < record.unk2D.size(); ++element)
             {
                 record.unk2D[element] = static_cast<u8>(record.unk2D[element] + stats.resistances[element]);
             }
 
-            if (slot < BattleRole::kArmourSlots && stats.unk3C == 0)
+            if (slot < BattleRole::ArmourSlots && stats.unk3C == 0)
             {
                 this->bonusA = static_cast<u16>(this->bonusA + stats.unk34);
                 this->bonusB = static_cast<u16>(this->bonusB + stats.unk36);
@@ -258,7 +258,7 @@ void BattleRole::ApplyAccessory(const ObjectRecord& accessory, CounterList& prof
     switch (static_cast<AccessoryKind>(accessory.data.unk48))
     {
         case AccessoryKind::Unk32:
-            this->equipmentFlags |= equipment_flag::kUnk32;
+            this->equipmentFlags |= BattleUnit::Unk32;
             break;
 
         case AccessoryKind::ElementOrb:
@@ -295,23 +295,23 @@ void BattleRole::ApplyAccessory(const ObjectRecord& accessory, CounterList& prof
         }
 
         case AccessoryKind::BladeReturn:
-            this->equipmentFlags |= equipment_flag::kBladeReturn;
+            this->equipmentFlags |= BattleUnit::BladeReturn;
             break;
 
         case AccessoryKind::Unk36:
-            this->equipmentFlags |= equipment_flag::kUnk36;
+            this->equipmentFlags |= BattleUnit::Unk36;
             break;
 
         case AccessoryKind::SpiritDrain:
-            this->equipmentFlags |= equipment_flag::kSpiritDrain;
+            this->equipmentFlags |= BattleUnit::SpiritDrain;
             break;
 
         case AccessoryKind::LifeDrain:
-            this->equipmentFlags |= equipment_flag::kLifeDrain;
+            this->equipmentFlags |= BattleUnit::LifeDrain;
             break;
 
         case AccessoryKind::SpiritFan:
-            this->equipmentFlags |= equipment_flag::kSpiritFan;
+            this->equipmentFlags |= BattleUnit::SpiritFan;
             break;
 
         default:

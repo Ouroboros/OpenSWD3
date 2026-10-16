@@ -116,7 +116,7 @@ bool SoundEffects::Open(const std::string& directory)
     this->driver = true;
     this->opened = true;
     this->enabled = true;
-    this->voices = std::min(AudioDevice::kMixerChannels - 8, 0x10);
+    this->voices = std::min(AudioDevice::MixerChannels - 8, 0x10);
     this->active.clear();
 
     for (int count = 0; count < this->voices; ++count)
@@ -417,13 +417,13 @@ bool SoundEffects::LoadIndex(const std::string& directory)
         return false;
     }
 
-    this->table.assign(SoundEffects::kSounds, SoundEntry{});
+    this->table.assign(SoundEffects::Sounds, SoundEntry{});
     this->file.SeekBegin(kIndexStart);
-    std::vector<u8> index(SoundEffects::kSounds * kIndexRecordBytes, 0);
+    std::vector<u8> index(SoundEffects::Sounds * kIndexRecordBytes, 0);
     u32 bytes = static_cast<u32>(index.size());
     this->file.Read(index.data(), bytes);
 
-    for (int i = 0; i < SoundEffects::kSounds; ++i)
+    for (int i = 0; i < SoundEffects::Sounds; ++i)
     {
         const u8* record = index.data() + kIndexRecordBytes * i;
         SoundEntry& entry = this->table[static_cast<std::size_t>(i)];
@@ -453,7 +453,7 @@ bool SoundEffects::FreeIndex()
 // long here. Ids beyond the index find no sound.
 std::shared_ptr<std::vector<u8>> SoundEffects::LoadSound(int id)
 {
-    if (id < 1 || id > SoundEffects::kSounds || this->table.empty())
+    if (id < 1 || id > SoundEffects::Sounds || this->table.empty())
     {
         return nullptr;
     }

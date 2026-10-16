@@ -19,13 +19,13 @@ class SystemSound;
 class Launcher
 {
 public:
-    static constexpr int kItems = 5;
-    static constexpr u32 kDialog = 0x6B;
-    static constexpr u32 kBackground = 0x71;
-    static constexpr u32 kHoverSound = 0x77;
-    static constexpr int kSavedGameFlag = 0x12;
-    static constexpr std::string_view kWebsite = "www.softstar.com.tw";
-    static constexpr std::string_view kReadme = "Readme.txt";
+    static constexpr int Items = 5;
+    static constexpr u32 Dialog = 0x6B;
+    static constexpr u32 Background = 0x71;
+    static constexpr u32 HoverSound = 0x77;
+    static constexpr int SavedGameFlag = 0x12;
+    static constexpr std::string_view Website = "www.softstar.com.tw";
+    static constexpr std::string_view Readme = "Readme.txt";
 
     // How the launcher ended (the EndDialog codes).
     enum class Choice
@@ -46,12 +46,12 @@ public:
         int right = 0;
     };
 
-    static constexpr int kItemY = 4;
-    static constexpr int kItemWidth = 0x27;
-    static constexpr int kItemHeight = 0xB4;
-    static constexpr int kHotTop = 7;
-    static constexpr int kHotBottom = 0xBB;
-    static constexpr std::array<Item, kItems> kLayout = {{
+    static constexpr int ItemY = 4;
+    static constexpr int ItemWidth = 0x27;
+    static constexpr int ItemHeight = 0xB4;
+    static constexpr int HotTop = 7;
+    static constexpr int HotBottom = 0xBB;
+    static constexpr std::array<Item, Items> Layout = {{
         {0x72, 0x30, 0x2B, 0x52},
         {0x73, 0x5C, 0x57, 0x7E},
         {0x74, 0x1E9, 0x1E4, 0x20B},
@@ -71,9 +71,9 @@ public:
     static void RunBrowser(const std::string& address);
     static void RunTextViewer(const std::string& path);
 
-    std::array<i8, kItems> lit = {};        // 0x004CDE94 (4 bytes), 0x004CDE98: SW_SHOW (5) under the mouse
-    std::array<i8, kItems> litBefore = {};  // 0x004CDE99 (4 bytes), 0x004CDE9D
-    std::array<bool, kItems> shown = {true, true, true, true, true};  // the highlight windows (visible at first)
+    std::array<i8, Items> lit = {};        // 0x004CDE94 (4 bytes), 0x004CDE98: SW_SHOW (5) under the mouse
+    std::array<i8, Items> litBefore = {};  // 0x004CDE99 (4 bytes), 0x004CDE9D
+    std::array<bool, Items> shown = {true, true, true, true, true};  // the highlight windows (visible at first)
 
 private:
     const ExeResources& resources;
@@ -81,7 +81,7 @@ private:
     SystemSound& sound;
     std::string installDirectory;
     Surface background;
-    std::array<Surface, kItems> pictures;
+    std::array<Surface, Items> pictures;
 };
 
 }  // namespace swd3

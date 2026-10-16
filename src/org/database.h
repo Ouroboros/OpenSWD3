@@ -14,8 +14,8 @@ namespace swd3
 class Database
 {
 public:
-    static constexpr u32 kScriptBytes = 0x400;
-    static constexpr u16 kNameTag = 0x3E8;
+    static constexpr u32 ScriptBytes = 0x400;
+    static constexpr u16 NameTag = 0x3E8;
 
     explicit Database(const std::string& directory);
 

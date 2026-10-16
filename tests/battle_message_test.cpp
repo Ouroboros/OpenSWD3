@@ -102,8 +102,8 @@ TEST_CASE("battle message: texts match swd32.exe")
 TEST_CASE("battle message: list, panel growth and the action queue")
 {
     Messages all;
-    all.messages.Add(1, 2, 0, "abcd", BattleMessage::kBlackBar);
-    all.messages.Add(3, 4, 5, "xy", BattleMessage::kRise);
+    all.messages.Add(1, 2, 0, "abcd", BattleMessage::BlackBar);
+    all.messages.Add(3, 4, 5, "xy", BattleMessage::Rise);
     all.messages.Add(5, 6, 0, "z", 0);
     BattleMessage* first = all.messages.messages.get();
     CHECK(first != nullptr);

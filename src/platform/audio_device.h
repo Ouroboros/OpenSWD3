@@ -41,7 +41,7 @@ class AudioDevice
 {
 public:
     // Mixer channels Miles reports (DIG_MIXER_CHANNELS); the game uses this minus 8, at most 16.
-    static constexpr int kMixerChannels = 64;
+    static constexpr int MixerChannels = 64;
 
     AudioDevice() = default;
     ~AudioDevice();

@@ -7,7 +7,7 @@ using swd3::ToLogical;
 
 TEST_CASE("display: default window fills exactly at 2x")
 {
-    const auto viewport = FitViewport(Display::kDefaultWindowWidth, Display::kDefaultWindowHeight);
+    const auto viewport = FitViewport(Display::DefaultWindowWidth, Display::DefaultWindowHeight);
     CHECK(viewport.x == 0 && viewport.y == 0);
     CHECK(viewport.width == 1280 && viewport.height == 960);
 }

@@ -194,13 +194,13 @@ Party::Name Party::MakeName(std::string_view text)
     return name;
 }
 
-std::array<Party::Name, Party::kRoles> Party::DefaultNames()
+std::array<Party::Name, Party::Roles> Party::DefaultNames()
 {
-    std::array<Name, kRoles> names = {};
+    std::array<Name, Roles> names = {};
 
     for (std::size_t role = 0; role < names.size(); ++role)
     {
-        names[role] = Party::MakeName(Big5(Party::kDefaultNames[role]));
+        names[role] = Party::MakeName(Big5(Party::RoleNames[role]));
     }
 
     return names;

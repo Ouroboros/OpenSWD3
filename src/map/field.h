@@ -49,11 +49,11 @@ struct MapOverlay
 class Field : public MapPictureSource
 {
 public:
-    static constexpr int kLayers = 3;
-    static constexpr int kRowMargin = 0x14;
-    static constexpr int kUnits = 0x300;
-    static constexpr u32 kVersion1 = 0x7046534D;  // "MSFp"
-    static constexpr u32 kVersion2 = 0x3246534D;  // "MSF2"
+    static constexpr int Layers = 3;
+    static constexpr int RowMargin = 0x14;
+    static constexpr int Units = 0x300;
+    static constexpr u32 Version1 = 0x7046534D;  // "MSFp"
+    static constexpr u32 Version2 = 0x3246534D;  // "MSF2"
 
     Field(GameState& state, MapCache& cache, const Config& config, const RleCodec& codec);
 
@@ -70,19 +70,19 @@ public:
     u32 ProbeCells(std::ptrdiff_t cell, int width, int height, u32 mask) const;
     void CameraAround(int x, int y, std::array<i32, 4>& rect) const;
 
-    MapRegion regions;                             // 0x004ACAC0
-    std::unique_ptr<MapOverlay> overlays;          // 0x004AB2F4
-    std::array<std::vector<Role*>, kLayers> rows;  // 0x004A9A04 the roles by row, kRowMargin rows above the map
-    i32 unitCount = 0;                             // 0x004CDEA4
-    std::array<u32, kUnits> unitOffsets = {};      // 0x004CDEA8
-    u32 unitBase = 0;                              // 0x004CEAA8 the map in HUGE.lmf
-    std::array<u32, kUnits> unitSizes = {};        // 0x004CEAAC
-    i32 sectionRoles = 0;                          // 0x004CDEA0
-    i32 cameraLeft = 0;                            // 0x004AB980
-    i32 cameraTop = 0;                             // 0x004AB984
-    i32 cameraRight = 0;                           // 0x004AB988
-    i32 cameraBottom = 0;                          // 0x004AB98C
-    std::vector<u16> palette;                      // 0x004B7404 the colours of an 8-bit map
+    MapRegion regions;                            // 0x004ACAC0
+    std::unique_ptr<MapOverlay> overlays;         // 0x004AB2F4
+    std::array<std::vector<Role*>, Layers> rows;  // 0x004A9A04 the roles by row, RowMargin rows above the map
+    i32 unitCount = 0;                            // 0x004CDEA4
+    std::array<u32, Units> unitOffsets = {};      // 0x004CDEA8
+    u32 unitBase = 0;                             // 0x004CEAA8 the map in HUGE.lmf
+    std::array<u32, Units> unitSizes = {};        // 0x004CEAAC
+    i32 sectionRoles = 0;                         // 0x004CDEA0
+    i32 cameraLeft = 0;                           // 0x004AB980
+    i32 cameraTop = 0;                            // 0x004AB984
+    i32 cameraRight = 0;                          // 0x004AB988
+    i32 cameraBottom = 0;                         // 0x004AB98C
+    std::vector<u16> palette;                     // 0x004B7404 the colours of an 8-bit map
 
 private:
     GameState& state;

@@ -112,7 +112,7 @@ struct ParticleEffect
 class Projector
 {
 public:
-    static constexpr int kDirections = 360;
+    static constexpr int Directions = 360;
 
     Projector();
 
@@ -128,10 +128,10 @@ public:
     int DrawExplosion(Surface& surface, Painter& painter, crt::Random& random, ParticleEffect& effect);
     int ParticlePut(ParticleEffect& effect, int count, const Painter& painter, crt::Random& random);
 
-    std::array<i32, kDirections> dirX = {};  // +0x000
-    std::array<i32, kDirections> dirY = {};  // +0x5A0
-    std::vector<i32> bufferRows;             // +0xB40
-    std::vector<i32> screenRows;             // +0xB44
+    std::array<i32, Directions> dirX = {};  // +0x000
+    std::array<i32, Directions> dirY = {};  // +0x5A0
+    std::vector<i32> bufferRows;            // +0xB40
+    std::vector<i32> screenRows;            // +0xB44
     i32 bufferWidth = 0;
     i32 bufferHeight = 0;
     i32 screenWidth = 0;

@@ -56,7 +56,7 @@ TEST_CASE("audio: all.snd index, RIFF rebuild and sample bookkeeping")
     CHECK(effects.HasDriver());
     int id = 0;
 
-    for (int candidate = 1; candidate <= swd3::SoundEffects::kSounds && id == 0; ++candidate)
+    for (int candidate = 1; candidate <= swd3::SoundEffects::Sounds && id == 0; ++candidate)
     {
         if (effects.LoadSound(candidate) != nullptr)
         {
@@ -93,9 +93,9 @@ TEST_CASE("audio: music stream plays, fades out and is retired")
     swd3::AudioManager audio(device);
     CHECK(audio.Streams().Open());
     const std::string file = swd3test::GameFile("Music/Battle_Arab01.mp3");
-    CHECK_EQ(audio.Streams().Play(file, swd3::AudioManager::kMusicId, 0x60, 0), swd3::AudioManager::kMusicId);
+    CHECK_EQ(audio.Streams().Play(file, swd3::AudioManager::MusicId, 0x60, 0), swd3::AudioManager::MusicId);
     CHECK(!audio.IsMusicStopped());
-    CHECK_EQ(audio.Streams().Play(file, swd3::AudioManager::kMusicId, 0x60, 0), 0);
+    CHECK_EQ(audio.Streams().Play(file, swd3::AudioManager::MusicId, 0x60, 0), 0);
     CHECK_EQ(audio.SetMusicVolume(11), 0x7F);
     CHECK_EQ(audio.SetMusicFade(2, 3), 3);
     audio.UpdateMusicFade();

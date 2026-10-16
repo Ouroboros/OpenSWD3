@@ -71,46 +71,6 @@ struct UnitCommand
     std::array<u8, 3> unk25 = {};
 };
 
-// A unit in battle (0x2B28 bytes in the original; the base of BattleRole and BattleEnemy). Offsets of the original are
-// given for reference; fields not yet named keep their offset.
-// BattleUnit::status bits, named by the texts the buffs announce (AddBuff 0x0047BC50) and their effects.
-namespace unit_status
-{
-
-constexpr u32 kSlowed = 0x40;  // ailment 0x40: the gauge fills at half speed
-constexpr u32 kDefenseDown = 0x100000;
-constexpr u32 kAttackDown = 0x1000000;
-constexpr u32 kBarrier = 0x4000000;
-constexpr u32 kSpeedDown = 0x8000000;
-constexpr u32 kAttackUp = 0x10000000;
-constexpr u32 kSpeedUp = 0x20000000;
-constexpr u32 kDefenseUp = 0x40000000;
-constexpr u32 kInvisible = 0x80000000;
-
-}  // namespace unit_status
-
-// BattleUnit::equipmentFlags set by the accessories (BattleRole::ApplyAccessory).
-namespace equipment_flag
-{
-
-constexpr u32 kUnk32 = 1;
-constexpr u32 kBladeReturn = 4;
-constexpr u32 kUnk36 = 8;
-constexpr u32 kSpiritDrain = 0x10;
-constexpr u32 kLifeDrain = 0x20;
-constexpr u32 kSpiritFan = 0x40;
-
-}  // namespace equipment_flag
-
-// BattleUnit::marks bits.
-namespace unit_mark
-{
-
-constexpr u16 kHeld = 0x40;
-constexpr u16 kUnk4000 = 0x4000;  // the gauge stops (set elsewhere in the battle loop)
-
-}  // namespace unit_mark
-
 class Database;
 class Random;
 class ErrorReporter;
@@ -120,8 +80,42 @@ using CounterList = CounterNode;
 class BattleUnit
 {
 public:
-    static constexpr int kSlotActs = 11;
-    static constexpr i32 kPartyRole = 1;
+    // BattleUnit::marks bits.
+    enum Mark : u16
+    {
+        Held = 0x40,
+        Unk4000 = 0x4000,  // the gauge stops (set elsewhere in the battle loop)
+    };
+
+    // BattleUnit::equipmentFlags set by the accessories (BattleRole::ApplyAccessory).
+    enum EquipmentFlag : u32
+    {
+        Unk32 = 1,
+        BladeReturn = 4,
+        Unk36 = 8,
+        SpiritDrain = 0x10,
+        LifeDrain = 0x20,
+        SpiritFan = 0x40,
+    };
+
+    // A unit in battle (0x2B28 bytes in the original; the base of BattleRole and BattleEnemy). Offsets of the original
+    // are given for reference; fields not yet named keep their offset. BattleUnit::status bits, named by the texts the
+    // buffs announce (AddBuff 0x0047BC50) and their effects.
+    enum Status : u32
+    {
+        Slowed = 0x40,  // ailment 0x40: the gauge fills at half speed
+        DefenseDown = 0x100000,
+        AttackDown = 0x1000000,
+        Barrier = 0x4000000,
+        SpeedDown = 0x8000000,
+        AttackUp = 0x10000000,
+        SpeedUp = 0x20000000,
+        DefenseUp = 0x40000000,
+        Invisible = 0x80000000,
+    };
+
+    static constexpr int SlotActs = 11;
+    static constexpr i32 PartyRole = 1;
 
     BattleUnit();
     ~BattleUnit();
@@ -256,7 +250,7 @@ public:
     void GetHitPoints(i32& value, i32& maximum) const;
 
     // swd32.exe 0x004A7D8C: the height of a popping letter or digit by phase.
-    static constexpr std::array<i32, 10> kPopOffsets = {0, 12, 18, 12, 8, 4, 0, 2, 0, 0};
+    static constexpr std::array<i32, 10> PopOffsets = {0, 12, 18, 12, 8, 4, 0, 2, 0, 0};
 
 private:
     void MirrorRecoil(u32 actFlags, bool forced);
@@ -274,26 +268,26 @@ public:
     ObjectRecord weapon;                      // +0xB4 a party role's weapon (equipment slot 0)
     std::array<ObjectRecord, 2> accessories;  // +0x158 equipment slots 7 and 8
 
-    ActState mainAct;                          // +0x2A0
-    ActState standAct;                         // +0x338
-    ActState castAct;                          // +0x3D0
-    ActState recoilAct;                        // +0x468
-    ActState attackAct;                        // +0x500
-    ActState unk598;                           // +0x598
-    std::array<ActState, kSlotActs> slotActs;  // +0x630
-    ActState stepAct;                          // +0xCB8
-    UnitPlacement placement;                   // +0xD50
-    UnitPlacement savedPlacement;              // +0xD70
-    UnitCommand command;                       // +0xD90
-    std::array<ActState, 8> unkFCC;            // +0xFCC
-    std::unique_ptr<QueuedAction> actions;     // +0x236C
-    const Picture* shadowPicture = nullptr;    // +0x2548
-    const Picture* picture = nullptr;          // +0x254C the current picture
-    const Picture* unk2550 = nullptr;          // +0x2550
-    const Picture* unk2554 = nullptr;          // +0x2554
-    std::span<const char> displayName;         // +0x2560 the name shown in the messages (read up to its NUL when used)
-    EffectNode effects;                        // +0x2584 (the head is a node: +0x2588 its act, +0x2620 its bits)
-    std::array<char, 0x30> skillName = {};     // +0x2630 the name of the skill used
+    ActState mainAct;                         // +0x2A0
+    ActState standAct;                        // +0x338
+    ActState castAct;                         // +0x3D0
+    ActState recoilAct;                       // +0x468
+    ActState attackAct;                       // +0x500
+    ActState unk598;                          // +0x598
+    std::array<ActState, SlotActs> slotActs;  // +0x630
+    ActState stepAct;                         // +0xCB8
+    UnitPlacement placement;                  // +0xD50
+    UnitPlacement savedPlacement;             // +0xD70
+    UnitCommand command;                      // +0xD90
+    std::array<ActState, 8> unkFCC;           // +0xFCC
+    std::unique_ptr<QueuedAction> actions;    // +0x236C
+    const Picture* shadowPicture = nullptr;   // +0x2548
+    const Picture* picture = nullptr;         // +0x254C the current picture
+    const Picture* unk2550 = nullptr;         // +0x2550
+    const Picture* unk2554 = nullptr;         // +0x2554
+    std::span<const char> displayName;        // +0x2560 the name shown in the messages (read up to its NUL when used)
+    EffectNode effects;                       // +0x2584 (the head is a node: +0x2588 its act, +0x2620 its bits)
+    std::array<char, 0x30> skillName = {};    // +0x2630 the name of the skill used
     i32 unk2660 = 0;
     i32 unk2664 = 0;
     i32 fadeLevel = 0xF;  // +0x2668

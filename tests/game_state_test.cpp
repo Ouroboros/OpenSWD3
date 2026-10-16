@@ -29,7 +29,7 @@ TEST_CASE("game state: constant tables match swd32.exe")
     }
 
     CHECK(std::memcmp(exe.data() + (0x0049F250 - 0x400000), swd3::kSineTable.data(), swd3::kSineTable.size() * 2) == 0);
-    CHECK(std::memcmp(exe.data() + (0x004994EC - 0x400000), GameState::kBitMasks.data(), 8) == 0);
+    CHECK(std::memcmp(exe.data() + (0x004994EC - 0x400000), GameState::BitMasks.data(), 8) == 0);
 
     auto same = [&exe](swd3::u32 address, const void* table)
     {
@@ -38,23 +38,23 @@ TEST_CASE("game state: constant tables match swd32.exe")
 
     for (const swd3::u32 copy : {0x0049941Cu, 0x0049961Cu})
     {
-        CHECK(same(copy, swd3::RolePath::kBlockedBy.data()));
+        CHECK(same(copy, swd3::RolePath::BlockedBy.data()));
     }
 
     for (const swd3::u32 copy : {0x0049943Cu, 0x0049963Cu, 0x004994ACu, 0x00499380u})
     {
-        CHECK(same(copy, swd3::RolePath::kStepX.data()));
-        CHECK(same(copy + 0x20, swd3::RolePath::kStepY.data()));
+        CHECK(same(copy, swd3::RolePath::StepX.data()));
+        CHECK(same(copy + 0x20, swd3::RolePath::StepY.data()));
     }
 
     for (const swd3::u32 copy : {0x0049947Cu, 0x0049967Cu})
     {
-        CHECK(same(copy, swd3::RolePath::kFacing.data()));
+        CHECK(same(copy, swd3::RolePath::Facing.data()));
     }
 
-    CHECK(same(0x004993CC, swd3::RoleControl::kAheadX.data()));
-    CHECK(same(0x004993EC, swd3::RoleControl::kAheadY.data()));
-    CHECK(std::memcmp(exe.data() + (0x004993C0 - 0x400000), swd3::RoleControl::kRunToggle.data(), 0xC) == 0);
+    CHECK(same(0x004993CC, swd3::RoleControl::AheadX.data()));
+    CHECK(same(0x004993EC, swd3::RoleControl::AheadY.data()));
+    CHECK(std::memcmp(exe.data() + (0x004993C0 - 0x400000), swd3::RoleControl::RunToggle.data(), 0xC) == 0);
 }
 
 TEST_CASE("game state: story flags")

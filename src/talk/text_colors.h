@@ -13,9 +13,9 @@ class Painter;
 // format with the colour in both halves.
 struct TextColors
 {
-    static constexpr int kColors = 16;
+    static constexpr int Colors = 16;
     // swd32.exe 0x0049E0C8
-    static constexpr std::array<u32, kColors> kPrimary = {
+    static constexpr std::array<u32, Colors> Primary = {
         0xFFFFFF,
         0x000000,
         0x0C31EC,
@@ -35,7 +35,7 @@ struct TextColors
     };
 
     // swd32.exe 0x0049E108
-    static constexpr std::array<u32, kColors> kSecondary = {
+    static constexpr std::array<u32, Colors> Secondary = {
         0x606060,
         0x808080,
         0x7DA9AE,
@@ -56,8 +56,8 @@ struct TextColors
 
     void Convert(const Painter& painter);
 
-    std::array<u32, kColors> primary = kPrimary;
-    std::array<u32, kColors> secondary = kSecondary;
+    std::array<u32, Colors> primary = Primary;
+    std::array<u32, Colors> secondary = Secondary;
 };
 
 }  // namespace swd3

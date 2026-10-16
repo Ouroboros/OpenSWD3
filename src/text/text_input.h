@@ -45,9 +45,9 @@ struct TextEntryState
 class TextInput
 {
 public:
-    static constexpr int kEnter = 1;
-    static constexpr int kEscape = 2;
-    static constexpr u16 kRejectedSound = 0x8C;
+    static constexpr int Enter = 1;
+    static constexpr int Escape = 2;
+    static constexpr u16 RejectedSound = 0x8C;
 
     TextInput(std::u8string_view text, int capacity, int x, int y);
     ~TextInput();
@@ -80,7 +80,7 @@ private:
     i32 y = 0;
     i32 capacity = 0;
     i32 cursor = 0;     // byte offset
-    i32 result = 0;     // kEnter, kEscape
+    i32 result = 0;     // Enter, Escape
     i32 imeActive = 0;  // the input language is an IME
     i32 insert = 1;     // always 1
 };

@@ -15,36 +15,31 @@ namespace swd3
 
 class ErrorReporter;
 
-// Texts of the archive (Big5 in the executable; u8 here, converted where drawn).
-namespace act_text
-{
-
-constexpr std::u8string_view kErrorTitle = u8"ACT錯誤";  // "ACT error"
-constexpr std::u8string_view kBadEntry = u8"<<ACT:%d號>>動作的第%d段ACT號碼指定錯誤!!";
-constexpr std::u8string_view kMemoryError = u8"ACT記憶體管理有誤!!";  // "ACT memory management error!!"
-constexpr std::u8string_view kLoadFailedLog = u8"Act error::actno:%d qq:%d";
-constexpr std::u8string_view kMemoryErrorTitle = u8"ERR";
-constexpr std::array<std::string_view, 6> kFileNames = {
-    "all_char.act",
-    "all_item.act",
-    "all_magic.act",
-    "all_sys.act",
-    "all_map1.act",
-    "all_map2.act",
-};
-
-}  // namespace act_text
-
 // The act archives (0x00432010-0x00433220) and the action script interpreter (0x004321E0): six files addressed by
 // id / 3000 whose directory records are cached in ten chains, a byte-limited script cache in ten chains, and direct
 // loading. An entry holds a count and a table of offsets to its scripts (sub entries).
 class ActArchive
 {
 public:
-    static constexpr int kFileCount = 6;
-    static constexpr int kIndicesPerFile = 3000;
-    static constexpr int kChains = 10;
-    static constexpr int kMapAct = 0xFFFF;
+    // Texts of the archive (Big5 in the executable; u8 here, converted where drawn).
+    static constexpr std::u8string_view ErrorTitle = u8"ACT錯誤";  // "ACT error"
+    static constexpr std::u8string_view BadEntry = u8"<<ACT:%d號>>動作的第%d段ACT號碼指定錯誤!!";
+    static constexpr std::u8string_view MemoryError = u8"ACT記憶體管理有誤!!";  // "ACT memory management error!!"
+    static constexpr std::u8string_view LoadFailedLog = u8"Act error::actno:%d qq:%d";
+    static constexpr std::u8string_view MemoryErrorTitle = u8"ERR";
+    static constexpr std::array<std::string_view, 6> FileNames = {
+        "all_char.act",
+        "all_item.act",
+        "all_magic.act",
+        "all_sys.act",
+        "all_map1.act",
+        "all_map2.act",
+    };
+
+    static constexpr int FileCount = 6;
+    static constexpr int IndicesPerFile = 3000;
+    static constexpr int Chains = 10;
+    static constexpr int MapAct = 0xFFFF;
 
     explicit ActArchive(ErrorReporter& errors);
 
@@ -90,16 +85,16 @@ private:
 
     ErrorReporter& errors;
     std::string gameDirectory;
-    std::array<File, kFileCount> files;
+    std::array<File, FileCount> files;
     bool opened = false;
     int cacheLimit = 0x100000;
     int cacheBytes = 0;
     int useCache = 0;
     bool restarted = false;
-    std::array<std::list<CacheEntry>, kChains> chains;
-    std::array<u16, kChains> chainCounts{};
-    std::array<std::list<IndexEntry>, kChains> index;
-    std::array<u16, kChains> indexCounts{};
+    std::array<std::list<CacheEntry>, Chains> chains;
+    std::array<u16, Chains> chainCounts{};
+    std::array<std::list<IndexEntry>, Chains> index;
+    std::array<u16, Chains> indexCounts{};
     ActScript current;
     ActScript direct;
     std::u8string errorText;

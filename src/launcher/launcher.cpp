@@ -35,12 +35,12 @@ Launcher::Launcher(
 
 bool Launcher::LoadPictures()
 {
-    bool loaded = DecodeBitmap(this->resources.Find(ExeResources::kBitmap, Launcher::kBackground), this->background);
+    bool loaded = DecodeBitmap(this->resources.Find(ExeResources::Bitmap, Launcher::Background), this->background);
 
-    for (std::size_t item = 0; item < Launcher::kLayout.size(); ++item)
+    for (std::size_t item = 0; item < Launcher::Layout.size(); ++item)
     {
         loaded = DecodeBitmap(
-                     this->resources.Find(ExeResources::kBitmap, Launcher::kLayout[item].picture),
+                     this->resources.Find(ExeResources::Bitmap, Launcher::Layout[item].picture),
                      this->pictures[item]
                  ) &&
                  loaded;
@@ -69,18 +69,18 @@ Launcher::Choice Launcher::OnMouse(u32 buttons, int x, int y)
     const auto column = static_cast<u16>(x);
     const auto row = static_cast<u16>(y);
 
-    if (row >= Launcher::kHotTop && row <= Launcher::kHotBottom)
+    if (row >= Launcher::HotTop && row <= Launcher::HotBottom)
     {
-        for (std::size_t item = 0; item < Launcher::kLayout.size(); ++item)
+        for (std::size_t item = 0; item < Launcher::Layout.size(); ++item)
         {
-            const Item& place = Launcher::kLayout[item];
+            const Item& place = Launcher::Layout[item];
 
             if (column < place.left || column >= place.right)
             {
                 continue;
             }
 
-            if (item == 0 && !this->state.GameFlag(Launcher::kSavedGameFlag))
+            if (item == 0 && !this->state.GameFlag(Launcher::SavedGameFlag))
             {
                 continue;
             }
@@ -104,11 +104,11 @@ Launcher::Choice Launcher::OnMouse(u32 buttons, int x, int y)
                     break;
 
                 case 2:
-                    Launcher::RunBrowser(std::string(Launcher::kWebsite));
+                    Launcher::RunBrowser(std::string(Launcher::Website));
                     break;
 
                 case kReadmeItem:
-                    Launcher::RunTextViewer(Concat({this->installDirectory, Launcher::kReadme}));
+                    Launcher::RunTextViewer(Concat({this->installDirectory, Launcher::Readme}));
                     break;
 
                 default:
@@ -118,14 +118,14 @@ Launcher::Choice Launcher::OnMouse(u32 buttons, int x, int y)
         }
     }
 
-    for (std::size_t item = 0; item < Launcher::kLayout.size(); ++item)
+    for (std::size_t item = 0; item < Launcher::Layout.size(); ++item)
     {
         this->shown[item] = this->lit[item] != 0;
     }
 
     if (newlyLit)
     {
-        this->sound.Play(this->resources.Find("WAVE", Launcher::kHoverSound));
+        this->sound.Play(this->resources.Find("WAVE", Launcher::HoverSound));
     }
 
     return choice;
@@ -141,11 +141,11 @@ Launcher::Choice Launcher::OnCommand(int command)
             return Choice::Start;
 
         case 0x3FF:
-            Launcher::RunBrowser(std::string(Launcher::kWebsite));
+            Launcher::RunBrowser(std::string(Launcher::Website));
             return Choice::None;
 
         case 0x400:
-            Launcher::RunTextViewer(Concat({this->installDirectory, Launcher::kReadme}));
+            Launcher::RunTextViewer(Concat({this->installDirectory, Launcher::Readme}));
             return Choice::None;
 
         case 0x401:
@@ -201,16 +201,16 @@ void Launcher::Draw(Surface& screen) const
     screen.Fill(0);
     blit(this->background, 0, 0, this->background.Width(), this->background.Height());
 
-    for (std::size_t item = 0; item < Launcher::kLayout.size(); ++item)
+    for (std::size_t item = 0; item < Launcher::Layout.size(); ++item)
     {
         if (this->shown[item])
         {
             blit(
                 this->pictures[item],
-                Launcher::kLayout[item].x,
-                Launcher::kItemY,
-                Launcher::kItemWidth,
-                Launcher::kItemHeight
+                Launcher::Layout[item].x,
+                Launcher::ItemY,
+                Launcher::ItemWidth,
+                Launcher::ItemHeight
             );
         }
     }

@@ -21,7 +21,7 @@ struct SequenceNode
     int id = 0;  // the Miles user data the players look nodes up by
     i32 fadeStep = 0;
     i32 volume = 0;
-    u32 flags = 0;  // kFading
+    u32 flags = 0;  // Fading
 };
 
 int ClampVolume(int volume);
@@ -33,7 +33,7 @@ int SetFadeStep(SequenceNode& node, int steps);
 class SequencePlayer
 {
 public:
-    static constexpr u32 kFading = 0x80000000u;
+    static constexpr u32 Fading = 0x80000000u;
 
     explicit SequencePlayer(AudioDevice& device);
     virtual ~SequencePlayer();

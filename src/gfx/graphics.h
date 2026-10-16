@@ -30,8 +30,8 @@ public:
     };
 
     // Init modes: kWindowed uses the normal cooperative level, anything else exclusive full screen.
-    static constexpr int kWindowed = 0x4E21;
-    static constexpr int kFullScreen = 0x4E22;
+    static constexpr int Windowed = 0x4E21;
+    static constexpr int FullScreen = 0x4E22;
 
     Graphics(Display& display, ErrorReporter& errors);
     ~Graphics();
@@ -61,10 +61,10 @@ public:
 
 private:
     // Cooperative level flags as the original passes them.
-    static constexpr u32 kNormal = 0x08;     // DDSCL_NORMAL
-    static constexpr u32 kExclusive = 0x13;  // DDSCL_FULLSCREEN | DDSCL_ALLOWREBOOT | DDSCL_EXCLUSIVE
-    static constexpr u32 kFullScreenFlag = 0x01;
-    static constexpr u32 kExclusiveFlag = 0x10;
+    static constexpr u32 Normal = 0x08;     // DDSCL_NORMAL
+    static constexpr u32 Exclusive = 0x13;  // DDSCL_FULLSCREEN | DDSCL_ALLOWREBOOT | DDSCL_EXCLUSIVE
+    static constexpr u32 FullScreenFlag = 0x01;
+    static constexpr u32 ExclusiveFlag = 0x10;
 
     Display& display;
     ErrorReporter& errors;

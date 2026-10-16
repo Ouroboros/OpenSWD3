@@ -18,7 +18,7 @@ class ErrorReporter;
 // itself first, so the count can match an id.
 struct CounterNode
 {
-    static constexpr std::size_t kSavedBytes = 0xE;
+    static constexpr std::size_t SavedBytes = 0xE;
 
     std::unique_ptr<CounterNode> next;  // +0x00
     i16 id = 0;                         // +0x04 the count in a head

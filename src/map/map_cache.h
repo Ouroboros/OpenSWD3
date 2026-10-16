@@ -19,8 +19,8 @@ class Painter;
 class MapCache
 {
 public:
-    static constexpr int kUnits = 0x18;
-    static constexpr u32 kTableBytes = 0x180;
+    static constexpr int Units = 0x18;
+    static constexpr u32 TableBytes = 0x180;
 
     // One entry of mcache.dat (0x10 bytes).
     struct Slot
@@ -31,7 +31,7 @@ public:
         u32 unit = 0;  // the .cm file
     };
 
-    static constexpr u32 kHeaderBytes = 0x1A8;
+    static constexpr u32 HeaderBytes = 0x1A8;
 
     MapCache(const Config& config, const Painter& painter);
 

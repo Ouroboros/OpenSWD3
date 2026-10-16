@@ -24,14 +24,14 @@ TEST_CASE("launcher: resources of swd32.exe and the hover hotspots")
     }
 
     SDL_SetHint(SDL_HINT_AUDIO_DRIVER, "dummy");
-    CHECK_EQ(resources.Find(swd3::ExeResources::kDialog, Launcher::kDialog).size(), 274u);
-    CHECK_EQ(resources.Find("WAVE", Launcher::kHoverSound).size(), 2348u);
+    CHECK_EQ(resources.Find(swd3::ExeResources::Dialog, Launcher::Dialog).size(), 274u);
+    CHECK_EQ(resources.Find("WAVE", Launcher::HoverSound).size(), 2348u);
     CHECK(resources.Find("WAVE", 0x99).empty());
     swd3::Surface picture;
-    CHECK(swd3::DecodeBitmap(resources.Find(swd3::ExeResources::kBitmap, Launcher::kBackground), picture));
+    CHECK(swd3::DecodeBitmap(resources.Find(swd3::ExeResources::Bitmap, Launcher::Background), picture));
     CHECK_EQ(picture.Width(), 640);
     CHECK_EQ(picture.Height(), 480);
-    CHECK(swd3::DecodeBitmap(resources.Find(swd3::ExeResources::kBitmap, 0x76), picture));
+    CHECK(swd3::DecodeBitmap(resources.Find(swd3::ExeResources::Bitmap, 0x76), picture));
     CHECK_EQ(picture.Width(), 40);
     CHECK_EQ(picture.Height(), 182);
 
@@ -45,7 +45,7 @@ TEST_CASE("launcher: resources of swd32.exe and the hover hotspots")
     CHECK(!launcher.shown[0]);
     CHECK(launcher.OnMouse(1, 0x30, 50) == Launcher::Choice::None);
     CHECK_EQ(launcher.lit[0], 0);
-    state.SetGameFlag(Launcher::kSavedGameFlag);
+    state.SetGameFlag(Launcher::SavedGameFlag);
     CHECK(launcher.OnMouse(0, 0x30, 50) == Launcher::Choice::None);
     CHECK_EQ(launcher.lit[0], 5);
     CHECK(launcher.shown[0]);

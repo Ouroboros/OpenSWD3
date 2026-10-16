@@ -11,11 +11,11 @@ namespace swd3
 
 Viewport FitViewport(int outputWidth, int outputHeight)
 {
-    const float scaleX = static_cast<float>(outputWidth) / Display::kWidth;
-    const float scaleY = static_cast<float>(outputHeight) / Display::kHeight;
+    const float scaleX = static_cast<float>(outputWidth) / Display::Width;
+    const float scaleY = static_cast<float>(outputHeight) / Display::Height;
     const float scale = std::min(scaleX, scaleY);
-    const float width = Display::kWidth * scale;
-    const float height = Display::kHeight * scale;
+    const float width = Display::Width * scale;
+    const float height = Display::Height * scale;
     return {(outputWidth - width) / 2, (outputHeight - height) / 2, width, height};
 }
 
@@ -26,9 +26,9 @@ LogicalPoint ToLogical(const Viewport& viewport, float outputX, float outputY)
         return {0, 0};
     }
 
-    const auto x = static_cast<int>((outputX - viewport.x) * Display::kWidth / viewport.width);
-    const auto y = static_cast<int>((outputY - viewport.y) * Display::kHeight / viewport.height);
-    return {std::clamp(x, 0, Display::kWidth - 1), std::clamp(y, 0, Display::kHeight - 1)};
+    const auto x = static_cast<int>((outputX - viewport.x) * Display::Width / viewport.width);
+    const auto y = static_cast<int>((outputY - viewport.y) * Display::Height / viewport.height);
+    return {std::clamp(x, 0, Display::Width - 1), std::clamp(y, 0, Display::Height - 1)};
 }
 
 Display::~Display()
@@ -59,8 +59,8 @@ bool Display::Open(const std::string& title)
     const SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
     const bool created = SDL_CreateWindowAndRenderer(
         title.c_str(),
-        Display::kDefaultWindowWidth,
-        Display::kDefaultWindowHeight,
+        Display::DefaultWindowWidth,
+        Display::DefaultWindowHeight,
         flags,
         &this->window,
         &this->renderer
@@ -71,13 +71,13 @@ bool Display::Open(const std::string& title)
         return false;
     }
 
-    SDL_SetWindowMinimumSize(this->window, Display::kWidth / 2, Display::kHeight / 2);
+    SDL_SetWindowMinimumSize(this->window, Display::Width / 2, Display::Height / 2);
     this->texture = SDL_CreateTexture(
         this->renderer,
         SDL_PIXELFORMAT_RGB565,
         SDL_TEXTUREACCESS_STREAMING,
-        Display::kWidth,
-        Display::kHeight
+        Display::Width,
+        Display::Height
     );
 
     if (this->texture == nullptr)

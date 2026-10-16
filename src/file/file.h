@@ -39,7 +39,7 @@ public:
         End
     };
 
-    static constexpr u32 kInvalidPosition = 0xFFFFFFFFu;
+    static constexpr u32 InvalidPosition = 0xFFFFFFFFu;
 
     File();
     ~File();

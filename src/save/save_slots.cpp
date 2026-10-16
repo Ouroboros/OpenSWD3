@@ -67,16 +67,16 @@ void SaveSlots::LoadPreview(SavePreview& preview, int slot, const std::string& i
 
     if (!file.Open(SaveGames::SlotPath(installDirectory, slot), File::Disposition::OpenExisting, File::Access::Read))
     {
-        preview.state = SavePreview::kMissing;
+        preview.state = SavePreview::Missing;
         return;
     }
 
     file.CreateMapping();
     const u8* mapped = file.MapView(0, 0);
     const std::span<const u8> view(mapped, mapped != nullptr ? file.Size() : 0);
-    std::string date(SaveSlots::kDateTemplate);
+    std::string date(SaveSlots::DateTemplate);
 
-    if (view.size() >= SaveSlots::kHeaderBytes)
+    if (view.size() >= SaveSlots::HeaderBytes)
     {
         for (const auto& [from, to] :
              {std::pair{0, 0},
@@ -97,8 +97,8 @@ void SaveSlots::LoadPreview(SavePreview& preview, int slot, const std::string& i
     }
 
     preview.date = date;
-    std::size_t at = SaveSlots::kHeaderBytes;
-    preview.thumbnail.assign(SaveSlots::kThumbnailPixels, 0);
+    std::size_t at = SaveSlots::HeaderBytes;
+    preview.thumbnail.assign(SaveSlots::ThumbnailPixels, 0);
 
     for (std::size_t pixel = 0; pixel < preview.thumbnail.size(); ++pixel)
     {
@@ -106,14 +106,14 @@ void SaveSlots::LoadPreview(SavePreview& preview, int slot, const std::string& i
     }
 
     painter.ConvertPixels(preview.thumbnail);
-    at += 2 * SaveSlots::kThumbnailPixels;
+    at += 2 * SaveSlots::ThumbnailPixels;
 
     for (std::size_t index = at; index < view.size() && view[index] != 0; ++index)
     {
         preview.location.push_back(static_cast<char>(view[index]));
     }
 
-    at += SaveSlots::kLocationBytes;
+    at += SaveSlots::LocationBytes;
     const std::vector<u8> flags = Unpack(view, at);
 
     auto flag = [&flags](std::size_t byte, u8 bit)
@@ -171,27 +171,27 @@ void SaveSlots::LoadPreview(SavePreview& preview, int slot, const std::string& i
     }
 
     u32 seconds = Dword(view, names + 0x40);
-    preview.playTime = WinFormat(SaveSlots::kHours, {static_cast<i32>(seconds / kSecondsPerHour)});
+    preview.playTime = WinFormat(SaveSlots::Hours, {static_cast<i32>(seconds / kSecondsPerHour)});
     seconds %= kSecondsPerHour;
-    preview.playTime += WinFormat(SaveSlots::kMinutes, {static_cast<i32>(seconds / kSecondsPerMinute)});
-    preview.playTime += WinFormat(SaveSlots::kSeconds, {static_cast<i32>(seconds % kSecondsPerMinute)});
+    preview.playTime += WinFormat(SaveSlots::Minutes, {static_cast<i32>(seconds / kSecondsPerMinute)});
+    preview.playTime += WinFormat(SaveSlots::Seconds, {static_cast<i32>(seconds % kSecondsPerMinute)});
     file.UnmapView(mapped);
     file.CloseMapping();
     file.Close();
-    preview.state = SavePreview::kLoaded;
+    preview.state = SavePreview::Loaded;
 }
 
 // swd32.exe 0x00409B80: the frames of the three previews (acts 1, 2, 8 and 0x11), lit (action 8) for the newest slot
 void SaveSlots::ResetActs()
 {
-    for (int slot = 0; slot < SaveSlots::kVisible; ++slot)
+    for (int slot = 0; slot < SaveSlots::Visible; ++slot)
     {
-        for (std::size_t index = 0; index < SaveSlots::kActsPerSlot; ++index)
+        for (std::size_t index = 0; index < SaveSlots::ActsPerSlot; ++index)
         {
             ActState& act = this->acts[static_cast<std::size_t>(slot)][index];
             ResetPlayback(act);
-            act.id = SaveSlots::kFrameActs[index];
-            act.action = this->newest % SaveSlots::kVisible == slot ? 8 : 0;
+            act.id = SaveSlots::FrameActs[index];
+            act.action = this->newest % SaveSlots::Visible == slot ? 8 : 0;
             act.direction = 6;
         }
     }
@@ -205,9 +205,9 @@ void SaveSlots::LoadPage(const std::string& installDirectory, const Painter& pai
         SaveSlots::Free(preview);
     }
 
-    const int first = SaveSlots::kVisible * (this->newest / SaveSlots::kVisible);
+    const int first = SaveSlots::Visible * (this->newest / SaveSlots::Visible);
 
-    for (int index = 0; index < SaveSlots::kVisible; ++index)
+    for (int index = 0; index < SaveSlots::Visible; ++index)
     {
         SaveSlots::LoadPreview(
             this->previews[static_cast<std::size_t>(index)],
@@ -226,7 +226,7 @@ void SaveSlots::FindNewest(const std::string& installDirectory, const Painter& p
 {
     i32 newestHigh = 0;
 
-    for (int slot = 0; slot <= SaveGames::kLastSlot; ++slot)
+    for (int slot = 0; slot <= SaveGames::LastSlot; ++slot)
     {
         File file;
 

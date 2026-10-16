@@ -11,40 +11,6 @@ namespace swd3
 
 class Surface;
 
-// Draw modes of Painter::DrawPicture. Bit 0 mirrors horizontally, bit 1 flips vertically (only honoured by the
-// effects that advance lines by the signed pitch), bits 2..15 select the effect and bit 31 marks RLE source data
-// (set automatically for data starting with the RLE magic when no palette is selected).
-namespace draw_mode
-{
-
-constexpr u32 kMirror = 0x1;
-constexpr u32 kFlip = 0x2;
-constexpr u32 kRle = 0x80000000u;
-constexpr u32 kEffectMask = 0xFFFC;
-
-// RLE effects.
-constexpr u32 kCopy = 0x00;         // literal pixels copied
-constexpr u32 kAdditive = 0x04;     // saturating add, optionally tinted
-constexpr u32 kAlphaMap = 0x08;     // per-pixel level from a byte map (DrawArgument::alphaMap)
-constexpr u32 kShadow = 0x0C;       // sheared and scaled tint of the destination
-constexpr u32 kTint = 0x10;         // tint of the destination under the picture
-constexpr u32 kTranslucent = 0x14;  // blend at DrawOptions::alpha
-constexpr u32 kEdgeMark = 0x18;     // copy, first and last pixel of each run marked
-constexpr u32 kFadeDown = 0x1C;     // blend level falling from the top
-constexpr u32 kScaledGlow = 0x20;   // vertically scaled tinted add
-constexpr u32 kSilhouette = 0x24;   // literal pixels filled with DrawArgument::color
-constexpr u32 kGray = 0x28;         // destination under the picture turned grey
-constexpr u32 kSubtractive = 0x2C;  // saturating subtract, tinted
-constexpr u32 kSmear = 0x30;        // destination smeared under the picture
-
-// Raw effects (16-bit pixels or palette indices).
-constexpr u32 kRawCopy = 0x00;
-constexpr u32 kRawKeyed = 0x04;        // fill colour transparent
-constexpr u32 kRawGradient = 0x08;     // destination blended towards the first source pixel
-constexpr u32 kRawTranslucent = 0x14;  // blend at DrawOptions::alpha, fill colour transparent
-
-}  // namespace draw_mode
-
 // Extra data of the effects that take one (the original passes a pointer as the sixth argument).
 struct DrawArgument
 {
@@ -97,6 +63,38 @@ struct RleColors
 class Painter
 {
 public:
+    // Draw modes of Painter::DrawPicture. Bit 0 mirrors horizontally, bit 1 flips vertically (only honoured by the
+    // effects that advance lines by the signed pitch), bits 2..15 select the effect and bit 31 marks RLE source data
+    // (set automatically for data starting with the RLE magic when no palette is selected).
+    enum DrawMode : u32
+    {
+        Mirror = 0x1,
+        Flip = 0x2,
+        RleSource = 0x80000000u,
+        EffectMask = 0xFFFC,
+
+        // RLE effects.
+        Copy = 0x00,         // literal pixels copied
+        Additive = 0x04,     // saturating add, optionally tinted
+        AlphaMap = 0x08,     // per-pixel level from a byte map (DrawArgument::alphaMap)
+        Shadow = 0x0C,       // sheared and scaled tint of the destination
+        TintUnder = 0x10,    // tint of the destination under the picture
+        Translucent = 0x14,  // blend at DrawOptions::alpha
+        EdgeMark = 0x18,     // copy, first and last pixel of each run marked
+        FadeDown = 0x1C,     // blend level falling from the top
+        ScaledGlow = 0x20,   // vertically scaled tinted add
+        Silhouette = 0x24,   // literal pixels filled with DrawArgument::color
+        GrayUnder = 0x28,    // destination under the picture turned grey
+        Subtractive = 0x2C,  // saturating subtract, tinted
+        SmearUnder = 0x30,   // destination smeared under the picture
+
+        // Raw effects (16-bit pixels or palette indices).
+        RawCopy = 0x00,
+        RawKeyed = 0x04,        // fill colour transparent
+        RawGradient = 0x08,     // destination blended towards the first source pixel
+        RawTranslucent = 0x14,  // blend at DrawOptions::alpha, fill colour transparent
+    };
+
     // How the display stores colours; pictures are stored as RGB555 and converted on load.
     enum class Conversion
     {
@@ -289,7 +287,7 @@ private:
     int BlitRawGradient(int x, int y, int width, int height, const DrawArgument& argument);
 
     // Display format.
-    static const std::array<i32, 495> kWaveOffsets;
+    static const std::array<i32, 495> WaveTable;
     u32 displayRed = 0;
     u32 displayGreen = 0;
     u32 displayBlue = 0;

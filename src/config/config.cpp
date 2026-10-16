@@ -38,7 +38,7 @@ void WriteDword(std::vector<u8>& data, std::size_t offset, u32 value)
 // Reads the whole file into the 0x1000-byte buffer (the original reads the file size into it unchecked).
 void ReadInto(File& file, std::vector<u8>& data)
 {
-    u32 size = std::min(file.Size(), Config::kEnvBytes);
+    u32 size = std::min(file.Size(), Config::EnvBytes);
     file.Read(data.data(), size);
 }
 
@@ -110,22 +110,22 @@ void Config::Update(std::string_view installDirectory, std::string_view cdRoot, 
         return;
     }
 
-    std::vector<u8> data(Config::kEnvBytes, 0);
+    std::vector<u8> data(Config::EnvBytes, 0);
     ReadInto(file, data);
     bool oldFormat = false;
 
-    if (ReadDword(data, 0) != Config::kCurrentFormat)
+    if (ReadDword(data, 0) != Config::CurrentFormat)
     {
-        std::memmove(data.data() + 4, data.data(), Config::kEnvBytes - 4);
+        std::memmove(data.data() + 4, data.data(), Config::EnvBytes - 4);
         oldFormat = true;
     }
 
-    WriteDword(data, 0, Config::kCurrentFormat);
+    WriteDword(data, 0, Config::CurrentFormat);
 
-    for (int i = 0; i < Config::kEnvKeys; ++i)
+    for (int i = 0; i < Config::EnvKeys; ++i)
     {
         data[kKeysOffset + static_cast<std::size_t>(i)] =
-            static_cast<u8>(this->keys[static_cast<std::size_t>(Config::kEnvKeyOrder[static_cast<std::size_t>(i)])]);
+            static_cast<u8>(this->keys[static_cast<std::size_t>(Config::EnvKeyOrder[static_cast<std::size_t>(i)])]);
     }
 
     WriteDword(data, kUnknown14Offset, static_cast<u32>(settings.unknown14));
@@ -167,15 +167,15 @@ void Config::SaveKeys()
         return;
     }
 
-    std::array<u8, Config::kEnvKeys> data = {};
+    std::array<u8, Config::EnvKeys> data = {};
 
-    for (int i = 0; i < Config::kEnvKeys; ++i)
+    for (int i = 0; i < Config::EnvKeys; ++i)
     {
         data[static_cast<std::size_t>(i)] =
-            static_cast<u8>(this->keys[static_cast<std::size_t>(Config::kEnvKeyOrder[static_cast<std::size_t>(i)])]);
+            static_cast<u8>(this->keys[static_cast<std::size_t>(Config::EnvKeyOrder[static_cast<std::size_t>(i)])]);
     }
 
-    u32 bytes = Config::kEnvKeys;
+    u32 bytes = Config::EnvKeys;
     file.Write(data.data(), bytes);
 }
 
@@ -195,10 +195,10 @@ bool Config::Load(i32& unknown14, u8& effectsOff)
 
     this->keys.fill(0);
     bool current = true;
-    std::vector<u8> data(Config::kEnvBytes, 0);
+    std::vector<u8> data(Config::EnvBytes, 0);
     ReadInto(file, data);
 
-    if (ReadDword(data, 0) != Config::kCurrentFormat)
+    if (ReadDword(data, 0) != Config::CurrentFormat)
     {
         file.Close();
         const std::size_t firstEnd = StringEnd(data, kOldStringsOffset);
@@ -220,10 +220,10 @@ bool Config::Load(i32& unknown14, u8& effectsOff)
         ReadInto(file, data);
     }
 
-    for (int i = 0; i < Config::kEnvKeys; ++i)
+    for (int i = 0; i < Config::EnvKeys; ++i)
     {
         SetLowByte(
-            this->keys[static_cast<std::size_t>(Config::kEnvKeyOrder[static_cast<std::size_t>(i)])],
+            this->keys[static_cast<std::size_t>(Config::EnvKeyOrder[static_cast<std::size_t>(i)])],
             data[kKeysOffset + static_cast<std::size_t>(i)]
         );
     }
@@ -252,7 +252,7 @@ bool Config::Load(i32& unknown14, u8& effectsOff)
 // swd32.exe 0x00424390
 void Config::SetDefaultKeys()
 {
-    constexpr std::array<std::pair<int, i32>, Config::kEnvKeys> kDefaults = {{
+    constexpr std::array<std::pair<int, i32>, Config::EnvKeys> kDefaults = {{
         {0, 0x01},
         {1, 0x39},
         {2, 0x36},

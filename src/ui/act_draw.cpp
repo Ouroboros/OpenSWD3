@@ -93,7 +93,7 @@ void ActDrawer::DrawCounter(int right, int y, u32 value, int alpha)
 
     do
     {
-        const Picture* digit = this->archive.GetPicture(ActDrawer::kDigits, value % 10);
+        const Picture* digit = this->archive.GetPicture(ActDrawer::Digits, value % 10);
 
         if (digit != nullptr)
         {
@@ -106,7 +106,7 @@ void ActDrawer::DrawCounter(int right, int y, u32 value, int alpha)
         value /= 10;
     } while (value != 0);
 
-    const Picture* label = this->archive.GetPicture(ActDrawer::kCounterLabel, 0);
+    const Picture* label = this->archive.GetPicture(ActDrawer::CounterLabel, 0);
 
     if (label != nullptr)
     {

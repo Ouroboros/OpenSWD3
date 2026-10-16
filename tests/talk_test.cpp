@@ -37,6 +37,6 @@ TEST_CASE("talk: window shift tables match swd32.exe")
         return;
     }
 
-    CHECK(std::memcmp(exe.data() + (0x004994F4 - 0x400000), swd3::Talk::kWindowShiftX.data(), 0x20) == 0);
-    CHECK(std::memcmp(exe.data() + (0x00499514 - 0x400000), swd3::Talk::kWindowShiftY.data(), 0x20) == 0);
+    CHECK(std::memcmp(exe.data() + (0x004994F4 - 0x400000), swd3::Talk::WindowShiftX.data(), 0x20) == 0);
+    CHECK(std::memcmp(exe.data() + (0x00499514 - 0x400000), swd3::Talk::WindowShiftY.data(), 0x20) == 0);
 }

@@ -109,7 +109,7 @@ void Game::LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 dire
         ++follower;
     }
 
-    if (follower == view.unk4B7C8C.size() || index >= GameState::kRoles)
+    if (follower == view.unk4B7C8C.size() || index >= GameState::Roles)
     {
         DebugLog(u8"LeaveParty", id);
         return;
@@ -119,7 +119,7 @@ void Game::LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 dire
     MoveRecord& move = view.followerMoves[follower];
     const auto leader = static_cast<u16>(this->unk4B7BC4);
 
-    if (move.step < MoveRecord::kStepMask && ((role.x & 0xF) != 0 || (role.y & 0xF) != 0))
+    if (move.step < MoveRecord::StepMask && ((role.x & 0xF) != 0 || (role.y & 0xF) != 0))
     {
         this->field.ClearRoleCells(role, leader);
         const u8 last = move.CurrentDirection();
@@ -128,16 +128,16 @@ void Game::LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 dire
         {
             while ((role.x & 0xF) != 0)
             {
-                role.x += RolePath::kStepX[last];
+                role.x += RolePath::StepX[last];
             }
 
             while ((role.y & 0xF) != 0)
             {
-                role.y += RolePath::kStepY[last];
+                role.y += RolePath::StepY[last];
             }
         }
 
-        this->field.RemoveRole(role.id, static_cast<int>(role.flags & role_flag::kLayerMask), (role.y >> 4) - 1, 0);
+        this->field.RemoveRole(role.id, static_cast<int>(role.flags & Role::LayerMask), (role.y >> 4) - 1, 0);
     }
 
     move.Clear();
@@ -213,7 +213,7 @@ void Game::StartTimer(int minutes, int seconds, int event, int which)
         view.unk4BAB78 = 0;
         view.unk4BAB7C = 0;
         view.unk4A9918 = 0x1E * (seconds + 0x3C * minutes);
-        this->state.SetGameFlag(story_flag::kSecondTimer);
+        this->state.SetGameFlag(GameState::SecondTimer);
         return;
     }
 
@@ -221,8 +221,8 @@ void Game::StartTimer(int minutes, int seconds, int event, int which)
     view.unk4C97EC = 0;
     view.unk4CAD20 = 0x1E * (seconds + 0x3C * minutes);
     view.unk4A93D4 = event;
-    this->state.SetGameFlag(story_flag::kTimer);
-    this->state.SetGameFlag(story_flag::kTimerEvent);
+    this->state.SetGameFlag(GameState::Timer);
+    this->state.SetGameFlag(GameState::TimerEvent);
 }
 
 // swd32.exe 0x00484730: the movie named in the script at `cursor` (up to "%Q", the event offset `pc` moving along;

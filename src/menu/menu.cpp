@@ -132,19 +132,19 @@ void Menu::Run()
                 this->items[item].action = static_cast<i32>(0x2C + item);
             }
 
-            this->Open(menu == 6 ? 3 : 0, Menu::kSystemPage);
+            this->Open(menu == 6 ? 3 : 0, Menu::SystemPage);
         }
 
         if (menu == 4)
         {
             owner.archive.CloseAll();
-            this->Open(1, Menu::kSystemPage);
+            this->Open(1, Menu::SystemPage);
         }
 
         if (menu == 5)
         {
             owner.archive.CloseAll();
-            this->Open(2, Menu::kSystemPage);
+            this->Open(2, Menu::SystemPage);
         }
 
         this->frames = 0x40;
@@ -191,7 +191,7 @@ void Menu::Open(int menuMode, u16 menuCode)
 
     for (TextFont* font : {&owner.largeFont, &owner.mediumFont, &owner.smallFont})
     {
-        font->SetBackground(TextFont::kNoBackground);
+        font->SetBackground(TextFont::NoBackground);
     }
 }
 
@@ -211,7 +211,7 @@ void Menu::BuildTabs(int selected)
     this->unk4A6AA8 = 0xFFFF;
     int count = 0;
 
-    for (int role = 0; role < Menu::kTabs; ++role)
+    for (int role = 0; role < Menu::Tabs; ++role)
     {
         MenuTab& tab = this->tabs[static_cast<std::size_t>(role)];
         tab.role = 0xFFFF;
@@ -228,7 +228,7 @@ void Menu::BuildTabs(int selected)
         }
     }
 
-    if (count < Menu::kTabs)
+    if (count < Menu::Tabs)
     {
         this->tabs[static_cast<std::size_t>(count)].state = this->tabs[static_cast<std::size_t>(count)].frameAct;
     }
@@ -237,7 +237,7 @@ void Menu::BuildTabs(int selected)
 // swd32.exe 0x0043B480: the handlers of page `menuCode`
 void Menu::SetPage(int menuCode)
 {
-    if (menuCode == Menu::kSystemPage)
+    if (menuCode == Menu::SystemPage)
     {
         this->SystemEnter();
         this->beforeFrame = nullptr;
@@ -393,7 +393,7 @@ void Menu::Present()
     owner.painter.SetTarget(owner.drawSurface);
     owner.painter.UnlockSurface(*owner.offscreen);
 
-    if (this->code != Menu::kSystemPage)
+    if (this->code != Menu::SystemPage)
     {
         int offset = this->frames < 0x4B ? this->slide : 0;
 
@@ -417,7 +417,7 @@ void Menu::Present()
 
     if (owner.menuMode == 0)
     {
-        if (this->code != Menu::kSystemPage && this->page != 0x11)
+        if (this->code != Menu::SystemPage && this->page != 0x11)
         {
             if (doubling)
             {
@@ -546,7 +546,7 @@ void Menu::DrawRoleTabs(int offset)
     Painter& painter = owner.painter;
     const auto color = static_cast<Pixel>(painter.MakeColor(0x1D, 0x1B, 0x15));
 
-    for (std::size_t index = 0; index < Menu::kTabs; ++index)
+    for (std::size_t index = 0; index < Menu::Tabs; ++index)
     {
         i8& glow = this->tabGlow[index];
 

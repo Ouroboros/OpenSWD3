@@ -23,7 +23,7 @@ namespace
 constexpr Pixel kPanelTextColor = 0xFFC0;
 constexpr Pixel kMessageTextColor = 0xFFFF;
 constexpr int kTextStyle = 0x10;
-constexpr int kFrameBorder = BattleMessage::kFrame | 8;
+constexpr int kFrameBorder = BattleMessage::Frame | 8;
 constexpr u32 kBlack = 0xFF;
 constexpr int kElements = 9;
 
@@ -56,7 +56,7 @@ BattleMessages::BattleMessages(
 // The frame picture of the panels: act 0x233B, action 0.
 int BattleMessages::PanelFrame()
 {
-    this->panelAct.id = BattleMessages::kPanelAct;
+    this->panelAct.id = BattleMessages::PanelAct;
     this->panelAct.action = 0;
     this->acts.Run(this->panelAct);
     return this->panelAct.frame;
@@ -188,7 +188,7 @@ void BattleMessages::DrawCraftResultPanel()
 // swd32.exe 0x00469550: a shaded framed box; the text goes to (textX, textY) unless both are 0
 void BattleMessages::DrawMessageBox(int x, int y, int width, int height, int textX, int textY, std::string_view text)
 {
-    this->panelAct.id = BattleMessages::kPanelAct;
+    this->panelAct.id = BattleMessages::PanelAct;
     this->panelAct.action = 0;
     this->acts.Run(this->panelAct);
     FillBox(this->painter, x, y, width, height, 0, 4, 4, FillMode::Blend);
@@ -324,7 +324,7 @@ void BattleMessages::Append(std::unique_ptr<BattleMessage> message, int x, int y
     message->length = static_cast<i32>(message->Text().size());
     message->flags |= flags;
 
-    if ((flags & BattleMessage::kRise) != 0)
+    if ((flags & BattleMessage::Rise) != 0)
     {
         message->y = 1;
         message->slideY = -0x20;
@@ -358,26 +358,26 @@ void BattleMessages::Draw()
 
         if (message->flags < 0)
         {
-            this->panelAct.id = BattleMessages::kPanelAct;
+            this->panelAct.id = BattleMessages::PanelAct;
             this->panelAct.action = 0;
             this->acts.Run(this->panelAct);
             FillBox(this->painter, 0xA, 0xA, 0x26C, 0x20, -8, -8, 0xA, FillMode::Tint);
             DrawWindowFrame(this->painter, this->archive, this->panelAct.frame, 0xE, 0xE, 0x272, 0x26, 0, kFrameBorder);
         }
 
-        if ((message->flags & BattleMessage::kBlackBar) != 0)
+        if ((message->flags & BattleMessage::BlackBar) != 0)
         {
             this->hud.FillColor(0xA, 0xA, 0x26C, 0x20, kBlack);
         }
 
         const int flags = message->flags;
 
-        if ((flags & BattleMessage::kLeft) != 0)
+        if ((flags & BattleMessage::Left) != 0)
         {
             x = 0x12;
         }
 
-        if ((flags & BattleMessage::kCentered) != 0)
+        if ((flags & BattleMessage::Centered) != 0)
         {
             x = 0x13B - ((0x14 * (message->length >> 1)) >> 1);
         }
@@ -387,7 +387,7 @@ void BattleMessages::Draw()
             continue;
         }
 
-        if ((flags & BattleMessage::kFromRight) != 0)
+        if ((flags & BattleMessage::FromRight) != 0)
         {
             y = 0x10;
             const int half = HalfWidth(*message);
@@ -406,7 +406,7 @@ void BattleMessages::Draw()
             this->hud.FillColor(x - half, 0xA, 0xB0, 0x20, kBlack);
         }
 
-        if ((message->flags & BattleMessage::kFromLeft) != 0)
+        if ((message->flags & BattleMessage::FromLeft) != 0)
         {
             y = 0x10;
             const int half = HalfWidth(*message);
@@ -420,7 +420,7 @@ void BattleMessages::Draw()
             this->hud.FillColor(x - half, 0xA, 0xB0, 0x20, kBlack);
         }
 
-        if ((message->flags & BattleMessage::kRise) != 0)
+        if ((message->flags & BattleMessage::Rise) != 0)
         {
             x = HalfWidth(*message) + 0xE3;
             y = (message->slideY + 0x20) / 2;
@@ -440,7 +440,7 @@ void BattleMessages::Draw()
         BattleMessage& message = **link;
         bool keep = message.frames > 0;
 
-        if (!keep && (message.flags & BattleMessage::kFromLeft) != 0)
+        if (!keep && (message.flags & BattleMessage::FromLeft) != 0)
         {
             const int half = HalfWidth(message);
 
@@ -454,7 +454,7 @@ void BattleMessages::Draw()
             keep = message.slideX < 0x280;
         }
 
-        if (!keep && (message.flags & BattleMessage::kFromRight) != 0)
+        if (!keep && (message.flags & BattleMessage::FromRight) != 0)
         {
             const int half = HalfWidth(message);
 
@@ -468,7 +468,7 @@ void BattleMessages::Draw()
             keep = message.slideX > 0;
         }
 
-        if (!keep && (message.flags & BattleMessage::kRise) != 0)
+        if (!keep && (message.flags & BattleMessage::Rise) != 0)
         {
             const int half = HalfWidth(message);
 

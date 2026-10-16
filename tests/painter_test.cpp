@@ -107,7 +107,7 @@ TEST_CASE("painter: skip runs of the mirrored alpha map leave the destination")
     painter.SetSource(picture.data());
     DrawArgument argument;
     argument.alphaMap = levels.data();
-    painter.DrawPicture(20, 20, 4, 1, swd3::draw_mode::kAlphaMap | swd3::draw_mode::kMirror, argument);
+    painter.DrawPicture(20, 20, 4, 1, swd3::Painter::AlphaMap | swd3::Painter::Mirror, argument);
     CHECK_EQ(screen.Row(20)[20], 0x0F0Fu);
     CHECK_EQ(screen.Row(20)[21], 0x0F0Fu);
     CHECK_EQ(screen.Row(20)[23], 0xFFFFu);

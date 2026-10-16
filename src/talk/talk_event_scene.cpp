@@ -232,9 +232,9 @@ bool Talk::PlaceRole(EventRun& run)
 
         Role& role = state.roles[run.found];
         setBits = static_cast<i16>(role.flags);
-        role.flags &= ~(role_flag::kVisible | role_flag::kSolid);
+        role.flags &= ~(Role::Visible | Role::Solid);
         owner.field.ClearRoleCells(role, static_cast<u16>(owner.unk4B7BC4));
-        role.flags |= role_flag::kRemoved;
+        role.flags |= Role::Removed;
         event = static_cast<i16>(role.event);
     }
 
@@ -283,17 +283,17 @@ bool Talk::PlaceRole(EventRun& run)
 
         if (index >= state.roleCount)
         {
-            if (state.roleCount < GameState::kRoles)
+            if (state.roleCount < GameState::Roles)
             {
                 placed = &state.roles[static_cast<std::size_t>(state.roleCount)];
                 *placed = loaded;
-                owner.field.InsertRole(*placed, static_cast<int>(placed->flags & role_flag::kLayerMask));
+                owner.field.InsertRole(*placed, static_cast<int>(placed->flags & Role::LayerMask));
                 ++state.roleCount;
             }
         }
         else
         {
-            placed = owner.field.RemoveRole(loaded.id, static_cast<int>(loaded.flags & role_flag::kLayerMask), 0, 1);
+            placed = owner.field.RemoveRole(loaded.id, static_cast<int>(loaded.flags & Role::LayerMask), 0, 1);
 
             if (placed == nullptr)
             {
@@ -301,10 +301,10 @@ bool Talk::PlaceRole(EventRun& run)
             }
 
             *placed = loaded;
-            owner.field.InsertRole(*placed, static_cast<int>(placed->flags & role_flag::kLayerMask));
+            owner.field.InsertRole(*placed, static_cast<int>(placed->flags & Role::LayerMask));
         }
 
-        if (placed != nullptr && (placed->flags & role_flag::kBubbles) != 0)
+        if (placed != nullptr && (placed->flags & Role::Bubbles) != 0)
         {
             for (RoleMark& mark : owner.scene.marks)
             {
@@ -382,14 +382,14 @@ bool Talk::LoadName(EventRun& run)
     Talk::ReplacePrefix(
         name,
         0,
-        Big5(Party::kDefaultNames[0]),
+        Big5(Party::RoleNames[0]),
         std::string_view(party.names[0].data(), strnlen(party.names[0].data(), party.names[0].size())),
         0x20
     );
     Talk::ReplacePrefix(
         name,
         0,
-        Big5(Party::kDefaultNames[1]),
+        Big5(Party::RoleNames[1]),
         std::string_view(party.names[1].data(), strnlen(party.names[1].data(), party.names[1].size())),
         0x20
     );
@@ -683,9 +683,9 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             if (Role* role = this->FoundRole(run))
             {
-                const u32 layer = role->flags & role_flag::kLayerMask;
+                const u32 layer = role->flags & Role::LayerMask;
                 run.valueA = static_cast<i32>(layer);
-                role->flags &= ~role_flag::kLayerMask;
+                role->flags &= ~Role::LayerMask;
 
                 if (run.code == EventCommand::LayerFront)
                 {
@@ -841,8 +841,8 @@ bool Talk::RunSceneCommand(EventRun& run)
             if (state.FindRoleOrPlayer(id, run.found))
             {
                 Role& role = state.roles[run.found];
-                role.flags = run.code == EventCommand::ClearRoleFlag400 ? role.flags & ~role_flag::kHidden
-                                                                        : role.flags | role_flag::kHidden;
+                role.flags =
+                    run.code == EventCommand::ClearRoleFlag400 ? role.flags & ~Role::Hidden : role.flags | Role::Hidden;
             }
             else if (run.code == EventCommand::ClearRoleFlag400)
             {
@@ -887,7 +887,7 @@ bool Talk::RunSceneCommand(EventRun& run)
         case EventCommand::HoldRole:
             state.FindRoleOrPlayer(this->Word(run, 1), run.found);
 
-            if (run.found < GameState::kRoles)
+            if (run.found < GameState::Roles)
             {
                 owner.rolePath.HoldRole(static_cast<int>(run.found));
             }
@@ -913,7 +913,7 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             Role* role = this->FoundRole(run);
             const Role& turning = role != nullptr ? *role : blank;
-            const Role& faced = other < GameState::kRoles ? state.roles[other] : blank;
+            const Role& faced = other < GameState::Roles ? state.roles[other] : blank;
             i32 distance = 0;
             const int angle = AngleBetween(
                 faced.x + 8 * faced.act.width,
@@ -1076,7 +1076,7 @@ bool Talk::RunSceneCommand(EventRun& run)
         {
             const u16 mode = this->Word(run, 1);
 
-            if (mode > ScriptEffect::kNumberMask)
+            if (mode > ScriptEffect::NumberMask)
             {
                 DebugLog(u8"effect number", run.context.event, mode);
                 this->Advance(run, 0x10);
@@ -1105,8 +1105,8 @@ bool Talk::RunSceneCommand(EventRun& run)
             effect->limit = static_cast<i16>(this->Word(run, 6) & kEvenPixels);
             effect->count = static_cast<i16>(this->Word(run, 7) & kEvenPixels);
 
-            if (effect->x < 0 || effect->y < 0 || effect->limit + effect->x > Display::kWidth ||
-                effect->count + effect->y > Display::kHeight)
+            if (effect->x < 0 || effect->y < 0 || effect->limit + effect->x > Display::Width ||
+                effect->count + effect->y > Display::Height)
             {
                 DebugLog(u8"effect off the screen", effect->x, effect->y, effect->limit, effect->count);
                 this->Advance(run, 0x10);
@@ -1117,17 +1117,17 @@ bool Talk::RunSceneCommand(EventRun& run)
             effect->offsets.assign(columns, 0);
             effect->lengths.assign(columns, 0);
             run.valueB = 0;
-            u16 kind = ScriptEffect::kFalling;
+            u16 kind = ScriptEffect::Falling;
 
             if (this->Word(run, 3) == 1)
             {
                 run.valueB = effect->limit - 2;
-                kind = ScriptEffect::kRising;
+                kind = ScriptEffect::Rising;
             }
 
             if (this->Word(run, 3) == 2)
             {
-                kind = ScriptEffect::kStill;
+                kind = ScriptEffect::Still;
                 run.valueB = 0;
             }
 
@@ -1150,7 +1150,7 @@ bool Talk::RunSceneCommand(EventRun& run)
         {
             const u16 mode = this->Word(run, 1);
 
-            if (mode > ScriptEffect::kNumberMask)
+            if (mode > ScriptEffect::NumberMask)
             {
                 DebugLog(u8"effect number", run.context.id, mode);
                 this->Advance(run, 6);
@@ -1178,12 +1178,12 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             if (change == 0)
             {
-                run.valueA = ScriptEffect::kOpening;
+                run.valueA = ScriptEffect::Opening;
             }
 
             if (change == 1)
             {
-                run.valueA = ScriptEffect::kClosing;
+                run.valueA = ScriptEffect::Closing;
             }
 
             if (change == 2)

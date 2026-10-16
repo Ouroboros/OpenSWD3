@@ -15,7 +15,7 @@ class Surface;
 class Movie
 {
 public:
-    static constexpr int kMaxVolume = 0x8000;
+    static constexpr int MaxVolume = 0x8000;
 
     // Bink's sound output (DirectSound or the Miles digital driver) and the copy format of the back buffer.
     static void Init(bool directSound, bool digitalDriver);

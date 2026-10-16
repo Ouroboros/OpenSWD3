@@ -135,7 +135,7 @@ bool Talk::RunStateCommand(EventRun& run)
         case EventCommand::SetRoleFlag4000000:
             if (state.FindRoleOrPlayer(this->EventRoleId(run, this->Word(run, 1)), run.found))
             {
-                state.roles[run.found].flags |= role_flag::kFastMove;
+                state.roles[run.found].flags |= Role::FastMove;
             }
 
             this->Advance(run, 4);
@@ -290,9 +290,9 @@ bool Talk::RunStateCommand(EventRun& run)
         {
             bool moving = false;
 
-            for (int index = 1; index < state.roleCount && index < GameState::kRoles; ++index)
+            for (int index = 1; index < state.roleCount && index < GameState::Roles; ++index)
             {
-                if ((state.roles[static_cast<std::size_t>(index)].flags & role_flag::kStepping) != 0)
+                if ((state.roles[static_cast<std::size_t>(index)].flags & Role::Stepping) != 0)
                 {
                     moving = true;
                     break;
@@ -391,7 +391,7 @@ bool Talk::RunStateCommand(EventRun& run)
                 const u16 id = this->EventRoleId(run, this->Word(run, 2 + 3 * index));
                 state.FindRoleOrPlayer(id, run.found);
 
-                if (run.found < GameState::kRoles)
+                if (run.found < GameState::Roles)
                 {
                     owner.rolePath.MoveRoleTo(
                         static_cast<int>(run.found),
@@ -429,7 +429,7 @@ bool Talk::RunStateCommand(EventRun& run)
                     continue;
                 }
 
-                if (window.role != TalkWindow::kNoRole && window.role < GameState::kRoles)
+                if (window.role != TalkWindow::NoRole && window.role < GameState::Roles)
                 {
                     state.roles[window.role].unk26 = 0;
                 }
@@ -449,9 +449,9 @@ bool Talk::RunStateCommand(EventRun& run)
         case EventCommand::WaitDialogTyped:
         {
             const u16 id = this->EventRoleId(run, this->Word(run, 1));
-            run.found = TalkWindow::kNoRole;
+            run.found = TalkWindow::NoRole;
 
-            if (id != TalkWindow::kNoRole && !state.FindRoleOrPlayer(id, run.found))
+            if (id != TalkWindow::NoRole && !state.FindRoleOrPlayer(id, run.found))
             {
                 DebugLog(u8"Talk(wait_dlg2)", id, owner.unk4A9A10);
                 this->Advance(run, 4);
@@ -471,8 +471,8 @@ bool Talk::RunStateCommand(EventRun& run)
                 return true;
             }
 
-            const u32 done = run.code == EventCommand::WaitDialogRead ? window->flags & window_flag::kRead
-                                                                      : window->flags & window_flag::kTyped;
+            const u32 done = run.code == EventCommand::WaitDialogRead ? window->flags & TalkWindow::Read
+                                                                      : window->flags & TalkWindow::Typed;
 
             if (done != 0)
             {
@@ -513,7 +513,7 @@ bool Talk::RunStateCommand(EventRun& run)
                     LogActError(u8"TakeActData(Talk,TakeActData)", role);
                 }
 
-                role.flags |= role_flag::kStepsAct;
+                role.flags |= Role::StepsAct;
             }
             else
             {
@@ -740,7 +740,7 @@ bool Talk::RunStateCommand(EventRun& run)
             }
 
             std::unique_ptr<ItemNode>& worn =
-                party.equipment[static_cast<std::size_t>(Party::kSlotsPerRole * role + slot)];
+                party.equipment[static_cast<std::size_t>(Party::SlotsPerRole * role + slot)];
             const u16 oldId = worn != nullptr ? worn->id : u16{0};
             const u16 newId = item->id;
 
@@ -891,9 +891,9 @@ bool Talk::RunStateCommand(EventRun& run)
 
         case EventCommand::StopTimer:
             view.unk4CAD20 = -1;
-            state.ClearGameFlag(story_flag::kTimer);
-            state.ClearGameFlag(story_flag::kHideTimer);
-            state.ClearGameFlag(story_flag::kTimerEvent);
+            state.ClearGameFlag(GameState::Timer);
+            state.ClearGameFlag(GameState::HideTimer);
+            state.ClearGameFlag(GameState::TimerEvent);
             this->Advance(run, 2);
             return false;
 
@@ -932,17 +932,17 @@ bool Talk::RunSystemCommand(EventRun& run)
             return this->RunStateCommand(run);
 
         case EventCommand::SetFlag46:
-            state.SetGameFlag(story_flag::kNoLoadingScreen);
+            state.SetGameFlag(GameState::NoLoadingScreen);
             this->Advance(run, 2);
             return false;
 
         case EventCommand::SetFlag13:
-            state.SetGameFlag(story_flag::kSpotlight);
+            state.SetGameFlag(GameState::Spotlight);
             this->Advance(run, 2);
             return false;
 
         case EventCommand::ClearFlag13:
-            state.ClearGameFlag(story_flag::kSpotlight);
+            state.ClearGameFlag(GameState::Spotlight);
             this->Advance(run, 2);
             return false;
 
@@ -1211,13 +1211,13 @@ bool Talk::RunSystemCommand(EventRun& run)
                 view.trailY.fill(player.y);
                 view.trailX.fill(player.x);
 
-                for (int index = 1; index < state.roleCount && index < GameState::kRoles; ++index)
+                for (int index = 1; index < state.roleCount && index < GameState::Roles; ++index)
                 {
                     Role& role = state.roles[static_cast<std::size_t>(index)];
 
-                    if ((role.flags & role_flag::kFollower) != 0)
+                    if ((role.flags & Role::Follower) != 0)
                     {
-                        role.flags |= role_flag::kFastMove;
+                        role.flags |= Role::FastMove;
                         role.act.speed = static_cast<i16>(0x8000);
                     }
 
@@ -1230,14 +1230,14 @@ bool Talk::RunSystemCommand(EventRun& run)
             run.valueB = 0;
             run.valueA = 1;
 
-            for (int index = 1; index < state.roleCount && index < GameState::kRoles; ++index)
+            for (int index = 1; index < state.roleCount && index < GameState::Roles; ++index)
             {
                 Role& role = state.roles[static_cast<std::size_t>(index)];
 
-                if ((role.flags & role_flag::kFollower) != 0 && role.x == player.x && role.y == player.y)
+                if ((role.flags & Role::Follower) != 0 && role.x == player.x && role.y == player.y)
                 {
                     ++run.valueB;
-                    role.flags &= ~role_flag::kFastMove;
+                    role.flags &= ~Role::FastMove;
                     role.act.speed = 0;
                 }
 
@@ -1259,7 +1259,7 @@ bool Talk::RunSystemCommand(EventRun& run)
 
             if (state.FindRoleOrPlayer(id, run.found))
             {
-                state.roles[run.found].flags |= role_flag::kPassWalls;
+                state.roles[run.found].flags |= Role::PassWalls;
             }
 
             this->Advance(run, 4);

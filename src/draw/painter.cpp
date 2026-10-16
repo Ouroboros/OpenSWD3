@@ -127,38 +127,38 @@ void Painter::BuildBlitTables()
     auto rle = [this](u32 mode, Blitter forward, Blitter mirrored)
     {
         this->blitters[mode] = forward;
-        this->blitters[mode | draw_mode::kMirror] = mirrored;
+        this->blitters[mode | Painter::Mirror] = mirrored;
     };
 
     auto rleFlippable = [this](u32 mode, Blitter forward, Blitter mirrored)
     {
         this->blitters[mode] = forward;
-        this->blitters[mode | draw_mode::kMirror] = mirrored;
-        this->blitters[mode | draw_mode::kFlip] = forward;
-        this->blitters[mode | draw_mode::kFlip | draw_mode::kMirror] = mirrored;
+        this->blitters[mode | Painter::Mirror] = mirrored;
+        this->blitters[mode | Painter::Flip] = forward;
+        this->blitters[mode | Painter::Flip | Painter::Mirror] = mirrored;
     };
 
-    rleFlippable(draw_mode::kCopy, &Painter::BlitCopy, &Painter::BlitCopyMirrored);
-    rleFlippable(draw_mode::kShadow, &Painter::BlitShadow, &Painter::BlitShadowMirrored);
-    rleFlippable(draw_mode::kTranslucent, &Painter::BlitTranslucent, &Painter::BlitTranslucentMirrored);
-    rleFlippable(draw_mode::kSilhouette, &Painter::BlitSilhouette, &Painter::BlitSilhouetteMirrored);
-    rleFlippable(draw_mode::kGray, &Painter::BlitGray, &Painter::BlitGrayMirrored);
-    rleFlippable(draw_mode::kSmear, &Painter::BlitSmear, &Painter::BlitSmearMirrored);
-    rle(draw_mode::kAdditive, &Painter::BlitAdditive, &Painter::BlitAdditiveMirrored);
-    rle(draw_mode::kAlphaMap, &Painter::BlitAlphaMap, &Painter::BlitAlphaMapMirrored);
-    rle(draw_mode::kTint, &Painter::BlitTint, &Painter::BlitTintMirrored);
-    rle(draw_mode::kEdgeMark, &Painter::BlitEdgeMark, &Painter::BlitEdgeMarkMirrored);
-    this->blitters[draw_mode::kFadeDown] = &Painter::BlitFadeDown;
-    rle(draw_mode::kScaledGlow, &Painter::BlitScaledGlow, &Painter::BlitScaledGlowMirrored);
-    rle(draw_mode::kSubtractive, &Painter::BlitSubtractive, &Painter::BlitSubtractiveMirrored);
+    rleFlippable(Painter::Copy, &Painter::BlitCopy, &Painter::BlitCopyMirrored);
+    rleFlippable(Painter::Shadow, &Painter::BlitShadow, &Painter::BlitShadowMirrored);
+    rleFlippable(Painter::Translucent, &Painter::BlitTranslucent, &Painter::BlitTranslucentMirrored);
+    rleFlippable(Painter::Silhouette, &Painter::BlitSilhouette, &Painter::BlitSilhouetteMirrored);
+    rleFlippable(Painter::GrayUnder, &Painter::BlitGray, &Painter::BlitGrayMirrored);
+    rleFlippable(Painter::SmearUnder, &Painter::BlitSmear, &Painter::BlitSmearMirrored);
+    rle(Painter::Additive, &Painter::BlitAdditive, &Painter::BlitAdditiveMirrored);
+    rle(Painter::AlphaMap, &Painter::BlitAlphaMap, &Painter::BlitAlphaMapMirrored);
+    rle(Painter::TintUnder, &Painter::BlitTint, &Painter::BlitTintMirrored);
+    rle(Painter::EdgeMark, &Painter::BlitEdgeMark, &Painter::BlitEdgeMarkMirrored);
+    this->blitters[Painter::FadeDown] = &Painter::BlitFadeDown;
+    rle(Painter::ScaledGlow, &Painter::BlitScaledGlow, &Painter::BlitScaledGlowMirrored);
+    rle(Painter::Subtractive, &Painter::BlitSubtractive, &Painter::BlitSubtractiveMirrored);
 
     constexpr u32 kRaw = 0x80;
-    this->blitters[kRaw + draw_mode::kRawCopy] = &Painter::BlitRawCopy;
-    this->blitters[kRaw + (draw_mode::kRawCopy | draw_mode::kMirror)] = &Painter::BlitRawCopyMirrored;
-    this->blitters[kRaw + draw_mode::kRawKeyed] = &Painter::BlitRawKeyed;
-    this->blitters[kRaw + (draw_mode::kRawKeyed | draw_mode::kMirror)] = &Painter::BlitRawKeyedMirrored;
-    this->blitters[kRaw + draw_mode::kRawGradient] = &Painter::BlitRawGradient;
-    this->blitters[kRaw + draw_mode::kRawTranslucent] = &Painter::BlitRawTranslucent;
+    this->blitters[kRaw + Painter::RawCopy] = &Painter::BlitRawCopy;
+    this->blitters[kRaw + (Painter::RawCopy | Painter::Mirror)] = &Painter::BlitRawCopyMirrored;
+    this->blitters[kRaw + Painter::RawKeyed] = &Painter::BlitRawKeyed;
+    this->blitters[kRaw + (Painter::RawKeyed | Painter::Mirror)] = &Painter::BlitRawKeyedMirrored;
+    this->blitters[kRaw + Painter::RawGradient] = &Painter::BlitRawGradient;
+    this->blitters[kRaw + Painter::RawTranslucent] = &Painter::BlitRawTranslucent;
 }
 
 // swd32.exe 0x00423400: PixelFormatInit. Detects the converter of the display format; masks of an unknown format
@@ -175,9 +175,9 @@ bool Painter::InitPixelFormat(const Surface* screen)
         this->screenWidth = screen->Width();
         this->screenPitch = screen->Width();
         this->screenHeight = screen->Height();
-        redMask = Surface::kRedMask;
-        greenMask = Surface::kGreenMask;
-        blueMask = Surface::kBlueMask;
+        redMask = Surface::RedMask;
+        greenMask = Surface::GreenMask;
+        blueMask = Surface::BlueMask;
     }
 
     this->red.mask = redMask;
@@ -483,7 +483,7 @@ u16* Painter::Pixel(int x, int y) const
 // swd32.exe 0x00417050: the picture at the four diagonal neighbours as a silhouette
 void Painter::DrawOutline(int x, int y, int width, int height, u32 mode, const DrawArgument& argument)
 {
-    mode |= draw_mode::kSilhouette;
+    mode |= Painter::Silhouette;
     this->DrawPicture(x + 1, y + 1, width, height, mode, argument);
     this->DrawPicture(x - 1, y - 1, width, height, mode, argument);
     this->DrawPicture(x - 1, y + 1, width, height, mode, argument);
@@ -516,10 +516,10 @@ int Painter::DrawPicture(int x, int y, int width, int height, u32 mode, const Dr
 
     if (ReadPixel(this->source) == 0xFFFF && this->palette == nullptr)
     {
-        mode |= draw_mode::kRle;
+        mode |= Painter::RleSource;
     }
 
-    if ((mode & draw_mode::kEffectMask) == draw_mode::kTranslucent)
+    if ((mode & Painter::EffectMask) == Painter::Translucent)
     {
         if (this->options.alpha <= 0)
         {
@@ -527,7 +527,7 @@ int Painter::DrawPicture(int x, int y, int width, int height, u32 mode, const Dr
         }
         else if (this->options.alpha > 0xF)
         {
-            mode &= draw_mode::kRle | draw_mode::kMirror | draw_mode::kFlip;
+            mode &= Painter::RleSource | Painter::Mirror | Painter::Flip;
         }
     }
 
@@ -658,7 +658,7 @@ int Painter::DrawPicture(int x, int y, int width, int height, u32 mode, const Dr
         place.pitch = this->screenPitch;
         int skip = place.skipTop;
 
-        if ((mode & draw_mode::kFlip) != 0)
+        if ((mode & Painter::Flip) != 0)
         {
             place.skipTop = bottomSkip;
             skip = bottomSkip;
@@ -666,9 +666,9 @@ int Painter::DrawPicture(int x, int y, int width, int height, u32 mode, const Dr
             place.dest = destEnd;
         }
 
-        const bool rle = (mode & draw_mode::kRle) != 0;
+        const bool rle = (mode & Painter::RleSource) != 0;
 
-        if (!rle && (mode & draw_mode::kMirror) != 0)
+        if (!rle && (mode & Painter::Mirror) != 0)
         {
             place.skipLeft = width - place.skipLeft - 1;
         }

@@ -70,9 +70,9 @@ TEST_CASE("text input: editing keeps whole characters within the capacity")
     Char(input, 'r', entry, audio);
     CHECK(input.CopyText(64) == swd3::Big5(u8"丁qr乙"));
     Key(input, TextKey::Return, entry, audio);
-    CHECK_EQ(input.GetResult(), TextInput::kEnter);
+    CHECK_EQ(input.GetResult(), TextInput::Enter);
     Key(input, TextKey::Escape, entry, audio);
-    CHECK_EQ(input.GetResult(), TextInput::kEscape);
+    CHECK_EQ(input.GetResult(), TextInput::Escape);
 }
 
 TEST_CASE("text input: lead bytes typed one by one, refused characters")

@@ -165,7 +165,7 @@ bool Graphics::Init(int mode, int width, int height, int bitsPerPixel)
         return false;
     }
 
-    if (!this->SetCooperativeLevel(mode == Graphics::kWindowed ? Graphics::kNormal : Graphics::kExclusive))
+    if (!this->SetCooperativeLevel(mode == Graphics::Windowed ? Graphics::Normal : Graphics::Exclusive))
     {
         return false;
     }
@@ -226,18 +226,18 @@ bool Graphics::CreateSurfaces()
 {
     this->QueryVideoMemory();
 
-    if (this->cooperativeFlags == Graphics::kNormal)
+    if (this->cooperativeFlags == Graphics::Normal)
     {
-        this->primary = std::make_unique<Surface>(Display::kWidth, Display::kHeight);
+        this->primary = std::make_unique<Surface>(Display::Width, Display::Height);
 
         if (!this->CreateClipper())
         {
             return false;
         }
 
-        this->width = Display::kWidth;
-        this->height = Display::kHeight;
-        this->back = this->CreateOffscreen(Display::kWidth, Display::kHeight);
+        this->width = Display::Width;
+        this->height = Display::Height;
+        this->back = this->CreateOffscreen(Display::Width, Display::Height);
         this->primaryPitch = this->primary->Width() * 2;
         this->primaryHeight = this->primary->Height();
         this->backPitch = this->back->Width() * 2;
@@ -296,7 +296,7 @@ bool Graphics::Present()
         return true;
     }
 
-    if ((this->cooperativeFlags & Graphics::kFullScreenFlag) == 0 && this->back != nullptr)
+    if ((this->cooperativeFlags & Graphics::FullScreenFlag) == 0 && this->back != nullptr)
     {
         std::copy_n(
             this->back->Pixels(),
@@ -376,22 +376,22 @@ u32 Graphics::DetectPixelFormat()
 {
     this->pixelFormat = 0;
 
-    if (Surface::kGreenMask == 0x7E0)
+    if (Surface::GreenMask == 0x7E0)
     {
         this->pixelFormat = 2;
     }
 
-    if (Surface::kBlueMask == 0x3F)
+    if (Surface::BlueMask == 0x3F)
     {
         this->pixelFormat = 1;
     }
 
-    if (Surface::kRedMask == 0xFC00)
+    if (Surface::RedMask == 0xFC00)
     {
         this->pixelFormat = 3;
     }
 
-    return Surface::kGreenMask;
+    return Surface::GreenMask;
 }
 
 // swd32.exe 0x00437E90: pitch in bytes

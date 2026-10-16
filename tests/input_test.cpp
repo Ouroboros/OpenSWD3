@@ -141,7 +141,7 @@ TEST_CASE("controls: the poll reads the configured keys, the mouse and the idle 
         controls.Poll(input, config, state, 40 + poll);
     }
 
-    CHECK(!state.GameFlag(swd3::Controls::kIdleFlag));
+    CHECK(!state.GameFlag(swd3::Controls::IdleFlag));
     controls.Poll(input, config, state, 500);
-    CHECK(state.GameFlag(swd3::Controls::kIdleFlag));
+    CHECK(state.GameFlag(swd3::Controls::IdleFlag));
 }

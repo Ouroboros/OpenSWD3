@@ -25,13 +25,13 @@ void FightTalk::Load(const std::string& installDirectory, u16 battle)
         this->open = true;
     }
 
-    this->file.SeekBegin(static_cast<i32>(FightTalk::kHeaderBytes + 4 * static_cast<u32>(battle)));
+    this->file.SeekBegin(static_cast<i32>(FightTalk::HeaderBytes + 4 * static_cast<u32>(battle)));
     u32 offset = 0;
     this->file.ReadDword(offset);
-    this->file.SeekBegin(static_cast<i32>(offset + FightTalk::kHeaderBytes));
-    this->script.assign(FightTalk::kScriptBytes, 0);
+    this->file.SeekBegin(static_cast<i32>(offset + FightTalk::HeaderBytes));
+    this->script.assign(FightTalk::ScriptBytes, 0);
     this->cursor = 0;
-    u32 bytes = FightTalk::kScriptBytes;
+    u32 bytes = FightTalk::ScriptBytes;
     this->file.Read(this->script.data(), bytes);
 }
 

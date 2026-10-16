@@ -32,12 +32,12 @@ TEST_CASE("menu: texts, names and tabs match swd32.exe")
     CHECK(swd3test::SameText(exe, 0x004A7054, text::kSample));
     CHECK(swd3test::SameText(exe, 0x004A7068, text::kSpeedSlow));
     CHECK(swd3test::SameText(exe, 0x004A7088, text::kSpeedFastest));
-    CHECK(swd3test::SameText(exe, 0x0049FAA4, swd3::SaveSlots::kDateTemplate));
-    CHECK(swd3test::SameText(exe, 0x0049FA9C, swd3::SaveSlots::kHours));
+    CHECK(swd3test::SameText(exe, 0x0049FAA4, swd3::SaveSlots::DateTemplate));
+    CHECK(swd3test::SameText(exe, 0x0049FA9C, swd3::SaveSlots::Hours));
     CHECK(std::memcmp(exe.data() + (0x0049E188 - 0x400000), swd3::Party::DefaultNames().data(), 0x40) == 0);
     CHECK(std::memcmp(exe.data() + (0x0049E148 - 0x400000), swd3::Party::DefaultNames().data(), 0x40) == 0);
     static_assert(sizeof(swd3::MenuTab) == 0x1C);
-    CHECK(std::memcmp(exe.data() + (0x004A6A38 - 0x400000), swd3::Menu::kInitialTabs.data(), 0x70) == 0);
+    CHECK(std::memcmp(exe.data() + (0x004A6A38 - 0x400000), swd3::Menu::InitialTabs.data(), 0x70) == 0);
 }
 
 TEST_CASE("menu: name cheats")
@@ -73,7 +73,7 @@ TEST_CASE("menu: the preview of a saved game")
     painter.Init(surface);
     swd3::SavePreview preview;
     swd3::SaveSlots::LoadPreview(preview, 0, directory, painter);
-    CHECK_EQ(preview.state, swd3::SavePreview::kLoaded);
+    CHECK_EQ(preview.state, swd3::SavePreview::Loaded);
     CHECK_EQ(preview.date.size(), 16u);
     CHECK_EQ(preview.date[4], '/');
     CHECK_EQ(preview.thumbnail.size(), 0x4B00u);
@@ -84,5 +84,5 @@ TEST_CASE("menu: the preview of a saved game")
     CHECK(!preview.playTime.empty());
     swd3::SavePreview missing;
     swd3::SaveSlots::LoadPreview(missing, 97, directory, painter);
-    CHECK_EQ(missing.state, swd3::SavePreview::kMissing);
+    CHECK_EQ(missing.state, swd3::SavePreview::Missing);
 }

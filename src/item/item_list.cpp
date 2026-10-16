@@ -17,7 +17,7 @@ constexpr std::u8string_view kEmptyName = u8"無";
 
 bool Pending(const ItemNode& node)
 {
-    return (node.record.data.kind & ItemNode::kPendingKind) != 0;
+    return (node.record.data.kind & ItemNode::PendingKind) != 0;
 }
 
 // strncpy: the name, then NULs up to the size
@@ -59,7 +59,7 @@ std::unique_ptr<ItemNode> NewNode(u16 id, Database& database)
 {
     auto node = std::make_unique<ItemNode>();
 
-    if (id == ItemNode::kEmpty)
+    if (id == ItemNode::Empty)
     {
         SetName(*node, Big5(kEmptyName));
     }
@@ -79,13 +79,13 @@ void MergePendingCounts(ItemLink& list)
 {
     for (ItemNode* node = list.get(); node != nullptr; node = node->next.get())
     {
-        node->record.data.kind &= ~ItemNode::kPendingKind;
+        node->record.data.kind &= ~ItemNode::PendingKind;
         node->count = static_cast<i16>(node->count + node->pending);
         node->pending = 0;
 
-        if (node->count > ItemNode::kMaxCount)
+        if (node->count > ItemNode::MaxCount)
         {
-            node->count = ItemNode::kMaxCount;
+            node->count = ItemNode::MaxCount;
         }
     }
 }
@@ -124,7 +124,7 @@ void FreeItemList(ItemLink& list)
 std::unique_ptr<ItemNode> NewEmptyItem()
 {
     auto node = std::make_unique<ItemNode>();
-    node->id = ItemNode::kEmpty;
+    node->id = ItemNode::Empty;
     node->count = 1;
     SetName(*node, Big5(kEmptyName));
     return node;
@@ -215,16 +215,16 @@ ItemNode* AddFlaggedItem(ItemLink& list, u16 id, i16 amount, i16 flagged, Databa
             ItemNode& node = **link;
             node.count = static_cast<i16>(node.count + amount);
 
-            if (node.count > ItemNode::kMaxCount)
+            if (node.count > ItemNode::MaxCount)
             {
-                node.count = ItemNode::kMaxCount;
+                node.count = ItemNode::MaxCount;
             }
 
             remaining = node.count;
 
             if (remaining > 0)
             {
-                if (node.id == ItemNode::kEmpty)
+                if (node.id == ItemNode::Empty)
                 {
                     node.count = 1;
                 }
@@ -256,9 +256,9 @@ ItemNode* AddFlaggedItem(ItemLink& list, u16 id, i16 amount, i16 flagged, Databa
             ItemNode& node = **link;
             node.count = static_cast<i16>(node.count + remaining);
 
-            if (node.count > ItemNode::kMaxCount)
+            if (node.count > ItemNode::MaxCount)
             {
-                node.count = ItemNode::kMaxCount;
+                node.count = ItemNode::MaxCount;
             }
 
             if (node.count <= 0)
@@ -267,7 +267,7 @@ ItemNode* AddFlaggedItem(ItemLink& list, u16 id, i16 amount, i16 flagged, Databa
                 return nullptr;
             }
 
-            if (node.id == ItemNode::kEmpty)
+            if (node.id == ItemNode::Empty)
             {
                 node.count = 1;
             }
@@ -288,14 +288,14 @@ ItemNode* AddFlaggedItem(ItemLink& list, u16 id, i16 amount, i16 flagged, Databa
         return nullptr;
     }
 
-    if (id == ItemNode::kEmpty)
+    if (id == ItemNode::Empty)
     {
         remaining = 1;
     }
 
     if (flagged == 1)
     {
-        node->record.data.kind |= ItemNode::kPendingKind;
+        node->record.data.kind |= ItemNode::PendingKind;
     }
 
     node->count = remaining;
@@ -326,9 +326,9 @@ ItemNode* AddItem(ItemLink& list, u16 id, i16 amount, ItemCountMode mode, Databa
         {
             node.count = static_cast<i16>(node.count + amount);
 
-            if (node.count > ItemNode::kMaxCount)
+            if (node.count > ItemNode::MaxCount)
             {
-                node.count = ItemNode::kMaxCount;
+                node.count = ItemNode::MaxCount;
                 node.pending = 0;
                 return &node;
             }
@@ -349,9 +349,9 @@ ItemNode* AddItem(ItemLink& list, u16 id, i16 amount, ItemCountMode mode, Databa
         {
             node.pending = static_cast<i16>(node.pending + amount);
 
-            if (node.pending > ItemNode::kMaxCount)
+            if (node.pending > ItemNode::MaxCount)
             {
-                node.pending = ItemNode::kMaxCount;
+                node.pending = ItemNode::MaxCount;
                 node.count = 0;
                 return &node;
             }
@@ -373,9 +373,9 @@ ItemNode* AddItem(ItemLink& list, u16 id, i16 amount, ItemCountMode mode, Databa
         {
             node.pending = static_cast<i16>(node.pending + amount);
 
-            if (node.pending > ItemNode::kMaxCount)
+            if (node.pending > ItemNode::MaxCount)
             {
-                node.pending = ItemNode::kMaxCount;
+                node.pending = ItemNode::MaxCount;
                 node.count = 0;
                 return &node;
             }
@@ -393,7 +393,7 @@ ItemNode* AddItem(ItemLink& list, u16 id, i16 amount, ItemCountMode mode, Databa
             }
         }
 
-        if (node.id == ItemNode::kEmpty)
+        if (node.id == ItemNode::Empty)
         {
             node.count = 1;
             node.pending = 0;
@@ -414,13 +414,13 @@ ItemNode* AddItem(ItemLink& list, u16 id, i16 amount, ItemCountMode mode, Databa
         return nullptr;
     }
 
-    const i16 added = id == ItemNode::kEmpty ? i16{1} : amount;
+    const i16 added = id == ItemNode::Empty ? i16{1} : amount;
 
     if (mode == ItemCountMode::Pending || mode == ItemCountMode::PendingOnly)
     {
         node->pending = added;
         node->count = 0;
-        node->record.data.kind |= ItemNode::kPendingKind;
+        node->record.data.kind |= ItemNode::PendingKind;
     }
     else if (mode == ItemCountMode::Count)
     {

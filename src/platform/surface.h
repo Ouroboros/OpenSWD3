@@ -17,9 +17,9 @@ class Surface
 {
 public:
     // The display format (the game window shows RGB565).
-    static constexpr u32 kRedMask = 0xF800;
-    static constexpr u32 kGreenMask = 0x7E0;
-    static constexpr u32 kBlueMask = 0x1F;
+    static constexpr u32 RedMask = 0xF800;
+    static constexpr u32 GreenMask = 0x7E0;
+    static constexpr u32 BlueMask = 0x1F;
 
     Surface() = default;
     Surface(int width, int height);

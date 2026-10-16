@@ -34,7 +34,7 @@ struct SoundEntry
 class SoundEffects
 {
 public:
-    static constexpr int kSounds = 3000;
+    static constexpr int Sounds = 3000;
 
     explicit SoundEffects(AudioDevice& device);
     ~SoundEffects();

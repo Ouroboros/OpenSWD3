@@ -69,10 +69,10 @@ void PathNodePool::Init()
         node->poolNext = this->head->poolNext;
         this->head->poolNext = node;
         ++this->free;
-    } while (this->free < PathNodePool::kInitial);
+    } while (this->free < PathNodePool::Initial);
 
-    this->free = PathNodePool::kInitial;
-    this->peak = PathNodePool::kInitial;
+    this->free = PathNodePool::Initial;
+    this->peak = PathNodePool::Initial;
     this->unused = 0;
 }
 
@@ -157,7 +157,7 @@ int PathFinder::FindPath(int fromX, int fromY, int toX, int toY, int width, int 
         }
     };
 
-    put(PathFinder::kEnd);
+    put(PathFinder::End);
     this->width = width;
     this->height = height;
 
@@ -188,12 +188,12 @@ int PathFinder::FindPath(int fromX, int fromY, int toX, int toY, int width, int 
     {
         const int dy = (current->y >> 4) - (next->y >> 4);
         const int dx = (current->x >> 4) - (next->x >> 4);
-        const int index = PathFinder::kDeltaY[static_cast<std::size_t>(dy + 1)] +
-                          PathFinder::kDeltaX[static_cast<std::size_t>(dx + 1)];
-        put(static_cast<u8>(PathFinder::kDirectionByDelta[static_cast<std::size_t>(index + 4)]));
+        const int index =
+            PathFinder::DeltaY[static_cast<std::size_t>(dy + 1)] + PathFinder::DeltaX[static_cast<std::size_t>(dx + 1)];
+        put(static_cast<u8>(PathFinder::DirectionByDelta[static_cast<std::size_t>(index + 4)]));
         ++written;
 
-        if (++steps > PathFinder::kMaxSteps)
+        if (++steps > PathFinder::MaxSteps)
         {
             this->reporter.ShowError(kOverflowCaption, kOverflowText);
         }
@@ -201,7 +201,7 @@ int PathFinder::FindPath(int fromX, int fromY, int toX, int toY, int width, int 
         current = next;
     }
 
-    put(PathFinder::kEnd);
+    put(PathFinder::End);
     this->found = 1;
     this->Reset();
     return 1;
@@ -389,7 +389,7 @@ void PathFinder::TryNeighbour(PathNode& parent, int x, int y, int targetX, int t
             this->Propagate(*closedNode);
         }
 
-        parent.children[0]->direction = PathFinder::kOppositeDirection[static_cast<std::size_t>(direction)];
+        parent.children[0]->direction = PathFinder::OppositeDirection[static_cast<std::size_t>(direction)];
         return;
     }
 

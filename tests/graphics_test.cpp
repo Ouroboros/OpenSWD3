@@ -13,7 +13,7 @@ TEST_CASE("graphics: full screen setup as the game requests it")
     swd3::Display display;
     swd3test::RecordingReporter errors;
     Graphics graphics(display, errors);
-    CHECK(graphics.Init(Graphics::kFullScreen, 640, 480, 16));
+    CHECK(graphics.Init(Graphics::FullScreen, 640, 480, 16));
     swd3::Surface* primary = graphics.GetSurface(Graphics::SurfaceId::Primary);
     CHECK(primary != nullptr);
     CHECK(graphics.GetSurface(Graphics::SurfaceId::Back) == nullptr);
@@ -33,7 +33,7 @@ TEST_CASE("graphics: other depths fail like an unsupported display mode")
     swd3::Display display;
     swd3test::RecordingReporter errors;
     Graphics graphics(display, errors);
-    CHECK(!graphics.Init(Graphics::kFullScreen, 640, 480, 8));
+    CHECK(!graphics.Init(Graphics::FullScreen, 640, 480, 8));
     CHECK_EQ(errors.messages.size(), 1u);
     CHECK(errors.messages[0] == "DirectDraw SetDisplayMode Error!!: DDERR_UNSUPPORTEDMODE  ");
 }
@@ -43,7 +43,7 @@ TEST_CASE("graphics: windowed mode presents the back buffer")
     swd3::Display display;
     swd3test::RecordingReporter errors;
     Graphics graphics(display, errors);
-    CHECK(graphics.Init(Graphics::kWindowed, 320, 200, 16));
+    CHECK(graphics.Init(Graphics::Windowed, 320, 200, 16));
     swd3::Surface* back = graphics.GetSurface(Graphics::SurfaceId::Back);
     CHECK(back != nullptr);
     CHECK_EQ(back->Width(), 640);

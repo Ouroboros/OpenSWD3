@@ -128,8 +128,8 @@ File* Database::OpenData(File& file, bool& open, std::string_view name)
 void Database::ReadScript(File& file, u32 offset, std::vector<u8>& script)
 {
     file.SeekBegin(static_cast<i32>(offset + kDataBase));
-    script.assign(Database::kScriptBytes, 0);
-    u32 bytes = Database::kScriptBytes;
+    script.assign(Database::ScriptBytes, 0);
+    u32 bytes = Database::ScriptBytes;
     file.Read(script.data(), bytes);
 }
 
@@ -321,7 +321,7 @@ bool Database::LoadObject(ObjectRecord& record, u16 id)
     this->ReadScript(*file, offset, script);
     ScriptReader code(script);
 
-    if (code.WordAt(0) != Database::kNameTag)
+    if (code.WordAt(0) != Database::NameTag)
     {
         return false;
     }
@@ -466,7 +466,7 @@ bool Database::LoadObject(ObjectRecord& record, u16 id)
                 word(data.unk3E);
                 break;
 
-            case Database::kNameTag:
+            case Database::NameTag:
             {
                 const int length = code.TextLength();
 

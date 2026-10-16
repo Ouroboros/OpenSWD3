@@ -50,32 +50,30 @@ enum class ActOpcode : u16
     AnchorY = 'Y' | 'A' << 8,
 };
 
-// Flags of ActState::flags.
-namespace act_flag
-{
-
-constexpr u32 kInvisible = 0x1;  // 'IV' sets, 'ON' clears
-constexpr u32 kKeptOnRestart = 0x80000003u;
-constexpr u32 kKeptOnTurn = 0x80000000u;
-constexpr u32 kMaskBlend = 0x4;   // 'MA'
-constexpr u32 kHalf = 0x8;        // 'HA'
-constexpr u32 kDrawLevel = 0x10;  // 'DL'
-constexpr u32 kSignal = 0x14;     // 'SG'
-constexpr u32 kNoBlend = 0x2C;    // 'NA'
-
-}  // namespace act_flag
-
 // Playback of an action script (0x98 bytes in the original; also the tail of a role at +0x40). Field offsets of the
 // original are given for reference.
 struct ActState
 {
+    // Flags of ActState::flags.
+    enum Flag : u32
+    {
+        Invisible = 0x1,  // 'IV' sets, 'ON' clears
+        KeptOnRestart = 0x80000003u,
+        KeptOnTurn = 0x80000000u,
+        MaskBlend = 0x4,   // 'MA'
+        Half = 0x8,        // 'HA'
+        DrawLevel = 0x10,  // 'DL'
+        Signal = 0x14,     // 'SG'
+        NoBlend = 0x2C,    // 'NA'
+    };
+
     i32 id = 0;              // +0x00 act id (id / 3000: archive, id % 3000: entry)
     i32 lastId = 0;          // +0x04
     i32 action = 0;          // +0x08 first sub entry of the action
     i32 lastAction = 0;      // +0x0C
     i32 x = 0;               // +0x10 'YX'
     i32 y = 0;               // +0x14
-    u32 flags = 0;           // +0x18 act_flag
+    u32 flags = 0;           // +0x18 ActState::Flag
     i32 unknown1C = 0;       // +0x1C
     i32 savedAction = 0;     // +0x20 the action before the role turned to face someone
     i32 effectA = 0;         // +0x24 'EA'

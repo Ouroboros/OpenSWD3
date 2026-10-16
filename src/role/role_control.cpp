@@ -11,8 +11,8 @@ namespace
 {
 
 constexpr u32 kNone = 0xFFFFFFFF;
-constexpr u32 kSolid = 0x60000000;
-constexpr u32 kSlideMask = 0x60800000;
+constexpr u32 kSolid = MapHeader::Wall | MapHeader::SolidRole;
+constexpr u32 kSlideMask = MapHeader::Wall | MapHeader::SolidRole | MapHeader::Unk800000;
 
 // The steps of a slide: the step taken, then the probe bits that must be clear (the tables on the stack of
 // 0x004040B0).
@@ -34,7 +34,7 @@ u32 RoleControl::Cell(std::ptrdiff_t index) const
 {
     const std::vector<u32>& blocks = this->game.state.map.blocks;
     return index >= 0 && static_cast<std::size_t>(index) < blocks.size() ? blocks[static_cast<std::size_t>(index)]
-                                                                         : 0xFFFFFFFF;
+                                                                         : MapHeader::Outside;
 }
 
 // swd32.exe 0x00404510: which lanes beside a move are free of walls (cell bits 29 and 30): for shifts 0..2 the lane
@@ -256,11 +256,11 @@ u32 RoleControl::FindRoleAt(u32 x, u32 y) const
         return kNone;
     }
 
-    for (u32 index = 1; index < static_cast<u32>(state.roleCount) && index < GameState::kRoles; ++index)
+    for (u32 index = 1; index < static_cast<u32>(state.roleCount) && index < GameState::Roles; ++index)
     {
         const Role& role = state.roles[index];
 
-        if (role.event == 0 || (role.flags & role_flag::kVisible) == 0)
+        if (role.event == 0 || (role.flags & Role::Visible) == 0)
         {
             continue;
         }
@@ -283,7 +283,7 @@ u32 RoleControl::FindTouchRoleAt(u32 x, u32 y) const
 {
     const u32 index = this->FindRoleAt(x, y);
 
-    if (index != kNone && (this->game.state.roles[index].flags & role_flag::kTouchEvent) == 0)
+    if (index != kNone && (this->game.state.roles[index].flags & Role::TouchEvent) == 0)
     {
         return kNone;
     }
@@ -310,8 +310,9 @@ u32 RoleControl::StepEvent(int index, int stepX, int stepY, u32& role) const
     auto region = [this](std::ptrdiff_t at) -> u32
     {
         const std::vector<u32>& blocks = this->game.state.map.blocks;
-        return at >= 0 && static_cast<std::size_t>(at) < blocks.size() ? blocks[static_cast<std::size_t>(at)] & 0xFF
-                                                                       : 0;
+        return at >= 0 && static_cast<std::size_t>(at) < blocks.size()
+                   ? blocks[static_cast<std::size_t>(at)] & MapHeader::RegionMask
+                   : 0;
     };
 
     auto row = [&](std::ptrdiff_t from, u32 touchX, u32 touchY, int count, bool& hit) -> u32

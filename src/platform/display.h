@@ -39,10 +39,10 @@ LogicalPoint ToLogical(const Viewport& viewport, float outputX, float outputY);
 class Display
 {
 public:
-    static constexpr int kWidth = 640;
-    static constexpr int kHeight = 480;
-    static constexpr int kDefaultWindowWidth = 1280;
-    static constexpr int kDefaultWindowHeight = 960;
+    static constexpr int Width = 640;
+    static constexpr int Height = 480;
+    static constexpr int DefaultWindowWidth = 1280;
+    static constexpr int DefaultWindowHeight = 960;
 
     Display() = default;
     ~Display();

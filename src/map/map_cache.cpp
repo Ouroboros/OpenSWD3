@@ -93,7 +93,7 @@ u32 MapCache::Check(int mode)
 // Empties every unit file and resets the table.
 void MapCache::Clear()
 {
-    for (int unit = 0; unit < MapCache::kUnits; ++unit)
+    for (int unit = 0; unit < MapCache::Units; ++unit)
     {
         File file;
 
@@ -118,14 +118,14 @@ void MapCache::Clear()
             File::Access::ReadWrite
         ))
     {
-        std::array<Slot, MapCache::kUnits> slots;
+        std::array<Slot, MapCache::Units> slots;
 
-        for (int unit = 0; unit < MapCache::kUnits; ++unit)
+        for (int unit = 0; unit < MapCache::Units; ++unit)
         {
             slots[static_cast<std::size_t>(unit)].unit = static_cast<u32>(unit);
         }
 
-        u32 bytes = MapCache::kTableBytes;
+        u32 bytes = MapCache::TableBytes;
         table.SeekBegin(0);
         table.Truncate();
         table.Write(slots.data(), bytes);
@@ -175,7 +175,7 @@ u32 MapCache::CacheBytes() const
 {
     u32 total = 0;
 
-    for (int unit = 0; unit < MapCache::kUnits; ++unit)
+    for (int unit = 0; unit < MapCache::Units; ++unit)
     {
         File file;
 
@@ -201,7 +201,7 @@ constexpr int kTableSlots = 0x20;  // the 0x200-byte buffer the table is read in
 constexpr u32 kKeptHeader = 0x10;
 constexpr int kDictionaryBits = 14;
 
-u32 HeaderDword(const std::array<u8, MapCache::kHeaderBytes>& header, std::size_t at)
+u32 HeaderDword(const std::array<u8, MapCache::HeaderBytes>& header, std::size_t at)
 {
     return static_cast<u32>(
         header[at] | header[at + 1] << 8 | header[at + 2] << 16 | static_cast<u32>(header[at + 3]) << 24
@@ -257,8 +257,8 @@ void MapCache::DecompressMap(int unit, u32 base, u32 size, int bitsPerPixel, u32
 
     cached.SeekBegin(0);
     this->lmf.SeekBegin(static_cast<i32>(size + base));
-    std::array<u8, MapCache::kHeaderBytes> header = {};
-    u32 read = MapCache::kHeaderBytes;
+    std::array<u8, MapCache::HeaderBytes> header = {};
+    u32 read = MapCache::HeaderBytes;
 
     if (!this->lmf.Read(header.data(), read))
     {
@@ -365,12 +365,12 @@ const u8* MapCache::GetCachedMap(u32 map, u32 base, u32 size, int bitsPerPixel)
         this->DecompressMap(0, base, size, bitsPerPixel, unpacked);
         slots[0] = {map, unpacked, 0, 0};
 
-        for (int unit = 1; unit < MapCache::kUnits; ++unit)
+        for (int unit = 1; unit < MapCache::Units; ++unit)
         {
             slots[static_cast<std::size_t>(unit)].unit = static_cast<u32>(unit);
         }
 
-        u32 written = MapCache::kTableBytes;
+        u32 written = MapCache::TableBytes;
         table.SeekBegin(0);
         table.Write(slots.data(), written);
         table.Truncate();

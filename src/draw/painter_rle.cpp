@@ -358,7 +358,7 @@ u16* Painter::WaveLine(u16* dest)
 
     this->wavePosition = position;
     const std::size_t index = static_cast<u32>(position) / 4;
-    return dest + (index < Painter::kWaveOffsets.size() ? Painter::kWaveOffsets[index] : 0);
+    return dest + (index < Painter::WaveTable.size() ? Painter::WaveTable[index] : 0);
 }
 
 void Painter::WaveAdvance()
