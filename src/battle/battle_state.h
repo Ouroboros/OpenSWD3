@@ -410,6 +410,17 @@ public:
     i32 unk53BD7C = 0;       // the units an enemy's sweep hits
     i32 unk53BD84 = 0;       // the units an enemy's sweep defeated
     i32 unk53BFE0 = 0;       // 1 once an enemy faded or left (Game::EnemyActionFrame)
+    // The turn of an enemy (Game::EnemyFrame).
+    std::array<u16, Enemies> enemyOrders = {};  // 0x005028AC the order of the fight talk for each enemy
+    i32 unk53C044 = 0;                          // the boost of the enemies' gauges
+    i32 unk53BD58 = 0;                          // the enemy (1-based) whose turn ended held
+    i32 unk53BF8C = 0;                          // 1 while an enemy gathers the targets of a sweep
+    i32 unk53C014 = 0;                          // 1 once the acting enemy picked its target
+    i32 unk53BCFC = 0;                          // the target of the acting enemy
+    i32 unk53BFD4 = 0;                          // 1: an ordered enemy aims at the enemies
+    i32 unk53BF9C = 0;
+    i32 unk53BDBC = 0;  // the hit act of the enemies (unk53AE90)
+    i32 unk53BFDC = 0;
     i32 unk4A7564 = -1;      // the enemy the auto battle aims at (1-based), -1: none
     u16 unk4A7644 = 0xFFFF;  // a role unit that may take the panel in any battle state (SelectRoleUnit)
     i32 unk4A7548 = 1;       // the command chosen in the menu (1-based)

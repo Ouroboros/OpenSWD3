@@ -309,6 +309,13 @@ private:
     int EnemyActionFrame(int enemy, int target);
     int EnemyAttackAction(BattleEnemy& unit, int target);
     int CallEnemies(BattleEnemy& unit);
+    int EnemyFrame(int enemy);
+    void EnemyGatherSweep(BattleEnemy& unit);
+    void EnemyPickTarget(BattleEnemy& unit, int enemy);
+    bool AimedDown(i32 index) const;
+    void EnemyChooseCommand(BattleEnemy& unit, int enemy);
+    void ReturnHeldEscort(BattleRole& role, std::size_t index, bool dropCommand);
+    void EnemyAfterAction(BattleEnemy& unit, int enemy);
     void DrawRolePanels();
     template <typename Next>
     void StepPanelGauge(i32& shown, i32& target, Next next, int picture, int x, int y, i32 downNear, i32 downFar);
