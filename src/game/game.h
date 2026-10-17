@@ -254,7 +254,9 @@ private:
     void DrawLevelUpStats();
     void MenuUp();
     bool CommandEnabled(i32 command) const;
-    void AimUp();
+    static void StepWrapped(i32& place, int step, i32 count);
+    void AimStep(int step);
+    void MenuDown();
     void DrawRolePanels();
     template <typename Next>
     void StepPanelGauge(i32& shown, i32& target, Next next, int picture, int x, int y, i32 downNear, i32 downFar);

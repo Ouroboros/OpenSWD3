@@ -3597,7 +3597,7 @@ void Game::MenuUp()
             }
 
             tick();
-            this->AimUp();
+            this->AimStep(-1);
             return;
 
         case kListState4:
@@ -3695,8 +3695,23 @@ bool Game::CommandEnabled(i32 command) const
     return command >= 1 && at < this->battleState.commandEnabled.size() && this->battleState.commandEnabled[at] != 0;
 }
 
-// The aim of MenuUp in battle state 3 (inline in the original); see MenuUp.
-void Game::AimUp()
+// A 1-based place moved by `step`, wrapping within 1..`count` (the original tests only the end it moves towards).
+void Game::StepWrapped(i32& place, int step, i32 count)
+{
+    place += step;
+
+    if (place < 1)
+    {
+        place = count;
+    }
+    else if (place > count)
+    {
+        place = 1;
+    }
+}
+
+// The aim of MenuUp (`step` -1) and MenuDown (1) in battle state 3 (inline in each); see MenuUp.
+void Game::AimStep(int step)
 {
     BattleState& battle = this->battleState;
     BattleServices& services = this->battleServices;
@@ -3738,10 +3753,7 @@ void Game::AimUp()
 
             while (true)
             {
-                if (--battle.unk4A7550 < 1)
-                {
-                    battle.unk4A7550 = partyRoles;
-                }
+                StepWrapped(battle.unk4A7550, step, partyRoles);
 
                 if (++tries > static_cast<int>(BattleState::RoleCycle.size()) * kHangTries ||
                     battle.unk4A7550 >= static_cast<i32>(BattleState::RoleCycle.size()))
@@ -3768,10 +3780,7 @@ void Game::AimUp()
 
         do
         {
-            if (--battle.unk4A754C < 1)
-            {
-                battle.unk4A754C = static_cast<i32>(battle.roleCount);
-            }
+            StepWrapped(battle.unk4A754C, step, static_cast<i32>(battle.roleCount));
 
             if (++tries > static_cast<int>(BattleState::RoleUnits) * kHangTries)
             {
@@ -3784,21 +3793,14 @@ void Game::AimUp()
         return;
     }
 
-    if (--battle.unk4A7550 < 1)
-    {
-        battle.unk4A7550 = static_cast<i32>(battle.enemyCount);
-    }
-
+    StepWrapped(battle.unk4A7550, step, static_cast<i32>(battle.enemyCount));
     int tries = 0;
 
     for (battle.unk53BCF4 = battle.enemyOrder[static_cast<std::size_t>(battle.unk4A7550 - 1)];
          this->battleEnemies[static_cast<std::size_t>(battle.unk53BCF4)].IsDefeated();
          battle.unk53BCF4 = battle.enemyOrder[static_cast<std::size_t>(battle.unk4A7550 - 1)])
     {
-        if (--battle.unk4A7550 < 1)
-        {
-            battle.unk4A7550 = static_cast<i32>(battle.enemyCount);
-        }
+        StepWrapped(battle.unk4A7550, step, static_cast<i32>(battle.enemyCount));
 
         // The original loops for ever when every enemy is down.
         if (++tries > BattleState::Enemies)
@@ -3818,5 +3820,169 @@ void Game::AimUp()
     battle.unk53BFB8 = 1;
     battle.unk53C49C = 1;
     battle.unk4A754C = battle.unk53BCF4 + 1;
+}
+
+// swd32.exe 0x00461240: the down key of the battle menu, as MenuUp the other way: 1 moves the command down (past the
+// last accessory command to 1); 2, 4 and 0x1B move the list cursor down to the seventh row, then scroll, stopping at
+// the end of the list (state 4 keeps the list for role unk4A7570); 5 cycles 1..2; 7, 8 and 0x1E cycle forward;
+// 3 moves the aim forward.
+void Game::MenuDown()
+{
+    BattleState& battle = this->battleState;
+    battle.unk53BFBC = 0;
+
+    auto tick = [this]
+    {
+        this->audio.PlaySound(kBackSound, this->config.soundVolume);
+    };
+
+    // The list cursor of states 2, 4 and 0x1B (inline in the original): false when it stopped at the end.
+    auto listDown = [](i32& cursor, i32& scroll, i32 entries)
+    {
+        if (++cursor <= kListRowsShown)
+        {
+            if (cursor <= entries)
+            {
+                return true;
+            }
+
+            cursor = entries;
+            return false;
+        }
+
+        cursor = kListRowsShown;
+
+        if (++scroll + kListRowsShown <= entries)
+        {
+            return true;
+        }
+
+        scroll = entries - kListRowsShown;
+
+        return false;
+    };
+
+    switch (battle.result)
+    {
+        case kMenuState:
+        {
+            if (battle.unk4A7548 > kLastMenuCommand)
+            {
+                battle.unk4A7548 = 1;
+                return;
+            }
+
+            tick();
+            i32 command = battle.unk4A7548 + 1;
+            battle.unk4A7548 = command;
+
+            if (this->CommandEnabled(command))
+            {
+                battle.unk53BFB8 = 1;
+                return;
+            }
+
+            do
+            {
+                if (++command > battle.unk53BF22 + kMenuFixedCommands)
+                {
+                    command = 1;
+                }
+            } while (!this->CommandEnabled(command));
+
+            battle.unk53BFB8 = 1;
+            battle.unk4A7548 = command;
+            return;
+        }
+
+        case kListState2:
+            if (listDown(battle.unk4A7558, battle.unk53BD04, battle.unk53BDF2))
+            {
+                tick();
+            }
+
+            battle.unk53BFB8 = 1;
+            return;
+
+        case kTargetState:
+            if (battle.unk53BF88 == 1)
+            {
+                return;
+            }
+
+            tick();
+            this->AimStep(1);
+            return;
+
+        case kListState4:
+            if (listDown(battle.unk4A755C, battle.unk53BD08, battle.unk53BDF4))
+            {
+                tick();
+            }
+
+            battle.unk4FF578[static_cast<std::size_t>(battle.unk4A7570)] = battle.unk4A755C;
+            battle.unk52544C[static_cast<std::size_t>(battle.unk4A7570)] = battle.unk53BD08;
+            battle.unk53BFB8 = 1;
+            return;
+
+        case kWaitState5:
+            tick();
+
+            if (++battle.unk53BCF8 > kEscortRows)
+            {
+                battle.unk53BCF8 = 1;
+            }
+
+            return;
+
+        case kTalkState:
+            battle.unk53BD44 = 0;
+            battle.unk53BD48 = 0;
+            tick();
+
+            if (++battle.unk4A756C > battle.unk4A7568)
+            {
+                battle.unk4A756C = 1;
+            }
+
+            return;
+
+        case kSkillListState:
+            if (battle.unk53BDF3 == 0)
+            {
+                return;
+            }
+
+            if (++battle.unk4A7560 > battle.unk53BDF3)
+            {
+                battle.unk4A7560 = 1;
+            }
+
+            tick();
+            battle.unk53BFB8 = 1;
+            return;
+
+        case kListState1B:
+            if (listDown(battle.unk4A755C, battle.unk53BD08, battle.unk53BDF4))
+            {
+                tick();
+            }
+
+            battle.unk53BFB8 = 1;
+            return;
+
+        case kWaitState1E:
+            if (++battle.unk4A755C > kMenuStepMost)
+            {
+                battle.unk4A755C = 1;
+            }
+
+            tick();
+            battle.unk53BFB8 = 1;
+            return;
+
+        default:
+            return;
+    }
 }
 }  // namespace swd3
