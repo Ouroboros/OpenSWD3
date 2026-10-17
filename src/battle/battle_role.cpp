@@ -177,6 +177,13 @@ constexpr u16 kBoomerangShake = 7;
 constexpr i32 kNoImpact = -1;  // a queued act without an impact act that lands no hit
 constexpr u16 kBoomerangSound = 0x114;
 
+// LeapSpellFrame: the stages in unk267C.
+constexpr u32 kLeapCasting = 0;
+constexpr u32 kLeapAtTarget = 1;
+constexpr u32 kLeapReturning = 2;
+constexpr u32 kLeapHome = 3;
+constexpr i32 kLeapReturnAction = 2;  // the walk home takes the action two after the magic act's
+
 // CanAbsorb.
 constexpr u16 kMaxAbsorbClass = 0x15;   // ObjectData::unk52
 constexpr int kAbsorbLevelsAbove = 12;  // a target this many levels above the role is never absorbed
@@ -2796,6 +2803,70 @@ int BattleRole::BoomerangFrame(BattleServices& services, BattleUnit& target)
     this->unk267C = 0;
     thrown = ActState{};
     act = ActState{};
+    return 1;
+}
+
+// swd32.exe 0x00474E60: one frame of the role's leap spell (magic act in slot act 8, stages in unk267C); 1 once the
+// battle marks the spell over after stage 3 (the act cleared). Stage 0 draws the magic act; stage 1 the next action on
+// the target; stage 2 the action after that walking home (UnkFlag8 set), stage 3 once home. A waiting act moves on a
+// stage; a follow-up marks the spell cast.
+int BattleRole::LeapSpellFrame(BattleServices& services, BattleUnit& target)
+{
+    BattleState& battle = services.state;
+    ActState& magic = this->slotActs[BattleUnit::UnkSlot8];
+    magic.id = this->actId + BattleRole::MagicActs;
+    this->unk2AAC = 1;
+    magic.action = this->unk2A8A;
+
+    if (this->unk267C == kLeapCasting)
+    {
+        this->DrawAction(services, target, magic);
+    }
+
+    if (this->unk267C == kLeapAtTarget)
+    {
+        u16 targetX = 0;
+        u16 targetY = 0;
+        ++magic.action;
+        target.GetDrawPosition(targetX, targetY);
+        this->DrawActionAt(services, static_cast<i16>(targetX), static_cast<i16>(targetY), magic);
+    }
+
+    if (this->unk267C == kLeapReturning)
+    {
+        this->command.flags = static_cast<u16>(this->command.flags | UnitCommand::UnkFlag8);
+        magic.action += kLeapReturnAction;
+
+        if (this->ReturnHome(services, target, magic.id, magic.action) == 1)
+        {
+            this->unk267C = kLeapHome;
+        }
+    }
+
+    if (magic.waiting == 1)
+    {
+        magic = ActState{};
+        ++this->unk267C;
+    }
+
+    if ((magic.target & ActState::FollowsUp) != 0)
+    {
+        if ((battle.spellStage & BattleState::SpellCast) == 0)
+        {
+            battle.spellStage = static_cast<u16>(battle.spellStage | BattleState::SpellCast);
+        }
+
+        magic.target = 0;
+    }
+
+    if ((battle.spellStage & BattleState::SpellOver) == 0 ||
+        static_cast<i32>(this->unk267C) < static_cast<i32>(kLeapHome))
+    {
+        return 0;
+    }
+
+    this->unk267C = 0;
+    magic = ActState{};
     return 1;
 }
 }  // namespace swd3

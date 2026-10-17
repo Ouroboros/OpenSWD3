@@ -74,6 +74,7 @@ public:
     int ChargeOnTarget(BattleServices& services, BattleUnit& target);
     int SwarmSpellFrame(BattleServices& services, BattleUnit& target);
     int BoomerangFrame(BattleServices& services, BattleUnit& target);
+    int LeapSpellFrame(BattleServices& services, BattleUnit& target);
     void SetupGuest(const UnitPlacement& at, const RoleRecord& base, Database& database, ErrorReporter& reporter);
     void ApplyEquipment(
         std::span<const std::unique_ptr<ItemNode>> slots,
