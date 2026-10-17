@@ -297,7 +297,8 @@ void Menu::StatusNext()
     owner.audio.PlaySound(kRoleSound, owner.config.soundVolume);
 }
 
-// swd32.exe 0x0044A160 (and 0x0044A1D0, the same): the party role before
+// swd32.exe 0x0044A160: the party role before (the Up key)
+// swd32.exe 0x0044A1D0: the Left key, the same (its test for the wrap differs, the result does not)
 void Menu::StatusPrevious()
 {
     Game& owner = this->game;
@@ -326,8 +327,8 @@ void Menu::StatusCancel()
     this->SetPage(this->code);
 }
 
-// A gain from the equipment beside a value: "+n" in white or "-n" in red, further right the more digits the value
-// has (swd32.exe 0x0044AE70)
+// swd32.exe 0x0044AE70: a gain from the equipment beside a value: "+n" in white or "-n" in red, further right the
+// more digits the value has
 void Menu::StatusDrawBonus(int bonus, int x, int y, int value)
 {
     Game& owner = this->game;

@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "config/config.h"
 #include "core/types.h"
 #include "item/item_list.h"
 #include "menu/menu_list.h"
@@ -185,6 +186,31 @@ struct StatusPage
     RoleRecord total;  // 0x004FD2DC the record with it
 };
 
+// The system tab (role page 0xF; 0x004FD2E0..0x004FD3A8): save, load, the notes, the settings with the key setup, quit.
+struct OptionsPage
+{
+    i32 entry = 0;     // 0x004FD310 the tab: save, load, notes, settings, quit
+    i32 stage = 0;     // 0x004FD2F8 0: the tabs, 1: a tab opened, 2: confirming, 5..7: the key setup
+    i32 row = 0;       // 0x004FD30C the row of the settings or of the quit box
+    i32 locked = 0;    // 0x004FD3A8 the quit fade runs
+    i32 choice = 0;    // 0x004FD3A4 the confirmation's choice, then the fade's frames from 0x1E
+    i32 quitKind = 0;  // 0x004FD2EC 1: end the game, 2: restart
+    i32 keyRow = 0;    // 0x004FD2F0 the key row (0x10..0x12: the buttons)
+    std::array<i32, Config::Keys> keys = {};  // 0x004FD324 the keys being set
+    i32 heldKey = 0;                          // 0x004FD314 a key down since the last one taken
+    i32 swappedKey = 0;                       // 0x004FD2E8 the key a swap took from another row (kept, never read)
+    std::vector<u16> notes;                   // 0x004FD318 the numbers of the notes
+    i32 noteCount = 0;                        // 0x004FD320
+    i32 noteTop = 0;                          // 0x004FD2F4
+    i32 notesShown = 0;                       // 0x004FD31C
+    i32 noteRow = 0;                          // 0x004FD2E4 (kept, never read)
+    std::size_t noteAt = 0;                   // 0x004FD2FC (kept, never read)
+    u32 arrows = 0;          // 0x004FD2E0 frames the scroll arrows stay pressed (bits 0..3 up, 4..7 down)
+    i32 sampleLength = 0;    // 0x004FD300 characters of the speed sample shown
+    i32 textSpeedShown = 0;  // 0x004FD304
+    i32 sampleDelay = 0;     // 0x004FD308
+};
+
 // The edges of a list's scroll bar as last drawn (DrawScrollBar), read by the clicks.
 struct MenuScrollBar
 {
@@ -267,6 +293,7 @@ public:
     void BestiaryLeave();
     void BestiaryFrame();
     void BestiaryMoved(u16 arrows);
+    void BestiaryShowFrom(int top);
     void BestiaryDown();
     void BestiaryUp();
     void BestiaryPageDown();
@@ -352,6 +379,7 @@ public:
     void EquipFrame();
     void EquipDraw();
     void EquipDrawSlots(int x, int y, int slide, int width, int chosen);
+    void EquipDrawPicture(u16 file, u16 picture, int x, int y);
     void EquipDrawStats(int slot, int role);
     void DrawDescriptionBox(std::string_view text);
 
@@ -382,6 +410,7 @@ public:
     void SkillsDrawTowns(Pixel color);
     std::size_t FindExitWarp(int map) const;
     void ListTowns();
+    int SkillsShownTabs(int role) const;
     void Warp(u16 map, u16 x, u16 y, i16 event);
 
     // The status page (role page 0xE).
@@ -394,6 +423,26 @@ public:
     void StatusCancel();
     void StatusDrawBonus(int bonus, int x, int y, int value);
     void StatusDraw();
+
+    // The system tab (role page 0xF).
+    // The key slot of each row of the key setup (swd32.exe 0x004A7210).
+    static constexpr std::array<u16, 16> KeyRowSlots = {4, 6, 3, 5, 0xC, 1, 9, 0, 0xA, 2, 0x13, 7, 8, 0x10, 0x11, 0x12};
+    void OptionsEnter();
+    void CountNotes();
+    void FindNote(int index);
+    void DrawNote(int index, int x, int y);
+    void OptionsFrame();
+    void OptionsDown();
+    void OptionsUp();
+    void OptionsPageDown();
+    void OptionsPageUp();
+    void OptionsLeft();
+    void OptionsRight();
+    void OptionsSelect();
+    void OptionsCancel();
+    void OptionsDrawSettings(Pixel color);
+    void OptionsDrawKeys(Pixel color);
+    void OptionsDraw();
     void OptionsLeave();
     bool DrawNameEntry();
     void ActOnEntry();
@@ -502,7 +551,7 @@ public:
     ItemLink savedInventory;      // 0x004FD15C the inventory kept while the items page saves
     ItemLink savedItems;          // 0x004FD140 `itemObjects` kept with it
     std::string description;      // 0x004FC2A0 the description of the chosen object
-    std::vector<u16> unk4FD318;   // 0x004FD318 the options page's list
+    OptionsPage options;
 
 private:
     void Call(Handler handler);

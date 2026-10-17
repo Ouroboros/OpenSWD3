@@ -139,6 +139,7 @@ enum class MapsDataTable : int
     NamePlates = 8,
     StartSkills = 9,       // 9..0xC, one per role
     StartEquipment = 0xD,  // 0xD..0x10, one per role
+    Notes = 0x11,          // the notes of the system tab (0x0044D070)
     MapGroups = 0x12,
     ObjectDescriptions = 0x13,  // by object id, each up to MapsRecord::NameEnd
     PlaceNames = 0x14,

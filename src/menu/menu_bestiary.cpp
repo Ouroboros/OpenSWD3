@@ -418,7 +418,7 @@ void Menu::BestiaryMoved(u16 arrows)
 {
     Game& owner = this->game;
     Bestiary& book = this->bestiary;
-    book.firstShown = static_cast<std::size_t>(std::max(book.top, 0));
+    this->BestiaryShowFrom(book.top);
     this->BestiaryCountShown();
     this->BestiaryChoose(
         book.ids[static_cast<std::size_t>(std::clamp(book.row + book.top, 0, static_cast<int>(Bestiary::Listed) - 1))]
@@ -471,7 +471,7 @@ void Menu::BestiaryLeft()
     }
 
     this->BestiaryList(book.category);
-    book.firstShown = static_cast<std::size_t>(std::max(book.top, 0));
+    this->BestiaryShowFrom(book.top);
     this->BestiaryCountShown();
     this->BestiaryChoose(
         book.ids[static_cast<std::size_t>(std::clamp(book.top + book.row, 0, static_cast<int>(Bestiary::Listed) - 1))]
@@ -491,7 +491,7 @@ void Menu::BestiaryRight()
     }
 
     this->BestiaryList(book.category);
-    book.firstShown = static_cast<std::size_t>(std::max(book.top, 0));
+    this->BestiaryShowFrom(book.top);
     this->BestiaryCountShown();
     this->BestiaryChoose(
         book.ids[static_cast<std::size_t>(std::clamp(book.top + book.row, 0, static_cast<int>(Bestiary::Listed) - 1))]
@@ -943,6 +943,12 @@ void Menu::DrawBestiaryTabs()
     }
 
     owner.painter.SetClipClamped(0, kTabsClipTop, Display::Width, kTabsClipBottom);
+}
+
+// swd32.exe 0x0043CC00: the first listed shown: entry `top` of the list (a pointer into it in the original)
+void Menu::BestiaryShowFrom(int top)
+{
+    this->bestiary.firstShown = static_cast<std::size_t>(std::max(top, 0));
 }
 
 }  // namespace swd3

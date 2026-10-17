@@ -269,7 +269,7 @@ void Menu::ItemsAfterSave(int saved)
 void Menu::OptionsLeave()
 {
     Game& owner = this->game;
-    this->unk4FD318.clear();
+    this->options.notes.clear();
     const Config::Settings settings{
         static_cast<u8>(owner.config.soundVolume),
         static_cast<u8>(owner.config.musicVolume),

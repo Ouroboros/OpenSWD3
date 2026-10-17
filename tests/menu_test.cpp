@@ -34,6 +34,11 @@ constexpr std::array<std::pair<swd3::u32, std::u8string_view>, 6> kTexts = {{
 constexpr swd3::u32 kDateTemplateAt = 0x0049FAA4;
 constexpr std::array<swd3::u32, 2> kNameCopies = {0x0049E188, 0x0049E148};
 constexpr swd3::u32 kInitialTabsAt = 0x004A6A38;
+constexpr swd3::u32 kKeyNamesAt = 0x0049E470;
+constexpr swd3::u32 kKeyNameBytes = 0x10;
+constexpr swd3::u32 kKeyRowsAt = 0x004A7230;
+constexpr swd3::u32 kKeyRowBytes = 0xC;
+constexpr swd3::u32 kKeyRowSlotsAt = 0x004A7210;
 
 constexpr swd3::i16 kAttack = 3;
 constexpr swd3::i16 kHeRanAttributes = 0x19;  // the name cheats of 何然, 寧采臣 and 小倩
@@ -69,6 +74,20 @@ TEST_CASE("menu: texts, names and tabs match swd32.exe")
 
     static_assert(sizeof(swd3::MenuTab) == 0x1C);
     CHECK(swd3test::SameTable(exe, kInitialTabsAt, swd3::Menu::InitialTabs));
+
+    for (std::size_t key = 0; key < swd3::menu_text::kKeyNames.size(); ++key)
+    {
+        const auto address = kKeyNamesAt + kKeyNameBytes * static_cast<swd3::u32>(key);
+        CHECK(swd3test::SameText(exe, address, swd3::menu_text::kKeyNames[key]));
+    }
+
+    for (std::size_t row = 0; row < swd3::menu_text::kKeyRows.size(); ++row)
+    {
+        const auto address = kKeyRowsAt + kKeyRowBytes * static_cast<swd3::u32>(row);
+        CHECK(swd3test::SameText(exe, address, swd3::menu_text::kKeyRows[row]));
+    }
+
+    CHECK(swd3test::SameTable(exe, kKeyRowSlotsAt, swd3::Menu::KeyRowSlots));
 }
 
 TEST_CASE("menu: name cheats")

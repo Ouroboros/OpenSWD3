@@ -96,7 +96,6 @@ constexpr int kLabelBlue = 8;
 constexpr int kSampleRed = 0xF;
 constexpr int kSampleGreen = 9;
 constexpr int kSampleBlue = 2;
-constexpr std::size_t kCharBytes = 2;  // the sample types out by Big5 characters
 constexpr i32 kSampleDelayFactor = 2;
 constexpr int kBoxX = 0x98;
 constexpr int kBoxTop = 0xEC;
@@ -1051,10 +1050,9 @@ void Menu::DrawSettings()
         owner.actDrawer.Draw(this->gauge, x, RowY(kTextSpeedRow));
     }
 
-    std::string speed = settings.textSpeed >= 0 && settings.textSpeed < kSpeeds
-                            ? Big5(menu_text::kSpeeds[static_cast<std::size_t>(settings.textSpeed)])
-                            : std::string();
-    std::string sample = Big5(menu_text::kSample);
+    const std::string speed =
+        menu_text::SpeedSample(settings.textSpeed, static_cast<std::size_t>(std::max(this->sampleLength, 0)));
+    const std::string sample = Big5(menu_text::kSample);
     medium.DrawText(
         pixels,
         kSampleX,
@@ -1064,15 +1062,6 @@ void Menu::DrawSettings()
         kTextStyle
     );
 
-    // The original then copies the first sampleLength words of the sample over the speed name in place.
-    const auto words = static_cast<std::size_t>(this->sampleLength);
-
-    if (words != 0)
-    {
-        speed.resize(std::max(speed.size(), kCharBytes + kCharBytes * words), '\0');
-        std::copy_n(sample.begin(), std::min(sample.size(), kCharBytes * words), speed.begin() + kCharBytes);
-    }
-
     if (--this->sampleDelay <= 0)
     {
         ++this->sampleLength;
@@ -1081,8 +1070,7 @@ void Menu::DrawSettings()
 
     medium.DrawText(pixels, kLineX, RowY(kTextSpeedRow) + kLineDrop, speed, color, kTextStyle);
 
-    if (kCharBytes * static_cast<std::size_t>(this->sampleLength) >= sample.size() ||
-        sample[kCharBytes * static_cast<std::size_t>(this->sampleLength)] == 0)
+    if (menu_text::SampleEnds(static_cast<std::size_t>(std::max(this->sampleLength, 0))))
     {
         this->sampleLength = 0;
     }

@@ -1553,7 +1553,7 @@ void Menu::EquipDrawSlots(int x, int y, int slide, int width, int chosen)
 
     for (std::size_t picture = 0; picture < kSlotPictures.size(); ++picture)
     {
-        owner.actDrawer.DrawPicture(
+        this->EquipDrawPicture(
             this->gauge.frame,
             kSlotPictures[picture],
             x - slide + kSlotPictureX,
@@ -1729,6 +1729,13 @@ void Menu::DrawDescriptionBox(std::string_view text)
         kFrameBorder
     );
     owner.DrawWrappedText(text, kDescriptionTextX, this->descriptionTop, kDescriptionLines, kDescriptionWidth);
+}
+
+// swd32.exe 0x00442960: picture `picture` of `file` at (x, y), opaque, as ActDrawer::DrawPicture (the original also
+// keeps the picture's record at 0x004FCD60, never read)
+void Menu::EquipDrawPicture(u16 file, u16 picture, int x, int y)
+{
+    this->game.actDrawer.DrawPicture(file, picture, x, y);
 }
 
 }  // namespace swd3

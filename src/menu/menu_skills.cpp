@@ -34,7 +34,7 @@ constexpr u16 kTownCode = 0xF;  // Menu::code with the town list open as a subpa
 constexpr int kRows = 0x18;  // the list's rows: two columns of twelve
 constexpr int kColumns = 2;
 constexpr int kTownRows = 8;
-constexpr int kShownTabs = 3;  // 0x00444FB0
+constexpr int kShownTabs = 3;
 constexpr int kBaseTabs = 3;
 constexpr int kFirstExtraTabFlag = 0x15;  // two flags a role add the fourth and fifth tab
 constexpr int kTabFlagsPerRole = 2;
@@ -354,7 +354,7 @@ void Menu::SkillsEnter()
     page.descriptionSlide = 0;
     page.descriptionTop = kDescriptionHidden;
     page.skill = SkillScript{};
-    page.shownTabs = kShownTabs;
+    page.shownTabs = this->SkillsShownTabs(page.target);
     page.scrollArrows = 0;
     this->background.action = kPageBackground;
 }
@@ -828,7 +828,7 @@ void Menu::SkillsShift()
     SkipItems(page.top, page.list, page.firstShown);
     CountShown(page.firstShown, page.shown, kRows);
     this->SkillsDescribe();
-    page.shownTabs = kShownTabs;
+    page.shownTabs = this->SkillsShownTabs(page.target);
     owner.audio.PlaySound(kRoleSound, owner.config.soundVolume);
 }
 
@@ -1881,6 +1881,12 @@ void Menu::Warp(u16 map, u16 x, u16 y, i16 event)
     leader.flags = player.flags;
     leader.x = player.x;
     leader.y = player.y;
+}
+
+// swd32.exe 0x00444FB0: the tabs shown for role `role`: always three
+int Menu::SkillsShownTabs([[maybe_unused]] int role) const
+{
+    return kShownTabs;
 }
 
 }  // namespace swd3
