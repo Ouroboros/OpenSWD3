@@ -68,11 +68,10 @@ Projector::Projector()
         this->dirY[static_cast<std::size_t>(angle)] = static_cast<i32>(crt::Ftol(slope));
     }
 
-    for (int step = 0; step < kQuarterTurn - 1; ++step)
+    for (int angle = kQuarterTurn + 1; angle < kHalfTurn; ++angle)
     {
-        this->dirX[static_cast<std::size_t>(kQuarterTurn + 1 + step)] = kSlopeUnit;
-        this->dirY[static_cast<std::size_t>(kQuarterTurn + 1 + step)] =
-            this->dirY[static_cast<std::size_t>(kQuarterTurn - 2 - step)];
+        this->dirX[static_cast<std::size_t>(angle)] = kSlopeUnit;
+        this->dirY[static_cast<std::size_t>(angle)] = this->dirY[static_cast<std::size_t>(kHalfTurn - 1 - angle)];
     }
 
     for (int angle = 0; angle < kQuarterTurn; ++angle)
@@ -81,11 +80,11 @@ Projector::Projector()
         this->dirY[static_cast<std::size_t>(kHalfTurn + angle)] = -this->dirY[static_cast<std::size_t>(angle)];
     }
 
-    for (int step = 0; step < kQuarterTurn - 1; ++step)
+    for (int angle = kThreeQuarterTurn + 1; angle < Projector::Directions; ++angle)
     {
-        this->dirX[static_cast<std::size_t>(kThreeQuarterTurn + 1 + step)] = -kSlopeUnit;
-        this->dirY[static_cast<std::size_t>(kThreeQuarterTurn + 1 + step)] =
-            -this->dirY[static_cast<std::size_t>(kQuarterTurn - 2 - step)];
+        this->dirX[static_cast<std::size_t>(angle)] = -kSlopeUnit;
+        this->dirY[static_cast<std::size_t>(angle)] =
+            -this->dirY[static_cast<std::size_t>(Projector::Directions - 1 - angle)];
     }
 
     this->dirY[kHalfTurn] = 0;

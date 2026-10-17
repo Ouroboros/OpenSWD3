@@ -1,6 +1,7 @@
 #include "save/save_slots.h"
 
 #include <array>
+#include <climits>
 #include <cstddef>
 #include <span>
 
@@ -30,6 +31,8 @@ constexpr std::size_t kBlockHeaderBytes = 2 * sizeof(u32);  // a packed block: i
 constexpr std::size_t kUnk20At = 0xC;                       // after the second table
 constexpr std::size_t kDataBlockAt = 0x24;
 constexpr std::size_t kUnk28At = 4;  // in the unpacked data
+constexpr i32 kLitAction = 8;        // the preview frame of the newest slot
+constexpr i32 kPreviewDirection = 6;
 
 u32 Dword(std::span<const u8> bytes, std::size_t at)
 {
@@ -179,8 +182,8 @@ void SaveSlots::ResetActs()
             ActState& act = this->acts[static_cast<std::size_t>(slot)][index];
             ResetPlayback(act);
             act.id = SaveSlots::FrameActs[index];
-            act.action = this->newest % SaveSlots::Visible == slot ? 8 : 0;
-            act.direction = 6;
+            act.action = this->newest % SaveSlots::Visible == slot ? kLitAction : 0;
+            act.direction = kPreviewDirection;
         }
     }
 }
@@ -226,7 +229,7 @@ void SaveSlots::FindNewest(const std::string& installDirectory, const Painter& p
         {
             u64 written = 0;
             file.LastWriteTime(written);
-            const auto high = static_cast<i32>(written >> 32);
+            const auto high = static_cast<i32>(written >> (CHAR_BIT * sizeof(u32)));
 
             if (high >= newestHigh)
             {

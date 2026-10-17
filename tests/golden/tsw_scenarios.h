@@ -43,6 +43,9 @@ inline u64 HashPicture(const PictureResult& result)
     return Hash(bytes.data(), bytes.size());
 }
 
+constexpr int kTswCacheLimit = 300000;
+constexpr int kRounds = 3;
+
 inline void RunTsw(TswBackend& backend, const std::function<void(const std::string&, u64)>& report)
 {
     // Existing frames only (a frame beyond the entry reads picture data as frame records): character 7, 23, 1 (8-bit),
@@ -69,10 +72,10 @@ inline void RunTsw(TswBackend& backend, const std::function<void(const std::stri
     };
 
     const u32 ids[] = {7, 23, 1, 3001, 9014, 9001, 12001, 15001, 6001, 6010};
-    backend.SetCacheLimit(300000);
+    backend.SetCacheLimit(kTswCacheLimit);
     int step = 0;
 
-    for (int round = 0; round < 3; ++round)
+    for (int round = 0; round < kRounds; ++round)
     {
         for (const auto& request : requests)
         {
@@ -99,8 +102,8 @@ inline void RunTsw(TswBackend& backend, const std::function<void(const std::stri
 
     backend.CloseAll();
     report("closed/bytes", static_cast<u64>(backend.CacheBytes()));
-    report("closed/find", HashPicture(backend.Find(7, 0)));
-    report("reopened", HashPicture(backend.Get(23, 1)));
+    report("closed/find", HashPicture(backend.Find(ids[0], 0)));
+    report("reopened", HashPicture(backend.Get(ids[1], 1)));
 }
 
 }  // namespace golden

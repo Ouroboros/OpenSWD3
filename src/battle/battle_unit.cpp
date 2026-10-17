@@ -2863,7 +2863,7 @@ void BattleUnit::LoadSkillAction(Database& database, u16 id, u16& act)
     std::copy_n(name.begin(), length, this->skillName.begin());
     this->skillName[length] = '\0';
     this->LoadCommand(database, this->object.data.unk3E);
-    this->unk29A4 = static_cast<u16>(this->unk29A4 + (this->command.unk0E[0] | this->command.unk0E[1] << 8));
+    this->unk29A4 = static_cast<u16>(this->unk29A4 + MakeBytes(this->command.unk0E[1], this->command.unk0E[0]));
     this->SetCommand(BattleUnit::UnkCommand2);
     this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
 }

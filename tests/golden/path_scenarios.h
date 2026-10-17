@@ -12,6 +12,34 @@
 namespace golden
 {
 
+// The blocking cells (MapHeader::Cell) and the masks of the path scenarios.
+constexpr u32 kWall = 0x40000000;
+constexpr u32 kUnderRole = 0x00800000;
+constexpr u32 kWallOrRole = kWall | kUnderRole;
+constexpr u32 kRegion1 = 0x00000001;
+constexpr u32 kUnkBit16 = 0x00010000;
+constexpr u32 kLowBits = kRegion1 | kUnkBit16;
+constexpr u32 kOutside = 0xFFFFFFFF;
+constexpr std::array<u32, 4> kCellBits = {kWall, kUnderRole, kRegion1, kUnkBit16};
+constexpr u32 kPathScenarios = 160;
+constexpr u32 kMinDensity = 4;  // of kDensityRange cells, kMinDensity .. kMinDensity + kDensities - 1 are set
+constexpr u32 kDensities = 9;
+constexpr u32 kDensityRange = 32;
+constexpr u32 kCellSeed = 7919;
+constexpr int kBitsShift = 28;
+constexpr u32 kBitsMask = 3;
+constexpr u32 kFromSeed = 31;
+constexpr u32 kFromOffset = 7;
+constexpr u32 kToSeed = 131;
+constexpr u32 kToOffset = 3;
+constexpr u32 kSizes = 3;  // footprints of 1..kSizes cells a side
+constexpr int kTile = 16;
+constexpr int kPixelShift = 28;  // the top bits of a draw give a pixel offset in the tile
+constexpr int kRowShift = 8;
+constexpr u32 kWallOnlyEvery = 5;
+constexpr u32 kLowBitsEvery = 7;
+constexpr u32 kInPlaceEvery = 11;  // a search to the start tile
+
 struct PathScenario
 {
     std::vector<u32> cells;
@@ -22,7 +50,7 @@ struct PathScenario
     int toY = 0;
     int width = 1;
     int height = 1;
-    u32 mask = 0x40800000;
+    u32 mask = kWallOrRole;
 };
 
 class PathBackend
@@ -40,47 +68,47 @@ inline std::vector<PathScenario> MakePathScenarios()
     constexpr int kWidth = 48;
     constexpr int kHeight = 36;
     constexpr int kBorder = 4;
-    const u32 bits[] = {0x40000000, 0x00800000, 0x00000001, 0x00010000};
 
-    for (u32 seed = 1; seed <= 160; ++seed)
+    for (u32 seed = 1; seed <= kPathScenarios; ++seed)
     {
         PathScenario scenario;
         scenario.mapWidth = kWidth;
         scenario.cells.assign(static_cast<std::size_t>(kWidth) * kHeight, 0);
-        const u32 density = 4 + seed % 9;
+        const u32 density = kMinDensity + seed % kDensities;
 
         for (int y = 0; y < kHeight; ++y)
         {
             for (int x = 0; x < kWidth; ++x)
             {
                 u32& cell = scenario.cells[static_cast<std::size_t>(y) * kWidth + x];
-                const u32 noise = Mix32(seed * 7919u + static_cast<u32>(y * kWidth + x));
+                const u32 noise = Mix32(seed * kCellSeed + static_cast<u32>(y * kWidth + x));
 
                 if (x < kBorder || y < kBorder || x >= kWidth - kBorder || y >= kHeight - kBorder)
                 {
-                    cell = 0xFFFFFFFF;
+                    cell = kOutside;
                 }
-                else if (noise % 32 < density)
+                else if (noise % kDensityRange < density)
                 {
-                    cell = bits[noise >> 28 & 3];
+                    cell = kCellBits[noise >> kBitsShift & kBitsMask];
                 }
             }
         }
 
-        const u32 a = Mix32(seed * 31u + 7u);
-        const u32 b = Mix32(seed * 131u + 3u);
-        scenario.width = 1 + static_cast<int>(seed % 3);
-        scenario.height = 1 + static_cast<int>((seed / 3) % 3);
+        const u32 a = Mix32(seed * kFromSeed + kFromOffset);
+        const u32 b = Mix32(seed * kToSeed + kToOffset);
+        scenario.width = 1 + static_cast<int>(seed % kSizes);
+        scenario.height = 1 + static_cast<int>((seed / kSizes) % kSizes);
         const int spanX = kWidth - 2 * kBorder - scenario.width;
         const int spanY = kHeight - 2 * kBorder - scenario.height;
-        scenario.fromX = 16 * (kBorder + static_cast<int>(a % static_cast<u32>(spanX))) + static_cast<int>(a >> 28);
-        scenario.fromY = 16 * (kBorder + static_cast<int>((a >> 8) % static_cast<u32>(spanY)));
-        scenario.toX = 16 * (kBorder + static_cast<int>(b % static_cast<u32>(spanX)));
-        scenario.toY =
-            16 * (kBorder + static_cast<int>((b >> 8) % static_cast<u32>(spanY))) + static_cast<int>(b >> 28);
-        scenario.mask = seed % 5 == 0 ? 0x40000000u : (seed % 7 == 0 ? 0x00010001u : 0x40800000u);
+        scenario.fromX =
+            kTile * (kBorder + static_cast<int>(a % static_cast<u32>(spanX))) + static_cast<int>(a >> kPixelShift);
+        scenario.fromY = kTile * (kBorder + static_cast<int>((a >> kRowShift) % static_cast<u32>(spanY)));
+        scenario.toX = kTile * (kBorder + static_cast<int>(b % static_cast<u32>(spanX)));
+        scenario.toY = kTile * (kBorder + static_cast<int>((b >> kRowShift) % static_cast<u32>(spanY))) +
+                       static_cast<int>(b >> kPixelShift);
+        scenario.mask = seed % kWallOnlyEvery == 0 ? kWall : (seed % kLowBitsEvery == 0 ? kLowBits : kWallOrRole);
 
-        if (seed % 11 == 0)
+        if (seed % kInPlaceEvery == 0)
         {
             scenario.toX = scenario.fromX;
             scenario.toY = scenario.fromY;

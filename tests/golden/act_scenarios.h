@@ -3,6 +3,7 @@
 // Action script scenarios shared by the legacy golden generator and the ActArchive test (see draw_scenarios.h).
 
 #include <functional>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -37,6 +38,19 @@ inline u64 HashSnapshot(const ActSnapshot& snapshot)
     return Hash(snapshot.fields.data(), snapshot.fields.size() * sizeof(i32));
 }
 
+constexpr int kSmallCache = 4000;  // the cache limits of the two passes
+constexpr int kLargeCache = 0x100000;
+constexpr int kActFrames = 60;
+constexpr int kTurnFrame = 20;  // every act turns, walks with every second one held, is released
+constexpr int kWalkFrame = 35;
+constexpr int kReleaseFrame = 45;
+constexpr int kWalkAction = 8;
+constexpr int kHoldEvery = 2;
+constexpr int kSwitchFrame = 50;  // and one changes to an act of another file
+constexpr int kSwitchSlot = 2;
+constexpr int kSwitchAct = 9005;
+constexpr int kSwitchAction = 100;
+
 inline void RunAct(ActBackend& backend, const std::function<void(const std::string&, u64)>& report)
 {
     struct Start
@@ -61,35 +75,35 @@ inline void RunAct(ActBackend& backend, const std::function<void(const std::stri
     for (int useCache = 1; useCache >= 0; --useCache)
     {
         backend.SetUseCache(useCache);
-        backend.SetCacheLimit(useCache == 1 ? 4000 : 0x100000);
+        backend.SetCacheLimit(useCache == 1 ? kSmallCache : kLargeCache);
 
-        for (int slot = 0; slot < static_cast<int>(sizeof(starts) / sizeof(starts[0])); ++slot)
+        for (int slot = 0; slot < static_cast<int>(std::size(starts)); ++slot)
         {
             const Start& start = starts[slot];
             backend.Reset(slot, start.id, start.action, start.direction, start.speed);
         }
 
-        for (int frame = 0; frame < 60; ++frame)
+        for (int frame = 0; frame < kActFrames; ++frame)
         {
-            for (int slot = 0; slot < static_cast<int>(sizeof(starts) / sizeof(starts[0])); ++slot)
+            for (int slot = 0; slot < static_cast<int>(std::size(starts)); ++slot)
             {
                 const Start& start = starts[slot];
 
-                if (frame == 20)
+                if (frame == kTurnFrame)
                 {
                     backend.Change(slot, start.id, start.action, start.direction + 1, 0);
                 }
-                else if (frame == 35)
+                else if (frame == kWalkFrame)
                 {
-                    backend.Change(slot, start.id, start.action + 8, start.direction + 1, slot % 2);
+                    backend.Change(slot, start.id, start.action + kWalkAction, start.direction + 1, slot % kHoldEvery);
                 }
-                else if (frame == 45)
+                else if (frame == kReleaseFrame)
                 {
-                    backend.Change(slot, start.id, start.action + 8, start.direction + 1, 0);
+                    backend.Change(slot, start.id, start.action + kWalkAction, start.direction + 1, 0);
                 }
-                else if (frame == 50 && slot == 2)
+                else if (frame == kSwitchFrame && slot == kSwitchSlot)
                 {
-                    backend.Change(slot, 9005, 100, 0, 0);
+                    backend.Change(slot, kSwitchAct, kSwitchAction, 0, 0);
                 }
 
                 const int result = backend.Run(slot);
