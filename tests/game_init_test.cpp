@@ -21,6 +21,7 @@
 #include "platform/surface.h"
 #include "talk/text_colors.h"
 #include "test.h"
+#include "text/big5.h"
 
 using swd3::u32;
 using swd3::u8;
@@ -170,4 +171,28 @@ TEST_CASE("game init: the starting roles of maps.dat")
         CHECK(role.hitPoints <= role.maxHitPoints);
         CHECK(role.level >= 1);
     }
+}
+
+TEST_CASE("game init: the object descriptions of maps.dat")
+{
+    using swd3::GameDatabases;
+    using swd3::u16;
+    constexpr u16 kStaminaSkill = 0x31;
+    constexpr u16 kTalismanPaper = 0x300;
+    constexpr std::u8string_view kStaminaCost = u8"消費：300點體力";
+    constexpr std::u8string_view kPaperStart = u8"練符法寶專用的符紙";
+    constexpr std::u8string_view kNone = u8"無";
+    constexpr u16 kEmpty = 0xFFDC;
+    std::vector<u8> maps = swd3test::ReadGameFile("maps.dat");
+
+    if (maps.size() <= GameDatabases::MapsHeader)
+    {
+        std::printf("  (maps.dat not found, skipped)\n");
+        return;
+    }
+
+    maps.erase(maps.begin(), maps.begin() + GameDatabases::MapsHeader);
+    CHECK(swd3::ObjectDescription(maps, kStaminaSkill) == swd3::Big5(kStaminaCost));
+    CHECK(swd3::ObjectDescription(maps, kTalismanPaper).starts_with(swd3::Big5(kPaperStart)));
+    CHECK(swd3::ObjectDescription(maps, kEmpty) == swd3::Big5(kNone));
 }

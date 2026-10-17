@@ -140,6 +140,7 @@ enum class MapsDataTable : int
     StartSkills = 9,       // 9..0xC, one per role
     StartEquipment = 0xD,  // 0xD..0x10, one per role
     MapGroups = 0x12,
+    ObjectDescriptions = 0x13,  // by object id, each up to MapsRecord::NameEnd
     PlaceNames = 0x14,
     RoleSounds = 0x15,
     Unk18 = 0x18,
@@ -151,5 +152,7 @@ inline u32 MapsTable(const std::vector<u8>& data, MapsDataTable table, std::size
 {
     return MapsDword(data, sizeof(u32) * (static_cast<std::size_t>(table) + entry));
 }
+
+std::string ObjectDescription(const std::vector<u8>& data, u16 id);
 
 }  // namespace swd3
