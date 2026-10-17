@@ -4,7 +4,9 @@
 // Painter test: the same sequence of draws runs through both backends, and the hash of the visible screen after
 // every scenario is compared. Header-only and independent of either implementation.
 
+#include <algorithm>
 #include <array>
+#include <climits>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -38,6 +40,112 @@ using i32 = std::int32_t;
 constexpr int kScreenWidth = 640;
 constexpr int kScreenHeight = 480;
 
+constexpr std::size_t kScreenBytes = static_cast<std::size_t>(kScreenWidth) * kScreenHeight * sizeof(u16);
+
+// The tsw layout (as TswArchive reads it): the directory, an entry header and its frame records.
+constexpr u32 kTswDirectoryStart = 0x1C;
+constexpr u32 kTswDirectoryBytes = 0x2C;
+constexpr u32 kTswOffsetAt = 0x18;
+constexpr u32 kTswMagicAt = 4;
+constexpr u16 kTswMagic = 0xABCD;
+constexpr u32 kTswCountAt = 6;
+constexpr u32 kTswFormatAt = 8;
+constexpr u32 kTswHeaderBytes = 12;
+constexpr u16 kTswPaletteFormat = 8;
+constexpr u32 kTswPaletteBytes = 0x200;
+constexpr u32 kTswFrameBytes = 0x24;
+constexpr u32 kTswPackedAt = 4;
+constexpr u32 kTswSizeAt = 8;
+constexpr std::size_t kRleSlack = 64;  // room past the end of a frame
+
+// The RLE format (as RleHeader describes it).
+constexpr u16 kRleMagic = 0xFFFF;
+constexpr std::size_t kRleHeaderWords = 4;
+constexpr std::size_t kRleWidthWord = 1;
+constexpr std::size_t kRleHeightWord = 2;
+constexpr std::size_t kRleFormatWord = 3;
+constexpr u16 kRleTrueColor = 0x10;
+constexpr u16 kRleLengthMask = 0x7FFF;
+constexpr u16 kRleCountMask = 0x3FFF;
+constexpr u16 kRleSkipRun = 0x8000;
+constexpr u16 kRleKindMask = 0xC000;
+constexpr u16 kFillColor = 0x04CB;  // the RLE fill and skip colours converted to RGB565
+constexpr u16 kSkipColor = 0x631F;
+
+// The hashes: FNV-1a over bytes, and a 32-bit mixer for the generated inputs.
+constexpr u64 kFnvOffset = 1469598103934665603ull;
+constexpr u64 kFnvPrime = 1099511628211ull;
+constexpr int kMixOuterShift = 16;
+constexpr int kMixInnerShift = 15;
+constexpr u32 kMixFirst = 0x7FEB352Du;
+constexpr u32 kMixSecond = 0x846CA68Bu;
+constexpr u32 kGoldenRatio = 0x9E3779B9u;
+
+// The pictures of the scenarios: tsw entries and the frames taken from each.
+constexpr std::array<int, 4> kCharEntries = {7, 23, 33, 385};
+constexpr int kCharFrames = 2;
+constexpr std::array<int, 3> kSystemEntries = {14, 36, 99};
+constexpr std::array<int, 2> kItemEntries = {1, 2};
+
+// The draws of the scenarios.
+struct ClipRect
+{
+    int left;
+    int top;
+    int right;
+    int bottom;
+};
+
+struct Place
+{
+    int x;
+    int y;
+};
+
+struct Zoom
+{
+    int anchorX;
+    int anchorY;
+    int zoomX;
+    int zoomY;
+};
+
+constexpr u32 kAlphaSeed = 77;  // the alpha map: a level of kAlphaLevels steps of kAlphaStep per pixel
+constexpr u32 kAlphaLevels = 16;
+constexpr u32 kAlphaStep = 4;
+constexpr int kClipCases = 2;  // each RLE draw without and with kRleClip
+constexpr ClipRect kRleClip = {90, 70, 530, 410};
+constexpr ClipRect kRawClip = {40, 30, 600, 450};
+constexpr ClipRect kZoomClip = {60, 50, 580, 430};
+constexpr u32 kColorPair = 0x7BEF1234u;
+constexpr int kOutlineX = 150;
+constexpr int kOutlineY = 120;
+constexpr u32 kOutlineColor = 0x001F001Fu;
+constexpr std::size_t kPaletteColors = 256;
+constexpr u32 kFramePaletteSeed = 31;
+constexpr u16 kKeyEvery = 7;  // every pixel of a multiple of it becomes the key colour 1 in the indexed picture
+constexpr u16 kByteMask = 0xFF;
+constexpr int kRawKinds = 2;  // a raw picture drawn as 16-bit pixels and as palette indices
+constexpr int kIndexedKind = 1;
+constexpr std::array<u32, 4> kRawOnlyModes = {0x01, 0x05, 0x14, 0x08};  // modes without an indexed form
+constexpr int kRawAlpha = 6;
+constexpr int kTilePixels = 16 * 16;
+constexpr int kTileFillEvery = 5;
+constexpr u32 kTileSeed = 5;
+constexpr int kTileKeyEvery = 6;
+constexpr u32 kTile8Seed = 9;
+constexpr u32 kTilePaletteSeed = 13;
+constexpr std::array<Place, 2> kTilePlaces = {{{33, 47}, {600, 400}}};
+constexpr std::size_t kPixelCount = 1000;
+constexpr u32 kPixelStep = 3;
+constexpr u32 kPixelSeed = 1;
+constexpr u32 kOtherStep = 7;
+constexpr u32 kOtherSeed = 2;
+constexpr u32 kLevels = 32;  // MakeColor over five-bit levels in steps
+constexpr u32 kRedStep = 3;
+constexpr u32 kGreenStep = 5;
+constexpr u32 kBlueStep = 7;
+
 struct Frame
 {
     std::vector<u8> rle;
@@ -59,7 +167,7 @@ inline u32 ReadU32(std::ifstream& file, u32 offset)
 {
     u32 value = 0;
     file.seekg(offset);
-    file.read(reinterpret_cast<char*>(&value), 4);
+    file.read(reinterpret_cast<char*>(&value), sizeof(value));
     return value;
 }
 
@@ -67,7 +175,7 @@ inline u16 ReadU16(std::ifstream& file, u32 offset)
 {
     u16 value = 0;
     file.seekg(offset);
-    file.read(reinterpret_cast<char*>(&value), 2);
+    file.read(reinterpret_cast<char*>(&value), sizeof(value));
     return value;
 }
 
@@ -86,27 +194,28 @@ LoadFrames(const std::string& path, const std::vector<int>& entries, int perEntr
 
     for (int entry : entries)
     {
-        const u32 base = ReadU32(file, 0x1C + 0x2C * static_cast<u32>(entry - 1) + 0x18);
+        const u32 base =
+            ReadU32(file, kTswDirectoryStart + kTswDirectoryBytes * static_cast<u32>(entry - 1) + kTswOffsetAt);
 
-        if (base == 0 || ReadU16(file, base + 4) != 0xABCD)
+        if (base == 0 || ReadU16(file, base + kTswMagicAt) != kTswMagic)
         {
             continue;
         }
 
-        const u16 count = ReadU16(file, base + 6);
-        const u16 format = ReadU16(file, base + 8);
-        const u32 table = base + 12 + (format == 8 ? 0x200 : 0);
+        const u16 count = ReadU16(file, base + kTswCountAt);
+        const u16 format = ReadU16(file, base + kTswFormatAt);
+        const u32 table = base + kTswHeaderBytes + (format == kTswPaletteFormat ? kTswPaletteBytes : 0);
 
         for (int index = 0; index < count && index < perEntry; ++index)
         {
-            const u32 offset = ReadU32(file, table + 0x24 * index);
-            const u32 packed = ReadU32(file, table + 0x24 * index + 4);
-            const u32 size = ReadU32(file, table + 0x24 * index + 8);
+            const u32 offset = ReadU32(file, table + kTswFrameBytes * index);
+            const u32 packed = ReadU32(file, table + kTswFrameBytes * index + kTswPackedAt);
+            const u32 size = ReadU32(file, table + kTswFrameBytes * index + kTswSizeAt);
             std::vector<u8> input(packed);
             file.seekg(base + offset);
             file.read(reinterpret_cast<char*>(input.data()), packed);
             Frame frame;
-            frame.rle.assign(size + 64, 0);
+            frame.rle.assign(size + kRleSlack, 0);
             std::vector<u8> output(size);
 
             if (!decompress(input.data(), packed, output))
@@ -115,16 +224,16 @@ LoadFrames(const std::string& path, const std::vector<int>& entries, int perEntr
             }
 
             std::memcpy(frame.rle.data(), output.data(), size);
-            u16 header[4] = {};
-            std::memcpy(header, output.data(), 8);
+            u16 header[kRleHeaderWords] = {};
+            std::memcpy(header, output.data(), sizeof(header));
 
-            if (header[0] != 0xFFFF || (header[3] & 0x10) == 0)
+            if (header[0] != kRleMagic || (header[kRleFormatWord] & kRleTrueColor) == 0)
             {
                 continue;
             }
 
-            frame.width = header[1];
-            frame.height = header[2];
+            frame.width = header[kRleWidthWord];
+            frame.height = header[kRleHeightWord];
             frames.push_back(std::move(frame));
         }
     }
@@ -137,9 +246,12 @@ inline std::vector<Frame>
 
 LoadGoldenFrames(const std::function<std::string(const std::string&)>& gameFile, const Decompress& decompress)
 {
-    std::vector<Frame> frames = LoadFrames(gameFile("all_char.tsw"), {7, 23, 33, 385}, 2, decompress);
-    const std::vector<Frame> system = LoadFrames(gameFile("all_sys.tsw"), {14, 36, 99}, 1, decompress);
-    const std::vector<Frame> items = LoadFrames(gameFile("all_item.tsw"), {1, 2}, 1, decompress);
+    std::vector<Frame> frames =
+        LoadFrames(gameFile("all_char.tsw"), {kCharEntries.begin(), kCharEntries.end()}, kCharFrames, decompress);
+    const std::vector<Frame> system =
+        LoadFrames(gameFile("all_sys.tsw"), {kSystemEntries.begin(), kSystemEntries.end()}, 1, decompress);
+    const std::vector<Frame> items =
+        LoadFrames(gameFile("all_item.tsw"), {kItemEntries.begin(), kItemEntries.end()}, 1, decompress);
     frames.insert(frames.end(), system.begin(), system.end());
     frames.insert(frames.end(), items.begin(), items.end());
     return frames;
@@ -208,21 +320,21 @@ public:
 
 inline void Append32(std::vector<u8>& out, u32 value)
 {
-    for (int i = 0; i < 4; ++i)
+    for (std::size_t i = 0; i < sizeof(value); ++i)
     {
-        out.push_back(static_cast<u8>(value >> (8 * i)));
+        out.push_back(static_cast<u8>(value >> (CHAR_BIT * i)));
     }
 }
 
 inline u64 Hash(const void* data, std::size_t bytes)
 {
-    u64 hash = 1469598103934665603ull;
+    u64 hash = kFnvOffset;
     const auto* p = static_cast<const u8*>(data);
 
     for (std::size_t i = 0; i < bytes; ++i)
     {
         hash ^= p[i];
-        hash *= 1099511628211ull;
+        hash *= kFnvPrime;
     }
 
     return hash;
@@ -230,46 +342,46 @@ inline u64 Hash(const void* data, std::size_t bytes)
 
 inline u32 Mix32(u32 value)
 {
-    value ^= value >> 16;
-    value *= 0x7FEB352Du;
-    value ^= value >> 15;
-    value *= 0x846CA68Bu;
-    value ^= value >> 16;
+    value ^= value >> kMixOuterShift;
+    value *= kMixFirst;
+    value ^= value >> kMixInnerShift;
+    value *= kMixSecond;
+    value ^= value >> kMixOuterShift;
     return value;
 }
 
 // The background pattern of a scenario (also used by the backends' Reset).
 inline u16 Background(u32 seed, int x, int y)
 {
-    return static_cast<u16>(Mix32(seed * 0x9E3779B9u + static_cast<u32>(y * kScreenWidth + x)));
+    return static_cast<u16>(Mix32(seed * kGoldenRatio + static_cast<u32>(y * kScreenWidth + x)));
 }
 
 // A raw 16-bit picture from an RLE frame: literal pixels, fill runs 0x04CB and skip runs 0x631F (the converted RLE
 // fill and skip colours of an RGB565 display).
 inline std::vector<u16> RawPixels(const Frame& frame)
 {
-    std::vector<u16> pixels(static_cast<std::size_t>(frame.width) * frame.height, 0x631F);
-    const u8* line = frame.rle.data() + 8;
+    std::vector<u16> pixels(static_cast<std::size_t>(frame.width) * frame.height, kSkipColor);
+    const u8* line = frame.rle.data() + kRleHeaderWords * sizeof(u16);
 
     for (int y = 0; y < frame.height; ++y)
     {
         u16 header = 0;
-        std::memcpy(&header, line, 2);
+        std::memcpy(&header, line, sizeof(header));
 
         if (header == 0)
         {
             break;
         }
 
-        const u8* code = line + 2;
+        const u8* code = line + sizeof(u16);
         int x = 0;
 
         while (x < frame.width)
         {
             u16 value = 0;
-            std::memcpy(&value, code, 2);
-            const int count = value & 0x3FFF;
-            code += 2;
+            std::memcpy(&value, code, sizeof(value));
+            const int count = value & kRleCountMask;
+            code += sizeof(u16);
 
             if (count == 0)
             {
@@ -278,25 +390,25 @@ inline std::vector<u16> RawPixels(const Frame& frame)
 
             for (int i = 0; i < count && x + i < frame.width; ++i)
             {
-                u16 pixel = (value & 0x8000) != 0 ? 0x631F : 0x04CB;
+                u16 pixel = (value & kRleSkipRun) != 0 ? kSkipColor : kFillColor;
 
-                if ((value & 0xC000) == 0)
+                if ((value & kRleKindMask) == 0)
                 {
-                    std::memcpy(&pixel, code + 2 * i, 2);
+                    std::memcpy(&pixel, code + sizeof(u16) * i, sizeof(pixel));
                 }
 
                 pixels[static_cast<std::size_t>(y) * frame.width + x + i] = pixel;
             }
 
-            if ((value & 0xC000) == 0)
+            if ((value & kRleKindMask) == 0)
             {
-                code += 2 * count;
+                code += sizeof(u16) * count;
             }
 
             x += count;
         }
 
-        line += header & 0x7FFF;
+        line += header & kRleLengthMask;
     }
 
     return pixels;
@@ -315,7 +427,7 @@ Run(Backend& backend, const std::vector<Frame>& frames, const std::function<void
         if (!dumpName.empty() && !dumpFile.empty() && name.rfind(dumpName, 0) == 0)
         {
             std::ofstream out(dumpFile, std::ios::binary);
-            out.write(reinterpret_cast<const char*>(backend.Screen()), kScreenWidth * kScreenHeight * 2);
+            out.write(reinterpret_cast<const char*>(backend.Screen()), kScreenBytes);
         }
 
         reportHash(name, hash);
@@ -323,7 +435,7 @@ Run(Backend& backend, const std::vector<Frame>& frames, const std::function<void
 
     auto screenHash = [&backend]
     {
-        return Hash(backend.Screen(), static_cast<std::size_t>(kScreenWidth) * kScreenHeight * 2);
+        return Hash(backend.Screen(), kScreenBytes);
     };
 
     struct Variant
@@ -404,7 +516,7 @@ Run(Backend& backend, const std::vector<Frame>& frames, const std::function<void
 
         for (std::size_t i = 0; i < alphaMap.size(); ++i)
         {
-            alphaMap[i] = static_cast<u8>((Mix32(static_cast<u32>(i) + 77u) % 16) * 4);
+            alphaMap[i] = static_cast<u8>((Mix32(static_cast<u32>(i) + kAlphaSeed) % kAlphaLevels) * kAlphaStep);
         }
 
         const Position positions[] = {
@@ -418,13 +530,13 @@ Run(Backend& backend, const std::vector<Frame>& frames, const std::function<void
 
         for (const Variant& variant : variants)
         {
-            for (int clip = 0; clip < 2; ++clip)
+            for (int clip = 0; clip < kClipCases; ++clip)
             {
                 backend.Reset(seed++);
 
                 if (clip == 1)
                 {
-                    backend.SetClip(90, 70, 530, 410);
+                    backend.SetClip(kRleClip.left, kRleClip.top, kRleClip.right, kRleClip.bottom);
                 }
 
                 int result = 0;
@@ -447,7 +559,7 @@ Run(Backend& backend, const std::vector<Frame>& frames, const std::function<void
                     call.shear = variant.shear;
                     call.wave = variant.wave;
                     call.alphaMap = alphaMap.data();
-                    call.colorPair = 0x7BEF1234u;
+                    call.colorPair = kColorPair;
                     result += backend.Draw(call);
                 }
 
@@ -462,42 +574,43 @@ Run(Backend& backend, const std::vector<Frame>& frames, const std::function<void
         backend.Reset(seed++);
         DrawCall outline;
         outline.source = frame.rle.data();
-        outline.x = 150;
-        outline.y = 120;
+        outline.x = kOutlineX;
+        outline.y = kOutlineY;
         outline.width = frame.width;
         outline.height = frame.height;
-        outline.colorPair = 0x001F001Fu;
+        outline.colorPair = kOutlineColor;
         backend.Outline(outline);
         report("outline/" + std::to_string(f), screenHash());
 
         const std::vector<u16> raw = RawPixels(frame);
-        std::array<u16, 256> palette{};
+        std::array<u16, kPaletteColors> palette{};
 
         for (std::size_t i = 0; i < palette.size(); ++i)
         {
-            palette[i] = static_cast<u16>(Mix32(static_cast<u32>(i) * 31u));
+            palette[i] = static_cast<u16>(Mix32(static_cast<u32>(i) * kFramePaletteSeed));
         }
 
         std::vector<u8> indexed(raw.size());
 
         for (std::size_t i = 0; i < raw.size(); ++i)
         {
-            indexed[i] = static_cast<u8>(raw[i] % 7 == 0 ? 1 : raw[i] & 0xFF);
+            indexed[i] = static_cast<u8>(raw[i] % kKeyEvery == 0 ? 1 : raw[i] & kByteMask);
         }
 
         const u32 rawModes[] = {0x00, 0x01, 0x04, 0x05, 0x08, 0x14};
 
         for (u32 mode : rawModes)
         {
-            for (int kind = 0; kind < 2; ++kind)
+            for (int kind = 0; kind < kRawKinds; ++kind)
             {
-                if (kind == 1 && (mode == 0x01 || mode == 0x05 || mode == 0x14 || mode == 0x08))
+                if (kind == kIndexedKind &&
+                    std::find(kRawOnlyModes.begin(), kRawOnlyModes.end(), mode) != kRawOnlyModes.end())
                 {
                     continue;
                 }
 
                 backend.Reset(seed++);
-                backend.SetClip(40, 30, 600, 450);
+                backend.SetClip(kRawClip.left, kRawClip.top, kRawClip.right, kRawClip.bottom);
                 int result = 0;
 
                 for (const Position& position : positions)
@@ -510,7 +623,7 @@ Run(Backend& backend, const std::vector<Frame>& frames, const std::function<void
                     call.width = frame.width;
                     call.height = frame.height;
                     call.mode = mode;
-                    call.alpha = 6;
+                    call.alpha = kRawAlpha;
                     result += backend.Draw(call);
                 }
 
@@ -522,7 +635,7 @@ Run(Backend& backend, const std::vector<Frame>& frames, const std::function<void
             }
         }
 
-        const int zooms[][4] = {
+        const Zoom zooms[] = {
             {0x28, 0x48, 0x600, 0x400},
             {10, 20, 0x200, 0x300},
             {0, 0, 0x400, 0x400},
@@ -531,10 +644,10 @@ Run(Backend& backend, const std::vector<Frame>& frames, const std::function<void
 
         for (const auto& zoom : zooms)
         {
-            for (int mirrored = 0; mirrored < 2; ++mirrored)
+            for (const int mirrored : {0, 1})
             {
                 backend.Reset(seed++);
-                backend.SetClip(60, 50, 580, 430);
+                backend.SetClip(kZoomClip.left, kZoomClip.top, kZoomClip.right, kZoomClip.bottom);
 
                 for (const Position& position : positions)
                 {
@@ -545,44 +658,49 @@ Run(Backend& backend, const std::vector<Frame>& frames, const std::function<void
                         frame.width,
                         frame.height,
                         mirrored != 0,
-                        zoom[0],
-                        zoom[1],
-                        zoom[2],
-                        zoom[3]
+                        zoom.anchorX,
+                        zoom.anchorY,
+                        zoom.zoomX,
+                        zoom.zoomY
                     );
                 }
 
                 report(
-                    "zoom/" + std::to_string(f) + "/" + std::to_string(zoom[2]) + "x" + std::to_string(zoom[3]) + "/" +
-                        std::to_string(mirrored),
+                    "zoom/" + std::to_string(f) + "/" + std::to_string(zoom.zoomX) + "x" + std::to_string(zoom.zoomY) +
+                        "/" + std::to_string(mirrored),
                     screenHash()
                 );
             }
         }
     }
 
-    std::vector<u16> tile16(256);
-    std::vector<u8> tile8(256);
-    std::array<u16, 256> palette{};
+    std::vector<u16> tile16(kTilePixels);
+    std::vector<u8> tile8(kTilePixels);
+    std::array<u16, kPaletteColors> palette{};
 
-    for (int i = 0; i < 256; ++i)
+    for (int i = 0; i < kTilePixels; ++i)
     {
-        tile16[static_cast<std::size_t>(i)] = static_cast<u16>(i % 5 == 0 ? 0x04CB : Mix32(i + 5u));
-        tile8[static_cast<std::size_t>(i)] = static_cast<u8>(i % 6 == 0 ? 1 : Mix32(i + 9u));
-        palette[static_cast<std::size_t>(i)] = static_cast<u16>(Mix32(static_cast<u32>(i) * 13u));
+        tile16[static_cast<std::size_t>(i)] =
+            static_cast<u16>(i % kTileFillEvery == 0 ? kFillColor : Mix32(i + kTileSeed));
+        tile8[static_cast<std::size_t>(i)] = static_cast<u8>(i % kTileKeyEvery == 0 ? 1 : Mix32(i + kTile8Seed));
+        palette[static_cast<std::size_t>(i)] = static_cast<u16>(Mix32(static_cast<u32>(i) * kTilePaletteSeed));
     }
 
-    for (int kind = 0; kind < 4; ++kind)
+    for (int kind = 0; kind < TileKinds; ++kind)
     {
         backend.Reset(seed++);
-        const void* source = kind < 2 ? static_cast<const void*>(tile16.data()) : tile8.data();
-        backend.Tile(kind, source, palette.data(), 33, 47);
-        backend.Tile(kind, source, palette.data(), 600, 400);
+        const void* source = kind < TilePalette ? static_cast<const void*>(tile16.data()) : tile8.data();
+
+        for (const Place& place : kTilePlaces)
+        {
+            backend.Tile(kind, source, palette.data(), place.x, place.y);
+        }
+
         report("tile/" + std::to_string(kind), screenHash());
     }
 
-    std::vector<u16> pixels(1000);
-    std::vector<u16> other(1000);
+    std::vector<u16> pixels(kPixelCount);
+    std::vector<u16> other(kPixelCount);
 
     const struct
     {
@@ -610,8 +728,8 @@ Run(Backend& backend, const std::vector<Frame>& frames, const std::function<void
     {
         for (std::size_t i = 0; i < pixels.size(); ++i)
         {
-            pixels[i] = static_cast<u16>(Mix32(static_cast<u32>(i) * 3u + 1u));
-            other[i] = static_cast<u16>(Mix32(static_cast<u32>(i) * 7u + 2u));
+            pixels[i] = static_cast<u16>(Mix32(static_cast<u32>(i) * kPixelStep + kPixelSeed));
+            other[i] = static_cast<u16>(Mix32(static_cast<u32>(i) * kOtherStep + kOtherSeed));
         }
 
         backend.Pixels(
@@ -623,23 +741,23 @@ Run(Backend& backend, const std::vector<Frame>& frames, const std::function<void
             operation.b,
             operation.c
         );
-        report("pixels/" + std::string(operation.name), Hash(pixels.data(), pixels.size() * 2));
+        report("pixels/" + std::string(operation.name), Hash(pixels.data(), pixels.size() * sizeof(u16)));
     }
 
     std::vector<u32> colors;
 
-    for (u32 red = 0; red < 32; red += 3)
+    for (u32 red = 0; red < kLevels; red += kRedStep)
     {
-        for (u32 green = 0; green < 32; green += 5)
+        for (u32 green = 0; green < kLevels; green += kGreenStep)
         {
-            for (u32 blue = 0; blue < 32; blue += 7)
+            for (u32 blue = 0; blue < kLevels; blue += kBlueStep)
             {
                 colors.push_back(backend.MakeColor(red, green, blue));
             }
         }
     }
 
-    report("make-color", Hash(colors.data(), colors.size() * 4));
+    report("make-color", Hash(colors.data(), colors.size() * sizeof(u32)));
 }
 
 }  // namespace golden
