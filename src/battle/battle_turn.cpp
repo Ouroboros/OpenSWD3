@@ -460,7 +460,6 @@ constexpr std::u8string_view kNoRetreatText = u8"無法撤退!!";  // swd32.exe 
 constexpr i32 kThumbPart = 5;
 constexpr i32 kConfirmIdle = 0x12C;
 constexpr i32 kChoiceSignBit = 0x8000;
-constexpr i32 kSkipMenuState = 0x67;  // DrawBattleMenu
 constexpr int kListX = 0xE0;
 constexpr int kListY = 0x7E;
 constexpr int kSpellListX = 0xE8;
@@ -495,6 +494,15 @@ constexpr int kCommandMenuY = 0x2A;
 constexpr int kRoleAimDrop = 0xA;
 constexpr int kTargetTagX = 0xC;
 constexpr int kTargetTagY = 0xE;
+constexpr i32 kEndBack = 0x60;  // BattleEndFrame
+constexpr i32 kEndGlow = 0x61;
+constexpr i32 kEndCheck = 0x63;
+constexpr i32 kEndPanelFrames = 0x96;
+constexpr i32 kEndQuietFrames = 0x1E;
+constexpr i16 kLevelUpPose = 2;
+constexpr i16 kStatsPose = 4;
+constexpr u8 kCraftFailed = 2;
+constexpr i32 kRefineOrder = 0xE;
 
 // The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
 // here.
@@ -6896,7 +6904,7 @@ void Game::DrawBattleMenu()
     BattleState& battle = this->battleState;
     BattleHud& hud = this->battleHud;
 
-    if (battle.result == kSkipMenuState || (battle.currentUnit == 0 && battle.autoBattle != 1))
+    if (battle.result == kBattleLost || (battle.currentUnit == 0 && battle.autoBattle != 1))
     {
         return;
     }
@@ -7278,5 +7286,373 @@ void Game::DrawAimPointers()
     {
         this->DrawTargetTag(kTargetTagX, kTargetTagY);
     }
+}
+
+// swd32.exe 0x00466F70: the frame of the battle end states (not while a talk window or a battle message shows):
+// 0x60 back to state 0; 0x61 the glow of the unit after the roles (a level-up role 1 once over); 0x62 the 煉符 result;
+// 0x63 the end checked (every enemy down, unless the talk or unk53C048 ended it): a waiting refine (pendingAction)
+// refines its enemy into a talisman (state 0x62 when its role is down or nothing came), otherwise 0x64; 0x64 the
+// victory panel; 0x65 the level-ups one role at a time (0x70 once none is left); 0x66 the loot; 0x67 the defeat;
+// 0x68 a pause; 0x6E the level-up stats; 0x6F the new spell; 0x70 the new special skills (0x71 after); 0x71 the
+// masteries (0x66 after). The panels confirm themselves after kEndPanelFrames.
+void Game::BattleEndFrame()
+{
+    BattleState& battle = this->battleState;
+    BattleMessages& messages = this->battleMessages;
+
+    if (this->scene.talkWindows != nullptr || messages.messages != nullptr)
+    {
+        return;
+    }
+
+    auto levelRole = [this, &battle]() -> BattleRole&
+    {
+        return this->battleRoles[static_cast<std::size_t>(static_cast<i8>(battle.unk4A7646))];
+    };
+
+    auto noLevelRole = [&battle]
+    {
+        return battle.unk4A7646 == kNoLevelUp;
+    };
+
+    switch (battle.result)
+    {
+        case kEndBack:
+            battle.unk53BFC4 = 0;
+            battle.unk53BFB8 = 0;
+            battle.result = 0;
+            return;
+
+        case kEndGlow:
+        {
+            // The original reads the unit after the roles even with every place taken.
+            if (battle.roleCount >= this->battleRoles.size())
+            {
+                return;
+            }
+
+            const UnitPlacement& place = battle.rolePlaces[battle.roleCount];
+
+            if (this->battleRoles[battle.roleCount].GlowAct(this->battleServices, place.x, place.y) == 1)
+            {
+                battle.unk4A7646 = 1;
+            }
+
+            return;
+        }
+
+        case kEndCraft:
+            battle.unk53BFC0 = 1;
+            messages.DrawCraftResultPanel();
+            return;
+
+        case kEndCheck:
+            this->EndCheckFrame();
+            return;
+
+        case kEndVictory:
+            if (battle.unk53C004 == 1)
+            {
+                battle.unk53BFE4 = 1;
+                return;
+            }
+
+            this->DrawVictoryPanel();
+            battle.unk53BF64 = 0;
+            battle.unk53BFC0 = 1;
+            battle.unk53BFC4 = 1;
+            battle.unk53BF74 = 1;
+            battle.currentUnit = 0;
+
+            if (++battle.unk53BD20 >= kEndPanelFrames)
+            {
+                this->ConfirmKey();
+            }
+
+            return;
+
+        case kEndLevelUps:
+            if (noLevelRole())
+            {
+                this->CheckLevelUps();
+
+                if (noLevelRole())
+                {
+                    battle.unk53BD20 = 0;
+                    battle.result = kEndSpecials;
+                    return;
+                }
+            }
+
+            if (battle.unk53C038 == 0)
+            {
+                if (!levelRole().IsDefeated())
+                {
+                    battle.unk53C038 = levelRole().RestartMainAct(kLevelUpPose, 0) ? 1 : 0;
+                }
+
+                if (battle.unk53C038 == 0)
+                {
+                    return;
+                }
+            }
+
+            if (noLevelRole())
+            {
+                battle.unk53BD20 = 0;
+                battle.result = kEndSpecials;
+            }
+            else
+            {
+                this->DrawLevelUpPanel();
+                ++battle.unk53BD20;
+            }
+
+            return;
+
+        case kEndLoot:
+            if (messages.lootCount == 0)
+            {
+                battle.unk53BFE4 = 1;
+                return;
+            }
+
+            if (++battle.unk53BD20 >= kEndPanelFrames)
+            {
+                this->ConfirmKey();
+            }
+
+            messages.DrawLootPanel();
+            return;
+
+        case kBattleLost:
+            battle.unk53BFC0 = 1;
+            battle.unk53BFC4 = 1;
+
+            if ((battle.panelFlags & BattleState::UnkPanel8) != 0)
+            {
+                if (++battle.unk53BD20 >= kEndQuietFrames)
+                {
+                    battle.unk53BD20 = 0;
+                    battle.unk53BFE4 = 1;
+                }
+
+                return;
+            }
+
+            messages.DrawDefeatPanel();
+
+            if (++battle.unk53BD20 >= kEndPanelFrames)
+            {
+                this->ConfirmKey();
+            }
+
+            return;
+
+        case kLostQuietly:
+            battle.unk53BFC0 = 1;
+            battle.unk53BFC4 = 1;
+
+            if (++battle.unk53BD20 > kEndMessageFrames)
+            {
+                this->ConfirmKey();
+            }
+
+            return;
+
+        case kEndStats:
+            if (battle.unk53C038 == 0 && !levelRole().IsDefeated())
+            {
+                battle.unk53C038 = levelRole().RestartMainAct(kStatsPose, 0) ? 1 : 0;
+            }
+
+            if (battle.unk53C038 != 0)
+            {
+                this->DrawLevelUpStats();
+            }
+
+            return;
+
+        case kEndNewSpell:
+            this->DrawNewSpell();
+            ++battle.unk53BD20;
+            return;
+
+        case kEndSpecials:
+            if (noLevelRole())
+            {
+                this->LearnSpecials();
+
+                if (!noLevelRole())
+                {
+                    this->audio.PlaySound(kLearnedSound, this->config.soundVolume);
+
+                    if (!levelRole().IsDefeated())
+                    {
+                        levelRole().RestartMainAct(kLearnedPose, 1);
+                    }
+                }
+
+                if (noLevelRole())
+                {
+                    battle.unk53BD20 = 0;
+                    battle.result = kEndMastery;
+                    return;
+                }
+            }
+
+            this->DrawNewSpecial();
+            ++battle.unk53BD20;
+            return;
+
+        case kEndMastery:
+            if (noLevelRole())
+            {
+                this->AnnounceMastery();
+
+                if (!noLevelRole())
+                {
+                    this->audio.PlaySound(kLearnedSound, this->config.soundVolume);
+
+                    if (!levelRole().IsDefeated())
+                    {
+                        levelRole().RestartMainAct(kLearnedPose, 1);
+                    }
+                }
+
+                if (noLevelRole())
+                {
+                    battle.result = kEndLoot;
+                    battle.unk53BD20 = 0;
+
+                    if (messages.lootCount != 0)
+                    {
+                        this->audio.PlaySound(kLearnedSound, this->config.soundVolume);
+                    }
+
+                    return;
+                }
+            }
+
+            messages.DrawMastery();
+            ++battle.unk53BD20;
+            return;
+
+        default:
+            return;
+    }
+}
+
+// Battle state 0x63 of BattleEndFrame (inline in the original); see there. The refine: every role's turn reset, its
+// command dropped and its effects cleared, the slot records and the acting unit cleared, the role of pendingActionRow
+// set on command 0xE at the enemy pendingAction (1-based), and the talisman it refines added to the inventory as the
+// first loot.
+void Game::EndCheckFrame()
+{
+    BattleState& battle = this->battleState;
+    BattleMessages& messages = this->battleMessages;
+    battle.unk53BF1C = 0;
+    battle.autoBattle = 0;
+    battle.unk53C4C0 = 1;
+
+    if (this->fightTalk.unk53CEAC == 0 && battle.unk53C048 == 0)
+    {
+        u32 defeated = 0;
+
+        for (u32 index = 0; index < battle.enemyCount; ++index)
+        {
+            BattleEnemy& enemy = this->battleEnemies[index];
+            enemy.SetAC0(0);
+
+            if (enemy.IsDefeated())
+            {
+                ++defeated;
+            }
+        }
+
+        if (defeated != battle.enemyCount)
+        {
+            battle.result = 0;
+            return;
+        }
+    }
+
+    for (u32 index = 0; index < battle.roleCount; ++index)
+    {
+        this->battleRoles[index].SetAC0(0);
+    }
+
+    battle.TakePendingAction();
+
+    if (battle.pendingActionRow == 0 && battle.pendingAction == 0)
+    {
+        messages.craftSucceeded = 0;
+        battle.result = kEndVictory;
+        return;
+    }
+
+    if (messages.craftSucceeded != 0)
+    {
+        return;
+    }
+
+    const auto row = static_cast<std::size_t>(static_cast<u16>(battle.pendingActionRow));
+    BattleRole& role = this->battleRoles[row];
+
+    if (role.IsDefeated())
+    {
+        battle.result = kEndCraft;
+        messages.craftSucceeded = kCraftFailed;
+        return;
+    }
+
+    for (u32 index = 0; index < battle.roleCount; ++index)
+    {
+        BattleRole& each = this->battleRoles[index];
+        each.ResetTurn(this->battleServices);
+        each.CancelCommand();
+        each.ExpireEffects(this->battleServices, 1);
+    }
+
+    battle.unk524788.fill(BattleSlotRecord{});
+    battle.ClearActing();
+    battle.unk53BCE8 = kRefineOrder;
+    battle.unk53AE70 = -1;
+    battle.unk53AF38[row + static_cast<std::size_t>(BattleState::FirstRoleUnit)] = kRefineOrder;
+    role.Retarget(0);
+    role.SetCommand(battle.unk53BCE8);
+    battle.unk53BFD0 = 1;
+    battle.unk53BF60 = 0;
+    battle.unk53BF5C = 0;
+    battle.unk53BF74 = 0;
+    battle.unk53AE70 = static_cast<i32>(row) + BattleState::FirstRoleUnit;
+    battle.unk53BD50 = static_cast<i32>(row) + BattleState::FirstRoleUnit;
+    battle.pendingOrders[row].unk00 = 1;
+    battle.unk53BFB8 = 0;
+    battle.unk4A754C = static_cast<u16>(battle.pendingAction);
+    battle.unk53BFC4 = 0;
+    battle.unk53BFC0 = 0;
+    battle.currentUnit = 0;
+    const u16 proficiency = role.Unk1EProficiency(this->battleServices);
+    const u8 level = this->party.roles[static_cast<std::size_t>(battle.partyRoles[row])].level;
+    const auto aimed = static_cast<std::size_t>(static_cast<u16>(battle.pendingAction)) - 1;
+
+    // An enemy 0 is read before the first enemy by the original: taken as refining nothing.
+    const u16 talisman =
+        aimed < this->battleEnemies.size()
+            ? this->battleEnemies[aimed].RefineTalisman(this->battleServices, this->database, proficiency, level)
+            : 0;
+
+    if (talisman == 0)
+    {
+        messages.craftSucceeded = kCraftFailed;
+        return;
+    }
+
+    ObjectRecord* record = AddOneItem(this->party.inventory, talisman, 1, this->database);
+    messages.lootNames[0] =
+        record != nullptr ? std::string_view(record->data.name.data(), ObjectName(*record).size()) : std::string_view();
+    messages.craftSucceeded = 1;
+    --battle.unk53C4B0;
 }
 }  // namespace swd3
