@@ -317,6 +317,12 @@ Game::Game(std::u8string installDirectory)
 {
     this->config.installDirectory = std::move(installDirectory);
     this->archive.SetMapPictureSource(&this->field);
+    this->archive.SetAudioServe(
+        [this]
+        {
+            this->audioDevice.Serve();
+        }
+    );
     this->glyphs.Load(GlyphLibraryPath());
 }
 

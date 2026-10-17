@@ -86,6 +86,19 @@ void TswArchive::SetMapPictureSource(MapPictureSource* source)
     this->mapPictures = source;
 }
 
+void TswArchive::SetAudioServe(std::function<void()> serve)
+{
+    this->serveAudio = std::move(serve);
+}
+
+void TswArchive::ServeAudio() const
+{
+    if (this->serveAudio)
+    {
+        this->serveAudio();
+    }
+}
+
 int TswArchive::CacheBytes() const
 {
     return this->cacheBytes;
@@ -441,6 +454,7 @@ bool TswArchive::OpenFile(File& file, const std::u8string& name)
 // entry
 bool TswArchive::ReadHeader(File& file, FrameInfo& info, u16& frameCount)
 {
+    this->ServeAudio();
     u8 header[TswArchive::EntryHeaderBytes] = {};
     u32 bytes = sizeof(header);
     file.Read(header, bytes);
@@ -517,6 +531,7 @@ bool TswArchive::LoadPicture(File& file, int index, u32 frame, Picture& picture)
     }
     else
     {
+        this->ServeAudio();
         file.Seek(
             File::Origin::Begin,
             static_cast<i32>(TswArchive::DirectoryStart + sizeof(TswDirectoryEntry) * (index - 1))
@@ -528,7 +543,7 @@ bool TswArchive::LoadPicture(File& file, int index, u32 frame, Picture& picture)
         if (!this->ReadHeader(file, info, count))
         {
             this->errorText = Format(TswArchive::BadHeader, index, entry.Name());
-            DebugLog(this->errorText);
+            ErrorLog(this->errorText);  // 0x00411F90
             this->ReportError(this->errorText);
             return false;
         }
@@ -537,7 +552,7 @@ bool TswArchive::LoadPicture(File& file, int index, u32 frame, Picture& picture)
     if (!this->ReadFrame(file, entry.offset, info, static_cast<int>(frame)))
     {
         this->errorText = Format(TswArchive::BadFrame, index, entry.Name(), static_cast<int>(frame));
-        DebugLog(this->errorText);
+        ErrorLog(this->errorText);  // 0x00411F90
         this->ReportError(this->errorText);
         return false;
     }
@@ -555,13 +570,19 @@ bool TswArchive::Decompress(
     File& file,
     const TswFrameEntry& entry,
     FrameInfo& info,
-    bool logMissingBuffer
+    bool logMissingBuffer,
+    bool serveAround
 )
 {
     if (entry.packedSize > buffer.capacity)
     {
         buffer.present = TryAssign(buffer.bytes, entry.packedSize);
         buffer.capacity = entry.packedSize;
+    }
+
+    if (serveAround)
+    {
+        this->ServeAudio();
     }
 
     std::vector<u8> out;
@@ -571,7 +592,7 @@ bool TswArchive::Decompress(
     {
         if (logMissingBuffer)
         {
-            DebugLog(TswArchive::NoBufferLog);
+            ErrorLog(TswArchive::NoBufferLog);
         }
 
         this->ReportError(TswArchive::NoBufferBox);
@@ -581,7 +602,19 @@ bool TswArchive::Decompress(
     u32 bytes = entry.packedSize;
     file.Read(buffer.bytes.data(), bytes);
     LzoDecoder decoder({buffer.bytes.data(), entry.packedSize}, out);
+
+    if (serveAround)
+    {
+        this->ServeAudio();
+    }
+
     const LzoStatus status = decoder.Run();
+
+    if (serveAround)
+    {
+        this->ServeAudio();
+    }
+
     const bool reachedEnd = status == LzoStatus::Ok || status == LzoStatus::InputNotConsumed;
 
     if (!reachedEnd || decoder.Written() != entry.size)
@@ -610,6 +643,7 @@ bool TswArchive::ReadFrame(File& file, u32 base, FrameInfo& info, int frame)
     }
     else
     {
+        this->ServeAudio();
         std::vector<TswFrameEntry> records(static_cast<std::size_t>(frame) + 1);
         u32 bytes = static_cast<u32>(records.size() * sizeof(TswFrameEntry));
         file.Read(records.data(), bytes);
@@ -617,7 +651,7 @@ bool TswArchive::ReadFrame(File& file, u32 base, FrameInfo& info, int frame)
         file.Seek(File::Origin::Begin, static_cast<i32>(entry.offset + base));
     }
 
-    return this->Decompress(this->packed, file, entry, info, true);
+    return this->Decompress(this->packed, file, entry, info, true, true);
 }
 
 // swd32.exe 0x00433720: the direct-load variant of 0x00433380 (no log; magic pictures take the slot palette)
@@ -649,6 +683,7 @@ bool TswArchive::LoadPictureB(File& file, int index, u32 frame, Picture& picture
     }
     else
     {
+        this->ServeAudio();
         file.Seek(
             File::Origin::Begin,
             static_cast<i32>(TswArchive::DirectoryStart + sizeof(TswDirectoryEntry) * (index - 1))
@@ -695,7 +730,8 @@ bool TswArchive::ReadFrameB(File& file, u32 base, FrameInfo& info, int frame)
         file.Seek(File::Origin::Begin, static_cast<i32>(entry.offset + base));
     }
 
-    return this->Decompress(this->packedB, file, entry, info, false);
+    this->ServeAudio();
+    return this->Decompress(this->packedB, file, entry, info, false, false);
 }
 
 // swd32.exe 0x00433BF0

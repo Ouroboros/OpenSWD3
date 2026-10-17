@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <list>
 #include <memory>
 #include <string>
@@ -106,6 +107,8 @@ public:
 
     void SetGameDirectory(std::u8string directory);
     void SetMapPictureSource(MapPictureSource* source);
+    // AIL_serve of the original: called where the reads serve the audio.
+    void SetAudioServe(std::function<void()> serve);
 
     void SetCacheLimit(int bytes);
     Picture* GetPicture(u32 id, u32 frame);
@@ -160,17 +163,20 @@ private:
         File& file,
         const TswFrameEntry& entry,
         FrameInfo& info,
-        bool logMissingBuffer
+        bool logMissingBuffer,
+        bool serveAround
     );
     void FreeBuffers();
     File* ArchiveOf(u32 id);
     u32 MagicDirectoryOffset(int index) const;
     TswFrameEntry& MagicFrame(int slot, int frame);
     void ReportError(std::u8string_view text);
+    void ServeAudio() const;
 
     const RleCodec& codec;
     ErrorReporter& errors;
     MapPictureSource* mapPictures = nullptr;
+    std::function<void()> serveAudio;
     std::u8string gameDirectory;
     std::array<File, FileCount> files;
     File extraFile;  // closed by CloseAll; opened by another module
