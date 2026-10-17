@@ -74,6 +74,23 @@ int main(int count, char** arguments)
     swd3::InstallCrashLog();
     const std::string commandLine = CommandLine(count, arguments);
     std::error_code error;
+
+    // The original opens its archives (all_char.act ...) relative to the working directory, the game's directory; a
+    // data_dir set becomes the working directory.
+    if (!settings.dataDirectory.empty())
+    {
+        std::filesystem::current_path(settings.dataDirectory, error);
+
+        if (error)
+        {
+            swd3::LogError(
+                u8"data_dir %s cannot be entered: %s",
+                swd3::AsUtf8(PathText(settings.dataDirectory)),
+                swd3::AsUtf8(error.message())
+            );
+        }
+    }
+
     const std::string directory = PathText(std::filesystem::current_path(error));
     const int version = SDL_GetVersion();
     const char* base = SDL_GetBasePath();

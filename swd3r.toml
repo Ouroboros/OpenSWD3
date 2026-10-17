@@ -6,7 +6,7 @@
 
 # 相对路径以可执行文件目录为基准。
 # 未配置 data_dir 时按原程序逻辑：先在工作目录读 Env.dat，再使用 Env.dat 记录的安装目录。
-# 配置后，Env.dat 从 data_dir 读取，游戏数据也从 data_dir 读取（覆盖 Env.dat 记录的目录）。
+# 配置后，工作目录切换到 data_dir（原程序按工作目录读取 all_char.act 等档案），Env.dat 与游戏数据也从这里读取（覆盖 Env.dat 记录的目录）。
 # 未配置 save_dir 时，编号存档 0.sav..98.sav 仍按原逻辑保存在 <data_dir>\save\ 中。
 
 # data_dir = './'

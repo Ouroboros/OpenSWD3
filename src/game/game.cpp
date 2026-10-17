@@ -285,7 +285,7 @@ Game::Game(std::string installDirectory)
       talk(*this),
       roleControl(*this),
       rolePath(*this),
-      database(installDirectory),
+      database(this->config.installDirectory),
       battleHud(this->painter, this->archive, this->acts, this->random, this->audio),
       battleMessages(
           this->painter,
