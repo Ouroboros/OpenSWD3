@@ -184,6 +184,13 @@ constexpr u32 kLeapReturning = 2;
 constexpr u32 kLeapHome = 3;
 constexpr i32 kLeapReturnAction = 2;  // the walk home takes the action two after the magic act's
 
+// UseSelectedItem: bits of the item's object.
+constexpr u16 kMultiUse = 0x400;  // ObjectData::unk3C: the item has uses in the low byte
+constexpr u16 kUsesMask = 0xFF;
+constexpr u32 kKeptKind = 0x80;  // ObjectData::kind: not spent by a use
+constexpr u32 kUnkKind8000000 = 0x8000000;
+constexpr u16 kNoUseAct = 0x2000;  // ObjectData::unk40: the use returns no item
+
 // CanAbsorb.
 constexpr u16 kMaxAbsorbClass = 0x15;   // ObjectData::unk52
 constexpr int kAbsorbLevelsAbove = 12;  // a target this many levels above the role is never absorbed
@@ -231,7 +238,7 @@ void BattleRole::ClearExtras()
     this->unk2F1C = 0;
     this->weaponId = 0;
     this->unk2F24 = 0;
-    this->unk2F14 = 0;
+    this->usedItem = 0;
     this->unk2F18 = 0;
     this->unk2F16 = 0;
     this->extraActs.fill(ActState{});
@@ -1320,7 +1327,7 @@ int BattleRole::CatchAct(BattleServices& services, const BattleUnit& target)
     return 0;
 }
 
-// swd32.exe 0x00471D60: one frame of the role's glow act (unk2F14, action kGlowAction) drawn additively at (x, y) less
+// swd32.exe 0x00471D60: one frame of the role's glow act (usedItem, action kGlowAction) drawn additively at (x, y) less
 // its offset, mirrored when the role does not face (the original mirrors on facing 0); 1 once it is over. It brightens
 // by 2 a frame up past kGlowPeak, then dims back to 0 (counting absorbFrames), then sound kGlowEndSound plays and the
 // glow, the attack act and the extra acts are cleared. The original clears the sound of the recoil act instead of this
@@ -1328,7 +1335,7 @@ int BattleRole::CatchAct(BattleServices& services, const BattleUnit& target)
 int BattleRole::GlowAct(BattleServices& services, int x, int y)
 {
     ActState& act = this->attackAct;
-    act.id = this->unk2F14;
+    act.id = this->usedItem;
     act.action = kGlowAction;
     act.hold = 0;
 
@@ -2868,5 +2875,113 @@ int BattleRole::LeapSpellFrame(BattleServices& services, BattleUnit& target)
     this->unk267C = 0;
     magic = ActState{};
     return 1;
+}
+
+// swd32.exe 0x00470E20: the selected item used up: 0 when none is selected or it is not in the list, otherwise its id
+// (usedItem; 0 for an item with kNoUseAct). A multi-use item (kMultiUse, uses in the low byte) loses a use and is spent
+// only with its last; a spent item that is not kept (kKeptKind without kUnkKind8000000) loses a count (else a pending
+// count) and unk06, and the selection is cleared; an item left with no count is freed from the list. The original
+// then reads the flag of the item before it (of the list head for the first item, past it).
+u16 BattleRole::UseSelectedItem()
+{
+    int place = 0;
+    this->ShowAllItems();
+    ItemNode* const selected = this->selectedItem;
+
+    if (selected == nullptr)
+    {
+        return 0;
+    }
+
+    while (true)
+    {
+        ++place;
+        ItemNode* node = this->inventory->get();
+
+        // The original leaves the shown list at no item when the selected one is not in it.
+        if (node == nullptr)
+        {
+            this->inventory = nullptr;
+            return 0;
+        }
+
+        this->inventory = &node->next;
+
+        if (node->id == selected->id)
+        {
+            break;
+        }
+    }
+
+    this->inventory = &selected->next;
+    this->usedItem = selected->id;
+    ObjectData& data = selected->record.data;
+    const u16 uses = data.unk3C;
+    bool spent = true;
+
+    if ((uses & kMultiUse) != 0 && (uses & kUsesMask) != 0)
+    {
+        data.unk3C = static_cast<u16>((uses & ~kUsesMask) | ((uses & kUsesMask) - 1));
+        spent = (uses & kUsesMask) == 1;
+    }
+
+    if (spent && ((data.kind & kKeptKind) == 0 || (data.kind & kUnkKind8000000) != 0))
+    {
+        if (selected->count != 0)
+        {
+            --selected->count;
+        }
+        else if (selected->pending != 0)
+        {
+            --selected->pending;
+        }
+
+        if (selected->unk06 != 0)
+        {
+            --selected->unk06;
+        }
+
+        this->selectedItem = nullptr;
+    }
+
+    const ItemNode* flagged = selected;
+
+    if (selected->count == 0 && selected->pending == 0)
+    {
+        std::unique_ptr<ItemNode> rest = std::move(selected->next);
+        this->ShowAllItems();
+        ItemLink* before = this->inventory;
+
+        for (int step = place - 1; step > 0; --step)
+        {
+            before = &(*before)->next;
+        }
+
+        // `before` holds the freed item; the item before it is the one whose flag is read next.
+        *before = std::move(rest);
+        flagged = nullptr;
+
+        if (place - 1 > 0)
+        {
+            ItemLink* previous = this->inventory;
+
+            for (int step = place - 2; step > 0; --step)
+            {
+                previous = &(*previous)->next;
+            }
+
+            flagged = previous->get();
+        }
+
+        this->inventory = before;
+    }
+
+    // The list head read as an item has no flag here.
+    if (flagged != nullptr && (flagged->record.data.unk40 & kNoUseAct) != 0)
+    {
+        return 0;
+    }
+
+    return this->usedItem;
 }
 }  // namespace swd3

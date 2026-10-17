@@ -75,6 +75,7 @@ public:
     int SwarmSpellFrame(BattleServices& services, BattleUnit& target);
     int BoomerangFrame(BattleServices& services, BattleUnit& target);
     int LeapSpellFrame(BattleServices& services, BattleUnit& target);
+    u16 UseSelectedItem();
     void SetupGuest(const UnitPlacement& at, const RoleRecord& base, Database& database, ErrorReporter& reporter);
     void ApplyEquipment(
         std::span<const std::unique_ptr<ItemNode>> slots,
@@ -94,11 +95,12 @@ public:
     ItemNode* skillsHead = nullptr;              // +0x2EC4 the start of the list (its "無" head)
     ItemLink* inventory = nullptr;               // +0x2EC8 the first item shown
     ItemLink* inventoryHead = nullptr;           // +0x2ECC the party's items
+    ItemNode* selectedItem = nullptr;            // +0x2ED0 the item chosen to use
     std::array<i32, ExtraActs> extraSteps = {};  // +0x2EF8 the line steps of each extra act this frame
     i32 unk2F0C = 0;
     u16 unk2F10 = 0;
     u16 unk2F12 = 0;
-    u16 unk2F14 = 0;
+    u16 usedItem = 0;  // +0x2F14 the id of the item used (UseSelectedItem; GlowAct plays it as its act)
     u16 unk2F16 = 0;
     u16 unk2F18 = 0;
     u16 weaponId = 0;  // +0x2F1A
