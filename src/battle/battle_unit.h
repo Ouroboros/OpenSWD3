@@ -311,6 +311,8 @@ public:
     static constexpr std::size_t Trails = 8;
     // RunQueuedActions: the y offsets of a shaking queued act by its frames left (0x004A7E10).
     static constexpr std::array<i16, 8> ShakeOffsets = {-1, -3, -3, -6, -6, -3, -3, 0};
+    // DefeatHop: the heights of the hop by frame (0x004A7DB4).
+    static constexpr std::array<i32, 15> HopHeights = {0, 4, 12, 24, 32, 24, 16, 8, 4, 0, -4, -12, -16, -20, -32};
     static constexpr int UnkSlot8 = 8;
     static constexpr int UnkSlot9 = 9;
     static constexpr u32 NoTarget = 0xFFFFFFFF;
@@ -445,6 +447,39 @@ public:
     int FadeMainIn(BattleServices& services);
     void DrawMainFaded(BattleServices& services, int tint);
     int Defense() const;
+    int DefeatFrame(BattleServices& services);
+    int EndDefeat(BattleServices& services);
+    int EndParticleDefeat(BattleServices& services);
+    void StartDefeatDraw(BattleServices& services, const Picture& picture);
+    void DrawDefeatPiece(
+        BattleServices& services,
+        const Picture& picture,
+        int left,
+        int top,
+        int right,
+        int bottom,
+        int x,
+        int y,
+        int height
+    );
+    int DefeatRising(BattleServices& services, const Picture& picture, int x, int y);
+    int DefeatBurst(BattleServices& services, const Picture& picture, int x, int y);
+    int RunDefeatParticles(BattleServices& services);
+    void DecodeForParticles(BattleServices& services, const Picture& picture);
+    int DefeatSplitRows(BattleServices& services, const Picture& picture, int x, int y);
+    int DefeatSplitColumns(BattleServices& services, const Picture& picture, int x, int y);
+    int DefeatFill(BattleServices& services, const Picture& picture, int x, int y);
+    int DefeatFadeOut(BattleServices& services, const Picture& picture);
+    int DefeatQuarters(BattleServices& services, const Picture& picture, int x, int y);
+    int DefeatWave(BattleServices& services, const Picture& picture);
+    int DefeatSink(BattleServices& services, const Picture& picture);
+    int DefeatZoom(BattleServices& services, const Picture& picture);
+    int DefeatStrips(BattleServices& services, const Picture& picture, int x, int y);
+    int DefeatHalves(BattleServices& services, const Picture& picture, int x, int y);
+    int DefeatSlide(BattleServices& services, const Picture& picture);
+    int DefeatHop(BattleServices& services, const Picture& picture, int x, int y);
+    int DefeatProjected(BattleServices& services, const Picture& picture);
+    int DefeatParticles(BattleServices& services, const Picture& picture, int x, int y);
     void DrawTrail(BattleServices& services, AfterimageTrail& trail, u16 frame, u16 picture, u32 mode, i16 x, i16 y);
     int DrawRecoil(BattleServices& services, ActState& act, i16 y);
     int FlyAct(
@@ -533,6 +568,8 @@ public:
     UnitPlacement placement;                  // +0xD50
     UnitPlacement savedPlacement;             // +0xD70
     UnitCommand command;                      // +0xD90
+    ProjectedPicture projected;               // +0xDB8 the picture of defeat pose 51 (DefeatProjected)
+    std::vector<u16> projectedPixels;         // its raw pixels
     LineWalker flight;                        // +0xDF4 the line of a flying act (FlyAct)
     ParticleEffect absorb;                    // +0xE14 a picture breaking up into the unit (StartAbsorb)
     std::vector<u16> absorbPixels;            // the raw pixels of absorb (decoded by 0x004019A0, freed by 0x004885A0)
@@ -647,7 +684,7 @@ public:
     i32 unk2AB0 = 0;
     i32 unk2AB4 = 0;
     i32 defeated = 0;  // +0x2AB8
-    i32 unk2ABC = 0;
+    i32 dying = 0;     // +0x2ABC 1 while the defeat runs (DefeatFrame)
     i32 outline = 0;   // +0x2AC0
     i32 charging = 0;  // +0x2AC4 1: ChargeAttackFrame is in its charge
     i32 unk2AC8 = 0;

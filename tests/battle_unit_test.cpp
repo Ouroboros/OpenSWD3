@@ -433,3 +433,17 @@ TEST_CASE("battle role: the swarm offsets match swd32.exe")
     CHECK(swd3test::SameTable(exe, kSwarmOffsetXAt, swd3::BattleRole::SwarmOffsetX));
     CHECK(swd3test::SameTable(exe, kSwarmOffsetYAt, swd3::BattleRole::SwarmOffsetY));
 }
+
+TEST_CASE("battle unit: the hop heights of defeat pose 50 match swd32.exe")
+{
+    constexpr swd3::u32 kHopHeightsAt = 0x004A7DB4;
+    const std::vector<swd3::u8> exe = swd3test::ReadGameFile("swd32.exe");
+
+    if (exe.empty())
+    {
+        std::printf("  (swd32.exe not found, skipped)\n");
+        return;
+    }
+
+    CHECK(swd3test::SameTable(exe, kHopHeightsAt, swd3::BattleUnit::HopHeights));
+}

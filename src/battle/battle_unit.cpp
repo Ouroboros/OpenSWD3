@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <optional>
 #include <string>
 
 #include "audio/audio_manager.h"
@@ -19,6 +20,7 @@
 #include "org/fame.h"
 #include "party/party.h"
 #include "pic/picture.h"
+#include "pic/rle.h"
 #include "platform/display.h"
 #include "random/random.h"
 #include "res/act_archive.h"
@@ -378,7 +380,7 @@ int BattleUnit::PushTarget(u16 value)
 int BattleUnit::StartDefeat(int defeat)
 {
     this->defeated = defeat;
-    this->unk2ABC = 1;
+    this->dying = 1;
 
     if (this->defeatPose == 0)
     {
@@ -1337,6 +1339,80 @@ constexpr i16 kFadeOutStep = 2;
 constexpr i16 kFadedOut = -0x20;
 constexpr int kDefenseChangePercent = 30;
 constexpr int kBarrierPercent = 70;
+
+// DefeatFrame: the defeat poses (defeatPose) and their timing.
+constexpr i32 kDefeatAction = 0x24;
+constexpr i16 kDefeatedAtOnce = 0x3E8;
+constexpr u8 kRisingPose = 1;
+constexpr u8 kBurstPose = 2;
+constexpr u8 kSplitRowsPose = 3;
+constexpr u8 kSplitColumnsPose = 4;
+constexpr u8 kFillPose = 5;
+constexpr u8 kFadePose = 6;
+constexpr u8 kQuartersPose = 7;
+constexpr u8 kSweepPose = 8;
+constexpr u8 kWavePose = 9;
+constexpr u8 kBlueFillPose = 0xA;
+constexpr u8 kSinkPose = 0xB;
+constexpr u8 kZoomPose = 0xC;
+constexpr u8 kStripsPose = 0xD;
+constexpr u8 kHalvesPose = 0xE;
+constexpr u8 kSlidePose = 0xF;
+constexpr u8 kHopPose = 0x32;
+constexpr u8 kProjectedPose = 0x33;
+constexpr u8 kParticlePose = 0x64;
+constexpr u16 kDefeatSound = 0x31;
+constexpr i16 kRisingEnd = 0x1E0;
+constexpr int kRisingTintDivisor = -31;
+constexpr int kRisingTintLift = 4;
+constexpr i16 kRisingStep = 0x1F;
+constexpr i16 kParticlesDone = 100;
+constexpr i16 kParticlesStarted = 0x65;
+constexpr i32 kBurstTarget = 2;
+constexpr u16 kBurstSpeed = 0x32;
+constexpr u16 kBurstLife = 0xFA;
+constexpr u16 kBurstDivisor = 0xA;
+constexpr i32 kSweepLeft = -0x1E;
+constexpr i32 kSweepRight = 0x29E;
+constexpr i32 kSweepAbove = 0xA;
+constexpr u16 kSweepSpeed = 0x64;
+constexpr u16 kSweepLife = 0x64;
+constexpr i16 kSplitEnd = 0x20;
+constexpr i16 kSplitStep = 2;
+constexpr int kDarkFillTint = -0x18;
+constexpr int kBlueFillTint = 0x10;
+constexpr i16 kDarkFillStep = 0xE;
+constexpr i16 kBlueFillStep = 4;
+constexpr int kQuarterDrop = 0x10;
+constexpr i16 kWaveEnd = 0x2D;
+constexpr int kWaveShare = 3;
+constexpr i16 kSinkFadeFrom = -0x10;
+constexpr int kSinkAlphaBase = 0x1F;
+constexpr int kSinkStep = 10;
+constexpr i16 kZoomEnd = 0x1E;
+constexpr int kZoomUnit = 0x400;
+constexpr i16 kZoomStep = 2;
+constexpr i16 kHalvesSlow = 9;
+constexpr i16 kHalvesPause = 8;
+constexpr i16 kHalvesFast = 4;
+constexpr i16 kSlideFadeFrom = -15;
+constexpr i32 kProjectedAngle = 0x5A;
+constexpr i16 kProjectedStep = 2;
+constexpr i32 kProjectedTint = 5;
+constexpr i32 kProjectedGrowth = 4;
+constexpr i32 kWobbles = 6;
+constexpr i16 kWobbleTop = 0x18;
+constexpr i16 kWobbleBottom = -8;
+constexpr i16 kWobbleRise = 4;
+constexpr u16 kWobbleSound = 0xEB;
+constexpr i32 kStripRight = 0x154;
+constexpr i32 kStripWidth = 0x140;
+constexpr u16 kStripSpeed = 0x18;
+constexpr u16 kStripLife = 0x64;
+constexpr u16 kStripDivisor = 0x28;
+constexpr u16 kStripFlags = ParticleEffect::WithinRange | ParticleEffect::Mixed;
+constexpr i32 kStripTint = 0xF;
+constexpr int kShakeSpan = 3;
 constexpr u16 kEffectIcons = 0x241D;
 
 // The value of a skill script: the word at +0xE.
@@ -2319,7 +2395,7 @@ int BattleUnit::Damage(BattleServices& services, int hitPoints, i16 spirit, i16 
         }
 
         const u8 pose = this->defeatPose;
-        this->unk2ABC = 1;
+        this->dying = 1;
         this->glowLevel = 0;
 
         if (pose == 0)
@@ -2377,7 +2453,7 @@ int BattleUnit::Damage(BattleServices& services, int hitPoints, i16 spirit, i16 
     }
 
     record.hitPoints = 0;
-    this->unk2ABC = 1;
+    this->dying = 1;
 
     if (this->unk2B00 == 1)
     {
@@ -2510,7 +2586,7 @@ void BattleUnit::Reset(BattleServices& services)
     this->unk2AEC = 0;
     this->guarding = 0;
     this->unk2AF4 = 0;
-    this->unk2ABC = 0;
+    this->dying = 0;
     this->unk2ACC = 0;
     this->unk2AF8 = 0;
     this->absorbing = 0;
@@ -5203,5 +5279,940 @@ int BattleUnit::Defense() const
     }
 
     return up + barrier + base - down;
+}
+
+// swd32.exe 0x00479850: one frame of the unit's defeat while `dying`; 1 once it is over (the cast act cleared, the
+// turn reset, the unit defeated). A party role or a unit with unk2AF8 (not forced) ends at once: a role is marked
+// Defeated in its record and its effects expire. Others play the defeat pose (the fixed pose, or kParticlePose for
+// an UnkKind20 object) on the picture of the cast act's action kDefeatAction, glowLevel counting the frames.
+int BattleUnit::DefeatFrame(BattleServices& services)
+{
+    if (this->dying == 0)
+    {
+        return 0;
+    }
+
+    this->unk2AAC = 1;
+    this->defeated = 1;
+    ActState& act = this->castAct;
+    act.id = this->actId;
+    act.action = kDefeatAction;
+
+    if ((this->kind == 1 || this->unk2AF8 == 1) && this->unk2B00 == 0 && this->unk2B04 == 0)
+    {
+        this->glowLevel = kDefeatedAtOnce;
+        this->defeatPose = 0;
+
+        if (this->kind == 1)
+        {
+            this->roleRecord->unk24 = static_cast<u16>(this->roleRecord->unk24 | RoleRecord::Defeated);
+        }
+
+        this->mainAct.effectA = 0;
+        this->mainAct.effectQ = 0;
+        this->glowLevel = 0;
+        this->gauge = 0;
+        act = ActState{};
+        this->ResetTurn(services);
+        this->unk2AAC = 0;
+        this->dying = 0;
+        this->defeated = 1;
+        this->ExpireEffects(services, 1);
+        return 1;
+    }
+
+    if (services.acts.Run(act) == 0)
+    {
+        return 1;
+    }
+
+    this->shadowPicture = services.archive.GetPicture(act.frame, 0);
+    int offsetX = act.x;
+
+    if (this->unk2B20 == 1)
+    {
+        this->facing = 0;
+    }
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->shadowPicture == nullptr)
+    {
+        return 1;
+    }
+
+    const Picture& picture = *this->shadowPicture;
+
+    if (this->facing == 1 && act.x != 0)
+    {
+        offsetX = picture.width - act.x;
+    }
+
+    this->drawFlags &= Painter::RleSource | Painter::Mirror | Painter::Flip;
+
+    if ((this->data->data.kind & ObjectData::UnkKind20) != 0)
+    {
+        this->defeatPose = kParticlePose;
+    }
+
+    if (this->fixedPose != 0)
+    {
+        this->defeatPose = this->fixedPose;
+    }
+
+    const int x = this->placement.x - offsetX;
+    const int y = this->placement.y - act.y;
+
+    switch (this->defeatPose)
+    {
+        case kRisingPose:
+            return this->DefeatRising(services, picture, x, y);
+
+        case kBurstPose:
+        case kSweepPose:
+            return this->DefeatBurst(services, picture, x, y);
+
+        case kSplitRowsPose:
+            return this->DefeatSplitRows(services, picture, x, y);
+
+        case kSplitColumnsPose:
+            return this->DefeatSplitColumns(services, picture, x, y);
+
+        case kFillPose:
+        case kBlueFillPose:
+            return this->DefeatFill(services, picture, x, y);
+
+        case kFadePose:
+            return this->DefeatFadeOut(services, picture);
+
+        case kQuartersPose:
+            return this->DefeatQuarters(services, picture, x, y);
+
+        case kWavePose:
+            return this->DefeatWave(services, picture);
+
+        case kSinkPose:
+            return this->DefeatSink(services, picture);
+
+        case kZoomPose:
+            return this->DefeatZoom(services, picture);
+
+        case kStripsPose:
+            return this->DefeatStrips(services, picture, x, y);
+
+        case kHalvesPose:
+            return this->DefeatHalves(services, picture, x, y);
+
+        case kSlidePose:
+            return this->DefeatSlide(services, picture);
+
+        case kHopPose:
+            return this->DefeatHop(services, picture, x, y);
+
+        case kProjectedPose:
+            return this->DefeatProjected(services, picture);
+
+        case kParticlePose:
+            return this->DefeatParticles(services, picture, x, y);
+
+        default:
+            return 0;
+    }
+}
+
+// The end of a defeat pose (inline in DefeatFrame): the gauge and the cast act cleared, the turn reset, the unit
+// defeated.
+int BattleUnit::EndDefeat(BattleServices& services)
+{
+    this->gauge = 0;
+    this->castAct = ActState{};
+    this->ResetTurn(services);
+    this->unk2AAC = 0;
+    this->defeated = 1;
+    this->dying = 0;
+    return 1;
+}
+
+// The end of a particle pose: the decoded pixels freed and the effect cleared as well.
+int BattleUnit::EndParticleDefeat(BattleServices& services)
+{
+    this->glowLevel = 0;
+    this->absorbPixels.clear();
+    this->absorb = ParticleEffect{};
+    return this->EndDefeat(services);
+}
+
+// The defeat sound at the first frame of a pose, then the picture as the source.
+void BattleUnit::StartDefeatDraw(BattleServices& services, const Picture& picture)
+{
+    if (this->glowLevel == 0)
+    {
+        services.audio.PlaySound(kDefeatSound, services.config.soundVolume);
+    }
+
+    services.painter.SetSource(picture.data.data());
+}
+
+// One of the split halves of a defeat pose drawn additively within (left, top, right, bottom), tinted by -glowLevel.
+void BattleUnit::DrawDefeatPiece(
+    BattleServices& services,
+    const Picture& picture,
+    int left,
+    int top,
+    int right,
+    int bottom,
+    int x,
+    int y,
+    int height
+)
+{
+    Painter& painter = services.painter;
+    painter.SetClipClamped(left, top, right, bottom);
+    DrawOptions& options = painter.Options();
+    options.tintRed = -this->glowLevel;
+    options.tintGreen = -this->glowLevel;
+    options.tintBlue = -this->glowLevel;
+    painter.DrawPicture(x, y, picture.width, height, this->drawFlags | Painter::Additive);
+}
+
+// Pose 1: the picture rises by glowLevel (0x1F more a frame up to 0x1E0), glowing, scaled up by glowLevel rows.
+int BattleUnit::DefeatRising(BattleServices& services, const Picture& picture, int x, int y)
+{
+    if (this->glowLevel > kRisingEnd)
+    {
+        this->glowLevel = 0;
+        return this->EndDefeat(services);
+    }
+
+    this->StartDefeatDraw(services, picture);
+    Painter& painter = services.painter;
+    const int tint = 2 * (this->glowLevel / kRisingTintDivisor);
+    DrawOptions& options = painter.Options();
+    options.tintRed = tint;
+    options.tintGreen = tint;
+    options.tintBlue = tint;
+    options.scaleHeight = this->glowLevel + picture.height;
+    this->drawFlags |= Painter::ScaledGlow;
+    painter
+        .DrawPicture(x, y - kRisingTintLift * tint - this->glowLevel, picture.width, picture.height, this->drawFlags);
+    this->glowLevel = static_cast<i16>(this->glowLevel + kRisingStep);
+    return 0;
+}
+
+// Poses 2 and 8: the picture breaks into particles, into its middle (2, with the cast act's sound) or off the side
+// the unit faces (8); 1 once they are gone.
+int BattleUnit::DefeatBurst(BattleServices& services, const Picture& picture, int x, int y)
+{
+    if (this->glowLevel == kParticlesDone)
+    {
+        return this->EndParticleDefeat(services);
+    }
+
+    if (this->absorbPixels.empty())
+    {
+        ParticleEffect& effect = this->absorb;
+        effect = ParticleEffect{};
+        this->DecodeForParticles(services, picture);
+        effect.width = picture.width;
+        effect.height = picture.height;
+        effect.x = x;
+        effect.y = y;
+        effect.flags = static_cast<u16>(effect.flags | ParticleEffect::Mixed);
+        effect.bursts = 1;
+        effect.divisor = kBurstDivisor;
+
+        if (this->defeatPose == kBurstPose)
+        {
+            effect.targetLeft = x + (picture.width >> 1);
+            effect.targetTop = y + (picture.height >> 1);
+            effect.targetWidth = kBurstTarget;
+            effect.targetHeight = kBurstTarget;
+            effect.speed = kBurstSpeed;
+            effect.lifeBase = kBurstLife;
+        }
+        else
+        {
+            effect.targetLeft = this->facing == 1 ? kSweepRight : kSweepLeft;
+            effect.targetTop = y - kSweepAbove;
+            effect.targetWidth = kBurstTarget;
+            effect.targetHeight = picture.height + kSweepAbove;
+            effect.speed = kSweepSpeed;
+            effect.lifeBase = kSweepLife;
+        }
+
+        if (this->Mirrored() == 1)
+        {
+            effect.flags = static_cast<u16>(effect.flags | ParticleEffect::Mirrored);
+        }
+
+        services.state.projector.SetScreen(Display::Width, Display::Height);
+
+        if (this->defeatPose == kBurstPose)
+        {
+            this->castAct.view = kDefeatSound;
+        }
+
+        services.audio.PlaySound(kDefeatSound, services.config.soundVolume);
+        this->glowLevel = 1;
+    }
+
+    return this->RunDefeatParticles(services);
+}
+
+// The explosion of a particle pose; glowLevel kParticlesDone once it is over.
+int BattleUnit::RunDefeatParticles(BattleServices& services)
+{
+    if (services.state.projector.DrawExplosion(services.screen, services.painter, services.crtRandom, this->absorb) ==
+        1)
+    {
+        this->glowLevel = kParticlesDone;
+    }
+
+    return 0;
+}
+
+// The picture decoded into absorbPixels for a particle pose.
+void BattleUnit::DecodeForParticles(BattleServices& services, const Picture& picture)
+{
+    this->absorbPixels.clear();
+    const std::optional<RawPicture> raw = RleCodec(services.painter).Decode(picture.data);
+
+    if (raw.has_value())
+    {
+        this->absorbPixels.resize(raw->pixels.size() / sizeof(u16));
+        std::memcpy(this->absorbPixels.data(), raw->pixels.data(), this->absorbPixels.size() * sizeof(u16));
+    }
+
+    this->absorb.pixels = this->absorbPixels;
+}
+
+// Pose 3: the left half rises and the right half sinks by 2 a frame, darkening, up to 0x20.
+int BattleUnit::DefeatSplitRows(BattleServices& services, const Picture& picture, int x, int y)
+{
+    if (this->glowLevel > kSplitEnd)
+    {
+        this->glowLevel = 0;
+        return this->EndDefeat(services);
+    }
+
+    this->StartDefeatDraw(services, picture);
+    const int shift = 2 * this->glowLevel;
+    const int half = picture.width >> 1;
+    this->DrawDefeatPiece(
+        services,
+        picture,
+        x,
+        y - shift,
+        x + half,
+        y + picture.height - shift,
+        x,
+        y - shift,
+        picture.height
+    );
+    this->DrawDefeatPiece(
+        services,
+        picture,
+        x + half,
+        y + shift,
+        x + picture.width,
+        y + shift + picture.height,
+        x,
+        y + shift,
+        picture.height
+    );
+    this->glowLevel = static_cast<i16>(this->glowLevel + kSplitStep);
+    services.painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+    return 0;
+}
+
+// Pose 4: the top half slides left and the bottom half right by 2 a frame, darkening, up to 0x20.
+int BattleUnit::DefeatSplitColumns(BattleServices& services, const Picture& picture, int x, int y)
+{
+    if (this->glowLevel > kSplitEnd)
+    {
+        this->glowLevel = 0;
+        return this->EndDefeat(services);
+    }
+
+    this->StartDefeatDraw(services, picture);
+    const int shift = 2 * this->glowLevel;
+    const int half = picture.height >> 1;
+    this->DrawDefeatPiece(
+        services,
+        picture,
+        x - shift,
+        y,
+        x + picture.width - shift,
+        y + half,
+        x - shift,
+        y,
+        picture.height
+    );
+    this->DrawDefeatPiece(
+        services,
+        picture,
+        x + shift,
+        y + half,
+        x + shift + picture.width,
+        y + picture.height,
+        x + shift,
+        y,
+        picture.height
+    );
+    this->glowLevel = static_cast<i16>(this->glowLevel + kSplitStep);
+    services.painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+    return 0;
+}
+
+// Poses 5 and 10: a tint fills the picture from the top (5: dark, 0xE rows a frame; 10: blue, 4 rows a frame); once
+// full the unit goes on with pose 2.
+int BattleUnit::DefeatFill(BattleServices& services, const Picture& picture, int x, int y)
+{
+    if (this->glowLevel >= picture.height)
+    {
+        this->defeatPose = kBurstPose;
+        this->glowLevel = 0;
+        return 0;
+    }
+
+    this->StartDefeatDraw(services, picture);
+    Painter& painter = services.painter;
+    painter.DrawPicture(x, y, picture.width, picture.height, this->drawFlags);
+
+    if (this->glowLevel > picture.height)
+    {
+        this->glowLevel = static_cast<i16>(picture.height - 1);
+    }
+
+    DrawOptions& options = painter.Options();
+    const bool blue = this->defeatPose == kBlueFillPose;
+    options.tintRed = blue ? 0 : kDarkFillTint;
+    options.tintGreen = blue ? 0 : kDarkFillTint;
+    options.tintBlue = blue ? kBlueFillTint : kDarkFillTint;
+    painter.DrawPicture(
+        x,
+        y,
+        picture.width,
+        blue ? this->glowLevel + 1 : this->glowLevel,
+        this->drawFlags | Painter::TintUnder
+    );
+    painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+    this->glowLevel = static_cast<i16>(this->glowLevel + (blue ? kBlueFillStep : kDarkFillStep));
+    return 0;
+}
+
+// Pose 6: the picture darkens by one tint step a frame at the unit's place down to -0x20.
+int BattleUnit::DefeatFadeOut(BattleServices& services, const Picture& picture)
+{
+    if (this->glowLevel <= kFadedOut)
+    {
+        this->glowLevel = 0;
+        this->slotTint = 0;
+        return this->EndDefeat(services);
+    }
+
+    this->StartDefeatDraw(services, picture);
+    Painter& painter = services.painter;
+    DrawOptions& options = painter.Options();
+    options.tintRed = this->glowLevel;
+    options.tintGreen = this->glowLevel;
+    options.tintBlue = this->glowLevel;
+    painter.DrawPicture(
+        this->placement.x - static_cast<i16>(this->originX),
+        this->placement.y - this->mainAct.y,
+        picture.width,
+        picture.height,
+        this->drawFlags | Painter::Additive
+    );
+    --this->glowLevel;
+    return 0;
+}
+
+// Pose 7: the four quarters fly apart diagonally by 1 a frame, darkening, up to 0x20 (the top left one drawn half
+// high, the bottom right one 0x10 lower: as in the original).
+int BattleUnit::DefeatQuarters(BattleServices& services, const Picture& picture, int x, int y)
+{
+    if (this->glowLevel >= kSplitEnd)
+    {
+        this->glowLevel = 0;
+        return this->EndDefeat(services);
+    }
+
+    this->StartDefeatDraw(services, picture);
+    const int shift = this->glowLevel;
+    const int halfWidth = picture.width >> 1;
+    const int halfHeight = picture.height >> 1;
+    this->DrawDefeatPiece(
+        services,
+        picture,
+        x - shift,
+        y - shift,
+        x + halfWidth - shift,
+        y + halfHeight - shift,
+        x - shift,
+        y - shift,
+        halfHeight
+    );
+    this->DrawDefeatPiece(
+        services,
+        picture,
+        x - shift,
+        y + halfHeight + shift,
+        x + halfWidth - shift,
+        y + picture.height + shift,
+        x - shift,
+        y + shift,
+        picture.height
+    );
+    this->DrawDefeatPiece(
+        services,
+        picture,
+        x + halfWidth + shift,
+        y - shift,
+        x + picture.width + shift,
+        y + halfHeight - shift,
+        x + shift,
+        y - shift,
+        picture.height
+    );
+    this->DrawDefeatPiece(
+        services,
+        picture,
+        x + halfWidth + shift,
+        y + halfHeight + shift,
+        x + picture.width + shift,
+        y + picture.height + shift,
+        x + shift,
+        y + shift + kQuarterDrop,
+        picture.height
+    );
+    ++this->glowLevel;
+    services.painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+    return 0;
+}
+
+// Pose 9: the picture waves away (wave row glowLevel / 3 + 1), more transparent each frame, up to 0x2D frames.
+int BattleUnit::DefeatWave(BattleServices& services, const Picture& picture)
+{
+    if (this->glowLevel >= kWaveEnd)
+    {
+        this->glowLevel = 0;
+        this->slotTint = 0;
+        return this->EndDefeat(services);
+    }
+
+    this->StartDefeatDraw(services, picture);
+    Painter& painter = services.painter;
+    const int wave = this->glowLevel / kWaveShare + 1;
+    painter.SetWave(wave);
+    painter.Options().alpha = Painter::MaxAlpha - wave;
+    painter.DrawPicture(
+        this->placement.x - static_cast<i16>(this->originX),
+        this->placement.y - this->mainAct.y,
+        picture.width,
+        picture.height,
+        this->drawFlags | Painter::Translucent
+    );
+    painter.Options().alpha = 0;
+    painter.SetWave(0);
+    ++this->glowLevel;
+    return 0;
+}
+
+// Pose 11: the picture sinks by 10 a frame, darkening, under its fading translucent copy, down to -0x20.
+int BattleUnit::DefeatSink(BattleServices& services, const Picture& picture)
+{
+    if (this->glowLevel <= kFadedOut)
+    {
+        this->glowLevel = 0;
+        this->slotTint = 0;
+        return this->EndDefeat(services);
+    }
+
+    this->StartDefeatDraw(services, picture);
+    Painter& painter = services.painter;
+    const int x = this->placement.x - static_cast<i16>(this->originX);
+    const int y = this->placement.y - this->mainAct.y;
+    painter.Options().alpha = Painter::MaxAlpha;
+
+    if (this->glowLevel <= kSinkFadeFrom)
+    {
+        painter.Options().alpha = this->glowLevel + kSinkAlphaBase;
+    }
+
+    painter.DrawPicture(x, y, picture.width, picture.height, this->drawFlags | Painter::Translucent);
+    painter.Options().alpha = 0;
+    DrawOptions& options = painter.Options();
+    options.tintRed = this->glowLevel;
+    options.tintGreen = this->glowLevel;
+    options.tintBlue = this->glowLevel;
+    painter.DrawPicture(
+        x,
+        y + kSinkStep * this->glowLevel,
+        picture.width,
+        picture.height,
+        this->drawFlags | Painter::Additive
+    );
+    --this->glowLevel;
+    return 0;
+}
+
+// Pose 12: the picture zooms about the main act's position, wider and flatter each frame, for 0x1E frames.
+int BattleUnit::DefeatZoom(BattleServices& services, const Picture& picture)
+{
+    if (this->glowLevel >= kZoomEnd)
+    {
+        this->glowLevel = 0;
+        this->slotTint = 0;
+        return this->EndDefeat(services);
+    }
+
+    if (this->glowLevel == 0)
+    {
+        services.audio.PlaySound(kDefeatSound, services.config.soundVolume);
+    }
+
+    Painter& painter = services.painter;
+    painter.SetZoom(
+        this->mainAct.x,
+        this->mainAct.y,
+        this->glowLevel * this->slotTint + kZoomUnit,
+        kZoomUnit - this->glowLevel * (this->slotTint + 1)
+    );
+    painter.SetSource(picture.data.data());
+    const int x = this->placement.x - static_cast<i16>(this->originX);
+    const int y = this->placement.y - this->mainAct.y;
+
+    if ((this->drawFlags & Painter::Mirror) != 0)
+    {
+        painter.DrawZoomedMirrored(x, y, picture.width, picture.height);
+    }
+    else
+    {
+        painter.DrawZoomed(x, y, picture.width, picture.height);
+    }
+
+    this->slotTint = static_cast<i16>(this->slotTint + kZoomStep);
+    ++this->glowLevel;
+    return 0;
+}
+
+// Pose 13: four strips of a quarter of the height slide apart, alternately left and right, by 2 a frame, darkening.
+int BattleUnit::DefeatStrips(BattleServices& services, const Picture& picture, int x, int y)
+{
+    if (this->glowLevel > kSplitEnd)
+    {
+        this->glowLevel = 0;
+        return this->EndDefeat(services);
+    }
+
+    this->StartDefeatDraw(services, picture);
+    const int shift = 2 * this->glowLevel;
+    const int strip = picture.height >> 2;
+    const int height = picture.height;
+    this->DrawDefeatPiece(services, picture, x - shift, y, x + picture.width - shift, y + strip, x - shift, y, height);
+    this->DrawDefeatPiece(
+        services,
+        picture,
+        x + shift,
+        y + strip,
+        x + shift + picture.width,
+        y + 2 * strip,
+        x + shift,
+        y,
+        height
+    );
+    this->DrawDefeatPiece(
+        services,
+        picture,
+        x - shift,
+        y + 2 * strip,
+        x + picture.width - shift,
+        y + 3 * strip,
+        x - shift,
+        y,
+        height
+    );
+    this->DrawDefeatPiece(
+        services,
+        picture,
+        x + shift,
+        y + 3 * strip,
+        x + shift + picture.width,
+        y + height,
+        x + shift,
+        y,
+        height
+    );
+    this->glowLevel = static_cast<i16>(this->glowLevel + kSplitStep);
+    services.painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+    return 0;
+}
+
+// Pose 14: the halves slide apart like pose 4, fast (4 a frame) to 8, then waiting 8 frames, then 1 a frame to 0x20.
+int BattleUnit::DefeatHalves(BattleServices& services, const Picture& picture, int x, int y)
+{
+    if (this->glowLevel > kSplitEnd)
+    {
+        this->glowLevel = 0;
+        this->slotTint = 0;
+        return this->EndDefeat(services);
+    }
+
+    this->StartDefeatDraw(services, picture);
+    const int shift = 2 * this->glowLevel;
+    const int half = picture.height >> 1;
+    this->DrawDefeatPiece(
+        services,
+        picture,
+        x - shift,
+        y,
+        x + picture.width - shift,
+        y + half,
+        x - shift,
+        y,
+        picture.height
+    );
+    this->DrawDefeatPiece(
+        services,
+        picture,
+        x + shift,
+        y + half,
+        x + shift + picture.width,
+        y + picture.height,
+        x + shift,
+        y,
+        picture.height
+    );
+
+    if (this->glowLevel >= kHalvesSlow)
+    {
+        ++this->glowLevel;
+    }
+    else if (this->glowLevel == kHalvesPause)
+    {
+        ++this->slotTint;
+
+        if (this->slotTint == kHalvesPause)
+        {
+            this->glowLevel = kHalvesSlow;
+        }
+    }
+    else
+    {
+        this->glowLevel = static_cast<i16>(this->glowLevel + kHalvesFast);
+    }
+
+    services.painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+    return 0;
+}
+
+// Pose 15: the picture slides right by 2 a frame, darkening, beside its fading translucent copy, down to -0x20.
+int BattleUnit::DefeatSlide(BattleServices& services, const Picture& picture)
+{
+    if (this->glowLevel <= kFadedOut)
+    {
+        this->glowLevel = 0;
+        this->slotTint = 0;
+        return this->EndDefeat(services);
+    }
+
+    this->StartDefeatDraw(services, picture);
+    Painter& painter = services.painter;
+    const int x = this->placement.x - static_cast<i16>(this->originX);
+    const int y = this->placement.y - this->mainAct.y;
+
+    if (this->glowLevel >= kSlideFadeFrom)
+    {
+        painter.Options().alpha = this->glowLevel + Painter::MaxAlpha;
+    }
+
+    painter.DrawPicture(x, y, picture.width, picture.height, this->drawFlags | Painter::Translucent);
+    painter.Options().alpha = 0;
+    DrawOptions& options = painter.Options();
+    options.tintRed = this->glowLevel;
+    options.tintGreen = this->glowLevel;
+    options.tintBlue = this->glowLevel;
+    painter.DrawPicture(x + 2 * this->glowLevel, y, picture.width, picture.height, this->drawFlags | Painter::Additive);
+    --this->glowLevel;
+    return 0;
+}
+
+// Pose 50: the picture hops (BattleUnit::HopHeights) upside down, more transparent each frame, for 15 frames; the
+// cast act's sound plays first (the stand act's sound set to kDefeatSound).
+int BattleUnit::DefeatHop(BattleServices& services, const Picture& picture, int x, int y)
+{
+    if (this->glowLevel >= static_cast<i16>(BattleUnit::HopHeights.size()))
+    {
+        this->glowLevel = 0;
+        return this->EndDefeat(services);
+    }
+
+    if (this->glowLevel == 0)
+    {
+        const u16 sound = this->castAct.view;
+        this->standAct.view = kDefeatSound;
+        services.audio.PlaySound(sound, services.config.soundVolume);
+    }
+
+    Painter& painter = services.painter;
+    painter.SetSource(picture.data.data());
+    painter.Options().alpha = Painter::MaxAlpha - this->glowLevel;
+    painter.DrawPicture(
+        x,
+        y - BattleUnit::HopHeights[static_cast<std::size_t>(this->glowLevel)],
+        picture.width,
+        picture.height,
+        this->drawFlags | Painter::Translucent | Painter::Flip
+    );
+    ++this->glowLevel;
+    return 0;
+}
+
+// Pose 51: the picture projected (DrawScaled) at the unit's place, growing by 4 in both scales and turned, every
+// other frame number up to 100; the cast act's sound plays first.
+int BattleUnit::DefeatProjected(BattleServices& services, const Picture& picture)
+{
+    if (this->glowLevel >= kParticlesDone)
+    {
+        this->glowLevel = 0;
+        return this->EndDefeat(services);
+    }
+
+    ProjectedPicture& projected = this->projected;
+
+    if (this->glowLevel == 0)
+    {
+        projected.scaleX = kZoomUnit;
+        projected.scaleY = kZoomUnit;
+        projected.unk08 = picture.width >> 1;
+        projected.unk0C = picture.height;
+        projected.width = picture.width;
+        projected.height = picture.height;
+        projected.flags = ProjectedPicture::Mixed;
+        projected.x = this->placement.x - (picture.width >> 1);
+        projected.y = this->placement.y;
+
+        if (this->Mirrored() == 1)
+        {
+            projected.flags = static_cast<u16>(projected.flags | ProjectedPicture::Mirrored);
+        }
+
+        projected.angle = kProjectedAngle;
+        this->projectedPixels.clear();
+        const std::optional<RawPicture> raw = RleCodec(services.painter).Decode(picture.data);
+
+        if (raw.has_value())
+        {
+            this->projectedPixels.resize(raw->pixels.size() / sizeof(u16));
+            std::memcpy(this->projectedPixels.data(), raw->pixels.data(), this->projectedPixels.size() * sizeof(u16));
+        }
+
+        projected.pixels = this->projectedPixels;
+        const u16 sound = this->castAct.view;
+        this->standAct.view = kDefeatSound;
+        services.audio.PlaySound(sound, services.config.soundVolume);
+    }
+
+    this->glowLevel = static_cast<i16>(this->glowLevel + kProjectedStep);
+    projected.tintRed = kProjectedTint;
+    projected.tintGreen = kProjectedTint;
+    projected.tintBlue = kProjectedTint;
+    projected.scaleX += kProjectedGrowth;
+    projected.scaleY += kProjectedGrowth;
+    services.state.projector.DrawScaled(services.screen, services.painter, projected);
+    return 0;
+}
+
+// Pose 100: the unit wobbles (recoilTint, flickering up by 4 and down by 1, kWobbleSound at its top) six times, then
+// shakes while it breaks into particles that fly off a strip across the field.
+int BattleUnit::DefeatParticles(BattleServices& services, const Picture& picture, int x, int y)
+{
+    if (this->glowLevel == kParticlesDone)
+    {
+        return this->EndParticleDefeat(services);
+    }
+
+    if (this->glowLevel == 0)
+    {
+        if (this->throwSteps >= kWobbles)
+        {
+            this->recoilTint = 0;
+            this->glowLevel = 1;
+            this->throwSteps = 0;
+            return 0;
+        }
+
+        if (this->recoilTint == kWobbleTop)
+        {
+            services.audio.PlaySound(kWobbleSound, services.config.soundVolume);
+        }
+
+        Painter& painter = services.painter;
+        painter.SetSource(picture.data.data());
+        DrawOptions& options = painter.Options();
+        options.tintRed = this->recoilTint;
+        options.tintGreen = this->recoilTint;
+        options.tintBlue = this->recoilTint;
+        painter.DrawPicture(
+            this->placement.x - static_cast<i16>(this->originX),
+            this->placement.y - this->mainAct.y,
+            picture.width,
+            picture.height,
+            this->drawFlags | Painter::Additive
+        );
+        const i32 wobble = this->throwSteps;
+
+        if (wobble % 2 != 0)
+        {
+            --this->recoilTint;
+        }
+        else
+        {
+            this->recoilTint = static_cast<i16>(this->recoilTint + kWobbleRise);
+        }
+
+        if (this->recoilTint >= kWobbleTop || this->recoilTint <= kWobbleBottom)
+        {
+            this->throwSteps = wobble + 1;
+        }
+
+        return 0;
+    }
+
+    if (this->absorbPixels.empty())
+    {
+        ParticleEffect& effect = this->absorb;
+        effect = ParticleEffect{};
+        this->DecodeForParticles(services, picture);
+        effect.width = picture.width;
+        effect.height = picture.height;
+        effect.x = x;
+        effect.y = y;
+        effect.targetLeft = this->facing == 1 ? kStripRight : 0;
+        effect.targetTop = 1;
+        effect.targetWidth = kStripWidth;
+        effect.targetHeight = 1;
+        effect.speed = kStripSpeed;
+        effect.lifeBase = kStripLife;
+        effect.bursts = static_cast<u16>(picture.height >> 2);
+        effect.divisor = kStripDivisor;
+        effect.flags = kStripFlags;
+
+        if (this->Mirrored() == 1)
+        {
+            effect.flags = static_cast<u16>(effect.flags | ParticleEffect::Mirrored);
+        }
+
+        effect.tintRed = kStripTint;
+        effect.tintGreen = kStripTint;
+        effect.tintBlue = kStripTint;
+        services.state.projector.SetScreen(Display::Width, Display::Height);
+        services.audio.PlaySound(kDefeatSound, services.config.soundVolume);
+        this->glowLevel = kParticlesStarted;
+    }
+
+    ++this->glowLevel;
+    this->absorb.x = x + this->glowLevel % kShakeSpan;
+    return this->RunDefeatParticles(services);
 }
 }  // namespace swd3
