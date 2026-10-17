@@ -17,7 +17,6 @@ constexpr int kShopRate = 0x3C;
 constexpr int kFullRate = 0x64;
 constexpr i32 kListBLimit = 0xD;
 constexpr u32 kNoPriceKind = 0x40;
-constexpr int kFirstRoleFlag = 0x1E;
 constexpr int kKindShift = 16;     // ItemPriority: the kind moved up by default
 constexpr u32 kFirstKind = 0x100;  // a kind with this bit sorts first
 constexpr u32 kFirstPriority = 1;
@@ -155,7 +154,7 @@ int CountItemTotal(const BattleState& battle, const Party& party, const GameStat
 
     for (int role = 0; role < Party::Roles; ++role)
     {
-        if (!state.GameFlag(role + kFirstRoleFlag))
+        if (!state.GameFlag(role + Party::FirstRoleFlag))
         {
             continue;
         }

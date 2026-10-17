@@ -22,7 +22,6 @@ namespace
 constexpr u32 kSecondsPerHour = 0xE10;
 constexpr u32 kSecondsPerMinute = 0x3C;
 constexpr std::size_t kRoleRecords = 0x104;
-constexpr std::array<int, Party::Roles> kRoleFlags = {0x1E, 0x1F, 0x20, 0x21};  // the story flags of the roles
 constexpr u16 kAbsentRole = 0xFFFF;  // maxHitPoints of a role not in the party
 constexpr int kUnk24Flag = 0x53;
 constexpr i32 kUnk24Base = 2;
@@ -123,7 +122,7 @@ void SaveSlots::LoadPreview(SavePreview& preview, int slot, const std::string& i
 
     for (std::size_t role = 0; role < preview.roles.size(); ++role)
     {
-        if (!flag(kRoleFlags[role]))
+        if (!flag(Party::FirstRoleFlag + static_cast<int>(role)))
         {
             preview.roles[role].maxHitPoints = kAbsentRole;
         }
