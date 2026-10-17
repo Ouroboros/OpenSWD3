@@ -279,6 +279,8 @@ private:
     void ConfirmRefine();
     void ConfirmEnd();
     void ConfirmKey();
+    static bool KeyRepeats(const ButtonState& button);
+    void BattleKeys();
     void DrawRolePanels();
     template <typename Next>
     void StepPanelGauge(i32& shown, i32& target, Next next, int picture, int x, int y, i32 downNear, i32 downFar);

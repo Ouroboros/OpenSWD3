@@ -446,6 +446,20 @@ constexpr u16 kLevelUpPanelSound = 0x2C;
 constexpr i16 kLearnedPose = 8;
 constexpr u16 kOpenSound = 0x2D;
 constexpr i32 kTalkFixedAnswers = 2;  // 攻擊 and 釋放
+constexpr i32 kRepeatDelay = 0xF;     // the keys of the battle: held keys repeat from this frame
+constexpr i32 kRepeatStep = 3;
+constexpr i32 kConfirmRepeatStep = 6;
+constexpr int kDigitCommands = 8;
+constexpr int kDigitKey1 = 2;  // the scan code of 1
+constexpr i32 kSpaceMark = 1;
+constexpr u16 kRetreatMark = 0x4000;
+constexpr u32 kRefusedPause = 0x14;
+constexpr u32 kRetreatPause = 0x32;
+constexpr i16 kRetreatMessageFrames = 5;
+constexpr std::u8string_view kNoRetreatText = u8"無法撤退!!";  // swd32.exe 0x004A7954
+constexpr i32 kThumbPart = 5;
+constexpr i32 kConfirmIdle = 0x12C;
+constexpr i32 kChoiceSignBit = 0x8000;
 
 // The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
 // here.
@@ -6444,5 +6458,395 @@ void Game::ConfirmKey()
     }
 
     battle.unk53BD44 = 0;
+}
+
+// A key that repeats (inline in the original): the first frame held, then every third frame from the fifteenth.
+bool Game::KeyRepeats(const ButtonState& button)
+{
+    return button.heldFrames == 1 || (button.heldFrames >= kRepeatDelay && button.heldFrames % kRepeatStep == 1);
+}
+
+// swd32.exe 0x0045F2A0: the keys of the battle (not while paused). In the menu (battle state 0 or 1, no talk window)
+// the digit keys 1..8 take that command (guard at once); right Shift moves the panel to the previous role, G
+// retreats (無法撤退!! when the role is marked or the party cannot), A starts the auto battle. The right mouse button
+// and right Ctrl press Escape; the left button takes the role under the pointer or the scroll part under it and
+// presses Space; Enter presses Space; Space confirms (every sixth frame when held). The arrow keys move the menu, the
+// panel and the talk choice, Page Up and Page Down scroll the lists, Escape cancels.
+void Game::BattleKeys()
+{
+    BattleState& battle = this->battleState;
+    Controls& controls = this->controls;
+    battle.unk53BD9C = 0;
+
+    if (battle.paused == 1)
+    {
+        return;
+    }
+
+    i32 unit = battle.currentUnit;
+
+    if (battle.result <= kMenuState && battle.currentUnit != 0 && this->scene.talkWindows == nullptr)
+    {
+        auto takeCommand = [this, &battle](i32 command)
+        {
+            if (battle.result == 0)
+            {
+                battle.result = kMenuState;
+            }
+
+            this->BuildCommandMenu();
+
+            if (battle.commandEnabled[static_cast<std::size_t>(command - 1)] == 1)
+            {
+                battle.unk53BD94 = kMenuOpened;
+                battle.unk53BFB8 = 1;
+                battle.unk4A7548 = command;
+                this->ConfirmKey();
+            }
+        };
+
+        for (int command = 1; command <= kDigitCommands; ++command)
+        {
+            if (this->input.IsKeyDown(kDigitKey1 + command - 1) == 0)
+            {
+                continue;
+            }
+
+            if (command != kGuardCommand)
+            {
+                takeCommand(command);
+                return;
+            }
+
+            if (battle.unk4A7548 != kGuardCommand)
+            {
+                if (battle.result == 0)
+                {
+                    battle.result = kMenuState;
+                }
+
+                battle.unk53BD94 = kMenuOpened;
+                battle.unk53BFB8 = 1;
+                battle.unk4A7548 = kGuardCommand;
+                this->ConfirmKey();
+            }
+
+            battle.result = 0;
+            battle.unk53BFB8 = 0;
+            battle.unk4A7548 = 1;
+            return;
+        }
+
+        unit = battle.currentUnit;
+    }
+
+    const ButtonState& space = controls.At(Button::Space);
+
+    if (battle.unk53C024 == 1 && space.heldFrames == 1 && space.press != 0)
+    {
+        battle.unk53BDA4 |= kSpaceMark;
+    }
+
+    const ButtonState& rightControl = controls.At(Button::RightControl);
+
+    if (rightControl.press != 0 && rightControl.heldFrames >= 1)
+    {
+        controls.At(Button::Escape).press = 1;
+        controls.At(Button::Escape).heldFrames = rightControl.heldFrames;
+    }
+
+    auto panelTaken = [this, &battle]
+    {
+        if (battle.result == kMenuState)
+        {
+            this->ConfirmKey();
+        }
+
+        battle.unk4A7644 = kNoPanelRole;
+    };
+
+    if (controls.At(Button::RightShift).press != 0 && Game::KeyRepeats(controls.At(Button::RightShift)))
+    {
+        if (battle.result > kMenuState)
+        {
+            return;
+        }
+
+        battle.unk4A7644 = 0;
+        battle.unk4A7548 = 1;
+        this->SelectPreviousRole();
+        panelTaken();
+        return;
+    }
+
+    if (controls.At(Button::KeyG).press != 0 && Game::KeyRepeats(controls.At(Button::KeyG)))
+    {
+        if (battle.unk53BF1C != 0 || battle.unk53BF68 == 1 || battle.unk53BF64 == 1 || battle.result == kTalkOrder ||
+            battle.result == kEndVictory || this->scene.talkWindows != nullptr)
+        {
+            return;
+        }
+
+        // Without a current unit the original reads the role 8 before the first: taken as not held.
+        const bool held =
+            unit >= BattleState::FirstRoleUnit &&
+            this->battleRoles[static_cast<std::size_t>(unit - BattleState::FirstRoleUnit)].IsHeldOrHolding() == 1;
+
+        if (held || (static_cast<i32>(battle.enemyCount) - battle.unk53BF00 == 1 && battle.unk4A7626 != kNoTalkRole))
+        {
+            return;
+        }
+
+        unit = battle.currentUnit;
+
+        if (battle.currentUnit != 0)
+        {
+            BattleRole& role =
+                this->battleRoles[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)];
+
+            if (!role.MarkBit11Clear() || (battle.panelFlags & BattleState::NoRetreat) != 0)
+            {
+                SleepMilliseconds(kRefusedPause);
+                this->battleMessages.Add(
+                    kRefusalMessageX,
+                    kRefusalMessageY,
+                    kRetreatMessageFrames,
+                    kNoRetreatText,
+                    kRefusalMessageFlags
+                );
+                this->audio.PlaySound(kRefusedSound, this->config.soundVolume);
+                return;
+            }
+
+            SleepMilliseconds(kRetreatPause);
+            battle.unk53BCE8 = kLeaveCommand;
+            battle.unk53AF38[static_cast<std::size_t>(battle.currentUnit)] = kLeaveCommand;
+            role.SetTarget(1);
+            battle.unk53BF60 = 1;
+            battle.unk53BD50 = battle.currentUnit;
+            battle.result = 0;
+            battle.unk4A75FC = 0;
+            battle.unk4A754C = battle.currentUnit - (BattleState::FirstRoleUnit - 1);
+            unit = 0;
+            battle.unk53BF1C |= kRetreatMark;
+            battle.currentUnit = 0;
+            battle.unk53BFB8 = 0;
+            battle.unk53BFC0 = 1;
+            battle.unk53BFC4 = 1;
+            battle.unk53BD90 = 0;
+            battle.unk53BD94 = 0;
+            battle.unk53BD98 = kOpenListRows;
+        }
+    }
+
+    if (controls.At(Button::KeyA).press != 0 && Game::KeyRepeats(controls.At(Button::KeyA)))
+    {
+        if (battle.result <= kMenuState && battle.roleCount != 0 && this->scene.talkWindows == nullptr)
+        {
+            battle.unk53BFBC = 0;
+            battle.autoBattle = 1;
+            battle.unk53BCE8 = 1;
+            battle.unk53AF38[static_cast<std::size_t>(unit)] = 1;
+            battle.unk53BFB8 = 1;
+            battle.unk4A7548 = 1;
+            battle.result = kTargetState;
+            return;
+        }
+    }
+
+    const ButtonState& mouseRight = controls.At(Button::MouseRight);
+
+    if (mouseRight.press != 0 && mouseRight.heldFrames >= 1)
+    {
+        battle.unk53BDA8 = 0;
+        battle.unk53BFBC = 1;
+        controls.At(Button::Escape).press = 1;
+        controls.At(Button::Escape).heldFrames = mouseRight.heldFrames;
+    }
+
+    ButtonState& mouseLeft = controls.At(Button::MouseLeft);
+
+    if (mouseLeft.press != 0 && Game::KeyRepeats(mouseLeft))
+    {
+        battle.unk53BFBC = 1;
+
+        if (battle.unk4A7644 != kNoPanelRole)
+        {
+            this->SelectRoleUnit(static_cast<i16>(battle.unk4A7644));
+            panelTaken();
+            return;
+        }
+
+        battle.unk53BDA8 = 0;
+
+        if (battle.unk53BDA0 == kScrollUp)
+        {
+            battle.unk53BD9C = kScrollUp;
+            this->MenuUp();
+        }
+
+        if (battle.unk53BDA0 == kScrollDown)
+        {
+            battle.unk53BD9C = kScrollDown;
+            this->MenuDown();
+        }
+
+        if (battle.unk53BDA0 == kScrollAbove)
+        {
+            battle.unk53BD9C = kScrollAbove;
+            this->ScrollListBack();
+        }
+
+        if (battle.unk53BDA0 == kScrollBelow)
+        {
+            battle.unk53BD9C = kScrollBelow;
+            this->ScrollListForward();
+        }
+
+        const i32 held = mouseLeft.heldFrames;
+        const auto pointerY = static_cast<u32>(this->state.pointerY);
+
+        if (pointerY > static_cast<u32>(this->battleHud.scrollThumbTop) &&
+            pointerY < static_cast<u32>(this->battleHud.scrollThumbBottom) && held == 1)
+        {
+            battle.unk53BD6C = this->state.pointerY;
+            battle.unk53BD70 = 0;
+        }
+
+        if (battle.unk53BFF8 == 1 && held >= 1)
+        {
+            battle.unk53BD9C = kThumbPart;
+        }
+
+        controls.At(Button::Space).press = 1;
+        controls.At(Button::Space).heldFrames = held;
+        battle.unk53BFBC = 1;
+    }
+
+    const ButtonState& enter = controls.At(Button::Enter);
+    bool confirm = true;
+
+    if (enter.press != 0 && enter.heldFrames % kRepeatStep == 1)
+    {
+        battle.unk53BFBC = 0;
+        controls.At(Button::Space).press = 1;
+        controls.At(Button::Space).heldFrames = enter.heldFrames;
+    }
+    else if (controls.At(Button::Space).press == 0)
+    {
+        confirm = false;
+    }
+
+    const i32 spaceHeld = controls.At(Button::Space).heldFrames;
+
+    if (confirm && (spaceHeld == 1 || (spaceHeld >= kRepeatDelay && spaceHeld % kConfirmRepeatStep == 1)))
+    {
+        if (battle.unk53BDAC < 0)
+        {
+            battle.unk53BDAC |= 1;
+        }
+
+        if ((battle.unk53BFBC == 1 && battle.unk5244CC != nullptr) ||
+            (battle.unk53BFBC != 1 && !this->state.clickRegions.regions.empty()))
+        {
+            this->state.clickRegions.Free();
+        }
+
+        if (mouseLeft.press == 0)
+        {
+            battle.unk53BFBC = 0;
+            battle.unk53BDA8 = kConfirmIdle;
+            battle.unk53BFB8 = 1;
+            battle.unk53BDA0 = 0;
+        }
+
+        battle.panelFlags &= ~BattleState::ResistancePanel;
+        this->ConfirmKey();
+    }
+
+    if (controls.At(Button::Up).press != 0 && Game::KeyRepeats(controls.At(Button::Up)) &&
+        this->scene.talkWindows == nullptr)
+    {
+        this->MenuUp();
+        this->SelectPreviousRole();
+        battle.unk53BD9C = kScrollUp;
+    }
+
+    if (controls.At(Button::Down).press != 0 && Game::KeyRepeats(controls.At(Button::Down)) &&
+        this->scene.talkWindows == nullptr)
+    {
+        this->MenuDown();
+        this->SelectNextRole();
+        battle.unk53BD9C = kScrollDown;
+    }
+
+    if (controls.At(Button::Left).press != 0 && Game::KeyRepeats(controls.At(Button::Left)))
+    {
+        ClickRegions& regions = this->state.clickRegions;
+
+        if (!regions.regions.empty())
+        {
+            --this->talk.choice;
+
+            if ((this->talk.choice & kChoiceSignBit) != 0)
+            {
+                this->talk.choice = regions.Count() - 1;
+            }
+        }
+
+        if (this->scene.talkWindows == nullptr)
+        {
+            if (battle.result == kTargetState)
+            {
+                this->MenuUp();
+            }
+
+            this->SelectNextRole();
+            this->MenuLeft();
+        }
+    }
+
+    if (controls.At(Button::Right).press != 0 && Game::KeyRepeats(controls.At(Button::Right)))
+    {
+        ClickRegions& regions = this->state.clickRegions;
+
+        if (!regions.regions.empty())
+        {
+            ++this->talk.choice;
+
+            if (this->talk.choice > regions.Count() - 1)
+            {
+                this->talk.choice = 0;
+            }
+        }
+
+        if (this->scene.talkWindows == nullptr)
+        {
+            if (battle.result == kTargetState)
+            {
+                this->MenuDown();
+            }
+
+            this->MenuRight();
+            this->SelectPreviousRole();
+        }
+    }
+
+    if (controls.At(Button::PageUp).press != 0 && controls.At(Button::PageUp).heldFrames % kRepeatStep == 1)
+    {
+        this->ScrollListBack();
+    }
+
+    if (controls.At(Button::PageDown).press != 0 && controls.At(Button::PageDown).heldFrames % kRepeatStep == 1)
+    {
+        this->ScrollListForward();
+    }
+
+    if (controls.At(Button::Escape).press != 0 && Game::KeyRepeats(controls.At(Button::Escape)))
+    {
+        this->MenuCancel();
+        battle.autoBoxStep = 0;
+        battle.autoBoxX = 0;
+    }
 }
 }  // namespace swd3
