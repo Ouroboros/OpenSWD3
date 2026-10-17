@@ -1430,6 +1430,14 @@ constexpr u16 kFanStep = 5;
 constexpr u16 kFanShare = 0x14;  // the spirit fan guards more by each 20% of proficiency
 constexpr std::array<u16, 5> kFanGuards = {0x1080, 0x10C8, 0x10E9, 0x10EF, 0x12EF};
 
+// RunAway.
+constexpr i32 kRunEnd = 6;       // fadeLevel at which the run is over
+constexpr u16 kStepPicture = 1;  // the picture of the act that plays the step sound
+constexpr u16 kStepSound = 0x10F;
+constexpr i32 kRunSoundAt = 0xF;
+constexpr u16 kRunSound = 0x2F;
+constexpr int kRunStep = 0x19;
+
 // FadeInvisible and StepAccessoryCounters.
 constexpr i16 kInvisibleFadeFrames = 0x18;
 constexpr int kShadowLeftShift = 5;
@@ -8155,5 +8163,87 @@ bool BattleUnit::FanGuards(BattleServices& services, u16 ailment)
     }
 
     return level < kFanGuards.size() && (ailment & kFanGuards[level]) != 0;
+}
+
+// swd32.exe 0x004763D0: one frame of the unit running off the field, counting fadeLevel down; 1 once it is down to
+// kRunEnd (the recoil act cleared) or the act ends. The recoil act runs the shadow action turned away from the
+// facing, stepping kRunStep a frame; its first picture plays a step sound, fadeLevel kRunSoundAt the run sound.
+int BattleUnit::RunAway(BattleServices& services)
+{
+    Painter& painter = services.painter;
+    ActState& run = this->recoilAct;
+
+    if (this->fadeLevel <= kRunEnd)
+    {
+        run = ActState{};
+        return 1;
+    }
+
+    if (run.picture == kStepPicture)
+    {
+        services.audio.PlaySound(kStepSound, services.config.soundVolume);
+    }
+
+    run.id = this->actId;
+    this->unk2AAC = 1;
+    run.action = kShadowAction;
+    run.hold = 0;
+
+    if (this->held == 1)
+    {
+        run.hold = 1;
+    }
+
+    if (services.acts.Run(run) == 0)
+    {
+        return 1;
+    }
+
+    this->picture = services.archive.GetPicture(run.frame, run.picture);
+    this->frameFlags = run.flags;
+    this->actOffsetX = static_cast<u16>(run.x);
+
+    if (this->fadeLevel == kRunSoundAt)
+    {
+        run.view = kRunSound;
+        services.audio.PlaySound(run.view, services.config.soundVolume);
+        services.audio.SetSoundPan(run.view, this->facing == 1 ? kFadePan : -kFadePan);
+        run.view = 0;
+    }
+
+    this->frameFlags ^= Painter::Mirror;
+
+    if (this->facing == 1)
+    {
+        this->frameFlags ^= Painter::Mirror;
+
+        // A missing picture is read through a null pointer in the original.
+        if (run.x != 0 && this->picture != nullptr)
+        {
+            this->actOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(run.x));
+        }
+    }
+
+    u16 x = 0;
+    u16 y = 0;
+    this->GetPosition(x, y);
+    const int stepped = this->facing == 1 ? x + kRunStep : x - kRunStep;
+    this->SetPosition(static_cast<i16>(stepped), static_cast<i16>(y));
+
+    if (this->picture != nullptr)
+    {
+        painter.SetSource(this->picture->data.data());
+        painter.DrawPicture(
+            this->placement.x - static_cast<i16>(this->actOffsetX),
+            this->placement.y - run.y,
+            this->picture->width,
+            this->picture->height,
+            this->frameFlags,
+            PaletteArgument(*this->picture)
+        );
+    }
+
+    --this->fadeLevel;
+    return 0;
 }
 }  // namespace swd3

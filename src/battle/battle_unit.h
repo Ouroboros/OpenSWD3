@@ -504,6 +504,7 @@ public:
     void MarkDelayedAttack();
     i16 EnemyHitDamage(BattleServices& services, BattleUnit& target);
     bool FanGuards(BattleServices& services, u16 ailment);
+    int RunAway(BattleServices& services);
     void DrawTrail(BattleServices& services, AfterimageTrail& trail, u16 frame, u16 picture, u32 mode, i16 x, i16 y);
     int DrawRecoil(BattleServices& services, ActState& act, i16 y);
     int FlyAct(
