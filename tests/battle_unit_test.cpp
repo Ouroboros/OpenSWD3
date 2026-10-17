@@ -1342,3 +1342,73 @@ TEST_CASE("battle role: the skill element icons match swd32.exe")
 
     CHECK(swd3test::SameTable(exe, kSkillElementsAt, swd3::BattleRole::SkillElements));
 }
+
+TEST_CASE("battle role: choosing a skill and paying for it")
+{
+    constexpr swd3::u32 kCategoryKind = 0x10;
+    constexpr swd3::u16 kUsable = 1;
+    constexpr swd3::u16 kSkillType0 = 0x1C;
+    constexpr swd3::u16 kAct = 0x77;
+    constexpr swd3::u16 kHeal = 30;
+    constexpr swd3::u16 kSpiritCost = 0x8000 | 20;
+    constexpr swd3::i16 kLowSpirit = 10;
+    constexpr swd3::i16 kHighSpirit = 25;
+    constexpr swd3::u16 kItemCost = 0x800 | 0x55;
+    constexpr swd3::u16 kCostItem = 0x55;
+    constexpr swd3::u8 kNoSkill = 0xFF;
+    Services all;
+    const std::string directory(kNoData);
+    swd3::Database database(directory);
+    swd3::ItemNode head;
+    head.next = std::make_unique<swd3::ItemNode>();
+    swd3::ObjectData& data = head.next->record.data;
+    data.kind = kCategoryKind;
+    data.usableBy = kUsable;
+    data.unk52 = kSkillType0;
+    data.unk50 = kAct;
+    data.unk34 = kHeal;
+    data.unk40 = kSpiritCost;
+    swd3::RoleRecord record;
+    record.spirit = kLowSpirit;
+    swd3::BattleRole role;
+    role.roleRecord = &record;
+    role.SetSkills(&head);
+    swd3::u32 act = 0;
+    CHECK_EQ(role.SelectSkill(database, 0, 0, 0, act), kNoSkill);
+    CHECK_EQ(role.SelectSkill(database, 0, 0, 1, act), 1);
+    CHECK_EQ(act, kAct);
+    CHECK_EQ(role.unk29A6, kHeal);
+    CHECK_EQ(role.unk2A86 & swd3::BattleUnit::UnkCommandFlag8000, swd3::BattleUnit::UnkCommandFlag8000);
+
+    CHECK_EQ(role.CanPaySkill(all.services, 0, 1), 0);
+    CHECK(all.messages.messages != nullptr);
+    record.spirit = kHighSpirit;
+    CHECK_EQ(role.CanPaySkill(all.services, 0, 1), 1);
+
+    data.unk40 = kItemCost;
+    swd3::ItemLink items = std::make_unique<swd3::ItemNode>();
+    items->id = kCostItem;
+    role.SetInventory(&items);
+    CHECK_EQ(role.CanPaySkill(all.services, 0, 1), 0);
+    items->count = 1;
+    CHECK_EQ(role.CanPaySkill(all.services, 0, 1), 1);
+    CHECK(role.selectedItem == items.get());
+}
+
+TEST_CASE("battle role: the cost refusals match swd32.exe")
+{
+    constexpr swd3::u32 kNotEnoughItemsAt = 0x004A7CD0;
+    constexpr swd3::u32 kNotEnoughSpiritAt = 0x004A7CC0;
+    constexpr swd3::u32 kNotEnoughStaminaAt = 0x004A7CB0;
+    const std::vector<swd3::u8> exe = swd3test::ReadGameFile("swd32.exe");
+
+    if (exe.empty())
+    {
+        std::printf("  (swd32.exe not found, skipped)\n");
+        return;
+    }
+
+    CHECK(swd3test::SameText(exe, kNotEnoughItemsAt, swd3::BattleRole::NotEnoughItems));
+    CHECK(swd3test::SameText(exe, kNotEnoughSpiritAt, swd3::BattleRole::NotEnoughSpirit));
+    CHECK(swd3test::SameText(exe, kNotEnoughStaminaAt, swd3::BattleRole::NotEnoughStamina));
+}

@@ -45,6 +45,9 @@
 0x004A7B54	FightTalk::unk4A7B54	i32	src/battle/fight_talk.h:31	
 0x004A7B58	FightTalk::unk4A7B58	i32	src/battle/fight_talk.h:32	
 0x004A7B5C	FightTalk::enabled	i32	src/battle/fight_talk.h:25	
+0x004A7CB0	BattleRole::NotEnoughStamina	static constexpr std::u8string_view	src/battle/battle_role.h:54	
+0x004A7CC0	BattleRole::NotEnoughSpirit	static constexpr std::u8string_view	src/battle/battle_role.h:53	
+0x004A7CD0	BattleRole::NotEnoughItems	static constexpr std::u8string_view	src/battle/battle_role.h:52	
 0x004A7D8C	BattleUnit::DigitHops	static constexpr std::array<i32, 10>	src/battle/battle_unit.h:315	by hop step
 0x004A9120	Scene::unk4A9120	std::array<ActState, 4>	src/game/scene.h:329	
 0x004A9380	MapMovie::file	File	src/map/field_view.h:94	

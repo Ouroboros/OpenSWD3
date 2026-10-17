@@ -49,6 +49,9 @@ public:
     // The equipment slots of a role (Party::SlotsPerRole).
     // 0x004A7BD4: the element icon of a skill by its script's resistance (0xFFFF: none)
     static constexpr std::array<u16, 12> SkillElements = {8, 1, 2, 3, 4, 0xFFFF, 5, 6, 7, 0xFFFF, 9, 10};
+    static constexpr std::u8string_view NotEnoughItems = u8"物品不夠!!";      // 0x004A7CD0
+    static constexpr std::u8string_view NotEnoughSpirit = u8"靈力值不夠!!";   // 0x004A7CC0
+    static constexpr std::u8string_view NotEnoughStamina = u8"體力值不夠!!";  // 0x004A7CB0
     static constexpr std::size_t WeaponSlot = 0;
     static constexpr std::size_t FirstAccessorySlot = 7;
     static constexpr std::size_t SecondAccessorySlot = 8;
@@ -109,6 +112,8 @@ public:
     int ThrowableObject(int throwable, int index, std::string& name, u16& count);
     u16 ListSkill(Database& database, int category, int type, int index, std::string& name, u16& cost);
     int StepWornCounters(CounterList& list, u16 amount);
+    u8 SelectSkill(Database& database, int category, int type, int index, u32& act);
+    int CanPaySkill(BattleServices& services, int category, int index);
     void Regenerate(BattleServices& services);
     void UseAccessorySkill(BattleServices& services, u16 kind);
     void RollCritical(BattleServices& services);

@@ -7,6 +7,7 @@
 #include <string_view>
 
 #include "audio/audio_manager.h"
+#include "battle/battle_message.h"
 #include "battle/battle_services.h"
 #include "battle/battle_state.h"
 #include "config/config.h"
@@ -241,10 +242,20 @@ constexpr u16 kCostValueMask = 0x7FFF;
 constexpr u16 kFixedCostBit = 0x800;
 constexpr u16 kFixedCost = 1000;
 constexpr double kCounterPercent = 100.0;  // swd32.exe 0x00499D28
-constexpr int kUnk1FScale = 4;             // Unk1F: unk29A4 is 4 percent of the proficiency and 1
-constexpr int kAccessoryBaseShare = 10;    // the heals add a tenth of their base
-constexpr int kHalfShare = 5;              // Unk22 / Unk24: the proficiency is halved, less a fifth of that
-constexpr int kSpiritShare = 5;            // Unk23: a fifth of the proficiency
+constexpr u8 kNoSkillChosen = 0xFF;
+constexpr u16 kHealPercentBit = 0x200;  // ObjectData::unk3C: the heals are percentages
+constexpr u32 kOffensiveKind = 8;
+constexpr u16 kItemCostBit = 0x800;  // ObjectData::unk40: the low 11 bits name an object the skill takes
+constexpr u16 kItemCostMask = 0x7FF;
+constexpr int kRefusalX = 0x118;
+constexpr int kRefusalY = 0xA;
+constexpr i16 kRefusalFrames = 0x14;
+constexpr int kRefusalFlags = BattleMessage::BlackBar | BattleMessage::Centered;
+constexpr u16 kRefusedSound = 0x8C;
+constexpr int kUnk1FScale = 4;           // Unk1F: unk29A4 is 4 percent of the proficiency and 1
+constexpr int kAccessoryBaseShare = 10;  // the heals add a tenth of their base
+constexpr int kHalfShare = 5;            // Unk22 / Unk24: the proficiency is halved, less a fifth of that
+constexpr int kSpiritShare = 5;          // Unk23: a fifth of the proficiency
 
 // RollCritical and PrepareCommand.
 constexpr u32 kCriticalAttacks = 8;  // a critical may be rolled after 8 attacks, is sure after roleCount more
@@ -4037,5 +4048,214 @@ int BattleRole::StepWornCounters(CounterList& list, u16 amount)
     }
 
     return counts;
+}
+
+// swd32.exe 0x004705C0: the `index`th node of the skill list (from 1; the count goes on with every node, so a node
+// after the last counted skill is taken when it is reached) taken as the role's command: type 0 counts unk52
+// kFirstSkillType..kLastSkillType and sets UnkCommandFlag8000, type 1 counts kSkillType1 and sets
+// UnkCommandFlag200, other types count kSkillType1. `act` takes its unk50, the command its skill script (cleared
+// first), the skill name its name; with UnkCommandFlag200 unk2A8A, unk2F16 and unk2F18 take its unk48, unk50 and
+// unk40. Its unk34..unk38 are the heals when unk3C is 0, and percentages with bit kHealPercentBit. The result is 1
+// for a skill of category 0 or a category with kind bit 8 the skill also has; 0xFF without one (or index 0).
+u8 BattleRole::SelectSkill(Database& database, int category, int type, int index, u32& act)
+{
+    const u32 kinds = BattleRole::CategoryKinds(category, kSkillCategories);
+
+    if (index == 0)
+    {
+        return kNoSkillChosen;
+    }
+
+    int wanted = type;
+
+    if (type == 0)
+    {
+        this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
+        wanted = kSkillType0;
+    }
+    else if (type == 1)
+    {
+        this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag200);
+        wanted = kSkillType1;
+    }
+
+    this->command = UnitCommand{};
+    this->ShowAllSkills();
+    int listed = 0;
+
+    while (ItemNode* const node = this->StepSkill())
+    {
+        const ObjectData& data = node->record.data;
+
+        if ((LowByte(data.usableBy) & kCountedUsers) != 0 && (kinds & data.kind) != 0)
+        {
+            const bool counted = wanted == kSkillType0 ? data.unk52 >= kFirstSkillType && data.unk52 <= kLastSkillType
+                                                       : data.unk52 == kSkillType1;
+
+            if (counted)
+            {
+                ++listed;
+            }
+        }
+
+        if (listed != index)
+        {
+            continue;
+        }
+
+        act = data.unk50;
+        this->LoadCommand(database, data.unk3E);
+        this->skillName = {};
+        const std::string name = ObjectName(node->record);
+        std::copy_n(name.begin(), std::min(name.size(), this->skillName.size() - 1), this->skillName.begin());
+
+        if ((this->unk2A86 & BattleUnit::UnkCommandFlag200) != 0)
+        {
+            this->unk2A8A = data.unk48;
+            this->unk2F16 = data.unk50;
+            this->unk2F18 = data.unk40;
+        }
+
+        if (data.unk3C == 0)
+        {
+            this->unk29A6 = data.unk34;
+            this->unk29A8 = data.unk36;
+            this->unk29AA = data.unk38;
+        }
+
+        this->healPercent = 0;
+
+        if ((data.unk3C & kHealPercentBit) != 0)
+        {
+            this->healPercent = 1;
+            this->unk29A6 = data.unk34;
+            this->unk29A8 = data.unk36;
+            this->unk29AA = data.unk38;
+        }
+
+        const bool offensive =
+            ((kinds & kOffensiveKind) != 0 && (data.kind & kOffensiveKind) != 0) || (kinds & kCategory0) != 0;
+        return offensive ? 1 : 0;
+    }
+
+    return kNoSkillChosen;
+}
+
+// swd32.exe 0x00470380: whether the role can pay for the `index`th skill of `category` (unk52
+// kFirstSkillType..kLastSkillType; 0 for index 0 or past the end). Its unk40 sets the cost: bit 15 the spirit
+// (unk2F10, no item chosen), kCostsStamina the stamina (unk2F12, no item chosen), kItemCostBit an object (unk2F10 its
+// id, which must be in the inventory with some left: it becomes the chosen item). Costs the skill does not set keep
+// their last values (as in the original). A shortfall shows kNotEnoughItems, kNotEnoughSpirit or kNotEnoughStamina
+// with kRefusedSound when no message is up.
+int BattleRole::CanPaySkill(BattleServices& services, int category, int index)
+{
+    const u32 kinds = BattleRole::CategoryKinds(category, kSkillCategories);
+
+    if (index == 0)
+    {
+        return 0;
+    }
+
+    this->ShowAllSkills();
+    int listed = 0;
+    ItemNode* node = nullptr;
+
+    do
+    {
+        node = this->StepSkill();
+
+        if (node == nullptr)
+        {
+            return 0;
+        }
+
+        const ObjectData& data = node->record.data;
+
+        if ((LowByte(data.usableBy) & kCountedUsers) != 0 && (kinds & data.kind) != 0 &&
+            data.unk52 >= kFirstSkillType && data.unk52 <= kLastSkillType)
+        {
+            ++listed;
+        }
+    } while (listed != index);
+
+    auto refuse = [&services](std::u8string_view text)
+    {
+        if (services.messages.messages != nullptr)
+        {
+            return;
+        }
+
+        services.messages.Add(kRefusalX, kRefusalY, kRefusalFrames, text, kRefusalFlags);
+        services.audio.PlaySound(kRefusedSound, services.config.soundVolume);
+    };
+
+    const u16 cost = node->record.data.unk40;
+
+    if ((cost & kCostFlag) != 0)
+    {
+        this->selectedItem = nullptr;
+        this->unk2F10 = static_cast<u16>(cost & kCostValueMask);
+    }
+
+    if ((cost & kCostsStamina) != 0)
+    {
+        this->selectedItem = nullptr;
+        this->unk2F12 = static_cast<u16>(cost & kCostMask);
+    }
+
+    if ((cost & kItemCostBit) != 0)
+    {
+        this->unk2F10 = static_cast<u16>(cost & kItemCostMask);
+        this->ShowAllItems();
+
+        while (true)
+        {
+            ItemNode* const item = this->StepItem();
+
+            if (item == nullptr)
+            {
+                refuse(BattleRole::NotEnoughItems);
+                return 0;
+            }
+
+            if (item->id != this->unk2F10)
+            {
+                continue;
+            }
+
+            if (item->count > 0 || item->pending > 0)
+            {
+                this->selectedItem = item;
+                return 1;
+            }
+
+            refuse(BattleRole::NotEnoughItems);
+            return 0;
+        }
+    }
+
+    this->ShowAllSkills();
+
+    if (this->unk2F10 != 0)
+    {
+        if (this->roleRecord->spirit >= this->unk2F10)
+        {
+            return 1;
+        }
+
+        refuse(BattleRole::NotEnoughSpirit);
+    }
+
+    if (this->unk2F12 != 0)
+    {
+        if (this->roleRecord->stamina >= this->unk2F12)
+        {
+            return 1;
+        }
+
+        refuse(BattleRole::NotEnoughStamina);
+    }
+
+    return 0;
 }
 }  // namespace swd3
