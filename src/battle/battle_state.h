@@ -69,7 +69,10 @@ public:
     static constexpr std::array<u8, 10> QuakeSteps = {4, 3, 4, 3, 4, 3, 2, 3, 2, 3};  // 0x004A75EC by quakePhase
     static constexpr std::array<i32, 5> RoleCycle = {11, 2, 1, 0, 3};  // 0x004A796C the party roles by turn, from 1
     static constexpr std::array<i32, 4> PanelUnits = {10, 9, 8, 11};   // 0x004A7960 the role units by panel
-    static constexpr std::u8string_view SpiritPactName = u8"靈契";     // 0x004A79A0 the command of battle role 0
+    // 0x004A7534: the five commands of the menu (pointers in the original)
+    static constexpr std::array<std::u8string_view, 5> FixedCommandNames =
+        {u8"攻擊", u8"奇術", u8"物品", u8"絕招", u8"防禦"};
+    static constexpr std::u8string_view SpiritPactName = u8"靈契";  // 0x004A79A0 the command of battle role 0
     // 0x004A74A0 [0x15..0x29]: the names of the accessory commands by kind (pointers in the original)
     static constexpr std::array<std::u8string_view, 21> AccessoryCommandNames = {
         u8"連擊", u8"陰陽", u8"偷竊", u8"群攻", u8"控制", u8"命中", u8"投擲", u8"隱形", u8"斷玉", u8"煉符", u8"鼠槌",

@@ -1073,4 +1073,13 @@ TEST_CASE("battle state: the names of the accessory commands match swd32.exe")
     }
 
     CHECK(swd3test::SameText(exe, kSpiritPactAt, swd3::BattleState::SpiritPactName));
+
+    constexpr swd3::u32 kFixedNamesAt = 0x004A7534;
+
+    for (std::size_t at = 0; at < swd3::BattleState::FixedCommandNames.size(); ++at)
+    {
+        const swd3::u32 address =
+            swd3test::ExeDword(exe, kFixedNamesAt + static_cast<swd3::u32>(at * sizeof(swd3::u32)));
+        CHECK(swd3test::SameText(exe, address, swd3::BattleState::FixedCommandNames[at]));
+    }
 }

@@ -1,5 +1,6 @@
 #include "core/fault.h"
 #include "crt/msvc.h"
+#include "font/text_font.h"
 #include "game/game.h"
 #include "item/item_list.h"
 #include "platform/display.h"
@@ -60,6 +61,10 @@ constexpr u16 kFirstAccessoryCommand = 0x15;    // the accessory kinds that add 
 constexpr u16 kLastAccessoryCommand = 0x31;
 constexpr u16 kSpiritPact = 6;
 constexpr i32 kGuardedCommand = 2;
+constexpr i32 kFuryFullBlock = 0x38;  // roleBlock[0] of a full fury gauge
+constexpr u16 kHighlightBackground = 0xF000;
+constexpr int kMenuRowHeight = 0x18;
+constexpr int kMenuColumnWidth = 0x30;
 
 // The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
 // here.
@@ -1369,5 +1374,83 @@ void Game::BuildCommandMenu()
             battle.unk4A7548 = kGuardedCommand;
         }
     }
+}
+
+// swd32.exe 0x004651D0: the command menu of the current role at (x, y): the five commands (FixedCommandNames) in
+// columns of four, light when enabled and dark otherwise, then the accessory commands in the second column below the
+// first (dark, and disabled, when CanUseAccessory refuses); the entry `cursor` (1-based) is drawn again over a dark
+// box. The original first enables command 4 for a role whose fury is full (BuildCommandMenu then sets it anew).
+void Game::DrawCommandMenu(int x, int y, int cursor)
+{
+    BattleState& battle = this->battleState;
+    TextFont& font = this->largeFont;
+
+    if (battle.currentUnit == 0)
+    {
+        return;
+    }
+
+    font.SetShadow(0);
+    font.SetBackground(TextFont::NoBackground);
+    BattleRole& role = this->battleRoles[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)];
+
+    if (role.roleBlock[0] == kFuryFullBlock && role.MarkBit1() == 0)
+    {
+        battle.commandEnabled[3] = 1;
+    }
+
+    this->BuildCommandMenu();
+
+    auto highlight = [this, &font, &battle](int left, int top, std::u8string_view name)
+    {
+        font.SetBackground(kHighlightBackground);
+        font.DrawText(this->drawSurface, left, top, name, battle.lightColor, TextFont::BoldOutline);
+        font.SetBackground(TextFont::NoBackground);
+    };
+
+    for (std::size_t command = 0; command < BattleState::FixedCommandNames.size(); ++command)
+    {
+        const std::u8string_view name = BattleState::FixedCommandNames[command];
+        const u16 color = battle.commandEnabled[command] == 1 ? battle.lightColor : battle.darkColor;
+        const auto row = static_cast<int>(command % static_cast<std::size_t>(kMenuColumn));
+        const auto column = static_cast<int>(command / static_cast<std::size_t>(kMenuColumn));
+        const int top = y + kMenuRowHeight * row;
+        font.DrawText(this->drawSurface, x + kMenuColumnWidth * column, top, name, color, TextFont::BoldShadow);
+
+        if (static_cast<int>(command) + 1 == cursor)
+        {
+            highlight(kMenuColumnWidth * column + x - 1, top - 1, name);
+        }
+    }
+
+    for (std::size_t extra = 0; extra < battle.commandNames.size(); ++extra)
+    {
+        const std::u8string_view name = battle.commandNames[extra];
+        const int top = y + kMenuRowHeight * (static_cast<int>(extra) + 1);
+
+        if (name.empty())
+        {
+            continue;
+        }
+
+        u8& enabled = battle.commandEnabled[kFixedCommands + extra];
+
+        if (role.CanUseAccessory(battle.commandKinds[extra]) == 1 && enabled == 1)
+        {
+            font.DrawText(this->drawSurface, x + kMenuColumnWidth, top, name, battle.lightColor, TextFont::BoldShadow);
+        }
+        else
+        {
+            enabled = 0;
+            font.DrawText(this->drawSurface, x + kMenuColumnWidth, top, name, battle.darkColor, TextFont::BoldShadow);
+        }
+
+        if (static_cast<int>(kFixedCommands + extra) + 1 == cursor)
+        {
+            highlight(x + kMenuColumnWidth - 1, top - 1, name);
+        }
+    }
+
+    font.SetBackground(TextFont::NoBackground);
 }
 }  // namespace swd3
