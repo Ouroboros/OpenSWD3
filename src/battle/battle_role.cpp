@@ -218,6 +218,12 @@ constexpr int kAccessoryBaseShare = 10;  // the heals add a tenth of their base
 constexpr int kHalfShare = 5;            // Unk22 / Unk24: the proficiency is halved, less a fifth of that
 constexpr int kSpiritShare = 5;          // Unk23: a fifth of the proficiency
 
+// RollCritical and PrepareCommand.
+constexpr u32 kCriticalAttacks = 8;  // a critical may be rolled after 8 attacks, is sure after roleCount more
+constexpr u32 kCriticalRoll = 10;
+constexpr u16 kCriticalChance = 5;  // a roll above it is critical
+constexpr u16 kWalkCommand = 0xC8;  // command A of a walking attack (its command in command B)
+
 // CanAbsorb.
 constexpr u16 kMaxAbsorbClass = 0x15;   // ObjectData::unk52
 constexpr int kAbsorbLevelsAbove = 12;  // a target this many levels above the role is never absorbed
@@ -3280,5 +3286,153 @@ void BattleRole::UseAccessorySkill(BattleServices& services, u16 kind)
     }
 
     this->StepAccessoryCounters(proficiency, kAccessoryStep);
+}
+
+// swd32.exe 0x0046FF00: whether the role's next attack is critical (it sets `critical`): never for a forced unit, with
+// an accessory command or for the role that had the last one; always with the Unk32 equipment; after roleCount + 8
+// attacks since the last one; after 8, on a 0..9 roll above 5. A rolled one restarts the count for this role.
+void BattleRole::RollCritical(BattleServices& services)
+{
+    BattleState& battle = services.state;
+
+    if (this->unk2B00 == 1 || this->unk2B04 == 1 || this->unk26CC != 0 ||
+        battle.lastCriticalRole == this->placement.actId)
+    {
+        return;
+    }
+
+    if ((this->equipmentFlags & BattleUnit::Unk32) != 0)
+    {
+        this->critical = 1;
+        return;
+    }
+
+    const u32 since = battle.attacksSinceCritical;
+
+    if (since < battle.roleCount + kCriticalAttacks &&
+        (since < kCriticalAttacks || static_cast<u16>(services.random.Below(kCriticalRoll)) <= kCriticalChance))
+    {
+        return;
+    }
+
+    this->critical = 1;
+    battle.attacksSinceCritical = 0;
+    battle.lastCriticalRole = this->placement.actId;
+}
+
+// swd32.exe 0x0046FFF0: the role's chosen command prepared. A UnkCommandFlag200 command takes command unk2F18 (a
+// walking one, UnkFlag8 / UnkFlag20, goes to command B with command A kWalkCommand). Otherwise the skill name is
+// cleared, the attack set from the battle record (not for Unk1B), the accessory command applied, the critical rolled,
+// the command loaded from skill 0 (a LifeDrain equipment drains life) and then from the weapon's skill: a walking
+// attack (command 1, Steal or Unk1A, not forced) goes to command B with command A kWalkCommand.
+void BattleRole::PrepareCommand(BattleServices& services, Database& database)
+{
+    if (this->commandA == 0)
+    {
+        return;
+    }
+
+    auto walk = [this]
+    {
+        this->commandB = this->commandA;
+        this->commandA = kWalkCommand;
+    };
+
+    auto walksForward = [this]
+    {
+        const u16 kind = this->commandA;
+        const bool attack = kind == 1 || kind == static_cast<u16>(AccessoryKind::Steal) ||
+                            kind == static_cast<u16>(AccessoryKind::Unk1A);
+        return attack && this->unk2B00 == 0 && this->unk2B04 == 0;
+    };
+
+    const u16 walking = UnitCommand::UnkFlag8 | UnitCommand::UnkFlag20;
+
+    if ((this->unk2A86 & BattleUnit::UnkCommandFlag200) != 0)
+    {
+        this->unk2B0C = 1;
+
+        if (this->unk2F18 != 0)
+        {
+            this->commandA = this->unk2F18;
+        }
+
+        if ((this->command.flags & walking) != 0)
+        {
+            walk();
+        }
+
+        return;
+    }
+
+    std::fill_n(this->skillName.begin(), kCancelledNameBytes, '\0');
+    const u16 kind = this->commandA;
+
+    if (kind != static_cast<u16>(AccessoryKind::Unk1B))
+    {
+        this->unk29A4 = this->battleRecord->attackBonus;
+    }
+
+    this->UseAccessorySkill(services, kind);
+    this->RollCritical(services);
+    this->command = UnitCommand{};
+    this->LoadCommand(database, 0);
+
+    if ((this->equipmentFlags & BattleUnit::LifeDrain) != 0)
+    {
+        this->command.actionFlags |= UnitCommand::DrainsLife;
+    }
+
+    const u16 skill = this->weapon.data.unk3E;
+
+    if (skill != 0)
+    {
+        this->LoadCommand(database, skill);
+
+        if ((this->command.flags & walking) == 0 && this->commandA != static_cast<u16>(AccessoryKind::Steal))
+        {
+            return;
+        }
+
+        if (walksForward())
+        {
+            walk();
+        }
+
+        return;
+    }
+
+    if ((this->command.flags & walking) != 0 && walksForward())
+    {
+        walk();
+    }
+}
+
+// swd32.exe 0x00470820: the cost of the role's command paid: with UnkCommandFlag8000 the selected item is used up, or
+// the spirit owed (unk2F10) taken (not below 0); then the stamina owed
+void BattleRole::FinishCommand()
+{
+    if ((this->unk2A86 & BattleUnit::UnkCommandFlag8000) != 0)
+    {
+        if (this->selectedItem != nullptr)
+        {
+            this->UseSelectedItem();
+            this->selectedItem = nullptr;
+        }
+        else
+        {
+            RoleRecord& record = *this->roleRecord;
+            record.spirit = static_cast<i16>(record.spirit - this->unk2F10);
+
+            if (record.spirit < 0)
+            {
+                record.spirit = 0;
+            }
+        }
+
+        this->unk2F10 = 0;
+    }
+
+    this->PayStamina();
 }
 }  // namespace swd3

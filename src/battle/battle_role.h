@@ -95,6 +95,9 @@ public:
     void AddFury(BattleServices& services, int damage);
     void Regenerate(BattleServices& services);
     void UseAccessorySkill(BattleServices& services, u16 kind);
+    void RollCritical(BattleServices& services);
+    void PrepareCommand(BattleServices& services, Database& database);
+    void FinishCommand();
     void SetupGuest(const UnitPlacement& at, const RoleRecord& base, Database& database, ErrorReporter& reporter);
     void ApplyEquipment(
         std::span<const std::unique_ptr<ItemNode>> slots,

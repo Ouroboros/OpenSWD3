@@ -107,6 +107,7 @@ public:
     i32 criticalAttack =
         0;  // 0x0053CEB8 1: a role's critical attack is under way (it cannot be evaded, acts add effects)
     u8 attacksSinceCritical = 0;  // 0x0053CEB4 (low byte) the attacks since the last critical one
+    i32 lastCriticalRole = 0;     // 0x0053CEBC the act of the role with the last rolled critical attack
     i32 fadingField = 0;          // 0x0053C030 1: an act started the field fade (the background waits for it)
     u8 evadeStreak = 0;           // 0x0053D028 failed evasion rolls in a row
     u8 evadeJustSucceeded = 0;    // 0x0053D029
