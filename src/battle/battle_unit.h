@@ -73,6 +73,37 @@ struct QueuedAction
     i32 data = 0;    // +0x9C
 };
 
+// The afterimages of a moving act (0x98 bytes; in a queued action at +0x134 and in a unit at +0x1064). DrawTrail
+// pushes the current picture in front every third frame and draws the images fading by fadeStep.
+struct AfterimageTrail
+{
+    static constexpr std::size_t Images = 8;
+    static constexpr u16 NoPicture = 0xFFFF;
+    static constexpr u16 Left = 1;     // direction: the images trail to the left
+    static constexpr u16 InPlace = 2;  // direction: the images stay on the picture
+
+    struct Image
+    {
+        u32 mode = 0;     // +0x00 the draw mode
+        u16 picture = 0;  // +0x04 NoPicture: none
+        i16 level = 0;    // +0x06 the blend level, falling by fadeStep
+        i16 x = 0;        // +0x08
+        i16 y = 0;        // +0x0A
+        i32 unk0C = 0;
+    };
+
+    std::array<Image, Images> images = {};  // +0x00 the newest first
+    i32 tintRed = 0;                        // +0x80 the tint of the images under the translucent ones
+    i32 tintGreen = 0;
+    i32 tintBlue = 0;
+    i32 unk8C = 0;
+    u16 direction = 0;  // +0x90 0: the images trail to the right, Left, InPlace
+    u16 started = 0;    // +0x92
+    i8 count = 0;       // +0x94 the images drawn
+    i8 fadeStep = 0;    // +0x95
+    u8 delay = 0;       // +0x96 frames until the next image is pushed
+};
+
 // The placement of a unit (0x20 bytes, copied whole into the saved placement).
 struct UnitPlacement
 {
@@ -373,6 +404,7 @@ public:
     void DrawAction(BattleServices& services, const BattleUnit& target, ActState& act);
     void AimAction(BattleServices& services, BattleUnit& target, ActState& act, i16 shiftX, i16 shiftY);
     int DrawAimed(BattleServices& services, BattleUnit& target, ActState& act, i16 shiftX, i16 shiftY);
+    void DrawTrail(BattleServices& services, AfterimageTrail& trail, u16 frame, u16 picture, u32 mode, i16 x, i16 y);
     int DrawRecoil(BattleServices& services, ActState& act, i16 y);
     int FlyAct(
         BattleServices& services,

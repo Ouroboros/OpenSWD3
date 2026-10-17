@@ -1296,6 +1296,15 @@ constexpr int kShadowTint = -6;
 constexpr int kInvisibleShadowTint = -1;
 constexpr i16 kRecoilFadeEnd = -0x20;  // DrawRecoil: the tint at which a waiting recoil act is over
 constexpr i16 kRecoilFadeStep = 2;
+
+// DrawTrail.
+constexpr u8 kTrailDelay = 2;  // a new image every third frame
+constexpr i16 kTrailLevel = 0xC;
+constexpr i16 kAdditiveTrailLevel = 0x18;
+constexpr int kTrailSpacing = 0x1E;
+constexpr int kTrailCentre = 0xC;
+constexpr int kTrailBlue = -12;
+constexpr int kTrailTintBase = 0x1F;
 constexpr u16 kEffectIcons = 0x241D;
 
 // The value of a skill script: the word at +0xE.
@@ -4042,5 +4051,119 @@ int BattleUnit::DrawAimed(BattleServices& services, BattleUnit& target, ActState
         argument
     );
     return act.waiting == 1 ? 1 : 0;
+}
+
+// swd32.exe 0x004820A0: one frame of the trail: every third frame the images move back one place and the current
+// picture (`frame`, `picture`, `mode` at x, y) is pushed in front at level 12 (24 when additive). Each image is drawn
+// at its own y and fades by fadeStep (gone at 0): additive ones tinted by their level (blue fixed at -12), the others
+// translucent at their level with the trail's tint under them while above 1. The original places the image at
+// 12 + 30 per place for direction 0 (the image's x cancels), at x + y - 12 - 30 per place for Left, at x for InPlace.
+void BattleUnit::DrawTrail(
+    BattleServices& services,
+    AfterimageTrail& trail,
+    u16 frame,
+    u16 picture,
+    u32 mode,
+    i16 x,
+    i16 y
+)
+{
+    Painter& painter = services.painter;
+    int spacing = trail.direction == AfterimageTrail::Left ? -kTrailSpacing : kTrailSpacing;
+
+    if (trail.delay == 0)
+    {
+        for (int place = trail.count - 1; place > 0; --place)
+        {
+            trail.images[static_cast<std::size_t>(place)] = trail.images[static_cast<std::size_t>(place - 1)];
+        }
+
+        AfterimageTrail::Image& front = trail.images[0];
+        front.level = kTrailLevel;
+        front.picture = picture;
+
+        if ((mode & Painter::Additive) != 0)
+        {
+            front.level = kAdditiveTrailLevel;
+        }
+
+        front.mode = mode;
+        front.x = x;
+        front.y = y;
+        trail.delay = kTrailDelay;
+    }
+    else
+    {
+        --trail.delay;
+    }
+
+    for (int place = 0; place < trail.count; ++place)
+    {
+        AfterimageTrail::Image& image = trail.images[static_cast<std::size_t>(place)];
+
+        if (image.picture == AfterimageTrail::NoPicture)
+        {
+            continue;
+        }
+
+        int offset = kTrailCentre - image.x;
+
+        if (trail.direction == AfterimageTrail::Left)
+        {
+            offset = image.y - kTrailCentre;
+        }
+
+        if (trail.direction == AfterimageTrail::InPlace)
+        {
+            offset = 0;
+            spacing = 0;
+        }
+
+        this->unk2550 = services.archive.GetPicture(frame, image.picture);
+
+        if (image.level > 0)
+        {
+            image.level = static_cast<i16>(image.level - trail.fadeStep);
+
+            if (image.level <= 0)
+            {
+                image.picture = AfterimageTrail::NoPicture;
+                image.level = 0;
+            }
+        }
+
+        // A missing picture is read through a null pointer in the original.
+        if (this->unk2550 == nullptr)
+        {
+            continue;
+        }
+
+        painter.SetSource(this->unk2550->data.data());
+        const int drawX = image.x + spacing * place + offset;
+        const int width = this->unk2550->width;
+        const int height = this->unk2550->height;
+
+        if ((mode & Painter::Additive) != 0)
+        {
+            DrawOptions& options = painter.Options();
+            options.tintRed = image.level - kTrailTintBase;
+            options.tintBlue = kTrailBlue;
+            options.tintGreen = image.level - kTrailTintBase;
+            painter.DrawPicture(drawX, image.y, width, height, mode);
+            continue;
+        }
+
+        painter.Options().alpha = image.level;
+        painter.DrawPicture(drawX, image.y, width, height, mode | Painter::Translucent);
+
+        if (image.level > 1)
+        {
+            DrawOptions& options = painter.Options();
+            options.tintRed = trail.tintRed;
+            options.tintGreen = trail.tintGreen;
+            options.tintBlue = trail.tintBlue;
+            painter.DrawPicture(drawX, image.y, width, height, mode | Painter::TintUnder);
+        }
+    }
 }
 }  // namespace swd3
