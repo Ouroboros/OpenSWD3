@@ -71,6 +71,13 @@ public:
         NoRetreat = 0x200,  // the party cannot retreat
     };
 
+    // Bits of spellStage.
+    enum SpellStage : u16
+    {
+        SpellOver = 0x1,     // the spell is over (MagicFrame ends)
+        SpellCast = 0x8000,  // the magic act followed up: the spell takes effect
+    };
+
     void TakePendingAction();
     void SortDrawOrder();
     void ListEnemyOrder();
@@ -100,16 +107,17 @@ public:
     std::array<char, TextBytes> text = {};                       // 0x0053D02C the formatted text of the battle messages
 
     // Set by the battle start (0x00451B10).
-    u16 battle = 0;                                           // 0x0053C052 the battle number
-    BattleFile file;                                          // 0x004FF5B8 battle.ffd
-    BattleFormation formation;                                // 0x004FF1E0
-    Projector projector;                                      // 0x0053B0B8
-    Picture background;                                       // 0x00502940 the picture of all_map2.tsw
-    BattleAnimation backgroundAnimation;                      // 0x004FDFA8
-    u32 enemyCount = 0;                                       // 0x0053BCE0
-    u32 roleCount = 0;                                        // 0x0053BCE4 the party and the guests in battle
-    u16 animated = 0;                                         // 0x0053BDDC the background is animated
-    u16 scene = 0;                                            // 0x0053BF10 1..4 at random
+    u16 spellStage = 0;                   // 0x0053C050 BattleState::SpellStage bits of the running spell
+    u16 battle = 0;                       // 0x0053C052 the battle number
+    BattleFile file;                      // 0x004FF5B8 battle.ffd
+    BattleFormation formation;            // 0x004FF1E0
+    Projector projector;                  // 0x0053B0B8
+    Picture background;                   // 0x00502940 the picture of all_map2.tsw
+    BattleAnimation backgroundAnimation;  // 0x004FDFA8
+    u32 enemyCount = 0;                   // 0x0053BCE0
+    u32 roleCount = 0;                    // 0x0053BCE4 the party and the guests in battle
+    u16 animated = 0;                     // 0x0053BDDC the background is animated
+    u16 scene = 0;                        // 0x0053BF10 1..4 at random
     std::array<i32, Party::Roles> partyRoles = {0, 1, 2, 3};  // 0x004A75C8 the party role of each battle role
     std::array<u8, Party::Roles> inParty = {};        // 0x00521398 the four roles are in the party (story flags 0x1E..)
     std::array<u8, Guests> guestUsed = {};            // 0x004FDF80

@@ -134,6 +134,8 @@ constexpr u16 kSureSteal = 100;   // a proficiency of 100 or more always steals
 constexpr u16 kHitCast = 0x8000;  // AttackPose: the cast act with bit 15 tells that the attack hits
 constexpr u16 kPoseDone = 2;
 constexpr i32 kCastPose = 0x2D;
+constexpr i32 kMagicActs = 1500;  // MagicFrame: the magic act is 1500 entries after the unit's act (inferred: the
+                                  // second half of the 3000-entry archive)
 
 // CanAbsorb.
 constexpr u16 kMaxAbsorbClass = 0x15;   // ObjectData::unk52
@@ -1880,6 +1882,80 @@ int BattleRole::CastAt(BattleServices& services, const BattleUnit& target, i32 s
     }
 
     effect = ActState{};
+    act = ActState{};
+    return 1;
+}
+
+// swd32.exe 0x00473010: one frame of the role's magic act (its act + kMagicActs, action unk2A8A, slot act 8) drawn by
+// DrawAction; its target bits play the effect in the recoil act (holding the act) and fade the field by its lights;
+// a follow-up marks the spell cast in BattleState::spellStage. 1 (slot act 8 and the stages cleared) once the battle
+// marks the spell over.
+int BattleRole::MagicFrame(BattleServices& services, const BattleUnit& target)
+{
+    BattleState& battle = services.state;
+    ActState& act = this->slotActs[BattleUnit::UnkSlot8];
+    act.action = this->unk2A8A;
+    this->unk2AAC = 1;
+    act.id = this->actId + kMagicActs;
+    this->DrawAction(services, target, act);
+
+    if ((act.target & ActState::Recoils) != 0)
+    {
+        if (act.effectA != 0)
+        {
+            this->unk267C |= BattleUnit::Recoiling;
+            this->recoilAct.id = act.effectA;
+            this->recoilAct.action = act.effectQ;
+        }
+
+        if ((act.target & ActState::Holds) != 0)
+        {
+            act.hold = 1;
+        }
+
+        act.effectA = 0;
+        act.target = static_cast<u16>(act.target & ~ActState::Recoils);
+        act.effectQ = 0;
+    }
+
+    if ((this->unk267C & BattleUnit::Recoiling) != 0 &&
+        this->DrawRecoil(services, this->recoilAct, static_cast<i16>(act.anchorY)) == 1)
+    {
+        this->unk267C &= ~BattleUnit::Recoiling;
+        act.target = 0;
+        act.hold = 0;
+        this->recoilAct = ActState{};
+    }
+
+    if ((act.target & ActState::FollowsUp) != 0)
+    {
+        if ((act.target & ActState::FadesField) != 0)
+        {
+            battle.fadingField = 1;
+            battle.StartFieldFade(
+                static_cast<i16>(act.lights[0]),
+                static_cast<i16>(act.lights[1]),
+                static_cast<i16>(act.lights[2]),
+                static_cast<i16>(act.lights[3]),
+                static_cast<i16>(act.lights[4]),
+                static_cast<i16>(act.lights[5]),
+                static_cast<i16>(act.lights[6])
+            );
+            act.target = static_cast<u16>(act.target & ~ActState::FadesField);
+        }
+
+        if ((battle.spellStage & BattleState::SpellCast) == 0)
+        {
+            battle.spellStage = static_cast<u16>(battle.spellStage | BattleState::SpellCast);
+        }
+    }
+
+    if ((battle.spellStage & BattleState::SpellOver) == 0)
+    {
+        return 0;
+    }
+
+    this->unk267C = 0;
     act = ActState{};
     return 1;
 }
