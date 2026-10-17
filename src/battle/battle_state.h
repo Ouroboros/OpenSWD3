@@ -421,6 +421,12 @@ public:
     i32 unk53BF9C = 0;
     i32 unk53BDBC = 0;  // the hit act of the enemies (unk53AE90)
     i32 unk53BFDC = 0;
+    // The commands of a role (Game::RoleActionFrame).
+    i32 unk53C020 = 0;  // 1: the absorb succeeded
+    u16 unk53BF34 = 0;  // the item used up by the last command
+    i32 unk53BDD4 = 0;
+    i32 unk53BDD8 = 0;
+    SkillScript unk4FF140;   // the buff or ailment of an accessory command
     i32 unk4A7564 = -1;      // the enemy the auto battle aims at (1-based), -1: none
     u16 unk4A7644 = 0xFFFF;  // a role unit that may take the panel in any battle state (SelectRoleUnit)
     i32 unk4A7548 = 1;       // the command chosen in the menu (1-based)

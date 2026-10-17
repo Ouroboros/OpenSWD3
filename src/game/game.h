@@ -316,6 +316,27 @@ private:
     void EnemyChooseCommand(BattleEnemy& unit, int enemy);
     void ReturnHeldEscort(BattleRole& role, std::size_t index, bool dropCommand);
     void EnemyAfterAction(BattleEnemy& unit, int enemy);
+    int RoleActionFrame(int role, int target);
+    void AddSpecialPoints(int role, i32 points);
+    void RoleHitLanded(int target);
+    void RoleDefeated(int target);
+    int RoleSpecialFrame(BattleRole& unit, int role, int target, u16 command);
+    int ComboFrame(BattleRole& unit, int role, int target);
+    int RoleCommandFrame(BattleRole& unit, int role, int target, u16 command);
+    CounterList& ProficiencyList();
+    int RoleAttackFrame(BattleRole& unit, int target);
+    int RoleSpellFrame(BattleRole& unit, int role, u16 command);
+    int AbsorbFrame(BattleRole& unit, int target);
+    int ThrowTalismanFrame(BattleRole& unit, int role, int target);
+    int SummonEscortFrame(BattleRole& unit, int role);
+    int CoinTossFrame(BattleRole& unit, int role);
+    int StealFrame(BattleRole& unit, int target);
+    int PoseSweepFrame(BattleRole& unit);
+    int ControlFrame(BattleRole& unit, int role, int target);
+    int TimingAttackFrame(BattleRole& unit, int target);
+    int AccessoryBuffFrame(BattleRole& unit, int target, int command);
+    int TimerAttackFrame(BattleRole& unit, int target);
+    int SelfHitFrame(BattleRole& unit, int command);
     void DrawRolePanels();
     template <typename Next>
     void StepPanelGauge(i32& shown, i32& target, Next next, int picture, int x, int y, i32 downNear, i32 downFar);
