@@ -281,6 +281,9 @@ private:
     void ConfirmKey();
     static bool KeyRepeats(const ButtonState& button);
     void BattleKeys();
+    void DrawBattleMenu();
+    void DrawCommandPanel(i32 nameIndex);
+    void DrawAimPointers();
     void DrawRolePanels();
     template <typename Next>
     void StepPanelGauge(i32& shown, i32& target, Next next, int picture, int x, int y, i32 downNear, i32 downFar);

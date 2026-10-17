@@ -460,6 +460,41 @@ constexpr std::u8string_view kNoRetreatText = u8"無法撤退!!";  // swd32.exe 
 constexpr i32 kThumbPart = 5;
 constexpr i32 kConfirmIdle = 0x12C;
 constexpr i32 kChoiceSignBit = 0x8000;
+constexpr i32 kSkipMenuState = 0x67;  // DrawBattleMenu
+constexpr int kListX = 0xE0;
+constexpr int kListY = 0x7E;
+constexpr int kSpellListX = 0xE8;
+constexpr int kSpellListY = 0x86;
+constexpr i32 kListGrown = 7;
+constexpr i32 kListOpened = 0xA;
+constexpr u16 kListScrollBar = 0x232A;
+constexpr int kSpellScrollX = 0x190;
+constexpr int kItemScrollX = 0x19E;
+constexpr int kThrowScrollX = 0x192;
+constexpr int kListScrollY = 0x9E;
+constexpr int kListScrollRows = 4;
+constexpr int kEscortListX = 0xC4;
+constexpr int kEscortListY = 0xCE;
+constexpr int kControlMenuX = 0xC;
+constexpr int kControlMenuY = 8;
+constexpr int kMenuPointerShiftX = 0x10;
+constexpr int kMenuPointerShiftY = 0x30;
+constexpr i32 kMenuIdleFrames = 0x96;
+constexpr int kMenuHomeX = 0x122;
+constexpr int kMenuHomeY = 0xA0;
+constexpr i32 kMenuPointerLeft = 0x32;
+constexpr i32 kMenuPointerRight = 0x23A;
+constexpr i32 kMenuPointerTop = 0x1E;
+constexpr i32 kMenuPointerBottom = 0x168;
+constexpr int kMenuNameStep = 8;
+constexpr int kMenuNameCenter = 5;
+constexpr int kMenuNameShift = 2;
+constexpr int kMenuNameY = 0xE;
+constexpr int kCommandMenuX = 0xE;
+constexpr int kCommandMenuY = 0x2A;
+constexpr int kRoleAimDrop = 0xA;
+constexpr int kTargetTagX = 0xC;
+constexpr int kTargetTagY = 0xE;
 
 // The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
 // here.
@@ -6847,6 +6882,401 @@ void Game::BattleKeys()
         this->MenuCancel();
         battle.autoBoxStep = 0;
         battle.autoBoxX = 0;
+    }
+}
+
+// swd32.exe 0x00464270: the battle menu of a frame (not in battle state 0x67; without a current unit only in the auto
+// battle). A held current role drops its command and gives the panel to the next role in unk520DD0 not held; one
+// that may not act (StatusBit5Or8) takes its turn at once. By battle state: 1 the command menu with the role's name
+// over the tall gauge (grown for six frames at the pointer, or at kMenuHome after kMenuIdleFrames or with the pointer
+// near the edge), 2, 4, 8, 0x1B and 0x1E the lists (with a scroll bar past seven rows), 3 the aim pointers, 5 the
+// 佈置護駕 panel, 6 the retreat, 7 the 控制 menu.
+void Game::DrawBattleMenu()
+{
+    BattleState& battle = this->battleState;
+    BattleHud& hud = this->battleHud;
+
+    if (battle.result == kSkipMenuState || (battle.currentUnit == 0 && battle.autoBattle != 1))
+    {
+        return;
+    }
+
+    // Without a current unit (the auto battle) the original reads the role 8 before the first: taken as neither held
+    // nor kept from acting.
+    auto currentRole = [this, &battle]() -> BattleRole*
+    {
+        if (battle.currentUnit < BattleState::FirstRoleUnit)
+        {
+            return nullptr;
+        }
+
+        return &this->battleRoles[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)];
+    };
+
+    i32 nameIndex = battle.currentUnit - BattleState::FirstRoleUnit;
+
+    if (BattleRole* role = currentRole(); role != nullptr && role->IsHeldOrHolding() == 1)
+    {
+        battle.unk53C184 = {};
+        battle.result = 0;
+        battle.unk53BFC4 = 0;
+        battle.unk53BFC0 = 0;
+        battle.unk53BFC8 = 0;
+        battle.unk53BFB0 = 0;
+        battle.unk53C49C = 1;
+        battle.unk53BD98 = kListRows;
+        role->CancelCommand();
+
+        for (u32 index = 0; index < battle.enemyCount; ++index)
+        {
+            this->battleEnemies[index].SetAC0(0);
+        }
+
+        nameIndex = 0;
+
+        for (; nameIndex < static_cast<i32>(battle.roleCount) - 1; ++nameIndex)
+        {
+            i32& next = battle.unk520DD0[static_cast<std::size_t>(nameIndex)];
+            const i32 unit = next;
+
+            if (unit == 0)
+            {
+                next = battle.currentUnit;
+                battle.currentUnit = 0;
+                break;
+            }
+
+            if (this->battleRoles[static_cast<std::size_t>(unit - BattleState::FirstRoleUnit)].IsHeldOrHolding() != 1)
+            {
+                next = battle.currentUnit;
+                battle.currentUnit = unit;
+                break;
+            }
+        }
+    }
+
+    if (BattleRole* role = currentRole(); role != nullptr && role->StatusBit5Or8() == 1)
+    {
+        this->StartRoleTurn(battle.currentUnit);
+        battle.currentUnit = 0;
+    }
+
+    battle.unk53BF5C = 1;
+
+    auto listDrawn = [&battle]
+    {
+        battle.unk53BFC4 = 1;
+        battle.unk53BFC0 = 1;
+    };
+
+    auto scrollBar = [&battle, &hud](i32 count, i32 first, int x)
+    {
+        hud.scrollCount = count;
+        hud.scrollFirst = first;
+
+        if (count > kListRowsShown)
+        {
+            hud.DrawScrollBar(kListScrollBar, x, kListScrollY, kListScrollRows, battle.unk53BD70, battle.unk53BD9C);
+        }
+    };
+
+    switch (battle.result)
+    {
+        case kMenuState:
+            if (battle.currentUnit != 0)
+            {
+                this->DrawCommandPanel(nameIndex);
+            }
+
+            return;
+
+        case kListState2:
+            battle.unk53BFC8 = 1;
+            this->DrawListTabs(kListX, kListY);
+
+            if (battle.unk53BD94 == kListGrown && battle.unk53BD90 == kListOpened)
+            {
+                this->DrawSpellList(kSpellListX, kSpellListY, battle.unk4A7558, battle.unk53BD04);
+                scrollBar(static_cast<i8>(battle.unk53BDF2), battle.unk53BD04, kSpellScrollX);
+            }
+
+            listDrawn();
+            return;
+
+        case kTargetState:
+            this->DrawAimPointers();
+            return;
+
+        case kListState4:
+            battle.unk53BFC8 = 1;
+            this->DrawItemList(kListX, kListY, battle.unk4A755C, battle.unk53BD08);
+            scrollBar(battle.unk53BDF4, battle.unk53BD08, kItemScrollX);
+            listDrawn();
+            return;
+
+        case kWaitState5:
+            this->DrawEscortList(kEscortListX, kEscortListY);
+            return;
+
+        case kLeaveState:
+            if (battle.unk53BF64 == 0 && battle.unk53BF68 == 0)
+            {
+                battle.unk53BF1C |= kRetreatMark;
+                battle.unk53BFC0 = 1;
+                battle.unk53BFC4 = 1;
+                battle.result = 0;
+                battle.currentUnit = 0;
+            }
+
+            return;
+
+        case kTalkState:
+            this->DrawControlMenu(battle.unk53BD24 + kControlMenuX, battle.unk53BD28 + kControlMenuY, battle.unk4A756C);
+            listDrawn();
+            return;
+
+        case kSkillListState:
+            battle.unk53BFC8 = 1;
+            this->DrawSpecialList(kListX, kListY, battle.unk4A7560);
+            listDrawn();
+            return;
+
+        case kListState1B:
+            battle.unk53BFC8 = 1;
+            this->DrawThrowList(kListX, kListY, battle.unk4A755C, battle.unk53BD08);
+            scrollBar(battle.unk53BDF4, battle.unk53BD08, kThrowScrollX);
+            listDrawn();
+            return;
+
+        case kWaitState1E:
+            battle.unk53BFC8 = 1;
+            this->DrawRefineList(kListX, kListY, battle.unk4A755C);
+            listDrawn();
+            return;
+
+        default:
+            return;
+    }
+}
+
+// Battle state 1 of DrawBattleMenu (inline in the original): the tall gauge grows for six frames (unk53BD94) from
+// the pointer, then the name of party role nameIndex (the role whose panel it is, or the step of the panel handed
+// on) and the command menu.
+void Game::DrawCommandPanel(i32 nameIndex)
+{
+    BattleState& battle = this->battleState;
+    i32 grown = battle.unk53BD94;
+
+    if (grown != kMenuOpened)
+    {
+        if (battle.unk53BFB0 == 0)
+        {
+            battle.unk53BD24 = this->state.pointerX - kMenuPointerShiftX;
+            battle.unk53BD28 = this->state.pointerY - kMenuPointerShiftY;
+            battle.unk53BFB0 = 1;
+        }
+
+        if (battle.unk53BDA8 >= kMenuIdleFrames)
+        {
+            battle.unk53BD24 = kMenuHomeX;
+            battle.unk53BD28 = kMenuHomeY;
+        }
+
+        if (battle.pointerX < kMenuPointerLeft || battle.pointerX > kMenuPointerRight ||
+            battle.pointerY < kMenuPointerTop || battle.pointerY > kMenuPointerBottom)
+        {
+            battle.unk53BD24 = kMenuHomeX;
+            battle.unk53BD28 = kMenuHomeY;
+            this->input.SetMousePosition(kMenuHomeX, kMenuHomeY);
+            grown = battle.unk53BD94;
+        }
+    }
+
+    if (grown >= kMenuOpened)
+    {
+        grown = kMenuOpened;
+        battle.unk53BD94 = kMenuOpened;
+    }
+
+    if (battle.unk53BD98 < 0)
+    {
+        battle.unk53BD98 = 0;
+    }
+
+    this->battleHud.DrawTallGauge(battle.unk53BD24, battle.unk53BD28, grown);
+
+    if (battle.unk53BD94 < kMenuOpened)
+    {
+        ++battle.unk53BD94;
+        --battle.unk53BD98;
+        return;
+    }
+
+    TextFont& font = this->mediumFont;
+    font.SetShadow(0);
+    font.SetBackground(TextFont::NoBackground);
+    const Party::Name& name =
+        this->party.names[static_cast<std::size_t>(battle.partyRoles[static_cast<std::size_t>(nameIndex)])];
+    const std::string text(name.data(), std::find(name.begin(), name.end(), '\0') - name.begin());
+    const int halfLength = static_cast<int>(text.size()) >> 1;
+    const int x = battle.unk53BD24 + kMenuNameStep * (kMenuNameCenter - (halfLength - kMenuNameShift));
+    font.DrawText(this->drawSurface, x, battle.unk53BD28 + kMenuNameY, text, kTitleColor, TextFont::BoldOutline);
+    this->DrawCommandMenu(battle.unk53BD24 + kCommandMenuX, battle.unk53BD28 + kCommandMenuY, battle.unk4A7548);
+}
+
+// Battle state 3 of DrawBattleMenu (inline in the original). Aiming at every unit (unk53BF88), a pointer over each
+// role standing (for a command at the party) or each enemy standing (at its anchor when it has one). Otherwise a
+// defeated aimed enemy passes the aim on through enemyOrder (state 1 when none stands), and the pointer marks the
+// aimed role or enemy (unk4A7640 0: the refusing pointer; command 6 refuses an enemy not a small machine), with the
+// name tag while unk53BFB8.
+void Game::DrawAimPointers()
+{
+    BattleState& battle = this->battleState;
+    BattleHud& hud = this->battleHud;
+    this->mediumFont.SetAdvance(TextFont::DefaultGlyphSize);
+
+    // Without a current unit (the auto battle) the original reads the order before the first: taken as aiming at
+    // the enemies.
+    const bool atParty =
+        battle.currentUnit >= BattleState::FirstRoleUnit &&
+        battle.pendingOrders[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)].unk00 != 0;
+    UnitRect rect;
+
+    if (battle.unk53BF88 == 1)
+    {
+        if (atParty)
+        {
+            for (u32 index = 0; index < battle.roleCount; ++index)
+            {
+                BattleRole& role = this->battleRoles[index];
+
+                if (role.unk2B00 != 1 && role.unk2B04 != 1 && role.StatusBit13() == 0)
+                {
+                    role.GetShadowRect(this->battleServices, rect);
+                    role.SetAC0(1);
+                    hud.DrawSlotAnimation(
+                        kTurnPointer,
+                        static_cast<int>(index),
+                        rect.x + (rect.width >> 1),
+                        rect.y + (rect.height >> 1)
+                    );
+                }
+            }
+
+            return;
+        }
+
+        for (u32 index = 0; index < battle.enemyCount; ++index)
+        {
+            BattleEnemy& enemy = this->battleEnemies[index];
+
+            if (enemy.IsDefeated())
+            {
+                continue;
+            }
+
+            enemy.GetShadowRect(this->battleServices, rect);
+            enemy.SetAC0(1);
+            enemy.GetOffset(battle.unk53BF4A, battle.unk53BF4E);
+
+            if (battle.unk53BF4A != 0 || battle.unk53BF4E != 0)
+            {
+                hud.DrawSlotAnimation(
+                    kTurnPointer,
+                    static_cast<int>(index),
+                    rect.x + static_cast<i16>(battle.unk53BF4A),
+                    rect.y + static_cast<i16>(battle.unk53BF4E)
+                );
+            }
+            else
+            {
+                hud.DrawSlotAnimation(
+                    kTurnPointer,
+                    static_cast<int>(index),
+                    rect.x + (rect.width >> 1),
+                    rect.y + (rect.height >> 1)
+                );
+            }
+        }
+
+        return;
+    }
+
+    if (!atParty && this->battleEnemies[static_cast<std::size_t>(battle.unk53BCF4)].IsDefeated())
+    {
+        u32 tries = 0;
+
+        while (true)
+        {
+            if (++battle.unk4A7550 > static_cast<i32>(battle.enemyCount))
+            {
+                battle.unk4A7550 = 1;
+            }
+
+            battle.unk53BCF4 = battle.enemyOrder[static_cast<std::size_t>(battle.unk4A7550 - 1)];
+            battle.unk4A754C = battle.unk53BCF4 + 1;
+
+            if (++tries >= battle.enemyCount)
+            {
+                battle.result = kMenuState;
+                break;
+            }
+
+            if (!this->battleEnemies[static_cast<std::size_t>(battle.unk53BCF4)].IsDefeated())
+            {
+                break;
+            }
+        }
+    }
+
+    if (battle.unk4A754C == -1)
+    {
+        return;
+    }
+
+    if (battle.unk53BFBC == 0)
+    {
+        battle.unk53BF4E = 0;
+        battle.unk53BF4A = 0;
+
+        if (atParty)
+        {
+            const auto aimed = static_cast<std::size_t>(battle.unk4A754C - 1);
+
+            if (aimed < this->battleRoles.size())
+            {
+                BattleRole& role = this->battleRoles[aimed];
+                role.GetShadowRect(this->battleServices, rect);
+                role.GetOffset(battle.unk53BF4A, battle.unk53BF4E);
+                role.SetAC0(1);
+                battle.unk53BF4E = static_cast<u16>(battle.unk53BF4E + kRoleAimDrop);
+            }
+        }
+        else
+        {
+            BattleEnemy& enemy = this->battleEnemies[static_cast<std::size_t>(battle.unk53BCF4)];
+            enemy.SetAC0(1);
+            enemy.GetShadowRect(this->battleServices, rect);
+            enemy.GetOffset(battle.unk53BF4A, battle.unk53BF4E);
+            battle.unk4A754C = battle.unk53BCF4 + 1;
+
+            if (battle.unk4A7548 == kRefineMenuCommand)
+            {
+                battle.unk4A7640 = enemy.IsSmallMachine() ? 1 : 0;
+            }
+        }
+
+        hud.DrawSlotAnimation(
+            battle.unk4A7640 == 0 ? kNoTurnPointer : kTurnPointer,
+            0,
+            rect.x + (rect.width >> 1),
+            rect.y + (rect.height >> 1)
+        );
+    }
+
+    if (battle.unk53BFB8 == 1)
+    {
+        this->DrawTargetTag(kTargetTagX, kTargetTagY);
     }
 }
 }  // namespace swd3
