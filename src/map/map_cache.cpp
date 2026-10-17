@@ -36,6 +36,10 @@ MapCache::MapCache(const Config& config, const Painter& painter)
 // swd32.exe 0x00425570: mode 0 empties the cache when the session mark at the end of env.dat is set (and clears it);
 // mode 1 empties it when the display's colour masks differ from those env.dat records (and records the new ones).
 // The bytes the cache holds afterwards.
+// swd32.exe 0x00498190 (EH unwind: the new object freed (operator delete))
+// swd32.exe 0x0049819B (EH unwind: the new object freed (operator delete))
+// swd32.exe 0x004981A6 (EH unwind: the new object freed (operator delete))
+// swd32.exe 0x004981B1 (EH handler of 0x00425570)
 u32 MapCache::Check(int mode)
 {
     File file;
@@ -141,6 +145,8 @@ void MapCache::Clear()
 }
 
 // swd32.exe 0x004258E0: clears the session mark (at a clean exit)
+// swd32.exe 0x004981C0 (EH unwind: the new object freed (operator delete))
+// swd32.exe 0x004981CB (EH handler of 0x004258E0)
 void MapCache::MarkClean()
 {
     File file;
@@ -159,6 +165,8 @@ void MapCache::MarkClean()
 }
 
 // swd32.exe 0x004259B0: sets the session mark (once the game runs)
+// swd32.exe 0x004981E0 (EH unwind: the new object freed (operator delete))
+// swd32.exe 0x004981EB (EH handler of 0x004259B0)
 void MapCache::MarkDirty()
 {
     File file;
@@ -177,6 +185,8 @@ void MapCache::MarkDirty()
 }
 
 // swd32.exe 0x00425A70: the sizes of the unit files that exist
+// swd32.exe 0x00498200 (EH unwind: the new object freed (operator delete))
+// swd32.exe 0x0049820B (EH handler of 0x00425A70)
 u32 MapCache::CacheBytes() const
 {
     u32 total = 0;
@@ -252,6 +262,8 @@ void MapCache::ReadUnitBytes(u32 base, u32 size, u32& bytes)
 
 // swd32.exe 0x00426DF0: unpacks the unit of a map from HUGE.lmf block by block into data\<unit>.cm (16-bit pixels
 // converted to the display), the loading screen from 15 to 60
+// swd32.exe 0x00498250 (EH unwind: the cFile, closed by its destructor)
+// swd32.exe 0x00498258 (EH handler of 0x00426DF0)
 void MapCache::DecompressMap(int unit, u32 base, u32 size, int bitsPerPixel, u32& bytes)
 {
     if (size == 0)
@@ -338,6 +350,8 @@ void MapCache::DecompressMap(int unit, u32 base, u32 size, int bitsPerPixel, u32
 }
 
 // swd32.exe 0x00427140: maps data\<unit>.cm as the view of the map (the previous view released)
+// swd32.exe 0x00498270 (EH unwind: the cFile, closed by its destructor)
+// swd32.exe 0x00498278 (EH handler of 0x00427140)
 const u8* MapCache::OpenUnit(int unit)
 {
     const std::string path = WinFormat(kUnitFormat, {this->config.installDirectory, unit});
@@ -361,6 +375,10 @@ const u8* MapCache::OpenUnit(int unit)
 // swd32.exe 0x00426840: the view of map `map` from the cache: every slot ages; a cached map is opened (its age back to
 // 0); otherwise slots are emptied (an old one, else the smallest) while the cache would exceed its size or no slot is
 // free, and the map is unpacked into the first free slot. An empty table is started with the map in slot 0.
+// swd32.exe 0x00498220 (EH unwind: the cFile, closed by its destructor)
+// swd32.exe 0x0049822B (EH unwind: the cFile, closed by its destructor)
+// swd32.exe 0x00498233 (EH unwind: the cFile, closed by its destructor)
+// swd32.exe 0x0049823E (EH handler of 0x00426840)
 const u8* MapCache::GetCachedMap(u32 map, u32 base, u32 size, int bitsPerPixel)
 {
     File table;

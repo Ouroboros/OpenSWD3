@@ -503,6 +503,8 @@ void Game::DrawFlagView()
 // takes it) or answers the overwrite prompt and the arrows page; the keys move by one or a page of three, Space or
 // Enter takes the slot (a used slot asks first when saving), Escape or Right Ctrl leaves. A slot taken is saved or
 // loaded once the screen ran ten frames; until then the choice stays pending.
+// swd32.exe 0x00498010 (EH unwind: the cFile, closed by its destructor)
+// swd32.exe 0x00498018 (EH handler of 0x004070A0)
 void Game::SaveSlotsFrame()
 {
     const ButtonState& mouse = this->controls.At(Button::MouseLeft);

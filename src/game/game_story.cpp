@@ -252,6 +252,8 @@ void Game::StartTimer(int minutes, int seconds, int event, int which)
 // swd32.exe 0x00484730: the movie named in the script at `cursor` (up to "%Q", the event offset `pc` moving along;
 // .avi and .mpg become .bik) from the video folder, at the music volume; with no CD where one is needed the game
 // ends. With no drive letter the name is written over the start of the folder path, its rest kept.
+// swd32.exe 0x004983D0 (EH unwind: the new object freed (operator delete))
+// swd32.exe 0x004983DB (EH handler of 0x00484730)
 bool Game::PlayVideo(std::size_t& cursor, u16& pc)
 {
     const std::span<const u8> script(this->databases.script);

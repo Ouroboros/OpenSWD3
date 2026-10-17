@@ -35,6 +35,8 @@ BattleRole::BattleRole()
 }
 
 // swd32.exe 0x0046E4D0: the destructor: the role's buffers freed (then the unit's, BattleUnit::~BattleUnit)
+// swd32.exe 0x00498390 (EH unwind: the unit part, by BattleUnit::~BattleUnit)
+// swd32.exe 0x00498398 (EH handler of 0x0046E4D0)
 BattleRole::~BattleRole()
 {
     this->Release();

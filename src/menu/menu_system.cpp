@@ -613,6 +613,8 @@ void Menu::SystemEnd()
 
 // swd32.exe 0x00448EE0: the chosen entry fades out; entry 1 first asks for the two names (flag 0x50 routes the
 // keyboard to a name box), entry 2 opens the settings, entry 3 also fades the music out
+// swd32.exe 0x00498310 (EH unwind: the new object freed (operator delete))
+// swd32.exe 0x0049831B (EH handler of 0x00448EE0)
 void Menu::SystemSelect()
 {
     Game& owner = this->game;
@@ -685,6 +687,8 @@ void Menu::SystemCancel()
 // fades in from black; a chosen entry fades the screen out and acts (0: continue the newest save, 1: a new game after
 // the names, 2: the settings, 3: quit). The name entry shows the box with the face's reply to a key; the settings
 // show the six rows with their bars; in game the page fades over the saved screen and back.
+// swd32.exe 0x00498330 (EH unwind: the new object freed (operator delete))
+// swd32.exe 0x0049833B (EH handler of 0x004490C0)
 void Menu::SystemDraw()
 {
     Game& owner = this->game;

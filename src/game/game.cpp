@@ -394,6 +394,8 @@ int Game::Run(std::string_view commandLine)
 
 // swd32.exe 0x0040A0D0 (message 0x404): the start sound, the default keys, the installation, the saved game flag and
 // the launcher, then the display for a new or continued game
+// swd32.exe 0x004980F0 (EH unwind: the cFile, closed by its destructor)
+// swd32.exe 0x004980F8 (EH handler of 0x0040A0D0)
 void Game::Start()
 {
     LogInfo(u8"start install_directory=%s", AsUtf8(this->config.installDirectory));
@@ -1167,6 +1169,8 @@ void Game::StartStory(int withMap)
 }
 
 // swd32.exe 0x00409DD0: the fame of Fame.dat (0x200 words, zeros when missing) as counters 1..500 of the second list
+// swd32.exe 0x004980D0 (EH unwind: the cFile, closed by its destructor)
+// swd32.exe 0x004980D8 (EH handler of 0x00409DD0)
 void Game::LoadFameFile()
 {
     std::array<u16, kFameWords> values = {};
@@ -1196,6 +1200,8 @@ void Game::LoadFameFile()
 
 // swd32.exe 0x00409CE0: counters 1..500 of the second fame list written to Fame.dat (0x200 words; nothing when it does
 // not open)
+// swd32.exe 0x004980B0 (EH unwind: the cFile, closed by its destructor)
+// swd32.exe 0x004980B8 (EH handler of 0x00409CE0)
 void Game::SaveFameFile()
 {
     std::array<u16, kFameWords> values = {};

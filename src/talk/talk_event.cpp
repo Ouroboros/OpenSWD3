@@ -30,6 +30,9 @@ void LogActError(std::u8string_view where, const Role& role)
 // script is read from Talk<event / 2000 + 1>.dat (0x8000 bytes, the rest 0x0C) once the controlled role stands on a
 // tile, and the role of the event is marked (flag 0x80000). The commands run until one waits for the next frame;
 // between 0x400 and 0x401 they run on regardless. A missing Talk file ends the game.
+// swd32.exe 0x00498290 (EH unwind: the new object freed (operator delete))
+// swd32.exe 0x0049829B (EH unwind: the new object freed (operator delete))
+// swd32.exe 0x004982A6 (EH handler of 0x00427920)
 void Talk::RunEvent(Role& context)
 {
     Game& owner = this->game;

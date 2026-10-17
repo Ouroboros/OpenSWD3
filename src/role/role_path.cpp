@@ -126,6 +126,8 @@ void RolePath::Update()
 
 // swd32.exe 0x00406390: a path from role `index` to tile (tileX, tileY) into a free move; a target past the map is
 // refused, an unreachable one moves the role there at once. False only when the move taken is the 33rd.
+// swd32.exe 0x00497FD0 (EH unwind: the path finder, freed by its destructor)
+// swd32.exe 0x00497FD8 (EH handler of 0x00406390)
 bool RolePath::FindPath(int index, u16 tileX, u16 tileY)
 {
     GameState& state = this->game.state;
@@ -387,6 +389,8 @@ int RolePath::Wander(int index)
 // swd32.exe 0x00406960: follower `index` walks after the leader: on a tile it finds a path to its place in the
 // leader's trail (unless its move still has steps), skipping the steps off screen at once; then it takes the next step
 // at double speed unless blocked (walls are ignored with story flag 0x4F), facing the leader's way at the end
+// swd32.exe 0x00497FF0 (EH unwind: the path finder, freed by its destructor)
+// swd32.exe 0x00497FF8 (EH handler of 0x00406960)
 void RolePath::Follow(int index)
 {
     Game& owner = this->game;
@@ -1159,6 +1163,8 @@ void RolePath::RunScript(int index)
 
 // swd32.exe 0x0042D920: a held role (flag bit 31) leaving an event: its scripted move takes the move queued after it
 // (a new path from where the role stands) or, with none queued, is freed. False when it has no scripted move.
+// swd32.exe 0x004982B0 (EH unwind: the path finder, freed by its destructor)
+// swd32.exe 0x004982B8 (EH handler of 0x0042D920)
 bool RolePath::ResumeMove(int index)
 {
     GameState& state = this->game.state;
@@ -1390,6 +1396,8 @@ int RolePath::ScriptStep(int index)
 // bits 0..3 or no path the role is put there at once, otherwise a scripted move (mode 2) follows a new path, its steps
 // off the camera skipped. Option 0x8000 lets the event go on meanwhile. 0 when there is no free move or the target is
 // past the map.
+// swd32.exe 0x004982D0 (EH unwind: the path finder, freed by its destructor)
+// swd32.exe 0x004982D8 (EH handler of 0x0042DAF0)
 int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 action, i16 direction)
 {
     Game& owner = this->game;

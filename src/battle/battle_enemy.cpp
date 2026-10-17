@@ -15,6 +15,8 @@ BattleEnemy::BattleEnemy()
 }
 
 // swd32.exe 0x00475590: the destructor: the enemy's mon.dat object freed (then the unit's, BattleUnit::~BattleUnit)
+// swd32.exe 0x004983B0 (EH unwind: the unit part, by BattleUnit::~BattleUnit)
+// swd32.exe 0x004983B8 (EH handler of 0x00475590)
 BattleEnemy::~BattleEnemy()
 {
     this->Release();
