@@ -1151,7 +1151,18 @@ void Game::RefreshCursor()
     }
 
     this->lastPointerAction = pointer.act.action;
-    this->acts.Run(pointer.act);
+
+    if (this->acts.Run(pointer.act) == 0)
+    {
+        DebugLog(
+            u8"Act Err(RefrashCursor) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]",
+            static_cast<u32>(pointer.id),
+            pointer.act.id,
+            pointer.act.action,
+            pointer.act.direction
+        );
+    }
+
     const Picture* picture = this->archive.GetPicture(pointer.act.frame, pointer.act.picture);
 
     if (picture == nullptr)
@@ -1166,7 +1177,8 @@ void Game::RefreshCursor()
         this->state.pointerY - pointer.act.y,
         picture->width,
         picture->height,
-        pointer.act.flags
+        pointer.act.flags,
+        PaletteArgument(*picture)
     );
 }
 

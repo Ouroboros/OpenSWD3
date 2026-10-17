@@ -1109,7 +1109,20 @@ void FieldView::DrawAnimations(std::unique_ptr<ScriptAnimation>& list)
     while (*link != nullptr)
     {
         ScriptAnimation& animation = **link;
-        owner.acts.Run(animation.act);
+        // 0x0041486B, 0x00414898: the place words are zero-extended (xor, mov cx, [esi]).
+        const int x = static_cast<u16>(animation.x);
+        const int y = static_cast<u16>(animation.y);
+
+        if (owner.acts.Run(animation.act) == 0)
+        {
+            DebugLog(
+                u8"Act Err(PicPaint:PlayAct) 設定錯誤  act[%d] qq[%d] dir[%d]",
+                animation.act.id,
+                animation.act.action,
+                animation.act.direction
+            );
+        }
+
         const Picture* picture = owner.archive.GetPicture(animation.act.frame, animation.act.picture);
 
         if (picture != nullptr)
@@ -1117,8 +1130,8 @@ void FieldView::DrawAnimations(std::unique_ptr<ScriptAnimation>& list)
             painter.Options().alpha = animation.act.signal;
             painter.SetSource(picture->data.data());
             painter.DrawPicture(
-                animation.x - animation.act.x,
-                animation.y - animation.act.y,
+                x - animation.act.x,
+                y - animation.act.y,
                 picture->width,
                 picture->height,
                 animation.act.flags
@@ -1127,11 +1140,7 @@ void FieldView::DrawAnimations(std::unique_ptr<ScriptAnimation>& list)
 
         if (animation.act.view != 0)
         {
-            owner.PlaySoundAt(
-                animation.act.view,
-                owner.field.cameraLeft + animation.x,
-                owner.field.cameraTop + animation.y
-            );
+            owner.PlaySoundAt(animation.act.view, owner.field.cameraLeft + x, owner.field.cameraTop + y);
             animation.act.view = 0;
         }
 
@@ -1160,7 +1169,16 @@ void FieldView::DrawSprites()
         ScriptSprite& sprite = **link;
         const auto screenX = static_cast<int>(crt::Ftol(sprite.x)) - field.cameraLeft;
         const auto screenY = static_cast<int>(crt::Ftol(sprite.y)) - field.cameraTop;
-        owner.acts.Run(sprite.act);
+
+        if (owner.acts.Run(sprite.act) == 0)
+        {
+            DebugLog(
+                u8"Act Err(PicPaint:DrawTObj) 設定錯誤  act[%d] qq[%d] dir[%d]",
+                sprite.act.id,
+                sprite.act.action,
+                sprite.act.direction
+            );
+        }
 
         if (screenX > -kSpriteMargin && screenX < Display::Width + kSpriteMargin && screenY > -kSpriteMargin &&
             screenY < Display::Height + kSpriteMargin)
@@ -1218,7 +1236,17 @@ void FieldView::DrawRoleHeads()
     while (*link != nullptr)
     {
         ScriptSprite& head = **link;
-        owner.acts.Run(head.act);
+
+        if (owner.acts.Run(head.act) == 0)
+        {
+            DebugLog(
+                u8"Act Err(PicPaint:drawRoleHead) 設定錯誤  act[%d] qq[%d] dir[%d]",
+                head.act.id,
+                head.act.action,
+                head.act.direction
+            );
+        }
+
         const Picture* picture = owner.archive.GetPicture(head.act.frame, head.act.picture);
 
         if (picture != nullptr)
@@ -2504,7 +2532,7 @@ int FieldView::ReadMovieFrame()
 
             if (bytes != 0)
             {
-                owner.AudioPump();
+                owner.audioDevice.Serve();
                 u32 read = bytes;
                 film.buffer.resize(std::max<std::size_t>(film.buffer.size(), bytes));
                 film.file.Read(film.buffer.data(), read);
@@ -2538,7 +2566,7 @@ int FieldView::ReadMovieFrame()
         fresh->rows = previous->nextRows;
         fresh->size = previous->nextSize;
         fresh->frame = frame;
-        owner.AudioPump();
+        owner.audioDevice.Serve();
         u32 read = fresh->size;
         film.buffer.resize(std::max<std::size_t>(film.buffer.size(), fresh->size));
         film.file.Read(film.buffer.data(), read);
@@ -2546,7 +2574,7 @@ int FieldView::ReadMovieFrame()
         if (film.paletteCount != 0 && film.paletteIndex < film.paletteFrames.size() &&
             film.frameIndex == film.paletteFrames[film.paletteIndex])
         {
-            owner.AudioPump();
+            owner.audioDevice.Serve();
             const auto back = static_cast<i32>(
                 MapMovie::PaletteBytes * (film.paletteCount - film.paletteIndex++) + MapMovie::PaletteTailBytes
             );
