@@ -4,6 +4,7 @@
 // draw_scenarios.h). Where the original reads or writes outside a picture, the legacy backend pads its buffers (with
 // the skip key, the fill key or zero words) so that it behaves like the new implementation's recorded deviation.
 
+#include <algorithm>
 #include <array>
 #include <functional>
 #include <string>
@@ -18,6 +19,29 @@ namespace golden
 constexpr u16 kFillKey = 0x026B;
 constexpr u16 kSkipKey = 0x319F;
 
+constexpr int kUnitScale = 1024;   // the scales are fixed point
+constexpr int kRowExtraWords = 3;  // an uncompressed row: two header words, the pixels and an end word
+constexpr u16 kRowEnd = 0x5A5A;
+constexpr int kFullCircle = 360;
+constexpr int kAngleStep = 7;
+constexpr int kDirectionSteps = 40;
+constexpr int kLineSteps = 60;
+constexpr std::size_t kScaledFrames = 24;
+constexpr std::size_t kScaledSeed = 31;
+constexpr std::size_t kExplosionFrames = 8;
+constexpr int kMinExplosionSide = 2;
+constexpr std::size_t kExplosionSeed = 17;
+constexpr std::size_t kHitFrames = 40;
+constexpr int kHitMargin = 3;
+constexpr int kHitStep = 2;
+constexpr int kHitOriginX = 100;
+constexpr int kHitOriginY = 50;
+constexpr std::size_t kShiftFrames = 12;
+constexpr int kShiftModes = 4;  // the first kVerticalShifts move rows
+constexpr int kVerticalShifts = 2;
+constexpr int kShiftPart = 3;
+constexpr std::array<u16, 3> kFirstWords = {0x8010, 0x4010, 0x0010};
+
 // RawPixels with its key colours replaced by kFillKey and kSkipKey.
 inline std::vector<u16> KeyedPixels(const Frame& frame)
 {
@@ -25,11 +49,11 @@ inline std::vector<u16> KeyedPixels(const Frame& frame)
 
     for (u16& pixel : pixels)
     {
-        if (pixel == 0x04CB)
+        if (pixel == kFillColor)
         {
             pixel = kFillKey;
         }
-        else if (pixel == 0x631F)
+        else if (pixel == kSkipColor)
         {
             pixel = kSkipKey;
         }
@@ -42,8 +66,8 @@ struct ScaledScenario
 {
     int x = 0;
     int y = 0;
-    int scaleX = 1024;
-    int scaleY = 1024;
+    int scaleX = kUnitScale;
+    int scaleY = kUnitScale;
     u16 flags = 0;
     int angle = 0;
 };
@@ -92,11 +116,11 @@ public:
 // and 1 word.
 inline std::vector<u8> UncompressedPicture(const std::vector<u16>& pixels, int width, int height, u16 firstWord)
 {
-    std::vector<u16> words = {0xFFFF, static_cast<u16>(width), static_cast<u16>(height), 0};
+    std::vector<u16> words = {kRleMagic, static_cast<u16>(width), static_cast<u16>(height), 0};
 
     for (int y = 0; y < height; ++y)
     {
-        words.push_back(y == 0 ? firstWord : static_cast<u16>(2 * (width + 3)));
+        words.push_back(y == 0 ? firstWord : static_cast<u16>(sizeof(u16) * (width + kRowExtraWords)));
         words.push_back(static_cast<u16>(y));
 
         for (int x = 0; x < width; ++x)
@@ -104,10 +128,10 @@ inline std::vector<u8> UncompressedPicture(const std::vector<u16>& pixels, int w
             words.push_back(pixels[static_cast<std::size_t>(y) * width + x]);
         }
 
-        words.push_back(0x5A5A);
+        words.push_back(kRowEnd);
     }
 
-    std::vector<u8> data(words.size() * 2);
+    std::vector<u8> data(words.size() * sizeof(u16));
     std::memcpy(data.data(), words.data(), data.size());
     return data;
 }
@@ -120,16 +144,16 @@ inline void RunProjector(
 {
     auto screenHash = [&backend]
     {
-        return Hash(backend.Screen(), static_cast<std::size_t>(kScreenWidth) * kScreenHeight * 2);
+        return Hash(backend.Screen(), kScreenBytes);
     };
 
     const std::vector<i32> directions = backend.Directions();
-    report("directions", Hash(directions.data(), directions.size() * 4));
+    report("directions", Hash(directions.data(), directions.size() * sizeof(i32)));
 
-    for (int angle = 0; angle < 360; angle += 7)
+    for (int angle = 0; angle < kFullCircle; angle += kAngleStep)
     {
-        const std::vector<i32> steps = backend.Steps(angle, 40);
-        report("steps/" + std::to_string(angle), Hash(steps.data(), steps.size() * 4));
+        const std::vector<i32> steps = backend.Steps(angle, kDirectionSteps);
+        report("steps/" + std::to_string(angle), Hash(steps.data(), steps.size() * sizeof(i32)));
     }
 
     const std::array<std::array<int, 4>, 8> lines = {{
@@ -146,8 +170,8 @@ inline void RunProjector(
     for (std::size_t i = 0; i < lines.size(); ++i)
     {
         const auto& line = lines[i];
-        const std::vector<i32> steps = backend.LineSteps(line[0], line[1], line[2], line[3], 60);
-        report("line/" + std::to_string(i), Hash(steps.data(), steps.size() * 4));
+        const std::vector<i32> steps = backend.LineSteps(line[0], line[1], line[2], line[3], kLineSteps);
+        report("line/" + std::to_string(i), Hash(steps.data(), steps.size() * sizeof(i32)));
     }
 
     const std::array<ScaledScenario, 10> scaled = {{
@@ -163,7 +187,7 @@ inline void RunProjector(
         {610, 30, 800, 2000, 0x17, 5},
     }};
 
-    const std::size_t scaledFrames = frames.size() < 24 ? frames.size() : 24;
+    const std::size_t scaledFrames = std::min(frames.size(), kScaledFrames);
 
     for (std::size_t f = 0; f < scaledFrames; ++f)
     {
@@ -171,7 +195,7 @@ inline void RunProjector(
 
         for (std::size_t s = 0; s < scaled.size(); ++s)
         {
-            backend.Reset(static_cast<u32>(f * 31 + s));
+            backend.Reset(static_cast<u32>(f * kScaledSeed + s));
             backend.DrawScaled(pixels, frames[f].width, frames[f].height, scaled[s]);
             report("scaled/" + std::to_string(f) + "/" + std::to_string(s), screenHash());
         }
@@ -186,57 +210,59 @@ inline void RunProjector(
         {320, 180, 300, 40, 200, 40, 12, 3, 5, 2, 0x57, 66, 80},
     }};
 
-    const std::size_t explosionFrames = frames.size() < 8 ? frames.size() : 8;
+    const std::size_t explosionFrames = std::min(frames.size(), kExplosionFrames);
 
     for (std::size_t f = 0; f < explosionFrames; ++f)
     {
         const std::vector<u16> pixels = KeyedPixels(frames[f]);
 
-        if (frames[f].width < 2 || frames[f].height < 2)
+        if (frames[f].width < kMinExplosionSide || frames[f].height < kMinExplosionSide)
         {
             continue;
         }
 
         for (std::size_t s = 0; s < explosions.size(); ++s)
         {
-            backend.Reset(static_cast<u32>(f * 17 + s));
+            backend.Reset(static_cast<u32>(f * kExplosionSeed + s));
             const std::vector<u8> result = backend.Explosion(pixels, frames[f].width, frames[f].height, explosions[s]);
             report("explosion/" + std::to_string(f) + "/" + std::to_string(s), Hash(result.data(), result.size()));
         }
     }
 
-    const std::size_t hitFrames = frames.size() < 40 ? frames.size() : 40;
+    const std::size_t hitFrames = std::min(frames.size(), kHitFrames);
 
     for (std::size_t f = 0; f < hitFrames; ++f)
     {
         std::vector<u8> hits;
         const Frame& frame = frames[f];
 
-        for (int y = -3; y < frame.height + 3; y += 2)
+        for (int y = -kHitMargin; y < frame.height + kHitMargin; y += kHitStep)
         {
-            for (int x = -3; x < frame.width + 3; x += 2)
+            for (int x = -kHitMargin; x < frame.width + kHitMargin; x += kHitStep)
             {
-                hits.push_back(static_cast<u8>(backend.HitTest(frame, x + 100, y + 50, 100, 50)));
+                hits.push_back(
+                    static_cast<u8>(backend.HitTest(frame, x + kHitOriginX, y + kHitOriginY, kHitOriginX, kHitOriginY))
+                );
             }
         }
 
         report("hit/" + std::to_string(f), Hash(hits.data(), hits.size()));
     }
 
-    const std::size_t shiftFrames = frames.size() < 12 ? frames.size() : 12;
+    const std::size_t shiftFrames = std::min(frames.size(), kShiftFrames);
 
     for (std::size_t f = 0; f < shiftFrames; ++f)
     {
         const Frame& frame = frames[f];
         const std::vector<u16> pixels = KeyedPixels(frame);
 
-        for (int mode = 0; mode < 4; ++mode)
+        for (int mode = 0; mode < kShiftModes; ++mode)
         {
-            const int limit = mode < 2 ? frame.height : frame.width;
+            const int limit = mode < kVerticalShifts ? frame.height : frame.width;
 
-            for (const int amount : {0, 1, limit / 3, limit})
+            for (const int amount : {0, 1, limit / kShiftPart, limit})
             {
-                for (const u16 firstWord : {u16{0x8010}, u16{0x4010}, u16{0x0010}})
+                for (const u16 firstWord : kFirstWords)
                 {
                     const std::vector<u8> shifted =
                         backend.Shift(UncompressedPicture(pixels, frame.width, frame.height, firstWord), mode, amount);
