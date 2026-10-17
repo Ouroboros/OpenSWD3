@@ -62,6 +62,15 @@ constexpr int kCraftBodyBottom = 0xFC;
 constexpr int kCraftLineX = 0xD0;
 constexpr int kCraftLineY = 0xDE;
 
+// DrawMastery.
+constexpr int kMasteryCharWidth = 0x11;  // the advance of its text, and the width of two bytes
+constexpr int kMasteryTextExtra = 0x20;
+constexpr int kMasteryShadeY = 0xD0;
+constexpr int kMasteryShadeExtra = 0xC;
+constexpr int kMasteryShadeMargin = 8;
+constexpr int kMasteryTextX = 0xD8;
+constexpr int kMasteryTextY = 0xDA;
+
 // DrawMessageBox: the text without a position starts this far inside the box.
 constexpr int kBoxTextX = 2;
 constexpr int kBoxTextY = 4;
@@ -701,4 +710,49 @@ void BattleMessages::Draw()
     }
 }
 
+// swd32.exe 0x00468ED0: while a proficiency has just filled (unk53BFFC), the box "法寶%s已完全成長!!" with the
+// accessory's name: a shade and a frame as wide as the text (17 pixels per two bytes), grown open (GrowPanel), then
+// the text at a 17-pixel advance.
+void BattleMessages::DrawMastery()
+{
+    if (this->state.unk53BFFC != 1)
+    {
+        return;
+    }
+
+    const std::string text = WinFormat(BattleMessages::MasteryLine, {this->state.unk53C154});
+    const int halves = static_cast<int>(text.size()) / 2;
+    const int width = kMasteryCharWidth * halves + kMasteryTextExtra;
+    FillBox(
+        this->painter,
+        kResultShadeX,
+        kMasteryShadeY,
+        width + kMasteryShadeExtra,
+        this->panelHeight + kMasteryShadeMargin,
+        kShadeRed,
+        kShadeGreen,
+        kShadeBlue,
+        FillMode::Blend
+    );
+    DrawWindowFrame(
+        this->painter,
+        this->archive,
+        this->panelAct.frame,
+        kResultLeft,
+        kResultBodyTop,
+        width + kResultLeft,
+        this->panelHeight + kResultBodyTop,
+        0,
+        kFrameBorder
+    );
+
+    if (this->GrowPanel(kResultBodyTop, kDefeatBodyBottom, kGrowDivisor) != 1)
+    {
+        return;
+    }
+
+    this->panelFont.SetAdvance(kMasteryCharWidth);
+    this->DrawPanelText(kMasteryTextX, kMasteryTextY, text);
+    this->panelFont.SetAdvance(kPanelAdvance);
+}
 }  // namespace swd3

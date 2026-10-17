@@ -71,11 +71,12 @@ struct Messages
 };
 
 // Where swd32.exe keeps the texts.
-constexpr std::array<std::pair<swd3::u32, std::u8string_view>, 5> kTexts = {{
+constexpr std::array<std::pair<swd3::u32, std::u8string_view>, 6> kTexts = {{
     {0x004A7E20, swd3::BattleMessages::ResistAllEnd},
     {0x004A80E4, swd3::BattleMessages::DefenseDownEnd},
     {0x004A7F3C, swd3::BattleMessages::ResistPhysicalEnd},
     {0x004A7B3C, swd3::BattleMessages::CraftSuccess},
+    {0x004A7AD4, swd3::BattleMessages::MasteryLine},
     {0x004A7EB4, swd3::BattleMessages::SpeedDown},
 }};
 
