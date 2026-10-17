@@ -42,3 +42,15 @@
 - 差异（diff 轮）：日志文字自编或参数不符：Sar_**、Talk(tilpa1) 两条（0x004A16A4/0x004A16D0）、Talk(wait_dlg2)（0x004A1B4C）、TalkOp:Scene_Music（0x004A1644）、0x80 打印 id 而非名字、Mag_Learn 两条（0x004A160C/0x004A15D8 带法术名）、0x84 越界日志用 Mag_Learn 标题（0x004A1588）、Equip（0x004A15C4）、Healing（0x004A156C）、DISTANCE（0x004A1534）、InBottle/OutBottle/OutBottleLoc（0x004A14DC/14B0/1484）、attb 两条（0x004A1458）。已改为原文。
 - TalkEnd 0x004A01C8 原版三个 %d 只压两个参数（0x0042D291..0x0042D29D），重建同样只传两个。
 - 结论：修正后逐指令与汇编一致（exact 轮）；越界类差异见 deviations.md 0x00427920 各行。EH funclet 0x00498290/0x0049829B/0x004982A6 按表序另行核对。
+
+## 0x0042E430 Talk::SeekScript、0x0042E740 Talk::CommandsRole（第 1 遍）
+
+- 0x0042E430：AIL_serve，记偏移，段内偏移清 0，从文件 offset + 0x200 读 0x8000 字节。通过。
+- 0x0042E740：指令 0xA、0xB、0x2D 且操作数角色在地图上并等于参数时为真。通过。
+
+## 0x0042ED40 Talk::Draw、0x00430350 Talk::DrawColoredText、0x00430BE0 Talk::ParseNumber（第 1 遍）
+
+- 0x0042ED40：40 × 11 格离屏面，大字体（0x004AB998）目标设为其尺寸；每个窗口：渐隐（0x40：已打完按计数 ×2，否则开窗步 ×4，再 & 0xF）、固定位置（0x800）、跟随角色、无角色四种开窗插值（步 1..4，有符号除以 4，上 −4、下 +8，右加 2 格），覆盖（0x80）时不画框，否则 DrawWindowFrame（框厚 0x10）；延时减一、跳过全部与 Enter 映射为空格、跳过请求两段（位 31 → 位 30）、0xC000 下的超时与渐隐计数、0x2000 选项无区域时自动前进；文字循环（%Q、换行与 %N、%L、%P、%S、%C、D%、%G、%B/%b、%A/%a（不计代码两字节）、%K/%k、双字节字）；翻页时 typed 越过非 % 的 ASCII 一字节并恢复颜色、阴影、样式；离屏面左上像素 0xFFFF 改 0xFFFE，按 alpha 0x14/4 画出；页尾或翻页标记；名牌（15 行变暗、框厚 4 的框、中字体 0x004C9A28）；关闭的窗口释放并清说话者状态；结束、翻页标记各运行一次动作。被调 0x004315D0 的参数为 u16（0x00431DF0），窗框 id 与标记帧带入的高 16 位无影响。
+- 差异（diff 轮）：漏了三条日志：关窗时说话者动作失败 "Act Err(DlgMessage:Fr)"（0x0042FB2B）、结束与翻页动作失败 "Act Err(DlgMessage:EndBtn)"/"Act Err(DlgMessage:NextPage)"（0x0043010D、0x00430151；后者压的仍是结束按钮角色 0x004C96EC 等，0x0043012B..0x0043014B）。已补。修正后通过（exact 轮）。
+- 0x00430350：背景 0xFFFE，阴影取 0x0049E108[shade]，颜色取 0x0049E0C8[color]，样式原样；画后背景 0xFFFE、阴影 0。序号超出 0..15 的越界读取已记入 deviations.md。通过。
+- 0x00430BE0：可选正负号，最多 9 位十进制，其他字符为假；空数字的越界见 deviations.md。通过。

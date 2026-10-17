@@ -179,8 +179,19 @@ void Talk::Draw()
         *link = std::move(window.next);
     }
 
-    owner.acts.Run(this->EndAct());
-    owner.acts.Run(this->NextAct());
+    const Role& endButton = owner.scene.pointerButtonRole;
+
+    if (owner.acts.Run(this->EndAct()) == 0)
+    {
+        LogActError(u8"Act Err(DlgMessage:EndBtn)", endButton);
+    }
+
+    // The original reports the end button's role here too (0x0043012B..0x0043014B push the same globals).
+    if (owner.acts.Run(this->NextAct()) == 0)
+    {
+        LogActError(u8"Act Err(DlgMessage:NextPage)", endButton);
+    }
+
     i32 pitch = 0;
     i32 height = 0;
     owner.graphics.BackSize(pitch, height);
@@ -550,9 +561,9 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
                         {
                             Role& speaker = state.roles[window.role];
 
-                            if ((speaker.flags & Role::FacesTalker) != 0)
+                            if ((speaker.flags & Role::FacesTalker) != 0 && owner.acts.Run(speaker.act) == 0)
                             {
-                                owner.acts.Run(speaker.act);
+                                LogActError(u8"Act Err(DlgMessage:Fr)", speaker);
                             }
                         }
 

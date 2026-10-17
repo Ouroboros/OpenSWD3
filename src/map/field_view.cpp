@@ -2311,32 +2311,36 @@ void FieldView::FillCellMark(int x, int y, int width, int height, int color)
     const int pitch = owner.painter.ScreenPitch();
     const auto pixels = static_cast<std::ptrdiff_t>(pitch) * Display::Height;
     const auto value = static_cast<u16>(color);
+    // The lines are written as pixel pairs of (colour << 16) + colour (0x0043019B..0x0043019E): the whole colour is
+    // added, so bits above 16 change the second pixel.
+    const u32 pairValue = (static_cast<u32>(value) << (CHAR_BIT * sizeof(u16))) + static_cast<u32>(color);
+    const auto second = static_cast<u16>(pairValue >> (CHAR_BIT * sizeof(u16)));
 
-    auto put = [&owner, pixels, value](std::ptrdiff_t at)
+    auto put = [&owner, pixels](std::ptrdiff_t at, u16 pixel)
     {
         if (at >= 0 && at < pixels)
         {
-            owner.drawSurface[at] = value;
+            owner.drawSurface[at] = pixel;
         }
     };
 
-    const int pairs = width / kPixelsPerPair;
+    const int pairs = width >> 1;  // sar (0x004301CF)
 
     for (int pair = 0; pair < pairs; ++pair)
     {
         const std::ptrdiff_t top = x + static_cast<std::ptrdiff_t>(pitch) * y + kPixelsPerPair * pair;
         const std::ptrdiff_t bottom = x + static_cast<std::ptrdiff_t>(pitch) * (y + height) + kPixelsPerPair * pair;
-        put(top);
-        put(top + 1);
-        put(bottom);
-        put(bottom + 1);
+        put(top, value);
+        put(top + 1, second);
+        put(bottom, value);
+        put(bottom + 1, second);
     }
 
     for (int line = 0; line < height; ++line)
     {
         const std::ptrdiff_t left = x + static_cast<std::ptrdiff_t>(pitch) * (y + line);
-        put(left);
-        put(left + kPixelsPerPair * pairs);
+        put(left, value);
+        put(left + kPixelsPerPair * pairs, value);
     }
 }
 

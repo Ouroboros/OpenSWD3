@@ -39,3 +39,13 @@
 - 0x00403CEB／0x00403D38：走路碰撞时对方转身失败记 "Act Err(KeyCole:Collision1)"（对方），之后再次执行对方的动作（原版问题，重建保留）失败记 "Act Err(KeyCole:Collision2)"（控制角色的字段）。
 - 0x00403DA8："\nRoleEventByCollision.GUID[%d].Talk[%d].Ridx[%d].RArgu[%x]"。
 - 差异（diff 轮）：重建缺 8 条，另有 3 条自编文字（"Act Err(approach)"、"talk to role"、"map region event"）。已全部按原文改正，Approach 增加序号参数。复核一致（exact 轮）。
+
+## 0x0042E790 Game::ChangeMap（第 1 遍）
+
+清按键与步长，置 0x004C9A18 位 0，动作参数 0xFFFF 时取受控角色的 act、action、direction（dword），调用 LoadCity 后清位 0，返回 1。通过。
+
+## 0x004303D0 SaveScreenshot、0x004306C0 Game::DrawWrappedText、0x00430B60 Game::StartTimer（第 1 遍）
+
+- 0x004303D0：复制并转回 RGB555 后才打开文件（OPEN_ALWAYS、GENERIC_WRITE），失败返回 0；文件头 0xE 字节、信息头 0x28 字节（24 位），行自下而上，3 字节一像素（蓝 = 低字节 << 3、绿 = >> 2 & 0xF8、红 = >> 7 & 0xF8），行宽 4 字节对齐，每 15 行 AIL_serve；最后取文件位置写到偏移 2，偏移 0xA 写 0x36，关闭后 AIL_serve。通过。
+- 0x004306C0：大字体，颜色 (0x19,0x17,0x11)、阴影 (6,4,3)，样式 4；%N 或超宽时画出当前段，未满行数则换行（+0x19），否则继续在本行；%C 后数字直接作颜色值；x = 前段字数 × 11 + x。通过。
+- 0x00430B60：第二计时器清 0x004BAB78/7C 并置旗标 0x4A；第一计时器清 0x004C97E8/EC、记事件并置 0x10、0x12；帧数 = 30 × (秒 + 60 × 分)。通过。

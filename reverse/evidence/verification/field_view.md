@@ -156,3 +156,12 @@ Below(1000) > 900 时：旗标 8 置位则计数 0x4AAEC8 + 1，超过 8 时夹�
 ## 0x00416CC0 FieldView::DrawRipples
 
 链表 0x4AC9B8（next 在 +0x28，以 0x4AC990 为前驱哨兵）：每个依次复制画面（0x00430D50）、折射（0x00430D80）、推进（0x00430EB0），推进返回非 0 时摘下并析构（0x00430CF0）释放，否则前进。一致。exact。
+
+## 0x00430180..0x00430FF0（第 1 遍，2026-10-18）
+
+- 0x00430180 FillCellMark：上下两行写 (a3 >> 1) 个 dword 像素对，值为 (u16(color) << 16) + color（0x0043018F..0x0043019E）；左右两列各 a4 行写 u16，行距 4 × (pitch >> 2) 字节。差异（diff 轮）：重建两个像素都写低 16 位，颜色超过 16 位时第二个像素不同；宽度按除法而非 sar。已按原式改正，修正后通过（exact 轮）。
+- 0x00430230 MarkCells：从镜头 +16 的格起 28 行 × 38 列，命中掩码时 FillCellMark(inset + x − (offX & 0xF), inset − (offY & 0xF) + 16 + 16 × 行, 0xF − inset, 0xF − inset)。通过。
+- 0x004302F0 DrawDebugText：vsprintf 到 0x100 字节缓冲，小字体（0x004A9ED0）样式 0x10。通过。
+- 0x004308C0 DrawTimer：which 0/1 分别需旗标 0x10/0x4A，0x4C 隐藏；帧数 /30（有符号）夹到 0；动作 0x232C，十分钟位非 0 才画，分、冒号（0xA）、十秒、秒依次画并右移图宽。通过。
+- 0x00430C60/0x00430CF0 ScriptObject 构造与析构：两页高度清零，阻尼 4，页 0；屏幕副本原版不清零，所有调用方在 Refract 前先 CopyScreen，重建清零无可见差别。通过。
+- 0x00430D10 MoveTo、0x00430D50 CopyScreen（2 × pitch × lines 字节）、0x00430D80 Refract（只读第一页，每次两个像素，斜率差 >> 3）、0x00430EB0 Step（翻页，四邻与左右的和 >> 2 减旧值，再减去 >> 阻尼，新页全 0 时为真）、0x00430FF0 Splash（负坐标用 CRT rand 取格内位置，半径内加 _ftol((r − √d) × depth)）。通过。

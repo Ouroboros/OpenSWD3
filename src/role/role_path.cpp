@@ -1237,10 +1237,10 @@ bool RolePath::ResumeMove(int index)
     if (finder.FindPath(role.x, role.y, move.x, move.y, role.act.width, role.act.height, move.directions) != 1)
     {
         DebugLog(
-            u8"resume path not found",
+            u8"對話系統(unlock) 路徑無法還原 >> RId(%d)\n Start(%d/%d) Dest(%d/%d)",  // 0x004A1C20 + 0x004A1C34
             index,
-            role.x >> MapHeader::TileShift,
-            role.y >> MapHeader::TileShift,
+            static_cast<u32>(role.x) >> MapHeader::TileShift,
+            static_cast<u32>(role.y) >> MapHeader::TileShift,
             move.x / MapHeader::TileSize,
             move.y / MapHeader::TileSize
         );
@@ -1373,7 +1373,14 @@ int RolePath::ScriptStep(int index)
     {
         if (role.x != move.x || role.y != move.y)
         {
-            DebugLog(u8"script move ends off its target", role.id, role.x, role.y, move.x, move.y);
+            DebugLog(
+                u8"對話系統(iMove) 沒有到達終點\nGUID(%d)\nrx%d,ry%d\ndx%d,dy%d",
+                role.id,
+                role.x,
+                role.y,
+                move.x,
+                move.y
+            );  // 0x004A1D10 + 0x004A1D20
         }
 
         role.act.speed = 0;
@@ -1525,7 +1532,12 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
     {
         if (state.GameFlag(GameState::DebugReports) && (options & RolePath::PlaceMask) == 0)
         {
-            DebugLog(u8"no free move", options, this->RoleId(static_cast<u32>(index)));
+            // The options (pushed last, 0x0042DDA3) fill the GUID of the text; the id (0x0042DDA2) is left over.
+            DebugLog(
+                u8"警告:對話系統(isetpos:mode0) GUID(%d) 找不到可以使用的路徑\n角色將會直接移到目的地",
+                options,
+                this->RoleId(static_cast<u32>(index))
+            );  // 0x004A1CB8 + 0x004A1CD8
         }
 
         owner.field.ClearRoleCells(role, leader);
@@ -1603,11 +1615,11 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
     if (finder.FindPath(role.x, role.y, x, y, role.act.width, role.act.height, move.directions) != 1)
     {
         DebugLog(
-            u8"script path not found",
+            u8"對話系統(isetpos) 路徑無法產生 >> P(%d) crId(%d)\n Start(%d/%d) Dest(%d/%d)",  // 0x004A1C68 + 0x004A1C7C
             slot,
             this->RoleId(static_cast<u32>(index)),
-            role.x >> MapHeader::TileShift,
-            role.y >> MapHeader::TileShift,
+            static_cast<u32>(role.x) >> MapHeader::TileShift,
+            static_cast<u32>(role.y) >> MapHeader::TileShift,
             x >> MapHeader::TileShift,
             y >> MapHeader::TileShift
         );

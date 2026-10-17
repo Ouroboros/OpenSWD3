@@ -247,7 +247,7 @@ void DrawWindowFrame(
     const Picture* piece = Piece(painter, archive, picture, kTopLeftFrame);
     Draw(painter, piece, outerLeft, outerTop, alpha);
     painter.SetClipClamped(left, outerTop, right, top);
-    Piece(painter, archive, picture, kTopFrame);
+    piece = Piece(painter, archive, picture, kTopFrame);
 
     for (int x = left; piece != nullptr && piece->width != 0 && x < right; x += piece->width)
     {
@@ -263,7 +263,7 @@ void DrawWindowFrame(
         Draw(painter, piece, size + right - piece->width, outerTop, alpha);
     }
 
-    for (int y = top; piece != nullptr && piece->height != 0 && y < bottom; y += piece->height)
+    for (int y = top; y < bottom; y += piece->height)
     {
         painter.SetClipClamped(outerLeft, top, left, bottom);
         piece = Piece(painter, archive, picture, kLeftFrame);
@@ -271,9 +271,16 @@ void DrawWindowFrame(
         painter.SetClipClamped(right, top, right + size, bottom);
         piece = Piece(painter, archive, picture, kRightFrame);
 
-        if (piece != nullptr)
+        if (piece == nullptr)
         {
-            Draw(painter, piece, size + right - piece->width, y, alpha);
+            break;
+        }
+
+        Draw(painter, piece, size + right - piece->width, y, alpha);
+
+        if (piece->height == 0)
+        {
+            break;
         }
     }
 
