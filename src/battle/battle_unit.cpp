@@ -9,6 +9,7 @@
 #include "battle/battle_enemy.h"
 #include "battle/battle_hud.h"
 #include "battle/battle_message.h"
+#include "battle/battle_role.h"
 #include "battle/battle_services.h"
 #include "battle/battle_state.h"
 #include "config/config.h"
@@ -1417,6 +1418,17 @@ constexpr i32 kSecondItemAction = 0x2D;
 constexpr i32 kThirdItemAction = 0x2E;
 constexpr i32 kHealAction = 0x2F;
 constexpr u16 kDelayedCommand = 0xC8;
+
+// EnemyHitDamage.
+constexpr u16 kSacrificeAilment = 0x8000;  // the ailment landed, the attacker falls (inferred)
+constexpr int kSacrificeDamage = 0x270F;
+constexpr u32 kEnemySpreadRoll = 5;  // the bonus of other commands rolls below (level + unk5C) / (5..9)
+constexpr u32 kEnemySpreadBase = 5;
+constexpr u32 kGuardCutRoll = 0x1E;  // a guard cuts 10..39%
+constexpr u32 kGuardCutBase = 10;
+constexpr u16 kFanStep = 5;
+constexpr u16 kFanShare = 0x14;  // the spirit fan guards more by each 20% of proficiency
+constexpr std::array<u16, 5> kFanGuards = {0x1080, 0x10C8, 0x10E9, 0x10EF, 0x12EF};
 
 // FadeInvisible and StepAccessoryCounters.
 constexpr i16 kInvisibleFadeFrames = 0x18;
@@ -7929,5 +7941,219 @@ void BattleUnit::MarkDelayedAttack()
         this->commandB = BattleUnit::UnkCommand1;
         this->commandA = kDelayedCommand;
     }
+}
+
+// swd32.exe 0x00481A40: the damage of an enemy's hit on `target` (-1 shows no number). A barrier stops it; a held
+// target is freed by a hit that heals nothing; the buff lands first. A party role takes the ailment unless its spirit
+// fan guards against it by proficiency (an ailment with kSacrificeAilment defeats the attacker and gives the target's
+// hit points), then its defence and record resistances count; an enemy target its object's. Command 1 rolls on the
+// level, raised and cut by the attack buffs, less the defence (else the bare value, at least 1, rolled again unless
+// unk2A8C); other commands add a roll to a positive value. The resistance of the command's element scales it, an
+// effect of its element halves it, unk29A6 heals instead, a guard cuts it by 10..39%, and a party role gains fury. The
+// original computes in 16 bits.
+i16 BattleUnit::EnemyHitDamage(BattleServices& services, BattleUnit& target)
+{
+    Random& random = services.random;
+    const ObjectData& data = this->data->data;
+    i16 damage = static_cast<i16>(this->unk29A4);
+    i32 raise = 0;
+    i32 cut = 0;
+    bool resisted = false;
+    int defense = 0;
+    std::array<u8, kResistances> resistances = {};
+    target.PushTarget(BattleUnit::DamageTarget);
+
+    if (target.HasEffectBits(BattleUnit::UnkStatus4) == 1)
+    {
+        return 0;
+    }
+
+    if (this->unk29A6 == 0 && target.IsHeldOrHolding() == 1)
+    {
+        target.CureEffects(services, BattleUnit::UnkStatus8);
+    }
+
+    if (target.AddBuff(services, this->CommandSkill()) == 1)
+    {
+        return -1;
+    }
+
+    if (target.kind == BattleUnit::PartyRole)
+    {
+        const auto* record = static_cast<const RoleRecord*>(target.SelectEntry(1));
+        defense = target.Defense();
+        std::copy_n(record->unk2D.begin(), resistances.size(), resistances.begin());
+        const u16 ailment = this->command.ailment;
+
+        if (ailment != 0 && !target.FanGuards(services, ailment))
+        {
+            if (target.AddAilment(services, this->CommandSkill()) == 1)
+            {
+                target.RaiseFlag26B8();
+
+                if ((ailment & kSacrificeAilment) != 0)
+                {
+                    this->Damage(services, kSacrificeDamage, 0, 0);
+                    i32 hitPoints = 0;
+                    i32 maximum = 0;
+                    target.GetHitPoints(hitPoints, maximum);
+                    return static_cast<i16>(hitPoints);
+                }
+            }
+            else if (this->command.value != 0 || this->unk29A4 != 0)
+            {
+                target.RaiseFlag26B8();
+            }
+            else
+            {
+                target.RollEvade(services, kEvadeRoll);
+            }
+
+            if (this->command.value == 0 && this->unk29A4 == 0)
+            {
+                return -1;
+            }
+        }
+    }
+    else
+    {
+        const ObjectData& targetData = target.Data()->data;
+        defense = targetData.defense;
+        std::copy_n(targetData.resistances.begin(), resistances.size(), resistances.begin());
+        target.SetDefeatPose(LowByte(this->command.pose));
+    }
+
+    const u16 element = this->command.resistance;
+    const bool elemental = element >= 1 && element <= kResistances;
+
+    auto scaleByElement = [&]
+    {
+        if (elemental && ScaleByTenths(static_cast<i8>(resistances[element - 1U]), damage) == 1)
+        {
+            resisted = true;
+        }
+    };
+
+    auto levelRoll = [&random, &data]
+    {
+        return static_cast<i32>(random.Below(
+            static_cast<u16>(
+                static_cast<i16>(data.level) / static_cast<int>(kLevelShare) + static_cast<int>(kLevelRollBase)
+            )
+        ));
+    };
+
+    if (this->commandA != BattleUnit::UnkCommand1)
+    {
+        const u32 spread = random.Below(kEnemySpreadRoll);
+        const auto limit = static_cast<u16>((data.level + data.unk5C) / static_cast<u16>(spread + kEnemySpreadBase));
+        const i32 bonus = static_cast<i32>(random.Below(limit)) + 1;
+
+        if (damage > 0)
+        {
+            damage = static_cast<i16>(damage + bonus);
+        }
+
+        if (this->commandA == BattleUnit::UnkCommand2)
+        {
+            scaleByElement();
+        }
+    }
+    else
+    {
+        const auto attack = static_cast<i16>(levelRoll() + 1 + damage);
+
+        if ((this->status & BattleUnit::AttackUp) != 0)
+        {
+            raise = kAttackBuffPercent * attack / kPercent;
+        }
+
+        if ((this->status & BattleUnit::AttackDown) != 0)
+        {
+            cut = kAttackBuffPercent * attack / kPercent;
+        }
+
+        const auto raised = static_cast<i16>(raise - cut + attack);
+
+        if (raised > static_cast<i32>(static_cast<u16>(defense)))
+        {
+            damage = static_cast<i16>(raised - defense);
+        }
+        else
+        {
+            const auto value = static_cast<i16>(this->unk29A4);
+
+            if ((this->status & BattleUnit::AttackUp) != 0)
+            {
+                raise = kAttackBuffPercent * value / kPercent;
+            }
+
+            if ((this->status & BattleUnit::AttackDown) != 0)
+            {
+                cut = kAttackBuffPercent * value / kPercent;
+            }
+
+            auto bare = static_cast<i16>(raise - defense - cut + value);
+
+            if (bare < 0)
+            {
+                bare = 1;
+            }
+
+            damage = this->unk2A8C != 0 ? bare : static_cast<i16>(levelRoll() + 1 + bare);
+        }
+
+        scaleByElement();
+    }
+
+    if (target.HasEffectElement(static_cast<i16>(this->command.element)) == 1)
+    {
+        damage = static_cast<i16>(damage / 2);
+    }
+
+    if (this->unk29A6 != 0)
+    {
+        target.PushTarget(BattleUnit::HealTarget);
+        damage = static_cast<i16>(-static_cast<i16>(this->unk29A6));
+    }
+
+    if (resisted)
+    {
+        target.PushTarget(BattleUnit::HealTarget);
+    }
+
+    if (target.GetGuard() == 1)
+    {
+        const auto share = static_cast<u16>(random.Below(kGuardCutRoll) + kGuardCutBase);
+        damage = static_cast<i16>(damage * share / -kPercent + damage);
+    }
+
+    if (target.kind == BattleUnit::PartyRole && damage > 0)
+    {
+        static_cast<BattleRole&>(target).AddFury(services, damage);
+    }
+
+    return damage;
+}
+
+// The spirit fan of EnemyHitDamage (inline in the original): a worn one counts its proficiency up by kFanStep and, by
+// each kFanShare of it, guards against more ailments (all at full proficiency).
+bool BattleUnit::FanGuards(BattleServices& services, u16 ailment)
+{
+    if (this->CanUseAccessory(kSpiritFanKind) != 1)
+    {
+        return false;
+    }
+
+    CounterList& proficiency = services.party.fame.lists[Fame::ProficiencyList];
+    this->StepAccessoryCounters(proficiency, kFanStep);
+    const auto level = static_cast<u16>(this->AccessoryProficiency(kSpiritFanKind, proficiency)) / kFanShare;
+
+    if (level == kFanGuards.size())
+    {
+        return true;
+    }
+
+    return level < kFanGuards.size() && (ailment & kFanGuards[level]) != 0;
 }
 }  // namespace swd3
