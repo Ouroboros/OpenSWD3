@@ -7,6 +7,7 @@
 #include <span>
 
 #include "core/byte_reader.h"
+#include "core/debug_log.h"
 #include "core/words.h"
 #include "crt/msvc.h"
 #include "game/game.h"
@@ -277,15 +278,16 @@ u16 FieldView::Tile(int index) const
     return tiles[static_cast<std::size_t>(index)];
 }
 
-// The source of tile `index` of the grid in the cached unit; the original reads past the view for codes beyond it,
+// The source of tile `index` of the grid in the cached unit (`wideRead`: drawn as 16-bit pixels, 0x200 bytes, as the
+// original draws the edges of 8-bit maps); the original reads past the view for codes beyond it,
 // here such a tile shows the start of the view.
-void FieldView::SetTileSource(const TileSet& tiles, int index)
+void FieldView::SetTileSource(const TileSet& tiles, int index, bool wideRead)
 {
     const std::span<const u8> view = this->game.mapCache.unitFile.View();
     const std::size_t tile = this->Tile(index);
     const std::size_t offset =
         tiles.indexed ? MapHeader::IndexedTileBytes * tile + MapHeader::PaletteBytes : MapHeader::TileBytes * tile;
-    const std::size_t bytes = tiles.indexed ? MapHeader::IndexedTileBytes : MapHeader::TileBytes;
+    const std::size_t bytes = tiles.indexed && !wideRead ? MapHeader::IndexedTileBytes : MapHeader::TileBytes;
     this->game.painter.SetSource(offset + bytes <= view.size() ? view.data() + offset : view.data());
 }
 
@@ -418,7 +420,7 @@ void FieldView::DrawTileGridScrolled(const TileSet& tiles)
 
         if ((cell & MapHeader::HiddenTile) == 0)
         {
-            this->SetTileSource(tiles, tile);
+            this->SetTileSource(tiles, tile, true);
             painter.DrawPicture(
                 x,
                 y,
@@ -748,8 +750,10 @@ void FieldView::UpdateRoleSound(Role& role)
     Scene& view = this->game.scene;
     SoundEffects& effects = this->game.audio.Effects();
     const Role& player = state.roles[static_cast<std::size_t>(state.playerRole)];
-    const int dx = role.x - player.x;
-    const int squared = dx * dx + (role.y - player.y) * (role.y - player.y);
+    // 0x00413CA0: the differences and the sum of their squares wrap in 32 bits (sub, imul, add).
+    const auto dx = static_cast<u32>(role.x) - static_cast<u32>(player.x);
+    const auto dy = static_cast<u32>(role.y) - static_cast<u32>(player.y);
+    const auto squared = static_cast<i32>(dx * dx + dy * dy);
     const auto distance = static_cast<int>(crt::Ftol(std::sqrt(static_cast<double>(squared))));
     bool due = true;
     u32 timer = role.soundTimer & Role::SoundPeriodMask;
@@ -3129,9 +3133,16 @@ void FieldView::Render()
 
     for (std::size_t act = view.unk4B9F68.size(); act-- > 0;)
     {
-        if (view.unk4B9F68[act].id != 0)
+        ActState& slot = view.unk4B9F68[act];
+
+        if (slot.id != 0 && owner.acts.Run(slot) == 0)
         {
-            owner.acts.Run(view.unk4B9F68[act]);
+            DebugLog(
+                u8"Act Err(picPaint:HeadSgn) 頭定符號設定錯誤  act[%d] qq[%d] dir[%d]",
+                slot.id,
+                slot.action,
+                slot.direction
+            );
         }
     }
 
@@ -3295,7 +3306,16 @@ void FieldView::Render()
             }
         }
 
-        owner.acts.Run(role.act);
+        if (owner.acts.Run(role.act) == 0)
+        {
+            DebugLog(
+                u8"Act Err(picPaint:PathMove) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]",
+                role.id,
+                role.act.id,
+                role.act.action,
+                role.act.direction
+            );
+        }
 
         if (index == state.playerRole && (view.screenFlags & Scene::CameraHeld) == 0)
         {
@@ -3344,12 +3364,21 @@ void FieldView::Render()
             }
         }
 
-        owner.acts.Run(role.act);
+        if (owner.acts.Run(role.act) == 0)
+        {
+            DebugLog(
+                u8"Act Err(picPaint:CompanyMove) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]",
+                role.id,
+                role.act.id,
+                role.act.action,
+                role.act.direction
+            );
+        }
     }
 
     this->PanCamera();
     this->ShakeCamera();
-    owner.AudioPump();
+    owner.audioDevice.Serve();
     owner.drawSurface = owner.painter.LockSurface(*owner.offscreen);
     owner.painter.SetTarget(owner.drawSurface);
     owner.painter.UnlockSurface(*owner.offscreen);
@@ -3361,7 +3390,7 @@ void FieldView::Render()
         this->DrawDebug(field.cameraLeft, field.cameraTop);
     }
 
-    owner.AudioPump();
+    owner.audioDevice.Serve();
     owner.ShowFrame();
 
     if ((player.x & MapHeader::TileFraction) == 0 && (player.y & MapHeader::TileFraction) == 0)
@@ -3369,7 +3398,7 @@ void FieldView::Render()
         field.RemoveRole(
             player.id,
             static_cast<int>(player.flags & Role::LayerMask),
-            (player.y >> MapHeader::TileShift) - 1,
+            (static_cast<u32>(player.y) >> MapHeader::TileShift) - 1,
             0
         );
         field.ClearRoleCells(player, leaderId);
@@ -3402,9 +3431,15 @@ void FieldView::Render()
         this->UpdateRoleCellFlags(player);
     }
 
-    if ((player.flags & Role::Stepping) == 0 && (player.flags & Role::StepsAct) != 0)
+    if ((player.flags & Role::Stepping) == 0 && (player.flags & Role::StepsAct) != 0 && owner.acts.Run(player.act) == 0)
     {
-        owner.acts.Run(player.act);
+        DebugLog(
+            u8"Act Err(PicPaint:Render:MRl) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]",
+            player.id,
+            player.act.id,
+            player.act.action,
+            player.act.direction
+        );
     }
 
     if (++view.unk4CC2DC >= view.unk49E0BC && state.map.layers != 1)

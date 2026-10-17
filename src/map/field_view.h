@@ -174,7 +174,7 @@ private:
     void DrawTileGridScrolled(const TileSet& tiles);
     u32 Block(int index) const;
     u16 Tile(int index) const;
-    void SetTileSource(const TileSet& tiles, int index);
+    void SetTileSource(const TileSet& tiles, int index, bool wideRead = false);
     void DrawScreenTint(int red, int green, int blue);
 
     Game& game;
