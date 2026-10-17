@@ -4,6 +4,7 @@
 #include <memory>
 #include <span>
 #include <string_view>
+#include <vector>
 
 #include "core/types.h"
 #include "org/object_record.h"
@@ -459,12 +460,15 @@ public:
     UnitPlacement savedPlacement;             // +0xD70
     UnitCommand command;                      // +0xD90
     LineWalker flight;                        // +0xDF4 the line of a flying act (FlyAct)
+    ParticleEffect absorb;                    // +0xE14 a picture breaking up into the unit (StartAbsorb)
+    std::vector<u16> absorbPixels;            // the raw pixels of absorb (decoded by 0x004019A0, freed by 0x004885A0)
     std::array<ActState, 8> unkFCC;           // +0xFCC
     std::unique_ptr<QueuedAction> actions;    // +0x236C
     const Picture* shadowPicture = nullptr;   // +0x2548
     const Picture* picture = nullptr;         // +0x254C the current picture
     const Picture* unk2550 = nullptr;         // +0x2550
     const Picture* unk2554 = nullptr;         // +0x2554
+    const Picture* absorbSource = nullptr;    // +0x255C the picture StartAbsorb breaks up
     std::span<const char> displayName;        // +0x2560 the name shown in the messages (read up to its NUL when used)
     EffectNode effects;                       // +0x2584 (the head is a node: +0x2588 its act, +0x2620 its bits)
     std::array<char, 0x30> skillName = {};    // +0x2630 the name of the skill used
@@ -476,6 +480,7 @@ public:
     i32 unk2670 = 0;
     i32 unk2674 = 0;
     u32 unk267C = 0;  // +0x267C BattleUnit::Stage bits
+    i32 unk2680 = 0;
     i32 unk2684 = 0;
     i32 unk2690 = 0;
     u32 drawFlags = 0;   // +0x2694 bit 0: mirrored

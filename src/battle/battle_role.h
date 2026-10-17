@@ -47,6 +47,7 @@ public:
     void Strike(BattleServices& services, BattleUnit& target, int evadable);
     int AttackFrame(BattleServices& services, BattleUnit& target, int slot);
     void LoadItemAction(Database& database, u16 id, u32& act);
+    void StartAbsorb(BattleServices& services, BattleUnit& source);
     void SetupGuest(const UnitPlacement& at, const RoleRecord& base, Database& database, ErrorReporter& reporter);
     void
     ApplyEquipment(std::span<const std::unique_ptr<ItemNode>> slots, CounterList& proficiency, ErrorReporter& reporter);

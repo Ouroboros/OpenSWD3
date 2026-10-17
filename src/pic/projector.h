@@ -47,6 +47,12 @@ struct LineWalker
 // The parameters of a scaled picture (part of a battle unit in the original).
 struct ProjectedPicture
 {
+    enum Flag : u16
+    {
+        Mirrored = 0x1,
+        Mixed = 0x16,
+    };
+
     std::span<const u16> pixels;  // +0x00 raw rows
     u16 width = 0;                // +0x04
     u16 height = 0;               // +0x06
@@ -78,6 +84,14 @@ struct Particle
 // A picture breaking up into particles that fly into a target rectangle (0x58 bytes in the original).
 struct ParticleEffect
 {
+    enum Flag : u16
+    {
+        Mirrored = 0x1,
+        Mixed = 0x16,
+        WithinRange = 0x40,  // the pixels are chosen within range
+        WithinBurst = 0x80,
+    };
+
     std::span<u16> pixels;  // +0x00 raw rows, cleared as the particles leave
     u16 width = 0;          // +0x04
     u16 height = 0;         // +0x06

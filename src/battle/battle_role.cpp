@@ -1,6 +1,8 @@
 #include "battle/battle_role.h"
 
 #include <algorithm>
+#include <cstring>
+#include <optional>
 #include <string_view>
 
 #include "battle/battle_services.h"
@@ -10,6 +12,8 @@
 #include "draw/painter.h"
 #include "org/database.h"
 #include "org/fame.h"
+#include "pic/rle.h"
+#include "platform/display.h"
 #include "text/big5.h"
 
 namespace swd3
@@ -65,6 +69,18 @@ constexpr std::size_t kFlightAct = 1;  // the slot act a flying follow-up uses
 constexpr i16 kSlotFadeEnd = -0x20;
 constexpr i16 kSlotFadeStep = 4;
 constexpr u32 kRepeatAttack = 1;  // unk26CC bit 0: the attack repeats extraAttacks times (skill 0x15)
+
+// StartAbsorb: the particles fly into a point beside the role; a picture of kTallPicture rows or more bursts in half
+// its height, a shorter one in its height less kShortBurstCut.
+constexpr u16 kAbsorbLife = 0x14;
+constexpr u16 kAbsorbSpeed = 0x1E;
+constexpr int kAbsorbLeft = 0x32;
+constexpr int kAbsorbDown = 0x28;
+constexpr u16 kTallPicture = 100;
+constexpr u16 kShortBurstCut = 10;
+constexpr u16 kAbsorbDivisor = 0x28;
+constexpr i32 kAbsorbTint = 5;
+constexpr u16 kAbsorbFlags = ParticleEffect::WithinRange | ParticleEffect::Mixed;
 
 // The palette of a picture passed as the draw argument (the original passes the palette pointer).
 DrawArgument PaletteArgument(const Picture& picture)
@@ -825,5 +841,66 @@ void BattleRole::LoadItemAction(Database& database, u16 id, u32& act)
     }
 
     this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
+}
+
+// swd32.exe 0x004710D0: the source unit's idle picture breaks into particles flying into the role (a point 0x32 left
+// of and 0x28 below its act's anchor): the picture is decoded to raw pixels at the source's origin, a tall one (100
+// rows or more) bursting in half its height, a shorter one in its height less 10, mirrored like the source. The
+// projector clips to the screen; the follow-up line, the attack act and the five extra acts are cleared.
+void BattleRole::StartAbsorb(BattleServices& services, BattleUnit& source)
+{
+    u16 sourceX = 0;
+    u16 sourceY = 0;
+    this->absorbSource = source.StepIdleAction(services);
+    source.GetOrigin(sourceX, sourceY);
+    ParticleEffect& effect = this->absorb;
+    effect = ParticleEffect{};
+    this->absorbPixels.clear();
+
+    // A source without its picture is read through a null pointer in the original.
+    if (this->absorbSource == nullptr)
+    {
+        return;
+    }
+
+    const std::optional<RawPicture> raw = RleCodec(services.painter).Decode(this->absorbSource->data);
+
+    if (raw.has_value())
+    {
+        this->absorbPixels.resize(raw->pixels.size() / sizeof(u16));
+        std::memcpy(this->absorbPixels.data(), raw->pixels.data(), this->absorbPixels.size() * sizeof(u16));
+    }
+
+    effect.pixels = this->absorbPixels;
+    effect.width = this->absorbSource->width;
+    effect.height = this->absorbSource->height;
+    effect.x = static_cast<i16>(sourceX) - 1;
+    effect.y = static_cast<i16>(sourceY);
+    effect.lifeBase = kAbsorbLife;
+    effect.speed = kAbsorbSpeed;
+    effect.targetLeft =
+        static_cast<i16>(this->actAnchorX) - static_cast<i16>(this->originX) + this->placement.x - kAbsorbLeft;
+    effect.targetTop = this->placement.y - this->mainAct.y + kAbsorbDown;
+    effect.targetWidth = 1;
+    effect.targetHeight = 1;
+    const u16 height = this->absorbSource->height;
+    effect.bursts = height >= kTallPicture ? static_cast<u16>(height >> 1) : static_cast<u16>(height - kShortBurstCut);
+    effect.divisor = kAbsorbDivisor;
+    effect.tintRed = kAbsorbTint;
+    effect.tintGreen = kAbsorbTint;
+    effect.tintBlue = kAbsorbTint;
+    effect.flags = kAbsorbFlags;
+
+    if (source.Mirrored() == 1)
+    {
+        effect.flags = static_cast<u16>(effect.flags | ParticleEffect::Mirrored);
+    }
+
+    this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag800);
+    services.state.projector.SetScreen(Display::Width, Display::Height);
+    this->unk2680 = 0;
+    this->flight = LineWalker{};
+    this->attackAct = ActState{};
+    this->unk2BC8.fill(ActState{});
 }
 }  // namespace swd3

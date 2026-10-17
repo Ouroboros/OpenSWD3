@@ -19,10 +19,6 @@ constexpr int kBufferHeight = 0x300;
 constexpr int kScreenWidth = Display::Width;
 constexpr int kScreenHeight = Display::Height;
 constexpr double kDegree = 0.017444444444444446;
-constexpr u16 kMirrored = 1;
-constexpr u16 kMixed = 0x16;
-constexpr u16 kWithinRange = 0x40;
-constexpr u16 kWithinBurst = 0x80;
 constexpr int kFactorRange = 0x1C;
 constexpr int kQuarterTurn = 90;  // the direction tables are in degrees
 constexpr int kHalfTurn = 2 * kQuarterTurn;
@@ -344,7 +340,8 @@ void Projector::DrawScaled(Surface& surface, Painter& painter, const ProjectedPi
 
             if (x >= 0 && x < this->screenWidth && y >= 0 && y < this->screenHeight)
             {
-                const int index = (picture.flags & kMirrored) != 0 ? width - column - sourceRow : column - sourceRow;
+                const int index =
+                    (picture.flags & ProjectedPicture::Mirrored) != 0 ? width - column - sourceRow : column - sourceRow;
                 const i64 at = lastRow + index;
 
                 if (at >= 0 && at < static_cast<i64>(picture.pixels.size()))
@@ -355,7 +352,7 @@ void Projector::DrawScaled(Surface& surface, Painter& painter, const ProjectedPi
                     {
                         u16& target = surface.Pixels()[this->screenRows[static_cast<std::size_t>(y)] + x];
 
-                        if ((picture.flags & kMixed) != 0)
+                        if ((picture.flags & ProjectedPicture::Mixed) != 0)
                         {
                             Mix(painter, pixel, target);
                         }
@@ -430,12 +427,12 @@ int Projector::ParticlePut(ParticleEffect& effect, int count, const Painter& pai
     {
         i64 index = 0;
 
-        if ((effect.flags & kWithinRange) != 0)
+        if ((effect.flags & ParticleEffect::WithinRange) != 0)
         {
             const int factor = random.Next() % kFactorRange;
             index = random.Next() * factor % this->particleRange;
         }
-        else if ((effect.flags & kWithinBurst) != 0)
+        else if ((effect.flags & ParticleEffect::WithinBurst) != 0)
         {
             const int factor = random.Next() % kFactorRange;
             const int product = factor * random.Next();
@@ -457,18 +454,18 @@ int Projector::ParticlePut(ParticleEffect& effect, int count, const Painter& pai
         ++effect.particles;
         const u32 width = effect.width;
 
-        if ((effect.flags & kMirrored) != 0)
+        if ((effect.flags & ParticleEffect::Mirrored) != 0)
         {
             startX = static_cast<int>(width - static_cast<u32>(index) % width) + effect.x;
             particle->walker.fromX = startX;
         }
-        else if ((effect.flags & kWithinBurst) == 0)
+        else if ((effect.flags & ParticleEffect::WithinBurst) == 0)
         {
             startX = static_cast<int>(static_cast<u32>(index) % width) + effect.x;
             particle->walker.fromX = startX;
         }
 
-        if ((effect.flags & kMirrored) != 0 || (effect.flags & kWithinBurst) == 0)
+        if ((effect.flags & ParticleEffect::Mirrored) != 0 || (effect.flags & ParticleEffect::WithinBurst) == 0)
         {
             startY = static_cast<int>(static_cast<u32>(index) / width) + effect.y;
             particle->walker.fromY = startY;
@@ -568,7 +565,7 @@ int Projector::DrawExplosion(Surface& surface, Painter& painter, crt::Random& ra
 
     if (effect.bursts >= 1)
     {
-        const bool mirrored = (effect.flags & kMirrored) != 0;
+        const bool mirrored = (effect.flags & ParticleEffect::Mirrored) != 0;
         std::size_t row = 0;
 
         for (int line = 0; line < effect.height - 1; ++line, ++y)
@@ -592,7 +589,7 @@ int Projector::DrawExplosion(Surface& surface, Painter& painter, crt::Random& ra
 
                 u16& target = pixels[this->screenRows[static_cast<std::size_t>(y)] + column + x];
 
-                if ((effect.flags & kMixed) != 0)
+                if ((effect.flags & ParticleEffect::Mixed) != 0)
                 {
                     Mix(painter, pixel, target);
                 }
@@ -632,7 +629,7 @@ int Projector::DrawExplosion(Surface& surface, Painter& painter, crt::Random& ra
 
         if (!remove)
         {
-            const bool mixed = (effect.flags & kMixed) != 0;
+            const bool mixed = (effect.flags & ParticleEffect::Mixed) != 0;
 
             if (px + 1 >= 0 && px + 1 < this->screenWidth && py >= 0 && py < this->screenHeight)
             {
