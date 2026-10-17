@@ -13,14 +13,6 @@ namespace
 
 constexpr std::size_t kFieldPixels = static_cast<std::size_t>(Display::Width) * BattleState::FieldHeight;
 
-void CopySurface(const Surface& source, Surface& target)
-{
-    for (int row = 0; row < std::min(source.Height(), target.Height()); ++row)
-    {
-        std::copy_n(source.Row(row), std::min(source.Width(), target.Width()), target.Row(row));
-    }
-}
-
 }  // namespace
 
 // The background shifted by `shake` (right for a positive value), with its animation shifted along.

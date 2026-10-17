@@ -1,11 +1,15 @@
 #include "game/game.h"
 
+#include <algorithm>
+#include <cmath>
 #include <span>
 
 #include "battle/battle_items.h"
 #include "core/format.h"
+#include "crt/msvc.h"
 #include "game/screenshot.h"
 #include "platform/display.h"
+#include "platform/surface.h"
 #include "ui/ui_draw.h"
 
 namespace swd3
@@ -40,6 +44,63 @@ constexpr u16 kOpeningPanels = 6;
 constexpr i32 kAnswersStart = 2;
 constexpr i32 kHealPage = 2;
 constexpr u16 kNoUnit = 0xFFFF;
+constexpr u16 kIntroSound = 0xC0;  // BattleIntro
+constexpr u16 kIntroBottomBar = 0x234D;
+constexpr int kIntroBottomBarY = 0x180;
+constexpr int kIntroPixelBits = 0x10;
+constexpr i32 kIntroBufferBytes = 0x96000;
+constexpr u16 kIntroSway = 1;
+constexpr u16 kIntroZoom = 2;
+constexpr int kIntroDropStart = -0x32;
+constexpr int kIntroScaleStart = 9;
+constexpr int kIntroZoomUnit = 0x400;
+constexpr int kIntroZoomScale = 4;
+constexpr int kIntroZoomFrames = 0x100;
+constexpr int kIntroRise = -0x20;
+constexpr int kIntroZoomGrowth = 0x20;
+constexpr int kIntroTint = -12;
+constexpr u32 kIntroDrawMode = Painter::ScaledGlow;
+constexpr int kIntroStretchStep = 2;
+constexpr int kIntroScaleStep = 0x12;
+constexpr int kIntroLastX = -0x22;
+constexpr int kIntroSwayFrames = 0x21;
+constexpr int kIntroFadeScale = 9;
+constexpr double kIntroPi = 3.140000104904175;           // swd32.exe 0x00499D08 (3.14f)
+constexpr double kIntroSwayRate = 0.030303030303030304;  // swd32.exe 0x00499D00
+constexpr double kIntroSwayWidth = 256.0;                // swd32.exe 0x00499CF8
+constexpr int kIntroZoomStep = 0x10;
+constexpr int kIntroZoomBase = 0x40;
+constexpr int kIntroScaleDivisor = 0xA;
+constexpr u32 kIntroUnusedDraw = 3;
+
+struct BattleMusicRange
+{
+    u16 first;
+    u16 last;
+    std::string_view path;
+};
+
+constexpr std::array<BattleMusicRange, 3> kBattleMusic = {{
+    {1, 0x70, "music\\Battle_Europa01.mp3"},     // swd32.exe 0x004A776C
+    {0x72, 0xB9, "music\\Battle_Arab01.mp3"},    // swd32.exe 0x004A7754
+    {0xC6, 0x10E, "music\\Battle_China01.mp3"},  // swd32.exe 0x004A7738
+}};
+
+constexpr i32 kNoFirstStrike = 0x40;  // FirstStrike
+constexpr u32 kFirstStrikeSides = 2;
+constexpr u32 kFirstStrikeRoll = 100;
+constexpr u32 kPartyStrikeFirst = 0x1B;
+constexpr u32 kPartyStrikeLast = 0x20;
+constexpr u32 kEnemyStrikeFirst = 0x37;
+constexpr u32 kEnemyStrikeLast = 0x3C;
+constexpr int kEnemySlot = 2;
+constexpr int kStrikeNoticeX = 0x118;
+constexpr int kStrikeNoticeY = 0xA;
+constexpr i16 kStrikeNoticeFrames = 0x3C;
+constexpr int kStrikeNoticeFlags = BattleMessage::BlackBar | BattleMessage::Centered;
+constexpr std::u8string_view kPartyStrikes = u8"我方搶先攻擊!!";  // swd32.exe 0x004A7718
+constexpr std::u8string_view kEnemyStrikes = u8"敵方搶先攻擊!!";  // swd32.exe 0x004A7728
+constexpr i32 kFacingChanged = 0x80;
 
 }  // namespace
 
@@ -484,5 +545,285 @@ void Game::EndBattle()
     this->database.CloseFiles();
     battle.unk53BFFC = 0;
     battle.lastLearned = LearnedSkill{};
+}
+
+// The battle field of the first frame drawn into the second battle surface (inline in 0x004527E0): the background,
+// the units in order, the bottom bar and the role panels on the frame, copied.
+void Game::DrawIntroField()
+{
+    BattleState& battle = this->battleState;
+    this->DrawBattleBackground(battle.shake);
+    battle.SortDrawOrder();
+    this->UpdateUnits();
+    this->battleHud.DrawPictureFrame0(kIntroBottomBar, 0, kIntroBottomBarY);
+    this->DrawRolePanels();
+    CopySurface(*this->offscreen, *battle.surfaces[0]);
+}
+
+// A surface packed as a picture (inline in 0x004527E0): its rows (screenPitch apart) copied into a 640 x 480 buffer
+// and encoded with the RLE codec.
+std::vector<u8> Game::PackSurface(Surface& surface)
+{
+    this->drawSurface = this->painter.LockSurface(surface);
+    this->painter.SetTarget(this->drawSurface);
+    this->painter.UnlockSurface(surface);
+    std::vector<u16> pixels(static_cast<std::size_t>(Display::Width) * Display::Height);
+    const auto pitch = static_cast<std::size_t>(this->painter.ScreenPitch());
+
+    for (std::size_t row = 0; row < static_cast<std::size_t>(Display::Height); ++row)
+    {
+        std::copy_n(
+            this->drawSurface + row * pitch,
+            Display::Width,
+            pixels.begin() + static_cast<std::ptrdiff_t>(row * Display::Width)
+        );
+    }
+
+    return this->codec.Encode(pixels.data(), Display::Width, Display::Height, kIntroPixelBits);
+}
+
+// The frame target set to the frame surface (inline in 0x004527E0).
+void Game::TargetFrame()
+{
+    this->drawSurface = this->painter.LockSurface(*this->offscreen);
+    this->painter.SetTarget(this->drawSurface);
+    this->painter.UnlockSurface(*this->offscreen);
+}
+
+// The frame cleared (inline in 0x004527E0): 0x96000 bytes from its start.
+void Game::ClearFrame()
+{
+    std::fill_n(this->drawSurface, static_cast<std::size_t>(Display::Width) * Display::Height, u16{0});
+}
+
+// The sine sway of transition 1 (inline in 0x004527E0): the picture drawn twice, swung by step `step` either way,
+// zoomed by `scale` around the middle of the screen.
+void Game::SwayFrame(int step, int scale)
+{
+    const auto sway =
+        static_cast<i32>(crt::Ftol(std::sin(static_cast<double>(step) * kIntroPi * kIntroSwayRate) * kIntroSwayWidth));
+    const int zoom = kIntroZoomStep * (kIntroZoomBase - scale / kIntroScaleDivisor);
+    this->painter.SetZoom(Display::Width / 2, Display::Height / 2, zoom, zoom);
+    this->ClearFrame();
+    this->painter.DrawZoomed(sway, 0, Display::Width, Display::Height);
+    this->painter.DrawZoomed(-sway, 0, Display::Width, Display::Height);
+}
+
+// swd32.exe 0x004527E0: the opening of battle with transition `style` (kIntroSound): the screen shown is kept as a
+// picture and the first battle frame drawn into the battle surfaces (style 0: after the transition). Over 34 frames
+// the old screen dims and stretches down (0), sways apart (1) or zooms away upwards (2); then the battle sways in (1),
+// the frame is cleared (2) or slides in row by row (0). The battle music of the region starts (Europa for battles
+// 1..0x70, Arab 0x72..0xB9, China 0xC6..0x10E, nothing else: the install directory itself) unless one plays. Unless
+// panel flag 0x40 forbids it, a roll may give a first strike: the party's (one in 2, then 27..32 of 100: the roles
+// standing that are not guests get full gauges and queue, the enemies turn away; 我方搶先攻擊!!) or the enemies'
+// (55..60 of 100: every enemy standing queues, the roles turn away; 敵方搶先攻擊!!), marking the facing change (0x80).
+void Game::BattleIntro(u16 style)
+{
+    BattleState& battle = this->battleState;
+    Painter& painter = this->painter;
+    DrawOptions& options = painter.Options();
+    this->audio.PlaySound(kIntroSound, this->config.soundVolume);
+    battle.unk53BFC0 = 1;
+    Surface* primary = this->graphics.GetSurface(Graphics::SurfaceId::Primary);
+    Surface& field = *battle.surfaces[0];
+    Surface& shown = *battle.surfaces[1];
+    CopySurface(*primary, shown);
+    battle.unk53BF08 = kIntroBufferBytes;
+    const std::vector<u8> oldScreen = this->PackSurface(shown);
+    this->TargetFrame();
+    this->DrawIntroField();
+    std::vector<u8> newScreen;
+
+    if (style != 0)
+    {
+        newScreen = this->PackSurface(field);
+    }
+
+    this->TargetFrame();
+    painter.SetSource(oldScreen.data());
+    painter.DrawPicture(0, 0, Display::Width, Display::Height, 0);
+    int frame = 0;
+    int x = 0;
+    int stretch = 1;
+    int y = kIntroDropStart;
+    int scale = kIntroScaleStart;
+    int zoomY = kIntroZoomUnit;
+
+    do
+    {
+        if (style == kIntroZoom)
+        {
+            painter
+                .SetZoom(Display::Width / 2, Display::Height / 2, kIntroZoomScale * (kIntroZoomFrames - frame), zoomY);
+            this->ClearFrame();
+            painter.DrawZoomed(0, kIntroRise * frame++, Display::Width, Display::Height);
+            zoomY += kIntroZoomGrowth;
+        }
+        else if (style == kIntroSway)
+        {
+            this->SwayFrame(frame++, scale);
+            zoomY += kIntroZoomGrowth;
+        }
+        else if (style == 0)
+        {
+            options.tintRed = kIntroTint;
+            options.tintGreen = kIntroTint;
+            options.tintBlue = kIntroTint;
+            options.scaleHeight = stretch + Display::Width;
+            painter.DrawPicture(x, y, Display::Width, Display::Height, kIntroDrawMode);
+        }
+
+        --x;
+        stretch += kIntroStretchStep;
+        y -= kIntroStretchStep;
+        scale += kIntroScaleStep;
+        this->ShowFrame();
+    } while (x > kIntroLastX);
+
+    painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+    this->TargetFrame();
+
+    if (style == kIntroSway)
+    {
+        this->ClearFrame();
+        painter.SetSource(newScreen.data());
+        int fade = kIntroFadeScale * stretch;
+
+        for (int step = 0; step < kIntroSwayFrames; ++step)
+        {
+            const auto sway = static_cast<i32>(
+                crt::Ftol(std::sin(static_cast<double>(step) * kIntroPi * kIntroSwayRate) * kIntroSwayWidth)
+            );
+            const int zoom = kIntroZoomStep * (kIntroZoomBase - fade / kIntroScaleDivisor);
+            painter.SetZoom(Display::Width / 2, Display::Height / 2, zoom, zoom);
+            this->ClearFrame();
+            painter.DrawZoomed(-sway, 0, Display::Width, Display::Height);
+            painter.DrawZoomed(sway, 0, Display::Width, Display::Height);
+            fade -= kIntroScaleStep;
+            this->ShowFrame();
+        }
+    }
+    else if (style == kIntroZoom)
+    {
+        this->ClearFrame();
+    }
+    else if (style == 0)
+    {
+        CopySurface(*primary, shown);
+        this->DrawIntroField();
+        CopySurface(shown, *primary);
+        this->graphics.Present();
+        this->random.Below(kIntroUnusedDraw);
+        this->SlideBattleIn(field, shown);
+    }
+
+    battle.unk53BFC0 = 0;
+    painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+    this->StartBattleMusic();
+    this->FirstStrike();
+}
+
+// The battle music of BattleIntro (inline in the original); see there.
+void Game::StartBattleMusic()
+{
+    BattleState& battle = this->battleState;
+
+    if (!this->audio.IsMusicStopped())
+    {
+        return;
+    }
+
+    battle.battleMusic = this->config.installDirectory;
+
+    for (const auto& [first, last, path] : kBattleMusic)
+    {
+        if (battle.battle >= first && battle.battle <= last)
+        {
+            battle.battleMusic += path;
+        }
+    }
+
+    this->PlayMusic(battle.battleMusic);
+    this->audio.SetMusicVolume(this->config.musicVolume);
+}
+
+// The first strike of BattleIntro (inline in the original); see there.
+void Game::FirstStrike()
+{
+    BattleState& battle = this->battleState;
+    BattleServices& services = this->battleServices;
+
+    if ((battle.panelFlags & kNoFirstStrike) != 0)
+    {
+        return;
+    }
+
+    if (this->random.Below(kFirstStrikeSides) != 0)
+    {
+        const u32 roll = this->random.Below(kFirstStrikeRoll);
+
+        if (roll < kPartyStrikeFirst || roll > kPartyStrikeLast)
+        {
+            return;
+        }
+
+        for (u32 index = 0; index < battle.roleCount; ++index)
+        {
+            BattleRole& role = this->battleRoles[index];
+
+            if (role.IsDefeated() || role.unk2B04 == 1)
+            {
+                continue;
+            }
+
+            role.ResetGauge(services);
+            role.StepGauge(services, 1);
+            auto free = std::find(battle.unk520DD0.begin(), battle.unk520DD0.end(), 0);
+
+            if (free != battle.unk520DD0.end())
+            {
+                *free = static_cast<i32>(index) + BattleState::FirstRoleUnit;
+            }
+        }
+
+        for (u32 index = 0; index < battle.enemyCount; ++index)
+        {
+            BattleEnemy& enemy = this->battleEnemies[index];
+            enemy.SetFacingIfAble(1);
+            enemy.ResetTurn(services);
+        }
+
+        this->battleMessages
+            .Add(kStrikeNoticeX, kStrikeNoticeY, kStrikeNoticeFrames, kPartyStrikes, kStrikeNoticeFlags);
+    }
+    else
+    {
+        const u32 roll = this->random.Below(kFirstStrikeRoll);
+
+        if (roll < kEnemyStrikeFirst || roll > kEnemyStrikeLast)
+        {
+            return;
+        }
+
+        for (u32 index = 0; index < battle.enemyCount; ++index)
+        {
+            if (!this->battleEnemies[index].IsDefeated())
+            {
+                battle.AddSlotRecord(kEnemySlot, static_cast<i32>(index));
+            }
+        }
+
+        for (u32 index = 0; index < battle.roleCount; ++index)
+        {
+            BattleRole& role = this->battleRoles[index];
+            role.SetFacingIfAble(1);
+            role.ResetTurn(services);
+        }
+
+        this->battleMessages
+            .Add(kStrikeNoticeX, kStrikeNoticeY, kStrikeNoticeFrames, kEnemyStrikes, kStrikeNoticeFlags);
+    }
+
+    battle.panelFlags |= kFacingChanged;
 }
 }  // namespace swd3

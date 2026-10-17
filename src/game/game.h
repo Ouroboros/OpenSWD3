@@ -349,6 +349,14 @@ private:
     void UpdateUnits();
     int BattleFrame();
     void EndBattle();
+    void DrawIntroField();
+    std::vector<u8> PackSurface(Surface& surface);
+    void TargetFrame();
+    void ClearFrame();
+    void SwayFrame(int step, int scale);
+    void BattleIntro(u16 style);
+    void StartBattleMusic();
+    void FirstStrike();
     void DrawRolePanels();
     template <typename Next>
     void StepPanelGauge(i32& shown, i32& target, Next next, int picture, int x, int y, i32 downNear, i32 downFar);

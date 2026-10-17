@@ -82,4 +82,11 @@ Pixel DevicePixel(u32 color)
     );
 }
 
+void CopySurface(const Surface& source, Surface& target)
+{
+    for (int row = 0; row < std::min(source.Height(), target.Height()); ++row)
+    {
+        std::copy_n(source.Row(row), std::min(source.Width(), target.Width()), target.Row(row));
+    }
+}
 }  // namespace swd3

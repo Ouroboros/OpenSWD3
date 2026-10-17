@@ -45,4 +45,6 @@ private:
 // GDI's colour of a COLORREF (0x00BBGGRR) on an RGB565 surface: SetPixel keeps the high bits of each channel.
 Pixel DevicePixel(u32 color);
 
+// The rows of `source` copied onto `target`, as far as both reach (the original blits whole surfaces).
+void CopySurface(const Surface& source, Surface& target);
 }  // namespace swd3
