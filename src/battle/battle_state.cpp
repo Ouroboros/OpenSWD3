@@ -444,4 +444,17 @@ void BattleState::TakeSlotRecordAt(std::size_t at, BattleSlotRecord& taken)
         records[place] = BattleSlotRecord{};
     }
 }
+
+// The seven dwords from 0x0053AE70 cleared (a memset in the original: the acting unit and its hit)
+void BattleState::ClearActing()
+{
+    this->unk53AE70 = 0;
+    this->unk53AE74 = 0;
+    this->unk53AE78 = 0;
+    this->unk53AE7A = 0;
+    this->unk53AE7C = 0;
+    this->unk53AE80 = 0;
+    this->unk53AE84 = 0;
+    this->unk53AE88 = 0;
+}
 }  // namespace swd3

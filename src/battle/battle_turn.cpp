@@ -6,6 +6,7 @@
 #include "item/item_list.h"
 #include "org/fame.h"
 #include "platform/display.h"
+#include "platform/system_info.h"
 #include "text/big5.h"
 #include "ui/ui_draw.h"
 
@@ -275,7 +276,29 @@ constexpr int kStatsNewX = 0x158;
 constexpr u16 kRollSound = 0x125;
 constexpr i32 kLastMenuCommand = 8;  // the up key
 constexpr i32 kEscortRows = 2;
-constexpr int kHangTries = 2;  // full cycles after which a search of the original would never end
+constexpr int kHangTries = 2;      // full cycles after which a search of the original would never end
+constexpr u32 kDebugPause = 0xC8;  // the debug keys
+constexpr u32 kDebugShortPause = 0x64;
+constexpr int kDebugMessageX = 0x208;
+constexpr int kDebugMessageY = 0xA;
+constexpr i16 kDebugMessageFrames = 0x1E;
+constexpr std::u8string_view kStrongAttack = u8"強攻擊";    // swd32.exe 0x004A7838
+constexpr std::u8string_view kNormalPact = u8"正常靈契";    // swd32.exe 0x004A782C
+constexpr std::u8string_view kAbsolutePact = u8"絕對靈契";  // swd32.exe 0x004A7820
+constexpr i16 kRefill = -1;
+constexpr int kFillFury = -1;
+constexpr i16 kDebugAttack = 0x26AC;
+constexpr i16 kDebugDefense = 0x9B;
+constexpr i16 kDebugAgility = 0xC8;
+constexpr int kSmallHurt = 0x50;
+constexpr i16 kSmallDrain = -10;
+constexpr int kBigHurt = 0x1F4;
+constexpr i16 kBigDrain = -5;
+constexpr int kEnemyHurt = 10;
+constexpr int kDefeatHurt = 0x7530;
+constexpr int kToggleStates = 2;
+constexpr std::size_t kClearedTurnUnits = 8;  // the original clears 0x28 bytes from 0x0053AF30
+constexpr i16 kDebugStep = 10;
 
 // The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
 // here.
@@ -3984,5 +4007,241 @@ void Game::MenuDown()
         default:
             return;
     }
+}
+
+// swd32.exe 0x0045D8F0: the debug keys of the battle (with the debug mode). With a Ctrl key: F3 stops the music, F1
+// and X toggle unk5244E0 and unk53AF68, K starts a strong attack (強攻擊), Z refills the roles (vitals, fury and
+// strong attributes), D and F hurt the roles, V the enemies, F9 toggles skipping the talk, E ends the frame (0), C
+// ends the spell and the acting unit (the original then resets the turn of role unk53AE70 - 8 with unk53AE70 just set
+// to -1: not done here), F5 restarts the battle music, F2 toggles the absolute spirit pact, W defeats the enemies.
+// Without Ctrl: H and J move every unit and the background 10 pixels. P toggles the snapshot in any mode. 1 otherwise.
+int Game::BattleDebugKeys()
+{
+    BattleState& battle = this->battleState;
+    BattleServices& services = this->battleServices;
+    Input& input = this->input;
+
+    auto pressed = [&input](int key)
+    {
+        return input.IsKeyDown(key) != 0;
+    };
+
+    auto pause = []
+    {
+        SleepMilliseconds(kDebugPause);
+    };
+
+    if (this->config.debugMode == 1)
+    {
+        if (pressed(Input::LeftControl) || pressed(Input::RightControl))
+        {
+            if (pressed(Input::F3))
+            {
+                this->audio.StopMusic();
+            }
+
+            if (pressed(Input::F1))
+            {
+                pause();
+                battle.unk5244E0 = battle.unk5244E0 == 0 ? 1 : 0;
+            }
+
+            if (pressed(Input::X))
+            {
+                pause();
+                battle.unk53AF68 = battle.unk53AF68 == 0 ? 1 : 0;
+            }
+
+            if (pressed(Input::K))
+            {
+                if (battle.criticalAttack == 0)
+                {
+                    battle.criticalAttack = 1;
+                }
+
+                this->battleMessages
+                    .Add(kDebugMessageX, kDebugMessageY, kDebugMessageFrames, kStrongAttack, BattleMessage::Centered);
+            }
+
+            if (pressed(Input::Z))
+            {
+                pause();
+
+                for (u32 index = 0; index < battle.roleCount; ++index)
+                {
+                    BattleRole& role = this->battleRoles[index];
+                    role.SetVitals(kRefill, kRefill, kRefill);
+                    role.AddFury(services, kFillFury);
+                }
+
+                for (u32 index = 0; index < battle.roleCount; ++index)
+                {
+                    this->battleRoles[index].SetAttributes(kDebugAttack, kDebugDefense, kDebugAgility);
+                }
+            }
+
+            auto hurtRoles = [this, &battle, &services](int hitPoints, i16 drain)
+            {
+                for (u32 index = 0; index < battle.roleCount; ++index)
+                {
+                    BattleRole& role = this->battleRoles[index];
+
+                    if (role.unk2B00 != 1 && role.unk2B04 != 1)
+                    {
+                        role.Damage(services, hitPoints, drain, drain);
+                    }
+                }
+            };
+
+            if (pressed(Input::D))
+            {
+                pause();
+                hurtRoles(kSmallHurt, kSmallDrain);
+            }
+
+            if (pressed(Input::F))
+            {
+                SleepMilliseconds(kDebugShortPause);
+                hurtRoles(kBigHurt, kBigDrain);
+            }
+
+            if (pressed(Input::V))
+            {
+                pause();
+
+                for (u32 index = 0; index < battle.enemyCount; ++index)
+                {
+                    this->battleEnemies[index].Damage(services, kEnemyHurt, 0, 0);
+                }
+            }
+
+            if (pressed(Input::F9))
+            {
+                pause();
+                this->talk.skipAll = (this->talk.skipAll + 1) % kToggleStates;
+            }
+
+            if (pressed(Input::E))
+            {
+                return 0;
+            }
+
+            if (pressed(Input::C))
+            {
+                battle.spellStage = static_cast<u16>(battle.spellStage | BattleState::SpellOver);
+                battle.unk53BF74 = 0;
+                battle.ClearActing();
+                battle.unk53BFC0 = 0;
+                battle.unk53BFC4 = 0;
+                battle.unk53AE70 = -1;
+
+                if (battle.unk53BF64 == 1)
+                {
+                    battle.unk53BF64 = 0;
+                }
+
+                if (battle.unk53BF68 == 1)
+                {
+                    battle.unk53BF68 = 0;
+                }
+            }
+
+            if (pressed(Input::F5))
+            {
+                this->audio.StopMusic();
+                this->PlayMusic(battle.battleMusic);
+            }
+
+            if (pressed(Input::F2))
+            {
+                pause();
+
+                if (battle.unk53C02C == 1)
+                {
+                    battle.panelFlags &= ~BattleState::UnkPanel2;
+                    battle.unk53C02C = 0;
+                    this->battleMessages
+                        .Add(kDebugMessageX, kDebugMessageY, kDebugMessageFrames, kNormalPact, BattleMessage::Centered);
+                }
+                else
+                {
+                    battle.panelFlags |= BattleState::UnkPanel2;
+                    battle.unk53C02C = 1;
+                    this->battleMessages.Add(
+                        kDebugMessageX,
+                        kDebugMessageY,
+                        kDebugMessageFrames,
+                        kAbsolutePact,
+                        BattleMessage::Centered
+                    );
+                }
+            }
+
+            if (pressed(Input::W))
+            {
+                for (u32 index = 0; index < battle.enemyCount; ++index)
+                {
+                    BattleEnemy& enemy = this->battleEnemies[index];
+
+                    if (!enemy.IsDefeated())
+                    {
+                        battle.unk502984[index] = static_cast<i32>(index);
+                        battle.unk5242B0[index] = 0;
+                        enemy.Damage(services, kDefeatHurt, 0, 0);
+                    }
+                }
+
+                battle.unk53BD88 = static_cast<i32>(battle.enemyCount);
+                battle.unk53BF80 = 1;
+                battle.unk53BFC0 = 1;
+                battle.unk53BFC4 = 1;
+                battle.unk520DD0 = {};
+                battle.unk53AF30 = 0;
+                battle.unk53AF34 = 0;
+                std::fill_n(battle.unk53AF38.begin(), kClearedTurnUnits, 0);
+                battle.unk524788.fill(BattleSlotRecord{});
+                battle.unk4A7626 = kNoTalkRole;
+                battle.unk53BD80 = 0;
+                battle.unk53BF64 = 0;
+                battle.unk53BF5C = 0;
+                battle.unk53BD50 = 0;
+                battle.currentUnit = 0;
+                battle.unk53AE70 = -1;
+                battle.result = 0;
+            }
+        }
+
+        auto moveAll = [this, &battle](i16 step)
+        {
+            for (u32 index = 0; index < battle.roleCount; ++index)
+            {
+                this->battleRoles[index].Move(step, 0);
+            }
+
+            for (u32 index = 0; index < battle.enemyCount; ++index)
+            {
+                this->battleEnemies[index].Move(step, 0);
+            }
+
+            battle.shake = step;
+        };
+
+        if (pressed(Input::H))
+        {
+            moveAll(kDebugStep);
+        }
+
+        if (pressed(Input::J))
+        {
+            moveAll(-kDebugStep);
+        }
+    }
+
+    if (pressed(Input::P))
+    {
+        battle.unk53BFE8 = battle.unk53BFE8 != 1 ? 1 : 0;
+    }
+
+    return 1;
 }
 }  // namespace swd3

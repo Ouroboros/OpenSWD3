@@ -2,6 +2,7 @@
 
 #include <array>
 #include <memory>
+#include <string>
 #include <string_view>
 
 #include "battle/battle_file.h"
@@ -117,6 +118,7 @@ public:
     void SortDrawOrderAround(i32 acting, i32 target);
     void SetReturnedItem(int index, u16 id);
     void TakeSlotRecordAt(std::size_t at, BattleSlotRecord& taken);
+    void ClearActing();
 
     i32 listBCount = 0;                              // 0x004FD3B0 entries of listB, at most 13
     ItemLink listB;                                  // 0x004FD4C0
@@ -125,13 +127,12 @@ public:
     u16 itemCursor = 0;                              // 0x004FD588
     i32 gaugeFull = InitialGaugeFull;                // 0x004A74CC the full action gauge
     std::array<i16, 3> darkCopyTint = {-1, -1, -1};  // 0x004A7632 the darkRed, darkGreen, darkBlue of the copies
-    i32 criticalAttack =
-        0;  // 0x0053CEB8 1: a role's critical attack is under way (it cannot be evaded, acts add effects)
-    u8 attacksSinceCritical = 0;  // 0x0053CEB4 (low byte) the attacks since the last critical one
-    i32 lastCriticalRole = 0;     // 0x0053CEBC the act of the role with the last rolled critical attack
-    i32 fadingField = 0;          // 0x0053C030 1: an act started the field fade (the background waits for it)
-    u8 evadeStreak = 0;           // 0x0053D028 failed evasion rolls in a row
-    u8 evadeJustSucceeded = 0;    // 0x0053D029
+    i32 criticalAttack = 0;                          // 0x0053CEB8 1: a role's critical attack is under way (not evaded)
+    u8 attacksSinceCritical = 0;                     // 0x0053CEB4 (low byte) the attacks since the last critical one
+    i32 lastCriticalRole = 0;   // 0x0053CEBC the act of the role with the last rolled critical attack
+    i32 fadingField = 0;        // 0x0053C030 1: an act started the field fade (the background waits for it)
+    u8 evadeStreak = 0;         // 0x0053D028 failed evasion rolls in a row
+    u8 evadeJustSucceeded = 0;  // 0x0053D029
     std::array<std::unique_ptr<Surface>, 2> surfaces;            // 0x005244C4 screen sized off-screen surfaces
     std::array<i16, QueueRows * QueueColumns> actionQueue = {};  // 0x0052022C 4 rows of 10, taken by TakePendingAction
     i32 panelFlags = 0;                                          // 0x0053BC24 bit 5: the resistance panel
@@ -341,10 +342,24 @@ public:
     i32 unk53C4C8 = 0;
     std::array<i16, 9> statRolls = {};  // 0x005214A4..0x00525466 the rises of a level-up still to count
     u16 unk53BDEA = 0;                  // the frames of the level-up stats (the high word of 0x0053BDE8)
-    i32 unk4A7564 = -1;                 // the enemy the auto battle aims at (1-based), -1: none
-    u16 unk4A7644 = 0xFFFF;             // a role unit that may take the panel in any battle state (SelectRoleUnit)
-    i32 unk4A7548 = 1;                  // the command chosen in the menu (1-based)
-    i32 unk53BD18 = 0;                  // the page of the list of state 2 (0..2)
+    // The debug keys (Game::BattleDebugKeys) and the acting unit.
+    i32 unk5244E0 = 0;
+    i32 unk53AF68 = 0;
+    i32 unk53BF68 = 0;
+    i32 unk53BD88 = 0;
+    i32 unk53BD80 = 0;
+    i32 unk53BFE8 = 0;        // 1: the next frame is saved as c:\snap\<n>.bmp
+    std::string battleMusic;  // 0x0053C198 the path of the battle music
+    i32 unk53AF30 = 0;
+    i32 unk53AF34 = 0;
+    i32 unk53AE74 = 0;
+    u16 unk53AE78 = 0;
+    i32 unk53AE84 = 0;
+    i32 unk53AE88 = 0;
+    i32 unk4A7564 = -1;      // the enemy the auto battle aims at (1-based), -1: none
+    u16 unk4A7644 = 0xFFFF;  // a role unit that may take the panel in any battle state (SelectRoleUnit)
+    i32 unk4A7548 = 1;       // the command chosen in the menu (1-based)
+    i32 unk53BD18 = 0;       // the page of the list of state 2 (0..2)
     // The menu (MenuCancel).
     i32 unk53BFB0 = 0;
     i32 unk53BD90 = 0;

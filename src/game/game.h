@@ -257,6 +257,7 @@ private:
     static void StepWrapped(i32& place, int step, i32 count);
     void AimStep(int step);
     void MenuDown();
+    int BattleDebugKeys();
     void DrawRolePanels();
     template <typename Next>
     void StepPanelGauge(i32& shown, i32& target, Next next, int picture, int x, int y, i32 downNear, i32 downFar);
