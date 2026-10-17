@@ -73,21 +73,27 @@ private:
     swd3::TswArchive archive;
 };
 
+constexpr swd3::u16 kGrey = 0x7BEF;
+constexpr int kBoxX = 10;  // an even column: the pixel and the one right of it form a pair
+constexpr int kBoxY = 10;
+constexpr int kBoxHeight = 3;
+constexpr int kTopLevel = 31;  // a five-bit channel at its top
+
 }  // namespace
 
 TEST_CASE("ui drawing: a blend one pixel wide covers one pair")
 {
     swd3::Surface screen(swd3::Display::Width, swd3::Display::Height);
-    screen.Fill(0x7BEF);
+    screen.Fill(kGrey);
     swd3::Painter painter;
     CHECK(painter.Init(screen));
     painter.SetTarget(screen.Pixels());
     painter.SetClipClamped(0, 0, swd3::Display::Width, swd3::Display::Height);
-    swd3::FillBox(painter, 10, 10, 1, 3, 31, 31, 31, swd3::FillMode::Blend);
-    CHECK(screen.Row(10)[10] != 0x7BEF);
-    CHECK(screen.Row(10)[11] != 0x7BEF);
-    CHECK_EQ(screen.Row(10)[12], 0x7BEF);
-    CHECK_EQ(screen.Row(13)[10], 0x7BEF);
+    swd3::FillBox(painter, kBoxX, kBoxY, 1, kBoxHeight, kTopLevel, kTopLevel, kTopLevel, swd3::FillMode::Blend);
+    CHECK(screen.Row(kBoxY)[kBoxX] != kGrey);
+    CHECK(screen.Row(kBoxY)[kBoxX + 1] != kGrey);  // the pair of the one pixel
+    CHECK_EQ(screen.Row(kBoxY)[kBoxX + 2], kGrey);
+    CHECK_EQ(screen.Row(kBoxY + kBoxHeight)[kBoxX], kGrey);
 }
 
 TEST_CASE("ui drawing: matches the golden results of the legacy boxes and frames")

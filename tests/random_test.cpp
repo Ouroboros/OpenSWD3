@@ -17,6 +17,15 @@ namespace
 constexpr u32 kInitialTableAt = 0x004A6610;  // where swd32.exe keeps the R250 table and the LCG state
 constexpr u32 kInitialLcgAt = 0x004A69F8;
 
+constexpr u32 kLcgSeed = 7;
+constexpr u32 kLcgMultiplier = 0x015A4E35;  // the seeding LCG: 15-bit values from bit kLcgShift
+constexpr int kLcgShift = 16;
+constexpr u32 kLcgMask = 0x7FFF;
+constexpr u32 kSeed = 0x12345678;
+constexpr int kDraws = 1000;
+constexpr int kLimits = 97;     // Below is drawn with limits 1..kLimits
+constexpr u32 kRange = 0xFFFF;  // Below rejects draws past the last multiple of the limit in this range
+
 }  // namespace
 
 TEST_CASE("random: initial table and LCG state match swd32.exe")
@@ -36,18 +45,18 @@ TEST_CASE("random: initial table and LCG state match swd32.exe")
 TEST_CASE("random: LCG and the R250 sequence")
 {
     Random random;
-    CHECK_EQ(random.LcgSeed(7), 7u);
-    CHECK_EQ(random.LcgNext(), ((0x015A4E35u * 7u + 1u) >> 16) & 0x7FFFu);
+    CHECK_EQ(random.LcgSeed(kLcgSeed), kLcgSeed);
+    CHECK_EQ(random.LcgNext(), ((kLcgMultiplier * kLcgSeed + 1) >> kLcgShift) & kLcgMask);
     Random unseeded;
-    CHECK_EQ(unseeded.Next(), Random::InitialTable[103] ^ Random::InitialTable[0]);
+    CHECK_EQ(unseeded.Next(), Random::InitialTable[Random::Size - Random::Tap] ^ Random::InitialTable[0]);
     Random first;
     Random second;
-    first.Seed(0x12345678);
-    second.Seed(0x12345678);
+    first.Seed(kSeed);
+    second.Seed(kSeed);
 
-    for (int i = 0; i < 1000; ++i)
+    for (int i = 0; i < kDraws; ++i)
     {
-        const u32 limit = static_cast<u32>(i % 97 + 1);
+        const u32 limit = static_cast<u32>(i % kLimits + 1);
         const u32 value = first.Below(limit);
         u32 drawn = 0;
 
@@ -55,7 +64,7 @@ TEST_CASE("random: LCG and the R250 sequence")
         {
             second.Next();
             drawn = second.Next();
-        } while (drawn >= limit * (0xFFFFu / limit));
+        } while (drawn >= limit * (kRange / limit));
 
         CHECK_EQ(value, drawn % limit);
         CHECK(value < limit);

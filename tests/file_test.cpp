@@ -22,6 +22,12 @@ void cleanup()
     std::filesystem::remove(kName, ignored);
 }
 
+constexpr u32 kDword = 0x12345678;
+constexpr u8 kByte = 0xAB;
+constexpr std::size_t kBufferBytes = 8;  // more than the file holds
+constexpr std::string_view kText = "abcdef";
+constexpr swd3::i32 kBackwards = 5;
+
 }  // namespace
 
 TEST_CASE("file: open always creates, writes and reads back")
@@ -31,19 +37,19 @@ TEST_CASE("file: open always creates, writes and reads back")
         File file;
         CHECK(!file.Open(kName, File::Disposition::OpenExisting, File::Access::Read));
         CHECK(file.Open(kName, File::Disposition::OpenAlways, File::Access::ReadWrite));
-        CHECK(file.WriteDword(0x12345678u));
-        CHECK(file.WriteByte(0xAB));
-        CHECK_EQ(file.Size(), 5u);
+        CHECK(file.WriteDword(kDword));
+        CHECK(file.WriteByte(kByte));
+        CHECK_EQ(file.Size(), sizeof(kDword) + sizeof(kByte));
         CHECK_EQ(file.SeekBegin(0), 1u);
         u32 value = 0;
         CHECK(file.ReadDword(value));
-        CHECK_EQ(value, 0x12345678u);
+        CHECK_EQ(value, kDword);
         u32 position = 0;
         CHECK(file.Tell(position));
-        CHECK_EQ(position, 4u);
+        CHECK_EQ(position, sizeof(kDword));
         u8 byte = 0;
         CHECK(file.ReadByte(byte));
-        CHECK_EQ(byte, 0xABu);
+        CHECK_EQ(byte, kByte);
         CHECK(file.Close());
     }
 
@@ -55,12 +61,12 @@ TEST_CASE("file: empty read fails, short read succeeds")
     cleanup();
     File file;
     CHECK(file.Open(kName, File::Disposition::OpenAlways, File::Access::ReadWrite));
-    CHECK(file.WriteByte(7));
+    CHECK(file.WriteByte(kByte));
     file.SeekBegin(0);
-    char buffer[8] = {};
+    char buffer[kBufferBytes] = {};
     u32 bytes = 0;
     CHECK(!file.Read(buffer, bytes));
-    CHECK(file.ReadExact(buffer, 8));
+    CHECK(file.ReadExact(buffer, sizeof(buffer)));
     file.Close();
     cleanup();
 }
@@ -70,12 +76,12 @@ TEST_CASE("file: mapping views the whole file; only the current view can be rele
     cleanup();
     File file;
     CHECK(file.Open(kName, File::Disposition::OpenAlways, File::Access::ReadWrite));
-    file.WriteExact("abcdef", 6);
+    file.WriteExact(kText.data(), static_cast<int>(kText.size()));
     CHECK(file.MapView(0, 0) == nullptr);
     CHECK(file.CreateMapping());
     const u8* view = file.MapView(0, 0);
     CHECK(view != nullptr);
-    CHECK(std::memcmp(view, "abcdef", 6) == 0);
+    CHECK(std::memcmp(view, kText.data(), kText.size()) == 0);
     u8 other = 0;
     CHECK(!file.UnmapView(&other));
     CHECK(file.UnmapView(view));
@@ -89,7 +95,7 @@ TEST_CASE("file: seek before the start fails")
     cleanup();
     File file;
     CHECK(file.Open(kName, File::Disposition::OpenAlways, File::Access::ReadWrite));
-    CHECK_EQ(file.SeekCurrent(-5), 0u);
+    CHECK_EQ(file.SeekCurrent(-kBackwards), 0u);
     File closed;
     CHECK_EQ(closed.Seek(File::Origin::Begin, 0), 0u);
     file.Close();
