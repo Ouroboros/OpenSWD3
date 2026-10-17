@@ -234,6 +234,7 @@ private:
     void BuildCommandMenu();
     void DrawCommandMenu(int x, int y, int cursor);
     void AnnounceMastery();
+    void MenuCancel();
     void DrawRolePanels();
     template <typename Next>
     void StepPanelGauge(i32& shown, i32& target, Next next, int picture, int x, int y, i32 downNear, i32 downFar);

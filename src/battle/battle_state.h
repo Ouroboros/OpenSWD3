@@ -332,6 +332,25 @@ public:
     u16 unk4A7644 = 0xFFFF;  // a role unit that may take the panel in any battle state (SelectRoleUnit)
     i32 unk4A7548 = 1;       // the command chosen in the menu (1-based)
     i32 unk53BD18 = 0;       // the page of the list of state 2 (0..2)
+    // The menu (MenuCancel).
+    i32 unk53BFB0 = 0;
+    i32 unk53BD90 = 0;
+    i32 unk53BD94 = 0;
+    i32 unk53BD98 = 0;
+    std::array<char, 0x14> unk53C184 = {};  // a name shown by the lists
+    i32 unk53C49C = 0;
+    i32 unk53BFC8 = 0;
+    u16 unk4A762C = 0xFFFF;
+    u16 unk4A762E = 0xFFFF;  // the role with a battle talk (0xFFFF: none)
+    i32 unk53BD44 = 0;
+    i32 unk53BD48 = 0;
+    i32 unk53C02C = 0;
+    i32 unk53BF88 = 0;
+    i32 unk53BFF0 = 0;
+    i32 unk53BCF0 = 0;  // the menu command a list returns to
+    i32 unk4A7560 = 1;
+    i32 unk4A7568 = 2;
+    i32 unk4A756C = 1;
     // The proficiency filled in the battle (AnnounceMastery).
     ObjectRecord unk53BC28;
     std::string unk53C154;  // its name for the message

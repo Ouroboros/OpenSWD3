@@ -65,6 +65,14 @@ constexpr i32 kFuryFullBlock = 0x38;  // roleBlock[0] of a full fury gauge
 constexpr u16 kHighlightBackground = 0xF000;
 constexpr int kMenuRowHeight = 0x18;
 constexpr int kMenuColumnWidth = 0x30;
+constexpr i32 kTargetState = 3;  // battle states of the menu
+constexpr i32 kTalkState = 7;
+constexpr i32 kSkillListState = 8;
+constexpr i32 kSpellCommand = 2;  // the menu commands that open a list
+constexpr i32 kItemCommand = 3;
+constexpr i32 kSkillCommand = 4;
+constexpr u16 kNoTalkRole = 0xFFFF;
+constexpr i32 kListRows = 5;
 
 // The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
 // here.
@@ -1483,6 +1491,213 @@ void Game::AnnounceMastery()
         battle.unk53C154 = ObjectName(battle.unk53BC28);
         battle.unk4A7646 = static_cast<u8>(index);
         return;
+    }
+}
+
+// swd32.exe 0x00461C10: the cancel key of the battle menu. In the auto battle it ends it (the aimed enemy unmarked,
+// the menu closed). Otherwise by battle state: 1 closes the menu; 2 (a list) and 0x1B, 0x1E, 8 go back to the menu
+// (its name buffer cleared, the role's command cancelled); 3 (choosing a target) goes back to the list the menu
+// command opened (state 2, 4, 0x1B, 0x1E or 8 for commands 2, 3, 0x1B, 0x1E, 4; to the menu with command unk53BCF0
+// for others), every unit unmarked and the portraits plain, the role's order cleared; 4 goes back to the menu; 5 to
+// state 4; 7 closes the menu with the command back on 1.
+void Game::MenuCancel()
+{
+    BattleState& battle = this->battleState;
+    battle.unk53BFBC = 0;
+    battle.unk53BFB8 = 1;
+
+    auto role = [this, &battle]() -> BattleRole&
+    {
+        return this->battleRoles[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)];
+    };
+
+    auto closePanels = [&battle]
+    {
+        battle.unk53BD90 = 0;
+        battle.unk53BD94 = 0;
+    };
+
+    auto clearList = [&battle]
+    {
+        battle.unk53BFC4 = 0;
+        battle.unk53BFC0 = 0;
+        battle.unk53BFC8 = 0;
+        battle.unk53BFB0 = 0;
+        battle.unk53C184 = {};
+        battle.unk53C49C = 1;
+        battle.unk53BD98 = kListRows;
+    };
+
+    if (battle.autoBattle == 1)
+    {
+        battle.result = 0;
+        battle.unk53BFB8 = 0;
+        this->battleEnemies[static_cast<std::size_t>(battle.unk4A754C - 1)].SetAC0(0);
+        battle.unk53BFC4 = 0;
+        battle.commandNames[0] = {};
+        battle.unk53BFC0 = 0;
+        battle.commandNames[1] = {};
+        battle.autoBattle = 0;
+        battle.unk53BF22 = 0;
+        battle.unk4A7564 = -1;
+        battle.commandNames[2] = {};
+        return;
+    }
+
+    switch (battle.result)
+    {
+        case kMenuState:
+            battle.result = 0;
+            battle.commandNames[0] = {};
+            battle.unk53BFB0 = 0;
+            battle.commandNames[1] = {};
+            battle.unk53BF22 = 0;
+            battle.unk53BFB8 = 0;
+            closePanels();
+            battle.unk53BD98 = kListRows;
+            battle.commandNames[2] = {};
+            return;
+
+        case kListState2:
+            battle.result = kMenuState;
+            battle.unk4A7558 = 1;
+            clearList();
+            role().CancelCommand();
+            closePanels();
+            return;
+
+        case kTargetState:
+        {
+            if (battle.unk4A762E == kNoTalkRole)
+            {
+                battle.result = kMenuState;
+                battle.unk53BD98 = kListRows;
+                battle.unk53BFB0 = 0;
+            }
+            else
+            {
+                battle.unk53BD44 = 0;
+                battle.unk53BD48 = 0;
+                battle.result = kTalkState;
+            }
+
+            battle.unk4A7640 = 1;
+            battle.unk53C02C = 0;
+            role().CancelCommand();
+
+            for (u32 enemy = 0; enemy < battle.enemyCount; ++enemy)
+            {
+                this->battleEnemies[enemy].SetAC0(0);
+            }
+
+            for (std::size_t panel = 0; panel < static_cast<std::size_t>(Party::Roles); ++panel)
+            {
+                this->battleRoles[panel].SetAC0(0);
+                this->battleHud.portraitHighlight[panel] = 0;
+            }
+
+            i32 list = 0;
+
+            switch (battle.unk4A7548)
+            {
+                case kSpellCommand:
+                    battle.unk53BF94 = 0;
+                    list = kListState2;
+                    break;
+
+                case kItemCommand:
+                    list = kListState4;
+                    break;
+
+                case kListState1B:
+                    list = kListState1B;
+                    break;
+
+                case kWaitState1E:
+                    list = kWaitState1E;
+                    break;
+
+                case kSkillCommand:
+                    list = kSkillListState;
+                    break;
+
+                default:
+                    closePanels();
+                    battle.unk4A7548 = battle.unk53BCF0;
+                    return;
+            }
+
+            battle.result = list;
+            battle.unk53BF88 = 0;
+            battle.unk53BFF0 = 0;
+            battle.unk53BFD0 = 0;
+            const auto unit = static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit);
+            battle.unk4FE5D4[unit] = 0;
+            closePanels();
+            battle.pendingOrders[unit].unk08 = 0;
+            battle.pendingOrders[unit].unk00 = 0;
+            return;
+        }
+
+        case kListState4:
+            battle.result = kMenuState;
+            battle.unk53BD08 = 0;
+            battle.unk53BD98 = kListRows;
+            battle.unk53BFC4 = 0;
+            battle.unk53BFC0 = 0;
+            battle.unk53BFC8 = 0;
+            battle.unk53BFB0 = 0;
+            role().CancelCommand();
+            closePanels();
+            return;
+
+        case kWaitState5:
+            battle.result = kListState4;
+            role().CancelCommand();
+            closePanels();
+            return;
+
+        case kTalkState:
+            battle.result = 0;
+            battle.unk53BFC0 = 0;
+            battle.unk53BFC4 = 0;
+            closePanels();
+            battle.unk4A7568 = 2;
+            battle.unk4A756C = 1;
+            battle.unk4A7548 = 1;
+            return;
+
+        case kSkillListState:
+            battle.result = kMenuState;
+            battle.unk4A755C = 1;
+            battle.unk4A7560 = 1;
+            clearList();
+            role().CancelCommand();
+            closePanels();
+            return;
+
+        case kListState1B:
+            battle.result = kMenuState;
+            battle.unk4A755C = 1;
+            battle.unk4A7548 = battle.unk53BCF0;
+            battle.unk53BD08 = 0;
+            clearList();
+            role().CancelCommand();
+            closePanels();
+            return;
+
+        case kWaitState1E:
+            battle.result = kMenuState;
+            battle.unk4A7548 = battle.unk53BCF0;
+            battle.unk4A755C = 1;
+            clearList();
+            role().CancelCommand();
+            closePanels();
+            return;
+
+        default:
+            closePanels();
+            return;
     }
 }
 }  // namespace swd3
