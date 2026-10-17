@@ -6403,4 +6403,169 @@ void BattleUnit::WalkToTarget(BattleServices& services, const BattleUnit& target
     painter.DrawPicture(x, y + act.y - shadowHeight, this->picture->width, this->picture->height, this->unk26A4);
     painter.DrawPicture(x, y, this->picture->width, this->picture->height, this->frameFlags);
 }
+
+// swd32.exe 0x00480AE0: the main act's effect while the unit idles: when the main act recoils (Recoils), its effectA
+// plays in the cast act (holding the main act with Holds; the command's follow-up act waits for it) above the main
+// act's anchor, the sound panned to the unit's side; when it waits, the effect and the holds are cleared.
+void BattleUnit::PlayIdleEffect(BattleServices& services)
+{
+    ActState& main = this->mainAct;
+    ActState& effect = this->castAct;
+    const u16 bits = main.target;
+
+    if ((bits & ActState::Recoils) != 0)
+    {
+        if (main.effectA != 0)
+        {
+            this->unk267C |= BattleUnit::Recoiling;
+        }
+
+        if (this->command.followAct != 0)
+        {
+            this->unk267C |= BattleUnit::FollowingUp;
+        }
+
+        if ((bits & ActState::Holds) != 0)
+        {
+            main.hold = 1;
+        }
+
+        main.target = static_cast<u16>(bits & ~ActState::Recoils);
+        effect = ActState{};
+    }
+
+    if ((this->unk267C & BattleUnit::Recoiling) == 0)
+    {
+        return;
+    }
+
+    effect.action = main.effectQ;
+    effect.id = main.effectA;
+
+    if (services.acts.Run(effect) == 0)
+    {
+        return;
+    }
+
+    services.audio.PlaySound(effect.view, services.config.soundVolume);
+
+    if (effect.view != 0)
+    {
+        services.audio.SetSoundPan(effect.view, this->placement.x >= kPanCentre ? kFadePan : -kFadePan);
+    }
+
+    effect.view = 0;
+    this->picture = services.archive.GetPicture(effect.frame, effect.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->picture == nullptr)
+    {
+        return;
+    }
+
+    Painter& painter = services.painter;
+    painter.SetSource(this->picture->data.data());
+    u32 flags = effect.flags;
+    int offsetX = effect.x;
+
+    if (this->facing == 1)
+    {
+        flags ^= Painter::Mirror;
+
+        if (offsetX != 0)
+        {
+            offsetX = this->picture->width - offsetX;
+        }
+    }
+
+    painter.DrawPicture(
+        static_cast<i16>(this->actAnchorX) + this->placement.x - static_cast<i16>(this->originX) - offsetX,
+        static_cast<i16>(main.anchorY) + this->placement.y - effect.y - main.y,
+        this->picture->width,
+        this->picture->height,
+        flags
+    );
+
+    if (effect.waiting != 1)
+    {
+        return;
+    }
+
+    main.target = static_cast<u16>(main.target & ~ActState::Holds);
+    this->unk267C &= ~BattleUnit::Recoiling;
+    this->slotTint = 0;
+    this->actAnchorX = 0;
+    this->unk2ACC = 0;
+    main.hold = 0;
+    main.effectA = 0;
+    effect = ActState{};
+}
+
+// swd32.exe 0x00480D40: the command's follow-up act (in the attack act) while the unit idles and FollowingUp is set,
+// at the unit's place, the sound panned to its side; when it waits, every stage and the main act's effect are cleared.
+void BattleUnit::PlayIdleFollowUp(BattleServices& services)
+{
+    if ((this->unk267C & BattleUnit::FollowingUp) == 0)
+    {
+        return;
+    }
+
+    ActState& act = this->attackAct;
+    act.id = this->command.followAct;
+    act.action = 0;
+
+    if (services.acts.Run(act) == 0)
+    {
+        return;
+    }
+
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+
+    if (act.view != 0)
+    {
+        services.audio.SetSoundPan(act.view, this->placement.x >= kPanCentre ? kFadePan : -kFadePan);
+    }
+
+    act.view = 0;
+    this->picture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->picture == nullptr)
+    {
+        return;
+    }
+
+    Painter& painter = services.painter;
+    painter.SetSource(this->picture->data.data());
+    u32 flags = act.flags;
+    int offsetX = act.x;
+
+    if (this->facing == 1)
+    {
+        flags ^= Painter::Mirror;
+        offsetX = this->picture->width - offsetX;
+    }
+
+    painter.DrawPicture(
+        this->placement.x - offsetX,
+        this->placement.y - act.y,
+        this->picture->width,
+        this->picture->height,
+        flags
+    );
+
+    if (act.waiting != 1)
+    {
+        return;
+    }
+
+    this->unk267C = 0;
+    this->slotTint = 0;
+    this->mainAct.target = 0;
+    this->actAnchorX = 0;
+    this->unk2ACC = 0;
+    this->mainAct.hold = 0;
+    this->mainAct.effectA = 0;
+    act = ActState{};
+}
 }  // namespace swd3

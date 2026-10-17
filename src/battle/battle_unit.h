@@ -481,6 +481,8 @@ public:
     int DefeatProjected(BattleServices& services, const Picture& picture);
     int DefeatParticles(BattleServices& services, const Picture& picture, int x, int y);
     void WalkToTarget(BattleServices& services, const BattleUnit& target);
+    void PlayIdleEffect(BattleServices& services);
+    void PlayIdleFollowUp(BattleServices& services);
     void DrawTrail(BattleServices& services, AfterimageTrail& trail, u16 frame, u16 picture, u32 mode, i16 x, i16 y);
     int DrawRecoil(BattleServices& services, ActState& act, i16 y);
     int FlyAct(

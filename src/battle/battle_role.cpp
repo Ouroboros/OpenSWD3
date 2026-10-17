@@ -232,6 +232,13 @@ constexpr u32 kNearChance = 90;   // kNearBelow..kSureBelow-1 levels below
 constexpr int kNearBelow = 8;
 constexpr int kSureBelow = 13;
 
+// StepBack.
+constexpr i32 kStepBackAction = 0x2A;
+constexpr i16 kStandBackEnd = 2;
+constexpr i16 kStepBackEnd = 6;
+constexpr u16 kStepBackSound = 0x2F;
+constexpr int kStepBackShift = 0x10;
+
 // CanAbsorb.
 constexpr u16 kMaxAbsorbClass = 0x15;   // ObjectData::unk52
 constexpr int kAbsorbLevelsAbove = 12;  // a target this many levels above the role is never absorbed
@@ -3473,5 +3480,109 @@ int BattleRole::BeatsLevel(BattleServices& services, u16 level) const
     }
 
     return below >= kSureBelow ? 1 : 0;
+}
+
+// swd32.exe 0x00471540: one frame of the role stepping back (mode 1, 0x10 a frame, with kStepBackSound) or standing
+// back (mode 0) in the recoil act's walk action, mirrored against its facing, fadeLevel counting down from 0xF to 6
+// (mode 1) or 2; 1 once there (the recoil act cleared), or for a defeated role. A held or holding role only counts.
+int BattleRole::StepBack(BattleServices& services, int mode)
+{
+    if (this->defeated == 1)
+    {
+        this->unk2AAC = 0;
+        return 1;
+    }
+
+    this->glowLevel = mode == 0 ? kStandBackEnd : kStepBackEnd;
+
+    if (this->IsHeldOrHolding() == 1)
+    {
+        if (this->fadeLevel <= this->glowLevel)
+        {
+            this->fadeLevel = BattleUnit::Opaque;
+            return 1;
+        }
+
+        --this->fadeLevel;
+        return 0;
+    }
+
+    ActState& act = this->recoilAct;
+
+    if (this->fadeLevel <= this->glowLevel)
+    {
+        act = ActState{};
+        this->fadeLevel = BattleUnit::Opaque;
+
+        if (mode == 1)
+        {
+            this->unk2AAC = 1;
+        }
+
+        return 1;
+    }
+
+    this->unk2AAC = 1;
+    act.id = this->actId;
+    act.action = kStepBackAction;
+    act.hold = 0;
+
+    if (this->held == 1)
+    {
+        act.hold = 1;
+    }
+
+    if (services.acts.Run(act) == 0)
+    {
+        return 1;
+    }
+
+    this->picture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->picture == nullptr)
+    {
+        return 0;
+    }
+
+    this->actOffsetX = static_cast<u16>(act.x);
+    this->frameFlags = act.flags ^ Painter::Mirror;
+
+    if (this->facing == 1)
+    {
+        this->frameFlags ^= Painter::Mirror;
+        this->actOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
+    }
+
+    if (this->fadeLevel == BattleUnit::Opaque && mode == 1)
+    {
+        act.view = kStepBackSound;
+        services.audio.PlaySound(kStepBackSound, services.config.soundVolume);
+        services.audio.SetSoundPan(act.view, this->facing == 1 ? -kTargetPan : kTargetPan);
+        act.view = 0;
+    }
+
+    u16 x = 0;
+    u16 y = 0;
+    this->GetPosition(x, y);
+
+    if (mode == 1)
+    {
+        x = static_cast<u16>(this->facing == 1 ? x - kStepBackShift : x + kStepBackShift);
+    }
+
+    this->SetPosition(static_cast<i16>(x), static_cast<i16>(y));
+    Painter& painter = services.painter;
+    painter.SetSource(this->picture->data.data());
+    painter.DrawPicture(
+        this->placement.x - static_cast<i16>(this->actOffsetX),
+        this->placement.y - act.y,
+        this->picture->width,
+        this->picture->height,
+        this->frameFlags,
+        PaletteArgument(*this->picture)
+    );
+    --this->fadeLevel;
+    return 0;
 }
 }  // namespace swd3
