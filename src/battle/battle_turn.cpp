@@ -198,6 +198,24 @@ constexpr int kItemFrameRight = 0xC8;
 constexpr u16 kShownItem = 0x8000;
 constexpr u16 kCostlyItem = 0x4000;
 constexpr int kItemBarWidth = 0xCE;
+constexpr int kVictoryShadeExtra = 0x28;  // the 戰鬥勝利 panel
+constexpr int kVictoryTitleX = 0xF8;
+constexpr std::u8string_view kVictoryTitle = u8"戰鬥勝利";  // swd32.exe 0x004A7A2C
+constexpr u16 kGoldGiven = 0x8000;                          // BattleState::unk53BF12: the gold of the battle is given
+constexpr u16 kGoldMask = 0x7FFF;
+constexpr u16 kVictorySound = 0x12C;
+constexpr std::size_t kBattlesFought = 1;  // RoleBattleBlock::unk00 [1] (inferred: battles fought)
+constexpr u32 kManyEnemies = 3;
+constexpr std::size_t kGoldVariable = 0;
+constexpr int kVictoryBodyBottom = 0x11C;
+constexpr int kVictoryGrowDivisor = 2;
+constexpr int kVictoryTextX = 0xD0;
+constexpr int kVictoryExperienceY = 0xDC;
+constexpr int kVictoryGoldY = 0xF0;
+constexpr int kVictoryProficiencyY = 0x104;
+constexpr std::u8string_view kExperienceLine = u8"每人得到經驗值:%d";   // swd32.exe 0x004A7A18
+constexpr std::u8string_view kGoldLine = u8"得到銀幣:%d";               // swd32.exe 0x004A7A0C
+constexpr std::u8string_view kProficiencyLine = u8"得到法寶經驗值:%d";  // swd32.exe 0x004A79F8
 
 // The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
 // here.
@@ -2787,5 +2805,173 @@ void Game::DrawItemList(int x, int y, int cursor, int top)
 
     role.ShowAllItems();
     font.SetBackground(TextFont::NoBackground);
+}
+
+// swd32.exe 0x00467710: the 戰鬥勝利 panel. The first time (the gold not yet given, bit 15 of unk53BF12): the music
+// and the sounds stop, kVictorySound plays; each enemy's drop is added to the inventory as pending and to the loot
+// list (a new object at the end, at most LootSlots of them); each party role standing (not forced) below the level
+// cap (timingWindow) gains unk53BF14 experience, every worn accessory unk53BF16 proficiency (unk53C4C4 when one
+// counts), its battle count 1 (2 against three enemies or more), its effects end and its main act restarts; then the
+// gold is given. Once the panel has grown, the experience, the gold and the proficiency are shown.
+void Game::DrawVictoryPanel()
+{
+    BattleState& battle = this->battleState;
+    BattleMessages& messages = this->battleMessages;
+    BattleServices& services = this->battleServices;
+    TextFont& font = this->mediumFont;
+    messages.panelAct.id = BattleMessages::PanelAct;
+    messages.panelAct.action = 0;
+    this->acts.Run(messages.panelAct);
+    FillBox(
+        this->painter,
+        kEscortShadeX,
+        kEscortShadeY,
+        kEscortShadeWidth,
+        messages.panelHeight + kVictoryShadeExtra,
+        0,
+        kListShade,
+        kListShade,
+        FillMode::Blend
+    );
+    DrawWindowFrame(
+        this->painter,
+        this->archive,
+        messages.panelAct.frame,
+        kEscortFrameLeft,
+        kEscortTitleTop,
+        kEscortFrameRight,
+        kEscortTitleBottom,
+        0,
+        kListFrameBorder
+    );
+    font.DrawText(
+        this->drawSurface,
+        kVictoryTitleX,
+        kEscortTitleTop,
+        Big5(kVictoryTitle),
+        kTitleColor,
+        TextFont::BoldOutline
+    );
+    DrawWindowFrame(
+        this->painter,
+        this->archive,
+        messages.panelAct.frame,
+        kEscortFrameLeft,
+        kEscortBodyTop,
+        kEscortFrameRight,
+        messages.panelHeight + kEscortBodyTop,
+        0,
+        kListFrameBorder
+    );
+
+    if ((battle.unk53BF12 & kGoldGiven) == 0)
+    {
+        this->audio.StopMusic();
+        this->audio.StopAllSounds();
+        this->audio.PlaySound(kVictorySound, this->config.soundVolume);
+
+        for (u32 index = 0; index < battle.enemyCount; ++index)
+        {
+            const u16 drop = this->battleEnemies[index].RollDrop(services);
+
+            if (drop == 0)
+            {
+                continue;
+            }
+
+            const auto known = std::find(battle.lootIds.begin(), battle.lootIds.end(), drop);
+
+            if (known != battle.lootIds.end())
+            {
+                AddOneItem(this->party.inventory, drop, 1, this->database);
+                ++messages.lootCounts[static_cast<std::size_t>(known - battle.lootIds.begin())];
+                continue;
+            }
+
+            // The original appends past its ten slots when more objects drop.
+            const std::size_t slot = messages.lootCount;
+            ObjectRecord* record = AddOneItem(this->party.inventory, drop, 1, this->database);
+
+            if (slot >= battle.lootIds.size())
+            {
+                continue;
+            }
+
+            ++messages.lootCounts[slot];
+            ++messages.lootCount;
+            messages.lootNames[slot] = record != nullptr
+                                           ? std::string_view(record->data.name.data(), ObjectName(*record).size())
+                                           : std::string_view();
+            battle.lootIds[slot] = drop;
+        }
+
+        for (u32 index = 0; index < battle.roleCount; ++index)
+        {
+            BattleRole& role = this->battleRoles[index];
+
+            if (role.unk2B00 == 1 || role.unk2B04 == 1 || role.IsDefeated())
+            {
+                continue;
+            }
+
+            const auto partyRole = static_cast<std::size_t>(battle.partyRoles[index]);
+            RoleRecord& record = this->party.roles[partyRole];
+
+            if (record.level < battle.timingWindow)
+            {
+                record.unk00 += battle.unk53BF14;
+            }
+
+            if (role.StepWornCounters(this->party.fame.lists[Fame::ProficiencyList], battle.unk53BF16) == 1)
+            {
+                battle.unk53C4C4 = 1;
+            }
+
+            i32& battles = this->party.battleBlocks[partyRole].unk00[kBattlesFought];
+            ++battles;
+
+            if (battle.enemyCount >= kManyEnemies)
+            {
+                ++battles;
+            }
+
+            role.ExpireEffects(services, 1);
+            role.RestartMainAct(1, 1);
+        }
+
+        battle.unk53BD20 = 0;
+        battle.unk53BF12 = static_cast<u16>(battle.unk53BF12 | kGoldGiven);
+        this->party.variables[kGoldVariable] += battle.unk53BF12 & kGoldMask;
+    }
+
+    if (messages.GrowPanel(kEscortBodyTop, kVictoryBodyBottom, kVictoryGrowDivisor) != 1)
+    {
+        return;
+    }
+
+    font.DrawText(
+        this->drawSurface,
+        kVictoryTextX,
+        kVictoryExperienceY,
+        WinFormat(kExperienceLine, {static_cast<i32>(battle.unk53BF14)}),
+        kTitleColor,
+        TextFont::BoldOutline
+    );
+    font.DrawText(
+        this->drawSurface,
+        kVictoryTextX,
+        kVictoryGoldY,
+        WinFormat(kGoldLine, {static_cast<i32>(battle.unk53BF12 & kGoldMask)}),
+        kTitleColor,
+        TextFont::BoldOutline
+    );
+    font.DrawText(
+        this->drawSurface,
+        kVictoryTextX,
+        kVictoryProficiencyY,
+        WinFormat(kProficiencyLine, {static_cast<i32>(battle.unk53BF16)}),
+        kTitleColor,
+        TextFont::BoldOutline
+    );
 }
 }  // namespace swd3

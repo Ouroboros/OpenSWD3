@@ -21,7 +21,7 @@ struct RoleRecord
 {
     static constexpr u16 Defeated = 0x8000;  // in unk24: the role starts the battle defeated
 
-    i32 unk00 = 0;                 // +0x00
+    i32 unk00 = 0;                 // +0x00 raised by the experience of a won battle (DrawVictoryPanel)
     i16 hitPoints = 0;             // +0x04 生命
     i16 spirit = 0;                // +0x06 靈力
     i16 stamina = 0;               // +0x08 體力
