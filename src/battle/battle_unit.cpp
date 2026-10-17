@@ -2145,7 +2145,7 @@ void BattleUnit::ExpireEffects(BattleServices& services, int clearAll)
                 case SkillScript::Invisible:
                     this->marks = static_cast<u16>(this->marks | BattleUnit::UnkMark400);
                     this->status &= ~BattleUnit::Invisible;
-                    this->unk2958 = 0;
+                    this->glowLevel = 0;
 
                     if (this->kind != 0)
                     {
@@ -2280,7 +2280,7 @@ int BattleUnit::Damage(BattleServices& services, int hitPoints, i16 spirit, i16 
 
         const u8 pose = this->defeatPose;
         this->unk2ABC = 1;
-        this->unk2958 = 0;
+        this->glowLevel = 0;
 
         if (pose == 0)
         {
@@ -2420,13 +2420,13 @@ void BattleUnit::Reset(BattleServices& services)
     this->marks = 0;
     this->status = 0;
     this->unk26D2 = 0;
-    this->unk2958 = 0;
+    this->glowLevel = 0;
     this->action = 0;
     this->unk29A4 = 0;
     this->actId = 0;
     this->gauge = 0;
     this->unk2A14 = 0;
-    this->unk2A66 = 0;
+    this->glowPhase = 0;
     this->commandA = 0;
     this->unk2A6E = 0;
     this->unk2A72 = 0;

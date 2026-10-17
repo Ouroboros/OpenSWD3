@@ -482,6 +482,8 @@ public:
     u32 unk267C = 0;     // +0x267C BattleUnit::Stage bits
     i32 throwSteps = 0;  // +0x2680 the frames of the thrown act so far (ThrowAct)
     i32 unk2684 = 0;
+    u32 glowFlags = 0;    // +0x2688 the draw mode of the glow act
+    i32 glowOffsetX = 0;  // +0x268C
     i32 unk2690 = 0;
     u32 drawFlags = 0;   // +0x2694 bit 0: mirrored
     u32 frameFlags = 0;  // +0x26A0 flag 1 toggled for mirrored frames
@@ -506,7 +508,7 @@ public:
     std::array<i16, GuardLetters> guardPhases = {};  // +0x2884 the pop phases of the four letters of the guard text
     i16 slotTint = 0;    // +0x2954 the tint of a waiting slot act, darkening to its end (AttackFrame)
     i16 recoilTint = 0;  // +0x2956 the tint of a waiting recoil act, darkening to its end (DrawRecoil)
-    u16 unk2958 = 0;
+    i16 glowLevel = 0;   // +0x2958 the brightness of a glow act (GlowAct)
     std::array<u16, MaxTargets> unk295A = {};  // +0x295A
     i16 guardRise = 0;                         // +0x29A0
     u16 unk29A2 = NoUnk29A2;
@@ -531,7 +533,7 @@ public:
     u16 gauge = 0;   // +0x2A12 the action gauge
     u16 unk2A14 = 0;
     std::array<u32, 4> targets = {NoTarget, NoTarget, NoTarget, NoTarget};  // +0x2A56
-    u16 unk2A66 = 0;
+    u16 glowPhase = 0;  // +0x2A66 0: brightening, 1: dimming, 2: over (GlowAct)
     u16 unk2A68 = FlashStart;
     u16 unk2A6A = FlashPeak;
     u16 commandA = 0;  // +0x2A6C
@@ -539,6 +541,7 @@ public:
     u16 commandB = 0;  // +0x2A70 commands 2, 3, 6, 13, 14 and 15
     u16 unk2A72 = 0;
     u16 unk2A74 = 0;
+    u16 unk2A78 = 0;
     u16 unk2A76 = 0;
     u16 attackStage = 0;  // +0x2A78 1..5
     u16 unk2A7A = 0;

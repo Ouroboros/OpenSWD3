@@ -103,6 +103,16 @@ constexpr std::size_t kSparkColumnShift = 2;  // the sparks start a quarter acro
 constexpr i32 kThrownAct = 0x186B;
 constexpr int kThrowSteps = 8;    // line steps a frame per frame flown
 constexpr i32 kCaughtAction = 1;  // CatchAct: the thrown act flying back
+
+// GlowAct.
+constexpr i32 kGlowAction = 0x24;
+constexpr u16 kGlowRising = 0;
+constexpr u16 kGlowFalling = 1;
+constexpr u16 kGlowDone = 2;
+constexpr i16 kGlowStep = 2;
+constexpr i16 kGlowPeak = 0x3E;
+constexpr int kGlowTintBase = 0x1F;  // the tint is glowLevel / 2 - kGlowTintBase
+constexpr u16 kGlowEndSound = 0x6A;
 constexpr std::array<Spark, BattleRole::ExtraActs> kSparks = {{
     {0, 1, -5, 0xE},
     {10, 2, -10, 0xA},
@@ -1242,5 +1252,104 @@ int BattleRole::CatchAct(BattleServices& services, const BattleUnit& target)
     painter
         .DrawPicture(line.fromX + line.x, line.fromY + line.y, this->picture->width, this->picture->height, act.flags);
     return 0;
+}
+
+// swd32.exe 0x00471D60: one frame of the role's glow act (unk2F14, action kGlowAction) drawn additively at (x, y) less
+// its offset, mirrored when the role does not face (the original mirrors on facing 0); 1 once it is over. It brightens
+// by 2 a frame up past kGlowPeak, then dims back to 0 (counting absorbFrames), then sound kGlowEndSound plays and the
+// glow, the attack act and the extra acts are cleared. The original clears the sound of the recoil act instead of this
+// act's.
+int BattleRole::GlowAct(BattleServices& services, int x, int y)
+{
+    ActState& act = this->attackAct;
+    act.id = this->unk2F14;
+    act.action = kGlowAction;
+    act.hold = 0;
+
+    if (this->held == 1)
+    {
+        act.hold = 1;
+    }
+
+    if (services.acts.Run(act) == 0)
+    {
+        return 0;
+    }
+
+    this->picture = services.archive.GetPicture(act.frame, act.picture);
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+    this->recoilAct.view = 0;
+    this->glowFlags = act.flags;
+    this->glowOffsetX = act.x;
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->picture == nullptr)
+    {
+        return 0;
+    }
+
+    if (this->facing == 0)
+    {
+        this->glowFlags ^= Painter::Mirror;
+        this->glowOffsetX = this->picture->width - act.x;
+    }
+
+    DrawOptions& options = services.painter.Options();
+
+    auto tint = [this, &options]
+    {
+        const int level = this->glowLevel / 2 - kGlowTintBase;
+        options.tintRed = level;
+        options.tintGreen = level;
+        options.tintBlue = level;
+    };
+
+    if (this->glowPhase == kGlowRising)
+    {
+        tint();
+        this->glowLevel = static_cast<i16>(this->glowLevel + kGlowStep);
+
+        if (this->glowLevel > kGlowPeak)
+        {
+            this->glowPhase = kGlowFalling;
+        }
+    }
+
+    if (this->glowPhase == kGlowFalling)
+    {
+        tint();
+        this->glowLevel = static_cast<i16>(this->glowLevel - kGlowStep);
+        ++this->absorbFrames;
+
+        if (this->glowLevel <= 0)
+        {
+            this->glowPhase = kGlowDone;
+        }
+    }
+
+    services.painter.SetSource(this->picture->data.data());
+    services.painter.DrawPicture(
+        x - this->glowOffsetX,
+        y - act.y,
+        this->picture->width,
+        this->picture->height,
+        this->glowFlags | Painter::Additive
+    );
+
+    if (this->glowPhase != kGlowDone)
+    {
+        return 0;
+    }
+
+    services.audio.PlaySound(kGlowEndSound, services.config.soundVolume);
+    this->glowLevel = 0;
+    this->glowFlags = 0;
+    this->glowOffsetX = 0;
+    this->glowPhase = kGlowRising;
+    this->absorbFrames = 0;
+    this->unk2A78 = 0;
+    act = ActState{};
+    this->extraActs.fill(ActState{});
+    return 1;
 }
 }  // namespace swd3
