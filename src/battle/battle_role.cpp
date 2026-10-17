@@ -166,6 +166,17 @@ constexpr int kSwarmAbove = 0x28;
 constexpr u16 kSwarmShake = 0x34;
 constexpr u16 kSwarmSound = 0x3E;
 
+// BoomerangFrame: the stages in unk267C.
+constexpr u32 kBoomerangGoing = 0;
+constexpr u32 kBoomerangReturning = 1;
+constexpr u32 kBoomerangBackHome = 2;
+constexpr i32 kBoomerangAct = 0x1BF3;
+constexpr i16 kBoomerangOut = 0x1C;
+constexpr i16 kBoomerangBack = 0x20;
+constexpr u16 kBoomerangShake = 7;
+constexpr i32 kNoImpact = -1;  // a queued act without an impact act that lands no hit
+constexpr u16 kBoomerangSound = 0x114;
+
 // CanAbsorb.
 constexpr u16 kMaxAbsorbClass = 0x15;   // ObjectData::unk52
 constexpr int kAbsorbLevelsAbove = 12;  // a target this many levels above the role is never absorbed
@@ -2650,6 +2661,141 @@ int BattleRole::SwarmSpellFrame(BattleServices& services, BattleUnit& target)
     this->unk2F24 = 0;
     this->slotActs[0] = ActState{};
     magic = ActState{};
+    return 1;
+}
+
+// swd32.exe 0x004751C0: one frame of the role's boomerang throw (pose kForcedAttackAction in the stand act, its hold
+// left as it is, at its place over its shadow); 1 once it is over. Once the pose strikes or follows up, kBoomerangAct
+// is queued flying (kBoomerangOut steps a frame, no hit) to the target, raising flag 26B8 of the target when it
+// arrives, then back (kBoomerangBack steps after kBoomerangShake frames of shaking), and sound kBoomerangSound plays.
+int BattleRole::BoomerangFrame(BattleServices& services, BattleUnit& target)
+{
+    Painter& painter = services.painter;
+    ActState& act = this->standAct;
+    act.id = this->actId;
+    this->unk2AAC = 1;
+    act.action = kForcedAttackAction;
+
+    if (services.acts.Run(act) == 0)
+    {
+        return 0;
+    }
+
+    this->picture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->picture == nullptr)
+    {
+        return 0;
+    }
+
+    painter.SetSource(this->picture->data.data());
+    this->frameFlags = act.flags;
+    this->actOffsetX = static_cast<u16>(act.x);
+    this->actAnchorX = act.anchorX;
+
+    if (this->facing == 1)
+    {
+        this->frameFlags ^= Painter::Mirror;
+        this->actOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
+
+        if (act.anchorX != 0)
+        {
+            this->actAnchorX = static_cast<u16>(this->picture->width - act.anchorX);
+        }
+    }
+
+    const int shadowHeight = this->picture->height / kShadowShare;
+    DrawOptions& options = painter.Options();
+    options.scaleHeight = shadowHeight;
+    options.shear = this->picture->height >> kShadowShearShift;
+    const int tint = this->unk2B00 == 1 ? kFaintShadowTint : kShadowTint;
+    options.tintRed = tint;
+    options.tintGreen = tint;
+    options.tintBlue = tint;
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+    const int x = this->placement.x - static_cast<i16>(this->actOffsetX);
+    services.audio.SetSoundPan(act.view, x >= kPanCentre ? kTargetPan : -kTargetPan);
+    this->unk26A4 = (this->frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+    act.view = 0;
+    painter
+        .DrawPicture(x, this->placement.y - shadowHeight, this->picture->width, this->picture->height, this->unk26A4);
+    painter.DrawPicture(x, this->placement.y - act.y, this->picture->width, this->picture->height, this->frameFlags);
+
+    if ((act.target & (ActState::Strikes | ActState::FollowsUp)) == 0)
+    {
+        return 0;
+    }
+
+    ActState& thrown = this->slotActs[0];
+    thrown.action = 0;
+    thrown.id = kBoomerangAct;
+    u16 targetX = 0;
+    u16 targetY = 0;
+    target.GetDrawPosition(targetX, targetY);
+
+    if (this->unk267C == kBoomerangGoing)
+    {
+        if (this->unk2F0C == 0)
+        {
+            this->AddQueuedAction(
+                thrown.id,
+                0,
+                this->placement.x,
+                this->placement.y,
+                static_cast<i16>(targetX),
+                static_cast<i16>(targetY),
+                kBoomerangOut,
+                0,
+                kNoImpact
+            );
+            this->TrailLastQueuedAction(0, 0, kTrailBlueTint);
+            this->unk2F0C = 1;
+        }
+
+        if (this->RunQueuedActions(services, target, 0) == 1)
+        {
+            this->unk2F0C = 0;
+            this->unk267C = kBoomerangReturning;
+            target.RaiseFlag26B8();
+        }
+    }
+
+    if (this->unk267C == kBoomerangReturning)
+    {
+        if (this->unk2F0C == 0)
+        {
+            this->AddQueuedAction(
+                thrown.id,
+                0,
+                static_cast<i16>(targetX),
+                static_cast<i16>(targetY),
+                this->placement.x,
+                this->placement.y,
+                kBoomerangBack,
+                kBoomerangShake,
+                kNoImpact
+            );
+            this->TrailLastQueuedAction(0, 0, kTrailBlueTint);
+            this->unk2F0C = 1;
+        }
+
+        if (this->RunQueuedActions(services, target, 0) == 1)
+        {
+            this->unk2F0C = 0;
+            this->unk267C = kBoomerangBackHome;
+            services.audio.PlaySound(kBoomerangSound, services.config.soundVolume);
+        }
+    }
+
+    if (this->unk267C != kBoomerangBackHome)
+    {
+        return 0;
+    }
+
+    this->unk267C = 0;
+    thrown = ActState{};
+    act = ActState{};
     return 1;
 }
 }  // namespace swd3
