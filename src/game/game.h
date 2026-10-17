@@ -126,6 +126,12 @@ public:
 
     HostSettings host;  // the rebuild's swd3r.toml (set before Run)
 
+    // The window as left at the end of Run (written back to swd3r.toml).
+    Display::WindowState WindowState() const
+    {
+        return this->display.State();
+    }
+
 private:
     void Start();
     Launcher::Choice RunLauncher();
@@ -212,6 +218,8 @@ private:
     void MusicCue();
     void AudioPump();
     void HandleEvent(const SDL_Event& event);
+    void LoopFrame();
+    static bool SDLCALL LiveResize(void* data, SDL_Event* event);
     void TakeScreenshot();
     void SendText(TextMessage message, u32 parameter);
     void ShowLoading(int percent);
@@ -599,6 +607,7 @@ private:
     i32 unk4CAEBC = 0;
     i32 unk4CAEC0 = 0;
     bool quit = false;
+    bool inLoopFrame = false;  // LoopFrame runs (the live-resize exposes come from inside it too)
 };
 
 }  // namespace swd3

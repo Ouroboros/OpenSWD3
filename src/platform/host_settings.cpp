@@ -4,12 +4,10 @@
 #include <cmath>
 #include <fstream>
 #include <iterator>
-#include <optional>
-#include <string>
+#include <sstream>
+#include <type_traits>
 
 #include <toml.hpp>
-
-#include "core/types.h"
 
 namespace swd3
 {
@@ -37,310 +35,433 @@ constexpr std::array<LevelName, 6> kLevels = {{
     {"critical", SDL_LOG_PRIORITY_CRITICAL},
 }};
 
-std::filesystem::path PathOf(const std::string& text, const std::filesystem::path& base)
+template <typename T>
+concept SettingTable = requires { T::Fields(); };
+
+template <typename T>
+struct IsOptional : std::false_type
 {
-    std::filesystem::path path(std::u8string(text.begin(), text.end()));
-    return path.is_relative() ? base / path : path;
+};
+
+template <typename T>
+struct IsOptional<std::optional<T>> : std::true_type
+{
+};
+
+// A member of a settings struct as the type of its TOML value.
+template <typename T>
+constexpr const char* TypeName()
+{
+    if constexpr (std::is_same_v<T, std::string>)
+    {
+        return "a string";
+    }
+    else if constexpr (std::is_same_v<T, bool>)
+    {
+        return "true or false";
+    }
+    else if constexpr (std::is_same_v<T, double>)
+    {
+        return "a number";
+    }
+    else
+    {
+        return "an integer";
+    }
 }
 
-// The values of swd3r.toml checked one table at a time; a value of the wrong type or range keeps its default.
+std::string LineOf(const toml::node& node)
+{
+    return "line " + std::to_string(node.source().begin.line) + ": ";
+}
+
+// The settings of a TOML table into a settings struct, by its Fields(); a value of another type keeps its default and
+// a key the struct does not have is reported.
 class Reader
 {
 public:
-    Reader(HostSettings& settings, const std::filesystem::path& base)
-        : settings(settings),
-          base(base)
+    explicit Reader(std::vector<std::string>& warnings)
+        : warnings(warnings)
     {
     }
 
-    void Read(const toml::table& root)
+    template <SettingTable T>
+    void Table(const toml::table& table, const std::string& name, T& out)
     {
-        for (const auto& [name, node] : root)
+        for (const auto& [key, node] : table)
         {
-            const std::string section(name.str());
-            const toml::table* table = node.as_table();
+            bool known = false;
+            std::apply(
+                [&](const auto&... field)
+                {
+                    known = ((field.key == key.str()) || ...);
+                },
+                T::Fields()
+            );
 
-            if (table == nullptr)
+            if (!known)
             {
-                this->Warn(node, "\"" + section + "\" is not a table");
-                continue;
-            }
-
-            if (section == "paths")
-            {
-                this->Each(*table, section, &Reader::Paths);
-            }
-            else if (section == "logging")
-            {
-                this->Each(*table, section, &Reader::Logging);
-            }
-            else if (section == "window")
-            {
-                this->Each(*table, section, &Reader::Window);
-            }
-            else if (section == "display")
-            {
-                this->Each(*table, section, &Reader::Display);
-            }
-            else
-            {
-                this->Warn(node, "unknown table [" + section + "]");
+                this->warnings.push_back(
+                    LineOf(node) + "unknown setting " + (name.empty() ? "" : "[" + name + "] ") + std::string(key.str())
+                );
             }
         }
 
-        this->FinishDisplay();
+        std::apply(
+            [&](const auto&... field)
+            {
+                (this->Field(table, name, out.*field.member, field.key), ...);
+            },
+            T::Fields()
+        );
     }
 
 private:
-    using Setter = bool (Reader::*)(const std::string& key, const toml::node& value);
-
-    void Each(const toml::table& table, const std::string& section, Setter set)
+    template <typename V>
+    void Field(const toml::table& table, const std::string& name, V& value, std::string_view key)
     {
-        for (const auto& [name, node] : table)
-        {
-            const std::string key(name.str());
+        const toml::node* node = table.get(key);
 
-            if (!(this->*set)(key, node))
-            {
-                this->Warn(node, "unknown setting [" + section + "] " + key);
-            }
+        if (node != nullptr)
+        {
+            this->Value(*node, name.empty() ? std::string(key) : name + "." + std::string(key), value);
         }
     }
 
-    void Warn(const toml::node& node, const std::string& text)
+    template <typename V>
+    void Value(const toml::node& node, const std::string& name, V& value)
     {
-        this->settings.warnings.push_back("line " + std::to_string(node.source().begin.line) + ": " + text);
-    }
-
-    void Invalid(const toml::node& node, const std::string& key, const char* expected)
-    {
-        this->Warn(node, key + " must be " + expected + ": the default kept");
-    }
-
-    bool Paths(const std::string& key, const toml::node& value)
-    {
-        if (key != "data_dir" && key != "save_dir")
+        if constexpr (SettingTable<V>)
         {
+            if (const toml::table* table = node.as_table(); table != nullptr)
+            {
+                this->Table(*table, name, value);
+            }
+            else
+            {
+                this->warnings.push_back(LineOf(node) + name + " must be a table: the defaults kept");
+            }
+        }
+        else if constexpr (IsOptional<V>::value)
+        {
+            typename V::value_type inner{};
+
+            if (this->Scalar(node, name, inner))
+            {
+                value = inner;
+            }
+        }
+        else
+        {
+            this->Scalar(node, name, value);
+        }
+    }
+
+    template <typename V>
+    bool Scalar(const toml::node& node, const std::string& name, V& value)
+    {
+        std::optional<V> read;
+
+        if constexpr (std::is_same_v<V, double>)
+        {
+            read = node.is_number() ? node.value<double>() : std::nullopt;
+        }
+        else
+        {
+            read = node.value_exact<V>();
+        }
+
+        if (!read.has_value())
+        {
+            this->warnings.push_back(LineOf(node) + name + " must be " + TypeName<V>() + ": the default kept");
             return false;
         }
 
-        const std::optional<std::string> text = value.value_exact<std::string>();
-
-        if (!text.has_value() || text->empty())
-        {
-            this->Invalid(value, key, "a path string");
-            return true;
-        }
-
-        (key == "data_dir" ? this->settings.dataDirectory : this->settings.saveDirectory) = PathOf(*text, this->base);
+        value = *read;
         return true;
     }
 
-    bool Logging(const std::string& key, const toml::node& value)
-    {
-        if (key == "path")
-        {
-            const std::optional<std::string> text = value.value_exact<std::string>();
-
-            if (!text.has_value() || text->empty())
-            {
-                this->Invalid(value, key, "a path string");
-                return true;
-            }
-
-            this->settings.logPath = PathOf(*text, this->base);
-            return true;
-        }
-
-        if (key != "level")
-        {
-            return false;
-        }
-
-        const std::optional<std::string> text = value.value_exact<std::string>();
-
-        for (const LevelName& level : kLevels)
-        {
-            if (text.has_value() && *text == level.name)
-            {
-                this->settings.logLevel = level.level;
-                return true;
-            }
-        }
-
-        this->Invalid(value, key, "\"trace\", \"debug\", \"info\", \"warning\", \"error\" or \"critical\"");
-        return true;
-    }
-
-    bool Window(const std::string& key, const toml::node& value)
-    {
-        if (key == "width" || key == "height")
-        {
-            const std::optional<i64> size = value.value_exact<i64>();
-            const int minimum = key == "width" ? HostSettings::MinimumWindowWidth : HostSettings::MinimumWindowHeight;
-            constexpr i64 kLargest = 0x7FFF;
-
-            if (!size.has_value() || *size < minimum || *size > kLargest)
-            {
-                this->Invalid(value, key, key == "width" ? "an integer of at least 320" : "an integer of at least 240");
-                return true;
-            }
-
-            (key == "width" ? this->settings.windowWidth : this->settings.windowHeight) = static_cast<int>(*size);
-            return true;
-        }
-
-        if (key != "maximized")
-        {
-            return false;
-        }
-
-        const std::optional<bool> flag = value.value_exact<bool>();
-
-        if (!flag.has_value())
-        {
-            this->Invalid(value, key, "true or false");
-            return true;
-        }
-
-        this->settings.windowMaximized = *flag;
-        return true;
-    }
-
-    bool Display(const std::string& key, const toml::node& value)
-    {
-        if (key == "width" || key == "height")
-        {
-            const std::optional<i64> size = value.value_exact<i64>();
-
-            if (!size.has_value())
-            {
-                this->Invalid(value, key, "an integer");
-                return true;
-            }
-
-            (key == "width" ? this->displayWidth : this->displayHeight) = *size;
-            return true;
-        }
-
-        if (key != "scale")
-        {
-            return false;
-        }
-
-        if (!value.is_number())
-        {
-            this->Invalid(value, key, "a number");
-            return true;
-        }
-
-        this->displayScale = value.value<double>();
-        return true;
-    }
-
-    void FinishDisplay()
-    {
-        std::vector<std::string>& warnings = this->settings.warnings;
-
-        if (this->displayScale.has_value())
-        {
-            if (this->displayWidth.has_value() || this->displayHeight.has_value())
-            {
-                warnings.emplace_back("[display] scale is set: width and height are ignored");
-            }
-
-            const double scale = *this->displayScale;
-
-            if (scale < kMinimumScale || scale > kMaximumScale)
-            {
-                warnings.emplace_back("[display] scale must be 1.0..4.0: 1.0 kept");
-            }
-            else if (std::abs(scale - kMinimumScale) > kScaleTolerance)
-            {
-                warnings.emplace_back("[display] only the original 640x480 (scale 1.0) is drawn for now: 640x480 kept");
-            }
-
-            return;
-        }
-
-        if (this->displayWidth.has_value() != this->displayHeight.has_value())
-        {
-            warnings.emplace_back("[display] width and height go together: 640x480 kept");
-            return;
-        }
-
-        if (this->displayWidth.has_value() &&
-            (*this->displayWidth != HostSettings::DisplayWidth || *this->displayHeight != HostSettings::DisplayHeight))
-        {
-            warnings.emplace_back("[display] only the original 640x480 is drawn for now: 640x480 kept");
-        }
-    }
-
-    HostSettings& settings;
-    std::filesystem::path base;
-    std::optional<i64> displayWidth;
-    std::optional<i64> displayHeight;
-    std::optional<double> displayScale;
+    std::vector<std::string>& warnings;
 };
 
-}  // namespace
-
-HostSettings ParseHostSettings(std::string_view text, const std::filesystem::path& base)
+// A settings struct as a TOML table, by its Fields() (an optional without a value left out).
+template <SettingTable T>
+toml::table ToTable(const T& in)
 {
-    HostSettings settings;
+    toml::table table;
+    std::apply(
+        [&](const auto&... field)
+        {
+            (
+                [&]
+                {
+                    const auto& value = in.*field.member;
+                    using V = std::remove_cvref_t<decltype(value)>;
 
+                    if constexpr (SettingTable<V>)
+                    {
+                        table.insert(field.key, ToTable(value));
+                    }
+                    else if constexpr (IsOptional<V>::value)
+                    {
+                        if (value.has_value())
+                        {
+                            table.insert(field.key, *value);
+                        }
+                    }
+                    else
+                    {
+                        table.insert(field.key, value);
+                    }
+                }(),
+                ...);
+        },
+        T::Fields()
+    );
+    return table;
+}
+
+std::optional<SDL_LogPriority> LevelOf(std::string_view name)
+{
+    for (const LevelName& entry : kLevels)
+    {
+        if (entry.name == name)
+        {
+            return entry.level;
+        }
+    }
+
+    return std::nullopt;
+}
+
+// The values the rebuild cannot take set back to their defaults (with a warning each).
+void Validate(Settings& settings, std::vector<std::string>& warnings)
+{
+    const Settings defaults;
+
+    if (settings.paths.dataDir.has_value() && settings.paths.dataDir->empty())
+    {
+        warnings.emplace_back("[paths] data_dir is empty: not set");
+        settings.paths.dataDir.reset();
+    }
+
+    if (settings.paths.saveDir.has_value() && settings.paths.saveDir->empty())
+    {
+        warnings.emplace_back("[paths] save_dir is empty: not set");
+        settings.paths.saveDir.reset();
+    }
+
+    if (settings.logging.path.has_value() && settings.logging.path->empty())
+    {
+        warnings.emplace_back("[logging] path is empty: not set");
+        settings.logging.path.reset();
+    }
+
+    if (!LevelOf(settings.logging.level).has_value())
+    {
+        warnings.push_back(
+            "[logging] level must be trace, debug, info, warning, error or critical: " +
+            std::string(LoggingSettings::DefaultLevel) + " kept"
+        );
+        settings.logging.level = defaults.logging.level;
+    }
+
+    constexpr i64 kLargest = 0x7FFF;
+
+    if (settings.window.width < WindowSettings::MinimumWidth || settings.window.width > kLargest)
+    {
+        warnings.emplace_back("[window] width must be 640..32767: the default kept");
+        settings.window.width = defaults.window.width;
+    }
+
+    if (settings.window.height < WindowSettings::MinimumHeight || settings.window.height > kLargest)
+    {
+        warnings.emplace_back("[window] height must be 480..32767: the default kept");
+        settings.window.height = defaults.window.height;
+    }
+
+    DisplaySettings& display = settings.display;
+
+    if (display.scale.has_value())
+    {
+        if (display.width.has_value() || display.height.has_value())
+        {
+            warnings.emplace_back("[display] scale is set: width and height are ignored");
+        }
+
+        if (*display.scale < kMinimumScale || *display.scale > kMaximumScale)
+        {
+            warnings.emplace_back("[display] scale must be 1.0..4.0: 1.0 kept");
+        }
+        else if (std::abs(*display.scale - kMinimumScale) > kScaleTolerance)
+        {
+            warnings.emplace_back("[display] only the original 640x480 (scale 1.0) is drawn for now: 640x480 kept");
+        }
+    }
+    else if (display.width.has_value() != display.height.has_value())
+    {
+        warnings.emplace_back("[display] width and height go together: 640x480 kept");
+    }
+    else if (display.width.has_value() && (*display.width != Display::Width || *display.height != Display::Height))
+    {
+        warnings.emplace_back("[display] only the original 640x480 is drawn for now: 640x480 kept");
+    }
+}
+
+std::string_view WithoutMark(std::string_view text)
+{
     if (text.starts_with(kByteOrderMark))
     {
         text.remove_prefix(kByteOrderMark.size());
     }
 
-    toml::parse_result result = toml::parse(text);
+    return text;
+}
+
+// The settings of a TOML text; false (the defaults) when it is not TOML.
+bool Parse(std::string_view text, Settings& settings, std::vector<std::string>& warnings)
+{
+    toml::parse_result result = toml::parse(WithoutMark(text));
 
     if (!result)
     {
         const toml::parse_error& error = result.error();
-        settings.warnings.push_back(
+        warnings.push_back(
             "line " + std::to_string(error.source().begin.line) + ", column " +
             std::to_string(error.source().begin.column) + ": " + std::string(error.description()) +
             " (the whole file is ignored)"
         );
-        return settings;
+        return false;
     }
 
-    Reader reader(settings, base);
-    reader.Read(result.table());
+    Reader(warnings).Table(result.table(), "", settings);
+    Validate(settings, warnings);
+    return true;
+}
+
+std::filesystem::path PathOf(const std::optional<std::string>& text, const std::filesystem::path& base)
+{
+    if (!text.has_value())
+    {
+        return {};
+    }
+
+    std::filesystem::path path(std::u8string(text->begin(), text->end()));
+    return path.is_relative() ? base / path : path;
+}
+
+std::string ReadText(const std::filesystem::path& file, bool& found)
+{
+    std::ifstream stream(file, std::ios::binary);
+    found = stream.is_open();
+    return found ? std::string(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>())
+                 : std::string();
+}
+
+}  // namespace
+
+std::filesystem::path HostSettings::DataDirectory() const
+{
+    return PathOf(this->values.paths.dataDir, this->base);
+}
+
+std::filesystem::path HostSettings::SaveDirectory() const
+{
+    return PathOf(this->values.paths.saveDir, this->base);
+}
+
+std::filesystem::path HostSettings::LogPath() const
+{
+    return PathOf(this->values.logging.path, this->base);
+}
+
+SDL_LogPriority HostSettings::LogLevel() const
+{
+    return LevelOf(this->values.logging.level).value_or(SDL_LOG_PRIORITY_DEBUG);
+}
+
+HostSettings ParseHostSettings(std::string_view text, const std::filesystem::path& base)
+{
+    HostSettings settings;
+    settings.base = base;
+
+    if (!Parse(text, settings.values, settings.warnings))
+    {
+        settings.values = Settings{};
+    }
+
     return settings;
 }
 
 HostSettings LoadHostSettings(const std::filesystem::path& file, const std::filesystem::path& base)
 {
-    std::ifstream stream(file, std::ios::binary);
-
-    if (!stream.is_open())
-    {
-        HostSettings settings;
-        settings.file = file;
-        return settings;
-    }
-
-    const std::string text((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
-    HostSettings settings = ParseHostSettings(text, base);
+    bool found = false;
+    const std::string text = ReadText(file, found);
+    HostSettings settings = found ? ParseHostSettings(text, base) : HostSettings{};
+    settings.base = base;
     settings.file = file;
-    settings.found = true;
+    settings.found = found;
     return settings;
 }
 
-const char* LogLevelName(SDL_LogPriority level)
+std::string SettingsText(const Settings& settings)
 {
-    for (const LevelName& entry : kLevels)
+    std::ostringstream out;
+    out << toml::toml_formatter(ToTable(settings)) << '\n';
+    return out.str();
+}
+
+bool SaveWindowSettings(const std::filesystem::path& file, const WindowSettings& window, std::string& error)
+{
+    bool found = false;
+    const std::string text = ReadText(file, found);
+    Settings settings;
+    std::vector<std::string> warnings;
+
+    if (found && !Parse(text, settings, warnings))
     {
-        if (entry.level == level)
+        error = "the file is not valid TOML: left as it is";
+        return false;
+    }
+
+    if (found && settings.window == window)
+    {
+        return true;
+    }
+
+    settings.window = window;
+    const std::string written = SettingsText(settings);
+    std::filesystem::path temporary = file;
+    temporary += ".new";
+
+    {
+        std::ofstream stream(temporary, std::ios::binary | std::ios::trunc);
+
+        if (!stream.is_open())
         {
-            return entry.name.data();
+            error = "cannot write " + temporary.string();
+            return false;
+        }
+
+        stream << written;
+
+        if (!stream.good())
+        {
+            error = "write failed";
+            return false;
         }
     }
 
-    return "debug";
+    std::error_code failure;
+    std::filesystem::rename(temporary, file, failure);
+
+    if (failure)
+    {
+        error = failure.message();
+        return false;
+    }
+
+    return true;
 }
 
 }  // namespace swd3

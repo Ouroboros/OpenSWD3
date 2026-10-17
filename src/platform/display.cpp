@@ -13,8 +13,7 @@ namespace swd3
 namespace
 {
 
-constexpr float kHalf = 0.5F;      // the picture is centred in the window
-constexpr int kMinimumShrink = 2;  // the window shrinks to half the logical size at most
+constexpr float kHalf = 0.5F;  // the picture is centred in the window
 
 }  // namespace
 
@@ -77,7 +76,10 @@ bool Display::Open(const std::string& title, int width, int height, bool maximiz
         return false;
     }
 
-    SDL_SetWindowMinimumSize(this->window, Display::Width / kMinimumShrink, Display::Height / kMinimumShrink);
+    SDL_SetWindowMinimumSize(this->window, Display::Width, Display::Height);
+    this->restoredWidth = width;
+    this->restoredHeight = height;
+    this->maximized = maximized;
     this->texture = SDL_CreateTexture(
         this->renderer,
         SDL_PIXELFORMAT_RGB565,
@@ -130,6 +132,7 @@ void Display::Present(const Surface& screen)
 
 bool Display::HandleEvent(const SDL_Event& event)
 {
+    this->TrackWindow(event);
     const bool altEnter = event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_RETURN;
 
     if (altEnter && (event.key.mod & SDL_KMOD_ALT) != 0 && !event.key.repeat)
@@ -139,6 +142,48 @@ bool Display::HandleEvent(const SDL_Event& event)
     }
 
     return false;
+}
+
+void Display::TrackWindow(const SDL_Event& event)
+{
+    if (this->window == nullptr)
+    {
+        return;
+    }
+
+    const SDL_WindowFlags flags = SDL_GetWindowFlags(this->window);
+    const SDL_WindowFlags changed = SDL_WINDOW_MAXIMIZED | SDL_WINDOW_FULLSCREEN | SDL_WINDOW_MINIMIZED;
+
+    if ((flags & SDL_WINDOW_FULLSCREEN) != 0)
+    {
+        return;
+    }
+
+    if (event.type == SDL_EVENT_WINDOW_RESIZED && (flags & changed) == 0)
+    {
+        this->restoredWidth = event.window.data1;
+        this->restoredHeight = event.window.data2;
+    }
+    else if (event.type == SDL_EVENT_WINDOW_MAXIMIZED)
+    {
+        this->maximized = true;
+    }
+    else if (event.type == SDL_EVENT_WINDOW_RESTORED && (flags & SDL_WINDOW_MINIMIZED) == 0)
+    {
+        this->maximized = (flags & SDL_WINDOW_MAXIMIZED) != 0;
+    }
+}
+
+Display::WindowState Display::State() const
+{
+    WindowState state{this->restoredWidth, this->restoredHeight, this->maximized, this->window != nullptr};
+
+    if (this->window != nullptr && (SDL_GetWindowFlags(this->window) & SDL_WINDOW_FULLSCREEN) == 0)
+    {
+        state.maximized = (SDL_GetWindowFlags(this->window) & SDL_WINDOW_MAXIMIZED) != 0;
+    }
+
+    return state;
 }
 
 void Display::ToggleFullscreen()

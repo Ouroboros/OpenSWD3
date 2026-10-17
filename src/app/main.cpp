@@ -50,6 +50,34 @@ std::string PathText(const std::filesystem::path& path)
     return std::string(text.begin(), text.end());
 }
 
+// The window as the user left it written back to swd3r.toml; nothing when it is as the file says (or no window was
+// made).
+void SaveWindow(const swd3::HostSettings& settings, const swd3::Display::WindowState& window)
+{
+    const swd3::WindowSettings left{window.width, window.height, window.maximized};
+
+    if (!window.opened || left == settings.values.window)
+    {
+        return;
+    }
+
+    std::string error;
+
+    if (!swd3::SaveWindowSettings(settings.file, left, error))
+    {
+        swd3::LogWarning(u8"settings: the window cannot be saved: %s", swd3::AsUtf8(error));
+        return;
+    }
+
+    swd3::LogInfo(
+        u8"settings: window=%dx%d maximized=%d saved to %s",
+        window.width,
+        window.height,
+        window.maximized ? 1 : 0,
+        swd3::AsUtf8(PathText(settings.file))
+    );
+}
+
 }  // namespace
 
 int main(int count, char** arguments)
@@ -62,30 +90,31 @@ int main(int count, char** arguments)
     std::filesystem::path logDirectory = programDirectory / "logs";
     std::string logPrefix = program;
     std::string logExtension = ".log";
+    const std::filesystem::path logPath = settings.LogPath();
 
-    if (!settings.logPath.empty())
+    if (!logPath.empty())
     {
-        logDirectory = settings.logPath.parent_path();
-        logPrefix = PathText(settings.logPath.stem());
-        logExtension = settings.logPath.has_extension() ? PathText(settings.logPath.extension()) : ".log";
+        logDirectory = logPath.parent_path();
+        logPrefix = PathText(logPath.stem());
+        logExtension = logPath.has_extension() ? PathText(logPath.extension()) : ".log";
     }
 
-    swd3::LogFile log(logDirectory, logPrefix, logExtension, settings.logLevel);
+    swd3::LogFile log(logDirectory, logPrefix, logExtension, settings.LogLevel());
     swd3::InstallCrashLog();
     const std::string commandLine = CommandLine(count, arguments);
     std::error_code error;
 
     // The original opens its archives (all_char.act ...) relative to the working directory, the game's directory; a
     // data_dir set becomes the working directory.
-    if (!settings.dataDirectory.empty())
+    if (!settings.DataDirectory().empty())
     {
-        std::filesystem::current_path(settings.dataDirectory, error);
+        std::filesystem::current_path(settings.DataDirectory(), error);
 
         if (error)
         {
             swd3::LogError(
                 u8"data_dir %s cannot be entered: %s",
-                swd3::AsUtf8(PathText(settings.dataDirectory)),
+                swd3::AsUtf8(PathText(settings.DataDirectory())),
                 swd3::AsUtf8(error.message())
             );
         }
@@ -106,14 +135,14 @@ int main(int count, char** arguments)
         u8"settings %s%s level=%s data_dir=%s save_dir=%s window=%dx%d maximized=%d display=%dx%d",
         swd3::AsUtf8(PathText(settings.file)),
         swd3::AsUtf8(settings.found ? "" : " (not found, the defaults)"),
-        swd3::AsUtf8(swd3::LogLevelName(settings.logLevel)),
-        swd3::AsUtf8(PathText(settings.dataDirectory)),
-        swd3::AsUtf8(PathText(settings.saveDirectory)),
-        settings.windowWidth,
-        settings.windowHeight,
-        settings.windowMaximized ? 1 : 0,
-        settings.displayWidth,
-        settings.displayHeight
+        swd3::AsUtf8(settings.values.logging.level),
+        swd3::AsUtf8(PathText(settings.DataDirectory())),
+        swd3::AsUtf8(PathText(settings.SaveDirectory())),
+        settings.values.window.width,
+        settings.values.window.height,
+        settings.values.window.maximized ? 1 : 0,
+        swd3::Display::Width,
+        swd3::Display::Height
     );
 
     for (const std::string& warning : settings.warnings)
@@ -135,7 +164,7 @@ int main(int count, char** arguments)
         return 1;
     }
 
-    swd3::SetLogLevel(settings.logLevel);
+    swd3::SetLogLevel(settings.LogLevel());
     swd3::LogInfo(
         u8"SDL ready video_driver=%s",
         SDL_GetCurrentVideoDriver() != nullptr ? SDL_GetCurrentVideoDriver() : ""
@@ -143,10 +172,12 @@ int main(int count, char** arguments)
     int result = 0;
 
     {
-        const std::string dataDirectory = settings.dataDirectory.empty() ? directory : PathText(settings.dataDirectory);
+        const std::string dataDirectory =
+            settings.DataDirectory().empty() ? directory : PathText(settings.DataDirectory());
         swd3::Game game(dataDirectory + "\\");
         game.host = settings;
         result = game.Run(commandLine);
+        SaveWindow(settings, game.WindowState());
     }
 
     swd3::LogInfo(u8"exit result=%d", result);

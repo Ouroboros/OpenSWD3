@@ -76,8 +76,25 @@ public:
         return this->window;
     }
 
+    // The window as the user left it: its size when last neither maximised nor full screen, and whether it is
+    // maximised (full screen counts as the state before it). `opened` is false when no window was made.
+    struct WindowState
+    {
+        int width = 0;
+        int height = 0;
+        bool maximized = false;
+        bool opened = false;
+    };
+
+    WindowState State() const;
+
 private:
     Viewport CurrentViewport() const;
+    void TrackWindow(const SDL_Event& event);
+
+    int restoredWidth = DefaultWindowWidth;
+    int restoredHeight = DefaultWindowHeight;
+    bool maximized = false;
 
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;

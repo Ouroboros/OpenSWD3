@@ -332,9 +332,9 @@ int Game::Run(std::string_view commandLine)
 
     if (!this->display.Open(
             Utf8Chars(Game::WindowTitle),
-            this->host.windowWidth,
-            this->host.windowHeight,
-            this->host.windowMaximized
+            static_cast<int>(this->host.values.window.width),
+            static_cast<int>(this->host.values.window.height),
+            this->host.values.window.maximized
         ))
     {
         return 0;
@@ -350,6 +350,7 @@ int Game::Run(std::string_view commandLine)
     this->crtRandom.Seed(static_cast<u32>(crt::Time()));
     this->random.Seed(static_cast<u32>(crt::Time()));
     this->running = 1;
+    SDL_AddEventWatch(&Game::LiveResize, this);
 
     while (!this->quit)
     {
@@ -365,41 +366,71 @@ int Game::Run(std::string_view commandLine)
             break;
         }
 
-        if (this->state.GameFlag(GameState::TextBox) != SDL_TextInputActive(this->display.Window()))
-        {
-            if (this->state.GameFlag(GameState::TextBox))
-            {
-                SDL_StartTextInput(this->display.Window());
-            }
-            else
-            {
-                SDL_StopTextInput(this->display.Window());
-            }
-        }
-
-        if (this->running != 0 && (this->systemFlags & Game::VideoPlaying) != 0)
-        {
-            this->VideoFrame();
-            this->AudioPump();
-        }
-        else if (this->running != 0 && (this->systemFlags & Game::UnkSystem1) == 0 && this->inactive == 0)
-        {
-            this->MainFrame();
-        }
-        else if (this->running == 0 && this->active == 1)
-        {
-            this->DrawPauseBanner();
-        }
-
-        if (this->active == 0)
-        {
-            this->display.Present(this->screen);
-        }
-
+        this->LoopFrame();
         SDL_Delay(1);
     }
 
+    SDL_RemoveEventWatch(&Game::LiveResize, this);
     return 0;
+}
+
+// The work of an iteration of the message loop once its messages are handled (part of 0x00409EC0): the text box's
+// input, the frame of the video, of the game or of the pause banner, and the screen shown while the game is inactive.
+void Game::LoopFrame()
+{
+    if (this->inLoopFrame)
+    {
+        return;
+    }
+
+    this->inLoopFrame = true;
+
+    if (this->state.GameFlag(GameState::TextBox) != SDL_TextInputActive(this->display.Window()))
+    {
+        if (this->state.GameFlag(GameState::TextBox))
+        {
+            SDL_StartTextInput(this->display.Window());
+        }
+        else
+        {
+            SDL_StopTextInput(this->display.Window());
+        }
+    }
+
+    if (this->running != 0 && (this->systemFlags & Game::VideoPlaying) != 0)
+    {
+        this->VideoFrame();
+        this->AudioPump();
+    }
+    else if (this->running != 0 && (this->systemFlags & Game::UnkSystem1) == 0 && this->inactive == 0)
+    {
+        this->MainFrame();
+    }
+    else if (this->running == 0 && this->active == 1)
+    {
+        this->DrawPauseBanner();
+    }
+
+    if (this->active == 0)
+    {
+        this->display.Present(this->screen);
+    }
+
+    this->inLoopFrame = false;
+}
+
+// While the window is resized by dragging, Windows runs its own message loop and SDL's polling does not return; SDL
+// sends the live-resize exposes (data1 1) to the event watchers from there, and the game's frames go on in them.
+bool SDLCALL Game::LiveResize(void* data, SDL_Event* event)
+{
+    auto* game = static_cast<Game*>(data);
+
+    if (event->type == SDL_EVENT_WINDOW_EXPOSED && event->window.data1 == 1 && !game->quit)
+    {
+        game->LoopFrame();
+    }
+
+    return true;
 }
 
 // swd32.exe 0x0040A0D0 (message 0x404): the start sound, the default keys, the installation, the saved game flag and
@@ -637,17 +668,17 @@ void Game::ApplyHostPaths()
         return out;
     };
 
-    if (!this->host.dataDirectory.empty())
+    if (!this->host.DataDirectory().empty())
     {
-        this->config.installDirectory = gamePath(this->host.dataDirectory);
+        this->config.installDirectory = gamePath(this->host.DataDirectory());
         LogInfo(u8"data_dir=%s (over Env.dat)", AsUtf8(this->config.installDirectory));
     }
 
-    if (!this->host.saveDirectory.empty())
+    if (!this->host.SaveDirectory().empty())
     {
-        this->config.saveDirectory = gamePath(this->host.saveDirectory);
+        this->config.saveDirectory = gamePath(this->host.SaveDirectory());
         std::error_code error;
-        std::filesystem::create_directories(this->host.saveDirectory, error);
+        std::filesystem::create_directories(this->host.SaveDirectory(), error);
         LogInfo(u8"save_dir=%s", AsUtf8(this->config.saveDirectory));
     }
 }
