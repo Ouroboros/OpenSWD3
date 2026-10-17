@@ -4,6 +4,7 @@
 #include "font/text_font.h"
 #include "game/game.h"
 #include "item/item_list.h"
+#include "org/fame.h"
 #include "platform/display.h"
 #include "text/big5.h"
 #include "ui/ui_draw.h"
@@ -151,6 +152,20 @@ constexpr int kEscortRowTop = 8;
 constexpr int kEscortNameX = 0xC;
 constexpr int kEscortNoneTop = 0x1E;
 constexpr u16 kWhite = 0xFFFF;
+constexpr int kTagMirrorRight = 0x276;  // the name tag of the aimed enemy
+constexpr int kTagCharWidth = 0x14;
+constexpr int kTagMargin = 4;
+constexpr int kTagFrameHeight = 0x10;
+constexpr int kTagNameX = 2;
+constexpr u16 kKnownHitPoints = 10;  // bestiary counts that show the hit points and the gauge
+constexpr u16 kKnownGauge = 0xF;
+constexpr std::u8string_view kHitPointsFormat = u8"生命:%d/%d";  // swd32.exe 0x004A79DC
+constexpr int kTagHitPointsLeft = 0x8C;
+constexpr int kTagHitPointsGap = 0xA;
+constexpr int kTagHitPointsUp = 2;
+constexpr int kTagGaugeTop = 0x11;
+constexpr int kTagGaugeHeight = 3;
+constexpr u32 kTagGaugeRed = 0x18;
 
 // The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
 // here.
@@ -2293,5 +2308,86 @@ void Game::DrawEscortList(int x, int y)
     }
 
     font.SetAdvance(kListAdvance);
+}
+
+// swd32.exe 0x00466950: the name tag of the aimed enemy (unk4A754C, 1-based) at (x, y), unless the current role's
+// order is taken or unk53BF88: a darkened box and a frame as wide as the name (20 pixels per two bytes; from the right
+// edge when the sides are swapped), the name in white. Once the bestiary counts 10 of it its hit points follow
+// ("生命:%d/%d", to the left when swapped); from 15 its action gauge as a dark red bar below.
+void Game::DrawTargetTag(int x, int y)
+{
+    BattleState& battle = this->battleState;
+    BattleMessages& messages = this->battleMessages;
+    TextFont& font = this->mediumFont;
+    const auto unit = static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit);
+
+    if (battle.pendingOrders[unit].unk00 == 1 || battle.unk53BF88 == 1 || battle.unk4A754C <= 0 ||
+        battle.unk4A754C > static_cast<i32>(battle.enemyCount))
+    {
+        return;
+    }
+
+    BattleEnemy& enemy = this->battleEnemies[static_cast<std::size_t>(battle.unk4A754C - 1)];
+    const std::string name = ObjectName(*enemy.Data());
+    const int halves = static_cast<int>(name.size()) / 2;
+    const int left = battle.mirrored == 1 ? kTagMirrorRight - kTagCharWidth * halves - x : x;
+    messages.panelAct.id = BattleMessages::PanelAct;
+    messages.panelAct.action = 0;
+    this->acts.Run(messages.panelAct);
+    const int width = kTagCharWidth * halves;
+    FillBox(
+        this->painter,
+        left - kTagMargin,
+        y - kTagMargin,
+        width + 2 * kTagMargin,
+        kListBarHeight,
+        0,
+        kThrowShade,
+        kThrowShade,
+        FillMode::Tint
+    );
+    const int right = left + width;
+    DrawWindowFrame(
+        this->painter,
+        this->archive,
+        messages.panelAct.frame,
+        left,
+        y,
+        right,
+        y + kTagFrameHeight,
+        0,
+        kListFrameBorder
+    );
+    font.SetAdvance(kTagCharWidth);
+    font.DrawText(this->drawSurface, left + kTagNameX, y, name, kWhite, TextFont::BoldOutline);
+    font.SetAdvance(kListAdvance);
+    const u16 known =
+        static_cast<u16>(FindCounterValue(this->party.fame.lists[Fame::FameList], static_cast<i16>(enemy.ActId())));
+
+    if (known >= kKnownHitPoints)
+    {
+        i32 hitPoints = 0;
+        i32 maximum = 0;
+        enemy.GetHitPoints(hitPoints, maximum);
+        const std::string text = WinFormat(kHitPointsFormat, {hitPoints, maximum});
+        const int textX = battle.mirrored != 0 ? left - kTagHitPointsLeft : right + kTagHitPointsGap;
+        font.DrawText(this->drawSurface, textX, y - kTagHitPointsUp, text, kWhite, TextFont::BoldOutline);
+    }
+
+    if (known < kKnownGauge)
+    {
+        return;
+    }
+
+    const auto gauge = static_cast<u16>(enemy.GaugeLength(this->battleServices));
+
+    if (gauge == 0)
+    {
+        return;
+    }
+
+    const int barX = battle.mirrored != 0 ? left - kTagHitPointsLeft : right + kTagHitPointsGap;
+    this->battleHud
+        .FillColor(barX, y + kTagGaugeTop, gauge, kTagGaugeHeight, this->painter.MakeColor(kTagGaugeRed, 0, 0));
 }
 }  // namespace swd3
