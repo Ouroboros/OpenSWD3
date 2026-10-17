@@ -4395,8 +4395,17 @@ int BattleUnit::RunQueuedActions(BattleServices& services, BattleUnit& target, i
 // swd32.exe 0x004800F0: appends an act (`id`, `action`) flying from (fromX, fromY) to (toX, toY) with `steps` line
 // steps a frame flown (1: speeding) after `shakeFrames` frames of shaking, and its impact act; counts it in
 // queuedActions
-void BattleUnit::
-    AddQueuedAction(i32 id, i32 action, i16 fromX, i16 fromY, i16 toX, i16 toY, i16 steps, u16 shakeFrames, i32 impact)
+void BattleUnit::AddQueuedAction(
+    i32 id,
+    i32 action,
+    i16 fromX,
+    i16 fromY,
+    i16 toX,
+    i16 toY,
+    i16 steps,
+    u16 shakeFrames,
+    i32 impact
+)
 {
     std::unique_ptr<QueuedAction>* link = &this->actions;
 

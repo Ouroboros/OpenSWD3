@@ -273,13 +273,13 @@
 0x004CB238	RoleControl::stepUp	i32	src/role/role_control.h:42	
 0x004CB23C	Controls::lastPoll	i32	src/input/controls.h:66	
 0x004CB240	Game::unk4CB240	i32	src/game/game.h:261	
-0x004CB248	SaveSlots::acts	std::array<std::array<ActState, ActsPerSlot>, Visible>	src/save/save_slots.h:67	
-0x004CB968	SaveSlots::previews	std::array<SavePreview, Visible>	src/save/save_slots.h:68	
+0x004CB248	SaveSlots::acts	std::array<std::array<ActState, ActsPerSlot>, Visible>	src/save/save_slots.h:71	
+0x004CB968	SaveSlots::previews	std::array<SavePreview, Visible>	src/save/save_slots.h:72	
 0x004CC160	Game::unk4CC160	u8	src/game/game.h:258	
 0x004CC161	Game::unk4CC161	u8	src/game/game.h:259	
 0x004CC200	Game::unk4CC200	ActState	src/game/game.h:257	
 0x004CC298	Game::unk4CC298	i32	src/game/game.h:260	
-0x004CC2A0	SaveSlots::newest	i32	src/save/save_slots.h:69	the slot written last
+0x004CC2A0	SaveSlots::newest	i32	src/save/save_slots.h:73	the slot written last
 0x004CC2AC	Game::running	i32	src/game/game.h:274	frames run (F8 toggles)
 0x004CC2B0	Game::lastFrame	u32	src/game/game.h:275	
 0x004CC2B4	Game::loadingGreen	i32	src/game/game.h:289	

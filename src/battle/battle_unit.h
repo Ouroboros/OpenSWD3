@@ -139,6 +139,7 @@ struct UnitCommand
     enum ActionFlag : u32
     {
         UnkAction1 = 1,
+        UnkAction2 = 2,      // the swarm acts aim at 0, 0 (BattleRole::SwarmSpellFrame)
         DelaysFadeIn = 4,    // the unit fades in later (BattleUnit::DelayedFadeIn)
         StaysAcross = 0x10,  // the move starts at an edge across
         StaysDown = 0x20,    // the move starts at the top
@@ -417,8 +418,17 @@ public:
     void AimAction(BattleServices& services, BattleUnit& target, ActState& act, i16 shiftX, i16 shiftY);
     int DrawAimed(BattleServices& services, BattleUnit& target, ActState& act, i16 shiftX, i16 shiftY);
     int RunQueuedActions(BattleServices& services, BattleUnit& target, i32 action);
-    void
-    AddQueuedAction(i32 id, i32 action, i16 fromX, i16 fromY, i16 toX, i16 toY, i16 steps, u16 shakeFrames, i32 impact);
+    void AddQueuedAction(
+        i32 id,
+        i32 action,
+        i16 fromX,
+        i16 fromY,
+        i16 toX,
+        i16 toY,
+        i16 steps,
+        u16 shakeFrames,
+        i32 impact
+    );
     void TrailLastQueuedAction(i32 tintRed, i32 tintGreen, i32 tintBlue);
     void DrawTrail(BattleServices& services, AfterimageTrail& trail, u16 frame, u16 picture, u32 mode, i16 x, i16 y);
     int DrawRecoil(BattleServices& services, ActState& act, i16 y);

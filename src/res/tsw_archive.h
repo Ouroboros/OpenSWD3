@@ -155,8 +155,13 @@ private:
     bool ReadFrame(File& file, u32 base, FrameInfo& info, int frame);
     bool LoadPictureB(File& file, int index, u32 frame, Picture& picture);
     bool ReadFrameB(File& file, u32 base, FrameInfo& info, int frame);
-    bool
-    Decompress(PackedBuffer& buffer, File& file, const TswFrameEntry& entry, FrameInfo& info, bool logMissingBuffer);
+    bool Decompress(
+        PackedBuffer& buffer,
+        File& file,
+        const TswFrameEntry& entry,
+        FrameInfo& info,
+        bool logMissingBuffer
+    );
     void FreeBuffers();
     File* ArchiveOf(u32 id);
     u32 MagicDirectoryOffset(int index) const;

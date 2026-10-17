@@ -99,8 +99,12 @@ public:
     // Runs the explosion for scenario.frames frames after marking it started (the first call seeds rand with the time)
     // and seeding rand; returns per frame the result, the live particles, the opaque count, the bursts left and the
     // screen hash, and finally the hash of the picture pixels.
-    virtual std::vector<u8>
-    Explosion(const std::vector<u16>& pixels, int width, int height, const ExplosionScenario& scenario) = 0;
+    virtual std::vector<u8> Explosion(
+        const std::vector<u16>& pixels,
+        int width,
+        int height,
+        const ExplosionScenario& scenario
+    ) = 0;
     virtual int HitTest(const Frame& frame, int x, int y, int originX, int originY) = 0;
     virtual std::vector<u8> Shift(const std::vector<u8>& data, int mode, int amount) = 0;
     // dirX then dirY.

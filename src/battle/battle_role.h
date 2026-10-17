@@ -42,6 +42,9 @@ public:
     static constexpr std::size_t ExtraActs = 5;
     // The magic act is MagicActs entries after the unit's act (inferred: the second half of the 3000-entry archive).
     static constexpr i32 MagicActs = 1500;
+    // SwarmSpellFrame: where the swarm acts start around the role, by their number (0x004A7C04, 0x004A7C14).
+    static constexpr std::array<i16, 8> SwarmOffsetX = {0, 0, -120, 120, -70, 70, -70, 70};
+    static constexpr std::array<i16, 8> SwarmOffsetY = {-100, 100, 0, 0, -50, -50, 50, 50};
 
     BattleRole();
     void SetSkills(ItemNode* list);
@@ -69,9 +72,13 @@ public:
     int BeamSpellFrame(BattleServices& services, BattleUnit& target);
     int ChargeAttackFrame(BattleServices& services, BattleUnit& target, int slot);
     int ChargeOnTarget(BattleServices& services, BattleUnit& target);
+    int SwarmSpellFrame(BattleServices& services, BattleUnit& target);
     void SetupGuest(const UnitPlacement& at, const RoleRecord& base, Database& database, ErrorReporter& reporter);
-    void
-    ApplyEquipment(std::span<const std::unique_ptr<ItemNode>> slots, CounterList& proficiency, ErrorReporter& reporter);
+    void ApplyEquipment(
+        std::span<const std::unique_ptr<ItemNode>> slots,
+        CounterList& proficiency,
+        ErrorReporter& reporter
+    );
     void ApplyAccessory(const ObjectRecord& accessory, CounterList& proficiency);
     void ShowAllSkills();
     void ShowAllItems();

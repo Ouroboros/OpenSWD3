@@ -159,6 +159,13 @@ constexpr u16 kNoUnk2A8E = 0xFFFF;
 constexpr i32 kTrailBlueTint = 0xC;
 constexpr i8 kChargeTrailImages = 3;
 
+// SwarmSpellFrame.
+constexpr i16 kSwarmInterval = 3;  // a new act every third frame
+constexpr u16 kSwarmActs = 8;
+constexpr int kSwarmAbove = 0x28;
+constexpr u16 kSwarmShake = 0x34;
+constexpr u16 kSwarmSound = 0x3E;
+
 // CanAbsorb.
 constexpr u16 kMaxAbsorbClass = 0x15;   // ObjectData::unk52
 constexpr int kAbsorbLevelsAbove = 12;  // a target this many levels above the role is never absorbed
@@ -2532,6 +2539,117 @@ int BattleRole::ChargeOnTarget(BattleServices& services, BattleUnit& target)
         this->Strike(services, target, 0);
     }
 
+    return 1;
+}
+
+// swd32.exe 0x00474BA0: one frame of the role's swarm spell (magic act in slot act 8); 1 once it is over. The magic
+// act's target bits play the effect in the recoil act; once it strikes or follows up, every third frame (glowLevel
+// counting) one more act (the cast act, action unk2F0C; at most 8 queued) flies from a point around the role
+// (SwarmOffsetX / Y) to 0x28 above the target (a UnkAction2 command aims at 0, 0), shaking 0x34 frames, speeding, with
+// a trail, and sound kSwarmSound plays. The queued acts run each frame; when they are all gone and the magic act waits,
+// it ends.
+int BattleRole::SwarmSpellFrame(BattleServices& services, BattleUnit& target)
+{
+    ActState& magic = this->slotActs[BattleUnit::UnkSlot8];
+    u16 targetX = 0;
+    u16 targetY = 0;
+    magic.action = this->unk2A8A;
+    this->unk2AAC = 1;
+    magic.id = this->actId + BattleRole::MagicActs;
+    this->DrawAction(services, target, magic);
+
+    if ((magic.target & ActState::Recoils) != 0)
+    {
+        if (magic.effectA != 0)
+        {
+            this->unk267C |= BattleUnit::Recoiling;
+            this->recoilAct.id = magic.effectA;
+            this->recoilAct.action = magic.effectQ;
+        }
+
+        if ((magic.target & ActState::Holds) != 0)
+        {
+            magic.hold = 1;
+        }
+
+        magic.effectA = 0;
+        magic.target = static_cast<u16>(magic.target & ~ActState::Recoils);
+        magic.effectQ = 0;
+    }
+
+    if ((this->unk267C & BattleUnit::Recoiling) != 0 &&
+        this->DrawRecoil(services, this->recoilAct, static_cast<i16>(magic.anchorY)) == 1)
+    {
+        magic.target = 0;
+        this->unk267C &= ~BattleUnit::Recoiling;
+        magic.hold = 0;
+    }
+
+    auto aim = [this, &target, &targetX, &targetY]
+    {
+        target.GetDrawPosition(targetX, targetY);
+
+        if ((this->command.actionFlags & UnitCommand::UnkAction2) != 0)
+        {
+            targetX = 0;
+            targetY = 0;
+        }
+
+        this->ClearMoveAxes(targetX, targetY);
+    };
+
+    if ((magic.target & (ActState::Strikes | ActState::FollowsUp)) != 0)
+    {
+        this->unk267C |= BattleUnit::FollowingUp;
+        magic.target = 0;
+        aim();
+        this->unk2F0C = this->unk2F24;
+        ++this->unk2F24;
+    }
+
+    if ((this->unk267C & BattleUnit::FollowingUp) == 0)
+    {
+        return 0;
+    }
+
+    ++this->glowLevel;
+
+    if (this->glowLevel % kSwarmInterval == 1 && this->queuedActions < kSwarmActs)
+    {
+        aim();
+        const std::size_t place = this->queuedActions & (kSwarmActs - 1);
+        this->AddQueuedAction(
+            this->command.castAct,
+            this->unk2F0C,
+            static_cast<i16>(this->placement.x + BattleRole::SwarmOffsetX[place]),
+            static_cast<i16>(this->placement.y + BattleRole::SwarmOffsetY[place]),
+            static_cast<i16>(targetX),
+            static_cast<i16>(targetY - kSwarmAbove),
+            1,
+            kSwarmShake,
+            0
+        );
+        this->TrailLastQueuedAction(0, 0, kTrailBlueTint);
+        services.audio.PlaySound(kSwarmSound, services.config.soundVolume);
+    }
+
+    if (this->RunQueuedActions(services, target, this->unk2F0C) != 1)
+    {
+        return 0;
+    }
+
+    this->unk267C = 0;
+
+    if (magic.waiting != 1)
+    {
+        return 0;
+    }
+
+    this->glowLevel = 0;
+    this->unk2F0C = 0;
+    this->unk2F24 = 0;
+    this->slotActs[0] = ActState{};
+    magic = ActState{};
     return 1;
 }
 }  // namespace swd3

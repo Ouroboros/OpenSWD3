@@ -36,3 +36,5 @@ SeparateDefinitionBlocks: Always
 InsertBraces: true
 PackConstructorInitializers: Never
 BreakConstructorInitializers: BeforeColon
+PenaltyBreakScopeResolution: 1000000
+PenaltyReturnTypeOnItsOwnLine: 1000000

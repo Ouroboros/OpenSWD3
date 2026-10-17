@@ -417,3 +417,19 @@ TEST_CASE("battle unit: the shake offsets of a queued act match swd32.exe")
 
     CHECK(swd3test::SameTable(exe, kShakeOffsetsAt, swd3::BattleUnit::ShakeOffsets));
 }
+
+TEST_CASE("battle role: the swarm offsets match swd32.exe")
+{
+    constexpr swd3::u32 kSwarmOffsetXAt = 0x004A7C04;
+    constexpr swd3::u32 kSwarmOffsetYAt = 0x004A7C14;
+    const std::vector<swd3::u8> exe = swd3test::ReadGameFile("swd32.exe");
+
+    if (exe.empty())
+    {
+        std::printf("  (swd32.exe not found, skipped)\n");
+        return;
+    }
+
+    CHECK(swd3test::SameTable(exe, kSwarmOffsetXAt, swd3::BattleRole::SwarmOffsetX));
+    CHECK(swd3test::SameTable(exe, kSwarmOffsetYAt, swd3::BattleRole::SwarmOffsetY));
+}

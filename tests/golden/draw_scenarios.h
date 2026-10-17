@@ -313,8 +313,15 @@ public:
     ) = 0;
     // kind: a TileKind
     virtual void Tile(int kind, const void* source, const u16* palette, int x, int y) = 0;
-    virtual void
-    Pixels(PixelOperation operation, u16* pixels, std::size_t count, const u16* other, int a, int b, int c) = 0;
+    virtual void Pixels(
+        PixelOperation operation,
+        u16* pixels,
+        std::size_t count,
+        const u16* other,
+        int a,
+        int b,
+        int c
+    ) = 0;
     virtual u32 MakeColor(u32 red, u32 green, u32 blue) = 0;
     virtual const u16* Screen() const = 0;
 };
