@@ -192,6 +192,12 @@ constexpr int kDescriptionGreen = 5;
 constexpr int kDescriptionBlue = 0x1F;
 constexpr int kDescriptionCentre = 0x140;
 constexpr int kDescriptionTextTop = 0x168;
+constexpr int kItemPages = 4;  // the object list
+constexpr int kItemBoxWidth = 0xCC;
+constexpr int kItemFrameRight = 0xC8;
+constexpr u16 kShownItem = 0x8000;
+constexpr u16 kCostlyItem = 0x4000;
+constexpr int kItemBarWidth = 0xCE;
 
 // The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
 // here.
@@ -2633,6 +2639,153 @@ void Game::DrawSpellList(int x, int y, int cursor, int top)
     }
 
     role.ShowAllSkills();
+    font.SetBackground(TextFont::NoBackground);
+}
+
+// swd32.exe 0x004659C0: the object list of category unk4A7570 at (x, y): its four page tabs (frames 3..0 right to
+// left, the open one frame 4 + category), the panel act restarted, a quarter-dark box and a frame; then from entry
+// `top` + 1 up to 7 shown objects (unk53BDF4 counts them) with their counts ("%2d"), dark when too costly. Row
+// `cursor` (from 1) is drawn again a pixel up and left under a gradient bar, its entry becomes unk53BD14, and the
+// object's description is centred in a bar at the bottom.
+void Game::DrawItemList(int x, int y, int cursor, int top)
+{
+    BattleState& battle = this->battleState;
+    BattleMessages& messages = this->battleMessages;
+    TextFont& font = this->mediumFont;
+
+    if (battle.currentUnit == 0)
+    {
+        return;
+    }
+
+    BattleRole& role = this->battleRoles[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)];
+    const int tabsY = y + kTabsDrop;
+    int tabX = x + kTabWidth * (kItemPages - 1);
+
+    for (int tab = kItemPages - 1; tab >= 0; --tab)
+    {
+        this->battleHud.DrawEffectAt(kTabEffect, tab, tabX, tabsY, 0);
+        tabX -= kTabWidth;
+    }
+
+    this->battleHud
+        .DrawEffectAt(kTabEffect, battle.unk4A7570 + kOpenTabFrame, x + kTabWidth * battle.unk4A7570, tabsY, 0);
+    font.SetBackground(kHighlightBackground);
+    font.SetBackground(TextFont::NoBackground);
+    messages.panelAct = ActState{};
+    messages.panelAct.id = BattleMessages::PanelAct;
+    messages.panelAct.action = 0;
+    this->acts.Run(messages.panelAct);
+    FillBox(
+        this->painter,
+        x,
+        y + kListBoxDrop,
+        kItemBoxWidth,
+        kListBoxHeight,
+        0,
+        kListShade,
+        kListShade,
+        FillMode::Quarter
+    );
+    DrawWindowFrame(
+        this->painter,
+        this->archive,
+        messages.panelAct.frame,
+        x + kListFrameInset,
+        y + kListFrameTop,
+        x + kItemFrameRight,
+        y + kListFrameBottom,
+        0,
+        kListFrameBorder
+    );
+    font.SetShadow(0);
+    font.SetBackground(TextFont::NoBackground);
+    font.SetAdvance(kListAdvance);
+    battle.unk53BDF4 = 0;
+    role.CountObjects(battle.unk4A7570, battle.unk53BDF4);
+    role.ShowAllItems();
+    int row = 0;
+
+    for (int index = top + 1;; ++index)
+    {
+        std::string name;
+        u16 flags = 0;
+        u16 count = 0;
+
+        if (role.ListObject(battle.unk4A7570, index, name, flags, count) == 0)
+        {
+            break;
+        }
+
+        if ((flags & kShownItem) != 0)
+        {
+            const std::string number = WinFormat(kCountFormat, {static_cast<i32>(static_cast<i16>(count))});
+            const u16 color = (flags & kCostlyItem) != 0 ? battle.darkColor : battle.lightColor;
+            const int rowY = y + kListRowHeight * row;
+            font.DrawText(this->drawSurface, x + kListCountX, rowY + kListRowTop, number, color, TextFont::BoldOutline);
+            font.DrawText(this->drawSurface, x + kListNameX, rowY + kListRowTop, name, color, TextFont::BoldOutline);
+
+            if (cursor == row + 1)
+            {
+                font.DrawText(
+                    this->drawSurface,
+                    x + kListNameX - 1,
+                    rowY + kListRowTop - 1,
+                    name,
+                    color,
+                    TextFont::BoldOutline
+                );
+                font.SetBackground(TextFont::NoBackground);
+                FillBox(
+                    this->painter,
+                    x,
+                    rowY + kListBarTop,
+                    kItemBarWidth,
+                    kListBarHeight,
+                    kListBarRed,
+                    kListBarGreen,
+                    0,
+                    FillMode::Gradient
+                );
+                battle.unk53BD14 = index;
+                battle.unk53BFB8 = 1;
+                FillBox(
+                    this->painter,
+                    0,
+                    kDescriptionTop,
+                    Display::Width,
+                    kDescriptionHeight,
+                    0,
+                    kDescriptionGreen,
+                    kDescriptionBlue,
+                    FillMode::Gradient
+                );
+                const std::string description =
+                    role.inventoryNode != nullptr ? ObjectDescription(this->databases.mapsData, role.inventoryNode->id)
+                                                  : std::string();
+                const auto halves = static_cast<int>(description.size()) >> 1;
+                font.DrawText(
+                    this->drawSurface,
+                    kDescriptionCentre - ((kListAdvance * halves) >> 1),
+                    kDescriptionTextTop,
+                    description,
+                    kWhite,
+                    TextFont::BoldOutline
+                );
+            }
+
+            font.SetBackground(TextFont::NoBackground);
+            ++row;
+        }
+
+        if (row >= kListRowsShown)
+        {
+            font.SetBackground(TextFont::NoBackground);
+            return;
+        }
+    }
+
+    role.ShowAllItems();
     font.SetBackground(TextFont::NoBackground);
 }
 }  // namespace swd3
