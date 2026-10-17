@@ -252,6 +252,9 @@ private:
     void DrawLearnedBox(std::u8string_view line, bool sound);
     void LearnSpecials();
     void DrawLevelUpStats();
+    void MenuUp();
+    bool CommandEnabled(i32 command) const;
+    void AimUp();
     void DrawRolePanels();
     template <typename Next>
     void StepPanelGauge(i32& shown, i32& target, Next next, int picture, int x, int y, i32 downNear, i32 downFar);

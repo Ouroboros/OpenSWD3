@@ -273,6 +273,9 @@ constexpr std::string_view kNewValueFormat = "%4d";  // swd32.exe 0x004A7A4C
 constexpr int kStatsArrowX = 0x136;
 constexpr int kStatsNewX = 0x158;
 constexpr u16 kRollSound = 0x125;
+constexpr i32 kLastMenuCommand = 8;  // the up key
+constexpr i32 kEscortRows = 2;
+constexpr int kHangTries = 2;  // full cycles after which a search of the original would never end
 
 // The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
 // here.
@@ -3512,5 +3515,308 @@ void Game::DrawLevelUpStats()
     attribute(4, now.defense, before.defense, 4, rolls[3] == 0);
     attribute(5, now.unk14, before.unk14, 5, rolls[4] == 0);
     attribute(6, now.agility, before.agility, 6, rolls[5] == 0);
+}
+
+// swd32.exe 0x00460C40: the up key of the battle menu, by battle state: 1 moves the command up (skipping disabled
+// ones, wrapping to the last accessory command; past 8 it restarts at 1); 2 and 0x1B move the list cursor up, then
+// scroll; 4 too, keeping the list for role unk4A7570; 5 cycles 2..1; 7 and 8 cycle their entries; 0x1E cycles 10..1.
+// 3 (choosing a target, unless unk53BF88) moves the aim: an order on the party goes back through RoleCycle (four
+// party roles or more) or the 1-based roles (fewer), skipping forced and guarding roles; otherwise back through the
+// standing enemies. The aimed unit is marked, the others unmarked.
+void Game::MenuUp()
+{
+    BattleState& battle = this->battleState;
+    battle.unk53BFBC = 0;
+
+    auto tick = [this]
+    {
+        this->audio.PlaySound(kBackSound, this->config.soundVolume);
+    };
+
+    switch (battle.result)
+    {
+        case kMenuState:
+        {
+            if (battle.unk4A7548 > kLastMenuCommand)
+            {
+                battle.unk4A7548 = 1;
+                return;
+            }
+
+            tick();
+            i32 command = battle.unk4A7548 - 1;
+            battle.unk4A7548 = command;
+
+            if (this->CommandEnabled(command))
+            {
+                battle.unk53BFB8 = 1;
+                return;
+            }
+
+            do
+            {
+                if (--command < 1)
+                {
+                    command = battle.unk53BF22 + kMenuFixedCommands;
+                }
+            } while (!this->CommandEnabled(command));
+
+            battle.unk53BFB8 = 1;
+            battle.unk4A7548 = command;
+            return;
+        }
+
+        case kListState2:
+            if (--battle.unk4A7558 >= 1)
+            {
+                tick();
+                battle.unk53BFB8 = 1;
+                return;
+            }
+
+            battle.unk4A7558 = 1;
+
+            if (battle.unk53BD04 > 0)
+            {
+                tick();
+            }
+
+            battle.unk53BFB8 = 1;
+
+            if (--battle.unk53BD04 < 0)
+            {
+                battle.unk53BD04 = 0;
+            }
+
+            return;
+
+        case kTargetState:
+            if (battle.unk53BF88 == 1)
+            {
+                return;
+            }
+
+            tick();
+            this->AimUp();
+            return;
+
+        case kListState4:
+            if (--battle.unk4A755C < 1)
+            {
+                battle.unk4A755C = battle.unk53BDF4 != 0 ? 1 : 0;
+
+                if (--battle.unk53BD08 < 0)
+                {
+                    battle.unk53BD08 = 0;
+                }
+            }
+
+            tick();
+            battle.unk53BFB8 = 1;
+            battle.unk4FF578[static_cast<std::size_t>(battle.unk4A7570)] = battle.unk4A755C;
+            battle.unk52544C[static_cast<std::size_t>(battle.unk4A7570)] = battle.unk53BD08;
+            return;
+
+        case kWaitState5:
+            tick();
+
+            if (--battle.unk53BCF8 < 1)
+            {
+                battle.unk53BCF8 = kEscortRows;
+            }
+
+            return;
+
+        case kTalkState:
+            battle.unk53BD44 = 0;
+            battle.unk53BD48 = 0;
+            tick();
+
+            if (--battle.unk4A756C < 1)
+            {
+                battle.unk4A756C = battle.unk4A7568;
+            }
+
+            return;
+
+        case kSkillListState:
+            if (battle.unk53BDF3 == 0)
+            {
+                return;
+            }
+
+            if (--battle.unk4A7560 < 1)
+            {
+                battle.unk4A7560 = battle.unk53BDF3;
+            }
+
+            tick();
+            battle.unk53BFB8 = 1;
+            return;
+
+        case kListState1B:
+            if (--battle.unk4A755C >= 1)
+            {
+                tick();
+                battle.unk53BFB8 = 1;
+                return;
+            }
+
+            battle.unk4A755C = battle.unk53BDF4 != 0 ? 1 : 0;
+            battle.unk53BFB8 = 1;
+
+            if (--battle.unk53BD08 < 0)
+            {
+                battle.unk53BD08 = 0;
+            }
+
+            return;
+
+        case kWaitState1E:
+            if (--battle.unk4A755C < 1)
+            {
+                battle.unk4A755C = kMenuStepMost;
+            }
+
+            tick();
+            battle.unk53BFB8 = 1;
+            return;
+
+        default:
+            return;
+    }
+}
+
+// The command `command` (1-based) of the menu is enabled; command 0 reads the byte before the table in the original
+// (taken as disabled here).
+bool Game::CommandEnabled(i32 command) const
+{
+    const auto at = static_cast<std::size_t>(command - 1);
+    return command >= 1 && at < this->battleState.commandEnabled.size() && this->battleState.commandEnabled[at] != 0;
+}
+
+// The aim of MenuUp in battle state 3 (inline in the original); see MenuUp.
+void Game::AimUp()
+{
+    BattleState& battle = this->battleState;
+    BattleServices& services = this->battleServices;
+    UnitRect rect;
+    const auto unit = static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit);
+
+    auto markRole = [this, &battle]
+    {
+        for (std::size_t panel = 0; panel < static_cast<std::size_t>(Party::Roles); ++panel)
+        {
+            this->battleRoles[panel].SetAC0(0);
+            this->battleHud.portraitHighlight[panel] = 0;
+        }
+
+        this->battleRoles[static_cast<std::size_t>(battle.unk4A754C - 1)].SetAC0(1);
+        battle.unk53BFB8 = 1;
+        battle.unk53C49C = 1;
+    };
+
+    // The original checks role `role` - 1 (role 0: the memory before the roles; here neither forced nor guarding).
+    auto selectable = [this](i32 role)
+    {
+        if (role < 1)
+        {
+            return true;
+        }
+
+        const BattleRole& checked = this->battleRoles[static_cast<std::size_t>(role - 1)];
+        return checked.unk2B00 != 1 && checked.unk2B04 != 1 && !checked.IsGuarding();
+    };
+
+    if (battle.pendingOrders[unit].unk00 != 0)
+    {
+        const auto partyRoles = static_cast<i32>(battle.roleCount - battle.unk53BF26 - battle.guestCount);
+
+        if (partyRoles >= static_cast<i32>(Party::Roles))
+        {
+            int tries = 0;
+
+            while (true)
+            {
+                if (--battle.unk4A7550 < 1)
+                {
+                    battle.unk4A7550 = partyRoles;
+                }
+
+                if (++tries > static_cast<int>(BattleState::RoleCycle.size()) * kHangTries ||
+                    battle.unk4A7550 >= static_cast<i32>(BattleState::RoleCycle.size()))
+                {
+                    Hang();
+                }
+
+                battle.unk53BCF4 = BattleState::RoleCycle[static_cast<std::size_t>(battle.unk4A7550)];
+
+                if (selectable(battle.unk53BCF4))
+                {
+                    break;
+                }
+            }
+
+            this->battleRoles[static_cast<std::size_t>(battle.unk53BCF4)].GetShadowRect(services, rect);
+            battle.unk4A754C = battle.unk53BCF4 + 1;
+            battle.unk53BCF4 = 0;
+            markRole();
+            return;
+        }
+
+        int tries = 0;
+
+        do
+        {
+            if (--battle.unk4A754C < 1)
+            {
+                battle.unk4A754C = static_cast<i32>(battle.roleCount);
+            }
+
+            if (++tries > static_cast<int>(BattleState::RoleUnits) * kHangTries)
+            {
+                Hang();
+            }
+        } while (!selectable(battle.unk4A754C));
+
+        this->battleRoles[static_cast<std::size_t>(battle.unk4A754C - 1)].GetShadowRect(services, rect);
+        markRole();
+        return;
+    }
+
+    if (--battle.unk4A7550 < 1)
+    {
+        battle.unk4A7550 = static_cast<i32>(battle.enemyCount);
+    }
+
+    int tries = 0;
+
+    for (battle.unk53BCF4 = battle.enemyOrder[static_cast<std::size_t>(battle.unk4A7550 - 1)];
+         this->battleEnemies[static_cast<std::size_t>(battle.unk53BCF4)].IsDefeated();
+         battle.unk53BCF4 = battle.enemyOrder[static_cast<std::size_t>(battle.unk4A7550 - 1)])
+    {
+        if (--battle.unk4A7550 < 1)
+        {
+            battle.unk4A7550 = static_cast<i32>(battle.enemyCount);
+        }
+
+        // The original loops for ever when every enemy is down.
+        if (++tries > BattleState::Enemies)
+        {
+            Hang();
+        }
+    }
+
+    this->battleEnemies[static_cast<std::size_t>(battle.unk53BCF4)].GetShadowRect(services, rect);
+
+    for (u32 enemy = 0; enemy < battle.enemyCount; ++enemy)
+    {
+        this->battleEnemies[enemy].SetAC0(0);
+    }
+
+    this->battleEnemies[static_cast<std::size_t>(battle.unk53BCF4)].SetAC0(1);
+    battle.unk53BFB8 = 1;
+    battle.unk53C49C = 1;
+    battle.unk4A754C = battle.unk53BCF4 + 1;
 }
 }  // namespace swd3
