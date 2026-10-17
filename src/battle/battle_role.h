@@ -94,6 +94,10 @@ public:
     void CancelCommand();
     void AddFury(BattleServices& services, int damage);
     int DrainShare(BattleServices& services, i32& amount);
+    u16 Unk1EProficiency(BattleServices& services);
+    void CountUsableObjects(u16& count);
+    int ListedObject(int index, std::string& name, u16& count);
+    ItemNode* StepItem();
     void Regenerate(BattleServices& services);
     void UseAccessorySkill(BattleServices& services, u16 kind);
     void RollCritical(BattleServices& services);

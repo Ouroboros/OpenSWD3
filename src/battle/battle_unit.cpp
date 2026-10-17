@@ -1449,13 +1449,8 @@ constexpr i16 kNumberFadeEnd = 0x30;
 constexpr i16 kNumberFadeStep = 2;
 constexpr int kNumberScaleBase = 0x1A;
 
-// The name of a record up to its terminator, within its 0x20 bytes (the original copies on into the next fields when
-// none is there; 0x00476780, 0x00476860).
-std::string ObjectName(const ObjectRecord& record)
-{
-    const std::span<const char> name(record.data.name);
-    return std::string(name.data(), strnlen(name.data(), name.size()));
-}
+// RollDrop.
+constexpr u32 kDropRoll = 20;
 
 // FadeInvisible and StepAccessoryCounters.
 constexpr i16 kInvisibleFadeFrames = 0x18;
@@ -8538,5 +8533,56 @@ int BattleUnit::SkillName(Database& database, int choice, std::string& name)
     database.LoadObject(this->object, skill);
     name = ObjectName(this->object);
     return 1;
+}
+
+// swd32.exe 0x004762F0: the object an enemy drops (dropItem) on a roll of 0..19 below its dropChance; 0 otherwise
+u16 BattleUnit::RollDrop(BattleServices& services)
+{
+    const ObjectData& data = this->data->data;
+
+    if (data.dropItem == 0 || services.random.Below(kDropRoll) >= data.dropChance)
+    {
+        return 0;
+    }
+
+    return this->data->data.dropItem;
+}
+
+// swd32.exe 0x0046F850: the first worn accessory whose proficiency counter in `list` is full (at its unk44) and not
+// yet done: the counter marked done and the accessory's counter id returned (0 when none; the second accessory is not
+// looked at once the first is). The search starts at the head of the list.
+u16 BattleUnit::FinishProficiency(CounterList& list)
+{
+    u16 finished = 0;
+    bool found = false;
+
+    for (const ObjectRecord& accessory : this->accessories)
+    {
+        const ObjectData& data = accessory.data;
+
+        if (data.unk50 == 0)
+        {
+            continue;
+        }
+
+        if (found)
+        {
+            return finished;
+        }
+
+        for (CounterNode* node = &list; node != nullptr; node = node->next.get())
+        {
+            if (static_cast<u16>(node->id) == data.unk50 && node->done == 0 && node->value >= data.unk44)
+            {
+                found = true;
+                node->value = data.unk44;
+                node->done = 1;
+                finished = data.unk50;
+                break;
+            }
+        }
+    }
+
+    return finished;
 }
 }  // namespace swd3

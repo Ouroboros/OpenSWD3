@@ -822,6 +822,7 @@ TEST_CASE("battle state: the initial turn and push values match swd32.exe")
     constexpr swd3::u32 kRoleCycleAt = 0x004A796C;
     constexpr swd3::u32 kAutoEnemyAt = 0x004A7564;
     constexpr swd3::u32 kMenuCommandAt = 0x004A7548;
+    constexpr swd3::u32 kMasteryRoleAt = 0x004A7646;
     const std::vector<swd3::u8> exe = swd3test::ReadGameFile("swd32.exe");
 
     if (exe.empty())
@@ -841,6 +842,7 @@ TEST_CASE("battle state: the initial turn and push values match swd32.exe")
     CHECK(swd3test::SameTable(exe, kRoleCycleAt, swd3::BattleState::RoleCycle));
     CHECK(swd3test::SameTable(exe, kAutoEnemyAt, std::array<swd3::i32, 1>{state.unk4A7564}));
     CHECK(swd3test::SameTable(exe, kMenuCommandAt, std::array<swd3::i32, 1>{state.unk4A7548}));
+    CHECK(swd3test::SameTable(exe, kMasteryRoleAt, std::array<swd3::u8, 1>{state.unk4A7646}));
 }
 
 TEST_CASE("battle unit: element orbs gain proficiency from hits of an element")
@@ -1082,4 +1084,78 @@ TEST_CASE("battle state: the names of the accessory commands match swd32.exe")
             swd3test::ExeDword(exe, kFixedNamesAt + static_cast<swd3::u32>(at * sizeof(swd3::u32)));
         CHECK(swd3test::SameText(exe, address, swd3::BattleState::FixedCommandNames[at]));
     }
+}
+
+TEST_CASE("battle unit: drops and finished proficiencies")
+{
+    constexpr swd3::u16 kDrop = 7;
+    constexpr swd3::u16 kSureDrop = 20;  // above every roll of 0..19
+    constexpr swd3::u16 kCounter = 9;
+    constexpr swd3::u16 kMaximum = 50;
+    Services all;
+    swd3::ObjectRecord object;
+    swd3::BattleUnit enemy;
+    enemy.data = &object;
+    CHECK_EQ(enemy.RollDrop(all.services), 0);
+    object.data.dropItem = kDrop;
+    CHECK_EQ(enemy.RollDrop(all.services), 0);
+    object.data.dropChance = kSureDrop;
+    CHECK_EQ(enemy.RollDrop(all.services), kDrop);
+
+    swd3::BattleUnit role;
+    role.accessories[0].data.unk50 = kCounter;
+    role.accessories[0].data.unk44 = kMaximum;
+    swd3::CounterList list;
+    list.next = std::make_unique<swd3::CounterNode>();
+    list.next->id = static_cast<swd3::i16>(kCounter);
+    list.next->value = kMaximum - 1;
+    CHECK_EQ(role.FinishProficiency(list), 0);
+    list.next->value = kMaximum;
+    CHECK_EQ(role.FinishProficiency(list), kCounter);
+    CHECK_EQ(list.next->done, 1);
+    CHECK_EQ(role.FinishProficiency(list), 0);
+}
+
+TEST_CASE("battle role: counting and listing the inventory")
+{
+    constexpr swd3::u32 kCountedKind = 0x8000000;
+    constexpr swd3::u16 kFirstRoleUser = 1;
+    constexpr swd3::u16 kThrownObject = 0x300;
+    constexpr swd3::u16 kListedBit = 0x2000;
+    constexpr swd3::i16 kCount = 2;
+    constexpr swd3::i16 kPending = 1;
+    constexpr swd3::u16 kProficiency = 33;
+    constexpr std::array<char, 4> kListedName = {'A', 'B', 'C', '\0'};
+    Services all;
+    swd3::ItemLink head = std::make_unique<swd3::ItemNode>();
+    swd3::ItemNode& counted = *head;
+    counted.id = 1;
+    counted.record.data.kind = kCountedKind;
+    counted.record.data.usableBy = kFirstRoleUser;
+    counted.count = kCount;
+    counted.pending = kPending;
+    counted.next = std::make_unique<swd3::ItemNode>();
+    swd3::ItemNode& thrown = *counted.next;
+    thrown.id = kThrownObject;
+    thrown.record.data.kind = kCountedKind;
+    thrown.record.data.usableBy = kFirstRoleUser;
+    thrown.count = kCount;
+    thrown.next = std::make_unique<swd3::ItemNode>();
+    swd3::ItemNode& listed = *thrown.next;
+    listed.record.data.unk40 = kListedBit;
+    listed.count = kCount;
+    std::copy(kListedName.begin(), kListedName.end(), listed.record.data.name.begin());
+    swd3::BattleRole role;
+    role.SetInventory(&head);
+    swd3::u16 count = 0;
+    role.CountUsableObjects(count);
+    CHECK_EQ(count, kCount + kPending);
+    CHECK(role.inventoryNode == nullptr);
+    std::string name;
+    CHECK_EQ(role.ListedObject(1, name, count), 1);
+    CHECK(name == "ABC");
+    CHECK_EQ(count, kCount);
+    CHECK_EQ(role.ListedObject(2, name, count), 0);
+    role.unk26DC = kProficiency;
+    CHECK_EQ(role.Unk1EProficiency(all.services), kProficiency);
 }

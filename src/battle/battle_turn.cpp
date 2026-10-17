@@ -1453,4 +1453,36 @@ void Game::DrawCommandMenu(int x, int y, int cursor)
 
     font.SetBackground(TextFont::NoBackground);
 }
+
+// swd32.exe 0x00468FF0: the first party role (not forced, standing) whose accessory proficiency has just filled
+// (FinishProficiency): its object read into unk53BC28 (the description freed), its name kept in unk53C154 for the
+// message, unk53BFFC set and unk4A7646 the role
+void Game::AnnounceMastery()
+{
+    BattleState& battle = this->battleState;
+
+    for (u32 index = 0; index < battle.roleCount; ++index)
+    {
+        BattleRole& role = this->battleRoles[index];
+
+        if (role.unk2B00 == 1 || role.unk2B04 == 1 || role.IsDefeated())
+        {
+            continue;
+        }
+
+        const u16 finished = role.FinishProficiency(this->party.fame.lists[Fame::ProficiencyList]);
+
+        if (finished == 0)
+        {
+            continue;
+        }
+
+        this->database.LoadObject(battle.unk53BC28, finished);
+        Database::FreeDescription(battle.unk53BC28);
+        battle.unk53BFFC = 1;
+        battle.unk53C154 = ObjectName(battle.unk53BC28);
+        battle.unk4A7646 = static_cast<u8>(index);
+        return;
+    }
+}
 }  // namespace swd3

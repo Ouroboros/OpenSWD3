@@ -70,9 +70,9 @@ struct ObjectData
     u16 healItemA = 0;   // +0x7A the object an enemy heals itself with (choice 1)
     u16 healCountA = 0;  // +0x7C its uses left
     u16 healItemB = 0;
-    u16 healCountB = 0;  // +0x80 (choice 2)
-    u16 unk82 = 0;
-    u16 unk84 = 0;
+    u16 healCountB = 0;       // +0x80 (choice 2)
+    u16 dropItem = 0;         // +0x82 the object an enemy may drop (RollDrop)
+    u16 dropChance = 0;       // +0x84 a roll of 0..19 below it drops it
     u16 stealItem = 0;        // +0x86 the item an enemy can be robbed of (BattleRole::Steal), 0: none
     u16 stealDifficulty = 0;  // +0x88 2..5: a steal roll below it succeeds
     u16 unk8A = 0;
@@ -97,6 +97,21 @@ struct ObjectRecord
     ObjectData data;
     std::optional<std::string> description;
 };
+
+// The name of `record` up to its terminator, within its 0x20 bytes (the original copies with lstrcpyA, on into the
+// next fields when no terminator is there).
+inline std::string ObjectName(const ObjectRecord& record)
+{
+    const auto& name = record.data.name;
+    std::size_t length = 0;
+
+    while (length < name.size() && name[length] != '\0')
+    {
+        ++length;
+    }
+
+    return std::string(name.data(), length);
+}
 
 // A skill script of mon.dat (Database::LoadSkill): flags and parameters set by the opcodes.
 struct SkillScript

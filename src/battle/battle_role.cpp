@@ -214,6 +214,10 @@ constexpr u32 kAccessoryBit1D = 0x100;
 constexpr u32 kAccessoryBit1E = 0x200;
 constexpr u16 kAccessoryStep = 5;        // the proficiency steps of an accessory command
 constexpr u16 kDrainStep = 0xC;          // the proficiency the life-drain accessory gains from a drain
+constexpr u32 kCountedKind = 0x8000000;  // ObjectData::kind bit of the objects CountUsableObjects counts
+constexpr u16 kThrownObject = 0x300;
+constexpr u8 kCountedUsers = 5;          // usableBy (low byte) bits 0 and 2
+constexpr u16 kListedObject = 0x2000;    // ObjectData::unk40 bit of the objects ListedObject counts
 constexpr int kUnk1FScale = 4;           // Unk1F: unk29A4 is 4 percent of the proficiency and 1
 constexpr int kAccessoryBaseShare = 10;  // the heals add a tenth of their base
 constexpr int kHalfShare = 5;            // Unk22 / Unk24: the proficiency is halved, less a fifth of that
@@ -3602,5 +3606,80 @@ int BattleRole::DrainShare(BattleServices& services, i32& amount)
     this->unk26DC = static_cast<u16>(this->unk26DC >> 1);
     amount = amount * this->unk26DC / kPercent + 1;
     return 1;
+}
+
+// swd32.exe 0x00475160: the proficiency in percent of the Unk1E accessory (硃砂神筆), kept in unk26DC
+u16 BattleRole::Unk1EProficiency(BattleServices& services)
+{
+    this->AccessoryProficiency(
+        static_cast<u16>(AccessoryKind::Unk1E),
+        services.party.fame.lists[Fame::ProficiencyList]
+    );
+    return this->unk26DC;
+}
+
+// swd32.exe 0x00471080: `count` set to the objects (count and pending) in the inventory with kind bit kCountedKind,
+// not kThrownObject, usable by roles bit 0 or 2 (usableBy low byte & 5); the walk leaves the shown list at its end
+void BattleRole::CountUsableObjects(u16& count)
+{
+    this->ShowAllItems();
+    count = 0;
+
+    while (ItemNode* const node = this->StepItem())
+    {
+        const ObjectData& data = node->record.data;
+
+        if ((data.kind & kCountedKind) != 0 && node->id != kThrownObject &&
+            (LowByte(data.usableBy) & kCountedUsers) != 0)
+        {
+            count = static_cast<u16>(count + node->count + node->pending);
+        }
+    }
+}
+
+// swd32.exe 0x00470F70: the `index`th object of the inventory with unk40 bit kListedObject (the first one at all for
+// 0): its name and its count with the pending ones; 0 past the end
+int BattleRole::ListedObject(int index, std::string& name, u16& count)
+{
+    int listed = 0;
+    ItemNode* node = nullptr;
+    this->ShowAllItems();
+
+    do
+    {
+        node = this->StepItem();
+
+        if (node == nullptr)
+        {
+            return 0;
+        }
+
+        if ((node->record.data.unk40 & kListedObject) != 0)
+        {
+            ++listed;
+        }
+    } while (listed != index);
+
+    name = ObjectName(node->record);
+    count = static_cast<u16>(node->count + node->pending);
+    return 1;
+}
+
+// The step of the shown item list to its next item (inline in the original, which keeps the node at +0x2EC8): at
+// the end both are cleared.
+ItemNode* BattleRole::StepItem()
+{
+    ItemNode* const node = this->inventory != nullptr ? this->inventory->get() : nullptr;
+
+    if (node == nullptr)
+    {
+        this->inventory = nullptr;
+        this->inventoryNode = nullptr;
+        return nullptr;
+    }
+
+    this->inventory = &node->next;
+    this->inventoryNode = node;
+    return node;
 }
 }  // namespace swd3

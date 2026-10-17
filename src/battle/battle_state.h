@@ -332,6 +332,11 @@ public:
     u16 unk4A7644 = 0xFFFF;  // a role unit that may take the panel in any battle state (SelectRoleUnit)
     i32 unk4A7548 = 1;       // the command chosen in the menu (1-based)
     i32 unk53BD18 = 0;       // the page of the list of state 2 (0..2)
+    // The proficiency filled in the battle (AnnounceMastery).
+    ObjectRecord unk53BC28;
+    std::string unk53C154;  // its name for the message
+    i32 unk53BFFC = 0;
+    u8 unk4A7646 = 0xFF;  // the role
     // The end of the battle (Game::CheckBattleEnd, Game::DrawBattlePrompt).
     i32 unk53C4A8 = 0;  // the fade of the field to black, 2 darker a frame
     i32 unk53BDC8 = 0;
