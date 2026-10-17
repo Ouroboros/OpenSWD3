@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iterator>
 #include <limits>
+#include <string_view>
 
 #include "platform/audio_decoder.h"
 #include "platform/file_system.h"
@@ -21,6 +22,28 @@ constexpr int kUnityGain = 0x100;  // the mixer gains are fixed point
 constexpr int kPanHalf = 63;       // the pan distance at which a side reaches unity gain
 constexpr int kMillisecondsPerSecond = 1000;
 
+// The RIFF WAVE layout: the RIFF tag and size, the WAVE tag, then chunks of a tag, a size and the data, word aligned.
+constexpr std::string_view kRiffTag = "RIFF";
+constexpr std::string_view kWaveTag = "WAVE";
+constexpr std::string_view kFormatTag = "fmt ";
+constexpr std::string_view kDataTag = "data";
+constexpr std::size_t kTagBytes = 4;
+constexpr std::size_t kRiffSizeAt = 4;
+constexpr std::size_t kFormAt = 8;
+constexpr std::size_t kFirstChunkAt = 12;
+constexpr std::size_t kChunkHeaderBytes = 8;
+constexpr u32 kChunkAlign = 2;
+constexpr std::size_t kFormatCodeAt = 8;  // in the fmt chunk
+constexpr std::size_t kChannelsAt = 10;
+constexpr std::size_t kRateAt = 12;
+constexpr std::size_t kBitsAt = 22;
+constexpr u16 kPcmFormat = 1;
+
+bool HasTag(const u8* bytes, std::string_view tag)
+{
+    return std::memcmp(bytes, tag.data(), tag.size()) == 0;
+}
+
 u32 ReadDword(const u8* bytes)
 {
     u32 value = 0;
@@ -31,45 +54,45 @@ u32 ReadDword(const u8* bytes)
 u16 ReadWord(const u8* bytes)
 {
     u16 value = 0;
-    std::memcpy(&value, bytes, 2);
+    std::memcpy(&value, bytes, sizeof(value));
     return value;
 }
 
 // The PCM data of a RIFF WAVE image (format tag 1 only).
 bool LoadRiff(const u8* image, std::vector<i16>& pcm)
 {
-    if (std::memcmp(image, "RIFF", 4) != 0 || std::memcmp(image + 8, "WAVE", 4) != 0)
+    if (!HasTag(image, kRiffTag) || !HasTag(image + kFormAt, kWaveTag))
     {
         return false;
     }
 
-    const u8* chunk = image + 12;
-    const u8* end = image + 8 + ReadDword(image + 4);
+    const u8* chunk = image + kFirstChunkAt;
+    const u8* end = image + kFormAt + ReadDword(image + kRiffSizeAt);
     int channels = 0;
     int rate = 0;
     int bits = 0;
 
-    while (chunk + 8 <= end)
+    while (chunk + kChunkHeaderBytes <= end)
     {
-        const u32 size = ReadDword(chunk + 4);
+        const u32 size = ReadDword(chunk + kTagBytes);
 
-        if (std::memcmp(chunk, "fmt ", 4) == 0)
+        if (HasTag(chunk, kFormatTag))
         {
-            if (ReadWord(chunk + 8) != 1)
+            if (ReadWord(chunk + kFormatCodeAt) != kPcmFormat)
             {
                 return false;
             }
 
-            channels = ReadWord(chunk + 10);
-            rate = static_cast<int>(ReadDword(chunk + 12));
-            bits = ReadWord(chunk + 22);
+            channels = ReadWord(chunk + kChannelsAt);
+            rate = static_cast<int>(ReadDword(chunk + kRateAt));
+            bits = ReadWord(chunk + kBitsAt);
         }
-        else if (std::memcmp(chunk, "data", 4) == 0)
+        else if (HasTag(chunk, kDataTag))
         {
-            return ConvertPcm(chunk + 8, size, channels, rate, bits, pcm);
+            return ConvertPcm(chunk + kChunkHeaderBytes, size, channels, rate, bits, pcm);
         }
 
-        chunk += 8 + ((size + 1) & ~1u);
+        chunk += kChunkHeaderBytes + ((size + kChunkAlign - 1) & ~(kChunkAlign - 1));
     }
 
     return false;

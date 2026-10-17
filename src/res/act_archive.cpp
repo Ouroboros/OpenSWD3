@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstring>
 
+#include "core/byte_reader.h"
 #include "core/debug_log.h"
 #include "core/format.h"
 #include "core/words.h"
@@ -22,31 +23,17 @@ constexpr i16 kDelayMask = 0x7FFF;  // a negative speed sets the delay to its lo
 
 int ChainOf(int id, int sub)
 {
-    return (id == ActArchive::MapAct ? sub % 10 : id % 10) & 0xFFFF;
+    return LowWord(static_cast<u32>(id == ActArchive::MapAct ? sub % ActArchive::Chains : id % ActArchive::Chains));
 }
 
 u16 ReadWord(const std::vector<u8>& data, std::size_t offset)
 {
-    u16 value = 0;
-
-    if (offset + 2 <= data.size())
-    {
-        std::memcpy(&value, data.data() + offset, 2);
-    }
-
-    return value;
+    return ByteReader::Word16At(data, offset);
 }
 
 u32 ReadDword(const std::vector<u8>& data, std::size_t offset)
 {
-    u32 value = 0;
-
-    if (offset + 4 <= data.size())
-    {
-        std::memcpy(&value, data.data() + offset, 4);
-    }
-
-    return value;
+    return ByteReader::Word32At(data, offset);
 }
 
 }  // namespace

@@ -99,10 +99,10 @@ void AppendConverted(SwrContext* resampler, const u8** input, int inputSamples, 
     }
 
     const std::size_t start = pcm.size();
-    pcm.resize(start + static_cast<std::size_t>(capacity) * 2);
+    pcm.resize(start + static_cast<std::size_t>(capacity) * kMixChannels);
     u8* output = reinterpret_cast<u8*>(pcm.data() + start);
     const int produced = swr_convert(resampler, &output, capacity, input, inputSamples);
-    pcm.resize(start + static_cast<std::size_t>(produced > 0 ? produced : 0) * 2);
+    pcm.resize(start + static_cast<std::size_t>(produced > 0 ? produced : 0) * kMixChannels);
 }
 
 }  // namespace

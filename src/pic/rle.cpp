@@ -29,13 +29,13 @@ u16 ReadWord(const u8* bytes)
 
 void WriteWord(u8* bytes, u16 value)
 {
-    std::memcpy(bytes, &value, 2);
+    std::memcpy(bytes, &value, sizeof(value));
 }
 
 void AppendWord(std::vector<u8>& out, u16 value)
 {
     out.push_back(static_cast<u8>(value));
-    out.push_back(static_cast<u8>(value >> 8));
+    out.push_back(static_cast<u8>(value >> CHAR_BIT));
 }
 
 // Encoder of one picture line. Fill and skip pixels become runs, everything else literal runs. A pixel equal to both
@@ -45,7 +45,7 @@ void EncodeLine(const Pixel*& source, int width, Pixel fill, Pixel skip, bool fi
 {
     const std::size_t header = out.size();
     AppendWord(out, 0);
-    u32 lineBytes = 2;
+    u32 lineBytes = sizeof(u16);  // the line header
     u16 flag = kStartsWithLiteral;
 
     if (*source == fill || (!fillOnlyFlag && *source == skip))
@@ -74,7 +74,7 @@ void EncodeLine(const Pixel*& source, int width, Pixel fill, Pixel skip, bool fi
                     break;
                 }
 
-                if constexpr (sizeof(Pixel) == 2)
+                if constexpr (sizeof(Pixel) == sizeof(u16))
                 {
                     AppendWord(out, value);
                 }
@@ -84,7 +84,7 @@ void EncodeLine(const Pixel*& source, int width, Pixel fill, Pixel skip, bool fi
                 }
             }
 
-            lineBytes += 2 + static_cast<u32>(length * sizeof(Pixel));
+            lineBytes += sizeof(u16) + static_cast<u32>(length * sizeof(Pixel));
             WriteWord(out.data() + count, static_cast<u16>(length));
             source += length;
             x += length;
@@ -106,7 +106,7 @@ void EncodeLine(const Pixel*& source, int width, Pixel fill, Pixel skip, bool fi
     } while (x <= width);
 
     AppendWord(out, 0);
-    WriteWord(out.data() + header, static_cast<u16>((lineBytes + 2) | flag));
+    WriteWord(out.data() + header, static_cast<u16>((lineBytes + sizeof(u16)) | flag));
 }
 
 }  // namespace

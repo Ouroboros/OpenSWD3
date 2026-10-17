@@ -23,12 +23,6 @@ constexpr std::size_t kStrikeCountAt = 12;
 constexpr std::size_t kHeaderBytes = 16;
 constexpr std::size_t kStrikeHeaderBytes = 8;  // a strike: size, glyph count, then (code, cell) pairs
 constexpr u8 kLeftmostBit = 0x80;              // cell rows are packed from the left
-constexpr u32 kByteMask = 0xFF;
-constexpr int kRed565Drop = 3;  // 8-bit channels to RGB565
-constexpr int kGreen565Drop = 2;
-constexpr int kBlue565Drop = 3;
-constexpr int kRed565Shift = 11;
-constexpr int kGreen565Shift = 5;
 
 u32 ReadU32(const std::vector<u8>& data, std::size_t offset)
 {
@@ -40,17 +34,6 @@ u32 ReadU32(const std::vector<u8>& data, std::size_t offset)
     }
 
     return value;
-}
-
-// GDI's colour of a COLORREF on the RGB565 glyph surface.
-Pixel DevicePixel(u32 color)
-{
-    const u32 red = color & kByteMask;
-    const u32 green = (color >> CHAR_BIT) & kByteMask;
-    const u32 blue = (color >> (2 * CHAR_BIT)) & kByteMask;
-    return static_cast<Pixel>(
-        ((red >> kRed565Drop) << kRed565Shift) | ((green >> kGreen565Drop) << kGreen565Shift) | (blue >> kBlue565Drop)
-    );
 }
 
 }  // namespace

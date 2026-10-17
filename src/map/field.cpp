@@ -6,6 +6,7 @@
 #include <string>
 
 #include "config/config.h"
+#include "core/byte_reader.h"
 #include "core/debug_log.h"
 #include "core/format.h"
 #include "core/words.h"
@@ -118,15 +119,16 @@ constexpr i32 kCameraLeft = Display::Width / 2 - MapHeader::TileSize;  // the ca
 constexpr i32 kCameraUp = Display::Height / 2;
 constexpr i32 kScreenColumns = Display::Width / MapHeader::TileSize;
 constexpr i32 kScreenRows = Display::Height / MapHeader::TileSize;
+constexpr i32 kTwoTiles = 2;  // a role this wide or high has its second cell set directly
 
 u16 Word(std::span<const u8> bytes, std::size_t at)
 {
-    return at + 2 <= bytes.size() ? static_cast<u16>(bytes[at] | bytes[at + 1] << 8) : u16{0};
+    return ByteReader::Word16At(bytes, at);
 }
 
 u32 Dword(std::span<const u8> bytes, std::size_t at)
 {
-    return static_cast<u32>(Word(bytes, at) | static_cast<u32>(Word(bytes, at + 2)) << 16);
+    return MakeWords(Word(bytes, at + sizeof(u16)), Word(bytes, at));
 }
 
 std::size_t StringLength(std::span<const u8> bytes, std::size_t at)
@@ -765,7 +767,7 @@ void ChangeRoleCells(std::vector<u32>& blocks, i32 mapWidth, const Role& role, C
 
     if (height == 1)
     {
-        if (width == 2)
+        if (width == kTwoTiles)
         {
             apply(start + 1);
             return;
@@ -776,7 +778,7 @@ void ChangeRoleCells(std::vector<u32>& blocks, i32 mapWidth, const Role& role, C
             return;
         }
     }
-    else if (height == 2 && width == 1)
+    else if (height == kTwoTiles && width == 1)
     {
         apply(start + mapWidth);
         return;

@@ -43,13 +43,13 @@ constexpr int Slot(Button button)
 u32 ReadDword(const std::vector<u8>& data, std::size_t offset)
 {
     u32 value = 0;
-    std::memcpy(&value, data.data() + offset, 4);
+    std::memcpy(&value, data.data() + offset, sizeof(value));
     return value;
 }
 
 void WriteDword(std::vector<u8>& data, std::size_t offset, u32 value)
 {
-    std::memcpy(data.data() + offset, &value, 4);
+    std::memcpy(data.data() + offset, &value, sizeof(value));
 }
 
 // Reads the whole file into the 0x1000-byte buffer (the original reads the file size into it unchecked).

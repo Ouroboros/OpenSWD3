@@ -12,6 +12,7 @@ namespace
 {
 
 constexpr std::size_t kLimit = 1023;
+constexpr std::size_t kBufferBytes = kLimit + 2;  // a formatted field with room past the limit and its NUL
 
 std::string FormatText(std::string_view format, std::initializer_list<FormatArgument> arguments, bool utf8);
 
@@ -140,7 +141,7 @@ std::string FormatText(std::string_view format, std::initializer_list<FormatArgu
         }
 
         const FormatArgument* value = argument != arguments.end() ? argument++ : nullptr;
-        std::vector<char> buffer(kLimit + 2);
+        std::vector<char> buffer(kBufferBytes);
 
         switch (type)
         {

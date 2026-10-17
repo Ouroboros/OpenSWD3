@@ -3,6 +3,7 @@
 #include <cstring>
 
 #include "codec/lzo.h"
+#include "core/byte_reader.h"
 #include "crt/msvc.h"
 #include "org/database.h"
 #include "platform/message_box.h"
@@ -18,6 +19,7 @@ constexpr std::size_t kHeaderBytes = 0xA;
 constexpr std::size_t kBlockHeaderBytes = 0xA;
 constexpr std::size_t kSlackBytes = 0x1E;
 constexpr int kFameBits = 15;
+constexpr double kPercent = 100.0;
 constexpr std::size_t kCountAt = sizeof(u32);  // a list header: its bytes, then its node count
 constexpr std::size_t kVersionAt = 0;          // the save block: 1, the unpacked and the packed size
 constexpr u8 kBlockVersion = 1;
@@ -62,42 +64,47 @@ void CountOne(CounterList& list)
 
 u16 Percent(u16 value, u16 maximum)
 {
-    return static_cast<u16>(crt::Ftol(static_cast<double>(value) / static_cast<double>(maximum) * 100.0));
+    return static_cast<u16>(crt::Ftol(static_cast<double>(value) / static_cast<double>(maximum) * kPercent));
 }
 
 void PutDword(std::vector<u8>& data, std::size_t at, u32 value)
 {
-    std::memcpy(data.data() + at, &value, 4);
+    std::memcpy(data.data() + at, &value, sizeof(value));
 }
 
 u32 GetDword(std::span<const u8> data, std::size_t at)
 {
-    u32 value = 0;
-
-    if (at + 4 <= data.size())
-    {
-        std::memcpy(&value, data.data() + at, 4);
-    }
-
-    return value;
+    return ByteReader::Word32At(data, at);
 }
 
 void SaveNode(const CounterNode& node, u8* entry)
 {
-    std::memcpy(entry, &node.id, 2);
-    std::memcpy(entry + 2, &node.value, 2);
-    std::memcpy(entry + 4, &node.percent, 2);
-    std::memcpy(entry + 6, &node.done, 2);
-    std::memcpy(entry + 8, node.unk0C.data(), node.unk0C.size());
+    auto put = [&entry](const void* field, std::size_t bytes)
+    {
+        std::memcpy(entry, field, bytes);
+        entry += bytes;
+    };
+
+    put(&node.id, sizeof(node.id));
+    put(&node.value, sizeof(node.value));
+    put(&node.percent, sizeof(node.percent));
+    put(&node.done, sizeof(node.done));
+    put(node.unk0C.data(), node.unk0C.size());
 }
 
 void LoadNode(CounterNode& node, const u8* entry)
 {
-    std::memcpy(&node.id, entry, 2);
-    std::memcpy(&node.value, entry + 2, 2);
-    std::memcpy(&node.percent, entry + 4, 2);
-    std::memcpy(&node.done, entry + 6, 2);
-    std::memcpy(node.unk0C.data(), entry + 8, node.unk0C.size());
+    auto get = [&entry](void* field, std::size_t bytes)
+    {
+        std::memcpy(field, entry, bytes);
+        entry += bytes;
+    };
+
+    get(&node.id, sizeof(node.id));
+    get(&node.value, sizeof(node.value));
+    get(&node.percent, sizeof(node.percent));
+    get(&node.done, sizeof(node.done));
+    get(node.unk0C.data(), node.unk0C.size());
 }
 
 }  // namespace

@@ -18,6 +18,8 @@ namespace swd3
 namespace
 {
 
+constexpr i32 kRepeatAfter = 7;  // frames a key slot is held before it repeats
+
 constexpr int kFirstRoleFlag = GameState::InParty;
 constexpr int kSwappedPagesFlag = GameState::SwappedPages;
 constexpr int kHiddenPointerFlag = GameState::NoChoicePointer;
@@ -110,7 +112,7 @@ bool Pressed(const ButtonState& button)
 // A key slot acting when it goes down and every second frame after the seventh.
 bool Repeating(const ButtonState& button, i32 parity)
 {
-    return button.press != 0 && (button.heldFrames == 1 || ((parity & 1) == 0 && button.heldFrames > 7));
+    return button.press != 0 && (button.heldFrames == 1 || ((parity & 1) == 0 && button.heldFrames > kRepeatAfter));
 }
 
 }  // namespace

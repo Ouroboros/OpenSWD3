@@ -1,15 +1,19 @@
 #include "audio/audio_manager.h"
 
+#include "config/config.h"
+
 namespace swd3
 {
 
 namespace
 {
 
+constexpr int kMilesVolumeUnit = 0x80;  // Miles volumes run to 0x7F
+
 // The options' volume 0..11 as a Miles volume.
 int ScaledVolume(int volume)
 {
-    return (volume << 7) / 11;
+    return volume * kMilesVolumeUnit / Config::MaxVolume;
 }
 
 }  // namespace

@@ -16,26 +16,26 @@ namespace
 u16 Word(const u8* bytes, std::ptrdiff_t index = 0)
 {
     u16 value = 0;
-    std::memcpy(&value, bytes + 2 * index, 2);
+    std::memcpy(&value, bytes + sizeof(value) * index, sizeof(value));
     return value;
 }
 
 u32 ReadPair(const u16* pixels)
 {
     u32 value = 0;
-    std::memcpy(&value, pixels, 4);
+    std::memcpy(&value, pixels, sizeof(value));
     return value;
 }
 
 void WritePair(u16* pixels, u32 value)
 {
-    std::memcpy(pixels, &value, 4);
+    std::memcpy(pixels, &value, sizeof(value));
 }
 
 // Whether a pixel pointer is not on a 4-byte boundary (the pair loops of the original align on it).
 bool OddAligned(const u16* pixel)
 {
-    return (reinterpret_cast<std::uintptr_t>(pixel) & 2) != 0;
+    return reinterpret_cast<std::uintptr_t>(pixel) % sizeof(u32) != 0;
 }
 
 constexpr u16 kAlphaMapMarker = 0xFFF0;

@@ -143,7 +143,7 @@ void Input::SetMousePosition(int x, int y)
 // swd32.exe 0x004374C0: tenths, truncated
 void Input::SetSensitivity(double sensitivity)
 {
-    this->sensitivity = static_cast<i32>(crt::Ftol(sensitivity * 10.0));
+    this->sensitivity = static_cast<i32>(crt::Ftol(sensitivity * Input::Tenths));
 }
 
 // swd32.exe 0x004374E0

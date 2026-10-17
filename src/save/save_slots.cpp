@@ -5,6 +5,7 @@
 #include <span>
 
 #include "codec/lzo.h"
+#include "core/byte_reader.h"
 #include "core/format.h"
 #include "draw/painter.h"
 #include "file/file.h"
@@ -33,31 +34,24 @@ constexpr std::size_t kUnk28At = 4;  // in the unpacked data
 
 u32 Dword(std::span<const u8> bytes, std::size_t at)
 {
-    if (at + 4 > bytes.size())
-    {
-        return 0;
-    }
-
-    return static_cast<u32>(
-        bytes[at] | bytes[at + 1] << 8 | bytes[at + 2] << 16 | static_cast<u32>(bytes[at + 3]) << 24
-    );
+    return ByteReader::Word32At(bytes, at);
 }
 
 u16 Word(std::span<const u8> bytes, std::size_t at)
 {
-    return at + 2 <= bytes.size() ? static_cast<u16>(bytes[at] | bytes[at + 1] << 8) : u16{0};
+    return ByteReader::Word16At(bytes, at);
 }
 
 // A packed block (its packed size, its size in words, the 14-bit LZO data) at `at`.
 std::vector<u8> Unpack(std::span<const u8> view, std::size_t at)
 {
     const u32 packed = Dword(view, at);
-    const u32 words = Dword(view, at + 4);
-    std::vector<u8> output(2 * static_cast<std::size_t>(words), 0);
+    const u32 words = Dword(view, at + sizeof(u32));
+    std::vector<u8> output(sizeof(u16) * static_cast<std::size_t>(words), 0);
 
-    if (at + 8 + packed <= view.size())
+    if (at + kBlockHeaderBytes + packed <= view.size())
     {
-        LzoDecoder(view.subspan(at + 8, packed), output).Run();
+        LzoDecoder(view.subspan(at + kBlockHeaderBytes, packed), output).Run();
     }
 
     return output;

@@ -4,6 +4,7 @@
 #include <climits>
 #include <cstring>
 
+#include "core/byte_reader.h"
 #include "core/words.h"
 #include "pic/picture.h"
 #include "pic/rle.h"
@@ -23,12 +24,7 @@ constexpr int kRowExtraWords = 3;
 // The word at `index` of the data; words past the end read as 0.
 u16 WordAt(const std::vector<u8>& data, std::size_t index)
 {
-    if (2 * index + 1 >= data.size())
-    {
-        return 0;
-    }
-
-    return static_cast<u16>(data[2 * index] | (data[2 * index + 1] << 8));
+    return ByteReader::Word16At(data, sizeof(u16) * index);
 }
 
 }  // namespace

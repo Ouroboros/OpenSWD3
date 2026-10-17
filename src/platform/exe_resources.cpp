@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iterator>
 
+#include "core/byte_reader.h"
 #include "platform/file_system.h"
 #include "platform/surface.h"
 
@@ -75,14 +76,12 @@ public:
 
     u16 Word(std::size_t offset) const
     {
-        return this->Has(offset, 2) ? static_cast<u16>(this->bytes[offset] | this->bytes[offset + 1] << 8) : u16{0};
+        return ByteReader::Word16At(this->bytes, offset);
     }
 
     u32 Dword(std::size_t offset) const
     {
-        return this->Has(offset, 4)
-                   ? static_cast<u32>(this->Word(offset) | static_cast<u32>(this->Word(offset + 2)) << 16)
-                   : 0u;
+        return ByteReader::Word32At(this->bytes, offset);
     }
 
 private:

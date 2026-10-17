@@ -26,15 +26,6 @@ constexpr int kFormat556 = 1;  // pixelFormat: the channel with six bits
 constexpr int kFormat565 = 2;
 constexpr int kFormat655 = 3;
 
-// GDI's colour of a COLORREF on a 16-bit RGB565 surface (SetPixel keeps the high bits of each channel).
-Pixel DevicePixel(ColorRef color)
-{
-    const u32 red = color & 0xFF;
-    const u32 green = (color >> 8) & 0xFF;
-    const u32 blue = (color >> 16) & 0xFF;
-    return static_cast<Pixel>(((red >> 3) << 11) | ((green >> 2) << 5) | (blue >> 3));
-}
-
 }  // namespace
 
 // swd32.exe 0x004311C0: a message box naming the DirectDraw result (nothing for an unknown one). The original

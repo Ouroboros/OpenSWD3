@@ -5,6 +5,7 @@
 #include <cstring>
 #include <string>
 
+#include "core/byte_reader.h"
 #include "core/format.h"
 #include "platform/message_box.h"
 
@@ -22,14 +23,7 @@ constexpr std::size_t kLongMessage = 160;
 
 u32 ReadDword(const std::vector<u8>& block, std::size_t offset)
 {
-    u32 value = 0;
-
-    if (offset + 4 <= block.size())
-    {
-        std::memcpy(&value, block.data() + offset, 4);
-    }
-
-    return value;
+    return ByteReader::Word32At(block, offset);
 }
 
 }  // namespace

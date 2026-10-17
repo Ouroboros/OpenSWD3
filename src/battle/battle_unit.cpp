@@ -1255,7 +1255,7 @@ constexpr u16 kHealTarget = 0x246F;
 // The value of a skill script: the word at +0xE.
 u16 SkillValue(const SkillScript& skill)
 {
-    return static_cast<u16>(skill.unk0C >> 16);
+    return HighWord(skill.unk0C);
 }
 
 void SetEffectIcon(EffectNode& node, int frame, u16 icon)

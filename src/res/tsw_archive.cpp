@@ -18,20 +18,11 @@ namespace swd3
 namespace
 {
 
-constexpr u16 kEntryMagic = 0xABCD;
-constexpr u16 kPaletteFormat = 8;
-constexpr u32 kDirectoryStart = 0x1C;
-constexpr std::size_t kEntryHeaderBytes = 12;  // an entry: a dword, the magic, the frame count, the format
-constexpr std::size_t kMagicAt = 4;
-constexpr std::size_t kFrameCountAt = 6;
-constexpr std::size_t kFormatAt = 8;
-constexpr u32 kPaletteColors = 0x100;
-
 // Bucket of the cache chains: by id, map pictures by unit.
 int ChainOf(u32 id, u32 frame)
 {
-    return static_cast<u16>(id) == TswArchive::MapPicture ? static_cast<int>((LowWord(frame)) % 10)
-                                                          : static_cast<int>(LowWord(id) % 10);
+    return static_cast<u16>(id) == TswArchive::MapPicture ? static_cast<int>((LowWord(frame)) % TswArchive::Chains)
+                                                          : static_cast<int>(LowWord(id) % TswArchive::Chains);
 }
 
 bool IsMagic(u32 id)
@@ -247,7 +238,7 @@ void TswArchive::ReadMagicDirectory(File& file)
 {
     for (std::size_t i = 0; i < this->magicDirectory.size(); ++i)
     {
-        file.Seek(File::Origin::Begin, static_cast<i32>(kDirectoryStart + sizeof(TswDirectoryEntry) * i));
+        file.Seek(File::Origin::Begin, static_cast<i32>(TswArchive::DirectoryStart + sizeof(TswDirectoryEntry) * i));
         ReadValue(file, this->magicDirectory[i]);
     }
 }
@@ -450,24 +441,24 @@ bool TswArchive::OpenFile(File& file, const std::string& name)
 // entry
 bool TswArchive::ReadHeader(File& file, FrameInfo& info, u16& frameCount)
 {
-    u8 header[kEntryHeaderBytes] = {};
+    u8 header[TswArchive::EntryHeaderBytes] = {};
     u32 bytes = sizeof(header);
     file.Read(header, bytes);
     u16 magic = 0;
-    std::memcpy(&magic, header + kMagicAt, sizeof(magic));
+    std::memcpy(&magic, header + TswArchive::MagicAt, sizeof(magic));
 
-    if (magic != kEntryMagic)
+    if (magic != TswArchive::EntryMagic)
     {
         return false;
     }
 
-    std::memcpy(&frameCount, header + kFrameCountAt, sizeof(frameCount));
-    std::memcpy(&info.format, header + kFormatAt, sizeof(info.format));
+    std::memcpy(&frameCount, header + TswArchive::FrameCountAt, sizeof(frameCount));
+    std::memcpy(&info.format, header + TswArchive::FormatAt, sizeof(info.format));
 
-    if (info.format == kPaletteFormat)
+    if (info.format == TswArchive::PaletteFormat)
     {
-        info.palette.assign(kPaletteColors, 0);
-        u32 paletteBytes = kPaletteColors * sizeof(u16);
+        info.palette.assign(TswArchive::PaletteColors, 0);
+        u32 paletteBytes = TswArchive::PaletteColors * sizeof(u16);
         file.Read(info.palette.data(), paletteBytes);
     }
 
@@ -526,7 +517,10 @@ bool TswArchive::LoadPicture(File& file, int index, u32 frame, Picture& picture)
     }
     else
     {
-        file.Seek(File::Origin::Begin, static_cast<i32>(kDirectoryStart + sizeof(TswDirectoryEntry) * (index - 1)));
+        file.Seek(
+            File::Origin::Begin,
+            static_cast<i32>(TswArchive::DirectoryStart + sizeof(TswDirectoryEntry) * (index - 1))
+        );
         ReadValue(file, entry);
         file.Seek(File::Origin::Begin, static_cast<i32>(entry.offset));
         u16 count = 0;
@@ -655,7 +649,10 @@ bool TswArchive::LoadPictureB(File& file, int index, u32 frame, Picture& picture
     }
     else
     {
-        file.Seek(File::Origin::Begin, static_cast<i32>(kDirectoryStart + sizeof(TswDirectoryEntry) * (index - 1)));
+        file.Seek(
+            File::Origin::Begin,
+            static_cast<i32>(TswArchive::DirectoryStart + sizeof(TswDirectoryEntry) * (index - 1))
+        );
         ReadValue(file, entry);
         file.Seek(File::Origin::Begin, static_cast<i32>(entry.offset));
         u16 count = 0;

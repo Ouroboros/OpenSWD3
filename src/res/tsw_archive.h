@@ -82,6 +82,16 @@ public:
         "all_map2.tsw",
     };
 
+    // The file format: the directory of TswDirectoryEntry records, then entries of a header (a dword, the magic, the
+    // frame count, the format), the palette of 8-bit entries and the TswFrameEntry records.
+    static constexpr u32 DirectoryStart = 0x1C;
+    static constexpr std::size_t EntryHeaderBytes = 12;
+    static constexpr std::size_t MagicAt = 4;
+    static constexpr std::size_t FrameCountAt = 6;
+    static constexpr std::size_t FormatAt = 8;
+    static constexpr u16 EntryMagic = 0xABCD;
+    static constexpr u16 PaletteFormat = 8;
+    static constexpr u32 PaletteColors = 0x100;
     static constexpr int FileCount = 6;
     static constexpr std::size_t MagicFile = 2;  // all_magic.tsw
     static constexpr int IndicesPerFile = 3000;

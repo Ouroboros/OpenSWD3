@@ -17,7 +17,7 @@ constexpr int kSixteenthShift = 4;
 u16 Word(const u8* bytes, std::ptrdiff_t index = 0)
 {
     u16 value = 0;
-    std::memcpy(&value, bytes + 2 * index, 2);
+    std::memcpy(&value, bytes + sizeof(value) * index, sizeof(value));
     return value;
 }
 

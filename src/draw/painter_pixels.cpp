@@ -9,16 +9,20 @@ namespace swd3
 namespace
 {
 
+constexpr u32 kLowHalf = 0xFFFF;  // the low and the high pixel of a pair
+constexpr u32 kHighHalf = ~kLowHalf;
+constexpr std::size_t kPairPixels = 2;
+
 u32 ReadPair(const u16* pixels)
 {
     u32 value = 0;
-    std::memcpy(&value, pixels, 4);
+    std::memcpy(&value, pixels, sizeof(value));
     return value;
 }
 
 void WritePair(u16* pixels, u32 value)
 {
-    std::memcpy(pixels, &value, 4);
+    std::memcpy(pixels, &value, sizeof(value));
 }
 
 // One channel of two pixels per step (0x00420600 / 0x004206F0). Only the high pixel's overflow is detected with the
@@ -27,15 +31,15 @@ void WritePair(u16* pixels, u32 value)
 // count; here a single trailing pixel is left as it is.
 void ShiftChannelPairs(std::span<u16> pixels, int delta, const ColorChannel& channel)
 {
-    const u32 highInverse = channel.inverseMask << 16;
-    const u32 maskPair = channel.mask | (channel.mask << 16);
-    const u32 otherBits = 0xFFFFFFFFu - maskPair;
-    const auto step = static_cast<i32>(channel.halves[4]);
+    const u32 highInverse = channel.inverseMask << kWordBits;
+    const u32 maskPair = channel.mask | (channel.mask << kWordBits);
+    const u32 otherBits = ~maskPair;
+    const auto step = static_cast<i32>(channel.halves[ColorChannel::TintHalf]);
     u32 offset = static_cast<u32>(delta >= 0 ? step * delta : -(step * delta));
-    offset |= offset << 16;
-    u32 saturated = channel.mask << 16;
+    offset |= offset << kWordBits;
+    u32 saturated = channel.mask << kWordBits;
 
-    for (std::size_t i = 0; i + 1 < pixels.size(); i += 2)
+    for (std::size_t i = 0; i + 1 < pixels.size(); i += kPairPixels)
     {
         const u32 dest = ReadPair(&pixels[i]);
         u32 value = 0;
@@ -44,14 +48,14 @@ void ShiftChannelPairs(std::span<u16> pixels, int delta, const ColorChannel& cha
         {
             value = (dest & maskPair) + offset;
 
-            if ((otherBits & value & 0xFFFF) != 0)
+            if ((otherBits & value & kLowHalf) != 0)
             {
-                value = (value & 0xFFFF0000u) | (channel.mask & 0xFFFF);
+                value = (value & kHighHalf) | (channel.mask & kLowHalf);
             }
 
             if ((highInverse & value) != 0)
             {
-                saturated = (saturated & 0xFFFF0000u) | (value & 0xFFFF);
+                saturated = (saturated & kHighHalf) | (value & kLowHalf);
                 value = saturated;
             }
         }
@@ -59,14 +63,14 @@ void ShiftChannelPairs(std::span<u16> pixels, int delta, const ColorChannel& cha
         {
             value = (dest & maskPair) - offset;
 
-            if ((otherBits & value & 0xFFFF) != 0)
+            if ((otherBits & value & kLowHalf) != 0)
             {
-                value &= 0xFFFF0000u;
+                value &= kHighHalf;
             }
 
             if ((highInverse & value) != 0)
             {
-                value &= 0xFFFF;
+                value &= kLowHalf;
             }
         }
 

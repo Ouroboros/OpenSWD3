@@ -1,5 +1,7 @@
 #include <array>
 
+#include <SDL3/SDL_scancode.h>
+
 #include "config/config.h"
 #include "core/types.h"
 #include "game/game_state.h"
@@ -30,118 +32,144 @@ public:
     swd3::MouseState mouse;
 };
 
+constexpr int kInsideX = 320;  // a pointer inside the screen
+constexpr int kInsideY = 200;
+constexpr int kPastRight = 700;  // and past its right and bottom edges
+constexpr int kPastBottom = 500;
+constexpr int kBackX = 50;
+constexpr int kBackY = 10;
+constexpr int kSensitivity = 20;  // in tenths
+constexpr int kTargetX = 100;
+constexpr int kTargetY = 50;
+constexpr int kUnknownScancode = 1000;
+constexpr swd3::i32 kStart = 1000;  // milliseconds
+constexpr swd3::i32 kStep = 50;
+constexpr int kSecondFrame = 2;
+constexpr swd3::u32 kPollStart = 10;
+constexpr swd3::u32 kPollStep = 10;
+
 }  // namespace
 
 TEST_CASE("input: polled keys and the lowest pressed key")
 {
+    using swd3::Input;
     FakeDevice device;
-    swd3::Input input(device);
+    Input input(device);
     CHECK_EQ(input.Init(), 0);
-    device.keys[0x1C] = 0x80;
-    device.keys[0xC8] = 0x80;
-    CHECK_EQ(input.IsKeyDown(0x1C), 0);
+    device.keys[Input::Enter] = Input::KeyDown;
+    device.keys[Input::Up] = Input::KeyDown;
+    CHECK_EQ(input.IsKeyDown(Input::Enter), 0);
     input.PollKeyboard();
-    CHECK_EQ(input.IsKeyDown(0x1C), 0x80);
-    CHECK_EQ(input.FirstKeyDown(), 0x1C);
-    input.PressKey(0x01);
-    CHECK_EQ(input.FirstKeyDown(), 0x01);
+    CHECK_EQ(input.IsKeyDown(Input::Enter), Input::KeyDown);
+    CHECK_EQ(input.FirstKeyDown(), Input::Enter);
+    input.PressKey(Input::Escape);
+    CHECK_EQ(input.FirstKeyDown(), Input::Escape);
 }
 
 TEST_CASE("input: mouse follows the pointer at the default sensitivity and drags the origin at the edges")
 {
+    using swd3::Input;
     FakeDevice device;
-    swd3::Input input(device);
+    Input input(device);
     input.Init();
     int x = 0;
     int y = 0;
-    device.mouse = {320, 200, true, false};
-    CHECK_EQ(input.ReadMouse(x, y), 1);
-    CHECK_EQ(x, 320);
-    CHECK_EQ(y, 200);
-    device.mouse = {700, 500, false, true};
-    CHECK_EQ(input.ReadMouse(x, y), 2);
-    CHECK_EQ(x, 639);
-    CHECK_EQ(y, 479);
-    device.mouse = {650, 490, false, false};
+    device.mouse = {kInsideX, kInsideY, true, false};
+    CHECK_EQ(input.ReadMouse(x, y), Input::LeftButton);
+    CHECK_EQ(x, kInsideX);
+    CHECK_EQ(y, kInsideY);
+    device.mouse = {kPastRight, kPastBottom, false, true};
+    CHECK_EQ(input.ReadMouse(x, y), Input::RightButton);
+    CHECK_EQ(x, Input::ScreenRight);
+    CHECK_EQ(y, Input::ScreenBottom);
+    device.mouse = {kPastRight - kBackX, kPastBottom - kBackY, false, false};
     input.ReadMouse(x, y);
-    CHECK_EQ(x, 589);
-    CHECK_EQ(y, 469);
-    input.SetSensitivity(2.0);
-    input.SetMousePosition(100, 50);
+    CHECK_EQ(x, Input::ScreenRight - kBackX);
+    CHECK_EQ(y, Input::ScreenBottom - kBackY);
+    input.SetSensitivity(static_cast<double>(kSensitivity) / Input::Tenths);
+    input.SetMousePosition(kTargetX, kTargetY);
     input.ReadMouse(x, y);
-    CHECK_EQ(x, 100);
-    // 50 / 20 truncates to 2 in SetMousePosition, as in the original.
-    CHECK_EQ(y, 40);
+    CHECK_EQ(x, kTargetX);
+    // The target over the sensitivity truncates in SetMousePosition, as in the original.
+    CHECK_EQ(y, kTargetY / kSensitivity * kSensitivity);
 }
 
 TEST_CASE("input: SDL scancodes map to DirectInput codes")
 {
-    CHECK_EQ(swd3::ScanCodeOf(41), 0x01);
-    CHECK_EQ(swd3::ScanCodeOf(40), 0x1C);
-    CHECK_EQ(swd3::ScanCodeOf(82), 0xC8);
-    CHECK_EQ(swd3::ScanCodeOf(4), 0x1E);
-    CHECK_EQ(swd3::ScanCodeOf(1000), 0);
+    using swd3::Input;
+    CHECK_EQ(swd3::ScanCodeOf(SDL_SCANCODE_ESCAPE), Input::Escape);
+    CHECK_EQ(swd3::ScanCodeOf(SDL_SCANCODE_RETURN), Input::Enter);
+    CHECK_EQ(swd3::ScanCodeOf(SDL_SCANCODE_UP), Input::Up);
+    CHECK_EQ(swd3::ScanCodeOf(SDL_SCANCODE_A), Input::A);
+    CHECK_EQ(swd3::ScanCodeOf(kUnknownScancode), 0);
 }
 
 TEST_CASE("controls: clicks in a row and the 150 ms gap")
 {
-    swd3::Controls controls;
+    using swd3::Controls;
+    Controls controls;
     swd3::ButtonState button;
-    controls.now = 1000;
+    controls.now = kStart;
     controls.Update(button, 0);
-    CHECK_EQ(button.releasedAt, 1000);
+    CHECK_EQ(button.releasedAt, kStart);
     controls.Update(button, 1);
-    CHECK_EQ(button.press, 1);
+    CHECK_EQ(button.press, Controls::ClickSequence[0]);
     CHECK_EQ(button.heldFrames, 1);
     controls.Update(button, 1);
-    CHECK_EQ(button.press, 1);
-    CHECK_EQ(button.heldFrames, 2);
-    controls.now = 1050;
+    CHECK_EQ(button.press, Controls::ClickSequence[0]);
+    CHECK_EQ(button.heldFrames, kSecondFrame);
+    controls.now = kStart + kStep;
     controls.Update(button, 0);
-    controls.now = 1100;
+    controls.now = kStart + kSecondFrame * kStep;
     controls.Update(button, 0);
     CHECK_EQ(button.press, 0);
     CHECK_EQ(button.clicks, 1);
     controls.Update(button, 1);
-    CHECK_EQ(button.press, 2);
+    CHECK_EQ(button.press, Controls::ClickSequence[1]);
     controls.Update(button, 0);
-    controls.now = 1300;
+    controls.now += static_cast<swd3::i32>(Controls::ClickGap) + kStep;
     controls.Update(button, 0);
     CHECK_EQ(button.clicks, 0);
     controls.Update(button, 1);
-    CHECK_EQ(button.press, 1);
+    CHECK_EQ(button.press, Controls::ClickSequence[0]);
 }
 
 TEST_CASE("controls: the poll reads the configured keys, the mouse and the idle pointer")
 {
+    using swd3::Button;
+    using swd3::Controls;
     FakeDevice device;
     swd3::Input input(device);
     CHECK_EQ(input.Init(), 0);
     swd3::Config config;
     config.SetDefaultKeys();
     swd3::GameState state;
-    swd3::Controls controls;
-    controls.Poll(input, config, state, 10);
-    device.keys[0x1C] = 0x80;
+    Controls controls;
+    swd3::u32 now = kPollStart;
+    controls.Poll(input, config, state, now);
+    const swd3::u32 firstPoll = now;
+    device.keys[swd3::Input::Enter] = swd3::Input::KeyDown;
     device.mouse.left = true;
     input.PollKeyboard();
-    controls.Poll(input, config, state, 20);
-    CHECK_EQ(controls.At(swd3::Button::Enter).heldFrames, 1);
-    CHECK_EQ(controls.At(swd3::Button::Enter).press, 1);
-    CHECK_EQ(controls.At(swd3::Button::MouseLeft).press, 1);
-    CHECK_EQ(controls.At(swd3::Button::Escape).releasedAt, 10);
+    now += kPollStep;
+    controls.Poll(input, config, state, now);
+    CHECK_EQ(controls.At(Button::Enter).heldFrames, 1);
+    CHECK_EQ(controls.At(Button::Enter).press, Controls::ClickSequence[0]);
+    CHECK_EQ(controls.At(Button::MouseLeft).press, Controls::ClickSequence[0]);
+    CHECK_EQ(controls.At(Button::Escape).releasedAt, static_cast<swd3::i32>(firstPoll));
     controls.mouseSuppressed = 1;
-    controls.Poll(input, config, state, 30);
-    CHECK_EQ(controls.At(swd3::Button::MouseLeft).heldFrames, 0);
+    now += kPollStep;
+    controls.Poll(input, config, state, now);
+    CHECK_EQ(controls.At(Button::MouseLeft).heldFrames, 0);
     CHECK_EQ(controls.mouseSuppressed, 0);
     device.mouse.left = false;
 
-    for (int poll = 0; poll < 450; ++poll)
+    for (swd3::u32 poll = 0; poll < Controls::IdleFrames; ++poll)
     {
-        controls.Poll(input, config, state, 40 + poll);
+        controls.Poll(input, config, state, ++now);
     }
 
-    CHECK(!state.GameFlag(swd3::Controls::IdleFlag));
-    controls.Poll(input, config, state, 500);
-    CHECK(state.GameFlag(swd3::Controls::IdleFlag));
+    CHECK(!state.GameFlag(Controls::IdleFlag));
+    controls.Poll(input, config, state, ++now);
+    CHECK(state.GameFlag(Controls::IdleFlag));
 }

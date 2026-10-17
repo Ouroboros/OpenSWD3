@@ -1,10 +1,13 @@
 #include "org/database.h"
-#include "core/format.h"
 
 #include <algorithm>
 #include <cstddef>
 #include <cstring>
 #include <vector>
+
+#include "core/byte_reader.h"
+#include "core/format.h"
+#include "core/words.h"
 
 namespace swd3
 {
@@ -43,23 +46,18 @@ public:
     u16 Word()
     {
         const u16 value = this->Ended() ? kEnd : this->WordAt(this->position);
-        this->position += 2;
+        this->position += sizeof(u16);
         return value;
     }
 
     u16 WordAt(std::size_t at) const
     {
-        if (at + 1 >= this->script.size())
-        {
-            return 0;
-        }
-
-        return static_cast<u16>(this->script[at] | (this->script[at + 1] << 8));
+        return ByteReader::Word16At(this->script, at);
     }
 
     u32 DwordAt(std::size_t at) const
     {
-        return this->WordAt(at) | (static_cast<u32>(this->WordAt(at + 2)) << 16);
+        return MakeWords(this->WordAt(at + sizeof(u16)), this->WordAt(at));
     }
 
     u8 ByteAt(std::size_t at) const
@@ -107,7 +105,7 @@ private:
 u32 ReadDword(File& file)
 {
     u32 value = 0;
-    u32 bytes = 4;
+    u32 bytes = sizeof(value);
     file.Read(&value, bytes);
     return value;
 }

@@ -42,4 +42,7 @@ private:
     std::vector<u16> storage;
 };
 
+// GDI's colour of a COLORREF (0x00BBGGRR) on an RGB565 surface: SetPixel keeps the high bits of each channel.
+Pixel DevicePixel(u32 color);
+
 }  // namespace swd3

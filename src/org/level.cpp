@@ -31,7 +31,7 @@ constexpr i8 kLevelEnd = 5;
 
 u16 WordAt(const std::vector<u8>& script, std::size_t at)
 {
-    return at + 1 < script.size() ? static_cast<u16>(script[at] | (script[at + 1] << 8)) : u16{0};
+    return ByteReader::Word16At(script, at);
 }
 
 // The skill list of a party role gets `id` unless the list (its "無" head included) has it: a new node at its end with

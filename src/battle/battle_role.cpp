@@ -52,7 +52,7 @@ constexpr u32 kAttackRingPercent = 10;  // an attack ring adds 10% of the attack
 // The value grown by a tenth per point of `scale` (the product kept to 16 bits as the original does).
 i16 Grown(i16 value, i16 scale)
 {
-    return static_cast<i16>(value + static_cast<i16>(scale * value) / 0xA);
+    return static_cast<i16>(value + static_cast<i16>(scale * value) / kTenths);
 }
 
 }  // namespace

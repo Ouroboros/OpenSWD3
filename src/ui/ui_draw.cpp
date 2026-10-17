@@ -41,10 +41,10 @@ void BlendPairs(const Painter& painter, u16* row, int pairs, u32 color)
 {
     for (int i = 0; i < pairs; ++i)
     {
-        u32 pair = row[2 * i] | (static_cast<u32>(row[2 * i + 1]) << 16);
+        u32 pair = MakeWords(row[kPixelsPerPair * i + 1], row[kPixelsPerPair * i]);
         painter.BlendPairsWithColor(std::span<u32>(&pair, 1), color);
-        row[2 * i] = static_cast<u16>(pair);
-        row[2 * i + 1] = static_cast<u16>(pair >> 16);
+        row[kPixelsPerPair * i] = LowWord(pair);
+        row[kPixelsPerPair * i + 1] = HighWord(pair);
     }
 }
 

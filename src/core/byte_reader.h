@@ -42,6 +42,18 @@ public:
         this->at += count;
     }
 
+    // The word at `at`, 0 unless all of it is inside `bytes`.
+    static u16 Word16At(std::span<const u8> bytes, std::size_t at)
+    {
+        if (at + sizeof(u16) > bytes.size())
+        {
+            return 0;
+        }
+
+        ByteReader reader(bytes.subspan(at));
+        return reader.Word16();
+    }
+
     // The dword at `at`, 0 unless all of it is inside `bytes`.
     static u32 Word32At(std::span<const u8> bytes, std::size_t at)
     {

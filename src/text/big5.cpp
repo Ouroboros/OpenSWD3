@@ -5,6 +5,7 @@
 #include <cstddef>
 
 #include "core/types.h"
+#include "core/words.h"
 #include "text/big5_table.h"
 
 namespace swd3
@@ -13,7 +14,17 @@ namespace swd3
 namespace
 {
 
-constexpr u32 kFirstNonAscii = 0x80;  // a byte from here leads a Big5 or UTF-8 sequence
+constexpr u32 kFirstNonAscii = 0x80;  // a byte from here leads a Big5 or UTF-8 sequence; a UTF-8 tail byte has it
+constexpr u32 kTwoByteLead = 0xC0;    // the UTF-8 leads, the bytes that follow them and the code points they reach
+constexpr u32 kThreeByteLead = 0xE0;
+constexpr u32 kFourByteLead = 0xF0;
+constexpr int kTwoByteTail = 1;
+constexpr int kThreeByteTail = 2;
+constexpr int kFourByteTail = 3;
+constexpr u32 kTwoByteLimit = 0x800;
+constexpr int kPayloadBits = 6;  // the bits a tail byte carries
+constexpr int kTwoPayloads = 2 * kPayloadBits;
+constexpr u32 kPayloadMask = 0x3F;
 
 u16 Find(const auto& table, u32 key)
 {
@@ -48,13 +59,13 @@ u32 DecodeUtf8(std::basic_string_view<Char> text, std::size_t& at)
         return lead;
     }
 
-    const int extra = lead >= 0xF0 ? 3 : lead >= 0xE0 ? 2 : 1;
-    u32 value = lead & (0x3Fu >> extra);
+    const int extra = lead >= kFourByteLead ? kFourByteTail : lead >= kThreeByteLead ? kThreeByteTail : kTwoByteTail;
+    u32 value = lead & (kPayloadMask >> extra);
 
     for (int index = 0; index < extra && at + 1 < text.size(); ++index)
     {
         ++at;
-        value = value << 6 | (static_cast<unsigned char>(text[at]) & 0x3Fu);
+        value = value << kPayloadBits | (static_cast<unsigned char>(text[at]) & kPayloadMask);
     }
 
     ++at;
@@ -70,7 +81,7 @@ std::string Encode(std::basic_string_view<Char> text)
     {
         const u32 unicode = DecodeUtf8(text, at);
 
-        if (unicode < 0x80)
+        if (unicode < kFirstNonAscii)
         {
             out.push_back(static_cast<char>(unicode));
             continue;
@@ -80,8 +91,8 @@ std::string Encode(std::basic_string_view<Char> text)
 
         if (code != 0)
         {
-            out.push_back(static_cast<char>(code >> 8));
-            out.push_back(static_cast<char>(code & 0xFF));
+            out.push_back(static_cast<char>(HighByte(code)));
+            out.push_back(static_cast<char>(LowByte(code)));
         }
     }
 
@@ -90,20 +101,20 @@ std::string Encode(std::basic_string_view<Char> text)
 
 void AppendUtf8(std::string& out, u32 unicode)
 {
-    if (unicode < 0x80)
+    if (unicode < kFirstNonAscii)
     {
         out.push_back(static_cast<char>(unicode));
     }
-    else if (unicode < 0x800)
+    else if (unicode < kTwoByteLimit)
     {
-        out.push_back(static_cast<char>(0xC0 | unicode >> 6));
-        out.push_back(static_cast<char>(0x80 | (unicode & 0x3F)));
+        out.push_back(static_cast<char>(kTwoByteLead | unicode >> kPayloadBits));
+        out.push_back(static_cast<char>(kFirstNonAscii | (unicode & kPayloadMask)));
     }
     else
     {
-        out.push_back(static_cast<char>(0xE0 | unicode >> 12));
-        out.push_back(static_cast<char>(0x80 | ((unicode >> 6) & 0x3F)));
-        out.push_back(static_cast<char>(0x80 | (unicode & 0x3F)));
+        out.push_back(static_cast<char>(kThreeByteLead | unicode >> kTwoPayloads));
+        out.push_back(static_cast<char>(kFirstNonAscii | ((unicode >> kPayloadBits) & kPayloadMask)));
+        out.push_back(static_cast<char>(kFirstNonAscii | (unicode & kPayloadMask)));
     }
 }
 
