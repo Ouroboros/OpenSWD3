@@ -189,6 +189,12 @@ private:
     void StartBattle(u16 battle);
     void LoadBattleBackground(int picture, u16 animation, int x, int y, u16 scene);
     void SlideBattleIn(const Surface& incoming, const Surface& outgoing);
+    void ShakeBattleBackground(int shake);
+    void DrawBattleBackground(int shake);
+    void PrepareDarkenedCopies();
+    void DrawRolePanels();
+    template <typename Next>
+    void StepPanelGauge(i32& shown, i32& target, Next next, int picture, int x, int y, i32 downNear, i32 downFar);
     void MeasureUnits();
 
     DialogErrorReporter errors;

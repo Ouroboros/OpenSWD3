@@ -188,7 +188,7 @@ int CreateBattleSurfaces(BattleState& battle, Graphics& graphics)
         surface = graphics.CreateOffscreen(Display::Width, Display::Height);
     }
 
-    battle.unk4A7632 = {-1, -1, -1};
+    battle.darkCopyTint = {-1, -1, -1};
     return -1;
 }
 

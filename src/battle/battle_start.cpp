@@ -92,7 +92,7 @@ void Game::LoadBattleBackground(int picture, u16 animation, int x, int y, u16 sc
         this->battleHud.LoadAnimation(battle.backgroundAnimation, 0, x, y, animation, scene);
     }
 
-    battle.unk4A7632.fill(-1);
+    battle.darkCopyTint.fill(-1);
 }
 
 // swd32.exe 0x0045B0E0: the y of the enemies and of the roles (from 8)

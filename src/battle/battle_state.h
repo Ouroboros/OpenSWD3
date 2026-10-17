@@ -42,6 +42,15 @@ public:
     static constexpr int Guests = 8;
     static constexpr std::size_t TextBytes = 64;
     static constexpr u16 DefaultTimingWindow = 0x3C;
+    static constexpr int FieldHeight = 0x180;  // the rows of the battle field above the panels
+    static constexpr int BandRow = 0xC0;       // the grey band opens from this row
+    static constexpr u16 BandFull = 0xC0;
+    static constexpr u16 BandFastFrom = 0x14;  // below it the band doubles a frame, from it it grows by BandStep
+    static constexpr u16 BandStep = 0x16;
+    static constexpr i8 FlashStart = 0x10;
+    static constexpr i8 FlashStep = 4;
+    static constexpr i16 MaxDarkLevel = 2;
+    static constexpr i32 DarkLevelFrames = 1;  // darkFrames past it step to the next level
 
     // BattleState::mode bits.
     enum Mode : i32
@@ -62,16 +71,16 @@ public:
     void SortDrawOrder();
     void ListEnemyOrder();
 
-    i32 listBCount = 0;                           // 0x004FD3B0 entries of listB, at most 13
-    ItemLink listB;                               // 0x004FD4C0
-    i32 mode = 0;                                 // 0x004FD578 bits 0..1: the shop and sell modes of the item lists
-    ItemLink items;                               // 0x004FD580 the sorted item list
-    u16 itemCursor = 0;                           // 0x004FD588
-    i32 gaugeFull = InitialGaugeFull;             // 0x004A74CC the full action gauge
-    std::array<i16, 3> unk4A7632 = {-1, -1, -1};  // 0x004A7632
-    i32 evadeDisabled = 0;                        // 0x0053CEB8
-    u8 evadeStreak = 0;                           // 0x0053D028 failed evasion rolls in a row
-    u8 evadeJustSucceeded = 0;                    // 0x0053D029
+    i32 listBCount = 0;                              // 0x004FD3B0 entries of listB, at most 13
+    ItemLink listB;                                  // 0x004FD4C0
+    i32 mode = 0;                                    // 0x004FD578 bits 0..1: the shop and sell modes of the item lists
+    ItemLink items;                                  // 0x004FD580 the sorted item list
+    u16 itemCursor = 0;                              // 0x004FD588
+    i32 gaugeFull = InitialGaugeFull;                // 0x004A74CC the full action gauge
+    std::array<i16, 3> darkCopyTint = {-1, -1, -1};  // 0x004A7632 the darkRed, darkGreen, darkBlue of the copies
+    i32 evadeDisabled = 0;                           // 0x0053CEB8
+    u8 evadeStreak = 0;                              // 0x0053D028 failed evasion rolls in a row
+    u8 evadeJustSucceeded = 0;                       // 0x0053D029
     std::array<std::unique_ptr<Surface>, 2> surfaces;            // 0x005244C4 screen sized off-screen surfaces
     std::array<i16, QueueRows * QueueColumns> actionQueue = {};  // 0x0052022C 4 rows of 10, taken by TakePendingAction
     i32 panelFlags = 0;                                          // 0x0053BC24 bit 5: the resistance panel
@@ -158,6 +167,45 @@ public:
     i32 unk53C4B0 = 0;
     std::array<BattleSlotRecord, Units> unk524788;
     u16 unk53BF26 = 0;  // the high word of 0x0053BF24
+
+    // The background drawn each frame (0x00453580): a quake shift, the grey band of the battle start, a flash of the
+    // field, and the field darkened (by darkened copies in `surfaces` or by tint steps) while unit unk4A7630 acts.
+    i32 shake = 0;      // 0x0053BD5C the shift of the background this frame, cleared once drawn
+    i32 unk53BF94 = 0;  // with unk53BF98: the field is darkened while unit unk4A7630 acts
+    i32 unk53BF98 = 0;
+    i16 unk4A7630 = -1;  // compared with unk53AE70
+    u16 unk53BF2C = 0;
+    u16 grayBand = 0;       // 0x0053BF2E the half height of the grey band around BandRow
+    i32 grayBandShown = 0;  // 0x0053BF30
+    i32 flashing = 0;       // 0x0053BFCC the field flashes, flashLevel falling by FlashStep a frame
+    u16 unk4A75FC = 1;
+    i8 flashLevel = FlashStart;  // 0x004A75FE tint steps of the flash
+    u8 panelGlow = 1;            // 0x004A75FF the highlight of the current role's panel; bit 7: falling
+    i32 darkenByTint = 0;        // 0x0053C4A0 the field is darkened by tint steps instead of the darkened copies
+    i16 darkLevel = 0;           // 0x0053BF44 0..MaxDarkLevel
+    i16 darkRed = 0;             // 0x0053BF36 the tint steps of a darkened field per level, halved
+    i16 darkGreen = 0;           // 0x0053BF38
+    i16 darkBlue = 0;            // 0x0053BF3A
+    i32 darkFrames = 0;          // 0x00520E88 frames counted to the next darker level
+    i32 unk53BFEC = 0;           // the darkening is undone a level a frame
+    i32 unk53C030 = 0;
+    i32 unk4A7574 = -1;  // unk53BD0C when the darkened copies were made
+    i32 unk53BD0C = 0;
+
+    // The role panels (0x00459D10): the gauges move a step a frame towards their values and the numbers roll.
+    i32 currentUnit = 0;                               // 0x0053BD54 the unit whose panel is highlighted
+    i32 glowFrames = 0;                                // 0x0053BD64 frames to the next step of panelGlow
+    i8 listGlow = 0;                                   // 0x0053BDF1 the glow of the last listed unit; bit 7: on
+    std::array<i32, RoleUnits> nameFlashes = {};       // 0x00520F58
+    std::array<i32, RoleUnits> hitPointsRolling = {};  // 0x004FF1B8 the change still rolling in the shown number
+    std::array<i32, RoleUnits> hitPointSteps = {};     // 0x00520E18
+    std::array<i32, RoleUnits> spiritRolling = {};     // 0x0052102C
+    std::array<i32, RoleUnits> spiritSteps = {};       // 0x0053AE48
+    std::array<i32, RoleUnits> staminaRolling = {};    // 0x00520FCC
+    std::array<i32, RoleUnits> staminaSteps = {};      // 0x005240F0
+    i32 autoBattle = 0;                                // 0x0053C018
+    i32 autoBoxX = 0;                                  // 0x0053BDD0 the "自動攻擊" box slides in
+    i32 autoBoxStep = 0;                               // 0x0053BDCC
 };
 
 }  // namespace swd3
