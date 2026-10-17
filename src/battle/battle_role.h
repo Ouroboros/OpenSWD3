@@ -55,6 +55,7 @@ public:
     int ThrowAct(BattleServices& services, const BattleUnit& target);
     int CatchAct(BattleServices& services, const BattleUnit& target);
     int GlowAct(BattleServices& services, int x, int y);
+    int PoseAtTarget(BattleServices& services, const BattleUnit& target);
     void SetupGuest(const UnitPlacement& at, const RoleRecord& base, Database& database, ErrorReporter& reporter);
     void
     ApplyEquipment(std::span<const std::unique_ptr<ItemNode>> slots, CounterList& proficiency, ErrorReporter& reporter);

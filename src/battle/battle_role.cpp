@@ -113,6 +113,17 @@ constexpr i16 kGlowStep = 2;
 constexpr i16 kGlowPeak = 0x3E;
 constexpr int kGlowTintBase = 0x1F;  // the tint is glowLevel / 2 - kGlowTintBase
 constexpr u16 kGlowEndSound = 0x6A;
+
+// PoseAtTarget.
+constexpr i32 kTargetPose = 0x2B;
+constexpr u32 kMirroredOnce = 0x8000;  // ActState::unknown1C: the act was mirrored already
+constexpr int kShadowShare = 3;        // the shadow is a third of the picture height high
+constexpr std::size_t kShadowShearShift = 2;
+constexpr int kShadowTint = -6;
+constexpr int kFaintShadowTint = -1;
+constexpr int kShadowLeft = 5;
+constexpr int kPanCentre = 0x140;  // the sound pans right of the middle of the 640-pixel screen
+constexpr int kTargetPan = 0x10;
 constexpr std::array<Spark, BattleRole::ExtraActs> kSparks = {{
     {0, 1, -5, 0xE},
     {10, 2, -10, 0xA},
@@ -1351,5 +1362,78 @@ int BattleRole::GlowAct(BattleServices& services, int x, int y)
     act = ActState{};
     this->extraActs.fill(ActState{});
     return 1;
+}
+
+// swd32.exe 0x004721F0: one frame of the role's pose kTargetPose (in the stand act) at the target's draw position over
+// its shadow; 1 (the stand act cleared, nothing drawn) once the act waits. A facing role mirrors the act once: the
+// mirrored flags with kMirroredOnce go to unknown1C, which keeps the next frames from mirroring the x again. The
+// shadow is fainter with unk2B00; the sound pans right of the middle of the screen.
+int BattleRole::PoseAtTarget(BattleServices& services, const BattleUnit& target)
+{
+    u16 targetX = 0;
+    u16 targetY = 0;
+    ActState& act = this->standAct;
+    act.action = kTargetPose;
+    act.hold = 0;
+    act.id = this->actId;
+
+    if (this->held == 1)
+    {
+        act.hold = 1;
+    }
+
+    if (services.acts.Run(act) == 0)
+    {
+        return 0;
+    }
+
+    this->picture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->picture == nullptr)
+    {
+        return 0;
+    }
+
+    Painter& painter = services.painter;
+    painter.SetSource(this->picture->data.data());
+
+    if (act.waiting != 0)
+    {
+        act = ActState{};
+        return 1;
+    }
+
+    if (this->facing == 1 && act.unknown1C == 0)
+    {
+        act.flags ^= Painter::Mirror;
+        act.unknown1C = static_cast<i32>(act.flags | kMirroredOnce);
+        act.x = this->picture->width - act.x;
+    }
+
+    target.GetDrawPosition(targetX, targetY);
+    const auto x = static_cast<i16>(targetX - static_cast<u16>(act.x));
+    const auto y = static_cast<i16>(targetY - static_cast<u16>(act.y));
+    const int shadowHeight = this->picture->height / kShadowShare;
+    DrawOptions& options = painter.Options();
+    options.scaleHeight = shadowHeight;
+    options.shear = this->picture->height >> kShadowShearShift;
+    const int tint = this->unk2B00 == 1 ? kFaintShadowTint : kShadowTint;
+    options.tintRed = tint;
+    options.tintGreen = tint;
+    options.tintBlue = tint;
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+    services.audio.SetSoundPan(act.view, x > kPanCentre ? kTargetPan : -kTargetPan);
+    this->unk26A4 = (act.flags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+    act.view = 0;
+    painter.DrawPicture(
+        x - kShadowLeft,
+        act.y + y - shadowHeight,
+        this->picture->width,
+        this->picture->height,
+        this->unk26A4
+    );
+    painter.DrawPicture(x, y, this->picture->width, this->picture->height, act.flags);
+    return 0;
 }
 }  // namespace swd3
