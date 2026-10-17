@@ -4,6 +4,7 @@
 #include "game/game.h"
 #include "item/item_list.h"
 #include "platform/display.h"
+#include "ui/ui_draw.h"
 
 namespace swd3
 {
@@ -73,6 +74,22 @@ constexpr i32 kItemCommand = 3;
 constexpr i32 kSkillCommand = 4;
 constexpr u16 kNoTalkRole = 0xFFFF;
 constexpr i32 kListRows = 5;
+constexpr int kTabEffect = 0x2394;  // the page tabs of the list of state 2
+constexpr int kTabsDrop = 0x20;
+constexpr int kTabWidth = 0x2A;
+constexpr int kOpenTabFrame = 4;
+constexpr i32 kListPanelFrames = 0xA;
+constexpr int kListBoxDrop = 0x24;
+constexpr int kListBoxWidth = 0xBE;
+constexpr int kListBoxHeight = 0x98;
+constexpr int kListShade = 4;
+constexpr int kListFrameInset = 6;
+constexpr int kListFrameTop = 0x28;
+constexpr int kListFrameRight = 0xBA;
+constexpr int kListFrameBottom = 0xB8;
+constexpr int kListFrameBorder = BattleMessage::Frame | 8;
+constexpr i32 kListGrowStep = 2;
+constexpr i32 kListGrowMost = 7;
 
 // The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
 // here.
@@ -1699,5 +1716,55 @@ void Game::MenuCancel()
             closePanels();
             return;
     }
+}
+
+// swd32.exe 0x00465480: the list of battle state 2 at (x, y): its three page tabs (kTabEffect, frames 2..0 right to
+// left) and the open page's tab over them (frame 4 + page), the panel act restarted (unk53BD90 10), a quarter-dark
+// box with the panel frame below the tabs; unk53BD94 grows by 2 a call up to 7.
+void Game::DrawListTabs(int x, int y)
+{
+    BattleState& battle = this->battleState;
+    BattleMessages& messages = this->battleMessages;
+    const int tabsY = y + kTabsDrop;
+    int tabX = x + kTabWidth * (kListPages - 1);
+
+    for (int tab = kListPages - 1; tab >= 0; --tab)
+    {
+        this->battleHud.DrawEffectAt(kTabEffect, tab, tabX, tabsY, 0);
+        tabX -= kTabWidth;
+    }
+
+    this->battleHud
+        .DrawEffectAt(kTabEffect, battle.unk53BD18 + kOpenTabFrame, x + kTabWidth * battle.unk53BD18, tabsY, 0);
+    this->mediumFont.SetBackground(kHighlightBackground);
+    this->mediumFont.SetBackground(TextFont::NoBackground);
+    messages.panelAct = ActState{};
+    battle.unk53BD90 = kListPanelFrames;
+    messages.panelAct.id = BattleMessages::PanelAct;
+    messages.panelAct.action = 0;
+    this->acts.Run(messages.panelAct);
+    FillBox(
+        this->painter,
+        x,
+        y + kListBoxDrop,
+        kListBoxWidth,
+        kListBoxHeight,
+        0,
+        kListShade,
+        kListShade,
+        FillMode::Quarter
+    );
+    DrawWindowFrame(
+        this->painter,
+        this->archive,
+        messages.panelAct.frame,
+        x + kListFrameInset,
+        y + kListFrameTop,
+        x + kListFrameRight,
+        y + kListFrameBottom,
+        0,
+        kListFrameBorder
+    );
+    battle.unk53BD94 = std::min(battle.unk53BD94 + kListGrowStep, kListGrowMost);
 }
 }  // namespace swd3
