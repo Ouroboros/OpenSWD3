@@ -32,6 +32,8 @@ constexpr u32 kShiftKey = 0x4;     // MK_SHIFT
 constexpr u32 kControlKey = 0x8;   // MK_CONTROL
 constexpr u32 kMiddleButton = 0x10;
 constexpr Uint32 kLauncherWait = 16;
+constexpr Uint64 kSlowLauncherFrame =
+    50;  // a launcher frame this long (its messages, drawing and presenting) is logged
 constexpr std::u8string_view kLogSeparator =
     u8"=========================================================================";  // the first line of the error log
 constexpr int kEffectsOffFlag = GameState::PlainScreen;
@@ -533,7 +535,10 @@ Launcher::Choice Game::RunLauncher()
     {
         SDL_Event event;
 
-        if (SDL_WaitEventTimeout(&event, static_cast<Sint32>(kLauncherWait)))
+        const bool waited = SDL_WaitEventTimeout(&event, static_cast<Sint32>(kLauncherWait));
+        const Uint64 started = SDL_GetTicks();
+
+        if (waited)
         {
             do
             {
@@ -568,6 +573,12 @@ Launcher::Choice Game::RunLauncher()
 
         launcher.Draw(this->screen);
         this->display.Present(this->screen);
+        const Uint64 spent = SDL_GetTicks() - started;
+
+        if (spent >= kSlowLauncherFrame)
+        {
+            LogDebug(u8"launcher frame took %d ms", static_cast<int>(spent));
+        }
     }
 
     this->screen.Fill(0);

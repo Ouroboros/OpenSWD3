@@ -1,5 +1,9 @@
 #include "platform/file_system.h"
 
+#include <cerrno>
+#include <cstdint>
+
+#include <fcntl.h>
 #include <io.h>
 #include <windows.h>
 
@@ -24,6 +28,51 @@ void ClearReadOnly(const std::string& path)
     {
         ::SetFileAttributesA(path.c_str(), attributes & ~static_cast<DWORD>(FILE_ATTRIBUTE_READONLY));
     }
+}
+
+std::FILE* OpenSharedFile(const std::string& path, std::string_view mode)
+{
+    const bool update = mode.find('+') != std::string_view::npos;
+    const bool create = !mode.empty() && mode.front() == 'w';
+    const bool reads = update || !create;
+    const bool writes = update || create;
+    const DWORD access = (reads ? GENERIC_READ : 0) | (writes ? GENERIC_WRITE : 0);
+    const HANDLE handle = ::CreateFileA(
+        path.c_str(),
+        access,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        nullptr,
+        create ? CREATE_ALWAYS : OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        nullptr
+    );
+
+    if (handle == INVALID_HANDLE_VALUE)
+    {
+        const DWORD failure = ::GetLastError();
+        errno = failure == ERROR_FILE_NOT_FOUND || failure == ERROR_PATH_NOT_FOUND ? ENOENT : EACCES;
+        return nullptr;
+    }
+
+    const int descriptor = ::_open_osfhandle(
+        reinterpret_cast<intptr_t>(handle),
+        _O_BINARY | (reads && writes ? _O_RDWR : (writes ? _O_WRONLY : _O_RDONLY))
+    );
+
+    if (descriptor == -1)
+    {
+        ::CloseHandle(handle);
+        return nullptr;
+    }
+
+    std::FILE* file = ::_fdopen(descriptor, std::string(mode).c_str());
+
+    if (file == nullptr)
+    {
+        ::_close(descriptor);
+    }
+
+    return file;
 }
 
 bool TruncateFile(std::FILE* file, u64 size)

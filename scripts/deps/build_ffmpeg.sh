@@ -44,7 +44,7 @@ windows)
     links="$(swd3_winsdk_links)"
     sdkinc="${links}/sdk/Include/${SWD3_WINSDK_VERSION}"
     sdklib="${links}/sdk/Lib/${SWD3_WINSDK_VERSION}"
-    cflags="--target=i686-pc-windows-msvc -MD -imsvc${links}/msvc/include -imsvc${sdkinc}/ucrt -imsvc${sdkinc}/um -imsvc${sdkinc}/shared"
+    cflags="--target=i686-pc-windows-msvc -MT -imsvc${links}/msvc/include -imsvc${sdkinc}/ucrt -imsvc${sdkinc}/um -imsvc${sdkinc}/shared"
     ldflags="-libpath:${links}/msvc/lib/x86 -libpath:${sdklib}/ucrt/x86 -libpath:${sdklib}/um/x86"
     extra=(
         --toolchain=msvc

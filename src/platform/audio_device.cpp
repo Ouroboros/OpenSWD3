@@ -4,8 +4,6 @@
 
 #include <algorithm>
 #include <cstring>
-#include <fstream>
-#include <iterator>
 #include <limits>
 #include <string_view>
 
@@ -207,15 +205,14 @@ bool AudioDevice::LoadCompressed(const VoiceHandle& voice, const u8* data, std::
 
 VoiceHandle AudioDevice::OpenStream(const std::string& path)
 {
-    std::ifstream file(ResolvePath(path), std::ios::binary);
+    std::vector<u8> data;
 
-    if (!file)
+    if (!ReadSharedFile(ResolvePath(path), data))
     {
         this->lastError = "Cannot open stream file";
         return nullptr;
     }
 
-    const std::vector<u8> data{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
     auto pcm = std::make_shared<std::vector<i16>>();
 
     if (!DecodeAudio(data.data(), data.size(), *pcm))

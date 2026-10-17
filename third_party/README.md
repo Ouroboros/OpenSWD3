@@ -24,7 +24,7 @@ bash scripts/deps/build_ffmpeg.sh windows
 
 ## FFmpeg 配置
 
-LGPL 2.1+，静态库 avformat、avcodec、avutil、swresample、swscale；只启用 `file` 协议、`bink`／`mp3` 解封装、`bink`／`binkaudio_rdft`／`binkaudio_dct`／`mp3`／`mp3float` 解码与 `mpegaudio` 解析。启用 x86 汇编：nasm 2.16.01（Ubuntu noble 包解压到 `/opt/nasm`，`/usr/local/bin/nasm` 链接；本环境 apt 无法写系统缓存，故用 `apt-get download` + `dpkg-deb -x`）。Windows 目标同样在 WSL 中调用该 nasm 生成 win32 目标文件，无需 Windows 版 nasm.exe。Windows 目标：clang-cl + lld-link 交叉编译 x86，`-MD`（与 CMake 默认运行库一致），归档工具 llvm-ar；构建时用一个 `wslpath` 包装处理 configure 的依赖路径转换。
+LGPL 2.1+，静态库 avformat、avcodec、avutil、swresample、swscale；只启用 `file` 协议、`bink`／`mp3` 解封装、`bink`／`binkaudio_rdft`／`binkaudio_dct`／`mp3`／`mp3float` 解码与 `mpegaudio` 解析。启用 x86 汇编：nasm 2.16.01（Ubuntu noble 包解压到 `/opt/nasm`，`/usr/local/bin/nasm` 链接；本环境 apt 无法写系统缓存，故用 `apt-get download` + `dpkg-deb -x`）。Windows 目标同样在 WSL 中调用该 nasm 生成 win32 目标文件，无需 Windows 版 nasm.exe。Windows 目标：clang-cl + lld-link 交叉编译 x86，`-MT`（静态 CRT，与工具链文件的 `CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded` 一致，SDL3 同样由工具链文件得到 `/MT`），归档工具 llvm-ar；构建时用一个 `wslpath` 包装处理 configure 的依赖路径转换。
 
 ## 构建结果（2026-10-16）
 

@@ -70,7 +70,8 @@ File::~File()
     }
 }
 
-// swd32.exe 0x004380B0: clears the read-only attribute first; the position starts at the beginning
+// swd32.exe 0x004380B0: clears the read-only attribute first; the position starts at the beginning. The original opens
+// without sharing (004380E4 push 0, dwShareMode); the rebuild lets other programs open the file (deviations.md).
 bool File::Open(std::string_view name, Disposition disposition, Access access)
 {
     if (this->file != nullptr)
@@ -81,11 +82,11 @@ bool File::Open(std::string_view name, Disposition disposition, Access access)
 
     const std::string path = ResolvePath(name);
     ClearReadOnly(path);
-    this->file = std::fopen(path.c_str(), OpenMode(access, false).data());
+    this->file = OpenSharedFile(path, OpenMode(access, false));
 
     if (this->file == nullptr && disposition == Disposition::OpenAlways)
     {
-        this->file = std::fopen(path.c_str(), OpenMode(access, true).data());
+        this->file = OpenSharedFile(path, OpenMode(access, true));
     }
 
     if (this->file == nullptr)

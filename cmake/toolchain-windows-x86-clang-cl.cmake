@@ -39,4 +39,7 @@ set(CMAKE_EXE_LINKER_FLAGS_INIT "${_swd3_lib_flags}")
 set(CMAKE_SHARED_LINKER_FLAGS_INIT "${_swd3_lib_flags}")
 set(CMAKE_MODULE_LINKER_FLAGS_INIT "${_swd3_lib_flags}")
 
+# The static CRT (/MT): the game, SDL3 and FFmpeg link libcmt/libucrt/libvcruntime, no runtime DLL needed.
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
+
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)

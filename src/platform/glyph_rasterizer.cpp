@@ -5,9 +5,8 @@
 #include <algorithm>
 #include <climits>
 #include <cstring>
-#include <fstream>
-#include <iterator>
 
+#include "platform/file_system.h"
 #include "platform/surface.h"
 
 namespace swd3
@@ -40,14 +39,12 @@ u32 ReadU32(const std::vector<u8>& data, std::size_t offset)
 
 bool GlyphLibrary::Load(const std::string& path)
 {
-    std::ifstream file(path, std::ios::binary);
+    std::vector<u8> data;
 
-    if (!file)
+    if (!ReadSharedFile(path, data))
     {
         return false;
     }
-
-    const std::vector<u8> data{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
 
     if (data.size() < kHeaderBytes || std::memcmp(data.data(), kMagic.data(), kMagic.size()) != 0 ||
         ReadU32(data, kVersionAt) != kVersion)

@@ -125,6 +125,11 @@ void ClearReadOnly(const std::string& path)
     fs::permissions(path, fs::perms::owner_write, fs::perm_options::add, ignored);
 }
 
+std::FILE* OpenSharedFile(const std::string& path, std::string_view mode)
+{
+    return std::fopen(path.c_str(), std::string(mode).c_str());
+}
+
 bool TruncateFile(std::FILE* file, u64 size)
 {
     return ::ftruncate(::fileno(file), static_cast<off_t>(size)) == 0;

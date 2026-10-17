@@ -281,7 +281,7 @@ bool MediaDecoder::Open(const std::string& path)
 {
     this->Close();
     auto state = std::make_unique<State>();
-    state->file = std::fopen(ResolvePath(path).c_str(), "rb");
+    state->file = OpenSharedFile(ResolvePath(path), "rb");
 
     if (state->file == nullptr)
     {

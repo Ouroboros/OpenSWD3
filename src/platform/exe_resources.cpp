@@ -2,8 +2,6 @@
 
 #include <climits>
 #include <cstring>
-#include <fstream>
-#include <iterator>
 
 #include "core/byte_reader.h"
 #include "platform/file_system.h"
@@ -99,14 +97,11 @@ struct Section
 
 bool ExeResources::Open(const std::string& path)
 {
-    std::ifstream file(ResolvePath(path), std::ios::binary);
-
-    if (!file)
+    if (!ReadSharedFile(ResolvePath(path), this->image))
     {
         return false;
     }
 
-    this->image.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
     this->entries.clear();
     return this->Parse();
 }
