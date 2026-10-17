@@ -17,6 +17,7 @@
 #include "org/fame.h"
 #include "pic/rle.h"
 #include "platform/display.h"
+#include "random/random.h"
 #include "res/act_archive.h"
 #include "res/tsw_archive.h"
 #include "text/big5.h"
@@ -124,6 +125,14 @@ constexpr int kFaintShadowTint = -1;
 constexpr int kShadowLeft = 5;
 constexpr int kPanCentre = 0x140;  // the sound pans right of the middle of the 640-pixel screen
 constexpr int kTargetPan = 0x10;
+
+// Steal and AttackPose.
+constexpr u16 kNothingToSteal = 25000;  // Steal: the target has no item
+constexpr u16 kStealRoll = 10;          // the roll is 0..9 less one per kStealShare percent of proficiency
+constexpr u16 kStealShare = 25;
+constexpr u16 kSureSteal = 100;   // a proficiency of 100 or more always steals
+constexpr u16 kHitCast = 0x8000;  // AttackPose: the cast act with bit 15 tells that the attack hits
+constexpr u16 kPoseDone = 2;
 constexpr std::array<Spark, BattleRole::ExtraActs> kSparks = {{
     {0, 1, -5, 0xE},
     {10, 2, -10, 0xA},
@@ -1435,5 +1444,125 @@ int BattleRole::PoseAtTarget(BattleServices& services, const BattleUnit& target)
     );
     painter.DrawPicture(x, y, this->picture->width, this->picture->height, act.flags);
     return 0;
+}
+
+// swd32.exe 0x00472430: the item stolen from the target (taken from it), 0 when the roll fails, kNothingToSteal when it
+// has none. Below 100 the steal proficiency (of the worn steal accessory, ProficiencyList) lowers a 0..9 roll by one
+// per 25 percent; the roll must stay below the target's steal difficulty.
+u16 BattleRole::Steal(BattleServices& services, const BattleUnit& target)
+{
+    ObjectData& data = target.Data()->data;
+
+    if (data.stealItem == 0)
+    {
+        return kNothingToSteal;
+    }
+
+    this->AccessoryProficiency(
+        static_cast<u16>(AccessoryKind::Steal),
+        services.party.fame.lists[Fame::ProficiencyList]
+    );
+
+    if (this->unk26DC < kSureSteal)
+    {
+        const auto roll = static_cast<u16>(services.random.Below(kStealRoll));
+        const int cut = this->unk26DC / kStealShare;
+        const u16 value = cut > roll ? u16{0} : static_cast<u16>(roll - cut);
+
+        if (value >= data.stealDifficulty)
+        {
+            return 0;
+        }
+    }
+
+    const u16 item = data.stealItem;
+    data.stealItem = 0;
+    return item;
+}
+
+// swd32.exe 0x00472710: always 1 (the target's object is read and not used)
+int BattleRole::CanTarget(const BattleUnit& target)
+{
+    target.Data();
+    return 1;
+}
+
+// swd32.exe 0x004724D0: one frame of the role's attack pose (kAttackAction in the stand act) at its place over its
+// shadow, the sound panned left. The draw takes the act's own x and flags (the mirrored offset and flags it computes
+// for a facing role are kept but not used). It returns the cast act with kHitCast once the act strikes or follows up
+// (the bits cleared), kPoseDone (the act cleared) once it waits, otherwise 0.
+u16 BattleRole::AttackPose(BattleServices& services)
+{
+    ActState& act = this->standAct;
+    act.id = this->actId;
+    this->unk2AAC = 1;
+    act.action = kAttackAction;
+    act.hold = 0;
+
+    if (this->held == 1)
+    {
+        act.hold = 1;
+    }
+
+    if (services.acts.Run(act) == 0)
+    {
+        return 0;
+    }
+
+    this->picture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->picture == nullptr)
+    {
+        return 0;
+    }
+
+    Painter& painter = services.painter;
+    painter.SetSource(this->picture->data.data());
+    this->actOffsetX = static_cast<u16>(act.x);
+    this->frameFlags = act.flags;
+    this->actAnchorX = act.anchorX;
+
+    if (this->facing == 1)
+    {
+        this->frameFlags ^= Painter::Mirror;
+        this->actOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
+
+        if (act.anchorX != 0)
+        {
+            this->actAnchorX = static_cast<u16>(this->picture->width - act.anchorX);
+        }
+    }
+
+    const int shadowHeight = this->picture->height / kShadowShare;
+    DrawOptions& options = painter.Options();
+    options.scaleHeight = shadowHeight;
+    options.tintRed = kShadowTint;
+    options.tintGreen = kShadowTint;
+    options.tintBlue = kShadowTint;
+    options.shear = this->picture->height >> kShadowShearShift;
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+    services.audio.SetSoundPan(act.view, -kTargetPan);
+    act.view = 0;
+    this->unk26A4 = (act.flags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+    const int x = this->placement.x - act.x;
+    painter
+        .DrawPicture(x, this->placement.y - shadowHeight, this->picture->width, this->picture->height, this->unk26A4);
+    painter.DrawPicture(x, this->placement.y - act.y, this->picture->width, this->picture->height, act.flags);
+
+    if ((act.target & (ActState::Strikes | ActState::FollowsUp)) != 0)
+    {
+        act.target = 0;
+        return static_cast<u16>(this->command.castAct | kHitCast);
+    }
+
+    if (act.waiting != 1)
+    {
+        return 0;
+    }
+
+    this->unk2AAC = 0;
+    act = ActState{};
+    return kPoseDone;
 }
 }  // namespace swd3

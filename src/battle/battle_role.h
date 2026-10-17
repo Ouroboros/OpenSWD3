@@ -15,6 +15,7 @@ namespace swd3
 // The kinds of the accessories (ObjectData::unk48), named after the mon.dat items of each kind.
 enum class AccessoryKind : u16
 {
+    Steal = 0x17,        // 神偷面具, 乾坤袋
     Unk32 = 0x32,        // no item has it
     ElementOrb = 0x33,   // 地炎玉, 水靈珠, 青龍水珠, ...: an element's resistance lowered by the proficiency
     AttackRing = 0x34,   // 薩登荊環, 星君眼
@@ -56,6 +57,9 @@ public:
     int CatchAct(BattleServices& services, const BattleUnit& target);
     int GlowAct(BattleServices& services, int x, int y);
     int PoseAtTarget(BattleServices& services, const BattleUnit& target);
+    u16 Steal(BattleServices& services, const BattleUnit& target);
+    u16 AttackPose(BattleServices& services);
+    static int CanTarget(const BattleUnit& target);
     void SetupGuest(const UnitPlacement& at, const RoleRecord& base, Database& database, ErrorReporter& reporter);
     void
     ApplyEquipment(std::span<const std::unique_ptr<ItemNode>> slots, CounterList& proficiency, ErrorReporter& reporter);

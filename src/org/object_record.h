@@ -70,8 +70,8 @@ struct ObjectData
     u16 healB = 0;  // +0x80 (choice 2)
     u16 unk82 = 0;
     u16 unk84 = 0;
-    u16 unk86 = 0;
-    u16 unk88 = 0;
+    u16 stealItem = 0;        // +0x86 the item an enemy can be robbed of (BattleRole::Steal), 0: none
+    u16 stealDifficulty = 0;  // +0x88 2..5: a steal roll below it succeeds
     u16 unk8A = 0;
     u16 unk8C = 0;
     u8 canHeal = 0;  // +0x8E
