@@ -213,6 +213,7 @@ constexpr u32 kAccessoryBit1B = 0x40;
 constexpr u32 kAccessoryBit1D = 0x100;
 constexpr u32 kAccessoryBit1E = 0x200;
 constexpr u16 kAccessoryStep = 5;        // the proficiency steps of an accessory command
+constexpr u16 kDrainStep = 0xC;          // the proficiency the life-drain accessory gains from a drain
 constexpr int kUnk1FScale = 4;           // Unk1F: unk29A4 is 4 percent of the proficiency and 1
 constexpr int kAccessoryBaseShare = 10;  // the heals add a tenth of their base
 constexpr int kHalfShare = 5;            // Unk22 / Unk24: the proficiency is halved, less a fifth of that
@@ -3584,5 +3585,22 @@ int BattleRole::StepBack(BattleServices& services, int mode)
     );
     --this->fadeLevel;
     return 0;
+}
+
+// swd32.exe 0x00472C70: with a SpiritDrain accessory worn (its proficiency stepped by kDrainStep), `amount` becomes
+// the share drained: half the proficiency in percent of it, plus 1; 0 without one.
+int BattleRole::DrainShare(BattleServices& services, i32& amount)
+{
+    if ((this->equipmentFlags & BattleUnit::SpiritDrain) == 0)
+    {
+        return 0;
+    }
+
+    CounterList& proficiency = services.party.fame.lists[Fame::ProficiencyList];
+    this->AccessoryProficiency(static_cast<u16>(AccessoryKind::SpiritDrain), proficiency);
+    this->StepAccessoryCounters(proficiency, kDrainStep);
+    this->unk26DC = static_cast<u16>(this->unk26DC >> 1);
+    amount = amount * this->unk26DC / kPercent + 1;
+    return 1;
 }
 }  // namespace swd3

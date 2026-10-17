@@ -93,6 +93,7 @@ public:
     u16 UseSelectedItem();
     void CancelCommand();
     void AddFury(BattleServices& services, int damage);
+    int DrainShare(BattleServices& services, i32& amount);
     void Regenerate(BattleServices& services);
     void UseAccessorySkill(BattleServices& services, u16 kind);
     void RollCritical(BattleServices& services);

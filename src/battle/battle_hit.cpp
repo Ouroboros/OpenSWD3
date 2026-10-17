@@ -1,4 +1,7 @@
 #include "game/game.h"
+#include <algorithm>
+
+#include "platform/display.h"
 
 namespace swd3
 {
@@ -282,6 +285,65 @@ void Game::ShiftUnits(int shift)
     for (i16 index = 0; index < static_cast<i32>(battle.enemyCount); ++index)
     {
         move(this->battleEnemies[static_cast<std::size_t>(index)]);
+    }
+}
+
+// swd32.exe 0x0045E7D0: the frame shown shaken by the quake step of quakePhase (QuakeSteps): odd steps move it down,
+// even ones up, the band left uncovered black (the frame's top rows are cleared for it); the original blits to the
+// primary surface instead of the plain copy. Every unk53BD68 frames (counted in glowFrames, shared with the panel
+// glow) the phase steps on (between 0 and 1 for UnkPanel100); after 10 the quake ends.
+void Game::QuakeFrame()
+{
+    BattleState& battle = this->battleState;
+    const auto phase = static_cast<std::size_t>(battle.quakePhase);
+    const int step = phase < BattleState::QuakeSteps.size() ? BattleState::QuakeSteps[phase] : 0;
+    const bool down = battle.quakePhase % 2 != 0;
+    Surface* primary = this->graphics.GetSurface(Graphics::SurfaceId::Primary);
+
+    auto copyRows = [this, primary](int from, int to, int rows)
+    {
+        if (primary == nullptr || this->offscreen == nullptr)
+        {
+            return;
+        }
+
+        for (int row = 0; row < rows; ++row)
+        {
+            std::copy_n(this->offscreen->Row(from + row), Display::Width, primary->Row(to + row));
+        }
+    };
+
+    if (down)
+    {
+        copyRows(0, step, Display::Height - step);
+    }
+    else
+    {
+        copyRows(step, 0, Display::Height - step);
+    }
+
+    std::fill_n(this->drawSurface, static_cast<std::size_t>(Display::Width * step), u16{0});
+    copyRows(0, down ? 0 : Display::Height - step, step);
+    this->graphics.Present();
+
+    if (++battle.glowFrames > battle.unk53BD68)
+    {
+        battle.glowFrames = 0;
+
+        if ((battle.panelFlags & BattleState::UnkPanel100) != 0)
+        {
+            battle.quakePhase = (battle.quakePhase + 1) % 2;
+        }
+        else
+        {
+            ++battle.quakePhase;
+        }
+    }
+
+    if (battle.quakePhase == static_cast<i32>(BattleState::QuakeSteps.size()))
+    {
+        battle.quaking = 0;
+        battle.quakePhase = 0;
     }
 }
 }  // namespace swd3

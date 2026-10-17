@@ -65,6 +65,7 @@ public:
     static constexpr i8 FlashStep = 4;
     static constexpr i16 MaxDarkLevel = 2;
     static constexpr i32 DarkLevelFrames = 1;  // darkFrames past it step to the next level
+    static constexpr std::array<u8, 10> QuakeSteps = {4, 3, 4, 3, 4, 3, 2, 3, 2, 3};  // 0x004A75EC by quakePhase
 
     // BattleState::mode bits.
     enum Mode : i32
@@ -77,8 +78,9 @@ public:
     // BattleState::panelFlags bits.
     enum PanelFlag : i32
     {
-        UnkPanel2 = 2,  // set when game flag 0xC9 is on at the battle start
-        UnkPanel8 = 8,  // the battle ends with unk53BDC8 0 even when lost (CheckBattleEnd)
+        UnkPanel2 = 2,        // set when game flag 0xC9 is on at the battle start
+        UnkPanel8 = 8,        // the battle ends with unk53BDC8 0 even when lost (CheckBattleEnd)
+        UnkPanel100 = 0x100,  // the screen quakes all the time (QuakeFrame)
         ResistancePanel = 0x20,
         NoRetreat = 0x200,  // the party cannot retreat
     };
@@ -99,6 +101,7 @@ public:
     void StartFieldFade(int red, int green, int blue, int toRed, int toGreen, int toBlue, int frames);
     void WipeSlotRecords();
     void SortDrawOrderAround(i32 acting, i32 target);
+    void SetReturnedItem(int index, u16 id);
 
     i32 listBCount = 0;                              // 0x004FD3B0 entries of listB, at most 13
     ItemLink listB;                                  // 0x004FD4C0
@@ -299,6 +302,7 @@ public:
     i16 unk4A7638 = 0x1A4;  // the push, halved each frame
     u16 unk53BDE8 = 0;      // frames since the push was halved
     i16 unk53AE7A = 0;      // the hit act picture after which the units slide back
+    i32 unk53BD68 = 0;      // frames of a quake step
     // The end of the battle (Game::CheckBattleEnd, Game::DrawBattlePrompt).
     i32 unk53CEAC = 0;  // 1: the battle ends as won
     i32 unk53C4A8 = 0;  // the fade of the field to black, 2 darker a frame

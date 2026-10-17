@@ -830,3 +830,77 @@ TEST_CASE("battle state: the initial turn and push values match swd32.exe")
     CHECK(swd3test::SameTable(exe, kPushAt, std::array<swd3::i16, 1>{state.unk4A7638}));
     CHECK(swd3test::SameTable(exe, kTurnPointerAt, std::array<swd3::i32, 1>{state.unk4A7640}));
 }
+
+TEST_CASE("battle unit: element orbs gain proficiency from hits of an element")
+{
+    constexpr swd3::u16 kElementOrb = 0x33;
+    constexpr swd3::i16 kOrbCounter = 7;
+    constexpr swd3::u16 kOrbMaximum = 100;
+    constexpr swd3::u16 kOrbStep = 12;
+    constexpr swd3::u16 kFireElement = 1;
+    constexpr swd3::i16 kOtherCounter = 5;
+    swd3::BattleUnit role;
+    role.accessories[0].data.unk48 = kElementOrb;
+    role.accessories[0].data.unk50 = static_cast<swd3::u16>(kOrbCounter);
+    role.accessories[0].data.unk44 = kOrbMaximum;
+    swd3::CounterList list;
+    swd3::UnitCommand command;
+    CHECK_EQ(role.StepOrbCounters(list, command), 0);
+    CHECK(list.next == nullptr);
+    command.resistance = kFireElement;
+    CHECK_EQ(role.StepOrbCounters(list, command), 1);
+    CHECK_EQ(list.id, 1);
+    CHECK(list.next != nullptr);
+
+    if (list.next == nullptr)
+    {
+        return;
+    }
+
+    CHECK_EQ(list.next->id, kOrbCounter);
+    CHECK_EQ(list.next->value, kOrbStep);
+    CHECK_EQ(list.next->percent, kOrbStep);
+    role.StepOrbCounters(list, command);
+    CHECK_EQ(list.next->value, 2 * kOrbStep);
+
+    // The head's count is compared as an id: an orb counter equal to it steps the head.
+    swd3::CounterList counted;
+    counted.next = std::make_unique<swd3::CounterNode>();
+    counted.next->id = kOtherCounter;
+    counted.id = 1;
+    role.accessories[0].data.unk50 = 1;
+    role.StepOrbCounters(counted, command);
+    CHECK_EQ(counted.value, kOrbStep);
+    CHECK(counted.next->next == nullptr);
+}
+
+TEST_CASE("battle role: the share of a spirit drain")
+{
+    constexpr swd3::u16 kProficiency = 40;
+    constexpr swd3::i32 kDrained = 50;
+    constexpr int kPercent = 100;
+    Services all;
+    swd3::BattleRole role;
+    swd3::i32 amount = kDrained;
+    CHECK_EQ(role.DrainShare(all.services, amount), 0);
+    CHECK_EQ(amount, kDrained);
+    role.equipmentFlags = swd3::BattleUnit::SpiritDrain;
+    role.unk26DC = kProficiency;
+    CHECK_EQ(role.DrainShare(all.services, amount), 1);
+    CHECK_EQ(role.unk26DC, kProficiency / 2);
+    CHECK_EQ(amount, kDrained * (kProficiency / 2) / kPercent + 1);
+}
+
+TEST_CASE("battle state: the quake steps match swd32.exe")
+{
+    constexpr swd3::u32 kQuakeStepsAt = 0x004A75EC;
+    const std::vector<swd3::u8> exe = swd3test::ReadGameFile("swd32.exe");
+
+    if (exe.empty())
+    {
+        std::printf("  (swd32.exe not found, skipped)\n");
+        return;
+    }
+
+    CHECK(swd3test::SameTable(exe, kQuakeStepsAt, swd3::BattleState::QuakeSteps));
+}

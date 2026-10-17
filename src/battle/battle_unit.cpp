@@ -1438,6 +1438,9 @@ constexpr i32 kRunSoundAt = 0xF;
 constexpr u16 kRunSound = 0x2F;
 constexpr int kRunStep = 0x19;
 
+// StepOrbCounters.
+constexpr u16 kOrbStep = 0xC;  // the proficiency an element orb gains from a hit of its element
+
 // FadeInvisible and StepAccessoryCounters.
 constexpr i16 kInvisibleFadeFrames = 0x18;
 constexpr int kShadowLeftShift = 5;
@@ -8245,5 +8248,65 @@ int BattleUnit::RunAway(BattleServices& services)
 
     --this->fadeLevel;
     return 0;
+}
+
+// swd32.exe 0x0046F6E0: the worn element orbs (AccessoryKind 0x33) step their proficiency counters (their unk50) in
+// `list` by kOrbStep up to their unk44, when hit by `command` of an element 1..9 (the original also tests the address
+// of the orb's resistance to it, never null); 1 when an orb counts. Each search starts at the head of the list, its
+// count compared as an id; a missing counter is appended at the end and counted.
+int BattleUnit::StepOrbCounters(CounterList& list, const UnitCommand& command)
+{
+    int counts = 0;
+
+    for (const ObjectRecord& accessory : this->accessories)
+    {
+        const ObjectData& data = accessory.data;
+        const auto id = static_cast<i16>(data.unk50);
+
+        if (id == 0 || data.unk48 != static_cast<u16>(AccessoryKind::ElementOrb) || command.resistance < 1 ||
+            command.resistance > kResistances)
+        {
+            continue;
+        }
+
+        counts = 1;
+        CounterNode* at = &list;
+
+        while (at->id != id && at->next != nullptr)
+        {
+            at = at->next.get();
+        }
+
+        if (at->id == id)
+        {
+            if (at->done != 0)
+            {
+                continue;
+            }
+
+            at->value = static_cast<u16>(at->value + kOrbStep);
+
+            if (at->value >= data.unk44)
+            {
+                at->value = data.unk44;
+            }
+
+            at->percent = static_cast<u16>(
+                crt::Ftol(static_cast<double>(at->value) / static_cast<double>(data.unk44) * kCounterPercent)
+            );
+            continue;
+        }
+
+        at->next = std::make_unique<CounterNode>();
+        at = at->next.get();
+        at->id = id;
+        at->value = kOrbStep;
+        at->percent = static_cast<u16>(
+            crt::Ftol(static_cast<double>(kOrbStep) / static_cast<double>(data.unk44) * kCounterPercent)
+        );
+        ++list.id;
+    }
+
+    return counts;
 }
 }  // namespace swd3

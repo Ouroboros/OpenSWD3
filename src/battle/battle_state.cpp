@@ -396,4 +396,10 @@ void BattleState::SortDrawOrderAround(i32 acting, i32 target)
         this->SortDrawOrder();
     }
 }
+
+// swd32.exe 0x0045EC60: object `id` held back as returned object `index` (1 or 2; given back by ReturnBattleItems)
+void BattleState::SetReturnedItem(int index, u16 id)
+{
+    this->unk4FF2EA[static_cast<std::size_t>(index)] = id;
+}
 }  // namespace swd3
