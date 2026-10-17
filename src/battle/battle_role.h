@@ -112,7 +112,7 @@ public:
     int ThrowableObject(int throwable, int index, std::string& name, u16& count);
     u16 ListSkill(Database& database, int category, int type, int index, std::string& name, u16& cost);
     int StepWornCounters(CounterList& list, u16 amount);
-    u8 SelectSkill(Database& database, int category, int type, int index, u32& act);
+    u16 SelectSkill(Database& database, int category, int type, int index, u32& act);
     int CanPaySkill(BattleServices& services, int category, int index);
     int SelectObject(Database& database, ErrorReporter& reporter, int category, int index, u32& act, u16& kind);
     void Regenerate(BattleServices& services);

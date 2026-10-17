@@ -242,7 +242,7 @@ constexpr u16 kCostValueMask = 0x7FFF;
 constexpr u16 kFixedCostBit = 0x800;
 constexpr u16 kFixedCost = 1000;
 constexpr double kCounterPercent = 100.0;  // swd32.exe 0x00499D28
-constexpr u8 kNoSkillChosen = 0xFF;
+constexpr u16 kNoSkillChosen = 0xFFFF;
 constexpr u16 kHealPercentBit = 0x200;  // ObjectData::unk3C: the heals are percentages
 constexpr u32 kOffensiveKind = 8;
 constexpr u16 kItemCostBit = 0x800;  // ObjectData::unk40: the low 11 bits name an object the skill takes
@@ -4063,8 +4063,8 @@ int BattleRole::StepWornCounters(CounterList& list, u16 amount)
 // UnkCommandFlag200, other types count kSkillType1. `act` takes its unk50, the command its skill script (cleared
 // first), the skill name its name; with UnkCommandFlag200 unk2A8A, unk2F16 and unk2F18 take its unk48, unk50 and
 // unk40. Its unk34..unk38 are the heals when unk3C is 0, and percentages with bit kHealPercentBit. The result is 1
-// for a skill of category 0 or a category with kind bit 8 the skill also has; 0xFF without one (or index 0).
-u8 BattleRole::SelectSkill(Database& database, int category, int type, int index, u32& act)
+// for a skill of category 0 or a category with kind bit 8 the skill also has; 0xFFFF without one (or index 0).
+u16 BattleRole::SelectSkill(Database& database, int category, int type, int index, u32& act)
 {
     const u32 kinds = BattleRole::CategoryKinds(category, kSkillCategories);
 

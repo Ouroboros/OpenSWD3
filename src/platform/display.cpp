@@ -164,4 +164,26 @@ LogicalPoint Display::WindowToLogical(float windowX, float windowY) const
     return ToLogical(this->CurrentViewport(), windowX * scaleX, windowY * scaleY);
 }
 
+// SetCursorPos(x, y): the system pointer moved to logical point (x, y) of the window (the original runs full screen,
+// where the screen point is the logical one)
+void Display::WarpPointer(int x, int y)
+{
+    if (!this->IsOpen())
+    {
+        return;
+    }
+
+    int windowWidth = 0;
+    int windowHeight = 0;
+    int outputWidth = 0;
+    int outputHeight = 0;
+    SDL_GetWindowSize(this->window, &windowWidth, &windowHeight);
+    SDL_GetRenderOutputSize(this->renderer, &outputWidth, &outputHeight);
+    const float scaleX = outputWidth > 0 ? static_cast<float>(windowWidth) / outputWidth : 1.0f;
+    const float scaleY = outputHeight > 0 ? static_cast<float>(windowHeight) / outputHeight : 1.0f;
+    const Viewport viewport = this->CurrentViewport();
+    const float outputX = viewport.x + static_cast<float>(x) * viewport.width / Display::Width;
+    const float outputY = viewport.y + static_cast<float>(y) * viewport.height / Display::Height;
+    SDL_WarpMouseInWindow(this->window, outputX * scaleX, outputY * scaleY);
+}
 }  // namespace swd3

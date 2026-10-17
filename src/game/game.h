@@ -262,6 +262,22 @@ private:
     int MouseHover();
     int HoverRefineCell();
     int HoverTarget();
+    void MenuConfirm();
+    bool PrepareOrder();
+    void AimAtParty();
+    void OpenTargets();
+    void EndChoice();
+    void ConfirmCommand();
+    void ConfirmSpell();
+    void ConfirmTarget();
+    void ConfirmItem();
+    void CallEscort(BattleRole& role);
+    void ConfirmEscort();
+    void ConfirmTalk();
+    void ConfirmSpecial();
+    void ConfirmThrow();
+    void ConfirmRefine();
+    void ConfirmEnd();
     void DrawRolePanels();
     template <typename Next>
     void StepPanelGauge(i32& shown, i32& target, Next next, int picture, int x, int y, i32 downNear, i32 downFar);

@@ -63,6 +63,7 @@ public:
     void ToggleFullscreen();
     // A window position (as reported by mouse events) in logical screen coordinates.
     LogicalPoint WindowToLogical(float windowX, float windowY) const;
+    void WarpPointer(int x, int y);
 
     SDL_Window* Window() const
     {

@@ -97,6 +97,7 @@ public:
     enum PanelFlag : i32
     {
         UnkPanel2 = 2,        // set when game flag 0xC9 is on at the battle start
+        UnkPanel4 = 4,        // an escort was sent back (ConfirmEscort)
         UnkPanel8 = 8,        // the battle ends with unk53BDC8 0 even when lost (CheckBattleEnd)
         UnkPanel100 = 0x100,  // the screen quakes all the time (QuakeFrame)
         ResistancePanel = 0x20,
@@ -375,7 +376,14 @@ public:
     i32 unk53BFF8 = 0;
     i32 unk53C4AC = 0;  // the unit aimed at under the pointer
     u16 unk53BF2A = 0;
-    u16 unk4FE5D2 = 0;       // the word after commandKinds (read as an accessory kind by MouseHover)
+    u16 unk4FE5D2 = 0;  // the word after commandKinds (read as an accessory kind by MouseHover)
+    // The confirm key of the menu (Game::MenuConfirm).
+    i32 unk53BDA4 = 0;
+    i32 unk53BCDC = 0;
+    i32 unk53C01C = 0;
+    std::array<u16, Units> unk52137C = {};  // per unit: the escort place it called
+    u16 unk53BF24 = 0;                      // the escort being called (the low word of 0x0053BF24)
+    i32 unk53C038 = 0;
     i32 unk4A7564 = -1;      // the enemy the auto battle aims at (1-based), -1: none
     u16 unk4A7644 = 0xFFFF;  // a role unit that may take the panel in any battle state (SelectRoleUnit)
     i32 unk4A7548 = 1;       // the command chosen in the menu (1-based)

@@ -1375,7 +1375,7 @@ TEST_CASE("battle role: choosing a skill and paying for it")
     constexpr swd3::i16 kHighSpirit = 25;
     constexpr swd3::u16 kItemCost = 0x800 | 0x55;
     constexpr swd3::u16 kCostItem = 0x55;
-    constexpr swd3::u8 kNoSkill = 0xFF;
+    constexpr swd3::u16 kNoSkill = 0xFFFF;
     Services all;
     const std::string directory(kNoData);
     swd3::Database database(directory);
