@@ -134,8 +134,6 @@ constexpr u16 kSureSteal = 100;   // a proficiency of 100 or more always steals
 constexpr u16 kHitCast = 0x8000;  // AttackPose: the cast act with bit 15 tells that the attack hits
 constexpr u16 kPoseDone = 2;
 constexpr i32 kCastPose = 0x2D;
-constexpr i32 kMagicActs = 1500;  // MagicFrame: the magic act is 1500 entries after the unit's act (inferred: the
-                                  // second half of the 3000-entry archive)
 
 // CanAbsorb.
 constexpr u16 kMaxAbsorbClass = 0x15;   // ObjectData::unk52
@@ -1886,7 +1884,7 @@ int BattleRole::CastAt(BattleServices& services, const BattleUnit& target, i32 s
     return 1;
 }
 
-// swd32.exe 0x00473010: one frame of the role's magic act (its act + kMagicActs, action unk2A8A, slot act 8) drawn by
+// swd32.exe 0x00473010: one frame of the role's magic act (its act + MagicActs, action unk2A8A, slot act 8) drawn by
 // DrawAction; its target bits play the effect in the recoil act (holding the act) and fade the field by its lights;
 // a follow-up marks the spell cast in BattleState::spellStage. 1 (slot act 8 and the stages cleared) once the battle
 // marks the spell over.
@@ -1896,7 +1894,7 @@ int BattleRole::MagicFrame(BattleServices& services, const BattleUnit& target)
     ActState& act = this->slotActs[BattleUnit::UnkSlot8];
     act.action = this->unk2A8A;
     this->unk2AAC = 1;
-    act.id = this->actId + kMagicActs;
+    act.id = this->actId + BattleRole::MagicActs;
     this->DrawAction(services, target, act);
 
     if ((act.target & ActState::Recoils) != 0)

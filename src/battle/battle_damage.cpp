@@ -14,6 +14,17 @@ constexpr int kRetreatY = 0xA;
 constexpr i16 kRetreatFrames = 0x32;
 constexpr u16 kNoRetreatSound = 0x8C;
 
+// DrainSpellFrame.
+constexpr int kSpellShadowShare = 3;
+constexpr std::size_t kSpellShadowShearShift = 2;
+constexpr int kSpellShadowTint = -6;
+constexpr int kFaintSpellShadowTint = -1;
+constexpr int kSpellShadowLeft = 5;
+constexpr int kSpellPanCentre = 0x140;
+constexpr int kSpellPan = 0x10;
+constexpr i32 kSpellMaxDamage = 0x270F;
+constexpr u16 kDrainGainDelay = 8;  // the stamina gain shows 8 frames after the healing
+
 }  // namespace
 
 // swd32.exe 0x0045D690: the drain of `attacker`'s command applied after a hit on `target`. A life drain heals the
@@ -115,5 +126,139 @@ void Game::TryRetreat(int role)
     battle.result = 0;
     battle.unk53BF00 = static_cast<u8>(battle.enemyCount);
     battle.unk53BFE4 = 1;
+}
+
+// swd32.exe 0x004731A0: one frame of `role`'s drain spell (its magic act, slot act 8) at its place over its shadow;
+// the act's colour darkens the field. Once the act strikes or follows up, the cast act flies from the target back
+// into the role (one more step each frame); when it arrives the hit lands on the target (at most kMaxDamage) and the
+// role regains it: the negated damage shows as healing and the hit's damage as a stamina gain 8 frames later, and the
+// role takes both. 1 (both acts cleared) then.
+int Game::DrainSpellFrame(BattleRole& role, BattleUnit& target)
+{
+    BattleState& battle = this->battleState;
+    BattleServices& services = this->battleServices;
+    Painter& painter = this->painter;
+    ActState& act = role.slotActs[BattleUnit::UnkSlot8];
+    role.unk2AAC = 1;
+    act.id = role.actId + BattleRole::MagicActs;
+    act.action = role.unk2A8A;
+
+    if (this->acts.Run(act) == 0)
+    {
+        return 0;
+    }
+
+    role.picture = this->archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (role.picture == nullptr)
+    {
+        return 0;
+    }
+
+    const Picture& picture = *role.picture;
+    painter.SetSource(picture.data.data());
+    role.actOffsetX = static_cast<u16>(act.x);
+    u32 flags = act.flags;
+    role.actAnchorX = act.anchorX;
+
+    if (role.facing == 1)
+    {
+        flags ^= Painter::Mirror;
+        role.actOffsetX = static_cast<u16>(picture.width - static_cast<u16>(act.x));
+
+        if (act.anchorX != 0)
+        {
+            role.actAnchorX = static_cast<u16>(picture.width - act.anchorX);
+        }
+    }
+
+    const int shadowHeight = picture.height / kSpellShadowShare;
+    DrawOptions& options = painter.Options();
+    options.scaleHeight = shadowHeight;
+    options.shear = picture.height >> kSpellShadowShearShift;
+    const int tint = role.unk2B00 == 1 ? kFaintSpellShadowTint : kSpellShadowTint;
+    options.tintRed = tint;
+    options.tintGreen = tint;
+    options.tintBlue = tint;
+    this->audio.PlaySound(act.view, this->config.soundVolume);
+    const int x = role.placement.x - static_cast<i16>(role.actOffsetX);
+    this->audio.SetSoundPan(act.view, x >= kSpellPanCentre ? kSpellPan : -kSpellPan);
+    act.view = 0;
+    role.unk26A4 = (flags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+    painter.DrawPicture(
+        x - kSpellShadowLeft,
+        role.placement.y - shadowHeight,
+        picture.width,
+        picture.height,
+        role.unk26A4
+    );
+    painter.DrawPicture(x, role.placement.y - act.y, picture.width, picture.height, flags);
+    battle.darkRed = static_cast<i16>(act.red);
+    battle.darkGreen = static_cast<i16>(act.green);
+    battle.darkBlue = static_cast<i16>(act.blue);
+    this->PrepareDarkenedCopies();
+
+    if (battle.darkRed != 0 || battle.darkGreen != 0 || battle.darkBlue != 0)
+    {
+        battle.unk53BF94 = 1;
+    }
+
+    if ((act.target & (ActState::Strikes | ActState::FollowsUp)) == 0)
+    {
+        return 0;
+    }
+
+    u16 targetX = 0;
+    u16 targetY = 0;
+    target.GetDrawPosition(targetX, targetY);
+    ++role.absorbFrames;
+    const int fromX = static_cast<i16>(role.actAnchorX) + x;
+    const int fromY = role.placement.y + static_cast<i16>(act.anchorY) - act.y;
+
+    if (role.FlyAct(
+            services,
+            target,
+            role.slotActs[0],
+            0,
+            role.command.castAct,
+            fromX,
+            fromY,
+            static_cast<i16>(role.command.target),
+            1
+        ) != 1)
+    {
+        return 0;
+    }
+
+    target.RaiseFlag26B8();
+    i16 spirit = 0;
+    i16 stamina = 0;
+    i32 damage = role.HitDamage(services, target, spirit, stamina);
+    battle.lastDamage = damage;
+
+    if (damage >= kSpellMaxDamage)
+    {
+        damage = kSpellMaxDamage;
+        battle.lastDamage = damage;
+    }
+
+    battle.hitDamage += damage;
+    target.SetDamageDigits(services, damage);
+    target.StepTargetCount(1);
+    battle.lastDamage = -battle.lastDamage;
+    role.PushTarget(BattleUnit::HealTarget);
+    role.SetDamageDigits(services, battle.lastDamage);
+    role.PushTargetAlt(0);
+    role.StepTargetCount(1);
+    role.PushTarget(BattleUnit::StaminaGainTarget);
+    role.SetDamageDigits(services, battle.hitDamage);
+    role.PushTargetAlt(kDrainGainDelay);
+    role.StepTargetCount(1);
+    role.Damage(services, battle.lastDamage, 0, static_cast<i16>(battle.hitDamage));
+    role.absorbFrames = 0;
+    role.slotActs[0] = ActState{};
+    act = ActState{};
+    return 1;
 }
 }  // namespace swd3

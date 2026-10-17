@@ -40,6 +40,8 @@ public:
     static constexpr std::size_t NoResistanceSlotB = 0xA;
 
     static constexpr std::size_t ExtraActs = 5;
+    // The magic act is MagicActs entries after the unit's act (inferred: the second half of the 3000-entry archive).
+    static constexpr i32 MagicActs = 1500;
 
     BattleRole();
     void SetSkills(ItemNode* list);

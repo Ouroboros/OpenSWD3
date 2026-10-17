@@ -194,6 +194,7 @@ private:
     void PrepareDarkenedCopies();
     void ApplyDrain(BattleUnit& attacker, BattleUnit& target);
     void TryRetreat(int role);
+    int DrainSpellFrame(BattleRole& role, BattleUnit& target);
     void DrawRolePanels();
     template <typename Next>
     void StepPanelGauge(i32& shown, i32& target, Next next, int picture, int x, int y, i32 downNear, i32 downFar);
