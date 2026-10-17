@@ -79,7 +79,10 @@ struct FontFill
 };
 
 constexpr std::array<int, 11> kFontStyles = {0x1, 0x2, 0x4, 0x8, 0x10, 0x81, 0x102, 0x84, 0x108, 0x190, 0x20};
-constexpr std::array<FontClip, 3> kFontClips = {{{0, 0, kScreenWidth, kScreenHeight}, {50, 40, 300, 200}, {13, 7, 101, 33}}};
+constexpr std::array<FontClip, 3> kFontClips = {
+    {{0, 0, kScreenWidth, kScreenHeight}, {50, 40, 300, 200}, {13, 7, 101, 33}}
+};
+
 constexpr std::array<FontFill, 3> kFontFills = {{
     {-5, -3, 30, 20, 0x1111},
     {620, 470, 40, 30, 0x2222},
@@ -115,6 +118,7 @@ inline void RunFont(FontBackend& backend, const std::function<void(const std::st
             static_cast<char>(kFillerLead + code % kFillerLeads),
             static_cast<char>(kFillerTrail + (code * kFillerTrailStep) % kFillerTrails)
         };
+
         backend.DrawText(0, 0, text, kFontWhite, kFontPlainStyle);
     }
 
@@ -151,7 +155,8 @@ inline void RunFont(FontBackend& backend, const std::function<void(const std::st
                 for (const std::string& text : texts)
                 {
                     backend.DrawText(clip.x - kFontLeftOut, y, text, kFontLeftColor, style);
-                    backend.DrawText(clip.x + clip.width - kFontRightIn, y + kFontRightDrop, text, kFontRightColor, style);
+                    backend
+                        .DrawText(clip.x + clip.width - kFontRightIn, y + kFontRightDrop, text, kFontRightColor, style);
                     y += kFontLineHeight;
                 }
 

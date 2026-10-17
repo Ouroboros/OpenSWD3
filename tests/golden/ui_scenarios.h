@@ -71,6 +71,7 @@ constexpr std::array<Box, 7> kBoxes = {{
     {33, 77, 201, 123},
     {120, 90, 7, 1},
 }};
+
 constexpr std::array<FillColor, 4> kColors = {{{31, 0, 0}, {5, 10, 15}, {0, 31, 31}, {-4, 6, -2}}};
 constexpr std::array<ClipRect, 2> kClips = {{kFullScreen, {100, 80, 400, 300}}};
 constexpr std::array<FrameCase, 6> kFrames = {{
@@ -91,7 +92,8 @@ inline std::vector<int> FramePictures(const std::string& sysPath)
 
     for (int entry = 1; file && entry < kIndicesPerFile && ids.size() < kMaxFramePictures; ++entry)
     {
-        const u32 base = ReadU32(file, kTswDirectoryStart + kTswDirectoryBytes * static_cast<u32>(entry - 1) + kTswOffsetAt);
+        const u32 base =
+            ReadU32(file, kTswDirectoryStart + kTswDirectoryBytes * static_cast<u32>(entry - 1) + kTswOffsetAt);
 
         if (!file)
         {
@@ -138,7 +140,8 @@ RunUi(UiBackend& backend, const std::string& sysPath, const std::function<void(c
                 for (std::size_t color = 0; color < kColors.size(); ++color)
                 {
                     const ClipRect& c = kClips[clip];
-                    const auto seed = clip * kClipSeed + static_cast<std::size_t>(mode) * kModeSeed + box * kBoxSeed + color;
+                    const auto seed =
+                        clip * kClipSeed + static_cast<std::size_t>(mode) * kModeSeed + box * kBoxSeed + color;
                     backend.Reset(static_cast<u32>(seed), c.left, c.top, c.right, c.bottom);
                     const Box& b = kBoxes[box];
                     const FillColor& k = kColors[color];
@@ -158,7 +161,13 @@ RunUi(UiBackend& backend, const std::string& sysPath, const std::function<void(c
         for (std::size_t f = 0; f < kFrames.size(); ++f)
         {
             const FrameCase& r = kFrames[f];
-            backend.Reset(static_cast<u32>(id + f), kFullScreen.left, kFullScreen.top, kFullScreen.right, kFullScreen.bottom);
+            backend.Reset(
+                static_cast<u32>(id + f),
+                kFullScreen.left,
+                kFullScreen.top,
+                kFullScreen.right,
+                kFullScreen.bottom
+            );
             backend.Frame(id, r.left, r.top, r.right, r.bottom, r.alpha, r.border);
             report("frame/" + std::to_string(id) + "/" + std::to_string(f), screenHash());
         }

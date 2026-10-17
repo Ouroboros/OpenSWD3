@@ -38,9 +38,11 @@ LoadPaletteFrames(const std::string& path, const std::vector<int>& entries, int 
 
     for (int entry : entries)
     {
-        const u32 base = ReadU32(file, kTswDirectoryStart + kTswDirectoryBytes * static_cast<u32>(entry - 1) + kTswOffsetAt);
+        const u32 base =
+            ReadU32(file, kTswDirectoryStart + kTswDirectoryBytes * static_cast<u32>(entry - 1) + kTswOffsetAt);
 
-        if (base == 0 || ReadU16(file, base + kTswMagicAt) != kTswMagic || ReadU16(file, base + kTswFormatAt) != kTswPaletteFormat)
+        if (base == 0 || ReadU16(file, base + kTswMagicAt) != kTswMagic ||
+            ReadU16(file, base + kTswFormatAt) != kTswPaletteFormat)
         {
             continue;
         }
@@ -106,7 +108,8 @@ inline void RunRle(
         const std::vector<u8> rle(frames[f].rle.begin(), frames[f].rle.end() - kRleSlack);
         const std::vector<u8> decoded = backend.Decode(rle);
         report(name + "/decode", hash(decoded));
-        const std::vector<u8> encoded = backend.Encode(decoded.data(), frames[f].width, frames[f].height, kRleTrueColor);
+        const std::vector<u8> encoded =
+            backend.Encode(decoded.data(), frames[f].width, frames[f].height, kRleTrueColor);
         report(name + "/encode", hash(encoded));
         report(name + "/display", hash(backend.ConvertToDisplay(rle)));
         report(name + "/to16", hash(backend.ConvertTo16(rle, {})));
@@ -147,10 +150,16 @@ inline std::vector<PaletteFrame>
 LoadGoldenPaletteFrames(const std::function<std::string(const std::string&)>& gameFile, const Decompress& decompress)
 {
     std::vector<PaletteFrame> frames = LoadPaletteFrames(
-        gameFile("all_char.tsw"), {kCharPaletteEntries.begin(), kCharPaletteEntries.end()}, kCharFrames, decompress
+        gameFile("all_char.tsw"),
+        {kCharPaletteEntries.begin(), kCharPaletteEntries.end()},
+        kCharFrames,
+        decompress
     );
     const std::vector<PaletteFrame> system = LoadPaletteFrames(
-        gameFile("all_sys.tsw"), {kSystemPaletteEntries.begin(), kSystemPaletteEntries.end()}, 1, decompress
+        gameFile("all_sys.tsw"),
+        {kSystemPaletteEntries.begin(), kSystemPaletteEntries.end()},
+        1,
+        decompress
     );
     frames.insert(frames.end(), system.begin(), system.end());
     return frames;
