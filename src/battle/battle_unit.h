@@ -499,6 +499,9 @@ public:
     int HurtFrame(BattleServices& services);
     void IdleFrame(BattleServices& services, int paused);
     void MoveIdle(BattleServices& services);
+    int ChooseCommand(BattleServices& services, Database& database, u32& act);
+    int ChooseAttack(Database& database);
+    void MarkDelayedAttack();
     void DrawTrail(BattleServices& services, AfterimageTrail& trail, u16 frame, u16 picture, u32 mode, i16 x, i16 y);
     int DrawRecoil(BattleServices& services, ActState& act, i16 y);
     int FlyAct(
@@ -694,9 +697,12 @@ public:
     u16 barrierTurns = 0;  // +0x2A90
     u8 unk2A92 = 0;
     u8 unk2A93 = 0;
-    u8 defeatPose = 0;  // +0x2A94 the pose of the defeat (a fixed pose overrides it)
-    u8 fixedPose = 0;   // +0x2A95
-    std::array<u8, 4> unk2A97 = {};
+    u8 defeatPose = 0;    // +0x2A94 the pose of the defeat (a fixed pose overrides it)
+    u8 fixedPose = 0;     // +0x2A95
+    u8 idleTurns = 0;     // +0x2A97 the turns since the enemy chose an object or a skill (ChooseCommand)
+    u8 itemWait = 0;      // +0x2A98 the turns since the third object was forced
+    u8 skillWait = 0;     // +0x2A99 the turns since the second skill was forced
+    u8 choicePhase = 0;   // +0x2A9A 1: objects were last chosen, 2: skills
     u8 extraAttacks = 0;  // +0x2A9B the attacks the unit repeats (set by skill 0x15)
     u8 healChoice = 0;    // +0x2A9C
     u8 healPercent = 0;   // +0x2A9E 1: unk29A6..unk29AA are percentages of the target's maxima

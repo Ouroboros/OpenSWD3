@@ -180,6 +180,7 @@ public:
     i32 unk53BFD0 = 0;
     i16 unk53BF46 = 0;  // cleared when a stagger ends (HurtFrame)
     i16 unk53BF48 = 0;
+    u16 unk53BF28 = 0;  // non-zero: an enemy does not choose a command with UnkAction1000 (ChooseCommand)
     std::array<i32, 0x12> unk4FF0BC = {};
     i32 unk525450 = 0;
     i32 unk525454 = 0;

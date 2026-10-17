@@ -85,8 +85,8 @@ constexpr int kAgilityShift = 2;  // the gauge step is agility / 4, agility / 8 
 constexpr int kSlowedAgilityShift = 3;
 constexpr int kBoostDivisor = 4;         // a boost adds a quarter of the step plus one
 constexpr u16 kHealBelowShare = 3;       // an enemy heals below a third of its hit points
-constexpr u8 kFirstHeal = 1;             // healChoice: ObjectData::healA
-constexpr u8 kSecondHeal = 2;            // ObjectData::healB
+constexpr u8 kFirstHeal = 1;             // healChoice: ObjectData::healCountA
+constexpr u8 kSecondHeal = 2;            // ObjectData::healCountB
 constexpr u8 kSureEvadeStreak = 0x18;    // evades in a row from which the next hit lands
 constexpr u8 kLikelyEvadeStreak = 0x14;  // from which it lands one time in three
 constexpr int kPercent = 100;
@@ -1395,6 +1395,29 @@ constexpr std::size_t kGoldVariable = 0;
 constexpr int kGoldLeft = 10;
 constexpr int kGoldAbove = 0xF;
 
+// ChooseCommand.
+constexpr int kNoChoice = 0xFFFF;
+constexpr int kItemChoice = 0;
+constexpr int kSkillChoice = 1;
+constexpr int kHealChoice = 2;
+constexpr int kStatusChoice = 4;  // a status of bit 5 or 8: the attack
+constexpr int kIdleChoice = 5;    // no idle turn yet: the attack
+constexpr u8 kItemsChosen = 1;    // choicePhase
+constexpr u8 kSkillsChosen = 2;
+constexpr u32 kUnusedChoiceRoll = 2;
+constexpr u32 kChoiceRoll = 10;
+constexpr u32 kFirstItemRoll = 4;   // a roll up to it takes the first object
+constexpr u32 kSecondItemRoll = 7;  // the second
+constexpr u32 kFirstSkillRoll = 6;
+constexpr u8 kItemWaitTurns = 7;
+constexpr u8 kSkillWaitTurns = 5;
+constexpr u32 kNoForcedStatus = 0x10000000;  // in UnitCommand::unk08: a forced unit (unk2B00) does not choose it
+constexpr i32 kFirstItemAction = 0x2C;       // the ready poses of an act kReadyAct by the object used
+constexpr i32 kSecondItemAction = 0x2D;
+constexpr i32 kThirdItemAction = 0x2E;
+constexpr i32 kHealAction = 0x2F;
+constexpr u16 kDelayedCommand = 0xC8;
+
 // FadeInvisible and StepAccessoryCounters.
 constexpr i16 kInvisibleFadeFrames = 0x18;
 constexpr int kShadowLeftShift = 5;
@@ -2631,7 +2654,10 @@ void BattleUnit::Reset(BattleServices& services)
     this->defeatPose = 0;
     this->fixedPose = 0;
     this->unk2A86 = 0;
-    this->unk2A97 = {};
+    this->idleTurns = 0;
+    this->itemWait = 0;
+    this->skillWait = 0;
+    this->choicePhase = 0;
     this->pendingDamage = 0;
     this->equipmentFlags = 0;
     this->unk26CC = 0;
@@ -3052,22 +3078,22 @@ void BattleUnit::SetWords72(i16 first, i16 second, i16 third, i16 fourth)
 
     if (first != 0)
     {
-        object.unk72 = static_cast<u16>(first);
+        object.skillA = static_cast<u16>(first);
     }
 
     if (second != 0)
     {
-        object.unk74 = static_cast<u16>(second);
+        object.skillACount = static_cast<u16>(second);
     }
 
     if (third != 0)
     {
-        object.unk76 = static_cast<u16>(third);
+        object.skillB = static_cast<u16>(third);
     }
 
     if (fourth != 0)
     {
-        object.unk74 = static_cast<u16>(fourth);
+        object.skillACount = static_cast<u16>(fourth);
     }
 }
 
@@ -3076,12 +3102,12 @@ void BattleUnit::SetWords66(i16 a, i16 b, i16 c, i16 d, i16 e, i16 f)
 {
     ObjectData& object = this->data->data;
     const std::array<std::pair<i16, u16*>, 6> words = {{
-        {a, &object.unk66},
-        {b, &object.unk68},
-        {c, &object.unk6A},
-        {d, &object.unk6C},
-        {e, &object.unk6E},
-        {f, &object.unk70},
+        {a, &object.itemA},
+        {b, &object.itemACount},
+        {c, &object.itemB},
+        {d, &object.itemBCount},
+        {e, &object.itemC},
+        {f, &object.itemCCount},
     }};
 
     for (const auto& [value, word] : words)
@@ -3186,17 +3212,17 @@ bool BattleUnit::ChooseHeal(BattleServices& services)
         return false;
     }
 
-    const bool free = (this->marks & BattleUnit::UnkMark100) == 0 && object.canHeal != 0;
+    const bool free = (this->marks & BattleUnit::UnkMark100) == 0 && object.itemChance != 0;
 
     if (roll == 0)
     {
-        if (object.healA != 0 && free)
+        if (object.healCountA != 0 && free)
         {
             this->healChoice = kFirstHeal;
             return true;
         }
     }
-    else if (roll == 1 && object.healB != 0 && free)
+    else if (roll == 1 && object.healCountB != 0 && free)
     {
         this->healChoice = kSecondHeal;
         return true;
@@ -4987,7 +5013,7 @@ int BattleUnit::ReturnHome(BattleServices& services, const BattleUnit& target, i
     return 0;
 }
 
-// swd32.exe 0x00476250: an enemy's command taken from its object (skill unk72 for choice 1, unk76 for another): the
+// swd32.exe 0x00476250: an enemy's command taken from its object (skill skillA for choice 1, skillB for another): the
 // command script and its value; a UnkFlag2 command gives its cast act, sets UnkCommandFlag8000 and command 2 (0);
 // another sets unk2A8C to the choice and command 1 (1).
 int BattleUnit::LoadEnemyCommand(Database& database, int choice, u32& act)
@@ -4995,7 +5021,7 @@ int BattleUnit::LoadEnemyCommand(Database& database, int choice, u32& act)
     this->command = UnitCommand{};
     this->unk29A4 = 0;
     const ObjectData& data = this->data->data;
-    this->LoadCommand(database, choice == 1 ? data.unk72 : data.unk76);
+    this->LoadCommand(database, choice == 1 ? data.skillA : data.skillB);
     this->unk29A4 = static_cast<u16>(this->command.value);
 
     if ((this->command.flags & UnitCommand::UnkFlag2) != 0)
@@ -7582,6 +7608,326 @@ void BattleUnit::MoveIdle(BattleServices& services)
             this->unk2B10 = 1;
             this->RaiseFlag26B8();
         }
+    }
+}
+
+// swd32.exe 0x00480220: an enemy chooses its command for the turn; `act` takes the act of an object or a cast; 1 when
+// the command is chosen with its act (UnkCommandFlag8000 and command 2, or 0xF for UnkAction1000), 0 for an attack
+// or a skill of command 1, 1 at once while UnkCommandFlag8000 is set. A heal (healChoice) comes first; else objects
+// and skills take turns (choicePhase), and a status of bit 5 or 8 or no idle turn yet fall back to the attack after an
+// unused roll. An object or skill is tried with a roll of 0..9 below idleTurns plus its chance; the third object
+// comes every 7 turns, the second skill every 5. The attack is the object's skill script with its attack added.
+int BattleUnit::ChooseCommand(BattleServices& services, Database& database, u32& act)
+{
+    Random& random = services.random;
+    ObjectData& data = this->data->data;
+    int choice = kNoChoice;
+    int chosen = 0;
+
+    if ((this->unk2A86 & BattleUnit::UnkCommandFlag8000) != 0)
+    {
+        return 1;
+    }
+
+    this->command = UnitCommand{};
+
+    if (this->healChoice != 0)
+    {
+        choice = kHealChoice;
+    }
+    else if (data.itemACount != 0)
+    {
+        if (data.skillACount != 0 && this->choicePhase == kItemsChosen)
+        {
+            choice = kSkillChoice;
+            this->choicePhase = kSkillsChosen;
+        }
+        else
+        {
+            choice = kItemChoice;
+            this->choicePhase = kItemsChosen;
+        }
+    }
+    else if (data.itemBCount != 0 || data.itemCCount != 0)
+    {
+        choice = kItemChoice;
+        this->choicePhase = kItemsChosen;
+    }
+    else if (data.skillACount != 0 || data.skillBCount != 0)
+    {
+        choice = kSkillChoice;
+        this->choicePhase = kSkillsChosen;
+    }
+
+    bool rollIdle = true;
+
+    if (this->StatusBit5Or8() == 1)
+    {
+        choice = kStatusChoice;
+    }
+    else if (choice == kHealChoice)
+    {
+        rollIdle = false;
+    }
+
+    if (rollIdle && this->idleTurns == 0)
+    {
+        random.Below(kUnusedChoiceRoll);
+        choice = kIdleChoice;
+        this->choicePhase = static_cast<u8>(this->choicePhase != kItemsChosen ? 1 : 0);
+    }
+
+    // A command the unit may not use: a forced unit's skill with kNoForcedStatus, or an UnkAction1000 one while
+    // unk53BF28 is set.
+    auto barred = [this, &services]
+    {
+        return (this->unk2B00 == 1 && (static_cast<u32>(this->command.unk08) & kNoForcedStatus) != 0) ||
+               ((this->command.actionFlags & UnitCommand::UnkAction1000) != 0 && services.state.unk53BF28 != 0);
+    };
+
+    if (choice == kItemChoice)
+    {
+        if ((this->marks & BattleUnit::UnkMark100) != 0 || data.itemChance == 0)
+        {
+            return this->ChooseAttack(database);
+        }
+
+        const u32 value = random.Below(kChoiceRoll);
+        int item = static_cast<int>(value);
+
+        if (value <= kFirstItemRoll)
+        {
+            item = 0;
+        }
+        else if (value <= kSecondItemRoll)
+        {
+            item = 1;
+        }
+        else if (value <= kChoiceRoll)
+        {
+            item = 2;
+        }
+
+        if (this->itemWait >= kItemWaitTurns)
+        {
+            if (data.itemC != 0 && data.itemCCount != 0)
+            {
+                item = 2;
+            }
+
+            this->itemWait = 0;
+        }
+
+        // An object used: its skill script is the command (inline in the original).
+        auto useItem = [&](u16 id, u16& count, i32 readyAction)
+        {
+            if (id == 0 || count == 0)
+            {
+                return false;
+            }
+
+            if (random.Below(kChoiceRoll) >= static_cast<u32>(this->idleTurns + data.itemChance))
+            {
+                return false;
+            }
+
+            database.LoadObject(this->object, id);
+            this->LoadCommand(database, this->object.data.unk3E);
+
+            if (barred())
+            {
+                return false;
+            }
+
+            act = this->object.data.unk50;
+            --count;
+
+            if (this->actId == kReadyAct)
+            {
+                this->unk2690 = readyAction;
+            }
+
+            return true;
+        };
+
+        if (item == 0)
+        {
+            chosen = useItem(data.itemA, data.itemACount, kFirstItemAction) ? 1 : 0;
+        }
+        else if (item == 1)
+        {
+            chosen = useItem(data.itemB, data.itemBCount, kSecondItemAction) ? 1 : 0;
+        }
+        else if (item == 2)
+        {
+            if (useItem(data.itemC, data.itemCCount, kThirdItemAction))
+            {
+                chosen = 1;
+                this->itemWait = 0;
+            }
+        }
+
+        Database::FreeDescription(this->object);
+        std::fill_n(this->skillName.begin(), kClearedNameBytes, '\0');
+
+        if (chosen != 1)
+        {
+            return this->ChooseAttack(database);
+        }
+
+        const std::span<const char> name(this->object.data.name);
+        const std::size_t length = std::min<std::size_t>(strnlen(name.data(), name.size()), this->skillName.size() - 1);
+        std::copy_n(name.begin(), length, this->skillName.begin());
+        this->skillName[length] = '\0';
+        this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
+        this->unk29A4 = static_cast<u16>(this->unk29A4 + static_cast<u16>(this->command.value));
+        const bool special = (this->command.actionFlags & UnitCommand::UnkAction1000) != 0;
+        this->SetCommand(special ? BattleUnit::UnkCommand15 : BattleUnit::UnkCommand2);
+        this->idleTurns = 0;
+        return 1;
+    }
+
+    if (choice == kSkillChoice)
+    {
+        if (data.skillChance == 0)
+        {
+            return this->ChooseAttack(database);
+        }
+
+        const u32 value = random.Below(kChoiceRoll);
+        int skill = static_cast<int>(value);
+
+        if (value <= kFirstSkillRoll)
+        {
+            skill = 0;
+        }
+        else if (value <= kChoiceRoll)
+        {
+            skill = 1;
+        }
+
+        if (this->skillWait >= kSkillWaitTurns)
+        {
+            if (data.skillB != 0 && data.skillBCount != 0)
+            {
+                skill = 1;
+            }
+
+            this->skillWait = 0;
+        }
+
+        if (skill != 0 && skill != 1)
+        {
+            return this->ChooseAttack(database);
+        }
+
+        const u16 id = skill == 0 ? data.skillA : data.skillB;
+        u16& count = skill == 0 ? data.skillACount : data.skillBCount;
+
+        if (id == 0 || count == 0)
+        {
+            return this->ChooseAttack(database);
+        }
+
+        if (random.Below(kChoiceRoll) >= static_cast<u32>(this->idleTurns + data.skillChance))
+        {
+            return this->ChooseAttack(database);
+        }
+
+        this->LoadCommand(database, id);
+
+        if (skill == 1)
+        {
+            this->skillWait = 0;
+        }
+
+        if (barred())
+        {
+            return this->ChooseAttack(database);
+        }
+
+        this->unk29A4 = static_cast<u16>(this->command.value);
+        --count;
+        this->idleTurns = 0;
+
+        if ((this->command.actionFlags & UnitCommand::UnkAction1000) != 0)
+        {
+            this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
+            this->SetCommand(BattleUnit::UnkCommand15);
+            return 1;
+        }
+
+        if ((this->command.flags & UnitCommand::UnkFlag2) != 0)
+        {
+            act = this->command.castAct;
+            this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
+            this->SetCommand(BattleUnit::UnkCommand2);
+            return 1;
+        }
+
+        this->unk2A8C = static_cast<u16>(skill + 1);
+        this->SetCommand(BattleUnit::UnkCommand1);
+        this->MarkDelayedAttack();
+        return 0;
+    }
+
+    if (choice == kHealChoice && (this->marks & BattleUnit::UnkMark100) == 0 && data.itemChance != 0 &&
+        (this->healChoice == kFirstHeal || this->healChoice == kSecondHeal))
+    {
+        const bool first = this->healChoice == kFirstHeal;
+        database.LoadObject(this->object, first ? data.healItemA : data.healItemB);
+        Database::FreeDescription(this->object);
+        act = this->object.data.unk50;
+        this->LoadCommand(database, this->object.data.unk3E);
+        this->unk29A6 = this->object.data.unk34;
+        this->healChoice = 0;
+        --(first ? data.healCountA : data.healCountB);
+        this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
+        this->SetCommand(BattleUnit::UnkCommand2);
+
+        if (this->actId == kReadyAct)
+        {
+            this->unk2690 = kHealAction;
+        }
+
+        return 1;
+    }
+
+    return this->ChooseAttack(database);
+}
+
+// The attack of ChooseCommand (inline in the original): the object's skill script as command 1, every wait counted
+// up, the attack (a party role's equipment bonus) added to the value; 0.
+int BattleUnit::ChooseAttack(Database& database)
+{
+    this->command = UnitCommand{};
+    this->LoadCommand(database, this->data->data.skill);
+    this->SetCommand(BattleUnit::UnkCommand1);
+    ++this->idleTurns;
+    ++this->itemWait;
+    ++this->skillWait;
+
+    if (this->kind != 0)
+    {
+        this->unk29A4 = static_cast<u16>(this->unk29A4 + this->battleRecord->attackBonus);
+    }
+    else
+    {
+        this->unk29A4 = static_cast<u16>(this->unk29A4 + this->data->data.attack);
+    }
+
+    this->MarkDelayedAttack();
+    return 0;
+}
+
+// The end of a command-1 choice (inline in the original): a command with UnkFlag10 chosen as command 1 becomes command
+// 0xC8 with command B 1.
+void BattleUnit::MarkDelayedAttack()
+{
+    if ((this->command.flags & UnitCommand::UnkFlag10) != 0 && this->commandA == BattleUnit::UnkCommand1)
+    {
+        this->commandB = BattleUnit::UnkCommand1;
+        this->commandA = kDelayedCommand;
     }
 }
 }  // namespace swd3
