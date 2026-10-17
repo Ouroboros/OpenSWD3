@@ -133,6 +133,20 @@ constexpr u16 kStealShare = 25;
 constexpr u16 kSureSteal = 100;   // a proficiency of 100 or more always steals
 constexpr u16 kHitCast = 0x8000;  // AttackPose: the cast act with bit 15 tells that the attack hits
 constexpr u16 kPoseDone = 2;
+
+// CanAbsorb.
+constexpr u16 kMaxAbsorbClass = 0x15;   // ObjectData::unk52
+constexpr int kAbsorbLevelsAbove = 12;  // a target this many levels above the role is never absorbed
+constexpr int kSureAbsorbBelow = 10;
+constexpr int kQuarterAbove = 7;
+constexpr int kFarBelow = 5;
+constexpr int kQuarter = 4;
+constexpr int kThird = 3;
+constexpr u32 kAbsorbRoll = 100;
+constexpr int kFarBelowChance = 80;
+constexpr int kAbsorbChanceBase = 20;
+constexpr int kAbsorbChanceStep = 5;  // less per level above
+constexpr int kBelowChanceStep = 10;  // more per level below
 constexpr std::array<Spark, BattleRole::ExtraActs> kSparks = {{
     {0, 1, -5, 0xE},
     {10, 2, -10, 0xA},
@@ -1564,5 +1578,70 @@ u16 BattleRole::AttackPose(BattleServices& services)
     this->unk2AAC = 0;
     act = ActState{};
     return kPoseDone;
+}
+
+// swd32.exe 0x00472730: whether the role absorbs the target: only an Absorbable monster (not UnkKind20) of class up to
+// kMaxAbsorbClass, at most 11 levels above the role. Ten levels or more below it always; 7..11 above it at a quarter of
+// its hit points or less; otherwise at a third or less, or by a 0..99 roll: up to 80 for 5..9 levels below, 20 less 5
+// per level above, 20 plus 10 per level below.
+int BattleRole::CanAbsorb(BattleServices& services, const BattleUnit& target) const
+{
+    const ObjectData& data = target.Data()->data;
+    i32 hitPoints = 0;
+    i32 maximum = 0;
+    target.GetHitPoints(hitPoints, maximum);
+
+    if ((data.kind & ObjectData::UnkKind20) != 0 || (data.kind & ObjectData::Absorbable) == 0 ||
+        data.unk52 > kMaxAbsorbClass)
+    {
+        return 0;
+    }
+
+    const int roleLevel = this->battleRecord->level;
+    const int above = data.level - roleLevel;
+
+    if (above >= kAbsorbLevelsAbove)
+    {
+        return 0;
+    }
+
+    const int below = roleLevel - data.level;
+
+    if (below >= kSureAbsorbBelow)
+    {
+        return 1;
+    }
+
+    if (above >= kQuarterAbove && above <= kAbsorbLevelsAbove - 1)
+    {
+        return hitPoints <= maximum / kQuarter ? 1 : 0;
+    }
+
+    auto weakOrRoll = [&](int chance)
+    {
+        if (hitPoints <= maximum / kThird)
+        {
+            return 1;
+        }
+
+        return static_cast<int>(services.random.Below(kAbsorbRoll)) <= chance ? 1 : 0;
+    };
+
+    if (below >= kFarBelow && below < kSureAbsorbBelow)
+    {
+        return weakOrRoll(kFarBelowChance);
+    }
+
+    if (above < kQuarterAbove && above >= 1)
+    {
+        return weakOrRoll(kAbsorbChanceBase - kAbsorbChanceStep * above);
+    }
+
+    if (below >= kFarBelow || below < 0)
+    {
+        return 0;
+    }
+
+    return weakOrRoll(kBelowChanceStep * below + kAbsorbChanceBase);
 }
 }  // namespace swd3

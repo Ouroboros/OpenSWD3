@@ -60,6 +60,7 @@ public:
     u16 Steal(BattleServices& services, const BattleUnit& target);
     u16 AttackPose(BattleServices& services);
     static int CanTarget(const BattleUnit& target);
+    int CanAbsorb(BattleServices& services, const BattleUnit& target) const;
     void SetupGuest(const UnitPlacement& at, const RoleRecord& base, Database& database, ErrorReporter& reporter);
     void
     ApplyEquipment(std::span<const std::unique_ptr<ItemNode>> slots, CounterList& proficiency, ErrorReporter& reporter);

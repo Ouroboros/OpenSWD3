@@ -1263,8 +1263,7 @@ constexpr int kSkillScaleShare = 3;
 constexpr u32 kSkillRollDivisors = 5;  // a skill rolls 1..(level + unk14) / (5..9)
 constexpr u16 kSkillRollBase = 5;
 constexpr int kHalf = 2;
-constexpr int kGuardShare = 3;    // a guard takes a third off
-constexpr u32 kUnkKind20 = 0x20;  // ObjectData::kind bit: the scripted acts do not affect the target
+constexpr int kGuardShare = 3;  // a guard takes a third off
 // The acts of a scripted battle with a special effect, and the poses they leave.
 constexpr u16 kFallAct = 1;
 constexpr u8 kFallPose = 7;
@@ -3234,7 +3233,7 @@ i16 BattleUnit::HitDamage(BattleServices& services, BattleUnit& target, i16& spi
                 case kDrainAct:
                 {
                     // A party role as the target has no object: the original reads a null pointer here.
-                    if (targetData == nullptr || (targetData->data.kind & kUnkKind20) != 0)
+                    if (targetData == nullptr || (targetData->data.kind & ObjectData::UnkKind20) != 0)
                     {
                         break;
                     }
@@ -3263,7 +3262,7 @@ i16 BattleUnit::HitDamage(BattleServices& services, BattleUnit& target, i16& spi
                 {
                     attack = static_cast<i16>(kStrongPercent * attack / kPercent);
 
-                    if (targetData == nullptr || (targetData->data.kind & kUnkKind20) != 0)
+                    if (targetData == nullptr || (targetData->data.kind & ObjectData::UnkKind20) != 0)
                     {
                         break;
                     }
