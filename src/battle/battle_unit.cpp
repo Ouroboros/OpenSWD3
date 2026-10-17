@@ -1331,6 +1331,12 @@ constexpr double kCounterPercent = 100.0;  // swd32.exe 0x00499D28
 constexpr std::size_t kAgilityShare = 2;  // the gauge fills by a quarter of the agility a tick
 constexpr int kBoostShare = 4;
 constexpr int kInvisibleSlowdown = 4;
+
+// FadeMainOut and Defense.
+constexpr i16 kFadeOutStep = 2;
+constexpr i16 kFadedOut = -0x20;
+constexpr int kDefenseChangePercent = 30;
+constexpr int kBarrierPercent = 70;
 constexpr u16 kEffectIcons = 0x241D;
 
 // The value of a skill script: the word at +0xE.
@@ -5070,5 +5076,132 @@ int BattleUnit::StepGauge(BattleServices& services, int boost)
     this->unk2AB0 = 0;
     this->gauge = static_cast<u16>(gauge - cut + extra + speed);
     return 0;
+}
+
+// swd32.exe 0x0047F3C0: one frame of the unit's main act and overlay fading out (tinted by glowLevel, falling by 2 a
+// frame while not held); 1 once at kFadedOut (the recoil act cleared)
+int BattleUnit::FadeMainOut(BattleServices& services)
+{
+    this->DrawMainFaded(services, this->glowLevel);
+
+    if (this->held == 0)
+    {
+        this->glowLevel = static_cast<i16>(this->glowLevel - kFadeOutStep);
+    }
+
+    if (this->glowLevel > kFadedOut)
+    {
+        return 0;
+    }
+
+    this->glowLevel = kFadedOut;
+    this->recoilAct = ActState{};
+    return 1;
+}
+
+// swd32.exe 0x0047F580: one frame of the unit's main act and overlay brightening (tinted by brightLevel, rising by 1
+// a frame while not held); 1 once at 0 (UnkMark200 cleared, brightLevel 1)
+int BattleUnit::FadeMainIn(BattleServices& services)
+{
+    this->DrawMainFaded(services, this->brightLevel);
+
+    if (this->held == 0)
+    {
+        ++this->brightLevel;
+    }
+
+    if (this->brightLevel < 0)
+    {
+        return 0;
+    }
+
+    this->marks = static_cast<u16>(this->marks & ~BattleUnit::UnkMark200);
+    this->brightLevel = 1;
+    return 1;
+}
+
+// The draw of FadeMainOut and FadeMainIn (inline in both): the main act's picture and its overlay additively at the
+// unit's place, tinted by `tint`.
+void BattleUnit::DrawMainFaded(BattleServices& services, int tint)
+{
+    Painter& painter = services.painter;
+    ActState& act = this->mainAct;
+    act.hold = 0;
+
+    if (this->held == 1)
+    {
+        act.hold = 1;
+    }
+
+    this->picture = services.archive.GetPicture(act.frame, act.picture);
+
+    auto tintAll = [&painter, tint]
+    {
+        DrawOptions& options = painter.Options();
+        options.tintRed = tint;
+        options.tintGreen = tint;
+        options.tintBlue = tint;
+    };
+
+    const int x = this->placement.x - static_cast<i16>(this->originX);
+    const int y = this->placement.y - act.y;
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->picture != nullptr)
+    {
+        painter.SetSource(this->picture->data.data());
+        tintAll();
+        painter.DrawPicture(x, y, this->picture->width, this->picture->height, this->drawFlags | Painter::Additive);
+    }
+
+    if (act.rotation == 0 || act.actionCode == 0)
+    {
+        return;
+    }
+
+    tintAll();
+    this->unk2554 = services.archive.GetPicture(act.rotation, static_cast<u16>(act.actionCode - 1));
+
+    if (this->unk2554 == nullptr)
+    {
+        return;
+    }
+
+    painter.SetSource(this->unk2554->data.data());
+    painter.DrawPicture(
+        x + static_cast<i16>(act.offsetX),
+        y + static_cast<i16>(act.offsetY),
+        this->unk2554->width,
+        this->unk2554->height,
+        this->drawFlags | Painter::Additive
+    );
+}
+
+// swd32.exe 0x00480EE0: the unit's defence: a party role's from its battle record (+30% DefenseUp, -30% DefenseDown,
+// +70% Barrier), an enemy's from its object (no barrier)
+int BattleUnit::Defense() const
+{
+    const u32 status = this->status;
+    const int base = this->kind == 1 ? this->battleRecord->defenseBonus : this->data->data.defense;
+    int up = 0;
+    int down = 0;
+    int barrier = 0;
+
+    if ((status & BattleUnit::DefenseUp) != 0)
+    {
+        up = kDefenseChangePercent * base / kPercent;
+    }
+
+    if ((status & BattleUnit::DefenseDown) != 0)
+    {
+        down = kDefenseChangePercent * base / kPercent;
+    }
+
+    if (this->kind == 1 && (status & BattleUnit::Barrier) != 0)
+    {
+        barrier = kBarrierPercent * base / kPercent;
+    }
+
+    return up + barrier + base - down;
 }
 }  // namespace swd3

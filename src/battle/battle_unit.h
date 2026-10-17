@@ -441,6 +441,10 @@ public:
     int FadeInvisible(BattleServices& services, int mode);
     int StepAccessoryCounters(CounterList& list, u16 amount);
     int StepGauge(BattleServices& services, int boost);
+    int FadeMainOut(BattleServices& services);
+    int FadeMainIn(BattleServices& services);
+    void DrawMainFaded(BattleServices& services, int tint);
+    int Defense() const;
     void DrawTrail(BattleServices& services, AfterimageTrail& trail, u16 frame, u16 picture, u32 mode, i16 x, i16 y);
     int DrawRecoil(BattleServices& services, ActState& act, i16 y);
     int FlyAct(

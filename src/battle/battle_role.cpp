@@ -224,6 +224,14 @@ constexpr u32 kCriticalRoll = 10;
 constexpr u16 kCriticalChance = 5;  // a roll above it is critical
 constexpr u16 kWalkCommand = 0xC8;  // command A of a walking attack (its command in command B)
 
+// BeatsLevel: chances out of kLevelRoll.
+constexpr u32 kLevelRoll = 100;
+constexpr u32 kAboveChance = 35;
+constexpr u32 kCloseChance = 70;  // 1..kNearBelow-1 levels below
+constexpr u32 kNearChance = 90;   // kNearBelow..kSureBelow-1 levels below
+constexpr int kNearBelow = 8;
+constexpr int kSureBelow = 13;
+
 // CanAbsorb.
 constexpr u16 kMaxAbsorbClass = 0x15;   // ObjectData::unk52
 constexpr int kAbsorbLevelsAbove = 12;  // a target this many levels above the role is never absorbed
@@ -3434,5 +3442,36 @@ void BattleRole::FinishCommand()
     }
 
     this->PayStamina();
+}
+
+// swd32.exe 0x004714B0: whether the role wins a roll against `level` (0 never): above the role's level 35 in 100;
+// 1..7 levels below it 70 in 100, 8..12 below 90 in 100, 13 or more always; the same level never
+int BattleRole::BeatsLevel(BattleServices& services, u16 level) const
+{
+    if (level == 0)
+    {
+        return 0;
+    }
+
+    const int own = this->battleRecord->level;
+
+    if (own < level)
+    {
+        return services.random.Below(kLevelRoll) <= kAboveChance ? 1 : 0;
+    }
+
+    const int below = own - level;
+
+    if (below >= kNearBelow && below < kSureBelow)
+    {
+        return services.random.Below(kLevelRoll) <= kNearChance ? 1 : 0;
+    }
+
+    if (below >= 1 && below < kNearBelow)
+    {
+        return services.random.Below(kLevelRoll) <= kCloseChance ? 1 : 0;
+    }
+
+    return below >= kSureBelow ? 1 : 0;
 }
 }  // namespace swd3
