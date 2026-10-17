@@ -428,6 +428,9 @@ public:
     // The frame of a role (Game::RoleFrame).
     i32 unk4A7554 = 1;  // the enemy (1-based) an AI role aims at
     u16 unk5240C4 = 0;
+    // The frame of the battle (Game::BattleFrame).
+    u16 unk53BF1A = 0;       // frames since the last slot record was taken
+    u16 unk53C49A = 0;       // the number of the last snapshot
     i32 unk4A7564 = -1;      // the enemy the auto battle aims at (1-based), -1: none
     u16 unk4A7644 = 0xFFFF;  // a role unit that may take the panel in any battle state (SelectRoleUnit)
     i32 unk4A7548 = 1;       // the command chosen in the menu (1-based)
