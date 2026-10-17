@@ -178,6 +178,20 @@ constexpr int kControlObjects = 3;
 constexpr int kControlSkills = 2;
 constexpr std::u8string_view kSpecialFormat = u8"特殊%d";  // swd32.exe 0x004A79F0
 constexpr std::u8string_view kReleaseName = u8"釋放";      // swd32.exe 0x004A79E8
+constexpr u16 kStaminaCostBit = 0x8000;                    // the spell list
+constexpr int kElementIcons = 0x241C;
+constexpr int kSpellIconLeft = 4;
+constexpr int kSpellRowTop = 0x25;
+constexpr int kSpellNameX = 0xC;
+constexpr std::string_view kCostFormat = "%3d";
+constexpr int kSpellBarLeft = 8;
+constexpr int kSpellBarUp = 4;
+constexpr int kDescriptionTop = 0x15E;
+constexpr int kDescriptionHeight = 0x28;
+constexpr int kDescriptionGreen = 5;
+constexpr int kDescriptionBlue = 0x1F;
+constexpr int kDescriptionCentre = 0x140;
+constexpr int kDescriptionTextTop = 0x168;
 
 // The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
 // here.
@@ -2503,6 +2517,122 @@ void Game::DrawControlMenu(int x, int y, int cursor)
 
     const int last = shown + 1;
     entry(y + kListRowHeight * last, Big5(kReleaseName), cursor == last + 1);
+    font.SetBackground(TextFont::NoBackground);
+}
+
+// swd32.exe 0x004655B0: the spells of the current role's open page (unk53BD18) from entry `top` + 1 at (x, y), up to
+// 7 rows (unk53BDF2 counts them): each with its element icon, its name (kept in unk53C184) and its cost ("%3d"; with
+// bit 15 a stamina cost), dark when the role has less than it. Row `cursor` (from 1) is drawn again a pixel up and
+// left under a gradient bar, with the spell's description centred in a bar at the bottom; its index becomes
+// unk53BD10.
+void Game::DrawSpellList(int x, int y, int cursor, int top)
+{
+    BattleState& battle = this->battleState;
+    TextFont& font = this->mediumFont;
+
+    if (battle.currentUnit == 0)
+    {
+        return;
+    }
+
+    BattleRole& role = this->battleRoles[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)];
+    font.SetShadow(0);
+    font.SetBackground(TextFont::NoBackground);
+    font.SetAdvance(kListAdvance);
+    battle.unk53BDF2 = 0;
+    role.CountSkills(battle.unk53BD18, 0, battle.unk53BDF2);
+    role.ShowAllSkills();
+    int row = 0;
+
+    for (int index = top + 1;; ++index)
+    {
+        std::string name;
+        u16 cost = 0;
+        const u16 icon = role.ListSkill(this->database, battle.unk53BD18, 0, index, name, cost);
+
+        if (cost == kSkillListEnd)
+        {
+            break;
+        }
+
+        battle.unk53C184 = {};
+        std::copy_n(name.begin(), std::min(name.size(), battle.unk53C184.size() - 1), battle.unk53C184.begin());
+        const std::string_view shown(battle.unk53C184.data());
+        u16 maximum = 0;
+        u16 have = 0;
+
+        if ((cost & kStaminaCostBit) != 0)
+        {
+            role.GetStamina(maximum, have);
+            cost = static_cast<u16>(cost & ~kStaminaCostBit);
+        }
+        else
+        {
+            role.GetSpirit(maximum, have);
+        }
+
+        const int rowY = y + kListRowHeight * row + kSpellRowTop;
+
+        if (icon != kSkillListEnd)
+        {
+            this->battleHud.DrawPictureFrame(kElementIcons, icon - 1, x - kSpellIconLeft, rowY);
+        }
+
+        const bool isShort = static_cast<i16>(have) < static_cast<i16>(cost);
+        const u16 color = isShort ? battle.darkColor : battle.lightColor;
+        font.DrawText(this->drawSurface, x + kSpellNameX, rowY, shown, color, TextFont::BoldOutline);
+        const std::string number = WinFormat(kCostFormat, {static_cast<i32>(static_cast<i16>(cost))});
+        font.DrawText(this->drawSurface, x + kListCountX, rowY, number, color, TextFont::BoldOutline);
+
+        if (cursor == row + 1)
+        {
+            font.DrawText(this->drawSurface, x + kSpellNameX - 1, rowY - 1, shown, color, TextFont::BoldOutline);
+            FillBox(
+                this->painter,
+                x - kSpellBarLeft,
+                rowY - kSpellBarUp,
+                kSpecialBarWidth,
+                kListBarHeight,
+                kListBarRed,
+                kListBarGreen,
+                0,
+                FillMode::Gradient
+            );
+            FillBox(
+                this->painter,
+                0,
+                kDescriptionTop,
+                Display::Width,
+                kDescriptionHeight,
+                0,
+                kDescriptionGreen,
+                kDescriptionBlue,
+                FillMode::Gradient
+            );
+            const std::string description =
+                role.skills != nullptr ? ObjectDescription(this->databases.mapsData, role.skills->id) : std::string();
+            const auto halves = static_cast<int>(description.size()) >> 1;
+            font.DrawText(
+                this->drawSurface,
+                kDescriptionCentre - ((kListAdvance * halves) >> 1),
+                kDescriptionTextTop,
+                description,
+                kWhite,
+                TextFont::BoldOutline
+            );
+            font.SetBackground(TextFont::NoBackground);
+            battle.unk53BFB8 = 1;
+            battle.unk53BD10 = index;
+        }
+
+        if (++row >= kListRowsShown)
+        {
+            font.SetBackground(TextFont::NoBackground);
+            return;
+        }
+    }
+
+    role.ShowAllSkills();
     font.SetBackground(TextFont::NoBackground);
 }
 }  // namespace swd3
