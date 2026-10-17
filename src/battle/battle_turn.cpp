@@ -243,6 +243,36 @@ constexpr u16 kSpecialType = 0x1F;
 constexpr int kSpecialsFlag = 0x1BB0;
 constexpr u32 kBarredSpecialA = 0x665;
 constexpr u32 kBarredSpecialB = 0x669;
+constexpr std::size_t kStatRolls = 9;  // the stats of a level-up
+constexpr std::size_t kStatLines = 7;
+constexpr int kStatsShadeY = 0x4C;
+constexpr int kStatsShadeWidth = 0xD4;
+constexpr int kStatsTitleTop = 0x50;
+constexpr int kStatsTitleBottom = 0x60;
+constexpr int kStatsFrameRight = 0x190;
+constexpr int kStatsTitleX = 0x118;
+constexpr int kStatsBodyTop = 0x70;
+constexpr int kStatsBodyBottom = 0x10C;
+constexpr int kStatsTextX = 0xD8;
+constexpr int kStatsFirstY = 0x78;
+constexpr int kStatsLineHeight = 0x14;
+constexpr std::array<std::u8string_view, kStatLines> kStatLabels = {
+    u8"生命力:%4d",  // swd32.exe 0x004A7AA0
+    u8"魔法力:%4d",  // swd32.exe 0x004A7A94
+    u8"體  力:%4d",  // swd32.exe 0x004A7A88
+    u8"力  量:%4d",  // swd32.exe 0x004A7A7C
+    u8"耐  力:%4d",  // swd32.exe 0x004A7A70
+    u8"智  慧:%4d",  // swd32.exe 0x004A7A64
+    u8"敏  捷:%4d",  // swd32.exe 0x004A7A58
+};
+
+constexpr u16 kShowNow = 0x64;  // BattleState::unk53BDEA: the new values show at once
+constexpr u16 kRollStart = 0x1E;
+constexpr std::string_view kArrow = " ==> ";         // swd32.exe 0x004A7A50
+constexpr std::string_view kNewValueFormat = "%4d";  // swd32.exe 0x004A7A4C
+constexpr int kStatsArrowX = 0x136;
+constexpr int kStatsNewX = 0x158;
+constexpr u16 kRollSound = 0x125;
 
 // The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
 // here.
@@ -3289,5 +3319,198 @@ void Game::LearnSpecials()
             block.unk00[kNextSpecial] = kNoSpecial;
         }
     }
+}
+
+// swd32.exe 0x00467F00: the stats of the role that levelled up (unk4A7646): its name over a frame of the seven values
+// before the level-up (unk4FF108); once grown, after kRollStart frames (unk53BDEA, kShowNow shows at once) each value
+// that rose shows " ==> " and the new value less a roll that counts down a point a frame (kRollSound each point), one
+// after another: the maxima first, then the attributes (strength does not wait for the maxima, as in the original).
+void Game::DrawLevelUpStats()
+{
+    BattleState& battle = this->battleState;
+    BattleMessages& messages = this->battleMessages;
+    TextFont& font = this->mediumFont;
+
+    if (battle.unk4A7646 == kNoLevelUp)
+    {
+        return;
+    }
+
+    const auto partyRole = static_cast<std::size_t>(battle.partyRoles[battle.unk4A7646]);
+    const RoleRecord& now = this->party.roles[partyRole];
+    const RoleRecord& before = battle.unk4FF108;
+    std::array<i16, kStatRolls>& rolls = battle.statRolls;
+    messages.panelAct.id = BattleMessages::PanelAct;
+    messages.panelAct.action = 0;
+    this->acts.Run(messages.panelAct);
+    FillBox(
+        this->painter,
+        kEscortShadeX,
+        kStatsShadeY,
+        kStatsShadeWidth,
+        messages.panelHeight + kVictoryShadeExtra,
+        0,
+        kListShade,
+        kListShade,
+        FillMode::Blend
+    );
+    DrawWindowFrame(
+        this->painter,
+        this->archive,
+        messages.panelAct.frame,
+        kEscortFrameLeft,
+        kStatsTitleTop,
+        kStatsFrameRight,
+        kStatsTitleBottom,
+        0,
+        kListFrameBorder
+    );
+    const Party::Name& name = this->party.names[partyRole];
+    const std::string roleName(name.data(), std::find(name.begin(), name.end(), '\0') - name.begin());
+    font.DrawText(this->drawSurface, kStatsTitleX, kStatsTitleTop, roleName, kTitleColor, TextFont::BoldOutline);
+    DrawWindowFrame(
+        this->painter,
+        this->archive,
+        messages.panelAct.frame,
+        kEscortFrameLeft,
+        kStatsBodyTop,
+        kStatsFrameRight,
+        messages.panelHeight + kStatsBodyTop,
+        0,
+        kListFrameBorder
+    );
+
+    if (messages.GrowPanel(kStatsBodyTop, kStatsBodyBottom, kVictoryGrowDivisor) != 1)
+    {
+        return;
+    }
+
+    const std::array<i32, kStatLines> old = {
+        before.maxHitPoints,
+        before.maxSpirit,
+        before.maxStamina,
+        static_cast<u16>(before.attack),
+        static_cast<u16>(before.defense),
+        static_cast<u16>(before.unk14),
+        static_cast<u16>(before.agility),
+    };
+
+    for (std::size_t line = 0; line < kStatLines; ++line)
+    {
+        const int y = kStatsFirstY + kStatsLineHeight * static_cast<int>(line);
+        font.DrawText(
+            this->drawSurface,
+            kStatsTextX,
+            y,
+            WinFormat(kStatLabels[line], {old[line]}),
+            kWhite,
+            TextFont::BoldOutline
+        );
+    }
+
+    const bool showNow = battle.unk53BDEA == kShowNow;
+
+    if (showNow)
+    {
+        rolls = {};
+    }
+    else
+    {
+        if (battle.unk53BDEA == kRollStart - 1)
+        {
+            rolls[0] = static_cast<i16>(now.maxHitPoints - before.maxHitPoints);
+            rolls[1] = static_cast<i16>(now.maxSpirit - before.maxSpirit);
+            rolls[2] = static_cast<i16>(now.maxStamina - before.maxStamina);
+            rolls[3] = static_cast<i16>(now.attack - before.attack);
+            rolls[4] = static_cast<i16>(now.defense - before.defense);
+            rolls[5] = static_cast<i16>(now.unk14 - before.unk14);
+            rolls[6] = static_cast<i16>(now.agility - before.agility);
+            rolls[7] = static_cast<i16>(now.unk18 - before.unk18);
+            rolls[8] = static_cast<i16>(now.unk1A - before.unk1A);
+        }
+
+        if (battle.unk53BDEA < kRollStart && ++battle.unk53BDEA < kRollStart)
+        {
+            return;
+        }
+    }
+
+    auto rise = [this, &font](int y, i32 value)
+    {
+        font.DrawText(this->drawSurface, kStatsArrowX, y, kArrow, kWhite, TextFont::BoldOutline);
+        font.DrawText(
+            this->drawSurface,
+            kStatsNewX,
+            y,
+            WinFormat(kNewValueFormat, {value}),
+            kLearnedSkillColor,
+            TextFont::BoldOutline
+        );
+    };
+
+    auto tick = [this]
+    {
+        this->audio.PlaySound(kRollSound, this->config.soundVolume);
+    };
+
+    auto lineY = [](int line)
+    {
+        return kStatsFirstY + kStatsLineHeight * line;
+    };
+
+    if (now.maxHitPoints > before.maxHitPoints)
+    {
+        rise(lineY(0), now.maxHitPoints - rolls[0]);
+
+        if (rolls[0] > 0)
+        {
+            --rolls[0];
+            tick();
+        }
+    }
+
+    if (now.maxSpirit > before.maxSpirit)
+    {
+        rise(lineY(1), now.maxSpirit - rolls[1]);
+
+        if (rolls[0] == 0 && rolls[1] > 0)
+        {
+            --rolls[1];
+            tick();
+        }
+    }
+
+    if (now.maxStamina > before.maxStamina)
+    {
+        rise(lineY(2), now.maxStamina - rolls[2]);
+
+        if (rolls[1] == 0 && rolls[2] > 0)
+        {
+            --rolls[2];
+            tick();
+        }
+    }
+
+    // The attributes compare and count unsigned.
+    auto attribute = [&](std::size_t line, i16 newValue, i16 oldValue, std::size_t roll, bool ready)
+    {
+        if (static_cast<u16>(newValue) <= static_cast<u16>(oldValue))
+        {
+            return;
+        }
+
+        rise(lineY(static_cast<int>(line)), static_cast<u16>(newValue) - static_cast<u16>(rolls[roll]));
+
+        if (ready && rolls[roll] != 0)
+        {
+            rolls[roll] = static_cast<i16>(rolls[roll] - 1);
+            tick();
+        }
+    };
+
+    attribute(3, now.attack, before.attack, 3, true);
+    attribute(4, now.defense, before.defense, 4, rolls[3] == 0);
+    attribute(5, now.unk14, before.unk14, 5, rolls[4] == 0);
+    attribute(6, now.agility, before.agility, 6, rolls[5] == 0);
 }
 }  // namespace swd3

@@ -339,10 +339,12 @@ public:
     i32 unk53BD20 = 0;
     RoleRecord unk4FF108;  // the record of the role before its level-up
     i32 unk53C4C8 = 0;
-    i32 unk4A7564 = -1;      // the enemy the auto battle aims at (1-based), -1: none
-    u16 unk4A7644 = 0xFFFF;  // a role unit that may take the panel in any battle state (SelectRoleUnit)
-    i32 unk4A7548 = 1;       // the command chosen in the menu (1-based)
-    i32 unk53BD18 = 0;       // the page of the list of state 2 (0..2)
+    std::array<i16, 9> statRolls = {};  // 0x005214A4..0x00525466 the rises of a level-up still to count
+    u16 unk53BDEA = 0;                  // the frames of the level-up stats (the high word of 0x0053BDE8)
+    i32 unk4A7564 = -1;                 // the enemy the auto battle aims at (1-based), -1: none
+    u16 unk4A7644 = 0xFFFF;             // a role unit that may take the panel in any battle state (SelectRoleUnit)
+    i32 unk4A7548 = 1;                  // the command chosen in the menu (1-based)
+    i32 unk53BD18 = 0;                  // the page of the list of state 2 (0..2)
     // The menu (MenuCancel).
     i32 unk53BFB0 = 0;
     i32 unk53BD90 = 0;
