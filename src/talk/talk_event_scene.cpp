@@ -69,7 +69,7 @@ bool Talk::PanCamera(EventRun& run)
 
     if ((across | down) != 0)
     {
-        DebugLog(u8"pan while panning", across, down);
+        DebugLog(u8"對話系統(Scroll_map) 前一個捲動指令還沒有結束");  // 0x004A1A20 + 0x004A1A38
     }
 
     if (run.code == EventCommand::PanCamera)
@@ -128,7 +128,7 @@ bool Talk::PanCamera(EventRun& run)
 
     if (view.panAcross != 0 && view.panAcross % stepX != 0)
     {
-        DebugLog(u8"pan step across", stepX);
+        DebugLog(u8"對話系統(Scroll_map) 捲動間距請設為二的次方倍(X..%d)", stepX);  // 0x004A1A00
         pixelsDown = view.panDown;
         stepY = view.panStepY;
         stepX = kDefaultPanStep;
@@ -142,7 +142,7 @@ bool Talk::PanCamera(EventRun& run)
 
     if (pixelsDown != 0 && pixelsDown % stepY != 0)
     {
-        DebugLog(u8"pan step down", stepY);
+        DebugLog(u8"對話系統(Scroll_map) 捲動間距請設為二的次方倍(Y..%d)", stepY);  // 0x004A19E0
         pixelsDown = view.panDown;
         stepX = view.panStepX;
         stepY = kDefaultPanStep;
@@ -191,12 +191,18 @@ bool Talk::PanCamera(EventRun& run)
 
     if (clamped)
     {
+        // 0x004A1A20 + 0x004A1994: the four operand words as they stand (sign-extended) and the camera in tiles
         DebugLog(
-            u8"pan past the map",
-            this->Word(run, kFirstOperand),
-            this->Word(run, kFirstOperand + 1),
+            u8"對話系統(Scroll_map) 捲動將超出螢幕範圍\n(捲動值) L%d.T%d.R%d.B%d\n(目前螢幕位置) "
+            u8"L%d.T%d.R%d.B%d",
+            static_cast<i16>(this->Word(run, kFirstOperand)),
+            static_cast<i16>(this->Word(run, kFirstOperand + 1)),
+            static_cast<i16>(this->Word(run, kFirstOperand + 2)),
+            static_cast<i16>(this->Word(run, kFirstOperand + 3)),
             field.cameraLeft >> MapHeader::TileShift,
-            field.cameraTop >> MapHeader::TileShift
+            field.cameraTop >> MapHeader::TileShift,
+            field.cameraRight >> MapHeader::TileShift,
+            field.cameraBottom >> MapHeader::TileShift
         );
     }
 
@@ -258,7 +264,9 @@ bool Talk::PlaceRole(EventRun& run)
 
     if (!owner.UpdateRoleRecord(id, act, action, direction, tileX, tileY, event, talk, setBits, Game::KeepValue, map))
     {
-        DebugLog(u8"maps.dat role missing", operand);
+        // 0x0042986A: nullsub_1 with 0x0049FF9C and 0x004A194C, then the text formatted again and logged alone
+        DebugLog(u8"!!! 警告 !!! Maps沒有定義角色[%d]", operand);
+        DebugLog(u8"Maps沒有定義角色[%d]", operand);
         this->Advance(run, CommandBytes(EventCommand::PlaceRoleOnMap));
         return true;
     }
@@ -341,7 +349,7 @@ bool Talk::LoadName(EventRun& run)
 
         if (variable != Party::FirstNameVariable && variable != Party::SecondNameVariable)
         {
-            DebugLog(u8"對話系統(Caption2)u8", u8"設定的變數(%d)和系統衝突", variable);
+            DebugLog(u8"對話系統(Caption2) 設定的變數(%d)和系統衝突", variable);  // 0x004A1708, the text 0x004A171C
             this->Next(run);
             return true;
         }
@@ -351,7 +359,7 @@ bool Talk::LoadName(EventRun& run)
 
         if (index == 0)
         {
-            DebugLog(u8"對話系統(Caption2)u8", u8"設定的變數(0)和系統衝突");
+            DebugLog(u8"對話系統(Caption2) 設定的變數(0)和系統衝突");  // 0x004A1708, the text 0x004A16F0
             this->Next(run);
             return true;
         }
@@ -454,12 +462,7 @@ bool Talk::OpenMapMovie(EventRun& run)
 
     if (!film.file.Open(path, File::Disposition::OpenExisting, File::Access::Read))
     {
-        DebugLog(
-            u8"MAni Open Failure!",
-            u8"MAni File Error!\n"
-            u8"%s",
-            name
-        );
+        DebugLog(u8"MAni Open Failure! MAni File Error!\n%s", name);
         return false;
     }
 
@@ -745,7 +748,7 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             if (count > kMaxShakes)
             {
-                DebugLog(u8"quake list too long");
+                DebugLog(u8"對話系統(Shack_screen) 參數太長");  // 0x004A1928 + 0x004A1940
                 return false;
             }
 
@@ -928,20 +931,23 @@ bool Talk::RunSceneCommand(EventRun& run)
             const u16 id = this->EventRoleId(run, operands.Word());
             const u16 otherId = operands.Word();
 
-            if (!state.FindRoleOrPlayer(id, run.found))
+            // Both lookups report the first role (role -1, before the roles, when it is missing; the blank role here).
+            const bool found = state.FindRoleOrPlayer(id, run.found);
+            Role* role = this->FoundRole(run);
+            const Role& turning = role != nullptr ? *role : blank;
+
+            if (!found)
             {
-                DebugLog(u8"Act Err(Talk:TurnFace[1])", id);
+                LogActError(u8"Act Err(Talk:TurnFace[1])", turning);
             }
 
             u32 other = 0;
 
             if (!state.FindRoleOrPlayer(otherId, other))
             {
-                DebugLog(u8"Act Err(Talk:TurnFace[2])", otherId);
+                LogActError(u8"Act Err(Talk:TurnFace[2])", turning);
             }
 
-            Role* role = this->FoundRole(run);
-            const Role& turning = role != nullptr ? *role : blank;
             const Role& faced = other < GameState::Roles ? state.roles[other] : blank;
             i32 distance = 0;
             const int angle = AngleBetween(
@@ -1118,7 +1124,11 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             if (mode > ScriptEffect::NumberMask)
             {
-                DebugLog(u8"effect number", run.context.event, mode);
+                DebugLog(
+                    u8"對話系統(GAON) Talk(%d) ,代碼值太大(%d)",
+                    run.context.event,
+                    mode
+                );  // 0x004A186C + 0x004A187C
                 this->Next(run);
                 return true;
             }
@@ -1158,7 +1168,13 @@ bool Talk::RunSceneCommand(EventRun& run)
             if (effect->x < 0 || effect->y < 0 || effect->limit + effect->x > Display::Width ||
                 effect->count + effect->y > Display::Height)
             {
-                DebugLog(u8"effect off the screen", effect->x, effect->y, effect->limit, effect->count);
+                DebugLog(
+                    u8"對話系統(GAON) Talk(%d) ,位置超出螢幕(x%d ,y%d ,w%d ,h%d)",
+                    effect->x,
+                    effect->y,
+                    effect->limit,
+                    effect->count
+                );  // 0x004A186C + 0x004A1840 (read from the node already freed)
                 this->Next(run);
                 return true;
             }
@@ -1203,7 +1219,11 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             if (mode > ScriptEffect::NumberMask)
             {
-                DebugLog(u8"effect number", run.context.id, mode);
+                DebugLog(
+                    u8"對話系統(G_AREA_OFF) Talk(%d)代碼值太大(%d)",
+                    run.context.id,
+                    mode
+                );  // 0x004A1810 + 0x004A1828
                 this->Next(run);
                 return true;
             }
@@ -1346,7 +1366,7 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             if (run.found >= Party::Roles)
             {
-                DebugLog(u8"cue number", run.found);
+                DebugLog(u8"對話系統(Addd_FMan) 人物號碼不對", run.found);  // 0x004A17EC + 0x004A1800
             }
 
             this->SetStoryFlag(static_cast<int>(run.found + GameState::InParty), run.code == EventCommand::SetInParty);

@@ -172,7 +172,9 @@ bool Talk::RunStateCommand(EventRun& run)
             }
             else
             {
-                DebugLog(u8"set role flag", id);
+                DebugLog(
+                    u8"(Sar_**)角色()不在地圖上"
+                );  // wsprintfA of 0x004A1504 (no conversion in it), then nullsub_1
                 run.valueA = set ? static_cast<i32>(bit) : 0;
                 run.valueB = set ? -1 : static_cast<i32>(~bit);
                 owner.UpdateRoleRecord(
@@ -236,7 +238,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
             if (!state.FindRoleOrPlayer(id, run.found))
             {
-                DebugLog(u8"Talk(tilpa1)", wanted);
+                DebugLog(u8"Talk(tilpa1) 不存在地圖上的角色(GUID:%d)", wanted);  // 0x004A16A4, given the count operand
                 this->Next(run);
                 return true;
             }
@@ -245,7 +247,11 @@ bool Talk::RunStateCommand(EventRun& run)
 
             if ((rounds & ActState::RoundsMask) < wanted)
             {
-                DebugLog(u8"Talk(tilpa1)", wanted, rounds & ActState::RoundsMask);
+                DebugLog(
+                    u8"Talk(tilpa1) 指定的張數(%d) 超過act容量(%d)",
+                    wanted,
+                    rounds & ActState::RoundsMask
+                );  // 0x004A16D0
                 this->Next(run);
                 return true;
             }
@@ -479,7 +485,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
             if (id != TalkWindow::NoRole && !state.FindRoleOrPlayer(id, run.found))
             {
-                DebugLog(u8"Talk(wait_dlg2)", id, owner.currentMap);
+                DebugLog(u8"Talk(wait_dlg2) 角色號碼(GUID:%d)不存在此地圖(%d)", id, owner.currentMap);  // 0x004A1B4C
                 this->Next(run);
                 return true;
             }
@@ -610,7 +616,13 @@ bool Talk::RunStateCommand(EventRun& run)
 
             if (MapsWord(data, at) == 0)
             {
-                DebugLog(u8"TalkOp:Scene_Music", operand, firstTune, secondTune, marks);
+                DebugLog(
+                    u8"TalkOp:Scene_Music 找不到地圖音樂定義\n[%d,%d,%d,%d]",
+                    operand,
+                    firstTune,
+                    secondTune,
+                    marks
+                );  // 0x004A1644
             }
 
             this->Next(run);
@@ -682,7 +694,16 @@ bool Talk::RunStateCommand(EventRun& run)
             const u16 id = operands.Word();
             const auto count = static_cast<i16>(operands.Word());
             const ItemNode* item = AddItem(party.inventory, id, count, ItemCountMode::Pending, owner.database);
-            DebugLog(u8"%s,%d", item != nullptr ? item->id : id, count);
+
+            if (item != nullptr)
+            {
+                DebugLog(u8"%s,%d", ObjectName(item->record), count);  // the name at +0xC
+            }
+            else
+            {
+                DebugLog(u8"%d,%d", id, count);
+            }
+
             this->Next(run);
             return false;
         }
@@ -722,7 +743,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
             if (role >= Party::Roles)
             {
-                DebugLog(u8"skill role", role);
+                DebugLog(u8"對話系統(Mag_Learn) 角色序號超過四(%d)", role);  // 0x004A15F8 + 0x004A160C
                 this->Next(run);
                 return true;
             }
@@ -739,7 +760,11 @@ bool Talk::RunStateCommand(EventRun& run)
 
                     if ((learned->record.data.usableBy & (ObjectData::FirstRoleBit >> role)) == 0)
                     {
-                        DebugLog(u8"skill not for the role", role, learned->id);
+                        DebugLog(
+                            u8"對話系統(Mag_Learn) 角色(%d)\n不應該學到這種法術%s",
+                            role,
+                            ObjectName(learned->record)
+                        );  // 0x004A15D8
                         AddFlaggedItem(skills, learned->id, -1, 0, owner.database);
                     }
                 }
@@ -760,7 +785,11 @@ bool Talk::RunStateCommand(EventRun& run)
 
             if (role >= Party::Roles || slot >= kEquipSlots)
             {
-                DebugLog(u8"equipment slot", role, slot);
+                DebugLog(
+                    u8"對話系統(Mag_Learn) 角色序號或部位超過有效範圍\nrs(%d) bp(%d)",
+                    role,
+                    slot
+                );  // 0x004A15F8 + 0x004A1588
                 this->Next(run);
                 return true;
             }
@@ -769,7 +798,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
             if (item == nullptr)
             {
-                DebugLog(u8"item missing", static_cast<u16>(kind));
+                DebugLog(u8"對話系統(Equip) 隊伍沒有物品(%d)", static_cast<u16>(kind));  // 0x004A15B4 + 0x004A15C4
                 this->Next(run);
                 return true;
             }
@@ -831,7 +860,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
             if (index >= Party::Roles)
             {
-                DebugLog(u8"party role", index);
+                DebugLog(u8"對話系統(Healing) 角色序號[%d]超過有效範圍 4.", index);  // 0x004A1558 + 0x004A156C
                 this->Next(run);
                 return true;
             }
@@ -917,7 +946,7 @@ bool Talk::RunStateCommand(EventRun& run)
             }
             else
             {
-                DebugLog(u8"distance role", id);
+                DebugLog(u8"對話系統(DISTANCE) GUID(%d)\n不在地圖上", id);  // 0x004A1520 + 0x004A1534
             }
 
             this->Next(run);
@@ -1095,7 +1124,7 @@ bool Talk::RunSystemCommand(EventRun& run)
         case EventCommand::EnterDemonPot:
             if (owner.currentMap == Field::DemonRefiningPot)
             {
-                DebugLog(u8"already on map 22");
+                DebugLog(u8"對話系統(InBottle) 已經在鍊妖壺裡面了!!");  // 0x004A14C8 + 0x004A14DC
             }
             else
             {
@@ -1119,7 +1148,7 @@ bool Talk::RunSystemCommand(EventRun& run)
         case EventCommand::LeaveDemonPot:
             if (view.returnMap <= 0)
             {
-                DebugLog(u8"no map to return to");
+                DebugLog(u8"對話系統(OutBottle) 沒有進入鍊妖壺的資料");  // 0x004A149C + 0x004A14B0
             }
             else
             {
@@ -1149,7 +1178,7 @@ bool Talk::RunSystemCommand(EventRun& run)
 
             if (map == Field::DemonRefiningPot)
             {
-                DebugLog(u8"return map 22");
+                DebugLog(u8"對話系統(OutBottleLoc) 離開鍊妖壺到鍊妖壺?!");  // 0x004A146C + 0x004A1484
             }
             else
             {
@@ -1410,7 +1439,7 @@ bool Talk::RunSystemCommand(EventRun& run)
 
             if (field > Party::LastStat)
             {
-                DebugLog(u8"attribute number", field);
+                DebugLog(u8"對話系統(attb) 屬性代號不合法(%d)\n", field);  // 0x004A1448 + 0x004A1458
                 return false;
             }
 
@@ -1439,7 +1468,7 @@ bool Talk::RunSystemCommand(EventRun& run)
 
             if (field > Party::LastStat)
             {
-                DebugLog(u8"attribute number", field);
+                DebugLog(u8"對話系統(attb) 屬性代號不合法(%d)\n", field);  // 0x004A1448 + 0x004A1458
                 return false;
             }
 

@@ -618,7 +618,7 @@ bool Talk::MoveRoles(EventRun& run)
 
             if (!state.FindRoleOrPlayer(id, run.found))
             {
-                DebugLog(u8"Bmove", id);
+                DebugLog(u8"Bmove 無效的角色\nGUID %d", id);  // the text 0x004A174C
                 continue;
             }
 
@@ -727,7 +727,7 @@ bool Talk::ChangeVariable(EventRun& run)
 
     if (index < 0 || index >= Party::Variables)
     {
-        DebugLog(u8"對話系統", index, value);
+        DebugLog(u8"對話系統 變數不合法(%d)(%d)\n", index, value);  // the title 0x004A1738, the text 0x0049F7C4
         return false;
     }
 
@@ -1441,7 +1441,11 @@ bool Talk::RunRoleCommand(EventRun& run)
 
             if (this->choice > count)
             {
-                DebugLog(u8"choice past the list", this->Word(run, kCodeWord), this->choice);
+                DebugLog(
+                    u8"對話系統(BTN_JUMP) GUID(%d) 輸入值(%d)大於分支數量",
+                    this->Word(run, kCodeWord),
+                    this->choice
+                );
                 choice = 0;
             }
 
@@ -1505,7 +1509,7 @@ bool Talk::RunRoleCommand(EventRun& run)
 
                 if (act == 0)
                 {
-                    DebugLog(u8"act 0", id, 0);
+                    DebugLog(u8"對話系統(Chanmg_act) 請設定正確的圖列碼GUID(%d)act(%d)", id, 0);
                 }
 
                 role.act.id = act;
