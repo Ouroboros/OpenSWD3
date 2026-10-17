@@ -396,10 +396,23 @@ public:
     std::array<i32, Units> unk524220 = {};  // per slot: the stamina damage of the last hit
     std::array<i32, Units> unk52411C = {};  // per slot: 1 while the hit fades (FadeHitAct)
     i32 unk4FE5C8 = 0;                      // the frames of a hit act on a whole side (Game::HitAllFrame)
-    i32 unk4A7564 = -1;                     // the enemy the auto battle aims at (1-based), -1: none
-    u16 unk4A7644 = 0xFFFF;                 // a role unit that may take the panel in any battle state (SelectRoleUnit)
-    i32 unk4A7548 = 1;                      // the command chosen in the menu (1-based)
-    i32 unk53BD18 = 0;                      // the page of the list of state 2 (0..2)
+    // The hits of the acting unit (Game::HitFrame).
+    i32 unk53BFA8 = 0;       // 1 once a hit landed
+    i32 unk53BF7C = 0;       // 1 once a sweep hit a unit
+    u16 unk53BDEC = 0;       // frames between the units a sweep reaches
+    u16 unk4FDF7C = 0;       // the attacker's word 29A2 of the last hit
+    u16 unk4A7620 = 0xFFFF;  // the last role hit
+    u16 unk4A7622 = 0xFFFF;  // the last enemy hit
+    u16 unk4A7624 = 0xFFFF;  // the last role defeated by a hit
+    i32 unk53BF84 = 0;       // 1: an enemy's hit sweeps
+    i32 unk53BFF4 = 0;       // 1: an enemy's hit falls on the party at once
+    i32 unk53BD40 = 0;       // the hit act of the acting enemy
+    i32 unk53BD7C = 0;       // the units an enemy's sweep hits
+    i32 unk53BD84 = 0;       // the units an enemy's sweep defeated
+    i32 unk4A7564 = -1;      // the enemy the auto battle aims at (1-based), -1: none
+    u16 unk4A7644 = 0xFFFF;  // a role unit that may take the panel in any battle state (SelectRoleUnit)
+    i32 unk4A7548 = 1;       // the command chosen in the menu (1-based)
+    i32 unk53BD18 = 0;       // the page of the list of state 2 (0..2)
     // The menu (MenuCancel).
     i32 unk53BFB0 = 0;
     i32 unk53BD90 = 0;

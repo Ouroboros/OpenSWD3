@@ -41,6 +41,7 @@ constexpr int kAllHitLeftX = 0xA0;  // HitAllFrame: the place of a picture witho
 constexpr int kAllHitRightX = 0x1E0;
 constexpr int kAllHitY = 0xEB;
 constexpr u16 kAllHitNudge = 0x1000;
+constexpr u16 kWhitePixel = 0xFFFF;  // HitFrame: the frame flashed white on a defeat
 
 }  // namespace
 
@@ -1383,5 +1384,592 @@ void Game::StrikeAllHit(BattleUnit& target, BattleUnit& attacker, int index, int
         battle.unk524220[slot] = stamina;
         battle.hitDamage = battle.unk5242B0[slot];
     }
+}
+
+// swd32.exe 0x0045C010: the hits of the acting unit unk53AE70 once its spell took effect (SpellCast, not SpellOver);
+// 1 once they are over (the hit acts and, after a sweep, the slot totals cleared). The target is the attacker's
+// word 29A2. A defeated target (Damage 1) flashes the frame white and is recorded. See RoleHitFrame and
+// EnemyHitFrame.
+int Game::HitFrame()
+{
+    BattleState& battle = this->battleState;
+
+    if ((battle.spellStage & BattleState::SpellCast) == 0 || (battle.spellStage & BattleState::SpellOver) != 0)
+    {
+        return 0;
+    }
+
+    if (battle.unk53AE70 >= BattleState::FirstRoleUnit)
+    {
+        return this->RoleHitFrame(battle.unk53AE70 - BattleState::FirstRoleUnit);
+    }
+
+    return this->EnemyHitFrame(battle.unk53AE70);
+}
+
+// The white frame of a defeat in HitFrame (inline in the original): the frame filled with 0xFFFF, as many pixels as
+// the client area holds (written from the start of the frame without its pitch).
+void Game::FlashFrameWhite()
+{
+    std::fill_n(this->drawSurface, static_cast<std::size_t>(Display::Width) * Display::Height, kWhitePixel);
+}
+
+// The damage of the last hit cleared (inline in 0x0045C010).
+void Game::ClearHitDamage()
+{
+    BattleState& battle = this->battleState;
+    battle.hitDamage = 0;
+    battle.spiritDamage = 0;
+    battle.staminaDamage = 0;
+}
+
+// The slot totals of a sweep cleared (inline in 0x0045C010).
+void Game::ClearHitTotals()
+{
+    BattleState& battle = this->battleState;
+    battle.unk5242B0.fill(0);
+    battle.unk5241B4.fill(0);
+    battle.unk524220.fill(0);
+}
+
+// One step of a sweep (inline in 0x0045C010): while fewer than `units` are swept (unk4A75FC), every
+// unk53BDEC frames one more is.
+void Game::StepSweep(u32 units)
+{
+    BattleState& battle = this->battleState;
+
+    if (battle.unk4A75FC < units)
+    {
+        ++battle.unk53BDE8;
+
+        if (battle.unk53BDE8 >= battle.unk53BDEC)
+        {
+            ++battle.unk4A75FC;
+            battle.unk53BDE8 = 0;
+        }
+    }
+}
+
+// The spirit a role drains from its damage (inline in 0x0045C010): with DrainShare giving a positive share, the
+// share shows as spirit digits and is added as spirit.
+void Game::DrainToSpirit(BattleRole& role, i32& damage)
+{
+    if (role.DrainShare(this->battleServices, damage) != 1 || damage <= 0)
+    {
+        return;
+    }
+
+    role.PushTarget(BattleUnit::SpiritGainTarget);
+    role.SetDamageDigits(this->battleServices, damage);
+    role.StepTargetCount(1);
+    role.Damage(this->battleServices, 0, static_cast<i16>(damage), 0);
+}
+
+// A role attacking in HitFrame (inline in the original): with unk53AE84 its hit sweeps a side (unk53AE88 1: the
+// whole side at once, the hits taken by the enemies; otherwise one unit after another as the sweep reaches them,
+// until unk53AE74 are hit), else one target is hit (unk53AE88 1: HitAllFrame on the target alone). unk53AE7C makes
+// the party the target side.
+int Game::RoleHitFrame(int role)
+{
+    BattleState& battle = this->battleState;
+    BattleRole& attacker = this->battleRoles[static_cast<std::size_t>(role)];
+    const auto target = static_cast<i16>(attacker.GetWord29A2());
+    const auto at = static_cast<std::size_t>(target);
+    const u32 act = static_cast<u32>(battle.unk4FE5D4[static_cast<std::size_t>(role)]);
+
+    if (battle.unk53AE84 != 0)
+    {
+        if (battle.unk53AE88 == 1)
+        {
+            if (this->HitAllFrame(this->battleEnemies[at], attacker, act, 0, 1) != 1)
+            {
+                return 0;
+            }
+
+            if (battle.unk53AE7C == 0)
+            {
+                for (u32 index = 0; index < battle.enemyCount; ++index)
+                {
+                    BattleEnemy& enemy = this->battleEnemies[index];
+
+                    if (enemy.IsDefeated())
+                    {
+                        continue;
+                    }
+
+                    battle.unk524420[index] = static_cast<i32>(index);
+                    battle.unk53BFA8 = 1;
+                    battle.unk53BF7C = 1;
+
+                    if (battle.unk53AF68 == 0 && enemy.Damage(
+                                                     this->battleServices,
+                                                     battle.unk5242B0[index],
+                                                     static_cast<i16>(battle.unk5241B4[index]),
+                                                     static_cast<i16>(battle.unk524220[index])
+                                                 ) == 1)
+                    {
+                        ++battle.unk53BD88;
+                        battle.flashing = 1;
+                        battle.unk4A7626 = 0;
+                        battle.unk502984[index] = static_cast<i32>(index);
+                        this->FlashFrameWhite();
+                    }
+
+                    this->ClearHitDamage();
+                    ++battle.unk53BD80;
+                    battle.unk5242B0[index] = 0;
+                    battle.unk5241B4[index] = 0;
+                    battle.unk524220[index] = 0;
+                }
+            }
+
+            this->ClearHitDamage();
+            battle.unk53BD80 = 0;
+            battle.unk5202A8.fill(ActState{});
+            this->ClearHitTotals();
+            return 1;
+        }
+
+        if (!this->SweepFromRole(attacker, target, act))
+        {
+            return 0;
+        }
+
+        battle.unk53BD80 = 0;
+        battle.unk4A75FC = 1;
+        battle.unk5202A8.fill(ActState{});
+        this->ClearHitTotals();
+        return 1;
+    }
+
+    if (battle.unk53AE88 == 1)
+    {
+        if (battle.unk53AE7C == 0)
+        {
+            BattleEnemy& enemy = this->battleEnemies[at];
+
+            if (this->HitAllFrame(enemy, attacker, act, 0, 0) != 1)
+            {
+                return 0;
+            }
+
+            battle.unk4FDF7C = attacker.GetWord29A2();
+            battle.unk4A7622 = static_cast<u16>(target);
+            battle.unk53BFA8 = 1;
+            battle.unk524420[at] = target;
+
+            if (battle.unk53AF68 == 0 &&
+                enemy.Damage(this->battleServices, battle.hitDamage, battle.spiritDamage, battle.staminaDamage) == 1)
+            {
+                battle.unk4A7626 = static_cast<u16>(target);
+                battle.flashing = 1;
+                battle.unk502984[at] = target;
+                this->FlashFrameWhite();
+            }
+        }
+        else
+        {
+            BattleRole& aimed = this->battleRoles[at];
+
+            if (this->HitAllFrame(aimed, attacker, act, 0, 0) != 1)
+            {
+                return 0;
+            }
+
+            aimed.Damage(this->battleServices, battle.hitDamage, battle.spiritDamage, battle.staminaDamage);
+            battle.unk524420[at] = target;
+        }
+
+        this->ClearHitDamage();
+        battle.unk5202A8.fill(ActState{});
+        return 1;
+    }
+
+    if (battle.unk53AE7C == 0)
+    {
+        BattleEnemy& enemy = this->battleEnemies[at];
+
+        if (this->HitTargetFrame(enemy, attacker, act, 0) != 1)
+        {
+            return 0;
+        }
+
+        battle.unk4FDF7C = attacker.GetWord29A2();
+        battle.unk4A7622 = static_cast<u16>(target);
+        battle.unk53BFA8 = 1;
+        battle.unk524420[at] = target;
+        this->ApplyDrain(attacker, enemy);
+
+        if (battle.unk53AF68 == 0 &&
+            enemy.Damage(this->battleServices, battle.hitDamage, battle.spiritDamage, battle.staminaDamage) == 1)
+        {
+            battle.unk4A7626 = static_cast<u16>(target);
+            battle.flashing = 1;
+            battle.unk502984[at] = target;
+            this->FlashFrameWhite();
+        }
+
+        this->ClearHitDamage();
+        battle.unk5202A8.fill(ActState{});
+        return 1;
+    }
+
+    BattleRole& aimed = this->battleRoles[at];
+
+    if (this->HitTargetFrame(aimed, attacker, act, 0) != 1)
+    {
+        return 0;
+    }
+
+    battle.unk4FDF7C = attacker.GetWord29A2();
+    battle.unk4A7620 = static_cast<u16>(target);
+
+    if (battle.unk53AF68 == 0 &&
+        aimed.Damage(this->battleServices, battle.unk5242B0[0], battle.spiritDamage, battle.staminaDamage) == 1)
+    {
+        battle.unk4A7624 = static_cast<u16>(target);
+        this->FlashFrameWhite();
+    }
+
+    battle.unk5242B0[0] = 0;
+    battle.unk5202A8.fill(ActState{});
+    this->ClearHitDamage();
+    return 1;
+}
+
+// The sweep of a role's hit in RoleHitFrame (inline in the original): over the enemies (a defeated one widens the
+// sweep at once, lowering unk53AE74) or the roles in battle (unk53AE7C) the sweep has reached, each hit once
+// (unk524420) takes its slot totals; true once unk53AE74 are hit.
+bool Game::SweepFromRole(BattleRole& attacker, i16 target, u32 act)
+{
+    BattleState& battle = this->battleState;
+
+    auto hitOne = [this, &battle](BattleUnit& unit, std::size_t slot, bool enemy, i16 aimed)
+    {
+        battle.unk524420[slot] = static_cast<i32>(slot);
+        battle.unk53BFA8 = 1;
+        battle.unk53BF7C = 1;
+
+        if (battle.unk53AF68 == 0 && unit.Damage(
+                                         this->battleServices,
+                                         battle.unk5242B0[slot],
+                                         static_cast<i16>(battle.unk5241B4[slot]),
+                                         static_cast<i16>(battle.unk524220[slot])
+                                     ) == 1)
+        {
+            ++battle.unk53BD88;
+
+            if (enemy)
+            {
+                battle.unk4A7626 = static_cast<u16>(aimed);
+            }
+
+            battle.unk502984[slot] = static_cast<i32>(slot);
+            battle.flashing = 1;
+            this->FlashFrameWhite();
+        }
+
+        this->ClearHitDamage();
+        return ++battle.unk53BD80 >= battle.unk53AE74;
+    };
+
+    if (battle.unk53AE7C == 0)
+    {
+        for (u32 slot = 0; slot < battle.unk4A75FC; ++slot)
+        {
+            BattleEnemy& enemy = this->battleEnemies[slot];
+
+            if (enemy.IsDefeated())
+            {
+                if (battle.unk4A75FC < battle.enemyCount)
+                {
+                    ++battle.unk4A75FC;
+
+                    if (battle.unk53AE74 > 1)
+                    {
+                        --battle.unk53AE74;
+                    }
+                }
+
+                battle.unk53BDE8 = 0;
+                continue;
+            }
+
+            this->StepSweep(battle.enemyCount);
+
+            if (this->HitTargetFrame(enemy, attacker, act, static_cast<int>(slot)) == 1 &&
+                battle.unk524420[slot] == -1 && hitOne(enemy, slot, true, target))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    for (u32 slot = 0; slot < battle.unk4A75FC; ++slot)
+    {
+        this->StepSweep(battle.roleCount);
+        BattleRole& role = this->battleRoles[slot];
+
+        if (role.unk2B00 != 1 && role.unk2B04 != 1 &&
+            this->HitTargetFrame(role, attacker, act, static_cast<int>(slot)) == 1 && battle.unk524420[slot] == -1 &&
+            hitOne(role, slot, false, target))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// An enemy attacking in HitFrame (inline in the original): its act is unk53BD40. Without unk53BF84 one target is
+// hit: a role (unk53BFF4 1: HitAllFrame on it alone) steps its orb counters by the enemy's command, takes the drain
+// and its DrainShare as spirit, a held aimed role ends the menu; an enemy (unk53AE80) takes the hit. With unk53BF84
+// the hit sweeps: unk53BFF4 1 all roles at once, otherwise the enemies (unk53AE80) or the roles the sweep has reached,
+// until unk53BD7C are hit (counting the defeats in unk53BD84).
+int Game::EnemyHitFrame(int enemy)
+{
+    BattleState& battle = this->battleState;
+    BattleEnemy& attacker = this->battleEnemies[static_cast<std::size_t>(enemy)];
+    CounterList& proficiency = this->party.fame.lists[Fame::ProficiencyList];
+    const auto target = static_cast<i16>(attacker.GetWord29A2());
+    const auto at = static_cast<std::size_t>(target);
+    const u32 act = static_cast<u32>(battle.unk53BD40);
+
+    if (battle.unk53BF84 == 0)
+    {
+        if (battle.unk53BFF4 == 1)
+        {
+            BattleRole& role = this->battleRoles[at];
+
+            if (this->HitAllFrame(role, attacker, act, 0, 0) != 1)
+            {
+                this->DrainToSpirit(role, battle.hitDamage);
+                return 0;
+            }
+
+            role.StepOrbCounters(proficiency, attacker.command);
+            battle.unk4FDF7C = attacker.GetWord29A2();
+            battle.unk4A7620 = static_cast<u16>(target);
+            battle.unk53BFA8 = 1;
+
+            if (battle.unk53AF68 == 0 && role.Damage(this->battleServices, battle.hitDamage, 0, 0) == 1)
+            {
+                battle.hitDamage = -1;
+                battle.unk4A7624 = static_cast<u16>(target);
+                battle.flashing = 1;
+                this->FlashFrameWhite();
+            }
+
+            if (role.IsHeldOrHolding() == 1 && target == battle.currentUnit - BattleState::FirstRoleUnit)
+            {
+                battle.result = 0;
+            }
+
+            this->ClearHitDamage();
+            battle.unk5202A8.fill(ActState{});
+            return 1;
+        }
+
+        if (battle.unk53AE80 != 0)
+        {
+            BattleEnemy& aimed = this->battleEnemies[at];
+
+            if (this->HitTargetFrame(aimed, attacker, act, 0) != 1)
+            {
+                return 0;
+            }
+
+            battle.unk4FDF7C = attacker.GetWord29A2();
+            battle.unk4A7622 = static_cast<u16>(target);
+            battle.unk53BFA8 = 1;
+
+            if (battle.unk53AF68 == 0 && aimed.Damage(this->battleServices, battle.unk5242B0[0], 0, 0) == 1)
+            {
+                battle.unk4A7626 = static_cast<u16>(target);
+                this->FlashFrameWhite();
+            }
+
+            this->ClearHitDamage();
+            battle.unk5242B0[0] = 0;
+            battle.unk5202A8.fill(ActState{});
+            return 1;
+        }
+
+        BattleRole& role = this->battleRoles[at];
+
+        if (this->HitTargetFrame(role, attacker, act, 0) != 1)
+        {
+            return 0;
+        }
+
+        role.StepOrbCounters(proficiency, attacker.command);
+        battle.unk4FDF7C = attacker.GetWord29A2();
+        battle.unk4A7620 = static_cast<u16>(target);
+        battle.unk53BFA8 = 1;
+
+        if (battle.unk53AF68 == 0 &&
+            role.Damage(this->battleServices, battle.unk5242B0[0], battle.spiritDamage, battle.staminaDamage) == 1)
+        {
+            battle.flashing = 1;
+            battle.unk4A7624 = static_cast<u16>(target);
+            this->FlashFrameWhite();
+        }
+
+        this->ApplyDrain(attacker, role);
+
+        if (role.IsHeldOrHolding() == 1 && target == battle.currentUnit - BattleState::FirstRoleUnit)
+        {
+            battle.result = 0;
+        }
+
+        this->DrainToSpirit(role, battle.unk5242B0[0]);
+        this->ClearHitDamage();
+        battle.unk5242B0[0] = 0;
+        battle.unk5202A8.fill(ActState{});
+        return 1;
+    }
+
+    if (!this->SweepFromEnemy(attacker, target, act))
+    {
+        return 0;
+    }
+
+    battle.unk53BD80 = 0;
+
+    if (battle.unk53BFF4 != 1)
+    {
+        battle.unk4A75FC = 1;
+    }
+
+    battle.unk5202A8.fill(ActState{});
+    battle.unk5242B0.fill(0);
+    return 1;
+}
+
+// The sweep of an enemy's hit in EnemyHitFrame (inline in the original); see there. True once unk53BD7C are hit.
+bool Game::SweepFromEnemy(BattleEnemy& attacker, i16 target, u32 act)
+{
+    BattleState& battle = this->battleState;
+    CounterList& proficiency = this->party.fame.lists[Fame::ProficiencyList];
+
+    auto standing = [](const BattleRole& role)
+    {
+        return !role.IsDefeated() && role.unk2B04 != 1 && role.unk2B00 != 1;
+    };
+
+    if (battle.unk53BFF4 == 1)
+    {
+        if (this->HitAllFrame(this->battleRoles[static_cast<std::size_t>(target)], attacker, act, 0, 1) != 1)
+        {
+            return false;
+        }
+
+        for (u32 slot = 0; slot < battle.roleCount; ++slot)
+        {
+            BattleRole& role = this->battleRoles[slot];
+
+            if (!standing(role))
+            {
+                continue;
+            }
+
+            role.StepOrbCounters(proficiency, attacker.command);
+
+            if (battle.unk5242B0[slot] > 0)
+            {
+                battle.hitDamage = battle.unk5242B0[slot];
+            }
+
+            this->ApplyDrain(attacker, role);
+            battle.unk524420[slot] = static_cast<i32>(slot);
+            battle.unk53BFA8 = 1;
+            battle.unk53BF7C = 1;
+
+            if (battle.unk53AF68 == 0 && role.Damage(this->battleServices, battle.unk5242B0[slot], 0, 0) == 1)
+            {
+                ++battle.unk53BD88;
+                battle.flashing = 1;
+                this->FlashFrameWhite();
+            }
+
+            this->DrainToSpirit(role, battle.unk5242B0[slot]);
+            this->ClearHitDamage();
+            battle.unk5242B0[slot] = 0;
+
+            if (++battle.unk53BD80 == battle.unk53BD7C)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    auto counted = [this, &battle](BattleUnit& unit, std::size_t slot)
+    {
+        battle.unk524420[slot] = static_cast<i32>(slot);
+        battle.unk53BFA8 = 1;
+        battle.unk53BF7C = 1;
+
+        if (battle.unk53AF68 == 0 && unit.Damage(this->battleServices, battle.unk5242B0[slot], 0, 0) == 1)
+        {
+            ++battle.unk53BD84;
+            battle.flashing = 1;
+            this->FlashFrameWhite();
+        }
+    };
+
+    if (battle.unk53AE80 != 0)
+    {
+        for (u32 slot = 0; slot < battle.unk4A75FC; ++slot)
+        {
+            this->StepSweep(battle.enemyCount);
+            BattleEnemy& enemy = this->battleEnemies[slot];
+
+            if (enemy.IsDefeated() || this->HitTargetFrame(enemy, attacker, act, static_cast<int>(slot)) != 1 ||
+                battle.unk524420[slot] != -1)
+            {
+                continue;
+            }
+
+            counted(enemy, slot);
+            this->ClearHitDamage();
+            battle.unk5242B0[slot] = 0;
+
+            if (++battle.unk53BD80 == battle.unk53BD7C)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    for (u32 slot = 0; slot < battle.unk4A75FC; ++slot)
+    {
+        this->StepSweep(battle.roleCount);
+        BattleRole& role = this->battleRoles[slot];
+
+        if (!standing(role) || this->HitTargetFrame(role, attacker, act, static_cast<int>(slot)) != 1 ||
+            battle.unk524420[slot] != -1)
+        {
+            continue;
+        }
+
+        role.StepOrbCounters(proficiency, attacker.command);
+        counted(role, slot);
+        this->DrainToSpirit(role, battle.unk5242B0[slot]);
+        this->ClearHitDamage();
+        battle.unk5242B0[slot] = 0;
+
+        if (++battle.unk53BD80 == battle.unk53BD7C)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 }  // namespace swd3

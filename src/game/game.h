@@ -296,6 +296,16 @@ private:
     void RaiseAllHit(BattleUnit& target, int all);
     void ShowAllHitDigits(BattleUnit& unit, i16 damage, u16& delay, i32& spirit, i32& stamina);
     void StrikeAllHit(BattleUnit& target, BattleUnit& attacker, int index, int all, u16& delay);
+    int HitFrame();
+    void FlashFrameWhite();
+    void ClearHitDamage();
+    void ClearHitTotals();
+    void StepSweep(u32 units);
+    void DrainToSpirit(BattleRole& role, i32& damage);
+    int RoleHitFrame(int role);
+    bool SweepFromRole(BattleRole& attacker, i16 target, u32 act);
+    int EnemyHitFrame(int enemy);
+    bool SweepFromEnemy(BattleEnemy& attacker, i16 target, u32 act);
     void DrawRolePanels();
     template <typename Next>
     void StepPanelGauge(i32& shown, i32& target, Next next, int picture, int x, int y, i32 downNear, i32 downFar);
