@@ -6,11 +6,14 @@
 #include "config/config.h"
 #include "draw/painter.h"
 #include "game/databases.h"
+#include "game/game.h"
 #include "game/game_state.h"
 #include "game_data.h"
+#include "map/blocking_map.h"
 #include "map/field.h"
 #include "map/map_cache.h"
 #include "pic/rle.h"
+#include "platform/display.h"
 #include "platform/surface.h"
 #include "role/role.h"
 #include "test.h"
@@ -36,7 +39,7 @@ std::string MapDirectory()
 struct Fixture
 {
     Fixture()
-        : surface(640, 480),
+        : surface(swd3::Display::Width, swd3::Display::Height),
           cache(this->config, this->painter),
           codec(this->painter),
           field(this->state, this->cache, this->config, this->codec)
@@ -53,36 +56,52 @@ struct Fixture
     swd3::Field field;
 };
 
+constexpr u32 kNoSuchUnit = 0xFFFE;
+constexpr int kRows = 4;
+constexpr u16 kFirstId = 5;  // three roles in one row
+constexpr u16 kSecondId = 3;
+constexpr u16 kThirdId = 7;
+constexpr u16 kAbsentId = 9;
+constexpr swd3::i32 kRoleY = 0x20;
+constexpr int kGridSide = 8;
+constexpr int kCellX = 3;  // a one-cell footprint
+constexpr int kCellY = 3;
+constexpr int kLargeX = 2;  // a 3 x 3 footprint
+constexpr int kLargeY = 2;
+constexpr int kLargeSide = 3;
+
 }  // namespace
 
 TEST_CASE("field: the first map of a new game from HUGE.lmf")
 {
+    using swd3::MapsRecord;
     std::vector<u8> maps = swd3test::ReadGameFile("maps.dat");
 
-    if (maps.size() <= 0x200 || !std::filesystem::exists(swd3test::GameFile("HUGE.lmf")))
+    if (maps.size() <= swd3::GameDatabases::MapsHeader || !std::filesystem::exists(swd3test::GameFile("HUGE.lmf")))
     {
         std::printf("  (maps.dat or HUGE.lmf not found, skipped)\n");
         return;
     }
 
-    maps.erase(maps.begin(), maps.begin() + 0x200);
+    maps.erase(maps.begin(), maps.begin() + swd3::GameDatabases::MapsHeader);
     const u32 start = swd3::MapsTable(maps, swd3::MapsDataTable::NewStory);
     const u16 map = swd3::MapsWord(maps, start);
-    u16 unit = 0xFFFF;
+    u16 unit = MapsRecord::TableEnd;
 
-    for (u32 at = swd3::MapsTable(maps, swd3::MapsDataTable::MapSettings); swd3::MapsWord(maps, at) != 0xFFFF;
-         at += 0xE)
+    for (u32 at = swd3::MapsTable(maps, swd3::MapsDataTable::MapSettings);
+         swd3::MapsWord(maps, at) != MapsRecord::TableEnd;
+         at += MapsRecord::SettingsBytes)
     {
         if (swd3::MapsWord(maps, at) == map)
         {
-            unit = swd3::MapsWord(maps, at + 2);
+            unit = swd3::MapsWord(maps, at + MapsRecord::SettingsUnitAt);
             break;
         }
     }
 
-    CHECK(unit != 0xFFFF);
+    CHECK(unit != MapsRecord::TableEnd);
     Fixture all;
-    all.config.installType = 2;
+    all.config.installType = swd3::Config::FullInstall;
     all.config.installDirectory = MapDirectory();
     u32 flags = 0;
     CHECK(all.field.LoadMap(unit, flags));
@@ -90,7 +109,7 @@ TEST_CASE("field: the first map of a new game from HUGE.lmf")
     const swd3::MapHeader& header = all.state.map;
     CHECK(header.width > 0);
     CHECK(header.height > 0);
-    CHECK(header.bitsPerPixel == 8 || header.bitsPerPixel == 16);
+    CHECK(header.bitsPerPixel == swd3::MapHeader::IndexedBits || header.bitsPerPixel == swd3::MapHeader::TrueColorBits);
     CHECK_EQ(header.blocks.size(), static_cast<std::size_t>(header.width) * header.height);
     CHECK_EQ(header.tiles.size(), static_cast<std::size_t>(header.width) * header.height * header.layers);
     CHECK(header.pixels != nullptr);
@@ -103,70 +122,76 @@ TEST_CASE("field: the first map of a new game from HUGE.lmf")
     CHECK(all.state.map.pixels != nullptr);
 
     flags = 0;
-    CHECK(!all.field.LoadMap(0xFFFE, flags));
-    CHECK_EQ(flags, 4u);
+    CHECK(!all.field.LoadMap(kNoSuchUnit, flags));
+    CHECK_EQ(flags, static_cast<u32>(swd3::Game::QuitRequested));
     std::filesystem::remove_all(all.config.installDirectory);
 }
 
 TEST_CASE("field: the drawing order of the roles in a row")
 {
     Fixture all;
-    all.state.map.height = 4;
+    all.state.map.height = kRows;
     all.field.ResetRows();
     swd3::Role first;
     swd3::Role second;
     swd3::Role third;
-    first.id = 5;
-    second.id = 3;
-    third.id = 7;
+    first.id = kFirstId;
+    second.id = kSecondId;
+    third.id = kThirdId;
 
     for (swd3::Role* role : {&first, &second, &third})
     {
-        role->y = 0x20;
+        role->y = kRoleY;
         all.field.InsertRole(*role, 0);
     }
 
-    swd3::Role* head = all.field.rows[0][2 + swd3::Field::RowMargin];
+    swd3::Role* head = all.field.rows[0][(kRoleY >> swd3::MapHeader::TileShift) + swd3::Field::RowMargin];
     CHECK(head == &third);
     CHECK(head->next == &first);
     CHECK(first.next == &second);
     CHECK(second.next == nullptr);
 
-    CHECK(all.field.RemoveRole(5, 0, 0, 1) == &first);
+    CHECK(all.field.RemoveRole(kFirstId, 0, 0, 1) == &first);
     CHECK(third.next == &second);
-    CHECK(all.field.RemoveRole(9, 0, 0, 1) == nullptr);
-    CHECK(all.field.RemoveRole(3, 0, 0, 0) == nullptr);
+    CHECK(all.field.RemoveRole(kAbsentId, 0, 0, 1) == nullptr);
+    CHECK(all.field.RemoveRole(kSecondId, 0, 0, 0) == nullptr);
     CHECK(third.next == &second);
 }
 
 TEST_CASE("field: the cells around a footprint")
 {
+    using swd3::BlockingMap;
+    using swd3::MapHeader;
     Fixture all;
-    swd3::MapHeader& map = all.state.map;
-    map.width = 8;
-    map.height = 8;
-    map.blocks.assign(64, 0);
+    MapHeader& map = all.state.map;
+    map.width = kGridSide;
+    map.height = kGridSide;
+    map.blocks.assign(kGridSide * kGridSide, 0);
 
     auto at = [](int x, int y)
     {
-        return static_cast<std::size_t>(x + 8 * y);
+        return static_cast<std::size_t>(x + kGridSide * y);
     };
 
-    map.blocks[at(2, 2)] = 0x40000000;  // up left of (3, 3)
-    map.blocks[at(4, 3)] = 0x20000000;  // right
-    map.blocks[at(3, 4)] = 0x00800000;  // down
-    map.blocks[at(2, 4)] = 0x00000001;  // down left, outside the mask
-    CHECK_EQ(all.field.ProbeCells(static_cast<std::ptrdiff_t>(at(3, 3)), 1, 1, 0x60800000), 0x01u | 0x08u | 0x20u);
+    constexpr u32 kMask = MapHeader::Wall | MapHeader::SolidRole | MapHeader::Unk800000;
+    map.blocks[at(kCellX - 1, kCellY - 1)] = MapHeader::Wall;   // up left
+    map.blocks[at(kCellX + 1, kCellY)] = MapHeader::SolidRole;  // right
+    map.blocks[at(kCellX, kCellY + 1)] = MapHeader::Unk800000;  // down
+    map.blocks[at(kCellX - 1, kCellY + 1)] = 1;                 // down left, a region outside the mask
     CHECK_EQ(
-        all.field.ProbeCells(static_cast<std::ptrdiff_t>(at(0, 0)), 1, 1, 0x60800000),
-        0x01u | 0x02u | 0x04u | 0x80u
+        all.field.ProbeCells(static_cast<std::ptrdiff_t>(at(kCellX, kCellY)), 1, 1, kMask),
+        BlockingMap::ProbeUpLeft | BlockingMap::ProbeRight | BlockingMap::ProbeDown
+    );
+    CHECK_EQ(
+        all.field.ProbeCells(static_cast<std::ptrdiff_t>(at(0, 0)), 1, 1, kMask),
+        BlockingMap::ProbeUpLeft | BlockingMap::ProbeUp | BlockingMap::ProbeUpRight | BlockingMap::ProbeLeft
     );  // the left column wraps to the row end
 
-    map.blocks.assign(64, 0);
-    map.blocks[at(5, 2)] = 0x20000000;  // right of a 3 x 3 footprint at (2, 2), its top row
-    map.blocks[at(3, 1)] = 0x20000000;  // above its middle
+    map.blocks.assign(kGridSide * kGridSide, 0);
+    map.blocks[at(kLargeX + kLargeSide, kLargeY)] = MapHeader::SolidRole;  // right of the footprint, its top row
+    map.blocks[at(kLargeX + 1, kLargeY - 1)] = MapHeader::SolidRole;       // above its middle
     CHECK_EQ(
-        all.field.ProbeCells(static_cast<std::ptrdiff_t>(at(2, 2)), 3, 3, 0x60800000),
-        0x01u | 0x02u | 0x04u | 0x08u
+        all.field.ProbeCells(static_cast<std::ptrdiff_t>(at(kLargeX, kLargeY)), kLargeSide, kLargeSide, kMask),
+        BlockingMap::ProbeUpLeft | BlockingMap::ProbeUp | BlockingMap::ProbeUpRight | BlockingMap::ProbeRight
     );
 }

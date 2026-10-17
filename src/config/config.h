@@ -21,6 +21,24 @@ public:
     static constexpr u8 DefaultVolume = 6;
     static constexpr u8 DefaultCacheMegabytes = 0x3C;
     static constexpr u8 DefaultTextSpeed = 2;
+    static constexpr i32 DefaultUnknown14 = 0x64;
+
+    // The layout of Env.dat: the format mark, the EnvKeys key bytes, unknown14, the settings bytes, the channel masks,
+    // the debug byte, then the install directory, the CD root and the installation type as strings (an old-format
+    // file has no mark and its strings at OldStringsAt).
+    static constexpr std::size_t KeysAt = 4;
+    static constexpr std::size_t Unknown14At = 0x14;
+    static constexpr std::size_t SettingsAt = 0x18;
+    static constexpr std::size_t MasksAt = 0x1E;
+    static constexpr std::size_t DebugAt = 0x24;
+    static constexpr std::size_t OldStringsAt = 0x2A;
+    static constexpr std::size_t StringsAt = 0x2E;
+    static constexpr std::size_t SoundVolumeAt = 0;  // the settings bytes from SettingsAt
+    static constexpr std::size_t MusicVolumeAt = 1;
+    static constexpr std::size_t CacheSizeAt = 2;
+    static constexpr std::size_t EffectsOffAt = 3;
+    static constexpr std::size_t TextSpeedAt = 4;
+    static constexpr std::size_t BattleSpeedAt = 5;
 
     // Config::installType values.
     enum InstallType : u8

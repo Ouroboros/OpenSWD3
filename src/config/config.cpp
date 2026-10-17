@@ -17,22 +17,7 @@ namespace
 {
 
 constexpr std::string_view kEnvFile = "Env.dat";
-constexpr std::size_t kKeysOffset = 4;
-constexpr std::size_t kUnknown14Offset = 0x14;
-constexpr std::size_t kSettingsOffset = 0x18;
-constexpr std::size_t kMasksOffset = 0x1E;
-constexpr std::size_t kDebugOffset = 0x24;
-constexpr std::size_t kOldStringsOffset = 0x2A;
-constexpr std::size_t kStringsOffset = 0x2E;
-constexpr std::size_t kClearedEnd = 0x2E;
-constexpr std::size_t kSoundVolumeAt = 0;  // the settings bytes
-constexpr std::size_t kMusicVolumeAt = 1;
-constexpr std::size_t kCacheSizeAt = 2;
-constexpr std::size_t kEffectsOffAt = 3;
-constexpr std::size_t kTextSpeedAt = 4;
-constexpr std::size_t kBattleSpeedAt = 5;
 constexpr u8 kDebugBit = 1;
-constexpr i32 kDefaultUnknown14 = 0x64;
 constexpr u8 kEnvBattleSpeed = 0xA;  // the battle speed a converted Env.dat gets (a fresh install takes 0xB)
 
 constexpr int Slot(Button button)
@@ -141,21 +126,21 @@ void Config::Update(std::string_view installDirectory, std::string_view cdRoot, 
 
     for (int i = 0; i < Config::EnvKeys; ++i)
     {
-        data[kKeysOffset + static_cast<std::size_t>(i)] =
+        data[Config::KeysAt + static_cast<std::size_t>(i)] =
             static_cast<u8>(this->keys[static_cast<std::size_t>(Config::EnvKeyOrder[static_cast<std::size_t>(i)])]);
     }
 
-    WriteDword(data, kUnknown14Offset, static_cast<u32>(settings.unknown14));
-    data[kSettingsOffset + kSoundVolumeAt] = settings.soundVolume;
-    data[kSettingsOffset + kMusicVolumeAt] = settings.musicVolume;
-    data[kSettingsOffset + kCacheSizeAt] = settings.cacheSize;
-    data[kSettingsOffset + kEffectsOffAt] = settings.effectsOff;
-    data[kSettingsOffset + kTextSpeedAt] = settings.textSpeed;
-    data[kSettingsOffset + kBattleSpeedAt] = settings.battleSpeed;
+    WriteDword(data, Config::Unknown14At, static_cast<u32>(settings.unknown14));
+    data[Config::SettingsAt + Config::SoundVolumeAt] = settings.soundVolume;
+    data[Config::SettingsAt + Config::MusicVolumeAt] = settings.musicVolume;
+    data[Config::SettingsAt + Config::CacheSizeAt] = settings.cacheSize;
+    data[Config::SettingsAt + Config::EffectsOffAt] = settings.effectsOff;
+    data[Config::SettingsAt + Config::TextSpeedAt] = settings.textSpeed;
+    data[Config::SettingsAt + Config::BattleSpeedAt] = settings.battleSpeed;
 
     if (oldFormat)
     {
-        std::fill(data.begin() + kMasksOffset, data.begin() + kClearedEnd, u8{0});
+        std::fill(data.begin() + Config::MasksAt, data.begin() + Config::StringsAt, u8{0});
     }
 
     std::string tail(installDirectory);
@@ -164,9 +149,9 @@ void Config::Update(std::string_view installDirectory, std::string_view cdRoot, 
     tail.push_back('\0');
     tail.push_back(static_cast<char>(this->installType));
     tail.push_back('\0');
-    const std::size_t copied = std::min(tail.size(), data.size() - kStringsOffset);
-    std::memcpy(data.data() + kStringsOffset, tail.data(), copied);
-    u32 bytes = static_cast<u32>(kStringsOffset + copied);
+    const std::size_t copied = std::min(tail.size(), data.size() - Config::StringsAt);
+    std::memcpy(data.data() + Config::StringsAt, tail.data(), copied);
+    u32 bytes = static_cast<u32>(Config::StringsAt + copied);
     file.SeekBegin(0);
     file.Write(data.data(), bytes);
 }
@@ -218,16 +203,16 @@ bool Config::Load(i32& unknown14, u8& effectsOff)
     if (ReadDword(data, 0) != Config::CurrentFormat)
     {
         file.Close();
-        const std::size_t firstEnd = StringEnd(data, kOldStringsOffset);
+        const std::size_t firstEnd = StringEnd(data, Config::OldStringsAt);
         const std::size_t secondEnd = StringEnd(data, firstEnd + 1);
         this->installType = data[secondEnd + 1];
         this->SetDefaultKeys();
-        const std::string directory = StringAt(data, kOldStringsOffset);
+        const std::string directory = StringAt(data, Config::OldStringsAt);
         Settings defaults;
         defaults.soundVolume = Config::DefaultVolume;
         defaults.musicVolume = Config::DefaultVolume;
         defaults.cacheSize = Config::DefaultCacheMegabytes;
-        defaults.unknown14 = kDefaultUnknown14;
+        defaults.unknown14 = Config::DefaultUnknown14;
         defaults.effectsOff = 1;
         defaults.textSpeed = Config::DefaultTextSpeed;
         defaults.battleSpeed = kEnvBattleSpeed;
@@ -241,28 +226,28 @@ bool Config::Load(i32& unknown14, u8& effectsOff)
     {
         SetLowByte(
             this->keys[static_cast<std::size_t>(Config::EnvKeyOrder[static_cast<std::size_t>(i)])],
-            data[kKeysOffset + static_cast<std::size_t>(i)]
+            data[Config::KeysAt + static_cast<std::size_t>(i)]
         );
     }
 
-    unknown14 = static_cast<i32>(ReadDword(data, kUnknown14Offset));
-    SetLowByte(this->soundVolume, data[kSettingsOffset + kSoundVolumeAt]);
-    SetLowByte(this->musicVolume, data[kSettingsOffset + kMusicVolumeAt]);
-    SetLowByte(this->cacheSize, data[kSettingsOffset + kCacheSizeAt]);
-    effectsOff = data[kSettingsOffset + kEffectsOffAt];
-    SetLowByte(this->textSpeed, data[kSettingsOffset + kTextSpeedAt]);
-    SetLowByte(this->battleSpeed, data[kSettingsOffset + kBattleSpeedAt]);
+    unknown14 = static_cast<i32>(ReadDword(data, Config::Unknown14At));
+    SetLowByte(this->soundVolume, data[Config::SettingsAt + Config::SoundVolumeAt]);
+    SetLowByte(this->musicVolume, data[Config::SettingsAt + Config::MusicVolumeAt]);
+    SetLowByte(this->cacheSize, data[Config::SettingsAt + Config::CacheSizeAt]);
+    effectsOff = data[Config::SettingsAt + Config::EffectsOffAt];
+    SetLowByte(this->textSpeed, data[Config::SettingsAt + Config::TextSpeedAt]);
+    SetLowByte(this->battleSpeed, data[Config::SettingsAt + Config::BattleSpeedAt]);
 
     for (std::size_t i = 0; i < this->channelMasks.size(); ++i)
     {
         this->channelMasks[i] = static_cast<u16>(
-            data[kMasksOffset + sizeof(u16) * i] | (data[kMasksOffset + sizeof(u16) * i + 1] << CHAR_BIT)
+            data[Config::MasksAt + sizeof(u16) * i] | (data[Config::MasksAt + sizeof(u16) * i + 1] << CHAR_BIT)
         );
     }
 
-    this->debugMode = data[kDebugOffset] & kDebugBit;
-    this->installDirectory = StringAt(data, kStringsOffset);
-    const std::size_t rootStart = StringEnd(data, kStringsOffset) + 1;
+    this->debugMode = data[Config::DebugAt] & kDebugBit;
+    this->installDirectory = StringAt(data, Config::StringsAt);
+    const std::size_t rootStart = StringEnd(data, Config::StringsAt) + 1;
     this->cdRoot = StringAt(data, rootStart);
     this->installType = data[StringEnd(data, rootStart) + 1];
     return current;

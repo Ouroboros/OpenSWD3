@@ -1,17 +1,23 @@
+#include <algorithm>
+#include <cstddef>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "config/config.h"
+#include "core/words.h"
 #include "draw/painter.h"
+#include "game/databases.h"
 #include "game/game_state.h"
 #include "game_data.h"
 #include "map/map_cache.h"
 #include "party/party.h"
+#include "platform/display.h"
 #include "platform/surface.h"
 #include "talk/text_colors.h"
 #include "test.h"
@@ -44,6 +50,18 @@ std::vector<u8> ReadBytes(const std::string& path)
 
 constexpr swd3::u32 kPrimaryColorsAt = 0x0049E0C8;
 constexpr swd3::u32 kSecondaryColorsAt = 0x0049E108;
+constexpr std::size_t kBlackColor = 1;  // text colours 1 and 8 are black and pure blue
+constexpr std::size_t kBlueColor = 8;
+
+constexpr std::size_t kEnvBytes = 0x40;  // an env.dat whose last byte is the session mark
+constexpr const char* kCacheFile = "data/3.cm";
+constexpr u32 kCachedBytes = 100;
+constexpr u32 kSmallCache = 5;
+constexpr u8 kFill = 7;
+constexpr std::size_t kRole = 3;
+constexpr std::size_t kLabelLength = 4;
+constexpr swd3::i32 kRoleX = 9;
+constexpr std::size_t kBlocks = 8;
 
 }  // namespace
 
@@ -59,83 +77,95 @@ TEST_CASE("game init: text colour tables match swd32.exe")
 
     CHECK(swd3test::SameTable(exe, kPrimaryColorsAt, swd3::TextColors::Primary));
     CHECK(swd3test::SameTable(exe, kSecondaryColorsAt, swd3::TextColors::Secondary));
-    swd3::Surface surface(640, 480);
+    swd3::Surface surface(swd3::Display::Width, swd3::Display::Height);
     swd3::Painter painter;
     painter.Init(surface);
     swd3::TextColors colors;
     colors.Convert(painter);
     CHECK(colors.primary[0] != 0);
-    CHECK_EQ(colors.primary[0] >> 16, colors.primary[0] & 0xFFFF);
-    CHECK_EQ(colors.primary[1], 0u);
-    CHECK_EQ(colors.primary[8] & 0xFFFF, 0x001Fu);
+    CHECK_EQ(swd3::HighWord(colors.primary[0]), swd3::LowWord(colors.primary[0]));
+    CHECK_EQ(colors.primary[kBlackColor], 0u);
+    CHECK_EQ(swd3::LowWord(colors.primary[kBlueColor]), swd3::Surface::BlueMask);
 }
 
 TEST_CASE("game init: the session mark of env.dat empties the map cache")
 {
+    using swd3::MapCache;
     const std::string directory = TestDirectory();
     swd3::Config config;
     config.installDirectory = directory;
-    swd3::Surface surface(640, 480);
+    swd3::Surface surface(swd3::Display::Width, swd3::Display::Height);
     swd3::Painter painter;
     painter.Init(surface);
-    swd3::MapCache cache(config, painter);
-    WriteBytes(directory + "env.dat", std::vector<u8>(0x40, 0));
-    WriteBytes(directory + "data/3.cm", std::vector<u8>(100, 7));
-    WriteBytes(directory + "data/mcache.dat", std::vector<u8>(0x180, 9));
-    CHECK_EQ(cache.Check(0), 100u);
+    MapCache cache(config, painter);
+    WriteBytes(directory + "env.dat", std::vector<u8>(kEnvBytes, 0));
+    WriteBytes(directory + kCacheFile, std::vector<u8>(kCachedBytes, kFill));
+    WriteBytes(directory + "data/mcache.dat", std::vector<u8>(MapCache::TableBytes, kFill));
+    CHECK_EQ(cache.Check(MapCache::CheckSessionMark), kCachedBytes);
     cache.MarkDirty();
     const std::vector<u8> marked = ReadBytes(directory + "env.dat");
     CHECK_EQ(marked.back(), 1);
-    CHECK_EQ(cache.Check(0), 0u);
+    CHECK_EQ(cache.Check(MapCache::CheckSessionMark), 0u);
     const std::vector<u8> cleared = ReadBytes(directory + "env.dat");
     CHECK_EQ(cleared.back(), 0);
     const std::vector<u8> table = ReadBytes(directory + "data/mcache.dat");
-    CHECK_EQ(table.size(), 0x180u);
-    CHECK_EQ(table[0], 0xFF);
-    CHECK_EQ(table[0x1C], 1);
-    WriteBytes(directory + "data/3.cm", std::vector<u8>(5, 7));
+    CHECK_EQ(table.size(), MapCache::TableBytes);
+    CHECK_EQ(table[0], swd3::LowByte(swd3::LowWord(MapCache::Slot::Free)));
+    CHECK_EQ(table[sizeof(MapCache::Slot) + offsetof(MapCache::Slot, unit)], 1);  // the second slot keeps unit 1
+    WriteBytes(directory + kCacheFile, std::vector<u8>(kSmallCache, kFill));
     cache.MarkDirty();
     cache.MarkClean();
-    CHECK_EQ(cache.Check(0), 5u);
+    CHECK_EQ(cache.Check(MapCache::CheckSessionMark), kSmallCache);
     std::filesystem::remove_all(directory);
 }
 
 TEST_CASE("game init: clearing the world")
 {
     swd3::GameState world;
-    world.roles[3].label.assign(4, 'a');
-    world.roles[3].x = 9;
-    world.map.blocks.assign(8, 1);
+    swd3::Role& role = world.roles[kRole];
+    role.label.assign(kLabelLength, 'a');
+    role.x = kRoleX;
+    world.map.blocks.assign(kBlocks, 1);
     world.ClearWorld();
-    CHECK(world.roles[3].label.empty());
-    CHECK_EQ(world.roles[3].x, 0);
+    CHECK(role.label.empty());
+    CHECK_EQ(role.x, 0);
     CHECK_EQ(world.roleCount, 0);
-    CHECK_EQ(world.leader.id, 0xFFFF);
+    CHECK_EQ(world.leader.id, swd3::Role::NoId);
     CHECK_EQ(world.leader.act.id, -1);
     CHECK(world.map.blocks.empty());
-    CHECK_EQ(world.moves[71].directions[5], 0xFF);
-    CHECK_EQ(world.moves[71].role, 0xFFFF);
+    CHECK(
+        std::all_of(
+            world.moves.back().directions.begin(),
+            world.moves.back().directions.end(),
+            [](u8 direction)
+            {
+                return direction == swd3::MoveRecord::EndOfPath;
+            }
+        )
+    );
+    CHECK_EQ(world.moves.back().role, swd3::MoveRecord::NoRole);
 }
 
 TEST_CASE("game init: the starting roles of maps.dat")
 {
+    using swd3::GameDatabases;
     std::vector<u8> maps = swd3test::ReadGameFile("maps.dat");
 
-    if (maps.size() <= 0x200)
+    if (maps.size() <= GameDatabases::MapsHeader)
     {
         std::printf("  (maps.dat not found, skipped)\n");
         return;
     }
 
-    maps.erase(maps.begin(), maps.begin() + 0x200);
-    u32 table = 0;
-    std::memcpy(&table, maps.data() + 4 * 6, 4);
-    CHECK(table + 4 * 0x34 <= maps.size());
+    maps.erase(maps.begin(), maps.begin() + GameDatabases::MapsHeader);
+    const u32 table = swd3::MapsTable(maps, swd3::MapsDataTable::StartRoles);
+    CHECK(table + swd3::Party::Roles * swd3::MapsRecord::StartRoleBytes <= maps.size());
 
-    for (int index = 0; index < 4; ++index)
+    for (int index = 0; index < swd3::Party::Roles; ++index)
     {
         swd3::RoleRecord role;
-        role.Load(std::span<const u8>(maps).subspan(table + 0x34 * static_cast<std::size_t>(index), 0x34));
+        const std::size_t at = table + swd3::MapsRecord::StartRoleBytes * static_cast<std::size_t>(index);
+        role.Load(std::span<const u8>(maps).subspan(at, swd3::MapsRecord::StartRoleBytes));
         CHECK(role.maxHitPoints > 0);
         CHECK(role.hitPoints <= role.maxHitPoints);
         CHECK(role.level >= 1);
