@@ -34,11 +34,63 @@ public:
     virtual const u16* Screen() = 0;
 };
 
+constexpr int kFontTextX = 10;
+constexpr int kFontTextY = 10;
+constexpr u16 kFontWhite = 0xFFFF;
+constexpr int kFontPlainStyle = 1;
+constexpr int kFillerCodes = 120;  // characters drawn to fill the glyph cache
+constexpr int kFillerLead = 0xA4;  // their lead bytes run over kFillerLeads values, the trail bytes over kFillerTrails
+constexpr int kFillerLeads = 7;
+constexpr int kFillerTrail = 0x40;
+constexpr int kFillerTrailStep = 13;
+constexpr int kFillerTrails = 0x3F;
+constexpr u32 kGlyphSeed = 131;  // the synthetic glyph bits
+constexpr u32 kGlyphMask = 0x7E;
+constexpr std::array<u16, 2> kFontBackgrounds = {0xFFFE, 0x1234};
+constexpr u16 kFontShadow = 0x0841;
+constexpr int kFontAbove = 8;  // the first line starts above the clip rectangle
+constexpr int kFontLeftOut = 5;
+constexpr int kFontRightIn = 40;  // the second text of a line runs past the right edge
+constexpr int kFontRightDrop = 3;
+constexpr int kFontLineHeight = 21;
+constexpr u16 kFontLeftColor = 0x7BEF;
+constexpr u16 kFontRightColor = 0xF800;
+constexpr int kFontAdvance = 22;
+constexpr int kFontAdvanceX = 100;
+constexpr int kFontAdvanceY = 100;
+constexpr u16 kFontAdvanceColor = 0x07E0;
+constexpr u32 kFontFirstSeed = 2;  // seed 1 is the cache filling screen
+
+struct FontClip
+{
+    int x;
+    int y;
+    int width;
+    int height;
+};
+
+struct FontFill
+{
+    int x;
+    int y;
+    int width;
+    int height;
+    u16 color;
+};
+
+constexpr std::array<int, 11> kFontStyles = {0x1, 0x2, 0x4, 0x8, 0x10, 0x81, 0x102, 0x84, 0x108, 0x190, 0x20};
+constexpr std::array<FontClip, 3> kFontClips = {{{0, 0, kScreenWidth, kScreenHeight}, {50, 40, 300, 200}, {13, 7, 101, 33}}};
+constexpr std::array<FontFill, 3> kFontFills = {{
+    {-5, -3, 30, 20, 0x1111},
+    {620, 470, 40, 30, 0x2222},
+    {300, 200, 0, 10, 0x3333},
+}};
+
 inline void RunFont(FontBackend& backend, const std::function<void(const std::string&, u64)>& report)
 {
     auto screenHash = [&backend]
     {
-        return Hash(backend.Screen(), static_cast<std::size_t>(kScreenWidth) * kScreenHeight * 2);
+        return Hash(backend.Screen(), kScreenBytes);
     };
 
     // Big5 pairs mixed with ASCII.
@@ -54,13 +106,16 @@ inline void RunFont(FontBackend& backend, const std::function<void(const std::st
 
     for (const std::string& text : texts)
     {
-        backend.DrawText(10, 10, text, 0xFFFF, 1);
+        backend.DrawText(kFontTextX, kFontTextY, text, kFontWhite, kFontPlainStyle);
     }
 
-    for (int code = 0; code < 120; ++code)
+    for (int code = 0; code < kFillerCodes; ++code)
     {
-        const std::string text = {static_cast<char>(0xA4 + code % 7), static_cast<char>(0x40 + (code * 13) % 0x3F)};
-        backend.DrawText(0, 0, text, 0xFFFF, 1);
+        const std::string text = {
+            static_cast<char>(kFillerLead + code % kFillerLeads),
+            static_cast<char>(kFillerTrail + (code * kFillerTrailStep) % kFillerTrails)
+        };
+        backend.DrawText(0, 0, text, kFontWhite, kFontPlainStyle);
     }
 
     report("count", static_cast<u64>(backend.GlyphCount()));
@@ -74,40 +129,30 @@ inline void RunFont(FontBackend& backend, const std::function<void(const std::st
 
         for (int i = 0; i < backend.GlyphBytes(); ++i)
         {
-            bits[i] = static_cast<u8>(Mix32(code * 131u + static_cast<u32>(i)) & 0x7E);
+            bits[i] = static_cast<u8>(Mix32(code * kGlyphSeed + static_cast<u32>(i)) & kGlyphMask);
         }
     }
 
-    report("codes", Hash(codes.data(), codes.size() * 2));
-    const int styles[] = {0x1, 0x2, 0x4, 0x8, 0x10, 0x81, 0x102, 0x84, 0x108, 0x190, 0x20};
+    report("codes", Hash(codes.data(), codes.size() * sizeof(u16)));
+    u32 seed = kFontFirstSeed;
 
-    const struct
+    for (const int style : kFontStyles)
     {
-        int x;
-        int y;
-        int width;
-        int height;
-    } clips[] = {{0, 0, 640, 480}, {50, 40, 300, 200}, {13, 7, 101, 33}};
-
-    u32 seed = 2;
-
-    for (int style : styles)
-    {
-        for (const auto& clip : clips)
+        for (const FontClip& clip : kFontClips)
         {
-            for (int background = 0; background < 2; ++background)
+            for (std::size_t background = 0; background < kFontBackgrounds.size(); ++background)
             {
                 backend.Reset(seed++);
                 backend.SetClip(clip.x, clip.y, clip.width, clip.height);
-                backend.SetBackground(background == 0 ? 0xFFFE : 0x1234);
-                backend.SetShadow(0x0841);
-                int y = clip.y - 8;
+                backend.SetBackground(kFontBackgrounds[background]);
+                backend.SetShadow(kFontShadow);
+                int y = clip.y - kFontAbove;
 
                 for (const std::string& text : texts)
                 {
-                    backend.DrawText(clip.x - 5, y, text, 0x7BEF, style);
-                    backend.DrawText(clip.x + clip.width - 40, y + 3, text, 0xF800, style);
-                    y += 21;
+                    backend.DrawText(clip.x - kFontLeftOut, y, text, kFontLeftColor, style);
+                    backend.DrawText(clip.x + clip.width - kFontRightIn, y + kFontRightDrop, text, kFontRightColor, style);
+                    y += kFontLineHeight;
                 }
 
                 report(
@@ -120,11 +165,14 @@ inline void RunFont(FontBackend& backend, const std::function<void(const std::st
     }
 
     backend.Reset(seed++);
-    backend.SetAdvance(22);
-    backend.DrawText(100, 100, texts[1], 0x07E0, 1);
-    backend.FillRect(-5, -3, 30, 20, 0x1111);
-    backend.FillRect(620, 470, 40, 30, 0x2222);
-    backend.FillRect(300, 200, 0, 10, 0x3333);
+    backend.SetAdvance(kFontAdvance);
+    backend.DrawText(kFontAdvanceX, kFontAdvanceY, texts[1], kFontAdvanceColor, kFontPlainStyle);
+
+    for (const FontFill& fill : kFontFills)
+    {
+        backend.FillRect(fill.x, fill.y, fill.width, fill.height, fill.color);
+    }
+
     report("advance-fill", screenHash());
 }
 

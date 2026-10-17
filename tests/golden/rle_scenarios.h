@@ -13,6 +13,10 @@
 namespace golden
 {
 
+constexpr std::size_t kDecodedTrailer = 3 * sizeof(u32);  // the width, height and format after the decoded pixels
+constexpr std::array<int, 2> kCharPaletteEntries = {1, 40};
+constexpr std::array<int, 3> kSystemPaletteEntries = {1, 5, 30};
+
 struct PaletteFrame
 {
     std::vector<u8> rle;
@@ -34,24 +38,24 @@ LoadPaletteFrames(const std::string& path, const std::vector<int>& entries, int 
 
     for (int entry : entries)
     {
-        const u32 base = ReadU32(file, 0x1C + 0x2C * static_cast<u32>(entry - 1) + 0x18);
+        const u32 base = ReadU32(file, kTswDirectoryStart + kTswDirectoryBytes * static_cast<u32>(entry - 1) + kTswOffsetAt);
 
-        if (base == 0 || ReadU16(file, base + 4) != 0xABCD || ReadU16(file, base + 8) != 8)
+        if (base == 0 || ReadU16(file, base + kTswMagicAt) != kTswMagic || ReadU16(file, base + kTswFormatAt) != kTswPaletteFormat)
         {
             continue;
         }
 
-        std::vector<u16> palette(256);
-        file.seekg(base + 12);
-        file.read(reinterpret_cast<char*>(palette.data()), 0x200);
-        const u16 count = ReadU16(file, base + 6);
-        const u32 table = base + 12 + 0x200;
+        std::vector<u16> palette(kPaletteColors);
+        file.seekg(base + kTswHeaderBytes);
+        file.read(reinterpret_cast<char*>(palette.data()), kTswPaletteBytes);
+        const u16 count = ReadU16(file, base + kTswCountAt);
+        const u32 table = base + kTswHeaderBytes + kTswPaletteBytes;
 
         for (int index = 0; index < count && index < perEntry; ++index)
         {
-            const u32 offset = ReadU32(file, table + 0x24 * index);
-            const u32 packed = ReadU32(file, table + 0x24 * index + 4);
-            const u32 size = ReadU32(file, table + 0x24 * index + 8);
+            const u32 offset = ReadU32(file, table + kTswFrameBytes * index);
+            const u32 packed = ReadU32(file, table + kTswFrameBytes * index + kTswPackedAt);
+            const u32 size = ReadU32(file, table + kTswFrameBytes * index + kTswSizeAt);
             std::vector<u8> input(packed);
             file.seekg(base + offset);
             file.read(reinterpret_cast<char*>(input.data()), packed);
@@ -99,10 +103,10 @@ inline void RunRle(
     for (std::size_t f = 0; f < frames.size(); ++f)
     {
         const std::string name = "rle16/" + std::to_string(f);
-        const std::vector<u8> rle(frames[f].rle.begin(), frames[f].rle.end() - 64);
+        const std::vector<u8> rle(frames[f].rle.begin(), frames[f].rle.end() - kRleSlack);
         const std::vector<u8> decoded = backend.Decode(rle);
         report(name + "/decode", hash(decoded));
-        const std::vector<u8> encoded = backend.Encode(decoded.data(), frames[f].width, frames[f].height, 0x10);
+        const std::vector<u8> encoded = backend.Encode(decoded.data(), frames[f].width, frames[f].height, kRleTrueColor);
         report(name + "/encode", hash(encoded));
         report(name + "/display", hash(backend.ConvertToDisplay(rle)));
         report(name + "/to16", hash(backend.ConvertTo16(rle, {})));
@@ -115,23 +119,23 @@ inline void RunRle(
         const std::vector<u8> decoded = backend.Decode(frame.rle);
         report(name + "/decode", hash(decoded));
 
-        if (decoded.size() >= 12)
+        if (decoded.size() >= kDecodedTrailer)
         {
-            const std::size_t tail = decoded.size() - 12;
+            const std::size_t tail = decoded.size() - kDecodedTrailer;
             u32 width = 0;
             u32 height = 0;
-            std::memcpy(&width, decoded.data() + tail, 4);
-            std::memcpy(&height, decoded.data() + tail + 4, 4);
+            std::memcpy(&width, decoded.data() + tail, sizeof(width));
+            std::memcpy(&height, decoded.data() + tail + sizeof(width), sizeof(height));
             report(
                 name + "/encode",
-                hash(backend.Encode(decoded.data(), static_cast<int>(width), static_cast<int>(height), 8))
+                hash(backend.Encode(decoded.data(), static_cast<int>(width), static_cast<int>(height), kRleIndexed))
             );
         }
 
         report(name + "/display", hash(backend.ConvertToDisplay(frame.rle)));
         report(name + "/to16", hash(backend.ConvertTo16(frame.rle, frame.palette)));
-        std::vector<u8> tile(0x200);
-        std::memcpy(tile.data(), frame.palette.data(), 0x200);
+        std::vector<u8> tile(kTswPaletteBytes);
+        std::memcpy(tile.data(), frame.palette.data(), kTswPaletteBytes);
         tile.insert(tile.end(), frame.rle.begin(), frame.rle.end());
         report(name + "/tile", hash(backend.ConvertTileTo16(tile)));
     }
@@ -142,8 +146,12 @@ inline std::vector<PaletteFrame>
 
 LoadGoldenPaletteFrames(const std::function<std::string(const std::string&)>& gameFile, const Decompress& decompress)
 {
-    std::vector<PaletteFrame> frames = LoadPaletteFrames(gameFile("all_char.tsw"), {1, 40}, 2, decompress);
-    const std::vector<PaletteFrame> system = LoadPaletteFrames(gameFile("all_sys.tsw"), {1, 5, 30}, 1, decompress);
+    std::vector<PaletteFrame> frames = LoadPaletteFrames(
+        gameFile("all_char.tsw"), {kCharPaletteEntries.begin(), kCharPaletteEntries.end()}, kCharFrames, decompress
+    );
+    const std::vector<PaletteFrame> system = LoadPaletteFrames(
+        gameFile("all_sys.tsw"), {kSystemPaletteEntries.begin(), kSystemPaletteEntries.end()}, 1, decompress
+    );
     frames.insert(frames.end(), system.begin(), system.end());
     return frames;
 }

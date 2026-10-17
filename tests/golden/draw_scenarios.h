@@ -65,6 +65,7 @@ constexpr std::size_t kRleWidthWord = 1;
 constexpr std::size_t kRleHeightWord = 2;
 constexpr std::size_t kRleFormatWord = 3;
 constexpr u16 kRleTrueColor = 0x10;
+constexpr u16 kRleIndexed = 8;
 constexpr u16 kRleLengthMask = 0x7FFF;
 constexpr u16 kRleCountMask = 0x3FFF;
 constexpr u16 kRleSkipRun = 0x8000;
