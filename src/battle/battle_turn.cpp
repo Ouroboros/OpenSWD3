@@ -234,6 +234,15 @@ constexpr int kLearnedTextX = 0x104;
 constexpr int kLearnedTextY = 0xBC;
 constexpr int kLearnedSkillY = 0xD2;
 constexpr u16 kLearnedSkillColor = 0xF000;
+constexpr std::size_t kNeededBattles = 2;  // RoleBattleBlock::unk00: the battles the next special needs
+constexpr std::size_t kNextSpecial = 3;    // the next special skill with bit 31, -1: none
+constexpr i32 kNoSpecial = -1;
+constexpr u32 kSpecialMark = 0x80000000u;
+constexpr u32 kSpecialIdMask = 0x7FFFFFFF;
+constexpr u16 kSpecialType = 0x1F;
+constexpr int kSpecialsFlag = 0x1BB0;
+constexpr u32 kBarredSpecialA = 0x665;
+constexpr u32 kBarredSpecialB = 0x669;
 
 // The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
 // here.
@@ -3202,5 +3211,83 @@ void Game::DrawLearnedBox(std::u8string_view line, bool sound)
     const int quarters = static_cast<int>(skill.size()) >> 2;
     const int skillX = ((kListAdvance * halves) >> 1) - kListAdvance * quarters + kLearnedFrameLeft;
     font.DrawText(this->drawSurface, skillX, kLearnedSkillY, skill, kLearnedSkillColor, TextFont::BoldOutline);
+}
+
+// swd32.exe 0x00468C80: each battle role standing (not forced) whose next special skill is not exhausted (battle
+// block [3] not -1) learns it once it has fought enough battles: its type 1 skills (from Party::skills by battle role
+// index, as in the original) set the battle block's needed battles ([2], the skill's unk44) and next special ([3],
+// its unk42 with bit 31). With [1] battles at least [2] and a next special (not 0x665 or 0x669 while game flag
+// kSpecialsFlag is set), the special is appended to the list, its name kept for the message (unk53BFFC, unk4A7646 the
+// role) and the block restarted from it (-1 without a further one).
+void Game::LearnSpecials()
+{
+    BattleState& battle = this->battleState;
+
+    for (u32 index = 0; index < battle.roleCount; ++index)
+    {
+        BattleRole& role = this->battleRoles[index];
+        RoleBattleBlock& block = this->party.battleBlocks[static_cast<std::size_t>(battle.partyRoles[index])];
+        std::unique_ptr<ItemNode>& list = this->party.skills[index];
+
+        if (role.unk2B00 == 1 || role.unk2B04 == 1 || role.IsDefeated() || block.unk00[kNextSpecial] == kNoSpecial ||
+            list == nullptr)
+        {
+            continue;
+        }
+
+        auto takeNext = [this, &battle, &block](u16 id)
+        {
+            this->database.LoadObject(battle.unk53BC28, id);
+            Database::FreeDescription(battle.unk53BC28);
+            block.unk00[kNeededBattles] = battle.unk53BC28.data.unk44;
+            block.unk00[kNextSpecial] = static_cast<i32>(battle.unk53BC28.data.unk42 | kSpecialMark);
+        };
+
+        for (ItemNode* node = list->next.get(); node != nullptr; node = node->next.get())
+        {
+            if (node->record.data.unk52 == kSpecialType)
+            {
+                takeNext(node->id);
+            }
+        }
+
+        const auto next = static_cast<u32>(block.unk00[kNextSpecial]) & kSpecialIdMask;
+
+        if (block.unk00[kBattlesFought] < block.unk00[kNeededBattles] || next == 0)
+        {
+            continue;
+        }
+
+        if (this->state.GameFlag(kSpecialsFlag) && (next == kBarredSpecialA || next == kBarredSpecialB))
+        {
+            continue;
+        }
+
+        const auto id = static_cast<u16>(block.unk00[kNextSpecial]);
+        this->database.LoadObject(battle.unk53BC28, id);
+        Database::FreeDescription(battle.unk53BC28);
+        ItemNode* last = list.get();
+
+        while (last->next != nullptr)
+        {
+            last = last->next.get();
+        }
+
+        last->next = std::make_unique<ItemNode>();
+        ItemNode& learned = *last->next;
+        learned.id = id;
+        this->database.LoadObject(learned.record, id);
+        battle.unk53BFFC = 1;
+        battle.lastLearned.name = ObjectName(learned.record);
+        battle.unk4A7646 = static_cast<u8>(index);
+        block.unk00[kBattlesFought] = 0;
+        block.unk00[kNeededBattles] = battle.unk53BC28.data.unk44;
+        block.unk00[kNextSpecial] = static_cast<i32>(battle.unk53BC28.data.unk42 | kSpecialMark);
+
+        if (battle.unk53BC28.data.unk42 == 0)
+        {
+            block.unk00[kNextSpecial] = kNoSpecial;
+        }
+    }
 }
 }  // namespace swd3
