@@ -63,6 +63,7 @@ namespace swd3
 // objects. Built step by step along the start of the game.
 class Game
 {
+    friend class CheatDialog;
     friend class Menu;
     friend class FieldView;
     friend class Talk;

@@ -1,8 +1,11 @@
 #include <algorithm>
 #include <array>
 
+#include <SDL3/SDL.h>
+
 #include "core/debug_log.h"
 #include "core/words.h"
+#include "game/cheat_dialog.h"
 #include "game/game.h"
 #include "input/input.h"
 #include "item/item_list.h"
@@ -211,7 +214,14 @@ void RoleControl::ControlPlayer()
         if (input.IsKeyDown(Input::F4))
         {
             owner.running = 0;
-            owner.running = 1;
+            SDL_ShowCursor();
+            CheatDialog dialog(owner);
+
+            if (dialog.Run() == 0)
+            {
+                owner.running = 1;
+            }
+
             return;
         }
 
