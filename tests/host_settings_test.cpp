@@ -60,7 +60,7 @@ TEST_CASE("host settings: invalid values keep their defaults with a warning")
                              "level = \"loud\"\n"
                              "[window]\n"
                              "width = 100\n"
-                             "height = big\n"
+                             "height = \"big\"\n"
                              "maximized = 1\n"
                              "colour = 3\n"
                              "[sound]\n";
@@ -70,6 +70,16 @@ TEST_CASE("host settings: invalid values keep their defaults with a warning")
     CHECK_EQ(settings.windowHeight, swd3::Display::DefaultWindowHeight);
     CHECK(!settings.windowMaximized);
     CHECK_EQ(settings.warnings.size(), static_cast<std::size_t>(6));
+}
+
+TEST_CASE("host settings: a file that is not TOML is ignored as a whole")
+{
+    const swd3::HostSettings settings = swd3::ParseHostSettings("[window]\nwidth = 960\nheight = big\n", kBase);
+    CHECK_EQ(settings.windowWidth, swd3::Display::DefaultWindowWidth);
+    CHECK_EQ(settings.warnings.size(), static_cast<std::size_t>(1));
+    const swd3::HostSettings escaped =
+        swd3::ParseHostSettings("[paths]\ndata_dir = \"/games/sw\\u0064\\u0033\"\n", kBase);
+    CHECK(escaped.dataDirectory == std::filesystem::path("/games/swd3"));
 }
 
 TEST_CASE("host settings: the display stays at 640x480")

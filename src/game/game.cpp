@@ -620,7 +620,7 @@ void Game::MakeDirectory(std::string_view name)
     std::filesystem::create_directory(ResolvePath(Concat({this->config.installDirectory, name})), error);
 }
 
-// The rebuild's [paths] of <program>.cfg over the install directory Env.dat gave (data_dir) and the save directory
+// The rebuild's [paths] of swd3r.toml over the install directory Env.dat gave (data_dir) and the save directory
 // (save_dir, created when missing); both with a trailing separator as the game's paths.
 void Game::ApplyHostPaths()
 {

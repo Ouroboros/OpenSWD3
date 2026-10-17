@@ -11,6 +11,8 @@ SDL3_REPO="https://github.com/libsdl-org/SDL.git"
 SDL3_TAG="release-3.4.18"
 FFMPEG_REPO="https://git.ffmpeg.org/ffmpeg.git"
 FFMPEG_TAG="n9.0"
+TOMLPP_REPO="https://github.com/marzer/tomlplusplus.git"
+TOMLPP_TAG="v3.4.0"
 
 SWD3_LLVM_ROOT="${SWD3_LLVM_ROOT:-/opt/llvm}"
 SWD3_I386_SYSROOT="${SWD3_I386_SYSROOT:-/opt/sysroot-i386}"

@@ -57,8 +57,7 @@ int main(int count, char** arguments)
     const std::string name = ProgramName(count, arguments);
     const std::string program = name.empty() ? std::string("swd3r") : name;
     const std::filesystem::path programDirectory = swd3::ProgramDirectory();
-    std::filesystem::path settingsFile = programDirectory / program;
-    settingsFile += ".cfg";
+    const std::filesystem::path settingsFile = programDirectory / "swd3r.toml";
     swd3::HostSettings settings = swd3::LoadHostSettings(settingsFile, programDirectory);
     std::filesystem::path logDirectory = programDirectory / "logs";
     std::string logPrefix = program;

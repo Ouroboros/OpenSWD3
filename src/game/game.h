@@ -124,7 +124,7 @@ public:
 
     int Run(std::string_view commandLine);
 
-    HostSettings host;  // the rebuild's <program>.cfg (set before Run)
+    HostSettings host;  // the rebuild's swd3r.toml (set before Run)
 
 private:
     void Start();

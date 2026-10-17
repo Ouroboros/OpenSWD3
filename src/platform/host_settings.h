@@ -12,8 +12,8 @@
 namespace swd3
 {
 
-// The settings of the rebuild's host (<program>.cfg beside the executable): where the game data, the saves and the
-// log are, the log level, the window and the logical display. Every value missing or invalid keeps its default (the
+// The settings of the rebuild's host (swd3r.toml beside the executable, TOML 1.0): where the game data, the saves and
+// the log are, the log level, the window and the logical display. Every value missing or invalid keeps its default (the
 // original behaviour); relative paths are taken from the executable's directory.
 struct HostSettings
 {
@@ -42,7 +42,7 @@ struct HostSettings
 // The settings of `file`; relative paths in it are resolved against `base` (the executable's directory).
 HostSettings LoadHostSettings(const std::filesystem::path& file, const std::filesystem::path& base);
 
-// The settings of a text in the format of the file (for the tests).
+// The settings of a TOML text (for the tests).
 HostSettings ParseHostSettings(std::string_view text, const std::filesystem::path& base);
 
 // The name of a log level ("debug" ...).

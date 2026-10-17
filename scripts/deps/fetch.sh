@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Downloads pinned SDL3 and FFmpeg sources into third_party/src and records the resolved commits.
+# Downloads pinned SDL3, FFmpeg and toml++ sources into third_party/src and records the resolved commits.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
@@ -20,6 +20,7 @@ fetch_tag() {
     printf 'name\ttag\tcommit\n'
     fetch_tag "${SDL3_REPO}" "${SDL3_TAG}" "${SWD3_TP_SRC}/SDL3"
     fetch_tag "${FFMPEG_REPO}" "${FFMPEG_TAG}" "${SWD3_TP_SRC}/ffmpeg"
+    fetch_tag "${TOMLPP_REPO}" "${TOMLPP_TAG}" "${SWD3_TP_SRC}/tomlplusplus"
 } > "${SWD3_TP}/SOURCES.tsv.new"
 mv "${SWD3_TP}/SOURCES.tsv.new" "${SWD3_TP}/SOURCES.tsv"
 cat "${SWD3_TP}/SOURCES.tsv"

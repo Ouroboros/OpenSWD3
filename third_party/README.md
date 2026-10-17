@@ -1,11 +1,12 @@
 # 第三方依赖
 
-由 `scripts/deps/` 自行下载源码并静态构建，不复用本机其他位置的副本。
+由 `scripts/deps/` 自行下载源码并静态构建（toml++ 只有头文件，直接包含），不复用本机其他位置的副本。
 
 | 依赖 | 版本 | 来源 |
 | --- | --- | --- |
 | SDL3 | `release-3.4.18` | https://github.com/libsdl-org/SDL.git |
 | FFmpeg | `n9.0` | https://git.ffmpeg.org/ffmpeg.git |
+| toml++ | `v3.4.0` | https://github.com/marzer/tomlplusplus.git（MIT，解析 swd3r.toml） |
 
 实际提交记录在 `SOURCES.tsv`。
 
