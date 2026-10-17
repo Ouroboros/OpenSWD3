@@ -12,6 +12,7 @@
 
 #include "core/debug_log.h"
 #include "crt/msvc.h"
+#include "game/screenshot.h"
 #include "platform/file_system.h"
 #include "platform/system_info.h"
 #include "save/save_games.h"
@@ -44,6 +45,9 @@ constexpr std::u8string_view kDirectDrawFailed = u8"DDraw init Failed.";
 constexpr std::u8string_view kTimerFailed = u8"mmTimer init Failed.";
 constexpr std::u8string_view kErrorTitle = u8"SWD3";
 constexpr u32 kStopVideoButtons = kLeftButton | kRightButton | kControlKey | kMiddleButton;
+constexpr u32 kScreenshotDiskMegabytes = 0x40;  // key P: a screenshot needs more free space than this
+constexpr int kScreenshotNames = 0x1869E;       // ScrnShot\00000.bmp..ScrnShot\99997.bmp
+constexpr std::string_view kScreenshotName = "%sScrnShot\\%05d.bmp";  // swd32.exe 0x0049FB3C
 
 // The defaults of the settings (before Env.dat).
 constexpr i32 kDefaultBattleSpeed = 0xB;
@@ -1174,6 +1178,7 @@ void Game::StartStory(int withMap)
 void Game::LoadFameFile()
 {
     std::array<u16, kFameWords> values = {};
+    this->audioDevice.Serve();
     File file;
 
     if (file.Open(
@@ -1646,14 +1651,17 @@ void Game::HandleEvent(const SDL_Event& event)
     }
 
     // WM_SIZE and WM_ACTIVATEAPP: while the game runs, a minimised or deactivated window makes it inactive and a
-    // restored or activated one active again (Alt+Enter toggles the full screen instead of this).
+    // restored, maximised or activated one active again (Alt+Enter toggles the full screen instead of this).
     if (this->state.GameFlag(GameState::Running))
     {
         if (event.type == SDL_EVENT_WINDOW_MINIMIZED || event.type == SDL_EVENT_WINDOW_FOCUS_LOST)
         {
             this->Activate(0);
         }
-        else if (event.type == SDL_EVENT_WINDOW_RESTORED || event.type == SDL_EVENT_WINDOW_FOCUS_GAINED)
+        else if (
+            event.type == SDL_EVENT_WINDOW_RESTORED || event.type == SDL_EVENT_WINDOW_MAXIMIZED ||
+            event.type == SDL_EVENT_WINDOW_FOCUS_GAINED
+        )
         {
             this->Activate(1);
         }
@@ -1673,6 +1681,12 @@ void Game::HandleEvent(const SDL_Event& event)
     else if (event.type == SDL_EVENT_KEY_UP && event.key.key == SDLK_F8)
     {
         this->running = ((this->systemFlags & Game::VideoPlaying) != 0 || this->running == 0) ? 1 : 0;
+    }
+
+    if (event.type == SDL_EVENT_KEY_UP && this->state.GameFlag(GameState::Running) &&
+        (this->systemFlags & Game::UnkSystem1) == 0 && event.key.key == SDLK_P)
+    {
+        this->TakeScreenshot();
     }
 
     // WM_LBUTTONDOWN: the original compares its key state (wParam) with VK_ESCAPE, so 0x1B (the left, right and middle
@@ -1740,6 +1754,47 @@ void Game::HandleEvent(const SDL_Event& event)
             this->SendText(TextMessage::Char, static_cast<u8>(byte));
         }
     }
+}
+
+// Key P on the map (inline in 0x0040A0D0): with more than 64 MB free, a beep and the screen saved under the first free
+// name of ScrnShot\00000.bmp..ScrnShot\99997.bmp (AIL_serve before each try; with every name taken the last one is
+// written over).
+void Game::TakeScreenshot()
+{
+    if (Game::DiskFreeMegabytes() <= kScreenshotDiskMegabytes)
+    {
+        return;
+    }
+
+    PlaySystemBeep();
+    std::string path;
+
+    for (int index = 0; index < kScreenshotNames; ++index)
+    {
+        this->audioDevice.Serve();
+        path = WinFormat(kScreenshotName, {this->config.installDirectory, index});
+        File file;
+
+        if (!file.Open(path, File::Disposition::OpenExisting, File::Access::Read))
+        {
+            break;
+        }
+
+        file.Close();
+    }
+
+    const std::span<const u16> pixels(this->drawSurface, static_cast<std::size_t>(Display::Width) * Display::Height);
+    SaveScreenshot(
+        this->painter,
+        pixels,
+        Display::Width,
+        Display::Height,
+        path,
+        [this]
+        {
+            this->audioDevice.Serve();
+        }
+    );
 }
 
 }  // namespace swd3

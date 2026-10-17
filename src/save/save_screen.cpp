@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "core/byte_reader.h"
+#include "core/debug_log.h"
 #include "core/format.h"
 #include "core/words.h"
 #include "crt/msvc.h"
@@ -716,7 +717,7 @@ Game::SlotsStep Game::SlotsKeys()
         {
             this->saveSlots.newest += delta;
 
-            if (this->saveSlots.newest >= 0 && this->saveSlots.newest < SaveGames::LastSlot)
+            if (delta < 0 ? this->saveSlots.newest >= 0 : this->saveSlots.newest < SaveGames::LastSlot)
             {
                 this->audio.PlaySound(sound, this->config.soundVolume);
 
@@ -728,7 +729,7 @@ Game::SlotsStep Game::SlotsKeys()
             else
             {
                 this->scene.pointerRole.act.action = Scene::ChoicePointer;
-                this->saveSlots.newest = this->saveSlots.newest < 0 ? 0 : SaveGames::LastSlot;
+                this->saveSlots.newest = delta < 0 ? 0 : SaveGames::LastSlot;
             }
 
             if (reloadAlways)
@@ -781,11 +782,10 @@ Game::SlotsStep Game::SlotsKeys()
     }
 
     this->unk4CB240 = kKeyBlockFrames;
-    const bool free = SaveGames::IsFree(this->config.installDirectory, this->saveSlots.newest);
 
     if (this->unk4CAEC0 != 0)
     {
-        if (free)
+        if (SaveGames::IsFree(this->config.installDirectory, this->saveSlots.newest))
         {
             this->audio.PlaySound(kEmptySlotSound, this->config.soundVolume);
             this->unk4CC298 = kBrowsing;
@@ -798,7 +798,7 @@ Game::SlotsStep Game::SlotsKeys()
     switch (this->unk4CC298)
     {
         case kBrowsing:
-            if (!free)
+            if (!SaveGames::IsFree(this->config.installDirectory, this->saveSlots.newest))
             {
                 this->unk4CC298 = kOverwriteYes;
                 return SlotsStep::Done;
@@ -879,6 +879,7 @@ void Game::WriteSave(File& file)
     file.SeekBegin(0);
     file.Truncate();
     const LocalDateTime now = LocalTime();
+    this->audioDevice.Serve();
     const std::string date = WinFormat(kSaveDateFormat, {now.year, now.month, now.day, now.hour, now.minute})
                                  .substr(0, SaveSlots::HeaderBytes);
     write(date.data(), SaveSlots::HeaderBytes);
@@ -1308,8 +1309,9 @@ void Game::UnpackParty(std::span<const u8> data)
         record.defenseBonus = 0;
     }
 
-    for (std::unique_ptr<ItemNode>& slot : this->party.equipment)
+    for (std::size_t index = 0; index < this->party.equipment.size(); ++index)
     {
+        std::unique_ptr<ItemNode>& slot = this->party.equipment[index];
         const u16 id = ReadWord(data, at);
         at += sizeof(u16);
 
@@ -1327,6 +1329,7 @@ void Game::UnpackParty(std::span<const u8> data)
             }
             else
             {
+                DebugLog(u8"載入道具 位置(%d)裝備了沒有定義的物品號碼(%d)", index, id);
                 slot->record.description.reset();
                 slot->id = ItemNode::Empty;
             }
@@ -1335,8 +1338,10 @@ void Game::UnpackParty(std::span<const u8> data)
         slot->count = 1;
     }
 
-    for (std::unique_ptr<ItemNode>& head : this->party.skills)
+    for (std::size_t list = 0; list < this->party.skills.size(); ++list)
     {
+        std::unique_ptr<ItemNode>& head = this->party.skills[list];
+
         if (head != nullptr)
         {
             head->next.reset();
@@ -1359,6 +1364,10 @@ void Game::UnpackParty(std::span<const u8> data)
                 node->id = id;
                 node->next = std::move(head->next);
                 head->next = std::move(node);
+            }
+            else
+            {
+                DebugLog(u8"載入法術 角色(%d)擁有未定義的法術(%d)", list, id);
             }
         }
 
@@ -1618,8 +1627,8 @@ void Game::DrawSlotsPage()
     {
         this->actDrawer.DrawPicture(kDownArrow, 0, kArrowX, kDownArrowY);
 
-        if (static_cast<u32>(this->state.pointerY) < kDownArrowBottom &&
-            static_cast<u32>(this->state.pointerY) > kDownArrowTop)
+        if (this->state.pointerY < static_cast<i32>(kDownArrowBottom) &&
+            this->state.pointerY > static_cast<i32>(kDownArrowTop))
         {
             this->actDrawer.DrawPicture(kDownArrowLit, 0, kArrowX, this->unk4CC160 + kDownArrowY);
         }
@@ -1646,7 +1655,18 @@ void Game::DrawSlotsPage()
     }
 
     ActState& pointer = this->scene.pointerRole.act;
-    this->acts.Run(pointer);
+
+    if (this->acts.Run(pointer) == 0)
+    {
+        DebugLog(
+            u8"Act Err(RefrashCursor) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]",
+            this->scene.pointerRole.id,
+            pointer.id,
+            pointer.action,
+            pointer.direction
+        );
+    }
+
     this->actDrawer.DrawPicture(
         pointer.frame,
         pointer.picture,

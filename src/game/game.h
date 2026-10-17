@@ -206,6 +206,7 @@ private:
     void MusicCue();
     void AudioPump();
     void HandleEvent(const SDL_Event& event);
+    void TakeScreenshot();
     void SendText(TextMessage message, u32 parameter);
     void ShowLoading(int percent);
     void MusicZone(int map);

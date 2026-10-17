@@ -3,6 +3,7 @@
 #include <array>
 #include <climits>
 #include <cstddef>
+#include <cstring>
 #include <span>
 
 #include "codec/lzo.h"
@@ -99,7 +100,7 @@ void SaveSlots::LoadPreview(SavePreview& preview, int slot, const std::string& i
         }
     }
 
-    preview.date = date;
+    preview.date = date.substr(0, strnlen(date.c_str(), date.size()));
     std::size_t at = SaveSlots::HeaderBytes;
     preview.thumbnail.assign(SaveSlots::ThumbnailPixels, 0);
 
