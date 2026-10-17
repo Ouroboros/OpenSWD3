@@ -952,7 +952,9 @@ void FieldView::DrawBubbles(int x, int y, u16 role)
 
     for (RoleMark& mark : view.marks)
     {
-        if (mark.role != role)
+        // 0x00415F7D: the mark's role is sign-extended (movsx) against the zero-extended id, so ids from 0x8000 on
+        // never match.
+        if (static_cast<i16>(mark.role) != static_cast<int>(role))
         {
             continue;
         }
@@ -1904,7 +1906,8 @@ void FieldView::DrawLightning()
     }
 
     const int pitch = owner.painter.ScreenPitch();
-    const auto pixels = static_cast<std::ptrdiff_t>(pitch) * Display::Height;
+    // 0x00416610: the end of the screen is fixed at 0x96000 bytes, whatever the pitch.
+    constexpr auto pixels = static_cast<std::ptrdiff_t>(Display::Pixels);
     view.lightningShown = 0;
     int started = 0;
 

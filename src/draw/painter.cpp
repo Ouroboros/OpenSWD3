@@ -520,6 +520,7 @@ int Painter::DrawPicture(int x, int y, int width, int height, u32 mode, const Dr
 {
     if (this->source == nullptr)
     {
+        this->options = DrawOptions{};
         return 0;
     }
 
