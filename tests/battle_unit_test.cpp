@@ -1412,3 +1412,43 @@ TEST_CASE("battle role: the cost refusals match swd32.exe")
     CHECK(swd3test::SameText(exe, kNotEnoughSpiritAt, swd3::BattleRole::NotEnoughSpirit));
     CHECK(swd3test::SameText(exe, kNotEnoughStaminaAt, swd3::BattleRole::NotEnoughStamina));
 }
+
+TEST_CASE("battle role: choosing an object in battle")
+{
+    constexpr swd3::u32 kHerbKind = 0x10;  // category 0
+    constexpr swd3::u32 kThrowKind = 0x8000000;
+    constexpr int kThrowCategory = 5;
+    constexpr swd3::u16 kThrownObject = 0x300;
+    constexpr swd3::u16 kUsable = 1;
+    constexpr swd3::u16 kThrownChoice = 2;
+    Services all;
+    const std::string directory(kNoData);
+    swd3::Database database(directory);
+    swd3::ItemLink head = std::make_unique<swd3::ItemNode>();
+    swd3::ItemNode& herb = *head;
+    herb.record.data.kind = kHerbKind;
+    herb.record.data.usableBy = kUsable;
+    herb.count = 1;
+    herb.next = std::make_unique<swd3::ItemNode>();
+    swd3::ItemNode& thrown = *herb.next;
+    thrown.id = kThrownObject;
+    thrown.record.data.kind = kThrowKind;
+    thrown.record.data.usableBy = kUsable;
+    thrown.count = 1;
+    swd3::RoleRecord record;
+    swd3::BattleRole role;
+    role.roleRecord = &record;
+    role.SetInventory(&head);
+    swd3::u32 act = 0;
+    swd3::u16 kind = 0;
+    CHECK_EQ(role.SelectObject(database, all.errors, 0, 0, act, kind), 0);
+    CHECK_EQ(role.SelectObject(database, all.errors, 0, 1, act, kind), 1);
+    CHECK_EQ(kind, 1);
+    CHECK(role.selectedItem == &herb);
+    CHECK_EQ(herb.unk06, 1);
+    CHECK_EQ(all.errors.messages.size(), 1U);
+    CHECK_EQ(role.SelectObject(database, all.errors, 0, 1, act, kind), 0);
+    CHECK_EQ(role.SelectObject(database, all.errors, kThrowCategory, 1, act, kind), 1);
+    CHECK_EQ(kind, kThrownChoice);
+    CHECK_EQ(role.unk2A86 & swd3::BattleUnit::UnkCommandFlag2000, swd3::BattleUnit::UnkCommandFlag2000);
+}

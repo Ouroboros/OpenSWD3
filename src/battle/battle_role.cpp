@@ -252,6 +252,13 @@ constexpr int kRefusalY = 0xA;
 constexpr i16 kRefusalFrames = 0x14;
 constexpr int kRefusalFlags = BattleMessage::BlackBar | BattleMessage::Centered;
 constexpr u16 kRefusedSound = 0x8C;
+constexpr std::size_t kClearedNameBytes = 0x10;
+constexpr std::u8string_view kNumberFormat = u8"%d";  // swd32.exe 0x004A7CDC
+constexpr u32 kNoObjectActLine = 0x926;
+constexpr u32 kSeparateKind = 0x800;  // ObjectData::kind: the object plays its own act (UnkCommandFlag1000)
+constexpr u32 kReusableKind = 0x80;   // an object not taken when used
+constexpr u16 kThrownChoice = 2;
+constexpr u16 kOtherThrowChoice = 3;
 constexpr int kUnk1FScale = 4;           // Unk1F: unk29A4 is 4 percent of the proficiency and 1
 constexpr int kAccessoryBaseShare = 10;  // the heals add a tenth of their base
 constexpr int kHalfShare = 5;            // Unk22 / Unk24: the proficiency is halved, less a fifth of that
@@ -4254,6 +4261,145 @@ int BattleRole::CanPaySkill(BattleServices& services, int category, int index)
         }
 
         refuse(BattleRole::NotEnoughStamina);
+    }
+
+    return 0;
+}
+
+// swd32.exe 0x00470AC0: the `index`th object of `category` (0..5) usable by roles bit 0 or 2 with some left (category
+// 4 also counts every object with kListedObject) taken as the role's command: the command and the first bytes of the
+// skill name cleared, the used item 0; UnkCommandFlag4000 set and the object chosen. A listed object of category 4
+// loads its unk3E script, unk29A4 its unk24 (1). Otherwise its unk48 script (unk3E without one); a spirit or stamina
+// cost (unk2F10, unk2F12) above the role's gives 0. The heals as SelectSkill; `act` the cast act (a maintenance
+// assert "%d" with the object's id when it has none); an object of kind kSeparateKind sets UnkCommandFlag1000 with
+// its unk50 as the used item. `kind` 1 for category 0 or a shared kind bit 8; category 5 (throwing) 2 for
+// kThrownObject with UnkCommandFlag2000, 3 for another object without it. The object's taken count rises unless it
+// is of kind bit kReusableKind (without kind bit kThrowKind) or of category 3. 0 past the end or for index 0.
+int BattleRole::SelectObject(Database& database, ErrorReporter& reporter, int category, int index, u32& act, u16& kind)
+{
+    const u32 kinds = BattleRole::CategoryKinds(category, kObjectCategories);
+    this->command = UnitCommand{};
+    std::fill_n(this->skillName.begin(), kClearedNameBytes, '\0');
+    this->usedItem = 0;
+
+    if (index == 0)
+    {
+        return 0;
+    }
+
+    int listed = 0;
+    this->ShowAllItems();
+
+    while (ItemNode* const node = this->StepItem())
+    {
+        const ObjectData& data = node->record.data;
+
+        if ((LowByte(data.usableBy) & kCountedUsers) != 0 && (kinds & data.kind) != 0 && ObjectsLeft(*node) > 0)
+        {
+            ++listed;
+        }
+
+        if (kinds == kCategory4 && (data.unk40 & kListedObject) != 0)
+        {
+            ++listed;
+        }
+
+        if (listed != index)
+        {
+            continue;
+        }
+
+        this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag4000);
+        this->selectedItem = node;
+        kind = 0;
+
+        if (kinds == kCategory4 && (data.unk40 & kListedObject) != 0)
+        {
+            this->LoadCommand(database, data.unk3E);
+            this->unk29A4 = data.unk24;
+            return 1;
+        }
+
+        this->LoadCommand(database, data.unk48 != 0 ? data.unk48 : data.unk3E);
+
+        if ((data.unk40 & kCostFlag) != 0)
+        {
+            this->unk2F10 = static_cast<u16>(data.unk40 & kCostValueMask);
+
+            if (this->unk2F10 > this->roleRecord->spirit)
+            {
+                return 0;
+            }
+        }
+
+        if ((data.unk40 & kCostsStamina) != 0)
+        {
+            this->unk2F12 = static_cast<u16>(data.unk40 & kCostMask);
+
+            if (this->unk2F12 > this->roleRecord->stamina)
+            {
+                return 0;
+            }
+        }
+
+        if (data.unk3C == 0)
+        {
+            this->unk29A6 = data.unk34;
+            this->unk29A8 = data.unk36;
+            this->unk29AA = data.unk38;
+        }
+
+        this->healPercent = 0;
+
+        if ((data.unk3C & kHealPercentBit) != 0)
+        {
+            this->healPercent = 1;
+            this->unk29A6 = data.unk34;
+            this->unk29A8 = data.unk36;
+            this->unk29AA = data.unk38;
+        }
+
+        act = this->command.castAct;
+
+        if (this->command.castAct == 0)
+        {
+            MaintenanceAssert(reporter, kNumberFormat, node->id, kManroleFile, kNoObjectActLine);
+        }
+
+        if ((data.kind & kSeparateKind) != 0)
+        {
+            this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag1000);
+            this->usedItem = data.unk50;
+        }
+
+        if ((kinds & kOffensiveKind) != 0 && (data.kind & kOffensiveKind) != 0)
+        {
+            kind = 1;
+        }
+
+        if ((kinds & kCategory0) != 0)
+        {
+            kind = 1;
+        }
+
+        if (kinds == kCategory5)
+        {
+            this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag2000);
+            kind = kThrownChoice;
+
+            if (node->id != kThrownObject)
+            {
+                kind = kOtherThrowChoice;
+                this->unk2A86 = static_cast<u16>(this->unk2A86 & ~BattleUnit::UnkCommandFlag2000);
+            }
+        }
+
+        if (((data.kind & kReusableKind) == 0 || (data.kind & kCountedKind) != 0) && kinds != kCategory3)
+        {
+            ++node->unk06;
+        }
+
+        return 1;
     }
 
     return 0;
