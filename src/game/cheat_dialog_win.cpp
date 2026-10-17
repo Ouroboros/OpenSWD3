@@ -18,6 +18,7 @@
 #include "menu/menu_list.h"
 #include "org/object_record.h"
 #include "party/party.h"
+#include "platform/wide_win.h"
 #include "talk/talk.h"
 #include "text/big5.h"
 
@@ -148,8 +149,7 @@ HWND GameWindow(const CheatDialog& cheat)
 // The dialog `id` of swd32.exe's resources run with `procedure` and `context`; 0 when it cannot be.
 int RunDialog(CheatDialog& cheat, WORD id, DLGPROC procedure)
 {
-    const std::string path = cheat.installDirectory + std::string(Game::Executable);
-    const std::wstring wide = Wide(path);
+    const std::wstring wide = Utf16(cheat.installDirectory + std::u8string(Game::Executable));
     HMODULE module = LoadLibraryExW(wide.c_str(), nullptr, LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE);
 
     if (module == nullptr)

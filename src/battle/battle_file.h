@@ -54,8 +54,8 @@ public:
 
     explicit BattleFile(const Projector* projector = nullptr);
 
-    bool ReadHeader(std::string_view path);
-    bool ReadFormation(std::string_view path, BattleFormation& formation, u16 battle, i8 choice);
+    bool ReadHeader(std::u8string_view path);
+    bool ReadFormation(std::u8string_view path, BattleFormation& formation, u16 battle, i8 choice);
     std::span<const u8> Counts() const;
 
     const Projector* projector = nullptr;     // +0x00 the battle's projector (never read)

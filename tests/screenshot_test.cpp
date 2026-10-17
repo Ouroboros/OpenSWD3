@@ -51,7 +51,7 @@ TEST_CASE("screenshot: a 24-bit BMP written bottom up")
         pixels,
         kSide,
         kSide,
-        path.string(),
+        path.u8string(),
         [&serves]
         {
             ++serves;

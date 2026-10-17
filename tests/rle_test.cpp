@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "codec/lzo.h"
+#include "core/format.h"
 #include "core/types.h"
 #include "draw/painter.h"
 #include "game_data.h"
@@ -128,7 +129,7 @@ TEST_CASE("rle: matches the golden hashes of the legacy codec")
 
     auto gameFile = [](const std::string& name)
     {
-        return swd3test::GameFile(name);
+        return std::string(swd3::AsBytes(swd3test::GameFile(name)));
     };
 
     const std::vector<golden::Frame> frames = golden::LoadGoldenFrames(gameFile, decompress);

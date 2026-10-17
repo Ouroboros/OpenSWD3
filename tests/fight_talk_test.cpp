@@ -43,7 +43,7 @@ TEST_CASE("fight talk: load, seek and close")
     }
 
     swd3::FightTalk talk;
-    talk.Load(directory.string() + "/", kBattle);
+    talk.Load(directory.u8string() + u8"/", kBattle);
     CHECK(talk.open);
     CHECK_EQ(talk.script.size(), swd3::FightTalk::ScriptBytes);
     CHECK_EQ(talk.script[0], kScriptMark);

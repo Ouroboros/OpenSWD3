@@ -17,15 +17,15 @@ constexpr std::u8string_view kNoDescription = u8"無";  // swd32.exe 0x0049F9FC
 
 // swd32.exe 0x0040F040: maps.dat, path.dat (mapped) and talk1.dat; false when one is missing (the window is then
 // closed). Only a missing talk1.dat is reported, in a box with its title and text swapped.
-bool GameDatabases::Open(const std::string& installDirectory, ErrorReporter& errors)
+bool GameDatabases::Open(const std::u8string& installDirectory, ErrorReporter& errors)
 {
-    if (!this->maps.Open(installDirectory + "maps.dat", File::Disposition::OpenExisting, File::Access::Read))
+    if (!this->maps.Open(installDirectory + u8"maps.dat", File::Disposition::OpenExisting, File::Access::Read))
     {
         DebugLog(u8"SWD3 RoleDataBase init Failed.");
         return false;
     }
 
-    if (!this->paths.Open(installDirectory + "path.dat", File::Disposition::OpenExisting, File::Access::Read))
+    if (!this->paths.Open(installDirectory + u8"path.dat", File::Disposition::OpenExisting, File::Access::Read))
     {
         DebugLog(u8"SWD3 PathDataBase init Failed.");
         return false;
@@ -34,7 +34,7 @@ bool GameDatabases::Open(const std::string& installDirectory, ErrorReporter& err
     this->paths.CreateMapping();
     this->pathData = this->paths.MapView(0, 0);
 
-    if (!this->story.Open(installDirectory + "talk1.dat", File::Disposition::OpenExisting, File::Access::Read))
+    if (!this->story.Open(installDirectory + u8"talk1.dat", File::Disposition::OpenExisting, File::Access::Read))
     {
         errors.ShowError(u8"StoryDataBase init Failed.", u8"SWD3");
         return false;

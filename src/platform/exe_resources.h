@@ -20,7 +20,7 @@ public:
     static constexpr u32 Bitmap = 2;  // RT_BITMAP
     static constexpr u32 Dialog = 5;  // RT_DIALOG
 
-    bool Open(const std::string& path);
+    bool Open(const std::u8string& path);
     // A resource of a numbered type, or of a named type such as "WAVE"; empty when missing.
     std::span<const u8> Find(u32 type, u32 id) const;
     std::span<const u8> Find(std::string_view type, u32 id) const;

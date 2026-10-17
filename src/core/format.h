@@ -20,10 +20,17 @@ public:
     FormatArgument(std::string_view text);
     FormatArgument(const std::string& text);
     FormatArgument(std::u8string_view text);
+    FormatArgument(const std::u8string& text);
 
     template <std::size_t N>
     FormatArgument(const char (&text)[N])
         : FormatArgument(std::string_view(text, N - 1))
+    {
+    }
+
+    template <std::size_t N>
+    FormatArgument(const char8_t (&text)[N])
+        : FormatArgument(std::u8string_view(text, N - 1))
     {
     }
 
@@ -46,11 +53,21 @@ std::string WinFormat(std::string_view format, std::initializer_list<FormatArgum
 std::string WinFormat(std::u8string_view format, std::initializer_list<FormatArgument> arguments);
 // The same with the result in UTF-8 (messages, logs).
 std::u8string Utf8Format(std::u8string_view format, std::initializer_list<FormatArgument> arguments);
+// A path from an ASCII format of the game ("%sdata\\%d.cm"), in UTF-8: game text arguments (Big5) are converted.
+std::u8string PathFormat(std::string_view format, std::initializer_list<FormatArgument> arguments);
 
 // ASCII text or a system message taken as UTF-8.
 std::u8string Utf8Bytes(std::string_view text);
 
 // The strings one after the other.
 std::string Concat(std::initializer_list<std::string_view> parts);
+// UTF-8 strings (paths) one after the other.
+std::u8string Concat(std::initializer_list<std::u8string_view> parts);
+
+// The bytes of UTF-8 text for char interfaces that take UTF-8 (POSIX paths, SDL).
+inline std::string_view AsBytes(std::u8string_view text)
+{
+    return {reinterpret_cast<const char*>(text.data()), text.size()};
+}
 
 }  // namespace swd3

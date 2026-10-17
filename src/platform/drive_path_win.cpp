@@ -3,9 +3,9 @@
 namespace swd3
 {
 
-std::string DrivePath(std::string_view gamePath)
+std::u8string DrivePath(std::u8string_view gamePath)
 {
-    return std::string(gamePath);
+    return std::u8string(gamePath);
 }
 
 }  // namespace swd3

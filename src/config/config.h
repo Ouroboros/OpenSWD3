@@ -76,7 +76,7 @@ public:
     // The settings of a current-format Env.dat as [game] (its keys, settings, masks, debug byte and session mark);
     // nothing for an old-format or a short file.
     static std::optional<GameSettings> ImportEnv(std::span<const u8> data);
-    static void ImportEnvFile(const std::string& directory, const std::filesystem::path& file);
+    static void ImportEnvFile(const std::u8string& directory, const std::filesystem::path& file);
 
     void Update(const Settings& settings);
     void SaveKeys();
@@ -88,25 +88,25 @@ private:
     void Store(const std::function<void(GameSettings&)>& change) const;
 
 public:
-    std::string installDirectory;  // 0x004A94BC the game directory with a trailing backslash
-    i32 soundVolume = 0;           // 0x004AB784 0..11
-    i32 musicVolume = 0;           // 0x004C9A0C 0..11
-    i32 cacheSize = 0;             // 0x004B7ACC map cache in MB: 60, 100 or 140
-    i32 textSpeed = 0;             // 0x004A9ECC 0 (fastest) .. 4 (slow)
-    i32 battleSpeed = 0;           // 0x004ACE60 0..11
-    i32 debugMode = 0;             // 0x004CAE98 debug hot keys
+    std::u8string installDirectory;  // 0x004A94BC the game directory with a trailing backslash (UTF-8)
+    i32 soundVolume = 0;             // 0x004AB784 0..11
+    i32 musicVolume = 0;             // 0x004C9A0C 0..11
+    i32 cacheSize = 0;               // 0x004B7ACC map cache in MB: 60, 100 or 140
+    i32 textSpeed = 0;               // 0x004A9ECC 0 (fastest) .. 4 (slow)
+    i32 battleSpeed = 0;             // 0x004ACE60 0..11
+    i32 debugMode = 0;               // 0x004CAE98 debug hot keys
     std::array<u16, Channels> channelMasks = Config::DefaultChannelMasks;
     std::array<i32, Keys> keys = {};  // 0x004B7384 DirectInput scan codes of the key slots
 
     // The rebuild's [paths] save_dir with a trailing separator; empty: the original <installDirectory>save\.
-    std::string saveDirectory;
+    std::u8string saveDirectory;
     // The program's settings file [game] is written to (empty: nothing is written).
     std::filesystem::path settingsFile;
 
     // The directory of the numbered saves (with a trailing separator).
-    std::string SaveDirectory() const
+    std::u8string SaveDirectory() const
     {
-        return this->saveDirectory.empty() ? this->installDirectory + "save\\" : this->saveDirectory;
+        return this->saveDirectory.empty() ? this->installDirectory + u8"save\\" : this->saveDirectory;
     }
 };
 

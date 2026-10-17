@@ -25,7 +25,7 @@ TEST_CASE("level: level.dat raises a party role and teaches skills once")
         return;
     }
 
-    const std::string directory = swd3test::GameDirectory() + "/";
+    const std::u8string directory = swd3test::GameDirectory() + u8"/";
     swd3::Database database(directory);
     swd3::Party party;
 

@@ -29,7 +29,7 @@ AudioSystem::~AudioSystem()
 
 // swd32.exe 0x00485360: the redist directory and Miles startup (the original also loads MSS32.DLL to read a string it
 // does not use)
-void AudioSystem::Startup(const std::string& redistDirectory)
+void AudioSystem::Startup(const std::u8string& redistDirectory)
 {
     this->redistDirectory = redistDirectory;
     this->started = true;

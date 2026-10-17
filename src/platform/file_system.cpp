@@ -12,7 +12,7 @@ constexpr std::size_t kReadChunk = 0x10000;
 
 }  // namespace
 
-bool ReadSharedFile(const std::string& path, std::vector<u8>& bytes)
+bool ReadSharedFile(const std::u8string& path, std::vector<u8>& bytes)
 {
     std::FILE* file = OpenSharedFile(path, "rb");
 

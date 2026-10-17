@@ -63,7 +63,7 @@ public:
     void ResetVoice(const VoiceHandle& voice);
     bool LoadWave(const VoiceHandle& voice, const u8* image);
     bool LoadCompressed(const VoiceHandle& voice, const u8* data, std::size_t size);
-    VoiceHandle OpenStream(const std::string& path);
+    VoiceHandle OpenStream(const std::u8string& path);
     void Start(const VoiceHandle& voice);
     void End(const VoiceHandle& voice);
     VoiceStatus Status(const VoiceHandle& voice);

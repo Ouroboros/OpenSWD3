@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "codec/lzo.h"
+#include "core/format.h"
 #include "crt/msvc.h"
 #include "draw/painter.h"
 #include "game_data.h"
@@ -274,7 +275,7 @@ TEST_CASE("projector: matches the golden results of the legacy projector")
 
     auto gameFile = [](const std::string& name)
     {
-        return swd3test::GameFile(name);
+        return std::string(swd3::AsBytes(swd3test::GameFile(name)));
     };
 
     const std::vector<golden::Frame> frames = golden::LoadGoldenFrames(gameFile, decompress);

@@ -16,7 +16,7 @@ int SaveScreenshot(
     std::span<const u16> pixels,
     int width,
     int height,
-    std::string_view fileName,
+    std::u8string_view fileName,
     const std::function<void()>& serveAudio
 );
 

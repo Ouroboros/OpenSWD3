@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "config/config.h"
+#include "core/format.h"
 #include "core/words.h"
 #include "draw/painter.h"
 #include "game/databases.h"
@@ -94,7 +95,7 @@ TEST_CASE("game init: the session mark of [game] empties the map cache")
     using swd3::MapCache;
     const std::string directory = TestDirectory();
     swd3::Config config;
-    config.installDirectory = directory;
+    config.installDirectory = swd3::Utf8Bytes(directory);
     config.settingsFile = directory + "swd3r.default.toml";
     swd3::Surface surface(swd3::Display::Width, swd3::Display::Height);
     swd3::Painter painter;

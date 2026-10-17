@@ -95,7 +95,7 @@ struct Section
 
 }  // namespace
 
-bool ExeResources::Open(const std::string& path)
+bool ExeResources::Open(const std::u8string& path)
 {
     if (!ReadSharedFile(ResolvePath(path), this->image))
     {

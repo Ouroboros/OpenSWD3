@@ -76,7 +76,7 @@ public:
     static constexpr std::u8string_view WindowTitle = u8"軒轅劍參 DVD";                    // 0x0049FAC4
     static constexpr std::u8string_view Title = u8"軒轅劍三";                              // 0x004A0F78
     static constexpr std::u8string_view DirectInputFailed = u8"DirectInput 初始化錯誤%n";  // 0x004A0F5C
-    static constexpr std::string_view Executable = "swd32.exe";
+    static constexpr std::u8string_view Executable = u8"swd32.exe";
     static constexpr u32 StartSound = 0x78;
     static constexpr int FrameInterval = 0x23;
     // swd32.exe 0x0049FBA8: the signed speeds of the nibbles of a map setting (8 and above count down from -7).
@@ -115,9 +115,9 @@ public:
     static constexpr i32 SaveSlotsState = 3;
     static constexpr std::u8string_view UnknownPlace = u8"不知道";  // 0x0049FEA4
 
-    explicit Game(std::string installDirectory);
+    explicit Game(std::u8string installDirectory);
 
-    int Run(std::string_view commandLine);
+    int Run(std::u8string_view commandLine);
 
     HostSettings host;               // the rebuild's swd3r.toml (set before Run)
     HangWatch* hangWatch = nullptr;  // told of every round of the main loop (set before Run)
@@ -134,7 +134,7 @@ private:
     void InitInstall();
     void ApplyHostPaths();
     void SizeCaches();
-    void MakeDirectory(std::string_view name);
+    void MakeDirectory(std::u8string_view name);
     void StartGraphics();
     void InitDrawKernel();
     bool InitDevices();
@@ -144,8 +144,8 @@ private:
     void NewGame();
     void RefreshCursor();
     void ShowFrame();
-    std::string MusicPath(int index) const;
-    void PlayMusic(const std::string& path);
+    std::u8string MusicPath(int index) const;
+    void PlayMusic(const std::u8string& path);
     void ResetSaveSlots();
     void StartStory(int withMap);
     void LoadFameFile();

@@ -203,7 +203,7 @@ bool AudioDevice::LoadCompressed(const VoiceHandle& voice, const u8* data, std::
     return true;
 }
 
-VoiceHandle AudioDevice::OpenStream(const std::string& path)
+VoiceHandle AudioDevice::OpenStream(const std::u8string& path)
 {
     std::vector<u8> data;
 

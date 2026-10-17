@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "core/format.h"
 #include "core/words.h"
 #include "game_data.h"
 #include "golden/database_scenarios.h"
@@ -104,11 +105,11 @@ TEST_CASE("database: mon.dat objects and skills, level.dat entries match the leg
         return;
     }
 
-    const std::string directory = swd3test::GameDirectory() + "/";
+    const std::u8string directory = swd3test::GameDirectory() + u8"/";
     swd3::Database database(directory);
     DatabaseBackend backend(database);
     swd3test::GoldenCheck check(golden);
-    golden::RunDatabase(backend, directory + "mon.dat", std::ref(check));
+    golden::RunDatabase(backend, std::string(swd3::AsBytes(directory + u8"mon.dat")), std::ref(check));
     std::printf("  compared %d scenarios\n", check.compared);
     CHECK_EQ(check.mismatches, 0);
     CHECK_EQ(check.compared, static_cast<int>(golden.size()));

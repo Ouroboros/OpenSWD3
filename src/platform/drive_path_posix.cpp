@@ -14,18 +14,18 @@ constexpr std::size_t kRootLength = 3;
 
 }  // namespace
 
-std::string DrivePath(std::string_view gamePath)
+std::u8string DrivePath(std::u8string_view gamePath)
 {
     if (gamePath.size() >= kRootLength && std::isalpha(static_cast<unsigned char>(gamePath[0])) != 0 &&
-        gamePath[kColonAt] == ':' && (gamePath[kSeparatorAt] == '\\' || gamePath[kSeparatorAt] == '/'))
+        gamePath[kColonAt] == u8':' && (gamePath[kSeparatorAt] == u8'\\' || gamePath[kSeparatorAt] == u8'/'))
     {
-        std::string path = "/mnt/";
-        path.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(gamePath[0]))));
+        std::u8string path = u8"/mnt/";
+        path.push_back(static_cast<char8_t>(std::tolower(static_cast<unsigned char>(gamePath[0]))));
         path.append(gamePath.substr(kSeparatorAt));
         return path;
     }
 
-    return std::string(gamePath);
+    return std::u8string(gamePath);
 }
 
 }  // namespace swd3

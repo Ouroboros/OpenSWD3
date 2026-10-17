@@ -109,7 +109,7 @@ TEST_CASE("menu: name cheats")
 
 TEST_CASE("menu: the preview of a saved game")
 {
-    const std::string directory = swd3test::GameDirectory() + "/Save/";
+    const std::u8string directory = swd3test::GameDirectory() + u8"/Save/";
     const std::vector<u8> save = swd3test::ReadGameFile("Save/0.sav");
 
     if (save.empty())

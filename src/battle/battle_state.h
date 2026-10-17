@@ -378,8 +378,8 @@ public:
     i32 unk53BF68 = 0;
     i32 unk53BD88 = 0;
     i32 unk53BD80 = 0;
-    i32 unk53BFE8 = 0;        // 1: the next frame is saved as c:\snap\<n>.bmp
-    std::string battleMusic;  // 0x0053C198 the path of the battle music
+    i32 unk53BFE8 = 0;          // 1: the next frame is saved as c:\snap\<n>.bmp
+    std::u8string battleMusic;  // 0x0053C198 the path of the battle music
     i32 unk53AF30 = 0;
     i32 unk53AF34 = 0;
     i32 unk53AE74 = 0;

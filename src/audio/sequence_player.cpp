@@ -189,7 +189,7 @@ int MidiPlayer::Close()
 // an initialization result of -1 is reported but played anyway. (Without a MIDI device the player never opens.)
 // swd32.exe 0x004983F0 (EH unwind: frees the node allocated for the sequence, held by its unique_ptr)
 // swd32.exe 0x004983FB (EH handler of 0x00484F60)
-int MidiPlayer::Play(const std::string& fileName, int id, int volume, int loops)
+int MidiPlayer::Play(const std::u8string& fileName, int id, int volume, int loops)
 {
     if (!this->IsOpen() || !this->IsEnabled() || id == 0)
     {
@@ -399,7 +399,7 @@ int StreamPlayer::SetVolume(int id, int volume)
 }
 
 // swd32.exe 0x00486730: opens and starts the stream (no open or enabled check)
-int StreamPlayer::Play(const std::string& fileName, int id, int volume, int loops)
+int StreamPlayer::Play(const std::u8string& fileName, int id, int volume, int loops)
 {
     if (id == 0 || this->Find(id) != nullptr)
     {

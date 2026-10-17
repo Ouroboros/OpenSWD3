@@ -57,7 +57,7 @@ public:
     File lmf;                           // 0x004B8868 HUGE.lmf
     File unitFile;                      // 0x004CAA28 the mapped unit
     const u8* view = nullptr;           // the mapped view of unitFile (the map header's pixels)
-    std::string unitPath;               // 0x004A9ACC
+    std::u8string unitPath;             // 0x004A9ACC
     std::function<void(int)> progress;  // the loading screen at a percentage
 
 private:

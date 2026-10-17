@@ -19,8 +19,8 @@ class LogFile
 public:
     LogFile(
         const std::filesystem::path& directory,
-        std::string_view prefix,
-        std::string_view extension,
+        std::u8string_view prefix,
+        std::u8string_view extension,
         SDL_LogPriority level
     );
     ~LogFile();

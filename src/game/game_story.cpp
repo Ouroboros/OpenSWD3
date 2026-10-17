@@ -16,7 +16,7 @@ namespace
 
 constexpr i32 kTimerFrames = 30;  // the timers count frames, 30 a second
 constexpr i32 kSecondsPerMinute = 60;
-constexpr std::string_view kBink = "bik";  // .avi and .mpg movies are played as .bik
+constexpr std::u8string_view kBink = u8"bik";  // .avi and .mpg movies are played as .bik
 
 }  // namespace
 
@@ -257,7 +257,7 @@ void Game::StartTimer(int minutes, int seconds, int event, int which)
 bool Game::PlayVideo(std::size_t& cursor, u16& pc)
 {
     const std::span<const u8> script(this->databases.script);
-    std::string path = this->config.installDirectory + "video\\";
+    std::u8string path = this->config.installDirectory + u8"video\\";
     std::string name;
 
     auto word = [&script](std::size_t at)
@@ -277,13 +277,13 @@ bool Game::PlayVideo(std::size_t& cursor, u16& pc)
 
     pc = static_cast<u16>(pc + sizeof(u16));
     cursor += sizeof(u16);
-    path += name;
+    path += PathFormat("%s", {name});
 
-    for (const std::string_view extension : {std::string_view(".avi"), std::string_view(".mpg")})
+    for (const std::u8string_view extension : {std::u8string_view(u8".avi"), std::u8string_view(u8".mpg")})
     {
         const std::size_t found = path.find(extension);
 
-        if (found != std::string::npos)
+        if (found != std::u8string::npos)
         {
             path.replace(found + 1, kBink.size(), kBink);
         }

@@ -74,7 +74,7 @@ public:
     Party& party;
     Database& database;
     i32& running;
-    const std::string& installDirectory;
+    const std::u8string& installDirectory;
     int tab = ItemsTab;  // 0x004CC2C8
 };
 

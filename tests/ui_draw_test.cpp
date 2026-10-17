@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 
+#include "core/format.h"
 #include "draw/painter.h"
 #include "game_data.h"
 #include "golden/ui_scenarios.h"
@@ -109,7 +110,7 @@ TEST_CASE("ui drawing: matches the golden results of the legacy boxes and frames
 
     UiBackend backend;
     swd3test::GoldenCheck check(golden);
-    golden::RunUi(backend, swd3test::GameFile("all_sys.tsw"), std::ref(check));
+    golden::RunUi(backend, std::string(swd3::AsBytes(swd3test::GameFile("all_sys.tsw"))), std::ref(check));
     std::printf("  compared %d scenarios\n", check.compared);
     CHECK_EQ(check.mismatches, 0);
     CHECK_EQ(check.compared, static_cast<int>(golden.size()));

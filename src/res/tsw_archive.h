@@ -104,7 +104,7 @@ public:
 
     TswArchive(const RleCodec& codec, ErrorReporter& errors);
 
-    void SetGameDirectory(std::string directory);
+    void SetGameDirectory(std::u8string directory);
     void SetMapPictureSource(MapPictureSource* source);
 
     void SetCacheLimit(int bytes);
@@ -112,7 +112,7 @@ public:
     std::unique_ptr<Picture> LoadPictureDirect(u32 id, u32 frame);
     int CloseAll();
     Picture* FindPicture(u32 id, u32 frame);
-    bool LoadFromFile(const std::string& fileName, int index, u32 frame, Picture& picture);
+    bool LoadFromFile(const std::u8string& fileName, int index, u32 frame, Picture& picture);
     int CacheBytes() const;
 
 private:
@@ -149,7 +149,7 @@ private:
     Picture* CacheFind(u32 id, u32 frame);
     void CacheEvict();
     void CacheClear();
-    bool OpenFile(File& file, const std::string& name);
+    bool OpenFile(File& file, const std::u8string& name);
     bool ReadHeader(File& file, FrameInfo& info, u16& frameCount);
     bool LoadPicture(File& file, int index, u32 frame, Picture& picture);
     bool ReadFrame(File& file, u32 base, FrameInfo& info, int frame);
@@ -171,7 +171,7 @@ private:
     const RleCodec& codec;
     ErrorReporter& errors;
     MapPictureSource* mapPictures = nullptr;
-    std::string gameDirectory;
+    std::u8string gameDirectory;
     std::array<File, FileCount> files;
     File extraFile;  // closed by CloseAll; opened by another module
     bool opened = false;

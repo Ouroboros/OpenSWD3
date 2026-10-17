@@ -664,8 +664,8 @@ bool Talk::OpenScript(Role& context, u32 index)
 {
     Game& owner = this->game;
     this->game.databases.story.Close();
-    const std::string path =
-        WinFormat("%sTalk%d.dat", {owner.config.installDirectory, index / Talk::EventsPerFile + 1});
+    const std::u8string path =
+        PathFormat("%sTalk%d.dat", {owner.config.installDirectory, index / Talk::EventsPerFile + 1});
     owner.AudioPump();
 
     if (!this->game.databases.story.Open(path, File::Disposition::OpenExisting, File::Access::Read))

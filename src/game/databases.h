@@ -21,7 +21,7 @@ public:
     static constexpr u32 MapsHeader = 0x200;
     static constexpr u32 ScriptBytes = 0x8000;
 
-    bool Open(const std::string& installDirectory, ErrorReporter& errors);
+    bool Open(const std::u8string& installDirectory, ErrorReporter& errors);
     void LoadMaps();
 
     File maps;                     // 0x004B74A0

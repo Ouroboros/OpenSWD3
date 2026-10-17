@@ -112,7 +112,7 @@ u32 ReadDword(File& file)
 
 }  // namespace
 
-Database::Database(const std::string& directory)
+Database::Database(const std::u8string& directory)
     : directory(directory)
 {
 }
@@ -125,7 +125,7 @@ File* Database::OpenData(File& file, bool& open, std::string_view name)
         return &file;
     }
 
-    if (!file.Open(Concat({this->directory, name}), File::Disposition::OpenAlways, File::Access::Read))
+    if (!file.Open(PathFormat("%s%s", {this->directory, name}), File::Disposition::OpenAlways, File::Access::Read))
     {
         return nullptr;
     }

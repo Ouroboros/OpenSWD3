@@ -22,7 +22,7 @@ public:
 
     Movie();
 
-    void Open(const std::string& path, int volume);
+    void Open(const std::u8string& path, int volume);
     bool Close();
     int Frame(Surface& surface, int x, int y, ErrorReporter& reporter);
     int Position() const;

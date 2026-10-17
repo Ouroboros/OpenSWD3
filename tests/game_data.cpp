@@ -3,10 +3,12 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
 
 #include "core/byte_reader.h"
+#include "core/format.h"
 #include "golden/draw_scenarios.h"
 #include "platform/file_system.h"
 #include "text/big5.h"
@@ -14,7 +16,7 @@
 namespace swd3test
 {
 
-std::string GameDirectory()
+std::u8string GameDirectory()
 {
     const std::string configured = golden::Environment("SWD3_GAME_DIR");
 #if defined(_WIN32)
@@ -22,17 +24,17 @@ std::string GameDirectory()
 #else
     const std::string directory = !configured.empty() ? configured : "/mnt/e/Game/swd3";
 #endif
-    return directory + "/";
+    return swd3::Utf8Bytes(directory + "/");
 }
 
-std::string GameFile(const std::string& name)
+std::u8string GameFile(std::string_view name)
 {
-    return swd3::ResolvePath(GameDirectory() + name);
+    return swd3::ResolvePath(GameDirectory() + swd3::Utf8Bytes(name));
 }
 
-std::vector<u8> ReadGameFile(const std::string& name)
+std::vector<u8> ReadGameFile(std::string_view name)
 {
-    std::ifstream stream(GameFile(name), std::ios::binary);
+    std::ifstream stream(std::filesystem::path(GameFile(name)), std::ios::binary);
 
     if (!stream)
     {

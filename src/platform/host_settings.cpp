@@ -12,6 +12,8 @@
 
 #include <toml.hpp>
 
+#include "core/format.h"
+
 namespace swd3
 {
 
@@ -550,7 +552,7 @@ bool UpdateSettingsFile(
 
         if (!stream.is_open())
         {
-            error = "cannot write " + temporary.string();
+            error = "cannot write " + std::string(AsBytes(temporary.u8string()));
             return false;
         }
 

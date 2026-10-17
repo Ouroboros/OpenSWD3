@@ -31,7 +31,7 @@ TEST_CASE("launcher: resources of swd32.exe and the hover hotspots")
 {
     swd3::ExeResources resources;
 
-    if (!resources.Open(swd3test::GameDirectory() + "/swd32.exe"))
+    if (!resources.Open(swd3test::GameDirectory() + u8"/swd32.exe"))
     {
         std::printf("  (swd32.exe not found, skipped)\n");
         return;
@@ -51,7 +51,7 @@ TEST_CASE("launcher: resources of swd32.exe and the hover hotspots")
 
     swd3::GameState state;
     swd3::SystemSound sound;
-    Launcher launcher(resources, state, sound, "");
+    Launcher launcher(resources, state, sound, u8"");
     CHECK(launcher.LoadPictures());
     launcher.Init();
     CHECK(launcher.shown[0]);

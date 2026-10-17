@@ -303,7 +303,7 @@ int Game::BattleFrame()
 
     if (battle.unk53BFE8 == 1)
     {
-        const std::string name = WinFormat(kSnapName, {static_cast<i32>(++battle.unk53C49A + kSnapBase)});
+        const std::u8string name = Utf8Format(kSnapName, {static_cast<i32>(++battle.unk53C49A + kSnapBase)});
         const std::span<const u16> pixels(
             this->drawSurface,
             static_cast<std::size_t>(this->painter.ScreenPitch()) * Display::Height
@@ -739,7 +739,7 @@ void Game::StartBattleMusic()
     {
         if (battle.battle >= first && battle.battle <= last)
         {
-            battle.battleMusic += path;
+            battle.battleMusic += Utf8Bytes(path);
         }
     }
 

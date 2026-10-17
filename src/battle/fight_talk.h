@@ -20,7 +20,7 @@ public:
     static constexpr u32 HeaderBytes = 0x200;
     static constexpr u32 ScriptBytes = 0x8000;
 
-    void Load(const std::string& installDirectory, u16 battle);
+    void Load(const std::u8string& installDirectory, u16 battle);
     void Reset();
     void Close();
     void Seek(i32 offset);

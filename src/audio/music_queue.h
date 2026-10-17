@@ -17,7 +17,7 @@ struct MusicSlot
     static constexpr int Stream = 1;  // `type`
     static constexpr int Midi = 2;
 
-    std::string name;
+    std::u8string name;
     int id = 0;
     int type = 0;  // Stream or Midi
 };

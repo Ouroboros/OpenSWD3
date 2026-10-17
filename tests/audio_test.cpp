@@ -118,7 +118,7 @@ TEST_CASE("audio: music stream plays, fades out and is retired")
     swd3::AudioDevice device;
     AudioManager audio(device);
     CHECK(audio.Streams().Open());
-    const std::string file = swd3test::GameFile("Music/Battle_Arab01.mp3");
+    const std::u8string file = swd3test::GameFile("Music/Battle_Arab01.mp3");
     CHECK_EQ(audio.Streams().Play(file, AudioManager::MusicId, kMusicVolume, 0), AudioManager::MusicId);
     CHECK(!audio.IsMusicStopped());
     CHECK_EQ(audio.Streams().Play(file, AudioManager::MusicId, kMusicVolume, 0), 0);
@@ -142,6 +142,6 @@ TEST_CASE("audio: no MIDI device")
     swd3::MidiPlayer midi(device);
     CHECK(!midi.Open(0));
     CHECK(midi.Error() == "No MIDI output device //No MIDI output device");
-    CHECK_EQ(midi.Play("x.mid", 1, kMidiVolume, 1), 0);
+    CHECK_EQ(midi.Play(u8"x.mid", 1, kMidiVolume, 1), 0);
     CHECK(midi.IsStopped(0));
 }

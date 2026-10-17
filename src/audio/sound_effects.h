@@ -41,7 +41,7 @@ public:
     SoundEffects(const SoundEffects&) = delete;
     SoundEffects& operator=(const SoundEffects&) = delete;
 
-    bool Open(const std::string& directory);
+    bool Open(const std::u8string& directory);
     bool Close();
     bool IsOpen() const;
     bool IsEnabled() const;
@@ -57,7 +57,7 @@ public:
     SampleNode* Find(int id);
     std::unique_ptr<SampleNode> Unlink(int id);
     bool HasDriver() const;
-    bool LoadIndex(const std::string& directory);
+    bool LoadIndex(const std::u8string& directory);
     bool FreeIndex();
     std::shared_ptr<std::vector<u8>> LoadSound(int id);
     const std::string& Error() const;

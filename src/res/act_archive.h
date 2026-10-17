@@ -43,7 +43,7 @@ public:
 
     explicit ActArchive(ErrorReporter& errors);
 
-    void SetGameDirectory(std::string directory);
+    void SetGameDirectory(std::u8string directory);
     void SetCacheLimit(int bytes);
     ActScript Get(int id, int sub);
     ActScript LoadDirect(int id, int sub);
@@ -71,7 +71,7 @@ private:
     };
 
     void OpenArchives();
-    bool OpenFile(File& file, const std::string& name);
+    bool OpenFile(File& file, const std::u8string& name);
     ActScript ExtractEntry(const std::vector<u8>& data, int index, u32& size) const;
     ActScript Load(File* file, int fileIndex, int entry, int sub, u32& size);
     bool CacheLoad(int id, int sub);
@@ -84,7 +84,7 @@ private:
     void Restart(ActState& state, u32 keptFlags);
 
     ErrorReporter& errors;
-    std::string gameDirectory;
+    std::u8string gameDirectory;
     std::array<File, FileCount> files;
     bool opened = false;
     int cacheLimit = 0x100000;

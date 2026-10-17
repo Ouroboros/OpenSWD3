@@ -22,7 +22,7 @@ constexpr int kSecondFrame = 2;  // Position counts the frames from 1
 
 TEST_CASE("movie: Bink frames are decoded, copied and counted")
 {
-    const std::string path = swd3test::GameFile("Video/Parade.bik");
+    const std::u8string path = swd3test::GameFile("Video/Parade.bik");
 
     if (swd3test::ReadGameFile("Video/Parade.bik").empty())
     {

@@ -25,7 +25,7 @@ public:
     static constexpr u32 HoverSound = 0x77;
     static constexpr int SavedGameFlag = 0x12;
     static constexpr std::string_view Website = "www.softstar.com.tw";
-    static constexpr std::string_view Readme = "Readme.txt";
+    static constexpr std::u8string_view Readme = u8"Readme.txt";
 
     // How the launcher ended (the EndDialog codes).
     enum class Choice
@@ -60,7 +60,7 @@ public:
         {0x76, 0x23A, 0x235, 0x25C},
     }};
 
-    Launcher(const ExeResources& resources, const GameState& state, SystemSound& sound, std::string installDirectory);
+    Launcher(const ExeResources& resources, const GameState& state, SystemSound& sound, std::u8string installDirectory);
 
     bool LoadPictures();
     void Init();
@@ -70,7 +70,7 @@ public:
     void Draw(Surface& screen) const;
 
     static void RunBrowser(const std::string& address);
-    static void RunTextViewer(const std::string& path);
+    static void RunTextViewer(const std::u8string& path);
 
     std::array<i8, Items> lit = {};        // 0x004CDE94 (4 bytes), 0x004CDE98: SW_SHOW (5) under the mouse
     std::array<i8, Items> litBefore = {};  // 0x004CDE99 (4 bytes), 0x004CDE9D
@@ -80,7 +80,7 @@ private:
     const ExeResources& resources;
     const GameState& state;
     SystemSound& sound;
-    std::string installDirectory;
+    std::u8string installDirectory;
     Surface background;
     std::array<Surface, Items> pictures;
 };

@@ -14,7 +14,7 @@ void Movie::Init(bool, bool)
 Movie::Movie() = default;
 
 // swd32.exe 0x004845A0: a failed open keeps Bink's error text and a zero summary
-void Movie::Open(const std::string& path, int volume)
+void Movie::Open(const std::u8string& path, int volume)
 {
     if (!this->decoder.Open(path))
     {

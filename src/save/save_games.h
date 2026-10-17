@@ -14,9 +14,9 @@ public:
     // swd32.exe 0x0049FA18 "%ssave\\%d.sav", the directory part taken from Config::SaveDirectory
     static constexpr std::string_view NameFormat = "%s%d.sav";
 
-    static std::string SlotPath(std::string_view saveDirectory, int slot);
-    static bool AnyExists(std::string_view saveDirectory);
-    static bool IsFree(std::string_view saveDirectory, int slot);
+    static std::u8string SlotPath(std::u8string_view saveDirectory, int slot);
+    static bool AnyExists(std::u8string_view saveDirectory);
+    static bool IsFree(std::u8string_view saveDirectory, int slot);
 };
 
 }  // namespace swd3

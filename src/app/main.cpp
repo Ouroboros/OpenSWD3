@@ -9,6 +9,7 @@
 #include <SDL3/SDL_main.h>
 
 #include "config/config.h"
+#include "core/format.h"
 #include "core/log.h"
 #include "game/game.h"
 #include "platform/host_settings.h"
@@ -19,40 +20,37 @@ namespace
 {
 
 // WinMain's command line: the arguments after the program, separated by spaces.
-std::string CommandLine(int count, char** arguments)
+std::u8string CommandLine(int count, char** arguments)
 {
-    std::string line;
+    std::u8string line;
 
     for (int index = 1; index < count; ++index)
     {
         if (!line.empty())
         {
-            line += ' ';
+            line += u8' ';
         }
 
-        line += arguments[index];
+        line += swd3::Utf8Bytes(arguments[index]);
     }
 
     return line;
 }
 
 // The name of the program without its directory and extension.
-std::string ProgramName(int count, char** arguments)
+std::u8string ProgramName(int count, char** arguments)
 {
     if (count < 1 || arguments[0] == nullptr)
     {
         return {};
     }
 
-    const std::string text(arguments[0]);
-    const std::u8string stem = std::filesystem::path(std::u8string(text.begin(), text.end())).stem().u8string();
-    return std::string(stem.begin(), stem.end());
+    return std::filesystem::path(swd3::Utf8Bytes(arguments[0])).stem().u8string();
 }
 
-std::string PathText(const std::filesystem::path& path)
+std::u8string PathText(const std::filesystem::path& path)
 {
-    const std::u8string text = path.u8string();
-    return std::string(text.begin(), text.end());
+    return path.u8string();
 }
 
 // The window as the user left it written back to swd3r.default.toml; nothing when it is as the settings say (or no
@@ -79,7 +77,7 @@ void SaveWindow(const swd3::HostSettings& settings, const swd3::Display::WindowS
         window.width,
         window.height,
         window.maximized ? 1 : 0,
-        swd3::AsUtf8(PathText(settings.programFile))
+        PathText(settings.programFile)
     );
 }
 
@@ -87,27 +85,27 @@ void SaveWindow(const swd3::HostSettings& settings, const swd3::Display::WindowS
 
 int main(int count, char** arguments)
 {
-    const std::string name = ProgramName(count, arguments);
-    const std::string program = name.empty() ? std::string("swd3r") : name;
+    const std::u8string name = ProgramName(count, arguments);
+    const std::u8string program = name.empty() ? std::u8string(u8"swd3r") : name;
     const std::filesystem::path programDirectory = swd3::ProgramDirectory();
     const std::filesystem::path settingsFile = programDirectory / swd3::HostSettings::UserFile;
     const std::filesystem::path programFile = programDirectory / swd3::HostSettings::ProgramFile;
     swd3::HostSettings settings = swd3::LoadHostSettings(settingsFile, programFile, programDirectory);
     std::filesystem::path logDirectory = programDirectory / "logs";
-    std::string logPrefix = program;
-    std::string logExtension = ".log";
+    std::u8string logPrefix = program;
+    std::u8string logExtension = u8".log";
     const std::filesystem::path logPath = settings.LogPath();
 
     if (!logPath.empty())
     {
         logDirectory = logPath.parent_path();
         logPrefix = PathText(logPath.stem());
-        logExtension = logPath.has_extension() ? PathText(logPath.extension()) : ".log";
+        logExtension = logPath.has_extension() ? PathText(logPath.extension()) : u8".log";
     }
 
     swd3::LogFile log(logDirectory, logPrefix, logExtension, settings.LogLevel());
     swd3::InstallCrashLog();
-    const std::string commandLine = CommandLine(count, arguments);
+    const std::u8string commandLine = CommandLine(count, arguments);
     std::error_code error;
 
     // The original opens its archives (all_char.act ...) relative to the working directory, the game's directory; a
@@ -120,13 +118,13 @@ int main(int count, char** arguments)
         {
             swd3::LogError(
                 u8"data_dir %s cannot be entered: %s",
-                swd3::AsUtf8(PathText(settings.DataDirectory())),
+                PathText(settings.DataDirectory()),
                 swd3::AsUtf8(error.message())
             );
         }
     }
 
-    const std::string directory = PathText(std::filesystem::current_path(error));
+    const std::u8string directory = PathText(std::filesystem::current_path(error));
 
     if (!settings.programHasGame)
     {
@@ -140,19 +138,19 @@ int main(int count, char** arguments)
         u8"start program=%s base=%s working_directory=%s command_line=\"%s\" log=%s",
         swd3::AsUtf8(count > 0 ? arguments[0] : ""),
         swd3::AsUtf8(base != nullptr ? base : ""),
-        swd3::AsUtf8(directory),
-        swd3::AsUtf8(commandLine),
-        swd3::AsUtf8(PathText(log.Path()))
+        directory,
+        commandLine,
+        PathText(log.Path())
     );
     swd3::LogInfo(
         u8"settings %s%s over %s%s level=%s data_dir=%s save_dir=%s window=%dx%d maximized=%d display=%dx%d",
-        swd3::AsUtf8(PathText(settings.file)),
+        PathText(settings.file),
         swd3::AsUtf8(settings.found ? "" : " (not found, the defaults)"),
-        swd3::AsUtf8(PathText(settings.programFile)),
+        PathText(settings.programFile),
         swd3::AsUtf8(settings.programFound ? "" : " (not found)"),
         swd3::AsUtf8(settings.values.logging.level),
-        swd3::AsUtf8(PathText(settings.DataDirectory())),
-        swd3::AsUtf8(PathText(settings.SaveDirectory())),
+        PathText(settings.DataDirectory()),
+        PathText(settings.SaveDirectory()),
         settings.values.window.width,
         settings.values.window.height,
         settings.values.window.maximized ? 1 : 0,
@@ -188,9 +186,9 @@ int main(int count, char** arguments)
     int result = 0;
 
     {
-        const std::string dataDirectory =
+        const std::u8string dataDirectory =
             settings.DataDirectory().empty() ? directory : PathText(settings.DataDirectory());
-        swd3::Game game(dataDirectory + "\\");
+        swd3::Game game(dataDirectory + u8"\\");
         game.host = settings;
         swd3::HangWatch watch;
         game.hangWatch = &watch;

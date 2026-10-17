@@ -93,7 +93,7 @@ void MapCache::Clear()
         File file;
 
         if (file.Open(
-                WinFormat(kUnitFormat, {this->config.installDirectory, unit}),
+                PathFormat(kUnitFormat, {this->config.installDirectory, unit}),
                 File::Disposition::OpenExisting,
                 File::Access::ReadWrite
             ))
@@ -108,7 +108,7 @@ void MapCache::Clear()
     File table;
 
     if (table.Open(
-            WinFormat("%sdata\\%s", {this->config.installDirectory, kTableFile}),
+            PathFormat("%sdata\\%s", {this->config.installDirectory, kTableFile}),
             File::Disposition::OpenExisting,
             File::Access::ReadWrite
         ))
@@ -185,7 +185,7 @@ u32 MapCache::CacheBytes() const
         File file;
 
         if (file.Open(
-                WinFormat(kUnitFormat, {this->config.installDirectory, unit}),
+                PathFormat(kUnitFormat, {this->config.installDirectory, unit}),
                 File::Disposition::OpenExisting,
                 File::Access::Read
             ))
@@ -263,7 +263,7 @@ void MapCache::DecompressMap(int unit, u32 base, u32 size, int bitsPerPixel, u32
     File cached;
 
     if (!cached.Open(
-            WinFormat(kUnitFormat, {this->config.installDirectory, unit}),
+            PathFormat(kUnitFormat, {this->config.installDirectory, unit}),
             File::Disposition::OpenAlways,
             File::Access::ReadWrite
         ))
@@ -343,7 +343,7 @@ void MapCache::DecompressMap(int unit, u32 base, u32 size, int bitsPerPixel, u32
 // swd32.exe 0x00498278 (EH handler of 0x00427140)
 const u8* MapCache::OpenUnit(int unit)
 {
-    const std::string path = WinFormat(kUnitFormat, {this->config.installDirectory, unit});
+    const std::u8string path = PathFormat(kUnitFormat, {this->config.installDirectory, unit});
     this->unitFile.UnmapView(this->view);
     this->view = nullptr;
     this->unitFile.CloseMapping();
@@ -371,7 +371,7 @@ const u8* MapCache::OpenUnit(int unit)
 const u8* MapCache::GetCachedMap(u32 map, u32 base, u32 size, int bitsPerPixel)
 {
     File table;
-    const std::string tablePath = WinFormat("%sdata\\%s", {this->config.installDirectory, kTableFile});
+    const std::u8string tablePath = PathFormat("%sdata\\%s", {this->config.installDirectory, kTableFile});
 
     if (!table.Open(tablePath, File::Disposition::OpenAlways, File::Access::ReadWrite))
     {
@@ -487,7 +487,7 @@ const u8* MapCache::GetCachedMap(u32 map, u32 base, u32 size, int bitsPerPixel)
         File cached;
 
         if (cached.Open(
-                WinFormat(kUnitFormat, {this->config.installDirectory, static_cast<i32>(victimUnit)}),
+                PathFormat(kUnitFormat, {this->config.installDirectory, static_cast<i32>(victimUnit)}),
                 File::Disposition::OpenAlways,
                 File::Access::ReadWrite
             ))

@@ -19,12 +19,12 @@ public:
     AudioSystem();
     ~AudioSystem();
 
-    void Startup(const std::string& redistDirectory);
+    void Startup(const std::u8string& redistDirectory);
     void Shutdown();
 
 private:
     bool started = false;
-    std::string redistDirectory;
+    std::u8string redistDirectory;
 };
 
 // The game's audio: Miles, the MIDI and stream players, the sound effects, the music queue, and the wrappers the game

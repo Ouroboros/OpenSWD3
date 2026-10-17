@@ -76,7 +76,7 @@ TswArchive::TswArchive(const RleCodec& codec, ErrorReporter& errors)
 {
 }
 
-void TswArchive::SetGameDirectory(std::string directory)
+void TswArchive::SetGameDirectory(std::u8string directory)
 {
     this->gameDirectory = std::move(directory);
 }
@@ -99,7 +99,7 @@ void TswArchive::OpenArchives()
     {
         this->OpenFile(
             this->files[static_cast<std::size_t>(i)],
-            Concat({this->gameDirectory, TswArchive::FileNames[i]})
+            PathFormat("%s%s", {this->gameDirectory, TswArchive::FileNames[i]})
         );
     }
 
@@ -432,7 +432,7 @@ void TswArchive::CacheClear()
 }
 
 // swd32.exe 0x00433270: read-only, shared for reading
-bool TswArchive::OpenFile(File& file, const std::string& name)
+bool TswArchive::OpenFile(File& file, const std::u8string& name)
 {
     return file.Open(name, File::Disposition::OpenExisting, File::Access::Read);
 }
@@ -466,7 +466,7 @@ bool TswArchive::ReadHeader(File& file, FrameInfo& info, u16& frameCount)
 }
 
 // swd32.exe 0x00433320: one picture from a tsw file outside the archives. A failed load leaves the file open.
-bool TswArchive::LoadFromFile(const std::string& fileName, int index, u32 frame, Picture& picture)
+bool TswArchive::LoadFromFile(const std::u8string& fileName, int index, u32 frame, Picture& picture)
 {
     auto file = std::make_unique<File>();
 

@@ -52,6 +52,11 @@ FormatArgument::FormatArgument(std::u8string_view text)
 {
 }
 
+FormatArgument::FormatArgument(const std::u8string& text)
+    : FormatArgument(std::u8string_view(text))
+{
+}
+
 bool FormatArgument::IsText() const
 {
     return this->text;
@@ -219,6 +224,11 @@ std::u8string Utf8Format(std::u8string_view format, std::initializer_list<Format
     return std::u8string(reinterpret_cast<const char8_t*>(text.data()), text.size());
 }
 
+std::u8string PathFormat(std::string_view format, std::initializer_list<FormatArgument> arguments)
+{
+    return Utf8Format(std::u8string_view(reinterpret_cast<const char8_t*>(format.data()), format.size()), arguments);
+}
+
 std::u8string Utf8Bytes(std::string_view text)
 {
     return std::u8string(reinterpret_cast<const char8_t*>(text.data()), text.size());
@@ -229,6 +239,18 @@ std::string Concat(std::initializer_list<std::string_view> parts)
     std::string out;
 
     for (const std::string_view part : parts)
+    {
+        out.append(part);
+    }
+
+    return out;
+}
+
+std::u8string Concat(std::initializer_list<std::u8string_view> parts)
+{
+    std::u8string out;
+
+    for (const std::u8string_view part : parts)
     {
         out.append(part);
     }

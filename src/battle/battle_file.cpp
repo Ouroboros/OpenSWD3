@@ -66,7 +66,7 @@ BattleFile::BattleFile(const Projector* projector)
 }
 
 // swd32.exe 0x0045F130: the header of battle.ffd (false when the file cannot be opened)
-bool BattleFile::ReadHeader(std::string_view path)
+bool BattleFile::ReadHeader(std::u8string_view path)
 {
     File file;
 
@@ -83,7 +83,7 @@ bool BattleFile::ReadHeader(std::string_view path)
 
 // swd32.exe 0x0045F1B0: formation `choice` of battle `battle` (the header read again; the formations of the battles
 // before it skipped by their counts); false when the battle has none or fewer
-bool BattleFile::ReadFormation(std::string_view path, BattleFormation& formation, u16 battle, i8 choice)
+bool BattleFile::ReadFormation(std::u8string_view path, BattleFormation& formation, u16 battle, i8 choice)
 {
     File file;
 

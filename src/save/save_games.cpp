@@ -6,15 +6,15 @@
 namespace swd3
 {
 
-std::string SaveGames::SlotPath(std::string_view saveDirectory, int slot)
+std::u8string SaveGames::SlotPath(std::u8string_view saveDirectory, int slot)
 {
-    return WinFormat(SaveGames::NameFormat, {saveDirectory, slot});
+    return PathFormat(SaveGames::NameFormat, {saveDirectory, slot});
 }
 
 // swd32.exe 0x00409C10: whether any slot opens for reading and writing
 // swd32.exe 0x00498090 (EH unwind: the cFile, closed by its destructor)
 // swd32.exe 0x00498098 (EH handler of 0x00409C10)
-bool SaveGames::AnyExists(std::string_view saveDirectory)
+bool SaveGames::AnyExists(std::u8string_view saveDirectory)
 {
     File file;
     int found = 0;
@@ -39,7 +39,7 @@ bool SaveGames::AnyExists(std::string_view saveDirectory)
 // swd32.exe 0x004094A0: whether save `slot` does not open for reading and writing (a free slot)
 // swd32.exe 0x00498030 (EH unwind: the cFile, closed by its destructor)
 // swd32.exe 0x00498038 (EH handler of 0x004094A0)
-bool SaveGames::IsFree(std::string_view saveDirectory, int slot)
+bool SaveGames::IsFree(std::u8string_view saveDirectory, int slot)
 {
     File file;
     const bool free =

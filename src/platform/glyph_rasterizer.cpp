@@ -6,6 +6,7 @@
 #include <climits>
 #include <cstring>
 
+#include "core/format.h"
 #include "platform/file_system.h"
 #include "platform/surface.h"
 
@@ -37,7 +38,7 @@ u32 ReadU32(const std::vector<u8>& data, std::size_t offset)
 
 }  // namespace
 
-bool GlyphLibrary::Load(const std::string& path)
+bool GlyphLibrary::Load(const std::u8string& path)
 {
     std::vector<u8> data;
 
@@ -148,16 +149,16 @@ void LibraryGlyphRasterizer::RenderText(Surface& surface, std::string_view, int 
     }
 }
 
-std::string GlyphLibraryPath()
+std::u8string GlyphLibraryPath()
 {
-    std::string path;
+    std::u8string path;
 
     if (const auto* base = SDL_GetBasePath(); base != nullptr)
     {
-        path = base;
+        path = Utf8Bytes(base);
     }
 
-    return path + "swd3font.bin";
+    return path + u8"swd3font.bin";
 }
 
 }  // namespace swd3

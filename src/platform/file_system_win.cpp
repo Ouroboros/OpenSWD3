@@ -7,38 +7,41 @@
 #include <io.h>
 #include <windows.h>
 
+#include "platform/wide_win.h"
+
 namespace swd3
 {
 
-std::string ResolvePath(std::string_view gamePath)
+std::u8string ResolvePath(std::u8string_view gamePath)
 {
     return DrivePath(gamePath);
 }
 
-void MakeGameDirectory(std::string_view path)
+void MakeGameDirectory(std::u8string_view path)
 {
-    ::CreateDirectoryA(std::string(path).c_str(), nullptr);
+    ::CreateDirectoryW(Utf16(path).c_str(), nullptr);
 }
 
-void ClearReadOnly(const std::string& path)
+void ClearReadOnly(const std::u8string& path)
 {
-    const DWORD attributes = ::GetFileAttributesA(path.c_str());
+    const std::wstring wide = Utf16(path);
+    const DWORD attributes = ::GetFileAttributesW(wide.c_str());
 
     if (attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_READONLY) != 0)
     {
-        ::SetFileAttributesA(path.c_str(), attributes & ~static_cast<DWORD>(FILE_ATTRIBUTE_READONLY));
+        ::SetFileAttributesW(wide.c_str(), attributes & ~static_cast<DWORD>(FILE_ATTRIBUTE_READONLY));
     }
 }
 
-std::FILE* OpenSharedFile(const std::string& path, std::string_view mode)
+std::FILE* OpenSharedFile(const std::u8string& path, std::string_view mode)
 {
     const bool update = mode.find('+') != std::string_view::npos;
     const bool create = !mode.empty() && mode.front() == 'w';
     const bool reads = update || !create;
     const bool writes = update || create;
     const DWORD access = (reads ? GENERIC_READ : 0) | (writes ? GENERIC_WRITE : 0);
-    const HANDLE handle = ::CreateFileA(
-        path.c_str(),
+    const HANDLE handle = ::CreateFileW(
+        Utf16(path).c_str(),
         access,
         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
         nullptr,

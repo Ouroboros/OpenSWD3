@@ -46,7 +46,7 @@ public:
     File(const File&) = delete;
     File& operator=(const File&) = delete;
 
-    bool Open(std::string_view name, Disposition disposition, Access access);
+    bool Open(std::u8string_view name, Disposition disposition, Access access);
     bool Close();
 
     bool IsOpen() const
@@ -54,7 +54,7 @@ public:
         return this->file != nullptr;
     }
 
-    const std::string& Name() const
+    const std::u8string& Name() const
     {
         return this->name;
     }
@@ -101,7 +101,7 @@ private:
     bool mapped = false;
     bool viewed = false;
     std::vector<u8> view;
-    std::string name;
+    std::u8string name;
     std::string error;
 };
 

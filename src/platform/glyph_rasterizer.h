@@ -28,7 +28,7 @@ public:
 class GlyphLibrary
 {
 public:
-    bool Load(const std::string& path);
+    bool Load(const std::u8string& path);
     bool Loaded() const;
     // The cell (size rows of ceil(size / 8) bytes, the leftmost pixel in bit 7) of a character code (first byte in the
     // low byte), or nullptr.
@@ -58,6 +58,6 @@ private:
 };
 
 // The location of the glyph library: next to the executable.
-std::string GlyphLibraryPath();
+std::u8string GlyphLibraryPath();
 
 }  // namespace swd3

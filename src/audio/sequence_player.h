@@ -21,7 +21,7 @@ struct SequenceNode
 
     VoiceHandle voice;
     std::vector<u8> midi;
-    std::string name;
+    std::u8string name;
     int id = 0;  // the Miles user data the players look nodes up by
     i32 fadeStep = 0;
     i32 volume = 0;
@@ -68,7 +68,7 @@ public:
 
     bool Open(int unused);
     int Close();
-    int Play(const std::string& fileName, int id, int volume, int loops);
+    int Play(const std::u8string& fileName, int id, int volume, int loops);
     bool Update();
     bool IsStopped(int id);
     SequenceNode* Find(int id);
@@ -84,7 +84,7 @@ public:
     bool Open();
     int Close();
     int SetVolume(int id, int volume);
-    int Play(const std::string& fileName, int id, int volume, int loops);
+    int Play(const std::u8string& fileName, int id, int volume, int loops);
     int FadeOut(int id, int steps);
     bool Update();
     bool IsStopped(int id);

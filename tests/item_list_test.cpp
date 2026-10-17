@@ -63,7 +63,7 @@ TEST_CASE("item list: counts, pending counts and the empty entry")
         return;
     }
 
-    const std::string directory = swd3test::GameDirectory() + "/";
+    const std::u8string directory = swd3test::GameDirectory() + u8"/";
     swd3::Database database(directory);
     ItemLink list;
     ItemNode* sword = swd3::AddItem(list, kSwordId, kSwords, ItemCountMode::Count, database);
@@ -98,7 +98,7 @@ TEST_CASE("item list: flagged and plain entries of one id")
         return;
     }
 
-    const std::string directory = swd3test::GameDirectory() + "/";
+    const std::u8string directory = swd3test::GameDirectory() + u8"/";
     swd3::Database database(directory);
     ItemLink list;
     ItemNode* plain = swd3::AddFlaggedItem(list, kSwordId, kPlainCount, 0, database);

@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdio>
+#include <cstring>
 #include <exception>
 #include <string>
 #include <system_error>
@@ -74,7 +75,7 @@ SDL_DateTime Now()
 }
 
 // The file name of the log: the prefix, the local date and time, the process id, the extension.
-std::string LogName(std::string_view prefix, std::string_view extension)
+std::u8string LogName(std::u8string_view prefix, std::u8string_view extension)
 {
     const SDL_DateTime now = Now();
     std::array<char, kPrefixBytes> stamp = {};
@@ -90,7 +91,8 @@ std::string LogName(std::string_view prefix, std::string_view extension)
         now.second,
         ProcessId()
     );
-    return std::string(prefix) + stamp.data() + std::string(extension);
+    return std::u8string(prefix) + std::u8string(stamp.data(), stamp.data() + std::strlen(stamp.data())) +
+           std::u8string(extension);
 }
 
 void Terminated()
@@ -130,14 +132,14 @@ void SetLogLevel(SDL_LogPriority level)
 
 LogFile::LogFile(
     const std::filesystem::path& directory,
-    std::string_view prefix,
-    std::string_view extension,
+    std::u8string_view prefix,
+    std::u8string_view extension,
     SDL_LogPriority level
 )
 {
     std::error_code error;
     std::filesystem::create_directories(directory, error);
-    this->path = directory / LogName(prefix.empty() ? std::string_view("swd3r") : prefix, extension);
+    this->path = directory / LogName(prefix.empty() ? std::u8string_view(u8"swd3r") : prefix, extension);
     this->stream.open(this->path, std::ios::out | std::ios::trunc | std::ios::binary);
     SDL_GetLogOutputFunction(&this->previous, &this->previousData);
     SDL_SetLogOutputFunction(&LogFile::Output, this);

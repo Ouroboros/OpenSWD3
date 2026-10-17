@@ -448,7 +448,7 @@ bool Talk::OpenMapMovie(EventRun& run)
     // The original looks in the CD's swd3\Video\ (after a CD check) when the installation lacks the movie; the
     // rebuild only reads the installation (see deviations.md).
     owner.AudioPump();
-    const std::string path = owner.config.installDirectory + "Video\\" + name;
+    const std::u8string path = PathFormat("%sVideo\\%s", {owner.config.installDirectory, name});
     ErrorLog(u8"Talk:Ani_Open::%s", path);
     owner.AudioPump();
 

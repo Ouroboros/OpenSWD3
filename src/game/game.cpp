@@ -268,7 +268,7 @@ u32 MouseKeys(SDL_MouseButtonFlags buttons)
 // swd32.exe 0x00451910
 // swd32.exe 0x00451920
 // swd32.exe 0x00451930
-Game::Game(std::string installDirectory)
+Game::Game(std::u8string installDirectory)
     : screen(Display::Width, Display::Height),
       inputDevice(this->display),
       input(this->inputDevice),
@@ -324,7 +324,7 @@ Game::Game(std::string installDirectory)
 // message and runs the message loop: the frames while the game runs, the pause banner while F8 holds it. The original
 // first leaves when a window of its class is open already, and handles an installation's command line alone (the
 // rebuild ignores the command line, see deviations.md).
-int Game::Run([[maybe_unused]] std::string_view commandLine)
+int Game::Run([[maybe_unused]] std::u8string_view commandLine)
 {
     ErrorLog(kLogSeparator);
 
@@ -601,11 +601,11 @@ void Game::InitInstall()
     this->ApplyHostPaths();
     this->SizeCaches();
     this->mapCache.Check(MapCache::CheckSessionMark);
-    this->MakeDirectory("Save");
-    this->MakeDirectory("Data");
-    this->MakeDirectory("Music");
-    this->MakeDirectory("ScrnShot");
-    this->MakeDirectory("Video");
+    this->MakeDirectory(u8"Save");
+    this->MakeDirectory(u8"Data");
+    this->MakeDirectory(u8"Music");
+    this->MakeDirectory(u8"ScrnShot");
+    this->MakeDirectory(u8"Video");
     this->state.SetGameFlag(kEffectsOffFlag);
 
     if (this->effectsOff == 0)
@@ -637,7 +637,7 @@ void Game::SizeCaches()
 
 // swd32.exe 0x00425150: creates <install directory><name> unless it exists. The original enters an existing directory
 // as the current one, which no path of the game depends on.
-void Game::MakeDirectory(std::string_view name)
+void Game::MakeDirectory(std::u8string_view name)
 {
     MakeGameDirectory(Concat({this->config.installDirectory, name}));
 }
@@ -648,12 +648,11 @@ void Game::ApplyHostPaths()
 {
     auto gamePath = [](const std::filesystem::path& path)
     {
-        const std::u8string text = path.u8string();
-        std::string out(text.begin(), text.end());
+        std::u8string out = path.u8string();
 
-        if (!out.empty() && out.back() != '\\' && out.back() != '/')
+        if (!out.empty() && out.back() != u8'\\' && out.back() != u8'/')
         {
-            out += '\\';
+            out += u8'\\';
         }
 
         return out;
@@ -662,7 +661,7 @@ void Game::ApplyHostPaths()
     if (!this->host.DataDirectory().empty())
     {
         this->config.installDirectory = gamePath(this->host.DataDirectory());
-        LogInfo(u8"data_dir=%s (over Env.dat)", AsUtf8(this->config.installDirectory));
+        LogInfo(u8"data_dir=%s (over Env.dat)", this->config.installDirectory);
     }
 
     if (!this->host.SaveDirectory().empty())
@@ -670,7 +669,7 @@ void Game::ApplyHostPaths()
         this->config.saveDirectory = gamePath(this->host.SaveDirectory());
         std::error_code error;
         std::filesystem::create_directories(this->host.SaveDirectory(), error);
-        LogInfo(u8"save_dir=%s", AsUtf8(this->config.saveDirectory));
+        LogInfo(u8"save_dir=%s", this->config.saveDirectory);
     }
 }
 
@@ -1192,30 +1191,31 @@ void Game::ShowFrame()
 
 // swd32.exe 0x0040EB60: <install directory>Music\<name>.mp3 for tune `index` of the name list of maps.dat's table 2
 // (the list its first dword points at); the name is copied up to the next dot after its first byte
-std::string Game::MusicPath(int index) const
+std::u8string Game::MusicPath(int index) const
 {
     const std::vector<u8>& data = this->databases.mapsData;
     const u32 names = MapsDword(data, MapsTable(data, MapsDataTable::Music));
     const u32 entry = MapsDword(data, names + sizeof(u32) * static_cast<u32>(index));
-    std::string path = this->config.installDirectory + "Music\\";
+    const std::u8string directory = this->config.installDirectory + u8"Music\\";
+    std::string name;  // game text (the path in UTF-8 converts it)
     std::size_t at = static_cast<std::size_t>(entry) + MapsRecord::MusicNameAt;
 
     do
     {
-        path.push_back(at < data.size() ? static_cast<char>(data[at]) : '\0');
+        name.push_back(at < data.size() ? static_cast<char>(data[at]) : '\0');
         ++at;
 
-        if (path.size() > kMusicPathLimit)
+        if (directory.size() + name.size() > kMusicPathLimit)
         {
-            DebugLog(u8"Music String 太長,%s", path);
+            DebugLog(u8"Music String 太長,%s", PathFormat("%s%s", {directory, name}));
         }
     } while (at < data.size() && data[at] != '.');
 
-    return path + ".mp3";
+    return PathFormat("%s%s.mp3", {directory, name});
 }
 
 // swd32.exe 0x004856C0: the tune as stream 100 (once) while story flag 3 allows music
-void Game::PlayMusic(const std::string& path)
+void Game::PlayMusic(const std::u8string& path)
 {
     if (this->state.GameFlag(GameState::Music))
     {
@@ -1282,7 +1282,7 @@ void Game::LoadFameFile()
     File file;
 
     if (file.Open(
-            Concat({this->config.installDirectory, "Fame.dat"}),
+            Concat({this->config.installDirectory, u8"Fame.dat"}),
             File::Disposition::OpenExisting,
             File::Access::ReadWrite
         ))
@@ -1320,7 +1320,7 @@ void Game::SaveFameFile()
     File file;
 
     if (file.Open(
-            Concat({this->config.installDirectory, "Fame.dat"}),
+            Concat({this->config.installDirectory, u8"Fame.dat"}),
             File::Disposition::OpenAlways,
             File::Access::ReadWrite
         ))
@@ -1862,12 +1862,12 @@ void Game::TakeScreenshot()
     }
 
     PlaySystemBeep();
-    std::string path;
+    std::u8string path;
 
     for (int index = 0; index < kScreenshotNames; ++index)
     {
         this->audioDevice.Serve();
-        path = WinFormat(kScreenshotName, {this->config.installDirectory, index});
+        path = PathFormat(kScreenshotName, {this->config.installDirectory, index});
         File file;
 
         if (!file.Open(path, File::Disposition::OpenExisting, File::Access::Read))

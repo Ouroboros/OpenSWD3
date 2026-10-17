@@ -17,7 +17,7 @@ public:
     static constexpr u32 ScriptBytes = 0x400;
     static constexpr u16 NameTag = 0x3E8;
 
-    explicit Database(const std::string& directory);
+    explicit Database(const std::u8string& directory);
 
     bool LoadSkill(SkillScript& skill, u16 id);
     bool LoadObject(ObjectRecord& record, u16 id);
@@ -35,7 +35,7 @@ private:
     File* OpenData(File& file, bool& open, std::string_view name);
     void ReadScript(File& file, u32 offset, std::vector<u8>& script);
 
-    const std::string& directory;
+    const std::u8string& directory;
     File monFile;            // 0x0053D020
     File levelFile;          // 0x0053D024
     bool monOpen = false;    // 0x0053CF40

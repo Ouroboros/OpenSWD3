@@ -31,7 +31,7 @@ Launcher::Launcher(
     const ExeResources& resources,
     const GameState& state,
     SystemSound& sound,
-    std::string installDirectory
+    std::u8string installDirectory
 )
     : resources(resources),
       state(state),
@@ -230,7 +230,7 @@ void Launcher::RunBrowser(const std::string& address)
 }
 
 // swd32.exe 0x00424A60
-void Launcher::RunTextViewer(const std::string& path)
+void Launcher::RunTextViewer(const std::u8string& path)
 {
     OpenTextFile(path);
 }

@@ -141,12 +141,12 @@ void Config::SaveKeys()
 
 // The game directory's Env.dat imported once into [game] of the program's settings `file` (the defaults for a missing
 // or old-format Env.dat); Env.dat is not read or written again. See deviations.md.
-void Config::ImportEnvFile(const std::string& directory, const std::filesystem::path& file)
+void Config::ImportEnvFile(const std::u8string& directory, const std::filesystem::path& file)
 {
     File env;
     std::vector<u8> data;
 
-    if (env.Open(directory + "\\Env.dat", File::Disposition::OpenExisting, File::Access::Read))
+    if (env.Open(directory + u8"\\Env.dat", File::Disposition::OpenExisting, File::Access::Read))
     {
         data.assign(std::min(env.Size(), Config::EnvBytes), 0);
         u32 bytes = static_cast<u32>(data.size());
@@ -171,13 +171,13 @@ void Config::ImportEnvFile(const std::string& directory, const std::filesystem::
     }
     else if (imported.has_value())
     {
-        LogInfo(u8"settings: Env.dat of %s imported into [game]", AsUtf8(directory));
+        LogInfo(u8"settings: Env.dat of %s imported into [game]", directory);
     }
     else
     {
         LogInfo(
             u8"settings: no current-format Env.dat in %s (%d bytes): [game] starts from the defaults",
-            AsUtf8(directory),
+            directory,
             static_cast<int>(data.size())
         );
     }

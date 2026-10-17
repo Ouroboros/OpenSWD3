@@ -2659,7 +2659,7 @@ int Game::FightTalkMusic()
     );
     talk.textAt += length + 2;
     talk.cursor = talk.textAt;
-    battle.battleMusic = Concat({this->config.installDirectory, "music\\", name.c_str()});
+    battle.battleMusic = PathFormat("%smusic\\%s", {this->config.installDirectory, std::string_view(name.c_str())});
     this->audio.StopMusic();
     this->PlayMusic(battle.battleMusic);
     this->audio.SetMusicVolume(this->config.musicVolume);

@@ -76,7 +76,7 @@ i32 Bar(int value, int maximum)
 void Game::LoadBattleBackground(int picture, u16 animation, int x, int y, u16 scene)
 {
     BattleState& battle = this->battleState;
-    const std::string path = Concat({this->config.installDirectory, "all_map2.tsw"});
+    const std::u8string path = Concat({this->config.installDirectory, u8"all_map2.tsw"});
     this->battleHud.FreeAnimation(battle.backgroundAnimation);
     battle.background = Picture{};
 
@@ -236,7 +236,7 @@ void Game::StartBattle(u16 number)
     ReleaseBattleSurfaces(battle);
     CreateBattleSurfaces(battle, this->graphics);
     this->fightTalk.Load(this->config.installDirectory, number);
-    const std::string path = Concat({this->config.installDirectory, "battle.ffd"});
+    const std::u8string path = Concat({this->config.installDirectory, u8"battle.ffd"});
     battle.file.ReadHeader(path);
     battle.file.ReadFormation(path, battle.formation, number, 0);
     battle.enemyCount = battle.formation.enemyCount;

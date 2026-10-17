@@ -43,7 +43,7 @@ ActArchive::ActArchive(ErrorReporter& errors)
 {
 }
 
-void ActArchive::SetGameDirectory(std::string directory)
+void ActArchive::SetGameDirectory(std::u8string directory)
 {
     this->gameDirectory = std::move(directory);
 }
@@ -66,7 +66,7 @@ void ActArchive::OpenArchives()
     {
         this->OpenFile(
             this->files[static_cast<std::size_t>(i)],
-            Concat({this->gameDirectory, ActArchive::FileNames[i]})
+            PathFormat("%s%s", {this->gameDirectory, ActArchive::FileNames[i]})
         );
     }
 
@@ -80,7 +80,7 @@ void ActArchive::SetCacheLimit(int bytes)
 }
 
 // swd32.exe 0x00432020: read-only, not shared
-bool ActArchive::OpenFile(File& file, const std::string& name)
+bool ActArchive::OpenFile(File& file, const std::u8string& name)
 {
     return file.Open(name, File::Disposition::OpenExisting, File::Access::Read);
 }

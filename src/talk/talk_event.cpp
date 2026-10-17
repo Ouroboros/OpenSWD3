@@ -65,7 +65,7 @@ void Talk::RunEvent(Role& context)
         }
 
         const u32 file = context.event / Talk::EventsPerFile;
-        const std::string path = WinFormat("%sTalk%d.dat", {owner.config.installDirectory, file + 1});
+        const std::u8string path = PathFormat("%sTalk%d.dat", {owner.config.installDirectory, file + 1});
         File& story = owner.databases.story;
         owner.AudioPump();
         story.Close();

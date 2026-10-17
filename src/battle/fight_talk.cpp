@@ -16,7 +16,7 @@ constexpr int kByteBits = 8;
 
 // swd32.exe 0x0046E0B0: the talk script of battle `battle` (figtalk.dat is opened once and kept, created empty when
 // missing; the battle's offset is the dword at 0x200 + 4 * battle)
-void FightTalk::Load(const std::string& installDirectory, u16 battle)
+void FightTalk::Load(const std::u8string& installDirectory, u16 battle)
 {
     if (this->enabled == 0)
     {
@@ -26,7 +26,7 @@ void FightTalk::Load(const std::string& installDirectory, u16 battle)
     if (!this->open)
     {
         if (!this->file
-                 .Open(Concat({installDirectory, "figtalk.dat"}), File::Disposition::OpenAlways, File::Access::Read))
+                 .Open(Concat({installDirectory, u8"figtalk.dat"}), File::Disposition::OpenAlways, File::Access::Read))
         {
             return;
         }

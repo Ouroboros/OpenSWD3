@@ -8,6 +8,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "core/format.h"
+
 namespace swd3
 {
 
@@ -63,9 +65,9 @@ fs::path matchComponent(const fs::path& directory, const std::string& name)
 
 }  // namespace
 
-std::string ResolvePath(std::string_view gamePath)
+std::u8string ResolvePath(std::u8string_view gamePath)
 {
-    std::string path = DrivePath(gamePath);
+    std::string path(AsBytes(DrivePath(gamePath)));
 
     for (char& c : path)
     {
@@ -79,7 +81,7 @@ std::string ResolvePath(std::string_view gamePath)
 
     if (path.empty() || fs::exists(path, error))
     {
-        return path;
+        return Utf8Bytes(path);
     }
 
     fs::path result = path.front() == '/' ? fs::path("/") : fs::path();
@@ -110,24 +112,24 @@ std::string ResolvePath(std::string_view gamePath)
         start = end + 1;
     }
 
-    return result.generic_string();
+    return Utf8Bytes(result.generic_string());
 }
 
-void MakeGameDirectory(std::string_view path)
+void MakeGameDirectory(std::u8string_view path)
 {
     std::error_code error;
-    fs::create_directory(ResolvePath(path), error);
+    fs::create_directory(fs::path(ResolvePath(path)), error);
 }
 
-void ClearReadOnly(const std::string& path)
+void ClearReadOnly(const std::u8string& path)
 {
     std::error_code ignored;
-    fs::permissions(path, fs::perms::owner_write, fs::perm_options::add, ignored);
+    fs::permissions(fs::path(path), fs::perms::owner_write, fs::perm_options::add, ignored);
 }
 
-std::FILE* OpenSharedFile(const std::string& path, std::string_view mode)
+std::FILE* OpenSharedFile(const std::u8string& path, std::string_view mode)
 {
-    return std::fopen(path.c_str(), std::string(mode).c_str());
+    return std::fopen(std::string(AsBytes(path)).c_str(), std::string(mode).c_str());
 }
 
 bool TruncateFile(std::FILE* file, u64 size)

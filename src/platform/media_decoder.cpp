@@ -7,6 +7,7 @@
 #include <cstring>
 #include <vector>
 
+#include "core/format.h"
 #include "platform/file_system.h"
 #include "platform/surface.h"
 
@@ -277,7 +278,7 @@ MediaDecoder::MediaDecoder() = default;
 
 MediaDecoder::~MediaDecoder() = default;
 
-bool MediaDecoder::Open(const std::string& path)
+bool MediaDecoder::Open(const std::u8string& path)
 {
     this->Close();
     auto state = std::make_unique<State>();
@@ -285,7 +286,7 @@ bool MediaDecoder::Open(const std::string& path)
 
     if (state->file == nullptr)
     {
-        this->error = "Error opening file: " + path;
+        this->error = "Error opening file: " + std::string(AsBytes(path));
         return false;
     }
 
@@ -303,7 +304,7 @@ bool MediaDecoder::Open(const std::string& path)
 
     if (avformat_open_input(&state->format, nullptr, av_find_input_format("bink"), nullptr) < 0)
     {
-        this->error = "Not a Bink file: " + path;
+        this->error = "Not a Bink file: " + std::string(AsBytes(path));
         return false;
     }
 

@@ -15,6 +15,7 @@
 #include "battle/battle_state.h"
 #include "battle/battle_unit.h"
 #include "config/config.h"
+#include "core/format.h"
 #include "crt/msvc.h"
 #include "draw/painter.h"
 #include "font/text_font.h"
@@ -622,7 +623,7 @@ TEST_CASE("battle unit: an enemy with nothing to use attacks")
 {
     using swd3::BattleUnit;
     Services all;
-    const std::string directory(kNoData);
+    const std::u8string directory = swd3::Utf8Bytes(kNoData);
     swd3::Database database(directory);
     swd3::ObjectRecord object;
     object.data.attack = kEnemyAttack;
@@ -654,7 +655,7 @@ TEST_CASE("battle unit: an enemy chooses its first skill")
 {
     using swd3::BattleUnit;
     Services all;
-    const std::string directory(kNoData);
+    const std::u8string directory = swd3::Utf8Bytes(kNoData);
     swd3::Database database(directory);
 
     for (swd3::u32 seed = 0; seed < kCatchRoll; ++seed)
@@ -1069,7 +1070,7 @@ TEST_CASE("battle unit: the names of an enemy's objects and skills")
     constexpr swd3::u16 kSecondSkill = 0x45;
     constexpr int kThird = 2;
     constexpr int kSecond = 1;
-    const std::string directory(kNoData);
+    const std::u8string directory = swd3::Utf8Bytes(kNoData);
     swd3::Database database(directory);
     swd3::ObjectRecord object;
     swd3::BattleUnit enemy;
@@ -1305,7 +1306,7 @@ TEST_CASE("battle role: a skill of the battle menu and its cost")
     constexpr swd3::u16 kFixedCost = 1000;
     constexpr swd3::u16 kNone = 0xFFFF;
     constexpr swd3::u16 kElementZeroIcon = 8;
-    const std::string directory(kNoData);
+    const std::u8string directory = swd3::Utf8Bytes(kNoData);
     swd3::Database database(directory);
     swd3::ItemNode head;
     head.next = std::make_unique<swd3::ItemNode>();
@@ -1355,7 +1356,7 @@ TEST_CASE("battle unit: refining an enemy into a talisman")
     constexpr swd3::u32 kRefineRoll = 100;
     constexpr swd3::u16 kSureChance = 90;
     Services all;
-    const std::string directory(kNoData);
+    const std::u8string directory = swd3::Utf8Bytes(kNoData);
     swd3::Database database(directory);
     swd3::ObjectRecord object;
     object.data.level = kEnemyLevel;
@@ -1406,7 +1407,7 @@ TEST_CASE("battle role: choosing a skill and paying for it")
     constexpr swd3::u16 kCostItem = 0x55;
     constexpr swd3::u16 kNoSkill = 0xFFFF;
     Services all;
-    const std::string directory(kNoData);
+    const std::u8string directory = swd3::Utf8Bytes(kNoData);
     swd3::Database database(directory);
     swd3::ItemNode head;
     head.next = std::make_unique<swd3::ItemNode>();
@@ -1471,7 +1472,7 @@ TEST_CASE("battle role: choosing an object in battle")
     constexpr swd3::u16 kUsable = 1;
     constexpr swd3::u16 kThrownChoice = 2;
     Services all;
-    const std::string directory(kNoData);
+    const std::u8string directory = swd3::Utf8Bytes(kNoData);
     swd3::Database database(directory);
     swd3::ItemLink head = std::make_unique<swd3::ItemNode>();
     swd3::ItemNode& herb = *head;

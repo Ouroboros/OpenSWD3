@@ -81,7 +81,7 @@ const std::string& SoundEffects::Error() const
 // swd32.exe 0x004859B0: all.snd and a 44.1 kHz 16-bit stereo output; while the output refuses, the waveOut path is
 // tried, then the rate halves (then 8 bits) down to 11 kHz; an emulated output is replaced by waveOut. Up to 16 sample
 // voices (the mixer channels minus 8).
-bool SoundEffects::Open(const std::string& directory)
+bool SoundEffects::Open(const std::u8string& directory)
 {
     if (this->IsOpen())
     {
@@ -437,9 +437,9 @@ bool SoundEffects::HasDriver() const
 
 // swd32.exe 0x004862B0: the 3000-entry index of <directory>all.snd (opened with OPEN_ALWAYS, so a missing file is
 // created empty)
-bool SoundEffects::LoadIndex(const std::string& directory)
+bool SoundEffects::LoadIndex(const std::u8string& directory)
 {
-    if (!this->file.Open(directory + "all.snd", File::Disposition::OpenAlways, File::Access::Read))
+    if (!this->file.Open(directory + u8"all.snd", File::Disposition::OpenAlways, File::Access::Read))
     {
         return false;
     }

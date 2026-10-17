@@ -2,6 +2,7 @@
 
 #include <SDL3/SDL.h>
 
+#include "core/format.h"
 #include "platform/file_system.h"
 
 namespace swd3
@@ -13,19 +14,19 @@ void OpenWebsite(const std::string& address)
     SDL_OpenURL(url.c_str());
 }
 
-void OpenTextFile(const std::string& path)
+void OpenTextFile(const std::u8string& path)
 {
-    std::string url = "file:///" + ResolvePath(path);
+    std::u8string url = u8"file:///" + ResolvePath(path);
 
-    for (char& character : url)
+    for (char8_t& character : url)
     {
-        if (character == '\\')
+        if (character == u8'\\')
         {
-            character = '/';
+            character = u8'/';
         }
     }
 
-    SDL_OpenURL(url.c_str());
+    SDL_OpenURL(std::string(AsBytes(url)).c_str());
 }
 
 }  // namespace swd3

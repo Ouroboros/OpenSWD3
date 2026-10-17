@@ -20,7 +20,7 @@ public:
     MediaDecoder(const MediaDecoder&) = delete;
     MediaDecoder& operator=(const MediaDecoder&) = delete;
 
-    bool Open(const std::string& path);
+    bool Open(const std::u8string& path);
     void Close();
     bool IsOpen() const;
     // Why the last Open failed (BinkGetError).

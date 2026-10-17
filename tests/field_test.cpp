@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "config/config.h"
+#include "core/format.h"
 #include "draw/painter.h"
 #include "game/databases.h"
 #include "game/game.h"
@@ -101,7 +102,7 @@ TEST_CASE("field: the first map of a new game from HUGE.lmf")
 
     CHECK(unit != MapsRecord::TableEnd);
     Fixture all;
-    all.config.installDirectory = MapDirectory();
+    all.config.installDirectory = swd3::Utf8Bytes(MapDirectory());
     u32 flags = 0;
     CHECK(all.field.LoadMap(unit, flags));
     CHECK_EQ(flags, 0u);
@@ -112,7 +113,7 @@ TEST_CASE("field: the first map of a new game from HUGE.lmf")
     CHECK_EQ(header.blocks.size(), static_cast<std::size_t>(header.width) * header.height);
     CHECK_EQ(header.tiles.size(), static_cast<std::size_t>(header.width) * header.height * header.layers);
     CHECK(header.pixels != nullptr);
-    CHECK(std::filesystem::exists(all.config.installDirectory + "data/mcache.dat"));
+    CHECK(std::filesystem::exists(std::filesystem::path(all.config.installDirectory + u8"data/mcache.dat")));
     CHECK_EQ(all.field.rows[0].size(), static_cast<std::size_t>(header.height) + 2 * swd3::Field::RowMargin);
 
     const int width = header.width;
