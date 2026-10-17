@@ -47,6 +47,12 @@ constexpr i32 kGuardOrder = 5;                               // the order of a r
 constexpr i32 kFirstPanelUnit = BattleState::FirstRoleUnit;  // the four party roles have the panels
 constexpr i32 kLastPanelUnit = BattleState::FirstRoleUnit + 3;
 constexpr u16 kNoPanelRole = 0xFFFF;
+constexpr i32 kMenuState = 1;          // the command menu
+constexpr i32 kMenuColumn = 4;         // commands per column
+constexpr i32 kMenuFixedCommands = 5;  // before the accessory commands
+constexpr i32 kListPages = 3;
+constexpr i32 kMenuStep = 5;
+constexpr i32 kMenuStepMost = 10;
 
 }  // namespace
 
@@ -1155,5 +1161,121 @@ void Game::SelectNextRole()
     }
 
     this->SelectRoleUnit(this->PreviousSelectableRole(unit == kLastPanelUnit ? kFirstPanelUnit : unit + 1));
+}
+
+// swd32.exe 0x00462510: the right key in the command menu (kBackSound): state 1 moves the command (unk4A7548,
+// 1-based) a column on within unk53BF22 + 5 entries, back when that one is not enabled; state 2 turns the page of the
+// list (unk53BD18, 0..2) to its top; state 4 goes to the next party role's list (unk4A7570, its kept mark and
+// scroll); state 0x1E raises unk4A755C by 5 up to 10.
+void Game::MenuRight()
+{
+    BattleState& battle = this->battleState;
+    battle.unk53BFBC = 0;
+
+    if (battle.result == kMenuState)
+    {
+        i32 command = battle.unk4A7548;
+
+        if (command + kMenuColumn <= battle.unk53BF22 + kMenuFixedCommands)
+        {
+            command += kMenuColumn;
+            battle.unk4A7548 = command;
+        }
+
+        if (battle.commandEnabled[static_cast<std::size_t>(command - 1)] == 0)
+        {
+            battle.unk4A7548 = command - kMenuColumn;
+        }
+
+        this->audio.PlaySound(kBackSound, this->config.soundVolume);
+    }
+
+    if (battle.result == kListState2)
+    {
+        if (++battle.unk53BD18 >= kListPages)
+        {
+            battle.unk53BD18 = 0;
+        }
+
+        battle.unk4A7558 = 1;
+        battle.unk53BD04 = 0;
+        this->audio.PlaySound(kBackSound, this->config.soundVolume);
+    }
+
+    if (battle.result == kListState4)
+    {
+        if (++battle.unk4A7570 >= static_cast<i32>(Party::Roles))
+        {
+            battle.unk4A7570 = 0;
+        }
+
+        const auto role = static_cast<std::size_t>(battle.unk4A7570);
+        battle.unk4A755C = battle.unk4FF578[role];
+        battle.unk53BD08 = battle.unk52544C[role];
+        this->audio.PlaySound(kBackSound, this->config.soundVolume);
+    }
+
+    if (battle.result == kWaitState1E)
+    {
+        battle.unk4A755C = std::min(battle.unk4A755C + kMenuStep, kMenuStepMost);
+        this->audio.PlaySound(kBackSound, this->config.soundVolume);
+    }
+}
+
+// swd32.exe 0x00462630: the left key in the command menu: state 1 moves the command a column back down to 1 (on again
+// when that one is not enabled); state 2 turns the page back (wrapping to 2, the scroll kept); state 4 goes to the
+// previous party role's list; state 0x1E lowers unk4A755C by 5 down to 1.
+void Game::MenuLeft()
+{
+    BattleState& battle = this->battleState;
+    battle.unk53BFBC = 0;
+
+    if (battle.result == kMenuState)
+    {
+        i32 command = battle.unk4A7548;
+
+        if (command - kMenuColumn >= 1)
+        {
+            command -= kMenuColumn;
+            battle.unk4A7548 = command;
+        }
+
+        if (battle.commandEnabled[static_cast<std::size_t>(command - 1)] == 0)
+        {
+            battle.unk4A7548 = command + kMenuColumn;
+        }
+
+        this->audio.PlaySound(kBackSound, this->config.soundVolume);
+    }
+
+    if (battle.result == kListState2)
+    {
+        if (--battle.unk53BD18 < 0)
+        {
+            battle.unk53BD18 = kListPages - 1;
+        }
+
+        battle.unk4A7558 = 1;
+        this->audio.PlaySound(kBackSound, this->config.soundVolume);
+    }
+
+    if (battle.result == kListState4)
+    {
+        if (--battle.unk4A7570 < 0)
+        {
+            battle.unk4A7570 = static_cast<i32>(Party::Roles) - 1;
+        }
+
+        const auto role = static_cast<std::size_t>(battle.unk4A7570);
+        battle.unk4A755C = battle.unk4FF578[role];
+        battle.unk53BD08 = battle.unk52544C[role];
+        this->audio.PlaySound(kBackSound, this->config.soundVolume);
+    }
+
+    if (battle.result == kWaitState1E)
+    {
+        battle.unk4A755C = std::max(battle.unk4A755C - kMenuStep, 1);
+        this->audio.PlaySound(kBackSound, this->config.soundVolume);
+    }
 }
 }  // namespace swd3

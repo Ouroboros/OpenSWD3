@@ -182,7 +182,7 @@ public:
     u16 unk4FE5D0 = 0;
     i32 unk4FF0B8 = 0;
     std::array<i32, 8> unk524268 = {};
-    i32 unk524414 = 0;
+    std::array<u8, 8> commandEnabled = {};  // 0x00524414 the five commands of the menu and the three accessory ones
     std::array<i32, Party::Roles> unk52544C = {};            // per party role: the scroll of its list (ScrollListBack)
     std::array<PendingOrder, RoleUnits> pendingOrders = {};  // 0x00520E90
     i32 unk53BF80 = 0;  // cleared when a party unit's order is taken (InsertSlotRecord)
@@ -201,7 +201,6 @@ public:
     i32 unk5244D8 = 0;
     i32 unk5244DC = 0;
     std::array<i32, 0x12> unk5242B0 = {};
-    i32 unk524418 = 0;
     std::array<i32, 0x12> unk502984 = {};
     std::array<i32, 0x12> unk524420 = {};
     std::array<i32, 0x12> unk53AE90 = {};
@@ -324,6 +323,8 @@ public:
     u16 unk53BDF4 = 0;       // the entries of the lists of states 4 and 0x1B
     i32 unk4A7564 = -1;      // the enemy the auto battle aims at (1-based), -1: none
     u16 unk4A7644 = 0xFFFF;  // a role unit that may take the panel in any battle state (SelectRoleUnit)
+    i32 unk4A7548 = 1;       // the command chosen in the menu (1-based)
+    i32 unk53BD18 = 0;       // the page of the list of state 2 (0..2)
     // The end of the battle (Game::CheckBattleEnd, Game::DrawBattlePrompt).
     i32 unk53C4A8 = 0;  // the fade of the field to black, 2 darker a frame
     i32 unk53BDC8 = 0;

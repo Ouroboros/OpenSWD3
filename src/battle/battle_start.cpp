@@ -17,6 +17,7 @@ namespace
 
 constexpr int kGuests = BattleState::Guests;
 constexpr int kMaxGuests = 2;
+constexpr std::size_t kCommandClearBytes = 4;  // the original clears commandEnabled as two dwords
 // swd32.exe 0x004A7600: the story flags of the guests who may join a battle, and 0x004A7610 their mon.dat objects:
 // 薇達, 麥爾斯, 慧彥, 張客, 慧榮, 夜行裝林明, 鎮邪 and 悟緣.
 constexpr std::array<u16, kGuests> kGuestFlags = {34, 35, 38, 44, 45, 46, 47, 49};
@@ -140,7 +141,7 @@ void Game::StartBattle(u16 number)
     battle.unk4FF0B8 = 0;
     this->battleMessages.messages.reset();
     battle.unk524268.fill(0);
-    battle.unk524414 = 0;
+    std::fill_n(battle.commandEnabled.begin(), kCommandClearBytes, u8{0});
     battle.unk52544C[0] = 0;
     battle.pendingOrders.fill(PendingOrder{});
     battle.unk4FF0BC.fill(0);
@@ -155,7 +156,7 @@ void Game::StartBattle(u16 number)
     battle.unk502950 = 0;
     battle.unk5244DC = 0;
     battle.unk5242B0.fill(0);
-    battle.unk524418 = 0;
+    std::fill_n(battle.commandEnabled.begin() + kCommandClearBytes, kCommandClearBytes, u8{0});
     battle.unk502984.fill(-1);
     battle.unk524420.fill(-1);
     battle.unk53AE90.fill(-1);
