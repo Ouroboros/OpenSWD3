@@ -2406,7 +2406,7 @@ void BattleUnit::Reset(BattleServices& services)
     this->command = UnitCommand{};
     this->unk295A = {};
     this->pushedTargets = {};
-    this->unkFCC = {};
+    this->trails = {};
     this->unk283C = {};
     this->ExpireEffects(services, 1);
 
@@ -2464,7 +2464,7 @@ void BattleUnit::Reset(BattleServices& services)
     this->unk2AB4 = 0;
     this->defeated = 0;
     this->outline = 0;
-    this->unk2AC4 = 0;
+    this->charging = 0;
     this->unk2AC8 = 0;
     this->unk267C = 0;
     this->held = 0;

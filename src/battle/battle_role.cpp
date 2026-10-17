@@ -148,6 +148,17 @@ constexpr i32 kRiseAct = 0x17FE;
 constexpr i32 kImpactAct = 0x1F88;
 constexpr int kSpeedingFlight = -1;  // FlyAct: the steps double each frame
 
+// ChargeAttackFrame.
+constexpr i32 kChargeAction = 0x28;  // past unk2A8A
+constexpr u16 kChargePicture = 2;    // the charge act is run on to its third picture
+constexpr int kChargeAlpha = 8;
+constexpr int kChargeBlue = 10;
+constexpr int kDashStep = 10;
+constexpr int kDashLength = 150;
+constexpr u16 kNoUnk2A8E = 0xFFFF;
+constexpr i32 kTrailBlueTint = 0xC;
+constexpr i8 kChargeTrailImages = 3;
+
 // CanAbsorb.
 constexpr u16 kMaxAbsorbClass = 0x15;   // ObjectData::unk52
 constexpr int kAbsorbLevelsAbove = 12;  // a target this many levels above the role is never absorbed
@@ -2172,6 +2183,355 @@ int BattleRole::BeamSpellFrame(BattleServices& services, BattleUnit& target)
     rise = ActState{};
     this->slotActs[0] = ActState{};
     this->slotActs[1] = ActState{};
+    return 1;
+}
+
+// swd32.exe 0x00473C10: one frame of the role's charge attack (magic act in slot act 8 + `slot`, drawn by DrawAction);
+// 1 once it is over (the acts, the trails and the targets cleared, the critical attack ended). When the magic act
+// follows up with bit 8 the role dashes: its picture slides translucent (blue under it) by 10 a frame until the dash
+// is a multiple of kDashLength, the charge act (kChargeAction past unk2A8A) holding, and a charge hit raises flag 26B8
+// of the target. Charging, the charge act runs on the target with a trail (trail 1) and its follow-up (the cast act or
+// effectA, slot act 1) mirrored twice; once the charge act waits the role slides back to 0. A strike of the magic act
+// strikes; a follow-up runs the cast act (slot act 0) on the target, drawn with the shadow's palette.
+int BattleRole::ChargeAttackFrame(BattleServices& services, BattleUnit& target, int slot)
+{
+    BattleState& battle = services.state;
+    Painter& painter = services.painter;
+
+    if (this->unk2A74 != 0 || this->unk2AD8 == 1)
+    {
+        return 0;
+    }
+
+    this->unk2AAC = 1;
+    ActState& magic = this->slotActs[BattleUnit::UnkSlot8 + static_cast<std::size_t>(slot)];
+    ActState& charge = this->attackAct;
+    magic.id = this->actId + BattleRole::MagicActs;
+    magic.action = this->unk2A8A;
+    this->DrawAction(services, target, magic);
+
+    auto slide = [this, &painter]
+    {
+        if (this->picture == nullptr)
+        {
+            return;
+        }
+
+        const int x = static_cast<i16>(this->actX) - this->fadeLevel;
+        const int y = static_cast<i16>(this->actY);
+        painter.Options().alpha = kChargeAlpha;
+        painter.DrawPicture(x, y, this->picture->width, this->picture->height, this->frameFlags | Painter::Translucent);
+        painter.Options().tintBlue = kChargeBlue;
+        painter.DrawPicture(x, y, this->picture->width, this->picture->height, this->frameFlags | Painter::TintUnder);
+    };
+
+    auto endDash = [this, &magic, &charge]
+    {
+        magic.target = 0;
+        this->glowLevel = 0;
+        this->unk2678 = 0;
+        this->unk2A8E = kNoUnk2A8E;
+        magic.hold = 0;
+        charge.hold = 0;
+    };
+
+    if ((magic.target & ActState::FollowsUp) != 0 && (magic.target & ActState::Dashes) != 0)
+    {
+        AfterimageTrail& dashTrail = this->trails[0];
+
+        if (dashTrail.started == 0)
+        {
+            dashTrail = AfterimageTrail{};
+            dashTrail.started = 1;
+
+            for (AfterimageTrail::Image& image : dashTrail.images)
+            {
+                image.picture = AfterimageTrail::NoPicture;
+            }
+
+            dashTrail.tintBlue = kTrailBlueTint;
+            this->fadeLevel = 0;
+        }
+
+        magic.hold = 1;
+        charge.id = this->actId + BattleRole::MagicActs;
+        charge.action = this->unk2A8A + kChargeAction;
+
+        while (charge.picture < kChargePicture)
+        {
+            if (services.acts.Run(charge) == 0)
+            {
+                return 0;
+            }
+        }
+
+        slide();
+        this->fadeLevel += this->facing == 0 ? kDashStep : -kDashStep;
+        charge.hold = 1;
+
+        if ((charge.target & ActState::Strikes) != 0)
+        {
+            target.RaiseFlag26B8();
+            charge.target = 0;
+        }
+
+        if (this->fadeLevel % kDashLength != 0)
+        {
+            return 0;
+        }
+
+        endDash();
+        this->charging = 1;
+    }
+
+    if (this->charging == 1)
+    {
+        if (charge.waiting != 0)
+        {
+            slide();
+            this->fadeLevel += this->facing == 0 ? -kDashStep : kDashStep;
+            charge.hold = 1;
+
+            if (this->fadeLevel == 0)
+            {
+                endDash();
+                this->fadeLevel = 0;
+                this->charging = 0;
+            }
+        }
+        else if (this->ChargeOnTarget(services, target) == 0)
+        {
+            return 0;
+        }
+    }
+
+    if ((magic.target & ActState::FollowsUp) != 0)
+    {
+        this->unk267C |= BattleUnit::FollowingUp;
+        magic.target = 0;
+    }
+
+    if ((magic.target & ActState::Strikes) != 0)
+    {
+        this->Strike(services, target, 0);
+        magic.target = 0;
+        this->unk267C |= BattleUnit::FollowingUp;
+        this->slotTint = 0;
+        battle.proficiencyBonus = 0;
+        this->slotActs[0] = ActState{};
+    }
+
+    if ((this->unk267C & BattleUnit::FollowingUp) == 0)
+    {
+        return 0;
+    }
+
+    ActState& follow = this->slotActs[0];
+    follow.action = 0;
+    follow.id = this->command.castAct;
+    this->AimAction(services, target, follow, static_cast<i16>(magic.anchorX), static_cast<i16>(magic.anchorY));
+
+    if ((follow.target & ActState::Strikes) != 0)
+    {
+        this->slotTint = 0;
+        follow.target = 0;
+        this->Strike(services, target, 0);
+    }
+
+    if (this->picture != nullptr)
+    {
+        painter.SetSource(this->picture->data.data());
+    }
+
+    if (follow.waiting == 1)
+    {
+        magic.effectA = 0;
+        charge.effectA = 0;
+
+        if (magic.waiting != 1 || this->charging != 0)
+        {
+            return 0;
+        }
+
+        magic = ActState{};
+        charge = ActState{};
+        this->recoilAct = ActState{};
+        follow = ActState{};
+        this->slotActs[1] = ActState{};
+        this->trails = {};
+        this->targets.fill(BattleUnit::NoTarget);
+        this->slotTint = 0;
+        this->unk2AB0 = 0;
+        this->unk267C = 0;
+        this->unk26D4 = 0;
+        battle.criticalAttack = 0;
+        ++battle.attacksSinceCritical;
+        this->charging = 0;
+        return 1;
+    }
+
+    if ((this->unk267C & BattleUnit::Recoiling) == 0 && this->picture != nullptr)
+    {
+        const DrawArgument argument =
+            this->shadowPicture != nullptr ? PaletteArgument(*this->shadowPicture) : DrawArgument{};
+        painter.DrawPicture(
+            static_cast<i16>(this->aimX),
+            static_cast<i16>(this->aimY),
+            this->picture->width,
+            this->picture->height,
+            this->unk26A4,
+            argument
+        );
+    }
+
+    return 0;
+}
+
+// The charge part of ChargeAttackFrame (inline in the original): the charge act on the target with trail 1, and its
+// follow-up mirrored twice beside it; 0 when an act ends the frame.
+int BattleRole::ChargeOnTarget(BattleServices& services, BattleUnit& target)
+{
+    Painter& painter = services.painter;
+    ActState& charge = this->attackAct;
+    charge.id = this->actId + BattleRole::MagicActs;
+    charge.action = this->unk2A8A + kChargeAction;
+
+    if (services.acts.Run(charge) == 0)
+    {
+        return 0;
+    }
+
+    this->picture = services.archive.GetPicture(charge.frame, charge.picture);
+    services.audio.PlaySound(charge.view, services.config.soundVolume);
+    charge.view = 0;
+    this->unk26A4 = charge.flags;
+    this->actOffsetX = static_cast<u16>(charge.x);
+    const u16 chargeAnchorX = charge.anchorX;
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->picture == nullptr)
+    {
+        return 0;
+    }
+
+    if (this->facing == 1)
+    {
+        this->unk26A4 ^= Painter::Mirror;
+        this->actOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(charge.x));
+    }
+
+    u16 targetX = 0;
+    u16 targetY = 0;
+    target.GetDrawPosition(targetX, targetY);
+    const auto dashX = static_cast<i16>(targetX - this->actOffsetX);
+    const auto dashY = static_cast<i16>(targetY - static_cast<u16>(charge.y));
+    AfterimageTrail& trail = this->trails[1];
+
+    if (trail.started == 0)
+    {
+        trail = AfterimageTrail{};
+        trail.started = 1;
+
+        for (AfterimageTrail::Image& image : trail.images)
+        {
+            image.picture = AfterimageTrail::NoPicture;
+        }
+
+        trail.tintBlue = kTrailBlueTint;
+    }
+
+    trail.direction = AfterimageTrail::InPlace;
+    trail.count = kChargeTrailImages;
+    trail.fadeStep = 1;
+    this->DrawTrail(services, trail, charge.frame, charge.picture, this->unk26A4, dashX, dashY);
+    this->picture = services.archive.GetPicture(charge.frame, charge.picture);
+
+    if (this->picture == nullptr)
+    {
+        return 0;
+    }
+
+    painter.SetSource(this->picture->data.data());
+    painter.DrawPicture(dashX, dashY, this->picture->width, this->picture->height, this->unk26A4);
+
+    if ((charge.target & ActState::FollowsUp) != 0)
+    {
+        this->unk267C |= BattleUnit::ChargeFollowing;
+        charge.target = 0;
+        this->slotActs[1] = ActState{};
+    }
+
+    if ((this->unk267C & BattleUnit::ChargeFollowing) == 0)
+    {
+        return 1;
+    }
+
+    ActState& follow = this->slotActs[1];
+    follow.action = 0;
+    follow.id = this->command.castAct;
+
+    if (charge.effectA != 0)
+    {
+        follow.id = charge.effectA;
+    }
+
+    if (follow.waiting != 0)
+    {
+        return 1;
+    }
+
+    if (services.acts.Run(follow) == 0)
+    {
+        return 0;
+    }
+
+    this->picture = services.archive.GetPicture(follow.frame, follow.picture);
+
+    if (this->picture == nullptr)
+    {
+        return 0;
+    }
+
+    u16 followAnchorX = follow.anchorX;
+    this->unk26A4 = follow.flags;
+    this->aimOffsetX = static_cast<u16>(follow.x);
+
+    if (this->facing == 1)
+    {
+        this->unk26A4 ^= Painter::Mirror;
+        this->aimOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(follow.x));
+    }
+
+    services.audio.PlaySound(follow.view, services.config.soundVolume);
+    services.audio.SetSoundPan(follow.view, this->facing == 1 ? kTargetPan : -kTargetPan);
+    follow.view = 0;
+    painter.SetSource(this->picture->data.data());
+    this->unk26A4 ^= Painter::Mirror;
+    this->aimOffsetX = static_cast<u16>(this->picture->width - this->aimOffsetX);
+
+    if (followAnchorX != 0)
+    {
+        followAnchorX = static_cast<u16>(this->picture->width - follow.anchorX);
+    }
+
+    i16 x = 0;
+    i16 y = 0;
+
+    if ((follow.anchorX != 0 || follow.anchorY != 0) && (charge.anchorX != 0 || charge.anchorY != 0))
+    {
+        x = static_cast<i16>(dashX - followAnchorX + chargeAnchorX);
+        y = static_cast<i16>(charge.anchorY - follow.anchorY + dashY);
+    }
+
+    painter.DrawPicture(x, y, this->picture->width, this->picture->height, this->unk26A4);
+
+    if ((follow.target & ActState::Strikes) != 0)
+    {
+        this->slotTint = 0;
+        follow.target = 0;
+        this->Strike(services, target, 0);
+    }
+
     return 1;
 }
 }  // namespace swd3

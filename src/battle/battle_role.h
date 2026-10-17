@@ -67,6 +67,8 @@ public:
     int CastAt(BattleServices& services, const BattleUnit& target, i32 spell);
     int MagicFrame(BattleServices& services, const BattleUnit& target);
     int BeamSpellFrame(BattleServices& services, BattleUnit& target);
+    int ChargeAttackFrame(BattleServices& services, BattleUnit& target, int slot);
+    int ChargeOnTarget(BattleServices& services, BattleUnit& target);
     void SetupGuest(const UnitPlacement& at, const RoleRecord& base, Database& database, ErrorReporter& reporter);
     void
     ApplyEquipment(std::span<const std::unique_ptr<ItemNode>> slots, CounterList& proficiency, ErrorReporter& reporter);

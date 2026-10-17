@@ -89,6 +89,7 @@ struct ActState
         Recoils = 0x2,       // the unit's recoil act plays the act's effectA (action effectQ)
         UnkTarget4 = 0x4,    // raises flag 26B8 of the target, then the bits are cleared
         FollowsUp = 0x8,     // the follow-up action starts
+        Dashes = 0x100,      // with FollowsUp: the role dashes (BattleRole::ChargeAttackFrame)
         Holds = 0x200,       // the act stays on its step while the unit recoils
         FadesField = 0x400,  // with FollowsUp: the field fades by the act's lights
         Quakes = 0x8000,     // starts the screen quake (0x0045E7D0 shakes while BattleState::quaking)

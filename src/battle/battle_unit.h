@@ -73,7 +73,7 @@ struct QueuedAction
     i32 data = 0;    // +0x9C
 };
 
-// The afterimages of a moving act (0x98 bytes; in a queued action at +0x134 and in a unit at +0x1064). DrawTrail
+// The afterimages of a moving act (0x98 bytes; in a queued action at +0x134 and eight in a unit at +0xFCC). DrawTrail
 // pushes the current picture in front every third frame and draws the images fading by fadeStep.
 struct AfterimageTrail
 {
@@ -263,8 +263,9 @@ public:
     // BattleUnit::unk267C bits: the stages of an attack (AttackFrame).
     enum Stage : u32
     {
-        Recoiling = 0x4000,    // the recoil act runs (DrawRecoil)
-        FollowingUp = 0x8000,  // the follow-up action runs in its slot act
+        ChargeFollowing = 0x800,  // the follow-up of a charge runs (ChargeAttackFrame)
+        Recoiling = 0x4000,       // the recoil act runs (DrawRecoil)
+        FollowingUp = 0x8000,     // the follow-up action runs in its slot act
     };
 
     // BattleUnit::unk2A86 bits.
@@ -294,6 +295,7 @@ public:
     static constexpr u16 StaminaGainTarget = 0x2366;
     static constexpr u16 ReviveBit = 0x8000;  // CureEffects: revives a defeated party role
 
+    static constexpr std::size_t Trails = 8;
     static constexpr int UnkSlot8 = 8;
     static constexpr int UnkSlot9 = 9;
     static constexpr u32 NoTarget = 0xFFFFFFFF;
@@ -495,23 +497,24 @@ public:
     LineWalker flight;                        // +0xDF4 the line of a flying act (FlyAct)
     ParticleEffect absorb;                    // +0xE14 a picture breaking up into the unit (StartAbsorb)
     std::vector<u16> absorbPixels;            // the raw pixels of absorb (decoded by 0x004019A0, freed by 0x004885A0)
-    std::array<ActState, 8> unkFCC;           // +0xFCC
-    std::unique_ptr<QueuedAction> actions;    // +0x236C
-    const Picture* shadowPicture = nullptr;   // +0x2548
-    const Picture* picture = nullptr;         // +0x254C the current picture
-    const Picture* unk2550 = nullptr;         // +0x2550
-    const Picture* unk2554 = nullptr;         // +0x2554
-    const Picture* absorbSource = nullptr;    // +0x255C the picture StartAbsorb breaks up
-    std::span<const char> displayName;        // +0x2560 the name shown in the messages (read up to its NUL when used)
-    EffectNode effects;                       // +0x2584 (the head is a node: +0x2588 its act, +0x2620 its bits)
-    std::array<char, 0x30> skillName = {};    // +0x2630 the name of the skill used
-    std::array<i32, 8> flightSteps = {};      // +0x2640 the steps per frame of FlyAct by its slot (callers use 0)
+    std::array<AfterimageTrail, Trails> trails;  // +0xFCC the afterimages of the unit's acts
+    std::unique_ptr<QueuedAction> actions;       // +0x236C
+    const Picture* shadowPicture = nullptr;      // +0x2548
+    const Picture* picture = nullptr;            // +0x254C the current picture
+    const Picture* unk2550 = nullptr;            // +0x2550
+    const Picture* unk2554 = nullptr;            // +0x2554
+    const Picture* absorbSource = nullptr;       // +0x255C the picture StartAbsorb breaks up
+    std::span<const char> displayName;      // +0x2560 the name shown in the messages (read up to its NUL when used)
+    EffectNode effects;                     // +0x2584 (the head is a node: +0x2588 its act, +0x2620 its bits)
+    std::array<char, 0x30> skillName = {};  // +0x2630 the name of the skill used
+    std::array<i32, 8> flightSteps = {};    // +0x2640 the steps per frame of FlyAct by its slot (callers use 0)
     i32 unk2660 = 0;
     i32 unk2664 = 0;
-    i32 fadeLevel = Opaque;  // +0x2668
+    i32 fadeLevel = Opaque;  // +0x2668 (also the dash offset of ChargeAttackFrame)
     i32 brightLevel = 1;     // +0x266C
     i32 unk2670 = 0;
     i32 unk2674 = 0;
+    i32 unk2678 = 0;
     u32 unk267C = 0;     // +0x267C BattleUnit::Stage bits
     i32 throwSteps = 0;  // +0x2680 the frames of the thrown act so far (ThrowAct)
     i32 unk2684 = 0;
@@ -532,6 +535,7 @@ public:
     u32 unk26CC = 0;
     u16 marks = 0;  // +0x26D0 (bit 1, 0x20, 0x40: held, 0x100, bit 13)
     i16 unk26D2 = 0;
+    u16 unk26D4 = 0;
     u16 nudge = 0;                                                            // +0x26D6
     u16 drawAtSaved = 0;                                                      // +0x26D8
     u16 unk26DC = 0;                                                          // +0x26DC
@@ -586,6 +590,7 @@ public:
     u16 unk2A86 = 0;        // +0x2A86 (high byte at +0x2A87)
     u16 unk2A8A = 0;
     u16 unk2A8C = 0;
+    u16 unk2A8E = 0;
     u16 barrierTurns = 0;  // +0x2A90
     u8 unk2A92 = 0;
     u8 unk2A93 = 0;
@@ -603,8 +608,8 @@ public:
     i32 unk2AB4 = 0;
     i32 defeated = 0;  // +0x2AB8
     i32 unk2ABC = 0;
-    i32 outline = 0;  // +0x2AC0
-    i32 unk2AC4 = 0;
+    i32 outline = 0;   // +0x2AC0
+    i32 charging = 0;  // +0x2AC4 1: ChargeAttackFrame is in its charge
     i32 unk2AC8 = 0;
     i32 unk2ACC = 0;
     i32 held = 0;  // +0x2AD0
