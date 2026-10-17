@@ -168,4 +168,79 @@ void BattleState::StartFieldFade(int red, int green, int blue, int toRed, int to
     fade.stepGreen = static_cast<float>(static_cast<double>(toGreen - static_cast<i32>(crt::Ftol(fade.green))) / count);
     fade.stepBlue = static_cast<float>(static_cast<double>(toBlue - static_cast<i32>(crt::Ftol(fade.blue))) / count);
 }
+
+// swd32.exe 0x0045EE70: `unit` put at place `at` among the records (the records from there to the first free one move
+// down a place). Kind 1 (a party unit) at -1 goes to the first free record, and takes its pending order (cleared, as
+// are unk53BF80 and unk53BFD0). The original counts from 0 when no record is free, puts a kind 1 unit placed past the
+// first free record at place 0, and moves the last record past the array when only it was free.
+void BattleState::InsertSlotRecord(int kind, i32 unit, int at)
+{
+    auto& records = this->unk524788;
+    int count = 0;
+
+    for (std::size_t place = 0; place < records.size(); ++place)
+    {
+        if (records[place].unit == -1)
+        {
+            count = static_cast<int>(place);
+            break;
+        }
+    }
+
+    auto shiftFrom = [&records, count](int first)
+    {
+        for (int place = count; place >= first; --place)
+        {
+            if (place + 1 < static_cast<int>(records.size()))
+            {
+                records[static_cast<std::size_t>(place + 1)] = records[static_cast<std::size_t>(place)];
+            }
+        }
+    };
+
+    if (kind != 1)
+    {
+        if (count >= at)
+        {
+            shiftFrom(at);
+        }
+
+        BattleSlotRecord& record = records[static_cast<std::size_t>(at)];
+        record.unit = unit;
+        record.kind = static_cast<u16>(kind);
+        return;
+    }
+
+    int place = 0;
+
+    if (at == -1)
+    {
+        place = count;
+    }
+    else if (count >= at)
+    {
+        place = at;
+        shiftFrom(at);
+    }
+
+    BattleSlotRecord& record = records[static_cast<std::size_t>(place)];
+    record.unit = unit;
+    record.kind = 1;
+
+    // A unit before the party units reads before the orders in the original.
+    if (unit < BattleState::FirstRoleUnit)
+    {
+        return;
+    }
+
+    PendingOrder& order = this->pendingOrders[static_cast<std::size_t>(unit - BattleState::FirstRoleUnit)];
+    record.unk14 = order.unk04;
+    record.unk0C = order.unk00;
+    record.unk18 = order.unk08;
+    record.unk0A = order.unk0C;
+    record.unk04 = order.unk10;
+    order = PendingOrder{};
+    this->unk53BF80 = 0;
+    this->unk53BFD0 = 0;
+}
 }  // namespace swd3

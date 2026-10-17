@@ -31,6 +31,17 @@ struct BattleSlotRecord
     i32 unk18 = 0;  // +0x18
 };
 
+// The order a party unit chose (0x14 bytes, ten at 0x00520E90), taken into its slot record by InsertSlotRecord.
+struct PendingOrder
+{
+    i32 unk00 = 0;  // +0x00 to the record's unk0C
+    i32 unk04 = 0;  // +0x04 to unk14
+    i32 unk08 = 0;  // +0x08 to unk18
+    u16 unk0C = 0;  // +0x0C to unk0A
+    u16 unk0E = 0;
+    i32 unk10 = 0;  // +0x10 to unk04
+};
+
 // The state of the battle and of the shop and item lists it shares with the menus.
 class BattleState
 {
@@ -83,6 +94,7 @@ public:
     void ListEnemyOrder();
     void AddSlotRecord(int kind, i32 unit);
     void RemoveSlotRecord(i32 unit);
+    void InsertSlotRecord(int kind, i32 unit, int at);
     void StartFieldFade(int red, int green, int blue, int toRed, int toGreen, int toBlue, int frames);
 
     i32 listBCount = 0;                              // 0x004FD3B0 entries of listB, at most 13
@@ -162,7 +174,9 @@ public:
     std::array<i32, 8> unk524268 = {};
     i32 unk524414 = 0;
     i32 unk52544C = 0;
-    std::array<i32, 0x32> unk520E90 = {};
+    std::array<PendingOrder, RoleUnits> pendingOrders = {};  // 0x00520E90
+    i32 unk53BF80 = 0;  // cleared when a party unit's order is taken (InsertSlotRecord)
+    i32 unk53BFD0 = 0;
     std::array<i32, 0x12> unk4FF0BC = {};
     i32 unk525450 = 0;
     i32 unk525454 = 0;
