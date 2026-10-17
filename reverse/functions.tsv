@@ -920,7 +920,7 @@ order	binary	address	name	module	source	status	verification_count	evidence	notes
 919	swd32.exe	0x00465480	sub_465480	battle	src/battle/battle_turn.cpp:Game::DrawListTabs	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	the list of battle state 2 at (x, y): its three page tabs (kTabEffect, frames 2..0 right to left) and the open page's tab over them (frame 4 + page), the panel act restarted (unk53BD90 10), a quarter-dark box with the panel frame below the tabs; unk53BD94 grows by 2 a call up to 7. [prior: none]
 920	swd32.exe	0x004655B0	sub_4655B0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 921	swd32.exe	0x004659C0	sub_4659C0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
-922	swd32.exe	0x00465E50	sub_465E50	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
+922	swd32.exe	0x00465E50	sub_465E50	battle	src/battle/battle_turn.cpp:Game::DrawThrowList	implemented_pending_review	0	reverse/analysis/ida/functions_raw.tsv	the 投擲 list of the current role at (x, y): a darkened box with a title frame (投擲) and a body frame, then up to 7 listed objects from entry `top` + 1 with their counts ("%2d"); unk53BDF4 counts them. Row `cursor` (from 1) is drawn again a pixel up and left under a gradient bar, and its entry becomes unk53BD14. [prior: none]
 923	swd32.exe	0x00466190	sub_466190	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 924	swd32.exe	0x00466500	sub_466500	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	
 925	swd32.exe	0x004667B0	sub_4667B0	unknown		pending_implementation	0	reverse/analysis/ida/functions_raw.tsv	

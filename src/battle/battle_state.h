@@ -328,6 +328,7 @@ public:
     i32 unk4A7570 = 2;       // a party role
     u8 unk53BDF2 = 0;        // the entries of the list of state 2
     u16 unk53BDF4 = 0;       // the entries of the lists of states 4 and 0x1B
+    i32 unk53BD14 = 0;       // the list entry under the cursor
     i32 unk4A7564 = -1;      // the enemy the auto battle aims at (1-based), -1: none
     u16 unk4A7644 = 0xFFFF;  // a role unit that may take the panel in any battle state (SelectRoleUnit)
     i32 unk4A7548 = 1;       // the command chosen in the menu (1-based)

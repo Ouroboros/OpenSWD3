@@ -1,4 +1,5 @@
 #include "core/fault.h"
+#include "core/format.h"
 #include "crt/msvc.h"
 #include "font/text_font.h"
 #include "game/game.h"
@@ -90,6 +91,26 @@ constexpr int kListFrameBottom = 0xB8;
 constexpr int kListFrameBorder = BattleMessage::Frame | 8;
 constexpr i32 kListGrowStep = 2;
 constexpr i32 kListGrowMost = 7;
+constexpr int kThrowBoxHeight = 0xBC;  // the 投擲 list
+constexpr int kThrowShade = -8;
+constexpr int kThrowTitleTop = 8;
+constexpr int kThrowTitleBottom = 0x18;
+constexpr int kThrowTitleX = 0x50;
+constexpr std::u8string_view kThrowTitle = u8"投擲";  // swd32.exe 0x004A76A0
+constexpr u16 kTitleColor = 0xFFC0;
+constexpr int kListAdvance = 0x10;
+constexpr int kThrowCategory = 4;
+constexpr int kListRowsShown = 7;
+constexpr int kListRowHeight = 0x14;
+constexpr int kListRowTop = 0x2C;
+constexpr int kListNameX = 0x10;
+constexpr int kListCountX = 0x90;
+constexpr std::string_view kCountFormat = "%2d";  // swd32.exe 0x004A79CC
+constexpr int kListBarTop = 0x28;
+constexpr int kListBarWidth = 0xC2;
+constexpr int kListBarHeight = 0x18;
+constexpr int kListBarRed = 0x1F;
+constexpr int kListBarGreen = 0x14;
 
 // The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
 // here.
@@ -1766,5 +1787,135 @@ void Game::DrawListTabs(int x, int y)
         kListFrameBorder
     );
     battle.unk53BD94 = std::min(battle.unk53BD94 + kListGrowStep, kListGrowMost);
+}
+
+// swd32.exe 0x00465E50: the 投擲 list of the current role at (x, y): a darkened box with a title frame (投擲) and a
+// body frame, then up to 7 listed objects from entry `top` + 1 with their counts ("%2d"); unk53BDF4 counts them. Row
+// `cursor` (from 1) is drawn again a pixel up and left under a gradient bar, and its entry becomes unk53BD14.
+void Game::DrawThrowList(int x, int y, int cursor, int top)
+{
+    BattleState& battle = this->battleState;
+    BattleMessages& messages = this->battleMessages;
+    TextFont& font = this->mediumFont;
+
+    if (battle.currentUnit == 0)
+    {
+        return;
+    }
+
+    BattleRole& role = this->battleRoles[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)];
+    messages.panelAct = ActState{};
+    messages.panelAct.id = BattleMessages::PanelAct;
+    messages.panelAct.action = 0;
+    this->acts.Run(messages.panelAct);
+    FillBox(this->painter, x, y, kListBoxWidth, kThrowBoxHeight, 0, kThrowShade, kThrowShade, FillMode::Tint);
+    DrawWindowFrame(
+        this->painter,
+        this->archive,
+        messages.panelAct.frame,
+        x + kListFrameInset,
+        y + kThrowTitleTop,
+        x + kListFrameRight,
+        y + kThrowTitleBottom,
+        0,
+        kListFrameBorder
+    );
+    DrawWindowFrame(
+        this->painter,
+        this->archive,
+        messages.panelAct.frame,
+        x + kListFrameInset,
+        y + kListFrameTop,
+        x + kListFrameRight,
+        y + kListFrameBottom,
+        0,
+        kListFrameBorder
+    );
+    font.DrawText(
+        this->drawSurface,
+        x + kThrowTitleX,
+        y + kThrowTitleTop,
+        kThrowTitle,
+        kTitleColor,
+        TextFont::BoldOutline
+    );
+    font.SetShadow(0);
+    font.SetBackground(TextFont::NoBackground);
+    font.SetAdvance(kListAdvance);
+    battle.unk53BDF4 = 0;
+    role.CountObjects(kThrowCategory, battle.unk53BDF4);
+    role.ShowAllItems();
+    int entry = top;
+    int row = 0;
+
+    while (true)
+    {
+        const int next = entry + 1;
+        std::string name;
+        u16 count = 0;
+
+        if (role.ListedObject(next, name, count) == 0)
+        {
+            break;
+        }
+
+        if (row >= kListRowsShown)
+        {
+            font.SetBackground(TextFont::NoBackground);
+            return;
+        }
+
+        const int rowY = y + kListRowHeight * row;
+        font.DrawText(
+            this->drawSurface,
+            x + kListNameX,
+            rowY + kListRowTop,
+            name,
+            battle.lightColor,
+            TextFont::BoldOutline
+        );
+        const std::string number = WinFormat(kCountFormat, {static_cast<i32>(static_cast<i16>(count))});
+        font.DrawText(
+            this->drawSurface,
+            x + kListCountX,
+            rowY + kListRowTop,
+            number,
+            battle.lightColor,
+            TextFont::BoldOutline
+        );
+
+        if (cursor == row + 1)
+        {
+            font.DrawText(
+                this->drawSurface,
+                x + kListNameX - 1,
+                rowY + kListRowTop - 1,
+                name,
+                battle.lightColor,
+                TextFont::BoldOutline
+            );
+            font.SetBackground(TextFont::NoBackground);
+            FillBox(
+                this->painter,
+                x,
+                rowY + kListBarTop,
+                kListBarWidth,
+                kListBarHeight,
+                kListBarRed,
+                kListBarGreen,
+                0,
+                FillMode::Gradient
+            );
+            battle.unk53BD14 = next;
+            battle.unk53BFB8 = 1;
+        }
+
+        font.SetBackground(TextFont::NoBackground);
+        entry = next;
+        ++row;
+    }
+
+    role.ShowAllItems();
+    font.SetBackground(TextFont::NoBackground);
 }
 }  // namespace swd3
