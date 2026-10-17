@@ -2,6 +2,7 @@
 
 #include <span>
 #include <string>
+#include <utility>
 
 #include "core/format.h"
 #include "draw/painter.h"
@@ -27,6 +28,15 @@ constexpr int kMenuSound = 0xBB;
 constexpr int kSlideMaximum = 0x320;
 constexpr int kTabGlowMaximum = 0x10;
 constexpr int kTabGlowMinimum = 6;
+
+// The modes of the role pages (Menu::mode) SetPage tells them by.
+constexpr std::pair<u16, u16> kItemsModes = {0x1E, 0x20};
+constexpr std::pair<u16, u16> kEquipmentModes = {0x24, 0x29};
+constexpr std::pair<u16, u16> kSkillsModes = {0x2A, 0x2E};
+constexpr std::pair<u16, u16> kStatusModes = {0x30, 0x34};
+constexpr std::pair<u16, u16> kOptionsModes = {0x36, 0x3A};  // the altar's while the pages are swapped
+constexpr std::pair<u16, u16> kAltarModes = {0x3C, 0x3E};    // the system tab's while the pages are swapped
+constexpr std::pair<u16, u16> kBestiaryModes = {0x42, 0x47};
 constexpr std::string_view kLevelFormat = "%2d";  // swd32.exe 0x004A6ABC
 constexpr std::string_view kRatioFormat = "%4d/%4d";
 
@@ -170,16 +180,15 @@ void Menu::Run()
             this->unk4FC82C = 0;
             this->frames = kOpeningFrame;
 
-            if ((state & Game::MenuOnItems) != 0)
+            if ((state & Game::MenuOnEquipment) != 0)
             {
                 this->unk4FC82C = 1;
                 this->frames = kItemsOpeningFrame;
-                this->Open(Menu::ItemsPageMode, Menu::ItemsCode);
+                this->Open(Menu::EquipmentMode, Menu::PageCode);
                 this->frames = kOpenedFrame;
-                this->Call(this->pageTable[this->page]);
+                this->Call(this->enterTable[this->page]);
                 this->beforeFrame = nullptr;
-                // The original installs the items page's frame (0x004407F0), restored with that page.
-                this->frame = &Menu::Nothing;
+                this->frame = &Menu::EquipFrame;
             }
             else
             {
@@ -309,7 +318,10 @@ void Menu::BuildTabs(int selected)
     }
 }
 
-// swd32.exe 0x0043B480: the handlers of page `menuCode`
+// swd32.exe 0x0043B480: the handlers of page `menuCode`: the system page; the main page (the page tables filled, its
+// titles' mouse run before every frame); a role page by the mode (items, equipment, skills, status, the system tab and
+// the altar exchanged while the pages are swapped, the bestiary). A slot a page does not set keeps the handler of the
+// page before it.
 void Menu::SetPage(int menuCode)
 {
     if (menuCode == Menu::SystemPage)
@@ -328,6 +340,143 @@ void Menu::SetPage(int menuCode)
         this->select = &Menu::SystemSelect;
         this->cancel = &Menu::SystemCancel;
         this->draw = &Menu::SystemDraw;
+        return;
+    }
+
+    if (menuCode == Menu::MainCode)
+    {
+        this->FillPageTables();
+        this->beforeFrame = &Menu::MainFrame;
+        this->frame = &Menu::Nothing;
+        this->down = &Menu::Nothing;
+        this->up = &Menu::Nothing;
+        this->left = &Menu::MainLeft;
+        this->right = &Menu::MainRight;
+        this->pageDown = &Menu::Nothing;
+        this->pageUp = &Menu::Nothing;
+        this->shift = &Menu::Nothing;
+        this->end = &Menu::Nothing;
+        this->select = &Menu::MainSelect;
+        this->cancel = &Menu::MainCancel;
+        this->draw = &Menu::MainDraw;
+        return;
+    }
+
+    if (menuCode != Menu::PageCode)
+    {
+        return;
+    }
+
+    const bool swapped = this->game.state.GameFlag(kSwappedPagesFlag);
+    const u16 mode = this->mode;
+
+    if (mode >= kItemsModes.first && mode <= kItemsModes.second)
+    {
+        this->frame = &Menu::ItemsFrame;
+        this->down = &Menu::ItemsDown;
+        this->up = &Menu::ItemsUp;
+        this->left = &Menu::ItemsLeft;
+        this->right = &Menu::ItemsRight;
+        this->pageDown = &Menu::ItemsPageDown;
+        this->pageUp = &Menu::ItemsPageUp;
+        this->shift = &Menu::ItemsShift;
+        this->end = &Menu::ItemsEnd;
+        this->select = &Menu::ItemsSelect;
+        this->cancel = &Menu::ItemsCancel;
+        this->draw = &Menu::ItemsDraw;
+    }
+    else if (mode >= kEquipmentModes.first && mode <= kEquipmentModes.second)
+    {
+        this->frame = &Menu::EquipFrame;
+        this->down = &Menu::EquipDown;
+        this->up = &Menu::EquipUp;
+        this->left = &Menu::EquipLeft;
+        this->right = &Menu::EquipRight;
+        this->pageDown = &Menu::EquipPageDown;
+        this->pageUp = &Menu::EquipPageUp;
+        this->shift = &Menu::EquipShift;
+        this->end = &Menu::Nothing;
+        this->select = &Menu::EquipSelect;
+        this->cancel = &Menu::EquipCancel;
+        this->draw = &Menu::EquipDraw;
+    }
+    else if (mode >= kSkillsModes.first && mode <= kSkillsModes.second)
+    {
+        this->frame = &Menu::SkillsFrame;
+        this->down = &Menu::SkillsDown;
+        this->up = &Menu::SkillsUp;
+        this->left = &Menu::SkillsLeft;
+        this->right = &Menu::SkillsRight;
+        this->pageDown = &Menu::SkillsPageDown;
+        this->pageUp = &Menu::SkillsPageUp;
+        this->shift = &Menu::SkillsShift;
+        this->end = &Menu::SkillsEnd;
+        this->select = &Menu::SkillsSelect;
+        this->cancel = &Menu::SkillsCancel;
+        this->draw = &Menu::SkillsDraw;
+    }
+    else if (mode >= kStatusModes.first && mode <= kStatusModes.second)
+    {
+        this->frame = &Menu::StatusFrame;
+        this->down = &Menu::StatusNext;
+        this->up = &Menu::StatusPrevious;
+        this->left = &Menu::StatusPrevious;
+        this->right = &Menu::StatusNext;
+        this->pageDown = &Menu::Nothing;
+        this->pageUp = &Menu::Nothing;
+        this->shift = &Menu::StatusNext;
+        this->select = &Menu::Nothing;
+        this->cancel = &Menu::StatusCancel;
+        this->draw = &Menu::StatusDraw;
+    }
+    else if (
+        (mode >= kOptionsModes.first && mode <= kOptionsModes.second && !swapped) ||
+        (mode >= kAltarModes.first && mode <= kAltarModes.second && swapped)
+    )
+    {
+        this->frame = &Menu::OptionsFrame;
+        this->down = &Menu::OptionsDown;
+        this->up = &Menu::OptionsUp;
+        this->left = &Menu::OptionsLeft;
+        this->right = &Menu::OptionsRight;
+        this->pageDown = &Menu::OptionsPageDown;
+        this->pageUp = &Menu::OptionsPageUp;
+        this->shift = &Menu::Nothing;
+        this->select = &Menu::OptionsSelect;
+        this->cancel = &Menu::OptionsCancel;
+        this->draw = &Menu::OptionsDraw;
+    }
+    else if (
+        (mode >= kOptionsModes.first && mode <= kOptionsModes.second) ||
+        (mode >= kAltarModes.first && mode <= kAltarModes.second)
+    )
+    {
+        this->frame = &Menu::AltarFrame;
+        this->down = &Menu::AltarDown;
+        this->up = &Menu::AltarUp;
+        this->left = &Menu::AltarLeft;
+        this->right = &Menu::AltarRight;
+        this->pageDown = &Menu::AltarPageDown;
+        this->pageUp = &Menu::AltarPageUp;
+        this->shift = &Menu::AltarShift;
+        this->select = &Menu::AltarSelect;
+        this->cancel = &Menu::AltarCancel;
+        this->end = &Menu::AltarEnd;
+        this->draw = &Menu::AltarDraw;
+    }
+    else if (mode >= kBestiaryModes.first && mode <= kBestiaryModes.second)
+    {
+        this->frame = &Menu::BestiaryFrame;
+        this->down = &Menu::BestiaryDown;
+        this->up = &Menu::BestiaryUp;
+        this->left = &Menu::BestiaryLeft;
+        this->right = &Menu::BestiaryRight;
+        this->pageDown = &Menu::BestiaryPageDown;
+        this->pageUp = &Menu::BestiaryPageUp;
+        this->shift = &Menu::BestiaryShift;
+        this->select = &Menu::Nothing;
+        this->cancel = &Menu::BestiaryCancel;
+        this->draw = &Menu::BestiaryDraw;
     }
 }
 
@@ -712,12 +861,13 @@ void Menu::DrawBox(int x, int y, int width, int height, int mode, int red, int g
     DrawWindowFrame(owner.painter, owner.archive, panel.frame, x, y, x + width, y + height, 0, kBoxBorder);
 }
 
-// swd32.exe 0x00439DE0: the animations of the menus at their first actions. The original first fills the handler
-// tables of the role pages (0x00444FC0), restored with those pages.
+// swd32.exe 0x00439DE0: the handler tables of the role pages filled and the animations of the menus at their first
+// actions
 void Menu::InitActs()
 {
     Game& owner = this->game;
     this->flags = 0;
+    this->FillPageTables();
     ActState& panel = owner.battleMessages.panelAct;
 
     for (ActState* state :

@@ -699,7 +699,7 @@ void Game::ShopConfirm()
 
             if ((shop.mode & kAnswerSkip) == 0 && (shop.mode & kEquipCancel) == 0)
             {
-                this->menuState = Game::MenuEntering | Game::MenuOnItems | Game::MainMenu;
+                this->menuState = Game::MenuEntering | Game::MenuOnEquipment | Game::MainMenu;
                 this->audio.PlaySound(kCountSound, this->config.soundVolume);
             }
 
@@ -1281,7 +1281,8 @@ void Game::ShopFrame()
     this->ShopMouse();
     this->ShopKeys();
 
-    if (this->menuState == Game::NoMenu || this->menuState == (Game::MenuEntering | Game::MenuOnItems | Game::MainMenu))
+    if (this->menuState == Game::NoMenu ||
+        this->menuState == (Game::MenuEntering | Game::MenuOnEquipment | Game::MainMenu))
     {
         return;
     }

@@ -264,16 +264,16 @@ public:
 
     // The role pages: `page` counts from FirstRolePage as the mode counts from FirstPageMode in PageModeStep steps.
     static constexpr u16 FirstRolePage = 0xB;
-    static constexpr u16 ItemsPage = 0xC;
+    static constexpr u16 EquipmentPage = 0xC;
     static constexpr u16 UnkPageF = 0xF;    // drawn without sliding while the pages are swapped (flag 0x49)
     static constexpr u16 UnkPage11 = 0x11;  // drawn without the title and the tabs
     static constexpr std::size_t Pages = 0x12;
     static constexpr int FirstPageMode = 0x1E;
     static constexpr int PageModeStep = 6;
-    static constexpr int ItemsPageMode = FirstPageMode + PageModeStep;
+    static constexpr int EquipmentMode = FirstPageMode + PageModeStep;
     // The codes the role pages are opened with.
-    static constexpr u16 MainCode = 1;  // the gold is shown and the title glows in
-    static constexpr u16 ItemsCode = 2;
+    static constexpr u16 MainCode = 1;          // the gold is shown and the title glows in
+    static constexpr u16 PageCode = 2;          // a role page open
     static constexpr u16 SubpageCodes = 0x1F4;  // codes from here slide the tabs out on the first page
     static constexpr u16 NoTab = 5;             // `unk4FBECC`: no tab raised
     static constexpr u16 NoRole = 0xFFFF;       // MenuTab::role
@@ -501,6 +501,16 @@ public:
     void ItemsReturn();
     bool ItemsCallFollower();
     void ItemsSave();
+
+    // The main page (the titles of the role pages) and the role page tables.
+    void ShowPageBackground(int page);
+    void FillPageTables();
+    void MainFrame();
+    void MainLeft();
+    void MainRight();
+    void MainSelect();
+    void MainCancel();
+    void MainDraw();
     void OptionsLeave();
     bool DrawNameEntry();
     void ActOnEntry();
@@ -523,20 +533,22 @@ public:
     void Nothing();
 
     // The handler slots.
-    Handler beforeFrame = nullptr;              // 0x004FB808 (none: not called)
-    Handler frame = &Menu::Nothing;             // 0x004FC64C
-    Handler down = &Menu::Nothing;              // 0x004FC828
-    Handler up = &Menu::Nothing;                // 0x004FC4E8
-    Handler pageDown = &Menu::Nothing;          // 0x004FBF78
-    Handler pageUp = &Menu::Nothing;            // 0x004FBA10
-    Handler left = &Menu::Nothing;              // 0x004FBAC0
-    Handler right = &Menu::Nothing;             // 0x004FC788
-    Handler cancel = &Menu::Nothing;            // 0x004FC838
-    Handler shift = &Menu::Nothing;             // 0x004FC83C
-    Handler end = &Menu::Nothing;               // 0x004FBF7C
-    Handler select = &Menu::Nothing;            // 0x004FC3C0
-    Handler draw = &Menu::Nothing;              // 0x004FBEC8
-    std::array<Handler, Pages> pageTable = {};  // 0x004FC8B0 the role pages (entries 0xB..0x11)
+    Handler beforeFrame = nullptr;               // 0x004FB808 (none: not called)
+    Handler frame = &Menu::Nothing;              // 0x004FC64C
+    Handler down = &Menu::Nothing;               // 0x004FC828
+    Handler up = &Menu::Nothing;                 // 0x004FC4E8
+    Handler pageDown = &Menu::Nothing;           // 0x004FBF78
+    Handler pageUp = &Menu::Nothing;             // 0x004FBA10
+    Handler left = &Menu::Nothing;               // 0x004FBAC0
+    Handler right = &Menu::Nothing;              // 0x004FC788
+    Handler cancel = &Menu::Nothing;             // 0x004FC838
+    Handler shift = &Menu::Nothing;              // 0x004FC83C
+    Handler end = &Menu::Nothing;                // 0x004FBF7C
+    Handler select = &Menu::Nothing;             // 0x004FC3C0
+    Handler draw = &Menu::Nothing;               // 0x004FBEC8
+    std::array<Handler, Pages> enterTable = {};  // 0x004FC8B0 the role pages opened (entries 0xB..0x11)
+    std::array<Handler, Pages> leaveTable = {};  // 0x004FB884 left
+    std::array<Handler, Pages> drawTable = {};   // 0x004FBF54 drawn
 
     u16 code = 0;                  // 0x004FC900 the code the menu was opened with
     u16 page = 0;                  // 0x004FC3C4 (low word) the page index

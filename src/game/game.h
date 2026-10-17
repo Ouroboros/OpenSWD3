@@ -82,13 +82,13 @@ public:
     {
         NoMenu = 0,
         MainMenu = 1,
-        ItemChoiceMenu = 2,          // the items listed by talk command ItemMenu
-        TitleScreenMenu = 3,         // the system page in mode 0
-        SystemMenuA = 4,             // the system page in mode 1 (talk command EndGame)
-        SystemMenuB = 5,             // the system page in mode 2
-        NameEntryMenu = 6,           // the system page in mode 3
-        MenuOnItems = 0x40000000,    // the main menu opens on its items page
-        MenuActsReset = 0x20000000,  // the shop resets its acts (ShopFrame)
+        ItemChoiceMenu = 2,            // the items listed by talk command ItemMenu
+        TitleScreenMenu = 3,           // the system page in mode 0
+        SystemMenuA = 4,               // the system page in mode 1 (talk command EndGame)
+        SystemMenuB = 5,               // the system page in mode 2
+        NameEntryMenu = 6,             // the system page in mode 3
+        MenuOnEquipment = 0x40000000,  // the main menu opens on its equipment page (the shop)
+        MenuActsReset = 0x20000000,    // the shop resets its acts (ShopFrame)
         MenuEntering = 0x80000000,
         MenuNumberMask = 0x0FFFFFFF,
         MenuEnteredMask = 0x3FFFFFFF,
