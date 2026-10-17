@@ -306,6 +306,9 @@ private:
     bool SweepFromRole(BattleRole& attacker, i16 target, u32 act);
     int EnemyHitFrame(int enemy);
     bool SweepFromEnemy(BattleEnemy& attacker, i16 target, u32 act);
+    int EnemyActionFrame(int enemy, int target);
+    int EnemyAttackAction(BattleEnemy& unit, int target);
+    int CallEnemies(BattleEnemy& unit);
     void DrawRolePanels();
     template <typename Next>
     void StepPanelGauge(i32& shown, i32& target, Next next, int picture, int x, int y, i32 downNear, i32 downFar);

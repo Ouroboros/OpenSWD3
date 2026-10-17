@@ -42,6 +42,30 @@ constexpr int kAllHitRightX = 0x1E0;
 constexpr int kAllHitY = 0xEB;
 constexpr u16 kAllHitNudge = 0x1000;
 constexpr u16 kWhitePixel = 0xFFFF;  // HitFrame: the frame flashed white on a defeat
+constexpr u16 kEnemyAttack = 1;      // EnemyActionFrame: the command A of the acting enemy
+constexpr u16 kEnemySpell = 2;
+constexpr u16 kEnemyDrain = 6;
+constexpr u16 kEnemyDefeatRole = 7;
+constexpr u16 kEnemyFadeOut = 0xA;
+constexpr u16 kEnemyFadeIn = 0xB;
+constexpr u16 kEnemyHide = 0xC;
+constexpr u16 kEnemyCall = 0xF;
+constexpr u16 kEnemyEscape = 0x11;
+constexpr u16 kEnemyDone = 100;
+constexpr u16 kEnemyWalk = 200;
+constexpr u16 kEnemyReturn = 300;
+constexpr int kRippleGrid = 0xC8;
+constexpr i16 kDrainDark = -12;
+constexpr i32 kDefeatedUnitShift = 4;
+constexpr i16 kFadedWord = 8;
+constexpr i32 kEndCheckState = 0x63;
+constexpr int kAfterAttackCommand = 0x12C;
+constexpr u16 kCallStarted = 0x8000;
+constexpr u16 kCallCount = 0x7FFF;
+constexpr u16 kCallFrames = 0x19;
+constexpr i16 kCallX = 0xF0;
+constexpr i16 kCallY = 0xDC;
+constexpr i16 kSecondCallY = 0x15E;
 
 }  // namespace
 
@@ -1971,5 +1995,333 @@ bool Game::SweepFromEnemy(BattleEnemy& attacker, i16 target, u32 act)
     }
 
     return false;
+}
+
+// swd32.exe 0x00455D60: one frame of the action of enemy `enemy` (its command A) on role `target` (or enemy `target`
+// while unk53AE80); 1 once the action is over. 1: the attack (the drain and the damage, a defeat flashing white; on a
+// role it goes on with command 0x12C and stays 0); 2: the spell (SpellCast set, the sweep reset, a ripple battle for
+// ActFlag13) until SpellOver; 6: the drain of a role out of battle; 7: the role's defeat, with unit `target` + 4
+// taken out of the slot records and the menu (kept); 0xA the fade out; 0xB and 0xC the fade in and out (0xC ends the
+// battle once every enemy left); 0xF calls unk53BF2A enemies of act unk53BF28 for 0x19 frames; 0x11 the escape
+// (the battle ends once every enemy left; a called enemy left alone takes the field again); 100 at once; 200 walks
+// to the role; 300 returns home.
+// swd32.exe 0x00498370 (EH unwind: the new ripple, freed by its unique_ptr)
+// swd32.exe 0x0049837B (EH handler of 0x00455D60)
+int Game::EnemyActionFrame(int enemy, int target)
+{
+    BattleState& battle = this->battleState;
+    BattleServices& services = this->battleServices;
+    BattleEnemy& unit = this->battleEnemies[static_cast<std::size_t>(enemy)];
+    const auto at = static_cast<std::size_t>(target);
+
+    switch (unit.GetCommandA())
+    {
+        case kEnemyAttack:
+            return this->EnemyAttackAction(unit, target);
+
+        case kEnemySpell:
+            if ((battle.spellStage & BattleState::SpellCast) == 0)
+            {
+                battle.spellStage = static_cast<u16>(battle.spellStage | BattleState::SpellCast);
+                battle.unk53BDEC = unit.GetWordDA6();
+                battle.unk524420.fill(-1);
+                battle.unk4A75FC = 1;
+                battle.unk5242B0.fill(0);
+
+                if (unit.ActFlag13() == 1)
+                {
+                    battle.unk53C03C = 1;
+                    this->battleRipple =
+                        std::make_unique<ScriptObject>(Display::Width, Display::Height, 0, 0, kRippleGrid, kRippleGrid);
+                }
+            }
+
+            if ((battle.spellStage & BattleState::SpellOver) == 0)
+            {
+                return 0;
+            }
+
+            this->ClearHitDamage();
+
+            if (battle.unk53C03C == 1)
+            {
+                this->battleRipple.reset();
+            }
+
+            battle.unk53C03C = 0;
+            battle.unk53BFEC = 1;
+            return 1;
+
+        case kEnemyDrain:
+        {
+            BattleRole& role = this->battleRoles[at];
+
+            if (battle.unk53BDE8 == 0)
+            {
+                unit.StartDrainEffect(services, target, role);
+                role.StartDefeat(1);
+                role.SetGuarding(1);
+                battle.RemoveSlotRecord(target + BattleState::FirstRoleUnit);
+                battle.darkRed = kDrainDark;
+                battle.darkGreen = kDrainDark;
+                battle.darkBlue = kDrainDark;
+                battle.unk53BF94 = 1;
+                this->PrepareDarkenedCopies();
+                battle.unk53BDE8 = 1;
+                battle.unk4A75FC = 1;
+            }
+
+            if (unit.DrainEffectFrame(services, target) != 1)
+            {
+                return 0;
+            }
+
+            battle.unk4A75FC = 1;
+            battle.unk53BDE8 = 0;
+            battle.unk53BF94 = 0;
+            battle.unk4A7630 = -1;
+            battle.unk53BFEC = 1;
+            return 1;
+        }
+
+        case kEnemyDefeatRole:
+        {
+            BattleRole& role = this->battleRoles[at];
+
+            if (role.DefeatFrame(services) != 1)
+            {
+                return 0;
+            }
+
+            role.SetCommand(0);
+            const i32 removed = target + kDefeatedUnitShift;
+            battle.RemoveSlotRecord(removed);
+
+            if (target >= 0 && target < static_cast<int>(Party::Roles))
+            {
+                ++battle.defeatedRoles;
+            }
+
+            if (battle.currentUnit == removed)
+            {
+                battle.currentUnit = 0;
+            }
+
+            if (battle.unk53AE70 == removed)
+            {
+                battle.unk53AE70 = -1;
+                battle.unk53BF74 = 0;
+            }
+
+            return 1;
+        }
+
+        case kEnemyFadeOut:
+            unit.FadeMainOut(services);
+            return 0;
+
+        case kEnemyFadeIn:
+            if (unit.DrawFadeIn(services, unit) != 1)
+            {
+                return 0;
+            }
+
+            unit.ClearStatus(BattleUnit::GuardingMark);
+            unit.SetGuarding(0);
+            unit.SetWord2A0A(kFadedWord);
+            battle.unk53BFE0 = 1;
+            return 1;
+
+        case kEnemyHide:
+            if (unit.DrawFadeOut(services) != 1)
+            {
+                return 0;
+            }
+
+            unit.SetGuarding(1);
+            unit.SetStatus(BattleUnit::GuardingMark);
+            unit.SetWord2A0A(kFadedWord);
+            battle.unk53BFE0 = 1;
+
+            if (battle.unk53BF00 >= battle.enemyCount)
+            {
+                battle.autoBattle = 0;
+                battle.result = kEndCheckState;
+            }
+
+            return 1;
+
+        case kEnemyCall:
+            return this->CallEnemies(unit);
+
+        case kEnemyEscape:
+            if (unit.RunAway(services) != 1)
+            {
+                return 0;
+            }
+
+            unit.SetGuarding(1);
+            unit.SetWord2A0A(kFadedWord);
+            unit.StartDefeat(1);
+            battle.unk53BFE0 = 1;
+            ++battle.unk53BF00;
+
+            if (battle.unk53BF00 >= battle.enemyCount)
+            {
+                battle.unk524788.fill(BattleSlotRecord{});
+                battle.unk53BFC0 = 1;
+                battle.autoBattle = 0;
+                battle.result = kEndCheckState;
+            }
+
+            if (battle.unk53BF28 != 0 && !this->battleEnemies[0].IsDefeated() &&
+                static_cast<i32>(battle.enemyCount) - battle.unk53BF00 == 1)
+            {
+                battle.enemyCount = 1;
+                battle.unk53BF00 = 0;
+                battle.unk53BF28 = 0;
+                battle.unk53C040 = 0;
+                this->MeasureUnits();
+                battle.SortDrawOrder();
+                battle.ListEnemyOrder();
+            }
+
+            return 1;
+
+        case kEnemyDone:
+            return 1;
+
+        case kEnemyWalk:
+            unit.WalkToTarget(services, this->battleRoles[at]);
+            return 0;
+
+        case kEnemyReturn:
+            if (unit.ReturnHome(services, this->battleRoles[at], -1, 0) == 1)
+            {
+                battle.unk4A7630 = -1;
+                return 1;
+            }
+
+            return 0;
+
+        default:
+            return 0;
+    }
+}
+
+// Command 1 of EnemyActionFrame (inline in the original); see there.
+int Game::EnemyAttackAction(BattleEnemy& unit, int target)
+{
+    BattleState& battle = this->battleState;
+    const auto at = static_cast<std::size_t>(target);
+
+    if (battle.unk53AE80 == 0)
+    {
+        BattleRole& role = this->battleRoles[at];
+
+        if (this->EnemyAttackFrame(unit, role) == 1)
+        {
+            battle.unk53BFA8 = 1;
+            battle.unk53BFC0 = 0;
+            battle.unk4A7620 = static_cast<u16>(target);
+            this->ApplyDrain(unit, role);
+
+            if (battle.unk53AF68 == 0 &&
+                role.Damage(this->battleServices, battle.hitDamage, battle.spiritDamage, battle.staminaDamage) == 1)
+            {
+                battle.unk4A7624 = static_cast<u16>(target);
+                battle.flashing = 1;
+                this->FlashFrameWhite();
+            }
+
+            this->ClearHitDamage();
+            battle.unk4A7630 = -1;
+            unit.SetCommand(kAfterAttackCommand);
+        }
+
+        return 0;
+    }
+
+    BattleEnemy& aimed = this->battleEnemies[at];
+
+    if (this->EnemyAttackFrame(unit, aimed) != 1)
+    {
+        return 0;
+    }
+
+    battle.unk53BFA8 = 1;
+    battle.unk4A7620 = static_cast<u16>(target);
+    battle.unk53BFC0 = 0;
+
+    if (battle.unk53AF68 == 0 && aimed.Damage(this->battleServices, battle.hitDamage, 0, 0) == 1)
+    {
+        battle.unk502984[at] = target;
+        battle.unk4A7624 = static_cast<u16>(target);
+        battle.flashing = 1;
+        this->FlashFrameWhite();
+    }
+
+    battle.hitDamage = 0;
+    battle.unk4A7630 = -1;
+    return 1;
+}
+
+// Command 0xF of EnemyActionFrame (inline in the original): the first frame (bit kCallStarted clear) places the
+// called enemies after the others (at kCallX, kCallY and kSecondCallY for the second, mirrored with the sides),
+// loads their act record and sets them up hidden by BattleUnit::UnkMark400; the call is over kCallFrames frames later.
+int Game::CallEnemies(BattleEnemy& unit)
+{
+    BattleState& battle = this->battleState;
+
+    if ((battle.unk53BDE8 & kCallStarted) == 0)
+    {
+        battle.unk53BDE8 = kCallStarted | kCallFrames;
+        unit.CommandValues(battle.unk53BF28, battle.unk53BF2A);
+
+        for (u16 called = 0; called < battle.unk53BF2A; ++called)
+        {
+            // The original sets up enemies past the last one with the field full.
+            if (battle.enemyCount >= this->battleEnemies.size())
+            {
+                break;
+            }
+
+            BattleEnemy& enemy = this->battleEnemies[battle.enemyCount];
+            enemy.Reset(this->battleServices);
+            battle.unk5246E0 = ObjectRecord{};
+            UnitPlacement& place = battle.enemyPlaces[battle.enemyCount];
+            place.actId = battle.unk53BF28;
+            place.x = kCallX;
+            place.y = called == 1 ? kSecondCallY : kCallY;
+            place.kind = 0;
+
+            if (battle.mirrored == 1)
+            {
+                enemy.SetFacing(1);
+                place.x = static_cast<i16>(Display::Width - place.x);
+            }
+
+            this->database.LoadObject(battle.unk5246E0, battle.unk53BF28);
+            this->database.FreeDescription(battle.unk5246E0);
+            enemy.Setup(place, battle.unk53BF28, this->database);
+            enemy.SetStatus(BattleUnit::UnkMark400);
+            ++battle.enemyCount;
+            this->MeasureUnits();
+            battle.SortDrawOrder();
+            battle.ListEnemyOrder();
+        }
+    }
+
+    --battle.unk53BDE8;
+
+    if ((battle.unk53BDE8 & kCallCount) != 0)
+    {
+        return 0;
+    }
+
+    battle.unk4A7630 = -1;
+    battle.unk53BDE8 = 0;
+    battle.unk53BF2A = 0;
+    return 1;
 }
 }  // namespace swd3

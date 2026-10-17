@@ -409,6 +409,7 @@ public:
     i32 unk53BD40 = 0;       // the hit act of the acting enemy
     i32 unk53BD7C = 0;       // the units an enemy's sweep hits
     i32 unk53BD84 = 0;       // the units an enemy's sweep defeated
+    i32 unk53BFE0 = 0;       // 1 once an enemy faded or left (Game::EnemyActionFrame)
     i32 unk4A7564 = -1;      // the enemy the auto battle aims at (1-based), -1: none
     u16 unk4A7644 = 0xFFFF;  // a role unit that may take the panel in any battle state (SelectRoleUnit)
     i32 unk4A7548 = 1;       // the command chosen in the menu (1-based)
