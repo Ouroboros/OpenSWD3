@@ -1,10 +1,12 @@
 #include <array>
+#include <vector>
 
 #include <SDL3/SDL_scancode.h>
 
 #include "config/config.h"
 #include "core/types.h"
 #include "game/game_state.h"
+#include "game_data.h"
 #include "input/controls.h"
 #include "input/input.h"
 #include "platform/input_device.h"
@@ -102,6 +104,19 @@ TEST_CASE("input: SDL scancodes map to DirectInput codes")
     CHECK_EQ(swd3::ScanCodeOf(SDL_SCANCODE_UP), Input::Up);
     CHECK_EQ(swd3::ScanCodeOf(SDL_SCANCODE_A), Input::A);
     CHECK_EQ(swd3::ScanCodeOf(kUnknownScancode), 0);
+}
+
+TEST_CASE("controls: the click sequence matches swd32.exe")
+{
+    constexpr swd3::u32 kClickSequenceAt = 0x0049940C;
+    const std::vector<swd3::u8> exe = swd3test::ReadGameFile("swd32.exe");
+
+    if (exe.empty())
+    {
+        return;
+    }
+
+    CHECK(swd3test::SameTable(exe, kClickSequenceAt, swd3::Controls::ClickSequence));
 }
 
 TEST_CASE("controls: clicks in a row and the 150 ms gap")

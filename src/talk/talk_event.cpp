@@ -1171,9 +1171,9 @@ bool Talk::RunRoleCommand(EventRun& run)
 
             Role& role = state.roles[run.found];
 
-            if (!role.label.empty())
+            if (role.label.has_value())
             {
-                role.label.clear();
+                role.label.reset();
                 role.labelColor = 0;
             }
 

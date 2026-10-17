@@ -124,11 +124,11 @@ TEST_CASE("game init: clearing the world")
 {
     swd3::GameState world;
     swd3::Role& role = world.roles[kRole];
-    role.label.assign(kLabelLength, 'a');
+    role.label.emplace(kLabelLength, 'a');
     role.x = kRoleX;
     world.map.blocks.assign(kBlocks, 1);
     world.ClearWorld();
-    CHECK(role.label.empty());
+    CHECK(!role.label.has_value());
     CHECK_EQ(role.x, 0);
     CHECK_EQ(world.roleCount, 0);
     CHECK_EQ(world.leader.id, swd3::Role::NoId);

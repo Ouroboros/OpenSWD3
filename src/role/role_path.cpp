@@ -110,7 +110,16 @@ void RolePath::Update()
                 continue;
             }
 
-            this->game.acts.Run(role.act);
+            if (this->game.acts.Run(role.act) == 0)
+            {
+                DebugLog(
+                    u8"Act Err(Path:NoPathCycle) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]",
+                    role.id,
+                    role.act.id,
+                    role.act.action,
+                    role.act.direction
+                );
+            }
 
             if (role.act.id != 0)
             {
@@ -151,7 +160,7 @@ bool RolePath::FindPath(int index, u16 tileX, u16 tileY)
         y > MapHeader::TileSize * static_cast<u32>(state.map.height))
     {
         DebugLog(
-            u8"path target outside",
+            u8"路徑系統(piSetpos) 路徑終點超出範圍 >> P(%d) RId(%d) Start(%d/%d) Dest(%d/%d)",
             slot,
             index,
             role.x >> MapHeader::TileShift,
@@ -186,7 +195,7 @@ bool RolePath::FindPath(int index, u16 tileX, u16 tileY)
     else
     {
         DebugLog(
-            u8"path not found",
+            u8"路徑系統(piSetpos) 路徑無法產生 >> P(%d) GUID(%d) Start(%d/%d) Dest(%d/%d)",
             slot,
             this->RoleId(static_cast<u32>(index)),
             role.x >> MapHeader::TileShift,
@@ -230,7 +239,13 @@ int RolePath::Step(int index)
 
     if (slot == RolePath::Moves)
     {
-        DebugLog(u8"no path", this->RoleId(static_cast<u32>(index)), role.act.id, role.act.action, role.unk1C);
+        DebugLog(
+            u8"路徑 路徑沒有設定 >> GUID(%d)",
+            this->RoleId(static_cast<u32>(index)),
+            role.act.id,
+            role.act.action,
+            role.unk1C
+        );
         return RolePath::PathEnded;
     }
 
@@ -413,7 +428,7 @@ void RolePath::Follow(int index)
 
     if (follower == static_cast<u32>(view.unk4BABA0) || follower >= view.followerMoves.size())
     {
-        DebugLog(u8"CompanyWalk", role.id);
+        DebugLog(u8"CompanyWalk 夥伴紀錄中找不到角色(%d)", role.id);
         return;
     }
 
@@ -593,6 +608,14 @@ void RolePath::RunScript(int index)
         at = this->JumpTo(index, offset);
     };
 
+    auto runAct = [&owner, &role](std::u8string_view error)
+    {
+        if (owner.acts.Run(role.act) == 0)
+        {
+            DebugLog(error, role.id, role.act.id, role.act.action, role.act.direction);
+        }
+    };
+
     for (;;)
     {
         const u16 code = word(at);
@@ -612,13 +635,13 @@ void RolePath::RunScript(int index)
             case PathCommand::SetAction:
                 role.act.action = operand(1);
                 role.unk18 += PathScript::CommandWords(1);
-                owner.acts.Run(role.act);
+                runAct(u8"Act Err(Path:ChangQQ) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]");
                 return;
 
             case PathCommand::SetDirection:
                 role.act.direction = operand(1);
                 role.unk18 += PathScript::CommandWords(1);
-                owner.acts.Run(role.act);
+                runAct(u8"Act Err(Path:chang_dir) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]");
                 return;
 
             case PathCommand::SetCount:
@@ -648,7 +671,7 @@ void RolePath::RunScript(int index)
                     ++role.unk18;
                 }
 
-                owner.acts.Run(role.act);
+                runAct(u8"Act Err(Path:Active) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]");
                 return;
 
             case PathCommand::FindPath:
@@ -678,7 +701,7 @@ void RolePath::RunScript(int index)
 
                 if ((role.flags & Role::StepsAct) != 0)
                 {
-                    owner.acts.Run(role.act);
+                    runAct(u8"Act Err(Path:WTime) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]");
                 }
 
                 if (passed)
@@ -778,13 +801,13 @@ void RolePath::RunScript(int index)
 
                 if (slot >= Party::Variables || slot >= variables.size())
                 {
-                    DebugLog(u8"path variable", slot, value);
+                    DebugLog(u8"變數不合法(%d)(%d)", slot, value);
                     return;
                 }
 
                 if (value > kVariableLimit)
                 {
-                    DebugLog(u8"path value", slot, value);
+                    DebugLog(u8"數值不合法(%d)(%d)", slot, value);
                 }
 
                 i32& variable = variables[slot];
@@ -828,7 +851,8 @@ void RolePath::RunScript(int index)
                     default:
                         length = PathScript::CommandWords(2, 1);
 
-                        if (command == PathCommand::JumpIfVariableAtLeast ? variable >= value : variable <= value)
+                        if (command == PathCommand::JumpIfVariableAtLeast ? static_cast<u32>(variable) >= value
+                                                                          : static_cast<u32>(variable) <= value)
                         {
                             jump(target(3));
                             length = 0;
@@ -972,7 +996,7 @@ void RolePath::RunScript(int index)
                     (static_cast<u32>(role.x) >> MapHeader::TileShift) +
                     static_cast<std::size_t>(state.map.width) * (static_cast<u32>(role.y) >> MapHeader::TileShift);
                 role.cell = cell < state.map.blocks.size() ? &state.map.blocks[cell] : nullptr;
-                owner.acts.Run(role.act);
+                runAct(u8"Act Err(Path:MoveRole) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]");
                 owner.field.MarkRoleCells(role, leaderId);
                 role.unk18 += PathScript::CommandWords(2);
                 owner.field.RemoveRole(role.id, static_cast<int>(role.flags & Role::LayerMask), 0, 0);
@@ -1004,7 +1028,7 @@ void RolePath::RunScript(int index)
                 }
 
                 role.unk18 += PathScript::CommandWords(3);
-                owner.acts.Run(role.act);
+                runAct(u8"Act Err(Path:TakeActdata) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]");
                 return;
 
             case PathCommand::PlaySound:
@@ -1019,7 +1043,7 @@ void RolePath::RunScript(int index)
 
                 if (!state.FindRoleOrPlayer(operand(1), target) || target >= GameState::Roles)
                 {
-                    DebugLog(u8"Path(Follow)", operand(1));
+                    DebugLog(u8"Path(Follow) 角色不在地圖上 GUID[%d]", operand(1));
                     role.unk18 += PathScript::CommandWords(1);
                     return;
                 }
@@ -1124,7 +1148,7 @@ void RolePath::RunScript(int index)
 
             case PathCommand::ShowLabel:
             {
-                role.label.clear();
+                role.label.reset();
                 role.labelColor = operand(1);
 
                 if (static_cast<u32>(role.labelColor) > kLabelColors)
@@ -1140,7 +1164,7 @@ void RolePath::RunScript(int index)
                 }
 
                 role.unk18 += static_cast<u16>((end - at + PathScript::WordBytes) / PathScript::WordBytes);
-                role.label.assign(
+                role.label.emplace(
                     data.begin() +
                         static_cast<std::ptrdiff_t>(at + PathScript::WordBytes * PathScript::CommandWords(1)),
                     data.begin() + static_cast<std::ptrdiff_t>(end)
@@ -1149,13 +1173,17 @@ void RolePath::RunScript(int index)
             }
 
             case PathCommand::ClearLabel:
-                role.label.clear();
-                role.labelColor = 0;
+                if (role.label.has_value())
+                {
+                    role.label.reset();
+                    role.labelColor = 0;
+                }
+
                 advance(PathScript::CommandWords(0));
                 continue;
 
             default:
-                DebugLog(u8"path command", this->RoleId(static_cast<u32>(index)), code);
+                DebugLog(u8"路徑系統 無效的指令", this->RoleId(static_cast<u32>(index)), code);
                 return;
         }
     }

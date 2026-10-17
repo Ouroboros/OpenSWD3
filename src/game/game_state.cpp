@@ -160,7 +160,7 @@ void GameState::ClearRoles()
 {
     for (int index = 0; index <= this->roleCount && index < GameState::Roles; ++index)
     {
-        this->roles[static_cast<std::size_t>(index)].label.clear();
+        this->roles[static_cast<std::size_t>(index)].label.reset();
     }
 
     for (Role& role : this->roles)

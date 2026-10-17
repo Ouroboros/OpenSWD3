@@ -35,7 +35,7 @@ void Role::FillUnused()
     ones(this->soundTimer);
     ones(this->labelColor);
 
-    this->label.clear();
+    this->label.reset();
     this->attached = nullptr;
     swd3::FillUnused(this->act);
 }

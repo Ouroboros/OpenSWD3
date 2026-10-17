@@ -722,15 +722,15 @@ int FieldView::DrawRole(Role& role)
         this->DrawBubbles(x, y, role.id);
     }
 
-    if (this->game.state.leader.id == Role::NoId && !role.label.empty())
+    if (this->game.state.leader.id == Role::NoId && role.label.has_value())
     {
-        const auto length = static_cast<int>(role.label.size());
+        const auto length = static_cast<int>(role.label->size());
         const auto color = static_cast<Pixel>(this->game.textColors.primary[static_cast<std::size_t>(role.labelColor)]);
         this->game.largeFont.DrawText(
             this->game.drawSurface,
             role.x - kLabelGlyphWidth * length / 2 - cameraLeft + kLabelShift,
             role.y - role.act.y - cameraTop,
-            role.label,
+            *role.label,
             color,
             kLabelStyle
         );
