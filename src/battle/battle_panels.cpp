@@ -13,9 +13,8 @@ namespace
 {
 
 // The columns of the four role panels by party role: the gauges, the portrait and the name.
-constexpr std::array<int, Party::Roles> kGaugeX = {0x188, 0xF6, 0x64, 0x21A};     // swd32.exe 0x004A7598
-constexpr std::array<int, Party::Roles> kPortraitX = {0x14A, 0xB8, 0x26, 0x1DC};  // swd32.exe 0x004A75A8
-constexpr std::array<int, Party::Roles> kNameX = {0x17E, 0xEC, 0x5A, 0x210};      // swd32.exe 0x004A75B8
+constexpr std::array<int, Party::Roles> kGaugeX = {0x188, 0xF6, 0x64, 0x21A};  // swd32.exe 0x004A7598
+constexpr std::array<int, Party::Roles> kNameX = {0x17E, 0xEC, 0x5A, 0x210};   // swd32.exe 0x004A75B8
 
 // The list of units with unk2B00 set, top right (top left with the sides swapped).
 constexpr int kListX = 0x1C2;
@@ -255,7 +254,7 @@ void Game::DrawRolePanels()
 
         const auto partyRole = static_cast<std::size_t>(battle.partyRoles[slot]);
         const int gaugeX = kGaugeX[partyRole];
-        const int portraitX = kPortraitX[partyRole];
+        const int portraitX = BattleState::PortraitX[partyRole];
         const bool current = battle.currentUnit - BattleState::FirstRoleUnit == index;
 
         if (current)
@@ -263,7 +262,7 @@ void Game::DrawRolePanels()
             const int level = battle.panelGlow & kGlowMask;
             FillBox(
                 this->painter,
-                kPortraitX[static_cast<std::size_t>(battle.partyRoles[static_cast<std::size_t>(index)])] -
+                BattleState::PortraitX[static_cast<std::size_t>(battle.partyRoles[static_cast<std::size_t>(index)])] -
                     kHighlightLeft,
                 kHighlightTop,
                 kHighlightWidth,

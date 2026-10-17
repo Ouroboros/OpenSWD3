@@ -1,5 +1,7 @@
 #include "battle/battle_state.h"
 
+#include "core/words.h"
+
 #include <algorithm>
 
 #include "crt/msvc.h"
@@ -10,6 +12,7 @@ namespace swd3
 namespace
 {
 
+constexpr std::size_t kAfterKindsWord = 4;  // MenuKindWord: the menu command whose word follows commandKinds
 constexpr int kSecondKind = 2;
 constexpr u16 kAllOnes16 = 0xFFFF;  // a free record has every byte 0xFF
 
@@ -456,5 +459,25 @@ void BattleState::ClearActing()
     this->unk53AE80 = 0;
     this->unk53AE84 = 0;
     this->unk53AE88 = 0;
+}
+
+// The word at 0x004FE5CA + 2 * `index` that 0x0045FC60 reads as the accessory kind of menu command `index` (4..7):
+// the words after commandKinds (the word after it and the halves of unk4FE5D4), not the kinds of the commands.
+u16 BattleState::MenuKindWord(std::size_t index) const
+{
+    switch (index)
+    {
+        case kAfterKindsWord:
+            return this->unk4FE5D2;
+
+        case kAfterKindsWord + 1:
+            return LowWord(static_cast<u32>(this->unk4FE5D4[0]));
+
+        case kAfterKindsWord + 2:
+            return HighWord(static_cast<u32>(this->unk4FE5D4[0]));
+
+        default:
+            return LowWord(static_cast<u32>(this->unk4FE5D4[1]));
+    }
 }
 }  // namespace swd3

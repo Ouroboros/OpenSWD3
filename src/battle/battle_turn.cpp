@@ -5,6 +5,7 @@
 #include "game/game.h"
 #include "item/item_list.h"
 #include "org/fame.h"
+#include "pic/picture_ops.h"
 #include "platform/display.h"
 #include "platform/system_info.h"
 #include "text/big5.h"
@@ -333,6 +334,61 @@ constexpr std::string_view kLevelUpDebugLine = "w"
                                                "Ll:%d iMn:%d";  // swd32.exe 0x004A7854 (one string)
 constexpr std::string_view kBfDebugLine = "bf:%d";
 constexpr std::string_view kFrameDebugLine = "FRAME:%d";
+constexpr int kPanelsTop = 0x182;  // the pointer over the battle
+constexpr int kPanelLeftMargin = 0x18;
+constexpr int kPanelWidth = 0x74;
+constexpr int kMenuHitLeft = 0xA;
+constexpr int kMenuHitRight = 0x76;
+constexpr int kMenuHitTop = 0x28;
+constexpr int kMenuHitBottom = 0x88;
+constexpr int kMenuHitColumn = 0x36;
+constexpr int kTabsHitTop = 0x82;
+constexpr int kTabsHitBottom = 0xA0;
+constexpr int kTabsHitFirst = 0x10A;
+constexpr int kSpellTabsEnd = 0x188;
+constexpr int kItemTabsEnd = 0x1B2;
+constexpr int kListHitLeft = 0xE0;
+constexpr int kSpellListRight = 0x180;
+constexpr int kItemListRight = 0x19C;
+constexpr int kThrowListRight = 0x194;
+constexpr int kListHitFirst = 0xBE;
+constexpr int kListHitEnd = 0x14A;
+constexpr int kScrollUpTop = 0x9E;
+constexpr int kScrollUpBottom = 0xAE;
+constexpr int kSpellScrollLeft = 0x192;
+constexpr int kSpellScrollRight = 0x1A4;
+constexpr int kSpellScrollDownTop = 0x12A;
+constexpr int kSpellScrollDownBottom = 0x13A;
+constexpr int kItemScrollLeft = 0x19E;
+constexpr int kItemScrollRight = 0x1B0;
+constexpr int kItemScrollDownTop = 0x12E;
+constexpr int kItemScrollDownBottom = 0x13E;
+constexpr int kThrowScrollDownBottom = 0x140;
+constexpr i32 kScrollUp = 1;  // BattleState::unk53BDA0: the scroll part under the pointer
+constexpr i32 kScrollDown = 2;
+constexpr i32 kScrollAbove = 3;
+constexpr i32 kScrollBelow = 4;
+constexpr int kEscortHitLeft = 0xC4;
+constexpr int kEscortHitRight = 0x178;
+constexpr int kEscortHitFirst = 0xEC;
+constexpr int kEscortHitEnd = 0x118;
+constexpr int kSpecialHitRight = 0x199;
+constexpr int kSpecialHitFirst = 0xBA;
+constexpr int kSpecialHitEnd = 0x162;
+constexpr int kRefineHitLeft = 0xEA;
+constexpr int kRefineHitFirst = 0x15A;
+constexpr int kRefineHitEnd = 0x23A;
+constexpr int kRefineRowFirst = 0xBA;
+constexpr int kRefineRowEnd = 0x11E;
+constexpr int kHitSquare = 8;
+constexpr int kEnemyHitStep = 2;
+constexpr i32 kRefineMenuCommand = 6;
+constexpr int kPortraitHitTop = 0x16A;
+constexpr int kPortraitHitBottom = 0x1B6;
+constexpr int kPortraitHitWidth = 0x7C;
+constexpr int kNoPicture = -1;
+constexpr int kPictureMissed = 0;
+constexpr int kPictureHit = 1;
 
 // The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
 // here.
@@ -4435,5 +4491,659 @@ void Game::DrawBattleDebug()
 
     font.SetShadow(0);
     font.SetBackground(TextFont::NoBackground);
+}
+
+// swd32.exe 0x0045FC60: the pointer over the battle (only when it moved, or while unk53BFBC): the click regions of
+// a talk choose Talk::choice; then by battle state: 0 and 1 (outside the menu) find the party panel under it
+// (unk4A7644); 1 picks the menu command under it (an accessory command checked with the kind words after
+// commandKinds, as in the original); 2, 4 and 0x1B pick a page tab and a list row, or the scroll arrows, track and
+// thumb (unk53BDA0 1..4); 3 aims at the unit whose picture is under it (or the party portrait); 5, 8 and 0x1E pick a
+// row or a cell. 1 when something is under the pointer.
+int Game::MouseHover()
+{
+    BattleState& battle = this->battleState;
+    const int x = this->state.pointerX;
+    const int y = this->state.pointerY;
+
+    if (battle.pointerX == x && battle.pointerY == y)
+    {
+        if (battle.unk53BFBC == 0)
+        {
+            return 0;
+        }
+    }
+    else
+    {
+        battle.unk53BFBC = 1;
+        battle.unk53BDA8 = 0;
+    }
+
+    battle.pointerX = x;
+    battle.pointerY = y;
+
+    if (!this->state.clickRegions.regions.empty())
+    {
+        const int index = this->state.clickRegions.Find(x, y, battle.unk5244CC);
+
+        if (battle.unk5244CC != nullptr)
+        {
+            this->talk.choice = index;
+        }
+    }
+
+    auto inside = [](int value, int low, int high)
+    {
+        return value > low && value < high;
+    };
+
+    // The step of a hit test over bands (inline in the original): the band of `value` among `bands` bands of `size`
+    // ending at `first`, `first` + `size`, ...; -1 outside them.
+    auto band = [&inside](int value, int first, int size, int end)
+    {
+        int found = 0;
+
+        for (int edge = first; edge < end; edge += size)
+        {
+            if (inside(value, edge - size, edge))
+            {
+                return found;
+            }
+
+            ++found;
+        }
+
+        return -1;
+    };
+
+    auto panelUnder = [&battle, x, y, &inside](bool lastWins)
+    {
+        if (!inside(y, kPanelsTop, Display::Height))
+        {
+            return false;
+        }
+
+        bool found = false;
+
+        for (u32 index = 0; index < battle.roleCount; ++index)
+        {
+            const int left = BattleState::PortraitX[static_cast<std::size_t>(battle.partyRoles[index])];
+
+            if (inside(x, left - kPanelLeftMargin, left + kPanelWidth))
+            {
+                battle.unk4A7644 = static_cast<u16>(index + BattleState::FirstRoleUnit);
+                found = true;
+
+                if (!lastWins)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return found;
+    };
+
+    auto scrollParts = [this, &battle, x, y, &inside](int left, int right, int downTop, int downBottom)
+    {
+        const BattleHud& hud = this->battleHud;
+
+        if (!inside(x, left, right))
+        {
+            battle.unk53BDA0 = 0;
+            battle.unk53BD9C = 0;
+            battle.unk53BFB8 = 0;
+            return 0;
+        }
+
+        int part = 0;
+
+        if (inside(y, kScrollUpTop, kScrollUpBottom))
+        {
+            part = kScrollUp;
+        }
+        else if (inside(y, downTop, downBottom))
+        {
+            part = kScrollDown;
+        }
+        else if (inside(y, hud.scrollTrackTop, hud.scrollThumbTop))
+        {
+            part = kScrollAbove;
+        }
+        else if (x < right && inside(y, hud.scrollThumbBottom, hud.scrollTrackBottom))
+        {
+            part = kScrollBelow;
+        }
+
+        if (part == 0)
+        {
+            battle.unk53BDA0 = 0;
+            battle.unk53BD9C = 0;
+            battle.unk53BFB8 = 0;
+            return 0;
+        }
+
+        battle.unk53BFB8 = 1;
+        battle.unk53BDA0 = part;
+        return 1;
+    };
+
+    auto pickRow = [this, &battle](i32& cursor, int row)
+    {
+        if (cursor != row + 1)
+        {
+            this->audio.PlaySound(kBackSound, this->config.soundVolume);
+        }
+
+        cursor = row + 1;
+        battle.unk53BDA0 = 0;
+        battle.unk53BFB8 = 1;
+        battle.unk53BFBC = 1;
+        return 1;
+    };
+
+    auto leaveList = [this, &battle]
+    {
+        battle.unk53BFB8 = 0;
+
+        if (this->controls.buttons[static_cast<std::size_t>(Button::MouseLeft)].heldFrames >= 1)
+        {
+            return false;
+        }
+
+        battle.unk53BD9C = 0;
+        battle.unk53BD6C = 0;
+        battle.unk53BD70 = 0;
+        battle.unk53BFF8 = 0;
+        return battle.unk53BDF4 > kListRowsShown;
+    };
+
+    switch (battle.result)
+    {
+        case 0:
+            if (battle.unk53BF00 >= static_cast<i32>(battle.enemyCount))
+            {
+                return 0;
+            }
+
+            if (panelUnder(false))
+            {
+                return 1;
+            }
+
+            battle.unk4A7644 = kNoPanelRole;
+            return 0;
+
+        case kMenuState:
+        {
+            if (battle.currentUnit == 0)
+            {
+                return 0;
+            }
+
+            const int left = battle.unk53BD24;
+            const int top = battle.unk53BD28;
+
+            if (inside(x, left + kMenuHitLeft, left + kMenuHitRight) &&
+                inside(y, top + kMenuHitTop, top + kMenuHitBottom))
+            {
+                const int index = (y - top - kMenuHitTop) / kMenuRowHeight +
+                                  kMenuColumn * ((x - left - kMenuHitLeft) / kMenuHitColumn);
+
+                if (index < battle.unk53BF22 + kMenuFixedCommands)
+                {
+                    BattleRole& role =
+                        this->battleRoles[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)];
+
+                    if (battle.commandEnabled[static_cast<std::size_t>(index)] == 0 ||
+                        (index >= kMenuColumn &&
+                         (role.CanUseAccessory(battle.MenuKindWord(static_cast<std::size_t>(index))) == 0 ||
+                          battle.commandEnabled[static_cast<std::size_t>(index)] == 0)))
+                    {
+                        return 0;
+                    }
+
+                    if (battle.unk4A7548 != index + 1)
+                    {
+                        this->audio.PlaySound(kBackSound, this->config.soundVolume);
+                    }
+
+                    battle.unk4A7548 = std::min(index + 1, battle.unk53BF22 + kMenuFixedCommands);
+                    battle.unk53BFBC = 1;
+                    battle.unk53BFB8 = 1;
+                    return 1;
+                }
+            }
+
+            battle.unk53BFB8 = 0;
+            battle.unk4A7644 = kNoPanelRole;
+            panelUnder(true);
+            return 0;
+        }
+
+        case kListState2:
+        {
+            battle.unk4A7578 = -1;
+
+            if (inside(y, kTabsHitTop, kTabsHitBottom))
+            {
+                const int tab = band(x, kTabsHitFirst, kTabWidth, kSpellTabsEnd);
+
+                if (tab >= 0)
+                {
+                    battle.unk4A7578 = tab;
+                    battle.unk53BFBC = 1;
+                }
+            }
+
+            if (inside(x, kListHitLeft, kSpellListRight))
+            {
+                const int row = band(y, kListHitFirst, kListRowHeight, kListHitEnd);
+
+                if (row >= 0 && battle.unk53BD04 + row + 1 <= battle.unk53BDF2)
+                {
+                    return pickRow(battle.unk4A7558, row);
+                }
+            }
+
+            return scrollParts(kSpellScrollLeft, kSpellScrollRight, kSpellScrollDownTop, kSpellScrollDownBottom);
+        }
+
+        case kTargetState:
+            return this->HoverTarget();
+
+        case kListState4:
+        {
+            battle.unk4A757C = -1;
+
+            if (inside(y, kTabsHitTop, kTabsHitBottom))
+            {
+                const int tab = band(x, kTabsHitFirst, kTabWidth, kItemTabsEnd);
+
+                if (tab >= 0)
+                {
+                    if (battle.unk4A7570 != tab)
+                    {
+                        battle.unk4A757C = tab;
+                    }
+
+                    battle.unk53BFBC = 1;
+                }
+            }
+
+            if (inside(x, kListHitLeft, kItemListRight))
+            {
+                const int row = band(y, kListHitFirst, kListRowHeight, kListHitEnd);
+
+                if (row >= 0 && battle.unk53BD08 + row + 1 <= battle.unk53BDF4)
+                {
+                    return pickRow(battle.unk4A755C, row);
+                }
+            }
+
+            if (!leaveList())
+            {
+                return 0;
+            }
+
+            return scrollParts(kItemScrollLeft, kItemScrollRight, kItemScrollDownTop, kItemScrollDownBottom);
+        }
+
+        case kWaitState5:
+        {
+            if (!inside(x, kEscortHitLeft, kEscortHitRight))
+            {
+                battle.unk53BFB8 = 0;
+                return 0;
+            }
+
+            const int row = band(y, kEscortHitFirst, kSpecialRowHeight, kEscortHitEnd);
+
+            if (row < 0)
+            {
+                battle.unk53BFB8 = 0;
+                return 0;
+            }
+
+            if (battle.unk53BCF8 != row + 1)
+            {
+                this->audio.PlaySound(kBackSound, this->config.soundVolume);
+            }
+
+            battle.unk53BCF8 = row + 1;
+            battle.unk53BFB8 = 1;
+            battle.unk53BFBC = 1;
+            return 1;
+        }
+
+        case kSkillListState:
+        {
+            if (!inside(x, kListHitLeft, kSpecialHitRight))
+            {
+                battle.unk53BFB8 = 0;
+                return 0;
+            }
+
+            const int row = band(y, kSpecialHitFirst, kListBarHeight, kSpecialHitEnd);
+
+            if (row < 0 || row + 1 > battle.unk53BDF3)
+            {
+                battle.unk53BFB8 = 0;
+                return 0;
+            }
+
+            if (battle.unk4A7560 != row + 1)
+            {
+                this->audio.PlaySound(kBackSound, this->config.soundVolume);
+            }
+
+            battle.unk4A7560 = row + 1;
+            battle.unk53BFB8 = 1;
+            battle.unk53BFBC = 1;
+            return 1;
+        }
+
+        case kListState1B:
+        {
+            if (inside(x, kListHitLeft, kThrowListRight))
+            {
+                const int row = band(y, kListHitFirst, kListRowHeight, kListHitEnd);
+
+                if (row >= 0 && battle.unk53BD08 + row + 1 <= battle.unk53BDF4)
+                {
+                    return pickRow(battle.unk4A755C, row);
+                }
+            }
+
+            if (!leaveList())
+            {
+                return 0;
+            }
+
+            return scrollParts(kSpellScrollLeft, kSpellScrollRight, kItemScrollDownTop, kThrowScrollDownBottom);
+        }
+
+        case kWaitState1E:
+            return this->HoverRefineCell();
+
+        default:
+            return 0;
+    }
+}
+
+// The 煉符 grid of MouseHover (inline in the original): the column whose right edge is the first past the pointer
+// (from kRefineHitLeft), then the row; a column without a row under the pointer passes to the next. The cell is
+// 5 * column + row + 1, at most 10.
+int Game::HoverRefineCell()
+{
+    BattleState& battle = this->battleState;
+    const int x = this->state.pointerX;
+    const int y = this->state.pointerY;
+    int column = 0;
+
+    for (int right = kRefineHitFirst;; right += kRefineColumnWidth, ++column)
+    {
+        if (right >= kRefineHitEnd)
+        {
+            battle.unk53BFB8 = 0;
+            battle.unk4A7644 = kNoPanelRole;
+            return 0;
+        }
+
+        if (x <= kRefineHitLeft || x >= right)
+        {
+            continue;
+        }
+
+        int row = 0;
+        int bottom = kRefineRowFirst;
+
+        while (y <= bottom - kListRowHeight || y >= bottom)
+        {
+            bottom += kListRowHeight;
+            ++row;
+
+            if (bottom >= kRefineRowEnd)
+            {
+                row = -1;
+                break;
+            }
+        }
+
+        if (row < 0)
+        {
+            continue;
+        }
+
+        const int cell = kRefineRows * column + row + 1;
+
+        if (battle.unk4A755C != cell)
+        {
+            this->audio.PlaySound(kBackSound, this->config.soundVolume);
+        }
+
+        battle.unk4A755C = std::min(cell, kMenuStepMost);
+        battle.unk53BFBC = 1;
+        battle.unk53BFB8 = 1;
+        return 1;
+    }
+}
+
+// The aim of MouseHover in battle state 3 (inline in the original): with an order on the party, the party roles
+// (through RoleCycle with four or more, else every role from the last) not forced nor guarding whose idle picture is
+// under the pointer (sampled every pixel of an 8 x 8 square; the current role only for menu commands 2 and 3), or
+// whose portrait is; otherwise the standing enemies from the last whose picture is under it (every second pixel; a
+// small machine clears unk4A7640 for menu command 6). The unit aimed at is marked.
+int Game::HoverTarget()
+{
+    BattleState& battle = this->battleState;
+    BattleServices& services = this->battleServices;
+    const int x = this->state.pointerX;
+    const int y = this->state.pointerY;
+
+    if (battle.unk53BF88 == 1 || battle.unk53C4C0 == 1 || battle.unk53BF2A != 0)
+    {
+        return 0;
+    }
+
+    // The picture of `unit` under the pointer, sampled from it by `step` over kHitSquare (inline in the original):
+    // kNoPicture without picture data.
+    auto under = [&services, x, y](BattleUnit& unit, int step)
+    {
+        UnitRect rect;
+        unit.GetShadowRect(services, rect);
+        const Picture* picture = unit.StepIdleAction(services);
+
+        // A missing picture is read through a null pointer in the original (for the roles).
+        if (picture == nullptr || picture->data.empty())
+        {
+            return kNoPicture;
+        }
+
+        for (int down = 0; down < kHitSquare; down += step)
+        {
+            for (int across = 0; across < kHitSquare; across += step)
+            {
+                const int pointX = unit.Mirrored() == 1 ? picture->width + 2 * rect.x - x - across : across + x;
+
+                if (PictureHitTest(*picture, pointX, down + y, rect.x, rect.y) != 0)
+                {
+                    return kPictureHit;
+                }
+            }
+        }
+
+        return kPictureMissed;
+    };
+
+    const auto unit = static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit);
+
+    if (battle.pendingOrders[unit].unk00 == 0)
+    {
+        for (u32 index = 0; index < battle.enemyCount; ++index)
+        {
+            this->battleEnemies[index].SetAC0(0);
+        }
+
+        for (i32 index = static_cast<i32>(battle.enemyCount) - 1; index >= 0; --index)
+        {
+            BattleEnemy& enemy = this->battleEnemies[static_cast<std::size_t>(index)];
+
+            if (enemy.IsDefeated())
+            {
+                continue;
+            }
+
+            const int hit = under(enemy, kEnemyHitStep);
+
+            if (hit != kNoPicture)
+            {
+                battle.unk4A7640 = 1;
+            }
+
+            if (hit != kPictureHit)
+            {
+                if (hit == kPictureMissed)
+                {
+                    battle.unk53BFB8 = 0;
+                }
+
+                continue;
+            }
+
+            battle.unk4A754C = index + 1;
+            battle.unk53C4AC = index;
+            enemy.SetAC0(1);
+
+            if (battle.unk4A7548 == kRefineMenuCommand && !enemy.IsSmallMachine())
+            {
+                battle.unk4A7640 = 0;
+            }
+
+            battle.unk53BFB8 = 1;
+            battle.unk53BFBC = 1;
+            return 1;
+        }
+
+        return 0;
+    }
+
+    for (u32 index = 0; index < battle.roleCount; ++index)
+    {
+        this->battleRoles[index].SetAC0(0);
+    }
+
+    this->battleRoles[static_cast<std::size_t>(battle.unk53C4AC)].SetAC0(0);
+    auto& portraits = this->battleHud.portraitHighlight;
+    const auto partyRoles = static_cast<i32>(battle.roleCount - battle.unk53BF26 - battle.guestCount);
+
+    auto chooses = [&battle](i32 role)
+    {
+        return battle.currentUnit - BattleState::FirstRoleUnit != role || battle.unk4A7548 == kSpellCommand ||
+               battle.unk4A7548 == kItemCommand;
+    };
+
+    auto aim = [this, &battle](i32 role)
+    {
+        battle.unk4A754C = role + 1;
+        battle.unk53C4AC = role;
+        this->battleRoles[static_cast<std::size_t>(role)].SetAC0(1);
+        battle.unk53BFB8 = 1;
+        battle.unk53BFBC = 1;
+    };
+
+    auto overPortrait = [x, y](i32 role)
+    {
+        const int left = BattleState::PortraitX[static_cast<std::size_t>(role)];
+        return y >= kPortraitHitTop && y <= kPortraitHitBottom && x >= left && x <= left + kPortraitHitWidth;
+    };
+
+    if (partyRoles >= static_cast<i32>(Party::Roles))
+    {
+        for (i32 place = partyRoles - 1; place >= 0; --place)
+        {
+            const i32 role = BattleState::RoleCycle[static_cast<std::size_t>(place + 1)];
+            BattleRole& checked = this->battleRoles[static_cast<std::size_t>(role)];
+
+            if (checked.unk2B00 == 1 || checked.unk2B04 == 1 || checked.IsGuarding())
+            {
+                continue;
+            }
+
+            if (under(checked, 1) == kPictureHit)
+            {
+                if (chooses(role))
+                {
+                    aim(role);
+                    return 1;
+                }
+            }
+
+            portraits[static_cast<std::size_t>(battle.unk53C4AC)] = 0;
+
+            if (overPortrait(role))
+            {
+                portraits[static_cast<std::size_t>(role)] = 1;
+                battle.unk4A754C = role + 1;
+                battle.unk53C4AC = role;
+                battle.unk53BFB8 = 1;
+                battle.unk53BFBC = 1;
+                return 1;
+            }
+
+            battle.unk53BFB8 = 0;
+        }
+
+        return 0;
+    }
+
+    for (i32 role = static_cast<i32>(battle.roleCount) - 1; role >= 0; --role)
+    {
+        BattleRole& checked = this->battleRoles[static_cast<std::size_t>(role)];
+
+        if (checked.unk2B00 == 1 || checked.unk2B04 == 1 || checked.IsGuarding())
+        {
+            continue;
+        }
+
+        if (under(checked, 1) == kPictureHit && chooses(role))
+        {
+            aim(role);
+            std::fill_n(portraits.begin(), Party::Roles, u8{0});
+            return 1;
+        }
+    }
+
+    portraits[static_cast<std::size_t>(battle.unk53C4AC)] = 0;
+
+    if (y < kPortraitHitTop || y > kPortraitHitBottom)
+    {
+        battle.unk53BFB8 = 0;
+        return 0;
+    }
+
+    for (u32 index = 0; index < battle.roleCount; ++index)
+    {
+        BattleRole& checked = this->battleRoles[index];
+
+        if (checked.unk2B00 == 1 || checked.unk2B04 == 1 || checked.IsGuarding())
+        {
+            continue;
+        }
+
+        const int left = BattleState::PortraitX[static_cast<std::size_t>(battle.partyRoles[index])];
+
+        if (x >= left && x <= left + kPortraitHitWidth)
+        {
+            battle.unk53C4AC = battle.partyRoles[index];
+            portraits[static_cast<std::size_t>(battle.unk53C4AC)] = 1;
+            battle.unk53BFB8 = 1;
+            battle.unk53BFBC = 1;
+            battle.unk4A754C = static_cast<i32>(index) + 1;
+            return 1;
+        }
+    }
+
+    battle.unk53BFB8 = 0;
+    return 0;
 }
 }  // namespace swd3

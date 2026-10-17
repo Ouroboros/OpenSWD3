@@ -826,6 +826,7 @@ TEST_CASE("battle state: the initial turn and push values match swd32.exe")
     constexpr swd3::u32 kListMarkAt = 0x004A7560;
     constexpr swd3::u32 kTalkRolesAt = 0x004A762C;
     constexpr swd3::u32 kFrameMillisecondsAt = 0x004A75E8;
+    constexpr swd3::u32 kHoverTabsAt = 0x004A7578;
     const std::vector<swd3::u8> exe = swd3test::ReadGameFile("swd32.exe");
 
     if (exe.empty())
@@ -861,6 +862,7 @@ TEST_CASE("battle state: the initial turn and push values match swd32.exe")
     );
     CHECK(swd3test::SameTable(exe, kTalkRolesAt, std::array<swd3::u16, 2>{state.unk4A762C, state.unk4A762E}));
     CHECK(swd3test::SameTable(exe, kFrameMillisecondsAt, std::array<swd3::i32, 1>{state.unk4A75E8}));
+    CHECK(swd3test::SameTable(exe, kHoverTabsAt, std::array<swd3::i32, 2>{state.unk4A7578, state.unk4A757C}));
 }
 
 TEST_CASE("battle unit: element orbs gain proficiency from hits of an element")
@@ -1469,4 +1471,24 @@ TEST_CASE("battle role: choosing an object in battle")
     CHECK_EQ(role.SelectObject(database, all.errors, kThrowCategory, 1, act, kind), 1);
     CHECK_EQ(kind, kThrownChoice);
     CHECK_EQ(role.unk2A86 & swd3::BattleUnit::UnkCommandFlag2000, swd3::BattleUnit::UnkCommandFlag2000);
+}
+
+TEST_CASE("battle state: the menu kind words after the command kinds")
+{
+    constexpr swd3::u16 kAfter = 0x1234;
+    constexpr swd3::i32 kFirst = 0x00070006;
+    constexpr swd3::i32 kSecond = 0x00090008;
+    constexpr std::size_t kGuard = 4;
+    constexpr std::size_t kSecondAccessory = 6;
+    constexpr std::size_t kThirdAccessory = 7;
+    constexpr swd3::i32 kLowWord = 0xFFFF;
+    constexpr int kHighShift = 16;
+    swd3::BattleState state;
+    state.unk4FE5D2 = kAfter;
+    state.unk4FE5D4[0] = kFirst;
+    state.unk4FE5D4[1] = kSecond;
+    CHECK_EQ(state.MenuKindWord(kGuard), kAfter);
+    CHECK_EQ(state.MenuKindWord(kGuard + 1), kFirst & kLowWord);
+    CHECK_EQ(state.MenuKindWord(kSecondAccessory), kFirst >> kHighShift);
+    CHECK_EQ(state.MenuKindWord(kThirdAccessory), kSecond & kLowWord);
 }

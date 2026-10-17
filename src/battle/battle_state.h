@@ -20,6 +20,8 @@
 namespace swd3
 {
 
+struct ClickRegion;
+
 // A record of 0x1C bytes, eighteen of them from 0x00524788 (cleared by the battle start): a unit with a kind of 1 or
 // 2 (AddSlotRecord), the free records after the used ones.
 struct BattleSlotRecord
@@ -72,6 +74,7 @@ public:
     static constexpr std::array<u8, 10> QuakeSteps = {4, 3, 4, 3, 4, 3, 2, 3, 2, 3};  // 0x004A75EC by quakePhase
     static constexpr std::array<i32, 5> RoleCycle = {11, 2, 1, 0, 3};  // 0x004A796C the party roles by turn, from 1
     static constexpr std::array<i32, 4> PanelUnits = {10, 9, 8, 11};   // 0x004A7960 the role units by panel
+    static constexpr std::array<int, 4> PortraitX = {0x14A, 0xB8, 0x26, 0x1DC};  // 0x004A75A8 by party role
     // 0x004A7534: the five commands of the menu (pointers in the original)
     static constexpr std::array<std::u8string_view, 5> FixedCommandNames =
         {u8"攻擊", u8"奇術", u8"物品", u8"絕招", u8"防禦"};
@@ -119,6 +122,7 @@ public:
     void SetReturnedItem(int index, u16 id);
     void TakeSlotRecordAt(std::size_t at, BattleSlotRecord& taken);
     void ClearActing();
+    u16 MenuKindWord(std::size_t index) const;
 
     i32 listBCount = 0;                              // 0x004FD3B0 entries of listB, at most 13
     ItemLink listB;                                  // 0x004FD4C0
@@ -359,7 +363,19 @@ public:
     u16 unk53BF4A = 0;  // a unit's place read for the debug gauge and the menu
     u16 unk53BF4E = 0;
     i32 unk53BDA0 = 0;
-    i32 unk4A75E8 = 1;       // the milliseconds of a frame (the debug overlay shows 1000 / it)
+    i32 unk4A75E8 = 1;  // the milliseconds of a frame (the debug overlay shows 1000 / it)
+    // The pointer over the battle (Game::MouseHover).
+    ClickRegion* unk5244CC = nullptr;  // the click region under the pointer
+    i32 unk53BD24 = 0;                 // the place of the command menu
+    i32 unk53BD28 = 0;
+    i32 unk4A7578 = -1;  // the page tab under the pointer (list of state 2)
+    i32 unk4A757C = -1;  // the role tab under the pointer (list of state 4)
+    i32 unk53BD6C = 0;
+    i32 unk53BD70 = 0;
+    i32 unk53BFF8 = 0;
+    i32 unk53C4AC = 0;  // the unit aimed at under the pointer
+    u16 unk53BF2A = 0;
+    u16 unk4FE5D2 = 0;       // the word after commandKinds (read as an accessory kind by MouseHover)
     i32 unk4A7564 = -1;      // the enemy the auto battle aims at (1-based), -1: none
     u16 unk4A7644 = 0xFFFF;  // a role unit that may take the panel in any battle state (SelectRoleUnit)
     i32 unk4A7548 = 1;       // the command chosen in the menu (1-based)
