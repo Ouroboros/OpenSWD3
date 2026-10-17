@@ -5,6 +5,7 @@
 #include "game/game.h"
 #include "item/item_list.h"
 #include "platform/display.h"
+#include "text/big5.h"
 #include "ui/ui_draw.h"
 
 namespace swd3
@@ -111,6 +112,19 @@ constexpr int kListBarWidth = 0xC2;
 constexpr int kListBarHeight = 0x18;
 constexpr int kListBarRed = 0x1F;
 constexpr int kListBarGreen = 0x14;
+constexpr int kRefineBoxWidth = 0xF2;  // the 煉符 grid
+constexpr int kRefineBoxHeight = 0x9C;
+constexpr int kRefineFrameRight = 0xEE;
+constexpr int kRefineFrameBottom = 0x98;
+constexpr int kRefineTitleX = 0x6A;
+constexpr u16 kRefineCommand = 0x1E;
+constexpr int kRefineColumns = 2;
+constexpr int kRefineRows = 5;
+constexpr int kRefineBarLeft = 4;
+constexpr int kRefineBarUp = 3;
+constexpr int kRefineBarWidth = 0x6A;
+constexpr int kRefineColumnWidth = 0x70;
+constexpr std::u8string_view kNoObject = u8"無";  // swd32.exe 0x0049F9FC
 
 // The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
 // here.
@@ -1917,5 +1931,129 @@ void Game::DrawThrowList(int x, int y, int cursor, int top)
 
     role.ShowAllItems();
     font.SetBackground(TextFont::NoBackground);
+}
+
+// swd32.exe 0x00466190: the 煉符 grid of the current role at (x, y): two columns of five cells. The first cells, one
+// per talisman paper (kThrownObject, their count kept in unk53BDF4), show its name; then each throwable object once
+// per piece; the rest 無. Cell `cursor` (from 1) gets a gradient bar and sets unk53BD14 to the object under it (less 1
+// without paper). unk53BDF4 then adds the throwable pieces.
+void Game::DrawRefineList(int x, int y, int cursor)
+{
+    BattleState& battle = this->battleState;
+    BattleMessages& messages = this->battleMessages;
+    TextFont& font = this->mediumFont;
+
+    if (battle.currentUnit == 0)
+    {
+        return;
+    }
+
+    BattleRole& role = this->battleRoles[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)];
+    messages.panelAct = ActState{};
+    messages.panelAct.id = BattleMessages::PanelAct;
+    messages.panelAct.action = 0;
+    this->acts.Run(messages.panelAct);
+    FillBox(this->painter, x, y, kRefineBoxWidth, kRefineBoxHeight, 0, kThrowShade, kThrowShade, FillMode::Tint);
+    DrawWindowFrame(
+        this->painter,
+        this->archive,
+        messages.panelAct.frame,
+        x + kListFrameInset,
+        y + kThrowTitleTop,
+        x + kRefineFrameRight,
+        y + kThrowTitleBottom,
+        0,
+        kListFrameBorder
+    );
+    DrawWindowFrame(
+        this->painter,
+        this->archive,
+        messages.panelAct.frame,
+        x + kListFrameInset,
+        y + kListFrameTop,
+        x + kRefineFrameRight,
+        y + kRefineFrameBottom,
+        0,
+        kListFrameBorder
+    );
+    const std::string title = Big5(BattleState::AccessoryCommandNames[kRefineCommand - kFirstAccessoryCommand]);
+    font.DrawText(this->drawSurface, x + kRefineTitleX, y + kThrowTitleTop, title, kTitleColor, TextFont::BoldOutline);
+    font.SetShadow(0);
+    font.SetBackground(TextFont::NoBackground);
+    font.SetAdvance(kListAdvance);
+    std::string name;
+    u16 count = 0;
+    int object = 1;
+    int piece = 0;
+    role.ThrowableObject(0, 1, name, count);
+    battle.unk53BDF4 = count;
+    role.ShowAllItems();
+    u16 pieces = 0;
+    role.CountUsableObjects(pieces);
+    role.ShowAllItems();
+    count = 0;
+    battle.unk53BD14 = 1;
+    int cell = 1;
+    int columnX = x + kListNameX;
+
+    for (int column = 0; column < kRefineColumns; ++column)
+    {
+        int rowY = y + kListRowTop;
+
+        for (int row = 0; row < kRefineRows; ++row)
+        {
+            if (cell > battle.unk53BDF4)
+            {
+                if (cell <= battle.unk53BDF4 + pieces)
+                {
+                    role.ThrowableObject(1, object, name, count);
+
+                    if (++piece == static_cast<i16>(count))
+                    {
+                        ++object;
+                        piece = 0;
+                    }
+                }
+                else
+                {
+                    name = Big5(kNoObject);
+                }
+            }
+
+            if (cursor == cell)
+            {
+                FillBox(
+                    this->painter,
+                    columnX - kRefineBarLeft,
+                    rowY - kRefineBarUp,
+                    kRefineBarWidth,
+                    kListBarHeight,
+                    kListBarRed,
+                    kListBarGreen,
+                    0,
+                    FillMode::Gradient
+                );
+                font.DrawText(this->drawSurface, columnX, rowY, name, battle.lightColor, TextFont::BoldOutline);
+                font.SetBackground(TextFont::NoBackground);
+                battle.unk53BFB8 = 1;
+                battle.unk53BD14 = piece == 1 ? object + 1 : object;
+
+                if (battle.unk53BDF4 == 0)
+                {
+                    --battle.unk53BD14;
+                }
+            }
+
+            font.DrawText(this->drawSurface, columnX, rowY, name, battle.lightColor, TextFont::BoldOutline);
+            font.SetBackground(TextFont::NoBackground);
+            ++cell;
+            rowY += kListRowHeight;
+        }
+
+        columnX += kRefineColumnWidth;
+    }
+
+    font.SetBackground(TextFont::NoBackground);
+    battle.unk53BDF4 = static_cast<u16>(battle.unk53BDF4 + pieces);
 }
 }  // namespace swd3
