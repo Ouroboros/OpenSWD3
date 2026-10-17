@@ -38,6 +38,10 @@ u32 SystemUptime()
     );
 }
 
+void UseFineTimer()
+{
+}
+
 void SleepMilliseconds(u32 milliseconds)
 {
     SDL_Delay(milliseconds);
@@ -75,6 +79,18 @@ void InstallFaultLog()
     {
         std::signal(signal, &FaultSignal);
     }
+}
+
+HangWatch::HangWatch() = default;
+
+HangWatch::~HangWatch() = default;
+
+void HangWatch::Beat()
+{
+}
+
+void HangWatch::Watch()
+{
 }
 
 }  // namespace swd3

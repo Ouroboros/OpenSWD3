@@ -46,6 +46,7 @@
 #include "platform/input_device.h"
 #include "platform/message_box.h"
 #include "platform/surface.h"
+#include "platform/system_info.h"
 #include "platform/system_sound.h"
 #include "random/random.h"
 #include "res/act_archive.h"
@@ -118,7 +119,8 @@ public:
 
     int Run(std::string_view commandLine);
 
-    HostSettings host;  // the rebuild's swd3r.toml (set before Run)
+    HostSettings host;               // the rebuild's swd3r.toml (set before Run)
+    HangWatch* hangWatch = nullptr;  // told of every round of the main loop (set before Run)
 
     // The window as left at the end of Run (written back to swd3r.toml).
     Display::WindowState WindowState() const

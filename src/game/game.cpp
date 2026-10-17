@@ -383,6 +383,11 @@ void Game::LoopFrame()
         return;
     }
 
+    if (this->hangWatch != nullptr)
+    {
+        this->hangWatch->Beat();
+    }
+
     this->inLoopFrame = true;
 
     if (this->state.GameFlag(GameState::TextBox) != SDL_TextInputActive(this->display.Window()))

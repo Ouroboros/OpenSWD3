@@ -178,8 +178,8 @@ void Talk::Draw()
         *link = std::move(window.next);
     }
 
-    owner.acts.Run(this->endAct);
-    owner.acts.Run(this->nextAct);
+    owner.acts.Run(this->EndAct());
+    owner.acts.Run(this->NextAct());
     i32 pitch = 0;
     i32 height = 0;
     owner.graphics.BackSize(pitch, height);
@@ -927,7 +927,7 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
         (((window.flags & TalkWindow::ShowMark) != 0 && (window.flags & TalkWindow::Read) == 0) ||
          (window.flags & TalkWindow::NoAdvance) == 0))
     {
-        const ActState& mark = (window.flags & TalkWindow::Typed) == 0 ? this->nextAct : this->endAct;
+        const ActState& mark = (window.flags & TalkWindow::Typed) == 0 ? this->NextAct() : this->EndAct();
         const Picture* picture = owner.archive.GetPicture(mark.frame, mark.picture);
 
         if (picture != nullptr)
@@ -1220,6 +1220,18 @@ void Talk::HandlePointer()
         state.FindRole(target.id),
         target.flags
     );
+}
+
+// The mark of a finished text: the act of the button pointer role (0x004C9708 inside 0x004C96C8).
+ActState& Talk::EndAct()
+{
+    return this->game.scene.pointerButtonRole.act;
+}
+
+// The mark of a full page: the act of the page pointer role (0x004CADE0 inside 0x004CADA0).
+ActState& Talk::NextAct()
+{
+    return this->game.scene.pointerPageRole.act;
 }
 
 }  // namespace swd3

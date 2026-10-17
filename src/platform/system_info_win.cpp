@@ -13,6 +13,7 @@
 #include <windows.h>
 
 #include <dbghelp.h>
+#include <mmsystem.h>
 
 namespace swd3
 {
@@ -32,7 +33,12 @@ u32 TotalPhysicalMemory()
 
 u32 SystemUptime()
 {
-    return static_cast<u32>(::GetTickCount());
+    return static_cast<u32>(::timeGetTime());
+}
+
+void UseFineTimer()
+{
+    ::timeBeginPeriod(1);
 }
 
 void SleepMilliseconds(u32 milliseconds)
@@ -207,8 +213,8 @@ void LogCppException(const EXCEPTION_RECORD& record)
     );
 }
 
-// The call stack of the faulting thread, frame by frame with the PDB beside the executable.
-void LogStack(HANDLE process, const CONTEXT& faulted)
+// The call stack of `thread` from `faulted`, frame by frame with the PDB beside the executable.
+void LogStack(HANDLE process, HANDLE thread, const CONTEXT& faulted, SDL_LogPriority priority)
 {
     CONTEXT context = faulted;
     STACKFRAME64 frame{};
@@ -224,7 +230,7 @@ void LogStack(HANDLE process, const CONTEXT& faulted)
         if (::StackWalk64(
                 IMAGE_FILE_MACHINE_I386,
                 process,
-                ::GetCurrentThread(),
+                thread,
                 &frame,
                 &context,
                 nullptr,
@@ -237,8 +243,9 @@ void LogStack(HANDLE process, const CONTEXT& faulted)
             break;
         }
 
-        SDL_LogCritical(
+        SDL_LogMessage(
             SDL_LOG_CATEGORY_APPLICATION,
+            priority,
             "  #%02d %s",
             index,
             Describe(process, index == 0 ? frame.AddrPC.Offset : frame.AddrPC.Offset - 1).c_str()
@@ -306,7 +313,8 @@ LONG WINAPI FaultFilter(EXCEPTION_POINTERS* exception)
     std::string symbols(directory.data());
     symbols = symbols.substr(0, symbols.find_last_of("\\/"));
     ::SymSetOptions(SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES | SYMOPT_FAIL_CRITICAL_ERRORS);
-    const bool symbolsReady = ::SymInitialize(process, symbols.c_str(), TRUE) != 0;
+    const bool initialized = ::SymInitialize(process, symbols.c_str(), TRUE) != 0;
+    const bool symbolsReady = initialized || ::GetLastError() == ERROR_INVALID_PARAMETER;  // the hang watch has them
     SDL_LogCritical(
         SDL_LOG_CATEGORY_APPLICATION,
         "unhandled exception 0x%08lX at %s",
@@ -349,10 +357,10 @@ LONG WINAPI FaultFilter(EXCEPTION_POINTERS* exception)
         symbolsReady ? "loaded" : "unavailable",
         symbols.c_str()
     );
-    LogStack(process, context);
+    LogStack(process, ::GetCurrentThread(), context, SDL_LOG_PRIORITY_CRITICAL);
     WriteDump(exception);
 
-    if (symbolsReady)
+    if (initialized)
     {
         ::SymCleanup(process);
     }
@@ -365,6 +373,127 @@ LONG WINAPI FaultFilter(EXCEPTION_POINTERS* exception)
 void InstallFaultLog()
 {
     ::SetUnhandledExceptionFilter(&FaultFilter);
+}
+
+HangWatch::HangWatch()
+{
+    HANDLE self = nullptr;
+    ::DuplicateHandle(
+        ::GetCurrentProcess(),
+        ::GetCurrentThread(),
+        ::GetCurrentProcess(),
+        &self,
+        THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_QUERY_INFORMATION,
+        FALSE,
+        0
+    );
+    this->watched = self;
+    this->thread = std::thread(&HangWatch::Watch, this);
+}
+
+HangWatch::~HangWatch()
+{
+    this->stopping = true;
+
+    if (this->thread.joinable())
+    {
+        this->thread.join();
+    }
+
+    if (this->watched != nullptr)
+    {
+        ::CloseHandle(static_cast<HANDLE>(this->watched));
+    }
+}
+
+void HangWatch::Beat()
+{
+    this->beats.fetch_add(1, std::memory_order_relaxed);
+}
+
+// Every quarter second: a main loop without a beat for StallSeconds has its stack logged (suspended for the walk).
+void HangWatch::Watch()
+{
+    constexpr u32 kPollMilliseconds = 250;
+    constexpr u32 kMillisecondsPerSecond = 1000;
+    u32 seen = this->beats.load(std::memory_order_relaxed);
+    u32 since = ::timeGetTime();
+    u32 reported = 0;
+    bool symbolsReady = false;
+    const HANDLE process = ::GetCurrentProcess();
+
+    while (!this->stopping)
+    {
+        ::Sleep(kPollMilliseconds);
+        const u32 now = ::timeGetTime();
+        const u32 beats = this->beats.load(std::memory_order_relaxed);
+
+        if (beats != seen)
+        {
+            if (reported != 0)
+            {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_APPLICATION,
+                    "main loop running again after %lu ms",
+                    static_cast<unsigned long>(now - since)
+                );
+            }
+
+            seen = beats;
+            since = now;
+            reported = 0;
+            continue;
+        }
+
+        const u32 stalled = now - since;
+        const u32 due = reported == 0 ? HangWatch::StallSeconds : reported + HangWatch::RepeatSeconds;
+
+        if (stalled < due * kMillisecondsPerSecond || this->watched == nullptr)
+        {
+            continue;
+        }
+
+        reported = stalled / kMillisecondsPerSecond;
+
+        if (!symbolsReady)
+        {
+            std::array<char, kNameChars> directory = {};
+            ::GetModuleFileNameA(nullptr, directory.data(), static_cast<DWORD>(directory.size()));
+            std::string symbols(directory.data());
+            symbols = symbols.substr(0, symbols.find_last_of("\\/"));
+            ::SymSetOptions(SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES | SYMOPT_FAIL_CRITICAL_ERRORS);
+            symbolsReady = ::SymInitialize(process, symbols.c_str(), TRUE) != 0;
+        }
+
+        const auto main = static_cast<HANDLE>(this->watched);
+
+        if (::SuspendThread(main) == static_cast<DWORD>(-1))
+        {
+            continue;
+        }
+
+        CONTEXT context{};
+        context.ContextFlags = CONTEXT_FULL;
+        const bool got = ::GetThreadContext(main, &context) != 0;
+        SDL_LogWarn(
+            SDL_LOG_CATEGORY_APPLICATION,
+            "main loop stalled for %lu s (a hang, or a modal dialog); its call stack%s:",
+            static_cast<unsigned long>(reported),
+            got ? "" : " cannot be read"
+        );
+
+        if (got)
+        {
+            LogStack(process, main, context, SDL_LOG_PRIORITY_WARN);
+        }
+
+        ::ResumeThread(main);
+    }
+
+    if (symbolsReady)
+    {
+        ::SymCleanup(process);
+    }
 }
 
 }  // namespace swd3

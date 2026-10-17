@@ -9,6 +9,7 @@
 #include "game/game.h"
 #include "platform/host_settings.h"
 #include "platform/log_file.h"
+#include "platform/system_info.h"
 
 namespace
 {
@@ -165,6 +166,7 @@ int main(int count, char** arguments)
     }
 
     swd3::SetLogLevel(settings.LogLevel());
+    swd3::UseFineTimer();
     swd3::LogInfo(
         u8"SDL ready video_driver=%s",
         SDL_GetCurrentVideoDriver() != nullptr ? SDL_GetCurrentVideoDriver() : ""
@@ -176,6 +178,8 @@ int main(int count, char** arguments)
             settings.DataDirectory().empty() ? directory : PathText(settings.DataDirectory());
         swd3::Game game(dataDirectory + "\\");
         game.host = settings;
+        swd3::HangWatch watch;
+        game.hangWatch = &watch;
         result = game.Run(commandLine);
         SaveWindow(settings, game.WindowState());
     }

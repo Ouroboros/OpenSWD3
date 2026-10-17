@@ -142,12 +142,14 @@ public:
     bool CommandsRole(std::span<const u8> command, u32 role);
     void RunEvent(Role& context);
 
-    i32 unit = 0;                       // 0x004A99F8 the text cell in pixels
-    i32 advance = 0;                    // 0x004A99F4 the text is to move on (a key or a click)
-    i32 skipAll = 0;                    // 0x004CAEB8
-    i32 choice = 0;                     // 0x004CAE7C the choice under the pointer
-    ActState endAct;                    // 0x004C9708 the mark of a finished text
-    ActState nextAct;                   // 0x004CADE0 the mark of a full page
+    i32 unit = 0;     // 0x004A99F8 the text cell in pixels
+    i32 advance = 0;  // 0x004A99F4 the text is to move on (a key or a click)
+    i32 skipAll = 0;  // 0x004CAEB8
+    i32 choice = 0;   // 0x004CAE7C the choice under the pointer
+    // The marks of a finished text and of a full page are the acts of Scene::pointerButtonRole (0x004C9708) and
+    // Scene::pointerPageRole (0x004CADE0): EndAct() and NextAct().
+    ActState& EndAct();
+    ActState& NextAct();
     MarchingRect marker;                // 0x004CC2D4 around the chosen choice
     std::vector<std::string> history;   // 0x004C99FC the texts kept by the talk log
     u32 dialogOrigin = Talk::NoOrigin;  // 0x004A135C the place of the next talk window (NoOriginX: by its speaker)
