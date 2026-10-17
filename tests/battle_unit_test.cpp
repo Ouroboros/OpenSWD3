@@ -825,6 +825,7 @@ TEST_CASE("battle state: the initial turn and push values match swd32.exe")
     constexpr swd3::u32 kMasteryRoleAt = 0x004A7646;
     constexpr swd3::u32 kListMarkAt = 0x004A7560;
     constexpr swd3::u32 kTalkRolesAt = 0x004A762C;
+    constexpr swd3::u32 kFrameMillisecondsAt = 0x004A75E8;
     const std::vector<swd3::u8> exe = swd3test::ReadGameFile("swd32.exe");
 
     if (exe.empty())
@@ -859,6 +860,7 @@ TEST_CASE("battle state: the initial turn and push values match swd32.exe")
         )
     );
     CHECK(swd3test::SameTable(exe, kTalkRolesAt, std::array<swd3::u16, 2>{state.unk4A762C, state.unk4A762E}));
+    CHECK(swd3test::SameTable(exe, kFrameMillisecondsAt, std::array<swd3::i32, 1>{state.unk4A75E8}));
 }
 
 TEST_CASE("battle unit: element orbs gain proficiency from hits of an element")

@@ -356,6 +356,10 @@ public:
     u16 unk53AE78 = 0;
     i32 unk53AE84 = 0;
     i32 unk53AE88 = 0;
+    u16 unk53BF4A = 0;  // a unit's place read for the debug gauge and the menu
+    u16 unk53BF4E = 0;
+    i32 unk53BDA0 = 0;
+    i32 unk4A75E8 = 1;       // the milliseconds of a frame (the debug overlay shows 1000 / it)
     i32 unk4A7564 = -1;      // the enemy the auto battle aims at (1-based), -1: none
     u16 unk4A7644 = 0xFFFF;  // a role unit that may take the panel in any battle state (SelectRoleUnit)
     i32 unk4A7548 = 1;       // the command chosen in the menu (1-based)

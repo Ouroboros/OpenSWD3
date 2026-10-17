@@ -299,6 +299,40 @@ constexpr int kDefeatHurt = 0x7530;
 constexpr int kToggleStates = 2;
 constexpr std::size_t kClearedTurnUnits = 8;  // the original clears 0x28 bytes from 0x0053AF30
 constexpr i16 kDebugStep = 10;
+constexpr int kDebugTop = 0xA;  // the debug overlay
+constexpr int kDebugRolesX = 0x208;
+constexpr int kDebugListX = 0x64;
+constexpr int kDebugPartyX = 0x78;
+constexpr int kDebugPartyRow = 0x1E;
+constexpr int kDebugDrawRow = 0x32;
+constexpr int kDebugStateX = 0xF0;
+constexpr int kDebugRightX = 0x1A4;
+constexpr int kDebugFarX = 0x1C2;
+constexpr int kDebugFlagsY = 0x1E;
+constexpr int kDebugMenuY = 0x32;
+constexpr int kDebugUnitsY = 0x46;
+constexpr int kDebugCountsY = 0x5A;
+constexpr int kDebugAimY = 0x6E;
+constexpr u16 kGaugePixel = 0xEEEE;
+constexpr int kKilobyte = 1000;
+constexpr i32 kMillisecondsPerSecond = 1000;
+constexpr std::string_view kDebugNumber = "%d";
+constexpr std::u8string_view kEnemyDebugLine = u8"生命:%-3d 鎖定:%-1d 命令:%-1d lv:%-2d";  // swd32.exe 0x004A792C
+constexpr std::u8string_view kRoleDebugLine = u8"鎖定:%d 命令:%-3d";                       // swd32.exe 0x004A7918
+constexpr std::u8string_view kAttackOrder = u8"攻擊順序:";                                 // swd32.exe 0x004A790C
+constexpr std::u8string_view kPartyOrder = u8"我方等待順序:";                              // swd32.exe 0x004A78FC
+constexpr std::u8string_view kDrawOrder = u8"排列順序:";                                   // swd32.exe 0x004A78F0
+constexpr std::u8string_view kUnitsDebugLine = u8"目前角色:%d SEL:%d";                     // swd32.exe 0x004A78DC
+constexpr std::u8string_view kFlagsDebugLine = u8"無敵:%d UM:%d 戰鬥:%d";                  // swd32.exe 0x004A78C4
+constexpr std::string_view kMenuDebugLine = "fMenu:%d mMove%d";
+constexpr std::string_view kCountsDebugLine = "MsD:%d dRole1:%d CanS:%d";
+constexpr std::string_view kAimDebugLine = "MS:%d Stop:%d mStop%d";
+constexpr std::string_view kLockDebugLine = "A.Lockc:%d ";
+constexpr std::string_view kCacheDebugLine = "TswMem:%dK";
+constexpr std::string_view kLevelUpDebugLine = "w"
+                                               "Ll:%d iMn:%d";  // swd32.exe 0x004A7854 (one string)
+constexpr std::string_view kBfDebugLine = "bf:%d";
+constexpr std::string_view kFrameDebugLine = "FRAME:%d";
 
 // The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
 // here.
@@ -4243,5 +4277,163 @@ int Game::BattleDebugKeys()
     }
 
     return 1;
+}
+
+// swd32.exe 0x0045DEE0: the debug overlay (unk5244E0): each enemy's hit points, lock (GetWord2A74), command and
+// level, each role's lock and command, the slot records (攻擊順序), the party order (我方等待順序) and the draw order
+// (排列順序), the acting and current units, each enemy's action gauge as a two-row bar of kGaugePixel at its place,
+// and the state values (無敵, UM, 戰鬥, the menu, the counts, the aim, the locks, the picture cache, the frame).
+void Game::DrawBattleDebug()
+{
+    BattleState& battle = this->battleState;
+    BattleServices& services = this->battleServices;
+    TextFont& font = this->mediumFont;
+
+    auto text = [this, &font](int x, int y, const std::string& line)
+    {
+        font.DrawText(this->drawSurface, x, y, line, kWhite, TextFont::BoldOutline);
+    };
+
+    if (battle.unk5244E0 == 1)
+    {
+        font.SetBackground(TextFont::NoBackground);
+        font.SetShadow(0);
+        int y = kDebugTop;
+
+        for (u32 index = 0; index < battle.enemyCount; ++index)
+        {
+            BattleEnemy& enemy = this->battleEnemies[index];
+            battle.unk5028FC = enemy.Data();
+            i32 hitPoints = 0;
+            i32 maximum = 0;
+            enemy.GetHitPoints(hitPoints, maximum);
+            const i32 level = battle.unk5028FC->data.level;
+            text(
+                kDebugTop,
+                y,
+                WinFormat(
+                    kEnemyDebugLine,
+                    {hitPoints, static_cast<i32>(enemy.GetWord2A74()), static_cast<i32>(enemy.GetCommandA()), level}
+                )
+            );
+            y += kListRowHeight;
+        }
+
+        y = kDebugTop;
+
+        for (u32 index = 0; index < battle.roleCount; ++index)
+        {
+            BattleRole& role = this->battleRoles[index];
+            text(
+                kDebugRolesX,
+                y,
+                WinFormat(kRoleDebugLine, {static_cast<i32>(role.GetWord2A74()), static_cast<i32>(role.GetCommandA())})
+            );
+            y += kListRowHeight;
+        }
+
+        const auto enemies = static_cast<int>(battle.enemyCount);
+        const auto units = static_cast<int>(battle.enemyCount + battle.roleCount);
+        const int recordsY = kListRowHeight * enemies + kDebugTop;
+        text(kDebugTop, recordsY, Big5(kAttackOrder));
+
+        for (int at = 0; at < units; ++at)
+        {
+            text(
+                kDebugListX + kListRowHeight * at,
+                recordsY,
+                WinFormat(kDebugNumber, {battle.unk524788[static_cast<std::size_t>(at)].unit})
+            );
+        }
+
+        const int partyY = kListRowHeight * enemies + kDebugPartyRow;
+        text(kDebugTop, partyY, Big5(kPartyOrder));
+
+        for (u32 at = 0; at < battle.roleCount; ++at)
+        {
+            text(
+                kDebugPartyX + kListRowHeight * static_cast<int>(at),
+                partyY,
+                WinFormat(kDebugNumber, {battle.unk520DD0[at]})
+            );
+        }
+
+        const int drawY = kListRowHeight * enemies + kDebugDrawRow;
+        text(kDebugTop, drawY, Big5(kDrawOrder));
+
+        for (int at = 0; at < units; ++at)
+        {
+            text(
+                kDebugListX + kListRowHeight * at,
+                drawY,
+                WinFormat(kDebugNumber, {battle.drawOrder[static_cast<std::size_t>(at)]})
+            );
+        }
+
+        text(kDebugStateX, kDebugUnitsY, WinFormat(kUnitsDebugLine, {battle.unk53AE70, battle.currentUnit}));
+
+        for (u32 index = 0; index < battle.enemyCount; ++index)
+        {
+            BattleEnemy& enemy = this->battleEnemies[index];
+            enemy.GetPosition(battle.unk53BF4A, battle.unk53BF4E);
+            const int row = Display::Width * static_cast<i16>(battle.unk53BF4E);
+            const int gauge = enemy.GaugeLength(services);
+
+            // The original writes the pixels wherever the place puts them.
+            for (int pixel = 0; pixel < gauge; ++pixel)
+            {
+                for (const int at :
+                     {row + pixel + static_cast<i16>(battle.unk53BF4A),
+                      row + pixel + Display::Width + static_cast<i16>(battle.unk53BF4A)})
+                {
+                    if (at >= 0 && at < Display::Width * Display::Height)
+                    {
+                        this->drawSurface[at] = kGaugePixel;
+                    }
+                }
+            }
+        }
+
+        text(
+            kDebugStateX,
+            kDebugFlagsY,
+            WinFormat(
+                kFlagsDebugLine,
+                {battle.unk53AF68, static_cast<i32>(battle.unk4A7630), this->fightTalk.unk4A7B58}
+            )
+        );
+        text(kDebugStateX, kDebugMenuY, WinFormat(kMenuDebugLine, {battle.result, battle.unk53BFBC}));
+        text(
+            kDebugStateX,
+            kDebugCountsY,
+            WinFormat(
+                kCountsDebugLine,
+                {static_cast<i32>(battle.unk53BF00),
+                 static_cast<i32>(battle.unk4A7626),
+                 static_cast<i32>(battle.unk4A75FC)}
+            )
+        );
+        text(
+            kDebugStateX,
+            kDebugAimY,
+            WinFormat(kAimDebugLine, {battle.unk4A754C, battle.unk53BFC0, battle.unk53BFC4})
+        );
+        text(kDebugRightX, kDebugFlagsY, WinFormat(kLockDebugLine, {battle.unk53AE74}));
+        text(kDebugRightX, kDebugMenuY, WinFormat(kCacheDebugLine, {this->archive.CacheBytes() / kKilobyte}));
+        text(
+            kDebugRightX,
+            kDebugUnitsY,
+            WinFormat(
+                kLevelUpDebugLine,
+                {static_cast<i32>(static_cast<i8>(battle.unk4A7646)),
+                 static_cast<i32>(static_cast<i16>(battle.unk4A7644))}
+            )
+        );
+        text(kDebugFarX, kDebugCountsY, WinFormat(kBfDebugLine, {battle.unk53BDA0}));
+        text(kDebugStateX, kDebugTop, WinFormat(kFrameDebugLine, {kMillisecondsPerSecond / battle.unk4A75E8}));
+    }
+
+    font.SetShadow(0);
+    font.SetBackground(TextFont::NoBackground);
 }
 }  // namespace swd3
