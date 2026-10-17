@@ -10,6 +10,7 @@
 #include "golden/ui_scenarios.h"
 #include "golden_check.h"
 #include "pic/rle.h"
+#include "platform/display.h"
 #include "platform/surface.h"
 #include "recording_reporter.h"
 #include "res/tsw_archive.h"
@@ -27,7 +28,7 @@ class UiBackend : public golden::UiBackend
 {
 public:
     UiBackend()
-        : screen(640, 480),
+        : screen(swd3::Display::Width, swd3::Display::Height),
           codec(this->painter),
           archive(this->codec, this->errors)
     {
@@ -37,9 +38,9 @@ public:
 
     void Reset(u32 seed, int left, int top, int right, int bottom) override
     {
-        for (int y = 0; y < 480; ++y)
+        for (int y = 0; y < swd3::Display::Height; ++y)
         {
-            for (int x = 0; x < 640; ++x)
+            for (int x = 0; x < swd3::Display::Width; ++x)
             {
                 this->screen.Row(y)[x] = golden::Background(seed, x, y);
             }
@@ -76,12 +77,12 @@ private:
 
 TEST_CASE("ui drawing: a blend one pixel wide covers one pair")
 {
-    swd3::Surface screen(640, 480);
+    swd3::Surface screen(swd3::Display::Width, swd3::Display::Height);
     screen.Fill(0x7BEF);
     swd3::Painter painter;
     CHECK(painter.Init(screen));
     painter.SetTarget(screen.Pixels());
-    painter.SetClipClamped(0, 0, 640, 480);
+    painter.SetClipClamped(0, 0, swd3::Display::Width, swd3::Display::Height);
     swd3::FillBox(painter, 10, 10, 1, 3, 31, 31, 31, swd3::FillMode::Blend);
     CHECK(screen.Row(10)[10] != 0x7BEF);
     CHECK(screen.Row(10)[11] != 0x7BEF);

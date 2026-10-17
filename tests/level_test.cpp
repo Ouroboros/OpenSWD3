@@ -8,6 +8,15 @@
 #include "recording_reporter.h"
 #include "test.h"
 
+namespace
+{
+
+constexpr int kFirstLevelScript = 2;  // entry 1 of the table is not a level script
+constexpr int kLastLevel = 20;
+constexpr swd3::u16 kNoSkill = 0x8000;  // a skill id with bit 15 set
+
+}  // namespace
+
 TEST_CASE("level: level.dat raises a party role and teaches skills once")
 {
     if (swd3test::ReadGameFile("LEVEL.DAT").empty() || swd3test::ReadGameFile("MON.DAT").empty())
@@ -30,7 +39,7 @@ TEST_CASE("level: level.dat raises a party role and teaches skills once")
     int learnedAny = 0;
 
     // Entry 1 of the table is not a level script in the game data (its first word is not 0).
-    for (int level = 2; level <= 20; ++level)
+    for (int level = kFirstLevelScript; level <= kLastLevel; ++level)
     {
         swd3::RoleRecord& role = party.roles[0];
         int learned = 0;
@@ -54,7 +63,7 @@ TEST_CASE("level: level.dat raises a party role and teaches skills once")
         CHECK_EQ(swd3::LearnSkill(0, static_cast<swd3::i16>(first->id), party, database, last, reporter), 0);
     }
 
-    CHECK_EQ(swd3::LearnSkill(1, static_cast<swd3::i16>(0x8000), party, database, last, reporter), 1);
+    CHECK_EQ(swd3::LearnSkill(1, static_cast<swd3::i16>(kNoSkill), party, database, last, reporter), 1);
     CHECK(party.skills[1]->next == nullptr);
     CHECK(reporter.messages.empty());
     swd3::LearnSkill(1, 0, party, database, last, reporter);

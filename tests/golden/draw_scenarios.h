@@ -22,6 +22,17 @@ using u8 = std::uint8_t;
 using u16 = std::uint16_t;
 using u32 = std::uint32_t;
 using u64 = std::uint64_t;
+
+// The tiles of DrawTile16, DrawTile16Keyed, DrawTile8 and DrawTile8Keyed.
+enum TileKind : int
+{
+    Tile16,
+    Tile16Keyed,
+    TilePalette,
+    TilePaletteKeyed,
+    TileKinds,
+};
+
 using i32 = std::int32_t;
 
 constexpr int kScreenWidth = 640;
@@ -187,7 +198,7 @@ public:
         int zoomX,
         int zoomY
     ) = 0;
-    // kind 0: 16-bit, 1: 16-bit keyed, 2: palette, 3: palette keyed
+    // kind: a TileKind
     virtual void Tile(int kind, const void* source, const u16* palette, int x, int y) = 0;
     virtual void
     Pixels(PixelOperation operation, u16* pixels, std::size_t count, const u16* other, int a, int b, int c) = 0;

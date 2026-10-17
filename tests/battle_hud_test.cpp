@@ -14,6 +14,7 @@
 #include "golden_check.h"
 #include "pic/rle.h"
 #include "platform/audio_device.h"
+#include "platform/display.h"
 #include "platform/surface.h"
 #include "random/random.h"
 #include "recording_reporter.h"
@@ -33,7 +34,7 @@ class HudBackend : public golden::HudBackend
 {
 public:
     HudBackend()
-        : screen(640, 480),
+        : screen(swd3::Display::Width, swd3::Display::Height),
           codec(this->painter),
           archive(this->codec, this->errors),
           acts(this->errors),
@@ -47,16 +48,16 @@ public:
 
     void Reset(u32 seed) override
     {
-        for (int y = 0; y < 480; ++y)
+        for (int y = 0; y < swd3::Display::Height; ++y)
         {
-            for (int x = 0; x < 640; ++x)
+            for (int x = 0; x < swd3::Display::Width; ++x)
             {
                 this->screen.Row(y)[x] = golden::Background(seed, x, y);
             }
         }
 
         this->painter.SetTarget(this->screen.Pixels());
-        this->painter.SetClipClamped(0, 0, 640, 480);
+        this->painter.SetClipClamped(0, 0, swd3::Display::Width, swd3::Display::Height);
     }
 
     void SeedRandom(u32 seed) override

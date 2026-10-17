@@ -10,6 +10,7 @@
 #include "golden/tsw_scenarios.h"
 #include "golden_check.h"
 #include "pic/rle.h"
+#include "platform/display.h"
 #include "platform/surface.h"
 #include "recording_reporter.h"
 #include "res/tsw_archive.h"
@@ -81,6 +82,11 @@ private:
     swd3::TswArchive& archive;
 };
 
+// all_sys.tsw entry 24, a picture of a single frame.
+constexpr std::size_t kSysFile = 3;
+static_assert(swd3::TswArchive::FileNames[kSysFile] == "all_sys.tsw");
+constexpr u32 kSingleFrame = kSysFile * swd3::TswArchive::IndicesPerFile + 24;
+
 }  // namespace
 
 TEST_CASE("tsw: matches the golden results of the legacy archives")
@@ -94,7 +100,7 @@ TEST_CASE("tsw: matches the golden results of the legacy archives")
         return;
     }
 
-    swd3::Surface screen(640, 480);
+    swd3::Surface screen(swd3::Display::Width, swd3::Display::Height);
     swd3::Painter painter;
     painter.Init(screen);
     const swd3::RleCodec codec(painter);
@@ -117,14 +123,14 @@ TEST_CASE("tsw: a frame past the end of an entry reports an error instead of fai
         return;
     }
 
-    swd3::Surface screen(640, 480);
+    swd3::Surface screen(swd3::Display::Width, swd3::Display::Height);
     swd3::Painter painter;
     painter.Init(screen);
     const swd3::RleCodec codec(painter);
     swd3test::RecordingReporter errors;
     swd3::TswArchive archive(codec, errors);
     archive.SetGameDirectory(swd3test::GameDirectory());
-    CHECK(archive.GetPicture(9024, 0) != nullptr);
-    CHECK(archive.GetPicture(9024, 1) == nullptr);
+    CHECK(archive.GetPicture(kSingleFrame, 0) != nullptr);
+    CHECK(archive.GetPicture(kSingleFrame, 1) == nullptr);
     CHECK(!errors.messages.empty());
 }

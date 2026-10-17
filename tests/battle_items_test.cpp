@@ -149,9 +149,10 @@ TEST_CASE("battle items: counts of the inventory and the equipment, the list lim
     constexpr int kInInventory = kCarried + kPending;
     CHECK_EQ(swd3::CountItemTotal(battle, party, state, kCountedId), kInInventory);
     state.SetGameFlag(Party::FirstRoleFlag);
-    CHECK_EQ(swd3::CountItemTotal(battle, party, state, kCountedId), kInInventory + 1);
+    const int withFirst = kInInventory + 1;  // the slot of the first role counts once it has joined
+    CHECK_EQ(swd3::CountItemTotal(battle, party, state, kCountedId), withFirst);
     state.SetGameFlag(Party::FirstRoleFlag + 1);
-    CHECK_EQ(swd3::CountItemTotal(battle, party, state, kCountedId), kInInventory + 2);
+    CHECK_EQ(swd3::CountItemTotal(battle, party, state, kCountedId), withFirst + 1);
     battle.mode = swd3::BattleState::UnkMode2;
     CHECK_EQ(swd3::CountItemTotal(battle, party, state, kCountedId), kInInventory);
 

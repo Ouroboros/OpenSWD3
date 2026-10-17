@@ -1,3 +1,4 @@
+#include <climits>
 #include <cstdio>
 #include <fstream>
 #include <functional>
@@ -23,6 +24,9 @@ using swd3::u8;
 
 namespace
 {
+
+constexpr int kAdvance = 16;  // the pixels a character moves the pen
+constexpr int kDisplayBits = 16;
 
 class NullRasterizer : public swd3::GlyphRasterizer
 {
@@ -54,7 +58,7 @@ public:
 
         this->font.SetClip(0, 0, golden::kScreenWidth, golden::kScreenHeight);
         this->font.SetBackground(swd3::TextFont::NoBackground);
-        this->font.SetAdvance(16);
+        this->font.SetAdvance(kAdvance);
     }
 
     void DrawText(int x, int y, std::string_view text, u16 color, int style) override
@@ -104,7 +108,7 @@ public:
 
     int GlyphBytes() override
     {
-        return ((this->font.GlyphWidth() + 7) / 8) * this->font.GlyphHeight();
+        return ((this->font.GlyphWidth() + CHAR_BIT - 1) / CHAR_BIT) * this->font.GlyphHeight();
     }
 
     const u16* Screen() override
@@ -133,7 +137,7 @@ TEST_CASE("text font: matches the golden results of the legacy renderer")
     swd3::Display display;
     swd3test::RecordingReporter errors;
     swd3::Graphics graphics(display, errors);
-    graphics.Init(swd3::Graphics::FullScreen, 640, 480, 16);
+    graphics.Init(swd3::Graphics::FullScreen, swd3::Display::Width, swd3::Display::Height, kDisplayBits);
     NullRasterizer rasterizer;
     swd3::TextFont font(rasterizer);
     font.Init(graphics);

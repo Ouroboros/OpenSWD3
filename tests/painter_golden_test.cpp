@@ -104,15 +104,15 @@ public:
 
         switch (kind)
         {
-            case 0:
+            case golden::Tile16:
                 this->painter.DrawTile16(x, y);
                 break;
 
-            case 1:
+            case golden::Tile16Keyed:
                 this->painter.DrawTile16Keyed(x, y);
                 break;
 
-            case 2:
+            case golden::TilePalette:
                 this->painter.DrawTile8(x, y);
                 break;
 
@@ -164,10 +164,10 @@ public:
 
             case golden::PixelOperation::BlendPairs:
             {
-                std::vector<u32> pairs(count / 2);
-                std::memcpy(pairs.data(), pixels, pairs.size() * 4);
+                std::vector<u32> pairs(count * sizeof(u16) / sizeof(u32));
+                std::memcpy(pairs.data(), pixels, pairs.size() * sizeof(u32));
                 this->painter.BlendPairsWithColor(pairs, static_cast<u32>(a));
-                std::memcpy(pixels, pairs.data(), pairs.size() * 4);
+                std::memcpy(pixels, pairs.data(), pairs.size() * sizeof(u32));
                 break;
             }
         }

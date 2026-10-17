@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "core/words.h"
 #include "game_data.h"
 #include "golden/database_scenarios.h"
 #include "golden_check.h"
@@ -68,8 +69,8 @@ public:
               skill.unk20,
               skill.unk22})
         {
-            out.push_back(static_cast<u8>(word));
-            out.push_back(static_cast<u8>(word >> 8));
+            out.push_back(swd3::LowByte(word));
+            out.push_back(swd3::HighByte(word));
         }
 
         out.push_back(skill.turns);

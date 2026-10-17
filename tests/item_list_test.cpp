@@ -38,6 +38,7 @@ constexpr swd3::i16 kEmptyCount = 7;  // the empty entry counts 1 regardless
 constexpr swd3::i16 kPlainCount = 4;
 constexpr swd3::i16 kFlaggedCount = 2;
 constexpr swd3::i16 kTaken = 3;
+constexpr int kEntries = 2;  // the plain and the flagged entry
 
 // Ids with the two top bits FindItemOfKind ignores.
 constexpr swd3::u16 kIdBit14 = 0x4000;
@@ -103,7 +104,7 @@ TEST_CASE("item list: flagged and plain entries of one id")
     ItemNode* plain = swd3::AddFlaggedItem(list, kSwordId, kPlainCount, 0, database);
     ItemNode* flagged = swd3::AddFlaggedItem(list, kSwordId, kFlaggedCount, 1, database);
     CHECK(plain != flagged);
-    CHECK_EQ(Length(list), 2);
+    CHECK_EQ(Length(list), kEntries);
     CHECK_EQ(flagged->count, kFlaggedCount);
     CHECK(swd3::AddFlaggedItem(list, kSwordId, -kTaken, 0, database) == plain);
     CHECK_EQ(plain->count, kPlainCount + kFlaggedCount - kTaken);  // the flagged entry is folded into the plain one
@@ -138,8 +139,8 @@ TEST_CASE("item list: merge, reverse copy, unlink, lookups")
     // The list holds the ids in reverse.
     CHECK_EQ(swd3::ItemAt(list, kSecondIdAt)->id, kIds[1]);
     CHECK(swd3::ItemAt(list, static_cast<int>(kIds.size())) == nullptr);
-    CHECK_EQ(swd3::FindItemOfKind(list, kThirdKind)->id, kIds[2]);
-    CHECK_EQ(swd3::FindItemOfKind(list, kFirstKind)->id, kIds[0]);
+    CHECK_EQ(swd3::FindItemOfKind(list, kThirdKind)->id, kIdBit15 | kThirdKind);
+    CHECK_EQ(swd3::FindItemOfKind(list, kFirstKind)->id, kIdBit14 | kFirstKind);
     std::unique_ptr<ItemNode> taken = swd3::UnlinkItem(list, kIds[1]);
     CHECK(taken != nullptr);
     CHECK(taken->next == nullptr);

@@ -4,6 +4,7 @@
 
 #include "game_data.h"
 #include "movie/movie.h"
+#include "platform/display.h"
 #include "platform/surface.h"
 #include "recording_reporter.h"
 #include "test.h"
@@ -24,7 +25,7 @@ TEST_CASE("movie: Bink frames are decoded, copied and counted")
     CHECK(movie.Width() > 0 && movie.Width() <= 640);
     CHECK(movie.Height() > 0 && movie.Height() <= 480);
     CHECK_EQ(movie.Position(), 1);
-    swd3::Surface surface(640, 480);
+    swd3::Surface surface(swd3::Display::Width, swd3::Display::Height);
     surface.Fill(0);
     swd3test::RecordingReporter reporter;
     const int x = (640 - movie.Width()) / 2;
@@ -66,7 +67,7 @@ TEST_CASE("movie: a missing file keeps the error and stops at the first frame")
     CHECK(!movie.Error().empty());
     CHECK_EQ(movie.Width(), 0);
     CHECK(!movie.Waiting());
-    swd3::Surface surface(640, 480);
+    swd3::Surface surface(swd3::Display::Width, swd3::Display::Height);
     swd3test::RecordingReporter reporter;
     CHECK_EQ(movie.Frame(surface, 0, 0, reporter), 0);
     CHECK_EQ(reporter.messages.size(), 1u);

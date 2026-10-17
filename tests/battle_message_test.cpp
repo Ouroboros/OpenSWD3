@@ -12,6 +12,7 @@
 #include "game_data.h"
 #include "pic/rle.h"
 #include "platform/audio_device.h"
+#include "platform/display.h"
 #include "platform/glyph_rasterizer.h"
 #include "platform/surface.h"
 #include "random/random.h"
@@ -37,7 +38,7 @@ public:
 struct Messages
 {
     Messages()
-        : screen(640, 480),
+        : screen(swd3::Display::Width, swd3::Display::Height),
           codec(this->painter),
           archive(this->codec, this->errors),
           acts(this->errors),
@@ -49,7 +50,7 @@ struct Messages
     {
         this->painter.Init(this->screen);
         this->painter.SetTarget(this->screen.Pixels());
-        this->painter.SetClipClamped(0, 0, 640, 480);
+        this->painter.SetClipClamped(0, 0, swd3::Display::Width, swd3::Display::Height);
     }
 
     swd3::Surface screen;

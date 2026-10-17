@@ -6,6 +6,7 @@
 #include "game/game_state.h"
 #include "game_data.h"
 #include "launcher/launcher.h"
+#include "platform/display.h"
 #include "platform/exe_resources.h"
 #include "platform/surface.h"
 #include "platform/system_sound.h"
@@ -55,6 +56,6 @@ TEST_CASE("launcher: resources of swd32.exe and the hover hotspots")
     CHECK(launcher.OnMouse(1, 0x240, 10) == Launcher::Choice::Exit);
     CHECK_EQ(launcher.lit[4], 5);
     CHECK(launcher.OnClose() == Launcher::Choice::Exit);
-    swd3::Surface screen(640, 480);
+    swd3::Surface screen(swd3::Display::Width, swd3::Display::Height);
     launcher.Draw(screen);
 }

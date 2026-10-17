@@ -1,3 +1,4 @@
+#include <array>
 #include <cstdio>
 #include <cstring>
 #include <fstream>
@@ -13,6 +14,7 @@
 #include "golden/rle_scenarios.h"
 #include "golden_check.h"
 #include "pic/rle.h"
+#include "platform/display.h"
 #include "platform/surface.h"
 #include "test.h"
 
@@ -90,23 +92,27 @@ private:
     const swd3::RleCodec& codec;
 };
 
+// A line of two fill pixels (the default fill colour 0x26B), two literals, a skip pixel (0x319F) and a literal, and
+// its RLE: the header, the line header with its byte length, the runs and literal runs, the line and picture ends.
+constexpr std::array<u16, 6> kLinePixels = {0x26B, 0x26B, 0x1111, 0x2222, 0x319F, 0x3333};
+constexpr std::array<u16, 14> kEncodedLine =
+    {0xFFFF, 6, 1, 0x10, 18, 0xC002, 0x0002, 0x1111, 0x2222, 0x8001, 0x0001, 0x3333, 0x0000, 0x0000};
+
 }  // namespace
 
 TEST_CASE("rle: encode and decode a 16-bit picture")
 {
-    swd3::Surface screen(640, 480);
+    swd3::Surface screen(swd3::Display::Width, swd3::Display::Height);
     swd3::Painter painter;
     painter.Init(screen);
     const swd3::RleCodec codec(painter);
-    const u16 pixels[] = {0x26B, 0x26B, 0x1111, 0x2222, 0x319F, 0x3333};
-    const std::vector<u8> rle = codec.Encode(pixels, 6, 1, 0x10);
-    const u16 expected[] =
-        {0xFFFF, 6, 1, 0x10, 18, 0xC002, 0x0002, 0x1111, 0x2222, 0x8001, 0x0001, 0x3333, 0x0000, 0x0000};
-    CHECK_EQ(rle.size(), sizeof(expected));
-    CHECK(std::memcmp(rle.data(), expected, sizeof(expected)) == 0);
+    const std::vector<u8> rle =
+        codec.Encode(kLinePixels.data(), static_cast<int>(kLinePixels.size()), 1, swd3::RleHeader::TrueColor);
+    CHECK_EQ(rle.size(), sizeof(kEncodedLine));
+    CHECK(std::memcmp(rle.data(), kEncodedLine.data(), sizeof(kEncodedLine)) == 0);
     const auto decoded = codec.Decode(rle);
     CHECK(decoded.has_value());
-    CHECK(std::memcmp(decoded->pixels.data(), pixels, sizeof(pixels)) == 0);
+    CHECK(std::memcmp(decoded->pixels.data(), kLinePixels.data(), sizeof(kLinePixels)) == 0);
 }
 
 TEST_CASE("rle: matches the golden hashes of the legacy codec")
@@ -134,7 +140,7 @@ TEST_CASE("rle: matches the golden hashes of the legacy codec")
         return;
     }
 
-    swd3::Surface screen(640, 480);
+    swd3::Surface screen(swd3::Display::Width, swd3::Display::Height);
     swd3::Painter painter;
     painter.Init(screen);
     const swd3::RleCodec codec(painter);

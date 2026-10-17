@@ -14,6 +14,7 @@
 #include "pic/picture.h"
 #include "pic/picture_ops.h"
 #include "pic/projector.h"
+#include "platform/display.h"
 #include "platform/surface.h"
 #include "test.h"
 
@@ -30,16 +31,16 @@ class ProjectorBackend : public golden::ProjectorBackend
 {
 public:
     ProjectorBackend()
-        : screen(640, 480)
+        : screen(swd3::Display::Width, swd3::Display::Height)
     {
         this->painter.Init(this->screen);
     }
 
     void Reset(u32 seed) override
     {
-        for (int y = 0; y < 480; ++y)
+        for (int y = 0; y < swd3::Display::Height; ++y)
         {
-            for (int x = 0; x < 640; ++x)
+            for (int x = 0; x < swd3::Display::Width; ++x)
             {
                 this->screen.Row(y)[x] = golden::Background(seed, x, y);
             }
@@ -205,7 +206,7 @@ private:
 
 TEST_CASE("projector: the colour keys are compared unconverted")
 {
-    swd3::Surface screen(640, 480);
+    swd3::Surface screen(swd3::Display::Width, swd3::Display::Height);
     swd3::Painter painter;
     CHECK(painter.Init(screen));
     CHECK_EQ(painter.Rle().fill16, golden::kFillKey);
@@ -214,7 +215,7 @@ TEST_CASE("projector: the colour keys are compared unconverted")
 
 TEST_CASE("projector: the first explosion frame counts the opaque pixels")
 {
-    swd3::Surface screen(640, 480);
+    swd3::Surface screen(swd3::Display::Width, swd3::Display::Height);
     swd3::Painter painter;
     CHECK(painter.Init(screen));
     swd3::Projector projector;

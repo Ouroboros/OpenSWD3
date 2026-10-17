@@ -8,6 +8,7 @@
 #include "menu/menu.h"
 #include "menu/menu_text.h"
 #include "party/party.h"
+#include "platform/display.h"
 #include "platform/surface.h"
 #include "save/save_slots.h"
 #include "test.h"
@@ -89,7 +90,7 @@ TEST_CASE("menu: the preview of a saved game")
         return;
     }
 
-    swd3::Surface surface(640, 480);
+    swd3::Surface surface(swd3::Display::Width, swd3::Display::Height);
     swd3::Painter painter;
     painter.Init(surface);
     swd3::SavePreview preview;

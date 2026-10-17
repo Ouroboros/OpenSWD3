@@ -21,6 +21,9 @@ using swd3::u64;
 namespace
 {
 
+constexpr std::size_t kLeadWords = 2;  // the first words of a script go into the snapshot
+constexpr std::size_t kStates = 8;
+
 class ArchiveBackend : public golden::ActBackend
 {
 public:
@@ -97,11 +100,11 @@ public:
             s.unknown52,
         };
 
-        u16 first[2] = {};
+        std::array<u16, kLeadWords> first = {};
 
-        if (s.script != nullptr && s.script->size() >= 4)
+        if (s.script != nullptr && s.script->size() >= sizeof(first))
         {
-            std::memcpy(first, s.script->data(), 4);
+            std::memcpy(first.data(), s.script->data(), sizeof(first));
         }
 
         f.push_back(s.script != nullptr ? 1 : 0);
@@ -119,7 +122,7 @@ public:
             s.blue,
             s.unknown6A[0],
             s.unknown6A[1],
-            s.unknown6A[2],
+            s.unknown6A[std::size(s.unknown6A) - 1],
             s.red2,
             s.green2,
             s.blue2,
@@ -156,7 +159,7 @@ public:
 
 private:
     swd3::ActArchive& archive;
-    std::array<swd3::ActState, 8> states;
+    std::array<swd3::ActState, kStates> states;
 };
 
 }  // namespace
