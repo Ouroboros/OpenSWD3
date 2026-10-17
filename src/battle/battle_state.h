@@ -320,7 +320,6 @@ public:
     i32 unk53BD08 = 0;
     i32 unk4A7570 = 2;  // a party role
     // The end of the battle (Game::CheckBattleEnd, Game::DrawBattlePrompt).
-    i32 unk53CEAC = 0;  // 1: the battle ends as won
     i32 unk53C4A8 = 0;  // the fade of the field to black, 2 darker a frame
     i32 unk53BDC8 = 0;
     std::array<u16, 3> unk4FF2EA = {};  // [1], [2]: objects given back when the battle ends (set by 0x0045EC60)

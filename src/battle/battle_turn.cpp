@@ -433,7 +433,7 @@ void Game::CheckBattleEnd()
         }
     }
 
-    if (battle.unk53BF00 - battle.unk53BF02 >= static_cast<i32>(battle.enemyCount) || battle.unk53CEAC == 1)
+    if (battle.unk53BF00 - battle.unk53BF02 >= static_cast<i32>(battle.enemyCount) || this->fightTalk.unk53CEAC == 1)
     {
         battle.unk53BF5C = 1;
 
