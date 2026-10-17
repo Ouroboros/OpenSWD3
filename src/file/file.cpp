@@ -102,7 +102,7 @@ bool File::Open(std::string_view name, Disposition disposition, Access access)
     {
         const int failure = errno;
         this->SetError(std::strerror(failure));
-        LogDebug(u8"open failed %s: %s", AsUtf8(path), AsUtf8(std::strerror(failure)));
+        LogDebug(u8"open failed %s: %s", path, AsUtf8(std::strerror(failure)));
         return false;
     }
 

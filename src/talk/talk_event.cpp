@@ -23,7 +23,8 @@ constexpr u8 kNoCommandByte = 0xFF;  // both bytes of EventCommand::None
 
 void LogActError(std::u8string_view where, const Role& role)
 {
-    DebugLog(where, role.id, role.act.id, role.act.action, role.act.direction);
+    const std::u8string format = std::u8string(where) + u8" 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]";
+    DebugLog(format, role.id, role.act.id, role.act.action, role.act.direction);
 }
 
 // swd32.exe 0x00427920: the event script of `context` (the leader) from where it stopped. On its first frame the
@@ -787,7 +788,7 @@ bool Talk::RunRoleCommand(EventRun& run)
     GameState& state = owner.state;
     Role& context = run.context;
     const std::span<const u8> script(owner.databases.script);
-    const auto leader = static_cast<u16>(owner.unk4B7BC4);
+    const i32 leader = owner.unk4B7BC4;
 
     switch (run.code)
     {

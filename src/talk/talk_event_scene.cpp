@@ -242,7 +242,7 @@ bool Talk::PlaceRole(EventRun& run)
         Role& role = state.roles[run.found];
         setBits = static_cast<i16>(role.flags);
         role.flags &= ~(Role::Visible | Role::Solid);
-        owner.field.ClearRoleCells(role, static_cast<u16>(owner.unk4B7BC4));
+        owner.field.ClearRoleCells(role, owner.unk4B7BC4);
         role.flags |= Role::Removed;
         event = static_cast<i16>(role.event);
     }

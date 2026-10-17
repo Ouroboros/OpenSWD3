@@ -44,7 +44,6 @@ constexpr u16 kSpecialItem = 0x192;
 constexpr std::string_view kCdData = "swd3_dvd.dat";  // swd32.exe 0x0049FC9C (the same name for every disc)
 
 // swd32.exe 0x0049FBA8: a nibble as a signed step.
-constexpr std::array<i32, 16> kSignedNibble = {0, 1, 2, 3, 4, 5, 6, 7, 8, -7, -6, -5, -4, -3, -2, -1};
 
 // The loading screen: the bar shades from (kBarRed, kBarGreen, kBarBlue) by the steps per column in 1/kColorFraction
 // (8-bit channels, kChannelDrop bits dropped for the display); the runner walks at its end.
@@ -207,7 +206,7 @@ void Game::MusicZone(int map)
             return;
         }
 
-        if (entry == static_cast<u16>(map))
+        if (static_cast<int>(entry) == map)
         {
             break;
         }
@@ -288,7 +287,7 @@ void Game::BuildTriggers(MapTrigger& head)
     for (u32 at = MapsTable(data, MapsDataTable::EncounterAreas); MapsWord(data, at) != MapsRecord::TableEnd;
          at += MapsRecord::AreaBytes)
     {
-        if (MapsWord(data, at) == static_cast<u16>(this->currentMap))
+        if (static_cast<i32>(MapsWord(data, at)) == this->currentMap)
         {
             auto node = std::make_unique<MapTrigger>();
             node->left = MapsWord(data, at + MapsRecord::AreaLeftAt);
@@ -307,10 +306,15 @@ void Game::BuildTriggers(MapTrigger& head)
 void Game::InitRole(Role& role)
 {
     role.act.flags = 0;
-    this->acts.Run(role.act);
+
+    if (this->acts.Run(role.act) == 0)
+    {
+        LogActError(u8"Act Err(Misc:newRoleInit)", role);
+    }
+
     role.flags &= ~(Role::Reflects | Role::CellShades);
     const auto column = static_cast<u32>(role.x) >> MapHeader::TileShift;
-    const i32 row = role.y >> MapHeader::TileShift;
+    const auto row = static_cast<u32>(role.y) >> MapHeader::TileShift;
     const std::size_t at = column + static_cast<std::size_t>(this->state.map.width) * static_cast<std::size_t>(row);
     std::vector<u32>& blocks = this->state.map.blocks;
     role.cell = at < blocks.size() ? &blocks[at] : nullptr;
@@ -332,7 +336,7 @@ void Game::InitRole(Role& role)
 
     if (role.act.id != 0 && (role.flags & (Role::Visible | Role::Hidden)) == Role::Visible)
     {
-        this->field.MarkRoleCells(role, static_cast<u16>(this->unk4B7BC4));
+        this->field.MarkRoleCells(role, this->unk4B7BC4);
     }
 }
 
@@ -348,7 +352,7 @@ bool Game::MapName(int map, std::string& name) const
         return false;
     }
 
-    while (code != static_cast<u16>(map))
+    while (static_cast<int>(code) != map)
     {
         if (code != MapsRecord::NameEnd)
         {
@@ -402,7 +406,7 @@ bool Game::UpdateRoleRecord(
         if (at + static_cast<std::size_t>(sizeof(u16) * MapsRecord::RoleWords) > data.size() ||
             MapsWord(data, at) == MapsRecord::TableEnd)
         {
-            DebugLog(u8"role record missing", id);
+            DebugLog(u8"未定義角色[%d]", id);
             return false;
         }
 
@@ -512,6 +516,21 @@ void Game::SaveRoleStates(i16 x, i16 y)
                         {
                             copy.x = move.x;
                             copy.y = move.y;
+
+                            if (static_cast<u32>(move.x) >
+                                    static_cast<u32>(MapHeader::TileSize * this->state.map.width) ||
+                                move.y > MapHeader::TileSize * this->state.map.height)
+                            {
+                                DebugLog(
+                                    u8"角色回寫 角色(%d)\n終點位置(%d,%d)\n不在地圖(%d,%d)內",
+                                    copy.id,
+                                    move.x,
+                                    move.y,
+                                    MapHeader::TileSize * this->state.map.width,
+                                    MapHeader::TileSize * this->state.map.height
+                                );
+                            }
+
                             break;
                         }
                     }
@@ -558,7 +577,7 @@ void Game::FollowLeader(int index)
 
             if ((role.x & MapHeader::TileFraction) != 0 || (role.y & MapHeader::TileFraction) != 0)
             {
-                this->field.ClearRoleCells(role, static_cast<u16>(this->unk4B7BC4));
+                this->field.ClearRoleCells(role, this->unk4B7BC4);
                 const u8 direction = move.CurrentDirection();
 
                 while ((role.x & MapHeader::TileFraction) != 0 && direction < RolePath::StepX.size())
@@ -704,7 +723,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
     this->acts.CloseAll();
     this->archive.CloseAll();
     this->audio.StopAllSounds();
-    this->AudioPump();
+    this->audioDevice.Serve();
     const std::vector<u8>& data = this->databases.mapsData;
     u16 unit = MapsRecord::TableEnd;
 
@@ -767,9 +786,9 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
             }
         }
 
-        view.unk4AB97C = kSignedNibble[speeds >> (3 * kNibbleBits)];
-        view.unk4AB994 = kSignedNibble[(speeds >> (2 * kNibbleBits)) & kNibbleMask];
-        view.unk4ACB98 = kSignedNibble[data[at + MapsRecord::SettingsSpeedsAt] >> kNibbleBits];
+        view.unk4AB97C = Game::SpeedNibbles[speeds >> (3 * kNibbleBits)];
+        view.unk4AB994 = Game::SpeedNibbles[(speeds >> (2 * kNibbleBits)) & kNibbleMask];
+        view.unk4ACB98 = Game::SpeedNibbles[data[at + MapsRecord::SettingsSpeedsAt] >> kNibbleBits];
 
         if (!std::has_single_bit(static_cast<u32>(view.unk4C8BD8)) || static_cast<u32>(view.unk4C8BD8) > kMaxWalkSpeed)
         {
@@ -783,6 +802,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
 
         if (!view.unk4CAE78.empty() && static_cast<i16>(view.unk4B896C) > static_cast<i16>(view.unk4CAE78.front()))
         {
+            DebugLog(u8"載入地圖 錯誤的戰鬥機率組[%d]", view.unk4B896C);
             view.unk4B896C = 1;
         }
 
@@ -808,6 +828,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
 
     if (unit == MapsRecord::TableEnd)
     {
+        DebugLog(u8"遊戲初始 找不到設定的起始地圖碼 (%d)", map);
         this->Destroy();
         return;
     }
@@ -851,7 +872,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
         move.Clear();
     }
 
-    this->AudioPump();
+    this->audioDevice.Serve();
     this->field.overlays.reset();
     this->notices.head.next.reset();
     this->ShowLoading(kLoadingCleared);
@@ -861,6 +882,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
 
     if (!this->field.LoadMap(unit, this->systemFlags))
     {
+        DebugLog(u8"載入地圖 過程發生錯誤");
         this->Destroy();
         return;
     }
@@ -874,6 +896,11 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
         this->painter.ConvertPixels(this->field.palette);
     }
 
+    if (header.pixels == nullptr)
+    {
+        ErrorLog(u8"LoadCity ,gMap.Pixel==NULL");
+    }
+
     view.unk4CC2DC = 1;
     view.unk4B7944 = 0;
     view.unk4B873C = 0;
@@ -882,6 +909,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
 
     if (!this->MapName(this->currentMap, name))
     {
+        DebugLog(u8"讀取地圖名稱 MapName.txt中找不到地圖[%d]名稱", unit);
         name = Big5(Game::UnknownPlace);
     }
 
@@ -977,6 +1005,7 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
         {
             if (word(record + MapsRecord::RoleId) == word(earlier * MapsRecord::RoleWords + MapsRecord::RoleId))
             {
+                DebugLog(u8"讀取路人 重複定義角色(%d)", word(earlier * MapsRecord::RoleWords + MapsRecord::RoleId));
                 record += MapsRecord::RoleWords;
             }
         }
@@ -988,7 +1017,7 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
             put(record + MapsRecord::RoleMap, static_cast<u16>(map));
         }
 
-        if (id == static_cast<u16>(this->unk4B7BC4))
+        if (static_cast<i32>(id) == this->unk4B7BC4)
         {
             this->AudioPump();
             put(record + MapsRecord::RoleMap, static_cast<u16>(map));
@@ -1007,7 +1036,7 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
             view.trailX.fill(MapHeader::TileSize * x);
         }
 
-        if (word(record) != static_cast<u16>(map))
+        if (static_cast<int>(word(record)) != map)
         {
             record += MapsRecord::RoleWords;
             continue;
@@ -1020,6 +1049,16 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
         if (column > static_cast<u32>(header.width) || row > static_cast<u32>(header.height) ||
             slot >= GameState::Roles)
         {
+            DebugLog(
+                u8"讀取路人 地圖(%d)啟動對話(%d)\n路人(%d)位置超出地圖\n地圖(%d,%d)\n路人(%d,%d)",
+                map,
+                game.leader.event,
+                word(record + MapsRecord::RoleId),
+                header.width,
+                header.height,
+                column,
+                row
+            );
             put(record + MapsRecord::RoleColumn, static_cast<u16>(header.width - 1));
             put(record + MapsRecord::RoleRow, static_cast<u16>(header.height - 1));
             record += MapsRecord::RoleWords;
@@ -1108,6 +1147,11 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
             }
         }
 
+        if ((role.flags & Role::Bubbles) != 0 && mark >= view.marks.size())
+        {
+            DebugLog(u8"讀取路人 地圖(%d)定義煙囪物件數量超過四個", map);
+        }
+
         if ((role.flags & Role::Bubbles) != 0 && mark < view.marks.size())
         {
             RoleMark& entry = view.marks[mark++];
@@ -1138,6 +1182,14 @@ void Game::StoreRole(const Role& role)
     {
         if (MapsWord(data, at) == MapsRecord::TableEnd)
         {
+            if (this->state.GameFlag(GameState::DebugReports))
+            {
+                DebugLog(
+                    u8"!!! 警告 !!! 角色編號(%d)\n資料歸鍵時\n找不到符合的位置\n可能是定義錯誤或是角色不存在了",
+                    role.id
+                );
+            }
+
             return;
         }
 
@@ -1243,8 +1295,8 @@ u32 Game::RollEncounter(int steps, int force)
         return 0;
     }
 
-    const int column = player.x >> MapHeader::TileShift;
-    const int row = player.y >> MapHeader::TileShift;
+    const auto column = static_cast<i32>(static_cast<u32>(player.x) >> MapHeader::TileShift);
+    const auto row = static_cast<i32>(static_cast<u32>(player.y) >> MapHeader::TileShift);
     const MapTrigger* area = view.triggers.next.get();
 
     while (area != nullptr && (column < area->left || column > area->right || row < area->top || row > area->bottom))
@@ -1280,14 +1332,14 @@ void Game::ReleaseRole(int index)
 
     for (MoveRecord& move : this->state.moves)
     {
-        if (move.role != static_cast<u16>(index))
+        if (static_cast<int>(move.role) != index)
         {
             continue;
         }
 
         if ((role.x & kTileMask) != 0 || (role.y & kTileMask) != 0)
         {
-            this->field.ClearRoleCells(role, static_cast<u16>(this->unk4B7BC4));
+            this->field.ClearRoleCells(role, this->unk4B7BC4);
 
             if (index != this->state.playerRole)
             {
@@ -1322,6 +1374,11 @@ void Game::ReleaseRole(int index)
 
     this->rolePath.ResumeMove(index);
 
+    if (index >= GameState::Roles)
+    {
+        DebugLog(u8"對話系統(TalkEnd) GUID(%d)\n陣列索引錯誤(crID %d) (manMax %d) ", index, this->state.roleCount);
+    }
+
     if ((role.flags & Role::FacesTalker) != 0)
     {
         if (role.act.savedAction != ActState::NotSaved)
@@ -1343,6 +1400,8 @@ void Game::ReleaseRole(int index)
         LogActError(u8"Act Err(Talk:Talkend)", role);
     }
 
+    role.act.savedAction = ActState::NotSaved;
+    role.act.savedDirection = ActState::NotSaved;
     role.flags &= ~Role::Held;
     role.act.delay = 0;
 }

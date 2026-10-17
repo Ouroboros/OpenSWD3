@@ -77,6 +77,8 @@ public:
     static constexpr std::string_view Executable = "swd32.exe";
     static constexpr u32 StartSound = 0x78;
     static constexpr int FrameInterval = 0x23;
+    // swd32.exe 0x0049FBA8: the signed speeds of the nibbles of a map setting (8 and above count down from -7).
+    static constexpr std::array<i32, 16> SpeedNibbles = {0, 1, 2, 3, 4, 5, 6, 7, 8, -7, -6, -5, -4, -3, -2, -1};
 
     // `menuState`: the menu shown (0: none), bit 31 while it is being entered.
     enum MenuNumber : u32

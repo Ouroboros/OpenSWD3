@@ -45,6 +45,7 @@ constexpr std::u8string_view kDirectDrawFailed = u8"DDraw init Failed.";
 constexpr std::u8string_view kTimerFailed = u8"mmTimer init Failed.";
 constexpr std::u8string_view kErrorTitle = u8"SWD3";
 constexpr u32 kStopVideoButtons = kLeftButton | kRightButton | kControlKey | kMiddleButton;
+constexpr std::size_t kMusicPathLimit = 0x400;  // MusicPath: a longer path is reported (the original buffer)
 constexpr u32 kScreenshotDiskMegabytes = 0x40;  // key P: a screenshot needs more free space than this
 constexpr int kScreenshotNames = 0x1869E;       // ScrnShot\00000.bmp..ScrnShot\99997.bmp
 constexpr std::string_view kScreenshotName = "%sScrnShot\\%05d.bmp";  // swd32.exe 0x0049FB3C
@@ -402,11 +403,11 @@ int Game::Run(std::string_view commandLine)
 // swd32.exe 0x004980F8 (EH handler of 0x0040A0D0)
 void Game::Start()
 {
-    LogInfo(u8"start install_directory=%s", AsUtf8(this->config.installDirectory));
+    LogInfo(u8"start install_directory=%s", this->config.installDirectory);
 
     if (!this->resources.Open(Concat({this->config.installDirectory, Game::Executable})))
     {
-        LogError(u8"swd32.exe not readable in %s", AsUtf8(this->config.installDirectory));
+        LogError(u8"swd32.exe not readable in %s", this->config.installDirectory);
         this->errors.ShowError(u8"swd3r", u8"swd32.exe not found in the game directory");
         this->quit = true;
         return;
@@ -424,7 +425,7 @@ void Game::Start()
 
     LogInfo(
         u8"installation cd_root=%s install_type=%d sound=%d music=%d cache=%d text_speed=%d battle_speed=%d",
-        AsUtf8(this->config.cdRoot),
+        this->config.cdRoot,
         static_cast<i32>(this->config.installType),
         this->config.soundVolume,
         this->config.musicVolume,
@@ -853,9 +854,31 @@ void Game::NewGame()
         return this->acts.Run(role.act) != 0;
     };
 
-    setPointer(scene.pointerRole, 0);
-    setPointer(scene.pointerButtonRole, Scene::ButtonPointer);
-    setPointer(scene.pointerPageRole, Scene::PagePointer);
+    auto logPointer = [](std::u8string_view error, const Role& role)
+    {
+        DebugLog(error, role.id, role.act.id, role.act.action, role.act.direction);
+    };
+
+    if (!setPointer(scene.pointerRole, 0))
+    {
+        logPointer(u8"Act Err(Misc:Init:Mouse:Norm) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]", scene.pointerRole);
+    }
+
+    if (!setPointer(scene.pointerButtonRole, Scene::ButtonPointer))
+    {
+        logPointer(u8"Act Err(Misc:Init:Mouse:Btn) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]", scene.pointerButtonRole);
+    }
+
+    // The original reports the page pointer with the values of the button pointer.
+    if (!setPointer(scene.pointerPageRole, Scene::PagePointer))
+    {
+        logPointer(
+            u8"Act Err(Misc:Init:Mouse:n"
+            u8"Page) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]",
+            scene.pointerButtonRole
+        );
+    }
+
     scene.unk4A9A30 = ActState{};
     ResetPlayback(scene.unk4A9A30);
     scene.unk4B751C.reset();
@@ -873,7 +896,9 @@ void Game::NewGame()
         scene.unk4B9F68[static_cast<std::size_t>(index)].action = index;
     }
 
-    ResetAct(scene.unk4C83A8, Scene::PointerAct, kUnk4C83A8Action);
+    ResetPlayback(scene.unk4C83A8);
+    scene.unk4C83A8.id = Scene::PointerAct;
+    scene.unk4C83A8.action = kUnk4C83A8Action;
     scene.viewWidth = Display::Width;
     scene.viewHeight = Display::Height;
     scene.unk4ACBC8 = kStartUnk4ACBC8;
@@ -914,6 +939,11 @@ void Game::NewGame()
 
     scene.unk4CAE78.assign((MapsRecord::GroupWords * words + kGroupSlackBytes) / MapsRecord::GroupWords, 0);
     scene.unk4CAE78.front() = static_cast<u16>(words / MapsRecord::GroupWords);
+
+    if (words % MapsRecord::GroupWords != 0)
+    {
+        DebugLog(u8"戰鬥機率讀取 設定數質量必須是 8 的倍數");
+    }
 
     if (words % MapsRecord::GroupWords == 0)
     {
@@ -1096,20 +1126,26 @@ void Game::ShowFrame()
     this->graphics.Present();
 }
 
-// swd32.exe 0x0040EB60: <install directory>Music\<name>.mp3 for tune `index` of maps.dat (its table 2)
+// swd32.exe 0x0040EB60: <install directory>Music\<name>.mp3 for tune `index` of the name list of maps.dat's table 2
+// (the list its first dword points at); the name is copied up to the next dot after its first byte
 std::string Game::MusicPath(int index) const
 {
     const std::vector<u8>& data = this->databases.mapsData;
-    const u32 names = MapsTable(data, MapsDataTable::Music);
+    const u32 names = MapsDword(data, MapsTable(data, MapsDataTable::Music));
     const u32 entry = MapsDword(data, names + sizeof(u32) * static_cast<u32>(index));
     std::string path = this->config.installDirectory + "Music\\";
+    std::size_t at = static_cast<std::size_t>(entry) + MapsRecord::MusicNameAt;
 
-    for (std::size_t at = static_cast<std::size_t>(entry) + MapsRecord::MusicNameAt;
-         at < data.size() && data[at] != '.';
-         ++at)
+    do
     {
-        path.push_back(static_cast<char>(data[at]));
-    }
+        path.push_back(at < data.size() ? static_cast<char>(data[at]) : '\0');
+        ++at;
+
+        if (path.size() > kMusicPathLimit)
+        {
+            DebugLog(u8"Music String 太長,%s", path);
+        }
+    } while (at < data.size() && data[at] != '.');
 
     return path + ".mp3";
 }

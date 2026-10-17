@@ -172,7 +172,7 @@ u32 Talk::ExpandText(std::string& text)
             if (code.size() >= kCodeBytes + kItemDigits)
             {
                 number.push_back('.');
-                DebugLog(u8"物品名稱代換", code);
+                DebugLog(u8"物品名稱代換 !! 警告 !! %s", code + ".");
             }
 
             int id = static_cast<int>(code.size());
@@ -191,14 +191,14 @@ u32 Talk::ExpandText(std::string& text)
                 }
                 else
                 {
-                    DebugLog(u8"物品名稱代換", id);
+                    DebugLog(u8"物品名稱代換 找不到物品 %d", id);
                     at += kSkippedCodeBytes;
                     consumed += kSkippedCodeBytes;
                 }
             }
             else
             {
-                DebugLog(u8"物品名稱代換", code);
+                DebugLog(u8"物品名稱代換 錯誤的號碼字串 %s", code + ".");
                 at += kSkippedCodeBytes;
                 consumed += kSkippedCodeBytes;
             }
@@ -430,7 +430,7 @@ bool Talk::SetupDialog(
 
     if (word(0) != TalkWindow::NoRole && !fixed && !state.FindRoleOrPlayer(word(0), speaker))
     {
-        DebugLog(u8"設定對話窗(SetupDialog)", word(0));
+        DebugLog(u8"設定對話窗(SetupDialog) 無效的角色號碼 或不在地圖上GUID(%d)", word(0));
         window = TalkWindow{};
         window.page = TalkWindow::Closed;
         return false;
@@ -445,18 +445,26 @@ bool Talk::SetupDialog(
 
     if (frame == owner.scene.unk4CAA78.size())
     {
-        DebugLog(u8"SetupDialog", word(1));
+        DebugLog(u8"SetupDialog 設定錯誤的對話框(act:%d)", word(1));
         frame = 0;
     }
 
+    auto runAct = [&owner](ActState& act, std::u8string_view error)
+    {
+        if (owner.acts.Run(act) == 0)
+        {
+            DebugLog(error, act.id, act.action, act.direction);
+        }
+    };
+
     window.frameAct = &owner.scene.unk4CAA78[frame];
-    owner.acts.Run(owner.scene.unk4CAA78[frame]);
+    runAct(owner.scene.unk4CAA78[frame], u8"Act Err(Dialog:Frame) 設定錯誤 \nact[%d] qq[%d] dir[%d]");
 
     if (!name.empty())
     {
         window.nameAct = &owner.scene.unk4A9120[frame];
         window.name = std::string(name.substr(0, this->dialogName.size() - 1));
-        owner.acts.Run(owner.scene.unk4A9120[frame]);
+        runAct(owner.scene.unk4A9120[frame], u8"Act Err(Dialog:Caption) 設定錯誤 \nact[%d] qq[%d] dir[%d]");
     }
 
     window.role = static_cast<u16>(speaker);

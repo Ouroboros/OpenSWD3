@@ -115,7 +115,7 @@ bool Talk::RunStateCommand(EventRun& run)
     GameState& state = owner.state;
     Scene& view = owner.scene;
     Party& party = owner.party;
-    const auto leader = static_cast<u16>(owner.unk4B7BC4);
+    const i32 leader = owner.unk4B7BC4;
 
     switch (run.code)
     {

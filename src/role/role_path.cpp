@@ -64,7 +64,7 @@ u16 RolePath::RoleId(u32 index)
 
     if (index >= static_cast<u32>(state.roleCount))
     {
-        this->game.errors.ShowError(Utf8Format(u8"%d", {static_cast<u32>(id)}), u8"Illegal Role id");
+        this->game.errors.ShowError(u8"Illegal Role id", Utf8Format(u8"%d", {static_cast<u32>(id)}));
     }
 
     return id;
@@ -76,7 +76,7 @@ u16 RolePath::RoleId(u32 index)
 void RolePath::Update()
 {
     GameState& state = this->game.state;
-    const auto leader = static_cast<u16>(this->game.unk4B7BC4);
+    const i32 leader = this->game.unk4B7BC4;
 
     for (u32 index = 1; index < static_cast<u32>(state.roleCount) && index < GameState::Roles; ++index)
     {
@@ -433,7 +433,7 @@ void RolePath::Follow(int index)
     }
 
     MoveRecord& move = view.followerMoves[follower];
-    const u16 leaderId = static_cast<u16>(owner.unk4B7BC4);
+    const i32 leaderId = owner.unk4B7BC4;
 
     auto direction = [&move]()
     {
@@ -569,7 +569,7 @@ void RolePath::RunScript(int index)
     Role& role = state.roles[static_cast<std::size_t>(index)];
     const std::span<const u8> data = owner.databases.paths.View();
     auto& variables = owner.party.variables;
-    const u16 leaderId = static_cast<u16>(owner.unk4B7BC4);
+    const i32 leaderId = owner.unk4B7BC4;
 
     auto word = [&data](std::size_t at)
     {
@@ -1280,7 +1280,7 @@ int RolePath::HoldRole(int index)
     Game& owner = this->game;
     GameState& state = owner.state;
     Role& role = state.roles[static_cast<std::size_t>(index)];
-    const auto leader = static_cast<u16>(owner.unk4B7BC4);
+    const i32 leader = owner.unk4B7BC4;
 
     if (index == state.playerRole)
     {
@@ -1431,7 +1431,7 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
     Game& owner = this->game;
     GameState& state = owner.state;
     Role& role = state.roles[static_cast<std::size_t>(index)];
-    const auto leader = static_cast<u16>(owner.unk4B7BC4);
+    const i32 leader = owner.unk4B7BC4;
     const BlockingMap grid = this->Grid();
     PathFinder finder(owner.pathNodes, grid, owner.errors);
     role.flags &= ~Role::Arrived;

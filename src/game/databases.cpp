@@ -1,5 +1,6 @@
 #include "game/databases.h"
 
+#include "core/debug_log.h"
 #include "item/item_list.h"
 #include "platform/message_box.h"
 #include "text/big5.h"
@@ -20,11 +21,13 @@ bool GameDatabases::Open(const std::string& installDirectory, ErrorReporter& err
 {
     if (!this->maps.Open(installDirectory + "maps.dat", File::Disposition::OpenExisting, File::Access::Read))
     {
+        DebugLog(u8"SWD3 RoleDataBase init Failed.");
         return false;
     }
 
     if (!this->paths.Open(installDirectory + "path.dat", File::Disposition::OpenExisting, File::Access::Read))
     {
+        DebugLog(u8"SWD3 PathDataBase init Failed.");
         return false;
     }
 

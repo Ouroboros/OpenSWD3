@@ -801,7 +801,7 @@ void ChangeRoleCells(std::vector<u32>& blocks, i32 mapWidth, const Role& role, C
 
 // swd32.exe 0x0040AEC0: the cells under a role marked taken (bit 28; bit 29 too for flag 0x4000, bit 23 for flag 0x10,
 // bit 8 for the leader); the first cell is marked once more by the walk
-void Field::MarkRoleCells(const Role& role, u16 leader)
+void Field::MarkRoleCells(const Role& role, i32 leader)
 {
     u32 bits = (role.flags & Role::Solid) != 0 ? MapHeader::RoleCell | MapHeader::SolidRole : MapHeader::RoleCell;
 
@@ -810,7 +810,7 @@ void Field::MarkRoleCells(const Role& role, u16 leader)
         bits |= MapHeader::Unk800000;
     }
 
-    if (role.id == leader)
+    if (static_cast<i32>(role.id) == leader)
     {
         bits |= MapHeader::LeaderCell;
     }
@@ -827,11 +827,11 @@ void Field::MarkRoleCells(const Role& role, u16 leader)
 }
 
 // swd32.exe 0x0040AE20: the marks of a role taken off its cells (the leader's bit 8 too)
-void Field::ClearRoleCells(const Role& role, u16 leader)
+void Field::ClearRoleCells(const Role& role, i32 leader)
 {
     const u32 mask =
         ~(MapHeader::RoleCell | MapHeader::SolidRole | MapHeader::Unk800000 |
-          (role.id == leader ? MapHeader::LeaderCell : 0u));
+          (static_cast<i32>(role.id) == leader ? MapHeader::LeaderCell : 0u));
     ChangeRoleCells(
         this->state.map.blocks,
         this->state.map.width,

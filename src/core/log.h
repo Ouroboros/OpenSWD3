@@ -64,7 +64,8 @@ FormatArgument LogArgument(const T& value)
     return FormatArgument(value);
 }
 
-// A message formatted like wsprintfA (the text as it is without arguments).
+// A message formatted like wsprintfA (the text as it is without arguments). The log is UTF-8 throughout: game text
+// arguments (Big5) are converted, UTF-8 arguments (AsUtf8, u8 strings) are kept.
 template <typename... Args>
 void Log(LogLevel level, const LogFormat& format, const Args&... args)
 {
@@ -78,7 +79,8 @@ void Log(LogLevel level, const LogFormat& format, const Args&... args)
     }
     else
     {
-        WriteLog(level, format.where, WinFormat(format.text, {LogArgument(args)...}));
+        const std::u8string text = Utf8Format(format.text, {LogArgument(args)...});
+        WriteLog(level, format.where, std::string_view(reinterpret_cast<const char*>(text.data()), text.size()));
     }
 }
 

@@ -92,8 +92,8 @@ public:
     bool LoadUnitPicture(u32 unit, Picture& picture);
     bool LoadMapPicture(int unit, Picture& picture) override;
     void CenterCamera();
-    void MarkRoleCells(const Role& role, u16 leader);
-    void ClearRoleCells(const Role& role, u16 leader);
+    void MarkRoleCells(const Role& role, i32 leader);
+    void ClearRoleCells(const Role& role, i32 leader);
     MapRegion* FindRegion(int id);
     u32 ProbeCells(std::ptrdiff_t cell, int width, int height, u32 mask) const;
     void CameraAround(int x, int y, CameraRect& rect) const;

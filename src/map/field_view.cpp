@@ -3124,7 +3124,7 @@ void FieldView::Render()
     GameState& state = owner.state;
     Scene& view = owner.scene;
     Field& field = owner.field;
-    const auto leaderId = static_cast<u16>(owner.unk4B7BC4);
+    const i32 leaderId = owner.unk4B7BC4;
     const int width = state.map.width;
 
     for (std::size_t act = view.unk4B9F68.size(); act-- > 0;)

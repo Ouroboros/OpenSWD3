@@ -85,7 +85,7 @@ u32 Game::LoadRoleRecord(Role& role, u16 id)
         return MapsWord(data, at);
     }
 
-    DebugLog(u8"role record missing", id);
+    DebugLog(u8"未定義角色[%d]", id);
     return GameState::NotFound;
 }
 
@@ -116,7 +116,7 @@ void Game::LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 dire
             }
         }
 
-        DebugLog(u8"LeaveParty", id);
+        DebugLog(u8"解除夥伴 角色(%d)不存在", id);
         return;
     }
 
@@ -129,13 +129,13 @@ void Game::LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 dire
 
     if (follower == view.unk4B7C8C.size() || index >= GameState::Roles)
     {
-        DebugLog(u8"LeaveParty", id);
+        DebugLog(u8"解除夥伴 角色(%d)不是夥伴", id);
         return;
     }
 
     Role& role = game.roles[index];
     MoveRecord& move = view.followerMoves[follower];
-    const auto leader = static_cast<u16>(this->unk4B7BC4);
+    const i32 leader = this->unk4B7BC4;
 
     if (move.step < MoveRecord::StepMask &&
         ((role.x & MapHeader::TileFraction) != 0 || (role.y & MapHeader::TileFraction) != 0))
@@ -305,7 +305,7 @@ bool Game::PlayVideo(std::size_t& cursor, u16& pc)
         }
     }
 
-    LogInfo(u8"video %s", AsUtf8(path));
+    LogInfo(u8"video %s", path);
 
     this->movie.Close();
     this->movie.Open(path, this->config.musicVolume * Movie::MaxVolume / Config::MaxVolume);

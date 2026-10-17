@@ -1,5 +1,6 @@
 #include "ui/act_draw.h"
 
+#include "core/debug_log.h"
 #include "draw/painter.h"
 #include "pic/picture.h"
 #include "res/act_archive.h"
@@ -35,6 +36,12 @@ void ActDrawer::Draw(ActState& state, int x, int y)
 {
     if (this->acts.Run(state) == 0)
     {
+        DebugLog(
+            u8"Act Err(Misc::DrawActData) 設定錯誤 \nact[%d] qq[%d] dir[%d]",
+            state.id,
+            state.action,
+            state.direction
+        );
         return;
     }
 
@@ -151,6 +158,12 @@ void ActDrawer::DrawWithMode(ActState& state, int x, int y, u32 mode)
 {
     if (this->acts.Run(state) == 0)
     {
+        DebugLog(
+            u8"Act Err(Misc::DrawActData) 設定錯誤 \nact[%d] qq[%d] dir[%d]",
+            state.id,
+            state.action,
+            state.direction
+        );
         return;
     }
 

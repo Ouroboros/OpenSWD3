@@ -2365,7 +2365,7 @@ bool Menu::ItemsCallFollower()
             if (placed.id == role.id)
             {
                 placed.flags &= kFollowerFlagsKept;
-                owner.field.ClearRoleCells(placed, static_cast<u16>(owner.unk4B7BC4));
+                owner.field.ClearRoleCells(placed, owner.unk4B7BC4);
                 placed.flags |= Role::Removed;
                 owner.field.RemoveRole(placed.id, static_cast<int>(placed.flags & Role::LayerMask), 0, 1);
             }
