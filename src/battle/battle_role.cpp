@@ -37,9 +37,11 @@ namespace
 constexpr std::string_view kManroleFile = "C:\\Project\\swd102aDVD\\manrole.cpp";
 // The source lines the assertions name.
 constexpr u32 kNoActLine = 0xDE;
+constexpr u32 kNoEscortActLine = 0x123;
 constexpr u32 kNoGuestActLine = 0x14E;
 constexpr u32 kNoWeaponActLine = 0x182;
 constexpr std::u8string_view kNoAct = u8"戰鬥角色actNumber為0!!";           // swd32.exe 0x004A7C2C
+constexpr std::u8string_view kNoEscortAct = u8"護駕actNumber為0!!";         // swd32.exe 0x004A7C68
 constexpr std::u8string_view kNoGuestAct = u8"Npc角色actNumber為0!!";       // swd32.exe 0x004A7C7C
 constexpr std::u8string_view kNoWeaponAct = u8"武器%d號的強攻擊act沒設!!";  // swd32.exe 0x004A7C94
 constexpr i16 kStatLimit = 0x270F;
@@ -122,6 +124,40 @@ void BattleRole::Setup(
     }
 
     this->defeated = (this->battleRecord->unk24 & kDefeatedRecord) != 0 ? 1 : 0;
+}
+
+// swd32.exe 0x0046E890: a summoned escort: its mon.dat object (by the act of its placement, asserted non-zero) gives
+// the attack and defence bonuses, the agility, +0x14, the level byte, the resistances and the hit points of the battle
+// record, which serves as both party and battle record
+void BattleRole::SetupEscort(const UnitPlacement& at, Database& database, ErrorReporter& reporter)
+{
+    this->ownedData = std::make_unique<ObjectRecord>();
+    this->data = this->ownedData.get();
+    database.LoadObject(*this->data, at.actId);
+    Database::FreeDescription(*this->data);
+    this->placement = at;
+    this->savedPlacement = at;
+    this->kind = at.kind;
+    this->actId = at.actId;
+
+    if (this->actId == 0)
+    {
+        MaintenanceAssert(reporter, kNoEscortAct, 0, kManroleFile, kNoEscortActLine);
+    }
+
+    RoleRecord& record = *this->battleRecord;
+    const ObjectData& object = this->data->data;
+    record.attackBonus = object.attack;
+    record.defenseBonus = object.defense;
+    record.agility = static_cast<i16>(object.agility);
+    record.unk14 = static_cast<i16>(object.unk5C);
+    record.unk1E = object.battleLevel;
+    std::copy_n(object.resistances.begin(), record.unk2D.size(), record.unk2D.begin());
+    this->unk2A93 = static_cast<u8>(record.unk1E);
+    record.hitPoints = object.hitPoints;
+    record.maxHitPoints = record.hitPoints;
+    this->roleRecord = this->battleRecord;
+    this->weapon.data.unk3E = object.skill;
 }
 
 // swd32.exe 0x0046E9C0: a guest fighting with the party: its mon.dat object (by the act of its placement, asserted

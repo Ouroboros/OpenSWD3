@@ -1249,8 +1249,6 @@ constexpr int kFramedFlags = BattleMessage::Frame | BattleMessage::Centered;
 constexpr int kAnnounceSound = 0x117;
 constexpr i32 kEffectAct = 0x2AF8;
 constexpr u16 kEffectIcons = 0x241D;
-constexpr u16 kDamageTarget = 0x235E;
-constexpr u16 kHealTarget = 0x246F;
 
 // The value of a skill script: the word at +0xE.
 u16 SkillValue(const SkillScript& skill)
@@ -1395,7 +1393,7 @@ void BattleUnit::SetDamageDigits(BattleServices& services, int amount)
 
     const u16 slot = this->targetCount;
 
-    if (this->pushedTargets[slot] == kDamageTarget && (this->status & kRaiseBlocked) != 0 &&
+    if (this->pushedTargets[slot] == BattleUnit::DamageTarget && (this->status & kRaiseBlocked) != 0 &&
         (amount & BattleUnit::Healing) == 0)
     {
         if (--this->barrierTurns != 0)
@@ -1819,11 +1817,11 @@ bool BattleUnit::ApplyPendingDamage(BattleServices& services)
         return false;
     }
 
-    this->PushTarget(kDamageTarget);
+    this->PushTarget(BattleUnit::DamageTarget);
 
     if ((this->pendingDamage & BattleUnit::Healing) != 0)
     {
-        this->PushTarget(kHealTarget);
+        this->PushTarget(BattleUnit::HealTarget);
     }
 
     this->SetDamageDigits(services, static_cast<i16>(this->pendingDamage));

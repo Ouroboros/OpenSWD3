@@ -1,7 +1,17 @@
 #include "battle/battle_state.h"
 
+#include <algorithm>
+
 namespace swd3
 {
+
+namespace
+{
+
+constexpr int kSecondKind = 2;
+constexpr u16 kAllOnes16 = 0xFFFF;  // a free record has every byte 0xFF
+
+}  // namespace
 
 // swd32.exe 0x004694E0: takes the first non-zero entry of the 4 x 10 queue unless one is pending
 void BattleState::TakePendingAction()
@@ -96,4 +106,46 @@ void BattleState::ListEnemyOrder()
     }
 }
 
+// swd32.exe 0x0045EDF0: `unit` with kind 1 or 2 put in the first free record (none when all are used); other kinds
+// add nothing
+void BattleState::AddSlotRecord(int kind, i32 unit)
+{
+    if (kind != 1 && kind != kSecondKind)
+    {
+        return;
+    }
+
+    for (BattleSlotRecord& record : this->unk524788)
+    {
+        if (record.unit == -1)
+        {
+            record.unit = unit;
+            record.kind = static_cast<u16>(kind);
+            return;
+        }
+    }
+}
+
+// swd32.exe 0x0045EFB0: the record of `unit` removed, the later ones moving up and the last made free with every byte
+// 0xFF (the original first copies the bytes after the records into the last one)
+void BattleState::RemoveSlotRecord(i32 unit)
+{
+    auto& records = this->unk524788;
+    auto found = std::find_if(
+        records.begin(),
+        records.end(),
+        [unit](const BattleSlotRecord& record)
+        {
+            return record.unit == unit;
+        }
+    );
+
+    if (found == records.end())
+    {
+        return;
+    }
+
+    std::move(found + 1, records.end(), found);
+    records.back() = BattleSlotRecord{-1, -1, kAllOnes16, kAllOnes16, -1, -1, -1, -1};
+}
 }  // namespace swd3

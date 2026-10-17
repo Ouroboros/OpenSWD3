@@ -43,6 +43,7 @@ public:
     void SetInventory(ItemLink* list);
     void ClearExtras();
     void Setup(RoleRecord& record, const RoleBattleBlock& block, const UnitPlacement& at, ErrorReporter& reporter);
+    void SetupEscort(const UnitPlacement& at, Database& database, ErrorReporter& reporter);
     void SetupGuest(const UnitPlacement& at, const RoleRecord& base, Database& database, ErrorReporter& reporter);
     void
     ApplyEquipment(std::span<const std::unique_ptr<ItemNode>> slots, CounterList& proficiency, ErrorReporter& reporter);

@@ -232,6 +232,12 @@ public:
         DrainedLife = 8,
     };
 
+    // The pictures a hit pushes on its unit (PushTarget): the damage number, healing, a spirit or stamina gain.
+    static constexpr u16 DamageTarget = 0x235E;
+    static constexpr u16 HealTarget = 0x246F;
+    static constexpr u16 SpiritGainTarget = 0x2367;
+    static constexpr u16 StaminaGainTarget = 0x2366;
+
     static constexpr int UnkSlot8 = 8;
     static constexpr int UnkSlot9 = 9;
     static constexpr u32 NoTarget = 0xFFFFFFFF;

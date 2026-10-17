@@ -434,6 +434,57 @@ ItemNode* AddItem(ItemLink& list, u16 id, i16 amount, ItemCountMode mode, Databa
     return list.get();
 }
 
+// swd32.exe 0x0045D180: one of item `id` added (to the pending count when `pending` is 1) unless the entry holds
+// MaxCount in all; a new entry goes first, its object loaded from mon.dat even when it has none. The record of the
+// entry is returned; id 0 returns that of the first entry. The original takes the inventory list directly and for id
+// 0 of an empty list returns the address 0xC.
+ObjectRecord* AddOneItem(ItemLink& list, u16 id, int pending, Database& database)
+{
+    if (id == 0)
+    {
+        return list != nullptr ? &list->record : nullptr;
+    }
+
+    for (ItemNode* node = list.get(); node != nullptr; node = node->next.get())
+    {
+        if (node->id != id)
+        {
+            continue;
+        }
+
+        if (node->pending + node->count < ItemNode::MaxCount)
+        {
+            if (pending == 1)
+            {
+                ++node->pending;
+            }
+            else
+            {
+                ++node->count;
+            }
+        }
+
+        return &node->record;
+    }
+
+    auto node = std::make_unique<ItemNode>();
+    node->id = id;
+    database.LoadObject(node->record, id);
+
+    if (pending == 1)
+    {
+        node->pending = 1;
+        node->record.data.kind |= ItemNode::PendingKind;
+    }
+    else
+    {
+        node->count = 1;
+    }
+
+    InsertHead(list, std::move(node));
+    return &list->record;
+}
+
 namespace
 {
 

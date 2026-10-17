@@ -16,16 +16,18 @@
 namespace swd3
 {
 
-// A record of 0x1C bytes, eighteen of them from 0x00524788 (cleared by the battle start).
+// A record of 0x1C bytes, eighteen of them from 0x00524788 (cleared by the battle start): a unit with a kind of 1 or
+// 2 (AddSlotRecord), the free records after the used ones.
 struct BattleSlotRecord
 {
-    i32 unk00 = -1;                // +0x00
-    std::array<u8, 6> unk04 = {};  // +0x04
-    u16 unk0A = 0;                 // +0x0A
-    i32 unk0C = 0;                 // +0x0C
-    i32 unk10 = 0;                 // +0x10
-    i32 unk14 = 0;                 // +0x14
-    i32 unk18 = 0;                 // +0x18
+    i32 unit = -1;  // +0x00 -1: a free record
+    i32 unk04 = 0;  // +0x04
+    u16 kind = 0;   // +0x08
+    u16 unk0A = 0;  // +0x0A
+    i32 unk0C = 0;  // +0x0C
+    i32 unk10 = 0;  // +0x10
+    i32 unk14 = 0;  // +0x14
+    i32 unk18 = 0;  // +0x18
 };
 
 // The state of the battle and of the shop and item lists it shares with the menus.
@@ -65,11 +67,14 @@ public:
     {
         UnkPanel2 = 2,  // set when game flag 0xC9 is on at the battle start
         ResistancePanel = 0x20,
+        NoRetreat = 0x200,  // the party cannot retreat
     };
 
     void TakePendingAction();
     void SortDrawOrder();
     void ListEnemyOrder();
+    void AddSlotRecord(int kind, i32 unit);
+    void RemoveSlotRecord(i32 unit);
 
     i32 listBCount = 0;                              // 0x004FD3B0 entries of listB, at most 13
     ItemLink listB;                                  // 0x004FD4C0
@@ -206,6 +211,23 @@ public:
     i32 autoBattle = 0;                                // 0x0053C018
     i32 autoBoxX = 0;                                  // 0x0053BDD0 the "自動攻擊" box slides in
     i32 autoBoxStep = 0;                               // 0x0053BDCC
+
+    // The damage of the hit being dealt (0x004539B0, 0x0045D690).
+    i32 hitDamage = 0;     // 0x0052441C
+    i16 spiritDamage = 0;  // 0x0053B0B0
+    u16 unk4FDF78 = 0;
+    i16 staminaDamage = 0;  // 0x004FDF7A
+
+    // The state of the turns (0x004539B0, 0x00456680 and the commands).
+    i32 unk53BFC0 = 0;
+    i32 unk53BFC4 = 0;
+    i32 unk53BF5C = 0;
+    i32 unk53BD50 = 0;
+    i32 unk53BFE4 = 0;
+    u8 unk53BF00 = 0;  // set to enemyCount by a retreat
+    u8 unk53BF01 = 0;
+    u8 unk53BF02 = 0;
+    u8 unk53BF03 = 0;
 };
 
 }  // namespace swd3
