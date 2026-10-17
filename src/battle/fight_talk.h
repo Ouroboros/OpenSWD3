@@ -20,7 +20,7 @@ public:
     void Load(const std::string& installDirectory, u16 battle);
 
     i32 enabled = 1;         // 0x004A7B5C
-    File file;               // 0x0053CEAC (the handle)
+    File file;               // 0x0053CCE0 (the handle)
     bool open = false;       // 0x0053CEA8
     std::vector<u8> script;  // 0x0053CE84
     std::size_t cursor = 0;  // 0x0053CE88 the command read next

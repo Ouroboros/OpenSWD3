@@ -78,6 +78,7 @@ public:
     enum PanelFlag : i32
     {
         UnkPanel2 = 2,  // set when game flag 0xC9 is on at the battle start
+        UnkPanel8 = 8,  // the battle ends with unk53BDC8 0 even when lost (CheckBattleEnd)
         ResistancePanel = 0x20,
         NoRetreat = 0x200,  // the party cannot retreat
     };
@@ -298,6 +299,18 @@ public:
     i16 unk4A7638 = 0x1A4;  // the push, halved each frame
     u16 unk53BDE8 = 0;      // frames since the push was halved
     i16 unk53AE7A = 0;      // the hit act picture after which the units slide back
+    // The end of the battle (Game::CheckBattleEnd, Game::DrawBattlePrompt).
+    i32 unk53CEAC = 0;  // 1: the battle ends as won
+    i32 unk53C4A8 = 0;  // the fade of the field to black, 2 darker a frame
+    i32 unk53BDC8 = 0;
+    std::array<u16, 3> unk4FF2EA = {};  // [1], [2]: objects given back when the battle ends (set by 0x0045EC60)
+    i32 unk53BDA8 = 0;                  // frames of the prompt
+    i32 unk53BDAC = 0;
+    i32 unk53BFBC = 0;
+    i32 unk4A7640 = 1;
+    i32 unk53BF58 = 0;
+    i16 unk53BF50 = 0;
+    i16 unk53BF52 = 0;
 };
 
 }  // namespace swd3

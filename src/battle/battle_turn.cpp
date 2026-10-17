@@ -1,4 +1,6 @@
 #include "game/game.h"
+#include "item/item_list.h"
+#include "platform/display.h"
 
 namespace swd3
 {
@@ -14,6 +16,26 @@ constexpr u16 kBossReward = 0x14;  // unk53BF16 gained by an enemy of ObjectData
 constexpr u16 kEnemyReward = 3;
 constexpr i16 kDefeatCount = 1;  // the bestiary count of a defeated enemy
 constexpr std::size_t kLastTurnUnit = BattleState::RoleUnits - 1;
+constexpr i32 kFieldFadeStep = 2;
+constexpr i32 kFieldFadeEnd = -0x20;
+constexpr u16 kThrownObject = 0x300;  // the object a thrown attack takes (given back unless it lands)
+constexpr i32 kLostEnd = 2;           // unk53BDC8 when the party is down
+constexpr i32 kLostQuietly = 0x68;    // a battle state that ends with unk53BDC8 0
+constexpr i32 kPromptFrames = 0x12C;
+constexpr i32 kWaitState1 = 1;  // the battle states of the wait pointer
+constexpr i32 kWaitState2 = 2;
+constexpr i32 kTurnState = 3;
+constexpr i32 kWaitState4 = 4;
+constexpr i32 kWaitState5 = 5;
+constexpr i32 kWaitState8 = 8;
+constexpr i32 kWaitState1B = 0x1B;
+constexpr i32 kWaitState1E = 0x1E;
+constexpr int kNoUnitPointer = 0x238C;
+constexpr int kUnitPointer = 0x238D;
+constexpr int kWaitPointer = 0x238E;
+constexpr int kTurnPointer = 0x238F;
+constexpr int kNoTurnPointer = 0x2393;
+constexpr int kMarkEffect = 0x23A0;
 
 }  // namespace
 
@@ -324,5 +346,154 @@ void Game::SortActingDrawOrder()
     }
 
     battle.SortDrawOrderAround(acting, target);
+}
+
+// swd32.exe 0x0045BD10: one frame of the field fading to black: the frame's pixels shifted by the fade (unk53C4A8,
+// also the painter's tint), 2 darker a frame; 1 once past -32 (the fade reset to 0).
+int Game::FadeFieldOut()
+{
+    BattleState& battle = this->battleState;
+    DrawOptions& options = this->painter.Options();
+    options.tintRed = battle.unk53C4A8;
+    options.tintGreen = battle.unk53C4A8;
+    options.tintBlue = battle.unk53C4A8;
+    const std::span<u16> frame(this->drawSurface, static_cast<std::size_t>(Display::Width * Display::Height));
+    this->painter.ShiftRed(frame, battle.unk53C4A8);
+    this->painter.ShiftGreenPairs(frame, options.tintGreen);
+    this->painter.ShiftBluePairs(frame, options.tintBlue);
+    battle.unk53C4A8 -= kFieldFadeStep;
+
+    if (battle.unk53C4A8 > kFieldFadeEnd)
+    {
+        return 0;
+    }
+
+    battle.unk53C4A8 = 0;
+    return 1;
+}
+
+// swd32.exe 0x0045E9C0: the objects held back in the battle given to the inventory: unk4FF2EA[1] and [2], and one
+// kThrownObject for each still thrown (unk53C4B0); the counts and unk53BF26 are cleared.
+void Game::ReturnBattleItems()
+{
+    BattleState& battle = this->battleState;
+
+    for (std::size_t at = 1; at < battle.unk4FF2EA.size(); ++at)
+    {
+        if (battle.unk4FF2EA[at] != 0)
+        {
+            AddOneItem(this->party.inventory, battle.unk4FF2EA[at], 0, this->database);
+        }
+    }
+
+    for (i32 thrown = 0; thrown < battle.unk53C4B0; ++thrown)
+    {
+        AddOneItem(this->party.inventory, kThrownObject, 0, this->database);
+    }
+
+    battle.unk53BF26 = 0;
+    battle.unk53C4B0 = 0;
+    battle.unk4FF2EA[1] = 0;
+    battle.unk4FF2EA[2] = 0;
+}
+
+// swd32.exe 0x0045E580: with every party role down (unk53BF5C set) the field fades out (unk53BFE4), then the music
+// stops, the objects return and unk53BDC8 becomes 2 (0 for a battle state of 0x68 or UnkPanel8); with every enemy
+// down or unk53CEAC set it fades out too, the objects return and unk53BDC8 becomes 0.
+void Game::CheckBattleEnd()
+{
+    BattleState& battle = this->battleState;
+
+    if (battle.defeatedRoles >= battle.roleCount - battle.unk53BF26 - battle.guestCount)
+    {
+        battle.unk53BF5C = 1;
+
+        if (battle.unk53BFE4 == 1 && this->FadeFieldOut() == 1)
+        {
+            this->audio.StopMusic();
+            this->ReturnBattleItems();
+            battle.unk53BDC8 = kLostEnd;
+
+            if (battle.result == kLostQuietly)
+            {
+                battle.unk53BDC8 = 0;
+            }
+
+            if ((battle.panelFlags & BattleState::UnkPanel8) != 0)
+            {
+                battle.unk53BDC8 = 0;
+            }
+        }
+    }
+
+    if (battle.unk53BF00 - battle.unk53BF02 >= static_cast<i32>(battle.enemyCount) || battle.unk53CEAC == 1)
+    {
+        battle.unk53BF5C = 1;
+
+        if (battle.unk53BFE4 == 1 && this->FadeFieldOut() == 1)
+        {
+            this->ReturnBattleItems();
+            battle.unk53BDC8 = 0;
+        }
+    }
+}
+
+// swd32.exe 0x0045E660: the pointer prompt of the battle state for its first 300 frames (always while unk53BDAC is
+// negative): kWaitPointer in states 1, 2, 4, 5, 8, 0x1B and 0x1E; in state 3 (with unk53BFBC) kTurnPointer or
+// kNoTurnPointer by unk4A7640; otherwise kUnitPointer with a current unit, else kNoUnitPointer, or with a negative
+// unk53BDAC the effect kMarkEffect at (unk53BF50, unk53BF52) (unk53BF58 cleared once it ends).
+void Game::DrawBattlePrompt()
+{
+    BattleState& battle = this->battleState;
+    BattleHud& hud = this->battleHud;
+    const int x = this->state.pointerX;
+    const int y = this->state.pointerY;
+    ++battle.unk53BDA8;
+
+    if (battle.unk53BDA8 >= kPromptFrames && battle.unk53BDAC >= 0)
+    {
+        return;
+    }
+
+    switch (battle.result)
+    {
+        case kWaitState1:
+        case kWaitState2:
+        case kWaitState4:
+        case kWaitState5:
+        case kWaitState8:
+        case kWaitState1B:
+        case kWaitState1E:
+            hud.DrawEffectAt(kWaitPointer, 0, x, y, 0);
+            break;
+
+        case kTurnState:
+            if (battle.unk53BFBC == 1)
+            {
+                hud.DrawEffectAt(battle.unk4A7640 != 0 ? kTurnPointer : kNoTurnPointer, 0, x, y, 0);
+            }
+
+            break;
+
+        default:
+            if (battle.unk53BDAC >= 0)
+            {
+                hud.DrawEffectAt(battle.currentUnit != 0 ? kUnitPointer : kNoUnitPointer, 0, x, y, 0);
+            }
+            else if (
+                hud.DrawEffectAt(
+                    kMarkEffect,
+                    battle.unk53BF58,
+                    battle.unk53BF50,
+                    battle.unk53BF52,
+                    battle.mirrored != 0 ? 1 : 0
+                ) == 1
+            )
+            {
+                battle.unk53BF58 = 0;
+            }
+
+            break;
+    }
 }
 }  // namespace swd3
