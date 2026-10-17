@@ -816,6 +816,10 @@ TEST_CASE("battle state: the initial turn and push values match swd32.exe")
     constexpr swd3::u32 kAimedEnemyAt = 0x004A7626;
     constexpr swd3::u32 kPushAt = 0x004A7638;
     constexpr swd3::u32 kTurnPointerAt = 0x004A7640;
+    constexpr swd3::u32 kTurnStepAt = 0x004A7550;
+    constexpr swd3::u32 kListMarksAt = 0x004A7558;
+    constexpr swd3::u32 kListRoleAt = 0x004A7570;
+    constexpr swd3::u32 kRoleCycleAt = 0x004A796C;
     const std::vector<swd3::u8> exe = swd3test::ReadGameFile("swd32.exe");
 
     if (exe.empty())
@@ -829,6 +833,10 @@ TEST_CASE("battle state: the initial turn and push values match swd32.exe")
     CHECK(swd3test::SameTable(exe, kAimedEnemyAt, std::array<swd3::u16, 1>{state.unk4A7626}));
     CHECK(swd3test::SameTable(exe, kPushAt, std::array<swd3::i16, 1>{state.unk4A7638}));
     CHECK(swd3test::SameTable(exe, kTurnPointerAt, std::array<swd3::i32, 1>{state.unk4A7640}));
+    CHECK(swd3test::SameTable(exe, kTurnStepAt, std::array<swd3::i32, 1>{state.unk4A7550}));
+    CHECK(swd3test::SameTable(exe, kListMarksAt, std::array<swd3::i32, 2>{state.unk4A7558, state.unk4A755C}));
+    CHECK(swd3test::SameTable(exe, kListRoleAt, std::array<swd3::i32, 1>{state.unk4A7570}));
+    CHECK(swd3test::SameTable(exe, kRoleCycleAt, swd3::BattleState::RoleCycle));
 }
 
 TEST_CASE("battle unit: element orbs gain proficiency from hits of an element")

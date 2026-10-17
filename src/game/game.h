@@ -215,6 +215,11 @@ private:
     void FieldFadeFrame(int counting);
     int CheckStoneSides();
     void TakeSlotRecord(BattleSlotRecord& taken);
+    int DamageNumbersFrame(int index, int role);
+    void ApplyHits();
+    void NextEnemyTurn();
+    void NextRoleTurn();
+    int ScrollListBack();
     void DrawRolePanels();
     template <typename Next>
     void StepPanelGauge(i32& shown, i32& target, Next next, int picture, int x, int y, i32 downNear, i32 downFar);

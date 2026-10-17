@@ -141,7 +141,7 @@ void Game::StartBattle(u16 number)
     this->battleMessages.messages.reset();
     battle.unk524268.fill(0);
     battle.unk524414 = 0;
-    battle.unk52544C = 0;
+    battle.unk52544C[0] = 0;
     battle.pendingOrders.fill(PendingOrder{});
     battle.unk4FF0BC.fill(0);
     battle.unk525450 = 0;

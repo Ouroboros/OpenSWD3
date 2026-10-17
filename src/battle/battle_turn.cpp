@@ -1,3 +1,4 @@
+#include "core/fault.h"
 #include "crt/msvc.h"
 #include "game/game.h"
 #include "item/item_list.h"
@@ -37,6 +38,11 @@ constexpr int kWaitPointer = 0x238E;
 constexpr int kTurnPointer = 0x238F;
 constexpr int kNoTurnPointer = 0x2393;
 constexpr int kMarkEffect = 0x23A0;
+constexpr i32 kListPage = 7;  // a back key scrolls a list up by this
+constexpr u16 kBackSound = 0x2E;
+constexpr i32 kListState2 = 2;
+constexpr i32 kListState4 = 4;
+constexpr i32 kListState1B = 0x1B;
 
 }  // namespace
 
@@ -631,5 +637,199 @@ void Game::TakeSlotRecord(BattleSlotRecord& taken)
     }
 
     battle.TakeSlotRecordAt(at, taken);
+}
+
+// swd32.exe 0x0045A980: one frame of the damage numbers of role `index` (`role` 1) or enemy `index`; 1 once they are
+// done (the original tests unk53BF80 first, both ways alike).
+int Game::DamageNumbersFrame(int index, int role)
+{
+    BattleServices& services = this->battleServices;
+    const auto at = static_cast<std::size_t>(index);
+    BattleUnit& unit =
+        role == 1 ? static_cast<BattleUnit&>(this->battleRoles[at]) : static_cast<BattleUnit&>(this->battleEnemies[at]);
+    return unit.DrawDamageNumbers(services) == 1 ? 1 : 0;
+}
+
+// swd32.exe 0x0045EB40: the units in draw order show their guard text and their damage numbers (once done unk53BFD8
+// is set and their unk524420 entry cleared: a role by its role index, so a role and the enemy of the same index share
+// it), then take their pending damage: a unit that does has its unk502984 entry set to its index and the slot record
+// of that index removed (a role's index, as in the original).
+void Game::ApplyHits()
+{
+    BattleState& battle = this->battleState;
+    BattleServices& services = this->battleServices;
+    const auto units = static_cast<std::size_t>(battle.roleCount + battle.enemyCount);
+
+    for (std::size_t order = 0; order < units; ++order)
+    {
+        const i32 unitId = battle.drawOrder[order];
+        const bool isRole = unitId >= BattleState::FirstRoleUnit;
+        const int index = isRole ? unitId - BattleState::FirstRoleUnit : unitId;
+        const auto at = static_cast<std::size_t>(index);
+        BattleUnit& unit = isRole ? static_cast<BattleUnit&>(this->battleRoles[at])
+                                  : static_cast<BattleUnit&>(this->battleEnemies[at]);
+        unit.DrawGuardText(services);
+
+        if (this->DamageNumbersFrame(index, isRole ? 1 : 0) == 1)
+        {
+            battle.unk53BFD8 = 1;
+            battle.unk524420[at] = -1;
+        }
+
+        if (!unit.ApplyPendingDamage(services))
+        {
+            continue;
+        }
+
+        battle.unk502984[at] = index;
+        battle.RemoveSlotRecord(index);
+    }
+}
+
+// swd32.exe 0x00465090: the next enemy takes its turn: enemy unk53BCF4 (0 past the enemies); a defeated one passes
+// on through unk4A7550 (1-based in enemyOrder, wrapping) for at most enemyCount tries, after which the battle state
+// is 1. The enemy is marked (SetAC0 1) and aimed at (unk4A754C, 1-based).
+void Game::NextEnemyTurn()
+{
+    BattleState& battle = this->battleState;
+    const auto count = static_cast<i32>(battle.enemyCount);
+
+    if (battle.unk53BCF4 >= count)
+    {
+        battle.unk53BCF4 = 0;
+    }
+
+    if (this->battleEnemies[static_cast<std::size_t>(battle.unk53BCF4)].IsDefeated())
+    {
+        int tries = 0;
+
+        while (true)
+        {
+            if (++battle.unk4A7550 > count)
+            {
+                battle.unk4A7550 = 1;
+            }
+
+            battle.unk53BCF4 = battle.enemyOrder[static_cast<std::size_t>(battle.unk4A7550 - 1)];
+
+            if (++tries >= count)
+            {
+                battle.result = kTurnsRunning;
+                break;
+            }
+
+            if (!this->battleEnemies[static_cast<std::size_t>(battle.unk53BCF4)].IsDefeated())
+            {
+                break;
+            }
+        }
+    }
+
+    this->battleEnemies[static_cast<std::size_t>(battle.unk53BCF4)].SetAC0(1);
+    battle.unk53BFB8 = 1;
+    battle.unk4A754C = battle.unk53BCF4 + 1;
+}
+
+// swd32.exe 0x00465170: the party role whose turn follows: unk4A7550 steps (1-based, wrapping over the party roles)
+// through RoleCycle until it names the current unit's role, which unk4A754C then aims at (1-based). The original
+// loops for ever when the cycle never names it.
+void Game::NextRoleTurn()
+{
+    BattleState& battle = this->battleState;
+    const auto roles = static_cast<i32>(battle.roleCount - battle.unk53BF26 - battle.guestCount);
+    i32 at = battle.unk4A7550;
+    i32 role = 0;
+    int steps = 0;
+
+    do
+    {
+        if (++at > roles)
+        {
+            at = 1;
+        }
+
+        if (++steps > static_cast<int>(BattleState::RoleCycle.size()) ||
+            at >= static_cast<i32>(BattleState::RoleCycle.size()))
+        {
+            Hang();
+        }
+
+        role = BattleState::RoleCycle[static_cast<std::size_t>(at)];
+    } while (role != battle.currentUnit - BattleState::FirstRoleUnit);
+
+    battle.unk4A7550 = at;
+    battle.unk4A754C = role + 1;
+    battle.unk53BCF4 = 0;
+    battle.unk53BFB8 = 1;
+}
+
+// swd32.exe 0x00461900: the back key in a list (kBackSound): battle state 2 scrolls unk53BD04 up by kListPage, states
+// 4 and 0x1B unk53BD08 (state 4 also keeps unk4A755C and the scroll for role unk4A7570); each first only marks its
+// list (unk4A7558, unk4A755C) unless unk53BD9C. Returns 1, the role for state 4, or the state less 0x1B for others
+// (as the original leaves them).
+int Game::ScrollListBack()
+{
+    BattleState& battle = this->battleState;
+    battle.unk53BFBC = 0;
+
+    auto scroll = [](i32& top)
+    {
+        top -= kListPage;
+
+        if (top < 0)
+        {
+            top = 0;
+        }
+    };
+
+    if (battle.result == kListState2)
+    {
+        this->audio.PlaySound(kBackSound, this->config.soundVolume);
+
+        if (battle.unk53BD9C == 0 && battle.unk4A7558 != 1)
+        {
+            battle.unk4A7558 = 1;
+            return 1;
+        }
+
+        scroll(battle.unk53BD04);
+        battle.unk53BFB8 = 1;
+        return 1;
+    }
+
+    if (battle.result != kListState4)
+    {
+        if (battle.result != kListState1B)
+        {
+            return battle.result - kListState1B;
+        }
+
+        this->audio.PlaySound(kBackSound, this->config.soundVolume);
+
+        if (battle.unk53BD9C == 0 && battle.unk4A755C != 1)
+        {
+            battle.unk4A755C = 1;
+            return 1;
+        }
+
+        scroll(battle.unk53BD08);
+        battle.unk53BFB8 = 1;
+        return 1;
+    }
+
+    this->audio.PlaySound(kBackSound, this->config.soundVolume);
+
+    if (battle.unk53BD9C == 0 && battle.unk4A755C != 1)
+    {
+        battle.unk4A755C = 1;
+        return 1;
+    }
+
+    scroll(battle.unk53BD08);
+    battle.unk53BFB8 = 1;
+    const auto role = static_cast<std::size_t>(battle.unk4A7570);
+    battle.unk4FF578[role] = battle.unk4A755C;
+    battle.unk52544C[role] = battle.unk53BD08;
+    return battle.unk4A7570;
 }
 }  // namespace swd3

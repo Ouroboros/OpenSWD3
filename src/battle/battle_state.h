@@ -66,6 +66,7 @@ public:
     static constexpr i16 MaxDarkLevel = 2;
     static constexpr i32 DarkLevelFrames = 1;  // darkFrames past it step to the next level
     static constexpr std::array<u8, 10> QuakeSteps = {4, 3, 4, 3, 4, 3, 2, 3, 2, 3};  // 0x004A75EC by quakePhase
+    static constexpr std::array<i32, 5> RoleCycle = {11, 2, 1, 0, 3};  // 0x004A796C the party roles by turn, from 1
 
     // BattleState::mode bits.
     enum Mode : i32
@@ -181,7 +182,7 @@ public:
     i32 unk4FF0B8 = 0;
     std::array<i32, 8> unk524268 = {};
     i32 unk524414 = 0;
-    i32 unk52544C = 0;
+    std::array<i32, Party::Roles> unk52544C = {};            // per party role: the scroll of its list (ScrollListBack)
     std::array<PendingOrder, RoleUnits> pendingOrders = {};  // 0x00520E90
     i32 unk53BF80 = 0;  // cleared when a party unit's order is taken (InsertSlotRecord)
     i32 unk53BFD0 = 0;
@@ -307,6 +308,17 @@ public:
     i32 unk53AEDC = 0;      // the digits of the extra damage number (BattleUnit::DrawDamageNumbers)
     i32 unk53AEE0 = 0;
     i32 unk53AEE4 = 0;
+    // The turns of the units and the lists (NextEnemyTurn, NextRoleTurn, ScrollListBack).
+    i32 unk53BCF4 = 0;  // the enemy taking the turn
+    i32 unk4A7550 = 1;  // 1-based step through enemyOrder or RoleCycle
+    i32 unk53BFB8 = 0;
+    i32 unk53BFD8 = 0;  // set when a unit's damage numbers are done (ApplyHits)
+    i32 unk53BD9C = 0;
+    i32 unk4A7558 = 1;
+    i32 unk4A755C = 1;
+    i32 unk53BD04 = 0;  // the scroll of a list
+    i32 unk53BD08 = 0;
+    i32 unk4A7570 = 2;  // a party role
     // The end of the battle (Game::CheckBattleEnd, Game::DrawBattlePrompt).
     i32 unk53CEAC = 0;  // 1: the battle ends as won
     i32 unk53C4A8 = 0;  // the fade of the field to black, 2 darker a frame
