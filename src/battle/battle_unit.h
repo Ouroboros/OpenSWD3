@@ -395,6 +395,8 @@ public:
     bool IsDefeated() const;
     int StatusBit13() const;
     bool IsAB8() const;
+    i32 Unk2B00() const;
+    i32 Unk2B04() const;
     int StepTargetCount(int increase);
     int PushTargetAlt(u16 value);
     int ResetAfterGuard();

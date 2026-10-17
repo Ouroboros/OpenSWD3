@@ -64,9 +64,9 @@ Point Weighted(const Weights& weights, const Points& points)
 // points from the start, the rest the place on it)
 Point Evaluate(float t, std::span<const Point> points)
 {
-    const double whole = std::floor(static_cast<double>(t));
+    const double whole = crt::Floor(static_cast<double>(t));
     const auto segment = static_cast<std::size_t>(crt::Ftol(whole + kSegmentBase));
-    const auto rest = static_cast<float>(static_cast<double>(t) - std::floor(static_cast<double>(t)));
+    const auto rest = static_cast<float>(static_cast<double>(t) - crt::Floor(static_cast<double>(t)));
     const Weights weights = BasisWeights(rest, Basis);
     Points four;
     std::copy_n(points.begin() + static_cast<std::ptrdiff_t>(segment - 2), four.size(), four.begin());

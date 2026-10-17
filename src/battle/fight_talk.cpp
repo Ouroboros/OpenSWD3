@@ -10,6 +10,7 @@ namespace
 
 constexpr i32 kNoTalk = 0xFFFF;
 constexpr u32 kSeekBytes = 0x1000;
+constexpr int kByteBits = 8;
 
 }  // namespace
 
@@ -100,5 +101,25 @@ void FightTalk::Seek(i32 offset)
     u32 bytes = kSeekBytes;
     this->file.Read(this->script.data(), bytes);
     this->offset = offset;
+}
+
+// The signed word `index` of the command at the cursor (0 past the script; inline in 0x00469D20, which reads the
+// buffer through a pointer).
+i16 FightTalk::Word(std::size_t index) const
+{
+    return static_cast<i16>(this->UnsignedWord(index));
+}
+
+// The word `index` of the command at the cursor (0 past the script).
+u16 FightTalk::UnsignedWord(std::size_t index) const
+{
+    const std::size_t at = this->cursor + index * sizeof(u16);
+
+    if (at + sizeof(u16) > this->script.size())
+    {
+        return 0;
+    }
+
+    return static_cast<u16>(this->script[at] | (this->script[at + 1] << kByteBits));
 }
 }  // namespace swd3

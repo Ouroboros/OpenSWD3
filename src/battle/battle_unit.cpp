@@ -8646,4 +8646,17 @@ u16 BattleUnit::RefineTalisman(BattleServices& services, Database& database, u16
 
     return this->object.data.unk48;
 }
+
+// swd32.exe 0x0046E090: unk2B00 (only its address is used: battle talk command 0x3A tests it)
+i32 BattleUnit::Unk2B00() const
+{
+    return this->unk2B00;
+}
+
+// swd32.exe 0x0046E0A0: unk2B04 (only its address is used: battle talk command 0x3A tests it)
+i32 BattleUnit::Unk2B04() const
+{
+    return this->unk2B04;
+}
+
 }  // namespace swd3

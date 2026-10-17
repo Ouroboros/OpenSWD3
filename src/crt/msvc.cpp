@@ -30,6 +30,30 @@ i64 Ftol(double value)
     return static_cast<i64>(value);
 }
 
+// swd32.exe 0x0048A1F0: floor, frndint in the round-down mode; an infinity or a NaN goes through the math error
+// handlers below and comes back as it is (only errno, which the game never reads, is set), so std::floor gives the same
+// swd32.exe 0x0048F9A0: _frnd, frndint in the current rounding mode (inline here)
+// swd32.exe 0x0048F9C0: _handle_qnan1, a quiet NaN argument (EDOM) (inline here)
+// swd32.exe 0x0048FA20: _except1, a floating exception of a math function (inline here)
+// swd32.exe 0x0048FAE0: _raise_exc, the IEEE exception record raised (inline here)
+// swd32.exe 0x0048FFB0: _handle_exc, the masked exceptions handled (inline here)
+// swd32.exe 0x00490330: _umatherr, the user _matherr called (inline here)
+// swd32.exe 0x004903D0: _set_errno, EDOM or ERANGE (inline here)
+// swd32.exe 0x00490410: _getfpename, the function name from the table at 0x004A85E0 (inline here)
+// swd32.exe 0x00490450: _errcode, the _matherr type of the exception flags (inline here)
+// swd32.exe 0x004904D0: _set_exp, a double with its exponent replaced (inline here)
+// swd32.exe 0x00490510: _sptype, infinity or NaN kind of a double (inline here)
+// swd32.exe 0x00490590: _decomp, mantissa and exponent of a double (inline here)
+// swd32.exe 0x004906D0: _statfp, the FPU status word (inline here)
+// swd32.exe 0x004906F0: _clrfp, the FPU status word read and cleared (inline here)
+// swd32.exe 0x00490710: _ctrlfp, the FPU control word set under a mask (inline here)
+// swd32.exe 0x00490750: _set_statfp, an exception flag raised (inline here)
+// swd32.exe 0x00494800: _matherr, the default handler (0: not handled) (inline here)
+double Floor(double value)
+{
+    return std::floor(value);
+}
+
 // swd32.exe 0x00489B50: difftime, the 32-bit difference as a double
 double Difftime(i32 end, i32 start)
 {
