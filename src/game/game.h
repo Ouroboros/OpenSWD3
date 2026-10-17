@@ -188,6 +188,7 @@ private:
     void VideoFrame();
     void StartBattle(u16 battle);
     void LoadBattleBackground(int picture, u16 animation, int x, int y, u16 scene);
+    void SlideBattleIn(const Surface& incoming, const Surface& outgoing);
     void MeasureUnits();
 
     DialogErrorReporter errors;

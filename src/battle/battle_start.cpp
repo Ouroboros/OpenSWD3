@@ -36,7 +36,11 @@ constexpr int kDarkGreen = 0xE;
 constexpr int kDarkBlue = 0xB;
 constexpr int kPointerX = Display::Width / 2;  // the pointer starts in the middle of the screen
 constexpr int kPointerY = Display::Height / 2;
-constexpr int kBarLength = 56;  // the pixels of a full gauge of the role panels
+constexpr int kBarLength = 56;    // the pixels of a full gauge of the role panels
+constexpr u32 kRowSpeeds = 0x14;  // SlideBattleIn: a row moves kRowStep + 2 * (0..kRowSpeeds-1) pixels a frame
+constexpr int kRowStep = 0x1E;
+constexpr int kRowSpeedScale = 2;
+constexpr int kUnusedSpeedBase = 0xF;  // the speeds it draws for every row first, never used
 constexpr int kMaxEnemySteps = 6;
 constexpr int kScenes = 4;
 constexpr i32 kNoParty = 0x67;
@@ -472,4 +476,60 @@ void Game::StartBattle(u16 number)
     }
 }
 
+// swd32.exe 0x004530A0: the rows of `incoming` slide over `outgoing` from the right, each by a random step a frame,
+// shown on the primary surface until the rows have reached the left edge 0x1E0 times in all. The original first draws
+// a speed for every row that it never uses.
+void Game::SlideBattleIn(const Surface& incoming, const Surface& outgoing)
+{
+    std::unique_ptr<Surface> frame = this->graphics.CreateOffscreen(Display::Width, Display::Height);
+    std::array<int, Display::Height> rowX;
+    rowX.fill(Display::Width);
+    std::array<int, Display::Height> unusedSpeeds;
+
+    for (int& speed : unusedSpeeds)
+    {
+        speed = static_cast<int>(this->random.Below(kRowSpeeds)) + kUnusedSpeedBase;
+    }
+
+    int arrived = 0;
+
+    for (;;)
+    {
+        for (int row = 0; row < Display::Height; ++row)
+        {
+            std::copy_n(outgoing.Row(row), Display::Width, frame->Row(row));
+        }
+
+        for (int row = Display::Height - 1; row >= 0; --row)
+        {
+            int& x = rowX[static_cast<std::size_t>(row)];
+            x = x - kRowStep - kRowSpeedScale * static_cast<int>(this->random.Below(kRowSpeeds));
+
+            if (x <= 0)
+            {
+                x = 0;
+                ++arrived;
+            }
+
+            std::copy(incoming.Row(row) + x, incoming.Row(row) + Display::Width, frame->Row(row) + x);
+        }
+
+        Surface* primary = this->graphics.GetSurface(Graphics::SurfaceId::Primary);
+
+        if (primary != nullptr)
+        {
+            for (int row = 0; row < Display::Height; ++row)
+            {
+                std::copy_n(frame->Row(row), Display::Width, primary->Row(row));
+            }
+
+            this->graphics.Present();
+        }
+
+        if (arrived > Display::Height)
+        {
+            break;
+        }
+    }
+}
 }  // namespace swd3
