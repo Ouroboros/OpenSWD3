@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "battle/battle_file.h"
 #include "battle/battle_hud.h"
@@ -16,6 +17,7 @@
 #include "pic/picture.h"
 #include "pic/projector.h"
 #include "platform/surface.h"
+#include "res/act_state.h"
 
 namespace swd3
 {
@@ -45,6 +47,16 @@ struct PendingOrder
     u16 unk0C = 0;  // +0x0C to unk0A
     u16 unk0E = 0;
     i32 unk10 = 0;  // +0x10 to unk04
+};
+
+// What an object bought in the shop changes for a party role (0x10 bytes, four of them at 0x004FD3C8): the attack,
+// defence (each with its equipment bonus) and agility against the equipment worn, and whether the role can use it.
+struct ShopComparison
+{
+    i32 attack = 0;   // +0x00
+    i32 defense = 0;  // +0x04
+    i32 agility = 0;  // +0x08
+    i32 usable = 0;   // +0x0C
 };
 
 // The state of the battle and of the shop and item lists it shares with the menus.
@@ -125,12 +137,27 @@ public:
     void ClearActing();
     u16 MenuKindWord(std::size_t index) const;
 
-    i32 listBCount = 0;                              // 0x004FD3B0 entries of listB, at most 13
-    ItemLink listB;                                  // 0x004FD4C0
-    i32 mode = 0;                                    // 0x004FD578 bits 0..1: the shop and sell modes of the item lists
-    ItemLink items;                                  // 0x004FD580 the sorted item list
-    u16 itemCursor = 0;                              // 0x004FD588
-    i32 gaugeFull = InitialGaugeFull;                // 0x004A74CC the full action gauge
+    i32 listBCount = 0;         // 0x004FD3B0 the rows of the list shown from listB, at most 13
+    ItemNode* listB = nullptr;  // 0x004FD4C0 the first item shown (itemsHead itself until the list is made)
+    i32 mode = 0;               // 0x004FD578 bits 0..1: the shop and sell modes of the item lists
+    ItemNode itemsHead;         // 0x004FD580 the node heading the sorted item list (its count at 0x004FD588)
+
+    // The shop (talk command ItemMenu, Game::ItemChoiceMenu).
+    i32 shopStage = 0;  // 0x004FD414 0: closed, 1: buy, sell or leave, 2: the list, 3: the total, 4: equip now?, 0xA:
+                        // too little money
+    u32 shopFlags = 0;    // 0x004FD410 bit 1: the list was opened (its sound played), bit 2: equipment was bought
+    i32 listTop = 0;      // 0x004FD420 the first item shown
+    i32 listRow = 0;      // 0x004FD630 the row chosen
+    i32 itemCount = 0;    // 0x004FD408 the items of the list
+    i16 lessPressed = 0;  // 0x004FD3B4 frames the minus arrow of the row chosen shows pressed
+    i16 morePressed = 0;  // 0x004FD40C the plus arrow
+    std::array<i16, Party::Roles> faceSlides = {};              // 0x004FD3B8 the roles' faces slide out (8..16)
+    std::array<ShopComparison, Party::Roles> comparisons = {};  // 0x004FD3C8
+    u16 scrollArrows = 0;              // 0x004FD418 frames the scroll arrows show pressed (bits 0..3: up, 4..7: down)
+    std::vector<u16> shopScreen;       // 0x004FD41C the darkened grey map under the shop
+    std::vector<u16> shopScreenSaved;  // 0x004FD57C a copy of it
+    ActState shopTitle;                // 0x004FD428 act 0x232A, action 0x16
+    i32 gaugeFull = InitialGaugeFull;  // 0x004A74CC the full action gauge
     std::array<i16, 3> darkCopyTint = {-1, -1, -1};  // 0x004A7632 the darkRed, darkGreen, darkBlue of the copies
     i32 criticalAttack = 0;                          // 0x0053CEB8 1: a role's critical attack is under way (not evaded)
     u8 attacksSinceCritical = 0;                     // 0x0053CEB4 (low byte) the attacks since the last critical one

@@ -10,6 +10,7 @@
 
 #include <SDL3/SDL.h>
 
+#include "core/debug_log.h"
 #include "crt/msvc.h"
 #include "platform/file_system.h"
 #include "platform/system_info.h"
@@ -61,6 +62,10 @@ constexpr int kMediumFontAdvance = 18;
 constexpr int kMapLargeAdvance = 22;
 constexpr int kMapSmallAdvance = 16;
 constexpr i32 kTalkUnit = 0xB;
+constexpr i32 kTimerStopped = -1;  // Scene::unk4CAD20 and unk4A9918 once run out
+constexpr int kBattleOver = 0;     // FightTalkFrame: the battle and its talk are over
+constexpr int kBattleLost = 2;
+constexpr int kBattleEscaped = 3;
 
 // A new game.
 constexpr std::array<int, 5> kNewGameFlags = {
@@ -1163,8 +1168,10 @@ void Game::MusicCue()
     view.musicCue = (cue & ~Scene::TrackByte) | static_cast<u32>(next);
 }
 
-// swd32.exe 0x0040A570 (the frame pacing, the input and the menus; the story, battle and map branches are restored with
-// their modules): at most one frame every frameInterval milliseconds
+// swd32.exe 0x0040A570: a frame of the game, at most one every frameInterval milliseconds while the window is active:
+// the event timers (the first ends the scene of a timed event: the scene's lists and the roles released, the leader
+// set to run the timer's event), the input; then the save screen, a battle starting or running (its end maps the map
+// again; a lost battle opens the game over page), the menus and the shop, or the map with its events and the clock
 void Game::MainFrame()
 {
     if ((this->systemFlags & Game::CheckingCd) != 0)
@@ -1174,12 +1181,12 @@ void Game::MainFrame()
 
     if (this->active == 0)
     {
-        SDL_Delay(0);
+        SleepMilliseconds(0);
         return;
     }
 
     this->unk4A99FC = crt::Time();
-    const auto now = static_cast<u32>(SDL_GetTicks());
+    const u32 now = SystemUptime();
     this->frameStart = now;
 
     if (now - this->lastFrame < static_cast<u32>(this->state.frameInterval))
@@ -1195,12 +1202,46 @@ void Game::MainFrame()
         this->state.ClearGameFlag(GameState::SoundEffects);
     }
 
-    this->unk4C844C = now;
-    this->frameTime = static_cast<i32>(now - this->unk4C8444);
-    this->unk4C8444 = now;
+    if (this->menuState == Game::NoMenu)
+    {
+        this->RunTimers();
+    }
+
+    this->unk4C844C = this->frameStart;
+    this->frameTime = static_cast<i32>(this->frameStart - this->unk4C8444);
+    this->unk4C8444 = this->frameStart;
     this->input.PollKeyboard();
     this->controls.Poll(this->input, this->config, this->state, static_cast<i32>(this->frameStart));
     this->scene.pointerRole.act.action = Scene::ChoicePointer;
+
+    if (this->storyState != Game::StoryRunning)
+    {
+        this->unk4CAD24 = kCounterHidden;
+        this->counterAlpha = kCounterOpaque;
+        this->SaveScreenFrame();
+        this->EndMainFrame();
+        return;
+    }
+
+    if (this->inBattle == 0 && !this->state.GameFlag(GameState::UnkD) && this->battleRequest < 0)
+    {
+        this->battleRequest &= static_cast<i32>(~Game::ScriptedBattle);
+
+        if (this->battleRequest != 0)
+        {
+            this->EnterBattle();
+        }
+    }
+
+    this->unk4C9A14 = 0;
+    this->battleRequest = 0;
+
+    if (this->inBattle != 0)
+    {
+        this->BattleMainFrame();
+        return;
+    }
+
     this->MusicCue();
 
     if (this->menuState != Game::NoMenu)
@@ -1222,48 +1263,195 @@ void Game::MainFrame()
                 this->menu.Run();
                 break;
 
+            case Game::ItemChoiceMenu:
+                this->ShopFrame();
+                break;
+
             default:
                 break;
         }
+
+        this->EndMainFrame();
+        return;
     }
-    else
+
+    this->talk.HandlePointer();
+    this->roleControl.ControlPlayer();
+
+    if (this->running == 0 || this->inactive != 0 || this->menuState != Game::NoMenu || this->inBattle != 0 ||
+        this->storyState != Game::StoryRunning)
     {
-        this->talk.HandlePointer();
-        this->roleControl.ControlPlayer();
+        this->unk4C8448 = this->frameStart - this->unk4C844C;
+        this->EndMainFrame();
+        return;
+    }
 
-        if (this->running != 0 && this->inactive == 0 && this->menuState == Game::NoMenu && this->inBattle == 0 &&
-            this->storyState == Game::StoryRunning)
+    if (static_cast<u32>(++this->frameCounter) > Game::ClockFrames)
+    {
+        this->frameCounter = 0;
+
+        if (static_cast<u32>(++this->party.clock) > Party::ClockLimit)
         {
-            if (static_cast<u32>(++this->frameCounter) > Game::ClockFrames)
-            {
-                this->frameCounter = 0;
-
-                if (static_cast<u32>(++this->party.clock) > Party::ClockLimit)
-                {
-                    this->party.clock = 0;
-                }
-            }
-
-            this->talk.RunEvent(this->state.leader);
-
-            if ((this->systemFlags & (Game::UnkSystem1 | Game::QuitRequested)) == 0)
-            {
-                this->rolePath.Update();
-                this->largeFont.SetAdvance(kMapLargeAdvance);
-                this->mediumFont.SetAdvance(kMediumFontAdvance);
-                this->smallFont.SetAdvance(kMapSmallAdvance);
-                this->fieldView.Render();
-            }
-
-            this->unk4C8448 = this->frameStart - this->unk4C844C;
+            this->party.clock = 0;
         }
     }
+    else if (this->frameCounter == 0 && static_cast<u32>(++this->party.clock) > Party::ClockLimit)
+    {
+        this->party.clock = 0;
+    }
 
+    this->talk.RunEvent(this->state.leader);
+
+    if ((this->systemFlags & (Game::UnkSystem1 | Game::QuitRequested)) == 0)
+    {
+        this->rolePath.Update();
+        this->largeFont.SetAdvance(kMapLargeAdvance);
+        this->mediumFont.SetAdvance(kMediumFontAdvance);
+        this->smallFont.SetAdvance(kMapSmallAdvance);
+        this->fieldView.Render();
+    }
+
+    this->unk4C8448 = this->frameStart - this->unk4C844C;
+    this->EndMainFrame();
+}
+
+// The end of a frame (inline in 0x0040A570): the audio served; a requested quit closes the window.
+void Game::EndMainFrame()
+{
     this->AudioPump();
 
     if ((this->systemFlags & Game::QuitRequested) != 0)
     {
         this->Destroy();
+    }
+}
+
+// The event timers (inline in 0x0040A570, outside the menus). The first (flag 0x10) counts down while no event runs
+// and the save screen is closed; at its end the scene's lists are freed, every role but the first released and its
+// talk ended, and the leader set to run the timer's event. The second (flag 0x4A) only sets flag 0x4B at its end.
+void Game::RunTimers()
+{
+    Scene& view = this->scene;
+    GameState& game = this->state;
+
+    if (game.GameFlag(GameState::Timer) && --view.unk4CAD20 < 0 && game.leader.id == Role::NoId &&
+        this->menuState == Game::NoMenu && this->storyState == Game::StoryRunning)
+    {
+        view.unk4CAD20 = kTimerStopped;
+        game.ClearGameFlag(GameState::Timer);
+        game.ClearGameFlag(GameState::TimerEvent);
+        game.SetGameFlag(GameState::TimerExpired);
+        view.FreeAnimations();
+        view.FreeEffects();
+        view.FreeSpritesA();
+        view.FreeSpritesB();
+        game.clickRegions.Free();
+        view.FreeNodes();
+
+        for (int index = 1; index < game.roleCount; ++index)
+        {
+            this->ReleaseRole(index);
+            game.roles[static_cast<std::size_t>(index)].talkState = Role::NoTalk;
+        }
+
+        game.leader.unk14 = 0;
+        game.leader.unk20 = 0;
+        game.leader.event = static_cast<u16>(view.unk4A93D4);
+        game.leader.id = static_cast<u16>(this->unk4B7BC4);
+        game.leader.flags = 0;
+        game.leader.x = 0;
+        game.leader.y = 0;
+    }
+
+    if (game.GameFlag(GameState::SecondTimer) && --view.unk4A9918 < 0)
+    {
+        view.unk4A9918 = kTimerStopped;
+        game.ClearGameFlag(GameState::SecondTimer);
+        game.SetGameFlag(GameState::SecondTimerExpired);
+    }
+}
+
+// A battle requested by the map started (inline in 0x0040A570): the music and the sounds stopped, the archives closed,
+// the map's view released, the battle started and the roles' one-shot sounds rearmed.
+void Game::EnterBattle()
+{
+    MapCache& cache = this->mapCache;
+    this->audio.StopMusic();
+    this->audio.StopAllSounds();
+    this->acts.CloseAll();
+    this->archive.CloseAll();
+
+    if (!cache.unitFile.UnmapView(cache.view))
+    {
+        ErrorLog(u8"into story fight CloseView fail ,%s", cache.unitFile.ErrorText());
+    }
+
+    cache.view = nullptr;
+    cache.unitFile.CloseMapping();
+    this->StartBattle(static_cast<u16>(this->battleRequest));
+    this->inBattle = 1;
+
+    for (int index = 1; index < this->state.roleCount; ++index)
+    {
+        this->state.roles[static_cast<std::size_t>(index)].flags &= ~Role::SoundOnce;
+    }
+}
+
+// A frame of the battle from the map (inline in 0x0040A570): the battle talk runs it. At its end (0) the fonts are set
+// up again and the map's view mapped again; a lost battle (2) ends the timed event and opens the game over page; an
+// escape (3) maps the map again.
+void Game::BattleMainFrame()
+{
+    MapCache& cache = this->mapCache;
+    const int result = this->FightTalkFrame();
+    this->AudioPump();
+
+    auto remap = [&cache]
+    {
+        cache.unitFile.CreateMapping();
+        cache.view = cache.unitFile.MapView(0, 0);
+
+        if (cache.view == nullptr)
+        {
+            ErrorLog(u8"After fight ,Remapping map fail!");
+        }
+    };
+
+    if (result == kBattleOver)
+    {
+        this->battleRequest = 0;
+        this->inBattle = 0;
+        this->SetupFont(this->largeFont, kLargeFontSize);
+        this->SetupFont(this->mediumFont, kMediumFontSize);
+        this->SetupFont(this->smallFont, kSmallFontSize);
+        this->talk.unit = kTalkUnit;
+        remap();
+        this->audio.StopMusic();
+        return;
+    }
+
+    if (result == kBattleLost)
+    {
+        this->state.ClearGameFlag(GameState::Timer);
+        this->state.ClearGameFlag(GameState::TimerEvent);
+        this->state.SetGameFlag(GameState::TimerExpired);
+        this->inBattle = 0;
+        this->battleRequest = 0;
+        this->menuState = Game::MenuEntering | Game::SystemMenuA;
+        this->storyState = Game::StoryRunning;
+        this->ResetSaveSlots();
+        this->unk4CAEBC = 0;
+        this->unk4CAEC0 = 0;
+        this->menuMode = Menu::NoSlotsMode;
+        return;
+    }
+
+    if (result == kBattleEscaped)
+    {
+        this->inBattle = 0;
+        this->battleRequest = 0;
+        this->state.ClearGameFlag(GameState::TimerExpired);
+        remap();
     }
 }
 

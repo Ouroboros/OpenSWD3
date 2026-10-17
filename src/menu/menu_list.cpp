@@ -1,9 +1,11 @@
 #include "menu/menu_list.h"
 
 #include "config/config.h"
+#include "crt/msvc.h"
 #include "game/databases.h"
 #include "game/game.h"
 #include "menu/menu.h"
+#include "platform/display.h"
 
 namespace swd3
 {
@@ -15,6 +17,20 @@ constexpr i32 kItemsBackground = 0x43;  // Menu::background action of the items 
 constexpr int kItemRows = 0xD;
 constexpr u16 kSaveItem = 0x2D9;
 constexpr u8 kUnkSettings = 0x64;  // the fourth byte written to Env.dat
+constexpr int kBarBoxLeft = 4;     // DrawScrollBar
+constexpr int kBarBoxUp = 0xC;
+constexpr int kBarBoxWidth = 8;
+constexpr int kBarBoxExtra = 0x18;
+constexpr int kBarBoxMode = 4;
+constexpr int kBarClipWidth = 0x20;
+constexpr int kThumbLeft = 3;
+constexpr int kArrowHeight = 0x10;
+constexpr i32 kUpArrowAction = 0x1A;
+constexpr i32 kDownArrowAction = 0x1B;
+constexpr i32 kUpPressedAction = 0x1E;
+constexpr i32 kDownPressedAction = 0x1F;
+constexpr int kUpPressed = 1;
+constexpr int kDownPressed = 2;
 
 }  // namespace
 
@@ -150,4 +166,59 @@ void Menu::OptionsLeave()
     owner.config.Update(owner.config.installDirectory, owner.config.cdRoot, settings);
 }
 
+// swd32.exe 0x0043AE40: the scroll bar of a list from `y` down `height` pixels at `x`: its box, the bar picture (act
+// unk4FC328) repeated down it, the thumb (act unk4FC6E8) from `from` to `to` of the height, the arrows above and below
+// (pressed when bit 0 or bit 1 of `arrows` is set). `bar` keeps the edges for the clicks.
+void Menu::DrawScrollBar(int x, int y, int height, int arrows, float from, float to, MenuScrollBar& bar)
+{
+    Game& owner = this->game;
+    this->DrawBox(x + kBarBoxLeft, y - kBarBoxUp, kBarBoxWidth, height + kBarBoxExtra, kBarBoxMode, 0, 0, 0);
+    const int bottom = y + height;
+    owner.painter.SetClipClamped(x, y, x + kBarClipWidth, y + height);
+    bar.top = y;
+    bar.bottom = y + height;
+
+    auto tile = [&owner](ActState& act, int left, int from, int to)
+    {
+        owner.acts.Run(act);
+        const Picture* picture = owner.archive.GetPicture(act.frame, act.picture);
+
+        if (picture == nullptr || picture->height == 0)
+        {
+            return;
+        }
+
+        for (int place = from; place < to; place += picture->height)
+        {
+            owner.painter.SetSource(picture->data.data());
+            owner.painter.DrawPicture(left, place, picture->width, picture->height, act.flags);
+        }
+    };
+
+    tile(this->unk4FC328, x, y, bottom);
+    const auto length = static_cast<double>(height);
+    const int thumbTop = y + static_cast<i32>(crt::Ftol(length * static_cast<double>(from)));
+    bar.thumbTop = thumbTop;
+    const int thumbBottom = y + static_cast<i32>(crt::Ftol(length * static_cast<double>(to)));
+    bar.thumbBottom = thumbBottom;
+    owner.painter.SetClipClamped(x, y, x + kBarClipWidth, thumbBottom);
+    tile(this->unk4FC6E8, x + kThumbLeft, thumbTop, thumbBottom);
+    owner.painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+    this->unk4FBA18.action = kUpArrowAction;
+    owner.actDrawer.Draw(this->unk4FBA18, x, y - kArrowHeight);
+    this->unk4FB8D8.action = kDownArrowAction;
+    owner.actDrawer.Draw(this->unk4FB8D8, x, bottom);
+
+    if ((arrows & kUpPressed) != 0)
+    {
+        this->unk4FBA18.action = kUpPressedAction;
+        owner.actDrawer.Draw(this->unk4FBA18, x, y - kArrowHeight);
+    }
+
+    if ((arrows & kDownPressed) != 0)
+    {
+        this->unk4FB8D8.action = kDownPressedAction;
+        owner.actDrawer.Draw(this->unk4FB8D8, x, bottom);
+    }
+}
 }  // namespace swd3

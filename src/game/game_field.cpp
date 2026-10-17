@@ -9,12 +9,15 @@
 #include <SDL3/SDL.h>
 
 #include "core/debug_log.h"
+#include "core/fault.h"
 #include "core/format.h"
 #include "core/words.h"
 #include "crt/msvc.h"
 #include "game/game.h"
 #include "platform/system_info.h"
 #include "role/path_script.h"
+#include "role/role_path.h"
+#include "talk/talk_event.h"
 
 namespace swd3
 {
@@ -103,7 +106,7 @@ constexpr int kSetPairs = 4;
 constexpr std::size_t kPairWords = 2;
 constexpr u32 kPercent = 100;
 constexpr int kForcedEncounter = 1;  // RollEncounter `force`: the thresholds and the chance are skipped
-// swd32.exe 0x004994AC and 0x004994CC: the step of a move by direction.
+constexpr i32 kTileMask = 0xF;       // ReleaseRole: the pixels within a tile
 
 }  // namespace
 
@@ -1260,4 +1263,86 @@ u32 Game::RollEncounter(int steps, int force)
     return MapsWord(data, area->table + sizeof(u16) * (pick + 1));
 }
 
+// swd32.exe 0x0040F6D0: role `index` let go by an event: while held, each scripted move of it ends: a role between
+// tiles leaves its cells and (unless controlled) steps back along the move until it stands on a tile, its stepping
+// and fast bits and its act's speed cleared; its path move resumes, its act returns to the action and direction it had
+// before turning to the talker, and it is no longer held. The original steps forever where the step cannot reach a
+// tile (or reads past the step tables at the end of the path); here that is Hang().
+void Game::ReleaseRole(int index)
+{
+    Role& role = this->state.roles[static_cast<std::size_t>(index)];
+
+    if ((role.flags & Role::Held) == 0)
+    {
+        return;
+    }
+
+    for (MoveRecord& move : this->state.moves)
+    {
+        if (move.role != static_cast<u16>(index))
+        {
+            continue;
+        }
+
+        if ((role.x & kTileMask) != 0 || (role.y & kTileMask) != 0)
+        {
+            this->field.ClearRoleCells(role, static_cast<u16>(this->unk4B7BC4));
+
+            if (index != this->state.playerRole)
+            {
+                const u8 direction = move.CurrentDirection();
+
+                if (direction >= RolePath::StepX.size())
+                {
+                    Hang();
+                }
+
+                auto align = [](i32& place, i32 step)
+                {
+                    for (int steps = 0; (place & kTileMask) != 0; ++steps)
+                    {
+                        if (steps > kTileMask)
+                        {
+                            Hang();
+                        }
+
+                        place -= step;
+                    }
+                };
+
+                align(role.x, RolePath::StepX[direction]);
+                align(role.y, RolePath::StepY[direction]);
+            }
+        }
+
+        role.flags &= ~(Role::Stepping | Role::FastMove);
+        role.act.speed = 0;
+    }
+
+    this->rolePath.ResumeMove(index);
+
+    if ((role.flags & Role::FacesTalker) != 0)
+    {
+        if (role.act.savedAction != ActState::NotSaved)
+        {
+            role.act.action = role.act.savedAction;
+        }
+
+        if (role.act.savedDirection != ActState::NotSaved)
+        {
+            role.act.direction = role.act.savedDirection;
+        }
+    }
+
+    role.act.savedAction = ActState::NotSaved;
+    role.act.savedDirection = ActState::NotSaved;
+
+    if (this->acts.Run(role.act) == 0)
+    {
+        LogActError(u8"Act Err(Talk:Talkend)", role);
+    }
+
+    role.flags &= ~Role::Held;
+    role.act.delay = 0;
+}
 }  // namespace swd3

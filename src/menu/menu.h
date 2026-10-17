@@ -36,6 +36,15 @@ struct MenuTab
     u16 nameAction = 0;   // +0x1A
 };
 
+// The edges of a list's scroll bar as last drawn (DrawScrollBar), read by the clicks.
+struct MenuScrollBar
+{
+    i32 top = 0;          // +0x00
+    i32 thumbBottom = 0;  // +0x04
+    i32 thumbTop = 0;     // +0x08
+    i32 bottom = 0;       // +0x0C
+};
+
 // The menus (the state at 0x004FB000..0x004FDFFF): a page installs the handlers of the frame, the keys and the drawing,
 // which the frame dispatches. Handler slots are kept separately: some pages leave a slot of the page before them.
 class Menu
@@ -102,6 +111,7 @@ public:
     void DrawPageTitle();
     void DrawRoleTabs(int offset);
     void ItemsAfterSave(int saved);
+    void DrawScrollBar(int x, int y, int height, int arrows, float from, float to, MenuScrollBar& bar);
     void OptionsLeave();
     bool DrawNameEntry();
     void ActOnEntry();
@@ -190,6 +200,7 @@ public:
 
     // The items page.
     MenuList itemList;           // 0x004FD08C (see MenuList)
+    MenuScrollBar scrollBar;     // 0x004FC4F0
     ItemLink itemObjects;        // 0x004FD1E8 the objects of the items page
     ItemLink savedInventory;     // 0x004FD15C the inventory kept while the items page saves
     ItemLink savedItems;         // 0x004FD140 `itemObjects` kept with it

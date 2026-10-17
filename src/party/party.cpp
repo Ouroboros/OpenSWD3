@@ -1,6 +1,7 @@
 #include "party/party.h"
 #include "core/byte_reader.h"
 #include "org/database.h"
+#include "org/object_record.h"
 #include "text/big5.h"
 
 #include <algorithm>
@@ -55,6 +56,11 @@ constexpr std::u8string_view kFuZiChe = u8"輔子徹";      // 0x004A713C
 constexpr std::u8string_view kWenJin = u8"紋錦";         // 0x004A7134
 constexpr std::u8string_view kZhuShiZi = u8"鑄石子";     // 0x004A712C
 constexpr std::u8string_view kLeLe = u8"樂樂";           // 0x004A7124
+constexpr u16 kPlainObjectLimit = 0x1B;                  // ApplyObject: ObjectData::unk52 up to it applies by unk3C
+constexpr u16 kVitalsObject = 0;                         // ObjectData::unk3C
+constexpr u16 kMaximaObject = 0x100;
+constexpr u16 kPercentObject = 0x200;
+constexpr int kPercent = 100;
 constexpr std::u8string_view kDaMi = u8"大米";           // 0x004A711C
 constexpr std::u8string_view kZhenMeng = u8"真夢";       // 0x004A7114
 constexpr std::u8string_view kHongShanHu = u8"紅珊瑚";   // 0x004A710C
@@ -317,4 +323,91 @@ int Party::RoleStat(int field, int role) const
     return 0;
 }
 
+// swd32.exe 0x0044D6E0: object `object` used on (or worn by) a party role: its skill's ailment with bit 15 revives a
+// defeated role. A standing role, or any role when the object's unk52 is at most 0x1B, gains by unk3C: 0 the vitals
+// (up to the maxima) and the attributes, 0x100 the maxima and the attributes, 0x200 the vitals in percent of the
+// maxima. Otherwise (a defeated role and unk52 above 0x1B) only the vitals rise.
+void ApplyObject(RoleRecord& record, const ObjectData& object, Database& database)
+{
+    SkillScript skill;
+    database.LoadSkill(skill, object.unk3E);
+
+    if (static_cast<i16>(skill.ailment) < 0)
+    {
+        record.unk24 &= static_cast<u16>(~RoleRecord::Defeated);
+    }
+
+    auto add = [](i16& field, u16 amount)
+    {
+        field = static_cast<i16>(field + amount);
+    };
+
+    auto addBonus = [](u16& field, u16 amount)
+    {
+        field = static_cast<u16>(field + amount);
+    };
+
+    auto clampVitals = [&record]
+    {
+        record.hitPoints = std::min(record.hitPoints, record.maxHitPoints);
+        record.spirit = std::min(record.spirit, record.maxSpirit);
+        record.stamina = std::min(record.stamina, record.maxStamina);
+    };
+
+    if (object.unk52 > kPlainObjectLimit && (record.unk24 & RoleRecord::Defeated) == 0)
+    {
+        add(record.hitPoints, object.unk34);
+        add(record.spirit, object.unk36);
+        add(record.stamina, object.unk38);
+        clampVitals();
+        return;
+    }
+
+    if ((record.unk24 & RoleRecord::Defeated) != 0)
+    {
+        return;
+    }
+
+    if (object.unk3C == kVitalsObject)
+    {
+        add(record.hitPoints, object.unk34);
+        add(record.spirit, object.unk36);
+        add(record.stamina, object.unk38);
+        clampVitals();
+        add(record.attack, object.unk28);
+        add(record.defense, object.unk2A);
+        add(record.unk14, object.unk2E);
+        add(record.agility, object.unk2C);
+        add(record.unk18, object.unk30);
+        add(record.unk1E, object.unk32);
+        addBonus(record.attackBonus, object.unk24);
+        addBonus(record.defenseBonus, object.unk26);
+    }
+
+    if (object.unk3C == kMaximaObject)
+    {
+        add(record.maxHitPoints, object.unk34);
+        add(record.maxSpirit, object.unk36);
+        add(record.maxStamina, object.unk38);
+        add(record.attack, object.unk28);
+        add(record.defense, object.unk2A);
+        add(record.unk14, object.unk2E);
+        add(record.unk18, object.unk30);
+        add(record.agility, object.unk2C);
+        add(record.unk1E, object.unk32);
+        addBonus(record.attackBonus, object.unk24);
+        addBonus(record.defenseBonus, object.unk26);
+    }
+
+    if (object.unk3C == kPercentObject)
+    {
+        const i16 maxHitPoints = record.maxHitPoints;
+        const i16 maxSpirit = record.maxSpirit;
+        const i16 maxStamina = record.maxStamina;
+        add(record.hitPoints, static_cast<u16>(static_cast<i16>(maxHitPoints * object.unk34) / kPercent));
+        add(record.spirit, static_cast<u16>(static_cast<i16>(maxSpirit * object.unk36) / kPercent));
+        add(record.stamina, static_cast<u16>(maxStamina * static_cast<i16>(object.unk38) / kPercent));
+        clampVitals();
+    }
+}
 }  // namespace swd3

@@ -26,9 +26,6 @@ constexpr u32 kLastKind = 0x400;  // a kind with this bit sorts last
 constexpr u32 kLastPriority = 0x800;
 constexpr int kGaugePerSpeed = 100;  // the gauge fills at kGaugePerSpeed * (kSpeeds - speed)
 constexpr int kSpeeds = 20;
-// The kind the sort reads for the list variable itself (taken as the node before the first position): the global at
-// 0x004FD5AC, which nothing writes.
-constexpr u32 kHeadKind = 0;
 
 }  // namespace
 
@@ -38,7 +35,7 @@ int TotalItemValue(const BattleState& battle)
     const int rate = (battle.mode & BattleState::SellMode) == BattleState::SellMode ? kShopRate : kFullRate;
     int total = 0;
 
-    for (const ItemNode* item = battle.items.get(); item != nullptr; item = item->next.get())
+    for (const ItemNode* item = battle.itemsHead.next.get(); item != nullptr; item = item->next.get())
     {
         total += static_cast<int>(item->record.data.price * static_cast<u16>(item->unk06) * rate) / kFullRate;
     }
@@ -51,7 +48,7 @@ void CountListB(BattleState& battle)
 {
     battle.listBCount = 0;
 
-    for (const ItemNode* entry = battle.listB.get(); entry != nullptr && battle.listBCount < kListBLimit;
+    for (const ItemNode* entry = battle.listB; entry != nullptr && battle.listBCount < kListBLimit;
          entry = entry->next.get())
     {
         ++battle.listBCount;
@@ -87,8 +84,8 @@ u32 ItemPriority(u32 kind)
 // the items without a price or with kind bit 6 stay in `source`.
 void SortBattleItems(BattleState& battle, ItemLink& source)
 {
-    battle.items.reset();
-    battle.itemCursor = 0;
+    battle.itemsHead.next.reset();
+    battle.itemsHead.count = 0;
     ItemLink* link = &source;
 
     while (*link != nullptr)
@@ -104,8 +101,8 @@ void SortBattleItems(BattleState& battle, ItemLink& source)
         }
 
         const u32 own = ItemPriority(item.record.data.kind);
-        ItemLink* before = &battle.items;
-        u32 previous = ItemPriority(kHeadKind);
+        ItemLink* before = &battle.itemsHead.next;
+        u32 previous = ItemPriority(battle.itemsHead.record.data.kind);
 
         while (*before != nullptr)
         {
@@ -130,7 +127,7 @@ void SortBattleItems(BattleState& battle, ItemLink& source)
 // swd32.exe 0x0044F8E0
 void FreeBattleItems(BattleState& battle)
 {
-    FreeItemList(battle.items);
+    FreeItemList(battle.itemsHead.next);
 }
 
 // swd32.exe 0x0044FA40: the count (count and pending) of item `id` in the inventory; outside the shop modes also the

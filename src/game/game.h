@@ -82,12 +82,13 @@ public:
     {
         NoMenu = 0,
         MainMenu = 1,
-        ItemChoiceMenu = 2,        // the items listed by talk command ItemMenu
-        TitleScreenMenu = 3,       // the system page in mode 0
-        SystemMenuA = 4,           // the system page in mode 1 (talk command EndGame)
-        SystemMenuB = 5,           // the system page in mode 2
-        NameEntryMenu = 6,         // the system page in mode 3
-        MenuOnItems = 0x40000000,  // the main menu opens on its items page
+        ItemChoiceMenu = 2,          // the items listed by talk command ItemMenu
+        TitleScreenMenu = 3,         // the system page in mode 0
+        SystemMenuA = 4,             // the system page in mode 1 (talk command EndGame)
+        SystemMenuB = 5,             // the system page in mode 2
+        NameEntryMenu = 6,           // the system page in mode 3
+        MenuOnItems = 0x40000000,    // the main menu opens on its items page
+        MenuActsReset = 0x20000000,  // the shop resets its acts (ShopFrame)
         MenuEntering = 0x80000000,
         MenuNumberMask = 0x0FFFFFFF,
         MenuEnteredMask = 0x3FFFFFFF,
@@ -170,8 +171,36 @@ private:
     void ReadSave(File& file);
     void UnpackParty(std::span<const u8> data);
     void DrawSlotsPage();
+    void ShopFrame();
+    void OpenShop();
+    void ResetShopActs();
+    void CloseShop();
+    void ShopBack();
+    void ShopRowChanged(bool sound, u16 arrows);
+    void ShopDown();
+    void ShopUp();
+    void ShopPageDown();
+    void ShopPageUp();
+    ItemNode* ShopChosenItem();
+    void ShopLess();
+    void ShopMore();
+    void ShopConfirm();
+    void ShopOpenList();
+    void ShopSettle();
+    void ShopAnswered();
+    void ShopKeys();
+    void ShopMouse();
+    void ShopListMouse();
+    void CompareEquipment(const ItemNode* item);
+    void DrawEquipmentCompare();
+    void DrawShopList(Pixel color);
+    void DrawShopChosen(const ItemNode& item, Pixel color);
     void DrawTextInput(const TextInput& box);
     void MainFrame();
+    void EndMainFrame();
+    void RunTimers();
+    void EnterBattle();
+    void BattleMainFrame();
     void MusicCue();
     void AudioPump();
     void HandleEvent(const SDL_Event& event);
@@ -198,6 +227,7 @@ private:
         i16 map
     );
     void SaveRoleStates(i16 x, i16 y);
+    void ReleaseRole(int index);
     void StoreRole(const Role& role);
     void FollowLeader(int index);
     int CheckCd(const std::string& root, int& drive);
@@ -525,6 +555,7 @@ private:
     i32 debugCells = 0;  // 0x004CAEA0 the debug cell marks (debug key F2)
     i32 frameTime = 0;   // 0x0049E1C8
     i32 unk4A99FC = 0;
+    i32 unk4C9A14 = 0;  // 0x004C9A14 only cleared (MainFrame)
     i32 unk4CAD24 = 0;
     i32 loadingPercent = 0;  // 0x004CC2B8
     i32 loadingUnk4CC2C0 = 0;

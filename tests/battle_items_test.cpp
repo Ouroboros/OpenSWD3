@@ -1,9 +1,11 @@
 #include <array>
+#include <cstdio>
 #include <vector>
 
 #include "battle/battle_items.h"
 #include "battle/battle_state.h"
 #include "game/game_state.h"
+#include "game_data.h"
 #include "party/party.h"
 #include "test.h"
 
@@ -100,15 +102,15 @@ TEST_CASE("battle items: the sort inserts before a node ranking not below whose 
     CHECK(source == nullptr);
     // 1: [1]; 2 (3 < 5, predecessor 0): [2 1]; 3 (4): 2 ranks 3 < 4, 1 ranks 5 >= 4 with 3 < 4: [2 3 1];
     // 4 (4): at 3 (4 >= 4, 3 < 4): [2 4 3 1]; 5 (1): at 2: [5 2 4 3 1].
-    CHECK(Ids(battle.items) == (std::vector<u16>(kSortedIds.begin(), kSortedIds.end())));
-    CHECK_EQ(battle.items->unk06, 0);
-    battle.items->unk06 = kCount;
-    battle.items->record.data.price = kPrice;
+    CHECK(Ids(battle.itemsHead.next) == (std::vector<u16>(kSortedIds.begin(), kSortedIds.end())));
+    CHECK_EQ(battle.itemsHead.next->unk06, 0);
+    battle.itemsHead.next->unk06 = kCount;
+    battle.itemsHead.next->record.data.price = kPrice;
     CHECK_EQ(swd3::TotalItemValue(battle), kCount * kPrice);
     battle.mode = swd3::BattleState::SellMode;
     CHECK_EQ(swd3::TotalItemValue(battle), kCount * kPrice * kShopPercent / kPercent);
     swd3::FreeBattleItems(battle);
-    CHECK(battle.items == nullptr);
+    CHECK(battle.itemsHead.next == nullptr);
 }
 
 TEST_CASE("battle items: the shop mode leaves items without a price or with kind bit 6")
@@ -120,7 +122,7 @@ TEST_CASE("battle items: the shop mode leaves items without a price or with kind
     Push(source, kFreeId, 1, 0);
     Push(source, kSoldId, 1);
     swd3::SortBattleItems(battle, source);
-    CHECK(Ids(battle.items) == (std::vector<u16>{kSoldId}));
+    CHECK(Ids(battle.itemsHead.next) == (std::vector<u16>{kSoldId}));
     CHECK(Ids(source) == (std::vector<u16>{kFreeId, kNotSoldId}));
     CHECK_EQ(source->unk06, 0);
 }
@@ -156,14 +158,31 @@ TEST_CASE("battle items: counts of the inventory and the equipment, the list lim
     battle.mode = swd3::BattleState::UnkMode2;
     CHECK_EQ(swd3::CountItemTotal(battle, party, state, kCountedId), kInInventory);
 
+    ItemLink shown;
+
     for (int i = 0; i < kListBEntries; ++i)
     {
-        Push(battle.listB, static_cast<u16>(i), 0);
+        Push(shown, static_cast<u16>(i), 0);
     }
 
+    battle.listB = shown.get();
     swd3::CountListB(battle);
     CHECK_EQ(battle.listBCount, kListBLimit);
     CHECK_EQ(battle.gaugeFull, swd3::BattleState::InitialGaugeFull);
     CHECK_EQ(swd3::SetGaugeFull(battle, kSpeed), kGaugePerSpeed * (kSpeeds - kSpeed));
     CHECK_EQ(swd3::SetGaugeFull(battle, 0), kGaugePerSpeed * kSpeeds);
+}
+
+TEST_CASE("party: the object kinds of the equipment slots match swd32.exe")
+{
+    constexpr swd3::u32 kSlotKindsAt = 0x0049E344;
+    const std::vector<swd3::u8> exe = swd3test::ReadGameFile("swd32.exe");
+
+    if (exe.empty())
+    {
+        std::printf("  (swd32.exe not found, skipped)\n");
+        return;
+    }
+
+    CHECK(swd3test::SameTable(exe, kSlotKindsAt, swd3::Party::SlotKinds));
 }
