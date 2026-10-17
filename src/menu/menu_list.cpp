@@ -87,6 +87,106 @@ ItemNode* CountShown(ItemNode* node, i32& shown, int rows)
     return node;
 }
 
+// swd32.exe 0x0043BB40: a row past the rows shown goes back to the last row and the list scrolls by one (while
+// entries remain)
+void FitListRow(i32 count, i32& top, i32& row, i32 shown)
+{
+    if (row < shown)
+    {
+        return;
+    }
+
+    row = 0;
+
+    if (shown >= 1)
+    {
+        row = shown - 1;
+    }
+
+    if (top + shown < count)
+    {
+        ++top;
+    }
+}
+
+// swd32.exe 0x0043BB80: the next row of a list; past the rows shown it scrolls by one (while entries remain)
+void ListDown(i32 count, i32& top, i32& row, i32 shown)
+{
+    ++row;
+    FitListRow(count, top, row, shown);
+}
+
+// swd32.exe 0x0043BBC0: the row before; before the first it scrolls back by one
+void ListUp(i32& top, i32& row)
+{
+    if (--row < 0)
+    {
+        row = 0;
+
+        if (top > 0)
+        {
+            --top;
+        }
+    }
+}
+
+// swd32.exe 0x0043BBE0: Page Down: to the last row shown, from there a page of `page` further (to the last page,
+// where the rows shown shrink to the entries left)
+void ListPageDown(i32 count, i32& top, i32& row, i32& shown, i32 page)
+{
+    if (row != shown - 1)
+    {
+        row = 0;
+
+        if (shown >= 1)
+        {
+            row = shown - 1;
+        }
+
+        return;
+    }
+
+    top += page;
+
+    if (top + page < count)
+    {
+        if (row > count - top - 1)
+        {
+            row = count - top - 1;
+        }
+
+        return;
+    }
+
+    top = count - page;
+
+    if (top < 0)
+    {
+        top = 0;
+    }
+
+    shown = count - top;
+    row = shown - 1;
+}
+
+// swd32.exe 0x0043BC60: Page Up: to the first row shown, from there a page of `page` back (to the start)
+void ListPageUp(i32& top, i32& row, i32 page)
+{
+    if (row != 0)
+    {
+        row = 0;
+        return;
+    }
+
+    top -= page;
+
+    if (top < 0)
+    {
+        row = 0;
+        top = 0;
+    }
+}
+
 // swd32.exe 0x0043BCC0: the view fitted to `list` after it changed (an empty list gets the empty entry "無"; a view
 // past its end moves back), its first node and rows shown (at most `rows`); the description of the chosen object
 // (none past the end, where the original reads through a null node)

@@ -195,6 +195,7 @@ private:
     void DrawEquipmentCompare();
     void DrawShopList(Pixel color);
     void DrawShopChosen(const ItemNode& item, Pixel color);
+    void DrawWrappedText(std::string_view text, int x, int y, int lines, int width);
     void DrawTextInput(const TextInput& box);
     void MainFrame();
     void EndMainFrame();

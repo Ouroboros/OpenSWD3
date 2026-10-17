@@ -36,6 +36,34 @@ struct MenuTab
     u16 nameAction = 0;   // +0x1A
 };
 
+// The bestiary (role page 0x11; 0x004FC90C..0x004FCA80): the monsters of mon.dat 1..500 by category, with what the
+// party knows of each from how many it defeated.
+struct Bestiary
+{
+    static constexpr int Monsters = 0x1F4;
+    static constexpr int Categories = 0xC;
+    static constexpr std::size_t Listed = 0x40;
+    static constexpr int Rows = 0xF;
+    static constexpr std::size_t Lines = 0x10;
+
+    ItemNode monster;                              // 0x004FC918 the monster chosen
+    std::array<i8, Monsters + 1> categories = {};  // 0x004FCA78 by monster id (-1: none)
+    std::array<u8, Monsters + 1> defeated = {};    // 0x004FCA7C by monster id
+    std::array<i8, Listed> known = {};             // 0x004FC930 the defeats of each monster listed
+    std::array<std::string, Lines> lines;          // 0x004FC934 the lines of the monster chosen
+    std::array<std::string, Listed> names;         // the names of the monsters listed (empty: not defeated)
+    std::array<u32, Listed> ids = {};              // 0x004FC91C the monsters listed, ended by 0
+    std::size_t firstShown = 0;                    // 0x004FC920 the first listed shown (a pointer in the original)
+    i32 top = 0;                                   // 0x004FC90C
+    i32 category = 0;                              // 0x004FC910 the tab chosen
+    i32 shown = 0;                                 // 0x004FC914
+    i32 stamina = 0;                               // 0x004FC924
+    i32 row = 0;                                   // 0x004FC928
+    i32 spirit = 0;                                // 0x004FC92C
+    i32 count = 0;                                 // 0x004FC974 the monsters listed
+    u16 scrollArrows = 0;                          // 0x004FCA80
+};
+
 // The edges of a list's scroll bar as last drawn (DrawScrollBar), read by the clicks.
 struct MenuScrollBar
 {
@@ -112,6 +140,28 @@ public:
     void DrawRoleTabs(int offset);
     void ItemsAfterSave(int saved);
     void DrawScrollBar(int x, int y, int height, int arrows, float from, float to, MenuScrollBar& bar);
+
+    // The bestiary (role page 0x11).
+    void BestiaryEnter();
+    void BestiaryLeave();
+    void BestiaryFrame();
+    void BestiaryMoved(u16 arrows);
+    void BestiaryDown();
+    void BestiaryUp();
+    void BestiaryPageDown();
+    void BestiaryPageUp();
+    void BestiaryLeft();
+    void BestiaryRight();
+    void BestiaryShift();
+    void BestiaryCancel();
+    void BestiaryDraw();
+    void BestiaryList(int category);
+    void BestiaryCountShown();
+    void DrawBestiaryRow(int index, int row, Pixel color, bool chosen);
+    void BestiaryChoose(u32 id);
+    std::string KnownValue(std::u8string_view label, int known, int needed, int value, int most);
+    void BestiaryLines(int index);
+    void DrawBestiaryTabs();
     void OptionsLeave();
     bool DrawNameEntry();
     void ActOnEntry();
@@ -199,8 +249,9 @@ public:
     i32 sampleDelay = 0;           // 0x004FD2D4
 
     // The items page.
-    MenuList itemList;           // 0x004FD08C (see MenuList)
-    MenuScrollBar scrollBar;     // 0x004FC4F0
+    MenuList itemList;        // 0x004FD08C (see MenuList)
+    MenuScrollBar scrollBar;  // 0x004FC4F0
+    Bestiary bestiary;
     ItemLink itemObjects;        // 0x004FD1E8 the objects of the items page
     ItemLink savedInventory;     // 0x004FD15C the inventory kept while the items page saves
     ItemLink savedItems;         // 0x004FD140 `itemObjects` kept with it

@@ -143,8 +143,8 @@ public:
     ItemNode itemsHead;         // 0x004FD580 the node heading the sorted item list (its count at 0x004FD588)
 
     // The shop (talk command ItemMenu, Game::ItemChoiceMenu).
-    i32 shopStage = 0;  // 0x004FD414 0: closed, 1: buy, sell or leave, 2: the list, 3: the total, 4: equip now?, 0xA:
-                        // too little money
+    i32 shopStage = 0;    // 0x004FD414 0: closed, 1: buy, sell or leave, 2: the list, 3: the total, 4: equip now?, 0xA:
+                          // too little money
     u32 shopFlags = 0;    // 0x004FD410 bit 1: the list was opened (its sound played), bit 2: equipment was bought
     i32 listTop = 0;      // 0x004FD420 the first item shown
     i32 listRow = 0;      // 0x004FD630 the row chosen
