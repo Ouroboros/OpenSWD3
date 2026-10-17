@@ -586,7 +586,6 @@ void Game::InitInstall()
     settings.cacheSize = Config::DefaultCacheMegabytes;
     settings.textSpeed = Config::DefaultTextSpeed;
     settings.battleSpeed = kDefaultBattleSpeed;
-    this->cdDriveCount = this->FindCdDrives(settings.cdRoot);
     settings.Load(this->unknown14, this->effectsOff);
     this->ApplyHostPaths();
     this->SizeCaches();
@@ -604,26 +603,8 @@ void Game::InitInstall()
     }
 }
 
-// swd32.exe 0x004242B0: the CD-ROM drives a: .. z: (their letters, 0xFF after the last); the root of the first goes to
-// `firstDrive`
-int Game::FindCdDrives(std::string& firstDrive)
-{
-    this->cdDrives.fill(Game::NoDrive);
-    int count = 0;
-
-    for (const char letter : CdRomDrives())
-    {
-        if (count == 0)
-        {
-            firstDrive = std::string(1, letter) + ":\\";
-        }
-
-        this->cdDrives[static_cast<std::size_t>(count)] = static_cast<u8>(letter);
-        ++count;
-    }
-
-    return count;
-}
+// swd32.exe 0x004242B0 (the CD-ROM drives found for the CD checks): removed with the CD checks (the rebuild never
+// looks for a CD, see deviations.md)
 
 // swd32.exe 0x00424330: a sixth of the physical memory (4 to 16 MB) for the picture cache, 512 KB for the scripts
 void Game::SizeCaches()
@@ -647,8 +628,7 @@ void Game::SizeCaches()
 // as the current one, which no path of the game depends on.
 void Game::MakeDirectory(std::string_view name)
 {
-    std::error_code error;
-    std::filesystem::create_directory(ResolvePath(Concat({this->config.installDirectory, name})), error);
+    MakeGameDirectory(Concat({this->config.installDirectory, name}));
 }
 
 // The rebuild's [paths] of swd3r.toml over the install directory Env.dat gave (data_dir) and the save directory
@@ -1458,11 +1438,6 @@ void Game::MusicCue()
 // again; a lost battle opens the game over page), the menus and the shop, or the map with its events and the clock
 void Game::MainFrame()
 {
-    if ((this->systemFlags & Game::CheckingCd) != 0)
-    {
-        return;
-    }
-
     if (this->active == 0)
     {
         SleepMilliseconds(0);
@@ -1759,17 +1734,17 @@ void Game::HandleEvent(const SDL_Event& event)
         return;
     }
 
-    // WM_SIZE and WM_ACTIVATEAPP: while the game runs, a minimised or deactivated window makes it inactive and a
-    // restored, maximised or activated one active again (Alt+Enter toggles the full screen instead of this).
+    // WM_SIZE: while the game runs, a minimised window makes it inactive and a restored one active again. The original
+    // also deactivates it when another application is activated (WM_ACTIVATEAPP); the rebuild keeps running and
+    // drawing without the focus (see deviations.md). Alt+Enter toggles the full screen instead of this.
     if (this->state.GameFlag(GameState::Running))
     {
-        if (event.type == SDL_EVENT_WINDOW_MINIMIZED || event.type == SDL_EVENT_WINDOW_FOCUS_LOST)
+        if (event.type == SDL_EVENT_WINDOW_MINIMIZED && this->active != 0)
         {
             this->Activate(0);
         }
         else if (
-            event.type == SDL_EVENT_WINDOW_RESTORED || event.type == SDL_EVENT_WINDOW_MAXIMIZED ||
-            event.type == SDL_EVENT_WINDOW_FOCUS_GAINED
+            (event.type == SDL_EVENT_WINDOW_RESTORED || event.type == SDL_EVENT_WINDOW_MAXIMIZED) && this->active == 0
         )
         {
             this->Activate(1);

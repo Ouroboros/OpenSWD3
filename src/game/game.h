@@ -106,14 +106,8 @@ public:
         UnkSystem1 = 1,       // the map frame is skipped (no setter is known)
         MovieOpened = 2,      // a map movie plays (talk command MapMovie)
         QuitRequested = 4,    // the game ends after the frame
-        CheckingCd = 0x10,    // CheckCd waits for the disc; the map frame is skipped
         VideoPlaying = 0x20,  // a full-screen video plays
     };
-
-    // The results of CheckCd.
-    static constexpr int CdFound = 1;
-    static constexpr int CdMissing = 2;
-    static constexpr u8 NoDrive = 0xFF;  // ends cdDrives
 
     // `storyState`: 0 while the story runs, SaveSlotsState while the save slots are shown.
     static constexpr i32 StoryRunning = 0;
@@ -137,7 +131,6 @@ private:
     Launcher::Choice RunLauncher();
     void InitInstall();
     void ApplyHostPaths();
-    int FindCdDrives(std::string& firstDrive);
     void SizeCaches();
     void MakeDirectory(std::string_view name);
     void StartGraphics();
@@ -247,8 +240,6 @@ private:
     void ReleaseRole(int index);
     void StoreRole(const Role& role);
     void FollowLeader(int index);
-    int CheckCd(const std::string& root, int& drive);
-    static bool ProbeFile(const std::string& path);
     static constexpr int SaveRoles = 1;  // LoadCity option: the roles of the map left are written back
     void LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, int options);
     void PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction, int previous);
@@ -593,8 +584,6 @@ private:
     SystemSound systemSound;
     std::unique_ptr<Surface> offscreen;   // 0x004ACBA0 the frame drawn by the game
     u16* drawSurface = nullptr;           // 0x004CD76C the locked frame (the target of the painter and the fonts)
-    std::array<u8, 0x20> cdDrives = {};   // 0x004B74F8 the CD-ROM drive letters, 0xFF after the last
-    i32 cdDriveCount = 0;                 // 0x004ACEF8
     i32 unknown14 = 0;                    // the dword of Env.dat at +0x14
     u8 effectsOff = 0;                    // Env.dat +0x1B
     u32 deviceFlags = 0;                  // 0x004ACB90 bit 1: DirectInput failed

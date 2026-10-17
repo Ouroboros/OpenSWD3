@@ -1,8 +1,12 @@
 #include "platform/file_system.h"
 
 #include <cctype>
+#include <cstdio>
 #include <filesystem>
 #include <system_error>
+
+#include <sys/stat.h>
+#include <unistd.h>
 
 namespace swd3
 {
@@ -109,16 +113,38 @@ std::string ResolvePath(std::string_view gamePath)
     return result.generic_string();
 }
 
-bool CopyGameFile(std::string_view from, std::string_view to)
+void MakeGameDirectory(std::string_view path)
 {
     std::error_code error;
-    return fs::copy_file(ResolvePath(from), ResolvePath(to), fs::copy_options::overwrite_existing, error);
+    fs::create_directory(ResolvePath(path), error);
 }
 
-bool DeleteGameFile(std::string_view path)
+void ClearReadOnly(const std::string& path)
 {
-    std::error_code error;
-    return fs::remove(ResolvePath(path), error);
+    std::error_code ignored;
+    fs::permissions(path, fs::perms::owner_write, fs::perm_options::add, ignored);
+}
+
+bool TruncateFile(std::FILE* file, u64 size)
+{
+    return ::ftruncate(::fileno(file), static_cast<off_t>(size)) == 0;
+}
+
+bool FileWriteTime(std::FILE* file, u64& fileTime)
+{
+    struct stat status{};
+
+    if (::fstat(::fileno(file), &status) != 0)
+    {
+        return false;
+    }
+
+    constexpr u64 kTicksPerSecond = 10000000;  // FILETIME counts 100 ns ticks
+    constexpr u64 kNanosecondsPerTick = 100;
+    constexpr u64 kFrom1601To1970 = 116444736000000000;
+    fileTime = static_cast<u64>(status.st_mtim.tv_sec) * kTicksPerSecond +
+               static_cast<u64>(status.st_mtim.tv_nsec) / kNanosecondsPerTick + kFrom1601To1970;
+    return true;
 }
 
 }  // namespace swd3

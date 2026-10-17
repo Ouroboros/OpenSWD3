@@ -250,21 +250,13 @@ void Game::StartTimer(int minutes, int seconds, int event, int which)
 }
 
 // swd32.exe 0x00484730: the movie named in the script at `cursor` (up to "%Q", the event offset `pc` moving along;
-// .avi and .mpg become .bik) from the video folder, at the music volume; with no CD where one is needed the game
-// ends. With no drive letter the name is written over the start of the folder path, its rest kept.
+// .avi and .mpg become .bik) from the video folder of the installation, at the music volume. The original first
+// checks for the CD (0x004118B0); the rebuild never does (see deviations.md).
 // swd32.exe 0x004983D0 (EH unwind: the new object freed (operator delete))
 // swd32.exe 0x004983DB (EH handler of 0x00484730)
 bool Game::PlayVideo(std::size_t& cursor, u16& pc)
 {
     const std::span<const u8> script(this->databases.script);
-    int drive = 0;
-
-    if (this->CheckCd(this->config.cdRoot, drive) == Game::CdMissing)
-    {
-        this->systemFlags |= Game::QuitRequested;
-        return false;
-    }
-
     std::string path = this->config.installDirectory + "video\\";
     std::string name;
 
@@ -285,15 +277,7 @@ bool Game::PlayVideo(std::size_t& cursor, u16& pc)
 
     pc = static_cast<u16>(pc + sizeof(u16));
     cursor += sizeof(u16);
-
-    if (static_cast<u8>(drive) != 0)
-    {
-        path += name;
-    }
-    else
-    {
-        path.replace(0, std::min(name.size(), path.size()), name);
-    }
+    path += name;
 
     for (const std::string_view extension : {std::string_view(".avi"), std::string_view(".mpg")})
     {

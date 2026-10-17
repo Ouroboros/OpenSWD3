@@ -41,8 +41,9 @@ constexpr int kInBattle = 1;  // Game::inBattle
 
 }  // namespace
 
-// swd32.exe 0x00411C90: an installation's command line (its type digit, then the directory): the default keys, the CD
-// drive found, Env.dat written with the default settings; true then (the game does not start)
+// swd32.exe 0x00411C90: an installation's command line (its type digit, then the directory): the default keys, Env.dat
+// written with the default settings (the original records the first CD drive too; the rebuild has none, see
+// deviations.md); true then (the game does not start)
 bool Game::InstallFromCommandLine(std::string_view commandLine)
 {
     if (commandLine.empty())
@@ -52,7 +53,6 @@ bool Game::InstallFromCommandLine(std::string_view commandLine)
 
     this->config.SetDefaultKeys();
     this->config.installDirectory = std::string(commandLine.substr(1));
-    this->FindCdDrives(this->config.cdRoot);
     this->config.installType = static_cast<u8>(commandLine.front() - kFirstDigit);
     this->config.Write(this->config.installDirectory, this->config.cdRoot, kInstalledSettings);
     return true;

@@ -1,12 +1,18 @@
 #include "platform/system_info.h"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <exception>
 #include <limits>
+#include <string>
+#include <string_view>
 
 #include <SDL3/SDL.h>
 #include <windows.h>
+
+#include <dbghelp.h>
 
 namespace swd3
 {
@@ -17,24 +23,6 @@ namespace
 constexpr int kMegabyteShift = 20;  // SDL_GetSystemRAM counts MiB
 
 }  // namespace
-
-std::vector<char> CdRomDrives()
-{
-    std::vector<char> drives;
-    std::array root = {'a', ':', '\\', '\0'};
-
-    for (char letter = 'a'; letter <= 'z'; ++letter)
-    {
-        root[0] = letter;
-
-        if (::GetDriveTypeA(root.data()) == DRIVE_CDROM)
-        {
-            drives.push_back(letter);
-        }
-    }
-
-    return drives;
-}
 
 u32 TotalPhysicalMemory()
 {
@@ -68,75 +56,268 @@ u32 ProcessId()
 namespace
 {
 
-constexpr std::size_t kModuleNameChars = 260;
-constexpr std::size_t kStackScanWords = 0x800;  // the stack words searched for return addresses
-constexpr int kStackEntries = 48;
-constexpr DWORD kExecutablePages = PAGE_EXECUTE | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
+constexpr std::size_t kNameChars = 260;
+constexpr int kFrames = 64;
+constexpr DWORD kCppException = 0xE06D7363;  // the exception code of a C++ throw (MSVC)
+constexpr ULONG_PTR kCppMagic = 0x19930520;  // ExceptionInformation[0] of a C++ throw
+constexpr std::string_view kStdException = ".?AVexception@std@@";
 
-// "module+0xoffset" for an address inside a loaded module (its file name only), "?" otherwise.
-std::array<char, kModuleNameChars + 0x20> Located(const void* address)
+// The parts of a C++ throw MSVC passes (32-bit: absolute pointers).
+struct TypeDescriptor
 {
-    std::array<char, kModuleNameChars + 0x20> text = {'?', '\0'};
+    const void* vftable;
+    void* spare;
+    char name[1];
+};
+
+struct CatchableType
+{
+    unsigned properties;
+    TypeDescriptor* type;
+    int memberDisplacement;
+    int virtualBaseDisplacement;
+    int displacementWithin;
+    int size;
+    void* copy;
+};
+
+struct CatchableTypeArray
+{
+    int count;
+    CatchableType* types[1];
+};
+
+struct ThrowInfo
+{
+    unsigned attributes;
+    void* unwind;
+    void* forwardCompatibility;
+    CatchableTypeArray* catchable;
+};
+
+// The file name of a module (its directory left out).
+std::string ModuleName(HMODULE module)
+{
+    std::array<char, kNameChars> path = {};
+    ::GetModuleFileNameA(module, path.data(), static_cast<DWORD>(path.size()));
+    const std::string text(path.data());
+    const std::size_t slash = text.find_last_of("\\/");
+    return slash == std::string::npos ? text : text.substr(slash + 1);
+}
+
+// "module+0xoffset function+0xoffset (file:line)" of a code address, as far as its symbols tell.
+std::string Describe(HANDLE process, DWORD64 address)
+{
+    std::array<char, kNameChars * 2> text = {};
     HMODULE module = nullptr;
+    std::string where = "?";
 
     if (::GetModuleHandleExA(
             GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-            static_cast<LPCSTR>(address),
+            reinterpret_cast<LPCSTR>(static_cast<std::uintptr_t>(address)),
             &module
-        ) == 0)
+        ) != 0)
     {
-        return text;
+        std::snprintf(
+            text.data(),
+            text.size(),
+            "%s+0x%llX",
+            ModuleName(module).c_str(),
+            static_cast<unsigned long long>(address - reinterpret_cast<std::uintptr_t>(module))
+        );
+        where = text.data();
     }
 
-    std::array<char, kModuleNameChars> path = {};
-    ::GetModuleFileNameA(module, path.data(), static_cast<DWORD>(path.size()));
-    const char* name = path.data();
+    std::array<std::byte, sizeof(SYMBOL_INFO) + kNameChars> storage = {};
+    auto* symbol = reinterpret_cast<SYMBOL_INFO*>(storage.data());
+    symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+    symbol->MaxNameLen = kNameChars;
+    DWORD64 symbolOffset = 0;
 
-    for (const char* at = path.data(); *at != '\0'; ++at)
+    if (::SymFromAddr(process, address, &symbolOffset, symbol) != 0)
     {
-        if (*at == '\\' || *at == '/')
+        std::snprintf(
+            text.data(),
+            text.size(),
+            " %s+0x%llX",
+            symbol->Name,
+            static_cast<unsigned long long>(symbolOffset)
+        );
+        where += text.data();
+    }
+
+    IMAGEHLP_LINE64 line{};
+    line.SizeOfStruct = sizeof(line);
+    DWORD lineOffset = 0;
+
+    if (::SymGetLineFromAddr64(process, address, &lineOffset, &line) != 0)
+    {
+        std::snprintf(
+            text.data(),
+            text.size(),
+            " (%s:%lu)",
+            line.FileName,
+            static_cast<unsigned long>(line.LineNumber)
+        );
+        where += text.data();
+    }
+
+    return where;
+}
+
+// The type of a C++ exception and, for a std::exception, its message.
+void LogCppException(const EXCEPTION_RECORD& record)
+{
+    if (record.NumberParameters < 3 || record.ExceptionInformation[0] != kCppMagic)
+    {
+        return;
+    }
+
+    const auto* thrown = reinterpret_cast<const ThrowInfo*>(record.ExceptionInformation[2]);
+    auto* object = reinterpret_cast<std::byte*>(record.ExceptionInformation[1]);
+
+    if (thrown == nullptr || thrown->catchable == nullptr || thrown->catchable->count < 1)
+    {
+        return;
+    }
+
+    std::array<char, kNameChars> name = {};
+    const char* decorated = thrown->catchable->types[0]->type->name;
+    const bool named =
+        ::UnDecorateSymbolName(decorated + 1, name.data(), static_cast<DWORD>(name.size()), UNDNAME_NO_ARGUMENTS) != 0;
+    std::string message;
+
+    for (int index = 0; index < thrown->catchable->count; ++index)
+    {
+        const CatchableType& type = *thrown->catchable->types[index];
+
+        if (type.type->name == kStdException)
         {
-            name = at + 1;
+            message = reinterpret_cast<const std::exception*>(object + type.memberDisplacement)->what();
+            break;
         }
     }
 
-    std::snprintf(
-        text.data(),
-        text.size(),
-        "%s+0x%lX",
-        name,
-        static_cast<unsigned long>(reinterpret_cast<std::uintptr_t>(address) - reinterpret_cast<std::uintptr_t>(module))
+    SDL_LogCritical(
+        SDL_LOG_CATEGORY_APPLICATION,
+        "C++ exception %s%s%s",
+        named ? name.data() : decorated,
+        message.empty() ? "" : ": ",
+        message.c_str()
     );
-    return text;
 }
 
-// Whether `address` lies in executable code of a loaded module (a return address candidate).
-bool InCode(std::uintptr_t address)
+// The call stack of the faulting thread, frame by frame with the PDB beside the executable.
+void LogStack(HANDLE process, const CONTEXT& faulted)
 {
-    MEMORY_BASIC_INFORMATION page{};
+    CONTEXT context = faulted;
+    STACKFRAME64 frame{};
+    frame.AddrPC.Offset = context.Eip;
+    frame.AddrPC.Mode = AddrModeFlat;
+    frame.AddrFrame.Offset = context.Ebp;
+    frame.AddrFrame.Mode = AddrModeFlat;
+    frame.AddrStack.Offset = context.Esp;
+    frame.AddrStack.Mode = AddrModeFlat;
 
-    if (address == 0 || ::VirtualQuery(reinterpret_cast<const void*>(address), &page, sizeof(page)) == 0)
+    for (int index = 0; index < kFrames; ++index)
     {
-        return false;
+        if (::StackWalk64(
+                IMAGE_FILE_MACHINE_I386,
+                process,
+                ::GetCurrentThread(),
+                &frame,
+                &context,
+                nullptr,
+                ::SymFunctionTableAccess64,
+                ::SymGetModuleBase64,
+                nullptr
+            ) == 0 ||
+            frame.AddrPC.Offset == 0)
+        {
+            break;
+        }
+
+        SDL_LogCritical(
+            SDL_LOG_CATEGORY_APPLICATION,
+            "  #%02d %s",
+            index,
+            Describe(process, index == 0 ? frame.AddrPC.Offset : frame.AddrPC.Offset - 1).c_str()
+        );
+    }
+}
+
+// A minidump of the process beside the logs: logs\swd3r-crash-<local date and time>-<process id>.dmp.
+void WriteDump(EXCEPTION_POINTERS* exception)
+{
+    std::array<char, kNameChars> path = {};
+    ::GetModuleFileNameA(nullptr, path.data(), static_cast<DWORD>(path.size()));
+    std::string directory(path.data());
+    directory = directory.substr(0, directory.find_last_of("\\/") + 1) + "logs\\";
+    ::CreateDirectoryA(directory.c_str(), nullptr);
+    SYSTEMTIME now{};
+    ::GetLocalTime(&now);
+    const auto [year, month, dayOfWeek, day, hour, minute, second, milliseconds] = now;
+    std::array<char, kNameChars> name = {};
+    std::snprintf(
+        name.data(),
+        name.size(),
+        "%sswd3r-crash-%04u-%02u-%02u_%02u-%02u-%02u-%lu.dmp",
+        directory.c_str(),
+        year,
+        month,
+        day,
+        hour,
+        minute,
+        second,
+        static_cast<unsigned long>(::GetCurrentProcessId())
+    );
+    const HANDLE file =
+        ::CreateFileA(name.data(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+
+    if (file == INVALID_HANDLE_VALUE)
+    {
+        SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "minidump %s not written", name.data());
+        return;
     }
 
-    return page.State == MEM_COMMIT && page.Type == MEM_IMAGE && (page.Protect & kExecutablePages) != 0;
+    MINIDUMP_EXCEPTION_INFORMATION information{::GetCurrentThreadId(), exception, FALSE};
+    const BOOL written = ::MiniDumpWriteDump(
+        ::GetCurrentProcess(),
+        ::GetCurrentProcessId(),
+        file,
+        static_cast<MINIDUMP_TYPE>(MiniDumpWithIndirectlyReferencedMemory | MiniDumpWithThreadInfo),
+        &information,
+        nullptr,
+        nullptr
+    );
+    ::CloseHandle(file);
+    SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "minidump %s%s", name.data(), written != 0 ? "" : " failed");
 }
 
-// An unhandled structured exception: its code, the module and offset of the faulting instruction, the access of an
-// access violation, the registers and the return addresses found on the stack (module and offset each, to look up in
-// the PDB) logged; the system then ends the process.
+// An unhandled structured exception (a fault, or a C++ exception nothing caught): its code and place, the type and
+// message of a C++ exception, the access of an access violation, the registers and the call stack with its symbols
+// logged, and a minidump written; the system then ends the process.
 LONG WINAPI FaultFilter(EXCEPTION_POINTERS* exception)
 {
     const EXCEPTION_RECORD& record = *exception->ExceptionRecord;
+    const HANDLE process = ::GetCurrentProcess();
+    std::array<char, kNameChars> directory = {};
+    ::GetModuleFileNameA(nullptr, directory.data(), static_cast<DWORD>(directory.size()));
+    std::string symbols(directory.data());
+    symbols = symbols.substr(0, symbols.find_last_of("\\/"));
+    ::SymSetOptions(SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES | SYMOPT_FAIL_CRITICAL_ERRORS);
+    const bool symbolsReady = ::SymInitialize(process, symbols.c_str(), TRUE) != 0;
     SDL_LogCritical(
         SDL_LOG_CATEGORY_APPLICATION,
-        "unhandled exception 0x%08lX at %p %s (executable at %p)",
+        "unhandled exception 0x%08lX at %s",
         static_cast<unsigned long>(record.ExceptionCode),
-        record.ExceptionAddress,
-        Located(record.ExceptionAddress).data(),
-        static_cast<void*>(::GetModuleHandleW(nullptr))
+        Describe(process, reinterpret_cast<std::uintptr_t>(record.ExceptionAddress)).c_str()
     );
+
+    if (record.ExceptionCode == kCppException)
+    {
+        LogCppException(record);
+    }
 
     if (record.ExceptionCode == EXCEPTION_ACCESS_VIOLATION && record.NumberParameters >= 2)
     {
@@ -148,7 +329,6 @@ LONG WINAPI FaultFilter(EXCEPTION_POINTERS* exception)
         );
     }
 
-#if defined(_M_IX86)
     const CONTEXT& context = *exception->ContextRecord;
     SDL_LogCritical(
         SDL_LOG_CATEGORY_APPLICATION,
@@ -163,31 +343,19 @@ LONG WINAPI FaultFilter(EXCEPTION_POINTERS* exception)
         context.Esp,
         context.Eip
     );
-    const auto* stack = reinterpret_cast<const std::uintptr_t*>(context.Esp);
-    const auto* top = reinterpret_cast<const NT_TIB*>(::NtCurrentTeb())->StackBase;
-    int found = 0;
+    SDL_LogCritical(
+        SDL_LOG_CATEGORY_APPLICATION,
+        "call stack (symbols %s from %s):",
+        symbolsReady ? "loaded" : "unavailable",
+        symbols.c_str()
+    );
+    LogStack(process, context);
+    WriteDump(exception);
 
-    for (std::size_t index = 0; index < kStackScanWords && found < kStackEntries; ++index)
+    if (symbolsReady)
     {
-        if (static_cast<const void*>(stack + index + 1) > top)
-        {
-            break;
-        }
-
-        const std::uintptr_t value = stack[index];
-
-        if (InCode(value))
-        {
-            SDL_LogCritical(
-                SDL_LOG_CATEGORY_APPLICATION,
-                "stack esp+0x%03lX %s",
-                static_cast<unsigned long>(sizeof(std::uintptr_t) * index),
-                Located(reinterpret_cast<const void*>(value)).data()
-            );
-            ++found;
-        }
+        ::SymCleanup(process);
     }
-#endif
 
     return EXCEPTION_CONTINUE_SEARCH;
 }

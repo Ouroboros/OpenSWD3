@@ -2,10 +2,7 @@
 
 #include <algorithm>
 #include <cerrno>
-#include <chrono>
 #include <cstring>
-#include <filesystem>
-#include <system_error>
 
 #include "core/debug_log.h"
 #include "platform/file_system.h"
@@ -16,8 +13,7 @@ namespace swd3
 namespace
 {
 
-constexpr i64 kFileTimeTicksPerSecond = 10000000;  // FILETIME counts 100 ns ticks
-constexpr std::size_t kErrorTextLimit = 0x3F;      // the error text buffer of the original
+constexpr std::size_t kErrorTextLimit = 0x3F;  // the error text buffer of the original
 
 std::string_view OpenMode(File::Access access, bool create)
 {
@@ -84,13 +80,7 @@ bool File::Open(std::string_view name, Disposition disposition, Access access)
     }
 
     const std::string path = ResolvePath(name);
-    std::error_code ignored;
-    std::filesystem::permissions(
-        path,
-        std::filesystem::perms::owner_write,
-        std::filesystem::perm_options::add,
-        ignored
-    );
+    ClearReadOnly(path);
     this->file = std::fopen(path.c_str(), OpenMode(access, false).data());
 
     if (this->file == nullptr && disposition == Disposition::OpenAlways)
@@ -260,9 +250,7 @@ bool File::Truncate()
 
     std::fflush(this->file);
     const long position = std::ftell(this->file);
-    std::error_code failure;
-    std::filesystem::resize_file(ResolvePath(this->name), static_cast<std::uintmax_t>(position), failure);
-    return !failure;
+    return position >= 0 && TruncateFile(this->file, static_cast<u64>(position));
 }
 
 // swd32.exe 0x00438380: an empty request fails
@@ -383,20 +371,8 @@ bool File::LastWriteTime(u64& fileTime) const
         return false;
     }
 
-    std::error_code failure;
-    const auto written = std::filesystem::last_write_time(ResolvePath(this->name), failure);
-
-    if (failure)
-    {
-        return false;
-    }
-
-    using FileTimeTicks = std::chrono::duration<i64, std::ratio<1, kFileTimeTicksPerSecond>>;
-    const auto sinceEpoch = std::chrono::clock_cast<std::chrono::system_clock>(written).time_since_epoch();
-    const auto since1970 = std::chrono::duration_cast<FileTimeTicks>(sinceEpoch);
-    constexpr i64 kFrom1601To1970 = 116444736000000000;
-    fileTime = static_cast<u64>(since1970.count() + kFrom1601To1970);
-    return true;
+    std::fflush(this->file);
+    return FileWriteTime(this->file, fileTime);
 }
 
 // swd32.exe 0x004385A0

@@ -41,9 +41,6 @@ constexpr int kLoadingBarWidth = 0x18A;
 constexpr std::size_t kScreenBytes = sizeof(Pixel) * Display::Pixels;
 constexpr u16 kPartyLeader = 1;
 constexpr u16 kSpecialItem = 0x192;
-constexpr std::string_view kCdData = "swd3_dvd.dat";  // swd32.exe 0x0049FC9C (the same name for every disc)
-
-// swd32.exe 0x0049FBA8: a nibble as a signed step.
 
 // The loading screen: the bar shades from (kBarRed, kBarGreen, kBarBlue) by the steps per column in 1/kColorFraction
 // (8-bit channels, kChannelDrop bits dropped for the display); the runner walks at its end.
@@ -90,9 +87,6 @@ constexpr i32 kLeaderStoryAct = 0x60;
 constexpr i32 kLeaderSpecialAct = 0x5F;  // with kSpecialItem on the maps of the journey
 constexpr u32 kFollowUnlisted = 1;       // a flagged role not in the follower table follows
 constexpr u32 kFollowStory = 2;          // a listed one follows for the story values it lists
-
-constexpr u32 kShortCdWait = 1000;  // milliseconds of uptime before the CD is looked for (one drive: kLongCdWait)
-constexpr u32 kLongCdWait = 3000;
 
 constexpr int kSoundRange = 0x200;  // pixels a map sound is heard within
 constexpr int kSoundScale = 0x80;
@@ -630,47 +624,9 @@ void Game::FollowLeader(int index)
     ++view.unk4BABA0;
 }
 
-// swd32.exe 0x004118B0: the minimal installation looks for its data on the CD (story flag 0x53 picks the disc file);
-// Q gives up (and quits). 1 with the drive letter in `drive`, 2 when given up.
-int Game::CheckCd(const std::string& root, int& drive)
-{
-    drive = 0;
-    this->systemFlags |= Game::CheckingCd;
-    int drives = 0;
-
-    while (drives < static_cast<int>(this->cdDrives.size()) &&
-           this->cdDrives[static_cast<std::size_t>(drives)] != Game::NoDrive)
-    {
-        ++drives;
-    }
-
-    const u32 wait = drives > 1 ? kShortCdWait : kLongCdWait;
-
-    for (;;)
-    {
-        const u32 now = SystemUptime();
-
-        if (now > wait)
-        {
-            std::string path = WinFormat("%sswd3\\%s", {root, kCdData});
-            path[0] = static_cast<char>(this->cdDrives[0]);
-            Game::ProbeFile(path);
-            drive = static_cast<u8>(path[0]);
-            this->systemFlags &= ~Game::CheckingCd;
-            return Game::CdFound;
-        }
-
-        this->input.PollKeyboard();
-
-        if (this->input.IsKeyDown(Input::Q) != 0)
-        {
-            break;
-        }
-    }
-
-    this->systemFlags |= Game::QuitRequested;
-    return Game::CdMissing;
-}
+// swd32.exe 0x004118B0 (the CD check of the minimal installation, the videos and the map movies) and 0x00412050 (the
+// file probe it used): removed; the rebuild never looks for a CD and reads everything from the installation (see
+// deviations.md)
 
 // swd32.exe 0x0040C130: enters map `map` with the leader at (x, y) tiles in act `act`, action and direction. The map's
 // settings (table 3: its unit of HUGE.lmf, the story flags of its effects, its speeds), the music, the old map's roles
@@ -807,21 +763,6 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
         }
 
         break;
-    }
-
-    if (this->config.installType == Config::MinimalInstall)
-    {
-        int drive = 0;
-
-        if (this->CheckCd(this->config.cdRoot, drive) == Game::CdMissing)
-        {
-            return;
-        }
-
-        if (!this->config.cdRoot.empty())
-        {
-            this->config.cdRoot[0] = static_cast<char>(drive);
-        }
     }
 
     this->MusicZone(map);
@@ -1216,15 +1157,6 @@ void Game::StoreRole(const Role& role)
         put(MapsRecord::RoleFlags, role.flags);
         return;
     }
-}
-
-// swd32.exe 0x00412050: whether a file can be opened (the system's message is formatted on failure, never shown)
-bool Game::ProbeFile(const std::string& path)
-{
-    File file;
-    const bool opened = file.Open(path, File::Disposition::OpenExisting, File::Access::Read);
-    file.Close();
-    return opened;
 }
 
 // swd32.exe 0x00485750: sound `sound` from (x, y) of the map when within 512 pixels of the controlled role, quieter and

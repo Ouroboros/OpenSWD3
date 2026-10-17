@@ -61,7 +61,7 @@ if(NOT WIN32)
 endif()
 if(WIN32)
     target_compile_definitions(swd3_core PUBLIC NOMINMAX _CRT_SECURE_NO_WARNINGS)
-    target_link_libraries(swd3_core PUBLIC user32 gdi32 advapi32 ole32 winmm imm32 comctl32)
+    target_link_libraries(swd3_core PUBLIC user32 gdi32 advapi32 ole32 winmm imm32 comctl32 dbghelp)
 endif()
 
 # The glyph library made from MingLiU by scripts/make_font_library.py (not in git: it derives from a Microsoft font).

@@ -391,7 +391,7 @@ bool Talk::LoadName(EventRun& run)
     return true;
 }
 
-// Command 0x60: a map movie from Video\ (in the installation, else on the CD; a missing CD ends the game): "%" plays
+// Command 0x60: a map movie from Video\ of the installation (the original falls back to the CD): "%" plays
 // it without the fade in, "*" fades it out darkening. Its header gives the frames, the first chunk and the palettes
 // (an 8-bit movie: the frames they change at and the palettes from the file's end); the first frame is read and the
 // main loop slows to 70 ms a frame.
@@ -444,32 +444,10 @@ bool Talk::OpenMapMovie(EventRun& run)
     copy[end] = 0;
     const std::string name(reinterpret_cast<const char*>(copy.data()), end);
     ErrorLog(u8"Talk:ani_open:cd:%s:%s", owner.config.cdRoot, name);
-    std::string path = owner.config.installDirectory + "Video\\" + name;
+    // The original looks in the CD's swd3\Video\ (after a CD check) when the installation lacks the movie; the
+    // rebuild only reads the installation (see deviations.md).
     owner.AudioPump();
-    File probe;
-
-    if (probe.Open(path, File::Disposition::OpenExisting, File::Access::Read))
-    {
-        probe.Close();
-        path = owner.config.installDirectory + "Video\\";
-    }
-    else
-    {
-        probe.Close();
-        int drive = 0;
-
-        if (owner.CheckCd(owner.config.cdRoot, drive) == Game::CdMissing)
-        {
-            owner.systemFlags |= Game::QuitRequested;
-            run.stopped = true;
-            return false;
-        }
-
-        path = owner.config.cdRoot + "swd3\\Video\\";
-        path[0] = static_cast<char>(drive);
-    }
-
-    path += name;
+    const std::string path = owner.config.installDirectory + "Video\\" + name;
     ErrorLog(u8"Talk:Ani_Open::%s", path);
     owner.AudioPump();
 

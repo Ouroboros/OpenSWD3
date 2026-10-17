@@ -394,17 +394,9 @@ bool Field::LoadMap(u32 map, u32& systemFlags)
     this->unitCount = 0;
     File& lmf = this->cache.lmf;
     lmf.Close();
-    std::string path;
-
-    if (this->config.installType == Config::MinimalInstall)
-    {
-        path = WinFormat("%sswd3\\%s", {this->config.cdRoot, kLmf});
-    }
-
-    if (this->config.installType == Config::FullInstall)
-    {
-        path = WinFormat("%s%s", {this->config.installDirectory, kLmf});
-    }
+    // The original reads the minimal installation's HUGE.lmf from the CD (<cd>swd3\HUGE.lmf); the rebuild reads it
+    // from the installation whatever the type (see deviations.md).
+    const std::string path = WinFormat("%s%s", {this->config.installDirectory, kLmf});
 
     if (!lmf.Open(path, File::Disposition::OpenExisting, File::Access::Read))
     {

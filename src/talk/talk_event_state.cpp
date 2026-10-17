@@ -7,7 +7,6 @@
 #include "core/format.h"
 #include "game/game.h"
 #include "item/item_list.h"
-#include "platform/file_system.h"
 #include "talk/script_text.h"
 #include "talk/talk.h"
 #include "talk/talk_event.h"
@@ -62,12 +61,11 @@ u32 RoleFlagOf(EventCommand code)
 
 // Commands 0x9E and 0x9F: a file of the CD's Video\ (mode 0) or Music\ (mode 1) folder copied into the installation
 // (0x9E) or deleted from the CD folder (0x9F). The name runs to "%Q"; the mode is the second word after it, and the
-// script goes on with the word after "%Q".
+// script goes on with the word after "%Q". The rebuild has no CD: the script moves on, no file is copied or deleted
+// (see deviations.md).
 bool Talk::CopyMedia(EventRun& run)
 {
     Game& owner = this->game;
-    constexpr u16 kVideoFolder = 0;
-    constexpr u16 kMusicFolder = 1;
     const std::vector<u8>& script = owner.databases.script;
     const std::size_t start = run.cursor + kOpcodeBytes + kWordBytes;
     const std::size_t end = TextEndAt(script, start);
@@ -78,32 +76,12 @@ bool Talk::CopyMedia(EventRun& run)
     this->SyncOffset(run);
     const u16 mode = TextWord(script, end + 2 * kWordBytes);
     run.valueB = static_cast<i16>(mode);
-    std::string source = owner.config.cdRoot;
-    std::string target = owner.config.installDirectory;
-
-    if (mode == kVideoFolder)
-    {
-        source += "Video\\";
-        target += "Video\\";
-    }
-    else if (mode == kMusicFolder)
-    {
-        source += "Music\\";
-        target += "Music\\";
-    }
-
-    source += name;
-    target += name;
-
-    if (run.code == EventCommand::CopyMedia)
-    {
-        CopyGameFile(source, target);
-    }
-    else
-    {
-        DeleteGameFile(source);
-    }
-
+    LogDebug(
+        u8"CD media %s of %s (mode %d) skipped: no CD",
+        AsUtf8(run.code == EventCommand::CopyMedia ? "copy" : "delete"),
+        name,
+        static_cast<i32>(mode)
+    );
     return true;
 }
 

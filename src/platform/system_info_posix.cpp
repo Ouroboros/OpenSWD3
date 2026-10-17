@@ -2,6 +2,7 @@
 
 #include <csignal>
 #include <ctime>
+#include <initializer_list>
 #include <limits>
 
 #include <SDL3/SDL.h>
@@ -20,11 +21,6 @@ constexpr int kTmYearBase = 1900;  // std::tm::tm_year counts from it
 constexpr int kTmMonthBase = 1;    // std::tm::tm_mon counts from 0
 
 }  // namespace
-
-std::vector<char> CdRomDrives()
-{
-    return {};
-}
 
 u32 TotalPhysicalMemory()
 {
