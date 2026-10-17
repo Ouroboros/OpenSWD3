@@ -3,8 +3,12 @@
 #include <vector>
 
 #include "core/types.h"
+#include "core/words.h"
 #include "draw/painter.h"
+#include "game/game_state.h"
 #include "game_data.h"
+#include "pic/rle.h"
+#include "platform/display.h"
 #include "platform/surface.h"
 #include "test.h"
 
@@ -12,6 +16,7 @@ using swd3::u16;
 using swd3::u32;
 using swd3::u8;
 
+using swd3::Display;
 using swd3::DrawArgument;
 using swd3::Painter;
 using swd3::Surface;
@@ -19,14 +24,19 @@ using swd3::Surface;
 namespace
 {
 
-// RLE picture: magic, width, height, flags 0x10, then lines (byte length header + codes), 0 terminator.
+// RLE picture: the header, then lines (byte length header + codes), 0 terminator.
 std::vector<u16> RlePicture(int width, const std::vector<std::vector<u16>>& lines)
 {
-    std::vector<u16> data{0xFFFF, static_cast<u16>(width), static_cast<u16>(lines.size()), 0x10};
+    std::vector<u16> data{
+        swd3::RleHeader::Magic,
+        static_cast<u16>(width),
+        static_cast<u16>(lines.size()),
+        swd3::RleHeader::TrueColor
+    };
 
     for (const auto& line : lines)
     {
-        data.push_back(static_cast<u16>((line.size() + 1) * 2));
+        data.push_back(static_cast<u16>((line.size() + 1) * sizeof(u16)));
         data.insert(data.end(), line.begin(), line.end());
     }
 
@@ -35,6 +45,22 @@ std::vector<u16> RlePicture(int width, const std::vector<std::vector<u16>>& line
 }
 
 constexpr u32 kWaveOffsetsAt = 0x004A06A8;
+constexpr int kTopLevel = 31;  // a five-bit channel at its top
+constexpr int kPastTop = 40;   // a ramp index past the top saturates
+constexpr u16 kBackground = 0x1234;
+constexpr u16 kPixelA = 0xAAAA;
+constexpr u16 kPixelB = 0xBBBB;
+constexpr u16 kWhite = 0xFFFF;
+constexpr int kPictureX = 10;
+constexpr int kPictureY = 10;
+constexpr u32 kUnassignedMode = 0x3C;
+constexpr u16 kTileColor = 0x5555;
+constexpr int kTileX = 100;
+constexpr u16 kAlphaBackground = 0x0F0F;
+constexpr u8 kAlphaLevel = 60;
+constexpr int kAlphaX = 20;
+constexpr int kAlphaY = 20;
+constexpr u16 kSkipTwo = swd3::RleHeader::SkipRun | 2;
 
 }  // namespace
 
@@ -54,63 +80,71 @@ TEST_CASE("painter: wave offsets match swd32.exe")
 
 TEST_CASE("painter: RGB565 display tables")
 {
-    Surface screen(640, 480);
+    Surface screen(Display::Width, Display::Height);
     Painter painter;
     CHECK(painter.Init(screen));
     u32 red = 0;
     u32 green = 0;
     u32 blue = 0;
     painter.ColorMasks(red, green, blue);
-    CHECK_EQ(red, 0xF800u);
-    CHECK_EQ(green, 0x7E0u);
-    CHECK_EQ(blue, 0x1Fu);
-    CHECK_EQ(painter.Green().mask, 0x7C0u);
-    CHECK_EQ(painter.MakeColor(31, 31, 31), 0xFFDFFFDFu);
+    CHECK_EQ(red, Surface::RedMask);
+    CHECK_EQ(green, Surface::GreenMask);
+    CHECK_EQ(blue, Surface::BlueMask);
+    constexpr u32 kGreenLowBit = 0x20;  // green keeps five bits like the other channels
+    CHECK_EQ(painter.Green().mask, Surface::GreenMask & ~kGreenLowBit);
+    const auto white = static_cast<u16>(Surface::RedMask | painter.Green().mask | Surface::BlueMask);
+    CHECK_EQ(painter.MakeColor(kTopLevel, kTopLevel, kTopLevel), swd3::MakeWords(white, white));
     CHECK_EQ(painter.Red().Ramp(-1), 0u);
-    CHECK_EQ(painter.Red().Ramp(40), 0xF800u);
+    CHECK_EQ(painter.Red().Ramp(kPastTop), Surface::RedMask);
 }
 
 TEST_CASE("painter: unassigned modes draw nothing")
 {
-    Surface screen(640, 480);
-    screen.Fill(0x1234);
+    Surface screen(Display::Width, Display::Height);
+    screen.Fill(kBackground);
     Painter painter;
     painter.Init(screen);
     painter.SetTarget(screen.Pixels());
-    const auto picture = RlePicture(2, {{0x0002, 0xAAAA, 0xBBBB}});
+    const std::vector<u16> pixels = {kPixelA, kPixelB};
+    const auto picture =
+        RlePicture(static_cast<int>(pixels.size()), {{static_cast<u16>(pixels.size()), kPixelA, kPixelB}});
     painter.SetSource(picture.data());
-    CHECK_EQ(painter.DrawPicture(10, 10, 2, 1, 0x3C), 0);
-    CHECK_EQ(screen.Row(10)[10], 0x1234u);
+    CHECK_EQ(painter.DrawPicture(kPictureX, kPictureY, static_cast<int>(pixels.size()), 1, kUnassignedMode), 0);
+    CHECK_EQ(screen.Row(kPictureY)[kPictureX], kBackground);
 }
 
 TEST_CASE("painter: rows below the screen land on row 0")
 {
-    Surface screen(640, 480);
+    using swd3::MapHeader;
+    Surface screen(Display::Width, Display::Height);
     screen.Fill(0);
     Painter painter;
     painter.Init(screen);
     painter.SetTarget(screen.Pixels());
-    std::vector<u16> tile(256, 0x5555);
+    std::vector<u16> tile(MapHeader::TileSize * MapHeader::TileSize, kTileColor);
     painter.SetSource(tile.data());
-    painter.DrawTile16(100, 480);
-    CHECK_EQ(screen.Row(0)[100], 0x5555u);
-    CHECK_EQ(screen.Row(15)[115], 0x5555u);
+    painter.DrawTile16(kTileX, Display::Height);
+    CHECK_EQ(screen.Row(0)[kTileX], kTileColor);
+    CHECK_EQ(screen.Row(MapHeader::TileFraction)[kTileX + MapHeader::TileFraction], kTileColor);
 }
 
 TEST_CASE("painter: skip runs of the mirrored alpha map leave the destination")
 {
-    Surface screen(640, 480);
-    screen.Fill(0x0F0F);
+    Surface screen(Display::Width, Display::Height);
+    screen.Fill(kAlphaBackground);
     Painter painter;
     painter.Init(screen);
     painter.SetTarget(screen.Pixels());
-    const auto picture = RlePicture(4, {{0x0002, 0xFFFF, 0xFFFF, 0x8002}});
-    std::vector<u8> levels(4, 60);
+    // Two white pixels, then a skip run of two; mirrored, the skip comes first.
+    constexpr int kWidth = 4;
+    const std::vector<u16> whites = {kWhite, kWhite};
+    const auto picture = RlePicture(kWidth, {{static_cast<u16>(whites.size()), kWhite, kWhite, kSkipTwo}});
+    std::vector<u8> levels(kWidth, kAlphaLevel);
     painter.SetSource(picture.data());
     DrawArgument argument;
     argument.alphaMap = levels.data();
-    painter.DrawPicture(20, 20, 4, 1, swd3::Painter::AlphaMap | swd3::Painter::Mirror, argument);
-    CHECK_EQ(screen.Row(20)[20], 0x0F0Fu);
-    CHECK_EQ(screen.Row(20)[21], 0x0F0Fu);
-    CHECK_EQ(screen.Row(20)[23], 0xFFFFu);
+    painter.DrawPicture(kAlphaX, kAlphaY, kWidth, 1, Painter::AlphaMap | Painter::Mirror, argument);
+    CHECK_EQ(screen.Row(kAlphaY)[kAlphaX], kAlphaBackground);
+    CHECK_EQ(screen.Row(kAlphaY)[kAlphaX + 1], kAlphaBackground);
+    CHECK_EQ(screen.Row(kAlphaY)[kAlphaX + kWidth - 1], kWhite);
 }

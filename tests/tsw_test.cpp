@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <fstream>
+#include <functional>
 #include <map>
 #include <string>
 
@@ -7,6 +8,7 @@
 #include "draw/painter.h"
 #include "game_data.h"
 #include "golden/tsw_scenarios.h"
+#include "golden_check.h"
 #include "pic/rle.h"
 #include "platform/surface.h"
 #include "recording_reporter.h"
@@ -79,30 +81,12 @@ private:
     swd3::TswArchive& archive;
 };
 
-std::map<std::string, std::string> LoadGolden(const std::string& path)
-{
-    std::map<std::string, std::string> entries;
-    std::ifstream file(path);
-    std::string line;
-
-    while (std::getline(file, line))
-    {
-        const std::size_t space = line.rfind(' ');
-
-        if (space != std::string::npos)
-        {
-            entries[line.substr(0, space)] = line.substr(space + 1);
-        }
-    }
-
-    return entries;
-}
-
 }  // namespace
 
 TEST_CASE("tsw: matches the golden results of the legacy archives")
 {
-    const std::map<std::string, std::string> golden = LoadGolden(SWD3_SOURCE_DIR "/tests/golden/tsw_golden.txt");
+    const std::map<std::string, std::string> golden =
+        swd3test::LoadGolden(SWD3_SOURCE_DIR "/tests/golden/tsw_golden.txt");
 
     if (golden.empty() || swd3test::ReadGameFile("all_sys.act").empty())
     {
@@ -118,29 +102,11 @@ TEST_CASE("tsw: matches the golden results of the legacy archives")
     swd3::TswArchive archive(codec, errors);
     archive.SetGameDirectory(swd3test::GameDirectory());
     ArchiveBackend backend(archive);
-    int compared = 0;
-    int mismatches = 0;
-    golden::RunTsw(
-        backend,
-        [&](const std::string& name, u64 hash)
-        {
-            char text[17];
-            std::snprintf(text, sizeof(text), "%016llx", static_cast<unsigned long long>(hash));
-            const auto found = golden.find(name);
-            ++compared;
-
-            if (found == golden.end() || found->second != text)
-            {
-                if (++mismatches <= 20)
-                {
-                    std::printf("  mismatch: %s\n", name.c_str());
-                }
-            }
-        }
-    );
-    std::printf("  compared %d scenarios\n", compared);
-    CHECK_EQ(mismatches, 0);
-    CHECK_EQ(compared, static_cast<int>(golden.size()));
+    swd3test::GoldenCheck check(golden);
+    golden::RunTsw(backend, std::ref(check));
+    std::printf("  compared %d scenarios\n", check.compared);
+    CHECK_EQ(check.mismatches, 0);
+    CHECK_EQ(check.compared, static_cast<int>(golden.size()));
 }
 
 TEST_CASE("tsw: a frame past the end of an entry reports an error instead of failing the allocation")

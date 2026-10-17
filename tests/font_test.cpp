@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <fstream>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -8,6 +9,7 @@
 #include "font/text_font.h"
 #include "gfx/graphics.h"
 #include "golden/font_scenarios.h"
+#include "golden_check.h"
 #include "platform/display.h"
 #include "platform/glyph_rasterizer.h"
 #include "platform/surface.h"
@@ -115,30 +117,12 @@ private:
     std::unique_ptr<swd3::Surface> screen;
 };
 
-std::map<std::string, std::string> LoadGolden(const std::string& path)
-{
-    std::map<std::string, std::string> entries;
-    std::ifstream file(path);
-    std::string line;
-
-    while (std::getline(file, line))
-    {
-        const std::size_t space = line.rfind(' ');
-
-        if (space != std::string::npos)
-        {
-            entries[line.substr(0, space)] = line.substr(space + 1);
-        }
-    }
-
-    return entries;
-}
-
 }  // namespace
 
 TEST_CASE("text font: matches the golden results of the legacy renderer")
 {
-    const std::map<std::string, std::string> golden = LoadGolden(SWD3_SOURCE_DIR "/tests/golden/font_golden.txt");
+    const std::map<std::string, std::string> golden =
+        swd3test::LoadGolden(SWD3_SOURCE_DIR "/tests/golden/font_golden.txt");
 
     if (golden.empty())
     {
@@ -154,27 +138,9 @@ TEST_CASE("text font: matches the golden results of the legacy renderer")
     swd3::TextFont font(rasterizer);
     font.Init(graphics);
     FontBackend backend(font);
-    int compared = 0;
-    int mismatches = 0;
-    golden::RunFont(
-        backend,
-        [&](const std::string& name, u64 hash)
-        {
-            char text[17];
-            std::snprintf(text, sizeof(text), "%016llx", static_cast<unsigned long long>(hash));
-            const auto found = golden.find(name);
-            ++compared;
-
-            if (found == golden.end() || found->second != text)
-            {
-                if (++mismatches <= 20)
-                {
-                    std::printf("  mismatch: %s\n", name.c_str());
-                }
-            }
-        }
-    );
-    std::printf("  compared %d scenarios\n", compared);
-    CHECK_EQ(mismatches, 0);
-    CHECK_EQ(compared, static_cast<int>(golden.size()));
+    swd3test::GoldenCheck check(golden);
+    golden::RunFont(backend, std::ref(check));
+    std::printf("  compared %d scenarios\n", check.compared);
+    CHECK_EQ(check.mismatches, 0);
+    CHECK_EQ(check.compared, static_cast<int>(golden.size()));
 }

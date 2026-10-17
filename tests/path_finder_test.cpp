@@ -1,11 +1,12 @@
 #include <cstdio>
 #include <fstream>
+#include <functional>
 #include <map>
-#include <sstream>
 #include <string>
 #include <vector>
 
 #include "golden/path_scenarios.h"
+#include "golden_check.h"
 #include "map/blocking_map.h"
 #include "recording_reporter.h"
 #include "role/path_finder.h"
@@ -16,27 +17,6 @@ using golden::u8;
 
 namespace
 {
-
-std::map<std::string, std::string> LoadGolden(const std::string& path)
-{
-    std::map<std::string, std::string> golden;
-    std::ifstream file(path);
-    std::string line;
-
-    while (std::getline(file, line))
-    {
-        std::istringstream fields(line);
-        std::string name;
-        std::string hash;
-
-        if (fields >> name >> hash)
-        {
-            golden[name] = hash;
-        }
-    }
-
-    return golden;
-}
 
 class FinderBackend : public golden::PathBackend
 {
@@ -153,7 +133,8 @@ TEST_CASE("path finder: a path around a wall, and the second search of one finde
 
 TEST_CASE("path finder: matches the golden results of the legacy path finder")
 {
-    const std::map<std::string, std::string> golden = LoadGolden(SWD3_SOURCE_DIR "/tests/golden/path_golden.txt");
+    const std::map<std::string, std::string> golden =
+        swd3test::LoadGolden(SWD3_SOURCE_DIR "/tests/golden/path_golden.txt");
 
     if (golden.empty())
     {
@@ -162,27 +143,9 @@ TEST_CASE("path finder: matches the golden results of the legacy path finder")
     }
 
     FinderBackend backend;
-    int compared = 0;
-    int mismatches = 0;
-    golden::RunPaths(
-        backend,
-        [&](const std::string& name, u64 hash)
-        {
-            char text[17];
-            std::snprintf(text, sizeof(text), "%016llx", static_cast<unsigned long long>(hash));
-            const auto found = golden.find(name);
-            ++compared;
-
-            if (found == golden.end() || found->second != text)
-            {
-                if (++mismatches <= 20)
-                {
-                    std::printf("  mismatch: %s\n", name.c_str());
-                }
-            }
-        }
-    );
-    std::printf("  compared %d scenarios\n", compared);
-    CHECK_EQ(mismatches, 0);
-    CHECK_EQ(compared, static_cast<int>(golden.size()));
+    swd3test::GoldenCheck check(golden);
+    golden::RunPaths(backend, std::ref(check));
+    std::printf("  compared %d scenarios\n", check.compared);
+    CHECK_EQ(check.mismatches, 0);
+    CHECK_EQ(check.compared, static_cast<int>(golden.size()));
 }

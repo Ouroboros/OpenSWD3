@@ -1,7 +1,7 @@
 #include <cstdio>
 #include <fstream>
+#include <functional>
 #include <map>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -10,6 +10,7 @@
 #include "draw/painter.h"
 #include "game_data.h"
 #include "golden/projector_scenarios.h"
+#include "golden_check.h"
 #include "pic/picture.h"
 #include "pic/picture_ops.h"
 #include "pic/projector.h"
@@ -24,27 +25,6 @@ using golden::u8;
 
 namespace
 {
-
-std::map<std::string, std::string> LoadGolden(const std::string& path)
-{
-    std::map<std::string, std::string> golden;
-    std::ifstream file(path);
-    std::string line;
-
-    while (std::getline(file, line))
-    {
-        std::istringstream fields(line);
-        std::string name;
-        std::string hash;
-
-        if (fields >> name >> hash)
-        {
-            golden[name] = hash;
-        }
-    }
-
-    return golden;
-}
 
 class ProjectorBackend : public golden::ProjectorBackend
 {
@@ -270,7 +250,8 @@ TEST_CASE("projector: the first explosion frame counts the opaque pixels")
 
 TEST_CASE("projector: matches the golden results of the legacy projector")
 {
-    const std::map<std::string, std::string> golden = LoadGolden(SWD3_SOURCE_DIR "/tests/golden/projector_golden.txt");
+    const std::map<std::string, std::string> golden =
+        swd3test::LoadGolden(SWD3_SOURCE_DIR "/tests/golden/projector_golden.txt");
 
     auto decompress = [](const u8* input, std::size_t size, std::vector<u8>& out)
     {
@@ -292,28 +273,9 @@ TEST_CASE("projector: matches the golden results of the legacy projector")
     }
 
     ProjectorBackend backend;
-    int compared = 0;
-    int mismatches = 0;
-    golden::RunProjector(
-        backend,
-        frames,
-        [&](const std::string& name, u64 hash)
-        {
-            char text[17];
-            std::snprintf(text, sizeof(text), "%016llx", static_cast<unsigned long long>(hash));
-            const auto found = golden.find(name);
-            ++compared;
-
-            if (found == golden.end() || found->second != text)
-            {
-                if (++mismatches <= 20)
-                {
-                    std::printf("  mismatch: %s\n", name.c_str());
-                }
-            }
-        }
-    );
-    std::printf("  compared %d scenarios\n", compared);
-    CHECK_EQ(mismatches, 0);
-    CHECK_EQ(compared, static_cast<int>(golden.size()));
+    swd3test::GoldenCheck check(golden);
+    golden::RunProjector(backend, frames, std::ref(check));
+    std::printf("  compared %d scenarios\n", check.compared);
+    CHECK_EQ(check.mismatches, 0);
+    CHECK_EQ(check.compared, static_cast<int>(golden.size()));
 }

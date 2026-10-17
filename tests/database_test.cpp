@@ -1,13 +1,14 @@
 #include <cstdio>
 #include <cstring>
 #include <fstream>
+#include <functional>
 #include <map>
-#include <sstream>
 #include <string>
 #include <vector>
 
 #include "game_data.h"
 #include "golden/database_scenarios.h"
+#include "golden_check.h"
 #include "org/database.h"
 #include "test.h"
 
@@ -18,27 +19,6 @@ using golden::u8;
 
 namespace
 {
-
-std::map<std::string, std::string> LoadGolden(const std::string& path)
-{
-    std::map<std::string, std::string> golden;
-    std::ifstream file(path);
-    std::string line;
-
-    while (std::getline(file, line))
-    {
-        std::istringstream fields(line);
-        std::string name;
-        std::string hash;
-
-        if (fields >> name >> hash)
-        {
-            golden[name] = hash;
-        }
-    }
-
-    return golden;
-}
 
 class DatabaseBackend : public golden::DatabaseBackend
 {
@@ -114,7 +94,8 @@ private:
 
 TEST_CASE("database: mon.dat objects and skills, level.dat entries match the legacy readers")
 {
-    const std::map<std::string, std::string> golden = LoadGolden(SWD3_SOURCE_DIR "/tests/golden/database_golden.txt");
+    const std::map<std::string, std::string> golden =
+        swd3test::LoadGolden(SWD3_SOURCE_DIR "/tests/golden/database_golden.txt");
 
     if (golden.empty() || swd3test::ReadGameFile("mon.dat").empty())
     {
@@ -125,30 +106,11 @@ TEST_CASE("database: mon.dat objects and skills, level.dat entries match the leg
     const std::string directory = swd3test::GameDirectory() + "/";
     swd3::Database database(directory);
     DatabaseBackend backend(database);
-    int compared = 0;
-    int mismatches = 0;
-    golden::RunDatabase(
-        backend,
-        directory + "mon.dat",
-        [&](const std::string& name, u64 hash)
-        {
-            char text[17];
-            std::snprintf(text, sizeof(text), "%016llx", static_cast<unsigned long long>(hash));
-            const auto found = golden.find(name);
-            ++compared;
-
-            if (found == golden.end() || found->second != text)
-            {
-                if (++mismatches <= 20)
-                {
-                    std::printf("  mismatch: %s\n", name.c_str());
-                }
-            }
-        }
-    );
-    std::printf("  compared %d scenarios\n", compared);
-    CHECK_EQ(mismatches, 0);
-    CHECK_EQ(compared, static_cast<int>(golden.size()));
+    swd3test::GoldenCheck check(golden);
+    golden::RunDatabase(backend, directory + "mon.dat", std::ref(check));
+    std::printf("  compared %d scenarios\n", check.compared);
+    CHECK_EQ(check.mismatches, 0);
+    CHECK_EQ(check.compared, static_cast<int>(golden.size()));
     CHECK_EQ(database.descriptionBytes, 0);
     swd3::ObjectRecord sword;
     CHECK(database.LoadObject(sword, 1));

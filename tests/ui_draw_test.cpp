@@ -1,13 +1,14 @@
 #include <cstdio>
 #include <fstream>
+#include <functional>
 #include <map>
 #include <memory>
-#include <sstream>
 #include <string>
 
 #include "draw/painter.h"
 #include "game_data.h"
 #include "golden/ui_scenarios.h"
+#include "golden_check.h"
 #include "pic/rle.h"
 #include "platform/surface.h"
 #include "recording_reporter.h"
@@ -21,27 +22,6 @@ using golden::u64;
 
 namespace
 {
-
-std::map<std::string, std::string> LoadGolden(const std::string& path)
-{
-    std::map<std::string, std::string> golden;
-    std::ifstream file(path);
-    std::string line;
-
-    while (std::getline(file, line))
-    {
-        std::istringstream fields(line);
-        std::string name;
-        std::string hash;
-
-        if (fields >> name >> hash)
-        {
-            golden[name] = hash;
-        }
-    }
-
-    return golden;
-}
 
 class UiBackend : public golden::UiBackend
 {
@@ -111,7 +91,8 @@ TEST_CASE("ui drawing: a blend one pixel wide covers one pair")
 
 TEST_CASE("ui drawing: matches the golden results of the legacy boxes and frames")
 {
-    const std::map<std::string, std::string> golden = LoadGolden(SWD3_SOURCE_DIR "/tests/golden/ui_golden.txt");
+    const std::map<std::string, std::string> golden =
+        swd3test::LoadGolden(SWD3_SOURCE_DIR "/tests/golden/ui_golden.txt");
 
     if (golden.empty() || swd3test::ReadGameFile("all_sys.tsw").empty())
     {
@@ -120,28 +101,9 @@ TEST_CASE("ui drawing: matches the golden results of the legacy boxes and frames
     }
 
     UiBackend backend;
-    int compared = 0;
-    int mismatches = 0;
-    golden::RunUi(
-        backend,
-        swd3test::GameFile("all_sys.tsw"),
-        [&](const std::string& name, u64 hash)
-        {
-            char text[17];
-            std::snprintf(text, sizeof(text), "%016llx", static_cast<unsigned long long>(hash));
-            const auto found = golden.find(name);
-            ++compared;
-
-            if (found == golden.end() || found->second != text)
-            {
-                if (++mismatches <= 20)
-                {
-                    std::printf("  mismatch: %s\n", name.c_str());
-                }
-            }
-        }
-    );
-    std::printf("  compared %d scenarios\n", compared);
-    CHECK_EQ(mismatches, 0);
-    CHECK_EQ(compared, static_cast<int>(golden.size()));
+    swd3test::GoldenCheck check(golden);
+    golden::RunUi(backend, swd3test::GameFile("all_sys.tsw"), std::ref(check));
+    std::printf("  compared %d scenarios\n", check.compared);
+    CHECK_EQ(check.mismatches, 0);
+    CHECK_EQ(check.compared, static_cast<int>(golden.size()));
 }
