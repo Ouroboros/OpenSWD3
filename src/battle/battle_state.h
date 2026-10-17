@@ -85,9 +85,12 @@ public:
     u16 itemCursor = 0;                              // 0x004FD588
     i32 gaugeFull = InitialGaugeFull;                // 0x004A74CC the full action gauge
     std::array<i16, 3> darkCopyTint = {-1, -1, -1};  // 0x004A7632 the darkRed, darkGreen, darkBlue of the copies
-    i32 evadeDisabled = 0;                           // 0x0053CEB8
-    u8 evadeStreak = 0;                              // 0x0053D028 failed evasion rolls in a row
-    u8 evadeJustSucceeded = 0;                       // 0x0053D029
+    i32 criticalAttack =
+        0;  // 0x0053CEB8 1: a role's critical attack is under way (it cannot be evaded, acts add effects)
+    u8 attacksSinceCritical = 0;  // 0x0053CEB4 (low byte) the attacks since the last critical one
+    i32 fadingField = 0;          // 0x0053C030 1: an act started the field fade (the background waits for it)
+    u8 evadeStreak = 0;           // 0x0053D028 failed evasion rolls in a row
+    u8 evadeJustSucceeded = 0;    // 0x0053D029
     std::array<std::unique_ptr<Surface>, 2> surfaces;            // 0x005244C4 screen sized off-screen surfaces
     std::array<i16, QueueRows * QueueColumns> actionQueue = {};  // 0x0052022C 4 rows of 10, taken by TakePendingAction
     i32 panelFlags = 0;                                          // 0x0053BC24 bit 5: the resistance panel

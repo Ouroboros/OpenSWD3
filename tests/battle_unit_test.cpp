@@ -245,9 +245,9 @@ TEST_CASE("battle unit: evasion, vitals and scaling")
     CHECK_EQ(unit.marks & BattleUnit::UnkMark1, BattleUnit::UnkMark1);
     CHECK_EQ(unit.RollEvade(all.services, 0), 0);
     CHECK_EQ(all.state.evadeJustSucceeded, 0);
-    all.state.evadeDisabled = 1;
+    all.state.criticalAttack = 1;
     CHECK_EQ(unit.RollEvade(all.services, kSureChance), 0);
-    all.state.evadeDisabled = 0;
+    all.state.criticalAttack = 0;
     CHECK_EQ(unit.RollEvade(all.services, kSureChance), 1);
 
     swd3::RoleRecord role;

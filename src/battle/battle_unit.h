@@ -118,6 +118,7 @@ struct UnitCommand
         TargetsUnit = 1,  // a target command (ClearMoveAxes)
         UnkFlag2 = 2,
         AtTarget = 0x38,  // any of bits 3..5: DrawAction places the act on the target (inferred from DrawAction)
+        FadesIn = 0x18,   // bits 3 and 4: a unit with unk2B00 fades in before it attacks (AttackFrame)
     };
 
     i32 unk00 = 0;
@@ -225,6 +226,13 @@ public:
         UnkCommand22 = 0x22,
         UnkCommand23 = 0x23,
         UnkCommand24 = 0x24,
+    };
+
+    // BattleUnit::unk267C bits: the stages of an attack (AttackFrame).
+    enum Stage : u32
+    {
+        Recoiling = 0x4000,    // the recoil act runs (DrawRecoil)
+        FollowingUp = 0x8000,  // the follow-up action runs in its slot act
     };
 
     // BattleUnit::unk2A86 bits.
@@ -467,7 +475,7 @@ public:
     i32 brightLevel = 1;     // +0x266C
     i32 unk2670 = 0;
     i32 unk2674 = 0;
-    u32 unk267C = 0;  // +0x267C bit 15: the follow-up action runs
+    u32 unk267C = 0;  // +0x267C BattleUnit::Stage bits
     i32 unk2684 = 0;
     i32 unk2690 = 0;
     u32 drawFlags = 0;   // +0x2694 bit 0: mirrored
@@ -491,7 +499,7 @@ public:
     std::array<std::array<i16, DamageDigits>, MaxTargets> damageDigits = {};  // +0x2724 the four digits per target slot
     std::array<std::array<i16, DamageDigits>, MaxTargets> unk283C = {};       // +0x283C
     std::array<i16, GuardLetters> guardPhases = {};  // +0x2884 the pop phases of the four letters of the guard text
-    u16 unk2954 = 0;
+    i16 slotTint = 0;    // +0x2954 the tint of a waiting slot act, darkening to its end (AttackFrame)
     i16 recoilTint = 0;  // +0x2956 the tint of a waiting recoil act, darkening to its end (DrawRecoil)
     u16 unk2958 = 0;
     std::array<u16, MaxTargets> unk295A = {};  // +0x295A
@@ -543,9 +551,10 @@ public:
     u8 defeatPose = 0;  // +0x2A94 the pose of the defeat (a fixed pose overrides it)
     u8 fixedPose = 0;   // +0x2A95
     std::array<u8, 4> unk2A97 = {};
-    u8 healChoice = 0;   // +0x2A9C
-    u8 healPercent = 0;  // +0x2A9E 1: unk29A6..unk29AA are percentages of the target's maxima
-    i32 kind = 0;        // +0x2AA0 1: a party role
+    u8 extraAttacks = 0;  // +0x2A9B the attacks the unit repeats (set by skill 0x15)
+    u8 healChoice = 0;    // +0x2A9C
+    u8 healPercent = 0;   // +0x2A9E 1: unk29A6..unk29AA are percentages of the target's maxima
+    i32 kind = 0;         // +0x2AA0 1: a party role
     i32 unk2AA4 = 0;
     i32 unk2AA8 = 0;
     i32 unk2AAC = 0;
@@ -573,6 +582,7 @@ public:
     i32 unk2B04 = 0;
     i32 facing = 0;  // +0x2B08
     i32 unk2B0C = 0;
+    i32 fadedIn = 0;  // +0x2B1C a forced unit has faded in for its attack (AttackFrame)
     i32 unk2B10 = 0;
     i32 unk2B14 = 0;
     i32 goldGuard = 0;  // +0x2B18

@@ -427,7 +427,7 @@ int BattleUnit::ResetTurn(BattleServices& services)
     this->unk29A4 = 0;
     this->fadeLevel = BattleUnit::Opaque;
     this->brightLevel = 1;
-    this->unk2954 = 0;
+    this->slotTint = 0;
     this->unk2A68 = BattleUnit::FlashStart;
     this->unk2A6A = kTurnFlashFall;
     this->unk2674 = 0;
@@ -870,7 +870,7 @@ int BattleUnit::RollEvade(BattleServices& services, u16 chance)
         return 1;
     };
 
-    if (state.evadeDisabled == 1)
+    if (state.criticalAttack == 1)
     {
         return 0;
     }
@@ -2414,7 +2414,7 @@ void BattleUnit::Reset(BattleServices& services)
     this->brightLevel = 1;
     this->unk2A68 = BattleUnit::FlashStart;
     this->unk2A6A = BattleUnit::FlashPeak;
-    this->unk2954 = 0;
+    this->slotTint = 0;
     this->unk2660 = 0;
     this->unk2664 = 0;
     this->marks = 0;
@@ -3220,7 +3220,7 @@ i16 BattleUnit::HitDamage(BattleServices& services, BattleUnit& target, i16& spi
 
         attack = static_cast<i16>(attack + (raise - cut));
 
-        if (services.state.evadeDisabled == 1 && this->unk2B00 == 0 && this->unk2B04 == 0)
+        if (services.state.criticalAttack == 1 && this->unk2B00 == 0 && this->unk2B04 == 0)
         {
             attack = static_cast<i16>(static_cast<i16>(this->battleRecord->attackBonus) + levelRoll());
             u8 pose = 0;

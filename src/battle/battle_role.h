@@ -45,6 +45,8 @@ public:
     void Setup(RoleRecord& record, const RoleBattleBlock& block, const UnitPlacement& at, ErrorReporter& reporter);
     void SetupEscort(const UnitPlacement& at, Database& database, ErrorReporter& reporter);
     void Strike(BattleServices& services, BattleUnit& target, int evadable);
+    int AttackFrame(BattleServices& services, BattleUnit& target, int slot);
+    void LoadItemAction(Database& database, u16 id, u32& act);
     void SetupGuest(const UnitPlacement& at, const RoleRecord& base, Database& database, ErrorReporter& reporter);
     void
     ApplyEquipment(std::span<const std::unique_ptr<ItemNode>> slots, CounterList& proficiency, ErrorReporter& reporter);
@@ -74,6 +76,7 @@ public:
     u16 bonusC = 0;  // +0x2F22 of their +0x38 words
     u16 unk2F24 = 0;
     u16 unk2F26 = 0;
+    u8 critical = 0;  // +0x2F30 1: the next attack is critical (set by 0x0046FF00)
 };
 
 }  // namespace swd3

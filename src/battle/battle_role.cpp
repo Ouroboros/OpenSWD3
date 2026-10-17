@@ -6,6 +6,8 @@
 #include "battle/battle_services.h"
 #include "battle/battle_state.h"
 #include "core/assertion.h"
+#include "core/words.h"
+#include "draw/painter.h"
 #include "org/database.h"
 #include "org/fame.h"
 #include "text/big5.h"
@@ -50,6 +52,38 @@ constexpr std::u8string_view kNoWeaponAct = u8"武器%d號的強攻擊act沒設!
 constexpr i16 kStatLimit = 0x270F;
 constexpr i32 kMaxDamage = 0x270F;
 constexpr u16 kStruckEvasion = 8;
+
+// AttackFrame.
+constexpr i32 kAttackAction = 0x28;
+constexpr i32 kCriticalAction = 0x29;
+constexpr i32 kForcedAttackAction = 0x30;   // unk2A8C 1 of a forced unit
+constexpr i32 kForcedAttackAction2 = 0x31;  // unk2A8C 2
+constexpr u16 kSecondForcedAttack = 2;
+constexpr i16 kForcedX = 0x140;  // a unit with unk2B04 attacks from the middle of the field
+constexpr i16 kForcedY = 0x136;
+constexpr std::size_t kFlightAct = 1;  // the slot act a flying follow-up uses
+constexpr i16 kSlotFadeEnd = -0x20;
+constexpr i16 kSlotFadeStep = 4;
+constexpr u32 kRepeatAttack = 1;  // unk26CC bit 0: the attack repeats extraAttacks times (skill 0x15)
+
+// The palette of a picture passed as the draw argument (the original passes the palette pointer).
+DrawArgument PaletteArgument(const Picture& picture)
+{
+    DrawArgument argument;
+
+    if (!picture.palette.empty())
+    {
+        argument.alphaMap = reinterpret_cast<const u8*>(picture.palette.data());
+    }
+
+    if (picture.palette.size() >= 2)
+    {
+        argument.colorPair = MakeWords(picture.palette[0], picture.palette[1]);
+    }
+
+    return argument;
+}
+
 constexpr u16 kCoinArmour = 0x39D;  // 投幣式鎧甲: the gold pays for the hits
 constexpr int kTenths = 10;
 constexpr int kPercent = 100;
@@ -416,7 +450,7 @@ void BattleRole::TakeCommand2F18()
 void BattleRole::Strike(BattleServices& services, BattleUnit& target, int evadable)
 {
     BattleState& battle = services.state;
-    this->unk2954 = 0;
+    this->slotTint = 0;
     battle.proficiencyBonus = 0;
     battle.proficiencyBonus = static_cast<i16>(StepCounterProgress(
         services.party.fame.lists[Fame::UnkList0],
@@ -460,5 +494,336 @@ void BattleRole::Strike(BattleServices& services, BattleUnit& target, int evadab
     }
 
     this->unk2B14 = 1;
+}
+
+// swd32.exe 0x0046F8C0: one frame of the role's attack on `target`; 1 once it is over. A unit with unk2B00 and a
+// FadesIn command fades in first; one with unk2B04 attacks from the middle of the field. The attack act (the critical
+// one, with the weapon's act, while critical) is drawn, and its target bits play the effect in the recoil act, quake
+// the screen, start the follow-up in slotActs[slot] (fading the field by the act's lights), or strike. The follow-up
+// flies to the target (TargetsUnit) or is placed on it and may strike again; once it waits it darkens by 4 a frame.
+// When the attack act waits too, the acts are cleared; without a critical attack an extra attack repeats it, and the
+// recoil tint is left at 1.
+int BattleRole::AttackFrame(BattleServices& services, BattleUnit& target, int slot)
+{
+    BattleState& battle = services.state;
+
+    if (this->unk2A74 != 0 || this->unk2AD8 == 1)
+    {
+        return 0;
+    }
+
+    if (this->unk2B00 == 1 && (this->command.flags & UnitCommand::FadesIn) != 0 && this->fadedIn == 0 &&
+        this->DrawFadeIn(services, target) == 0)
+    {
+        this->fadedIn = 1;
+        return 0;
+    }
+
+    if (this->unk2B04 == 1)
+    {
+        this->placement.x = kForcedX;
+        this->placement.y = kForcedY;
+    }
+
+    this->unk2AAC = 1;
+    ActState& attack = this->standAct;
+    attack.hold = 0;
+
+    if (this->held == 1)
+    {
+        attack.hold = 1;
+    }
+
+    if ((attack.target & ActState::Holds) != 0)
+    {
+        attack.hold = 1;
+    }
+
+    const bool forced = this->unk2B00 == 1 || this->unk2B04 == 1;
+
+    if (this->critical == 1)
+    {
+        battle.criticalAttack = 1;
+        attack.id = this->actId;
+        attack.action = kCriticalAction;
+
+        if (forced)
+        {
+            attack.action = kAttackAction;
+        }
+        else
+        {
+            this->command.castAct = this->weapon.data.unk48;
+        }
+    }
+    else
+    {
+        attack.id = this->actId;
+        attack.action = kAttackAction;
+
+        if (forced && this->unk2A8C != 0)
+        {
+            attack.action = this->unk2A8C == kSecondForcedAttack ? kForcedAttackAction2 : kForcedAttackAction;
+        }
+    }
+
+    this->DrawAction(services, target, attack);
+
+    if ((attack.target & ActState::Recoils) != 0)
+    {
+        if (attack.effectA != 0)
+        {
+            this->recoilAct.id = attack.effectA;
+            this->unk267C |= BattleUnit::Recoiling;
+            this->recoilAct.action = attack.effectQ;
+        }
+
+        if ((attack.target & ActState::Holds) != 0)
+        {
+            attack.hold = 1;
+        }
+
+        attack.target = static_cast<u16>(attack.target & ~ActState::Recoils);
+        attack.effectA = 0;
+        attack.effectQ = 0;
+    }
+
+    if ((this->unk267C & BattleUnit::Recoiling) != 0 &&
+        this->DrawRecoil(services, this->recoilAct, static_cast<i16>(attack.anchorY)) == 1)
+    {
+        if ((attack.target & ActState::Holds) != 0)
+        {
+            attack.target = static_cast<u16>(attack.target & ~ActState::Holds);
+        }
+
+        attack.hold = 0;
+        this->unk267C &= ~BattleUnit::Recoiling;
+    }
+
+    if ((attack.target & ActState::Quakes) != 0)
+    {
+        battle.quaking = 1;
+        battle.quakePhase = 0;
+    }
+
+    ActState& follow = this->slotActs[static_cast<std::size_t>(slot)];
+
+    if ((attack.target & ActState::FollowsUp) != 0)
+    {
+        if ((attack.target & ActState::FadesField) != 0)
+        {
+            battle.fadingField = 1;
+            battle.StartFieldFade(
+                static_cast<i16>(attack.lights[0]),
+                static_cast<i16>(attack.lights[1]),
+                static_cast<i16>(attack.lights[2]),
+                static_cast<i16>(attack.lights[3]),
+                static_cast<i16>(attack.lights[4]),
+                static_cast<i16>(attack.lights[5]),
+                static_cast<i16>(attack.lights[6])
+            );
+            attack.target = static_cast<u16>(attack.target & ~ActState::FadesField);
+        }
+
+        attack.target = static_cast<u16>(attack.target & ~ActState::FollowsUp);
+        this->unk267C |= BattleUnit::FollowingUp;
+        follow = ActState{};
+    }
+
+    if ((attack.target & ActState::UnkTarget4) != 0)
+    {
+        target.RaiseFlag26B8();
+        attack.target = 0;
+        this->unk267C |= BattleUnit::FollowingUp;
+    }
+
+    if ((attack.target & ActState::Strikes) != 0)
+    {
+        this->unk267C |= BattleUnit::FollowingUp;
+        this->slotTint = 0;
+        battle.proficiencyBonus = 0;
+        follow = ActState{};
+        this->Strike(services, target, 1);
+        attack.target = 0;
+    }
+
+    if ((this->unk267C & BattleUnit::FollowingUp) == 0)
+    {
+        return 0;
+    }
+
+    follow.id = this->command.castAct;
+    follow.action = 0;
+
+    if (attack.effectA != 0)
+    {
+        follow.id = attack.effectA;
+    }
+
+    if (follow.id != 0)
+    {
+        if ((this->command.flags & UnitCommand::TargetsUnit) != 0)
+        {
+            const int fromX =
+                static_cast<i16>(this->actAnchorX) - static_cast<i16>(this->actOffsetX) + this->placement.x;
+            const int fromY = this->placement.y + static_cast<i16>(attack.anchorY) - attack.y;
+
+            if (this->FlyAct(
+                    services,
+                    target,
+                    this->slotActs[kFlightAct],
+                    0,
+                    follow.id,
+                    fromX,
+                    fromY,
+                    static_cast<i16>(this->command.target),
+                    0
+                ) != 1)
+            {
+                return 0;
+            }
+
+            attack.waiting = 1;
+            follow.waiting = 1;
+            follow.target |= ActState::Strikes;
+        }
+        else
+        {
+            this->AimAction(
+                services,
+                target,
+                follow,
+                static_cast<i16>(attack.anchorX),
+                static_cast<i16>(attack.anchorY)
+            );
+        }
+
+        if ((follow.target & ActState::Strikes) != 0)
+        {
+            this->Strike(services, target, 1);
+            follow.target = 0;
+        }
+    }
+    else
+    {
+        follow.waiting = 1;
+    }
+
+    Painter& painter = services.painter;
+
+    if (follow.waiting != 1)
+    {
+        // A missing picture is read through a null pointer in the original.
+        if (this->picture != nullptr)
+        {
+            painter.DrawPicture(
+                static_cast<i16>(this->aimX),
+                static_cast<i16>(this->aimY),
+                this->picture->width,
+                this->picture->height,
+                this->unk26A4
+            );
+        }
+
+        return 0;
+    }
+
+    if (follow.id != 0 && (this->command.flags & UnitCommand::TargetsUnit) == 0 && this->slotTint > kSlotFadeEnd)
+    {
+        DrawOptions& options = painter.Options();
+        options.tintRed = this->slotTint;
+        options.tintGreen = this->slotTint;
+        options.tintBlue = this->slotTint;
+
+        if ((this->unk26A4 & ActState::NoBlend) != 0)
+        {
+            options.tintRed = 0;
+            options.tintGreen = 0;
+            options.tintBlue = 0;
+            this->slotTint = kSlotFadeEnd;
+        }
+
+        if (this->picture != nullptr)
+        {
+            painter.DrawPicture(
+                static_cast<i16>(this->aimX),
+                static_cast<i16>(this->aimY),
+                this->picture->width,
+                this->picture->height,
+                this->unk26A4,
+                PaletteArgument(*this->picture)
+            );
+        }
+
+        this->slotTint = static_cast<i16>(this->slotTint - kSlotFadeStep);
+
+        if (this->held == 1)
+        {
+            this->slotTint = static_cast<i16>(this->slotTint + kSlotFadeStep);
+        }
+
+        return 0;
+    }
+
+    if (attack.waiting != 1)
+    {
+        return 0;
+    }
+
+    this->standAct = ActState{};
+    this->recoilAct = ActState{};
+    follow = ActState{};
+    this->slotActs[kFlightAct] = ActState{};
+    this->slotActs[kFlightAct + 1] = ActState{};
+    this->targets.fill(BattleUnit::NoTarget);
+    this->slotTint = 0;
+    this->recoilTint = 1;
+    this->unk2AB0 = 0;
+    this->fadedIn = 0;
+    this->unk267C = 0;
+
+    if (battle.criticalAttack == 0)
+    {
+        if (this->extraAttacks == 0)
+        {
+            this->unk26CC &= ~kRepeatAttack;
+        }
+
+        if (this->extraAttacks != 0)
+        {
+            --this->extraAttacks;
+            return 0;
+        }
+    }
+
+    ++battle.attacksSinceCritical;
+    this->critical = 0;
+    battle.criticalAttack = 0;
+    return 1;
+}
+
+// swd32.exe 0x004707B0: item `id` of mon.dat taken as the role's action: its act, its command script (an item without
+// a resistance element takes its +0x34 word as the value) and UnkCommandFlag8000. The original frees the description
+// of the unit's own object (+0x0C) instead of the item's, which it leaks.
+void BattleRole::LoadItemAction(Database& database, u16 id, u32& act)
+{
+    ObjectRecord item;
+    database.LoadObject(item, id);
+
+    // A unit without its object is read through a null pointer in the original.
+    if (this->data != nullptr)
+    {
+        Database::FreeDescription(*this->data);
+    }
+
+    act = item.data.unk50;
+    this->LoadCommand(database, item.data.unk3E);
+
+    if (this->command.resistance == 0)
+    {
+        this->command.value = static_cast<i16>(item.data.unk34);
+    }
+
+    this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
 }
 }  // namespace swd3
