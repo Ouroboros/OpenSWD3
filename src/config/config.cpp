@@ -108,14 +108,19 @@ std::optional<GameSettings> Config::ImportEnv(std::span<const u8> data)
     return game;
 }
 
+// swd32.exe 0x00423A10 (the installation's first Env.dat, written by the install command line): removed with the
+// command line; [game] is imported from Env.dat once instead (see ImportEnvFile and deviations.md).
+
 // swd32.exe 0x00423AF0 (Env.dat rewritten with the keys, unknown14 and the settings bytes): the same values set in
-// [game] of the program's settings file (its channel masks, debug bit and session mark kept). See deviations.md.
+// [game] of the program's settings file (its channel masks and debug bit kept). The rewritten file ended with a session
+// mark of 0 (0x00423D8C), so saving the settings clears the mark. See deviations.md.
 void Config::Update(const Settings& settings)
 {
     this->Store(
         [this, &settings](GameSettings& game)
         {
             this->StoreKeys(game);
+            game.sessionOpen = false;
             game.unk14 = static_cast<u32>(settings.unknown14);
             game.soundVolume = settings.soundVolume;
             game.musicVolume = settings.musicVolume;

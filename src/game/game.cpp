@@ -699,11 +699,17 @@ void Game::InitDrawKernel()
     }
 
     const u32 cachedMegabytes = (this->mapCache.Check(MapCache::CheckColorMasks) + kMegabyte - 1) >> kMegabyteShift;
+    const u32 neededMegabytes = static_cast<u32>(this->config.cacheSize) - cachedMegabytes + kDiskReserve;
 
-    if (static_cast<u32>(this->config.cacheSize) - cachedMegabytes + kDiskReserve >= Game::DiskFreeMegabytes())
+    if (neededMegabytes >= Game::DiskFreeMegabytes())
     {
         SDL_Delay(kLowDiskPause);
         PlaySystemBeep();
+        // 0x00424C79 (nullsub_1 with the title 0x004A0EEC and the text 0x004A0EFC)
+        DebugLog(
+            u8"!!! 注意 !!! 遊戲過程中,磁碟空間不足\n請確認至少剩餘 %dM磁碟空間.",
+            static_cast<int>(neededMegabytes)
+        );
     }
 
     this->mapCache.MarkDirty();
@@ -770,6 +776,7 @@ bool Game::InitDevices()
 
     if (!this->graphics.Init(Graphics::FullScreen, Display::Width, Display::Height, kDisplayBits))
     {
+        this->systemFlags |= Game::QuitRequested;
         this->errors.ShowError(kDirectDrawFailed, kErrorTitle);
         this->Destroy();
         return false;

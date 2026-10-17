@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -170,5 +171,19 @@ TEST_CASE("config: the settings and the keys written to [game], the keys no long
     }
 
     CHECK_EQ(loaded.keys[kUnsavedSlot], 0);
+    std::filesystem::remove_all(directory);
+}
+
+TEST_CASE("config: saving the settings clears the session mark")
+{
+    const std::string directory = TestDirectory();
+    Config config;
+    config.settingsFile = directory + "swd3r.default.toml";
+    std::ofstream(config.settingsFile) << "[game]\nsession_open = true\n";
+    // swd32.exe 0x00423AF0 rewrote Env.dat ending with a session mark of 0 (0x00423D8C).
+    config.Update(Sample());
+    const swd3::HostSettings read = swd3::LoadHostSettings({}, config.settingsFile, directory);
+    CHECK(read.values.game.sessionOpen.has_value());
+    CHECK(!read.values.game.sessionOpen.value_or(true));
     std::filesystem::remove_all(directory);
 }

@@ -445,6 +445,8 @@ bool Field::LoadMap(u32 map, u32& systemFlags)
 
     if (Dword(block, kVersionAt) == Field::Version1)
     {
+        // 0x00425E5F (nullsub_1 with "LoadMap" and the text 0x004A11CC)
+        DebugLog(u8"LoadMap 地圖[%d]是舊格式", map);
         version = kFirstVersion;
     }
 
@@ -489,11 +491,25 @@ bool Field::LoadMap(u32 map, u32& systemFlags)
         std::min<std::size_t>(nameLength, header.name.size() - 1),
         header.name.begin()
     );
-    this->cache.unitFile.UnmapView(header.pixels);
+    const bool unmapped = this->cache.unitFile.UnmapView(header.pixels);
     header.pixels = nullptr;
     this->cache.view = nullptr;
-    this->cache.unitFile.CloseMapping();
-    this->cache.unitFile.Close();
+
+    if (!unmapped)
+    {
+        ErrorLog(u8"Load(%d) ,CloseView fail ,%s", map, this->cache.unitFile.ErrorText());
+    }
+
+    if (!this->cache.unitFile.CloseMapping())
+    {
+        ErrorLog(u8"Load(%d)  ,CloseMapping fail ,%s", map, this->cache.unitFile.ErrorText());
+    }
+
+    if (!this->cache.unitFile.Close())
+    {
+        ErrorLog(u8"Load(%d)  ,Close fail ,%s", map, this->cache.unitFile.ErrorText());
+    }
+
     header.pixels =
         this->cache.GetCachedMap(map, this->unitBase, version != kFirstVersion ? unitSize : 0, header.bitsPerPixel);
 
