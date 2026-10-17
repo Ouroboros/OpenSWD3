@@ -18,6 +18,11 @@ struct DrawArgument
     u32 colorPair = 0;             // kSilhouette: the colour in both 16-bit halves
 };
 
+struct Picture;
+
+// The palette of a picture as the draw argument of an effect (the original passes the palette pointer).
+DrawArgument PaletteArgument(const Picture& picture);
+
 // Options read by the next DrawPicture and reset after it (the original's draw option globals).
 struct DrawOptions
 {

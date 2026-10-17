@@ -372,6 +372,7 @@ public:
     i16 HitDamage(BattleServices& services, BattleUnit& target, i16& spiritDamage, i16& staminaDamage);
     void DrawAction(BattleServices& services, const BattleUnit& target, ActState& act);
     void AimAction(BattleServices& services, BattleUnit& target, ActState& act, i16 shiftX, i16 shiftY);
+    int DrawAimed(BattleServices& services, BattleUnit& target, ActState& act, i16 shiftX, i16 shiftY);
     int DrawRecoil(BattleServices& services, ActState& act, i16 y);
     int FlyAct(
         BattleServices& services,

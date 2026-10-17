@@ -3959,4 +3959,88 @@ int BattleUnit::DrawRecoil(BattleServices& services, ActState& act, i16 y)
 
     return 0;
 }
+
+// swd32.exe 0x00483DB0: AimAction for a facing unit only (its x always measured from the right edge), drawn at once
+// with the shadow picture's palette as the draw argument; 1 once the act waits.
+int BattleUnit::DrawAimed(BattleServices& services, BattleUnit& target, ActState& act, i16 shiftX, i16 shiftY)
+{
+    u16 targetX = 0;
+    u16 targetY = 0;
+    act.hold = 0;
+
+    if (this->held == 1)
+    {
+        act.hold = 1;
+    }
+
+    if (services.acts.Run(act) == 0)
+    {
+        return 0;
+    }
+
+    this->picture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->picture == nullptr)
+    {
+        return 0;
+    }
+
+    this->unk26A4 = act.flags;
+    this->aimOffsetX = static_cast<u16>(act.x);
+    this->aimAnchorX = act.anchorX;
+
+    if (this->facing == 1)
+    {
+        this->unk26A4 ^= Painter::Mirror;
+        this->aimOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
+
+        if (act.anchorX != 0)
+        {
+            this->aimAnchorX = static_cast<u16>(this->picture->width - act.anchorX);
+        }
+    }
+
+    target.GetDrawPosition(targetX, targetY);
+    this->aimX = static_cast<u16>(targetX - this->aimOffsetX);
+    this->aimY = static_cast<u16>(targetY - static_cast<u16>(act.y));
+
+    if ((act.anchorX != 0 || act.anchorY != 0) && (shiftX != 0 || shiftY != 0))
+    {
+        this->aimX = static_cast<u16>(this->actX + this->actAnchorX - this->aimAnchorX);
+        this->aimY = static_cast<u16>(this->actY - act.anchorY + shiftY);
+    }
+
+    this->ClearMoveAxes(this->aimX, this->aimY);
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+    services.audio.SetSoundPan(act.view, static_cast<i16>(targetX) >= kPanCentre ? kFadePan : -kFadePan);
+    act.view = 0;
+
+    if ((act.target & ActState::Quakes) != 0)
+    {
+        services.state.quaking = 1;
+        services.state.quakePhase = 0;
+    }
+
+    if ((act.target & ActState::UnkTarget4) != 0)
+    {
+        act.target = 0;
+        target.RaiseFlag26B8();
+    }
+
+    services.painter.SetSource(this->picture->data.data());
+
+    // The original reads the palette of the shadow picture through a null pointer when there is none.
+    const DrawArgument argument =
+        this->shadowPicture != nullptr ? PaletteArgument(*this->shadowPicture) : DrawArgument{};
+    services.painter.DrawPicture(
+        static_cast<i16>(this->aimX),
+        static_cast<i16>(this->aimY),
+        this->picture->width,
+        this->picture->height,
+        this->unk26A4,
+        argument
+    );
+    return act.waiting == 1 ? 1 : 0;
+}
 }  // namespace swd3

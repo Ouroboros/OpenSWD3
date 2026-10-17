@@ -4,6 +4,7 @@
 #include <cstring>
 
 #include "core/words.h"
+#include "pic/picture.h"
 #include "platform/display.h"
 #include "platform/surface.h"
 
@@ -805,4 +806,21 @@ u32 Painter::FillColorPair() const
     return this->fillColorPair;
 }
 
+// The palette of a picture as the draw argument of an effect (the original passes the palette pointer).
+DrawArgument PaletteArgument(const Picture& picture)
+{
+    DrawArgument argument;
+
+    if (!picture.palette.empty())
+    {
+        argument.alphaMap = reinterpret_cast<const u8*>(picture.palette.data());
+    }
+
+    if (picture.palette.size() >= 2)
+    {
+        argument.colorPair = MakeWords(picture.palette[0], picture.palette[1]);
+    }
+
+    return argument;
+}
 }  // namespace swd3

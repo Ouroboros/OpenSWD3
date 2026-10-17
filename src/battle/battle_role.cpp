@@ -156,24 +156,6 @@ constexpr std::array<Spark, BattleRole::ExtraActs> kSparks = {{
     {40, 1, 5, 0x10},
 }};
 
-// The palette of a picture passed as the draw argument (the original passes the palette pointer).
-DrawArgument PaletteArgument(const Picture& picture)
-{
-    DrawArgument argument;
-
-    if (!picture.palette.empty())
-    {
-        argument.alphaMap = reinterpret_cast<const u8*>(picture.palette.data());
-    }
-
-    if (picture.palette.size() >= 2)
-    {
-        argument.colorPair = MakeWords(picture.palette[0], picture.palette[1]);
-    }
-
-    return argument;
-}
-
 constexpr u16 kCoinArmour = 0x39D;  // 投幣式鎧甲: the gold pays for the hits
 constexpr int kTenths = 10;
 constexpr int kPercent = 100;
