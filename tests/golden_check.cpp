@@ -1,5 +1,6 @@
 #include "golden_check.h"
 
+#include <array>
 #include <cinttypes>
 #include <cstdio>
 #include <fstream>
@@ -41,12 +42,12 @@ GoldenCheck::GoldenCheck(const std::map<std::string, std::string>& golden)
 
 void GoldenCheck::operator()(const std::string& name, swd3::u64 hash)
 {
-    char text[kHashText];
-    std::snprintf(text, sizeof(text), "%016" PRIx64, hash);
+    std::array<char, kHashText> text = {};
+    std::snprintf(text.data(), text.size(), "%016" PRIx64, hash);
     const auto found = this->golden.find(name);
     ++this->compared;
 
-    if (found == this->golden.end() || found->second != text)
+    if (found == this->golden.end() || found->second != text.data())
     {
         if (++this->mismatches <= kShownMismatches)
         {

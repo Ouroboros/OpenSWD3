@@ -1,3 +1,4 @@
+#include <array>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -63,10 +64,10 @@ TEST_CASE("file: empty read fails, short read succeeds")
     CHECK(file.Open(kName, File::Disposition::OpenAlways, File::Access::ReadWrite));
     CHECK(file.WriteByte(kByte));
     file.SeekBegin(0);
-    char buffer[kBufferBytes] = {};
+    std::array<char, kBufferBytes> buffer = {};
     u32 bytes = 0;
-    CHECK(!file.Read(buffer, bytes));
-    CHECK(file.ReadExact(buffer, sizeof(buffer)));
+    CHECK(!file.Read(buffer.data(), bytes));
+    CHECK(file.ReadExact(buffer.data(), static_cast<int>(buffer.size())));
     file.Close();
     cleanup();
 }

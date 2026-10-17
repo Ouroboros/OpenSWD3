@@ -439,7 +439,7 @@ void Game::DrawRolePanels()
         battle.autoBoxX += step;
         battle.autoBoxStep = step;
         this->battleMessages
-            .DrawMessageBox(battle.autoBoxX - kAutoLeft, kAutoY, kAutoWidth, kAutoHeight, 0, 0, Big5(kAutoBattle));
+            .DrawMessageBox(battle.autoBoxX - kAutoLeft, kAutoY, kAutoWidth, kAutoHeight, 0, 0, kAutoBattle);
     }
 }
 

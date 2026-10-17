@@ -101,6 +101,7 @@ struct UnitCommand
         DelaysFadeIn = 4,    // the unit fades in later (BattleUnit::DelayedFadeIn)
         StaysAcross = 0x10,  // the move starts at an edge across
         StaysDown = 0x20,    // the move starts at the top
+        Restores = 0x80,     // the hit restores (HitDamage): it cures and heals the target
         DrainsLife = 0x100,
         DrainsSpirit = 0x200,
         DrainsStamina = 0x400,
@@ -120,16 +121,19 @@ struct UnitCommand
     i32 unk00 = 0;
     u32 actionFlags = 0;  // +0x04 (0xD94)
     i32 unk08 = 0;
-    u16 flags = 0;  // +0x0C (0xD9C)
-    std::array<u8, 4> unk0E = {};
-    u16 followAct = 0;  // +0x12 (0xDA2) the follow-up action's act
-    u16 castAct = 0;    // +0x14 (0xDA4)
-    u16 unk16 = 0;      // +0x16 (0xDA6)
-    std::array<u8, 6> unk18 = {};
-    i16 unk1E = 0;   // +0x1E (0xDAE)
-    u16 unk20 = 0;   // +0x20 (0xDB0)
-    u16 target = 0;  // +0x22 (0xDB2)
-    u8 unk24 = 0;    // +0x24 (0xDB4)
+    u16 flags = 0;       // +0x0C (0xD9C)
+    i16 value = 0;       // +0x0E (0xD9E) the value of the skill (SkillValue)
+    u16 resistance = 0;  // +0x10 (0xDA0) the element 1..9 whose resistance scales the damage
+    u16 followAct = 0;   // +0x12 (0xDA2) the follow-up action's act
+    u16 castAct = 0;     // +0x14 (0xDA4)
+    u16 unk16 = 0;       // +0x16 (0xDA6)
+    u16 ailment = 0;     // +0x18 (0xDA8)
+    u16 element = 0;     // +0x1A (0xDAA)
+    u16 pose = 0;        // +0x1C (0xDAC) the pose of a defeat (its low byte)
+    i16 unk1E = 0;       // +0x1E (0xDAE)
+    u16 unk20 = 0;       // +0x20 (0xDB0)
+    u16 target = 0;      // +0x22 (0xDB2)
+    u8 unk24 = 0;        // +0x24 (0xDB4)
     std::array<u8, 3> unk25 = {};
 };
 
@@ -183,7 +187,8 @@ public:
         UnkStatus8 = 8,
         UnkStatus10 = 0x10,  // cleared with mark UnkMark100
         UnkStatus20 = 0x20,
-        Slowed = 0x40,  // ailment 0x40: the gauge fills at half speed
+        UnkStatus80 = 0x80,  // a struck unit evades 8 times in 10 (Strike)
+        Slowed = 0x40,       // ailment 0x40: the gauge fills at half speed
         UnkStatus100 = 0x100,
         StatsScaled = 0x200,  // a party role's attributes are scaled (undone when it ends)
         UnkStatus1000 = 0x1000,
@@ -210,6 +215,14 @@ public:
         UnkCommand13 = 0xD,
         UnkCommand14 = 0xE,
         UnkCommand15 = 0xF,
+        UnkCommand16 = 0x16,
+        UnkCommand18 = 0x18,
+        UnkCommand1A = 0x1A,
+        UnkCommand1B = 0x1B,
+        UnkCommand1F = 0x1F,
+        UnkCommand22 = 0x22,
+        UnkCommand23 = 0x23,
+        UnkCommand24 = 0x24,
     };
 
     // BattleUnit::unk2A86 bits.
@@ -343,6 +356,8 @@ public:
     void DrawEffects(BattleServices& services, int x, int y);
     void DrawEffectIcons(BattleServices& services, int x, int y);
     void ExpireEffects(BattleServices& services, int clearAll);
+    SkillScript CommandSkill() const;
+    i16 HitDamage(BattleServices& services, BattleUnit& target, i16& spiritDamage, i16& staminaDamage);
     void CureEffects(BattleServices& services, u16 bits);
     int Damage(BattleServices& services, int hitPoints, i16 spirit, i16 stamina);
     int EffectFlag2() const;
@@ -506,8 +521,9 @@ public:
     u8 defeatPose = 0;  // +0x2A94 the pose of the defeat (a fixed pose overrides it)
     u8 fixedPose = 0;   // +0x2A95
     std::array<u8, 4> unk2A97 = {};
-    u8 healChoice = 0;  // +0x2A9C
-    i32 kind = 0;       // +0x2AA0 1: a party role
+    u8 healChoice = 0;   // +0x2A9C
+    u8 healPercent = 0;  // +0x2A9E 1: unk29A6..unk29AA are percentages of the target's maxima
+    i32 kind = 0;        // +0x2AA0 1: a party role
     i32 unk2AA4 = 0;
     i32 unk2AA8 = 0;
     i32 unk2AAC = 0;

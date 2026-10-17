@@ -54,7 +54,7 @@ constexpr std::size_t kBlackColor = 1;  // text colours 1 and 8 are black and pu
 constexpr std::size_t kBlueColor = 8;
 
 constexpr std::size_t kEnvBytes = 0x40;  // an env.dat whose last byte is the session mark
-constexpr const char* kCacheFile = "data/3.cm";
+constexpr std::string_view kCacheFile = "data/3.cm";
 constexpr u32 kCachedBytes = 100;
 constexpr u32 kSmallCache = 5;
 constexpr u8 kFill = 7;
@@ -99,7 +99,7 @@ TEST_CASE("game init: the session mark of env.dat empties the map cache")
     painter.Init(surface);
     MapCache cache(config, painter);
     WriteBytes(directory + "env.dat", std::vector<u8>(kEnvBytes, 0));
-    WriteBytes(directory + kCacheFile, std::vector<u8>(kCachedBytes, kFill));
+    WriteBytes(directory + std::string(kCacheFile), std::vector<u8>(kCachedBytes, kFill));
     WriteBytes(directory + "data/mcache.dat", std::vector<u8>(MapCache::TableBytes, kFill));
     CHECK_EQ(cache.Check(MapCache::CheckSessionMark), kCachedBytes);
     cache.MarkDirty();
@@ -112,7 +112,7 @@ TEST_CASE("game init: the session mark of env.dat empties the map cache")
     CHECK_EQ(table.size(), MapCache::TableBytes);
     CHECK_EQ(table[0], swd3::LowByte(swd3::LowWord(MapCache::Slot::Free)));
     CHECK_EQ(table[sizeof(MapCache::Slot) + offsetof(MapCache::Slot, unit)], 1);  // the second slot keeps unit 1
-    WriteBytes(directory + kCacheFile, std::vector<u8>(kSmallCache, kFill));
+    WriteBytes(directory + std::string(kCacheFile), std::vector<u8>(kSmallCache, kFill));
     cache.MarkDirty();
     cache.MarkClean();
     CHECK_EQ(cache.Check(MapCache::CheckSessionMark), kSmallCache);

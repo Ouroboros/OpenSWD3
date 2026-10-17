@@ -129,6 +129,7 @@ public:
     void DrawDefeatPanel();
     void DrawCraftResultPanel();
     void DrawMessageBox(int x, int y, int width, int height, int textX, int textY, std::string_view text);
+    void DrawMessageBox(int x, int y, int width, int height, int textX, int textY, std::u8string_view text);
     int GrowPanel(int top, int bottom, int divisor);
     void DrawResistancePanel();
     void Add(int x, int y, i16 frames, std::span<const char> text, int flags);

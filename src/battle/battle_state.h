@@ -221,7 +221,9 @@ public:
     i32 hitDamage = 0;     // 0x0052441C
     i16 spiritDamage = 0;  // 0x0053B0B0
     u16 unk4FDF78 = 0;
-    i16 staminaDamage = 0;  // 0x004FDF7A
+    i16 staminaDamage = 0;     // 0x004FDF7A
+    i32 lastDamage = 0;        // 0x0053AE8C the damage of the last hit with the proficiency bonus
+    i16 proficiencyBonus = 0;  // 0x00521520 the weapon proficiency step of the last strike
 
     // The state of the turns (0x004539B0, 0x00456680 and the commands).
     i32 unk53BFC0 = 0;

@@ -3,8 +3,11 @@
 #include <algorithm>
 #include <string_view>
 
+#include "battle/battle_services.h"
+#include "battle/battle_state.h"
 #include "core/assertion.h"
 #include "org/database.h"
+#include "org/fame.h"
 #include "text/big5.h"
 
 namespace swd3
@@ -45,6 +48,8 @@ constexpr std::u8string_view kNoEscortAct = u8"護駕actNumber為0!!";         /
 constexpr std::u8string_view kNoGuestAct = u8"Npc角色actNumber為0!!";       // swd32.exe 0x004A7C7C
 constexpr std::u8string_view kNoWeaponAct = u8"武器%d號的強攻擊act沒設!!";  // swd32.exe 0x004A7C94
 constexpr i16 kStatLimit = 0x270F;
+constexpr i32 kMaxDamage = 0x270F;
+constexpr u16 kStruckEvasion = 8;
 constexpr u16 kCoinArmour = 0x39D;  // 投幣式鎧甲: the gold pays for the hits
 constexpr int kTenths = 10;
 constexpr int kPercent = 100;
@@ -405,4 +410,55 @@ void BattleRole::TakeCommand2F18()
     this->slotActs[BattleUnit::UnkSlot9] = ActState{};
 }
 
+// swd32.exe 0x00474FC0: a strike of the role on `target`: the weapon's proficiency takes a step (its bonus adds to
+// a hit that does damage), an evadable strike may be evaded (8 in 10 under UnkStatus80) unless the role struck
+// already this turn, and the damage (at most kMaxDamage) adds to the hit's damage and shows on the target
+void BattleRole::Strike(BattleServices& services, BattleUnit& target, int evadable)
+{
+    BattleState& battle = services.state;
+    this->unk2954 = 0;
+    battle.proficiencyBonus = 0;
+    battle.proficiencyBonus = static_cast<i16>(StepCounterProgress(
+        services.party.fame.lists[Fame::UnkList0],
+        static_cast<i16>(this->weaponId),
+        this->weapon.data.unk44,
+        this->weapon.data.unk42
+    ));
+    const u16 evasion = (this->status & BattleUnit::UnkStatus80) != 0 ? kStruckEvasion : u16{0};
+
+    if (evadable == 1 && this->unk2B14 == 0 && target.RollEvade(services, evasion) != 0)
+    {
+        this->unk2B14 = 1;
+        return;
+    }
+
+    target.RaiseFlag26B8();
+    battle.lastDamage = 0;
+    i16 spirit = 0;
+    i16 stamina = 0;
+    i32 damage = this->HitDamage(services, target, spirit, stamina);
+    battle.lastDamage = damage;
+
+    if (damage != 0)
+    {
+        damage += battle.proficiencyBonus;
+        battle.lastDamage = damage;
+    }
+
+    if (damage >= kMaxDamage)
+    {
+        damage = kMaxDamage;
+        battle.lastDamage = damage;
+    }
+
+    battle.hitDamage += damage;
+
+    if (damage != -1)
+    {
+        target.SetDamageDigits(services, damage);
+        target.StepTargetCount(1);
+    }
+
+    this->unk2B14 = 1;
+}
 }  // namespace swd3

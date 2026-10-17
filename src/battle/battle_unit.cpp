@@ -1248,6 +1248,38 @@ constexpr u32 kAilmentRoll = 10;  // an ailment lands on a roll of 1..kAilmentRo
 constexpr int kFramedFlags = BattleMessage::Frame | BattleMessage::Centered;
 constexpr int kAnnounceSound = 0x117;
 constexpr i32 kEffectAct = 0x2AF8;
+
+// The damage of a hit (HitDamage).
+constexpr std::size_t kResistances = 9;
+constexpr u32 kAttackFromBonus = 9;        // unk26CC bits: the attack is the bonus of the battle record (enraged)
+constexpr u32 kAttackDownIgnored = 0x100;  // unk26CC bit: AttackDown does not cut the attack
+constexpr u32 kLevelShare = 3;             // the attack roll is 1..level / kLevelShare + kLevelRollBase
+constexpr u32 kLevelRollBase = 3;
+constexpr int kAttackBuffPercent = 30;
+constexpr int kEnragedPercent = 60;  // an enraged attack: 60% plus unk26DC percent of 40%
+constexpr int kEnragedSharePercent = 40;
+constexpr double kBladeScale = 2.5;  // swd32.exe 0x00499D38
+constexpr int kSkillScaleShare = 3;
+constexpr u32 kSkillRollDivisors = 5;  // a skill rolls 1..(level + unk14) / (5..9)
+constexpr u16 kSkillRollBase = 5;
+constexpr int kHalf = 2;
+constexpr int kGuardShare = 3;    // a guard takes a third off
+constexpr u32 kUnkKind20 = 0x20;  // ObjectData::kind bit: the scripted acts do not affect the target
+// The acts of a scripted battle with a special effect, and the poses they leave.
+constexpr u16 kFallAct = 1;
+constexpr u8 kFallPose = 7;
+constexpr u16 kDrainAct = 2;
+constexpr u8 kDrainPose = 2;
+constexpr u8 kDrainPoseAfter = 8;
+constexpr u16 kWeakAct = 8;
+constexpr int kWeakPercent = 85;
+constexpr u8 kWeakPose = 0xD;
+constexpr u16 kStrongAct = 0x11;
+constexpr int kStrongPercent = 150;
+constexpr u32 kStrongAilments = 3;
+constexpr u32 kThirdAilment = 2;
+constexpr u8 kStrongTurns = 3;
+constexpr u8 kStrongPose = 1;
 constexpr u16 kEffectIcons = 0x241D;
 
 // The value of a skill script: the word at +0xE.
@@ -2090,7 +2122,7 @@ void BattleUnit::ExpireEffects(BattleServices& services, int clearAll)
                 case SkillScript::AttackDown:
                     this->Announce(services, BattleMessages::AttackDownEnd, kAnnounceFlags);
                     this->status &= ~BattleUnit::AttackDown;
-                    this->unk26CC &= ~0x100u;
+                    this->unk26CC &= ~kAttackDownIgnored;
                     break;
 
                 case SkillScript::Invisible:
@@ -2547,51 +2579,45 @@ int BattleUnit::AdvanceGauge(const BattleServices& services, int boost)
     return 1;
 }
 
-// The skill script `id` read into the command (0x00476A80 on the record at +0xD90; it sets only the fields its
-// opcodes name).
-void BattleUnit::LoadCommand(Database& database, u16 id)
+// The command block read as the skill script it was loaded from (the same 0x28-byte record in the original).
+SkillScript BattleUnit::CommandSkill() const
 {
     SkillScript skill;
     skill.unk00 = static_cast<u32>(this->command.unk00);
     skill.flags = this->command.actionFlags;
     skill.statusBits = static_cast<u32>(this->command.unk08);
-    const auto& packed = this->command.unk0E;
-    skill.unk0C = MakeWords(MakeBytes(packed[1], packed[0]), this->command.flags);
-    skill.unk10 = MakeWords(this->command.followAct, MakeBytes(packed[3], packed[2]));
+    skill.unk0C = MakeWords(static_cast<u16>(this->command.value), this->command.flags);
+    skill.unk10 = MakeWords(this->command.followAct, this->command.resistance);
     skill.unk14 = this->command.castAct;
     skill.unk16 = this->command.unk16;
-    const auto& pairs = this->command.unk18;
-    skill.ailment = MakeBytes(pairs[1], pairs[0]);
-    skill.element = MakeBytes(pairs[3], pairs[2]);
-    skill.unk1C = MakeBytes(pairs[5], pairs[4]);
+    skill.ailment = this->command.ailment;
+    skill.element = this->command.element;
+    skill.unk1C = this->command.pose;
     skill.unk1E = static_cast<u16>(this->command.unk1E);
     skill.unk20 = this->command.unk20;
     skill.unk22 = this->command.target;
     skill.turns = this->command.unk24;
+    return skill;
+}
+
+// The skill script `id` read into the command (0x00476A80 on the record at +0xD90; it sets only the fields its
+// opcodes name).
+void BattleUnit::LoadCommand(Database& database, u16 id)
+{
+    SkillScript skill = this->CommandSkill();
     database.LoadSkill(skill, id);
     this->command.unk00 = static_cast<i32>(skill.unk00);
     this->command.actionFlags = skill.flags;
     this->command.unk08 = static_cast<i32>(skill.statusBits);
     this->command.flags = static_cast<u16>(skill.unk0C);
-    this->command.unk0E = {
-        LowByte(HighWord(skill.unk0C)),
-        HighByte(HighWord(skill.unk0C)),
-        LowByte(LowWord(skill.unk10)),
-        HighByte(LowWord(skill.unk10)),
-    };
-
+    this->command.value = static_cast<i16>(HighWord(skill.unk0C));
+    this->command.resistance = LowWord(skill.unk10);
     this->command.followAct = HighWord(skill.unk10);
     this->command.castAct = skill.unk14;
     this->command.unk16 = skill.unk16;
-    this->command.unk18 = {
-        LowByte(skill.ailment),
-        HighByte(skill.ailment),
-        LowByte(skill.element),
-        HighByte(skill.element),
-        LowByte(skill.unk1C),
-        HighByte(skill.unk1C),
-    };
-
+    this->command.ailment = skill.ailment;
+    this->command.element = skill.element;
+    this->command.pose = skill.unk1C;
     this->command.unk1E = static_cast<i16>(skill.unk1E);
     this->command.unk20 = skill.unk20;
     this->command.target = skill.unk22;
@@ -2899,7 +2925,7 @@ void BattleUnit::LoadSkillAction(Database& database, u16 id, u16& act)
     std::copy_n(name.begin(), length, this->skillName.begin());
     this->skillName[length] = '\0';
     this->LoadCommand(database, this->object.data.unk3E);
-    this->unk29A4 = static_cast<u16>(this->unk29A4 + MakeBytes(this->command.unk0E[1], this->command.unk0E[0]));
+    this->unk29A4 = static_cast<u16>(this->unk29A4 + static_cast<u16>(this->command.value));
     this->SetCommand(BattleUnit::UnkCommand2);
     this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
 }
@@ -3008,6 +3034,391 @@ bool RollChance(Random& random, int percent)
 {
     return static_cast<u16>(kChanceScale * percent / kPercent + kChanceBase) >=
            static_cast<u16>(random.Below(kPercent));
+}
+
+// swd32.exe 0x00481010: the damage of this unit's hit on `target` (negative: healing; -1 shows no number), with the
+// spirit and stamina changes it makes. A barrier stops a hit that does not restore. The buff and ailment of the command
+// land first (a held target is freed by a hit that restores nothing). The target's defence and resistances are those
+// of its party record or its mon.dat object. A restoring command (actionFlags Restores) cures and heals at once; an
+// attack takes the attack (or the battle record's bonus) plus a roll on the level, raised and cut by the attack buffs,
+// less the defence, scaled when enraged and by the equipment, then by the resistance of the command's element. In a
+// scripted battle the attacker's act adds a special effect. Skills take their value instead. The original computes
+// the damage in 16 bits.
+i16 BattleUnit::HitDamage(BattleServices& services, BattleUnit& target, i16& spiritDamage, i16& staminaDamage)
+{
+    i16 attack = static_cast<i16>(this->unk29A4);
+    i32 healHitPoints = 0;
+    i32 healSpirit = 0;
+    i32 healStamina = 0;
+    i32 raise = 0;
+    i32 cut = 0;
+    bool resisted = false;
+    const RoleRecord* targetRecord = nullptr;
+    const ObjectRecord* targetData = nullptr;
+    u16 defense = 0;
+    std::array<u8, kResistances> resistances = {};
+    spiritDamage = 0;
+    staminaDamage = 0;
+    target.PushTarget(BattleUnit::DamageTarget);
+    const bool restores = (this->command.actionFlags & UnitCommand::Restores) != 0;
+
+    if (!restores && target.HasEffectBits(BattleUnit::UnkStatus4) == 1)
+    {
+        return 0;
+    }
+
+    const bool anyHeal = this->unk29A6 != 0 || this->unk29A8 != 0 || this->unk29AA != 0;
+
+    if (target.AddBuff(services, this->CommandSkill()) == 1 && this->unk29A6 == 0 && !anyHeal)
+    {
+        return -1;
+    }
+
+    if (!anyHeal && target.IsHeldOrHolding() == 1)
+    {
+        target.CureEffects(services, BattleUnit::UnkStatus8);
+    }
+
+    auto resistanceOf = [&resistances](u16 element)
+    {
+        return static_cast<i8>(resistances[static_cast<std::size_t>(element - 1)]);
+    };
+
+    auto elemental = [](u16 element)
+    {
+        return element >= 1 && element <= kResistances;
+    };
+
+    if (target.kind == BattleUnit::PartyRole)
+    {
+        targetRecord = static_cast<const RoleRecord*>(target.SelectEntry(0));
+        defense = targetRecord->defenseBonus;
+        std::copy_n(targetRecord->unk2D.begin(), resistances.size(), resistances.begin());
+
+        if (static_cast<u16>(services.random.Below(kAilmentRoll)) > static_cast<u16>(targetRecord->ailmentChance))
+        {
+            target.AddAilment(services, this->CommandSkill());
+        }
+
+        target.SetDefeatPose(LowByte(this->command.pose));
+    }
+    else
+    {
+        targetData = target.Data();
+        defense = targetData->data.defense;
+        std::copy_n(targetData->data.resistances.begin(), resistances.size(), resistances.begin());
+
+        if (this->command.ailment != 0)
+        {
+            if (this->command.value != 0 && elemental(this->command.resistance))
+            {
+                ScaleByTenths(resistanceOf(this->command.resistance), this->command.value);
+            }
+
+            if (target.AddAilment(services, this->CommandSkill()) == 1)
+            {
+                target.RaiseFlag26B8();
+            }
+            else if (this->command.value == 0)
+            {
+                target.RollEvade(services, kEvadeRoll);
+            }
+
+            if (this->command.ailment != 0 && this->command.value == 0)
+            {
+                return -1;
+            }
+        }
+
+        target.SetDefeatPose(LowByte(this->command.pose));
+    }
+
+    if (this->healPercent == 1)
+    {
+        if (targetRecord != nullptr)
+        {
+            healHitPoints = static_cast<i16>(this->unk29A6) * targetRecord->maxHitPoints / kPercent;
+            healSpirit = targetRecord->maxSpirit * static_cast<i16>(this->unk29A8) / kPercent;
+            healStamina = targetRecord->maxStamina * static_cast<i16>(this->unk29AA) / kPercent;
+        }
+    }
+    else
+    {
+        healHitPoints = this->unk29A6;
+        healSpirit = this->unk29A8;
+        healStamina = this->unk29AA;
+    }
+
+    if (restores)
+    {
+        target.CureEffects(services, this->command.ailment);
+        spiritDamage = static_cast<i16>(healSpirit);
+        staminaDamage = static_cast<i16>(healStamina);
+
+        if (LowWord(static_cast<u32>(healHitPoints)) == 0)
+        {
+            return -1;
+        }
+
+        target.PushTarget(BattleUnit::HealTarget);
+        return static_cast<i16>(-healHitPoints);
+    }
+
+    const u16 kind = this->commandA;
+
+    if (kind == BattleUnit::UnkCommand1 || kind == BattleUnit::UnkCommand1A || kind == BattleUnit::UnkCommand18)
+    {
+        if ((this->unk26CC & kAttackFromBonus) != 0)
+        {
+            attack = static_cast<i16>(this->battleRecord->attackBonus);
+        }
+
+        if ((this->unk2B00 == 1 || this->unk2B04 == 1) && this->command.value == 0)
+        {
+            attack = static_cast<i16>(this->battleRecord->attackBonus);
+        }
+
+        auto levelRoll = [this, &services]
+        {
+            const auto limit = static_cast<u32>(this->battleRecord->level / kLevelShare + kLevelRollBase);
+            return static_cast<i32>(services.random.Below(limit)) + 1;
+        };
+
+        attack = static_cast<i16>(attack + levelRoll());
+
+        if (this->HasEffectKind(static_cast<i16>(this->command.resistance)) == 1)
+        {
+            raise = kAttackBuffPercent * attack / kPercent;
+        }
+
+        if ((this->status & BattleUnit::AttackUp) != 0)
+        {
+            raise += kAttackBuffPercent * attack / kPercent;
+        }
+
+        if ((this->status & BattleUnit::AttackDown) != 0 && (this->unk26CC & kAttackDownIgnored) == 0)
+        {
+            cut = kAttackBuffPercent * attack / kPercent;
+        }
+
+        attack = static_cast<i16>(attack + (raise - cut));
+
+        if (services.state.evadeDisabled == 1 && this->unk2B00 == 0 && this->unk2B04 == 0)
+        {
+            attack = static_cast<i16>(static_cast<i16>(this->battleRecord->attackBonus) + levelRoll());
+            u8 pose = 0;
+
+            switch (this->placement.actId)
+            {
+                case kFallAct:
+                    pose = kFallPose;
+                    break;
+
+                case kDrainAct:
+                {
+                    // A party role as the target has no object: the original reads a null pointer here.
+                    if (targetData == nullptr || (targetData->data.kind & kUnkKind20) != 0)
+                    {
+                        break;
+                    }
+
+                    i32 hitPoints = 0;
+                    i32 maximum = 0;
+                    target.GetHitPoints(hitPoints, maximum);
+
+                    if (static_cast<i32>(defense) + hitPoints >= attack)
+                    {
+                        attack = static_cast<i16>(hitPoints + defense);
+                    }
+
+                    target.SetVitals(0, 0, 0);
+                    target.SetDefeatPose(kDrainPose);
+                    pose = kDrainPoseAfter;
+                    break;
+                }
+
+                case kWeakAct:
+                    attack = static_cast<i16>(kWeakPercent * attack / kPercent);
+                    pose = kWeakPose;
+                    break;
+
+                case kStrongAct:
+                {
+                    attack = static_cast<i16>(kStrongPercent * attack / kPercent);
+
+                    if (targetData == nullptr || (targetData->data.kind & kUnkKind20) != 0)
+                    {
+                        break;
+                    }
+
+                    const u32 roll = services.random.Below(kStrongAilments);
+
+                    if (roll == 0)
+                    {
+                        this->command.ailment = SkillScript::UnkAilment100;
+                    }
+                    else if (roll == 1)
+                    {
+                        this->command.ailment = SkillScript::SlowedAilment;
+                    }
+                    else if (roll == kThirdAilment)
+                    {
+                        this->command.ailment = SkillScript::UnkAilment1;
+                    }
+
+                    this->command.unk24 = kStrongTurns;
+                    target.AddAilment(services, this->CommandSkill());
+                    pose = kStrongPose;
+                    break;
+                }
+
+                default:
+                    break;
+            }
+
+            if (pose != 0)
+            {
+                target.SetDefeatPose(pose);
+            }
+        }
+
+        attack = attack > static_cast<i32>(defense) ? static_cast<i16>(attack - defense) : i16{1};
+
+        if ((this->unk26CC & kAttackFromBonus) != 0)
+        {
+            const i32 value = attack;
+            const auto share = static_cast<u16>(kEnragedSharePercent * value / kPercent);
+            attack = static_cast<i16>(kEnragedPercent * value / kPercent + share * this->unk26DC / kPercent);
+        }
+
+        if ((this->equipmentFlags & BattleUnit::BladeReturn) != 0)
+        {
+            attack = static_cast<i16>(crt::Ftol(static_cast<double>(attack) * kBladeScale));
+        }
+
+        if (elemental(this->command.resistance))
+        {
+            if (this->command.value == 0)
+            {
+                resisted = ScaleByTenths(resistanceOf(this->command.resistance), attack) == 1;
+            }
+            else if (this->unk2B00 == 0)
+            {
+                ScaleByTenths(resistanceOf(this->command.resistance), this->command.value);
+                attack = static_cast<i16>(attack + static_cast<u16>(this->command.value));
+                resisted = ScaleByTenths(static_cast<i8>(resistances.back()), attack) == 1;
+            }
+        }
+    }
+
+    if (kind == BattleUnit::UnkCommand1B)
+    {
+        const i32 scale = kSkillScaleShare * this->unk26DC / kPercent + 1;
+        attack = static_cast<i16>(
+            attack * scale + static_cast<u16>(this->battleRecord->attack * scale) + this->battleRecord->level
+        );
+    }
+
+    if (kind == BattleUnit::UnkCommand1F)
+    {
+        return (target.marks & BattleUnit::UnkMark8000) != 0 ? i16{0} : attack;
+    }
+
+    if (kind == BattleUnit::UnkCommand2 || (this->unk2A86 & BattleUnit::UnkCommandFlag200) != 0 ||
+        kind == BattleUnit::UnkCommand16 || kind == BattleUnit::UnkCommand3)
+    {
+        attack = this->command.value;
+
+        if (this->HasEffectKind(static_cast<i16>(this->command.resistance)) == 1)
+        {
+            attack = static_cast<i16>(attack + kAttackBuffPercent * attack / kPercent);
+        }
+
+        if ((this->unk2A86 & BattleUnit::UnkCommandFlag4000) == 0)
+        {
+            const auto divisor = static_cast<u16>(services.random.Below(kSkillRollDivisors) + kSkillRollBase);
+            const i32 spread = this->battleRecord->level + static_cast<u16>(this->battleRecord->unk14);
+            const auto limit = static_cast<u16>(spread / divisor);
+            const i32 roll = static_cast<i32>(services.random.Below(limit)) + 1;
+
+            if (attack > 0)
+            {
+                attack = static_cast<i16>(attack + roll);
+            }
+        }
+
+        spiritDamage = static_cast<i16>(healSpirit);
+        staminaDamage = static_cast<i16>(healStamina);
+
+        if (elemental(this->command.resistance) && ScaleByTenths(resistanceOf(this->command.resistance), attack) == 1)
+        {
+            resisted = true;
+        }
+    }
+
+    if (target.HasEffectElement(static_cast<i16>(this->command.element)) == 1)
+    {
+        attack = static_cast<i16>(attack / kHalf);
+    }
+
+    const bool healsHitPoints = static_cast<i16>(healHitPoints) != 0;
+
+    if (healsHitPoints || kind == BattleUnit::UnkCommand22)
+    {
+        target.PushTarget(BattleUnit::HealTarget);
+        attack = static_cast<i16>(-healHitPoints);
+    }
+
+    if (kind == BattleUnit::UnkCommand23)
+    {
+        spiritDamage = static_cast<i16>(healSpirit);
+        target.PushTarget(BattleUnit::SpiritGainTarget);
+
+        if (static_cast<i16>(healSpirit) == 0)
+        {
+            attack = -1;
+        }
+    }
+
+    if (kind == BattleUnit::UnkCommand24)
+    {
+        staminaDamage = static_cast<i16>(healStamina);
+        target.PushTarget(BattleUnit::StaminaGainTarget);
+    }
+
+    if ((static_cast<i16>(healSpirit) != 0 || static_cast<i16>(healStamina) != 0) && !healsHitPoints)
+    {
+        attack = -1;
+    }
+
+    if (resisted)
+    {
+        target.PushTarget(BattleUnit::HealTarget);
+    }
+
+    if (target.GetGuard() == 1 && !healsHitPoints && this->command.resistance != 0)
+    {
+        attack = static_cast<i16>(attack - attack / kGuardShare);
+    }
+
+    if (target.kind == BattleUnit::PartyRole && (targetRecord->unk24 & RoleRecord::Defeated) != 0)
+    {
+        spiritDamage = 0;
+        attack = 0;
+        staminaDamage = 0;
+
+        if (static_cast<i16>(healSpirit) != 0)
+        {
+            target.PushTarget(BattleUnit::SpiritGainTarget);
+        }
+
+        if (static_cast<i16>(healStamina) != 0)
+        {
+            target.PushTarget(BattleUnit::StaminaGainTarget);
+        }
+    }
+
+    return (target.marks & BattleUnit::UnkMark8000) != 0 ? i16{0} : attack;
 }
 
 }  // namespace swd3

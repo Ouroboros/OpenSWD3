@@ -1,5 +1,6 @@
 #include "memmgr/memory_manager.h"
 
+#include <array>
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
@@ -56,9 +57,14 @@ MemoryManager::~MemoryManager()
         {
             std::unique_ptr<MemoryNode> node = std::move(bucket.back());
             bucket.pop_back();
-            char message[kShortMessage];
-            std::snprintf(message, sizeof(message), "Resource not release ,Size[%d]", static_cast<int>(node->size));
-            this->text = Utf8Bytes(message);
+            std::array<char, kShortMessage> message = {};
+            std::snprintf(
+                message.data(),
+                message.size(),
+                "Resource not release ,Size[%d]",
+                static_cast<int>(node->size)
+            );
+            this->text = Utf8Bytes(message.data());
             this->errors.ShowError(u8"MemMgr report", this->text);
 
             if (!this->FreeBlock(node.get()))
@@ -133,16 +139,22 @@ bool MemoryManager::FreeBlock(MemoryNode* node)
             ReadDword(block, tail + kGuardBytes) != MemoryManager::Guard ||
             ReadDword(block, tail + kGuardBytes + sizeof(u32)) != MemoryManager::Guard)
         {
-            char message[kLongMessage];
-            std::snprintf(message, sizeof(message), "block[0x%x][%d] overwrited! [", 0u, static_cast<int>(node->size));
-            std::string shown = message;
+            std::array<char, kLongMessage> message = {};
+            std::snprintf(
+                message.data(),
+                message.size(),
+                "block[0x%x][%d] overwrited! [",
+                0u,
+                static_cast<int>(node->size)
+            );
+            std::string shown = message.data();
 
             for (std::size_t i = 0; i < kShownBytes; ++i)
             {
                 const u8 value = kGuardBytes + i < block.size() ? block[kGuardBytes + i] : u8{0};
-                char cell[kShortMessage];
-                std::snprintf(cell, sizeof(cell), i == 0 ? "%2X" : " %2X", value);
-                shown += cell;
+                std::array<char, kShortMessage> cell = {};
+                std::snprintf(cell.data(), cell.size(), i == 0 ? "%2X" : " %2X", value);
+                shown += cell.data();
             }
 
             shown += ']';

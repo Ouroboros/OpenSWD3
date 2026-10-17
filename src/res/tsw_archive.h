@@ -21,14 +21,14 @@ class RleCodec;
 // Directory record of a tsw file: 0x2C bytes at 0x1C + 0x2C * (index - 1).
 struct TswDirectoryEntry
 {
-    char name[0x18] = {};
+    std::array<char, 0x18> name = {};
     u32 offset = 0;
-    u8 unknown1C[0x10] = {};
+    std::array<u8, 0x10> unknown1C = {};
 
     // The name up to its NUL.
     std::string_view Name() const
     {
-        const std::string_view all(this->name, sizeof(this->name));
+        const std::string_view all(this->name.data(), this->name.size());
         return all.substr(0, all.find('\0'));
     }
 };
@@ -43,7 +43,7 @@ struct TswFrameEntry
     u32 packedSize = 0;
     u32 size = 0;
     u32 flag = 0;
-    u32 unknown10[4] = {};
+    std::array<u32, 4> unknown10 = {};
     u16 width = 0;
     u16 height = 0;
 };

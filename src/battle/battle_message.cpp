@@ -1,4 +1,5 @@
 #include "battle/battle_message.h"
+#include "text/big5.h"
 
 #include <cstring>
 #include <string>
@@ -366,6 +367,12 @@ void BattleMessages::DrawMessageBox(int x, int y, int width, int height, int tex
     {
         this->DrawPanelText(x + kBoxTextX, y + kBoxTextY, text);
     }
+}
+
+// DrawMessageBox with a UTF-8 text.
+void BattleMessages::DrawMessageBox(int x, int y, int width, int height, int textX, int textY, std::u8string_view text)
+{
+    this->DrawMessageBox(x, y, width, height, textX, textY, Big5(text));
 }
 
 // swd32.exe 0x00469620: grows the panel by 1 / divisor of the rest; 1 once it stopped
