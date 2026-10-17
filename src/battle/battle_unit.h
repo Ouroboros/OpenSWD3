@@ -309,6 +309,7 @@ public:
     static constexpr u16 ReviveBit = 0x8000;  // CureEffects: revives a defeated party role
 
     static constexpr std::size_t Trails = 8;
+    static constexpr std::size_t Drains = 4;
     // RunQueuedActions: the y offsets of a shaking queued act by its frames left (0x004A7E10).
     static constexpr std::array<i16, 8> ShakeOffsets = {-1, -3, -3, -6, -6, -3, -3, 0};
     // DefeatHop: the heights of the hop by frame (0x004A7DB4).
@@ -483,6 +484,11 @@ public:
     void WalkToTarget(BattleServices& services, const BattleUnit& target);
     void PlayIdleEffect(BattleServices& services);
     void PlayIdleFollowUp(BattleServices& services);
+    void TickEffects(BattleServices& services);
+    int CanUseAccessory(u16 kind);
+    void StartDrainEffect(BattleServices& services, int slot, BattleUnit& source);
+    int DrainEffectFrame(BattleServices& services, int slot);
+    int CatchRoll(BattleServices& services, u8 level);
     void DrawTrail(BattleServices& services, AfterimageTrail& trail, u16 frame, u16 picture, u32 mode, i16 x, i16 y);
     int DrawRecoil(BattleServices& services, ActState& act, i16 y);
     int FlyAct(
@@ -560,29 +566,31 @@ public:
     ObjectRecord weapon;                      // +0xB4 a party role's weapon (equipment slot 0)
     std::array<ObjectRecord, 2> accessories;  // +0x158 equipment slots 7 and 8
 
-    ActState mainAct;                         // +0x2A0
-    ActState standAct;                        // +0x338
-    ActState castAct;                         // +0x3D0
-    ActState recoilAct;                       // +0x468
-    ActState attackAct;                       // +0x500
-    ActState unk598;                          // +0x598
-    std::array<ActState, SlotActs> slotActs;  // +0x630
-    ActState stepAct;                         // +0xCB8
-    UnitPlacement placement;                  // +0xD50
-    UnitPlacement savedPlacement;             // +0xD70
-    UnitCommand command;                      // +0xD90
-    ProjectedPicture projected;               // +0xDB8 the picture of defeat pose 51 (DefeatProjected)
-    std::vector<u16> projectedPixels;         // its raw pixels
-    LineWalker flight;                        // +0xDF4 the line of a flying act (FlyAct)
-    ParticleEffect absorb;                    // +0xE14 a picture breaking up into the unit (StartAbsorb)
-    std::vector<u16> absorbPixels;            // the raw pixels of absorb (decoded by 0x004019A0, freed by 0x004885A0)
-    std::array<AfterimageTrail, Trails> trails;  // +0xFCC the afterimages of the unit's acts
-    std::unique_ptr<QueuedAction> actions;       // +0x236C
-    const Picture* shadowPicture = nullptr;      // +0x2548
-    const Picture* picture = nullptr;            // +0x254C the current picture
-    const Picture* unk2550 = nullptr;            // +0x2550
-    const Picture* unk2554 = nullptr;            // +0x2554
-    const Picture* absorbSource = nullptr;       // +0x255C the picture StartAbsorb breaks up
+    ActState mainAct;                           // +0x2A0
+    ActState standAct;                          // +0x338
+    ActState castAct;                           // +0x3D0
+    ActState recoilAct;                         // +0x468
+    ActState attackAct;                         // +0x500
+    ActState unk598;                            // +0x598
+    std::array<ActState, SlotActs> slotActs;    // +0x630
+    ActState stepAct;                           // +0xCB8
+    UnitPlacement placement;                    // +0xD50
+    UnitPlacement savedPlacement;               // +0xD70
+    UnitCommand command;                        // +0xD90
+    ProjectedPicture projected;                 // +0xDB8 the picture of defeat pose 51 (DefeatProjected)
+    std::vector<u16> projectedPixels;           // its raw pixels
+    LineWalker flight;                          // +0xDF4 the line of a flying act (FlyAct)
+    ParticleEffect absorb;                      // +0xE14 a picture breaking up into the unit (StartAbsorb)
+    std::vector<u16> absorbPixels;              // the raw pixels of absorb (decoded by 0x004019A0, freed by 0x004885A0)
+    std::array<ParticleEffect, Drains> drains;  // +0xE6C the drain effects (StartDrainEffect)
+    std::array<std::vector<u16>, Drains> drainPixels;  // their raw pixels
+    std::array<AfterimageTrail, Trails> trails;        // +0xFCC the afterimages of the unit's acts
+    std::unique_ptr<QueuedAction> actions;             // +0x236C
+    const Picture* shadowPicture = nullptr;            // +0x2548
+    const Picture* picture = nullptr;                  // +0x254C the current picture
+    const Picture* unk2550 = nullptr;                  // +0x2550
+    const Picture* unk2554 = nullptr;                  // +0x2554
+    const Picture* absorbSource = nullptr;             // +0x255C the picture StartAbsorb breaks up
     std::span<const char> displayName;      // +0x2560 the name shown in the messages (read up to its NUL when used)
     EffectNode effects;                     // +0x2584 (the head is a node: +0x2588 its act, +0x2620 its bits)
     std::array<char, 0x30> skillName = {};  // +0x2630 the name of the skill used

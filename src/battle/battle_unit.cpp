@@ -1329,6 +1329,32 @@ constexpr i32 kRoleWalkAction = 0x2A;
 constexpr int kWalkSteps = 0x20;
 constexpr int kWalkShare = 16;
 
+// TickEffects, CanUseAccessory, the drain effects and CatchRoll.
+constexpr u16 kEffectTick = 0xF;
+constexpr std::size_t kPoisonResistance = 4;  // RoleRecord::unk2D: the resistance of element 5
+constexpr i16 kPoisonKind = 5;
+constexpr u32 kStaminaDrainBits = 0x2000000;
+constexpr i16 kStaminaDrain = 10;
+constexpr u16 kAccessory19 = 0x19;
+constexpr u32 kAccessory19Bit = 0x10;
+constexpr u16 kAccessory1C = 0x1C;
+constexpr u16 kAccessory1D = 0x1D;
+constexpr u32 kAccessory1DBit = 0x100;
+constexpr u16 kAccessory20 = 0x20;
+constexpr u16 kSpiritFanKind = 0x39;
+constexpr int kDrainLeft = 0x32;
+constexpr int kDrainDown = 0x28;
+constexpr u16 kDrainSpeed = 0x28;
+constexpr u16 kDrainLife = 0x14;
+constexpr u16 kDrainDivisor = 0x3C;
+constexpr i32 kDrainTint = 5;
+constexpr u32 kUnusedCatchRoll = 12;
+constexpr u32 kCatchRoll = 10;
+constexpr int kFarAbove = 10;
+constexpr int kNearAbove = 5;
+constexpr u16 kFarCatch = 8;
+constexpr u16 kNearCatch = 5;
+
 // FadeInvisible and StepAccessoryCounters.
 constexpr i16 kInvisibleFadeFrames = 0x18;
 constexpr int kShadowLeftShift = 5;
@@ -6567,5 +6593,206 @@ void BattleUnit::PlayIdleFollowUp(BattleServices& services)
     this->mainAct.hold = 0;
     this->mainAct.effectA = 0;
     act = ActState{};
+}
+
+// swd32.exe 0x0047DAD0: one tick of the unit's effects (not while held): each timer rises by kEffectTick; a full one
+// (gaugeFull) restarts and takes a turn off. A poison (UnkStatus1000) sets the pending damage when none is pending,
+// scaled by the element 5 resistance of the battle record and halved by an effect of kind 5; a stamina drain
+// (kStaminaDrainBits) takes 10 stamina a turn, ending when less is left. Then the finished effects expire.
+void BattleUnit::TickEffects(BattleServices& services)
+{
+    if (this->effects.next == nullptr || this->held != 0)
+    {
+        return;
+    }
+
+    for (EffectNode* node = this->effects.next.get(); node != nullptr; node = node->next.get())
+    {
+        node->timer = static_cast<u16>(node->timer + kEffectTick);
+
+        if (static_cast<i32>(node->timer) < services.state.gaugeFull)
+        {
+            continue;
+        }
+
+        if ((node->bits & BattleUnit::UnkStatus1000) != 0 && this->pendingDamage == 0)
+        {
+            auto damage = static_cast<i16>(node->value);
+            ScaleByTenths(static_cast<i8>(this->battleRecord->unk2D[kPoisonResistance]), damage);
+
+            if (this->HasEffectKind(kPoisonKind) == 1)
+            {
+                damage = static_cast<i16>(damage / 2);
+            }
+
+            this->pendingDamage = static_cast<u16>(damage);
+        }
+
+        node->timer = 0;
+
+        if (node->turns == 0)
+        {
+            continue;
+        }
+
+        --node->turns;
+
+        if (node->bits != kStaminaDrainBits)
+        {
+            continue;
+        }
+
+        if (this->roleRecord->stamina < kStaminaDrain)
+        {
+            node->turns = 0;
+        }
+        else
+        {
+            this->Damage(services, 0, 0, -kStaminaDrain);
+        }
+    }
+
+    this->ExpireEffects(services, 0);
+}
+
+// swd32.exe 0x00482FC0: whether the accessory command of `kind` can be taken: not when it costs more stamina than the
+// role has; Unk1C not while Invisible, Unk1D not with its bit, Unk20 not under a Barrier, SpiritFan only with the
+// equipment; Unk19 sets its unk26CC bit.
+int BattleUnit::CanUseAccessory(u16 kind)
+{
+    if (static_cast<i32>(this->AccessoryValue(kind)) > this->roleRecord->stamina)
+    {
+        return 0;
+    }
+
+    switch (kind)
+    {
+        case kAccessory19:
+            this->unk26CC |= kAccessory19Bit;
+            return 1;
+
+        case kAccessory1C:
+            return (this->status & BattleUnit::Invisible) != 0 ? 0 : 1;
+
+        case kAccessory1D:
+            return (this->unk26CC & kAccessory1DBit) != 0 ? 0 : 1;
+
+        case kAccessory20:
+            return (this->status & BattleUnit::Barrier) != 0 ? 0 : 1;
+
+        case kSpiritFanKind:
+            return (this->equipmentFlags & BattleUnit::SpiritFan) != 0 ? 1 : 0;
+
+        default:
+            return 1;
+    }
+}
+
+// swd32.exe 0x00484020: drain effect `slot` started: the source unit's idle picture breaks into particles flying into
+// this unit (a point 0x32 left of and 0x28 below its act's anchor), bursting in half the picture's height
+void BattleUnit::StartDrainEffect(BattleServices& services, int slot, BattleUnit& source)
+{
+    u16 sourceX = 0;
+    u16 sourceY = 0;
+    this->absorbSource = source.StepIdleAction(services);
+    source.GetOrigin(sourceX, sourceY);
+    ParticleEffect& effect = this->drains[static_cast<std::size_t>(slot)];
+    std::vector<u16>& pixels = this->drainPixels[static_cast<std::size_t>(slot)];
+    effect = ParticleEffect{};
+    pixels.clear();
+
+    // A source without its picture is read through a null pointer in the original.
+    if (this->absorbSource == nullptr)
+    {
+        return;
+    }
+
+    const std::optional<RawPicture> raw = RleCodec(services.painter).Decode(this->absorbSource->data);
+
+    if (raw.has_value())
+    {
+        pixels.resize(raw->pixels.size() / sizeof(u16));
+        std::memcpy(pixels.data(), raw->pixels.data(), pixels.size() * sizeof(u16));
+    }
+
+    effect.pixels = pixels;
+    effect.width = this->absorbSource->width;
+    effect.height = this->absorbSource->height;
+    effect.x = static_cast<i16>(sourceX) - 1;
+    effect.y = static_cast<i16>(sourceY);
+    effect.targetLeft =
+        static_cast<i16>(this->actAnchorX) - static_cast<i16>(this->originX) + this->placement.x - kDrainLeft;
+    effect.targetTop = this->placement.y - this->mainAct.y + kDrainDown;
+    effect.targetWidth = 1;
+    effect.targetHeight = 1;
+    effect.speed = kDrainSpeed;
+    effect.lifeBase = kDrainLife;
+    effect.bursts = static_cast<u16>(this->absorbSource->height >> 1);
+    effect.divisor = kDrainDivisor;
+    effect.tintRed = kDrainTint;
+    effect.tintGreen = kDrainTint;
+    effect.tintBlue = kDrainTint;
+    effect.flags = kStripFlags;
+
+    if (source.Mirrored() == 1)
+    {
+        effect.flags = static_cast<u16>(effect.flags | ParticleEffect::Mirrored);
+    }
+
+    this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag800);
+    services.state.projector.SetScreen(Display::Width, Display::Height);
+}
+
+// swd32.exe 0x004841B0: one frame of drain effect `slot` (absorbing set); 1 once it is gone (its pixels freed and the
+// effect cleared)
+int BattleUnit::DrainEffectFrame(BattleServices& services, int slot)
+{
+    ParticleEffect& effect = this->drains[static_cast<std::size_t>(slot)];
+    effect.tintRed = kDrainTint;
+    effect.tintGreen = kDrainTint;
+    effect.tintBlue = kDrainTint;
+    this->absorbing = 1;
+
+    if (services.state.projector.DrawExplosion(services.screen, services.painter, services.crtRandom, effect) != 1)
+    {
+        return 0;
+    }
+
+    this->drainPixels[static_cast<std::size_t>(slot)].clear();
+    effect = ParticleEffect{};
+    return 1;
+}
+
+// swd32.exe 0x00476330: whether `level` catches the enemy (never with UnkMark800 or when its object's unk91 is 0; a
+// 0..11 roll is drawn and not used): more than 10 levels above its level 8 in 10, 6..10 above 5 in 10, exactly 5
+// above unk91 in 10, otherwise never
+int BattleUnit::CatchRoll(BattleServices& services, u8 level)
+{
+    if ((this->marks & BattleUnit::UnkMark800) != 0)
+    {
+        return 0;
+    }
+
+    services.random.Below(kUnusedCatchRoll);
+    const ObjectData& data = this->data->data;
+
+    if (data.unk91 == 0)
+    {
+        return 0;
+    }
+
+    const int above = level - data.level;
+
+    if (above > kFarAbove)
+    {
+        return static_cast<u16>(services.random.Below(kCatchRoll)) < kFarCatch ? 1 : 0;
+    }
+
+    if (above > kNearAbove)
+    {
+        return static_cast<u16>(services.random.Below(kCatchRoll)) < kNearCatch ? 1 : 0;
+    }
+
+    return above >= kNearAbove && static_cast<u16>(services.random.Below(kCatchRoll)) < data.unk91 ? 1 : 0;
 }
 }  // namespace swd3
