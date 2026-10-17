@@ -132,6 +132,25 @@ constexpr u16 kSkillListEnd = 0xFFFF;
 constexpr int kSpecialRowHeight = 0x16;
 constexpr int kSpecialBarTop = 0x25;
 constexpr int kSpecialBarWidth = 0xC0;
+constexpr int kEscortShadeX = 0xC4;  // the 佈置護駕 panel
+constexpr int kEscortShadeY = 0xB0;
+constexpr int kEscortShadeWidth = 0xBC;
+constexpr int kEscortShadeHeight = 0x58;
+constexpr int kEscortFrameLeft = 0xC8;
+constexpr int kEscortFrameRight = 0x178;
+constexpr int kEscortTitleTop = 0xB4;
+constexpr int kEscortTitleBottom = 0xC4;
+constexpr int kEscortTitleX = 0xFC;
+constexpr std::u8string_view kEscortTitle = u8"佈置護駕";  // swd32.exe 0x004A79D0
+constexpr int kEscortBodyTop = 0xD4;
+constexpr int kEscortBodyBottom = 0x104;
+constexpr int kEscortBarLeft = 2;
+constexpr int kEscortBarUp = 0x12;
+constexpr int kEscortAdvance = 0x12;
+constexpr int kEscortRowTop = 8;
+constexpr int kEscortNameX = 0xC;
+constexpr int kEscortNoneTop = 0x1E;
+constexpr u16 kWhite = 0xFFFF;
 
 // The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
 // here.
@@ -2180,5 +2199,99 @@ void Game::DrawSpecialList(int x, int y, int cursor)
 
     role.ShowAllSkills();
     font.SetBackground(TextFont::NoBackground);
+}
+
+// swd32.exe 0x004667B0: the 佈置護駕 panel: the panel act run on, a shade with a title frame (佈置護駕) and a body
+// frame, a gradient bar on row unk53BCF8 at (x, y), and the names of the escorts (the last unk53BF26 battle roles) in
+// white at an 18-pixel advance, with 無 below a lone escort.
+void Game::DrawEscortList(int x, int y)
+{
+    BattleState& battle = this->battleState;
+    BattleMessages& messages = this->battleMessages;
+    TextFont& font = this->mediumFont;
+    messages.panelAct.id = BattleMessages::PanelAct;
+    messages.panelAct.action = 0;
+    this->acts.Run(messages.panelAct);
+    FillBox(
+        this->painter,
+        kEscortShadeX,
+        kEscortShadeY,
+        kEscortShadeWidth,
+        kEscortShadeHeight,
+        0,
+        kListShade,
+        kListShade,
+        FillMode::Blend
+    );
+    DrawWindowFrame(
+        this->painter,
+        this->archive,
+        messages.panelAct.frame,
+        kEscortFrameLeft,
+        kEscortTitleTop,
+        kEscortFrameRight,
+        kEscortTitleBottom,
+        0,
+        kListFrameBorder
+    );
+    font.DrawText(
+        this->drawSurface,
+        kEscortTitleX,
+        kEscortTitleTop,
+        Big5(kEscortTitle),
+        kTitleColor,
+        TextFont::BoldOutline
+    );
+    DrawWindowFrame(
+        this->painter,
+        this->archive,
+        messages.panelAct.frame,
+        kEscortFrameLeft,
+        kEscortBodyTop,
+        kEscortFrameRight,
+        kEscortBodyBottom,
+        0,
+        kListFrameBorder
+    );
+    FillBox(
+        this->painter,
+        x - kEscortBarLeft,
+        y + kSpecialRowHeight * battle.unk53BCF8 - kEscortBarUp,
+        kEscortShadeWidth,
+        kListBarHeight,
+        kListBarRed,
+        kListBarGreen,
+        0,
+        FillMode::Gradient
+    );
+
+    for (int left = battle.unk53BF26; left > 0; --left)
+    {
+        font.SetAdvance(kEscortAdvance);
+        const BattleRole& escort = this->battleRoles[battle.roleCount - static_cast<u32>(left)];
+        const int rowY = y + kSpecialRowHeight * (battle.unk53BF26 - left) + kEscortRowTop;
+        font.DrawText(
+            this->drawSurface,
+            x + kEscortNameX,
+            rowY,
+            ObjectName(*escort.Data()),
+            kWhite,
+            TextFont::BoldOutline
+        );
+    }
+
+    if (battle.unk53BF26 == 1)
+    {
+        font.DrawText(
+            this->drawSurface,
+            x + kEscortNameX,
+            y + kEscortNoneTop,
+            Big5(kNoObject),
+            kWhite,
+            TextFont::BoldOutline
+        );
+    }
+
+    font.SetAdvance(kListAdvance);
 }
 }  // namespace swd3
