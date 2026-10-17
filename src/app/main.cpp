@@ -7,6 +7,7 @@
 
 #include "core/log.h"
 #include "game/game.h"
+#include "platform/host_settings.h"
 #include "platform/log_file.h"
 
 namespace
@@ -53,7 +54,24 @@ std::string PathText(const std::filesystem::path& path)
 
 int main(int count, char** arguments)
 {
-    swd3::LogFile log(ProgramName(count, arguments));
+    const std::string name = ProgramName(count, arguments);
+    const std::string program = name.empty() ? std::string("swd3r") : name;
+    const std::filesystem::path programDirectory = swd3::ProgramDirectory();
+    std::filesystem::path settingsFile = programDirectory / program;
+    settingsFile += ".cfg";
+    swd3::HostSettings settings = swd3::LoadHostSettings(settingsFile, programDirectory);
+    std::filesystem::path logDirectory = programDirectory / "logs";
+    std::string logPrefix = program;
+    std::string logExtension = ".log";
+
+    if (!settings.logPath.empty())
+    {
+        logDirectory = settings.logPath.parent_path();
+        logPrefix = PathText(settings.logPath.stem());
+        logExtension = settings.logPath.has_extension() ? PathText(settings.logPath.extension()) : ".log";
+    }
+
+    swd3::LogFile log(logDirectory, logPrefix, logExtension, settings.logLevel);
     swd3::InstallCrashLog();
     const std::string commandLine = CommandLine(count, arguments);
     std::error_code error;
@@ -69,6 +87,25 @@ int main(int count, char** arguments)
         swd3::AsUtf8(PathText(log.Path()))
     );
     swd3::LogInfo(
+        u8"settings %s%s level=%s data_dir=%s save_dir=%s window=%dx%d maximized=%d display=%dx%d",
+        swd3::AsUtf8(PathText(settings.file)),
+        swd3::AsUtf8(settings.found ? "" : " (not found, the defaults)"),
+        swd3::AsUtf8(swd3::LogLevelName(settings.logLevel)),
+        swd3::AsUtf8(PathText(settings.dataDirectory)),
+        swd3::AsUtf8(PathText(settings.saveDirectory)),
+        settings.windowWidth,
+        settings.windowHeight,
+        settings.windowMaximized ? 1 : 0,
+        settings.displayWidth,
+        settings.displayHeight
+    );
+
+    for (const std::string& warning : settings.warnings)
+    {
+        swd3::LogWarning(u8"settings: %s", swd3::AsUtf8(warning));
+    }
+
+    swd3::LogInfo(
         u8"SDL %d.%d.%d platform=%s",
         SDL_VERSIONNUM_MAJOR(version),
         SDL_VERSIONNUM_MINOR(version),
@@ -82,7 +119,7 @@ int main(int count, char** arguments)
         return 1;
     }
 
-    SDL_SetLogPriority(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_DEBUG);
+    swd3::SetLogLevel(settings.logLevel);
     swd3::LogInfo(
         u8"SDL ready video_driver=%s",
         SDL_GetCurrentVideoDriver() != nullptr ? SDL_GetCurrentVideoDriver() : ""
@@ -90,7 +127,9 @@ int main(int count, char** arguments)
     int result = 0;
 
     {
-        swd3::Game game(directory + "\\");
+        const std::string dataDirectory = settings.dataDirectory.empty() ? directory : PathText(settings.dataDirectory);
+        swd3::Game game(dataDirectory + "\\");
+        game.host = settings;
         result = game.Run(commandLine);
     }
 

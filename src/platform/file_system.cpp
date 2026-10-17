@@ -9,6 +9,8 @@ namespace swd3
 
 namespace fs = std::filesystem;
 
+constexpr std::size_t kDriveRootBytes = 3;  // "E:/"
+
 namespace
 {
 
@@ -78,6 +80,13 @@ std::string ResolvePath(std::string_view gamePath)
 
     fs::path result = path.front() == '/' ? fs::path("/") : fs::path();
     std::size_t start = 0;
+
+    // A drive ("E:/") starts from its root; joined as a component it would make the drive-relative "E:Game".
+    if (path.size() >= kDriveRootBytes && path[1] == ':' && path[2] == '/')
+    {
+        result = fs::path(path.substr(0, kDriveRootBytes));
+        start = kDriveRootBytes;
+    }
 
     while (start <= path.size())
     {

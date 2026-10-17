@@ -6,16 +6,17 @@
 namespace swd3
 {
 
-// The save slots <install directory>save\0.sav .. 98.sav.
+// The save slots <save directory>0.sav .. 98.sav (the original <install directory>save\, see Config::SaveDirectory).
 class SaveGames
 {
 public:
     static constexpr int LastSlot = 0x62;
-    static constexpr std::string_view NameFormat = "%ssave\\%d.sav";  // swd32.exe 0x0049FA18
+    // swd32.exe 0x0049FA18 "%ssave\\%d.sav", the directory part taken from Config::SaveDirectory
+    static constexpr std::string_view NameFormat = "%s%d.sav";
 
-    static std::string SlotPath(std::string_view installDirectory, int slot);
-    static bool AnyExists(std::string_view installDirectory);
-    static bool IsFree(std::string_view installDirectory, int slot);
+    static std::string SlotPath(std::string_view saveDirectory, int slot);
+    static bool AnyExists(std::string_view saveDirectory);
+    static bool IsFree(std::string_view saveDirectory, int slot);
 };
 
 }  // namespace swd3

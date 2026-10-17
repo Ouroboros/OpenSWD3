@@ -10,13 +10,19 @@
 namespace swd3
 {
 
-// The rebuild's log: logs/<program>-<local date and time>-<process id>.log beside the executable, a line per message
-// ("MM-DDTHH:MM:SS.mmm [LEVEL] [thread=id] [file:line] text"). It takes SDL's log output while it exists, so SDL's own
-// messages and those of every thread go to it too; each line is written through at once.
+// The rebuild's log: <directory>/<prefix>-<local date and time>-<process id><extension> (by default logs/<program>-...
+// .log beside the executable), a line per message ("MM-DDTHH:MM:SS.mmm [LEVEL] [thread=id] [file:line] text") in
+// UTF-8. It takes SDL's log output while it exists, so SDL's own messages and those of every thread go to it too;
+// the messages below `level` are left out, each line is written through at once.
 class LogFile
 {
 public:
-    explicit LogFile(std::string_view program);
+    LogFile(
+        const std::filesystem::path& directory,
+        std::string_view prefix,
+        std::string_view extension,
+        SDL_LogPriority level
+    );
     ~LogFile();
     LogFile(const LogFile&) = delete;
     LogFile& operator=(const LogFile&) = delete;
@@ -36,5 +42,11 @@ private:
 
 // The crashes and the terminations logged before the process ends (a fault, an abort, an unhandled exception).
 void InstallCrashLog();
+
+// The directory of the executable (the working directory when SDL cannot tell).
+std::filesystem::path ProgramDirectory();
+
+// The log level of SDL's application messages and, when stricter than their defaults, of SDL's own categories.
+void SetLogLevel(SDL_LogPriority level);
 
 }  // namespace swd3

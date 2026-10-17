@@ -72,11 +72,11 @@ void SaveSlots::Free(SavePreview& preview)
 // the party (from the story flags) with their maxima and level, the names and the play time
 // swd32.exe 0x00498050 (EH unwind: the cFile, closed by its destructor)
 // swd32.exe 0x00498058 (EH handler of 0x00409600)
-void SaveSlots::LoadPreview(SavePreview& preview, int slot, const std::string& installDirectory, const Painter& painter)
+void SaveSlots::LoadPreview(SavePreview& preview, int slot, const std::string& saveDirectory, const Painter& painter)
 {
     File file;
 
-    if (!file.Open(SaveGames::SlotPath(installDirectory, slot), File::Disposition::OpenExisting, File::Access::Read))
+    if (!file.Open(SaveGames::SlotPath(saveDirectory, slot), File::Disposition::OpenExisting, File::Access::Read))
     {
         preview.state = SavePreview::Missing;
         return;
@@ -192,7 +192,7 @@ void SaveSlots::ResetActs()
 }
 
 // The previews of the page of three slots holding the newest slot.
-void SaveSlots::LoadPage(const std::string& installDirectory, const Painter& painter)
+void SaveSlots::LoadPage(const std::string& saveDirectory, const Painter& painter)
 {
     for (SavePreview& preview : this->previews)
     {
@@ -203,12 +203,7 @@ void SaveSlots::LoadPage(const std::string& installDirectory, const Painter& pai
 
     for (int index = 0; index < SaveSlots::Visible; ++index)
     {
-        SaveSlots::LoadPreview(
-            this->previews[static_cast<std::size_t>(index)],
-            first + index,
-            installDirectory,
-            painter
-        );
+        SaveSlots::LoadPreview(this->previews[static_cast<std::size_t>(index)], first + index, saveDirectory, painter);
     }
 
     this->ResetActs();
@@ -218,7 +213,7 @@ void SaveSlots::LoadPage(const std::string& installDirectory, const Painter& pai
 // later slot), then its page of previews
 // swd32.exe 0x00498070 (EH unwind: the cFile, closed by its destructor)
 // swd32.exe 0x00498078 (EH handler of 0x00409A10)
-void SaveSlots::FindNewest(const std::string& installDirectory, const Painter& painter)
+void SaveSlots::FindNewest(const std::string& saveDirectory, const Painter& painter)
 {
     i32 newestHigh = 0;
 
@@ -227,7 +222,7 @@ void SaveSlots::FindNewest(const std::string& installDirectory, const Painter& p
         File file;
 
         if (file.Open(
-                SaveGames::SlotPath(installDirectory, slot),
+                SaveGames::SlotPath(saveDirectory, slot),
                 File::Disposition::OpenExisting,
                 File::Access::ReadWrite
             ))
@@ -246,7 +241,7 @@ void SaveSlots::FindNewest(const std::string& installDirectory, const Painter& p
         file.Close();
     }
 
-    this->LoadPage(installDirectory, painter);
+    this->LoadPage(saveDirectory, painter);
 }
 
 }  // namespace swd3

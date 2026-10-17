@@ -58,15 +58,10 @@ public:
     static constexpr std::array<i32, ActsPerSlot> FrameActs = {1, 2, 8, 0x11};
 
     static void Free(SavePreview& preview);
-    static void LoadPreview(
-        SavePreview& preview,
-        int slot,
-        const std::string& installDirectory,
-        const Painter& painter
-    );
+    static void LoadPreview(SavePreview& preview, int slot, const std::string& saveDirectory, const Painter& painter);
     void ResetActs();
-    void FindNewest(const std::string& installDirectory, const Painter& painter);
-    void LoadPage(const std::string& installDirectory, const Painter& painter);
+    void FindNewest(const std::string& saveDirectory, const Painter& painter);
+    void LoadPage(const std::string& saveDirectory, const Painter& painter);
 
     std::array<std::array<ActState, ActsPerSlot>, Visible> acts;  // 0x004CB248
     std::array<SavePreview, Visible> previews;                    // 0x004CB968

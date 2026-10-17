@@ -420,7 +420,7 @@ void Game::ReloadSavePage()
         SaveSlots::LoadPreview(
             this->saveSlots.previews[static_cast<std::size_t>(index)],
             first + index,
-            this->config.installDirectory,
+            this->config.SaveDirectory(),
             this->painter
         );
     }
@@ -601,7 +601,7 @@ Game::SlotsStep Game::SlotsMouse()
 
         if (click == 2 && mouse.heldFrames != 0)
         {
-            const bool free = SaveGames::IsFree(this->config.installDirectory, this->saveSlots.newest);
+            const bool free = SaveGames::IsFree(this->config.SaveDirectory(), this->saveSlots.newest);
 
             if (this->unk4CAEC0 == 0)
             {
@@ -785,7 +785,7 @@ Game::SlotsStep Game::SlotsKeys()
 
     if (this->unk4CAEC0 != 0)
     {
-        if (SaveGames::IsFree(this->config.installDirectory, this->saveSlots.newest))
+        if (SaveGames::IsFree(this->config.SaveDirectory(), this->saveSlots.newest))
         {
             this->audio.PlaySound(kEmptySlotSound, this->config.soundVolume);
             this->unk4CC298 = kBrowsing;
@@ -798,7 +798,7 @@ Game::SlotsStep Game::SlotsKeys()
     switch (this->unk4CC298)
     {
         case kBrowsing:
-            if (!SaveGames::IsFree(this->config.installDirectory, this->saveSlots.newest))
+            if (!SaveGames::IsFree(this->config.SaveDirectory(), this->saveSlots.newest))
             {
                 this->unk4CC298 = kOverwriteYes;
                 return SlotsStep::Done;
@@ -835,7 +835,7 @@ void Game::SaveGame()
     File file;
 
     if (file.Open(
-            SaveGames::SlotPath(this->config.installDirectory, this->saveSlots.newest),
+            SaveGames::SlotPath(this->config.SaveDirectory(), this->saveSlots.newest),
             File::Disposition::OpenAlways,
             File::Access::ReadWrite
         ))
@@ -1072,7 +1072,7 @@ void Game::LoadGame()
     File file;
 
     if (file.Open(
-            SaveGames::SlotPath(this->config.installDirectory, this->saveSlots.newest),
+            SaveGames::SlotPath(this->config.SaveDirectory(), this->saveSlots.newest),
             File::Disposition::OpenExisting,
             File::Access::Read
         ))

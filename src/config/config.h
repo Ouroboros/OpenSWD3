@@ -91,6 +91,15 @@ public:
     i32 debugMode = 0;             // 0x004CAE98 debug hot keys
     std::array<u16, Channels> channelMasks = Config::DefaultChannelMasks;
     std::array<i32, Keys> keys = {};  // 0x004B7384 DirectInput scan codes of the key slots
+
+    // The rebuild's [paths] save_dir with a trailing separator; empty: the original <installDirectory>save\.
+    std::string saveDirectory;
+
+    // The directory of the numbered saves (with a trailing separator).
+    std::string SaveDirectory() const
+    {
+        return this->saveDirectory.empty() ? this->installDirectory + "save\\" : this->saveDirectory;
+    }
 };
 
 }  // namespace swd3

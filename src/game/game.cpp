@@ -330,7 +330,12 @@ int Game::Run(std::string_view commandLine)
 
     ErrorLog(kLogSeparator);
 
-    if (!this->display.Open(Utf8Chars(Game::WindowTitle)))
+    if (!this->display.Open(
+            Utf8Chars(Game::WindowTitle),
+            this->host.windowWidth,
+            this->host.windowHeight,
+            this->host.windowMaximized
+        ))
     {
         return 0;
     }
@@ -418,7 +423,7 @@ void Game::Start()
     this->InitInstall();
     this->state.ClearGameFlag(Launcher::SavedGameFlag);
 
-    if (SaveGames::AnyExists(this->config.installDirectory))
+    if (SaveGames::AnyExists(this->config.SaveDirectory()))
     {
         this->state.SetGameFlag(Launcher::SavedGameFlag);
     }
@@ -440,17 +445,21 @@ void Game::Start()
     {
         case Launcher::Choice::Continue:
             this->StartGraphics();
+            LogInfo(u8"graphics started");
             this->menuState = Game::NoMenu;
             this->menuMode = Menu::TitleLoadMode;
             this->storyState = Game::SaveSlotsState;
             this->unk4CAEBC = 1;
             this->unk4CAEC0 = 1;
             this->ResetSaveSlots();
-            this->saveSlots.FindNewest(this->config.installDirectory, this->painter);
+            LogInfo(u8"save slots reset");
+            this->saveSlots.FindNewest(this->config.SaveDirectory(), this->painter);
+            LogInfo(u8"newest save slot=%d", this->saveSlots.newest);
             break;
 
         case Launcher::Choice::Start:
             this->StartGraphics();
+            LogInfo(u8"graphics started");
             break;
 
         case Launcher::Choice::Exit:
@@ -548,6 +557,7 @@ void Game::InitInstall()
     settings.battleSpeed = kDefaultBattleSpeed;
     this->cdDriveCount = this->FindCdDrives(settings.cdRoot);
     settings.Load(this->unknown14, this->effectsOff);
+    this->ApplyHostPaths();
     this->SizeCaches();
     this->mapCache.Check(MapCache::CheckSessionMark);
     this->MakeDirectory("Save");
@@ -608,6 +618,38 @@ void Game::MakeDirectory(std::string_view name)
 {
     std::error_code error;
     std::filesystem::create_directory(ResolvePath(Concat({this->config.installDirectory, name})), error);
+}
+
+// The rebuild's [paths] of <program>.cfg over the install directory Env.dat gave (data_dir) and the save directory
+// (save_dir, created when missing); both with a trailing separator as the game's paths.
+void Game::ApplyHostPaths()
+{
+    auto gamePath = [](const std::filesystem::path& path)
+    {
+        const std::u8string text = path.u8string();
+        std::string out(text.begin(), text.end());
+
+        if (!out.empty() && out.back() != '\\' && out.back() != '/')
+        {
+            out += '\\';
+        }
+
+        return out;
+    };
+
+    if (!this->host.dataDirectory.empty())
+    {
+        this->config.installDirectory = gamePath(this->host.dataDirectory);
+        LogInfo(u8"data_dir=%s (over Env.dat)", AsUtf8(this->config.installDirectory));
+    }
+
+    if (!this->host.saveDirectory.empty())
+    {
+        this->config.saveDirectory = gamePath(this->host.saveDirectory);
+        std::error_code error;
+        std::filesystem::create_directories(this->host.saveDirectory, error);
+        LogInfo(u8"save_dir=%s", AsUtf8(this->config.saveDirectory));
+    }
 }
 
 // swd32.exe 0x00424910
@@ -1169,7 +1211,7 @@ void Game::ResetSaveSlots()
     this->unk4CC298 = 0;
     this->unk4CB240 = 0;
     ResetPlayback(this->unk4CC200);
-    this->saveSlots.LoadPage(this->config.installDirectory, this->painter);
+    this->saveSlots.LoadPage(this->config.SaveDirectory(), this->painter);
 }
 
 // swd32.exe 0x0040F160: a new story: maps.dat again, the starting state, the menus and an empty world, the leader of

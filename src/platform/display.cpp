@@ -58,7 +58,7 @@ Display::~Display()
     }
 }
 
-bool Display::Open(const std::string& title)
+bool Display::Open(const std::string& title, int width, int height, bool maximized)
 {
     if (!SDL_WasInit(SDL_INIT_VIDEO) && !SDL_InitSubSystem(SDL_INIT_VIDEO))
     {
@@ -66,15 +66,10 @@ bool Display::Open(const std::string& title)
         return false;
     }
 
-    const SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
-    const bool created = SDL_CreateWindowAndRenderer(
-        title.c_str(),
-        Display::DefaultWindowWidth,
-        Display::DefaultWindowHeight,
-        flags,
-        &this->window,
-        &this->renderer
-    );
+    const SDL_WindowFlags flags =
+        SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY | (maximized ? SDL_WINDOW_MAXIMIZED : SDL_WindowFlags{0});
+    const bool created =
+        SDL_CreateWindowAndRenderer(title.c_str(), width, height, flags, &this->window, &this->renderer);
 
     if (!created)
     {
@@ -100,9 +95,10 @@ bool Display::Open(const std::string& title)
     SDL_SetTextureScaleMode(this->texture, SDL_SCALEMODE_NEAREST);
     const char* driver = SDL_GetRendererName(this->renderer);
     LogInfo(
-        u8"display open window=%dx%d renderer=%s",
-        Display::DefaultWindowWidth,
-        Display::DefaultWindowHeight,
+        u8"display open window=%dx%d maximized=%d renderer=%s",
+        width,
+        height,
+        maximized ? 1 : 0,
         AsUtf8(driver != nullptr ? driver : "")
     );
     return true;

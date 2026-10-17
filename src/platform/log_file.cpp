@@ -17,9 +17,8 @@ namespace swd3
 namespace
 {
 
-constexpr std::string_view kLogDirectory = "logs";
-constexpr std::string_view kLogExtension = ".log";
 constexpr int kNanosecondsPerMillisecond = 1000000;
+constexpr int kSdlCategories = SDL_LOG_CATEGORY_CUSTOM;  // SDL's own categories come before the custom ones
 constexpr std::size_t kPrefixBytes = 0x60;
 
 // The name of a level in the log.
@@ -74,8 +73,8 @@ SDL_DateTime Now()
     return now;
 }
 
-// The file name of the log: the program, the local date and time, the process id.
-std::string LogName(std::string_view program)
+// The file name of the log: the prefix, the local date and time, the process id, the extension.
+std::string LogName(std::string_view prefix, std::string_view extension)
 {
     const SDL_DateTime now = Now();
     std::array<char, kPrefixBytes> stamp = {};
@@ -91,10 +90,17 @@ std::string LogName(std::string_view program)
         now.second,
         ProcessId()
     );
-    return std::string(program) + stamp.data() + std::string(kLogExtension);
+    return std::string(prefix) + stamp.data() + std::string(extension);
 }
 
-// The directory of the executable.
+void Terminated()
+{
+    SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "std::terminate called (an unhandled exception)");
+    std::abort();
+}
+
+}  // namespace
+
 std::filesystem::path ProgramDirectory()
 {
     const char* base = SDL_GetBasePath();
@@ -109,24 +115,33 @@ std::filesystem::path ProgramDirectory()
     return std::filesystem::path(std::u8string(text.begin(), text.end()));
 }
 
-void Terminated()
+void SetLogLevel(SDL_LogPriority level)
 {
-    SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "std::terminate called (an unhandled exception)");
-    std::abort();
+    SDL_SetLogPriority(SDL_LOG_CATEGORY_APPLICATION, level);
+
+    for (int category = 0; category < kSdlCategories; ++category)
+    {
+        if (category != SDL_LOG_CATEGORY_APPLICATION && SDL_GetLogPriority(category) < level)
+        {
+            SDL_SetLogPriority(category, level);
+        }
+    }
 }
 
-}  // namespace
-
-LogFile::LogFile(std::string_view program)
+LogFile::LogFile(
+    const std::filesystem::path& directory,
+    std::string_view prefix,
+    std::string_view extension,
+    SDL_LogPriority level
+)
 {
     std::error_code error;
-    const std::filesystem::path directory = ProgramDirectory() / kLogDirectory;
     std::filesystem::create_directories(directory, error);
-    this->path = directory / LogName(program.empty() ? std::string_view("swd3r") : program);
+    this->path = directory / LogName(prefix.empty() ? std::string_view("swd3r") : prefix, extension);
     this->stream.open(this->path, std::ios::out | std::ios::trunc | std::ios::binary);
     SDL_GetLogOutputFunction(&this->previous, &this->previousData);
     SDL_SetLogOutputFunction(&LogFile::Output, this);
-    SDL_SetLogPriority(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_DEBUG);
+    SetLogLevel(level);
 }
 
 LogFile::~LogFile()

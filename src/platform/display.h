@@ -50,7 +50,13 @@ public:
     Display(const Display&) = delete;
     Display& operator=(const Display&) = delete;
 
-    bool Open(const std::string& title);
+    // The window of `width` x `height` (maximised with `maximized`).
+    bool Open(
+        const std::string& title,
+        int width = DefaultWindowWidth,
+        int height = DefaultWindowHeight,
+        bool maximized = false
+    );
 
     bool IsOpen() const
     {

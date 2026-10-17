@@ -42,6 +42,7 @@
 #include "platform/display.h"
 #include "platform/exe_resources.h"
 #include "platform/glyph_rasterizer.h"
+#include "platform/host_settings.h"
 #include "platform/input_device.h"
 #include "platform/message_box.h"
 #include "platform/surface.h"
@@ -123,10 +124,13 @@ public:
 
     int Run(std::string_view commandLine);
 
+    HostSettings host;  // the rebuild's <program>.cfg (set before Run)
+
 private:
     void Start();
     Launcher::Choice RunLauncher();
     void InitInstall();
+    void ApplyHostPaths();
     int FindCdDrives(std::string& firstDrive);
     void SizeCaches();
     void MakeDirectory(std::string_view name);
