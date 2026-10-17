@@ -41,11 +41,15 @@
 - 指向 `.text` 的数据值（`ida/text_pointer_scan.tsv`）：函数起点 139；函数内部目标为 switch 表与 SEH scope table（filter／handler）项；`mid_instruction`／`not_code` 值经抽查来自字符串、MSVC 对齐填充 `8D 49 00` 及普通数值，暂判为巧合值，GOAL 中对相关数据结构还原时复核。
 - SP 审计（`ida/sp_audit.tsv`）：17 个函数 22 处 `ret` 的 SP 差值非 0，全部位于 CRT（SEH 过滤表达式 `retn`、`__alloca_probe`、`jmp eax` 后的死尾声），游戏代码区无此类异常。
 
-## 未闭合缺口
+## 缺口闭合（2026-10-17，还原完成后）
 
-| 缺口 | 数量 | 说明与后续处理 |
+核对脚本与输出在 `reverse/evidence/scope/`：`scope_audit.py` 扫描全部汇编中指向 `.text` 的立即数地址（`offset …`）与 `ida/indirect_sites.tsv` 的未解析间接转移（`indirect_and_immediates.txt`）；`ptrscan.py` 按段、目标角色与槽名归类 `ida/text_pointer_scan.tsv` 的 1497 个数据槽（`data_pointers.txt`）。
+
+| 缺口 | 结论 | 依据 |
 | --- | --- | --- |
-| 未解析间接 call | 170（73 个函数） | `call [reg+off]` 为主（DirectDraw／DirectInput COM 方法、C++ 虚函数），另有 `call esi`／`call ebp` 缓存的 API 指针。GOAL 中按对象类型还原 vtable 并确认目标均已在函数表 |
-| 未解析间接 jmp | 33 | `sub_417950`、`sub_419570`、`sub_41A3B0`、`sub_41B9F0`、`sub_41D340`、`sub_41E5C0` 的 `jmp ebx` 块分派（同 `sub_417EC0` 模式，目标块已在本函数内）；CRT memcpy／`_JumpToContinuation` 等 |
-| 函数指针表 | `0x43B4xx`–`0x43B9xx` 一组 | 菜单／状态回调表，目标已全部建为函数；表的结构与含义待 menu 模块还原时确认 |
-| 函数全集 | 待确定 | 上述缺口全部核对完成前，1626 只是已识别函数数，函数总数仍记为待确定 |
+| 代码中取地址的 `.text` 目标 | 186 个，182 个是函数表中的函数起点 | 其余 4 个：`0x487AC0`（dinput 的 `c_dfDIKeyboard` 数据）与 `_UnwindNestedFrames`、`_CallSETranslator`、`__global_unwind2` 交给 RtlUnwind／SEH 的本函数内续行标号 |
+| 未解析间接 call（170） | 目标均不在函数表外 | 121 处为 DirectDraw／DirectInput COM 方法（`[reg+14h]` Blt、`+6Ch` Restore、`+8` Release 等，外部 DLL）；9 处寄存器调用为缓存的 API 指针、菜单的帧前处理槽与 `_CallSettingFrame` 的 funclet；40 处经全局指针（菜单处理槽与页表、绘图函数表、CRT 钩子、SEH scope table、向量构造／析构迭代器的函数参数），其取值都来自上行的立即数或下行的数据指针，即函数起点 |
+| 未解析间接 jmp（33） | 本函数内目标 | 22 处 `jmp ebx` 块分派（6 个绘图函数，块表由本函数的 `lea` 写入）；菜单绘制表一处；其余为 CRT 的 memcpy／memmove 跳转表与 `_JumpToContinuation` 等 |
+| 数据中指向 `.text` 的值（1497） | 全部归类 | 139 个函数起点；1101 个 switch 表项；96 个块分派立即数；31 个 SEH scope table 项；引用跳转表／索引表的数据地址；指向指令中间的值不可能是入口；落在指令边界的 7 个数据值经核对为导入名称串（`0x49D10C`、`0x49D300`、`0x49D7B0`）、Big5 文字（`0x49FFF0`）与 16 位数对表（`0x4A7C0C`、`0x4A7C10`、`0x4A83DC`） |
+| 函数指针表 `0x43B4xx` 一组 | 已还原 | 即菜单 `SetPage`（0x0043B480）为各页模式写入处理槽的立即数，目标全在函数表 |
+| 函数全集 | 1626 | 间接转移能到达的 `.text` 目标只有上述函数起点与本函数内标号，函数外代码头为 0，故函数表即全集 |

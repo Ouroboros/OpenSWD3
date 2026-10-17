@@ -1,0 +1,125 @@
+.text inside_func name=jpt offset=1: 1101
+.text inside_func name=- offset=0: 96
+    0x0041797C -> 0x00417DA7 func=0x00417950 name= dec     edx
+    0x004179AC -> 0x00417B71 func=0x00417950 name= mov     eax, [edi]
+    0x004179D0 -> 0x00417C1C func=0x00417950 name= mov     eax, [esi]
+    0x00417A00 -> 0x00417D36 func=0x00417950 name= mov     eax, [esi]
+    0x00417EFC -> 0x00417FF4 func=0x00417EC0 name= mov     eax, [edi]
+    0x00417F20 -> 0x0041809F func=0x00417EC0 name= mov     eax, [edi]
+    0x00417F50 -> 0x004181BC func=0x00417EC0 name= mov     eax, [esi]
+    0x00417F74 -> 0x00418267 func=0x00417EC0 name= mov     eax, [esi]
+    0x004195E0 -> 0x00419E3B func=0x00419570 name= mov     eax, [edi]
+    0x00419610 -> 0x00419F04 func=0x00419570 name= mov     eax, [edi]
+    0x00419634 -> 0x00419F6F func=0x00419570 name= mov     eax, [edi]
+    0x00419664 -> 0x00419FED func=0x00419570 name= mov     eax, [esi]
+.text func_start name=- offset=0: 48
+.rdata func_start name=- offset=0: 39
+.text not_code name=- offset=1: 36
+    0x0040F8D8 -> 0x00410354 func= name= 
+    0x00410768 -> 0x00411018 func= name= 
+    0x004112C0 -> 0x0041144C func= name= 
+    0x00415DE0 -> 0x00415ECC func= name= 
+    0x004236F4 -> 0x00423898 func= name= 
+    0x00432508 -> 0x00432A18 func= name= 
+    0x0043F810 -> 0x0043F864 func= name= 
+    0x0044967C -> 0x00449C1C func= name= 
+    0x0044B700 -> 0x0044B81C func= name= 
+    0x0044BA40 -> 0x0044BBA0 func= name= 
+    0x0044BAAC -> 0x0044BBB8 func= name= 
+    0x0044BBF0 -> 0x0044BD70 func= name= 
+.data func_start name=- offset=0: 33
+.rdata inside_func name=stru offset=0: 31
+    0x0049BBE0 -> 0x0048A531 func=0x0048A4C0 name=stru_49BBD8 cmp     [ebp+var_20], 0
+    0x0049BBF0 -> 0x0048A5D5 func=0x0048A560 name=stru_49BBE8 cmp     [ebp+var_1C], 0
+    0x0049BBFC -> 0x0048A666 func=0x0048A610 name=stru_49BBF8 mov     edx, [ebp+ms_exc.exc_ptr]
+    0x0049BC00 -> 0x0048A673 func=0x0048A610 name=stru_49BBF8 mov     esp, [ebp+ms_exc.old_esp]
+    0x0049BC0C -> 0x0048A85F func=0x0048A740 name=stru_49BC08 mov     ecx, [ebp+ms_exc.exc_ptr]
+    0x0049BC10 -> 0x0048A87A func=0x0048A740 name=stru_49BC08 mov     esp, [ebp+ms_exc.old_esp]
+    0x0049BE84 -> 0x0048DFC9 func=0x0048DF30 name=stru_49BE80 mov     ecx, [ebp+ms_exc.exc_ptr]
+    0x0049BE88 -> 0x0048DFD6 func=0x0048DF30 name=stru_49BE80 mov     esp, [ebp+ms_exc.old_esp]
+    0x0049BE98 -> 0x0048E1F3 func=0x0048E120 name=stru_49BE90 mov     edx, [ebp+arg_4]
+    0x0049BEA0 -> 0x0048E1B4 func=0x0048E120 name=stru_49BE90 mov     eax, [ebp+ms_exc.exc_ptr]
+    0x0049BEA4 -> 0x0048E1C1 func=0x0048E120 name=stru_49BE90 mov     esp, [ebp+ms_exc.old_esp]
+    0x0049BEAC -> 0x0048E51C func=0x0048E2C0 name=stru_49BEA8 mov     eax, 1
+.text mid_instruction name=- offset=0: 23
+    0x00401718 -> 0x00448D07 func=0x00448CA0 name= 
+    0x0040492C -> 0x00458BFF func=0x004582B0 name= 
+    0x00404A1C -> 0x00458BFF func=0x004582B0 name= 
+    0x00411D74 -> 0x0040B9AB func=0x0040B7F0 name= 
+    0x00412118 -> 0x00482024 func=0x00481FD0 name= 
+    0x00425E34 -> 0x00458B2C func=0x004582B0 name= 
+    0x00428034 -> 0x004446C7 func=0x004442B0 name= 
+    0x004325E0 -> 0x004347E9 func=0x00434790 name= 
+    0x004353C4 -> 0x0046E8F1 func=0x0046E890 name= 
+    0x0043A8DC -> 0x0046BE05 func=0x00469D20 name= 
+    0x0044EF44 -> 0x0040BF00 func=0x0040BB50 name= 
+    0x0044F8B4 -> 0x00458910 func=0x004582B0 name= 
+.text not_code name=- offset=0: 21
+    0x0042B0E0 -> 0x0042D80C func= name= 
+    0x00431364 -> 0x004315A0 func= name= 
+    0x004342CC -> 0x00498D00 func= name= 
+    0x00438D68 -> 0x00498D00 func= name= 
+    0x00443BE8 -> 0x00444184 func= name= 
+    0x00445CB8 -> 0x00445E78 func= name= 
+    0x00445EB8 -> 0x00446074 func= name= 
+    0x004460B8 -> 0x00446244 func= name= 
+    0x00446288 -> 0x00446408 func= name= 
+    0x0045FCFC -> 0x00460C20 func= name= 
+    0x00460C60 -> 0x00461220 func= name= 
+    0x00461260 -> 0x004618D4 func= name= 
+.text inside_func name=- offset=1: 21
+    0x00489A2C -> 0x00489A38 func=0x00489A20 name= pop     ebp
+    0x00489F14 -> 0x00489F20 func=0x00489EB0 name= and     edx, ecx
+    0x00489F18 -> 0x00489F4C func=0x00489EB0 name= and     edx, ecx
+    0x00489F1C -> 0x00489F70 func=0x00489EB0 name= and     edx, ecx
+    0x0048A124 -> 0x0048A144 func=0x00489EB0 name= mov     eax, [esi+ecx*4+1Ch]
+    0x0048A128 -> 0x0048A14C func=0x00489EB0 name= mov     eax, [esi+ecx*4+18h]
+    0x0048A12C -> 0x0048A154 func=0x00489EB0 name= mov     eax, [esi+ecx*4+14h]
+    0x0048A130 -> 0x0048A15C func=0x00489EB0 name= mov     eax, [esi+ecx*4+10h]
+    0x0048A134 -> 0x0048A164 func=0x00489EB0 name= mov     eax, [esi+ecx*4+0Ch]
+    0x0048A138 -> 0x0048A16C func=0x00489EB0 name= mov     eax, [esi+ecx*4+8]
+    0x0048A13C -> 0x0048A174 func=0x00489EB0 name= mov     eax, [esi+ecx*4+4]
+    0x00492444 -> 0x00492450 func=0x004923E0 name= and     edx, ecx
+.data func_start name=off offset=1: 12
+.rdata mid_instruction name=- offset=0: 10
+    0x0049CFF8 -> 0x0041656C func=0x004163C0 name= 
+    0x0049D100 -> 0x0041786F func=0x00417840 name= 
+    0x0049D1D4 -> 0x0041726F func=0x004170E0 name= 
+    0x0049D1E0 -> 0x00416E6F func=0x00416D90 name= 
+    0x0049D1F0 -> 0x00417845 func=0x00417840 name= 
+    0x0049D268 -> 0x00417478 func=0x004170E0 name= 
+    0x0049D2BC -> 0x00417478 func=0x004170E0 name= 
+    0x0049D334 -> 0x00417463 func=0x004170E0 name= 
+    0x0049DB58 -> 0x0041656E func=0x004163C0 name= 
+    0x0049DC6C -> 0x00417367 func=0x004170E0 name= 
+.data inside_func name=- offset=0: 4
+    0x0049FFF0 -> 0x0046A462 func=0x00469D20 name= shl     ecx, 3
+    0x004A7C0C -> 0x0046FFBA func=0x0046FF00 name= mov     cx, [esi+0D64h]
+    0x004A7C10 -> 0x0046FFBA func=0x0046FF00 name= mov     cx, [esi+0D64h]
+    0x004A83DC -> 0x00480020 func=0x0047FC40 name= jz      loc_4800A9
+.data func_start name=- offset=1: 4
+.text func_start name=- offset=1: 3
+.text mid_instruction name=loc offset=0: 3
+    0x0042C584 -> 0x00402C24 func=0x00402AE0 name=loc_42C582 
+    0x0043028C -> 0x00458B14 func=0x004582B0 name=loc_430289 
+    0x004514F8 -> 0x00427F83 func=0x00427920 name=loc_4514F7 
+.rdata inside_func name=- offset=0: 3
+    0x0049D10C -> 0x00416674 func=0x00416590 name= call    sub_439070
+    0x0049D300 -> 0x0041676E func=0x00416590 name= add     [esi-4], ax
+    0x0049D7B0 -> 0x00420000 func=0x0041FEA0 name= mov     ebx, eax
+.text not_code name=byte offset=0: 2
+    0x0042D8A8 -> 0x00498D04 func= name=byte_42D80C 
+    0x00484CF0 -> 0x00498D03 func= name=byte_484C8C 
+.text mid_instruction name=- offset=1: 2
+    0x00489EE8 -> 0x00489FF8 func=0x00489EB0 name= 
+    0x00492418 -> 0x00492528 func=0x004923E0 name= 
+.text inside_func name=loc offset=0: 1
+    0x00441DD4 -> 0x00458A00 func=0x004582B0 name=loc_441DCE push    eax
+.rdata mid_instruction name=aDamaged offset=0: 1
+    0x0049B980 -> 0x00444547 func=0x004442B0 name=aDamaged 
+.rdata mid_instruction name=aMessageboxa offset=0: 1
+    0x0049C3C4 -> 0x0041786F func=0x00417840 name=aMessageboxa 
+.data mid_instruction name=ProcName offset=0: 1
+    0x004A0350 -> 0x00417845 func=0x00417840 name=ProcName 
+.data mid_instruction name=- offset=0: 1
+    0x004A70B0 -> 0x00424D64 func=0x00424B90 name= 

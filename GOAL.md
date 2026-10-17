@@ -20,21 +20,21 @@
 
 ## 整体进度
 
-- 当前阶段：第 2 阶段（还原），按版本 3 架构重建。
+- 当前阶段：第 3 阶段（验证），按版本 3 架构。
 - 已识别函数数：1626（无 FLIRT 数据库导出；函数外代码头 0）。
-- 函数总数：待确定（间接调用目标与函数指针表尚未全部核对，见 reverse/analysis/scope-and-gaps.md）。
-- 已实现／总数：1626／待确定（已识别 1626）；旧逐句转写实现（804 个）保存在标签 legacy-transliteration，仅作参考。
-- 已验证／总数：0／待确定（已识别 1626）。
-- 待实现／待验证：0／1626（按已识别函数计）。
-- 模块初分：已归属 884，unknown 742（reverse/analysis/module_assignment.tsv）。
+- 函数总数：1626（范围缺口已闭合，见 reverse/analysis/scope-and-gaps.md 与 reverse/evidence/scope/）。
+- 已实现／总数：1626／1626；静态链接的 CRT 与导入跳转按 AGENTS.md 映射到标准库或平台层；旧逐句转写实现（804 个）保存在标签 legacy-transliteration，仅作参考。
+- 已验证／总数：0／1626。
+- 待实现／待验证：0／1626。
+- 模块归属：1626 个全部归属（reverse/functions.tsv 的 module 列）。
 
 ## 当前工作
 
-按 reverse/analysis/architecture.md 自底向上重建。已完成：骨架与窗口 Display、文件、LZO、绘制核心 Painter、RLE 编解码、tsw/act 档案与动作脚本、Graphics、MemMgr、TextFont（自带细明体点阵字库 GlyphLibrary）、Input、音频（AudioDevice 与 Miles 封装）、Bink 影片（Movie 与 MediaDecoder）、随机数、游戏状态基础、文字输入框、配置（Env.dat）、按键状态、投影与粒子效果、A* 寻路、数据库（mon.dat／level.dat）、道具链表、LZO 压缩器（经原版存档逐字节验证）、名声与计数表（经原版存档逐字节验证）、队伍数据与升级、界面绘制、战斗界面绘制辅助（BattleHud）、战斗道具列表（BattleState）、战斗单位（BattleUnit 大部分方法与状态效果、BattleRole／BattleEnemy 构造与复位）、战斗讯息、启动器、游戏初始化链、新游戏起始状态、菜单核心与系统页（标题、设定、姓名输入）、存档预览、地图载入与绘制（Field、FieldView）、角色控制与路径（RoleControl、RolePath）、对话窗（Talk）、剧本解释器（0x427920 全部指令）与影片播放帧；各模块以旧实现生成的黄金数据逐项对照（reverse/analysis/golden/）。函数说明由 scripts/register.sh 写入函数表 notes 列，全局变量对照见 reverse/analysis/globals.tsv。
+第 2 阶段已完成：全部 1626 个函数已实现（含菜单各角色页、窗口生命周期与退出释放、动态初始化、异常处理小函数、CRT 映射、作弊与姓名对话框），范围缺口已闭合；重建版加了运行日志（exe 同目录 logs/，用户 2026-10-17 要求）。按 reverse/analysis/architecture.md 自底向上重建的模块：骨架与窗口 Display、文件、LZO、绘制核心 Painter、RLE 编解码、tsw/act 档案与动作脚本、Graphics、MemMgr、TextFont（自带细明体点阵字库 GlyphLibrary）、Input、音频（AudioDevice 与 Miles 封装）、Bink 影片（Movie 与 MediaDecoder）、随机数、游戏状态基础、文字输入框、配置（Env.dat）、按键状态、投影与粒子效果、A* 寻路、数据库（mon.dat／level.dat）、道具链表、LZO 压缩器（经原版存档逐字节验证）、名声与计数表（经原版存档逐字节验证）、队伍数据与升级、界面绘制、战斗界面绘制辅助（BattleHud）、战斗道具列表（BattleState）、战斗单位（BattleUnit 大部分方法与状态效果、BattleRole／BattleEnemy 构造与复位）、战斗讯息、启动器、游戏初始化链、新游戏起始状态、菜单核心与系统页（标题、设定、姓名输入）、存档预览、地图载入与绘制（Field、FieldView）、角色控制与路径（RoleControl、RolePath）、对话窗（Talk）、剧本解释器（0x427920 全部指令）与影片播放帧；各模块以旧实现生成的黄金数据逐项对照（reverse/analysis/golden/）。函数说明由 scripts/register.sh 写入函数表 notes 列，全局变量对照见 reverse/analysis/globals.tsv。
 
 ## 下一步
 
-新游戏可进入开场剧情（事件 100：开场影片、黑屏动画、淡入与对话）。src 与 tests 的魔数已全部改为具名常量（剩余的减半、两侧加倍、未知布局字段的数组长度与取自 exe 数据的初值按约定保留），接口统一为 UTF-8。战斗对话解释器 0x469D20 的调用闭包已全部实现。下一步按启动路径接入 0x40A570 的战斗分支，随后是存档读取与剧情帧（0x406E30、0x4070A0、0x4094A0、0x409540、0x409CE0、0x408CF0／D70／E70，先写存档格式文档）、主循环 0x40A570／0x40A0D0／0x409EC0、窗口过程其余消息与菜单角色页。部分已登记函数依赖尚缺的部分，在函数表中保持待实现：菜单 Run／SetPage／InitActs（角色页）、StartStory（LoadCity）、主循环与窗口过程。
+第 3 阶段：从函数表第一行开始逐函数重新依据汇编对照源码（分支、出口、位宽、溢出、调用顺序、随机数消费、状态副作用与时序），同时核对所依赖的常量表、全局数据与资源；修正差异后标记 assembly_exact，每轮对照结果记入 reverse/evidence/，累计 verification_count。并行事项：用户在 Windows 上运行 build/windows/swd3r.exe，按 logs/ 下的日志排查启动崩溃，直到可正常游玩。
 
 ## GOAL完成条件
 
@@ -54,5 +54,5 @@
 - 范围与缺口：reverse/analysis/scope-and-gaps.md
 - 分析入口与 IDAT 用法：reverse/analysis/README.md
 - 代码架构：reverse/analysis/architecture.md；已知偏差：reverse/analysis/deviations.md
-- 验证证据：reverse/evidence/（尚无）
+- 验证证据：reverse/evidence/（范围核对 scope/；逐函数验证按轮次记录）
 - 临时目录：tmp/
