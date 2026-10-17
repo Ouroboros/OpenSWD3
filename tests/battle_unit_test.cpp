@@ -1,5 +1,7 @@
 #include <algorithm>
 #include <cstring>
+#include <memory>
+#include <string>
 #include <string_view>
 
 #include <SDL3/SDL.h>
@@ -16,7 +18,9 @@
 #include "crt/msvc.h"
 #include "draw/painter.h"
 #include "font/text_font.h"
+#include "game/scene.h"
 #include "game_data.h"
+#include "org/database.h"
 #include "org/object_record.h"
 #include "party/party.h"
 #include "pic/rle.h"
@@ -464,4 +468,288 @@ TEST_CASE("battle unit: the stagger tables match swd32.exe")
     CHECK(swd3test::SameTable(exe, kStaggerShakeAt, swd3::BattleUnit::StaggerShake));
     CHECK(swd3test::SameTable(exe, kStaggerLiftAt, swd3::BattleUnit::StaggerLift));
     CHECK(swd3test::SameTable(exe, kStaggerRiseAt, swd3::BattleUnit::StaggerRise));
+}
+
+namespace
+{
+
+constexpr swd3::u16 kEnemyLevel = 20;
+constexpr swd3::u8 kCatchChance = 10;  // unk91: a roll of 0..9 below it always catches
+constexpr int kNearAbove = 5;          // exactly this many levels above uses unk91
+constexpr int kNearerAbove = 4;
+constexpr int kMidAbove = 6;   // 6..10 above: 5 in 10
+constexpr int kFarAbove = 11;  // more than 10 above: 8 in 10
+constexpr swd3::u32 kUnusedCatchRoll = 12;
+constexpr swd3::u32 kCatchRoll = 10;
+constexpr swd3::u16 kMidCatch = 5;
+constexpr swd3::u16 kFarCatch = 8;
+constexpr swd3::u16 kAccessory19 = 0x19;
+constexpr swd3::u16 kAccessory1C = 0x1C;
+constexpr swd3::u16 kAccessory1D = 0x1D;
+constexpr swd3::u16 kAccessory20 = 0x20;
+constexpr swd3::u16 kSpiritFan = 0x39;
+constexpr swd3::u32 kAccessory19Bit = 0x10;  // unk26CC bit set by accessory 0x19
+constexpr swd3::u32 kAccessory1DBit = 0x100;
+constexpr swd3::u16 kAccessoryCost = 30;
+constexpr swd3::i16 kLowStamina = 20;
+constexpr swd3::i16 kStamina = 40;
+constexpr swd3::u16 kEffectTick = 0xF;
+constexpr swd3::u16 kPoison = 20;
+constexpr swd3::u16 kPoisonTurns = 2;
+constexpr swd3::u32 kStaminaDrainBits = 0x2000000;
+constexpr swd3::i16 kTooLittleStamina = 9;
+constexpr std::string_view kNoData = "/swd3-test-no-data/";
+constexpr swd3::u16 kEnemyAttack = 15;
+constexpr swd3::u32 kIdleRoll = 2;  // the unused roll when no idle turn has passed
+constexpr swd3::u16 kSkill = 0x123;
+constexpr swd3::u8 kSureSkill = 10;  // a skill chance no roll of 0..9 reaches
+constexpr swd3::u32 kFirstSkillRoll = 6;
+constexpr swd3::u16 kAttackValue = 100;
+constexpr swd3::u16 kSpread = 5;
+constexpr swd3::u16 kSpreadBase = 5;
+constexpr swd3::i16 kTargetDefense = 30;
+constexpr swd3::i16 kHighDefense = 500;
+constexpr swd3::u16 kLevelShare = 3;
+constexpr swd3::u16 kLevelRollBase = 3;
+constexpr swd3::u16 kHeal = 45;
+constexpr int kInside = 10;
+constexpr int kPitch = 640;
+constexpr int kLines = 480;
+constexpr int kGrid = 200;
+constexpr int kPastRight = 600;
+constexpr int kPastBottom = 400;
+
+}  // namespace
+
+TEST_CASE("battle unit: the catch roll")
+{
+    using swd3::BattleUnit;
+    Services all;
+    swd3::ObjectRecord object;
+    object.data.level = kEnemyLevel;
+    BattleUnit enemy;
+    enemy.data = &object;
+    swd3::Random reference;
+
+    auto catches = [&](int above, swd3::u32 seed)
+    {
+        all.random.Seed(seed);
+        reference.Seed(seed);
+        return enemy.CatchRoll(all.services, static_cast<swd3::u8>(kEnemyLevel + above));
+    };
+
+    enemy.marks = BattleUnit::UnkMark800;
+    CHECK_EQ(catches(kNearAbove, kSeed), 0);
+    CHECK_EQ(all.random.Below(kCatchRoll), reference.Below(kCatchRoll));
+    enemy.marks = 0;
+    CHECK_EQ(catches(kNearAbove, kSeed), 0);
+    reference.Below(kUnusedCatchRoll);
+    CHECK_EQ(all.random.Below(kCatchRoll), reference.Below(kCatchRoll));
+    object.data.unk91 = kCatchChance;
+    CHECK_EQ(catches(kNearAbove, kSeed), 1);
+    CHECK_EQ(catches(kNearerAbove, kSeed), 0);
+
+    for (swd3::u32 seed = 0; seed < kCatchRoll; ++seed)
+    {
+        const int far = catches(kFarAbove, seed);
+        reference.Below(kUnusedCatchRoll);
+        CHECK_EQ(far, static_cast<swd3::u16>(reference.Below(kCatchRoll)) < kFarCatch ? 1 : 0);
+        const int mid = catches(kMidAbove, seed);
+        reference.Below(kUnusedCatchRoll);
+        CHECK_EQ(mid, static_cast<swd3::u16>(reference.Below(kCatchRoll)) < kMidCatch ? 1 : 0);
+    }
+}
+
+TEST_CASE("battle unit: accessory commands")
+{
+    using swd3::BattleUnit;
+    BattleUnit role;
+    swd3::RoleRecord record;
+    record.stamina = kStamina;
+    role.roleRecord = &record;
+    CHECK_EQ(role.CanUseAccessory(kAccessory19), 1);
+    CHECK_EQ(role.unk26CC & kAccessory19Bit, kAccessory19Bit);
+    CHECK_EQ(role.CanUseAccessory(kAccessory1C), 1);
+    role.status = BattleUnit::Invisible;
+    CHECK_EQ(role.CanUseAccessory(kAccessory1C), 0);
+    role.unk26CC |= kAccessory1DBit;
+    CHECK_EQ(role.CanUseAccessory(kAccessory1D), 0);
+    role.status = BattleUnit::Barrier;
+    CHECK_EQ(role.CanUseAccessory(kAccessory20), 0);
+    CHECK_EQ(role.CanUseAccessory(kSpiritFan), 0);
+    role.equipmentFlags = BattleUnit::SpiritFan;
+    CHECK_EQ(role.CanUseAccessory(kSpiritFan), 1);
+    role.accessories[0].data.unk48 = kSpiritFan;
+    role.accessories[0].data.unk40 = kAccessoryCost;
+    record.stamina = kLowStamina;
+    CHECK_EQ(role.CanUseAccessory(kSpiritFan), 0);
+}
+
+TEST_CASE("battle unit: effect timers, poison and stamina drain")
+{
+    using swd3::BattleUnit;
+    Services all;
+    BattleUnit unit;
+    swd3::RoleRecord record;
+    record.stamina = kTooLittleStamina;
+    unit.battleRecord = &record;
+    unit.roleRecord = &record;
+    unit.effects.next = std::make_unique<swd3::EffectNode>();
+    swd3::EffectNode& poison = *unit.effects.next;
+    poison.bits = BattleUnit::UnkStatus1000;
+    poison.value = kPoison;
+    poison.turns = kPoisonTurns;
+    poison.timer = static_cast<swd3::u16>(all.state.gaugeFull - kEffectTick);
+    poison.next = std::make_unique<swd3::EffectNode>();
+    swd3::EffectNode& drain = *poison.next;
+    drain.bits = kStaminaDrainBits;
+    drain.turns = kPoisonTurns;
+    drain.timer = poison.timer;
+    unit.held = 1;
+    unit.TickEffects(all.services);
+    CHECK_EQ(poison.timer, all.state.gaugeFull - kEffectTick);
+    unit.held = 0;
+    unit.TickEffects(all.services);
+    CHECK_EQ(unit.pendingDamage, kPoison);
+    CHECK_EQ(poison.timer, 0);
+    CHECK_EQ(poison.turns, kPoisonTurns - 1);
+    CHECK_EQ(record.stamina, kTooLittleStamina);
+    unit.TickEffects(all.services);
+    CHECK_EQ(poison.timer, kEffectTick);
+}
+
+TEST_CASE("battle unit: an enemy with nothing to use attacks")
+{
+    using swd3::BattleUnit;
+    Services all;
+    const std::string directory(kNoData);
+    swd3::Database database(directory);
+    swd3::ObjectRecord object;
+    object.data.attack = kEnemyAttack;
+    BattleUnit enemy;
+    enemy.data = &object;
+    swd3::u32 act = 0;
+    enemy.unk2A86 = BattleUnit::UnkCommandFlag8000;
+    CHECK_EQ(enemy.ChooseCommand(all.services, database, act), 1);
+    CHECK_EQ(enemy.commandA, 0);
+    enemy.unk2A86 = 0;
+    all.random.Seed(kSeed);
+    swd3::Random reference;
+    reference.Seed(kSeed);
+    CHECK_EQ(enemy.ChooseCommand(all.services, database, act), 0);
+    reference.Below(kIdleRoll);
+    CHECK_EQ(all.random.Below(kCatchRoll), reference.Below(kCatchRoll));
+    CHECK_EQ(enemy.commandA, BattleUnit::UnkCommand1);
+    CHECK_EQ(enemy.choicePhase, 1);
+    CHECK_EQ(enemy.idleTurns, 1);
+    CHECK_EQ(enemy.itemWait, 1);
+    CHECK_EQ(enemy.skillWait, 1);
+    CHECK_EQ(enemy.unk29A4, kEnemyAttack);
+    enemy.ChooseCommand(all.services, database, act);
+    CHECK_EQ(enemy.idleTurns, 2);
+    CHECK_EQ(enemy.unk29A4, 2 * kEnemyAttack);
+}
+
+TEST_CASE("battle unit: an enemy chooses its first skill")
+{
+    using swd3::BattleUnit;
+    Services all;
+    const std::string directory(kNoData);
+    swd3::Database database(directory);
+
+    for (swd3::u32 seed = 0; seed < kCatchRoll; ++seed)
+    {
+        swd3::ObjectRecord object;
+        object.data.skillA = kSkill;
+        object.data.skillACount = 1;
+        object.data.skillChance = kSureSkill;
+        BattleUnit enemy;
+        enemy.data = &object;
+        enemy.idleTurns = 1;
+        swd3::u32 act = 0;
+        all.random.Seed(seed);
+        swd3::Random reference;
+        reference.Seed(seed);
+        const bool first = reference.Below(kCatchRoll) <= kFirstSkillRoll;
+        CHECK_EQ(enemy.ChooseCommand(all.services, database, act), 0);
+        CHECK_EQ(enemy.choicePhase, 2);
+        CHECK_EQ(enemy.commandA, BattleUnit::UnkCommand1);
+
+        if (first)
+        {
+            CHECK_EQ(object.data.skillACount, 0);
+            CHECK_EQ(enemy.unk2A8C, 1);
+            CHECK_EQ(enemy.idleTurns, 0);
+        }
+        else
+        {
+            CHECK_EQ(object.data.skillACount, 1);
+            CHECK_EQ(enemy.idleTurns, 2);
+        }
+    }
+}
+
+TEST_CASE("battle unit: the damage of an enemy's hit")
+{
+    using swd3::BattleUnit;
+    Services all;
+    swd3::ObjectRecord attackerData;
+    attackerData.data.level = kEnemyLevel;
+    attackerData.data.unk5C = kEnemyLevel;
+    BattleUnit attacker;
+    attacker.data = &attackerData;
+    attacker.unk29A4 = kAttackValue;
+    swd3::ObjectRecord targetData;
+    targetData.data.defense = static_cast<swd3::u16>(kTargetDefense);
+    BattleUnit target;
+    target.data = &targetData;
+    swd3::Random reference;
+
+    attacker.commandA = BattleUnit::UnkCommand2;
+    all.random.Seed(kSeed);
+    reference.Seed(kSeed);
+    const swd3::u32 spread = reference.Below(kSpread);
+    const auto limit =
+        static_cast<swd3::u16>((kEnemyLevel + kEnemyLevel) / static_cast<swd3::u16>(spread + kSpreadBase));
+    const int bonus = static_cast<int>(reference.Below(limit)) + 1;
+    CHECK_EQ(attacker.EnemyHitDamage(all.services, target), kAttackValue + bonus);
+
+    attacker.commandA = BattleUnit::UnkCommand1;
+    all.random.Seed(kSeed);
+    reference.Seed(kSeed);
+    const int roll = static_cast<int>(reference.Below(kEnemyLevel / kLevelShare + kLevelRollBase)) + 1;
+    CHECK_EQ(attacker.EnemyHitDamage(all.services, target), kAttackValue + roll - kTargetDefense);
+
+    targetData.data.defense = static_cast<swd3::u16>(kHighDefense);
+    attacker.unk2A8C = 1;
+    CHECK_EQ(attacker.EnemyHitDamage(all.services, target), 1);
+
+    attacker.unk29A6 = kHeal;
+    CHECK_EQ(attacker.EnemyHitDamage(all.services, target), -kHeal);
+}
+
+TEST_CASE("battle state: the slot records are wiped with 0xFF bytes")
+{
+    swd3::BattleState state;
+    state.WipeSlotRecords();
+
+    for (const swd3::BattleSlotRecord& record : state.unk524788)
+    {
+        CHECK_EQ(record.unit, -1);
+        CHECK_EQ(record.unk04, -1);
+        CHECK_EQ(record.kind, 0xFFFF);
+        CHECK_EQ(record.unk0A, 0xFFFF);
+        CHECK_EQ(record.unk18, -1);
+    }
+}
+
+TEST_CASE("script object: a moved ripple stays inside the screen copy")
+{
+    swd3::ScriptObject ripple(kPitch, kLines, 0, 0, kGrid, kGrid);
+    ripple.MoveTo(kInside, kInside);
+    CHECK_EQ(ripple.left, kInside);
+    CHECK_EQ(ripple.top, kInside);
+    ripple.MoveTo(kPastRight, kPastBottom);
+    CHECK_EQ(ripple.left, kPitch - kGrid - 1);
+    CHECK_EQ(ripple.top, kLines - kGrid - 1);
 }
