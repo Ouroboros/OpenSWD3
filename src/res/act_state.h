@@ -82,6 +82,13 @@ struct ActState
         UpRight = 7,
     };
 
+    // Bits of ActState::target read by BattleUnit::AimAction.
+    enum TargetBit : u16
+    {
+        UnkTarget4 = 0x4,  // raises flag 26B8 of the target, then the bits are cleared
+        Quakes = 0x8000,   // starts the screen quake (0x0045E7D0 shakes while BattleState::quaking)
+    };
+
     // Flags of ActState::flags.
     enum Flag : u32
     {
@@ -123,7 +130,7 @@ struct ActState
     u16 unknown52 = 0;        // +0x52
     ActScript script;         // +0x54
     u16 view = 0;             // +0x58 'VW'
-    u16 target = 0;           // +0x5A 'TA'
+    u16 target = 0;           // +0x5A 'TA' ActState::TargetBit
     u16 unknown5C = 0;        // +0x5C
     u16 offsetX = 0;          // +0x5E 'XO'
     u16 offsetY = 0;          // +0x60 'YO'

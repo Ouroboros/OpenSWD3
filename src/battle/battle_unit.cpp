@@ -1286,6 +1286,15 @@ constexpr int kSpeeding = -1;
 constexpr i32 kFlightDoubling = 0x20;
 constexpr i32 kFlightGrowth = 0x30;
 constexpr int kArrived = -1;
+
+// DrawAction.
+constexpr u32 kNudgeChance = 2;    // a nudged unit shakes in one frame of two
+constexpr int kNudgeShift = 0x28;  // the shake moves the act by nudge - 0x28
+constexpr int kPanCentre = 0x140;  // the sound pans right from the middle of the 640-pixel screen
+constexpr int kShadowShare = 3;    // the shadow is a third of the picture height high
+constexpr std::size_t kShadowShearShift = 2;
+constexpr int kShadowTint = -6;
+constexpr int kInvisibleShadowTint = -1;
 constexpr u16 kEffectIcons = 0x241D;
 
 // The value of a skill script: the word at +0xE.
@@ -3580,5 +3589,289 @@ int BattleUnit::FlyAct(
     count = 0;
     line = LineWalker{};
     return 1;
+}
+
+// swd32.exe 0x004831C0: one frame of `act` drawn over its shadow, on the target (a command with AtTarget) or at the
+// unit's place with its outline. Mirrored by the facing like the unit (a forced draw also adds Additive); a nudged
+// unit shakes, the nudge halving to 1 and staying there. The act's sound pans to the side of the screen it is on. An
+// invisible unit draws a fainter shadow and smears the destination instead of the picture. The act's overlay picture
+// follows, cleared once the act waits.
+void BattleUnit::DrawAction(BattleServices& services, const BattleUnit& target, ActState& act)
+{
+    u16 targetX = 0;
+    u16 targetY = 0;
+
+    if (services.acts.Run(act) == 0)
+    {
+        return;
+    }
+
+    this->picture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->picture == nullptr)
+    {
+        return;
+    }
+
+    Painter& painter = services.painter;
+    painter.SetSource(this->picture->data.data());
+    this->frameFlags = act.flags;
+    this->actOffsetX = static_cast<u16>(act.x);
+    this->actAnchorX = act.anchorX;
+    this->overlayX = act.offsetX;
+    const bool forced = this->unk2B00 == 1 || this->unk2B04 == 1;
+    const bool still = this->unk2B00 == 0 && this->unk2B04 == 0;
+
+    auto mirror = [this, &act]
+    {
+        this->frameFlags ^= Painter::Mirror;
+        this->actOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
+
+        if (act.anchorX != 0)
+        {
+            this->actAnchorX = static_cast<u16>(this->picture->width - act.anchorX);
+        }
+    };
+
+    if (forced)
+    {
+        if (this->facing == 1)
+        {
+            mirror();
+        }
+
+        if (this->unk2B00 == 1 && (this->frameFlags & ActState::NoBlend) == 0)
+        {
+            this->frameFlags |= Painter::Additive;
+        }
+    }
+
+    if (this->facing == 1 && still)
+    {
+        mirror();
+    }
+
+    target.GetDrawPosition(targetX, targetY);
+    u16 x = targetX;
+
+    if (this->nudge > 0 && services.random.Below(kNudgeChance) == 1)
+    {
+        x = static_cast<u16>(x + this->nudge - kNudgeShift);
+        this->nudge = static_cast<u16>(this->nudge >> 1);
+
+        if (this->nudge <= 1)
+        {
+            this->nudge = 1;
+        }
+    }
+
+    if ((this->command.flags & UnitCommand::AtTarget) != 0)
+    {
+        this->actX = static_cast<u16>(x - this->actOffsetX);
+        this->actY = static_cast<u16>(targetY - static_cast<u16>(act.y));
+    }
+    else
+    {
+        this->actX = static_cast<u16>(this->placement.x - this->actOffsetX);
+        this->actY = static_cast<u16>(this->placement.y - static_cast<u16>(act.y));
+
+        if (this->outline == 1)
+        {
+            this->colorPair = BattleUnit::OutlineColorPair;
+            painter.DrawOutline(
+                static_cast<i16>(this->actX),
+                static_cast<i16>(this->actY),
+                this->picture->width,
+                this->picture->height,
+                this->frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip),
+                DrawArgument{.colorPair = this->colorPair}
+            );
+            this->colorPair = BattleUnit::OutlineColorPair;
+        }
+    }
+
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+    const int centre = static_cast<i16>(this->actX) + static_cast<i16>(this->actOffsetX);
+    services.audio.SetSoundPan(act.view, centre >= kPanCentre ? kFadePan : -kFadePan);
+    act.view = 0;
+    const int shadowHeight = this->picture->height / kShadowShare;
+    DrawOptions& options = painter.Options();
+    options.scaleHeight = shadowHeight;
+    options.shear = this->picture->height >> kShadowShearShift;
+    const bool invisible = (this->status & BattleUnit::Invisible) != 0;
+    const int tint = invisible ? kInvisibleShadowTint : kShadowTint;
+    options.tintRed = tint;
+    options.tintGreen = tint;
+    options.tintBlue = tint;
+    this->unk26A4 = (this->frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+    painter.SetSource(this->picture->data.data());
+    painter.DrawPicture(
+        static_cast<i16>(this->actX),
+        act.y + static_cast<i16>(this->actY) - shadowHeight,
+        this->picture->width,
+        this->picture->height,
+        this->unk26A4
+    );
+    painter.SetSource(this->picture->data.data());
+
+    if (invisible)
+    {
+        this->unk26A4 = this->frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip);
+        painter.DrawPicture(
+            static_cast<i16>(this->actX),
+            static_cast<i16>(this->actY),
+            this->picture->width,
+            this->picture->height,
+            this->unk26A4 | Painter::SmearUnder
+        );
+    }
+    else
+    {
+        if ((this->frameFlags & ActState::Signal) != 0)
+        {
+            painter.Options().alpha = act.signal;
+        }
+
+        if (this->mainAct.wait != 0)
+        {
+            painter.SetWave(this->mainAct.wait);
+        }
+
+        painter.DrawPicture(
+            static_cast<i16>(this->actX),
+            static_cast<i16>(this->actY),
+            this->picture->width,
+            this->picture->height,
+            this->frameFlags
+        );
+        painter.SetWave(0);
+    }
+
+    if (act.rotation == 0 || act.actionCode == 0)
+    {
+        return;
+    }
+
+    this->unk2554 = services.archive.GetPicture(act.rotation, static_cast<u16>(act.actionCode - 1));
+
+    if (this->unk2554 == nullptr)
+    {
+        return;
+    }
+
+    painter.SetSource(this->unk2554->data.data());
+
+    if (forced && this->facing == 1 && act.offsetX != 0)
+    {
+        this->overlayX = static_cast<u16>(this->picture->width - act.offsetX - this->unk2554->width);
+    }
+
+    if (this->facing == 1 && still && act.offsetX != 0)
+    {
+        this->overlayX = static_cast<u16>(this->picture->width - act.offsetX - this->unk2554->width);
+    }
+
+    painter.DrawPicture(
+        static_cast<i16>(this->actX) + static_cast<i16>(this->overlayX),
+        static_cast<i16>(this->actY) + static_cast<i16>(act.offsetY),
+        this->unk2554->width,
+        this->unk2554->height,
+        this->frameFlags | Painter::Additive
+    );
+
+    if (act.waiting == 1)
+    {
+        act.rotation = 0;
+        act.actionCode = 0;
+        act.offsetX = 0;
+        act.offsetY = 0;
+    }
+}
+
+// swd32.exe 0x004838D0: one frame of `act` placed on the target (mirrored by the facing like the unit), or with a
+// shift and an anchored act at the act DrawAction placed, the act's anchor apart (shiftX only decides, shiftY adds).
+// The act's sound pans to the target's side of the screen; the act's target bits start the quake and raise flag 26B8
+// of the target.
+void BattleUnit::AimAction(BattleServices& services, BattleUnit& target, ActState& act, i16 shiftX, i16 shiftY)
+{
+    u16 targetX = 0;
+    u16 targetY = 0;
+    act.hold = 0;
+
+    if (this->held == 1)
+    {
+        act.hold = 1;
+    }
+
+    if (services.acts.Run(act) == 0)
+    {
+        return;
+    }
+
+    this->picture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->picture == nullptr)
+    {
+        return;
+    }
+
+    services.painter.SetSource(this->picture->data.data());
+    this->unk26A4 = act.flags;
+    this->aimOffsetX = static_cast<u16>(act.x);
+    this->aimAnchorX = act.anchorX;
+
+    auto mirror = [this, &act]
+    {
+        this->unk26A4 ^= Painter::Mirror;
+
+        if (act.x != 0)
+        {
+            this->aimOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
+        }
+
+        if (act.anchorX != 0)
+        {
+            this->aimAnchorX = static_cast<u16>(this->picture->width - act.anchorX);
+        }
+    };
+
+    if ((this->unk2B00 == 1 || this->unk2B04 == 1) && this->facing == 1)
+    {
+        mirror();
+    }
+
+    if (this->facing == 1 && this->unk2B00 == 0 && this->unk2B04 == 0)
+    {
+        mirror();
+    }
+
+    target.GetDrawPosition(targetX, targetY);
+    this->aimX = static_cast<u16>(targetX - this->aimOffsetX);
+    this->aimY = static_cast<u16>(targetY - static_cast<u16>(act.y));
+
+    if ((act.anchorX != 0 || act.anchorY != 0) && (shiftX != 0 || shiftY != 0))
+    {
+        this->aimX = static_cast<u16>(this->actX + this->actAnchorX - this->aimAnchorX);
+        this->aimY = static_cast<u16>(this->actY - act.anchorY + shiftY);
+    }
+
+    this->ClearMoveAxes(this->aimX, this->aimY);
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+    services.audio.SetSoundPan(act.view, static_cast<i16>(targetX) >= kPanCentre ? kFadePan : -kFadePan);
+    act.view = 0;
+
+    if ((act.target & ActState::Quakes) != 0)
+    {
+        services.state.quaking = 1;
+        services.state.quakePhase = 0;
+    }
+
+    if ((act.target & ActState::UnkTarget4) != 0)
+    {
+        act.target = 0;
+        target.RaiseFlag26B8();
+    }
 }
 }  // namespace swd3

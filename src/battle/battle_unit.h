@@ -117,6 +117,7 @@ struct UnitCommand
     {
         TargetsUnit = 1,  // a target command (ClearMoveAxes)
         UnkFlag2 = 2,
+        AtTarget = 0x38,  // any of bits 3..5: DrawAction places the act on the target (inferred from DrawAction)
     };
 
     i32 unk00 = 0;
@@ -268,6 +269,7 @@ public:
     static constexpr std::size_t GuardLetters = 4;  // the letters of the guard text
     static constexpr u16 DefaultFadeStep = 4;       // unk2A0A: the alpha step of a fade
     static constexpr u32 DefaultColorPair = 0x062B062B;
+    static constexpr u32 OutlineColorPair = 0x07E007E0;  // the outline of DrawAction
 
     BattleUnit();
     ~BattleUnit();
@@ -359,6 +361,8 @@ public:
     void ExpireEffects(BattleServices& services, int clearAll);
     SkillScript CommandSkill() const;
     i16 HitDamage(BattleServices& services, BattleUnit& target, i16& spiritDamage, i16& staminaDamage);
+    void DrawAction(BattleServices& services, const BattleUnit& target, ActState& act);
+    void AimAction(BattleServices& services, BattleUnit& target, ActState& act, i16 shiftX, i16 shiftY);
     int FlyAct(
         BattleServices& services,
         const BattleUnit& target,
@@ -496,13 +500,16 @@ public:
     u16 unk29A6 = 0;
     u16 unk29A8 = 0;
     u16 unk29AA = 0;
-    u16 overlayOffset = 0;  // +0x29AC
-    u16 unk29B0 = 0;
-    u16 originX = 0;  // +0x29B2
-    u16 origin = 0;   // +0x29B4
-    u16 unk29B6 = 0;
-    u16 extraY = 0;  // +0x29B8
-    u16 unk29BA = 0;
+    u16 actAnchorX = 0;  // +0x29AC the act's anchor x, from the picture's right edge when mirrored (DrawAction)
+    u16 aimAnchorX = 0;  // +0x29AE the same for AimAction
+    u16 overlayX = 0;    // +0x29B0 the x of the overlay picture from the act (DrawAction)
+    u16 originX = 0;     // +0x29B2
+    u16 actOffsetX = 0;  // +0x29B4 the act's x offset, mirrored like the picture (DrawAction)
+    u16 aimOffsetX = 0;  // +0x29B6 the act's x offset of AimAction, mirrored like the picture
+    u16 actX = 0;        // +0x29B8 where DrawAction draws the act
+    u16 actY = 0;        // +0x29BA
+    u16 aimX = 0;        // +0x29BC where AimAction places the act
+    u16 aimY = 0;        // +0x29BE
     std::array<u16, MaxTargets> pushedTargets = {};  // +0x29C4
     u16 unk2A0A = DefaultFadeStep;
     u16 actId = 0;   // +0x2A0C the unit's act

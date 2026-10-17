@@ -177,8 +177,10 @@ public:
 
     // The background drawn each frame (0x00453580): a quake shift, the grey band of the battle start, a flash of the
     // field, and the field darkened (by darkened copies in `surfaces` or by tint steps) while unit unk4A7630 acts.
-    i32 shake = 0;      // 0x0053BD5C the shift of the background this frame, cleared once drawn
-    i32 unk53BF94 = 0;  // with unk53BF98: the field is darkened while unit unk4A7630 acts
+    i32 shake = 0;       // 0x0053BD5C the shift of the background this frame, cleared once drawn
+    i32 quaking = 0;     // 0x0053C008 1: the screen quakes (read by 0x00453200, shaken by 0x0045E7D0)
+    i32 quakePhase = 0;  // 0x0053BD60 the step of the quake in its offset table (0x004A75EC)
+    i32 unk53BF94 = 0;   // with unk53BF98: the field is darkened while unit unk4A7630 acts
     i32 unk53BF98 = 0;
     i16 unk4A7630 = -1;  // compared with unk53AE70
     u16 unk53BF2C = 0;
