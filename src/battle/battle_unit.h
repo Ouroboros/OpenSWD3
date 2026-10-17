@@ -7,6 +7,7 @@
 
 #include "core/types.h"
 #include "org/object_record.h"
+#include "pic/projector.h"
 #include "res/act_state.h"
 
 namespace swd3
@@ -358,6 +359,17 @@ public:
     void ExpireEffects(BattleServices& services, int clearAll);
     SkillScript CommandSkill() const;
     i16 HitDamage(BattleServices& services, BattleUnit& target, i16& spiritDamage, i16& staminaDamage);
+    int FlyAct(
+        BattleServices& services,
+        const BattleUnit& target,
+        ActState& act,
+        int slot,
+        i32 id,
+        int fromX,
+        int fromY,
+        int steps,
+        int backwards
+    );
     void CureEffects(BattleServices& services, u16 bits);
     int Damage(BattleServices& services, int hitPoints, i16 spirit, i16 stamina);
     int EffectFlag2() const;
@@ -433,6 +445,7 @@ public:
     UnitPlacement placement;                  // +0xD50
     UnitPlacement savedPlacement;             // +0xD70
     UnitCommand command;                      // +0xD90
+    LineWalker flight;                        // +0xDF4 the line of a flying act (FlyAct)
     std::array<ActState, 8> unkFCC;           // +0xFCC
     std::unique_ptr<QueuedAction> actions;    // +0x236C
     const Picture* shadowPicture = nullptr;   // +0x2548
@@ -442,6 +455,7 @@ public:
     std::span<const char> displayName;        // +0x2560 the name shown in the messages (read up to its NUL when used)
     EffectNode effects;                       // +0x2584 (the head is a node: +0x2588 its act, +0x2620 its bits)
     std::array<char, 0x30> skillName = {};    // +0x2630 the name of the skill used
+    std::array<i32, 8> flightSteps = {};      // +0x2640 the steps per frame of FlyAct by its slot (callers use 0)
     i32 unk2660 = 0;
     i32 unk2664 = 0;
     i32 fadeLevel = Opaque;  // +0x2668

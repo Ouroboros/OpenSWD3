@@ -1280,6 +1280,12 @@ constexpr u32 kStrongAilments = 3;
 constexpr u32 kThirdAilment = 2;
 constexpr u8 kStrongTurns = 3;
 constexpr u8 kStrongPose = 1;
+
+// FlyAct: the steps per frame of a speeding flight double up to kFlightDoubling, then grow by kFlightGrowth.
+constexpr int kSpeeding = -1;
+constexpr i32 kFlightDoubling = 0x20;
+constexpr i32 kFlightGrowth = 0x30;
+constexpr int kArrived = -1;
 constexpr u16 kEffectIcons = 0x241D;
 
 // The value of a skill script: the word at +0xE.
@@ -3421,4 +3427,158 @@ i16 BattleUnit::HitDamage(BattleServices& services, BattleUnit& target, i16& spi
     return (target.marks & BattleUnit::UnkMark8000) != 0 ? i16{0} : attack;
 }
 
+// swd32.exe 0x0047F940: one frame of `act` (`id`) flying from (fromX, fromY) to the target's draw position (from the
+// target back with `backwards`; a zero fromY keeps it level). The act is mirrored by the facing like the unit, its
+// anchor measured from the picture's right edge. Each frame the flight takes flightSteps[slot] line steps, one more
+// than the frame before, or with steps kSpeeding a doubling count (from 1, past 0x20 growing by 0x30). The act's sound
+// plays, the picture is drawn, and 1 tells that the target's x was reached (the steps and the line are cleared).
+int BattleUnit::FlyAct(
+    BattleServices& services,
+    const BattleUnit& target,
+    ActState& act,
+    int slot,
+    i32 id,
+    int fromX,
+    int fromY,
+    int steps,
+    int backwards
+)
+{
+    u16 targetX = 0;
+    u16 targetY = 0;
+    act.id = id;
+    act.action = 0;
+    act.hold = 0;
+
+    if (this->held == 1)
+    {
+        act.hold = 1;
+    }
+
+    if (services.acts.Run(act) == 0)
+    {
+        return 0;
+    }
+
+    this->picture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->picture == nullptr)
+    {
+        return 0;
+    }
+
+    services.painter.SetSource(this->picture->data.data());
+    const u16 anchorX = act.anchorX;
+    u32 flags = act.flags;
+    auto offsetX = static_cast<u16>(act.x);
+    i32 anchorShift = static_cast<i16>(anchorX);
+    const bool forced = this->unk2B00 == 1 || this->unk2B04 == 1;
+
+    if (forced && this->facing == 1)
+    {
+        flags ^= Painter::Mirror;
+
+        if (act.x != 0)
+        {
+            offsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
+        }
+
+        if (anchorX != 0)
+        {
+            anchorShift = this->picture->width - static_cast<i16>(act.anchorX);
+        }
+    }
+
+    if (this->facing == 1 && this->unk2B00 == 0 && this->unk2B04 == 0)
+    {
+        flags ^= Painter::Mirror;
+        offsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
+
+        if (act.anchorX != 0)
+        {
+            anchorShift = this->picture->width - static_cast<i16>(anchorX);
+        }
+    }
+
+    target.GetDrawPosition(targetX, targetY);
+    const auto toY = static_cast<i16>(targetY - static_cast<u16>(act.y));
+    const auto toX = static_cast<i16>(targetX - offsetX);
+    LineWalker& line = this->flight;
+    line = LineWalker{};
+    const i32 startX = fromX - anchorShift;
+    line.fromX = startX;
+    line.fromY = fromY - static_cast<i16>(act.anchorY);
+    line.toX = toX;
+    line.toY = toY;
+
+    if (backwards == 1)
+    {
+        line.fromX = toX;
+        line.fromY = toY;
+        line.toX = startX;
+        line.toY = fromY - static_cast<i16>(act.anchorY);
+    }
+
+    if (fromY == 0)
+    {
+        line.fromY = 0;
+        line.toY = 0;
+    }
+
+    i32& count = this->flightSteps[static_cast<std::size_t>(slot)];
+
+    if (steps == kSpeeding)
+    {
+        steps = 1;
+
+        if (count == 0)
+        {
+            count = 1;
+        }
+
+        count = count <= kFlightDoubling ? 2 * count : count + kFlightGrowth;
+    }
+    else
+    {
+        ++count;
+    }
+
+    int taken = 0;
+
+    if (count * steps > 0)
+    {
+        while (true)
+        {
+            LineStep(line);
+
+            if (line.fromX + line.x == line.toX)
+            {
+                taken = kArrived;
+                break;
+            }
+
+            ++taken;
+
+            if (taken >= count * steps)
+            {
+                break;
+            }
+        }
+    }
+
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+    act.view = 0;
+    services.painter
+        .DrawPicture(line.fromX + line.x, line.fromY + line.y, this->picture->width, this->picture->height, flags);
+
+    if (taken != kArrived)
+    {
+        return 0;
+    }
+
+    count = 0;
+    line = LineWalker{};
+    return 1;
+}
 }  // namespace swd3
