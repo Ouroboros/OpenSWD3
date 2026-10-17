@@ -68,3 +68,7 @@ exe 旁边有两个设置文件：
 - 原版开始画面里点不到的“输入姓名”对话框没有保留。
 
 每一处和原版不同的行为都记录在 [deviations.md](reverse/analysis/deviations.md)。
+
+## 从源码编译
+
+见 [docs/building.md](docs/building.md)。
