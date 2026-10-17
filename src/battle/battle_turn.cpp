@@ -43,7 +43,10 @@ constexpr u16 kBackSound = 0x2E;
 constexpr i32 kListState2 = 2;
 constexpr i32 kListState4 = 4;
 constexpr i32 kListState1B = 0x1B;
-constexpr i32 kGuardOrder = 5;  // the order of a role that guards in the auto battle
+constexpr i32 kGuardOrder = 5;                               // the order of a role that guards in the auto battle
+constexpr i32 kFirstPanelUnit = BattleState::FirstRoleUnit;  // the four party roles have the panels
+constexpr i32 kLastPanelUnit = BattleState::FirstRoleUnit + 3;
+constexpr u16 kNoPanelRole = 0xFFFF;
 
 }  // namespace
 
@@ -985,5 +988,172 @@ void Game::AutoBattleTurn()
     battle.unk4A7564 = -1;
     battle.unk53AF38[static_cast<std::size_t>(battle.unk53BD50)] = 0;
     battle.autoBattle = 0;
+}
+
+// swd32.exe 0x004624C0: whether role unit `unit` can take the current panel: it is in unk520DD0 (among the roleCount
+// first) and not held
+bool Game::CanSelectRole(int unit)
+{
+    BattleState& battle = this->battleState;
+
+    for (u32 at = 0; at < battle.roleCount; ++at)
+    {
+        if (battle.unk520DD0[at] == unit)
+        {
+            return this->battleRoles[static_cast<std::size_t>(unit - BattleState::FirstRoleUnit)].IsHeldOrHolding() ==
+                   0;
+        }
+    }
+
+    return false;
+}
+
+// The place of `unit` in PanelUnits for 0x00464DD0 and 0x00464E40 (inline in the original; past the end when absent).
+std::size_t Game::PanelPlace(int unit)
+{
+    std::size_t place = 0;
+
+    while (place < BattleState::PanelUnits.size() && BattleState::PanelUnits[place] != unit)
+    {
+        ++place;
+    }
+
+    return place;
+}
+
+// swd32.exe 0x00464DD0: the first role unit from `unit` on in PanelUnits (wrapping, four tries) that can take the
+// panel; 0 when none can
+int Game::NextSelectableRole(int unit)
+{
+    std::size_t place = Game::PanelPlace(unit);
+
+    // Never so: the callers pass panel units (the original reads past the table).
+    if (place == BattleState::PanelUnits.size())
+    {
+        return 0;
+    }
+
+    int candidate = BattleState::PanelUnits[place];
+
+    if (this->CanSelectRole(candidate))
+    {
+        return candidate;
+    }
+
+    ++place;
+
+    for (int tries = 1; tries < static_cast<int>(BattleState::PanelUnits.size()); ++tries)
+    {
+        if (place == BattleState::PanelUnits.size())
+        {
+            place = 0;
+        }
+
+        candidate = BattleState::PanelUnits[place];
+        ++place;
+
+        if (this->CanSelectRole(candidate))
+        {
+            return candidate;
+        }
+    }
+
+    return 0;
+}
+
+// swd32.exe 0x00464E40: the first role unit from `unit` back in PanelUnits (wrapping, four tries) that can take the
+// panel; 0 when none can
+int Game::PreviousSelectableRole(int unit)
+{
+    auto place = static_cast<int>(Game::PanelPlace(unit));
+
+    // Never so: the callers pass panel units (the original reads past the table).
+    if (place == static_cast<int>(BattleState::PanelUnits.size()))
+    {
+        return 0;
+    }
+
+    for (int tries = 0; tries < static_cast<int>(BattleState::PanelUnits.size()); ++tries)
+    {
+        const int candidate = BattleState::PanelUnits[static_cast<std::size_t>(place)];
+
+        if (--place < 0)
+        {
+            place = static_cast<int>(BattleState::PanelUnits.size()) - 1;
+        }
+
+        if (this->CanSelectRole(candidate))
+        {
+            return candidate;
+        }
+    }
+
+    return 0;
+}
+
+// swd32.exe 0x00462420: role unit `unit` takes the current panel (in battle state 0, or with unk4A7644 set): when it
+// is among the first roleCount - 1 of unk520DD0 and not held, it trades places with the current unit; the inputs of
+// the panel (unk4FF0B0..B8, unk53BF22) are cleared either way.
+void Game::SelectRoleUnit(int unit)
+{
+    BattleState& battle = this->battleState;
+
+    if (battle.result != 0 && battle.unk4A7644 == kNoPanelRole)
+    {
+        return;
+    }
+
+    if (battle.roleCount != 1)
+    {
+        for (u32 at = 0; at < battle.roleCount - 1; ++at)
+        {
+            const i32 listed = battle.unk520DD0[at];
+
+            if (listed != 0 && listed == unit &&
+                this->battleRoles[static_cast<std::size_t>(listed - BattleState::FirstRoleUnit)].IsHeldOrHolding() != 1)
+            {
+                battle.unk520DD0[at] = battle.currentUnit;
+                battle.currentUnit = listed;
+                break;
+            }
+        }
+    }
+
+    battle.unk4FF0B0 = 0;
+    battle.unk4FF0B4 = 0;
+    battle.unk4FF0B8 = 0;
+    battle.unk53BF22 = 0;
+}
+
+// swd32.exe 0x00462320: the panel goes from the current role unit (8..11) to the one numbered before it (11 before 8)
+// or, past it, the next in PanelUnits that can take the panel
+void Game::SelectPreviousRole()
+{
+    BattleState& battle = this->battleState;
+    battle.unk53BFBC = 0;
+    const i32 unit = battle.currentUnit;
+
+    if (unit < kFirstPanelUnit || unit > kLastPanelUnit)
+    {
+        return;
+    }
+
+    this->SelectRoleUnit(this->NextSelectableRole(unit == kFirstPanelUnit ? kLastPanelUnit : unit - 1));
+}
+
+// swd32.exe 0x004623A0: the panel goes from the current role unit (8..11) to the one numbered after it (8 after 11)
+// or, before it, the previous in PanelUnits that can take the panel
+void Game::SelectNextRole()
+{
+    BattleState& battle = this->battleState;
+    battle.unk53BFBC = 0;
+    const i32 unit = battle.currentUnit;
+
+    if (unit < kFirstPanelUnit || unit > kLastPanelUnit)
+    {
+        return;
+    }
+
+    this->SelectRoleUnit(this->PreviousSelectableRole(unit == kLastPanelUnit ? kFirstPanelUnit : unit + 1));
 }
 }  // namespace swd3

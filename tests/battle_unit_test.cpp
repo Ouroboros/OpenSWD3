@@ -1008,3 +1008,44 @@ TEST_CASE("battle unit: the damage digit hops match swd32.exe")
 
     CHECK(swd3test::SameTable(exe, kDigitHopsAt, swd3::BattleUnit::DigitHops));
 }
+
+TEST_CASE("battle unit: the names of an enemy's objects and skills")
+{
+    constexpr swd3::u16 kFirstObject = 0x31;
+    constexpr swd3::u16 kThirdObject = 0x33;
+    constexpr swd3::u16 kSecondSkill = 0x45;
+    constexpr int kThird = 2;
+    constexpr int kSecond = 1;
+    const std::string directory(kNoData);
+    swd3::Database database(directory);
+    swd3::ObjectRecord object;
+    swd3::BattleUnit enemy;
+    enemy.data = &object;
+    std::string name;
+    swd3::u32 id = 0;
+    CHECK_EQ(enemy.ItemName(database, 0, name, id), 0);
+    object.data.itemA = kFirstObject;
+    object.data.itemC = kThirdObject;
+    CHECK_EQ(enemy.ItemName(database, kThird, name, id), 1);
+    CHECK_EQ(id, kFirstObject);
+    CHECK_EQ(enemy.SkillName(database, kSecond, name), 0);
+    object.data.skillB = kSecondSkill;
+    CHECK_EQ(enemy.SkillName(database, kSecond, name), 1);
+}
+
+TEST_CASE("battle state: the panel units match swd32.exe")
+{
+    constexpr swd3::u32 kPanelUnitsAt = 0x004A7960;
+    constexpr swd3::u32 kPanelRoleAt = 0x004A7644;
+    const std::vector<swd3::u8> exe = swd3test::ReadGameFile("swd32.exe");
+
+    if (exe.empty())
+    {
+        std::printf("  (swd32.exe not found, skipped)\n");
+        return;
+    }
+
+    const swd3::BattleState state;
+    CHECK(swd3test::SameTable(exe, kPanelUnitsAt, swd3::BattleState::PanelUnits));
+    CHECK(swd3test::SameTable(exe, kPanelRoleAt, std::array<swd3::u16, 1>{state.unk4A7644}));
+}

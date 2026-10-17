@@ -67,6 +67,7 @@ public:
     static constexpr i32 DarkLevelFrames = 1;  // darkFrames past it step to the next level
     static constexpr std::array<u8, 10> QuakeSteps = {4, 3, 4, 3, 4, 3, 2, 3, 2, 3};  // 0x004A75EC by quakePhase
     static constexpr std::array<i32, 5> RoleCycle = {11, 2, 1, 0, 3};  // 0x004A796C the party roles by turn, from 1
+    static constexpr std::array<i32, 4> PanelUnits = {10, 9, 8, 11};   // 0x004A7960 the role units by panel
 
     // BattleState::mode bits.
     enum Mode : i32
@@ -318,10 +319,11 @@ public:
     i32 unk4A755C = 1;
     i32 unk53BD04 = 0;  // the scroll of a list
     i32 unk53BD08 = 0;
-    i32 unk4A7570 = 2;   // a party role
-    u8 unk53BDF2 = 0;    // the entries of the list of state 2
-    u16 unk53BDF4 = 0;   // the entries of the lists of states 4 and 0x1B
-    i32 unk4A7564 = -1;  // the enemy the auto battle aims at (1-based), -1: none
+    i32 unk4A7570 = 2;       // a party role
+    u8 unk53BDF2 = 0;        // the entries of the list of state 2
+    u16 unk53BDF4 = 0;       // the entries of the lists of states 4 and 0x1B
+    i32 unk4A7564 = -1;      // the enemy the auto battle aims at (1-based), -1: none
+    u16 unk4A7644 = 0xFFFF;  // a role unit that may take the panel in any battle state (SelectRoleUnit)
     // The end of the battle (Game::CheckBattleEnd, Game::DrawBattlePrompt).
     i32 unk53C4A8 = 0;  // the fade of the field to black, 2 darker a frame
     i32 unk53BDC8 = 0;

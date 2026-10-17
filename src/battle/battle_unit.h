@@ -508,6 +508,8 @@ public:
     int RunAway(BattleServices& services);
     int StepOrbCounters(CounterList& list, const UnitCommand& command);
     int DrawDamageNumbers(BattleServices& services);
+    int ItemName(Database& database, int choice, std::string& name, u32& id);
+    int SkillName(Database& database, int choice, std::string& name);
     void DrawTrail(BattleServices& services, AfterimageTrail& trail, u16 frame, u16 picture, u32 mode, i16 x, i16 y);
     int DrawRecoil(BattleServices& services, ActState& act, i16 y);
     int FlyAct(

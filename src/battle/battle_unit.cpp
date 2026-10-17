@@ -1449,6 +1449,14 @@ constexpr i16 kNumberFadeEnd = 0x30;
 constexpr i16 kNumberFadeStep = 2;
 constexpr int kNumberScaleBase = 0x1A;
 
+// The name of a record up to its terminator, within its 0x20 bytes (the original copies on into the next fields when
+// none is there; 0x00476780, 0x00476860).
+std::string ObjectName(const ObjectRecord& record)
+{
+    const std::span<const char> name(record.data.name);
+    return std::string(name.data(), strnlen(name.data(), name.size()));
+}
+
 // FadeInvisible and StepAccessoryCounters.
 constexpr i16 kInvisibleFadeFrames = 0x18;
 constexpr int kShadowLeftShift = 5;
@@ -8472,6 +8480,63 @@ int BattleUnit::DrawDamageNumbers(BattleServices& services)
     this->targetCount = 0;
     this->damageSlot = 0;
     this->unk2AD8 = 0;
+    return 1;
+}
+
+// swd32.exe 0x00476780: object `choice` (0..2: itemA, itemB, itemC) of the enemy loaded into `object`, its name copied
+// to `name` and `id` set to itemA whichever was chosen (as in the original); 0 without that object
+int BattleUnit::ItemName(Database& database, int choice, std::string& name, u32& id)
+{
+    const ObjectData& data = this->data->data;
+    u16 item = 0;
+
+    if (choice == 0)
+    {
+        item = data.itemA;
+    }
+    else if (choice == 1)
+    {
+        item = data.itemB;
+    }
+    else if (choice == 2)
+    {
+        item = data.itemC;
+    }
+
+    if (item == 0)
+    {
+        return 0;
+    }
+
+    database.LoadObject(this->object, item);
+    id = this->data->data.itemA;
+    name = ObjectName(this->object);
+    return 1;
+}
+
+// swd32.exe 0x00476860: skill `choice` (0: skillA, 1: skillB) of the enemy loaded into `object` and its name copied
+// to `name`; 0 without that skill
+int BattleUnit::SkillName(Database& database, int choice, std::string& name)
+{
+    const ObjectData& data = this->data->data;
+    u16 skill = 0;
+
+    if (choice == 0)
+    {
+        skill = data.skillA;
+    }
+    else if (choice == 1)
+    {
+        skill = data.skillB;
+    }
+
+    if (skill == 0)
+    {
+        return 0;
+    }
+
+    database.LoadObject(this->object, skill);
+    name = ObjectName(this->object);
     return 1;
 }
 }  // namespace swd3
