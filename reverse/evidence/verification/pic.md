@@ -27,3 +27,13 @@
 
 - 第 1 轮：瓦片前 0x200 字节为调色板，其后为 8 位 RLE；新头格式同上；行头写在每行之前的槽位，最后一个槽写 0 作结束；大小从 0xA 起计，最终多计 2 字节（0xCDCD），并截为 16 位后只复制这么多字节。字面计数以 16 位比较（码值即计数）。差异：越界未设防。
 - 修正：数据末尾即止。第 2 轮复核：通过。
+
+## Projector 与 ShiftPicture（第 1 遍，2026-10-18）
+
+- 0x00433C40 Projector：缓冲 0x500 × 0x300、屏幕 640 × 480、全屏裁剪；方向表 dx/dy：0..89 为 (−1000, _ftol(tan(a × 0.0174444…) × −1000))，91..179 镜像 88..0（dx 1000），180..269 取负（dx 1000），271..359 镜像取负（dx −1000）；最后 dy[180] = 0、dx[90] = dx[270] = 0、dx[180] = 100000、dy[90] = −100000、dy[270] = 100000。通过。
+- 0x00433D70 Release、0x00433DC0 Init（后台缓冲 pitch / 2 × 高）、0x00433E20 SetBufferRows、0x00433E90 SetScreenRows、0x00433F00 FreeParticles、0x00433F30 SetScreen、0x004342E0 SetClip（越过右下时平移而不缩小）：通过。
+- 0x00433F70 ShiftPicture：0 上移、1 下移、2 左移、3 右移；先清首行字的位 15，首行有位 14 时不动；行宽 width + 3 字。越界的平移量见 deviations.md。通过。
+- 0x00434350 LineStep、0x00434420 Step：Bresenham 一步（误差字段 +0x18/+0x1C，dx == dy 时同时走），Step 取方向表。通过。
+- 0x004344E0 DrawScaled：从末行起向上，行数 (h << 10) / scaleY，列数 (w << 10) / scaleX，跳过两种键色，旗标 0x16 混合、旗标 1 镜像（底行多读一个像素见 deviations.md）；方向行走器只推进不使用。通过。
+- 0x00434790 DrawExplosion：首次调用 srand(time)、设色调、数不透明像素（slowLimit = 数 / 20，burstStep = 总数 / bursts）；尚有爆发时按 opaque / divisor 发射；画图（少画末行，镜像时按 x + w − 列裁剪却画在 x + 列）；每个粒子在活粒子 ≤ slowLimit 时取 speed + rand() % speed，走 speed 步，寿命减 speed，寿命尽或进入目标矩形即移除（同时减不透明计数；只剩一个时清空并返回 0）；2 × 2 块按键色 0x004CDE78 跳过，混合时右上像素再被未混合值覆盖。通过。
+- 0x00434DD0 ParticlePut：范围（旗标 0x40：dword_4FB568，0x80：一次爆发，否则全图）内取 rand() % 28 × rand() 的像素；不透明时成粒子（镜像起点 x + w − idx % w；仅 0x80 时沿用上一个起点），目标为矩形内随机点，寿命 lifeBase + rand() % _ftol(√距离²)，速度 rand() % speed + 1，取块后清为键色，挂一个空后继。原版此后把空闲指针设为空后继的 next（0），由 DrawExplosion 移除尾部空节点时改为其前一个；重建的 tail 变化与之相同。第一个粒子 y 未初始化已记偏差。通过。
