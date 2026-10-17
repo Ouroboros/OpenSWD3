@@ -221,22 +221,225 @@ constexpr std::size_t kWordBytes = 2;  // an operand
 constexpr std::size_t kCodeWord = 0;   // the words of a command: its command word, then the operands
 constexpr std::size_t kFirstOperand = 1;
 
-// The bytes of each command below 0xC2 (0: its length depends on its operands), as 0x00427920 advances past them.
-constexpr std::array<u8, 0xC2> kCommandBytes = {
-    0,  0,  0,  0,  0,  0,  0,  2,  4,  2,  6,  6,  8, 4, 4,  0,   // 0x00
-    8,  8,  4,  2,  0,  8,  8,  0,  0,  4,  4,  14, 6, 6, 6,  6,   // 0x10
-    10, 10, 4,  8,  8,  2,  4,  4,  8,  0,  2,  2,  6, 6, 4,  4,   // 0x20
-    4,  4,  10, 2,  16, 2,  6,  4,  4,  4,  10, 4,  2, 2, 18, 0,   // 0x30
-    2,  4,  16, 4,  4,  4,  10, 6,  4,  8,  2,  4,  6, 6, 4,  16,  // 0x40
-    2,  10, 6,  16, 6,  0,  10, 0,  4,  0,  0,  4,  4, 4, 2,  2,   // 0x50
-    0,  2,  4,  4,  6,  4,  6,  6,  6,  2,  4,  6,  6, 0, 6,  6,   // 0x60
-    2,  6,  8,  4,  0,  6,  4,  4,  10, 2,  2,  10, 2, 0, 10, 10,  // 0x70
-    6,  8,  8,  6,  8,  0,  10, 2,  6,  2,  14, 4,  6, 6, 8,  2,   // 0x80
-    4,  6,  6,  2,  2,  2,  6,  10, 2,  10, 4,  2,  2, 8, 0,  0,   // 0x90
-    2,  0,  4,  8,  8,  10, 10, 8,  8,  0,  2,  2,  2, 2, 6,  2,   // 0xA0
-    2,  2,  4,  10, 2,  8,  8,  8,  12, 12, 10, 10, 6, 6, 6,  4,   // 0xB0
-    2,  2,                                                         // 0xC0
+// The bytes of a command below 0xC2 as 0x00427920 advances past it (0: its length depends on its operands).
+struct CommandLength
+{
+    EventCommand code;
+    u8 bytes;
 };
+
+// One entry per command, in command order (checked below).
+constexpr std::array<CommandLength, 0xC2> kCommandBytes = {
+    CommandLength{EventCommand{0}, 0},                           // 0x00 (no command)
+    CommandLength{EventCommand::DialogWait, 0},                  // 0x01
+    CommandLength{EventCommand::Dialog, 0},                      // 0x02
+    CommandLength{EventCommand::SizedDialogWait, 0},             // 0x03
+    CommandLength{EventCommand::SizedDialog, 0},                 // 0x04
+    CommandLength{EventCommand::PlainDialogWait, 0},             // 0x05
+    CommandLength{EventCommand::PlainDialog, 0},                 // 0x06
+    CommandLength{EventCommand::DialogNoSkip, 2},                // 0x07
+    CommandLength{EventCommand::DialogTimeout, 4},               // 0x08
+    CommandLength{EventCommand::DialogNoAdvance, 2},             // 0x09
+    CommandLength{EventCommand::SetAction, 6},                   // 0x0A
+    CommandLength{EventCommand::SetDirection, 6},                // 0x0B
+    CommandLength{EventCommand::PutRoleOnTile, 8},               // 0x0C
+    CommandLength{EventCommand::StepRole, 4},                    // 0x0D
+    CommandLength{EventCommand::WaitDialogClosed, 4},            // 0x0E
+    CommandLength{EventCommand::Jump, 0},                        // 0x0F
+    CommandLength{EventCommand::JumpIfMoveIdle, 8},              // 0x10
+    CommandLength{EventCommand::JumpIfMoveRunning, 8},           // 0x11
+    CommandLength{EventCommand::ResumeMove, 4},                  // 0x12
+    CommandLength{EventCommand::ResumeAllMoves, 2},              // 0x13
+    CommandLength{EventCommand::MoveRoles, 0},                   // 0x14
+    CommandLength{EventCommand::JumpIfFlag, 8},                  // 0x15
+    CommandLength{EventCommand::JumpIfNotFlag, 8},               // 0x16
+    CommandLength{EventCommand::JumpIfAllFlags, 0},              // 0x17
+    CommandLength{EventCommand::JumpIfAnyFlag, 0},               // 0x18
+    CommandLength{EventCommand::SetFlag, 4},                     // 0x19
+    CommandLength{EventCommand::ClearFlag, 4},                   // 0x1A
+    CommandLength{EventCommand::ChangeMap, 14},                  // 0x1B
+    CommandLength{EventCommand::SetRoleTalk, 6},                 // 0x1C
+    CommandLength{EventCommand::SetVariable, 6},                 // 0x1D
+    CommandLength{EventCommand::AddVariable, 6},                 // 0x1E
+    CommandLength{EventCommand::SubtractVariable, 6},            // 0x1F
+    CommandLength{EventCommand::JumpIfVariableAtLeast, 10},      // 0x20
+    CommandLength{EventCommand::JumpIfVariableAtMost, 10},       // 0x21
+    CommandLength{EventCommand::SetClock, 4},                    // 0x22
+    CommandLength{EventCommand::JumpIfClockReached, 8},          // 0x23
+    CommandLength{EventCommand::JumpIfClockPassed, 8},           // 0x24
+    CommandLength{EventCommand::MarkClock, 2},                   // 0x25
+    CommandLength{EventCommand::RemoveRole, 4},                  // 0x26
+    CommandLength{EventCommand::HideRole, 4},                    // 0x27
+    CommandLength{EventCommand::PutRole, 8},                     // 0x28
+    CommandLength{EventCommand::JumpByChoice, 0},                // 0x29
+    CommandLength{EventCommand::LockPlayer, 2},                  // 0x2A
+    CommandLength{EventCommand::UnlockPlayer, 2},                // 0x2B
+    CommandLength{EventCommand::SetSpeed, 6},                    // 0x2C
+    CommandLength{EventCommand::SetAct, 6},                      // 0x2D
+    CommandLength{EventCommand::RestoreAct, 4},                  // 0x2E
+    CommandLength{EventCommand::RestoreAction, 4},               // 0x2F
+    CommandLength{EventCommand::RestoreDirection, 4},            // 0x30
+    CommandLength{EventCommand::ClearSpeed, 4},                  // 0x31
+    CommandLength{EventCommand::PanCamera, 10},                  // 0x32
+    CommandLength{EventCommand::WaitPan, 2},                     // 0x33
+    CommandLength{EventCommand::FadeColors, 16},                 // 0x34
+    CommandLength{EventCommand::WaitFade, 2},                    // 0x35
+    CommandLength{EventCommand::SeekAct, 6},                     // 0x36
+    CommandLength{EventCommand::LayerFront, 4},                  // 0x37
+    CommandLength{EventCommand::LayerMiddle, 4},                 // 0x38
+    CommandLength{EventCommand::LayerBack, 4},                   // 0x39
+    CommandLength{EventCommand::ScreenAnimation, 10},            // 0x3A
+    CommandLength{EventCommand::Sound, 4},                       // 0x3B
+    CommandLength{EventCommand::ShowScreen, 2},                  // 0x3C
+    CommandLength{EventCommand::BlackScreen, 2},                 // 0x3D
+    CommandLength{EventCommand::PlaceRoleOnMap, 18},             // 0x3E
+    CommandLength{EventCommand::Quake, 0},                       // 0x3F
+    CommandLength{EventCommand::StopQuake, 2},                   // 0x40
+    CommandLength{EventCommand::JoinFollowers, 4},               // 0x41
+    CommandLength{EventCommand::LeaveFollowers, 16},             // 0x42
+    CommandLength{EventCommand::Wait, 4},                        // 0x43
+    CommandLength{EventCommand::ClearRoleHidden, 4},             // 0x44
+    CommandLength{EventCommand::SetRoleHidden, 4},               // 0x45
+    CommandLength{EventCommand::PanCameraTo, 10},                // 0x46
+    CommandLength{EventCommand::AttachAct, 6},                   // 0x47
+    CommandLength{EventCommand::DetachAct, 4},                   // 0x48
+    CommandLength{EventCommand::PanCameraToRole, 8},             // 0x49
+    CommandLength{EventCommand::StopFade, 2},                    // 0x4A
+    CommandLength{EventCommand::HoldRole, 4},                    // 0x4B
+    CommandLength{EventCommand::TurnToFace, 6},                  // 0x4C
+    CommandLength{EventCommand::FixSpeed, 6},                    // 0x4D
+    CommandLength{EventCommand::FreeSpeed, 4},                   // 0x4E
+    CommandLength{EventCommand::FlyingSprite, 16},               // 0x4F
+    CommandLength{EventCommand::DialogOverlay, 2},               // 0x50
+    CommandLength{EventCommand::HeadIn, 10},                     // 0x51
+    CommandLength{EventCommand::HeadOut, 6},                     // 0x52
+    CommandLength{EventCommand::LineEffect, 16},                 // 0x53
+    CommandLength{EventCommand::LineEffectMode, 6},              // 0x54
+    CommandLength{EventCommand::PlayVideo, 0},                   // 0x55
+    CommandLength{EventCommand::ChangeHead, 10},                 // 0x56
+    CommandLength{EventCommand::RandomJump, 0},                  // 0x57
+    CommandLength{EventCommand::StartBattle, 4},                 // 0x58
+    CommandLength{EventCommand::RecordDialogWait, 0},            // 0x59
+    CommandLength{EventCommand::RecordDialog, 0},                // 0x5A
+    CommandLength{EventCommand::RoleNamePlate, 4},               // 0x5B
+    CommandLength{EventCommand::SetInParty, 4},                  // 0x5C
+    CommandLength{EventCommand::ClearInParty, 4},                // 0x5D
+    CommandLength{EventCommand::CameraHold, 2},                  // 0x5E
+    CommandLength{EventCommand::CameraFollow, 2},                // 0x5F
+    CommandLength{EventCommand::MapMovie, 0},                    // 0x60
+    CommandLength{EventCommand::WaitMapMovie, 2},                // 0x61
+    CommandLength{EventCommand::Skip, 4},                        // 0x62
+    CommandLength{EventCommand::WaitMovieFrame, 4},              // 0x63
+    CommandLength{EventCommand::SetEvent, 6},                    // 0x64
+    CommandLength{EventCommand::SetRoleFastMove, 4},             // 0x65
+    CommandLength{EventCommand::RoleExamine, 6},                 // 0x66
+    CommandLength{EventCommand::RoleNoTalkPointer, 6},           // 0x67
+    CommandLength{EventCommand::DialogOffset, 6},                // 0x68
+    CommandLength{EventCommand::DialogSingleLine, 2},            // 0x69
+    CommandLength{EventCommand::WaitAnimationA, 4},              // 0x6A
+    CommandLength{EventCommand::WaitActRounds, 6},               // 0x6B
+    CommandLength{EventCommand::DialogOrigin, 6},                // 0x6C
+    CommandLength{EventCommand::StepRoles, 0},                   // 0x6D
+    CommandLength{EventCommand::JumpIfNoneMoving, 6},            // 0x6E
+    CommandLength{EventCommand::JumpIfAnyMoving, 6},             // 0x6F
+    CommandLength{EventCommand::WaitEffects, 2},                 // 0x70
+    CommandLength{EventCommand::SoundLong, 6},                   // 0x71
+    CommandLength{EventCommand::ChangeMusic, 8},                 // 0x72
+    CommandLength{EventCommand::MusicVolume, 4},                 // 0x73
+    CommandLength{EventCommand::PutRoles, 0},                    // 0x74
+    CommandLength{EventCommand::RoleUnk10, 6},                   // 0x75
+    CommandLength{EventCommand::CloseDialog, 4},                 // 0x76
+    CommandLength{EventCommand::WaitDialogRead, 4},              // 0x77
+    CommandLength{EventCommand::SetActData, 10},                 // 0x78
+    CommandLength{EventCommand::DialogBubble, 2},                // 0x79
+    CommandLength{EventCommand::StopSkipping, 2},                // 0x7A
+    CommandLength{EventCommand::SceneMusic, 10},                 // 0x7B
+    CommandLength{EventCommand::DialogLogged, 2},                // 0x7C
+    CommandLength{EventCommand::AddLog, 0},                      // 0x7D
+    CommandLength{EventCommand::JumpIfActionNot, 10},            // 0x7E
+    CommandLength{EventCommand::JumpIfAction, 10},               // 0x7F
+    CommandLength{EventCommand::AddItem, 6},                     // 0x80
+    CommandLength{EventCommand::JumpIfItem, 8},                  // 0x81
+    CommandLength{EventCommand::JumpIfNoItem, 8},                // 0x82
+    CommandLength{EventCommand::LearnSkill, 6},                  // 0x83
+    CommandLength{EventCommand::Equip, 8},                       // 0x84
+    CommandLength{EventCommand::ItemMenu, 0},                    // 0x85
+    CommandLength{EventCommand::ChangeVitals, 10},               // 0x86
+    CommandLength{EventCommand::SaveMenu, 2},                    // 0x87
+    CommandLength{EventCommand::RoleStepsAct, 6},                // 0x88
+    CommandLength{EventCommand::StopMusic, 2},                   // 0x89
+    CommandLength{EventCommand::JumpIfFar, 14},                  // 0x8A
+    CommandLength{EventCommand::WaitDialogTyped, 4},             // 0x8B
+    CommandLength{EventCommand::RoleFacesTalker, 6},             // 0x8C
+    CommandLength{EventCommand::MusicFade, 6},                   // 0x8D
+    CommandLength{EventCommand::StartTimer, 8},                  // 0x8E
+    CommandLength{EventCommand::StopTimer, 2},                   // 0x8F
+    CommandLength{EventCommand::EndGame, 4},                     // 0x90
+    CommandLength{EventCommand::RoleTouchEvent, 6},              // 0x91
+    CommandLength{EventCommand::RoleCellEffects, 6},             // 0x92
+    CommandLength{EventCommand::HideLoadingScreen, 2},           // 0x93
+    CommandLength{EventCommand::SpotlightOn, 2},                 // 0x94
+    CommandLength{EventCommand::SpotlightOff, 2},                // 0x95
+    CommandLength{EventCommand::SpotlightAt, 6},                 // 0x96
+    CommandLength{EventCommand::SpotlightMove, 10},              // 0x97
+    CommandLength{EventCommand::WaitSpotlight, 2},               // 0x98
+    CommandLength{EventCommand::ScreenAnimationB, 10},           // 0x99
+    CommandLength{EventCommand::WaitAnimationB, 4},              // 0x9A
+    CommandLength{EventCommand::EnterDemonPot, 2},               // 0x9B
+    CommandLength{EventCommand::LeaveDemonPot, 2},               // 0x9C
+    CommandLength{EventCommand::SetReturnMap, 8},                // 0x9D
+    CommandLength{EventCommand::CopyMedia, 0},                   // 0x9E
+    CommandLength{EventCommand::DeleteMedia, 0},                 // 0x9F
+    CommandLength{EventCommand::DialogCentred, 2},               // 0xA0
+    CommandLength{EventCommand::OpenScript, 0},                  // 0xA1
+    CommandLength{EventCommand::VariableNamePlate, 4},           // 0xA2
+    CommandLength{EventCommand::JumpIfNotMap, 8},                // 0xA3
+    CommandLength{EventCommand::JumpIfMap, 8},                   // 0xA4
+    CommandLength{EventCommand::JumpIfItemsAtLeast, 10},         // 0xA5
+    CommandLength{EventCommand::JumpIfItemsAtMost, 10},          // 0xA6
+    CommandLength{EventCommand::JumpIfWorn, 8},                  // 0xA7
+    CommandLength{EventCommand::JumpIfNotWorn, 8},               // 0xA8
+    CommandLength{EventCommand::MoveRolesActing, 0},             // 0xA9
+    CommandLength{EventCommand::ClearFileNameA, 2},              // 0xAA
+    CommandLength{EventCommand::SetFileNameA, 2},                // 0xAB
+    CommandLength{EventCommand::ClearFileNameB, 2},              // 0xAC
+    CommandLength{EventCommand::SetFileNameB, 2},                // 0xAD
+    CommandLength{EventCommand::RoleSolid, 6},                   // 0xAE
+    CommandLength{EventCommand::PauseMapMovie, 2},               // 0xAF
+    CommandLength{EventCommand::ResumeMapMovie, 2},              // 0xB0
+    CommandLength{EventCommand::GatherParty, 2},                 // 0xB1
+    CommandLength{EventCommand::PassWalls, 4},                   // 0xB2
+    CommandLength{EventCommand::Ripple, 10},                     // 0xB3
+    CommandLength{EventCommand::PauseGame, 2},                   // 0xB4
+    CommandLength{EventCommand::SetVariableWide, 8},             // 0xB5
+    CommandLength{EventCommand::AddVariableWide, 8},             // 0xB6
+    CommandLength{EventCommand::SubtractVariableWide, 8},        // 0xB7
+    CommandLength{EventCommand::JumpIfVariableAtLeastWide, 12},  // 0xB8
+    CommandLength{EventCommand::JumpIfVariableAtMostWide, 12},   // 0xB9
+    CommandLength{EventCommand::JumpIfStatAtLeast, 10},          // 0xBA
+    CommandLength{EventCommand::JumpIfStatAtMost, 10},           // 0xBB
+    CommandLength{EventCommand::SetStat, 6},                     // 0xBC
+    CommandLength{EventCommand::AddStat, 6},                     // 0xBD
+    CommandLength{EventCommand::SubtractStat, 6},                // 0xBE
+    CommandLength{EventCommand::WaitCameraY, 4},                 // 0xBF
+    CommandLength{EventCommand::WaitMusicFade, 2},               // 0xC0
+    CommandLength{EventCommand::WaitVideo, 2},                   // 0xC1
+};
+
+constexpr bool InCommandOrder()
+{
+    for (std::size_t index = 0; index < kCommandBytes.size(); ++index)
+    {
+        if (static_cast<std::size_t>(kCommandBytes[index].code) != index)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static_assert(InCommandOrder(), "kCommandBytes must list the commands in order");
 
 constexpr int CommandBytes(EventCommand code)
 {
@@ -246,7 +449,7 @@ constexpr int CommandBytes(EventCommand code)
     }
 
     const auto index = static_cast<std::size_t>(code);
-    return index < kCommandBytes.size() ? kCommandBytes[index] : 0;
+    return index < kCommandBytes.size() ? kCommandBytes[index].bytes : 0;
 }
 
 // The odd dialog commands wait for their window.

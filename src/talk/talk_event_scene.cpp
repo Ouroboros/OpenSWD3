@@ -209,7 +209,8 @@ bool Talk::PanCamera(EventRun& run)
 // Command 0x3E: role `id` put on a map (its record's act, place, event and talk set; 0xFFFF keeps the map or takes
 // the controlled role's tile). A role on the map leaves it first (its moves freed); a role put on the current map is
 // loaded from maps.dat and placed (replacing a role of the same id), and a role with flag 0x200 takes the empty
-// bubble marks.
+// bubble marks. The command number is left 0xFFFF (it becomes the last command, 0x0042B0AE); every way out
+// advances 0x12 bytes whatever it holds (0x004299CA add ebx, 12h; 0x004299CD add word ptr [ebp+0], 12h).
 bool Talk::PlaceRole(EventRun& run)
 {
     Game& owner = this->game;
