@@ -22,6 +22,10 @@ GOLDEN_OUT=<工作区>/tests/golden/draw_golden.txt SWD3_GAME_DIR=/mnt/e/Game/sw
 
 不能在旧实现上运行的场景（原程序会崩溃）：未分配的模式（空表项）、带 0x8000 段的镜像 Alpha 映射（空查找表）、原始图片的翻转与镜像半透明模式（空表项）。新实现对这些情况的行为由 `tests/painter_test.cpp` 覆盖，并记录在 `deviations.md`。
 
+旧实现的灰化（0x00421850、0x00421BE0）在没有底色选项时不画，汇编并无此判断（入口到主循环只查 RLE 标志、上跳与波浪）。第 3 阶段已改为照常画灰，24 个 `gray-none` 场景的哈希改用新实现的结果。
+
+旧实现的涂抹（0x00422730、0x004229C0）沿用上一次绘制留下的步数，汇编在入口把计数 0x4CD314 清 0（0x00422739、0x004229C9）。第 3 阶段已改为每次从 0 开始，71 个 `smear`／`smear-flip`／`smear-mirror` 场景的哈希改用新实现的结果。
+
 ## RLE 编解码（tests/golden/rle_golden.txt）
 
 场景定义：`tests/golden/rle_scenarios.h`。生成器：`rle_golden_legacy.cpp`（同样复制到旧树的 tests/ 下），运行 `./swd3_tests "rle codec"` 并设置 `GOLDEN_OUT`。

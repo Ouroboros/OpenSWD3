@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cstring>
+#include <utility>
 
 #include "core/words.h"
 #include "draw/painter.h"
@@ -325,7 +326,7 @@ u16 Painter::Gray(u16 dest) const
 }
 
 // The smear counter cycles 1..16 and copies the left neighbour, the pixel one row below, one row above or the right
-// neighbour; the 17th step resets the counter without writing.
+// neighbour; the 17th step resets the counter without writing. Both smear effects restart it at 0 for every picture.
 void Painter::Smear(u16* at)
 {
     const int step = this->smearCounter + 1;
@@ -495,29 +496,58 @@ const u8* Painter::ScaledNextLine(const u8* line, u32& fraction) const
 template <typename RunOp>
 void Painter::ForEachRun(const u8* codes, int start, int width, RunOp&& op) const
 {
+    this->ForEachChainedRun(codes, start, width, RunChain::Checked, std::forward<RunOp>(op));
+}
+
+// ForEachRun with the run kinds read as the effect reads them. Both kind bits are tested for the first run of a line
+// and after a literal run left of the drawn columns; after other runs:
+// - Checked: both bits again.
+// - LiteralThenSkip: after a drawn literal run the code is a 0x4000/0x8000 run whatever its bits (0x00418503,
+//   0x00418AAD, 0x0041913B); its pixels are not passed over.
+// - Split: after a drawn literal run a code without 0x4000 is a 0x8000 run (0x0041A22B), after a 0x4000 run one
+//   without 0x8000 is a literal run (0x0041A27D, 0x0041A2B1) and after a 0x8000 run one without 0x4000 is a literal
+//   run (0x0041A2F8, 0x0041A33A).
+template <typename RunOp>
+void Painter::ForEachChainedRun(const u8* codes, int start, int width, RunChain chain, RunOp&& op) const
+{
     const int end = start + width;
     int x = 0;
+    bool bothBits = true;
+    RunKind previous = RunKind::Literal;
 
     while (true)
     {
         const u16 code = Word(codes);
+        const bool fillBit = (code & RleHeader::FillRun) != 0;
+        const bool skipBit = (code & RleHeader::SkipRun) != 0;
+        RunKind kind = fillBit ? RunKind::Fill : skipBit ? RunKind::Skip : RunKind::Literal;
+
+        if (!bothBits && chain == RunChain::LiteralThenSkip && previous == RunKind::Literal)
+        {
+            kind = fillBit ? RunKind::Fill : RunKind::Skip;
+        }
+        else if (!bothBits && chain == RunChain::Split)
+        {
+            if (previous == RunKind::Literal)
+            {
+                kind = fillBit ? RunKind::Fill : RunKind::Skip;
+            }
+            else if (previous == RunKind::Fill)
+            {
+                kind = skipBit ? RunKind::Skip : RunKind::Literal;
+            }
+            else
+            {
+                kind = fillBit ? RunKind::Fill : RunKind::Literal;
+            }
+        }
+
         const int count = code & RleHeader::CountMask;
         codes += sizeof(u16);
 
         if (count == 0)
         {
             return;
-        }
-
-        RunKind kind = RunKind::Literal;
-
-        if ((code & RleHeader::FillRun) != 0)
-        {
-            kind = RunKind::Fill;
-        }
-        else if ((code & RleHeader::SkipRun) != 0)
-        {
-            kind = RunKind::Skip;
         }
 
         const u8* pixels = codes;
@@ -527,15 +557,20 @@ void Painter::ForEachRun(const u8* codes, int start, int width, RunOp&& op) cons
             codes += sizeof(u16) * count;
         }
 
-        const int first = x > start ? x : start;
-        const int last = x + count < end ? x + count : end;
+        previous = kind;
 
-        if (last > first)
+        if (x + count <= start)
         {
-            op(kind, pixels + sizeof(u16) * (first - x), last - first, first - start);
+            x += count;
+            bothBits = kind == RunKind::Literal;
+            continue;
         }
 
-        x += count;
+        bothBits = false;
+        const int first = x > start ? x : start;
+        const int last = x + count < end ? x + count : end;
+        op(kind, pixels + sizeof(u16) * (first - x), last - first, first - start);
+        x = last;
 
         if (x >= end)
         {
@@ -632,10 +667,11 @@ void Painter::WalkRuns(const LineWalk& walk, RunOp&& op)
         walk,
         [this, &walk, &op, start, width](const u8* codes, u16* lineDest, int)
         {
-            this->ForEachRun(
+            this->ForEachChainedRun(
                 codes,
                 start,
                 width,
+                walk.chain,
                 [&walk, &op, lineDest](RunKind kind, const u8* pixels, int count, int offset)
                 {
                     op(kind, pixels, count, walk.mirrored ? lineDest - offset : lineDest + offset);
@@ -652,7 +688,7 @@ void Painter::WalkRuns(const LineWalk& walk, RunOp&& op)
 // swd32.exe 0x00418350: literal pixels copied; both other run kinds are transparent
 int Painter::BlitCopy(int, int, int, int, const DrawArgument&)
 {
-    const LineWalk walk{.signedPitch = true};
+    const LineWalk walk{.signedPitch = true, .chain = RunChain::LiteralThenSkip};
     this->WalkRuns(
         walk,
         [](RunKind kind, const u8* pixels, int count, u16* at)
@@ -691,7 +727,7 @@ int Painter::BlitCopyMirrored(int, int, int width, int, const DrawArgument&)
 // skips every third line. Lines advance by the screen pitch (a flip is ignored).
 int Painter::BlitAdditive(int, int, int, int, const DrawArgument&)
 {
-    const LineWalk walk{.dropLines = true};
+    const LineWalk walk{.dropLines = true, .chain = RunChain::LiteralThenSkip};
     const bool tinted = this->Tinted();
     const Tint tint = this->CurrentTint();
     this->WalkRuns(
@@ -718,7 +754,7 @@ int Painter::BlitAdditive(int, int, int, int, const DrawArgument&)
 int Painter::BlitAdditiveMirrored(int, int, int width, int, const DrawArgument&)
 {
     this->mirrorStart = width - (this->placement.skipLeft + this->placement.width);
-    const LineWalk walk{.mirrored = true, .dropLines = true};
+    const LineWalk walk{.mirrored = true, .dropLines = true, .chain = RunChain::LiteralThenSkip};
     const bool tinted = this->Tinted();
     const Tint tint = this->CurrentTint();
     this->WalkRuns(
@@ -757,10 +793,11 @@ int Painter::BlitAlphaMap(int, int, int width, int, const DrawArgument& argument
         [this, &argument, width, start, columns, skipTop](const u8* codes, u16* lineDest, int line)
         {
             const u8* levels = argument.alphaMap + static_cast<std::ptrdiff_t>(skipTop + line - 1) * width;
-            this->ForEachRun(
+            this->ForEachChainedRun(
                 codes,
                 start,
                 columns,
+                RunChain::Split,
                 [this, levels, lineDest, start](RunKind kind, const u8* pixels, int count, int offset)
                 {
                     u16* at = lineDest + offset;
@@ -823,10 +860,11 @@ int Painter::BlitAlphaMapMirrored(int, int, int width, int, const DrawArgument& 
         [this, &argument, width, start, columns, skipTop](const u8* codes, u16* lineDest, int line)
         {
             const u8* levels = argument.alphaMap + static_cast<std::ptrdiff_t>(skipTop + line - 1) * width;
-            this->ForEachRun(
+            this->ForEachChainedRun(
                 codes,
                 start,
                 columns,
+                RunChain::Split,
                 [this, levels, lineDest, start](RunKind kind, const u8* pixels, int count, int offset)
                 {
                     if (kind != RunKind::Literal)
@@ -895,7 +933,7 @@ int Painter::BlitTint(int, int, int, int, const DrawArgument&)
     }
 
     const Tint tint = this->CurrentTint();
-    const LineWalk walk{.waveStride = Painter::WideWaveStride};
+    const LineWalk walk{.waveStride = Painter::WideWaveStride, .chain = RunChain::Split};
     this->WalkRuns(
         walk,
         [this, &tint](RunKind kind, const u8*, int count, u16* at)
@@ -922,7 +960,7 @@ int Painter::BlitTintMirrored(int, int, int width, int, const DrawArgument&)
 
     this->mirrorStart = width - (this->placement.skipLeft + this->placement.width);
     const Tint tint = this->CurrentTint();
-    const LineWalk walk{.mirrored = true};
+    const LineWalk walk{.mirrored = true, .chain = RunChain::Split};
     this->WalkRuns(
         walk,
         [this, &tint](RunKind kind, const u8*, int count, u16* at)
@@ -943,7 +981,7 @@ int Painter::BlitTintMirrored(int, int, int width, int, const DrawArgument&)
 int Painter::BlitTranslucent(int, int, int, int, const DrawArgument&)
 {
     const int level = this->options.alpha;
-    const LineWalk walk{.signedPitch = true};
+    const LineWalk walk{.signedPitch = true, .chain = RunChain::Split};
     this->WalkRuns(
         walk,
         [this, level](RunKind kind, const u8* pixels, int count, u16* at)
@@ -965,7 +1003,7 @@ int Painter::BlitTranslucentMirrored(int, int, int width, int, const DrawArgumen
 {
     this->mirrorStart = width - (this->placement.skipLeft + this->placement.width);
     const int level = this->options.alpha;
-    const LineWalk walk{.mirrored = true, .signedPitch = true};
+    const LineWalk walk{.mirrored = true, .signedPitch = true, .chain = RunChain::Split};
     this->WalkRuns(
         walk,
         [this, level](RunKind kind, const u8* pixels, int count, u16* at)
@@ -987,7 +1025,7 @@ int Painter::BlitTranslucentMirrored(int, int, int width, int, const DrawArgumen
 int Painter::BlitEdgeMark(int, int, int, int, const DrawArgument&)
 {
     const auto mark = static_cast<u16>(this->greenMaskPair);
-    const LineWalk walk{};
+    const LineWalk walk{.chain = RunChain::Split};
     this->WalkRuns(
         walk,
         [mark](RunKind kind, const u8* pixels, int count, u16* at)
@@ -1009,7 +1047,7 @@ int Painter::BlitEdgeMarkMirrored(int, int, int width, int, const DrawArgument&)
 {
     this->mirrorStart = width - (this->placement.skipLeft + this->placement.width);
     const auto mark = static_cast<u16>(this->greenMaskPair);
-    const LineWalk walk{.mirrored = true, .advanceWave = false};
+    const LineWalk walk{.mirrored = true, .advanceWave = false, .chain = RunChain::Split};
     this->WalkRuns(
         walk,
         [mark](RunKind kind, const u8* pixels, int count, u16* at)
@@ -1044,10 +1082,11 @@ int Painter::BlitFadeDown(int, int, int, int height, const DrawArgument&)
         walk,
         [this, &level, start, columns](const u8* codes, u16* lineDest, int)
         {
-            this->ForEachRun(
+            this->ForEachChainedRun(
                 codes,
                 start,
                 columns,
+                RunChain::Split,
                 [this, level, lineDest](RunKind kind, const u8* pixels, int count, int offset)
                 {
                     if (kind == RunKind::Literal)
@@ -1081,7 +1120,7 @@ int Painter::BlitFadeDown(int, int, int, int height, const DrawArgument&)
 int Painter::BlitScaledGlow(int, int, int, int, const DrawArgument&)
 {
     const Tint tint = this->CurrentTint();
-    const LineWalk walk{.scaled = true};
+    const LineWalk walk{.scaled = true, .chain = RunChain::Split};
     this->WalkRuns(
         walk,
         [this, &tint](RunKind kind, const u8* pixels, int count, u16* at)
@@ -1103,7 +1142,7 @@ int Painter::BlitScaledGlowMirrored(int, int, int width, int, const DrawArgument
 {
     this->mirrorStart = width - (this->placement.skipLeft + this->placement.width);
     const Tint tint = this->CurrentTint();
-    const LineWalk walk{.mirrored = true, .scaled = true};
+    const LineWalk walk{.mirrored = true, .scaled = true, .chain = RunChain::Split};
     this->WalkRuns(
         walk,
         [this, &tint](RunKind kind, const u8* pixels, int count, u16* at)
@@ -1126,7 +1165,7 @@ int Painter::BlitSilhouette(int, int, int, int, const DrawArgument& argument)
 {
     const u32 color = argument.colorPair;
     const auto low = static_cast<u16>(color);
-    const LineWalk walk{.signedPitch = true};
+    const LineWalk walk{.signedPitch = true, .chain = RunChain::Split};
     this->WalkRuns(
         walk,
         [color, low](RunKind kind, const u8*, int count, u16* at)
@@ -1170,7 +1209,7 @@ int Painter::BlitSilhouetteMirrored(int, int, int width, int, const DrawArgument
     const u32 color = argument.colorPair;
     const auto low = static_cast<u16>(color);
     const u32 swapped = MakeWords(LowWord(color), HighWord(color));
-    const LineWalk walk{.mirrored = true, .signedPitch = true, .advanceWave = false};
+    const LineWalk walk{.mirrored = true, .signedPitch = true, .advanceWave = false, .chain = RunChain::Split};
     this->WalkRuns(
         walk,
         [low, swapped](RunKind kind, const u8*, int count, u16* at)
@@ -1211,16 +1250,11 @@ int Painter::BlitSilhouetteMirrored(int, int, int width, int, const DrawArgument
     return 0;
 }
 
-// swd32.exe 0x00421850: the destination under the literal pixels turned grey; like the tint effect it draws nothing
-// without a tint option. Wave rows 0x528 bytes apart.
+// swd32.exe 0x00421850: the destination under the literal pixels turned grey, with or without a tint option (the tint
+// steps it computes are not used). Wave rows 0x528 bytes apart.
 int Painter::BlitGray(int, int, int, int, const DrawArgument&)
 {
-    if (!this->Tinted())
-    {
-        return 0;
-    }
-
-    const LineWalk walk{.waveStride = Painter::WideWaveStride};
+    const LineWalk walk{.waveStride = Painter::WideWaveStride, .chain = RunChain::Split};
     this->WalkRuns(
         walk,
         [this](RunKind kind, const u8*, int count, u16* at)
@@ -1240,13 +1274,8 @@ int Painter::BlitGray(int, int, int, int, const DrawArgument&)
 // swd32.exe 0x00421BE0: mirrored 0x00421850 (wave rows 0x84 apart)
 int Painter::BlitGrayMirrored(int, int, int width, int, const DrawArgument&)
 {
-    if (!this->Tinted())
-    {
-        return 0;
-    }
-
     this->mirrorStart = width - (this->placement.skipLeft + this->placement.width);
-    const LineWalk walk{.mirrored = true};
+    const LineWalk walk{.mirrored = true, .chain = RunChain::Split};
     this->WalkRuns(
         walk,
         [this](RunKind kind, const u8*, int count, u16* at)
@@ -1267,7 +1296,7 @@ int Painter::BlitGrayMirrored(int, int, int width, int, const DrawArgument&)
 int Painter::BlitSubtractive(int, int, int, int, const DrawArgument&)
 {
     const Tint tint = this->CurrentTint();
-    const LineWalk walk{.dropLines = true};
+    const LineWalk walk{.dropLines = true, .chain = RunChain::LiteralThenSkip};
     this->WalkRuns(
         walk,
         [this, &tint](RunKind kind, const u8* pixels, int count, u16* at)
@@ -1289,7 +1318,7 @@ int Painter::BlitSubtractiveMirrored(int, int, int width, int, const DrawArgumen
 {
     this->mirrorStart = width - (this->placement.skipLeft + this->placement.width);
     const Tint tint = this->CurrentTint();
-    const LineWalk walk{.mirrored = true, .dropLines = true};
+    const LineWalk walk{.mirrored = true, .dropLines = true, .chain = RunChain::LiteralThenSkip};
     this->WalkRuns(
         walk,
         [this, &tint](RunKind kind, const u8* pixels, int count, u16* at)
@@ -1309,7 +1338,8 @@ int Painter::BlitSubtractiveMirrored(int, int, int width, int, const DrawArgumen
 // swd32.exe 0x00422730: the destination under the literal pixels smeared (see Smear)
 int Painter::BlitSmear(int, int, int, int, const DrawArgument&)
 {
-    const LineWalk walk{.signedPitch = true};
+    this->smearCounter = 0;
+    const LineWalk walk{.signedPitch = true, .chain = RunChain::LiteralThenSkip};
     this->WalkRuns(
         walk,
         [this](RunKind kind, const u8*, int count, u16* at)
@@ -1330,6 +1360,7 @@ int Painter::BlitSmear(int, int, int, int, const DrawArgument&)
 // of its mirrored position; the wave phase is not advanced
 int Painter::BlitSmearMirrored(int, int, int width, int, const DrawArgument&)
 {
+    this->smearCounter = 0;
     this->mirrorStart = width - (this->placement.skipLeft + this->placement.width);
     const LineWalk walk{.mirrored = true, .signedPitch = true, .advanceWave = false};
     this->WalkRuns(
@@ -1477,10 +1508,11 @@ void Painter::WalkShear(bool mirrored, int x, int y, int width, LiteralOp&& lite
 
             dest = this->Pixel(position, row);
             u16* lineDest = dest;
-            this->ForEachRun(
+            this->ForEachChainedRun(
                 lines + sizeof(u16),
                 start,
                 columns,
+                RunChain::Split,
                 [&literal, lineDest, mirrored](RunKind kind, const u8*, int count, int offset)
                 {
                     if (kind == RunKind::Literal)

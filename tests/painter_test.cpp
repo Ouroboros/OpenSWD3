@@ -148,3 +148,55 @@ TEST_CASE("painter: skip runs of the mirrored alpha map leave the destination")
     CHECK_EQ(screen.Row(kAlphaY)[kAlphaX + 1], kAlphaBackground);
     CHECK_EQ(screen.Row(kAlphaY)[kAlphaX + kWidth - 1], kWhite);
 }
+
+TEST_CASE("painter: the alpha map takes a literal run after a drawn literal run as a 0x8000 run")
+{
+    Surface screen(Display::Width, Display::Height);
+    screen.Fill(kAlphaBackground);
+    Painter painter;
+    painter.Init(screen);
+    painter.SetTarget(screen.Pixels());
+    // Two literal runs of one pixel: after the first is drawn, 0x0041A22B tests only 0x4000, so the second code is a
+    // 0x8000 run (filled with 0xFFF0) and its pixel is not passed over.
+    constexpr int kWidth = 2;
+    constexpr u16 kAlphaMarker = 0xFFF0;
+    const auto picture = RlePicture(kWidth, {{1, kPixelA, 1, kPixelB}});
+    std::vector<u8> levels(kWidth, kAlphaLevel);
+    painter.SetSource(picture.data());
+    DrawArgument argument;
+    argument.alphaMap = levels.data();
+    painter.DrawPicture(kAlphaX, kAlphaY, kWidth, 1, Painter::AlphaMap, argument);
+    CHECK_EQ(screen.Row(kAlphaY)[kAlphaX], kPixelA);
+    CHECK_EQ(screen.Row(kAlphaY)[kAlphaX + 1], kAlphaMarker);
+}
+
+TEST_CASE("painter: the copy takes the run after a drawn literal run as transparent")
+{
+    Surface screen(Display::Width, Display::Height);
+    screen.Fill(kBackground);
+    Painter painter;
+    painter.Init(screen);
+    painter.SetTarget(screen.Pixels());
+    // After the first literal run is drawn, 0x00418503 reads the next code as a transparent run without testing it:
+    // the second pixel is passed over and its data is read as the next code.
+    constexpr int kWidth = 2;
+    const auto picture = RlePicture(kWidth, {{1, kPixelA, 1, kPixelB}});
+    painter.SetSource(picture.data());
+    painter.DrawPicture(kPictureX, kPictureY, kWidth, 1, Painter::Copy);
+    CHECK_EQ(screen.Row(kPictureY)[kPictureX], kPixelA);
+    CHECK_EQ(screen.Row(kPictureY)[kPictureX + 1], kBackground);
+}
+
+TEST_CASE("painter: the grey effect draws without a tint option")
+{
+    Surface screen(Display::Width, Display::Height);
+    screen.Fill(kBackground);
+    Painter painter;
+    painter.Init(screen);
+    painter.SetTarget(screen.Pixels());
+    // 0x00421850 computes the tint steps but never tests them: the destination turns grey with zero tints too.
+    const auto picture = RlePicture(1, {{1, kPixelA}});
+    painter.SetSource(picture.data());
+    painter.DrawPicture(kPictureX, kPictureY, 1, 1, Painter::GrayUnder);
+    CHECK(screen.Row(kPictureY)[kPictureX] != kBackground);
+}

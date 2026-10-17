@@ -212,6 +212,14 @@ private:
         Skip,     // code 0x8000 | n, the skip colour
     };
 
+    // How an effect classifies the run codes of a line (see ForEachChainedRun).
+    enum class RunChain
+    {
+        Checked,          // both kind bits of every code
+        LiteralThenSkip,  // the code after a drawn literal run is taken as a 0x4000/0x8000 run unchecked
+        Split,            // the alpha map and tint effects: the next kind follows from the previous one
+    };
+
     struct Tint
     {
         u32 red = 0;
@@ -230,6 +238,7 @@ private:
         bool advanceWave = true;
         int waveStride = WaveRowBytes;  // bytes between the wave rows (WideWaveStride in some effects)
         bool scaled = false;            // vertical scaling (kScaledGlow)
+        RunChain chain = RunChain::Checked;
     };
 
     using Blitter = int (Painter::*)(int x, int y, int width, int height, const DrawArgument& argument);
@@ -263,6 +272,8 @@ private:
     const u8* ScaledNextLine(const u8* line, u32& fraction) const;
     template <typename RunOp>
     void ForEachRun(const u8* codes, int start, int width, RunOp&& op) const;
+    template <typename RunOp>
+    void ForEachChainedRun(const u8* codes, int start, int width, RunChain chain, RunOp&& op) const;
     template <typename LineOp, typename SkipHook>
     void ForEachLine(const LineWalk& walk, LineOp&& op, SkipHook&& skippedLine);
     template <typename RunOp>

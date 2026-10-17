@@ -11,7 +11,7 @@ namespace swd3test
 namespace
 {
 
-constexpr int kShownMismatches = 20;
+constexpr int kShownMismatches = 256;
 constexpr std::size_t kHashText = 17;  // sixteen hex digits and the NUL
 
 }  // namespace
@@ -51,7 +51,12 @@ void GoldenCheck::operator()(const std::string& name, swd3::u64 hash)
     {
         if (++this->mismatches <= kShownMismatches)
         {
-            std::printf("  mismatch: %s (%s)\n", name.c_str(), found == this->golden.end() ? "missing" : "hash");
+            std::printf(
+                "  mismatch: %s (%s, got %s)\n",
+                name.c_str(),
+                found == this->golden.end() ? "missing" : "hash",
+                text.data()
+            );
         }
     }
 }
