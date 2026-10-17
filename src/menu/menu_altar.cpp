@@ -263,23 +263,6 @@ constexpr int kNeedTwoCharWidth = 0xC;
 constexpr int kNeedTwoY = 0xE4;
 constexpr int kNeedTwoHeight = 0x18;
 
-// Inserts `node` into `list` before the first node of an id not below its own that follows one below it (inline in
-// 0x0043F0D0 and 0x0043F160; the head counts as id 0).
-void InsertById(ItemLink& list, std::unique_ptr<ItemNode> node)
-{
-    ItemLink* link = &list;
-    u16 previous = 0;
-
-    while (*link != nullptr && !((*link)->id >= node->id && previous < node->id))
-    {
-        previous = (*link)->id;
-        link = &(*link)->next;
-    }
-
-    node->next = std::move(*link);
-    *link = std::move(node);
-}
-
 }  // namespace
 
 // swd32.exe 0x0043D530: the altar page opened: the category, level, kind and altar of every object 0..0x4AF; the
@@ -426,7 +409,7 @@ void Menu::AltarTakeObjects(ItemLink& source, int tab)
 
         std::unique_ptr<ItemNode> node = std::move(*link);
         *link = std::move(node->next);
-        InsertById(altar.objects, std::move(node));
+        InsertItemById(altar.objects, std::move(node));
     }
 }
 
@@ -440,7 +423,7 @@ void Menu::AltarSortObjects()
     {
         std::unique_ptr<ItemNode> node = std::move(altar.objects);
         altar.objects = std::move(node->next);
-        InsertById(sorted, std::move(node));
+        InsertItemById(sorted, std::move(node));
     }
 
     altar.objects = std::move(sorted);

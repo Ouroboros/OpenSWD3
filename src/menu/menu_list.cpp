@@ -34,6 +34,23 @@ constexpr int kDownPressed = 2;
 
 }  // namespace
 
+// `node` inserted into `list` before the first node of an id not below its own that follows one below it (inline in
+// 0x0043F0D0, 0x0043F160 and 0x00441F70; the head counts as id 0)
+void InsertItemById(ItemLink& list, std::unique_ptr<ItemNode> node)
+{
+    ItemLink* link = &list;
+    u16 previous = 0;
+
+    while (*link != nullptr && !((*link)->id >= node->id && previous < node->id))
+    {
+        previous = (*link)->id;
+        link = &(*link)->next;
+    }
+
+    node->next = std::move(*link);
+    *link = std::move(node);
+}
+
 // swd32.exe 0x0043B980: the nodes of `list`
 int CountItems(const ItemLink& list)
 {

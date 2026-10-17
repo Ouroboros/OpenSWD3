@@ -8,12 +8,14 @@
 #include "core/types.h"
 #include "item/item_list.h"
 #include "menu/menu_list.h"
+#include "party/party.h"
 #include "res/act_state.h"
 
 namespace swd3
 {
 
 class Game;
+class Menu;
 class TextInput;
 
 // A role tab of the menus (0x1C bytes, four of them at 0x004A6A38): the role shown (0xFFFF: none), the box and the
@@ -109,6 +111,39 @@ struct AltarPage
 
 bool AltarTabTakes(const ItemNode& node, int tab);
 std::u8string_view CategoryName(u16 category);
+
+// The figures of a role on the equipment page (0x14 dwords): the vitals and maxima, the attributes, the word at
+// +0x20, the two equipment bonuses, then the slot's extra figures (percent, proficiency, fame).
+using EquipStats = std::array<i32, 0x14>;
+
+// The equipment page (role page 0xC; 0x004FCD28..0x004FCF90): the eleven slots of a role and the inventory's objects
+// that fit the slot chosen, with the stats each would give.
+struct EquipPage
+{
+    ItemLink unk4FCE20;                          // 0x004FCE20 where an object of another kind taken off goes
+    ItemNode* inventoryHead = nullptr;           // 0x004FCED8 the inventory's first node when opened
+    i32 openedAt = 0;                            // 0x004FCD28 Menu::frames when opened
+    i32 slide = 0;                               // 0x004FCD2C the page slides in
+    i32 unk4FCD30 = 0;                           // 0x004FCD30
+    i32 shown = 0;                               // 0x004FCD34
+    i32 slot = 0;                                // 0x004FCD38 0..10
+    i32 row = 0;                                 // 0x004FCD3C
+    i32 listX = 0;                               // 0x004FCD40
+    i32 listY = 0;                               // 0x004FCD44
+    void (Menu::*savedBeforeFrame)() = nullptr;  // 0x004FCD48
+    RoleRecord worn;                             // 0x004FCD4C the record the stats are computed in
+    i32 stage = 0;                               // 0x004FCD54 0: the slots, 1: the list, 5: a description, 0xF: refused
+    ItemNode* described = nullptr;               // 0x004FCD58
+    i32 unk4FCD5C = 0;                           // 0x004FCD5C
+    ItemNode* firstShown = nullptr;              // 0x004FCD64
+    u16 scrollArrows = 0;                        // 0x004FCD68
+    ItemLink objects;                            // 0x004FCD70 the objects that fit the slot
+    i32 top = 0;                                 // 0x004FCF88
+    std::array<EquipStats, Party::Roles + 1> stats =
+        {};                 // 0x004FCF8C the four roles, then the role with the object tried
+    i32 count = 0;          // 0x004FCF90
+    i32 previousStage = 0;  // 0x004FCED0 the stage a description returns to
+};
 
 // The edges of a list's scroll bar as last drawn (DrawScrollBar), read by the clicks.
 struct MenuScrollBar
@@ -244,6 +279,41 @@ public:
     void AltarMorph();
     void AltarFinishMorph();
     void AltarResultVitals();
+
+    // The equipment page (role page 0xC).
+    void EquipEnter();
+    void EquipLeave();
+    void EquipDescribeSlot();
+    void EquipDescribeRow();
+    ItemNode* EquipSlotNode();
+    void EquipTake(ItemLink& source, int slot);
+    void EquipCountShown();
+    void EquipFillList();
+    void EquipReturn();
+    void EquipComputeStats();
+    const ItemNode* EquipTried();
+    void EquipRoleStats(int role, EquipStats& stats);
+    void EquipTryStats(int role, int slot, EquipStats& stats, const ItemNode* tried);
+    void EquipStatsOf(EquipStats& stats);
+    void EquipExtraStats(const ItemNode* tried, EquipStats& stats);
+    void EquipSwapVitals(const ItemNode& added, const ItemNode& removed);
+    void EquipListMoved(u16 arrows);
+    void EquipSlotMoved();
+    void EquipDown();
+    void EquipUp();
+    void EquipPageDown();
+    void EquipPageUp();
+    void EquipLeft();
+    void EquipRight();
+    void EquipShift();
+    void EquipSelect();
+    void EquipPutOn();
+    void EquipCancel();
+    void EquipFrame();
+    void EquipDraw();
+    void EquipDrawSlots(int x, int y, int slide, int width, int chosen);
+    void EquipDrawStats(int slot, int role);
+    void DrawDescriptionBox(std::string_view text);
     void OptionsLeave();
     bool DrawNameEntry();
     void ActOnEntry();
@@ -335,6 +405,12 @@ public:
     MenuScrollBar scrollBar;  // 0x004FC4F0
     Bestiary bestiary;
     AltarPage altar;
+    EquipPage equip;
+    MenuScrollBar unk4FBAB4;     // 0x004FBAB4 a second bar of the equipment list (only drawn)
+    i32 descriptionSlide = 0;    // 0x004FC648 the description box slides (up while positive)
+    i32 descriptionTop = 0x1E0;  // 0x004FC830 its top
+    i32 unk4FC904 = 0;           // 0x004FC904 -1 while the description button is pressed
+    ActState unk4FD0A8;          // 0x004FD0A8 the description button
     ItemLink itemObjects;        // 0x004FD1E8 the objects of the items page
     ItemLink savedInventory;     // 0x004FD15C the inventory kept while the items page saves
     ItemLink savedItems;         // 0x004FD140 `itemObjects` kept with it
