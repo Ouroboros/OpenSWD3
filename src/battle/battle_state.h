@@ -386,11 +386,19 @@ public:
     i32 unk53C038 = 0;
     u16 unk53BF1C = 0;
     i32 unk53C024 = 0;
-    i32 unk53C004 = 0;       // 1: the victory ends without its panel (BattleEndFrame; inferred)
-    i32 unk4A7564 = -1;      // the enemy the auto battle aims at (1-based), -1: none
-    u16 unk4A7644 = 0xFFFF;  // a role unit that may take the panel in any battle state (SelectRoleUnit)
-    i32 unk4A7548 = 1;       // the command chosen in the menu (1-based)
-    i32 unk53BD18 = 0;       // the page of the list of state 2 (0..2)
+    i32 unk53C004 = 0;  // 1: the victory ends without its panel (BattleEndFrame; inferred)
+    // The hit act of a slot (Game::HitTargetFrame).
+    i32 unk53C03C = 0;                      // 1: hits run the ripple instead of their pictures
+    std::array<i32, Units> unk53AEE8 = {};  // per slot: the frames of the ripple
+    i32 unk53BDE0 = 0;                      // the place the hit picture is drawn at
+    i32 unk53BDE4 = 0;
+    std::array<i32, Units> unk5241B4 = {};  // per slot: the spirit damage of the last hit
+    std::array<i32, Units> unk524220 = {};  // per slot: the stamina damage of the last hit
+    std::array<i32, Units> unk52411C = {};  // per slot: 1 while the hit fades (FadeHitAct)
+    i32 unk4A7564 = -1;                     // the enemy the auto battle aims at (1-based), -1: none
+    u16 unk4A7644 = 0xFFFF;                 // a role unit that may take the panel in any battle state (SelectRoleUnit)
+    i32 unk4A7548 = 1;                      // the command chosen in the menu (1-based)
+    i32 unk53BD18 = 0;                      // the page of the list of state 2 (0..2)
     // The menu (MenuCancel).
     i32 unk53BFB0 = 0;
     i32 unk53BD90 = 0;

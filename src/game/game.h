@@ -286,6 +286,10 @@ private:
     void DrawAimPointers();
     void BattleEndFrame();
     void EndCheckFrame();
+    int HitTargetFrame(BattleUnit& target, BattleUnit& attacker, u32 act, int index);
+    void RippleHitFrame(BattleUnit& target, BattleUnit& attacker, int index, u16& targetX);
+    bool DrawHitPicture(BattleUnit& target, BattleUnit& attacker, u32 act, int index, u16& x, u16& y, int& originX);
+    void TakeHitBits(BattleUnit& target, BattleUnit& attacker, int index);
     void DrawRolePanels();
     template <typename Next>
     void StepPanelGauge(i32& shown, i32& target, Next next, int picture, int x, int y, i32 downNear, i32 downFar);
@@ -332,6 +336,7 @@ private:
     BattleMessages battleMessages;
     FightTalk fightTalk;
     BattleServices battleServices;
+    std::unique_ptr<ScriptObject> battleRipple;  // 0x00520DA4 the ripple of the ripple battle (unk53C03C)
     std::array<BattleRole, BattleState::RoleUnits> battleRoles;   // 0x005029D0
     std::array<BattleEnemy, BattleState::Enemies> battleEnemies;  // 0x00525508
     ActDrawer actDrawer;
