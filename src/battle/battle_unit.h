@@ -430,6 +430,8 @@ public:
         i32 impact
     );
     void TrailLastQueuedAction(i32 tintRed, i32 tintGreen, i32 tintBlue);
+    void DrawOverlay(BattleServices& services, u16 frame, u16 picture, int x, int y, int offsetX, int offsetY);
+    void DrawActionAt(BattleServices& services, i16 x, i16 y, ActState& act);
     void DrawTrail(BattleServices& services, AfterimageTrail& trail, u16 frame, u16 picture, u32 mode, i16 x, i16 y);
     int DrawRecoil(BattleServices& services, ActState& act, i16 y);
     int FlyAct(

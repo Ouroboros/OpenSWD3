@@ -4466,4 +4466,157 @@ void BattleUnit::TrailLastQueuedAction(i32 tintRed, i32 tintGreen, i32 tintBlue)
     trail.direction = AfterimageTrail::InPlace;
     trail.count = kQueuedTrailImages;
 }
+
+// swd32.exe 0x00483700: the overlay picture (`frame`, `picture` - 1; nothing when either is 0) drawn additively at
+// (x + offsetX, y + offsetY), mirrored like the unit: a facing unit measures offsetX (when not 0) from the right edge
+// of its current picture, less the overlay's width
+void BattleUnit::DrawOverlay(BattleServices& services, u16 frame, u16 picture, int x, int y, int offsetX, int offsetY)
+{
+    if (frame == 0 || picture == 0)
+    {
+        return;
+    }
+
+    this->overlayX = static_cast<u16>(offsetX);
+    this->unk2554 = services.archive.GetPicture(frame, static_cast<u16>(picture - 1));
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->unk2554 == nullptr)
+    {
+        return;
+    }
+
+    services.painter.SetSource(this->unk2554->data.data());
+    const bool forced = this->unk2B00 == 1 || this->unk2B04 == 1;
+
+    auto mirror = [this, offsetX]
+    {
+        if (offsetX != 0 && this->picture != nullptr)
+        {
+            this->overlayX = static_cast<u16>(this->picture->width - offsetX - this->unk2554->width);
+        }
+    };
+
+    if (forced && this->facing == 1)
+    {
+        mirror();
+    }
+
+    if (this->facing == 1 && this->unk2B00 == 0 && this->unk2B04 == 0)
+    {
+        mirror();
+    }
+
+    services.painter.DrawPicture(
+        x + static_cast<i16>(this->overlayX),
+        y + offsetY,
+        this->unk2554->width,
+        this->unk2554->height,
+        this->frameFlags | Painter::Additive
+    );
+}
+
+// swd32.exe 0x00484230: DrawAction at (x, y) without the outline, the shake and the overlay: `act` over its shadow,
+// mirrored like the unit (a forced draw adds Additive), the sound panned to its side. An invisible unit smears the
+// destination with the act's own flags; a blending act (both bits of ActState::Signal) takes the main act's level.
+void BattleUnit::DrawActionAt(BattleServices& services, i16 x, i16 y, ActState& act)
+{
+    if (services.acts.Run(act) == 0)
+    {
+        return;
+    }
+
+    this->picture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->picture == nullptr)
+    {
+        return;
+    }
+
+    Painter& painter = services.painter;
+    this->frameFlags = act.flags;
+    this->actOffsetX = static_cast<u16>(act.x);
+    this->actAnchorX = act.anchorX;
+
+    auto mirror = [this, &act]
+    {
+        this->frameFlags ^= Painter::Mirror;
+        this->actOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
+
+        if (act.anchorX != 0)
+        {
+            this->actAnchorX = static_cast<u16>(this->picture->width - act.anchorX);
+        }
+    };
+
+    if (this->unk2B00 == 1 || this->unk2B04 == 1)
+    {
+        if (this->facing == 1)
+        {
+            mirror();
+        }
+
+        if (this->unk2B00 == 1)
+        {
+            this->frameFlags |= Painter::Additive;
+        }
+    }
+
+    if (this->facing == 1 && this->unk2B00 == 0 && this->unk2B04 == 0)
+    {
+        mirror();
+    }
+
+    this->actX = static_cast<u16>(x - this->actOffsetX);
+    this->actY = static_cast<u16>(y - static_cast<u16>(act.y));
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+    const int centre = static_cast<i16>(this->actX) + static_cast<i16>(this->actOffsetX);
+    services.audio.SetSoundPan(act.view, centre >= kPanCentre ? kFadePan : -kFadePan);
+    act.view = 0;
+    const int shadowHeight = this->picture->height / kShadowShare;
+    DrawOptions& options = painter.Options();
+    options.scaleHeight = shadowHeight;
+    options.shear = this->picture->height >> kShadowShearShift;
+    const bool invisible = (this->status & BattleUnit::Invisible) != 0;
+    const int tint = invisible ? kInvisibleShadowTint : kShadowTint;
+    options.tintRed = tint;
+    options.tintGreen = tint;
+    options.tintBlue = tint;
+    this->unk26A4 = (this->frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+    painter.SetSource(this->picture->data.data());
+    painter.DrawPicture(
+        static_cast<i16>(this->actX),
+        act.y + static_cast<i16>(this->actY) - shadowHeight,
+        this->picture->width,
+        this->picture->height,
+        this->unk26A4
+    );
+    painter.SetSource(this->picture->data.data());
+
+    if (invisible)
+    {
+        painter.DrawPicture(
+            static_cast<i16>(this->actX),
+            static_cast<i16>(this->actY),
+            this->picture->width,
+            this->picture->height,
+            this->frameFlags | Painter::SmearUnder
+        );
+        return;
+    }
+
+    if ((this->frameFlags & ActState::Signal) == ActState::Signal)
+    {
+        painter.Options().alpha = this->mainAct.signal;
+    }
+
+    painter.DrawPicture(
+        static_cast<i16>(this->actX),
+        static_cast<i16>(this->actY),
+        this->picture->width,
+        this->picture->height,
+        this->frameFlags
+    );
+}
 }  // namespace swd3
