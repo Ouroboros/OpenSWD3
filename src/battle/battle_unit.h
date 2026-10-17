@@ -198,6 +198,7 @@ public:
     {
         UnkMark1 = 1,  // cleared when the guard text has risen
         UnkMark2 = 2,
+        UnkMark4 = 4,       // the unit is drawn over a grey copy (IdleFrame)
         UnkMark8 = 8,       // cleared by ResetTurn
         MissedMark = 0x20,  // the ailment missed (SkillScript::MissedAilment)
         Held = 0x40,
@@ -266,6 +267,7 @@ public:
         UnkCommand18 = 0x18,
         UnkCommand1A = 0x1A,
         UnkCommand1B = 0x1B,
+        UnkCommand1C = 0x1C,
         UnkCommand1F = 0x1F,
         UnkCommand22 = 0x22,
         UnkCommand23 = 0x23,
@@ -495,6 +497,8 @@ public:
     int DrainEffectFrame(BattleServices& services, int slot);
     int CatchRoll(BattleServices& services, u8 level);
     int HurtFrame(BattleServices& services);
+    void IdleFrame(BattleServices& services, int paused);
+    void MoveIdle(BattleServices& services);
     void DrawTrail(BattleServices& services, AfterimageTrail& trail, u16 frame, u16 picture, u32 mode, i16 x, i16 y);
     int DrawRecoil(BattleServices& services, ActState& act, i16 y);
     int FlyAct(
@@ -615,6 +619,7 @@ public:
     i32 glowOffsetX = 0;  // +0x268C
     i32 unk2690 = 0;
     u32 drawFlags = 0;   // +0x2694 bit 0: mirrored
+    i32 unk2698 = 0;     // +0x2698 the x offset of the overlay (IdleFrame)
     u32 frameFlags = 0;  // +0x26A0 flag 1 toggled for mirrored frames
     u32 unk26A4 = 0;
     i32 unk26A8 = 0;
@@ -682,6 +687,7 @@ public:
     u16 landedActions = 0;  // +0x2A82 the queued acts that reached their end
     u16 pendingDamage = 0;  // +0x2A84 bit 15: healing
     u16 unk2A86 = 0;        // +0x2A86 (high byte at +0x2A87)
+    u16 unk2A88 = 0;        // +0x2A88 the rest action of the frame (IdleFrame)
     u16 unk2A8A = 0;
     u16 unk2A8C = 0;
     u16 unk2A8E = 0;

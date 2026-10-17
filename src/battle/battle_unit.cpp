@@ -1363,6 +1363,38 @@ constexpr int kHurtFlash = 0x10;  // the red flash over the picture
 constexpr u16 kHurtFrames = 2;    // frames a stagger step lasts
 constexpr u16 kLastHurtStep = 5;
 
+// IdleFrame.
+constexpr u16 kShaking = 1;   // drawAtSaved: the unit shakes while nudge lasts
+constexpr u16 kRising = 2;    // lifts to the top
+constexpr u16 kDropping = 3;  // drops back to its saved place
+constexpr u32 kShakeChance = 2;
+constexpr i16 kRiseStep = 10;
+constexpr i16 kDropStep = 0x1E;
+constexpr i16 kWeakShare = 4;  // a role at a quarter of its hit points or less looks weak
+constexpr i32 kWeakAction = 0x26;
+constexpr i16 kForcedPlaceX = 0x140;
+constexpr i16 kForcedPlaceY = 0x136;
+constexpr i32 kReadyAction = 0x2C;
+constexpr u16 kReadyAct = 0x1C;  // an act whose ready pose is unk2690
+constexpr i32 kItemReadyAction = 0x2D;
+constexpr i32 kAbsorbReadyAction = 0x31;
+constexpr u16 kReadyRewind = 5;
+constexpr i16 kGuardPose1 = 1;
+constexpr i16 kGuardPose2 = 2;
+constexpr i16 kGuardPose4 = 4;
+constexpr i16 kGuardPose8 = 8;
+constexpr i32 kGuardAction1 = 0x48;
+constexpr i32 kGuardAction2 = 0x49;
+constexpr i32 kGuardAction4 = 0x4A;
+constexpr i32 kGuardAction8 = 0x4B;
+constexpr u32 kOutlinedStatus = 0x2000000;
+constexpr u32 kWhiteColorPair = 0xFFFFFFFF;
+constexpr i32 kThrownSpark = 0x186A;
+constexpr i16 kGoldFont = 0x2354;
+constexpr std::size_t kGoldVariable = 0;
+constexpr int kGoldLeft = 10;
+constexpr int kGoldAbove = 0xF;
+
 // FadeInvisible and StepAccessoryCounters.
 constexpr i16 kInvisibleFadeFrames = 0x18;
 constexpr int kShadowLeftShift = 5;
@@ -7068,5 +7100,488 @@ int BattleUnit::HurtFrame(BattleServices& services)
     act = ActState{};
     this->targets.fill(BattleUnit::NoTarget);
     return 1;
+}
+
+// swd32.exe 0x00478B60: one frame of the unit at rest (`paused`: its acts hold). drawAtSaved moves it first (1 shakes
+// it a pixel at random, 2 lifts it 10 a frame to the top, 3 drops it 0x1E a frame back to its saved place, marking
+// flag 26B8). A staggering unit (flag 26B8) runs HurtFrame. Otherwise, unless busy, the main act takes its pose: the
+// stand pose (an enemy's plus unk2684; a party role's weak pose at a quarter of its hit points or less), the pose of
+// a chosen command, a guard pose by unk26D2, the defeated pose of a role, or unk2A0E. It is drawn over its shadow
+// (mirrored by the facing; a forced draw adds Additive), with its outlines, its blend or wave, the barrier flash, a
+// grey copy (UnkMark4), a red copy for command 2, the gold over a gold guard, its sound; command 6 of a
+// role shows the thrown act; its overlay, idle effect, follow-up and effects follow. A fading or invisible unit runs
+// its fade instead.
+void BattleUnit::IdleFrame(BattleServices& services, int paused)
+{
+    Painter& painter = services.painter;
+    ActState& act = this->mainAct;
+    this->unk2AF4 = paused;
+    this->MoveIdle(services);
+    act.hold = 0;
+
+    if (paused == 1 || (this->marks & BattleUnit::Held) != 0)
+    {
+        act.hold = 1;
+    }
+
+    if ((act.target & ActState::Holds) != 0)
+    {
+        act.hold = 1;
+    }
+
+    const bool forced = this->unk2B00 == 1 || this->unk2B04 == 1;
+    const bool shown = this->defeated != 1 || (this->kind != 0 && !forced) || this->unk2AF8 != 0;
+
+    if (!shown)
+    {
+        return;
+    }
+
+    if ((this->unk26B8 & kFlag26B8) != 0)
+    {
+        if (this->HurtFrame(services) == 1)
+        {
+            this->charging = 0;
+            this->ClearFlag26B8();
+        }
+
+        return;
+    }
+
+    if (this->unk2AAC == 1)
+    {
+        return;
+    }
+
+    act.id = this->actId;
+    act.action = kShadowAction;
+    this->unk2A88 = static_cast<u16>(act.action);
+
+    if (this->kind != 1)
+    {
+        act.action += this->unk2684;
+    }
+
+    const RoleRecord* record = this->roleRecord;
+
+    if (this->kind == 1 && this->unk2B00 == 0 && this->unk2B04 == 0 &&
+        record->hitPoints <= record->maxHitPoints / kWeakShare)
+    {
+        act.action = kWeakAction;
+    }
+
+    if (this->unk2A86 != 0 && this->unk2AB4 == 1 && this->unk2AC8 == 1)
+    {
+        if (this->unk2B00 == 1)
+        {
+            this->guarding = 0;
+        }
+
+        if (this->unk2B04 == 1)
+        {
+            this->placement.x = kForcedPlaceX;
+            this->placement.y = kForcedPlaceY;
+        }
+
+        this->unk2670 = 0;
+
+        if (this->kind == 1)
+        {
+            this->unk2674 = 0;
+        }
+
+        act.action = kReadyAction;
+
+        if (this->actId == kReadyAct)
+        {
+            act.action = this->unk2690;
+        }
+
+        this->unk2A88 = static_cast<u16>(act.action);
+
+        if ((this->unk2A86 & BattleUnit::UnkCommandFlag4000) != 0 ||
+            (this->unk2A86 & BattleUnit::UnkCommandFlag2000) != 0)
+        {
+            act.action = kItemReadyAction;
+        }
+
+        if ((this->unk2A86 & BattleUnit::UnkCommandFlag8000) != 0 && act.waiting == 1 && this->kind == 1)
+        {
+            act.waiting = 0;
+            act.position = static_cast<u16>(act.position - kReadyRewind);
+        }
+
+        if ((this->unk2A86 & BattleUnit::UnkCommandFlag400) != 0)
+        {
+            act.action = kItemReadyAction;
+        }
+
+        if ((this->unk2A86 & BattleUnit::UnkCommandFlag800) != 0)
+        {
+            act.action = kAbsorbReadyAction;
+        }
+
+        if ((this->unk2A86 & BattleUnit::UnkCommandFlag200) != 0)
+        {
+            return;
+        }
+    }
+
+    if (this->unk2B00 == 0 && this->unk2B04 == 0)
+    {
+        if (this->unk26D2 == kGuardPose1)
+        {
+            this->unk2AD4 = 0;
+            act.action = kGuardAction1;
+        }
+
+        if (this->unk26D2 == kGuardPose2)
+        {
+            act.action = kGuardAction2;
+
+            if (act.waiting == 1)
+            {
+                act.waiting = 0;
+                act.position = static_cast<u16>(act.position - kReadyRewind);
+                act.view = 0;
+            }
+        }
+
+        if (this->unk26D2 == kGuardPose4)
+        {
+            act.action = kGuardAction4;
+        }
+
+        if (this->unk26D2 == kGuardPose8)
+        {
+            act.action = kGuardAction8;
+        }
+    }
+
+    if (this->kind == 1 && this->defeated == 1 && this->unk2B00 == 0 && this->unk2B04 == 0)
+    {
+        act.action = kDefeatedShadowAction;
+    }
+
+    if (this->action != 0)
+    {
+        act.action = this->action;
+    }
+
+    if ((act.target & ActState::FollowsUp) != 0)
+    {
+        this->commandA = this->commandB;
+        act.target = 0;
+
+        if ((this->unk2A86 & BattleUnit::UnkCommandFlag8000) == 0 ||
+            (this->unk2A86 & BattleUnit::UnkCommandFlag4000) != 0)
+        {
+            act.hold = 0;
+        }
+
+        if ((this->command.actionFlags & UnitCommand::DelaysFadeIn) != 0)
+        {
+            this->marks = static_cast<u16>(this->marks | BattleUnit::UnkMark8);
+            this->recoilAct = act;
+        }
+    }
+
+    if (services.acts.Run(act) == 0)
+    {
+        return;
+    }
+
+    this->shadowPicture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->shadowPicture == nullptr)
+    {
+        return;
+    }
+
+    const Picture& picture = *this->shadowPicture;
+    painter.SetSource(picture.data.data());
+    this->originX = static_cast<u16>(act.x);
+    this->drawFlags = act.flags;
+    this->actAnchorX = act.anchorX;
+
+    auto mirror = [this, &act, &picture]
+    {
+        this->drawFlags = act.flags ^ Painter::Mirror;
+
+        if (act.x != 0)
+        {
+            this->originX = static_cast<u16>(picture.width - static_cast<u16>(act.x));
+        }
+
+        if (act.anchorX != 0)
+        {
+            this->actAnchorX = static_cast<u16>(picture.width - act.anchorX);
+        }
+    };
+
+    if (forced)
+    {
+        if (this->facing == 1)
+        {
+            mirror();
+        }
+
+        if ((this->drawFlags & ActState::NoBlend) == 0)
+        {
+            this->drawFlags |= Painter::Additive;
+        }
+    }
+
+    if (this->facing == 1 && this->unk2B00 == 0 && this->unk2B04 == 0)
+    {
+        mirror();
+    }
+
+    const u16 marks = this->marks;
+
+    if ((marks & BattleUnit::UnkMark8) != 0)
+    {
+        this->FadeMainOut(services);
+        return;
+    }
+
+    if ((marks & BattleUnit::UnkMark200) != 0)
+    {
+        this->FadeMainIn(services);
+        return;
+    }
+
+    if (this->commandA == 0 || this->commandA == BattleUnit::UnkCommand1C)
+    {
+        if ((marks & BattleUnit::InvisibleMark) != 0)
+        {
+            this->FadeInvisible(services, 0);
+            return;
+        }
+
+        if ((marks & BattleUnit::UnkMark400) != 0)
+        {
+            this->FadeInvisible(services, 1);
+            return;
+        }
+    }
+
+    const int x = this->unk26A8 + this->placement.x - static_cast<i16>(this->originX);
+    const int y = this->placement.y - this->unk26AC - act.y;
+    const u32 mirrored = this->drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip);
+
+    if (this->guarding == 0 && (marks & BattleUnit::GuardingMark) == 0)
+    {
+        if (this->drawAtSaved != kRising && this->drawAtSaved != kDropping &&
+            (this->status & BattleUnit::Invisible) == 0)
+        {
+            const int shadowHeight = picture.height / kShadowShare;
+            DrawOptions& options = painter.Options();
+            options.scaleHeight = shadowHeight;
+            options.shear = picture.height >> kShadowShearShift;
+            const int tint = this->unk2B00 == 1 ? kInvisibleShadowTint : kShadowTint;
+            options.tintRed = tint;
+            options.tintGreen = tint;
+            options.tintBlue = tint;
+            this->unk26A4 = mirrored | Painter::Shadow;
+            painter.DrawPicture(
+                this->placement.x - static_cast<i16>(this->originX),
+                this->placement.y - shadowHeight,
+                picture.width,
+                picture.height,
+                this->unk26A4
+            );
+        }
+
+        if ((this->status & kOutlinedStatus) != 0)
+        {
+            this->colorPair = kWhiteColorPair;
+            painter
+                .DrawOutline(x, y, picture.width, picture.height, mirrored, DrawArgument{.colorPair = this->colorPair});
+        }
+
+        if (this->outline == 1)
+        {
+            this->colorPair = BattleUnit::OutlineColorPair;
+            painter
+                .DrawOutline(x, y, picture.width, picture.height, mirrored, DrawArgument{.colorPair = this->colorPair});
+            this->colorPair = BattleUnit::OutlineColorPair;
+        }
+
+        painter.SetSource(picture.data.data());
+
+        if ((this->status & BattleUnit::Invisible) != 0)
+        {
+            this->unk26A4 = mirrored;
+            painter.DrawPicture(x, y, picture.width, picture.height, this->unk26A4 | Painter::SmearUnder);
+        }
+        else
+        {
+            if ((this->drawFlags & ActState::Signal) == ActState::Signal)
+            {
+                painter.Options().alpha = act.signal;
+            }
+
+            if (act.wait != 0)
+            {
+                painter.SetWave(act.wait);
+            }
+
+            if ((marks & BattleUnit::Held) != 0)
+            {
+                painter.SetWave(0);
+            }
+
+            painter.DrawPicture(x, y, picture.width, picture.height, this->drawFlags);
+            painter.SetWave(0);
+
+            if ((this->status & BattleUnit::Barrier) != 0)
+            {
+                this->DrawFlash(services);
+            }
+        }
+
+        if ((marks & BattleUnit::UnkMark4) != 0)
+        {
+            this->unk26A4 = mirrored;
+            painter.DrawPicture(x, y, picture.width, picture.height, this->unk26A4 | Painter::GrayUnder);
+        }
+
+        if (this->commandA == BattleUnit::UnkCommand2)
+        {
+            this->unk26A4 = mirrored;
+            painter.Options().tintRed = kHurtFlash;
+            painter.DrawPicture(x, y, picture.width, picture.height, this->unk26A4 | Painter::TintUnder);
+        }
+
+        if (this->goldGuard == 1 && this->unk26D2 == 0)
+        {
+            services.hud.DrawNumber(
+                kGoldFont,
+                services.party.variables[kGoldVariable],
+                this->placement.x + kGoldLeft,
+                this->placement.y - act.y - kGoldAbove
+            );
+        }
+
+        if (act.view != 0)
+        {
+            services.audio.PlaySound(act.view, services.config.soundVolume);
+            services.audio.SetSoundPan(act.view, this->placement.x >= kPanCentre ? kFadePan : -kFadePan);
+        }
+
+        act.view = 0;
+    }
+
+    if (this->commandA == BattleUnit::UnkCommand6 && this->kind == 1)
+    {
+        ActState& thrown = this->recoilAct;
+        thrown.action = 0;
+        thrown.id = kThrownSpark;
+
+        if (services.acts.Run(thrown) == 0)
+        {
+            return;
+        }
+
+        this->picture = services.archive.GetPicture(thrown.frame, thrown.picture);
+
+        if (this->picture != nullptr)
+        {
+            painter.SetSource(this->picture->data.data());
+            painter.DrawPicture(
+                static_cast<i16>(act.anchorX) + this->placement.x - thrown.x - static_cast<i16>(this->originX),
+                static_cast<i16>(act.anchorY) + this->placement.y - thrown.y - act.y,
+                this->picture->width,
+                this->picture->height,
+                thrown.flags
+            );
+        }
+
+        services.audio.PlaySound(thrown.view, services.config.soundVolume);
+        const i32 waiting = thrown.waiting;
+        thrown.view = 0;
+
+        if (waiting == 1)
+        {
+            thrown.waiting = 0;
+            thrown.position = 0;
+        }
+    }
+
+    if (this->guarding == 0 && (this->marks & BattleUnit::GuardingMark) == 0 &&
+        (this->status & BattleUnit::UnkStatus4) == 0 && act.rotation != 0 && act.actionCode != 0)
+    {
+        this->unk2554 = services.archive.GetPicture(act.rotation, static_cast<u16>(act.actionCode - 1));
+
+        if (this->unk2554 != nullptr)
+        {
+            painter.SetSource(this->unk2554->data.data());
+            this->unk2698 = static_cast<i16>(act.offsetX);
+            painter.DrawPicture(
+                this->unk2698 + this->placement.x - static_cast<i16>(this->originX),
+                static_cast<i16>(act.offsetY) + this->placement.y - this->unk26AC - act.y,
+                this->unk2554->width,
+                this->unk2554->height,
+                this->drawFlags | Painter::Additive
+            );
+        }
+    }
+
+    this->PlayIdleEffect(services);
+    this->PlayIdleFollowUp(services);
+    this->DrawEffects(services, x, y);
+}
+
+// The movement of IdleFrame by drawAtSaved (inline in the original): 1 shakes the unit a pixel at random while nudge
+// lasts (towards its side), 2 lifts it, 3 drops it back to its saved place.
+void BattleUnit::MoveIdle(BattleServices& services)
+{
+    if (this->nudge == 0)
+    {
+        return;
+    }
+
+    if (this->drawAtSaved == kShaking)
+    {
+        if (static_cast<u16>(services.random.Below(kShakeChance)) == 1)
+        {
+            const bool back = this->kind == 1 ? this->facing != 0 : this->facing == 0;
+            this->placement.x = static_cast<i16>(this->placement.x + (back ? -1 : 1));
+        }
+
+        --this->nudge;
+        return;
+    }
+
+    if (this->drawAtSaved == kRising)
+    {
+        this->placement.y = static_cast<i16>(this->placement.y - kRiseStep);
+
+        if (this->placement.y <= 0)
+        {
+            this->placement.y = 0;
+            this->nudge = 0;
+            this->drawAtSaved = 0;
+        }
+
+        return;
+    }
+
+    if (this->drawAtSaved == kDropping)
+    {
+        this->placement.y = static_cast<i16>(this->placement.y + kDropStep);
+        const i16 home = this->savedPlacement.y;
+
+        if (this->placement.y >= home)
+        {
+            this->placement.y = home;
+            this->nudge = 0;
+            this->drawAtSaved = 0;
+            this->unk2B10 = 1;
+            this->RaiseFlag26B8();
+        }
+    }
 }
 }  // namespace swd3
