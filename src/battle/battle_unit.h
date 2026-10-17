@@ -512,6 +512,7 @@ public:
     int SkillName(Database& database, int choice, std::string& name);
     u16 RollDrop(BattleServices& services);
     u16 FinishProficiency(CounterList& list);
+    u16 RefineTalisman(BattleServices& services, Database& database, u16 proficiency, u8 level);
     void DrawTrail(BattleServices& services, AfterimageTrail& trail, u16 frame, u16 picture, u32 mode, i16 x, i16 y);
     int DrawRecoil(BattleServices& services, ActState& act, i16 y);
     int FlyAct(

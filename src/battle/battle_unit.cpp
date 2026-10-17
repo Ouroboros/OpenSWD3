@@ -1452,6 +1452,17 @@ constexpr int kNumberScaleBase = 0x1A;
 // RollDrop.
 constexpr u32 kDropRoll = 20;
 
+// RefineTalisman.
+constexpr u16 kTwoChoices = 0x32;
+constexpr u16 kTwoChoicesEnd = 0x4F;
+constexpr u16 kThreeChoices = 0x50;
+constexpr u16 kThreeChoicesEnd = 0x64;
+constexpr u32 kRefineObjects = 3;
+constexpr u32 kRefineRoll = 100;
+constexpr u16 kRefineChance = 0x3C;
+constexpr u16 kSureRefine = 0x5A;
+constexpr u32 kRefinedKind = 0x8000000;
+
 // FadeInvisible and StepAccessoryCounters.
 constexpr i16 kInvisibleFadeFrames = 0x18;
 constexpr int kShadowLeftShift = 5;
@@ -8584,5 +8595,55 @@ u16 BattleUnit::FinishProficiency(CounterList& list)
     }
 
     return finished;
+}
+
+// swd32.exe 0x00476600: a refinable enemy (MissedMark) turned into one of its objects by a role of `level` with the
+// talisman brush proficiency `proficiency`: below 50 its first object, 50..79 one of the first two, 80..100 one of
+// three at random; a roll of 0..99 below 60 (90 when `level` is at least the enemy's) loads it into `object` and ends
+// the mark. The object's unk48 when it is of kind bit kRefinedKind; 0 otherwise.
+u16 BattleUnit::RefineTalisman(BattleServices& services, Database& database, u16 proficiency, u8 level)
+{
+    if ((this->marks & BattleUnit::MissedMark) == 0)
+    {
+        return 0;
+    }
+
+    u32 choices = 1;
+
+    if (proficiency >= kTwoChoices && proficiency <= kTwoChoicesEnd)
+    {
+        choices = 2;
+    }
+
+    if (proficiency >= kThreeChoices && proficiency <= kThreeChoicesEnd)
+    {
+        choices = kRefineObjects;
+    }
+
+    const auto choice = static_cast<u16>(services.random.Below(choices) + 1) - 1;
+    const ObjectData& data = this->data->data;
+    const u16 item = choice == 0 ? data.itemA : choice == 1 ? data.itemB : choice == 2 ? data.itemC : u16{0};
+
+    if (item == 0)
+    {
+        return 0;
+    }
+
+    const u16 chance = level >= data.level ? kSureRefine : kRefineChance;
+
+    if (static_cast<u16>(services.random.Below(kRefineRoll)) >= chance)
+    {
+        return 0;
+    }
+
+    database.LoadObject(this->object, item);
+    this->marks = static_cast<u16>(this->marks & ~BattleUnit::MissedMark);
+
+    if ((this->object.data.kind & kRefinedKind) == 0)
+    {
+        return 0;
+    }
+
+    return this->object.data.unk48;
 }
 }  // namespace swd3

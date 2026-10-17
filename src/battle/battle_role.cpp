@@ -235,10 +235,16 @@ constexpr u16 kShownObject = 0x8000;  // ListObject flags
 constexpr u16 kCostlyObject = 0x4000;
 constexpr u16 kCostsStamina = 0x4000;  // ObjectData::unk40: the low 14 bits are a stamina cost
 constexpr u16 kCostMask = 0x3FFF;
-constexpr int kUnk1FScale = 4;           // Unk1F: unk29A4 is 4 percent of the proficiency and 1
-constexpr int kAccessoryBaseShare = 10;  // the heals add a tenth of their base
-constexpr int kHalfShare = 5;            // Unk22 / Unk24: the proficiency is halved, less a fifth of that
-constexpr int kSpiritShare = 5;          // Unk23: a fifth of the proficiency
+constexpr u16 kNoSkill = 0xFFFF;
+constexpr u16 kCostFlag = 0x8000;  // ObjectData::unk40: the low 15 bits are a cost
+constexpr u16 kCostValueMask = 0x7FFF;
+constexpr u16 kFixedCostBit = 0x800;
+constexpr u16 kFixedCost = 1000;
+constexpr double kCounterPercent = 100.0;  // swd32.exe 0x00499D28
+constexpr int kUnk1FScale = 4;             // Unk1F: unk29A4 is 4 percent of the proficiency and 1
+constexpr int kAccessoryBaseShare = 10;    // the heals add a tenth of their base
+constexpr int kHalfShare = 5;              // Unk22 / Unk24: the proficiency is halved, less a fifth of that
+constexpr int kSpiritShare = 5;            // Unk23: a fifth of the proficiency
 
 // RollCritical and PrepareCommand.
 constexpr u32 kCriticalAttacks = 8;  // a critical may be rolled after 8 attacks, is sure after roleCount more
@@ -3892,5 +3898,144 @@ int BattleRole::ThrowableObject(int throwable, int index, std::string& name, u16
     }
 
     return 1;
+}
+
+// swd32.exe 0x00470180: the `index`th skill of `category` (0..2) usable by roles bit 0 or 2, of `type` 0 (unk52
+// kFirstSkillType..kLastSkillType) or 1 (kSkillType1): its name and `cost` (unk40 with bit 15: the low 15 bits; with
+// kCostsStamina: the low 14 with kShownObject; with kFixedCostBit: kFixedCost; type 1: 1; otherwise kept), and the
+// element icon of its skill script (SkillElements by its resistance). Past the end `cost` and the result are 0xFFFF.
+// Other types give cost 0 and the icon of element 0.
+u16 BattleRole::ListSkill(Database& database, int category, int type, int index, std::string& name, u16& cost)
+{
+    const u32 kinds = BattleRole::CategoryKinds(category, kSkillCategories);
+    int wanted = type;
+
+    if (type == 0)
+    {
+        wanted = kSkillType0;
+    }
+    else if (type == 1)
+    {
+        wanted = kSkillType1;
+    }
+
+    int listed = 0;
+    ItemNode* node = nullptr;
+    this->ShowAllSkills();
+
+    do
+    {
+        node = this->StepSkill();
+
+        if (node == nullptr)
+        {
+            cost = kNoSkill;
+            return kNoSkill;
+        }
+
+        const ObjectData& data = node->record.data;
+
+        if ((kinds & data.kind) == 0 || (LowByte(data.usableBy) & kCountedUsers) == 0)
+        {
+            continue;
+        }
+
+        if (wanted == kSkillType0 ? data.unk52 >= kFirstSkillType && data.unk52 <= kLastSkillType
+                                  : data.unk52 == kSkillType1)
+        {
+            ++listed;
+        }
+    } while (listed != index);
+
+    // The original loads the script into a 16-byte buffer whose next local is read as the element; a script that does
+    // not set it leaves the stack's value there (0 here).
+    SkillScript script;
+
+    if (wanted == kSkillType0 || wanted == kSkillType1)
+    {
+        database.LoadSkill(script, node->record.data.unk3E);
+        name = ObjectName(node->record);
+        const u16 bits = node->record.data.unk40;
+
+        if ((bits & kCostFlag) != 0)
+        {
+            cost = static_cast<u16>(bits & kCostValueMask);
+        }
+
+        if ((bits & kCostsStamina) != 0)
+        {
+            cost = static_cast<u16>((bits & kCostMask) | kShownObject);
+        }
+
+        if ((bits & kFixedCostBit) != 0)
+        {
+            cost = kFixedCost;
+        }
+
+        if (wanted == kSkillType1)
+        {
+            cost = 1;
+        }
+    }
+    else
+    {
+        cost = 0;
+    }
+
+    const auto element = static_cast<std::size_t>(LowWord(script.unk10));
+
+    // The original reads past the table for a larger element.
+    return element < BattleRole::SkillElements.size() ? BattleRole::SkillElements[element] : kNoSkill;
+}
+
+// swd32.exe 0x0046F5B0: the proficiency counters of the two worn accessories (their unk50) stepped by `amount` up to
+// their unk44 in `list` (a done one left), a missing one appended and counted; 1 when either accessory counts. Each
+// search starts at the head of the list, its count compared as an id.
+int BattleRole::StepWornCounters(CounterList& list, u16 amount)
+{
+    int counts = 0;
+
+    for (const ObjectRecord& accessory : this->accessories)
+    {
+        const ObjectData& data = accessory.data;
+        const auto id = static_cast<i16>(data.unk50);
+
+        if (id == 0)
+        {
+            continue;
+        }
+
+        counts = 1;
+        CounterNode* at = &list;
+
+        while (at->id != id && at->next != nullptr)
+        {
+            at = at->next.get();
+        }
+
+        if (at->id == id)
+        {
+            if (at->done == 0)
+            {
+                at->value = static_cast<u16>(std::min<int>(at->value + amount, data.unk44));
+                at->percent = static_cast<u16>(
+                    crt::Ftol(static_cast<double>(at->value) / static_cast<double>(data.unk44) * kCounterPercent)
+                );
+            }
+
+            continue;
+        }
+
+        at->next = std::make_unique<CounterNode>();
+        at = at->next.get();
+        at->id = id;
+        at->value = amount;
+        at->percent = static_cast<u16>(
+            crt::Ftol(static_cast<double>(amount) / static_cast<double>(data.unk44) * kCounterPercent)
+        );
+        ++list.id;
+    }
+
+    return counts;
 }
 }  // namespace swd3

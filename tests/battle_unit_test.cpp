@@ -1244,3 +1244,101 @@ TEST_CASE("battle role: the object and skill lists of the battle menu")
     role.CountSkills(0, 1, skills);
     CHECK_EQ(skills, 2);
 }
+
+TEST_CASE("battle role: a skill of the battle menu and its cost")
+{
+    constexpr swd3::u32 kCategoryKind = 0x10;
+    constexpr swd3::u16 kUsable = 1;
+    constexpr swd3::u16 kSkillType0 = 0x1C;
+    constexpr swd3::u16 kStaminaCost = 0x4000 | 12;
+    constexpr swd3::u16 kShownCost = 0x8000 | 12;
+    constexpr swd3::u16 kFixed = 0x800;
+    constexpr swd3::u16 kFixedCost = 1000;
+    constexpr swd3::u16 kNone = 0xFFFF;
+    constexpr swd3::u16 kElementZeroIcon = 8;
+    const std::string directory(kNoData);
+    swd3::Database database(directory);
+    swd3::ItemNode head;
+    head.next = std::make_unique<swd3::ItemNode>();
+    swd3::ObjectData& data = head.next->record.data;
+    data.kind = kCategoryKind;
+    data.usableBy = kUsable;
+    data.unk52 = kSkillType0;
+    data.unk40 = kStaminaCost;
+    swd3::BattleRole role;
+    role.SetSkills(&head);
+    std::string name;
+    swd3::u16 cost = 0;
+    CHECK_EQ(role.ListSkill(database, 0, 0, 1, name, cost), kElementZeroIcon);
+    CHECK_EQ(cost, kShownCost);
+    data.unk40 = kFixed;
+    role.ListSkill(database, 0, 0, 1, name, cost);
+    CHECK_EQ(cost, kFixedCost);
+    role.ListSkill(database, 0, 1, 0, name, cost);
+    CHECK_EQ(cost, 1);
+    CHECK_EQ(role.ListSkill(database, 0, 0, 2, name, cost), kNone);
+    CHECK_EQ(cost, kNone);
+}
+
+TEST_CASE("battle role: the worn accessories gain proficiency")
+{
+    constexpr swd3::u16 kCounter = 4;
+    constexpr swd3::u16 kMaximum = 10;
+    constexpr swd3::u16 kStep = 6;
+    swd3::BattleRole role;
+    role.accessories[1].data.unk50 = kCounter;
+    role.accessories[1].data.unk44 = kMaximum;
+    swd3::CounterList list;
+    CHECK_EQ(role.StepWornCounters(list, kStep), 1);
+    CHECK_EQ(list.id, 1);
+    CHECK_EQ(list.next->value, kStep);
+    role.StepWornCounters(list, kStep);
+    CHECK_EQ(list.next->value, kMaximum);
+    CHECK_EQ(list.next->percent, 100);
+}
+
+TEST_CASE("battle unit: refining an enemy into a talisman")
+{
+    constexpr swd3::u16 kObject = 0x40;
+    constexpr swd3::u16 kEnemyLevel = 20;
+    constexpr swd3::u8 kHigherLevel = 30;
+    constexpr swd3::u16 kLowProficiency = 10;
+    constexpr swd3::u32 kRefineRoll = 100;
+    constexpr swd3::u16 kSureChance = 90;
+    Services all;
+    const std::string directory(kNoData);
+    swd3::Database database(directory);
+    swd3::ObjectRecord object;
+    object.data.level = kEnemyLevel;
+    swd3::BattleUnit enemy;
+    enemy.data = &object;
+    CHECK_EQ(enemy.RefineTalisman(all.services, database, kLowProficiency, kHigherLevel), 0);
+    enemy.marks = swd3::BattleUnit::MissedMark;
+    object.data.itemA = kObject;
+
+    for (swd3::u32 seed = 0; seed < kRefineRoll; ++seed)
+    {
+        enemy.marks = swd3::BattleUnit::MissedMark;
+        all.random.Seed(seed);
+        swd3::Random reference;
+        reference.Seed(seed);
+        reference.Below(1);
+        const bool refined = static_cast<swd3::u16>(reference.Below(kRefineRoll)) < kSureChance;
+        CHECK_EQ(enemy.RefineTalisman(all.services, database, kLowProficiency, kHigherLevel), 0);
+        CHECK_EQ((enemy.marks & swd3::BattleUnit::MissedMark) == 0, refined);
+    }
+}
+
+TEST_CASE("battle role: the skill element icons match swd32.exe")
+{
+    constexpr swd3::u32 kSkillElementsAt = 0x004A7BD4;
+    const std::vector<swd3::u8> exe = swd3test::ReadGameFile("swd32.exe");
+
+    if (exe.empty())
+    {
+        std::printf("  (swd32.exe not found, skipped)\n");
+        return;
+    }
+
+    CHECK(swd3test::SameTable(exe, kSkillElementsAt, swd3::BattleRole::SkillElements));
+}
