@@ -133,6 +133,7 @@ constexpr u16 kStealShare = 25;
 constexpr u16 kSureSteal = 100;   // a proficiency of 100 or more always steals
 constexpr u16 kHitCast = 0x8000;  // AttackPose: the cast act with bit 15 tells that the attack hits
 constexpr u16 kPoseDone = 2;
+constexpr i32 kCastPose = 0x2D;
 
 // CanAbsorb.
 constexpr u16 kMaxAbsorbClass = 0x15;   // ObjectData::unk52
@@ -1764,6 +1765,121 @@ int BattleRole::DirectAttack(BattleServices& services, BattleUnit& target)
 
     this->unk267C = 0;
     follow = ActState{};
+    act = ActState{};
+    return 1;
+}
+
+// swd32.exe 0x00472CE0: one frame of the role's cast pose (kCastPose in the stand act, its hold left as it is) at its
+// place over its shadow, mirrored by the facing; once the act strikes or follows up (the bits stay set) the spell act
+// `spell` (slot act 0) is drawn on the target each frame, and 1 (both acts cleared) tells that it waits.
+int BattleRole::CastAt(BattleServices& services, const BattleUnit& target, i32 spell)
+{
+    ActState& act = this->standAct;
+    act.id = this->actId;
+    this->unk2AAC = 1;
+    act.action = kCastPose;
+
+    if (services.acts.Run(act) == 0)
+    {
+        return 0;
+    }
+
+    this->picture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->picture == nullptr)
+    {
+        return 0;
+    }
+
+    Painter& painter = services.painter;
+    painter.SetSource(this->picture->data.data());
+    u32 flags = act.flags;
+    auto offsetX = static_cast<i16>(act.x);
+    this->actAnchorX = act.anchorX;
+
+    if (this->facing == 1)
+    {
+        flags ^= Painter::Mirror;
+        offsetX = static_cast<i16>(this->picture->width - static_cast<u16>(act.x));
+
+        if (act.anchorX != 0)
+        {
+            this->actAnchorX = static_cast<u16>(this->picture->width - act.anchorX);
+        }
+    }
+
+    const int shadowHeight = this->picture->height / kShadowShare;
+    DrawOptions& options = painter.Options();
+    options.scaleHeight = shadowHeight;
+    options.shear = this->picture->height >> kShadowShearShift;
+    const int tint = this->unk2B00 == 1 ? kFaintShadowTint : kShadowTint;
+    options.tintRed = tint;
+    options.tintGreen = tint;
+    options.tintBlue = tint;
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+    const int x = this->placement.x - offsetX;
+    services.audio.SetSoundPan(act.view, x >= kPanCentre ? kTargetPan : -kTargetPan);
+    this->unk26A4 = (flags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+    act.view = 0;
+    painter
+        .DrawPicture(x, this->placement.y - shadowHeight, this->picture->width, this->picture->height, this->unk26A4);
+    painter.DrawPicture(x, this->placement.y - act.y, this->picture->width, this->picture->height, flags);
+
+    if ((act.target & (ActState::Strikes | ActState::FollowsUp)) == 0)
+    {
+        return 0;
+    }
+
+    ActState& effect = this->slotActs[0];
+    effect.id = spell;
+    effect.action = 0;
+
+    if (services.acts.Run(effect) == 0)
+    {
+        return 0;
+    }
+
+    this->picture = services.archive.GetPicture(effect.frame, effect.picture);
+
+    if (this->picture == nullptr)
+    {
+        return 0;
+    }
+
+    painter.SetSource(this->picture->data.data());
+    u32 effectFlags = effect.flags;
+    auto effectOffsetX = static_cast<i16>(effect.x);
+    this->actAnchorX = effect.anchorX;
+
+    if (this->facing == 1)
+    {
+        effectFlags ^= Painter::Mirror;
+        effectOffsetX = static_cast<i16>(this->picture->width - static_cast<u16>(effect.x));
+
+        if (effect.anchorX != 0)
+        {
+            this->actAnchorX = static_cast<u16>(this->picture->width - effect.anchorX);
+        }
+    }
+
+    u16 targetX = 0;
+    u16 targetY = 0;
+    target.GetDrawPosition(targetX, targetY);
+    painter.DrawPicture(
+        static_cast<i16>(targetX - effectOffsetX),
+        static_cast<i16>(targetY - static_cast<u16>(effect.y)),
+        this->picture->width,
+        this->picture->height,
+        effectFlags
+    );
+
+    if (effect.waiting != 1)
+    {
+        return 0;
+    }
+
+    effect = ActState{};
     act = ActState{};
     return 1;
 }

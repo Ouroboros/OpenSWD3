@@ -62,6 +62,7 @@ public:
     static int CanTarget(const BattleUnit& target);
     int CanAbsorb(BattleServices& services, const BattleUnit& target) const;
     int DirectAttack(BattleServices& services, BattleUnit& target);
+    int CastAt(BattleServices& services, const BattleUnit& target, i32 spell);
     void SetupGuest(const UnitPlacement& at, const RoleRecord& base, Database& database, ErrorReporter& reporter);
     void
     ApplyEquipment(std::span<const std::unique_ptr<ItemNode>> slots, CounterList& proficiency, ErrorReporter& reporter);
