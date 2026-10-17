@@ -96,6 +96,7 @@ public:
     void RemoveSlotRecord(i32 unit);
     void InsertSlotRecord(int kind, i32 unit, int at);
     void StartFieldFade(int red, int green, int blue, int toRed, int toGreen, int toBlue, int frames);
+    void WipeSlotRecords();
 
     i32 listBCount = 0;                              // 0x004FD3B0 entries of listB, at most 13
     ItemLink listB;                                  // 0x004FD4C0
@@ -266,6 +267,21 @@ public:
     u8 unk53BF01 = 0;
     u8 unk53BF02 = 0;
     u8 unk53BF03 = 0;
+    // The turns (0x00464CC0, 0x0045ADF0, 0x0045AA00).
+    i32 unk53BCE8 = 0;
+    i32 unk53BF60 = 0;
+    i32 unk53BF64 = 0;
+    i32 unk53BF74 = 0;
+    i32 unk53C010 = 0;                          // set when a role turns to another enemy (RetargetRoles)
+    std::array<i32, Units> unk53AF38 = {};      // per unit, set when it takes the turn
+    std::array<i32, RoleUnits> unk520DD0 = {};  // role units in order, a defeated one taken out
+    i32 unk4A754C = 1;                          // the enemy a role turn aims at, 1-based
+    u16 unk4A7626 = 0xFFFF;
+    // The rewards of the defeated enemies (RemoveDefeated).
+    u16 unk53BF12 = 0;
+    u16 unk53BF14 = 0;
+    u16 unk53BF16 = 0;
+    const ObjectRecord* unk5028FC = nullptr;  // the object of the last defeated enemy
 };
 
 }  // namespace swd3

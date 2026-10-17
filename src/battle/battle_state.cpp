@@ -243,4 +243,13 @@ void BattleState::InsertSlotRecord(int kind, i32 unit, int at)
     this->unk53BF80 = 0;
     this->unk53BFD0 = 0;
 }
+
+// The slot records filled with 0xFF bytes (inline in the original, by 0x0045ADF0, 0x0045AA00 and others).
+void BattleState::WipeSlotRecords()
+{
+    for (BattleSlotRecord& record : this->unk524788)
+    {
+        record = BattleSlotRecord{-1, -1, 0xFFFF, 0xFFFF, -1, -1, -1, -1};
+    }
+}
 }  // namespace swd3
