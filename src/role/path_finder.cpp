@@ -313,7 +313,7 @@ PathNode* PathFinder::PopBest()
 
     if (node == nullptr)
     {
-        DebugLog(u8"aStar ,Path find fail");
+        ErrorLog(u8"aStar ,Path find fail");
         return nullptr;
     }
 

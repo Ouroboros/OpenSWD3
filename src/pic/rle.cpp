@@ -1,5 +1,7 @@
 #include "pic/rle.h"
 
+#include <algorithm>
+#include <climits>
 #include <cstring>
 
 #include "core/words.h"
@@ -19,6 +21,8 @@ constexpr u16 kCountMask = RleHeader::CountMask;
 constexpr u16 kStartsWithLiteral = RleHeader::LiteralStart;
 constexpr u32 kLineOverhead = 2 * sizeof(u16);  // a line header and its end code
 constexpr u16 kDebugHeapFill = 0xCDCD;
+constexpr u8 kDebugHeapByte = 0xCD;     // the debug heap fills a new block with it
+constexpr int kWrappedCount = 0x10000;  // a 16-bit count that starts at 0 comes round after this many
 
 u16 ReadWord(const u8* bytes)
 {
@@ -152,8 +156,9 @@ std::vector<u8> RleCodec::Encode(const void* pixels, int width, int height, int 
 }
 
 // swd32.exe 0x004019A0: fill and skip runs become the RLE colours themselves (in the stored format, not converted);
-// the line lengths are not used. Formats other than 0x10 and 8 give nothing. Output beyond width * height pixels
-// (malformed data, written past the buffer in the original) is dropped.
+// the line lengths are not used. Formats other than 0x10 and 8 give nothing. A code counting 0 repeats 65536 times
+// (the original counts in 16 bits until it comes round). Output beyond width * height pixels and reads past the data
+// (malformed data, out of bounds in the original) are dropped: the pixels are not written, the words read as 0.
 std::optional<RawPicture> RleCodec::Decode(std::span<const u8> rle) const
 {
     const RleColors& colors = this->painter.Rle();
@@ -174,7 +179,8 @@ std::optional<RawPicture> RleCodec::Decode(std::span<const u8> rle) const
     }
 
     const std::size_t pixelSize = picture.format == RleHeader::TrueColor ? sizeof(u16) : sizeof(u8);
-    picture.pixels.assign(static_cast<std::size_t>(picture.width) * picture.height * pixelSize, 0);
+    // The new block of the debug heap: pixels no code covers keep its fill.
+    picture.pixels.assign(static_cast<std::size_t>(picture.width) * picture.height * pixelSize, kDebugHeapByte);
     std::size_t written = 0;
 
     auto put = [&picture, &written, pixelSize](u16 value)
@@ -194,23 +200,35 @@ std::optional<RawPicture> RleCodec::Decode(std::span<const u8> rle) const
         written += pixelSize;
     };
 
+    const u8* end = rle.data() + rle.size();
+
+    auto word = [end](const u8* at)
+    {
+        return at + sizeof(u16) <= end ? ReadWord(at) : u16{0};
+    };
+
+    auto byte = [end](const u8* at)
+    {
+        return at < end ? *at : u8{0};
+    };
+
     const u8* line = rle.data() + RleHeader::HeaderBytes;
 
-    while (ReadWord(line) != 0)
+    while (word(line) != 0)
     {
         const u8* code = line + sizeof(u16);
 
-        for (u16 value = ReadWord(code); value != 0; value = ReadWord(code))
+        for (u16 value = word(code); value != 0; value = word(code))
         {
             code += sizeof(u16);
-            const int count = value & kCountMask;
+            const int count = (value & kCountMask) != 0 ? value & kCountMask : kWrappedCount;
 
             for (int i = 0; i < count; ++i)
             {
                 switch (value & kKindMask)
                 {
                     case kLiteral:
-                        put(pixelSize == sizeof(u16) ? ReadWord(code + sizeof(u16) * i) : code[i]);
+                        put(pixelSize == sizeof(u16) ? word(code + sizeof(u16) * i) : byte(code + i));
                         break;
 
                     case kSkip:
@@ -239,7 +257,8 @@ std::optional<RawPicture> RleCodec::Decode(std::span<const u8> rle) const
 }
 
 // swd32.exe 0x00401B70: reads the header and, for a 16-bit picture, converts its literal pixels to the display format
-// in place. False for another magic or format (the header fields are still read for another format).
+// in place. False for another magic or format (the header fields are still read for another format). Malformed data
+// running past its end stops there (read and written out of bounds in the original).
 bool RleCodec::ConvertToDisplay(std::span<u8> rle, RleHeader& header) const
 {
     if (rle.size() < RleHeader::HeaderBytes || ReadWord(rle.data()) != this->painter.Rle().magic)
@@ -256,20 +275,28 @@ bool RleCodec::ConvertToDisplay(std::span<u8> rle, RleHeader& header) const
         return false;
     }
 
+    u8* const end = rle.data() + rle.size();
+
+    auto word = [end](const u8* at)
+    {
+        return at + sizeof(u16) <= end ? ReadWord(at) : u16{0};
+    };
+
     u8* line = rle.data() + RleHeader::HeaderBytes;
 
-    while (ReadWord(line) != 0)
+    while (word(line) != 0)
     {
         u8* code = line + sizeof(u16);
 
-        for (u16 value = ReadWord(code); value != 0; value = ReadWord(code))
+        for (u16 value = word(code); value != 0; value = word(code))
         {
             code += sizeof(u16);
 
             if ((value & kKindMask) == kLiteral)
             {
-                const int count = value & kCountMask;
-                std::vector<u16> pixels(static_cast<std::size_t>(count));
+                const auto room = static_cast<std::size_t>(end > code ? (end - code) / sizeof(u16) : 0);
+                const std::size_t count = std::min<std::size_t>(value & kCountMask, room);
+                std::vector<u16> pixels(count);
                 std::memcpy(pixels.data(), code, pixels.size() * sizeof(u16));
                 this->painter.ConvertPixels(pixels);
                 std::memcpy(code, pixels.data(), pixels.size() * sizeof(u16));
@@ -285,7 +312,7 @@ bool RleCodec::ConvertToDisplay(std::span<u8> rle, RleHeader& header) const
 
 // swd32.exe 0x00401C70: an 8-bit picture becomes a 16-bit one through its palette (converted to the display format)
 // and loses the palette; the new line headers hold the plain length. A 16-bit picture is converted in place and
-// takes its size from the header.
+// takes its size from the header. Malformed data (a literal of count 0, data running past its end) stops at the end.
 void RleCodec::ConvertTo16(Picture& picture) const
 {
     const u8* source = picture.data.data();
@@ -314,15 +341,22 @@ void RleCodec::ConvertTo16(Picture& picture) const
         out,
         static_cast<u16>((format & (RleHeader::FormatFlag15 | RleHeader::TrueColor)) | RleHeader::TrueColor)
     );
+    const u8* end = source + picture.data.size();
+
+    auto word = [end](const u8* at)
+    {
+        return at + sizeof(u16) <= end ? ReadWord(at) : u16{0};
+    };
+
     const u8* line = source + RleHeader::HeaderBytes;
 
-    while (ReadWord(line) != 0)
+    while (word(line) != 0)
     {
         const std::size_t header = out.size();
         AppendWord(out, 0);
         u32 lineBytes = kLineOverhead;
         const u8* code = line + sizeof(u16);
-        u16 value = ReadWord(code);
+        u16 value = word(code);
         AppendWord(out, value);
         code += sizeof(u16);
 
@@ -330,7 +364,8 @@ void RleCodec::ConvertTo16(Picture& picture) const
         {
             if ((value & kKindMask) == kLiteral)
             {
-                std::vector<u16> pixels(value & kCountMask);
+                const auto room = static_cast<std::size_t>(end > code ? end - code : 0);
+                std::vector<u16> pixels(std::min<std::size_t>(value & kCountMask, room));
 
                 for (std::size_t i = 0; i < pixels.size(); ++i)
                 {
@@ -349,7 +384,7 @@ void RleCodec::ConvertTo16(Picture& picture) const
                 code += pixels.size();
             }
 
-            value = ReadWord(code);
+            value = word(code);
             AppendWord(out, value);
             lineBytes += sizeof(u16);
             code += sizeof(u16);
@@ -367,7 +402,8 @@ void RleCodec::ConvertTo16(Picture& picture) const
 }
 
 // swd32.exe 0x00401E50: a map tile (a 256-entry palette followed by an 8-bit RLE picture) becomes a 16-bit RLE
-// picture. The size is cut to 16 bits, as in the original (which then copies only that many bytes).
+// picture. The size is cut to 16 bits, as in the original (which then copies only that many bytes). Data running past
+// its end stops there.
 void RleCodec::ConvertTileTo16(std::vector<u8>& tile) const
 {
     constexpr std::size_t kPaletteBytes = 0x200;
@@ -396,12 +432,19 @@ void RleCodec::ConvertTileTo16(std::vector<u8>& tile) const
     );
     std::size_t header = out.size();
     AppendWord(out, 0);
+    const u8* end = tile.data() + tile.size();
+
+    auto word = [end](const u8* at)
+    {
+        return at + sizeof(u16) <= end ? ReadWord(at) : u16{0};
+    };
+
     const u8* line = source + RleHeader::HeaderBytes;
 
-    while (ReadWord(line) != 0)
+    while (word(line) != 0)
     {
         const u8* code = line + sizeof(u16);
-        u16 value = ReadWord(code);
+        u16 value = word(code);
         AppendWord(out, value);
         code += sizeof(u16);
         u32 lineBytes = kLineOverhead;
@@ -410,7 +453,8 @@ void RleCodec::ConvertTileTo16(std::vector<u8>& tile) const
         {
             if ((value & kKindMask) == kLiteral)
             {
-                std::vector<u16> pixels(value);
+                const auto room = static_cast<std::size_t>(end > code ? end - code : 0);
+                std::vector<u16> pixels(std::min<std::size_t>(value, room));
 
                 for (std::size_t i = 0; i < pixels.size(); ++i)
                 {
@@ -428,7 +472,7 @@ void RleCodec::ConvertTileTo16(std::vector<u8>& tile) const
                 code += pixels.size();
             }
 
-            value = ReadWord(code);
+            value = word(code);
             AppendWord(out, value);
             lineBytes += sizeof(u16);
             code += sizeof(u16);
