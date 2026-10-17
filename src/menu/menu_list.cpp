@@ -1,6 +1,7 @@
 #include "menu/menu_list.h"
 
 #include "config/config.h"
+#include "core/debug_log.h"
 #include "crt/msvc.h"
 #include "game/databases.h"
 #include "game/game.h"
@@ -296,9 +297,14 @@ void Menu::DrawScrollBar(int x, int y, int height, int arrows, float from, float
     bar.top = y;
     bar.bottom = y + height;
 
-    auto tile = [&owner](ActState& act, int left, int from, int to)
+    // A failed act is reported and still drawn with the picture it had (format 0x0049FD0C).
+    auto tile = [&owner](ActState& act, std::u8string_view failed, int left, int from, int to)
     {
-        owner.acts.Run(act);
+        if (owner.acts.Run(act) == 0)
+        {
+            DebugLog(std::u8string(failed) + u8" 設定錯誤 \nact[%d] qq[%d] dir[%d]", act.id, act.action, act.direction);
+        }
+
         const Picture* picture = owner.archive.GetPicture(act.frame, act.picture);
 
         if (picture == nullptr || picture->height == 0)
@@ -313,14 +319,14 @@ void Menu::DrawScrollBar(int x, int y, int height, int arrows, float from, float
         }
     };
 
-    tile(this->unk4FC328, x, y, bottom);
+    tile(this->unk4FC328, u8"Act Err(Menu:DrawBar)", x, y, bottom);
     const auto length = static_cast<double>(height);
     const int thumbTop = y + static_cast<i32>(crt::Ftol(length * static_cast<double>(from)));
     bar.thumbTop = thumbTop;
     const int thumbBottom = y + static_cast<i32>(crt::Ftol(length * static_cast<double>(to)));
     bar.thumbBottom = thumbBottom;
     owner.painter.SetClipClamped(x, y, x + kBarClipWidth, thumbBottom);
-    tile(this->unk4FC6E8, x + kThumbLeft, thumbTop, thumbBottom);
+    tile(this->unk4FC6E8, u8"Act Err(Menu:Prop:Render:bar)", x + kThumbLeft, thumbTop, thumbBottom);
     owner.painter.SetClipClamped(0, 0, Display::Width, Display::Height);
     this->unk4FBA18.action = kUpArrowAction;
     owner.actDrawer.Draw(this->unk4FBA18, x, y - kArrowHeight);

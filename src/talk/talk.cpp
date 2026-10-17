@@ -961,11 +961,14 @@ void Talk::DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 hel
         const int pitch = painter.ScreenPitch();
         const std::span<u16> screen(owner.drawSurface, static_cast<std::size_t>(pitch) * Display::Height);
 
+        // 0x00417DE0 is given 8 * length + 0x1C pixels and blends half as many pairs.
+        const int pairs = (kPlateByteWidth * length + kPlateShadePad) >> 1;
+
         for (int row = 0; row < kPlateShadeRows; ++row)
         {
             const int at = edge + pitch * (top + row - kPlateShadeAbove) + kPlateShadeLeft;
 
-            for (int pair = 0; pair < kPlateByteWidth * length + kPlateShadePad; ++pair)
+            for (int pair = 0; pair < pairs; ++pair)
             {
                 const int first = at + kPixelsPerPair * pair;
 

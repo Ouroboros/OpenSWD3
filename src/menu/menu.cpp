@@ -37,7 +37,7 @@ constexpr std::pair<u16, u16> kStatusModes = {0x30, 0x34};
 constexpr std::pair<u16, u16> kOptionsModes = {0x36, 0x3A};  // the altar's while the pages are swapped
 constexpr std::pair<u16, u16> kAltarModes = {0x3C, 0x3E};    // the system tab's while the pages are swapped
 constexpr std::pair<u16, u16> kBestiaryModes = {0x42, 0x47};
-constexpr std::string_view kLevelFormat = "%2d";  // swd32.exe 0x004A6ABC
+constexpr std::u8string_view kLevelFormat = u8"%2d 級/%d";  // swd32.exe 0x004A6ABC: the level, the experience needed
 constexpr std::string_view kRatioFormat = "%4d/%4d";
 
 // The actions of the interface act (Scene::InterfaceAct) and of the effect act in the menus.

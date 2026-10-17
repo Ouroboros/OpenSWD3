@@ -132,6 +132,12 @@ void ActDrawer::DrawGhost(ActState& state, int x, int y, int alpha)
 {
     if (this->acts.Run(state) == 0)
     {
+        DebugLog(
+            u8"Act Err(Menu::DrawActGhost) 設定錯誤 \nact[%d] qq[%d] dir[%d]",
+            state.id,
+            state.action,
+            state.direction
+        );  // 0x0049FD0C
         return;
     }
 

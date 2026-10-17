@@ -1780,7 +1780,7 @@ std::size_t Menu::FindExitWarp(int map) const
 
         for (u16 word = TableWord(maps, at); word != kTableEnd; word = TableWord(maps, at))
         {
-            if (word == static_cast<u16>(map))
+            if (static_cast<int>(word) == map)
             {
                 return entry;
             }

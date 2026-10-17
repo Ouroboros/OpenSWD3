@@ -1301,15 +1301,24 @@ void FieldView::DrawLines()
     const int pitch = painter.ScreenPitch();
     const std::span<u16> screen(owner.drawSurface, static_cast<std::size_t>(pitch) * Display::Height);
 
-    auto blend = [&painter, screen](int at, u32 color, int pairs)
+    // 0x00417DE0 is given the pixels of the run and blends half as many pairs (none below one pair, deviations.md).
+    auto blend = [&painter, screen](int at, u32 color, int pixels)
     {
-        for (int pair = 0; pair < pairs; ++pair)
-        {
-            const auto first = static_cast<std::size_t>(at + kPixelsPerPair * pair);
+        const u32 pairs = static_cast<u32>(pixels) >> 1;
 
-            if (at + kPixelsPerPair * pair < 0 || first + 1 >= screen.size())
+        for (u32 pair = 0; pair < pairs; ++pair)
+        {
+            const i64 place = at + static_cast<i64>(kPixelsPerPair) * pair;
+            const auto first = static_cast<std::size_t>(place);
+
+            if (place < 0)
             {
                 continue;
+            }
+
+            if (first + 1 >= screen.size())
+            {
+                break;
             }
 
             u32 value = MakeWords(screen[first + 1], screen[first]);
