@@ -84,7 +84,7 @@ constexpr u32 kCacheSteps = 2;
 constexpr i32 kMaxCache = kMinCache + static_cast<i32>(kCacheSteps) * kCacheStep;
 constexpr i32 kSlowestText = 4;                        // the text speed counts down to 0 from here
 constexpr i32 kMusicFallback = Config::MaxVolume - 1;  // past the maximum the music volume falls back here
-constexpr u8 kUnkSettings = 0x64;                      // the fourth byte written to Env.dat
+constexpr u8 kUnkSettings = 0x64;                      // written as unk14 by the settings
 constexpr int kVolumeLabelX = 0xC4;
 constexpr int kLabelX = 0x98;
 constexpr int kLineX = 0x168;  // the cache, effects and speed lines
@@ -655,7 +655,7 @@ void Menu::SystemSelect()
 }
 
 // swd32.exe 0x00449050: Escape on the entries points at the last entry; on the settings it goes back and writes them
-// to Env.dat
+// (to [game], Env.dat in the original)
 void Menu::SystemCancel()
 {
     Game& owner = this->game;
@@ -679,7 +679,7 @@ void Menu::SystemCancel()
             static_cast<u8>(owner.config.battleSpeed),
         };
 
-        owner.config.Update(owner.config.installDirectory, owner.config.cdRoot, settings);
+        owner.config.Update(settings);
     }
 }
 

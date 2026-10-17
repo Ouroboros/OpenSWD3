@@ -111,7 +111,7 @@ TEST_CASE("host settings: the window saved into the file, nothing written when i
     std::filesystem::remove(file);
     std::string error;
     CHECK(swd3::SaveWindowSettings(file, {900, 700, false}, error));
-    CHECK(swd3::LoadHostSettings(file, kBase).values.window == (swd3::WindowSettings{900, 700, false}));
+    CHECK(swd3::LoadHostSettings({}, file, kBase).values.window == (swd3::WindowSettings{900, 700, false}));
 
     {
         std::ofstream stream(file, std::ios::binary | std::ios::trunc);
@@ -122,7 +122,7 @@ TEST_CASE("host settings: the window saved into the file, nothing written when i
     CHECK(swd3::SaveWindowSettings(file, {900, 700, false}, error));
     CHECK(std::filesystem::last_write_time(file) == written);
     CHECK(swd3::SaveWindowSettings(file, {1024, 768, true}, error));
-    const swd3::HostSettings read = swd3::LoadHostSettings(file, kBase);
+    const swd3::HostSettings read = swd3::LoadHostSettings({}, file, kBase);
     CHECK(read.values.window == (swd3::WindowSettings{1024, 768, true}));
     CHECK_EQ(read.LogLevel(), SDL_LOG_PRIORITY_INFO);
 
@@ -132,5 +132,75 @@ TEST_CASE("host settings: the window saved into the file, nothing written when i
     }
 
     CHECK(!swd3::SaveWindowSettings(file, {1024, 768, true}, error));
+    std::filesystem::remove(file);
+}
+
+TEST_CASE("host settings: the user's file over the program's, [game] read with its keys")
+{
+    const std::string program =
+        "[window]\nwidth = 1000\nheight = 800\n"
+        "[game]\nsound_volume = 11\ncache_size = 140\neffects_off = false\nsession_open = true\n"
+        "[game.keys]\nup = 200\ngive_up = 1\n";
+    const std::string user = "[window]\nwidth = 700\n[game]\nsound_volume = 3\n[game.keys]\nup = 72\n";
+    const swd3::HostSettings settings = swd3::ParseHostSettings(user, program, kBase);
+    CHECK(settings.programHasGame);
+    CHECK_EQ(settings.values.window.width, 700);
+    CHECK_EQ(settings.values.window.height, 800);
+    CHECK_EQ(settings.values.game.soundVolume.value_or(-1), 3);
+    CHECK_EQ(settings.values.game.cacheSize.value_or(-1), 140);
+    CHECK(settings.values.game.sessionOpen.value_or(false));
+    CHECK_EQ(settings.values.game.keys.up.value_or(-1), 72);
+    CHECK_EQ(settings.values.game.keys.giveUp.value_or(-1), 1);
+    CHECK(!settings.values.game.keys.down.has_value());
+    CHECK(settings.warnings.empty());
+    CHECK(!swd3::ParseHostSettings(user, "[window]\n", kBase).programHasGame);
+    const swd3::HostSettings bad =
+        swd3::ParseHostSettings("", "[game]\nsound_volume = 300\n[game.keys]\nhelp = -1\n", kBase);
+    CHECK(!bad.values.game.soundVolume.has_value());
+    CHECK(!bad.values.game.keys.help.has_value());
+    CHECK_EQ(bad.warnings.size(), static_cast<std::size_t>(2));
+}
+
+TEST_CASE("host settings: the program's file updated, the user's untouched")
+{
+    const std::filesystem::path file = std::filesystem::temp_directory_path() / "swd3r_program_test.toml";
+    std::filesystem::remove(file);
+    std::string error;
+    CHECK(
+        swd3::UpdateSettingsFile(
+            file,
+            [](swd3::Settings& settings)
+            {
+                settings.game.musicVolume = 4;
+                settings.game.keys.menu = 28;
+            },
+            error
+        )
+    );
+    const swd3::HostSettings read = swd3::LoadHostSettings({}, file, kBase);
+    CHECK(read.programHasGame);
+    CHECK_EQ(read.values.game.musicVolume.value_or(-1), 4);
+    CHECK_EQ(read.values.game.keys.menu.value_or(-1), 28);
+    const auto written = std::filesystem::last_write_time(file);
+    CHECK(
+        swd3::UpdateSettingsFile(
+            file,
+            [](swd3::Settings& settings)
+            {
+                settings.game.musicVolume = 4;
+            },
+            error
+        )
+    );
+    CHECK(std::filesystem::last_write_time(file) == written);
+    CHECK(
+        swd3::UpdateSettingsFile(
+            {},
+            [](swd3::Settings&)
+            {
+            },
+            error
+        )
+    );
     std::filesystem::remove(file);
 }

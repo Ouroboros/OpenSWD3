@@ -444,7 +444,7 @@ bool Talk::OpenMapMovie(EventRun& run)
     run.context.unk20 = static_cast<u16>(run.context.unk20 + kWordBytes);
     copy[end] = 0;
     const std::string name(reinterpret_cast<const char*>(copy.data()), end);
-    ErrorLog(u8"Talk:ani_open:cd:%s:%s", owner.config.cdRoot, name);
+    ErrorLog(u8"Talk:ani_open:cd:%s:%s", std::string(), name);
     // The original looks in the CD's swd3\Video\ (after a CD check) when the installation lacks the movie; the
     // rebuild only reads the installation (see deviations.md).
     owner.AudioPump();

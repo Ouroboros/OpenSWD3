@@ -1,15 +1,22 @@
 #pragma once
 
 #include <array>
+#include <filesystem>
+#include <functional>
+#include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 
 #include "core/types.h"
+#include "platform/host_settings.h"
 
 namespace swd3
 {
 
-// The installation and the player's settings, kept in <install directory>Env.dat.
+// The installation and the player's settings. The original kept them in <install directory>Env.dat; the rebuild
+// keeps them in [game] of the program's settings file (swd3r.default.toml, see platform/host_settings.h), imported
+// once from Env.dat.
 class Config
 {
 public:
@@ -23,15 +30,14 @@ public:
     static constexpr u8 DefaultTextSpeed = 2;
     static constexpr i32 DefaultUnknown14 = 0x64;
 
-    // The layout of Env.dat: the format mark, the EnvKeys key bytes, unknown14, the settings bytes, the channel masks,
-    // the debug byte, then the install directory, the CD root and the installation type as strings (an old-format
-    // file has no mark and its strings at OldStringsAt).
+    // The layout of Env.dat (read once, to import it): the format mark, the EnvKeys key bytes, unknown14, the settings
+    // bytes, the channel masks, the debug byte, then the install directory, the CD root and the installation type as
+    // strings, and the session mark in the last byte (an old-format file has no mark).
     static constexpr std::size_t KeysAt = 4;
     static constexpr std::size_t Unknown14At = 0x14;
     static constexpr std::size_t SettingsAt = 0x18;
     static constexpr std::size_t MasksAt = 0x1E;
     static constexpr std::size_t DebugAt = 0x24;
-    static constexpr std::size_t OldStringsAt = 0x2A;
     static constexpr std::size_t StringsAt = 0x2E;
     static constexpr std::size_t SoundVolumeAt = 0;  // the settings bytes from SettingsAt
     static constexpr std::size_t MusicVolumeAt = 1;
@@ -39,13 +45,6 @@ public:
     static constexpr std::size_t EffectsOffAt = 3;
     static constexpr std::size_t TextSpeedAt = 4;
     static constexpr std::size_t BattleSpeedAt = 5;
-
-    // Config::installType values.
-    enum InstallType : u8
-    {
-        MinimalInstall = 1,  // HUGE.lmf stays on the CD
-        FullInstall = 2,
-    };
 
     // The key slots in the order Env.dat stores them (from offset 4).
     static constexpr std::array<int, EnvKeys> EnvKeyOrder = {4, 6, 3, 5, 1, 12, 9, 0, 10, 2, 16, 17, 18, 19, 7, 8};
@@ -62,7 +61,7 @@ public:
 
     static constexpr std::array<u16, Channels> DefaultChannelMasks = {0x7C00, 0x3E0, 0x1F};
 
-    // The settings Update writes besides the directories.
+    // The settings Update writes besides the keys.
     struct Settings
     {
         u8 soundVolume = 0;
@@ -74,15 +73,22 @@ public:
         u8 battleSpeed = 0;
     };
 
-    void Write(std::string_view installDirectory, std::string_view cdRoot, const Settings& settings);
-    void Update(std::string_view installDirectory, std::string_view cdRoot, const Settings& settings);
+    // The settings of a current-format Env.dat as [game] (its keys, settings, masks, debug byte and session mark);
+    // nothing for an old-format or a short file.
+    static std::optional<GameSettings> ImportEnv(std::span<const u8> data);
+    static void ImportEnvFile(const std::string& directory, const std::filesystem::path& file);
+
+    void Update(const Settings& settings);
     void SaveKeys();
-    bool Load(i32& unknown14, u8& effectsOff);
+    void Apply(const GameSettings& game, i32& unknown14, u8& effectsOff);
     void SetDefaultKeys();
 
+private:
+    void StoreKeys(GameSettings& game) const;
+    void Store(const std::function<void(GameSettings&)>& change) const;
+
+public:
     std::string installDirectory;  // 0x004A94BC the game directory with a trailing backslash
-    std::string cdRoot;            // 0x004B82F8 the first CD-ROM drive, "d:\"
-    u8 installType = 0;            // 0x004C97F4 Config::InstallType
     i32 soundVolume = 0;           // 0x004AB784 0..11
     i32 musicVolume = 0;           // 0x004C9A0C 0..11
     i32 cacheSize = 0;             // 0x004B7ACC map cache in MB: 60, 100 or 140
@@ -94,6 +100,8 @@ public:
 
     // The rebuild's [paths] save_dir with a trailing separator; empty: the original <installDirectory>save\.
     std::string saveDirectory;
+    // The program's settings file [game] is written to (empty: nothing is written).
+    std::filesystem::path settingsFile;
 
     // The directory of the numbered saves (with a trailing separator).
     std::string SaveDirectory() const

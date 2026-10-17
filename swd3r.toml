@@ -1,12 +1,15 @@
-# swd3r 的宿主设置（TOML 1.0），放在可执行文件旁边，文件名固定为 swd3r.toml。
+# swd3r 的设置（TOML 1.0），放在可执行文件旁边。共两个文件：
+#   swd3r.toml          用户的文件（本文件）：程序只读不写，注释与顺序都保留。
+#   swd3r.default.toml  程序的文件：程序读写，存游戏里改的设置、按键、退出时的窗口大小与会话标记。
+# 两个文件按键合并，同一项以 swd3r.toml 为准（在这里写了的项，游戏里再改只在当次有效）。
 # 删除行首的 # 即可启用。缺少的项、非法的值都取默认值并在日志中记一条警告；整个文件不是合法 TOML 时全部取默认值。
 # 字符串用单引号时不处理转义（适合 Windows 路径，如 'E:\Game\swd3'），用双引号时反斜杠要写成 \\。
 
 [paths]
 
 # 相对路径以可执行文件目录为基准。
-# 未配置 data_dir 时按原程序逻辑：先在工作目录读 Env.dat，再使用 Env.dat 记录的安装目录。
-# 配置后，工作目录切换到 data_dir（原程序按工作目录读取 all_char.act 等档案），Env.dat 与游戏数据也从这里读取（覆盖 Env.dat 记录的目录）。
+# 未配置 data_dir 时使用工作目录。配置后，工作目录切换到 data_dir（原程序按工作目录读取 all_char.act 等档案），
+# 游戏数据也从这里读取。
 # 未配置 save_dir 时，编号存档 0.sav..98.sav 仍按原逻辑保存在 <data_dir>\save\ 中。
 
 # data_dir = './'
@@ -25,7 +28,7 @@
 [window]
 
 # 这些值只控制宿主窗口。游戏画面保持宽高比，尽量填满窗口，比例不一致时居中留黑边。
-# 退出时窗口大小或最大化与此不同，会由 TOML 库写回本文件（写回后注释不保留，表与键按字母顺序排列）。
+# 退出时的窗口大小与最大化写入 swd3r.default.toml；在这里写了就固定为这里的值。
 # 宽至少 640，高至少 480（逻辑画面的大小）。
 
 # width = 1280
@@ -40,3 +43,43 @@
 # scale = 1.0
 # width = 640
 # height = 480
+
+[game]
+
+# 游戏本身的设置，原程序存在 Env.dat。第一次启动时 swd3r.default.toml 还没有 [game]，
+# 从 data_dir 的 Env.dat 导入一次，之后不再读写 Env.dat。游戏里改设置、改按键都写入 swd3r.default.toml。
+# 下面是没有 Env.dat 时的默认值。
+
+# sound_volume = 6      # 音效音量 0..11
+# music_volume = 6      # 音乐音量 0..11
+# cache_size = 60       # 置换空间（地图缓存上限，MB）：60、100 或 140
+# effects_off = false   # 关闭画面特效
+# text_speed = 2        # 文字速度 0（最快）..4
+# battle_speed = 11     # 战斗速度 0..11
+# debug = false         # 调试热键
+# unk14 = 100           # Env.dat 偏移 0x14 的值，用途未明（游戏里保存设置时写 100）
+# red_mask = 31744      # 地图缓存所对应的显示颜色掩码，显示格式变了会清空缓存（程序维护）
+# green_mask = 992
+# blue_mask = 31
+# session_open = false  # 游戏运行时为 true，正常退出时为 false；启动时仍为 true 表示上次异常退出，会清空地图缓存（程序维护）
+
+[game.keys]
+
+# 按键设定页的 16 个按键，值为 DirectInput 扫描码。下面是默认值。
+
+# up = 200          # 上（↑）
+# down = 208        # 下（↓）
+# left = 203        # 左（←）
+# right = 205       # 右（→）
+# menu = 28         # 進入介面（Enter）
+# confirm = 57      # 確定（空格）
+# cancel = 157      # 取消（右 Ctrl）
+# give_up = 1       # 放棄（Esc）
+# switch_1 = 207    # 切換一（End）
+# switch_2 = 54     # 切換二（右 Shift）
+# help = 59         # 說明文（F1）
+# page_up = 201     # 上一頁（PgUp）
+# page_down = 209   # 下一頁（PgDn）
+# run = 19          # 跑步（R）
+# auto_attack = 30  # 自動攻擊（A）
+# flee = 34         # 逃跑（G）

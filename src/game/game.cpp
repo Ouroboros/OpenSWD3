@@ -318,16 +318,12 @@ Game::Game(std::string installDirectory)
     this->glyphs.Load(GlyphLibraryPath());
 }
 
-// swd32.exe 0x00409EC0: an installation's command line is handled alone; otherwise creates the window (WM_CREATE ends
-// it when the start check fails), sends itself the start message and runs the message loop: the frames while the game
-// runs, the pause banner while F8 holds it. The original first leaves when a window of its class is open already.
-int Game::Run(std::string_view commandLine)
+// swd32.exe 0x00409EC0: creates the window (WM_CREATE ends it when the start check fails), sends itself the start
+// message and runs the message loop: the frames while the game runs, the pause banner while F8 holds it. The original
+// first leaves when a window of its class is open already, and handles an installation's command line alone (the
+// rebuild ignores the command line, see deviations.md).
+int Game::Run([[maybe_unused]] std::string_view commandLine)
 {
-    if (this->InstallFromCommandLine(commandLine))
-    {
-        return 0;
-    }
-
     ErrorLog(kLogSeparator);
 
     if (!this->display.Open(
@@ -465,9 +461,7 @@ void Game::Start()
     }
 
     LogInfo(
-        u8"installation cd_root=%s install_type=%d sound=%d music=%d cache=%d text_speed=%d battle_speed=%d",
-        this->config.cdRoot,
-        static_cast<i32>(this->config.installType),
+        u8"installation sound=%d music=%d cache=%d text_speed=%d battle_speed=%d",
         this->config.soundVolume,
         this->config.musicVolume,
         this->config.cacheSize,
@@ -580,18 +574,19 @@ Launcher::Choice Game::RunLauncher()
     return choice;
 }
 
-// swd32.exe 0x00425040: the default settings, the install directory and the CD drives, Env.dat, the cache sizes, the
-// map cache check and the directories of the installation
+// swd32.exe 0x00425040: the default settings, then the settings kept (Env.dat in the original, [game] of the settings
+// files here, see deviations.md), the paths, the cache sizes, the map cache check and the directories of the
+// installation
 void Game::InitInstall()
 {
     Config& settings = this->config;
-    settings.installType = Config::FullInstall;
     settings.soundVolume = Config::DefaultVolume;
     settings.musicVolume = Config::DefaultVolume;
     settings.cacheSize = Config::DefaultCacheMegabytes;
     settings.textSpeed = Config::DefaultTextSpeed;
     settings.battleSpeed = kDefaultBattleSpeed;
-    settings.Load(this->unknown14, this->effectsOff);
+    settings.settingsFile = this->host.programFile;
+    settings.Apply(this->host.values.game, this->unknown14, this->effectsOff);
     this->ApplyHostPaths();
     this->SizeCaches();
     this->mapCache.Check(MapCache::CheckSessionMark);

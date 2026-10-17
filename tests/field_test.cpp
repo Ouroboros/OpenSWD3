@@ -101,7 +101,6 @@ TEST_CASE("field: the first map of a new game from HUGE.lmf")
 
     CHECK(unit != MapsRecord::TableEnd);
     Fixture all;
-    all.config.installType = swd3::Config::FullInstall;
     all.config.installDirectory = MapDirectory();
     u32 flags = 0;
     CHECK(all.field.LoadMap(unit, flags));

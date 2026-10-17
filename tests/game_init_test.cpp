@@ -18,6 +18,7 @@
 #include "map/map_cache.h"
 #include "party/party.h"
 #include "platform/display.h"
+#include "platform/host_settings.h"
 #include "platform/surface.h"
 #include "talk/text_colors.h"
 #include "test.h"
@@ -54,7 +55,6 @@ constexpr swd3::u32 kSecondaryColorsAt = 0x0049E108;
 constexpr std::size_t kBlackColor = 1;  // text colours 1 and 8 are black and pure blue
 constexpr std::size_t kBlueColor = 8;
 
-constexpr std::size_t kEnvBytes = 0x40;  // an env.dat whose last byte is the session mark
 constexpr std::string_view kCacheFile = "data/3.cm";
 constexpr u32 kCachedBytes = 100;
 constexpr u32 kSmallCache = 5;
@@ -89,26 +89,30 @@ TEST_CASE("game init: text colour tables match swd32.exe")
     CHECK_EQ(swd3::LowWord(colors.primary[kBlueColor]), swd3::Surface::BlueMask);
 }
 
-TEST_CASE("game init: the session mark of env.dat empties the map cache")
+TEST_CASE("game init: the session mark of [game] empties the map cache")
 {
     using swd3::MapCache;
     const std::string directory = TestDirectory();
     swd3::Config config;
     config.installDirectory = directory;
+    config.settingsFile = directory + "swd3r.default.toml";
     swd3::Surface surface(swd3::Display::Width, swd3::Display::Height);
     swd3::Painter painter;
     painter.Init(surface);
     MapCache cache(config, painter);
-    WriteBytes(directory + "env.dat", std::vector<u8>(kEnvBytes, 0));
+
+    auto sessionOpen = [&config, &directory]
+    {
+        return swd3::LoadHostSettings({}, config.settingsFile, directory).values.game.sessionOpen.value_or(false);
+    };
+
     WriteBytes(directory + std::string(kCacheFile), std::vector<u8>(kCachedBytes, kFill));
     WriteBytes(directory + "data/mcache.dat", std::vector<u8>(MapCache::TableBytes, kFill));
     CHECK_EQ(cache.Check(MapCache::CheckSessionMark), kCachedBytes);
     cache.MarkDirty();
-    const std::vector<u8> marked = ReadBytes(directory + "env.dat");
-    CHECK_EQ(marked.back(), 1);
+    CHECK(sessionOpen());
     CHECK_EQ(cache.Check(MapCache::CheckSessionMark), 0u);
-    const std::vector<u8> cleared = ReadBytes(directory + "env.dat");
-    CHECK_EQ(cleared.back(), 0);
+    CHECK(!sessionOpen());
     const std::vector<u8> table = ReadBytes(directory + "data/mcache.dat");
     CHECK_EQ(table.size(), MapCache::TableBytes);
     CHECK_EQ(table[0], swd3::LowByte(swd3::LowWord(MapCache::Slot::Free)));

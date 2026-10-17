@@ -2,12 +2,15 @@
 
 #include <algorithm>
 #include <array>
+#include <functional>
 #include <limits>
+#include <string>
 
 #include "codec/lzo.h"
 #include "config/config.h"
 #include "core/byte_reader.h"
 #include "core/format.h"
+#include "core/log.h"
 #include "draw/painter.h"
 #include "file/file.h"
 #include "game/game_state.h"
@@ -18,12 +21,8 @@ namespace swd3
 namespace
 {
 
-constexpr std::string_view kEnvFile = "env.dat";
 constexpr std::string_view kUnitFormat = "%sdata\\%d.cm";
 constexpr std::string_view kTableFile = "mcache.dat";
-constexpr i32 kMaskOffset = 0x1E;
-constexpr std::size_t kMaskWords = 0x20;  // the buffer the masks are read into
-constexpr u32 kMaskBytes = sizeof(u16) * Config::Channels;
 
 }  // namespace
 
@@ -33,8 +32,9 @@ MapCache::MapCache(const Config& config, const Painter& painter)
 {
 }
 
-// swd32.exe 0x00425570: mode 0 empties the cache when the session mark at the end of env.dat is set (and clears it);
-// mode 1 empties it when the display's colour masks differ from those env.dat records (and records the new ones).
+// swd32.exe 0x00425570: mode 0 empties the cache when the session mark is set (and clears it); mode 1 empties it when
+// the display's colour masks differ from those recorded (and records the new ones). The original keeps both in Env.dat
+// (the mark in its last byte, the masks at 0x1E); the rebuild in [game] (session_open, red_mask ...).
 // The bytes the cache holds afterwards.
 // swd32.exe 0x00498190 (EH unwind: the new object freed (operator delete))
 // swd32.exe 0x0049819B (EH unwind: the new object freed (operator delete))
@@ -42,55 +42,40 @@ MapCache::MapCache(const Config& config, const Painter& painter)
 // swd32.exe 0x004981B1 (EH handler of 0x00425570)
 u32 MapCache::Check(int mode)
 {
-    File file;
     bool clear = false;
 
-    if (file.Open(
-            Concat({this->config.installDirectory, kEnvFile}),
-            File::Disposition::OpenExisting,
-            File::Access::ReadWrite
-        ))
+    if (mode == MapCache::CheckSessionMark)
     {
-        if (mode == MapCache::CheckSessionMark)
-        {
-            file.SeekEnd(-1);
-            u8 mark = 0;
-            file.ReadByte(mark);
-
-            if (mark != 0)
+        this->Store(
+            [&clear](GameSettings& game)
             {
-                file.SeekEnd(-1);
-                file.WriteByte(0);
-                clear = true;
+                clear = game.sessionOpen.value_or(false);
+                game.sessionOpen = false;
             }
-        }
-        else if (mode == MapCache::CheckColorMasks)
-        {
-            u32 red = 0;
-            u32 green = 0;
-            u32 blue = 0;
-            this->painter.ColorMasks(red, green, blue);
-            const std::array<u16, Config::Channels>& recorded = this->config.channelMasks;
+        );
+    }
+    else if (mode == MapCache::CheckColorMasks)
+    {
+        u32 red = 0;
+        u32 green = 0;
+        u32 blue = 0;
+        this->painter.ColorMasks(red, green, blue);
+        const std::array<u16, Config::Channels>& recorded = this->config.channelMasks;
 
-            if (red != recorded[Config::RedChannel] || green != recorded[Config::GreenChannel] ||
-                blue != recorded[Config::BlueChannel])
-            {
-                clear = true;
-                std::array<u16, kMaskWords> masks = {};
-                u32 bytes = kMaskBytes;
-                file.SeekBegin(kMaskOffset);
-                file.Read(masks.data(), bytes);
-                masks[Config::RedChannel] = static_cast<u16>(red);
-                masks[Config::GreenChannel] = static_cast<u16>(green);
-                masks[Config::BlueChannel] = static_cast<u16>(blue);
-                file.SeekBegin(kMaskOffset);
-                bytes = kMaskBytes;
-                file.Write(masks.data(), bytes);
-            }
+        if (red != recorded[Config::RedChannel] || green != recorded[Config::GreenChannel] ||
+            blue != recorded[Config::BlueChannel])
+        {
+            clear = true;
+            this->Store(
+                [red, green, blue](GameSettings& game)
+                {
+                    game.redMask = static_cast<u16>(red);
+                    game.greenMask = static_cast<u16>(green);
+                    game.blueMask = static_cast<u16>(blue);
+                }
+            );
         }
     }
-
-    file.Close();
 
     if (clear)
     {
@@ -149,19 +134,12 @@ void MapCache::Clear()
 // swd32.exe 0x004981CB (EH handler of 0x004258E0)
 void MapCache::MarkClean()
 {
-    File file;
-
-    if (file.Open(
-            Concat({this->config.installDirectory, kEnvFile}),
-            File::Disposition::OpenExisting,
-            File::Access::Write
-        ))
-    {
-        file.SeekEnd(-1);
-        file.WriteByte(0);
-    }
-
-    file.Close();
+    this->Store(
+        [](GameSettings& game)
+        {
+            game.sessionOpen = false;
+        }
+    );
 }
 
 // swd32.exe 0x004259B0: sets the session mark (once the game runs)
@@ -169,19 +147,30 @@ void MapCache::MarkClean()
 // swd32.exe 0x004981EB (EH handler of 0x004259B0)
 void MapCache::MarkDirty()
 {
-    File file;
+    this->Store(
+        [](GameSettings& game)
+        {
+            game.sessionOpen = true;
+        }
+    );
+}
 
-    if (file.Open(
-            Concat({this->config.installDirectory, kEnvFile}),
-            File::Disposition::OpenExisting,
-            File::Access::Write
+// [game] of the program's settings file changed by `change` (the original writes Env.dat; a failure is logged).
+void MapCache::Store(const std::function<void(GameSettings&)>& change) const
+{
+    std::string error;
+
+    if (!UpdateSettingsFile(
+            this->config.settingsFile,
+            [&change](Settings& settings)
+            {
+                change(settings.game);
+            },
+            error
         ))
     {
-        file.SeekEnd(-1);
-        file.WriteByte(1);
+        LogWarning(u8"settings: the map cache's [game] values cannot be saved: %s", AsUtf8(error));
     }
-
-    file.Close();
 }
 
 // swd32.exe 0x00425A70: the sizes of the unit files that exist

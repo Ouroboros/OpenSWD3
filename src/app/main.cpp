@@ -1,10 +1,14 @@
+#include <algorithm>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <system_error>
+#include <vector>
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
+#include "config/config.h"
 #include "core/log.h"
 #include "game/game.h"
 #include "platform/host_settings.h"
@@ -51,8 +55,8 @@ std::string PathText(const std::filesystem::path& path)
     return std::string(text.begin(), text.end());
 }
 
-// The window as the user left it written back to swd3r.toml; nothing when it is as the file says (or no window was
-// made).
+// The window as the user left it written back to swd3r.default.toml; nothing when it is as the settings say (or no
+// window was made).
 void SaveWindow(const swd3::HostSettings& settings, const swd3::Display::WindowState& window)
 {
     const swd3::WindowSettings left{window.width, window.height, window.maximized};
@@ -64,7 +68,7 @@ void SaveWindow(const swd3::HostSettings& settings, const swd3::Display::WindowS
 
     std::string error;
 
-    if (!swd3::SaveWindowSettings(settings.file, left, error))
+    if (!swd3::SaveWindowSettings(settings.programFile, left, error))
     {
         swd3::LogWarning(u8"settings: the window cannot be saved: %s", swd3::AsUtf8(error));
         return;
@@ -75,7 +79,7 @@ void SaveWindow(const swd3::HostSettings& settings, const swd3::Display::WindowS
         window.width,
         window.height,
         window.maximized ? 1 : 0,
-        swd3::AsUtf8(PathText(settings.file))
+        swd3::AsUtf8(PathText(settings.programFile))
     );
 }
 
@@ -86,8 +90,9 @@ int main(int count, char** arguments)
     const std::string name = ProgramName(count, arguments);
     const std::string program = name.empty() ? std::string("swd3r") : name;
     const std::filesystem::path programDirectory = swd3::ProgramDirectory();
-    const std::filesystem::path settingsFile = programDirectory / "swd3r.toml";
-    swd3::HostSettings settings = swd3::LoadHostSettings(settingsFile, programDirectory);
+    const std::filesystem::path settingsFile = programDirectory / swd3::HostSettings::UserFile;
+    const std::filesystem::path programFile = programDirectory / swd3::HostSettings::ProgramFile;
+    swd3::HostSettings settings = swd3::LoadHostSettings(settingsFile, programFile, programDirectory);
     std::filesystem::path logDirectory = programDirectory / "logs";
     std::string logPrefix = program;
     std::string logExtension = ".log";
@@ -122,6 +127,13 @@ int main(int count, char** arguments)
     }
 
     const std::string directory = PathText(std::filesystem::current_path(error));
+
+    if (!settings.programHasGame)
+    {
+        swd3::Config::ImportEnvFile(directory, settings.programFile);
+        settings = swd3::LoadHostSettings(settingsFile, programFile, programDirectory);
+    }
+
     const int version = SDL_GetVersion();
     const char* base = SDL_GetBasePath();
     swd3::LogInfo(
@@ -133,9 +145,11 @@ int main(int count, char** arguments)
         swd3::AsUtf8(PathText(log.Path()))
     );
     swd3::LogInfo(
-        u8"settings %s%s level=%s data_dir=%s save_dir=%s window=%dx%d maximized=%d display=%dx%d",
+        u8"settings %s%s over %s%s level=%s data_dir=%s save_dir=%s window=%dx%d maximized=%d display=%dx%d",
         swd3::AsUtf8(PathText(settings.file)),
         swd3::AsUtf8(settings.found ? "" : " (not found, the defaults)"),
+        swd3::AsUtf8(PathText(settings.programFile)),
+        swd3::AsUtf8(settings.programFound ? "" : " (not found)"),
         swd3::AsUtf8(settings.values.logging.level),
         swd3::AsUtf8(PathText(settings.DataDirectory())),
         swd3::AsUtf8(PathText(settings.SaveDirectory())),

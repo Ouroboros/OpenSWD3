@@ -15,12 +15,6 @@ namespace swd3
 namespace
 {
 
-// The command line of an installation: the installation type digit, then the installation directory.
-constexpr char kFirstDigit = '0';
-// The settings written by an installation: sound and music 6, a 60 MB cache, 100, the effects on, text speed 2, battle
-// speed 10.
-constexpr Config::Settings kInstalledSettings = {6, 6, 0x3C, 0x64, 0, 2, 0xA};
-
 // The pause banner.
 constexpr std::u8string_view kPaused = u8"遊戲暫停  按F8繼續遊戲";  // swd32.exe 0x004A0360
 constexpr int kBannerCenter = 0x140;
@@ -41,22 +35,8 @@ constexpr int kInBattle = 1;  // Game::inBattle
 
 }  // namespace
 
-// swd32.exe 0x00411C90: an installation's command line (its type digit, then the directory): the default keys, Env.dat
-// written with the default settings (the original records the first CD drive too; the rebuild has none, see
-// deviations.md); true then (the game does not start)
-bool Game::InstallFromCommandLine(std::string_view commandLine)
-{
-    if (commandLine.empty())
-    {
-        return false;
-    }
-
-    this->config.SetDefaultKeys();
-    this->config.installDirectory = std::string(commandLine.substr(1));
-    this->config.installType = static_cast<u8>(commandLine.front() - kFirstDigit);
-    this->config.Write(this->config.installDirectory, this->config.cdRoot, kInstalledSettings);
-    return true;
-}
+// swd32.exe 0x00411C90 (an installation's command line: Env.dat written with the default settings): removed, the
+// rebuild keeps no Env.dat (see deviations.md)
 
 // swd32.exe 0x00411FA0: the pause banner "遊戲暫停  按F8繼續遊戲" centred in a box, shown
 void Game::DrawPauseBanner()

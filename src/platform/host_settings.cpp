@@ -5,7 +5,10 @@
 #include <fstream>
 #include <iterator>
 #include <sstream>
+#include <string>
+#include <system_error>
 #include <type_traits>
+#include <utility>
 
 #include <toml.hpp>
 
@@ -318,8 +321,44 @@ std::string_view WithoutMark(std::string_view text)
     return text;
 }
 
-// The settings of a TOML text; false (the defaults) when it is not TOML.
-bool Parse(std::string_view text, Settings& settings, std::vector<std::string>& warnings)
+// The values of [game] the game cannot take set back to their defaults (with a warning each).
+void ValidateGame(GameSettings& game, std::vector<std::string>& warnings)
+{
+    constexpr i64 kByteLimit = 0xFF;
+    constexpr i64 kMaskLimit = 0xFFFF;
+    constexpr i64 kDwordLimit = 0xFFFFFFFF;
+
+    auto range = [&warnings](std::optional<i64>& value, std::string_view key, i64 limit)
+    {
+        if (value.has_value() && (*value < 0 || *value > limit))
+        {
+            warnings.push_back(
+                "[game] " + std::string(key) + " must be 0.." + std::to_string(limit) + ": the default kept"
+            );
+            value.reset();
+        }
+    };
+
+    range(game.soundVolume, "sound_volume", kByteLimit);
+    range(game.musicVolume, "music_volume", kByteLimit);
+    range(game.cacheSize, "cache_size", kByteLimit);
+    range(game.textSpeed, "text_speed", kByteLimit);
+    range(game.battleSpeed, "battle_speed", kByteLimit);
+    range(game.unk14, "unk14", kDwordLimit);
+    range(game.redMask, "red_mask", kMaskLimit);
+    range(game.greenMask, "green_mask", kMaskLimit);
+    range(game.blueMask, "blue_mask", kMaskLimit);
+    std::apply(
+        [&](const auto&... field)
+        {
+            (range(game.keys.*field.member, "keys." + std::string(field.key), kByteLimit), ...);
+        },
+        GameKeys::Fields()
+    );
+}
+
+// A TOML text as a table; false (with a warning) when it is not TOML.
+bool ParseTable(std::string_view text, toml::table& table, std::vector<std::string>& warnings, std::string_view name)
 {
     toml::parse_result result = toml::parse(WithoutMark(text));
 
@@ -327,16 +366,41 @@ bool Parse(std::string_view text, Settings& settings, std::vector<std::string>& 
     {
         const toml::parse_error& error = result.error();
         warnings.push_back(
-            "line " + std::to_string(error.source().begin.line) + ", column " +
+            std::string(name) + " line " + std::to_string(error.source().begin.line) + ", column " +
             std::to_string(error.source().begin.column) + ": " + std::string(error.description()) +
             " (the whole file is ignored)"
         );
         return false;
     }
 
-    Reader(warnings).Table(result.table(), "", settings);
-    Validate(settings, warnings);
+    table = std::move(result.table());
     return true;
+}
+
+// `over` laid over `base`: its values replace those of `base`, its tables are merged into those of `base`.
+void Merge(toml::table& base, const toml::table& over)
+{
+    for (const auto& [key, node] : over)
+    {
+        toml::table* inner = base.get_as<toml::table>(key);
+
+        if (inner != nullptr && node.is_table())
+        {
+            Merge(*inner, *node.as_table());
+        }
+        else
+        {
+            base.insert_or_assign(key, node);
+        }
+    }
+}
+
+// The settings of a table (by the structs' Fields(), then checked).
+void Read(const toml::table& table, Settings& settings, std::vector<std::string>& warnings)
+{
+    Reader(warnings).Table(table, "", settings);
+    ValidateGame(settings.game, warnings);
+    Validate(settings, warnings);
 }
 
 std::filesystem::path PathOf(const std::optional<std::string>& text, const std::filesystem::path& base)
@@ -356,6 +420,29 @@ std::string ReadText(const std::filesystem::path& file, bool& found)
     found = stream.is_open();
     return found ? std::string(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>())
                  : std::string();
+}
+
+// The user's text over the program's, read into `settings`.
+void ParseInto(HostSettings& settings, std::string_view text, std::string_view programText)
+{
+    toml::table merged;
+    toml::table user;
+
+    if (ParseTable(programText, merged, settings.warnings, HostSettings::ProgramFile))
+    {
+        settings.programHasGame = merged.get_as<toml::table>("game") != nullptr;
+    }
+    else
+    {
+        merged = toml::table{};
+    }
+
+    if (ParseTable(text, user, settings.warnings, HostSettings::UserFile))
+    {
+        Merge(merged, user);
+    }
+
+    Read(merged, settings.values, settings.warnings);
 }
 
 }  // namespace
@@ -382,25 +469,32 @@ SDL_LogPriority HostSettings::LogLevel() const
 
 HostSettings ParseHostSettings(std::string_view text, const std::filesystem::path& base)
 {
+    return ParseHostSettings(text, "", base);
+}
+
+HostSettings ParseHostSettings(std::string_view text, std::string_view programText, const std::filesystem::path& base)
+{
     HostSettings settings;
     settings.base = base;
-
-    if (!Parse(text, settings.values, settings.warnings))
-    {
-        settings.values = Settings{};
-    }
-
+    ParseInto(settings, text, programText);
     return settings;
 }
 
-HostSettings LoadHostSettings(const std::filesystem::path& file, const std::filesystem::path& base)
+HostSettings LoadHostSettings(
+    const std::filesystem::path& file,
+    const std::filesystem::path& programFile,
+    const std::filesystem::path& base
+)
 {
     bool found = false;
+    bool programFound = false;
     const std::string text = ReadText(file, found);
-    HostSettings settings = found ? ParseHostSettings(text, base) : HostSettings{};
-    settings.base = base;
+    const std::string programText = ReadText(programFile, programFound);
+    HostSettings settings = ParseHostSettings(text, programText, base);
     settings.file = file;
+    settings.programFile = programFile;
     settings.found = found;
+    settings.programFound = programFound;
     return settings;
 }
 
@@ -411,25 +505,42 @@ std::string SettingsText(const Settings& settings)
     return out.str();
 }
 
-bool SaveWindowSettings(const std::filesystem::path& file, const WindowSettings& window, std::string& error)
+bool UpdateSettingsFile(
+    const std::filesystem::path& file,
+    const std::function<void(Settings&)>& change,
+    std::string& error
+)
 {
-    bool found = false;
-    const std::string text = ReadText(file, found);
-    Settings settings;
-    std::vector<std::string> warnings;
-
-    if (found && !Parse(text, settings, warnings))
-    {
-        error = "the file is not valid TOML: left as it is";
-        return false;
-    }
-
-    if (found && settings.window == window)
+    if (file.empty())
     {
         return true;
     }
 
-    settings.window = window;
+    bool found = false;
+    const std::string text = ReadText(file, found);
+    Settings settings;
+    std::vector<std::string> warnings;
+    toml::table table;
+
+    if (found)
+    {
+        if (!ParseTable(text, table, warnings, HostSettings::ProgramFile))
+        {
+            error = "the file is not valid TOML: left as it is";
+            return false;
+        }
+
+        Read(table, settings, warnings);
+    }
+
+    const Settings before = settings;
+    change(settings);
+
+    if (found && settings == before)
+    {
+        return true;
+    }
+
     const std::string written = SettingsText(settings);
     std::filesystem::path temporary = file;
     temporary += ".new";
@@ -462,6 +573,18 @@ bool SaveWindowSettings(const std::filesystem::path& file, const WindowSettings&
     }
 
     return true;
+}
+
+bool SaveWindowSettings(const std::filesystem::path& file, const WindowSettings& window, std::string& error)
+{
+    return UpdateSettingsFile(
+        file,
+        [&window](Settings& settings)
+        {
+            settings.window = window;
+        },
+        error
+    );
 }
 
 }  // namespace swd3

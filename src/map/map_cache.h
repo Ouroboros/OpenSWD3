@@ -13,9 +13,11 @@ namespace swd3
 
 class Config;
 class Painter;
+struct GameSettings;
 
 // The cache of decompressed map units in <install directory>data\0.cm .. 23.cm with their table in mcache.dat. The
-// last byte of env.dat marks a session that did not end cleanly: the next start empties the cache.
+// session mark ([game] session_open; the last byte of Env.dat in the original) marks a session that did not end
+// cleanly: the next start empties the cache.
 class MapCache
 {
 public:
@@ -60,6 +62,7 @@ public:
 
 private:
     void Clear();
+    void Store(const std::function<void(GameSettings&)>& change) const;
 
     const Config& config;
     const Painter& painter;

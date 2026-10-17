@@ -16,7 +16,7 @@ namespace
 constexpr i32 kItemsBackground = 0x43;  // Menu::background action of the items page
 constexpr int kItemRows = 0xD;
 constexpr u16 kSaveItem = 0x2D9;
-constexpr u8 kUnkSettings = 0x64;  // the fourth byte written to Env.dat
+constexpr u8 kUnkSettings = 0x64;  // written as unk14 by the settings
 constexpr int kBarBoxLeft = 4;     // DrawScrollBar
 constexpr int kBarBoxUp = 0xC;
 constexpr int kBarBoxWidth = 8;
@@ -265,7 +265,8 @@ void Menu::ItemsAfterSave(int saved)
     }
 }
 
-// swd32.exe 0x0044B010: the options page left: its list freed and the settings written to Env.dat
+// swd32.exe 0x0044B010: the options page left: its list freed and the settings written (to [game], Env.dat in the
+// original)
 void Menu::OptionsLeave()
 {
     Game& owner = this->game;
@@ -280,7 +281,7 @@ void Menu::OptionsLeave()
         static_cast<u8>(owner.config.battleSpeed),
     };
 
-    owner.config.Update(owner.config.installDirectory, owner.config.cdRoot, settings);
+    owner.config.Update(settings);
 }
 
 // swd32.exe 0x0043AE40: the scroll bar of a list from `y` down `height` pixels at `x`: its box, the bar picture (act
