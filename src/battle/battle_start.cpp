@@ -134,11 +134,12 @@ void Game::StartBattle(u16 number)
     battle.unk524324.fill(0);
     battle.unk4FE5D4.fill(0);
     battle.actionQueue.fill(0);
-    battle.unk4FF0B0 = 0;
-    battle.unk4FE5CC = 0;
-    battle.unk4FF0B4 = 0;
-    battle.unk4FE5D0 = 0;
-    battle.unk4FF0B8 = 0;
+    battle.commandNames[0] = {};
+    battle.commandKinds[0] = 0;
+    battle.commandKinds[1] = 0;
+    battle.commandNames[1] = {};
+    battle.commandKinds[2] = 0;
+    battle.commandNames[2] = {};
     this->battleMessages.messages.reset();
     battle.unk524268.fill(0);
     std::fill_n(battle.commandEnabled.begin(), kCommandClearBytes, u8{0});

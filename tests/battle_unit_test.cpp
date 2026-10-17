@@ -1051,3 +1051,26 @@ TEST_CASE("battle state: the panel units match swd32.exe")
     CHECK(swd3test::SameTable(exe, kPanelUnitsAt, swd3::BattleState::PanelUnits));
     CHECK(swd3test::SameTable(exe, kPanelRoleAt, std::array<swd3::u16, 1>{state.unk4A7644}));
 }
+
+TEST_CASE("battle state: the names of the accessory commands match swd32.exe")
+{
+    constexpr swd3::u32 kNamesAt = 0x004A74A0;
+    constexpr swd3::u32 kFirstKind = 0x15;
+    constexpr swd3::u32 kSpiritPactAt = 0x004A79A0;
+    const std::vector<swd3::u8> exe = swd3test::ReadGameFile("swd32.exe");
+
+    if (exe.empty())
+    {
+        std::printf("  (swd32.exe not found, skipped)\n");
+        return;
+    }
+
+    for (std::size_t at = 0; at < swd3::BattleState::AccessoryCommandNames.size(); ++at)
+    {
+        const auto kind = kFirstKind + static_cast<swd3::u32>(at);
+        const swd3::u32 address = swd3test::ExeDword(exe, kNamesAt + kind * sizeof(swd3::u32));
+        CHECK(swd3test::SameText(exe, address, swd3::BattleState::AccessoryCommandNames[at]));
+    }
+
+    CHECK(swd3test::SameText(exe, kSpiritPactAt, swd3::BattleState::SpiritPactName));
+}

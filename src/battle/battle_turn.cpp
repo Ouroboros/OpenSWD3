@@ -53,6 +53,22 @@ constexpr i32 kMenuFixedCommands = 5;  // before the accessory commands
 constexpr i32 kListPages = 3;
 constexpr i32 kMenuStep = 5;
 constexpr i32 kMenuStepMost = 10;
+constexpr std::size_t kFixedCommands = 5;  // the commands of the menu before the accessory ones
+constexpr std::size_t kAccessorySlots = 2;
+constexpr std::size_t kFirstAccessorySlot = 7;  // the equipment slots of the accessories
+constexpr u16 kFirstAccessoryCommand = 0x15;    // the accessory kinds that add a command
+constexpr u16 kLastAccessoryCommand = 0x31;
+constexpr u16 kSpiritPact = 6;
+constexpr i32 kGuardedCommand = 2;
+
+// The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
+// here.
+std::u8string_view AccessoryCommandName(u16 kind)
+{
+    const auto at = static_cast<std::size_t>(kind - kFirstAccessoryCommand);
+    return at < BattleState::AccessoryCommandNames.size() ? BattleState::AccessoryCommandNames[at]
+                                                          : std::u8string_view{};
+}
 
 }  // namespace
 
@@ -1099,7 +1115,7 @@ int Game::PreviousSelectableRole(int unit)
 
 // swd32.exe 0x00462420: role unit `unit` takes the current panel (in battle state 0, or with unk4A7644 set): when it
 // is among the first roleCount - 1 of unk520DD0 and not held, it trades places with the current unit; the inputs of
-// the panel (unk4FF0B0..B8, unk53BF22) are cleared either way.
+// the panel (commandNames, unk53BF22) are cleared either way.
 void Game::SelectRoleUnit(int unit)
 {
     BattleState& battle = this->battleState;
@@ -1125,9 +1141,7 @@ void Game::SelectRoleUnit(int unit)
         }
     }
 
-    battle.unk4FF0B0 = 0;
-    battle.unk4FF0B4 = 0;
-    battle.unk4FF0B8 = 0;
+    battle.commandNames = {};
     battle.unk53BF22 = 0;
 }
 
@@ -1276,6 +1290,84 @@ void Game::MenuLeft()
     {
         battle.unk4A755C = std::max(battle.unk4A755C - kMenuStep, 1);
         this->audio.PlaySound(kBackSound, this->config.soundVolume);
+    }
+}
+
+// swd32.exe 0x00464E90: the command menu of the current role: the four commands and guard enabled; then the accessory
+// commands (kinds kFirstAccessoryCommand..kLastAccessoryCommand of the two accessory slots, named by
+// AccessoryCommandNames) after them, for battle role 0 in the party first the spirit pact (kSpiritPact, with
+// UnkPanel2) of the first party role's slots, otherwise of its own party role's. A role without MarkBit8Clear loses
+// command 2, one without HasBlock38 command 4; a MarkBit1 role keeps command 2 and guard only (the cursor on 2 unless
+// its command is enabled).
+void Game::BuildCommandMenu()
+{
+    BattleState& battle = this->battleState;
+    battle.commandEnabled = {1, 1, 1, 1, 1, 0, 0, 0};
+    battle.commandNames = {};
+    battle.unk53BF22 = 0;
+    const int index = battle.currentUnit - BattleState::FirstRoleUnit;
+    std::size_t listed = 0;
+
+    auto add = [&battle, &listed](u16 kind, std::u8string_view name)
+    {
+        battle.commandEnabled[kFixedCommands + listed] = 1;
+        battle.commandKinds[listed] = kind;
+        battle.commandNames[listed] = name;
+        ++listed;
+        battle.unk53BF22 = static_cast<u16>(listed);
+    };
+
+    auto addAccessories = [this, &add](std::size_t role)
+    {
+        for (std::size_t slot = 0; slot < kAccessorySlots; ++slot)
+        {
+            const std::unique_ptr<ItemNode>& node =
+                this->party.equipment[role * Party::SlotsPerRole + kFirstAccessorySlot + slot];
+
+            // An empty slot holds the empty entry; a missing one is read through a null pointer in the original.
+            const u16 kind = node != nullptr ? node->record.data.unk48 : u16{0};
+
+            if (kind >= kFirstAccessoryCommand && kind <= kLastAccessoryCommand)
+            {
+                add(kind, AccessoryCommandName(kind));
+            }
+        }
+    };
+
+    if (battle.currentUnit == BattleState::FirstRoleUnit && battle.inParty[0] == 1)
+    {
+        if ((battle.panelFlags & BattleState::UnkPanel2) != 0)
+        {
+            add(kSpiritPact, BattleState::SpiritPactName);
+        }
+
+        addAccessories(0);
+    }
+    else
+    {
+        addAccessories(static_cast<std::size_t>(battle.partyRoles[static_cast<std::size_t>(index)]));
+    }
+
+    BattleRole& role = this->battleRoles[static_cast<std::size_t>(index)];
+
+    if (!role.MarkBit8Clear())
+    {
+        battle.commandEnabled[1] = 0;
+    }
+
+    if (role.HasBlock38() == 0)
+    {
+        battle.commandEnabled[3] = 0;
+    }
+
+    if (role.MarkBit1() == 1)
+    {
+        battle.commandEnabled = {0, 1, 0, 0, 1, 0, 0, 0};
+
+        if (battle.commandEnabled[static_cast<std::size_t>(battle.unk4A7548 - 1)] == 0)
+        {
+            battle.unk4A7548 = kGuardedCommand;
+        }
     }
 }
 }  // namespace swd3

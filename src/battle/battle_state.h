@@ -2,6 +2,7 @@
 
 #include <array>
 #include <memory>
+#include <string_view>
 
 #include "battle/battle_file.h"
 #include "battle/battle_hud.h"
@@ -68,6 +69,12 @@ public:
     static constexpr std::array<u8, 10> QuakeSteps = {4, 3, 4, 3, 4, 3, 2, 3, 2, 3};  // 0x004A75EC by quakePhase
     static constexpr std::array<i32, 5> RoleCycle = {11, 2, 1, 0, 3};  // 0x004A796C the party roles by turn, from 1
     static constexpr std::array<i32, 4> PanelUnits = {10, 9, 8, 11};   // 0x004A7960 the role units by panel
+    static constexpr std::u8string_view SpiritPactName = u8"靈契";     // 0x004A79A0 the command of battle role 0
+    // 0x004A74A0 [0x15..0x29]: the names of the accessory commands by kind (pointers in the original)
+    static constexpr std::array<std::u8string_view, 21> AccessoryCommandNames = {
+        u8"連擊", u8"陰陽", u8"偷竊", u8"群攻", u8"控制", u8"命中", u8"投擲", u8"隱形", u8"斷玉", u8"煉符", u8"鼠槌",
+        u8"護罩", u8"分解", u8"氣合", u8"冥想", u8"運功", u8"攻擊", u8"奇術", u8"物品", u8"絕招", u8"防禦",
+    };
 
     // BattleState::mode bits.
     enum Mode : i32
@@ -176,11 +183,8 @@ public:
     std::array<i32, 0x14> unk4FF168 = {};
     std::array<i32, 0x3C> unk524324 = {};
     std::array<i32, 0xA> unk4FE5D4 = {};
-    i32 unk4FF0B0 = 0;
-    i32 unk4FE5CC = 0;
-    i32 unk4FF0B4 = 0;
-    u16 unk4FE5D0 = 0;
-    i32 unk4FF0B8 = 0;
+    std::array<std::u8string_view, 3> commandNames;  // 0x004FF0B0 the accessory commands of the menu (pointers)
+    std::array<u16, 3> commandKinds = {};            // 0x004FE5CC their accessory kinds
     std::array<i32, 8> unk524268 = {};
     std::array<u8, 8> commandEnabled = {};  // 0x00524414 the five commands of the menu and the three accessory ones
     std::array<i32, Party::Roles> unk52544C = {};            // per party role: the scroll of its list (ScrollListBack)
