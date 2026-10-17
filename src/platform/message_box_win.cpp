@@ -41,9 +41,11 @@ AssertChoice DialogErrorReporter::AskAssertion(std::u8string_view title, std::u8
     const std::string caption = Terminated(title);
     const std::string message = Terminated(text);
     const SDL_MessageBoxButtonData buttons[] = {
-        {0, static_cast<int>(AssertChoice::Abort), "Abort"},
+        {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT,
+         static_cast<int>(AssertChoice::Abort),
+         "Abort"},  // MB_ABORTRETRYIGNORE
         {0, static_cast<int>(AssertChoice::Retry), "Retry"},
-        {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, static_cast<int>(AssertChoice::Ignore), "Ignore"},
+        {0, static_cast<int>(AssertChoice::Ignore), "Ignore"},
     };
 
     SDL_MessageBoxData data{};

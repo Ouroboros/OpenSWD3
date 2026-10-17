@@ -165,7 +165,7 @@ ActScript ActArchive::Load(File* file, int fileIndex, int entry, int sub, u32& s
     }
 
     this->errorText = Utf8Format(ActArchive::BadEntry, {entry, sub});
-    DebugLog(this->errorText);
+    ErrorLog(this->errorText);  // 0x00411F90
     this->errors.ShowError(ActArchive::ErrorTitle, this->errorText);
     return nullptr;
 }
@@ -200,7 +200,8 @@ ActScript ActArchive::LoadDirect(int id, int sub)
     }
 
     const int fileIndex = id / ActArchive::IndicesPerFile;
-    File* file = fileIndex < ActArchive::FileCount ? &this->files[static_cast<std::size_t>(fileIndex)] : nullptr;
+    File* file =
+        id >= 0 && fileIndex < ActArchive::FileCount ? &this->files[static_cast<std::size_t>(fileIndex)] : nullptr;
     u32 size = 0;
     this->direct = this->Load(file, fileIndex, id % ActArchive::IndicesPerFile, sub, size);
     return this->direct;
@@ -210,18 +211,28 @@ ActScript ActArchive::LoadDirect(int id, int sub)
 bool ActArchive::CacheLoad(int id, int sub)
 {
     const int chain = ChainOf(id, sub);
+
+    // A negative id leaves a negative remainder (idiv, 0x00432D42): its chain lies outside the table.
+    if (chain >= ActArchive::Chains)
+    {
+        this->current = nullptr;
+        ErrorLog(ActArchive::LoadFailedLog, id / ActArchive::IndicesPerFile, sub);
+        return false;
+    }
+
     ++this->chainCounts[static_cast<std::size_t>(chain)];
     std::list<CacheEntry>& entries = this->chains[static_cast<std::size_t>(chain)];
     entries.push_back(CacheEntry{id, sub, 0, nullptr});
     CacheEntry& entry = entries.back();
     const int fileIndex = id / ActArchive::IndicesPerFile;
     // Ids from 18000 on (the map id 0xFFFF among them) index past the six handles in the original.
-    File* file = fileIndex < ActArchive::FileCount ? &this->files[static_cast<std::size_t>(fileIndex)] : nullptr;
+    File* file =
+        id >= 0 && fileIndex < ActArchive::FileCount ? &this->files[static_cast<std::size_t>(fileIndex)] : nullptr;
     this->current = this->Load(file, fileIndex, id % ActArchive::IndicesPerFile, sub, entry.size);
 
     if (this->current == nullptr)
     {
-        DebugLog(ActArchive::LoadFailedLog, fileIndex, sub);
+        ErrorLog(ActArchive::LoadFailedLog, fileIndex, sub);  // 0x00411F90
         return false;
     }
 
@@ -234,7 +245,14 @@ bool ActArchive::CacheLoad(int id, int sub)
 bool ActArchive::CacheFind(int id, int sub)
 {
     this->current = nullptr;
-    std::list<CacheEntry>& entries = this->chains[static_cast<std::size_t>(ChainOf(id, sub))];
+    const int chain = ChainOf(id, sub);
+
+    if (chain >= ActArchive::Chains)
+    {
+        return false;
+    }
+
+    std::list<CacheEntry>& entries = this->chains[static_cast<std::size_t>(chain)];
 
     for (auto entry = entries.begin(); entry != entries.end(); ++entry)
     {
@@ -346,7 +364,15 @@ void ActArchive::IndexInsert(File& file, int fileIndex, int entry, u32& offset, 
 // swd32.exe 0x00433190: a found record moves to the front of its chain
 void ActArchive::IndexLookup(int fileIndex, int entry, u32& offset, u32& size)
 {
-    std::list<IndexEntry>& records = this->index[LowWord(static_cast<u32>(entry % ActArchive::Chains))];
+    const u16 chain = LowWord(static_cast<u32>(entry % ActArchive::Chains));
+
+    // A negative entry (of a negative id) has its chain outside the table in the original.
+    if (chain >= ActArchive::Chains)
+    {
+        return;
+    }
+
+    std::list<IndexEntry>& records = this->index[chain];
 
     for (auto record = records.begin(); record != records.end(); ++record)
     {

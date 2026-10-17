@@ -348,7 +348,7 @@ bool TswArchive::CacheLoad(u32 id, u32 frame)
 
         if (archive == nullptr || !this->LoadPicture(*archive, index, LowWord(frame), picture))
         {
-            DebugLog(TswArchive::LoadFailedLog, LowWord(id), LowWord(frame));
+            ErrorLog(TswArchive::LoadFailedLog, LowWord(id), LowWord(frame));  // 0x00411F90
             return false;
         }
 
