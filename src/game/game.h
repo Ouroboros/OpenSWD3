@@ -241,6 +241,7 @@ private:
     void DrawSpecialList(int x, int y, int cursor);
     void DrawEscortList(int x, int y);
     void DrawTargetTag(int x, int y);
+    void DrawControlMenu(int x, int y, int cursor);
     void DrawRolePanels();
     template <typename Next>
     void StepPanelGauge(i32& shown, i32& target, Next next, int picture, int x, int y, i32 downNear, i32 downFar);

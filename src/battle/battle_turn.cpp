@@ -166,6 +166,18 @@ constexpr int kTagHitPointsUp = 2;
 constexpr int kTagGaugeTop = 0x11;
 constexpr int kTagGaugeHeight = 3;
 constexpr u32 kTagGaugeRed = 0x18;
+constexpr int kControlTiles = 0x234E;  // the 控制 menu
+constexpr int kControlBoxLeft = 8;
+constexpr int kControlTitleUp = 0x28;
+constexpr int kControlTitleTextUp = 0x20;
+constexpr int kControlColumns = 4;
+constexpr int kControlTitleRows = 2;
+constexpr i8 kControlFill = 0x48;
+constexpr u16 kControlCommand = 0x19;
+constexpr int kControlObjects = 3;
+constexpr int kControlSkills = 2;
+constexpr std::u8string_view kSpecialFormat = u8"特殊%d";  // swd32.exe 0x004A79F0
+constexpr std::u8string_view kReleaseName = u8"釋放";      // swd32.exe 0x004A79E8
 
 // The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
 // here.
@@ -2389,5 +2401,108 @@ void Game::DrawTargetTag(int x, int y)
     const int barX = battle.mirrored != 0 ? left - kTagHitPointsLeft : right + kTagHitPointsGap;
     this->battleHud
         .FillColor(barX, y + kTagGaugeTop, gauge, kTagGaugeHeight, this->painter.MakeColor(kTagGaugeRed, 0, 0));
+}
+
+// swd32.exe 0x00466C00: the 控制 menu of the controlled enemy (unk4A762C) at (x, y): a tile box with the title, a tile
+// box of unk4A7568 rows, then 攻擊, its objects by name, its skills as 特殊1 and 特殊2, and 釋放, 20 pixels a row.
+// Entry `cursor` (from 1) is drawn again over a dark background; an object sets unk53BD44 to its id (always the
+// first object's, see ItemName) and a skill unk53BD48 to its number.
+void Game::DrawControlMenu(int x, int y, int cursor)
+{
+    BattleState& battle = this->battleState;
+    TextFont& font = this->mediumFont;
+    BattleEnemy& enemy = this->battleEnemies[static_cast<std::size_t>(static_cast<i16>(battle.unk4A762C))];
+
+    auto entry = [this, &font, x](int top, const std::string& text, bool chosen)
+    {
+        font.SetBackground(TextFont::NoBackground);
+        font.DrawText(this->drawSurface, x, top, text, kWhite, TextFont::BoldOutline);
+
+        if (chosen)
+        {
+            font.SetBackground(kHighlightBackground);
+            font.DrawText(this->drawSurface, x, top, text, kWhite, TextFont::BoldOutline);
+        }
+    };
+
+    this->battleHud.DrawTileBox(
+        kControlTiles,
+        x - kControlBoxLeft,
+        y - kControlTitleUp,
+        kControlColumns,
+        kControlTitleRows,
+        kControlFill
+    );
+    font.DrawText(
+        this->drawSurface,
+        x,
+        y - kControlTitleTextUp,
+        Big5(BattleState::AccessoryCommandNames[kControlCommand - kFirstAccessoryCommand]),
+        kWhite,
+        TextFont::BoldOutline
+    );
+    this->battleHud.DrawTileBox(
+        kControlTiles,
+        x - kControlBoxLeft,
+        y - kControlBoxLeft,
+        kControlColumns,
+        battle.unk4A7568,
+        kControlFill
+    );
+    font.SetShadow(0);
+    entry(y, Big5(BattleState::FixedCommandNames[0]), cursor == 1);
+    int shown = 0;
+    int number = 1;
+    int top = y;
+
+    for (int choice = 0; choice < kControlObjects; ++choice)
+    {
+        std::string name;
+        u32 id = 0;
+
+        if (enemy.ItemName(this->database, choice, name, id) != 1)
+        {
+            continue;
+        }
+
+        ++shown;
+        ++number;
+        top += kListRowHeight;
+        entry(top, name, cursor == number);
+
+        if (cursor == number)
+        {
+            battle.unk53BD48 = 0;
+            battle.unk53BD44 = static_cast<i32>(id);
+        }
+    }
+
+    number = shown + 1;
+    top = y + kListRowHeight * shown;
+
+    for (int choice = 0; choice < kControlSkills; ++choice)
+    {
+        std::string name;
+
+        if (enemy.SkillName(this->database, choice, name) != 1)
+        {
+            continue;
+        }
+
+        ++shown;
+        ++number;
+        top += kListRowHeight;
+        entry(top, WinFormat(kSpecialFormat, {choice + 1}), cursor == number);
+
+        if (cursor == number)
+        {
+            battle.unk53BD44 = 0;
+            battle.unk53BD48 = choice + 1;
+        }
+    }
+
+    const int last = shown + 1;
+    entry(y + kListRowHeight * last, Big5(kReleaseName), cursor == last + 1);
+    font.SetBackground(TextFont::NoBackground);
 }
 }  // namespace swd3

@@ -77,6 +77,16 @@ constexpr int kShineAlpha = 8;
 constexpr int kShineX = 0xB;
 constexpr int kShineY = 0x1F;
 constexpr u16 kNotLoaded = 0xFFFF;
+constexpr int kTileFill = 4;  // the frames of a tile box (DrawTileBox)
+constexpr int kTileTopLeft = 0;
+constexpr int kTileTop = 1;
+constexpr int kTileTopRight = 2;
+constexpr int kTileLeft = 3;
+constexpr int kTileRight = 5;
+constexpr int kTileBottomLeft = 6;
+constexpr int kTileBottom = 7;
+constexpr int kTileBottomRight = 8;
+constexpr int kTileSize = 0x10;
 
 }  // namespace
 
@@ -935,4 +945,68 @@ int BattleHud::PlayAnimationShifted(BattleAnimation& animation, int, int amount)
     return 1;
 }
 
+// swd32.exe 0x0044FFE0: a box of `columns` x `rows` tiles of picture `id` around a filled area (`fill`, from frame 4,
+// 16 pixels a tile with a border tile each side): frames 0..2 the top (corner, edge repeated, corner), 3 and 5 the
+// sides of each row, 6..8 the bottom. A missing frame is read through a null pointer in the original; it is not drawn
+// and takes no room here.
+void BattleHud::DrawTileBox(int id, int x, int y, int columns, int rows, i8 fill)
+{
+    auto width = [](const Picture* picture)
+    {
+        return picture != nullptr ? static_cast<int>(picture->width) : 0;
+    };
+
+    auto height = [](const Picture* picture)
+    {
+        return picture != nullptr ? static_cast<int>(picture->height) : 0;
+    };
+
+    auto draw = [this](const Picture* picture, int left, int top)
+    {
+        if (picture != nullptr)
+        {
+            this->painter.DrawPicture(left, top, picture->width, picture->height, 0, PaletteArgument(*picture));
+        }
+    };
+
+    this->Select(id, kTileFill);
+    this->FillColor(x, y, kTileSize * (columns + 2), kTileSize * (rows + 2), static_cast<u32>(static_cast<i32>(fill)));
+    const Picture* corner = this->Select(id, kTileTopLeft);
+    draw(corner, x, y);
+    int left = x + width(corner);
+    const Picture* edge = this->Select(id, kTileTop);
+
+    for (int column = 0; column < columns; ++column)
+    {
+        draw(edge, left, y);
+        left += width(edge);
+    }
+
+    const Picture* topRight = this->Select(id, kTileTopRight);
+    draw(topRight, left, y);
+    int top = y + height(topRight);
+
+    for (int row = 0; row < rows; ++row)
+    {
+        const Picture* side = this->Select(id, kTileLeft);
+        draw(side, x, top);
+        const int rightX = x + (columns + 1) * width(side);
+        const Picture* right = this->Select(id, kTileRight);
+        draw(right, rightX, top);
+        top += height(right);
+    }
+
+    const Picture* bottomLeft = this->Select(id, kTileBottomLeft);
+    draw(bottomLeft, x, top);
+    left = x + width(bottomLeft);
+    const Picture* bottom = this->Select(id, kTileBottom);
+
+    for (int column = 0; column < columns; ++column)
+    {
+        draw(bottom, left, top);
+        left += width(bottom);
+    }
+
+    draw(this->Select(id, kTileBottomRight), left, top);
+}
 }  // namespace swd3

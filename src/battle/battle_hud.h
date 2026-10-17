@@ -55,6 +55,7 @@ public:
     u16 DrawNumberDigit(u32 divisor);
     int DrawSlotAnimation(int id, int slot, int x, int y);
     int FillColor(int x, int y, int width, int height, u32 color);
+    void DrawTileBox(int id, int x, int y, int columns, int rows, i8 fill);
     int DrawEffectAt(int id, int action, int x, int y, int mirror);
     int ResetEffectAt();
     int DrawCursorAnimation(int id, int x, int y);
