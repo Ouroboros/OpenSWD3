@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -23,5 +25,21 @@ std::vector<u8> ReadGameFile(const std::string& name);
 // Whether the executable holds `text` and its NUL at virtual address `address`; a u8 text is compared as its Big5.
 bool SameText(const std::vector<u8>& exe, swd3::u32 address, std::string_view text);
 bool SameText(const std::vector<u8>& exe, swd3::u32 address, std::u8string_view text);
+
+// swd32.exe is loaded here: an address minus it is the file offset.
+constexpr swd3::u32 kImageBase = 0x400000;
+
+// The dword at virtual address `address` of the executable (0 outside it).
+swd3::u32 ExeDword(const std::vector<u8>& exe, swd3::u32 address);
+
+// Whether the executable holds `bytes` at virtual address `address`.
+bool SameBytes(const std::vector<u8>& exe, swd3::u32 address, std::span<const std::byte> bytes);
+
+// Whether the executable holds the whole of `table` at virtual address `address`.
+template <typename Table>
+bool SameTable(const std::vector<u8>& exe, swd3::u32 address, const Table& table)
+{
+    return SameBytes(exe, address, std::as_bytes(std::span(table)));
+}
 
 }  // namespace swd3test

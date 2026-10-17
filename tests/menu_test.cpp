@@ -16,6 +16,25 @@
 using swd3::u32;
 using swd3::u8;
 
+namespace
+{
+
+// Where swd32.exe keeps the texts and tables.
+constexpr std::array<std::pair<swd3::u32, std::u8string_view>, 6> kTexts = {{
+    {0x004A70EC, swd3::menu_text::kSoundVolume},
+    {0x004A70A4, swd3::menu_text::kCacheLine},
+    {0x004A7054, swd3::menu_text::kSample},
+    {0x004A7068, swd3::menu_text::kSpeedSlow},
+    {0x004A7088, swd3::menu_text::kSpeedFastest},
+    {0x0049FA9C, swd3::SaveSlots::Hours},
+}};
+
+constexpr swd3::u32 kDateTemplateAt = 0x0049FAA4;
+constexpr std::array<swd3::u32, 2> kNameCopies = {0x0049E188, 0x0049E148};
+constexpr swd3::u32 kInitialTabsAt = 0x004A6A38;
+
+}  // namespace
+
 TEST_CASE("menu: texts, names and tabs match swd32.exe")
 {
     const std::vector<u8> exe = swd3test::ReadGameFile("swd32.exe");
@@ -26,18 +45,20 @@ TEST_CASE("menu: texts, names and tabs match swd32.exe")
         return;
     }
 
-    namespace text = swd3::menu_text;
-    CHECK(swd3test::SameText(exe, 0x004A70EC, text::kSoundVolume));
-    CHECK(swd3test::SameText(exe, 0x004A70A4, text::kCacheLine));
-    CHECK(swd3test::SameText(exe, 0x004A7054, text::kSample));
-    CHECK(swd3test::SameText(exe, 0x004A7068, text::kSpeedSlow));
-    CHECK(swd3test::SameText(exe, 0x004A7088, text::kSpeedFastest));
-    CHECK(swd3test::SameText(exe, 0x0049FAA4, swd3::SaveSlots::DateTemplate));
-    CHECK(swd3test::SameText(exe, 0x0049FA9C, swd3::SaveSlots::Hours));
-    CHECK(std::memcmp(exe.data() + (0x0049E188 - 0x400000), swd3::Party::DefaultNames().data(), 0x40) == 0);
-    CHECK(std::memcmp(exe.data() + (0x0049E148 - 0x400000), swd3::Party::DefaultNames().data(), 0x40) == 0);
+    for (const auto& [address, text] : kTexts)
+    {
+        CHECK(swd3test::SameText(exe, address, text));
+    }
+
+    CHECK(swd3test::SameText(exe, kDateTemplateAt, swd3::SaveSlots::DateTemplate));
+
+    for (const swd3::u32 copy : kNameCopies)
+    {
+        CHECK(swd3test::SameTable(exe, copy, swd3::Party::DefaultNames()));
+    }
+
     static_assert(sizeof(swd3::MenuTab) == 0x1C);
-    CHECK(std::memcmp(exe.data() + (0x004A6A38 - 0x400000), swd3::Menu::InitialTabs.data(), 0x70) == 0);
+    CHECK(swd3test::SameTable(exe, kInitialTabsAt, swd3::Menu::InitialTabs));
 }
 
 TEST_CASE("menu: name cheats")

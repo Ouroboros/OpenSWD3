@@ -34,6 +34,8 @@ std::vector<u16> RlePicture(int width, const std::vector<std::vector<u16>>& line
     return data;
 }
 
+constexpr u32 kWaveOffsetsAt = 0x004A06A8;
+
 }  // namespace
 
 TEST_CASE("painter: wave offsets match swd32.exe")
@@ -47,7 +49,7 @@ TEST_CASE("painter: wave offsets match swd32.exe")
     }
 
     const auto table = Painter::WaveOffsets();
-    CHECK(std::memcmp(exe.data() + (0x004A06A8 - 0x400000), table.data(), table.size() * 4) == 0);
+    CHECK(swd3test::SameTable(exe, kWaveOffsetsAt, table));
 }
 
 TEST_CASE("painter: RGB565 display tables")

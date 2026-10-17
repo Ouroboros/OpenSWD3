@@ -8,6 +8,14 @@
 
 using swd3::u8;
 
+namespace
+{
+
+constexpr swd3::u32 kWindowShiftXAt = 0x004994F4;  // where swd32.exe keeps the window shift tables
+constexpr swd3::u32 kWindowShiftYAt = 0x00499514;
+
+}  // namespace
+
 TEST_CASE("talk: numbers of the sound code")
 {
     int value = 7;
@@ -37,6 +45,6 @@ TEST_CASE("talk: window shift tables match swd32.exe")
         return;
     }
 
-    CHECK(std::memcmp(exe.data() + (0x004994F4 - 0x400000), swd3::Talk::WindowShiftX.data(), 0x20) == 0);
-    CHECK(std::memcmp(exe.data() + (0x00499514 - 0x400000), swd3::Talk::WindowShiftY.data(), 0x20) == 0);
+    CHECK(swd3test::SameTable(exe, kWindowShiftXAt, swd3::Talk::WindowShiftX));
+    CHECK(swd3test::SameTable(exe, kWindowShiftYAt, swd3::Talk::WindowShiftY));
 }

@@ -42,6 +42,9 @@ std::vector<u8> ReadBytes(const std::string& path)
     return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
 }
 
+constexpr swd3::u32 kPrimaryColorsAt = 0x0049E0C8;
+constexpr swd3::u32 kSecondaryColorsAt = 0x0049E108;
+
 }  // namespace
 
 TEST_CASE("game init: text colour tables match swd32.exe")
@@ -54,8 +57,8 @@ TEST_CASE("game init: text colour tables match swd32.exe")
         return;
     }
 
-    CHECK(std::memcmp(exe.data() + (0x0049E0C8 - 0x400000), swd3::TextColors::Primary.data(), 0x40) == 0);
-    CHECK(std::memcmp(exe.data() + (0x0049E108 - 0x400000), swd3::TextColors::Secondary.data(), 0x40) == 0);
+    CHECK(swd3test::SameTable(exe, kPrimaryColorsAt, swd3::TextColors::Primary));
+    CHECK(swd3test::SameTable(exe, kSecondaryColorsAt, swd3::TextColors::Secondary));
     swd3::Surface surface(640, 480);
     swd3::Painter painter;
     painter.Init(surface);

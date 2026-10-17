@@ -11,6 +11,14 @@ using swd3::Random;
 using swd3::u32;
 using swd3::u8;
 
+namespace
+{
+
+constexpr u32 kInitialTableAt = 0x004A6610;  // where swd32.exe keeps the R250 table and the LCG state
+constexpr u32 kInitialLcgAt = 0x004A69F8;
+
+}  // namespace
+
 TEST_CASE("random: initial table and LCG state match swd32.exe")
 {
     const std::vector<u8> exe = swd3test::ReadGameFile("swd32.exe");
@@ -21,10 +29,8 @@ TEST_CASE("random: initial table and LCG state match swd32.exe")
         return;
     }
 
-    CHECK(std::memcmp(exe.data() + (0x004A6610 - 0x400000), Random::InitialTable.data(), Random::Size * 4) == 0);
-    u32 lcg = 0;
-    std::memcpy(&lcg, exe.data() + (0x004A69F8 - 0x400000), 4);
-    CHECK_EQ(lcg, Random::InitialLcg);
+    CHECK(swd3test::SameTable(exe, kInitialTableAt, Random::InitialTable));
+    CHECK_EQ(swd3test::ExeDword(exe, kInitialLcgAt), Random::InitialLcg);
 }
 
 TEST_CASE("random: LCG and the R250 sequence")

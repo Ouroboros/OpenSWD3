@@ -45,6 +45,8 @@ Config::Settings Sample()
     return settings;
 }
 
+constexpr swd3::u32 kChannelMasksAt = 0x0049E0B4;
+
 }  // namespace
 
 TEST_CASE("config: channel masks match swd32.exe")
@@ -57,7 +59,7 @@ TEST_CASE("config: channel masks match swd32.exe")
         return;
     }
 
-    CHECK(std::memcmp(exe.data() + (0x0049E0B4 - 0x400000), Config::DefaultChannelMasks.data(), 6) == 0);
+    CHECK(swd3test::SameTable(exe, kChannelMasksAt, Config::DefaultChannelMasks));
 }
 
 TEST_CASE("config: Env.dat written, then read back")
