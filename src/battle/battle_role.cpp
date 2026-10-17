@@ -1644,4 +1644,127 @@ int BattleRole::CanAbsorb(BattleServices& services, const BattleUnit& target) co
 
     return weakOrRoll(kBelowChanceStep * below + kAbsorbChanceBase);
 }
+
+// swd32.exe 0x004728E0: one frame of the role's direct attack (pose kForcedAttackAction in the stand act) at its
+// place, the shadow at the target's height. When the act strikes or follows up, the hit lands at once: its damage
+// (at most kMaxDamage, without the proficiency bonus and counted even when no number shows) adds to the hit's damage
+// and shows on the target, and the follow-up act (the cast act) is placed on the target and drawn each frame; 1 (the
+// acts cleared) once the stand act waits after it.
+int BattleRole::DirectAttack(BattleServices& services, BattleUnit& target)
+{
+    BattleState& battle = services.state;
+    u16 targetX = 0;
+    u16 targetY = 0;
+    ActState& act = this->standAct;
+    act.id = this->actId;
+    this->unk2AAC = 1;
+    act.action = kForcedAttackAction;
+    act.hold = 0;
+
+    if (this->held == 1)
+    {
+        act.hold = 1;
+    }
+
+    if (services.acts.Run(act) == 0)
+    {
+        return 0;
+    }
+
+    this->picture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->picture == nullptr)
+    {
+        return 0;
+    }
+
+    Painter& painter = services.painter;
+    painter.SetSource(this->picture->data.data());
+    this->frameFlags = act.flags;
+    this->actOffsetX = static_cast<u16>(act.x);
+    this->actAnchorX = act.anchorX;
+
+    if (this->facing == 1)
+    {
+        this->frameFlags ^= Painter::Mirror;
+        this->actOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
+
+        if (act.anchorX != 0)
+        {
+            this->actAnchorX = static_cast<u16>(this->picture->width - act.anchorX);
+        }
+    }
+
+    target.GetDrawPosition(targetX, targetY);
+    const auto shadowY = static_cast<i16>(targetY - static_cast<u16>(act.y));
+    const int shadowHeight = this->picture->height / kShadowShare;
+    DrawOptions& options = painter.Options();
+    options.scaleHeight = shadowHeight;
+    options.shear = this->picture->height >> kShadowShearShift;
+    const int tint = this->unk2B00 == 1 ? kFaintShadowTint : kShadowTint;
+    options.tintRed = tint;
+    options.tintGreen = tint;
+    options.tintBlue = tint;
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+    const int x = this->placement.x - static_cast<i16>(this->actOffsetX);
+    services.audio.SetSoundPan(act.view, x >= kPanCentre ? kTargetPan : -kTargetPan);
+    this->unk26A4 = (this->frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+    act.view = 0;
+    painter.DrawPicture(x, act.y + shadowY - shadowHeight, this->picture->width, this->picture->height, this->unk26A4);
+    painter.DrawPicture(x, this->placement.y - act.y, this->picture->width, this->picture->height, this->frameFlags);
+
+    if ((act.target & (ActState::Strikes | ActState::FollowsUp)) != 0)
+    {
+        act.target = 0;
+        this->unk267C = BattleUnit::FollowingUp;
+        target.RaiseFlag26B8();
+        i16 spirit = 0;
+        i16 stamina = 0;
+        i32 damage = this->HitDamage(services, target, spirit, stamina);
+        battle.lastDamage = damage;
+
+        if (damage >= kMaxDamage)
+        {
+            damage = kMaxDamage;
+            battle.lastDamage = damage;
+        }
+
+        battle.hitDamage += damage;
+        target.SetDamageDigits(services, damage);
+        target.StepTargetCount(1);
+    }
+
+    if (this->unk267C != BattleUnit::FollowingUp)
+    {
+        return 0;
+    }
+
+    ActState& follow = this->slotActs[0];
+    follow.id = this->command.castAct;
+    follow.action = 0;
+    this->AimAction(services, target, follow, 0, 0);
+
+    if (this->picture != nullptr)
+    {
+        painter.SetSource(this->picture->data.data());
+        painter.DrawPicture(
+            static_cast<i16>(this->aimX),
+            static_cast<i16>(this->aimY),
+            this->picture->width,
+            this->picture->height,
+            this->unk26A4
+        );
+    }
+
+    if (act.waiting != 1)
+    {
+        return 0;
+    }
+
+    this->unk267C = 0;
+    follow = ActState{};
+    act = ActState{};
+    return 1;
+}
 }  // namespace swd3

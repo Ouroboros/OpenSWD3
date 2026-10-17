@@ -61,6 +61,7 @@ public:
     u16 AttackPose(BattleServices& services);
     static int CanTarget(const BattleUnit& target);
     int CanAbsorb(BattleServices& services, const BattleUnit& target) const;
+    int DirectAttack(BattleServices& services, BattleUnit& target);
     void SetupGuest(const UnitPlacement& at, const RoleRecord& base, Database& database, ErrorReporter& reporter);
     void
     ApplyEquipment(std::span<const std::unique_ptr<ItemNode>> slots, CounterList& proficiency, ErrorReporter& reporter);
