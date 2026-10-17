@@ -68,6 +68,7 @@
 | 0x0040A0D0、0x00424440 | 平台替换 | PlaySoundA 播放 exe 内的 WAVE 资源 | 资源经独立 SDL 音频流播放，新声音停止旧声音 | 架构 v3 |
 | 0x00425150 | 平台替换 | 目录已存在时 SetCurrentDirectoryA 把它设为当前目录（最后一个已存在的目录成为当前目录） | 只在缺失时创建，不改变当前目录（游戏所有路径都以安装目录开头） | 架构 v3 |
 | 0x00424330、0x00411D90 | 平台替换 | GlobalMemoryStatus 的物理内存；KERNEL32 的 GetDiskFreeSpaceExA | 内存取 SDL_GetSystemRAM（上限 0xFFFFFFFF，与 4 GB 以上时的 GlobalMemoryStatus 相同）；剩余空间取 std::filesystem::space | 架构 v3 |
+| 0x0040A570、0x004050E0 | 平台替换 | 帧计时用 timeGetTime，不调用 timeBeginPeriod，精度由系统决定（Windows 9x 为 1 ms；NT 系默认 10～15.6 ms，常因其他程序调高到 1 ms；Windows 10 2004 起各进程独立，默认 15.6 ms，35 ms 的帧会拉长到约 47 ms） | Windows 上启动时调用 timeBeginPeriod(1)，timeGetTime 以 1 ms 精度计时；其他平台用单调时钟 | 架构 v3 |
 | 0x004242B0、0x004118B0、0x00412050、0x0040A570、0x0040C130、0x00425BE0、0x00484730、0x00427920（指令 0x60、0x9E／0x9F）、0x00411C90 | 平台替换（用户要求） | 启动时逐个盘符找光驱（GetDriveTypeA），记下第一个光驱；最小安装进地图、播放影片、地图动画缺文件时等光盘（读 <光驱>swd3\swd3_dvd.dat，按 Q 放弃并结束游戏，等待期间跳过地图帧）；最小安装从 <光驱>swd3\HUGE.lmf 读地图；地图动画缺文件时改读光盘 swd3\Video\；指令 0x9E／0x9F 从光盘 Video\／Music\ 复制文件到安装目录或删除光盘上的文件；安装命令行记下第一个光驱 | 不找光驱、不检查光盘（光驱列表、光盘检查与文件探测函数删除）；地图、影片、地图动画一律从安装目录读取；指令 0x9E／0x9F 只前进剧本并记日志，不复制也不删除文件；Env.dat 的光驱字段照原格式读写（为空） | 架构 v3 |
 | 0x00424B90 | 平台替换 | GetSystemMetrics 取屏幕大小设置字体目标（独占全屏 640×480 下即 640×480） | 固定 640×480 | 架构 v3 |
 | 0x00423FB0（安装目录） | 平台替换 | Env.dat 记录的 Windows 安装目录（如 E:\Game\swd3\）直接作为路径前缀 | Windows 不变；Linux 把盘符路径映射为 WSL 的 /mnt/<盘符>/ | 架构 v3 |
