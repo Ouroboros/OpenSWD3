@@ -158,8 +158,11 @@ struct UnitCommand
     {
         TargetsUnit = 1,  // a target command (ClearMoveAxes)
         UnkFlag2 = 2,
-        AtTarget = 0x38,  // any of bits 3..5: DrawAction places the act on the target (inferred from DrawAction)
-        FadesIn = 0x18,   // bits 3 and 4: a unit with unk2B00 fades in before it attacks (AttackFrame)
+        UnkFlag8 = 8,      // with UnkFlag20: a party role walks home after it acts (ReturnHome)
+        UnkFlag10 = 0x10,  // an enemy walks home after it acts
+        UnkFlag20 = 0x20,  // the walk home waits for the act to follow up, then covers a sixth a frame
+        AtTarget = 0x38,   // any of bits 3..5: DrawAction places the act on the target (inferred from DrawAction)
+        FadesIn = 0x18,    // bits 3 and 4: a unit with unk2B00 fades in before it attacks (AttackFrame)
     };
 
     i32 unk00 = 0;
@@ -432,6 +435,7 @@ public:
     void TrailLastQueuedAction(i32 tintRed, i32 tintGreen, i32 tintBlue);
     void DrawOverlay(BattleServices& services, u16 frame, u16 picture, int x, int y, int offsetX, int offsetY);
     void DrawActionAt(BattleServices& services, i16 x, i16 y, ActState& act);
+    int ReturnHome(BattleServices& services, const BattleUnit& target, i32 id, i32 action);
     void DrawTrail(BattleServices& services, AfterimageTrail& trail, u16 frame, u16 picture, u32 mode, i16 x, i16 y);
     int DrawRecoil(BattleServices& services, ActState& act, i16 y);
     int FlyAct(
@@ -538,7 +542,7 @@ public:
     i32 unk2664 = 0;
     i32 fadeLevel = Opaque;  // +0x2668 (also the dash offset of ChargeAttackFrame)
     i32 brightLevel = 1;     // +0x266C
-    i32 unk2670 = 0;
+    i32 unk2670 = 0;         // +0x2670 the x offset of the stand pose while walking home (ReturnHome)
     i32 unk2674 = 0;
     i32 unk2678 = 0;
     u32 unk267C = 0;     // +0x267C BattleUnit::Stage bits

@@ -1310,6 +1310,17 @@ constexpr int kTrailTintBase = 0x1F;
 constexpr i8 kAdditiveTrailFade = 3;  // an additive act's images fade by 3 a frame, the others by 1
 constexpr i32 kQueuedMaxDamage = 0x270F;
 constexpr i8 kQueuedTrailImages = 3;
+
+// ReturnHome.
+constexpr u32 kWalksHome = 4;  // unk26CC bit 2: a party role walks home after its attack
+constexpr i32 kRoleHomeAction = 0x32;
+constexpr i32 kEnemyHomeAction = 0x24;
+constexpr i32 kHomePose = 0x28;
+constexpr i32 kHomePose1 = 0x30;  // an enemy with unk2A8C 1
+constexpr i32 kHomePose2 = 0x31;  // and with kSecondHomePose
+constexpr u16 kSecondHomePose = 2;
+constexpr int kHomeSteps = 0x23;
+constexpr int kHomeShare = 6;
 constexpr u16 kEffectIcons = 0x241D;
 
 // The value of a skill script: the word at +0xE.
@@ -4618,5 +4629,198 @@ void BattleUnit::DrawActionAt(BattleServices& services, i16 x, i16 y, ActState& 
         this->picture->height,
         this->frameFlags
     );
+}
+
+// swd32.exe 0x00482840: one frame of the unit walking back from the target to its place (the attack act, or `id` /
+// `action` when given; the stand pose in the recoil act gives its x); 1 when there is no walk (a party role without
+// kWalksHome or UnkFlag8 / UnkFlag20, an enemy without UnkFlag10, a forced unit) or it arrived (the acts and the line
+// cleared, kWalksHome cleared). The walk takes 0x23 line steps a frame more each frame; with UnkFlag20 none until the
+// act follows up, then a sixth of the distance a frame more. Drawn over its shadow (an invisible unit smears) with
+// the act's overlay.
+int BattleUnit::ReturnHome(BattleServices& services, const BattleUnit& target, i32 id, i32 action)
+{
+    if (this->kind != 0)
+    {
+        if ((this->unk26CC & kWalksHome) == 0 &&
+            (this->command.flags & (UnitCommand::UnkFlag8 | UnitCommand::UnkFlag20)) == 0)
+        {
+            return 1;
+        }
+    }
+    else if ((this->command.flags & UnitCommand::UnkFlag10) == 0)
+    {
+        return 1;
+    }
+
+    if (this->unk2B00 == 1 || this->unk2B04 == 1)
+    {
+        return 1;
+    }
+
+    this->unk2AAC = 1;
+    ActState& act = this->attackAct;
+    ActState& pose = this->recoilAct;
+    act.hold = 0;
+
+    if (this->held == 1)
+    {
+        act.hold = 1;
+    }
+
+    act.id = this->actId;
+    act.action = this->kind != 0 ? kRoleHomeAction : kEnemyHomeAction;
+
+    if (id != -1)
+    {
+        act.id = id;
+    }
+
+    if (action != 0)
+    {
+        act.action = action;
+    }
+
+    if (services.acts.Run(act) == 0)
+    {
+        return 0;
+    }
+
+    this->picture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->picture == nullptr)
+    {
+        return 0;
+    }
+
+    Painter& painter = services.painter;
+    painter.SetSource(this->picture->data.data());
+    pose.id = this->actId;
+    pose.action = kHomePose;
+
+    if (this->kind == 0)
+    {
+        if (this->unk2A8C == 1)
+        {
+            pose.action = kHomePose1;
+        }
+
+        if (this->unk2A8C == kSecondHomePose)
+        {
+            pose.action = kHomePose2;
+        }
+    }
+
+    if (services.acts.Run(pose) == 0)
+    {
+        return 0;
+    }
+
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+    act.view = 0;
+    this->actOffsetX = static_cast<u16>(pose.x);
+    this->frameFlags = act.flags;
+    this->unk2670 = pose.x;
+
+    if (this->facing == 1)
+    {
+        this->frameFlags ^= Painter::Mirror;
+        this->actOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
+        this->unk2670 = this->picture->width - pose.x;
+    }
+
+    u16 targetX = 0;
+    u16 targetY = 0;
+    target.GetDrawPosition(targetX, targetY);
+    LineWalker& line = this->flight;
+    line = LineWalker{};
+    line.fromX = static_cast<i16>(targetX) - this->unk2670;
+    line.fromY = static_cast<i16>(targetY) - act.y;
+    line.toX = this->placement.x - static_cast<i16>(this->originX);
+    line.toY = this->placement.y - act.y;
+    ++this->throwSteps;
+    int steps = kHomeSteps;
+
+    if ((this->command.flags & UnitCommand::UnkFlag20) != 0)
+    {
+        steps = 0;
+
+        if ((act.target & ActState::FollowsUp) != 0)
+        {
+            steps = (line.toX >= line.fromX ? line.toX - line.fromX : line.fromX - line.toX) / kHomeShare;
+        }
+        else
+        {
+            --this->throwSteps;
+        }
+    }
+
+    bool arrived = false;
+
+    for (int taken = 0; taken < this->throwSteps * steps; ++taken)
+    {
+        LineStep(line);
+
+        if (line.fromX + line.x == line.toX)
+        {
+            arrived = true;
+            break;
+        }
+    }
+
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+    act.view = 0;
+    painter.SetSource(this->picture->data.data());
+    const bool invisible = (this->status & BattleUnit::Invisible) != 0;
+
+    if (arrived)
+    {
+        painter.DrawPicture(
+            line.toX,
+            line.toY,
+            this->picture->width,
+            this->picture->height,
+            invisible ? this->frameFlags | Painter::SmearUnder : this->frameFlags
+        );
+        this->throwSteps = 0;
+        line = LineWalker{};
+        pose = ActState{};
+        act = ActState{};
+        this->unk26CC &= ~kWalksHome;
+        return 1;
+    }
+
+    const int x = line.fromX + line.x;
+    const int y = line.fromY + line.y;
+
+    if (invisible)
+    {
+        painter.DrawPicture(x, y, this->picture->width, this->picture->height, this->frameFlags | Painter::SmearUnder);
+    }
+    else
+    {
+        const int shadowHeight = this->picture->height / kShadowShare;
+        DrawOptions& options = painter.Options();
+        options.scaleHeight = shadowHeight;
+        options.shear = this->picture->height >> kShadowShearShift;
+        const int tint = this->unk2B00 == 1 ? kInvisibleShadowTint : kShadowTint;
+        options.tintRed = tint;
+        options.tintGreen = tint;
+        options.tintBlue = tint;
+        this->unk26A4 = (this->frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+        painter.DrawPicture(x, y - shadowHeight + act.y, this->picture->width, this->picture->height, this->unk26A4);
+        painter.DrawPicture(x, y, this->picture->width, this->picture->height, this->frameFlags);
+    }
+
+    this->DrawOverlay(
+        services,
+        act.rotation,
+        act.actionCode,
+        x,
+        y,
+        static_cast<i16>(act.offsetX),
+        static_cast<i16>(act.offsetY)
+    );
+    return 0;
 }
 }  // namespace swd3
