@@ -196,6 +196,8 @@ private:
     void TryRetreat(int role);
     int DrainSpellFrame(BattleRole& role, BattleUnit& target);
     int MagicAttackFrame(BattleRole& role, BattleUnit& target);
+    int EnemyAttackFrame(BattleUnit& enemy, BattleUnit& target);
+    void EnemyStrike(BattleUnit& enemy, BattleUnit& target, u16 bits, u16& chance, bool attackFirst);
     void DrawRolePanels();
     template <typename Next>
     void StepPanelGauge(i32& shown, i32& target, Next next, int picture, int x, int y, i32 downNear, i32 downFar);

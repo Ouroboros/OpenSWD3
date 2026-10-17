@@ -29,6 +29,19 @@ constexpr u16 kDrainGainDelay = 8;  // the stamina gain shows 8 frames after the
 constexpr i16 kMagicFadeEnd = -0x20;
 constexpr i16 kMagicFadeStep = 8;
 
+// EnemyAttackFrame.
+constexpr i32 kEnemyAttackAction = 0x28;
+constexpr i32 kEnemyAttackAction1 = 0x30;  // unk2A8C 1
+constexpr i32 kEnemyAttackAction2 = 0x31;  // unk2A8C 2
+constexpr u16 kSecondEnemyAttack = 2;
+constexpr std::size_t kEnemyFlightAct = 1;  // the slot act a flying follow-up uses
+constexpr u16 kEnemyStrikeBits = ActState::Strikes | ActState::UnkTarget10;
+constexpr u16 kStatusEvade = 8;  // UnkStatus80: the target evades 8 times in 10
+constexpr i16 kEnemyFadeEnd = -0x20;
+constexpr i16 kEnemyFadeStep = 4;
+constexpr u32 kGaugeRestRoll = 0x78;  // the gauge gains 10..129 once the attack is over
+constexpr u16 kGaugeRestBase = 10;
+
 }  // namespace
 
 // swd32.exe 0x0045D690: the drain of `attacker`'s command applied after a hit on `target`. A life drain heals the
@@ -530,5 +543,376 @@ int Game::MagicAttackFrame(BattleRole& role, BattleUnit& target)
     battle.criticalAttack = 0;
     ++battle.attacksSinceCritical;
     return 1;
+}
+
+// swd32.exe 0x004758A0: one frame of `enemy`'s attack on `target`; 1 once it is over (its gauge then gains 10..129).
+// An UnkFlag8 command fades the enemy out and in at the target first. The attack act (by unk2A8C or `action`) is
+// drawn; its target bits play the effect in the recoil act, raise flag 26B8 of the target, fade the field, start the
+// follow-up (the cast act), quake or strike; the act's colour darkens the field. The follow-up flies to the target
+// (TargetsUnit) or is placed on it and may strike; once it waits it darkens by 4 a frame (the original takes the
+// palette from the stand picture) before the acts, the trails and the targets are cleared.
+int Game::EnemyAttackFrame(BattleUnit& enemy, BattleUnit& target)
+{
+    BattleState& battle = this->battleState;
+    BattleServices& services = this->battleServices;
+    Painter& painter = this->painter;
+    u16 evadeChance = 0;
+
+    if (enemy.unk2A74 != 0)
+    {
+        return 0;
+    }
+
+    ActState& attack = enemy.standAct;
+    enemy.unk2AAC = 1;
+    attack.hold = 0;
+
+    if (enemy.held == 1)
+    {
+        attack.hold = 1;
+    }
+
+    if ((attack.target & ActState::Holds) != 0)
+    {
+        attack.hold = 1;
+    }
+
+    if ((enemy.command.flags & UnitCommand::UnkFlag8) != 0 && enemy.fadedIn == 0)
+    {
+        if (enemy.DrawFadeOut(services) == 0)
+        {
+            return 0;
+        }
+
+        const int result = enemy.DrawFadeIn(services, target);
+
+        if (result == 0)
+        {
+            enemy.fadedIn = 1;
+            return result;
+        }
+    }
+
+    attack.id = enemy.actId;
+    attack.action = kEnemyAttackAction;
+
+    if (enemy.unk2A8C != 0)
+    {
+        attack.action = enemy.unk2A8C == kSecondEnemyAttack ? kEnemyAttackAction2 : kEnemyAttackAction1;
+    }
+
+    if (enemy.action != 0)
+    {
+        attack.action = enemy.action;
+    }
+
+    enemy.DrawAction(services, target, attack);
+
+    if ((attack.target & ActState::Recoils) != 0)
+    {
+        if (attack.effectA != 0)
+        {
+            enemy.recoilAct = ActState{};
+            enemy.unk267C |= BattleUnit::Recoiling;
+            enemy.recoilAct.id = attack.effectA;
+            enemy.recoilAct.action = attack.effectQ;
+        }
+
+        if ((attack.target & ActState::Holds) != 0)
+        {
+            attack.hold = 1;
+        }
+
+        attack.target = static_cast<u16>(attack.target & ~ActState::Recoils);
+        attack.effectA = 0;
+        attack.effectQ = 0;
+    }
+
+    if ((enemy.unk267C & BattleUnit::Recoiling) != 0 &&
+        enemy.DrawRecoil(services, enemy.recoilAct, static_cast<i16>(attack.anchorY)) == 1)
+    {
+        attack.target = 0;
+        attack.hold = 0;
+        enemy.unk267C &= ~BattleUnit::Recoiling;
+    }
+
+    ActState& follow = enemy.castAct;
+
+    if ((attack.target & ActState::FollowsUp) != 0)
+    {
+        if ((attack.target & ActState::FadesField) != 0)
+        {
+            battle.fadingField = 1;
+            battle.StartFieldFade(
+                static_cast<i16>(attack.lights[0]),
+                static_cast<i16>(attack.lights[1]),
+                static_cast<i16>(attack.lights[2]),
+                static_cast<i16>(attack.lights[3]),
+                static_cast<i16>(attack.lights[4]),
+                static_cast<i16>(attack.lights[5]),
+                static_cast<i16>(attack.lights[6])
+            );
+            attack.target = static_cast<u16>(attack.target & ~ActState::FadesField);
+        }
+
+        attack.target = static_cast<u16>(attack.target & ~ActState::FollowsUp);
+        enemy.unk267C |= BattleUnit::FollowingUp;
+        follow = ActState{};
+    }
+
+    if ((attack.target & ActState::Quakes) != 0)
+    {
+        battle.quaking = 1;
+        battle.quakePhase = 0;
+    }
+
+    if ((attack.target & ActState::UnkTarget4) != 0)
+    {
+        enemy.unk267C |= BattleUnit::FollowingUp;
+        attack.target = 0;
+        target.RaiseFlag26B8();
+    }
+
+    if ((attack.target & kEnemyStrikeBits) != 0)
+    {
+        enemy.slotTint = 0;
+        enemy.unk267C |= BattleUnit::FollowingUp;
+        follow = ActState{};
+        evadeChance = (enemy.status & BattleUnit::UnkStatus80) != 0 ? kStatusEvade : 0;
+        this->EnemyStrike(enemy, target, attack.target, evadeChance, true);
+        attack.target = 0;
+        enemy.unk2B14 = 1;
+    }
+
+    battle.darkRed = static_cast<i16>(attack.red);
+    battle.darkGreen = static_cast<i16>(attack.green);
+    battle.darkBlue = static_cast<i16>(attack.blue);
+    this->PrepareDarkenedCopies();
+
+    if (battle.darkRed != 0 || battle.darkGreen != 0 || battle.darkBlue != 0)
+    {
+        battle.unk53BF98 = 1;
+    }
+
+    if ((enemy.unk267C & BattleUnit::FollowingUp) == 0)
+    {
+        return 0;
+    }
+
+    follow.action = 0;
+    follow.id = enemy.command.castAct;
+
+    if (attack.effectA != 0)
+    {
+        follow.id = attack.effectA;
+    }
+
+    if (follow.id != 0)
+    {
+        if ((enemy.command.flags & UnitCommand::TargetsUnit) != 0)
+        {
+            const int fromX =
+                enemy.placement.x + static_cast<i16>(enemy.actAnchorX) - static_cast<i16>(enemy.actOffsetX);
+            const int fromY = static_cast<i16>(attack.anchorY) + enemy.placement.y - attack.y;
+
+            if (enemy.FlyAct(
+                    services,
+                    target,
+                    enemy.slotActs[kEnemyFlightAct],
+                    0,
+                    follow.id,
+                    fromX,
+                    fromY,
+                    static_cast<i16>(enemy.command.target),
+                    0
+                ) != 1)
+            {
+                return 0;
+            }
+
+            follow.target |= ActState::Strikes;
+            attack.waiting = 1;
+            follow.waiting = 1;
+        }
+        else
+        {
+            enemy.AimAction(
+                services,
+                target,
+                follow,
+                static_cast<i16>(attack.anchorX),
+                static_cast<i16>(attack.anchorY)
+            );
+        }
+
+        if ((follow.target & kEnemyStrikeBits) != 0)
+        {
+            enemy.slotTint = 0;
+            u16 chance = (enemy.status & BattleUnit::UnkStatus80) != 0 ? kStatusEvade : evadeChance;
+            this->EnemyStrike(enemy, target, follow.target, chance, false);
+            enemy.unk2B14 = 1;
+            follow.target = 0;
+        }
+    }
+    else
+    {
+        follow.waiting = 1;
+    }
+
+    // A missing picture is read through a null pointer in the original; it is not drawn here.
+    const Picture* picture = enemy.picture;
+
+    if (picture != nullptr)
+    {
+        painter.SetSource(picture->data.data());
+    }
+
+    if (follow.waiting != 1)
+    {
+        if (picture != nullptr)
+        {
+            painter.DrawPicture(
+                static_cast<i16>(enemy.aimX),
+                static_cast<i16>(enemy.aimY),
+                picture->width,
+                picture->height,
+                enemy.unk26A4,
+                PaletteArgument(*picture)
+            );
+        }
+
+        return 0;
+    }
+
+    if (follow.id != 0 && (enemy.command.flags & UnitCommand::TargetsUnit) == 0 && enemy.slotTint > kEnemyFadeEnd)
+    {
+        DrawOptions& options = painter.Options();
+        options.tintRed = enemy.slotTint;
+        options.tintGreen = enemy.slotTint;
+        options.tintBlue = enemy.slotTint;
+
+        if ((enemy.unk26A4 & ActState::NoBlend) != 0)
+        {
+            options.tintRed = 0;
+            options.tintGreen = 0;
+            options.tintBlue = 0;
+            enemy.slotTint = kEnemyFadeEnd;
+        }
+
+        if (picture != nullptr && enemy.shadowPicture != nullptr)
+        {
+            painter.DrawPicture(
+                static_cast<i16>(enemy.aimX),
+                static_cast<i16>(enemy.aimY),
+                picture->width,
+                picture->height,
+                enemy.unk26A4,
+                PaletteArgument(*enemy.shadowPicture)
+            );
+        }
+
+        enemy.slotTint = static_cast<i16>(enemy.slotTint - kEnemyFadeStep);
+
+        if (enemy.held == 1)
+        {
+            enemy.slotTint = static_cast<i16>(enemy.slotTint + kEnemyFadeStep);
+        }
+
+        return 0;
+    }
+
+    if (attack.waiting != 1)
+    {
+        return 0;
+    }
+
+    enemy.standAct = ActState{};
+    follow = ActState{};
+    enemy.recoilAct = ActState{};
+    enemy.attackAct = ActState{};
+    enemy.slotActs[kEnemyFlightAct] = ActState{};
+    enemy.trails = {};
+    enemy.targets.fill(BattleUnit::NoTarget);
+    enemy.unk267C = 0;
+    enemy.unk2AB0 = 0;
+    enemy.fadedIn = 0;
+    enemy.nudge = 0;
+    enemy.gauge = static_cast<u16>(enemy.gauge + services.random.Below(kGaugeRestRoll) + kGaugeRestBase);
+    return 1;
+}
+
+// A strike of EnemyAttackFrame (inline twice in the original): unless the enemy has struck this turn the target may
+// evade by `chance`; the Strikes bit raises its flag 26B8; a hit's damage (at most kSpellMaxDamage) is counted and
+// shown on the target, or on the enemy when the target reflects it (`attackFirst`: the attack act's strike marks the
+// enemy before it pushes the number). A hit that does not drain counts on the target. `chance` keeps the drain kind of
+// the attack act's strike (as in the original).
+void Game::EnemyStrike(BattleUnit& enemy, BattleUnit& target, u16 bits, u16& chance, bool attackFirst)
+{
+    BattleState& battle = this->battleState;
+    BattleServices& services = this->battleServices;
+    battle.lastDamage = 0;
+    int evaded = 0;
+
+    if (enemy.unk2B14 == 0)
+    {
+        evaded = target.RollEvade(services, chance);
+    }
+
+    if ((bits & ActState::Strikes) != 0)
+    {
+        target.RaiseFlag26B8();
+    }
+
+    if (evaded != 0)
+    {
+        return;
+    }
+
+    i16 damage = enemy.EnemyHitDamage(services, target);
+    battle.lastDamage = damage;
+
+    if (damage >= kSpellMaxDamage)
+    {
+        damage = static_cast<i16>(kSpellMaxDamage);
+        battle.lastDamage = kSpellMaxDamage;
+    }
+
+    battle.hitDamage += damage;
+
+    if (target.EffectFlag3() == 1)
+    {
+        if (attackFirst)
+        {
+            enemy.RaiseFlag26B8();
+            enemy.PushTarget(BattleUnit::DamageTarget);
+        }
+        else
+        {
+            enemy.PushTarget(BattleUnit::DamageTarget);
+            enemy.RaiseFlag26B8();
+        }
+
+        enemy.SetDamageDigits(services, battle.lastDamage);
+        target.StepTargetCount(1);
+        return;
+    }
+
+    if (battle.lastDamage == -1)
+    {
+        return;
+    }
+
+    target.SetDamageDigits(services, battle.lastDamage);
+    const u16 kind = enemy.DrainKind();
+
+    if (attackFirst)
+    {
+        chance = kind;
+    }
+
+    if (kind <= BattleUnit::DrainedHitPoints)
+    {
+        target.StepTargetCount(1);
+    }
 }
 }  // namespace swd3
