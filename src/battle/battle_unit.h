@@ -312,6 +312,7 @@ public:
 
     static constexpr std::size_t Trails = 8;
     static constexpr std::size_t Drains = 4;
+    static constexpr std::array<i32, 10> DigitHops = {0, 12, 18, 12, 8, 4, 0, 2, 0, 0};  // 0x004A7D8C by hop step
     // HurtFrame: the shake (0x004A7E08) and the lift of the flash (0x004A7DF0, read one entry on at 0x004A7DF4, its
     // last entry then the bytes of the shake table: as in the original) by hurtStep.
     static constexpr std::array<u8, 6> StaggerShake = {30, 40, 45, 47, 49, 50};
@@ -506,6 +507,7 @@ public:
     bool FanGuards(BattleServices& services, u16 ailment);
     int RunAway(BattleServices& services);
     int StepOrbCounters(CounterList& list, const UnitCommand& command);
+    int DrawDamageNumbers(BattleServices& services);
     void DrawTrail(BattleServices& services, AfterimageTrail& trail, u16 frame, u16 picture, u32 mode, i16 x, i16 y);
     int DrawRecoil(BattleServices& services, ActState& act, i16 y);
     int FlyAct(
@@ -651,8 +653,8 @@ public:
     i16 slotTint = 0;    // +0x2954 the tint of a waiting slot act, darkening to its end (AttackFrame)
     i16 recoilTint = 0;  // +0x2956 the tint of a waiting recoil act, darkening to its end (DrawRecoil)
     i16 glowLevel = 0;   // +0x2958 the brightness of a glow act (GlowAct)
-    std::array<u16, MaxTargets> unk295A = {};  // +0x295A
-    i16 guardRise = 0;                         // +0x29A0
+    std::array<i16, MaxTargets> numberFades = {};  // +0x295A the rise and fade of each damage number
+    i16 guardRise = 0;                             // +0x29A0
     u16 unk29A2 = NoUnk29A2;
     u16 unk29A4 = 0;
     u16 unk29A6 = 0;

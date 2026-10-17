@@ -304,6 +304,9 @@ public:
     u16 unk53BDE8 = 0;      // frames since the push was halved
     i16 unk53AE7A = 0;      // the hit act picture after which the units slide back
     i32 unk53BD68 = 0;      // frames of a quake step
+    i32 unk53AEDC = 0;      // the digits of the extra damage number (BattleUnit::DrawDamageNumbers)
+    i32 unk53AEE0 = 0;
+    i32 unk53AEE4 = 0;
     // The end of the battle (Game::CheckBattleEnd, Game::DrawBattlePrompt).
     i32 unk53CEAC = 0;  // 1: the battle ends as won
     i32 unk53C4A8 = 0;  // the fade of the field to black, 2 darker a frame

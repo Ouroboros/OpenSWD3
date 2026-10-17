@@ -932,3 +932,69 @@ TEST_CASE("battle state: taking a slot record")
     CHECK_EQ(records[kTakenAt].unit, -1);
     CHECK_EQ(records[kTakenAt + 1].unit, -1);
 }
+
+TEST_CASE("battle unit: a damage number hops, rises and fades")
+{
+    constexpr swd3::u16 kDelay = 1;
+    constexpr int kHopFrames = 9;  // the digits hop up together from step 0 to step 9
+    constexpr int kFadeFrames = 0x30 / 2;
+    constexpr int kFrames = kDelay + kHopFrames + kFadeFrames + 1;
+    constexpr swd3::i16 kTens = 4;
+    constexpr swd3::i16 kOnes = 2;
+    constexpr swd3::i32 kExtraDigit = 5;
+    using swd3::BattleUnit;
+    Services all;
+    BattleUnit unit;
+    CHECK_EQ(unit.DrawDamageNumbers(all.services), 0);
+    unit.unk2AD8 = 1;
+    unit.targetCount = 1;
+    unit.damageDigits[0] = {0, 0, kTens, kOnes};
+    unit.damageDelays[0] = kDelay;
+    unit.held = 1;
+    unit.DrawDamageNumbers(all.services);
+    unit.DrawDamageNumbers(all.services);
+    CHECK_EQ(unit.unk283C[0][0], 0);
+    unit.held = 0;
+    unit.damageDelays[0] = kDelay;
+    int frame = 1;
+
+    for (; frame < kFrames; ++frame)
+    {
+        if (unit.DrawDamageNumbers(all.services) != 0)
+        {
+            break;
+        }
+    }
+
+    CHECK_EQ(frame, kFrames);
+    CHECK_EQ(unit.DrawDamageNumbers(all.services), 1);
+    CHECK_EQ(unit.targetCount, 0);
+    CHECK_EQ(unit.unk2AD8, 0);
+    CHECK_EQ(unit.damageDigits[0][2], 0);
+
+    unit.unk2AD8 = 1;
+    unit.targetCount = 1;
+    unit.damageSlot = 0;
+    unit.damageDigits[0] = {0, 0, kTens, kOnes};
+    unit.unk283C[0] = {kHopFrames, kHopFrames, kHopFrames, kHopFrames};
+    unit.extraNumber = 1;
+    all.state.unk53AEDC = kExtraDigit;
+    unit.DrawDamageNumbers(all.services);
+    CHECK_EQ(unit.extraNumber, 0);
+    CHECK_EQ(unit.targetCount, 2);
+    CHECK_EQ(unit.damageDigits[1][0], kExtraDigit);
+}
+
+TEST_CASE("battle unit: the damage digit hops match swd32.exe")
+{
+    constexpr swd3::u32 kDigitHopsAt = 0x004A7D8C;
+    const std::vector<swd3::u8> exe = swd3test::ReadGameFile("swd32.exe");
+
+    if (exe.empty())
+    {
+        std::printf("  (swd32.exe not found, skipped)\n");
+        return;
+    }
+
+    CHECK(swd3test::SameTable(exe, kDigitHopsAt, swd3::BattleUnit::DigitHops));
+}

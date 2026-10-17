@@ -1441,6 +1441,14 @@ constexpr int kRunStep = 0x19;
 // StepOrbCounters.
 constexpr u16 kOrbStep = 0xC;  // the proficiency an element orb gains from a hit of its element
 
+// DrawDamageNumbers.
+constexpr int kNumberAbove = 0x1E;
+constexpr int kDigitWidth = 0xC;
+constexpr i16 kLastHop = 9;
+constexpr i16 kNumberFadeEnd = 0x30;
+constexpr i16 kNumberFadeStep = 2;
+constexpr int kNumberScaleBase = 0x1A;
+
 // FadeInvisible and StepAccessoryCounters.
 constexpr i16 kInvisibleFadeFrames = 0x18;
 constexpr int kShadowLeftShift = 5;
@@ -2629,7 +2637,7 @@ void BattleUnit::Reset(BattleServices& services)
 
     this->placement = UnitPlacement{};
     this->command = UnitCommand{};
-    this->unk295A = {};
+    this->numberFades = {};
     this->pushedTargets = {};
     this->trails = {};
     this->unk283C = {};
@@ -8308,5 +8316,162 @@ int BattleUnit::StepOrbCounters(CounterList& list, const UnitCommand& command)
     }
 
     return counts;
+}
+
+// swd32.exe 0x0047C1F0: one frame of the unit's damage numbers (while unk2AD8): from damageSlot to targetCount, each
+// slot waits out its delay, then its four digits (font pushedTargets) hop up one after another by DigitHops (not while
+// held); once all have landed (step 9) a pending extra number (extraNumber: digits unk53AEDC..E4) becomes the next
+// slot, and the slot rises and fades by 2 a frame up to kNumberFadeEnd before it is cleared and the next is shown. A
+// leading zero digit is not drawn. 1 once every slot is done (all cleared).
+int BattleUnit::DrawDamageNumbers(BattleServices& services)
+{
+    BattleHud& hud = services.hud;
+    DrawOptions& options = services.painter.Options();
+
+    if (this->unk2AD8 == 0)
+    {
+        return 0;
+    }
+
+    const int x = this->placement.x;
+    const int y = this->placement.y - kNumberAbove;
+
+    for (u16 slot = this->damageSlot; slot < this->targetCount; ++slot)
+    {
+        std::array<i16, DamageDigits>& digits = this->damageDigits[slot];
+        std::array<i16, DamageDigits>& hops = this->unk283C[slot];
+        i16& fade = this->numberFades[slot];
+        const auto font = static_cast<i16>(this->pushedTargets[slot]);
+
+        if (this->damageDelays[slot] != 0)
+        {
+            --this->damageDelays[slot];
+            continue;
+        }
+
+        const bool landed = std::all_of(
+            hops.begin(),
+            hops.end(),
+            [](i16 hop)
+            {
+                return hop == kLastHop;
+            }
+        );
+
+        if (!landed)
+        {
+            hud.digitMode = 0;
+
+            auto hopY = [y, &hops](std::size_t digit)
+            {
+                return y - BattleUnit::DigitHops[static_cast<std::size_t>(hops[digit])];
+            };
+
+            if (digits[0] != 0)
+            {
+                hud.DrawNumber(font, digits[0], x - kDigitWidth, hopY(0));
+            }
+
+            if ((digits[1] != 0 || digits[0] != 0) && hops[0] > 0)
+            {
+                hud.DrawNumber(font, digits[1], x, hopY(1));
+            }
+
+            if (hops[1] > 0)
+            {
+                if (digits[0] != 0 || digits[1] != 0 || digits[2] != 0)
+                {
+                    hud.DrawNumber(font, digits[2], x + kDigitWidth, hopY(2));
+                }
+
+                hud.DrawNumber(font, digits[3], x + 2 * kDigitWidth, hopY(3));
+            }
+
+            if (this->held == 0)
+            {
+                for (std::size_t digit = 0; digit < hops.size(); ++digit)
+                {
+                    if (digit > 0 && hops[digit - 1] <= 0)
+                    {
+                        break;
+                    }
+
+                    hops[digit] = static_cast<i16>(std::min<int>(hops[digit] + 1, kLastHop));
+                }
+            }
+
+            continue;
+        }
+
+        // The extra number takes the next slot (its fourth digit as it was; the original writes past the slots when
+        // they are all used).
+        if (this->extraNumber == 1 && this->targetCount < MaxTargets)
+        {
+            this->extraNumber = 0;
+            std::array<i16, DamageDigits>& extra = this->damageDigits[this->targetCount];
+            extra[0] = static_cast<i16>(services.state.unk53AEDC);
+            extra[1] = static_cast<i16>(services.state.unk53AEE0);
+            extra[2] = static_cast<i16>(services.state.unk53AEE4);
+            ++this->targetCount;
+        }
+
+        if (fade >= kNumberFadeEnd)
+        {
+            hops.fill(0);
+            fade = 0;
+            hud.digitMode = 0;
+            ++this->damageSlot;
+            digits.fill(0);
+            continue;
+        }
+
+        if (this->held == 0)
+        {
+            fade = static_cast<i16>(fade + kNumberFadeStep);
+        }
+
+        auto fading = [&options, &fade]
+        {
+            options.tintRed = -fade;
+            options.tintGreen = -fade;
+            options.tintBlue = -fade;
+            options.scaleHeight = fade + kNumberScaleBase;
+        };
+
+        const int risenY = y - fade;
+        fading();
+
+        if (digits[0] != 0)
+        {
+            hud.DrawNumber(font, digits[0], x - kDigitWidth, risenY);
+        }
+
+        if (digits[0] != 0 || digits[1] != 0)
+        {
+            fading();
+            hud.DrawNumber(font, digits[1], x, risenY);
+        }
+
+        fading();
+
+        if (digits[0] != 0 || digits[1] != 0 || digits[2] != 0)
+        {
+            hud.DrawNumber(font, digits[2], x + kDigitWidth, risenY);
+        }
+
+        hud.DrawNumber(font, digits[3], x + 2 * kDigitWidth, risenY);
+        hud.digitMode = 0;
+    }
+
+    if (this->damageSlot < this->targetCount)
+    {
+        return 0;
+    }
+
+    hud.digitMode = 0;
+    this->targetCount = 0;
+    this->damageSlot = 0;
+    this->unk2AD8 = 0;
+    return 1;
 }
 }  // namespace swd3
