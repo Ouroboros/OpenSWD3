@@ -447,10 +447,10 @@ bool Talk::OpenMapMovie(EventRun& run)
     ErrorLog(u8"Talk:ani_open:cd:%s:%s", std::string(), name);
     // The original looks in the CD's swd3\Video\ (after a CD check) when the installation lacks the movie; the
     // rebuild only reads the installation (see deviations.md).
-    owner.AudioPump();
+    owner.audioDevice.Serve();
     const std::u8string path = PathFormat("%sVideo\\%s", {owner.config.installDirectory, name});
     ErrorLog(u8"Talk:Ani_Open::%s", path);
-    owner.AudioPump();
+    owner.audioDevice.Serve();
 
     if (!film.file.Open(path, File::Disposition::OpenExisting, File::Access::Read))
     {
@@ -464,7 +464,7 @@ bool Talk::OpenMapMovie(EventRun& run)
     }
 
     film.chunks.next.reset();
-    owner.AudioPump();
+    owner.audioDevice.Serve();
     constexpr u32 kReadRetryWait = 0xFA;  // milliseconds
     std::array<u8, MovieHeader::Bytes> bytes = {};
     u32 read = static_cast<u32>(bytes.size());
@@ -501,7 +501,7 @@ bool Talk::OpenMapMovie(EventRun& run)
     {
         if (film.paletteCount != 0)
         {
-            owner.AudioPump();
+            owner.audioDevice.Serve();
             film.paletteFrames.assign(MapMovie::PaletteTailBytes / sizeof(u16), 0);
             u32 frames = MapMovie::PaletteTailBytes;
             film.file.SeekEnd(-static_cast<i32>(MapMovie::PaletteTailBytes));
@@ -517,7 +517,7 @@ bool Talk::OpenMapMovie(EventRun& run)
             );
         }
 
-        owner.AudioPump();
+        owner.audioDevice.Serve();
         std::array<u8, MapMovie::PaletteBytes> colors = {};
         film.file.SeekEnd(-back);
         u32 colorBytes = MapMovie::PaletteBytes;
@@ -1267,7 +1267,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             }
 
             owner.ShowFrame();
-            owner.AudioPump();
+            owner.audioDevice.Serve();
             owner.PlayVideo(run.cursor, run.context.unk20);
             return false;
 

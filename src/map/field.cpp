@@ -308,7 +308,7 @@ Role* Field::RemoveRole(u16 id, int layer, int row, int keep)
     // 0x00411530 LABEL_10: the rows searched to the map's height without the role (not when `row` starts beyond it).
     if (at == this->state.map.height)
     {
-        DebugLog(u8"更新角色串列", u8"找不到角色(%d)/[%d] ", static_cast<i32>(id), layer);
+        DebugLog(u8"更新角色串列 找不到角色(%d)/[%d] ", static_cast<i32>(id), layer);
     }
 
     return nullptr;

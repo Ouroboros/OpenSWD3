@@ -240,7 +240,7 @@ int RolePath::Step(int index)
     if (slot == RolePath::Moves)
     {
         DebugLog(
-            u8"路徑 路徑沒有設定 >> GUID(%d)",
+            u8"路徑 路徑沒有設定 >> GUID(%d)\n ACT (%d)\nQQ (%d)\nPATH (%d)",
             this->RoleId(static_cast<u32>(index)),
             role.act.id,
             role.act.action,
@@ -801,13 +801,13 @@ void RolePath::RunScript(int index)
 
                 if (slot >= Party::Variables || slot >= variables.size())
                 {
-                    DebugLog(u8"變數不合法(%d)(%d)", slot, value);
+                    DebugLog(u8"變數不合法(%d)(%d)\n", slot, value);
                     return;
                 }
 
                 if (value > kVariableLimit)
                 {
-                    DebugLog(u8"數值不合法(%d)(%d)", slot, value);
+                    DebugLog(u8"數值不合法(%d)(%d)\n", slot, value);
                 }
 
                 i32& variable = variables[slot];
@@ -1183,7 +1183,7 @@ void RolePath::RunScript(int index)
                 continue;
 
             default:
-                DebugLog(u8"路徑系統 無效的指令", this->RoleId(static_cast<u32>(index)), code);
+                DebugLog(u8"路徑系統 無效的指令\nGUID(%d)-(%d)", this->RoleId(static_cast<u32>(index)), code);
                 return;
         }
     }

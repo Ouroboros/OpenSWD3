@@ -67,12 +67,12 @@ void Talk::RunEvent(Role& context)
         const u32 file = context.event / Talk::EventsPerFile;
         const std::u8string path = PathFormat("%sTalk%d.dat", {owner.config.installDirectory, file + 1});
         File& story = owner.databases.story;
-        owner.AudioPump();
+        owner.audioDevice.Serve();
         story.Close();
 
         if (!story.Open(path, File::Disposition::OpenExisting, File::Access::Read))
         {
-            DebugLog(u8"SWD3-Talk", u8"找不到 Talk%d", file + 1);
+            DebugLog(u8"SWD3-Talk 找不到 Talk%d", file + 1);  // 0x00427A1F (nullsub_1 with the text 0x004A1C00)
             owner.Destroy();
             return;
         }
@@ -93,7 +93,7 @@ void Talk::RunEvent(Role& context)
             LogActError(u8"Act Err(Talk:LoadTalk)", player);
         }
 
-        owner.AudioPump();
+        owner.audioDevice.Serve();
     }
 
     EventRun run{context, context.unk20};
@@ -112,7 +112,7 @@ void Talk::RunEvent(Role& context)
 
         if (!next && !run.running)
         {
-            owner.AudioPump();
+            owner.audioDevice.Serve();
             return;
         }
     }
@@ -269,7 +269,8 @@ void Talk::SetStoryFlag(int flag, bool value)
 bool Talk::UnknownCommand(EventRun& run)
 {
     PlaySystemBeep();
-    DebugLog(u8"對話系統", u8"沒有指令(%d,%x),(%d,%x)", static_cast<u16>(run.code), this->lastCommand);
+    // 0x0042B0A2 (nullsub_1 with the title 0x004A1738 and the text 0x004A1430)
+    DebugLog(u8"對話系統 沒有指令(%d,%x),(%d,%x)", static_cast<u16>(run.code), this->lastCommand);
     return false;
 }
 
@@ -343,6 +344,16 @@ void Talk::EndEvent(EventRun& run)
     {
         if (state.FindRoleOrPlayer(id, run.found))
         {
+            if (run.found >= GameState::Roles)
+            {
+                // 0x0042D29D (nullsub_1 with the title 0x004A01B4 and the text 0x004A01C8)
+                DebugLog(
+                    u8"對話系統(TalkEnd) GUID(%d)\n陣列索引錯誤(crID %d) (manMax %d) ",
+                    run.found,
+                    state.roleCount
+                );
+            }
+
             Role& role = state.roles[run.found];
             owner.rolePath.ResumeMove(static_cast<int>(run.found));
             role.flags &= ~Role::Held;
@@ -376,7 +387,7 @@ void Talk::EndEvent(EventRun& run)
         }
         else if (state.GameFlag(GameState::DebugReports) && run.found >= GameState::Roles)
         {
-            DebugLog(u8"TalkEnd role", id, owner.currentMap);
+            DebugLog(u8"G(%d)啟動的角色不在地圖上(%d) ", id, owner.currentMap);  // 0x0042D3AA
         }
     }
 
@@ -438,7 +449,7 @@ bool Talk::OpenDialog(EventRun& run)
     {
         if (context.id != TalkWindow::NoRole)
         {
-            DebugLog(u8"talk window without a speaker", 1);
+            DebugLog(u8"不是從劇情點啟動 !不要用R_TRIG!");  // wsprintfA of 0x004A1BBC, then nullsub_1
         }
 
         window->fromX = static_cast<u16>(context.x);
@@ -513,7 +524,7 @@ bool Talk::OpenDialog(EventRun& run)
         options |= Talk::Centred;
     }
 
-    owner.AudioPump();
+    owner.audioDevice.Serve();
     const std::vector<u8>& script = owner.databases.script;
     const std::size_t recordAt = std::min(run.cursor + kOpcodeBytes, script.size());
     const std::string_view name(this->dialogName.data(), strnlen(this->dialogName.data(), this->dialogName.size()));
@@ -897,7 +908,7 @@ bool Talk::RunRoleCommand(EventRun& run)
 
             if (!state.FindRoleOrPlayer(id, run.found))
             {
-                DebugLog(u8"setpos", id);
+                DebugLog(u8"setpos 無效的角色\nGUID[%d]", id);  // nullsub_1 with the text 0x004A1B78
                 this->Next(run);
 
                 if (static_cast<i32>(run.found) == state.playerRole)
@@ -952,7 +963,11 @@ bool Talk::RunRoleCommand(EventRun& run)
             }
             else
             {
-                DebugLog(u8"Talk(Step)", id, owner.currentMap);
+                DebugLog(
+                    u8"Talk(Step) 角色號碼(GUID:%d)不存在此地圖(%d)",
+                    id,
+                    owner.currentMap
+                );  // the text 0x004A1B4C
             }
 
             this->Next(run);
