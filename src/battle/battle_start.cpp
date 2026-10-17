@@ -146,11 +146,11 @@ void Game::StartBattle(u16 number)
     battle.unk52544C[0] = 0;
     battle.pendingOrders.fill(PendingOrder{});
     battle.unk4FF0BC.fill(0);
-    battle.unk525450 = 0;
+    battle.unk52544C[1] = 0;
     battle.background = Picture{};
-    battle.unk525454 = 0;
+    battle.unk52544C[2] = 0;
     battle.unk502944 = 0;
-    battle.unk525458 = 0;
+    battle.unk52544C[3] = 0;
     battle.unk502948 = 0;
     battle.unk5244D8 = 0;
     battle.unk50294C = 0;

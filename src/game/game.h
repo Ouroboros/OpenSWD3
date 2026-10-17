@@ -337,6 +337,15 @@ private:
     int AccessoryBuffFrame(BattleRole& unit, int target, int command);
     int TimerAttackFrame(BattleRole& unit, int target);
     int SelfHitFrame(BattleRole& unit, int command);
+    int RoleFrame(int role);
+    void RoleFrameEnd(int role);
+    void RoleAutoCommand(BattleRole& unit, int role);
+    void RoleOrderFrame(BattleRole& unit, int role);
+    void RoleGatherSweep(BattleRole& unit, PendingOrder& order);
+    void RoleTakeOrder(BattleRole& unit, int role);
+    bool RoleActFrame(BattleRole& unit, int role);
+    void RoleAfterAction(BattleRole& unit, int role);
+    void RoleRetreatFrame(BattleRole& unit, int role);
     void DrawRolePanels();
     template <typename Next>
     void StepPanelGauge(i32& shown, i32& target, Next next, int picture, int x, int y, i32 downNear, i32 downFar);

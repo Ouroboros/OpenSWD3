@@ -198,7 +198,8 @@ public:
     std::array<u16, 3> commandKinds = {};            // 0x004FE5CC their accessory kinds
     std::array<i32, 8> unk524268 = {};
     std::array<u8, 8> commandEnabled = {};  // 0x00524414 the five commands of the menu and the three accessory ones
-    std::array<i32, Party::Roles> unk52544C = {};            // per party role: the scroll of its list (ScrollListBack)
+    std::array<i32, Party::Roles> unk52544C =
+        {};  // 0x0052544C..0x00525458 per party role: the scroll of its list (ScrollListBack)
     std::array<PendingOrder, RoleUnits> pendingOrders = {};  // 0x00520E90
     i32 unk53BF80 = 0;  // cleared when a party unit's order is taken (InsertSlotRecord)
     i32 unk53BFD0 = 0;
@@ -206,9 +207,6 @@ public:
     i16 unk53BF48 = 0;
     u16 unk53BF28 = 0;  // non-zero: an enemy does not choose a command with UnkAction1000 (ChooseCommand)
     std::array<i32, 0x12> unk4FF0BC = {};
-    i32 unk525450 = 0;
-    i32 unk525454 = 0;
-    i32 unk525458 = 0;
     i32 unk502944 = 0;
     i32 unk502948 = 0;
     i32 unk50294C = 0;
@@ -426,7 +424,10 @@ public:
     u16 unk53BF34 = 0;  // the item used up by the last command
     i32 unk53BDD4 = 0;
     i32 unk53BDD8 = 0;
-    SkillScript unk4FF140;   // the buff or ailment of an accessory command
+    SkillScript unk4FF140;  // the buff or ailment of an accessory command
+    // The frame of a role (Game::RoleFrame).
+    i32 unk4A7554 = 1;  // the enemy (1-based) an AI role aims at
+    u16 unk5240C4 = 0;
     i32 unk4A7564 = -1;      // the enemy the auto battle aims at (1-based), -1: none
     u16 unk4A7644 = 0xFFFF;  // a role unit that may take the panel in any battle state (SelectRoleUnit)
     i32 unk4A7548 = 1;       // the command chosen in the menu (1-based)
