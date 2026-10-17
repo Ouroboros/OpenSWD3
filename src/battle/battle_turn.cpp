@@ -444,6 +444,8 @@ constexpr i32 kEndMessageFrames = 0x14;
 constexpr i32 kEndLevelUpFrames = 0x1E;
 constexpr u16 kLevelUpPanelSound = 0x2C;
 constexpr i16 kLearnedPose = 8;
+constexpr u16 kOpenSound = 0x2D;
+constexpr i32 kTalkFixedAnswers = 2;  // 攻擊 and 釋放
 
 // The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
 // here.
@@ -6344,5 +6346,103 @@ void Game::ConfirmEnd()
         default:
             return;
     }
+}
+
+// swd32.exe 0x004620D0: the confirm key of the battle (not while unk53BF1C, unk53C024, the fade out or a negative
+// unk53BDAC): with one standing enemy left and a talk role, the menu closes (unless won); the level-up stats skip to
+// their end (0x1D, then all at once); a talk window moves on; outside the menu MenuConfirm takes it; a role taking
+// the panel (not held) opens the menu (kOpenSound): the command menu, or the talk menu of the talk role with its
+// answers (攻擊, the enemy's objects and skills, 釋放).
+void Game::ConfirmKey()
+{
+    BattleState& battle = this->battleState;
+
+    if (battle.unk53BF1C != 0 || battle.unk53C024 == 1 || battle.unk53BFE4 == 1 || battle.unk53BDAC < 0)
+    {
+        return;
+    }
+
+    if (battle.unk53C4C0 == 0 && static_cast<i32>(battle.enemyCount) - battle.unk53BF00 <= 1 &&
+        battle.unk4A7626 != kNoTalkRole && battle.result != kBattleWon)
+    {
+        battle.result = 0;
+        return;
+    }
+
+    if (battle.result == kEndStats)
+    {
+        if (battle.unk53BDEA < kRollStart)
+        {
+            battle.unk53BDEA = kRollStart - 1;
+            return;
+        }
+
+        if (battle.unk53BDEA == kRollStart)
+        {
+            battle.unk53BDEA = kShowNow;
+            return;
+        }
+    }
+
+    if (this->scene.talkWindows != nullptr)
+    {
+        this->talk.advance = 1;
+        return;
+    }
+
+    if (battle.unk53BF5C != 1 || battle.currentUnit == 0 || (battle.result != 0 && battle.unk4A7644 == kNoPanelRole))
+    {
+        this->MenuConfirm();
+        return;
+    }
+
+    battle.unk4A7644 = kNoPanelRole;
+    BattleRole& role = this->battleRoles[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)];
+
+    if (role.IsHeldOrHolding() == 1)
+    {
+        return;
+    }
+
+    this->audio.PlaySound(kOpenSound, this->config.soundVolume);
+    battle.unk53BFB8 = 1;
+    battle.unk53C49C = 1;
+    battle.unk53BD98 = kListRows;
+    role.GetPosition(battle.unk53BF4A, battle.unk53BF4E);
+
+    if (battle.unk4A762C == kNoTalkRole || battle.unk4A762E != battle.currentUnit - BattleState::FirstRoleUnit)
+    {
+        battle.result = kMenuState;
+        battle.unk4A7548 = 1;
+        this->BuildCommandMenu();
+        return;
+    }
+
+    battle.result = kTalkState;
+    battle.unk4A7568 = kTalkFixedAnswers;
+    BattleEnemy& enemy = this->battleEnemies[static_cast<std::size_t>(static_cast<i16>(battle.unk4A762C))];
+    std::string name;
+
+    for (int choice = 0; choice < kControlObjects; ++choice)
+    {
+        u32 id = static_cast<u32>(battle.unk53BD44);
+
+        if (enemy.ItemName(this->database, choice, name, id) == 1)
+        {
+            ++battle.unk4A7568;
+        }
+
+        battle.unk53BD44 = static_cast<i32>(id);
+    }
+
+    for (int choice = 0; choice < kControlSkills; ++choice)
+    {
+        if (enemy.SkillName(this->database, choice, name) == 1)
+        {
+            ++battle.unk4A7568;
+        }
+    }
+
+    battle.unk53BD44 = 0;
 }
 }  // namespace swd3
