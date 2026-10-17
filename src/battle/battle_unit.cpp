@@ -1941,6 +1941,44 @@ void BattleUnit::DrawEffectIcons(BattleServices& services, int x, int y)
     }
 }
 
+// swd32.exe 0x0047E880: ReviveBit revives a defeated party role (its record no longer marked, its turn reset);
+// otherwise every effect sharing a bit with `bits` ends at once, the bits it covers (its low word) taken off `bits`,
+// the effects expired, and the search starting again from the first effect until no bit is left
+void BattleUnit::CureEffects(BattleServices& services, u16 bits)
+{
+    if (bits == BattleUnit::ReviveBit && this->kind == BattleUnit::PartyRole && this->defeated == 1)
+    {
+        this->roleRecord->unk24 = static_cast<u16>(this->roleRecord->unk24 & ~RoleRecord::Defeated);
+        this->ResetTurn(services);
+        this->defeated = 0;
+        --services.state.defeatedRoles;
+        return;
+    }
+
+    EffectNode* node = this->effects.next.get();
+
+    while (node != nullptr)
+    {
+        if ((bits & node->bits) != 0)
+        {
+            bits = static_cast<u16>(bits & ~LowWord(node->bits));
+            node->turns = 0;
+            node->timer = 0;
+            this->ExpireEffects(services, 0);
+
+            if (bits == 0)
+            {
+                break;
+            }
+
+            node = this->effects.next.get();
+            continue;
+        }
+
+        node = node->next.get();
+    }
+}
+
 // swd32.exe 0x0047E950: with `clearAll` 0, every effect whose turns ran out loses its status and is announced, then
 // freed; the effect following a freed one is not looked at in this pass. Otherwise all effects are freed and the
 // status cleared.

@@ -237,6 +237,7 @@ public:
     static constexpr u16 HealTarget = 0x246F;
     static constexpr u16 SpiritGainTarget = 0x2367;
     static constexpr u16 StaminaGainTarget = 0x2366;
+    static constexpr u16 ReviveBit = 0x8000;  // CureEffects: revives a defeated party role
 
     static constexpr int UnkSlot8 = 8;
     static constexpr int UnkSlot9 = 9;
@@ -342,6 +343,7 @@ public:
     void DrawEffects(BattleServices& services, int x, int y);
     void DrawEffectIcons(BattleServices& services, int x, int y);
     void ExpireEffects(BattleServices& services, int clearAll);
+    void CureEffects(BattleServices& services, u16 bits);
     int Damage(BattleServices& services, int hitPoints, i16 spirit, i16 stamina);
     int EffectFlag2() const;
     int EffectFlag3() const;

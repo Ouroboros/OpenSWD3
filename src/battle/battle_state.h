@@ -7,6 +7,7 @@
 #include "battle/battle_hud.h"
 #include "battle/battle_unit.h"
 #include "core/types.h"
+#include "game/color_fade.h"
 #include "item/item_list.h"
 #include "party/party.h"
 #include "pic/picture.h"
@@ -75,6 +76,7 @@ public:
     void ListEnemyOrder();
     void AddSlotRecord(int kind, i32 unit);
     void RemoveSlotRecord(i32 unit);
+    void StartFieldFade(int red, int green, int blue, int toRed, int toGreen, int toBlue, int frames);
 
     i32 listBCount = 0;                              // 0x004FD3B0 entries of listB, at most 13
     ItemLink listB;                                  // 0x004FD4C0
@@ -211,6 +213,9 @@ public:
     i32 autoBattle = 0;                                // 0x0053C018
     i32 autoBoxX = 0;                                  // 0x0053BDD0 the "自動攻擊" box slides in
     i32 autoBoxStep = 0;                               // 0x0053BDCC
+    // 0x00520FB8 frames; levels 0x004FDFA4, 0x00521394, 0x00525468; targets 0x004FDF8C, 0x00521388, 0x00525448;
+    // steps 0x0052151C, 0x00525430, 0x00520D58.
+    ColorFade fieldFade;
 
     // The damage of the hit being dealt (0x004539B0, 0x0045D690).
     i32 hitDamage = 0;     // 0x0052441C

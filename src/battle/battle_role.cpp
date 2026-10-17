@@ -45,8 +45,7 @@ constexpr std::u8string_view kNoEscortAct = u8"護駕actNumber為0!!";         /
 constexpr std::u8string_view kNoGuestAct = u8"Npc角色actNumber為0!!";       // swd32.exe 0x004A7C7C
 constexpr std::u8string_view kNoWeaponAct = u8"武器%d號的強攻擊act沒設!!";  // swd32.exe 0x004A7C94
 constexpr i16 kStatLimit = 0x270F;
-constexpr u16 kCoinArmour = 0x39D;       // 投幣式鎧甲: the gold pays for the hits
-constexpr u16 kDefeatedRecord = 0x8000;  // RoleRecord::unk24 bit 15: the role starts the battle defeated
+constexpr u16 kCoinArmour = 0x39D;  // 投幣式鎧甲: the gold pays for the hits
 constexpr int kTenths = 10;
 constexpr int kPercent = 100;
 constexpr u32 kAttackRingPercent = 10;  // an attack ring adds 10% of the attack bonus besides its proficiency share
@@ -123,7 +122,7 @@ void BattleRole::Setup(
         }
     }
 
-    this->defeated = (this->battleRecord->unk24 & kDefeatedRecord) != 0 ? 1 : 0;
+    this->defeated = (this->battleRecord->unk24 & RoleRecord::Defeated) != 0 ? 1 : 0;
 }
 
 // swd32.exe 0x0046E890: a summoned escort: its mon.dat object (by the act of its placement, asserted non-zero) gives

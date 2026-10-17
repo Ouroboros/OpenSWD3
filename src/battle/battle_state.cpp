@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "crt/msvc.h"
+
 namespace swd3
 {
 
@@ -147,5 +149,23 @@ void BattleState::RemoveSlotRecord(i32 unit)
 
     std::move(found + 1, records.end(), found);
     records.back() = BattleSlotRecord{-1, -1, kAllOnes16, kAllOnes16, -1, -1, -1, -1};
+}
+
+// swd32.exe 0x0045D3E0: the field fades from (red, green, blue) to (toRed, toGreen, toBlue) over `frames` frames; the
+// steps are taken from the levels truncated to integers
+void BattleState::StartFieldFade(int red, int green, int blue, int toRed, int toGreen, int toBlue, int frames)
+{
+    ColorFade& fade = this->fieldFade;
+    fade.frames = frames;
+    fade.red = static_cast<float>(red);
+    fade.green = static_cast<float>(green);
+    fade.blue = static_cast<float>(blue);
+    fade.startRed = static_cast<float>(toRed);
+    fade.startGreen = static_cast<float>(toGreen);
+    fade.startBlue = static_cast<float>(toBlue);
+    const auto count = static_cast<double>(frames);
+    fade.stepRed = static_cast<float>(static_cast<double>(toRed - static_cast<i32>(crt::Ftol(fade.red))) / count);
+    fade.stepGreen = static_cast<float>(static_cast<double>(toGreen - static_cast<i32>(crt::Ftol(fade.green))) / count);
+    fade.stepBlue = static_cast<float>(static_cast<double>(toBlue - static_cast<i32>(crt::Ftol(fade.blue))) / count);
 }
 }  // namespace swd3

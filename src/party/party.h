@@ -19,6 +19,8 @@ class Database;
 // those marked inferred are not yet confirmed by a label.
 struct RoleRecord
 {
+    static constexpr u16 Defeated = 0x8000;  // in unk24: the role starts the battle defeated
+
     i32 unk00 = 0;                 // +0x00
     i16 hitPoints = 0;             // +0x04 生命
     i16 spirit = 0;                // +0x06 靈力

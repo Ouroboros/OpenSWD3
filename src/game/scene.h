@@ -9,6 +9,7 @@
 
 #include "core/types.h"
 #include "crt/msvc.h"
+#include "game/color_fade.h"
 #include "game/game_state.h"
 #include "res/act_state.h"
 #include "role/role.h"
@@ -242,22 +243,6 @@ struct Streak
     u16 active = 0;  // +0x0E bit 0
 };
 
-// The colour fade of the screen: the steps added each frame, the levels reached and the steps restored once the
-// frames run out.
-struct ColorFade
-{
-    i32 frames = 0;        // 0x004A9934
-    float stepRed = 0;     // 0x004A9A00
-    float stepGreen = 0;   // 0x004A94B8
-    float stepBlue = 0;    // 0x004C97F0
-    float red = 0;         // 0x004A93E0
-    float green = 0;       // 0x004B6C70
-    float blue = 0;        // 0x004C9A00
-    float startRed = 0;    // 0x004A93DC
-    float startGreen = 0;  // 0x004B6C74
-    float startBlue = 0;   // 0x004C9A04
-};
-
 // The state of the story scenes that a new game starts from (named by the original's addresses until their readers
 // are restored): the pointer roles, the animations of the screen elements and tables of maps.dat.
 struct Scene
@@ -426,7 +411,8 @@ struct Scene
     std::array<i16, 0x40> heatCounts = {};      // 0x004AB2F8 lines
     std::array<i32, 0x30> heatOffsets = {};     // 0x004AC9BC pixels
     u16 heatFrame = 0;                          // 0x004CAE90
-    ColorFade fade;
+    ColorFade fade;     // 0x004A9934 frames; steps 0x004A9A00, 0x004A94B8, 0x004C97F0; levels 0x004A93E0, 0x004B6C70,
+                        // 0x004C9A00; targets 0x004A93DC, 0x004B6C74, 0x004C9A04
     i32 unk4C9A08 = 0;  // shown as dbg1
     i32 unk4ACE64 = 0;  // shown as dbg2
     i32 unk4BABA0 = 0;  // followers in unk4B7C8C
