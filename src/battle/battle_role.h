@@ -15,15 +15,30 @@ namespace swd3
 // The kinds of the accessories (ObjectData::unk48), named after the mon.dat items of each kind.
 enum class AccessoryKind : u16
 {
-    Steal = 0x17,        // 神偷面具, 乾坤袋
-    Unk32 = 0x32,        // no item has it
-    ElementOrb = 0x33,   // 地炎玉, 水靈珠, 青龍水珠, ...: an element's resistance lowered by the proficiency
-    AttackRing = 0x34,   // 薩登荊環, 星君眼
-    BladeReturn = 0x35,  // 返刃玉
-    Unk36 = 0x36,        // no item has it
-    SpiritDrain = 0x37,  // 吸魔壺
-    LifeDrain = 0x38,    // 吸血鬼指環
-    SpiritFan = 0x39,    // 靈虛扇
+    RepeatAttack = 0x15,  // 武聖手鐲, 姜公膽: the attack repeats once
+    Unk16 = 0x16,         // no item has it
+    Steal = 0x17,         // 神偷面具, 乾坤袋
+    Unk18 = 0x18,         // 武神魂玉
+    Unk19 = 0x19,         // no item has it
+    Unk1A = 0x1A,         // no item has it
+    Unk1B = 0x1B,         // 暗殺寶錄, 御夫錄
+    Unk1C = 0x1C,         // 硃砂辟魔玉
+    Unk1D = 0x1D,         // no item has it
+    Unk1E = 0x1E,         // 硃砂神筆
+    Unk1F = 0x1F,         // 鼠槌
+    Unk20 = 0x20,         // 金鐘罩秘笈
+    Unk21 = 0x21,         // 庖丁菜刀
+    Unk22 = 0x22,         // no item has it
+    Unk23 = 0x23,         // 夜叉肩帶
+    Unk24 = 0x24,         // no item has it
+    Unk32 = 0x32,         // no item has it
+    ElementOrb = 0x33,    // 地炎玉, 水靈珠, 青龍水珠, ...: an element's resistance lowered by the proficiency
+    AttackRing = 0x34,    // 薩登荊環, 星君眼
+    BladeReturn = 0x35,   // 返刃玉
+    Unk36 = 0x36,         // no item has it
+    SpiritDrain = 0x37,   // 吸魔壺
+    LifeDrain = 0x38,     // 吸血鬼指環
+    SpiritFan = 0x39,     // 靈虛扇
 };
 
 // A party role in battle (0x2F34 bytes in the original, ten of them at 0x005029D0): a unit with a battle copy of the
@@ -79,6 +94,7 @@ public:
     void CancelCommand();
     void AddFury(BattleServices& services, int damage);
     void Regenerate(BattleServices& services);
+    void UseAccessorySkill(BattleServices& services, u16 kind);
     void SetupGuest(const UnitPlacement& at, const RoleRecord& base, Database& database, ErrorReporter& reporter);
     void ApplyEquipment(
         std::span<const std::unique_ptr<ItemNode>> slots,

@@ -284,6 +284,7 @@ public:
     enum CommandFlag : u16
     {
         UnkCommandFlag200 = 0x200,  // GetOffset uses slot act UnkSlot8
+        UnkCommandFlag400 = 0x400,  // set by the accessory commands that take command B
         UnkCommandFlag800 = 0x800,  // set by command 6
         UnkCommandFlag1000 = 0x1000,
         UnkCommandFlag2000 = 0x2000,

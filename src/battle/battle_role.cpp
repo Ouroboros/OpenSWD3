@@ -203,6 +203,21 @@ constexpr u16 kFurySound = 0xBC;
 // Regenerate: the gains show 6 frames apart.
 constexpr u16 kRegenerateDelay = 6;
 
+// UseAccessorySkill: the unk26CC bit of each accessory kind (RepeatAttack is kRepeatAttack).
+constexpr u32 kAccessoryBit16 = 0x2;
+constexpr u32 kAccessoryBit17 = 0x4;
+constexpr u32 kAccessoryBit18 = 0x8;
+constexpr u32 kAccessoryBit19 = 0x10;
+constexpr u32 kAccessoryBit1A = 0x20;
+constexpr u32 kAccessoryBit1B = 0x40;
+constexpr u32 kAccessoryBit1D = 0x100;
+constexpr u32 kAccessoryBit1E = 0x200;
+constexpr u16 kAccessoryStep = 5;        // the proficiency steps of an accessory command
+constexpr int kUnk1FScale = 4;           // Unk1F: unk29A4 is 4 percent of the proficiency and 1
+constexpr int kAccessoryBaseShare = 10;  // the heals add a tenth of their base
+constexpr int kHalfShare = 5;            // Unk22 / Unk24: the proficiency is halved, less a fifth of that
+constexpr int kSpiritShare = 5;          // Unk23: a fifth of the proficiency
+
 // CanAbsorb.
 constexpr u16 kMaxAbsorbClass = 0x15;   // ObjectData::unk52
 constexpr int kAbsorbLevelsAbove = 12;  // a target this many levels above the role is never absorbed
@@ -3146,5 +3161,124 @@ void BattleRole::Regenerate(BattleServices& services)
         this->StepTargetCount(1);
         this->unk29AA = 0;
     }
+}
+
+// swd32.exe 0x0046F1F0: the command of an accessory of `kind` (the stamina it costs taken first when none is owed):
+// the kind sets its unk26CC bit and becomes command A (some take command B with UnkCommandFlag400, command A 0) and
+// most read the accessory's proficiency into unk26DC; Unk1F scales unk29A4, Unk22 / Unk23 / Unk24 a heal of the
+// hit points / spirit / stamina of the battle record. The proficiencies then step by kAccessoryStep.
+void BattleRole::UseAccessorySkill(BattleServices& services, u16 kind)
+{
+    CounterList& proficiency = services.party.fame.lists[Fame::ProficiencyList];
+
+    if (this->unk2F12 == 0)
+    {
+        this->unk2F12 = this->AccessoryValue(kind);
+    }
+
+    const RoleRecord& record = *this->battleRecord;
+
+    auto share = [](i16 base, u16 percent)
+    {
+        return static_cast<u16>(base * percent / kPercent + base / kAccessoryBaseShare);
+    };
+
+    switch (static_cast<AccessoryKind>(kind))
+    {
+        case AccessoryKind::RepeatAttack:
+            this->unk26CC |= kRepeatAttack;
+            this->commandA = 1;
+            this->AccessoryProficiency(kind, proficiency);
+            this->StepAccessoryCounters(proficiency, kAccessoryStep);
+            this->extraAttacks = 1;
+            return;
+
+        case AccessoryKind::Unk16:
+            this->commandA = 0;
+            this->unk26CC |= kAccessoryBit16;
+            this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag400);
+            this->commandB = kind;
+            break;
+
+        case AccessoryKind::Steal:
+            this->commandA = kind;
+            this->unk26CC |= kAccessoryBit17;
+            break;
+
+        case AccessoryKind::Unk18:
+            this->unk26CC |= kAccessoryBit18;
+            this->commandA = kind;
+            this->AccessoryProficiency(kind, proficiency);
+            break;
+
+        case AccessoryKind::Unk19:
+            this->commandA = 0;
+            this->unk26CC |= kAccessoryBit19;
+            this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag400);
+            this->commandB = kind;
+            break;
+
+        case AccessoryKind::Unk1A:
+            this->commandA = kind;
+            this->unk26CC |= kAccessoryBit1A;
+            break;
+
+        case AccessoryKind::Unk1B:
+            this->commandA = kind;
+            this->unk26CC |= kAccessoryBit1B;
+            break;
+
+        case AccessoryKind::Unk1C:
+            this->commandA = kind;
+            this->AccessoryProficiency(kind, proficiency);
+            break;
+
+        case AccessoryKind::Unk1D:
+            this->commandA = kind;
+            this->unk26CC |= kAccessoryBit1D;
+            break;
+
+        case AccessoryKind::Unk1E:
+            this->commandA = kind;
+            this->unk26CC |= kAccessoryBit1E;
+            break;
+
+        case AccessoryKind::Unk1F:
+            this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag400);
+            this->commandA = 0;
+            this->commandB = kind;
+            this->AccessoryProficiency(kind, proficiency);
+            this->unk29A4 = static_cast<u16>(kUnk1FScale * this->unk26DC / kPercent + 1);
+            break;
+
+        case AccessoryKind::Unk20:
+        case AccessoryKind::Unk21:
+            this->commandA = kind;
+            this->AccessoryProficiency(kind, proficiency);
+            break;
+
+        case AccessoryKind::Unk22:
+            this->AccessoryProficiency(kind, proficiency);
+            this->unk26DC = static_cast<u16>((this->unk26DC >> 1) - (this->unk26DC >> 1) / kHalfShare);
+            this->unk29A6 = share(record.maxHitPoints, this->unk26DC);
+            break;
+
+        case AccessoryKind::Unk23:
+            this->AccessoryProficiency(kind, proficiency);
+            this->unk26DC = static_cast<u16>(this->unk26DC / kSpiritShare);
+            this->unk29A8 = share(record.maxSpirit, this->unk26DC);
+            break;
+
+        case AccessoryKind::Unk24:
+            this->AccessoryProficiency(kind, proficiency);
+            this->unk26DC = static_cast<u16>((this->unk26DC >> 1) - (this->unk26DC >> 1) / kHalfShare);
+            this->unk29AA = share(record.stamina, this->unk26DC);
+            break;
+
+        default:
+            return;
+    }
+
+    this->StepAccessoryCounters(proficiency, kAccessoryStep);
 }
 }  // namespace swd3
