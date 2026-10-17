@@ -288,4 +288,41 @@ int Game::RemoveDefeated(int index, int role)
     return 1;
 }
 
+// swd32.exe 0x0045B280: the draw order with the acting unit (unk53AE70) drawn right after the unit it aims at (none
+// while unk53C4C0, unk53AE7C or unk53AE80 is set or no unit acts): a role aims at an enemy, an enemy at a role.
+void Game::SortActingDrawOrder()
+{
+    BattleState& battle = this->battleState;
+
+    if (battle.unk53C4C0 == 1 || battle.unk53AE7C == 1 || battle.unk53AE80 == 1 || battle.unk53AE70 == -1)
+    {
+        return;
+    }
+
+    const i32 acting = battle.unk53AE70;
+    i32 target = 0;
+
+    if (acting >= BattleState::FirstRoleUnit)
+    {
+        const auto role = static_cast<std::size_t>(acting - BattleState::FirstRoleUnit);
+        target = static_cast<i16>(this->battleRoles[role].GetWord29A2());
+
+        // Never so here (the original returned above).
+        if (battle.unk53AE7C == 1)
+        {
+            target += BattleState::FirstRoleUnit;
+        }
+    }
+    else
+    {
+        target = static_cast<i16>(this->battleEnemies[static_cast<std::size_t>(acting)].GetWord29A2());
+
+        if (battle.unk53AE80 == 0)
+        {
+            target += BattleState::FirstRoleUnit;
+        }
+    }
+
+    battle.SortDrawOrderAround(acting, target);
+}
 }  // namespace swd3

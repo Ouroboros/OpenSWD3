@@ -252,4 +252,148 @@ void BattleState::WipeSlotRecords()
         record = BattleSlotRecord{-1, -1, 0xFFFF, 0xFFFF, -1, -1, -1, -1};
     }
 }
+
+// The order of 0x0045B280 (inline in the original): first the units of the acting unit's side above it (lower y, not
+// it or `target`), sorted by an insertion that also copies the last placed unit one further; then each pass takes the
+// first unit not taken that is off that side or above the acting unit, and the lowest enemy (unless a role acts) or
+// role (unless an enemy acts) not taken below it; `target` brings the acting unit right after it. With no unit left
+// the first pick reads the dword after unitY (darkFrames) as its y and places unit 18, and the order is then made
+// again by SortDrawOrder.
+void BattleState::SortDrawOrderAround(i32 acting, i32 target)
+{
+    const bool roleActs = acting >= FirstRoleUnit;
+    const int sideFirst = roleActs ? FirstRoleUnit : 0;
+    const int sideEnd = roleActs ? Units : FirstRoleUnit;
+    i32 bound = this->unitY[static_cast<std::size_t>(acting)];
+    int placed = 0;
+    int at = 0;
+
+    for (int unit = sideFirst; unit < sideEnd; ++unit)
+    {
+        const i32 y = this->unitY[static_cast<std::size_t>(unit)];
+
+        if (y == 0 || unit == acting || unit == target || y >= bound)
+        {
+            continue;
+        }
+
+        if (placed > 0)
+        {
+            int position = 0;
+            bool found = true;
+
+            while (y >= this->unitY[static_cast<std::size_t>(this->drawOrder[static_cast<std::size_t>(position)])])
+            {
+                if (++position >= placed)
+                {
+                    found = false;
+                    break;
+                }
+            }
+
+            if (found)
+            {
+                at = position;
+
+                for (int move = placed + 1; move > position; --move)
+                {
+                    this->drawOrder[static_cast<std::size_t>(move)] =
+                        this->drawOrder[static_cast<std::size_t>(move - 1)];
+                }
+            }
+        }
+
+        this->drawOrder[static_cast<std::size_t>(at)] = unit;
+        this->drawTaken[static_cast<std::size_t>(unit)] = 1;
+        ++placed;
+        at = placed;
+    }
+
+    const auto total = static_cast<int>(this->roleCount + this->enemyCount);
+    i32 actingLeft = acting;
+    i32 targetLeft = target;
+
+    // The original runs on past the order (writing the globals after it) when the pair is placed at its end.
+    while (placed != total && at < Units)
+    {
+        if (actingLeft != -1)
+        {
+            bound = this->unitY[static_cast<std::size_t>(actingLeft)];
+        }
+
+        int first = 0;
+
+        for (; first < Units; ++first)
+        {
+            const i32 y = this->unitY[static_cast<std::size_t>(first)];
+            const bool allowed = actingLeft == -1 || first < sideFirst || first >= sideEnd || y < bound;
+
+            if (y != 0 && allowed && this->drawTaken[static_cast<std::size_t>(first)] != 1)
+            {
+                break;
+            }
+        }
+
+        i32 lowest = first < Units ? this->unitY[static_cast<std::size_t>(first)] : this->darkFrames;
+        int chosen = first;
+
+        for (u32 enemy = 0; enemy < this->enemyCount; ++enemy)
+        {
+            const auto unit = static_cast<std::size_t>(enemy);
+            const bool allowed = actingLeft >= FirstRoleUnit || actingLeft == -1;
+
+            if (this->drawTaken[unit] != 1 && this->unitY[unit] < lowest && static_cast<i32>(enemy) != actingLeft &&
+                allowed)
+            {
+                lowest = this->unitY[unit];
+                chosen = static_cast<int>(enemy);
+            }
+        }
+
+        for (u32 role = FirstRoleUnit; role < this->roleCount + FirstRoleUnit; ++role)
+        {
+            const auto unit = static_cast<std::size_t>(role);
+            const bool allowed = actingLeft < FirstRoleUnit || actingLeft == -1;
+
+            if (this->drawTaken[unit] != 1 && this->unitY[unit] < lowest && static_cast<i32>(role) != actingLeft &&
+                allowed)
+            {
+                lowest = this->unitY[unit];
+                chosen = static_cast<int>(role);
+            }
+        }
+
+        if (chosen == targetLeft && at + 1 < Units)
+        {
+            this->drawOrder[static_cast<std::size_t>(at)] = targetLeft;
+            this->drawTaken[static_cast<std::size_t>(targetLeft)] = 1;
+            this->drawTaken[static_cast<std::size_t>(actingLeft)] = 1;
+            this->drawOrder[static_cast<std::size_t>(at + 1)] = actingLeft;
+            at += 2;
+            placed += 2;
+            actingLeft = -1;
+            targetLeft = -1;
+            continue;
+        }
+
+        this->drawOrder[static_cast<std::size_t>(at)] = chosen;
+
+        // The original marks unit 18 past the table (over 0x00520DA4).
+        if (chosen < Units)
+        {
+            this->drawTaken[static_cast<std::size_t>(chosen)] = 1;
+        }
+
+        ++placed;
+        ++at;
+    }
+
+    this->drawTaken.fill(0);
+    this->unk53C040 = 1;
+
+    if (std::find(this->drawOrder.begin(), this->drawOrder.end(), Units) != this->drawOrder.end())
+    {
+        this->SortDrawOrder();
+    }
+}
 }  // namespace swd3

@@ -10,6 +10,8 @@ constexpr int kHitPanCentre = 0x140;  // the sound pans right from the middle of
 constexpr int kHitPan = 0x10;
 constexpr i8 kHitFadeEnd = -0x20;
 constexpr i8 kHitFadeStep = 4;
+constexpr i16 kPushStart = 0x1A4;  // the push of a hit, halved each call
+constexpr i16 kSlideStep = 0x1E;   // the units slide back by at most this a call
 
 }  // namespace
 
@@ -211,4 +213,75 @@ int Game::WalkLine(i32& x, i32& y, int fromX, int fromY, int toX, int toY, int s
     return 1;
 }
 
+// swd32.exe 0x0045BD90: the push of a hit across the field, every unit moved by `shake` (the background too): while
+// the push (unk4A7638) lasts it halves each call, the half added to the pushed distance (unk4FDF78) and moved away
+// from the side (left unless mirrored); 0 while the units move. Once it is spent and the hit act is past picture
+// unk53AE7A, the units slide back by up to kSlideStep a call and the field darkens by tint steps; 1 then (`restart`
+// 1 sets the push again).
+int Game::PushUnits(u16 picture, int restart)
+{
+    BattleState& battle = this->battleState;
+    ++battle.unk53BDE8;
+
+    if (battle.unk4A7638 > 0)
+    {
+        battle.unk53BDE8 = 0;
+        const auto half = static_cast<i16>(battle.unk4A7638 / 2);
+        battle.unk4FDF78 = static_cast<u16>(battle.unk4FDF78 + half);
+        battle.unk4A7638 = half;
+        battle.shake = battle.mirrored != 0 ? half : -half;
+    }
+
+    if (battle.shake != 0)
+    {
+        this->ShiftUnits(battle.shake);
+        return 0;
+    }
+
+    if (static_cast<int>(picture) > battle.unk53AE7A)
+    {
+        const auto pushed = static_cast<i16>(battle.unk4FDF78);
+
+        if (pushed > 0)
+        {
+            const i16 step = pushed < kSlideStep ? pushed : kSlideStep;
+            battle.unk4FDF78 = static_cast<u16>(pushed - step);
+            battle.shake = battle.mirrored != 0 ? -step : step;
+            this->ShiftUnits(battle.shake);
+        }
+
+        battle.darkenByTint = 1;
+    }
+
+    if (restart == 1)
+    {
+        battle.unk4A7638 = kPushStart;
+    }
+
+    return 1;
+}
+
+// The moves of PushUnits (inline twice in the original): the roles, then the enemies, moved across by `shift`.
+void Game::ShiftUnits(int shift)
+{
+    BattleState& battle = this->battleState;
+
+    auto move = [shift](BattleUnit& unit)
+    {
+        u16 x = 0;
+        u16 y = 0;
+        unit.GetPosition(x, y);
+        unit.SetPosition(static_cast<i16>(x + shift), static_cast<i16>(y));
+    };
+
+    for (i16 index = 0; index < static_cast<i32>(battle.roleCount); ++index)
+    {
+        move(this->battleRoles[static_cast<std::size_t>(index)]);
+    }
+
+    for (i16 index = 0; index < static_cast<i32>(battle.enemyCount); ++index)
+    {
+        move(this->battleEnemies[static_cast<std::size_t>(index)]);
+    }
+}
 }  // namespace swd3

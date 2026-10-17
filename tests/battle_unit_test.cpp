@@ -753,3 +753,78 @@ TEST_CASE("script object: a moved ripple stays inside the screen copy")
     CHECK_EQ(ripple.left, kPitch - kGrid - 1);
     CHECK_EQ(ripple.top, kLines - kGrid - 1);
 }
+
+TEST_CASE("battle state: the acting unit is drawn right after its target")
+{
+    constexpr std::size_t kFirstEnemy = 0;
+    constexpr std::size_t kTargetEnemy = 1;
+    constexpr std::size_t kActingRole = swd3::BattleState::FirstRoleUnit;
+    constexpr std::size_t kOtherRole = swd3::BattleState::FirstRoleUnit + 1;
+    constexpr swd3::i32 kTop = 100;
+    constexpr swd3::i32 kActingY = 150;
+    constexpr swd3::i32 kTargetY = 200;
+    constexpr swd3::i32 kBottom = 250;
+    constexpr swd3::u32 kTwo = 2;
+    swd3::BattleState state;
+    state.enemyCount = kTwo;
+    state.roleCount = kTwo;
+    state.unitY[kFirstEnemy] = kTop;
+    state.unitY[kTargetEnemy] = kTargetY;
+    state.unitY[kActingRole] = kActingY;
+    state.unitY[kOtherRole] = kBottom;
+    state.SortDrawOrderAround(static_cast<swd3::i32>(kActingRole), static_cast<swd3::i32>(kTargetEnemy));
+    CHECK_EQ(state.drawOrder[0], static_cast<swd3::i32>(kFirstEnemy));
+    CHECK_EQ(state.drawOrder[1], static_cast<swd3::i32>(kTargetEnemy));
+    CHECK_EQ(state.drawOrder[2], static_cast<swd3::i32>(kActingRole));
+    CHECK_EQ(state.drawOrder[3], static_cast<swd3::i32>(kOtherRole));
+    CHECK_EQ(state.unk53C040, 1);
+    CHECK(
+        std::all_of(
+            state.drawTaken.begin(),
+            state.drawTaken.end(),
+            [](swd3::i32 taken)
+            {
+                return taken == 0;
+            }
+        )
+    );
+}
+
+TEST_CASE("battle state: with no unit left the draw order reads the dword after the y table")
+{
+    constexpr std::size_t kTargetEnemy = 0;
+    constexpr std::size_t kActingRole = swd3::BattleState::FirstRoleUnit;
+    constexpr swd3::i32 kActingY = 100;
+    constexpr swd3::i32 kDarkFrames = 5;  // above the target's y of 0: the target is taken
+    swd3::BattleState state;
+    state.enemyCount = 1;
+    state.roleCount = 1;
+    state.unitY[kActingRole] = kActingY;
+    state.darkFrames = kDarkFrames;
+    state.SortDrawOrderAround(static_cast<swd3::i32>(kActingRole), static_cast<swd3::i32>(kTargetEnemy));
+    CHECK_EQ(state.drawOrder[0], static_cast<swd3::i32>(kTargetEnemy));
+    CHECK_EQ(state.drawOrder[1], static_cast<swd3::i32>(kActingRole));
+    state.drawOrder.fill(0);
+    state.darkFrames = 0;
+    state.SortDrawOrderAround(static_cast<swd3::i32>(kActingRole), static_cast<swd3::i32>(kTargetEnemy));
+    CHECK_EQ(state.drawOrder[0], static_cast<swd3::i32>(kActingRole));
+}
+
+TEST_CASE("battle state: the initial turn and push values match swd32.exe")
+{
+    constexpr swd3::u32 kTurnEnemyAt = 0x004A754C;
+    constexpr swd3::u32 kAimedEnemyAt = 0x004A7626;
+    constexpr swd3::u32 kPushAt = 0x004A7638;
+    const std::vector<swd3::u8> exe = swd3test::ReadGameFile("swd32.exe");
+
+    if (exe.empty())
+    {
+        std::printf("  (swd32.exe not found, skipped)\n");
+        return;
+    }
+
+    const swd3::BattleState state;
+    CHECK(swd3test::SameTable(exe, kTurnEnemyAt, std::array<swd3::i32, 1>{state.unk4A754C}));
+    CHECK(swd3test::SameTable(exe, kAimedEnemyAt, std::array<swd3::u16, 1>{state.unk4A7626}));
+    CHECK(swd3test::SameTable(exe, kPushAt, std::array<swd3::i16, 1>{state.unk4A7638}));
+}

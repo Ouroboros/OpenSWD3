@@ -4,7 +4,7 @@
 0x0049E0C0	Scene::unk49E0C0	i32	src/game/scene.h:373	
 0x0049E0C4	GameState::roleCount	i32	src/game/game_state.h:232	roles in use
 0x0049E148	Party::names	std::array<Name, Roles>	src/party/party.h:98	
-0x0049E1C8	Game::frameTime	i32	src/game/game.h:290	
+0x0049E1C8	Game::frameTime	i32	src/game/game.h:293	
 0x0049FAC4	Game::WindowTitle	static constexpr std::u8string_view	src/game/game.h:73	
 0x0049FEA4	Game::UnknownPlace	static constexpr std::u8string_view	src/game/game.h:116	
 0x004A0F5C	Game::DirectInputFailed	static constexpr std::u8string_view	src/game/game.h:75	
@@ -17,17 +17,18 @@
 0x004A6AAC	Menu::tabGlow	std::array<i8, Tabs>	src/menu/menu.h:154	
 0x004A6AB0	Menu::lastPage	i32	src/menu/menu.h:152	
 0x004A74C8	BattleHud::coinDelay	u32	src/battle/battle_hud.h:96	low word: the delay, high word: the countdown
-0x004A74CC	BattleState::gaugeFull	i32	src/battle/battle_state.h:106	the full action gauge
-0x004A754C	BattleState::unk4A754C	i32	src/battle/battle_state.h:278	the enemy a role turn aims at, 1-based
-0x004A7574	BattleState::unk4A7574	i32	src/battle/battle_state.h:231	unk53BD0C when the darkened copies were made
-0x004A75C8	BattleState::partyRoles	std::array<i32, Party::Roles>	src/battle/battle_state.h:135	the party role of each battle role
-0x004A75FC	BattleState::unk4A75FC	u16	src/battle/battle_state.h:220	
-0x004A75FE	BattleState::flashLevel	i8	src/battle/battle_state.h:221	tint steps of the flash
-0x004A75FF	BattleState::panelGlow	u8	src/battle/battle_state.h:222	the highlight of the current role's panel; bit 7: falling
-0x004A7626	BattleState::unk4A7626	u16	src/battle/battle_state.h:279	
-0x004A762A	BattleState::timingWindow	u16	src/battle/battle_state.h:142	
-0x004A7630	BattleState::unk4A7630	i16	src/battle/battle_state.h:215	compared with unk53AE70
-0x004A7632	BattleState::darkCopyTint	std::array<i16, 3>	src/battle/battle_state.h:107	the darkRed, darkGreen, darkBlue of the copies
+0x004A74CC	BattleState::gaugeFull	i32	src/battle/battle_state.h:107	the full action gauge
+0x004A754C	BattleState::unk4A754C	i32	src/battle/battle_state.h:279	the enemy a role turn aims at, 1-based
+0x004A7574	BattleState::unk4A7574	i32	src/battle/battle_state.h:232	unk53BD0C when the darkened copies were made
+0x004A75C8	BattleState::partyRoles	std::array<i32, Party::Roles>	src/battle/battle_state.h:136	the party role of each battle role
+0x004A75FC	BattleState::unk4A75FC	u16	src/battle/battle_state.h:221	
+0x004A75FE	BattleState::flashLevel	i8	src/battle/battle_state.h:222	tint steps of the flash
+0x004A75FF	BattleState::panelGlow	u8	src/battle/battle_state.h:223	the highlight of the current role's panel; bit 7: falling
+0x004A7626	BattleState::unk4A7626	u16	src/battle/battle_state.h:280	
+0x004A762A	BattleState::timingWindow	u16	src/battle/battle_state.h:143	
+0x004A7630	BattleState::unk4A7630	i16	src/battle/battle_state.h:216	compared with unk53AE70
+0x004A7632	BattleState::darkCopyTint	std::array<i16, 3>	src/battle/battle_state.h:108	the darkRed, darkGreen, darkBlue of the copies
+0x004A7638	BattleState::unk4A7638	i16	src/battle/battle_state.h:298	the push, halved each frame
 0x004A7B5C	FightTalk::enabled	i32	src/battle/fight_talk.h:22	
 0x004A9120	Scene::unk4A9120	std::array<ActState, 4>	src/game/scene.h:329	
 0x004A9380	MapMovie::file	File	src/map/field_view.h:94	
@@ -36,14 +37,14 @@
 0x004A93E4	Scene::unk4A93E4	i32	src/game/scene.h:346	the camera before the quake
 0x004A93E8	Scene::unk4A93E8	ActState	src/game/scene.h:330	
 0x004A9480	Scene::panStepX	i32	src/game/scene.h:350	the step of the pan across
-0x004A9484	Game::unk4A9484	i32	src/game/game.h:272	
-0x004A9488	Game::unk4A9488	i32	src/game/game.h:259	the step of the controlled role alone across
-0x004A948C	Game::unk4A948C	i32	src/game/game.h:260	and down
+0x004A9484	Game::unk4A9484	i32	src/game/game.h:275	
+0x004A9488	Game::unk4A9488	i32	src/game/game.h:262	the step of the controlled role alone across
+0x004A948C	Game::unk4A948C	i32	src/game/game.h:263	and down
 0x004A9490	Party::skills	std::array<std::unique_ptr<ItemNode>, Roles>	src/party/party.h:91	each headed by "無"
-0x004A94A0	Game::frameCounter	i32	src/game/game.h:312	
+0x004A94A0	Game::frameCounter	i32	src/game/game.h:315	
 0x004A94A4	Scene::shakeFrames	i32	src/game/scene.h:344	
 0x004A94A8	Scene::spotlightTargetX	i32	src/game/scene.h:374	where the spotlight moves to
-0x004A94AC	Game::battleRequest	i32	src/game/game.h:274	a battle to start (its number in the low word)
+0x004A94AC	Game::battleRequest	i32	src/game/game.h:277	a battle to start (its number in the low word)
 0x004A94B0	Scene::unk4A94B0	u32	src/game/scene.h:331	
 0x004A94BC	Settings::installDirectory	std::string	src/config/config.h:83	the game directory with a trailing backslash
 0x004A98C0	Scene::panDown	i32	src/game/scene.h:349	and down
@@ -60,16 +61,16 @@
 0x004A99F0	Scene::panAcross	i32	src/game/scene.h:348	the pan still to go across (pixels)
 0x004A99F4	Talk::advance	i32	src/talk/talk.h:146	the text is to move on (a key or a click)
 0x004A99F8	Talk::unit	i32	src/talk/talk.h:145	the text cell in pixels
-0x004A99FC	Game::unk4A99FC	i32	src/game/game.h:291	
+0x004A99FC	Game::unk4A99FC	i32	src/game/game.h:294	
 0x004A9A04	Field::rows	std::array<std::vector<Role*>, Layers>	src/map/field.h:103	the roles by row, RowMargin rows above the map
-0x004A9A10	Game::currentMap	i32	src/game/game.h:277	the number of the map shown
+0x004A9A10	Game::currentMap	i32	src/game/game.h:280	the number of the map shown
 0x004A9A18	Scene::triggers	MapTrigger	src/game/scene.h:427	(the list from +0x14)
 0x004A9A30	Scene::unk4A9A30	ActState	src/game/scene.h:328	
 0x004A9ACC	Slot::unitPath	std::string	src/map/map_cache.h:58	
 0x004A9ECC	Settings::textSpeed	i32	src/config/config.h:89	0 (fastest) .. 4 (slow)
-0x004A9ED0	Game::smallFont	TextFont	src/game/game.h:226	(12 pixels)
+0x004A9ED0	Game::smallFont	TextFont	src/game/game.h:229	(12 pixels)
 0x004AAEC8	Scene::lightningCount	i16	src/game/scene.h:388	bolts wanted (up to 8)
-0x004AAECC	Game::frameStart	u32	src/game/game.h:284	
+0x004AAECC	Game::frameStart	u32	src/game/game.h:287	
 0x004AB2D0	GameState::walkSpeed	i32	src/game/game_state.h:235	the pixels of a step of the camera
 0x004AB2F4	Field::overlays	std::unique_ptr<MapOverlay>	src/map/field.h:102	
 0x004AB2F8	Scene::heatCounts	std::array<i16, 0x40>	src/game/scene.h:412	lines
@@ -86,18 +87,18 @@
 0x004AB984	Field::cameraTop	i32	src/map/field.h:110	
 0x004AB988	Field::cameraRight	i32	src/map/field.h:111	
 0x004AB98C	Field::cameraBottom	i32	src/map/field.h:112	
-0x004AB990	Game::unk4AB990	i32	src/game/game.h:278	
+0x004AB990	Game::unk4AB990	i32	src/game/game.h:281	
 0x004AB994	Scene::unk4AB994	i32	src/game/scene.h:376	
 0x004AB998	BattleMessages::messageFont	TextFont&	src/battle/battle_message.h:161	(20 pixels)
-0x004AB998	Game::largeFont	TextFont	src/game/game.h:224	(20 pixels)
+0x004AB998	Game::largeFont	TextFont	src/game/game.h:227	(20 pixels)
 0x004AC9B8	Scene::objects	std::unique_ptr<ScriptObject>	src/game/scene.h:434	
 0x004AC9BC	Scene::heatOffsets	std::array<i32, 0x30>	src/game/scene.h:413	pixels
 0x004ACAC0	Field::regions	MapRegion	src/map/field.h:101	
 0x004ACAF8	Scene::unk4ACAF8	ActState	src/game/scene.h:333	
-0x004ACB90	Game::deviceFlags	u32	src/game/game.h:309	bit 1: DirectInput failed
+0x004ACB90	Game::deviceFlags	u32	src/game/game.h:312	bit 1: DirectInput failed
 0x004ACB94	GameDatabases::pathData	const u8*	src/game/databases.h:29	the mapped path.dat
 0x004ACB98	Scene::unk4ACB98	i32	src/game/scene.h:377	
-0x004ACBA0	Game::offscreen	std::unique_ptr<Surface>	src/game/game.h:303	the frame drawn by the game
+0x004ACBA0	Game::offscreen	std::unique_ptr<Surface>	src/game/game.h:306	the frame drawn by the game
 0x004ACBBC	MapMovie::paletteIndex	u16	src/map/field_view.h:102	
 0x004ACBC0	Scene::viewWidth	i32	src/game/scene.h:334	
 0x004ACBC4	Scene::viewHeight	i32	src/game/scene.h:335	
@@ -124,8 +125,8 @@
 0x004ACE6C	Controls::lastPointerY	i32	src/input/controls.h:70	
 0x004ACE70	Scene::shake	std::array<i16, 0x40>	src/game/scene.h:342	camera offsets of the quake in pairs, ended by ShakeEnd
 0x004ACEF0	Scene::weatherAction	u16	src/game/scene.h:387	the first action of the weather particles in the effect act
-0x004ACEF4	Game::unk4ACEF4	i32	src/game/game.h:279	
-0x004ACEF8	Game::cdDriveCount	i32	src/game/game.h:306	
+0x004ACEF4	Game::unk4ACEF4	i32	src/game/game.h:282	
+0x004ACEF8	Game::cdDriveCount	i32	src/game/game.h:309	
 0x004ACF48	Scene::talkWindows	std::unique_ptr<TalkWindow>	src/game/scene.h:352	
 0x004ACF50	Party::battleBlocks	std::array<RoleBattleBlock, Roles>	src/party/party.h:104	
 0x004AD0D0	Scene::shakeHold	i32	src/game/scene.h:345	
@@ -140,17 +141,17 @@
 0x004B7380	AudioManager::musicFadeMode	int	src/audio/audio_manager.h:79	
 0x004B7384	Settings::keys	std::array<i32, Keys>	src/config/config.h:93	DirectInput scan codes of the key slots
 0x004B7404	Field::palette	std::vector<u16>	src/map/field.h:113	the colours of an 8-bit map
-0x004B7408	Game::loadingAct	ActState	src/game/game.h:300	
+0x004B7408	Game::loadingAct	ActState	src/game/game.h:303	
 0x004B74A0	GameDatabases::maps	File	src/game/databases.h:27	
 0x004B74F0	AudioManager::musicFadeLength	int	src/audio/audio_manager.h:80	
 0x004B74F4	Scene::unk4B74F4	std::optional<std::string>	src/game/scene.h:355	a name of up to 0x33 bytes (flag 0x4E)
-0x004B74F8	Game::cdDrives	std::array<u8, 0x20>	src/game/game.h:305	the CD-ROM drive letters, 0xFF after the last
-0x004B7518	Game::unk4B7518	i32	src/game/game.h:257	the step of the camera and the controlled role across (-1, 0, 1)
+0x004B74F8	Game::cdDrives	std::array<u8, 0x20>	src/game/game.h:308	the CD-ROM drive letters, 0xFF after the last
+0x004B7518	Game::unk4B7518	i32	src/game/game.h:260	the step of the camera and the controlled role across (-1, 0, 1)
 0x004B751C	Scene::unk4B751C	std::optional<std::string>	src/game/scene.h:356	(flag 0x4D)
 0x004B7520	Scene::bolts	std::array<Streak, 0x40>	src/game/scene.h:391	
-0x004B7920	Game::unk4B7920	i32	src/game/game.h:258	and down
+0x004B7920	Game::unk4B7920	i32	src/game/game.h:261	and down
 0x004B7924	MapMovie::buffer	std::vector<u8>	src/map/field_view.h:98	the packed chunk (also a saved screen)
-0x004B7928	Game::unk4B7928	std::vector<u16>	src/game/game.h:276	the words of talk command 0x85 for menu 2, ended by 0
+0x004B7928	Game::unk4B7928	std::vector<u16>	src/game/game.h:279	the words of talk command 0x85 for menu 2, ended by 0
 0x004B7930	BlockingMap::width	i32	src/map/blocking_map.h:39	tiles
 0x004B7930	GameState::map	MapHeader	src/game/game_state.h:233	
 0x004B7944	Scene::unk4B7944	i32	src/game/scene.h:392	
@@ -158,23 +159,23 @@
 0x004B7998	Scene::trailY	std::array<i32, 0x20>	src/game/scene.h:393	the places of the leader, the latest first
 0x004B7A18	Scene::trailX	std::array<i32, 0x20>	src/game/scene.h:395	
 0x004B7A98	Scene::unk4B7A98	i32	src/game/scene.h:396	
-0x004B7A9C	Game::systemFlags	u32	src/game/game.h:270	SystemFlag bits
+0x004B7A9C	Game::systemFlags	u32	src/game/game.h:273	SystemFlag bits
 0x004B7AA0	MapMovie::options	u32	src/map/field_view.h:108	bit 0: fade out darkening, bit 1: no fade in, bit 4: paused
 0x004B7AC8	MapMovie::frameIndex	i32	src/map/field_view.h:106	below 1 the fade in, from 10000 the fade out
 0x004B7ACC	Settings::cacheSize	i32	src/config/config.h:88	map cache in MB: 60, 100 or 140
-0x004B7BC4	Game::unk4B7BC4	i32	src/game/game.h:280	
+0x004B7BC4	Game::unk4B7BC4	i32	src/game/game.h:283	
 0x004B7BCC	GameState::frameInterval	i32	src/game/game_state.h:236	milliseconds between the frames of the main loop
 0x004B7C70	Scene::animationsA	std::unique_ptr<ScriptAnimation>	src/game/scene.h:432	
 0x004B7C74	Scene::musicTunes	std::array<i32, MusicSlots>	src/game/scene.h:357	by MusicSlot
 0x004B7C8C	Scene::unk4B7C8C	std::array<i32, 8>	src/game/scene.h:397	the roles following the leader
-0x004B7CAC	Game::active	i32	src/game/game.h:310	1 once the display runs
+0x004B7CAC	Game::active	i32	src/game/game.h:313	1 once the display runs
 0x004B7EB0	Scene::shakeIndex	i32	src/game/scene.h:343	
 0x004B7EB4	Scene::unk4B7EB4	i32	src/game/scene.h:398	
 0x004B82F8	Settings::cdRoot	std::string	src/config/config.h:84	the first CD-ROM drive, "d:\"
 0x004B86F8	Scene::leaves	std::array<MapParticle, 4>	src/game/scene.h:399	(x MapParticle::Unplaced: to be placed)
 0x004B8738	MapMovie::frame	std::vector<u8>	src/map/field_view.h:97	the unpacked frame
 0x004B873C	Scene::unk4B873C	i32	src/game/scene.h:400	
-0x004B8740	Game::menuState	u32	src/game/game.h:313	bit 31: entered, low bits the menu
+0x004B8740	Game::menuState	u32	src/game/game.h:316	bit 31: entered, low bits the menu
 0x004B8860	GameDatabases::script	std::vector<u8>	src/game/databases.h:32	0x8000 bytes: the script of the running event
 0x004B8868	Slot::lmf	File	src/map/map_cache.h:55	HUGE.lmf
 0x004B88B8	MapMovie::saved	i32	src/map/field_view.h:107	the screen is saved in the buffer
@@ -197,12 +198,12 @@
 0x004BAB80	Scene::fireflyCount	i16	src/game/scene.h:408	(up to 1)
 0x004BAB9C	Scene::effects	std::unique_ptr<ScriptEffect>	src/game/scene.h:429	
 0x004BABA0	Scene::unk4BABA0	i32	src/game/scene.h:419	followers in unk4B7C8C
-0x004BABA4	Game::inactive	i32	src/game/game.h:311	
+0x004BABA4	Game::inactive	i32	src/game/game.h:314	
 0x004BABA8	GameState::roles	std::array<Role, Roles>	src/game/game_state.h:230	
 0x004C83A8	Scene::unk4C83A8	ActState	src/game/scene.h:359	
-0x004C8444	Game::unk4C8444	u32	src/game/game.h:286	
-0x004C8448	Game::unk4C8448	u32	src/game/game.h:287	the time the last frame took
-0x004C844C	Game::unk4C844C	u32	src/game/game.h:285	
+0x004C8444	Game::unk4C8444	u32	src/game/game.h:289	
+0x004C8448	Game::unk4C8448	u32	src/game/game.h:290	the time the last frame took
+0x004C844C	Game::unk4C844C	u32	src/game/game.h:288	
 0x004C8AD0	Party::equipment	std::array<std::unique_ptr<ItemNode>, Roles * SlotsPerRole>	src/party/party.h:92	
 0x004C8BD4	Scene::unk4C8BD4	u16	src/game/scene.h:361	the bytes of maps.dat's table 1
 0x004C8BD8	Scene::unk4C8BD8	i32	src/game/scene.h:420	
@@ -230,15 +231,15 @@
 0x004C9A10	GameDatabases::mapsData	std::vector<u8>	src/game/databases.h:31	maps.dat from offset 0x200
 0x004C9A18	Scene::screenFlags	i32	src/game/scene.h:422	ScreenFlag bits
 0x004C9A20	Scene::encounterSteps	i32	src/game/scene.h:423	steps on the map since the last battle (bit 31 aside)
-0x004C9A24	Game::counterAlpha	i32	src/game/game.h:271	
+0x004C9A24	Game::counterAlpha	i32	src/game/game.h:274	
 0x004C9A28	BattleMessages::panelFont	TextFont&	src/battle/battle_message.h:160	(16 pixels)
-0x004C9A28	Game::mediumFont	TextFont	src/game/game.h:225	(16 pixels)
+0x004C9A28	Game::mediumFont	TextFont	src/game/game.h:228	(16 pixels)
 0x004CAA28	Slot::unitFile	File	src/map/map_cache.h:56	the mapped unit
 0x004CAA78	Scene::unk4CAA78	std::array<ActState, 4>	src/game/scene.h:365	
-0x004CACD8	Game::textInput	std::unique_ptr<TextInput>	src/game/game.h:264	the text box the keyboard goes to (with flag 0x50)
+0x004CACD8	Game::textInput	std::unique_ptr<TextInput>	src/game/game.h:267	the text box the keyboard goes to (with flag 0x50)
 0x004CACE0	Scene::marks	std::array<RoleMark, 4>	src/game/scene.h:428	
 0x004CAD20	Scene::unk4CAD20	i32	src/game/scene.h:366	
-0x004CAD24	Game::unk4CAD24	i32	src/game/game.h:292	
+0x004CAD24	Game::unk4CAD24	i32	src/game/game.h:295	
 0x004CAD28	MapMovie::chunks	MovieChunk	src/map/field_view.h:95	the list head
 0x004CADA0	Scene::pointerPageRole	Role	src/game/scene.h:367	(action 0xE)
 0x004CADE0	Talk::nextAct	ActState	src/talk/talk.h:150	the mark of a full page
@@ -250,13 +251,13 @@
 0x004CAE90	Scene::heatFrame	u16	src/game/scene.h:414	
 0x004CAE94	Controls::mouseSuppressed	i32	src/input/controls.h:67	polls left with the left button ignored
 0x004CAE98	Settings::debugMode	i32	src/config/config.h:91	debug hot keys
-0x004CAE9C	Game::debugText	i32	src/game/game.h:288	the debug lines (debug key F1)
-0x004CAEA0	Game::debugCells	i32	src/game/game.h:289	the debug cell marks (debug key F2)
-0x004CAEB0	Game::storyState	i32	src/game/game.h:315	
-0x004CAEB4	Game::inBattle	i32	src/game/game.h:275	a battle from the map runs
+0x004CAE9C	Game::debugText	i32	src/game/game.h:291	the debug lines (debug key F1)
+0x004CAEA0	Game::debugCells	i32	src/game/game.h:292	the debug cell marks (debug key F2)
+0x004CAEB0	Game::storyState	i32	src/game/game.h:318	
+0x004CAEB4	Game::inBattle	i32	src/game/game.h:278	a battle from the map runs
 0x004CAEB8	Talk::skipAll	i32	src/talk/talk.h:147	
-0x004CAEBC	Game::unk4CAEBC	i32	src/game/game.h:316	
-0x004CAEC0	Game::unk4CAEC0	i32	src/game/game.h:317	
+0x004CAEBC	Game::unk4CAEBC	i32	src/game/game.h:319	
+0x004CAEC0	Game::unk4CAEC0	i32	src/game/game.h:320	
 0x004CB1F0	PathNodePool::unused	i32	src/role/path_finder.h:47	
 0x004CB1F4	PathNodePool::free	i32	src/role/path_finder.h:48	
 0x004CB1F8	PathNodePool::peak	i32	src/role/path_finder.h:49	
@@ -274,27 +275,27 @@
 0x004CB234	RoleControl::idleFrames	i32	src/role/role_control.h:45	frames standing (idle action 0x34 after 0x80)
 0x004CB238	RoleControl::stepUp	i32	src/role/role_control.h:42	
 0x004CB23C	Controls::lastPoll	i32	src/input/controls.h:66	
-0x004CB240	Game::unk4CB240	i32	src/game/game.h:269	
+0x004CB240	Game::unk4CB240	i32	src/game/game.h:272	
 0x004CB248	SaveSlots::acts	std::array<std::array<ActState, ActsPerSlot>, Visible>	src/save/save_slots.h:71	
 0x004CB968	SaveSlots::previews	std::array<SavePreview, Visible>	src/save/save_slots.h:72	
-0x004CC160	Game::unk4CC160	u8	src/game/game.h:266	
-0x004CC161	Game::unk4CC161	u8	src/game/game.h:267	
-0x004CC200	Game::unk4CC200	ActState	src/game/game.h:265	
-0x004CC298	Game::unk4CC298	i32	src/game/game.h:268	
+0x004CC160	Game::unk4CC160	u8	src/game/game.h:269	
+0x004CC161	Game::unk4CC161	u8	src/game/game.h:270	
+0x004CC200	Game::unk4CC200	ActState	src/game/game.h:268	
+0x004CC298	Game::unk4CC298	i32	src/game/game.h:271	
 0x004CC2A0	SaveSlots::newest	i32	src/save/save_slots.h:73	the slot written last
-0x004CC2AC	Game::running	i32	src/game/game.h:282	frames run (F8 toggles)
-0x004CC2B0	Game::lastFrame	u32	src/game/game.h:283	
-0x004CC2B4	Game::loadingGreen	i32	src/game/game.h:297	
-0x004CC2B8	Game::loadingPercent	i32	src/game/game.h:293	
-0x004CC2BC	Game::loadingRed	i32	src/game/game.h:296	
-0x004CC2CC	Game::loadingBlue	i32	src/game/game.h:298	
-0x004CC2D0	Game::loadingRunner	i32	src/game/game.h:295	the act running along the bar (1 or 2)
+0x004CC2AC	Game::running	i32	src/game/game.h:285	frames run (F8 toggles)
+0x004CC2B0	Game::lastFrame	u32	src/game/game.h:286	
+0x004CC2B4	Game::loadingGreen	i32	src/game/game.h:300	
+0x004CC2B8	Game::loadingPercent	i32	src/game/game.h:296	
+0x004CC2BC	Game::loadingRed	i32	src/game/game.h:299	
+0x004CC2CC	Game::loadingBlue	i32	src/game/game.h:301	
+0x004CC2D0	Game::loadingRunner	i32	src/game/game.h:298	the act running along the bar (1 or 2)
 0x004CC2D4	Talk::marker	MarchingRect	src/talk/talk.h:151	around the chosen choice
 0x004CC2DC	Scene::unk4CC2DC	i32	src/game/scene.h:425	
-0x004CC2E0	Game::lastPointerAction	i32	src/game/game.h:261	
+0x004CC2E0	Game::lastPointerAction	i32	src/game/game.h:264	
 0x004CC2E4	FieldView::tileX	i32	src/map/field_view.h:165	the screen x of the first visible tile column
 0x004CC2E8	FieldView::tileY	i32	src/map/field_view.h:166	
-0x004CD76C	Game::drawSurface	u16*	src/game/game.h:304	the locked frame (the target of the painter and the fonts)
+0x004CD76C	Game::drawSurface	u16*	src/game/game.h:307	the locked frame (the target of the painter and the fonts)
 0x004CDE94	Item::lit	std::array<i8, Items>	src/launcher/launcher.h:75	(4 bytes), 0x004CDE98: SW_SHOW (5) under the mouse
 0x004CDE99	Item::litBefore	std::array<i8, Items>	src/launcher/launcher.h:76	(4 bytes), 0x004CDE9D
 0x004CDEA0	Field::sectionRoles	i32	src/map/field.h:108	
@@ -319,7 +320,7 @@
 0x004FB970	Menu::background	ActState	src/menu/menu.h:157	
 0x004FBA10	Menu::pageUp	Handler	src/menu/menu.h:126	
 0x004FBA18	Menu::unk4FBA18	ActState	src/menu/menu.h:160	
-0x004FBAB0	Game::menuMode	i32	src/game/game.h:314	
+0x004FBAB0	Game::menuMode	i32	src/game/game.h:317	
 0x004FBAB8	Menu::unk4FBAB8	u16	src/menu/menu.h:140	
 0x004FBAC0	Menu::left	Handler	src/menu/menu.h:127	
 0x004FBAC4	Menu::pointerX	i32	src/menu/menu.h:147	the pointer of the last frame
@@ -368,11 +369,11 @@
 0x004FD2CC	Menu::sampleLength	i32	src/menu/menu.h:181	characters of the text speed sample shown
 0x004FD2D0	Menu::enteredNames	std::vector<u8>	src/menu/menu.h:182	the two names typed (0x20 bytes)
 0x004FD2D4	Menu::sampleDelay	i32	src/menu/menu.h:183	
-0x004FD3B0	BattleState::listBCount	i32	src/battle/battle_state.h:101	entries of listB, at most 13
-0x004FD4C0	BattleState::listB	ItemLink	src/battle/battle_state.h:102	
-0x004FD578	BattleState::mode	i32	src/battle/battle_state.h:103	bits 0..1: the shop and sell modes of the item lists
-0x004FD580	BattleState::items	ItemLink	src/battle/battle_state.h:104	the sorted item list
-0x004FD588	BattleState::itemCursor	u16	src/battle/battle_state.h:105	
+0x004FD3B0	BattleState::listBCount	i32	src/battle/battle_state.h:102	entries of listB, at most 13
+0x004FD4C0	BattleState::listB	ItemLink	src/battle/battle_state.h:103	
+0x004FD578	BattleState::mode	i32	src/battle/battle_state.h:104	bits 0..1: the shop and sell modes of the item lists
+0x004FD580	BattleState::items	ItemLink	src/battle/battle_state.h:105	the sorted item list
+0x004FD588	BattleState::itemCursor	u16	src/battle/battle_state.h:106	
 0x004FD638	BattleHud::scrollAct	ActState	src/battle/battle_hud.h:72	shared by the scroll bar and the coin toss
 0x004FD6D0	BattleHud::effectAct	ActState	src/battle/battle_hud.h:73	
 0x004FD768	BattleHud::timingCounter	i32	src/battle/battle_hud.h:74	low word: the needle * 2 (0x8000 when done)
@@ -397,175 +398,181 @@
 0x004FDD10	BattleHud::arrowActs	std::array<ActState, 4>	src/battle/battle_hud.h:93	
 0x004FDF70	BattleHud::coinFrames	i32	src/battle/battle_hud.h:94	
 0x004FDF74	BattleHud::coinState	u32	src/battle/battle_hud.h:95	low word: the side, high word: the wins
-0x004FDF78	BattleState::unk4FDF78	u16	src/battle/battle_state.h:255	
-0x004FDF7A	BattleState::staminaDamage	i16	src/battle/battle_state.h:256	
-0x004FDF80	BattleState::guestUsed	std::array<u8, Guests>	src/battle/battle_state.h:137	
-0x004FDF94	BattleState::unk4FDF94	std::array<u16, Units>	src/battle/battle_state.h:290	the calls of WalkLine
-0x004FDFA8	BattleState::backgroundAnimation	BattleAnimation	src/battle/battle_state.h:130	
-0x004FE5CC	BattleState::unk4FE5CC	i32	src/battle/battle_state.h:172	
-0x004FE5D0	BattleState::unk4FE5D0	u16	src/battle/battle_state.h:174	
-0x004FE5D4	BattleState::unk4FE5D4	std::array<i32, 0xA>	src/battle/battle_state.h:170	
-0x004FE600	BattleState::unk4FE600	std::array<ActState, Units>	src/battle/battle_state.h:287	the follow act of each unit
-0x004FF0B0	BattleState::unk4FF0B0	i32	src/battle/battle_state.h:171	
-0x004FF0B4	BattleState::unk4FF0B4	i32	src/battle/battle_state.h:173	
-0x004FF0B8	BattleState::unk4FF0B8	i32	src/battle/battle_state.h:175	
-0x004FF0BC	BattleState::unk4FF0BC	std::array<i32, 0x12>	src/battle/battle_state.h:185	
-0x004FF104	BattleState::lightColor	u16	src/battle/battle_state.h:143	
-0x004FF168	BattleState::unk4FF168	std::array<i32, 0x14>	src/battle/battle_state.h:168	
-0x004FF1B8	BattleState::hitPointsRolling	std::array<i32, RoleUnits>	src/battle/battle_state.h:239	the change still rolling in the shown number
-0x004FF1E0	BattleState::formation	BattleFormation	src/battle/battle_state.h:127	
-0x004FF558	BattleState::panelPlaces	std::array<i32, 2 * Party::Roles>	src/battle/battle_state.h:149	the x and y of the four role panels
-0x004FF578	BattleState::unk4FF578	std::array<i32, Party::Roles>	src/battle/battle_state.h:150	
-0x004FF5B8	BattleState::file	BattleFile	src/battle/battle_state.h:126	battle.ffd
-0x005028A0	BattleState::pointerX	i32	src/battle/battle_state.h:145	
-0x005028A4	BattleState::pointerY	i32	src/battle/battle_state.h:146	
-0x005028FC	BattleState::unk5028FC	const ObjectRecord*	src/battle/battle_state.h:284	the object of the last defeated enemy
-0x00502940	BattleState::background	Picture	src/battle/battle_state.h:129	the picture of all_map2.tsw
-0x00502944	BattleState::unk502944	i32	src/battle/battle_state.h:189	
-0x00502948	BattleState::unk502948	i32	src/battle/battle_state.h:190	
-0x0050294C	BattleState::unk50294C	i32	src/battle/battle_state.h:191	
-0x00502950	BattleState::unk502950	i32	src/battle/battle_state.h:192	
-0x00502984	BattleState::unk502984	std::array<i32, 0x12>	src/battle/battle_state.h:197	
-0x005029D0	Game::battleRoles	std::array<BattleRole, BattleState::RoleUnits>	src/game/game.h:253	
-0x005201D8	BattleState::spirit	std::array<i32, RoleUnits>	src/battle/battle_state.h:156	
-0x00520200	BattleState::hitPointBars	std::array<i32, RoleUnits>	src/battle/battle_state.h:151	and its copy 0x00502914
-0x0052022C	BattleState::actionQueue	std::array<i16, QueueRows * QueueColumns>	src/battle/battle_state.h:116	4 rows of 10, taken by TakePendingAction
-0x0052027C	BattleState::hitPoints	std::array<i32, RoleUnits>	src/battle/battle_state.h:153	
-0x005202A8	BattleState::unk5202A8	std::array<ActState, Units>	src/battle/battle_state.h:286	the hit act of each unit
-0x00520D5C	BattleState::drawTaken	std::array<i32, Units>	src/battle/battle_state.h:164	
-0x00520DA8	BattleState::stamina	std::array<i32, RoleUnits>	src/battle/battle_state.h:159	
-0x00520DD0	BattleState::unk520DD0	std::array<i32, RoleUnits>	src/battle/battle_state.h:277	role units in order, a defeated one taken out
-0x00520DF8	BattleState::enemyOrder	std::array<i32, Enemies>	src/battle/battle_state.h:165	the enemies from the top down
-0x00520E18	BattleState::hitPointSteps	std::array<i32, RoleUnits>	src/battle/battle_state.h:240	
-0x00520E40	BattleState::unitY	std::array<i32, Units>	src/battle/battle_state.h:162	the y of each unit
-0x00520E88	BattleState::darkFrames	i32	src/battle/battle_state.h:228	frames counted to the next darker level
-0x00520E90	BattleState::pendingOrders	std::array<PendingOrder, RoleUnits>	src/battle/battle_state.h:179	
-0x00520F58	BattleState::nameFlashes	std::array<i32, RoleUnits>	src/battle/battle_state.h:238	
-0x00520FCC	BattleState::staminaRolling	std::array<i32, RoleUnits>	src/battle/battle_state.h:243	
-0x0052102C	BattleState::spiritRolling	std::array<i32, RoleUnits>	src/battle/battle_state.h:241	
-0x00521374	BattleState::unk521374	std::array<i8, Units>	src/battle/battle_state.h:289	the fade of unk524980
-0x00521398	BattleState::inParty	std::array<u8, Party::Roles>	src/battle/battle_state.h:136	the four roles are in the party (story flags 0x1E..)
-0x005213A0	BattleState::enemyPlaces	std::array<UnitPlacement, Enemies>	src/battle/battle_state.h:147	
-0x005214AC	BattleState::drawOrder	std::array<i32, Units>	src/battle/battle_state.h:163	the units from the top down
+0x004FDF78	BattleState::unk4FDF78	u16	src/battle/battle_state.h:256	
+0x004FDF7A	BattleState::staminaDamage	i16	src/battle/battle_state.h:257	
+0x004FDF80	BattleState::guestUsed	std::array<u8, Guests>	src/battle/battle_state.h:138	
+0x004FDF94	BattleState::unk4FDF94	std::array<u16, Units>	src/battle/battle_state.h:291	the calls of WalkLine
+0x004FDFA8	BattleState::backgroundAnimation	BattleAnimation	src/battle/battle_state.h:131	
+0x004FE5CC	BattleState::unk4FE5CC	i32	src/battle/battle_state.h:173	
+0x004FE5D0	BattleState::unk4FE5D0	u16	src/battle/battle_state.h:175	
+0x004FE5D4	BattleState::unk4FE5D4	std::array<i32, 0xA>	src/battle/battle_state.h:171	
+0x004FE600	BattleState::unk4FE600	std::array<ActState, Units>	src/battle/battle_state.h:288	the follow act of each unit
+0x004FF0B0	BattleState::unk4FF0B0	i32	src/battle/battle_state.h:172	
+0x004FF0B4	BattleState::unk4FF0B4	i32	src/battle/battle_state.h:174	
+0x004FF0B8	BattleState::unk4FF0B8	i32	src/battle/battle_state.h:176	
+0x004FF0BC	BattleState::unk4FF0BC	std::array<i32, 0x12>	src/battle/battle_state.h:186	
+0x004FF104	BattleState::lightColor	u16	src/battle/battle_state.h:144	
+0x004FF168	BattleState::unk4FF168	std::array<i32, 0x14>	src/battle/battle_state.h:169	
+0x004FF1B8	BattleState::hitPointsRolling	std::array<i32, RoleUnits>	src/battle/battle_state.h:240	the change still rolling in the shown number
+0x004FF1E0	BattleState::formation	BattleFormation	src/battle/battle_state.h:128	
+0x004FF558	BattleState::panelPlaces	std::array<i32, 2 * Party::Roles>	src/battle/battle_state.h:150	the x and y of the four role panels
+0x004FF578	BattleState::unk4FF578	std::array<i32, Party::Roles>	src/battle/battle_state.h:151	
+0x004FF5B8	BattleState::file	BattleFile	src/battle/battle_state.h:127	battle.ffd
+0x005028A0	BattleState::pointerX	i32	src/battle/battle_state.h:146	
+0x005028A4	BattleState::pointerY	i32	src/battle/battle_state.h:147	
+0x005028FC	BattleState::unk5028FC	const ObjectRecord*	src/battle/battle_state.h:285	the object of the last defeated enemy
+0x00502940	BattleState::background	Picture	src/battle/battle_state.h:130	the picture of all_map2.tsw
+0x00502944	BattleState::unk502944	i32	src/battle/battle_state.h:190	
+0x00502948	BattleState::unk502948	i32	src/battle/battle_state.h:191	
+0x0050294C	BattleState::unk50294C	i32	src/battle/battle_state.h:192	
+0x00502950	BattleState::unk502950	i32	src/battle/battle_state.h:193	
+0x00502984	BattleState::unk502984	std::array<i32, 0x12>	src/battle/battle_state.h:198	
+0x005029D0	Game::battleRoles	std::array<BattleRole, BattleState::RoleUnits>	src/game/game.h:256	
+0x005201D8	BattleState::spirit	std::array<i32, RoleUnits>	src/battle/battle_state.h:157	
+0x00520200	BattleState::hitPointBars	std::array<i32, RoleUnits>	src/battle/battle_state.h:152	and its copy 0x00502914
+0x0052022C	BattleState::actionQueue	std::array<i16, QueueRows * QueueColumns>	src/battle/battle_state.h:117	4 rows of 10, taken by TakePendingAction
+0x0052027C	BattleState::hitPoints	std::array<i32, RoleUnits>	src/battle/battle_state.h:154	
+0x005202A8	BattleState::unk5202A8	std::array<ActState, Units>	src/battle/battle_state.h:287	the hit act of each unit
+0x00520D5C	BattleState::drawTaken	std::array<i32, Units>	src/battle/battle_state.h:165	
+0x00520DA8	BattleState::stamina	std::array<i32, RoleUnits>	src/battle/battle_state.h:160	
+0x00520DD0	BattleState::unk520DD0	std::array<i32, RoleUnits>	src/battle/battle_state.h:278	role units in order, a defeated one taken out
+0x00520DF8	BattleState::enemyOrder	std::array<i32, Enemies>	src/battle/battle_state.h:166	the enemies from the top down
+0x00520E18	BattleState::hitPointSteps	std::array<i32, RoleUnits>	src/battle/battle_state.h:241	
+0x00520E40	BattleState::unitY	std::array<i32, Units>	src/battle/battle_state.h:163	the y of each unit
+0x00520E88	BattleState::darkFrames	i32	src/battle/battle_state.h:229	frames counted to the next darker level
+0x00520E90	BattleState::pendingOrders	std::array<PendingOrder, RoleUnits>	src/battle/battle_state.h:180	
+0x00520F58	BattleState::nameFlashes	std::array<i32, RoleUnits>	src/battle/battle_state.h:239	
+0x00520FCC	BattleState::staminaRolling	std::array<i32, RoleUnits>	src/battle/battle_state.h:244	
+0x0052102C	BattleState::spiritRolling	std::array<i32, RoleUnits>	src/battle/battle_state.h:242	
+0x00521374	BattleState::unk521374	std::array<i8, Units>	src/battle/battle_state.h:290	the fade of unk524980
+0x00521398	BattleState::inParty	std::array<u8, Party::Roles>	src/battle/battle_state.h:137	the four roles are in the party (story flags 0x1E..)
+0x005213A0	BattleState::enemyPlaces	std::array<UnitPlacement, Enemies>	src/battle/battle_state.h:148	
+0x005214AC	BattleState::drawOrder	std::array<i32, Units>	src/battle/battle_state.h:164	the units from the top down
 0x005214F8	BattleMessages::messages	std::unique_ptr<BattleMessage>	src/battle/battle_message.h:139	
-0x00521520	BattleState::proficiencyBonus	i16	src/battle/battle_state.h:258	the weapon proficiency step of the last strike
-0x005240BC	BattleState::darkColor	u16	src/battle/battle_state.h:144	
-0x005240C8	BattleState::spiritBars	std::array<i32, RoleUnits>	src/battle/battle_state.h:154	and its copy 0x00524288
-0x005240F0	BattleState::staminaSteps	std::array<i32, RoleUnits>	src/battle/battle_state.h:244	
+0x00521520	BattleState::proficiencyBonus	i16	src/battle/battle_state.h:259	the weapon proficiency step of the last strike
+0x005240BC	BattleState::darkColor	u16	src/battle/battle_state.h:145	
+0x005240C8	BattleState::spiritBars	std::array<i32, RoleUnits>	src/battle/battle_state.h:155	and its copy 0x00524288
+0x005240F0	BattleState::staminaSteps	std::array<i32, RoleUnits>	src/battle/battle_state.h:245	
 0x00524118	BattleHud::portraitHighlight	std::array<u8, 8>	src/battle/battle_hud.h:71	roles outlined in green
-0x00524164	BattleState::staminaBars	std::array<i32, RoleUnits>	src/battle/battle_state.h:157	and its copy 0x00524490
-0x00524268	BattleState::unk524268	std::array<i32, 8>	src/battle/battle_state.h:176	
-0x005242B0	BattleState::unk5242B0	std::array<i32, 0x12>	src/battle/battle_state.h:195	
-0x005242FC	BattleState::blockValues	std::array<i32, RoleUnits>	src/battle/battle_state.h:160	and its copy 0x0052418C
-0x00524324	BattleState::unk524324	std::array<i32, 0x3C>	src/battle/battle_state.h:169	
-0x00524414	BattleState::unk524414	i32	src/battle/battle_state.h:177	
-0x00524418	BattleState::unk524418	i32	src/battle/battle_state.h:196	
-0x0052441C	BattleState::hitDamage	i32	src/battle/battle_state.h:253	
-0x00524420	BattleState::unk524420	std::array<i32, 0x12>	src/battle/battle_state.h:198	
+0x00524164	BattleState::staminaBars	std::array<i32, RoleUnits>	src/battle/battle_state.h:158	and its copy 0x00524490
+0x00524268	BattleState::unk524268	std::array<i32, 8>	src/battle/battle_state.h:177	
+0x005242B0	BattleState::unk5242B0	std::array<i32, 0x12>	src/battle/battle_state.h:196	
+0x005242FC	BattleState::blockValues	std::array<i32, RoleUnits>	src/battle/battle_state.h:161	and its copy 0x0052418C
+0x00524324	BattleState::unk524324	std::array<i32, 0x3C>	src/battle/battle_state.h:170	
+0x00524414	BattleState::unk524414	i32	src/battle/battle_state.h:178	
+0x00524418	BattleState::unk524418	i32	src/battle/battle_state.h:197	
+0x0052441C	BattleState::hitDamage	i32	src/battle/battle_state.h:254	
+0x00524420	BattleState::unk524420	std::array<i32, 0x12>	src/battle/battle_state.h:199	
 0x00524468	BattleMessages::lootNames	std::array<std::string_view, LootSlots>	src/battle/battle_message.h:143	
-0x005244C4	BattleState::surfaces	std::array<std::unique_ptr<Surface>, 2>	src/battle/battle_state.h:115	screen sized off-screen surfaces
-0x005244D8	BattleState::unk5244D8	i32	src/battle/battle_state.h:193	
-0x005244DC	BattleState::unk5244DC	i32	src/battle/battle_state.h:194	
-0x005244E8	BattleState::unk5244E8	std::array<i32, 0x7E>	src/battle/battle_state.h:200	
-0x005246E0	BattleState::unk5246E0	ObjectRecord	src/battle/battle_state.h:167	
-0x00524788	BattleState::unk524788	std::array<BattleSlotRecord, Units>	src/battle/battle_state.h:205	
-0x00524980	BattleState::unk524980	std::array<ActState, Units>	src/battle/battle_state.h:288	the fading act of each unit
+0x005244C4	BattleState::surfaces	std::array<std::unique_ptr<Surface>, 2>	src/battle/battle_state.h:116	screen sized off-screen surfaces
+0x005244D8	BattleState::unk5244D8	i32	src/battle/battle_state.h:194	
+0x005244DC	BattleState::unk5244DC	i32	src/battle/battle_state.h:195	
+0x005244E8	BattleState::unk5244E8	std::array<i32, 0x7E>	src/battle/battle_state.h:201	
+0x005246E0	BattleState::unk5246E0	ObjectRecord	src/battle/battle_state.h:168	
+0x00524788	BattleState::unk524788	std::array<BattleSlotRecord, Units>	src/battle/battle_state.h:206	
+0x00524980	BattleState::unk524980	std::array<ActState, Units>	src/battle/battle_state.h:289	the fading act of each unit
 0x00525434	BattleMessages::lootCounts	std::array<u16, LootSlots>	src/battle/battle_message.h:144	
-0x0052544C	BattleState::unk52544C	i32	src/battle/battle_state.h:178	
-0x00525450	BattleState::unk525450	i32	src/battle/battle_state.h:186	
-0x00525454	BattleState::unk525454	i32	src/battle/battle_state.h:187	
-0x00525458	BattleState::unk525458	i32	src/battle/battle_state.h:188	
-0x00525470	BattleState::unk525470	ActState	src/battle/battle_state.h:166	
-0x00525508	Game::battleEnemies	std::array<BattleEnemy, BattleState::Enemies>	src/game/game.h:254	
-0x0053AE48	BattleState::spiritSteps	std::array<i32, RoleUnits>	src/battle/battle_state.h:242	
-0x0053AE70	BattleState::unk53AE70	i32	src/battle/battle_state.h:202	
-0x0053AE8C	BattleState::lastDamage	i32	src/battle/battle_state.h:257	the damage of the last hit with the proficiency bonus
-0x0053AE90	BattleState::unk53AE90	std::array<i32, 0x12>	src/battle/battle_state.h:199	
-0x0053AF38	BattleState::unk53AF38	std::array<i32, Units>	src/battle/battle_state.h:276	per unit, set when it takes the turn
-0x0053AF70	BattleState::rolePlaces	std::array<UnitPlacement, RoleUnits>	src/battle/battle_state.h:148	
-0x0053B0B0	BattleState::spiritDamage	i16	src/battle/battle_state.h:254	
-0x0053B0B8	BattleState::projector	Projector	src/battle/battle_state.h:128	
-0x0053BC24	BattleState::panelFlags	i32	src/battle/battle_state.h:117	bit 5: the resistance panel
-0x0053BCE0	BattleState::enemyCount	u32	src/battle/battle_state.h:131	
-0x0053BCE4	BattleState::roleCount	u32	src/battle/battle_state.h:132	the party and the guests in battle
-0x0053BCE8	BattleState::unk53BCE8	i32	src/battle/battle_state.h:271	
-0x0053BCEC	BattleState::result	i32	src/battle/battle_state.h:140	0x67: the battle is lost before it starts
-0x0053BD0C	BattleState::unk53BD0C	i32	src/battle/battle_state.h:232	
-0x0053BD50	BattleState::unk53BD50	i32	src/battle/battle_state.h:264	
-0x0053BD54	BattleState::currentUnit	i32	src/battle/battle_state.h:235	the unit whose panel is highlighted
-0x0053BD5C	BattleState::shake	i32	src/battle/battle_state.h:210	the shift of the background this frame, cleared once drawn
-0x0053BD60	BattleState::quakePhase	i32	src/battle/battle_state.h:212	the step of the quake in its offset table (0x004A75EC)
-0x0053BD64	BattleState::glowFrames	i32	src/battle/battle_state.h:236	frames to the next step of panelGlow
-0x0053BDCC	BattleState::autoBoxStep	i32	src/battle/battle_state.h:247	
-0x0053BDD0	BattleState::autoBoxX	i32	src/battle/battle_state.h:246	the "自動攻擊" box slides in
-0x0053BDDC	BattleState::animated	u16	src/battle/battle_state.h:133	the background is animated
-0x0053BDF1	BattleState::listGlow	i8	src/battle/battle_state.h:237	the glow of the last listed unit; bit 7: on
-0x0053BEFF	BattleState::defeatedRoles	u8	src/battle/battle_state.h:139	the party roles entering defeated
-0x0053BF00	BattleState::unk53BF00	u8	src/battle/battle_state.h:266	set to enemyCount by a retreat
-0x0053BF01	BattleState::unk53BF01	u8	src/battle/battle_state.h:267	
-0x0053BF02	BattleState::unk53BF02	u8	src/battle/battle_state.h:268	
-0x0053BF03	BattleState::unk53BF03	u8	src/battle/battle_state.h:269	
-0x0053BF0C	BattleState::guestCount	u16	src/battle/battle_state.h:138	
-0x0053BF10	BattleState::scene	u16	src/battle/battle_state.h:134	1..4 at random
-0x0053BF12	BattleState::unk53BF12	u16	src/battle/battle_state.h:281	
-0x0053BF14	BattleState::unk53BF14	u16	src/battle/battle_state.h:282	
-0x0053BF16	BattleState::unk53BF16	u16	src/battle/battle_state.h:283	
-0x0053BF1E	BattleState::pendingActionRow	i16	src/battle/battle_state.h:118	
-0x0053BF20	BattleState::pendingAction	i16	src/battle/battle_state.h:119	
-0x0053BF22	BattleState::unk53BF22	u16	src/battle/battle_state.h:203	
-0x0053BF26	BattleState::unk53BF26	u16	src/battle/battle_state.h:206	the high word of 0x0053BF24
-0x0053BF28	BattleState::unk53BF28	u16	src/battle/battle_state.h:184	non-zero: an enemy does not choose a command with UnkAction1000 (ChooseCommand)
-0x0053BF2C	BattleState::unk53BF2C	u16	src/battle/battle_state.h:216	
-0x0053BF2E	BattleState::grayBand	u16	src/battle/battle_state.h:217	the half height of the grey band around BandRow
-0x0053BF30	BattleState::grayBandShown	i32	src/battle/battle_state.h:218	
-0x0053BF36	BattleState::darkRed	i16	src/battle/battle_state.h:225	the tint steps of a darkened field per level, halved
-0x0053BF38	BattleState::darkGreen	i16	src/battle/battle_state.h:226	
-0x0053BF3A	BattleState::darkBlue	i16	src/battle/battle_state.h:227	
-0x0053BF44	BattleState::darkLevel	i16	src/battle/battle_state.h:224	0..MaxDarkLevel
-0x0053BF46	BattleState::unk53BF46	i16	src/battle/battle_state.h:182	cleared when a stagger ends (HurtFrame)
-0x0053BF48	BattleState::unk53BF48	i16	src/battle/battle_state.h:183	
-0x0053BF5C	BattleState::unk53BF5C	i32	src/battle/battle_state.h:263	
-0x0053BF60	BattleState::unk53BF60	i32	src/battle/battle_state.h:272	
-0x0053BF64	BattleState::unk53BF64	i32	src/battle/battle_state.h:273	
-0x0053BF74	BattleState::unk53BF74	i32	src/battle/battle_state.h:274	
-0x0053BF80	BattleState::unk53BF80	i32	src/battle/battle_state.h:180	cleared when a party unit's order is taken (InsertSlotRecord)
-0x0053BF94	BattleState::unk53BF94	i32	src/battle/battle_state.h:213	with unk53BF98: the field is darkened while unit unk4A7630 acts
-0x0053BF98	BattleState::unk53BF98	i32	src/battle/battle_state.h:214	
-0x0053BFC0	BattleState::unk53BFC0	i32	src/battle/battle_state.h:261	
-0x0053BFC4	BattleState::unk53BFC4	i32	src/battle/battle_state.h:262	
-0x0053BFCC	BattleState::flashing	i32	src/battle/battle_state.h:219	the field flashes, flashLevel falling by FlashStep a frame
-0x0053BFD0	BattleState::unk53BFD0	i32	src/battle/battle_state.h:181	
-0x0053BFE4	BattleState::unk53BFE4	i32	src/battle/battle_state.h:265	
-0x0053BFEC	BattleState::unk53BFEC	i32	src/battle/battle_state.h:229	the darkening is undone a level a frame
-0x0053C000	BattleState::mirrored	i32	src/battle/battle_state.h:141	the sides are swapped
-0x0053C008	BattleState::quaking	i32	src/battle/battle_state.h:211	1: the screen quakes (read by 0x00453200, shaken by 0x0045E7D0)
-0x0053C00C	BattleState::paused	i32	src/battle/battle_state.h:120	messages do not slide while set
-0x0053C010	BattleState::unk53C010	i32	src/battle/battle_state.h:275	set when a role turns to another enemy (RetargetRoles)
-0x0053C018	BattleState::autoBattle	i32	src/battle/battle_state.h:245	
-0x0053C030	BattleState::fadingField	i32	src/battle/battle_state.h:112	1: an act started the field fade (the background waits for it)
-0x0053C030	BattleState::unk53C030	i32	src/battle/battle_state.h:230	
-0x0053C048	BattleState::unk53C048	i32	src/battle/battle_state.h:201	
-0x0053C050	BattleState::spellStage	u16	src/battle/battle_state.h:124	BattleState::SpellStage bits of the running spell
-0x0053C052	BattleState::battle	u16	src/battle/battle_state.h:125	the battle number
+0x0052544C	BattleState::unk52544C	i32	src/battle/battle_state.h:179	
+0x00525450	BattleState::unk525450	i32	src/battle/battle_state.h:187	
+0x00525454	BattleState::unk525454	i32	src/battle/battle_state.h:188	
+0x00525458	BattleState::unk525458	i32	src/battle/battle_state.h:189	
+0x00525470	BattleState::unk525470	ActState	src/battle/battle_state.h:167	
+0x00525508	Game::battleEnemies	std::array<BattleEnemy, BattleState::Enemies>	src/game/game.h:257	
+0x0053AE48	BattleState::spiritSteps	std::array<i32, RoleUnits>	src/battle/battle_state.h:243	
+0x0053AE70	BattleState::unk53AE70	i32	src/battle/battle_state.h:203	
+0x0053AE7A	BattleState::unk53AE7A	i16	src/battle/battle_state.h:300	the hit act picture after which the units slide back
+0x0053AE7C	BattleState::unk53AE7C	i32	src/battle/battle_state.h:294	
+0x0053AE80	BattleState::unk53AE80	i32	src/battle/battle_state.h:295	
+0x0053AE8C	BattleState::lastDamage	i32	src/battle/battle_state.h:258	the damage of the last hit with the proficiency bonus
+0x0053AE90	BattleState::unk53AE90	std::array<i32, 0x12>	src/battle/battle_state.h:200	
+0x0053AF38	BattleState::unk53AF38	std::array<i32, Units>	src/battle/battle_state.h:277	per unit, set when it takes the turn
+0x0053AF70	BattleState::rolePlaces	std::array<UnitPlacement, RoleUnits>	src/battle/battle_state.h:149	
+0x0053B0B0	BattleState::spiritDamage	i16	src/battle/battle_state.h:255	
+0x0053B0B8	BattleState::projector	Projector	src/battle/battle_state.h:129	
+0x0053BC24	BattleState::panelFlags	i32	src/battle/battle_state.h:118	bit 5: the resistance panel
+0x0053BCE0	BattleState::enemyCount	u32	src/battle/battle_state.h:132	
+0x0053BCE4	BattleState::roleCount	u32	src/battle/battle_state.h:133	the party and the guests in battle
+0x0053BCE8	BattleState::unk53BCE8	i32	src/battle/battle_state.h:272	
+0x0053BCEC	BattleState::result	i32	src/battle/battle_state.h:141	0x67: the battle is lost before it starts
+0x0053BD0C	BattleState::unk53BD0C	i32	src/battle/battle_state.h:233	
+0x0053BD50	BattleState::unk53BD50	i32	src/battle/battle_state.h:265	
+0x0053BD54	BattleState::currentUnit	i32	src/battle/battle_state.h:236	the unit whose panel is highlighted
+0x0053BD5C	BattleState::shake	i32	src/battle/battle_state.h:211	the shift of the background this frame, cleared once drawn
+0x0053BD60	BattleState::quakePhase	i32	src/battle/battle_state.h:213	the step of the quake in its offset table (0x004A75EC)
+0x0053BD64	BattleState::glowFrames	i32	src/battle/battle_state.h:237	frames to the next step of panelGlow
+0x0053BDCC	BattleState::autoBoxStep	i32	src/battle/battle_state.h:248	
+0x0053BDD0	BattleState::autoBoxX	i32	src/battle/battle_state.h:247	the "自動攻擊" box slides in
+0x0053BDDC	BattleState::animated	u16	src/battle/battle_state.h:134	the background is animated
+0x0053BDE8	BattleState::unk53BDE8	u16	src/battle/battle_state.h:299	frames since the push was halved
+0x0053BDF1	BattleState::listGlow	i8	src/battle/battle_state.h:238	the glow of the last listed unit; bit 7: on
+0x0053BEFF	BattleState::defeatedRoles	u8	src/battle/battle_state.h:140	the party roles entering defeated
+0x0053BF00	BattleState::unk53BF00	u8	src/battle/battle_state.h:267	set to enemyCount by a retreat
+0x0053BF01	BattleState::unk53BF01	u8	src/battle/battle_state.h:268	
+0x0053BF02	BattleState::unk53BF02	u8	src/battle/battle_state.h:269	
+0x0053BF03	BattleState::unk53BF03	u8	src/battle/battle_state.h:270	
+0x0053BF0C	BattleState::guestCount	u16	src/battle/battle_state.h:139	
+0x0053BF10	BattleState::scene	u16	src/battle/battle_state.h:135	1..4 at random
+0x0053BF12	BattleState::unk53BF12	u16	src/battle/battle_state.h:282	
+0x0053BF14	BattleState::unk53BF14	u16	src/battle/battle_state.h:283	
+0x0053BF16	BattleState::unk53BF16	u16	src/battle/battle_state.h:284	
+0x0053BF1E	BattleState::pendingActionRow	i16	src/battle/battle_state.h:119	
+0x0053BF20	BattleState::pendingAction	i16	src/battle/battle_state.h:120	
+0x0053BF22	BattleState::unk53BF22	u16	src/battle/battle_state.h:204	
+0x0053BF26	BattleState::unk53BF26	u16	src/battle/battle_state.h:207	the high word of 0x0053BF24
+0x0053BF28	BattleState::unk53BF28	u16	src/battle/battle_state.h:185	non-zero: an enemy does not choose a command with UnkAction1000 (ChooseCommand)
+0x0053BF2C	BattleState::unk53BF2C	u16	src/battle/battle_state.h:217	
+0x0053BF2E	BattleState::grayBand	u16	src/battle/battle_state.h:218	the half height of the grey band around BandRow
+0x0053BF30	BattleState::grayBandShown	i32	src/battle/battle_state.h:219	
+0x0053BF36	BattleState::darkRed	i16	src/battle/battle_state.h:226	the tint steps of a darkened field per level, halved
+0x0053BF38	BattleState::darkGreen	i16	src/battle/battle_state.h:227	
+0x0053BF3A	BattleState::darkBlue	i16	src/battle/battle_state.h:228	
+0x0053BF44	BattleState::darkLevel	i16	src/battle/battle_state.h:225	0..MaxDarkLevel
+0x0053BF46	BattleState::unk53BF46	i16	src/battle/battle_state.h:183	cleared when a stagger ends (HurtFrame)
+0x0053BF48	BattleState::unk53BF48	i16	src/battle/battle_state.h:184	
+0x0053BF5C	BattleState::unk53BF5C	i32	src/battle/battle_state.h:264	
+0x0053BF60	BattleState::unk53BF60	i32	src/battle/battle_state.h:273	
+0x0053BF64	BattleState::unk53BF64	i32	src/battle/battle_state.h:274	
+0x0053BF74	BattleState::unk53BF74	i32	src/battle/battle_state.h:275	
+0x0053BF80	BattleState::unk53BF80	i32	src/battle/battle_state.h:181	cleared when a party unit's order is taken (InsertSlotRecord)
+0x0053BF94	BattleState::unk53BF94	i32	src/battle/battle_state.h:214	with unk53BF98: the field is darkened while unit unk4A7630 acts
+0x0053BF98	BattleState::unk53BF98	i32	src/battle/battle_state.h:215	
+0x0053BFC0	BattleState::unk53BFC0	i32	src/battle/battle_state.h:262	
+0x0053BFC4	BattleState::unk53BFC4	i32	src/battle/battle_state.h:263	
+0x0053BFCC	BattleState::flashing	i32	src/battle/battle_state.h:220	the field flashes, flashLevel falling by FlashStep a frame
+0x0053BFD0	BattleState::unk53BFD0	i32	src/battle/battle_state.h:182	
+0x0053BFE4	BattleState::unk53BFE4	i32	src/battle/battle_state.h:266	
+0x0053BFEC	BattleState::unk53BFEC	i32	src/battle/battle_state.h:230	the darkening is undone a level a frame
+0x0053C000	BattleState::mirrored	i32	src/battle/battle_state.h:142	the sides are swapped
+0x0053C008	BattleState::quaking	i32	src/battle/battle_state.h:212	1: the screen quakes (read by 0x00453200, shaken by 0x0045E7D0)
+0x0053C00C	BattleState::paused	i32	src/battle/battle_state.h:121	messages do not slide while set
+0x0053C010	BattleState::unk53C010	i32	src/battle/battle_state.h:276	set when a role turns to another enemy (RetargetRoles)
+0x0053C018	BattleState::autoBattle	i32	src/battle/battle_state.h:246	
+0x0053C030	BattleState::fadingField	i32	src/battle/battle_state.h:113	1: an act started the field fade (the background waits for it)
+0x0053C030	BattleState::unk53C030	i32	src/battle/battle_state.h:231	
+0x0053C040	BattleState::unk53C040	i32	src/battle/battle_state.h:296	set once the order is sorted around the acting unit
+0x0053C048	BattleState::unk53C048	i32	src/battle/battle_state.h:202	
+0x0053C050	BattleState::spellStage	u16	src/battle/battle_state.h:125	BattleState::SpellStage bits of the running spell
+0x0053C052	BattleState::battle	u16	src/battle/battle_state.h:126	the battle number
 0x0053C498	BattleMessages::lootCount	u16	src/battle/battle_message.h:142	
-0x0053C4A0	BattleState::darkenByTint	i32	src/battle/battle_state.h:223	the field is darkened by tint steps instead of the darkened copies
-0x0053C4B0	BattleState::unk53C4B0	i32	src/battle/battle_state.h:204	
+0x0053C4A0	BattleState::darkenByTint	i32	src/battle/battle_state.h:224	the field is darkened by tint steps instead of the darkened copies
+0x0053C4B0	BattleState::unk53C4B0	i32	src/battle/battle_state.h:205	
 0x0053C4B4	BattleMessages::craftSucceeded	u8	src/battle/battle_message.h:145	
 0x0053C4B8	BattleMessages::panelUnit	const ObjectData*	src/battle/battle_message.h:146	the object shown by DrawResistancePanel
 0x0053C4BC	BattleMessages::panelHeight	i32	src/battle/battle_message.h:141	grown by GrowPanel
+0x0053C4C0	BattleState::unk53C4C0	u8	src/battle/battle_state.h:293	
 0x0053CE84	FightTalk::script	std::vector<u8>	src/battle/fight_talk.h:25	
 0x0053CE88	FightTalk::cursor	std::size_t	src/battle/fight_talk.h:26	the command read next
 0x0053CEA8	FightTalk::open	bool	src/battle/fight_talk.h:24	
 0x0053CEAC	FightTalk::file	File	src/battle/fight_talk.h:23	(the handle)
-0x0053CEB4	BattleState::attacksSinceCritical	u8	src/battle/battle_state.h:110	(low byte) the attacks since the last critical one
-0x0053CEB8	BattleState::0	0	src/battle/battle_state.h:109	1: a role's critical attack is under way (it cannot be evaded, acts add effects)
-0x0053CEBC	BattleState::lastCriticalRole	i32	src/battle/battle_state.h:111	the act of the role with the last rolled critical attack
+0x0053CEB4	BattleState::attacksSinceCritical	u8	src/battle/battle_state.h:111	(low byte) the attacks since the last critical one
+0x0053CEB8	BattleState::0	0	src/battle/battle_state.h:110	1: a role's critical attack is under way (it cannot be evaded, acts add effects)
+0x0053CEBC	BattleState::lastCriticalRole	i32	src/battle/battle_state.h:112	the act of the role with the last rolled critical attack
 0x0053CF40	Database::monOpen	bool	src/org/database.h:41	
 0x0053CF44	Database::levelOpen	bool	src/org/database.h:42	
 0x0053CF48	Database::descriptionBytes	i32	src/org/database.h:31	bytes held by object descriptions
 0x0053CF50	Database::scratch	ObjectRecord	src/org/database.h:32	an object looked up for its limits
 0x0053D020	Database::monFile	File	src/org/database.h:39	
 0x0053D024	Database::levelFile	File	src/org/database.h:40	
-0x0053D028	BattleState::evadeStreak	u8	src/battle/battle_state.h:113	failed evasion rolls in a row
-0x0053D029	BattleState::evadeJustSucceeded	u8	src/battle/battle_state.h:114	
-0x0053D02C	BattleState::text	std::array<char, TextBytes>	src/battle/battle_state.h:121	the formatted text of the battle messages
+0x0053D028	BattleState::evadeStreak	u8	src/battle/battle_state.h:114	failed evasion rolls in a row
+0x0053D029	BattleState::evadeJustSucceeded	u8	src/battle/battle_state.h:115	
+0x0053D02C	BattleState::text	std::array<char, TextBytes>	src/battle/battle_state.h:122	the formatted text of the battle messages

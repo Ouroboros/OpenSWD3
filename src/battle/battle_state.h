@@ -97,6 +97,7 @@ public:
     void InsertSlotRecord(int kind, i32 unit, int at);
     void StartFieldFade(int red, int green, int blue, int toRed, int toGreen, int toBlue, int frames);
     void WipeSlotRecords();
+    void SortDrawOrderAround(i32 acting, i32 target);
 
     i32 listBCount = 0;                              // 0x004FD3B0 entries of listB, at most 13
     ItemLink listB;                                  // 0x004FD4C0
@@ -288,6 +289,15 @@ public:
     std::array<ActState, Units> unk524980;  // the fading act of each unit
     std::array<i8, Units> unk521374 = {};   // the fade of unk524980
     std::array<u16, Units> unk4FDF94 = {};  // the calls of WalkLine
+    // The draw order around the acting unit (SortDrawOrderAround).
+    u8 unk53C4C0 = 0;
+    i32 unk53AE7C = 0;
+    i32 unk53AE80 = 0;
+    i32 unk53C040 = 0;  // set once the order is sorted around the acting unit
+    // The push of a hit (Game::PushUnits).
+    i16 unk4A7638 = 0x1A4;  // the push, halved each frame
+    u16 unk53BDE8 = 0;      // frames since the push was halved
+    i16 unk53AE7A = 0;      // the hit act picture after which the units slide back
 };
 
 }  // namespace swd3
