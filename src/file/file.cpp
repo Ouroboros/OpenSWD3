@@ -127,11 +127,18 @@ bool File::Close()
     return true;
 }
 
-// swd32.exe 0x004381E0: a read-only mapping of the whole file
+// swd32.exe 0x004381E0: a read-only mapping of the whole file. CreateFileMappingA is given the file size as the
+// mapping size, so an empty file cannot be mapped.
 bool File::CreateMapping()
 {
     if (this->file == nullptr)
     {
+        return false;
+    }
+
+    if (this->Size() == 0)
+    {
+        this->SetError("empty file");
         return false;
     }
 
@@ -200,7 +207,7 @@ bool File::UnmapView(const u8* view)
 
     if (current != view)
     {
-        DebugLog(u8"cFile ,CloseView Src/Dest difference ");
+        ErrorLog(u8"cFile ,CloseView Src/Dest difference ");  // 0x00411F90
         return false;
     }
 
