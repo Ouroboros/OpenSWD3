@@ -12,6 +12,7 @@
 #include "config/config.h"
 #include "core/assertion.h"
 #include "core/words.h"
+#include "crt/msvc.h"
 #include "draw/painter.h"
 #include "org/database.h"
 #include "org/fame.h"
@@ -43,6 +44,7 @@ void BattleRole::SetSkills(ItemNode* list)
 void BattleRole::SetInventory(ItemLink* list)
 {
     this->inventory = list;
+    this->inventoryNode = nullptr;
     this->inventoryHead = list;
 }
 
@@ -191,6 +193,13 @@ constexpr u32 kKeptKind = 0x80;  // ObjectData::kind: not spent by a use
 constexpr u32 kUnkKind8000000 = 0x8000000;
 constexpr u16 kNoUseAct = 0x2000;  // ObjectData::unk40: the use returns no item
 
+// CancelCommand and AddFury.
+constexpr std::size_t kCancelledNameBytes = 0x10;  // only the start of the skill name is cleared
+constexpr int kFillFury = -1;
+constexpr i32 kFuryFull = 0x38;
+constexpr double kFuryScale = 47.0;  // swd32.exe 0x00499D40
+constexpr u16 kFurySound = 0xBC;
+
 // CanAbsorb.
 constexpr u16 kMaxAbsorbClass = 0x15;   // ObjectData::unk52
 constexpr int kAbsorbLevelsAbove = 12;  // a target this many levels above the role is never absorbed
@@ -250,12 +259,7 @@ void BattleRole::ClearExtras()
 // swd32.exe 0x0046E730: a party role entering battle: its record copied into the battle copy (the attack and defence
 // bonuses starting from the attack and defence), its party record kept with its current and maximum values held to
 // 9999, the act from its placement (asserted non-zero), and bit 15 of +0x24 marking it defeated
-void BattleRole::Setup(
-    RoleRecord& record,
-    const RoleBattleBlock& block,
-    const UnitPlacement& at,
-    ErrorReporter& reporter
-)
+void BattleRole::Setup(RoleRecord& record, RoleBattleBlock& block, const UnitPlacement& at, ErrorReporter& reporter)
 {
     this->ClearExtras();
     this->placement = at;
@@ -537,6 +541,7 @@ void BattleRole::ShowAllSkills()
 void BattleRole::ShowAllItems()
 {
     this->inventory = this->inventoryHead;
+    this->inventoryNode = nullptr;
 }
 
 // swd32.exe 0x00470890: the stamina owed (+0x2F12) taken from the party record, not below 0
@@ -2902,10 +2907,12 @@ u16 BattleRole::UseSelectedItem()
         if (node == nullptr)
         {
             this->inventory = nullptr;
+            this->inventoryNode = nullptr;
             return 0;
         }
 
         this->inventory = &node->next;
+        this->inventoryNode = node;
 
         if (node->id == selected->id)
         {
@@ -2914,6 +2921,7 @@ u16 BattleRole::UseSelectedItem()
     }
 
     this->inventory = &selected->next;
+    this->inventoryNode = selected;
     this->usedItem = selected->id;
     ObjectData& data = selected->record.data;
     const u16 uses = data.unk3C;
@@ -2944,7 +2952,7 @@ u16 BattleRole::UseSelectedItem()
         this->selectedItem = nullptr;
     }
 
-    const ItemNode* flagged = selected;
+    ItemNode* flagged = selected;
 
     if (selected->count == 0 && selected->pending == 0)
     {
@@ -2974,6 +2982,7 @@ u16 BattleRole::UseSelectedItem()
         }
 
         this->inventory = before;
+        this->inventoryNode = flagged;
     }
 
     // The list head read as an item has no flag here.
@@ -2983,5 +2992,101 @@ u16 BattleRole::UseSelectedItem()
     }
 
     return this->usedItem;
+}
+
+// swd32.exe 0x004750C0: the role's chosen command dropped: the command, the start of the skill name, the stamina
+// owed, the item and the heals cleared; a selected item gives back its reservation (unk06 of the item at the list
+// cursor, which the original reads in the list head when the cursor is there)
+void BattleRole::CancelCommand()
+{
+    this->unk2A86 = 0;
+    this->command = UnitCommand{};
+    std::fill_n(this->skillName.begin(), kCancelledNameBytes, '\0');
+    this->unk2F10 = 0;
+    this->unk2F12 = 0;
+    this->unk2A8A = 0;
+    this->unk2F16 = 0;
+    this->unk2F18 = 0;
+    this->unk29A6 = 0;
+    this->unk29A8 = 0;
+    this->unk29AA = 0;
+    this->unk29A4 = 0;
+    this->usedItem = 0;
+
+    if (this->selectedItem == nullptr)
+    {
+        return;
+    }
+
+    if (this->inventoryNode != nullptr && this->inventoryNode->unk06 != 0)
+    {
+        --this->inventoryNode->unk06;
+    }
+
+    this->selectedItem = nullptr;
+}
+
+// swd32.exe 0x00482DA0: the fury gauge (roleBlock[0], full at kFuryFull) raised by `damage` taken: -1 fills it, 0
+// empties it; otherwise, below full, by damage / maximum hit points * 47 (a whole hit point or more fills it), the
+// damage carried while that is 0 (with the original's double compare it never is). Full plays kFurySound. Not for a
+// forced unit.
+void BattleRole::AddFury(BattleServices& services, int damage)
+{
+    if (this->unk2B00 == 1 || this->unk2B04 == 1)
+    {
+        return;
+    }
+
+    int carried = damage;
+    i32& fury = this->roleBlock[0];
+
+    if (damage == kFillFury)
+    {
+        fury = kFuryFull;
+    }
+    else if (damage == 0)
+    {
+        fury = 0;
+    }
+
+    const i32 before = fury;
+
+    if (before >= kFuryFull || damage <= 0)
+    {
+        return;
+    }
+
+    const int maximum = this->roleRecord->maxHitPoints;
+
+    if (damage < maximum)
+    {
+        if (this->damageCarry > 0)
+        {
+            carried = this->damageCarry + damage;
+            damage += this->damageCarry;
+        }
+
+        const double share = static_cast<double>(damage) / static_cast<double>(maximum) * kFuryScale;
+        fury = before + crt::Ftol(share);
+
+        if (share == 0.0)
+        {
+            this->damageCarry += carried;
+        }
+        else
+        {
+            this->damageCarry = 0;
+        }
+    }
+    else
+    {
+        fury = kFuryFull;
+    }
+
+    if (fury >= kFuryFull)
+    {
+        fury = kFuryFull;
+        services.audio.PlaySound(kFurySound, services.config.soundVolume);
+    }
 }
 }  // namespace swd3

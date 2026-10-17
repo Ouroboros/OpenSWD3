@@ -1321,6 +1321,11 @@ constexpr i32 kHomePose2 = 0x31;  // and with kSecondHomePose
 constexpr u16 kSecondHomePose = 2;
 constexpr int kHomeSteps = 0x23;
 constexpr int kHomeShare = 6;
+
+// FadeInvisible and StepAccessoryCounters.
+constexpr i16 kInvisibleFadeFrames = 0x18;
+constexpr int kShadowLeftShift = 5;
+constexpr double kCounterPercent = 100.0;  // swd32.exe 0x00499D28
 constexpr u16 kEffectIcons = 0x241D;
 
 // The value of a skill script: the word at +0xE.
@@ -4822,5 +4827,167 @@ int BattleUnit::ReturnHome(BattleServices& services, const BattleUnit& target, i
         static_cast<i16>(act.offsetY)
     );
     return 0;
+}
+
+// swd32.exe 0x00476250: an enemy's command taken from its object (skill unk72 for choice 1, unk76 for another): the
+// command script and its value; a UnkFlag2 command gives its cast act, sets UnkCommandFlag8000 and command 2 (0);
+// another sets unk2A8C to the choice and command 1 (1).
+int BattleUnit::LoadEnemyCommand(Database& database, int choice, u32& act)
+{
+    this->command = UnitCommand{};
+    this->unk29A4 = 0;
+    const ObjectData& data = this->data->data;
+    this->LoadCommand(database, choice == 1 ? data.unk72 : data.unk76);
+    this->unk29A4 = static_cast<u16>(this->command.value);
+
+    if ((this->command.flags & UnitCommand::UnkFlag2) != 0)
+    {
+        act = this->command.castAct;
+        this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
+        this->SetCommand(BattleUnit::UnkCommand2);
+        return 0;
+    }
+
+    this->unk2A8C = static_cast<u16>(choice);
+    this->SetCommand(BattleUnit::UnkCommand1);
+    return 1;
+}
+
+// swd32.exe 0x0047F710: one frame of the unit fading out to invisible (mode 0) or back in (mode 1) at its place, over
+// the shadow picture's shadow, glowLevel counting up to kInvisibleFadeFrames; 0 when done: mode 0 makes the unit
+// Invisible, both clear InvisibleMark and UnkMark400 (mode 1 also glowLevel)
+int BattleUnit::FadeInvisible(BattleServices& services, int mode)
+{
+    Painter& painter = services.painter;
+    this->mainAct.hold = 0;
+
+    if (this->held == 1)
+    {
+        this->mainAct.hold = 1;
+    }
+
+    this->picture = services.archive.GetPicture(this->mainAct.frame, this->mainAct.picture);
+    ++this->glowLevel;
+
+    if (this->glowLevel > kInvisibleFadeFrames)
+    {
+        this->glowLevel = kInvisibleFadeFrames;
+
+        if (mode == 1)
+        {
+            this->marks = static_cast<u16>(this->marks & ~(BattleUnit::InvisibleMark | BattleUnit::UnkMark400));
+            this->glowLevel = 0;
+            return 0;
+        }
+
+        if (mode == 0)
+        {
+            this->status |= BattleUnit::Invisible;
+        }
+
+        this->marks = static_cast<u16>(this->marks & ~(BattleUnit::InvisibleMark | BattleUnit::UnkMark400));
+        return 0;
+    }
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->picture == nullptr || this->shadowPicture == nullptr)
+    {
+        return 1;
+    }
+
+    painter.SetSource(this->picture->data.data());
+    const int shadowHeight = this->shadowPicture->height / kShadowShare;
+    DrawOptions& options = painter.Options();
+    options.scaleHeight = shadowHeight;
+    options.shear = this->shadowPicture->height >> kShadowShearShift;
+    options.tintRed = kInvisibleShadowTint;
+    options.tintGreen = kInvisibleShadowTint;
+    options.tintBlue = kInvisibleShadowTint;
+    this->unk26A4 = (this->drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+    const int x = this->placement.x - static_cast<i16>(this->originX);
+    painter.DrawPicture(
+        x - kShadowLeftShift,
+        this->placement.y - shadowHeight,
+        this->shadowPicture->width,
+        this->shadowPicture->height,
+        this->unk26A4
+    );
+
+    if (mode == 0)
+    {
+        painter.Options().alpha = Painter::MaxAlpha - this->glowLevel / 2;
+    }
+    else if (mode == 1)
+    {
+        painter.Options().alpha = this->glowLevel / 2;
+    }
+
+    this->unk26A4 = this->drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip);
+    painter.DrawPicture(
+        x,
+        this->placement.y - this->mainAct.y,
+        this->picture->width,
+        this->picture->height,
+        this->unk26A4 | Painter::Translucent
+    );
+    return 1;
+}
+
+// swd32.exe 0x004830A0: the proficiency counters of the two worn accessories (their unk50) stepped by `amount` up to
+// their unk44 in `list`, a missing one appended; 1 when either accessory counts. The search goes on from where the
+// first accessory's ended (the original keeps its node), so the second may be appended again.
+int BattleUnit::StepAccessoryCounters(CounterList& list, u16 amount)
+{
+    int counts = 0;
+    CounterNode* at = list.id != 0 ? list.next.get() : &list;
+
+    for (const ObjectRecord& accessory : this->accessories)
+    {
+        const ObjectData& data = accessory.data;
+        const auto id = static_cast<i16>(data.unk50);
+
+        if (id == 0)
+        {
+            continue;
+        }
+
+        counts = 1;
+
+        while (at->id != id && at->next != nullptr)
+        {
+            at = at->next.get();
+        }
+
+        if (at->id == id)
+        {
+            if (at->done != 0)
+            {
+                continue;
+            }
+
+            at->value = static_cast<u16>(at->value + amount);
+
+            if (at->value >= data.unk44)
+            {
+                at->value = data.unk44;
+            }
+
+            at->percent = static_cast<u16>(
+                crt::Ftol(static_cast<double>(at->value) / static_cast<double>(data.unk44) * kCounterPercent)
+            );
+            continue;
+        }
+
+        at->next = std::make_unique<CounterNode>();
+        at = at->next.get();
+        at->id = id;
+        at->value = amount;
+        at->percent = static_cast<u16>(
+            crt::Ftol(static_cast<double>(amount) / static_cast<double>(data.unk44) * kCounterPercent)
+        );
+        ++list.id;
+    }
+
+    return counts;
 }
 }  // namespace swd3

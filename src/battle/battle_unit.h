@@ -436,6 +436,9 @@ public:
     void DrawOverlay(BattleServices& services, u16 frame, u16 picture, int x, int y, int offsetX, int offsetY);
     void DrawActionAt(BattleServices& services, i16 x, i16 y, ActState& act);
     int ReturnHome(BattleServices& services, const BattleUnit& target, i32 id, i32 action);
+    int LoadEnemyCommand(Database& database, int choice, u32& act);
+    int FadeInvisible(BattleServices& services, int mode);
+    int StepAccessoryCounters(CounterList& list, u16 amount);
     void DrawTrail(BattleServices& services, AfterimageTrail& trail, u16 frame, u16 picture, u32 mode, i16 x, i16 y);
     int DrawRecoil(BattleServices& services, ActState& act, i16 y);
     int FlyAct(
@@ -506,7 +509,7 @@ public:
     RoleRecord* battleRecord =
         nullptr;                       // +0x00 the battle copy of a party role's record (+0x26, +0x28: attack, defence)
     RoleRecord* roleRecord = nullptr;  // +0x04 the role's party record
-    const i32* roleBlock = nullptr;    // +0x08 the role's 0x60-byte block at 0x004ACF50
+    i32* roleBlock = nullptr;          // +0x08 the role's 0x60-byte block at 0x004ACF50 ([0]: the fury gauge, inferred)
     ObjectRecord* data = nullptr;      // +0x0C an enemy's mon.dat object (usually `object`)
     std::unique_ptr<ObjectRecord> ownedData;  // a party role's block at +0x0C (freed by Reset)
     ObjectRecord object;                      // +0x10 (its description at +0xB0)

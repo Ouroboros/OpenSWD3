@@ -175,7 +175,7 @@ int StepCounterProgress(CounterList& list, i16 id, u16 maximum, u16 scale)
         }
 
         const double ratio = static_cast<double>(node->value) / static_cast<double>(maximum);
-        node->percent = static_cast<u16>(crt::Ftol(ratio * 100.0));
+        node->percent = static_cast<u16>(crt::Ftol(ratio * kPercent));
         return static_cast<int>(crt::Ftol(ratio * static_cast<double>(scale)));
     }
 
@@ -183,7 +183,7 @@ int StepCounterProgress(CounterList& list, i16 id, u16 maximum, u16 scale)
     const double ratio = 1.0 / static_cast<double>(maximum);
     node.id = id;
     node.value = 1;
-    node.percent = static_cast<u16>(crt::Ftol(ratio * 100.0));
+    node.percent = static_cast<u16>(crt::Ftol(ratio * kPercent));
     CountOne(list);
     return static_cast<int>(crt::Ftol(ratio * static_cast<double>(scale)));
 }

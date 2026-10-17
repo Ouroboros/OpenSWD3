@@ -50,7 +50,7 @@ public:
     void SetSkills(ItemNode* list);
     void SetInventory(ItemLink* list);
     void ClearExtras();
-    void Setup(RoleRecord& record, const RoleBattleBlock& block, const UnitPlacement& at, ErrorReporter& reporter);
+    void Setup(RoleRecord& record, RoleBattleBlock& block, const UnitPlacement& at, ErrorReporter& reporter);
     void SetupEscort(const UnitPlacement& at, Database& database, ErrorReporter& reporter);
     void Strike(BattleServices& services, BattleUnit& target, int evadable);
     int AttackFrame(BattleServices& services, BattleUnit& target, int slot);
@@ -76,6 +76,8 @@ public:
     int BoomerangFrame(BattleServices& services, BattleUnit& target);
     int LeapSpellFrame(BattleServices& services, BattleUnit& target);
     u16 UseSelectedItem();
+    void CancelCommand();
+    void AddFury(BattleServices& services, int damage);
     void SetupGuest(const UnitPlacement& at, const RoleRecord& base, Database& database, ErrorReporter& reporter);
     void ApplyEquipment(
         std::span<const std::unique_ptr<ItemNode>> slots,
@@ -93,7 +95,8 @@ public:
     std::array<ActState, ExtraActs> extraActs;   // +0x2BC8 the sparks of an absorb (FlyExtraAct)
     ItemNode* skills = nullptr;                  // +0x2EC0 the first skill shown in the list
     ItemNode* skillsHead = nullptr;              // +0x2EC4 the start of the list (its "無" head)
-    ItemLink* inventory = nullptr;               // +0x2EC8 the first item shown
+    ItemLink* inventory = nullptr;               // +0x2EC8 the first item shown (the next of inventoryNode)
+    ItemNode* inventoryNode = nullptr;           // the item at +0x2EC8 itself; nullptr: the list head
     ItemLink* inventoryHead = nullptr;           // +0x2ECC the party's items
     ItemNode* selectedItem = nullptr;            // +0x2ED0 the item chosen to use
     std::array<i32, ExtraActs> extraSteps = {};  // +0x2EF8 the line steps of each extra act this frame
