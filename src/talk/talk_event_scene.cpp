@@ -258,7 +258,7 @@ bool Talk::PlaceRole(EventRun& run)
     if (!owner.UpdateRoleRecord(id, act, action, direction, tileX, tileY, event, talk, setBits, Game::KeepValue, map))
     {
         DebugLog(u8"maps.dat role missing", operand);
-        this->Next(run);
+        this->Advance(run, CommandBytes(EventCommand::PlaceRoleOnMap));
         return true;
     }
 
@@ -317,7 +317,7 @@ bool Talk::PlaceRole(EventRun& run)
         }
     }
 
-    this->Next(run);
+    this->Advance(run, CommandBytes(EventCommand::PlaceRoleOnMap));
     return true;
 }
 
