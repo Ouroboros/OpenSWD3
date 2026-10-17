@@ -54,3 +54,7 @@
 
 - 0x00431150：wsprintfA(消息, 值)，再按 0x004A5DD0 "\n檔案: %s\n行數: 第%u行\n錯誤: %s" 排版，标题 0x004A5DC4 "維護錯誤"，MB_ABORTRETRYIGNORE | MB_ICONHAND（默认按钮为中止）；中止：SendMessage(WM_CLOSE) 后 int3；重试：int3；忽略：返回。差异（diff 轮）：重建 Windows 对话框的回车默认按钮是“忽略”，改为“中止”；中止与重试的处理记为平台替换（deviations.md 0x00431150）。修正后通过（exact 轮）。
 - 0x004311C0：22 个 DirectDraw 结果码各显示原文（含尾随空格），标题为参数，MB_OK；其他值不显示。通过。
+
+## spline 0x00437EB0..0x00437F90（第 1 遍）
+
+- 0x00437EB0 WeighColumns：每列 row0 × v0 + row1 × v1 + row3 × v3 + row2 × v2（依次相加）。0x00437EF0 Weighted：x 按点 2、1、3、0，y 按 0、2、1、3 相加。0x00437F40 BasisWeights：t² 留在寄存器（0x00437F5B fld st）再乘 t，权重 (t³, t², t, 1)。0x00437F90 Evaluate：t 存为 double 取 floor + 2.0 经 _ftol 得段号，t − floor(t) 存 float，取段号 − 2 起的四点。通过。
