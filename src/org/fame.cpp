@@ -14,17 +14,10 @@ namespace swd3
 namespace
 {
 
-constexpr u16 kCap = 0x14;
 constexpr std::size_t kHeaderBytes = 0xA;
-constexpr std::size_t kBlockHeaderBytes = 0xA;
 constexpr std::size_t kSlackBytes = 0x1E;
-constexpr int kFameBits = 15;
 constexpr double kPercent = 100.0;
 constexpr std::size_t kCountAt = sizeof(u32);  // a list header: its bytes, then its node count
-constexpr std::size_t kVersionAt = 0;          // the save block: 1, the unpacked and the packed size
-constexpr u8 kBlockVersion = 1;
-constexpr std::size_t kUnpackedAt = 2;
-constexpr std::size_t kPackedAt = 6;
 
 // The node `id` of a fame lookup: the head first, then every node; `last` is left on the last node visited.
 CounterNode* FindNode(CounterList& list, i16 id, CounterNode*& last)
@@ -124,7 +117,7 @@ u16 AddCounterCapped(CounterList& list, i16 id, i16 amount)
     {
         u16 value = node->value;
 
-        if (value < kCap)
+        if (value < CounterNode::Cap)
         {
             value = static_cast<u16>(value + amount);
             node->value = value;
@@ -150,12 +143,12 @@ u16 SetCounterCapped(CounterList& list, i16 id, u16 value)
     {
         node = &Append(*last);
         node->id = id;
-        node->value = value > kCap ? kCap : value;
+        node->value = value > CounterNode::Cap ? CounterNode::Cap : value;
         CountOne(list);
         return value;
     }
 
-    node->value = value > kCap ? kCap : value;
+    node->value = value > CounterNode::Cap ? CounterNode::Cap : value;
     return value;
 }
 
@@ -323,7 +316,7 @@ bool Fame::Save(std::vector<u8>& block, ErrorReporter& reporter) const
         section = entry;
     }
 
-    const std::vector<u8> packed = LzoEncoder(kFameBits).Compress(std::span<const u8>(data.data(), size));
+    const std::vector<u8> packed = LzoEncoder(Fame::DictionaryBits).Compress(std::span<const u8>(data.data(), size));
 
     if (packed.size() >= size)
     {
@@ -331,26 +324,26 @@ bool Fame::Save(std::vector<u8>& block, ErrorReporter& reporter) const
         return false;
     }
 
-    block.assign(kBlockHeaderBytes + packed.size(), 0);
-    block[kVersionAt] = kBlockVersion;
-    PutDword(block, kUnpackedAt, static_cast<u32>(size));
-    PutDword(block, kPackedAt, static_cast<u32>(packed.size()));
-    std::memcpy(block.data() + kBlockHeaderBytes, packed.data(), packed.size());
+    block.assign(Fame::BlockHeaderBytes + packed.size(), 0);
+    block[Fame::VersionAt] = Fame::BlockVersion;
+    PutDword(block, Fame::UnpackedAt, static_cast<u32>(size));
+    PutDword(block, Fame::PackedAt, static_cast<u32>(packed.size()));
+    std::memcpy(block.data() + Fame::BlockHeaderBytes, packed.data(), packed.size());
     return true;
 }
 
 // swd32.exe 0x00477F10: replaces the three lists from a save block (the count goes into the low word of the head)
 bool Fame::Load(std::span<const u8> block, ErrorReporter& reporter)
 {
-    const u32 size = GetDword(block, kUnpackedAt);
-    const u32 packedSize = GetDword(block, kPackedAt);
+    const u32 size = GetDword(block, Fame::UnpackedAt);
+    const u32 packedSize = GetDword(block, Fame::PackedAt);
     std::vector<u8> data(size, 0);
     const std::span<const u8> packed =
-        block.subspan(std::min<std::size_t>(kBlockHeaderBytes, block.size()))
+        block.subspan(std::min<std::size_t>(Fame::BlockHeaderBytes, block.size()))
             .first(
                 std::min<std::size_t>(
                     packedSize,
-                    block.size() > kBlockHeaderBytes ? block.size() - kBlockHeaderBytes : 0
+                    block.size() > Fame::BlockHeaderBytes ? block.size() - Fame::BlockHeaderBytes : 0
                 )
             );
     LzoDecoder decoder(packed, data);

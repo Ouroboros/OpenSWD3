@@ -12,6 +12,7 @@
 #include "core/types.h"
 #include "game/game_state.h"
 #include "game_data.h"
+#include "org/fame.h"
 #include "res/tsw_archive.h"
 #include "test.h"
 
@@ -57,19 +58,7 @@ constexpr std::size_t kRandomBytes = 3;
 constexpr std::size_t kRunLength = 11;  // the others count up every kRunLength bytes
 constexpr int kRandomShift = 24;
 
-// The packed blocks of a save file (Save/N.sav): the flags, a table, the data and the fame lists.
-constexpr std::size_t kSaveBytes = 0x9700;
-constexpr std::size_t kFlagsBlockAt = 0x962C;
-constexpr std::size_t kBlockHeaderBytes = 2 * sizeof(u32);  // the packed size and the unpacked size in words
-constexpr std::size_t kAfterTableBytes = 7 * sizeof(u32);
-constexpr std::size_t kAfterDataBytes = 0x40 + sizeof(u32) + 0x40 + 0x180;  // the names, the play time and two blocks
-constexpr int kSaveBits = 14;
-constexpr int kFameBits = 15;
-constexpr u8 kFameVersion = 1;
-constexpr std::size_t kFameSizeAt = 2;  // after the version
-constexpr std::size_t kFamePackedAt = 6;
-constexpr std::size_t kFameHeaderBytes = 0xA;
-constexpr int kBlocksPerSave = 4;
+constexpr int kBlocksPerSave = 4;  // the flags, the table, the data and the fame block
 
 std::vector<u8> Decode(std::span<const u8> packed, std::size_t size)
 {
@@ -159,13 +148,14 @@ TEST_CASE("lzo encoder: round trips of both dictionary sizes")
 
 TEST_CASE("lzo encoder: recompressing the blocks of original saves gives the same bytes")
 {
+    using swd3::Fame;
     int blocks = 0;
 
     for (const std::string name : {"Save/0.sav", "Save/1.sav"})
     {
         const std::vector<u8> save = swd3test::ReadGameFile(name);
 
-        if (save.size() < kSaveBytes)
+        if (save.size() < swd3test::kSaveBytes)
         {
             continue;
         }
@@ -175,32 +165,31 @@ TEST_CASE("lzo encoder: recompressing the blocks of original saves gives the sam
             return swd3::LzoEncoder(bits).Compress(unpacked) == std::vector<u8>(block.begin(), block.end());
         };
 
-        std::size_t at = kFlagsBlockAt;
-        const u32 flagsPacked = ByteReader::Word32At(save, at);
-        at += kBlockHeaderBytes;
-        const std::span<const u8> flagsBlock(save.data() + at, flagsPacked);
-        CHECK(same(kSaveBits, Decode(flagsBlock, swd3::GameState::FlagBytes), flagsBlock));
-        at += flagsPacked;
-        const u32 tablePacked = ByteReader::Word32At(save, at);
-        const u32 tableSize = ByteReader::Word32At(save, at + sizeof(u32));
-        at += kBlockHeaderBytes;
-        const std::span<const u8> tableBlock(save.data() + at, tablePacked);
-        CHECK(same(kSaveBits, Decode(tableBlock, tableSize), tableBlock));
-        at += tablePacked + kAfterTableBytes;
-        const u32 dataPacked = ByteReader::Word32At(save, at);
-        const u32 dataSize = ByteReader::Word32At(save, at + sizeof(u32));
-        at += kBlockHeaderBytes;
-        const std::span<const u8> dataBlock(save.data() + at, dataPacked);
-        CHECK(same(kSaveBits, Decode(dataBlock, dataSize), dataBlock));
-        at += dataPacked + kAfterDataBytes;
-        const u32 fameLength = ByteReader::Word32At(save, at);
-        at += sizeof(u32);
-        CHECK_EQ(save[at], kFameVersion);
-        const u32 fameSize = ByteReader::Word32At(save, at + kFameSizeAt);
-        const u32 famePacked = ByteReader::Word32At(save, at + kFamePackedAt);
-        CHECK_EQ(fameLength, famePacked + kFameHeaderBytes);
-        const std::span<const u8> fameBlock(save.data() + at + kFameHeaderBytes, famePacked);
-        CHECK(same(kFameBits, Decode(fameBlock, fameSize), fameBlock));
+        // A save block: its packed size, its unpacked size in words, the packed bytes.
+        auto check = [&save, &same](std::size_t at, std::size_t unpackedBytes)
+        {
+            const u32 packed = ByteReader::Word32At(save, at);
+            const std::span<const u8> block(save.data() + at + swd3test::kSaveBlockHeaderBytes, packed);
+            CHECK(same(swd3test::kSaveBlockBits, Decode(block, unpackedBytes), block));
+        };
+
+        auto words = [&save](std::size_t at)
+        {
+            return ByteReader::Word32At(save, at + sizeof(u32));
+        };
+
+        const swd3test::SaveBlocks at = swd3test::FindSaveBlocks(save);
+        check(at.flags, swd3::GameState::FlagBytes);
+        check(at.table, words(at.table));
+        check(at.data, words(at.data));
+        const u32 fameLength = ByteReader::Word32At(save, at.fame);
+        const std::size_t fame = at.fame + sizeof(u32);
+        CHECK_EQ(save[fame + Fame::VersionAt], Fame::BlockVersion);
+        const u32 fameSize = ByteReader::Word32At(save, fame + Fame::UnpackedAt);
+        const u32 famePacked = ByteReader::Word32At(save, fame + Fame::PackedAt);
+        CHECK_EQ(fameLength, famePacked + Fame::BlockHeaderBytes);
+        const std::span<const u8> fameBlock(save.data() + fame + Fame::BlockHeaderBytes, famePacked);
+        CHECK(same(Fame::DictionaryBits, Decode(fameBlock, fameSize), fameBlock));
         blocks += kBlocksPerSave;
     }
 

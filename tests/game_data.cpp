@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iterator>
 
+#include "core/byte_reader.h"
 #include "golden/draw_scenarios.h"
 #include "platform/file_system.h"
 #include "text/big5.h"
@@ -90,5 +91,25 @@ swd3::u32 ExeDword(const std::vector<u8>& exe, swd3::u32 address)
     }
 
     return value;
+}
+
+SaveBlocks FindSaveBlocks(const std::vector<u8>& save)
+{
+    constexpr std::size_t kFlagsAt = 0x962C;  // after the header, the thumbnail and the place name
+    constexpr std::size_t kAfterTableBytes = 7 * sizeof(swd3::u32);
+    constexpr std::size_t kAfterDataBytes =
+        0x40 + sizeof(swd3::u32) + 0x40 + 0x180;  // the names, the play time, two blocks
+
+    auto after = [&save](std::size_t block)
+    {
+        return block + kSaveBlockHeaderBytes + swd3::ByteReader::Word32At(save, block);
+    };
+
+    SaveBlocks blocks;
+    blocks.flags = kFlagsAt;
+    blocks.table = after(blocks.flags);
+    blocks.data = after(blocks.table) + kAfterTableBytes;
+    blocks.fame = after(blocks.data) + kAfterDataBytes;
+    return blocks;
 }
 }  // namespace swd3test

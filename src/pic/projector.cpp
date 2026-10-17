@@ -31,7 +31,6 @@ constexpr int kFullTurn = 4 * kQuarterTurn;
 constexpr i32 kSlopeUnit = 1000;       // a direction steps kSlopeUnit across
 constexpr i32 kSteepSlope = 100000;    // the slope of a straight up or down direction
 constexpr int kScaleBits = 10;         // Picture scales are in 1/1024
-constexpr int kSlowShare = 20;         // a twentieth of the opaque pixels fly slowly
 constexpr std::size_t kLowerLeft = 2;  // a particle is two by two pixels
 constexpr std::size_t kLowerRight = 3;
 
@@ -552,7 +551,7 @@ int Projector::DrawExplosion(Surface& surface, Painter& painter, crt::Random& ra
             }
         }
 
-        effect.slowLimit = effect.opaque / kSlowShare;
+        effect.slowLimit = effect.opaque / Projector::SlowShare;
         effect.burstStep = pixelCount / effect.bursts;
     }
 

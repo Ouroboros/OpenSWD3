@@ -15,6 +15,10 @@ namespace swd3
 // 1/16 steps and the fade step removed per update while fading.
 struct SequenceNode
 {
+    static constexpr int MaxLevel = 0x7F;  // the Miles volume and pan range
+    static constexpr int CenterPan = 0x3F;
+    static constexpr int VolumeScale = 0x10;  // the volumes are kept 16 times the Miles value
+
     VoiceHandle voice;
     std::vector<u8> midi;
     std::string name;

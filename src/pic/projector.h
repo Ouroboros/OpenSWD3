@@ -113,6 +113,7 @@ class Projector
 {
 public:
     static constexpr int Directions = 360;
+    static constexpr int SlowShare = 20;  // DrawExplosion: a twentieth of the opaque pixels fly slowly
 
     Projector();
 

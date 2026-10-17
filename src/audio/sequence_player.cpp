@@ -8,9 +8,6 @@ namespace swd3
 namespace
 {
 
-constexpr int kMaxLevel = 0x7F;  // the Miles volume and pan range
-constexpr int kPanCenter = 0x3F;
-constexpr int kVolumeScale = 0x10;  // the volumes are kept 16 times the Miles value
 constexpr int kStreamNodes = 2;
 
 }  // namespace
@@ -18,9 +15,9 @@ constexpr int kStreamNodes = 2;
 // swd32.exe 0x00486260
 int ClampVolume(int volume)
 {
-    if (volume > kMaxLevel)
+    if (volume > SequenceNode::MaxLevel)
     {
-        return kMaxLevel;
+        return SequenceNode::MaxLevel;
     }
 
     if (volume < 0)
@@ -34,11 +31,11 @@ int ClampVolume(int volume)
 // swd32.exe 0x00486280: the pan -63..64 to the Miles range 0..127
 int ClampPan(int pan)
 {
-    const int value = pan + kPanCenter;
+    const int value = pan + SequenceNode::CenterPan;
 
-    if (value > kMaxLevel)
+    if (value > SequenceNode::MaxLevel)
     {
-        return kMaxLevel;
+        return SequenceNode::MaxLevel;
     }
 
     if (value < 0)
@@ -229,9 +226,9 @@ int MidiPlayer::Play(const std::string& fileName, int id, int volume, int loops)
         return 0;
     }
 
-    node->volume = kVolumeScale * ClampVolume(volume);
+    node->volume = SequenceNode::VolumeScale * ClampVolume(volume);
     node->id = id;
-    this->device.SetVolume(node->voice, node->volume / kVolumeScale);
+    this->device.SetVolume(node->voice, node->volume / SequenceNode::VolumeScale);
     this->device.SetLoops(node->voice, loops);
     this->device.Start(node->voice);
     this->PushActive(std::move(node));
@@ -277,7 +274,7 @@ bool MidiPlayer::Update()
         else
         {
             sequence.volume -= sequence.fadeStep;
-            const int volume = ClampVolume(sequence.volume / kVolumeScale);
+            const int volume = ClampVolume(sequence.volume / SequenceNode::VolumeScale);
 
             if (volume != 0)
             {
@@ -396,7 +393,7 @@ int StreamPlayer::SetVolume(int id, int volume)
         return -1;
     }
 
-    node->volume = kVolumeScale * ClampVolume(volume);
+    node->volume = SequenceNode::VolumeScale * ClampVolume(volume);
     this->device.SetVolume(node->voice, ClampVolume(volume));
     return this->device.Volume(node->voice);
 }
@@ -428,7 +425,7 @@ int StreamPlayer::Play(const std::string& fileName, int id, int volume, int loop
     }
 
     node->name = fileName;
-    node->volume = kVolumeScale * ClampVolume(volume);
+    node->volume = SequenceNode::VolumeScale * ClampVolume(volume);
     node->id = id;
     this->device.SetVolume(node->voice, ClampVolume(volume));
     this->device.SetLoops(node->voice, loops);
@@ -499,7 +496,7 @@ bool StreamPlayer::Update()
         else
         {
             stream.volume -= stream.fadeStep;
-            const int volume = ClampVolume(stream.volume / kVolumeScale);
+            const int volume = ClampVolume(stream.volume / SequenceNode::VolumeScale);
 
             if (volume != 0)
             {

@@ -46,6 +46,7 @@ public:
         int right = 0;
     };
 
+    static constexpr i8 Shown = 5;  // `lit` of an item under the mouse (SW_SHOW)
     static constexpr int ItemY = 4;
     static constexpr int ItemWidth = 0x27;
     static constexpr int ItemHeight = 0xB4;

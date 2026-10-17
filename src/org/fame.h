@@ -19,6 +19,7 @@ class ErrorReporter;
 struct CounterNode
 {
     static constexpr std::size_t SavedBytes = 0xE;
+    static constexpr u16 Cap = 0x14;  // the capped counters stop counting up from here
 
     std::unique_ptr<CounterNode> next;  // +0x00
     i16 id = 0;                         // +0x04 the count in a head
@@ -53,7 +54,14 @@ struct Fame
         Lists = 3,
     };
 
-    // The save block: 1, the unpacked size, the packed size, then the 15-bit LZO data of the three lists.
+    // The save block: BlockVersion, the unpacked size, the packed size, then the LZO data of the three lists.
+    static constexpr std::size_t VersionAt = 0;
+    static constexpr u8 BlockVersion = 1;
+    static constexpr std::size_t UnpackedAt = 2;
+    static constexpr std::size_t PackedAt = 6;
+    static constexpr std::size_t BlockHeaderBytes = 0xA;
+    static constexpr int DictionaryBits = 15;
+
     bool Save(std::vector<u8>& block, ErrorReporter& reporter) const;
     bool Load(std::span<const u8> block, ErrorReporter& reporter);
     void Free();

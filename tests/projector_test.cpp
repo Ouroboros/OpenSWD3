@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <climits>
 #include <cstdio>
 #include <fstream>
 #include <functional>
@@ -97,7 +99,7 @@ public:
             }
         }
 
-        effect.slowLimit = effect.opaque / 20;
+        effect.slowLimit = effect.opaque / swd3::Projector::SlowShare;
         effect.burstStep = effect.pixelCount / effect.bursts;
         this->random.Seed(scenario.seed);
         std::vector<u8> out;
@@ -109,9 +111,10 @@ public:
             golden::Append32(out, static_cast<u32>(effect.particles));
             golden::Append32(out, static_cast<u32>(effect.opaque));
             golden::Append32(out, effect.bursts);
-            const u64 hash = golden::Hash(this->screen.Pixels(), 640 * 480 * 2);
+            const u64 hash =
+                golden::Hash(this->screen.Pixels(), swd3::Display::Width * swd3::Display::Height * sizeof(u16));
             golden::Append32(out, static_cast<u32>(hash));
-            golden::Append32(out, static_cast<u32>(hash >> 32));
+            golden::Append32(out, static_cast<u32>(hash >> (CHAR_BIT * sizeof(u32))));
 
             if (result == 1)
             {
@@ -119,7 +122,7 @@ public:
             }
         }
 
-        const u64 picture = golden::Hash(data.data(), data.size() * 2);
+        const u64 picture = golden::Hash(data.data(), data.size() * sizeof(u16));
         golden::Append32(out, static_cast<u32>(picture));
         return out;
     }
@@ -202,6 +205,18 @@ private:
     swd3::crt::Random random;
 };
 
+constexpr int kWidth = 40;  // a 40 x 20 picture whose first kOpaque pixels are opaque
+constexpr int kHeight = 20;
+constexpr int kOpaque = 300;
+constexpr u16 kColor = 0x1234;
+constexpr int kPlace = 100;
+constexpr int kTargetLeft = 400;
+constexpr int kTargetTop = 300;
+constexpr int kTargetSize = 50;
+constexpr int kLifeBase = 10;
+constexpr int kSpeed = 3;
+constexpr int kBursts = 2;
+
 }  // namespace
 
 TEST_CASE("projector: the colour keys are compared unconverted")
@@ -220,33 +235,29 @@ TEST_CASE("projector: the first explosion frame counts the opaque pixels")
     CHECK(painter.Init(screen));
     swd3::Projector projector;
     swd3::crt::Random random;
-    std::vector<u16> pixels(40 * 20, golden::kFillKey);
-
-    for (int i = 0; i < 300; ++i)
-    {
-        pixels[static_cast<std::size_t>(i)] = 0x1234;
-    }
+    std::vector<u16> pixels(kWidth * kHeight, golden::kFillKey);
+    std::fill_n(pixels.begin(), kOpaque, kColor);
 
     swd3::ParticleEffect effect;
     effect.pixels = pixels;
-    effect.width = 40;
-    effect.height = 20;
-    effect.x = 100;
-    effect.y = 100;
-    effect.targetLeft = 400;
-    effect.targetWidth = 50;
-    effect.targetTop = 300;
-    effect.targetHeight = 50;
-    effect.lifeBase = 10;
-    effect.speed = 3;
-    effect.bursts = 2;
+    effect.width = kWidth;
+    effect.height = kHeight;
+    effect.x = kPlace;
+    effect.y = kPlace;
+    effect.targetLeft = kTargetLeft;
+    effect.targetWidth = kTargetSize;
+    effect.targetTop = kTargetTop;
+    effect.targetHeight = kTargetSize;
+    effect.lifeBase = kLifeBase;
+    effect.speed = kSpeed;
+    effect.bursts = kBursts;
     effect.divisor = 1;
     CHECK_EQ(projector.DrawExplosion(screen, painter, random, effect), 0);
     CHECK_EQ(effect.started, 1);
-    CHECK_EQ(effect.pixelCount, 800);
-    CHECK_EQ(effect.slowLimit, 15);
-    CHECK_EQ(effect.burstStep, 400);
-    CHECK_EQ(effect.bursts, 1);
+    CHECK_EQ(effect.pixelCount, kWidth * kHeight);
+    CHECK_EQ(effect.slowLimit, kOpaque / swd3::Projector::SlowShare);
+    CHECK_EQ(effect.burstStep, kWidth * kHeight / kBursts);
+    CHECK_EQ(effect.bursts, kBursts - 1);
 }
 
 TEST_CASE("projector: matches the golden results of the legacy projector")

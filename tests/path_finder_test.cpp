@@ -1,3 +1,4 @@
+#include <array>
 #include <cstdio>
 #include <fstream>
 #include <functional>
@@ -5,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "game/game_state.h"
 #include "golden/path_scenarios.h"
 #include "golden_check.h"
 #include "map/blocking_map.h"
@@ -17,6 +19,19 @@ using golden::u8;
 
 namespace
 {
+
+constexpr std::size_t kDirections = std::tuple_size_v<decltype(swd3::MoveRecord::directions)>;
+constexpr u8 kUnwritten = 0xEE;
+constexpr int kTwice = 2;
+constexpr int kSide = 10;  // a 10 x 10 map walled in, a wall at kWallX from the top border down to kWallEnd
+constexpr int kWallX = 5;
+constexpr int kWallEnd = 7;
+constexpr int kStartX = 2;
+constexpr int kStartY = 2;
+constexpr int kGoalX = 7;
+// The step of each direction byte (0 up left, clockwise).
+constexpr std::array<int, 8> kStepX = {-1, 0, 1, 1, 1, 0, -1, -1};
+constexpr std::array<int, 8> kStepY = {-1, -1, -1, 0, 1, 1, 1, 0};
 
 class FinderBackend : public golden::PathBackend
 {
@@ -33,9 +48,9 @@ public:
         map.cells = scenario.cells;
         swd3::PathFinder finder(this->pool, map, this->reporter);
         finder.SetMask(static_cast<int>(scenario.mask));
-        std::vector<u8> directions(0x200, 0xEE);
+        std::vector<u8> directions(kDirections, kUnwritten);
         std::vector<u8> out;
-        const int runs = again ? 2 : 1;
+        const int runs = again ? kTwice : 1;
 
         for (int run = 0; run < runs; ++run)
         {
@@ -76,35 +91,40 @@ private:
 
 TEST_CASE("path finder: a path around a wall, and the second search of one finder")
 {
+    using swd3::MapHeader;
     swd3::PathNodePool pool;
     pool.Init();
     swd3::BlockingMap map;
-    map.width = 10;
-    std::vector<swd3::u32> cells(100, 0);
+    map.width = kSide;
+    std::vector<swd3::u32> cells(static_cast<std::size_t>(kSide * kSide), 0);
     map.cells = cells;
 
-    for (int y = 0; y < 10; ++y)
+    auto cell = [](int x, int y)
     {
-        cells[static_cast<std::size_t>(y) * 10] = 0xFFFFFFFF;
-        cells[static_cast<std::size_t>(y) * 10 + 9] = 0xFFFFFFFF;
-        cells[static_cast<std::size_t>(y)] = 0xFFFFFFFF;
-        cells[90 + static_cast<std::size_t>(y)] = 0xFFFFFFFF;
+        return static_cast<std::size_t>(y * kSide + x);
+    };
+
+    for (int along = 0; along < kSide; ++along)
+    {
+        cells[cell(0, along)] = MapHeader::Outside;
+        cells[cell(kSide - 1, along)] = MapHeader::Outside;
+        cells[cell(along, 0)] = MapHeader::Outside;
+        cells[cell(along, kSide - 1)] = MapHeader::Outside;
     }
 
-    for (int y = 1; y < 7; ++y)
+    for (int y = 1; y < kWallEnd; ++y)
     {
-        cells[static_cast<std::size_t>(y) * 10 + 5] = 0x40000000;
+        cells[cell(kWallX, y)] = MapHeader::Wall;
     }
 
     swd3test::RecordingReporter reporter;
     swd3::PathFinder finder(pool, map, reporter);
-    std::vector<u8> directions(0x200);
-    CHECK_EQ(finder.FindPath(2 * 16, 2 * 16, 7 * 16, 2 * 16, 1, 1, directions), 1);
-    int x = 2;
-    int y = 2;
+    std::vector<u8> directions(kDirections);
+    constexpr int kTile = MapHeader::TileSize;
+    CHECK_EQ(finder.FindPath(kStartX * kTile, kStartY * kTile, kGoalX * kTile, kStartY * kTile, 1, 1, directions), 1);
+    int x = kStartX;
+    int y = kStartY;
     int steps = 0;
-    const int dx[8] = {-1, 0, 1, 1, 1, 0, -1, -1};
-    const int dy[8] = {-1, -1, -1, 0, 1, 1, 1, 0};
 
     for (const u8 direction : directions)
     {
@@ -114,17 +134,20 @@ TEST_CASE("path finder: a path around a wall, and the second search of one finde
         }
 
         // A direction byte is looked up from the tile minus the next one, so it names the opposite of the step.
-        x -= dx[direction];
-        y -= dy[direction];
-        CHECK(map.cells[static_cast<std::size_t>(y) * 10 + x] == 0);
+        x -= kStepX[direction];
+        y -= kStepY[direction];
+        CHECK(map.cells[cell(x, y)] == 0);
         ++steps;
     }
 
-    CHECK_EQ(x, 7);
-    CHECK_EQ(y, 2);
-    CHECK(steps > 5);
+    CHECK_EQ(x, kGoalX);
+    CHECK_EQ(y, kStartY);
+    CHECK(steps > kGoalX - kStartX);  // longer than the way straight through the wall
     CHECK_EQ(finder.found, 1);
-    CHECK_EQ(finder.FindPath(2 * 16, 2 * 16, 7 * 16, 3 * 16, 1, 1, directions), 0);
+    CHECK_EQ(
+        finder.FindPath(kStartX * kTile, kStartY * kTile, kGoalX * kTile, (kStartY + 1) * kTile, 1, 1, directions),
+        0
+    );
     finder.Reset();
     CHECK_EQ(pool.peak, swd3::PathNodePool::Initial);
     CHECK(pool.Release());

@@ -26,6 +26,23 @@ std::vector<u8> ReadGameFile(const std::string& name);
 bool SameText(const std::vector<u8>& exe, swd3::u32 address, std::string_view text);
 bool SameText(const std::vector<u8>& exe, swd3::u32 address, std::u8string_view text);
 
+// The packed blocks of an original save (Save/N.sav), each where its header starts: the story flags, a table and the
+// data (each a packed size and an unpacked size in words, then 14-bit LZO data), and the fame block (its length, then
+// the block of Fame).
+struct SaveBlocks
+{
+    std::size_t flags = 0;
+    std::size_t table = 0;
+    std::size_t data = 0;
+    std::size_t fame = 0;
+};
+
+constexpr std::size_t kSaveBytes = 0x9700;  // an original save is at least this long
+constexpr std::size_t kSaveBlockHeaderBytes = 2 * sizeof(swd3::u32);
+constexpr int kSaveBlockBits = 14;
+
+SaveBlocks FindSaveBlocks(const std::vector<u8>& save);
+
 // swd32.exe is loaded here: an address minus it is the file offset.
 constexpr swd3::u32 kImageBase = 0x400000;
 

@@ -82,6 +82,25 @@ constexpr std::array<std::pair<swd3::u32, std::u8string_view>, 5> kTexts = {{
 constexpr swd3::u32 kLootLineAt = 0x004A7AE8;
 constexpr swd3::u32 kElementTable = 0x004A79A8;  // the pointers to the element names
 
+constexpr int kFirstX = 1;
+constexpr int kFirstY = 2;
+constexpr std::string_view kFirstText = "abcd";
+constexpr int kSecondX = 3;
+constexpr int kSecondY = 4;
+constexpr int kSecondFrames = 5;
+constexpr int kThirdX = 5;
+constexpr int kThirdY = 6;
+constexpr swd3::i32 kRiseStart = -0x20;  // a rising message starts this far below
+constexpr int kPanelTop = 0xD4;
+constexpr int kPanelBottom = 0xF4;
+constexpr int kGrowDivisor = 3;
+constexpr std::size_t kEarlierRow = 1;  // two queued actions; the one in the earlier row is taken
+constexpr std::size_t kEarlierColumn = 3;
+constexpr std::size_t kLaterRow = 2;
+constexpr std::size_t kLaterColumn = 5;
+constexpr swd3::i16 kEarlierAction = 7;
+constexpr swd3::i16 kLaterAction = 9;
+
 }  // namespace
 
 TEST_CASE("battle message: texts match swd32.exe")
@@ -111,9 +130,9 @@ TEST_CASE("battle message: texts match swd32.exe")
 TEST_CASE("battle message: list, panel growth and the action queue")
 {
     Messages all;
-    all.messages.Add(1, 2, 0, "abcd", BattleMessage::BlackBar);
-    all.messages.Add(3, 4, 5, "xy", BattleMessage::Rise);
-    all.messages.Add(5, 6, 0, "z", 0);
+    all.messages.Add(kFirstX, kFirstY, 0, kFirstText, BattleMessage::BlackBar);
+    all.messages.Add(kSecondX, kSecondY, kSecondFrames, "xy", BattleMessage::Rise);
+    all.messages.Add(kThirdX, kThirdY, 0, "z", 0);
     BattleMessage* first = all.messages.messages.get();
     CHECK(first != nullptr);
 
@@ -122,7 +141,7 @@ TEST_CASE("battle message: list, panel growth and the action queue")
         return;
     }
 
-    CHECK_EQ(first->length, 4);
+    CHECK_EQ(first->length, static_cast<int>(kFirstText.size()));
     BattleMessage* second = first->next.get();
     CHECK(second != nullptr);
 
@@ -132,7 +151,7 @@ TEST_CASE("battle message: list, panel growth and the action queue")
     }
 
     CHECK_EQ(second->y, 1);
-    CHECK_EQ(second->slideY, -0x20);
+    CHECK_EQ(second->slideY, kRiseStart);
     CHECK(second->next != nullptr);
     second->frames = 0;
     second->flags = 0;
@@ -140,24 +159,26 @@ TEST_CASE("battle message: list, panel growth and the action queue")
     CHECK(all.messages.messages == nullptr);
 
     all.messages.panelHeight = 0;
-    CHECK_EQ(all.messages.GrowPanel(0xD4, 0xF4, 3), 0);
-    CHECK_EQ(all.messages.panelHeight, 10);
+    CHECK_EQ(all.messages.GrowPanel(kPanelTop, kPanelBottom, kGrowDivisor), 0);
+    CHECK_EQ(all.messages.panelHeight, (kPanelBottom - kPanelTop) / kGrowDivisor);
     int calls = 1;
 
-    while (all.messages.GrowPanel(0xD4, 0xF4, 3) == 0)
+    while (all.messages.GrowPanel(kPanelTop, kPanelBottom, kGrowDivisor) == 0)
     {
         ++calls;
     }
 
-    CHECK_EQ(all.messages.panelHeight, 30);
+    CHECK_EQ(all.messages.panelHeight, kPanelBottom - kPanelTop - (kGrowDivisor - 1));  // a step of 0 ends it
     CHECK(calls > 1);
 
-    all.state.actionQueue[13] = 7;
-    all.state.actionQueue[25] = 9;
+    constexpr std::size_t kEarlier = kEarlierRow * swd3::BattleState::QueueColumns + kEarlierColumn;
+    constexpr std::size_t kLater = kLaterRow * swd3::BattleState::QueueColumns + kLaterColumn;
+    all.state.actionQueue[kEarlier] = kEarlierAction;
+    all.state.actionQueue[kLater] = kLaterAction;
     all.state.TakePendingAction();
-    CHECK_EQ(all.state.pendingAction, 7);
-    CHECK_EQ(all.state.pendingActionRow, 1);
-    CHECK_EQ(all.state.actionQueue[13], 0);
+    CHECK_EQ(all.state.pendingAction, kEarlierAction);
+    CHECK_EQ(all.state.pendingActionRow, kEarlierRow);
+    CHECK_EQ(all.state.actionQueue[kEarlier], 0);
     all.state.TakePendingAction();
-    CHECK_EQ(all.state.pendingAction, 7);
+    CHECK_EQ(all.state.pendingAction, kEarlierAction);  // kept until it is used
 }

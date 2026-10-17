@@ -14,7 +14,6 @@ namespace swd3
 namespace
 {
 
-constexpr i8 kShow = 5;
 constexpr u32 kLeftButton = 1;
 constexpr std::size_t kContinueItem = 0;  // the items of the dialog
 constexpr std::size_t kStartItem = 1;
@@ -93,7 +92,7 @@ Launcher::Choice Launcher::OnMouse(u32 buttons, int x, int y)
                 continue;
             }
 
-            this->lit[item] = kShow;
+            this->lit[item] = Launcher::Shown;
             newlyLit = newlyLit || this->litBefore[item] == 0;
 
             if (buttons != kLeftButton)
