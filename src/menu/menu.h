@@ -8,6 +8,7 @@
 #include "core/types.h"
 #include "item/item_list.h"
 #include "menu/menu_list.h"
+#include "org/object_record.h"
 #include "party/party.h"
 #include "res/act_state.h"
 
@@ -143,6 +144,45 @@ struct EquipPage
         {};                 // 0x004FCF8C the four roles, then the role with the object tried
     i32 count = 0;          // 0x004FCF90
     i32 previousStage = 0;  // 0x004FCED0 the stage a description returns to
+};
+
+// The skills page (role page 0xD; 0x004FCF98..0x004FD080): a role's skills of one tab in two columns, used on the
+// party or on one role; the town and exit warps.
+struct SkillsPage
+{
+    ItemLink list;                   // 0x004FCFC0 the skills of the tab, moved out of the role's list
+    ItemNode* firstShown = nullptr;  // 0x004FCFBC
+    i32 top = 0;                     // 0x004FCF98
+    i32 roles = 0;                   // 0x004FCF9C the party roles
+    i32 shown = 0;                   // 0x004FCFA0 at most 24
+    i32 buttonOffset = 0;            // 0x004FCFA4 -1 while the description button is pressed
+    i32 tab = 0;                     // 0x004FCFA8
+    i32 target = 0;                  // 0x004FCFAC the role a skill is used on
+    i32 tabs = 0;                    // 0x004FCFB0 the tabs of the target role (3..5)
+    i32 descriptionSlide = 0;        // 0x004FCFB4
+    i32 count = 0;                   // 0x004FCFB8
+    i32 row = 0;                     // 0x004FD070
+    i32 shownTabs = 0;               // 0x004FD074 always 3
+    i32 stage = 0;                   // 0x004FD078
+    i32 descriptionTop = 0;          // 0x004FD07C
+    u16 scrollArrows = 0;            // 0x004FD080 the list's (bits 0..7) and the towns' (bits 8..15)
+    SkillScript skill;               // 0x004BAB74 the skill loaded last
+};
+
+// A town of the town warp (0x004FB8D0 holds them, six bytes and the name).
+struct MenuTown
+{
+    u16 map = 0;
+    u16 x = 0;
+    u16 y = 0;
+    std::string name;
+};
+
+// The status page (role page 0xE; 0x004FD2D8 and 0x004FD2DC): a role's record with its equipment.
+struct StatusPage
+{
+    RoleRecord bonus;  // 0x004FD2D8 what the equipment gives
+    RoleRecord total;  // 0x004FD2DC the record with it
 };
 
 // The edges of a list's scroll bar as last drawn (DrawScrollBar), read by the clicks.
@@ -314,6 +354,46 @@ public:
     void EquipDrawSlots(int x, int y, int slide, int width, int chosen);
     void EquipDrawStats(int slot, int role);
     void DrawDescriptionBox(std::string_view text);
+
+    // The skills page (role page 0xD).
+    void SkillsEnter();
+    void SkillsLeave();
+    void SkillsDescribe();
+    void SkillsTake(ItemLink& source, int tab);
+    void SkillsCountShown();
+    void SkillsFillList();
+    void SkillsReturn();
+    void SkillsCountTabs();
+    void SkillsMoved(u16 arrows, bool sound);
+    int SkillsNextRole(int role, int step) const;
+    void SkillsDown();
+    void SkillsUp();
+    void SkillsPageDown();
+    void SkillsPageUp();
+    void SkillsOtherColumn(u16 arrows);
+    void SkillsLeft();
+    void SkillsRight();
+    void SkillsShift();
+    void SkillsEnd();
+    void SkillsSelect();
+    void SkillsCancel();
+    void SkillsFrame();
+    void SkillsDraw();
+    void SkillsDrawTowns(Pixel color);
+    std::size_t FindExitWarp(int map) const;
+    void ListTowns();
+    void Warp(u16 map, u16 x, u16 y, i16 event);
+
+    // The status page (role page 0xE).
+    void StatusEnter();
+    void StatusLeave();
+    void StatusCompute();
+    void StatusFrame();
+    void StatusNext();
+    void StatusPrevious();
+    void StatusCancel();
+    void StatusDrawBonus(int bonus, int x, int y, int value);
+    void StatusDraw();
     void OptionsLeave();
     bool DrawNameEntry();
     void ActOnEntry();
@@ -406,16 +486,23 @@ public:
     Bestiary bestiary;
     AltarPage altar;
     EquipPage equip;
-    MenuScrollBar unk4FBAB4;     // 0x004FBAB4 a second bar of the equipment list (only drawn)
-    i32 descriptionSlide = 0;    // 0x004FC648 the description box slides (up while positive)
-    i32 descriptionTop = 0x1E0;  // 0x004FC830 its top
-    i32 unk4FC904 = 0;           // 0x004FC904 -1 while the description button is pressed
-    ActState unk4FD0A8;          // 0x004FD0A8 the description button
-    ItemLink itemObjects;        // 0x004FD1E8 the objects of the items page
-    ItemLink savedInventory;     // 0x004FD15C the inventory kept while the items page saves
-    ItemLink savedItems;         // 0x004FD140 `itemObjects` kept with it
-    std::string description;     // 0x004FC2A0 the description of the chosen object
-    std::vector<u16> unk4FD318;  // 0x004FD318 the options page's list
+    SkillsPage skills;
+    StatusPage status;
+    std::vector<MenuTown> towns;  // 0x004FB8D0 (its count at 0x004FC834)
+    i32 townTop = 0;              // 0x004FBED4
+    i32 townRow = 0;              // 0x004FC510
+    i32 townShown = 0;            // 0x004FB8D4
+    MenuScrollBar townBar;        // 0x004FC500
+    MenuScrollBar unk4FBAB4;      // 0x004FBAB4 a second bar of the equipment list (only drawn)
+    i32 descriptionSlide = 0;     // 0x004FC648 the description box slides (up while positive)
+    i32 descriptionTop = 0x1E0;   // 0x004FC830 its top
+    i32 unk4FC904 = 0;            // 0x004FC904 -1 while the description button is pressed
+    ActState unk4FD0A8;           // 0x004FD0A8 the description button
+    ItemLink itemObjects;         // 0x004FD1E8 the objects of the items page
+    ItemLink savedInventory;      // 0x004FD15C the inventory kept while the items page saves
+    ItemLink savedItems;          // 0x004FD140 `itemObjects` kept with it
+    std::string description;      // 0x004FC2A0 the description of the chosen object
+    std::vector<u16> unk4FD318;   // 0x004FD318 the options page's list
 
 private:
     void Call(Handler handler);

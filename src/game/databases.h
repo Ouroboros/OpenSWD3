@@ -143,6 +143,8 @@ enum class MapsDataTable : int
     ObjectDescriptions = 0x13,  // by object id, each up to MapsRecord::NameEnd
     PlaceNames = 0x14,
     RoleSounds = 0x15,
+    ExitWarps = 0x16,  // 0x0043BE40
+    Towns = 0x17,      // 0x0043BE90
     Unk18 = 0x18,
     Followers = 0x19,
 };
