@@ -98,6 +98,13 @@ public:
     void CountUsableObjects(u16& count);
     int ListedObject(int index, std::string& name, u16& count);
     ItemNode* StepItem();
+    static u32 CategoryKinds(int category, int categories);
+    ItemNode* StepSkill();
+    void CountSkills(int category, int type, u8& count);
+    static int ObjectsLeft(const ItemNode& node);
+    void CountObjects(int category, u16& count);
+    int ListObject(int category, int index, std::string& name, u16& flags, u16& count);
+    int ThrowableObject(int throwable, int index, std::string& name, u16& count);
     void Regenerate(BattleServices& services);
     void UseAccessorySkill(BattleServices& services, u16 kind);
     void RollCritical(BattleServices& services);

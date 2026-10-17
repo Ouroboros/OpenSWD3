@@ -216,8 +216,25 @@ constexpr u16 kAccessoryStep = 5;        // the proficiency steps of an accessor
 constexpr u16 kDrainStep = 0xC;          // the proficiency the life-drain accessory gains from a drain
 constexpr u32 kCountedKind = 0x8000000;  // ObjectData::kind bit of the objects CountUsableObjects counts
 constexpr u16 kThrownObject = 0x300;
-constexpr u8 kCountedUsers = 5;          // usableBy (low byte) bits 0 and 2
-constexpr u16 kListedObject = 0x2000;    // ObjectData::unk40 bit of the objects ListedObject counts
+constexpr u8 kCountedUsers = 5;        // usableBy (low byte) bits 0 and 2
+constexpr u16 kListedObject = 0x2000;  // ObjectData::unk40 bit of the objects ListedObject counts
+constexpr u32 kCategory0 = 0x10;       // the kind bits of the list categories (BattleRole::CategoryKinds)
+constexpr u32 kCategory1 = 0xC;
+constexpr u32 kCategory2 = 0x1001;
+constexpr u32 kCategory3 = 0x800;
+constexpr u32 kCategory4 = 0x2000;
+constexpr u32 kCategory5 = 0x8000000;
+constexpr int kSkillCategories = 3;
+constexpr int kListCategories = 4;
+constexpr int kObjectCategories = 6;
+constexpr int kSkillType0 = 0x1C;  // ObjectData::unk52 of the skill types
+constexpr int kSkillType1 = 0x1F;
+constexpr u16 kFirstSkillType = 0x1B;
+constexpr u16 kLastSkillType = 0x1E;
+constexpr u16 kShownObject = 0x8000;  // ListObject flags
+constexpr u16 kCostlyObject = 0x4000;
+constexpr u16 kCostsStamina = 0x4000;  // ObjectData::unk40: the low 14 bits are a stamina cost
+constexpr u16 kCostMask = 0x3FFF;
 constexpr int kUnk1FScale = 4;           // Unk1F: unk29A4 is 4 percent of the proficiency and 1
 constexpr int kAccessoryBaseShare = 10;  // the heals add a tenth of their base
 constexpr int kHalfShare = 5;            // Unk22 / Unk24: the proficiency is halved, less a fifth of that
@@ -3681,5 +3698,199 @@ ItemNode* BattleRole::StepItem()
     this->inventory = &node->next;
     this->inventoryNode = node;
     return node;
+}
+
+// The kind bits of the item and skill categories of the battle lists (inline in the original: 0 kCategory0, 1
+// kCategory1, 2 kCategory2, 3 kCategory3, 4 kCategory4, 5 kCategory5; another category is taken as the bits);
+// `categories` limits the switch to its first entries as each function has it.
+u32 BattleRole::CategoryKinds(int category, int categories)
+{
+    static constexpr std::array<u32, 6> kinds = {
+        kCategory0,
+        kCategory1,
+        kCategory2,
+        kCategory3,
+        kCategory4,
+        kCategory5,
+    };
+
+    if (category >= 0 && category < categories)
+    {
+        return kinds[static_cast<std::size_t>(category)];
+    }
+
+    return static_cast<u32>(category);
+}
+
+// The step of the shown skill list to its next skill (inline in the original); nullptr at the end.
+ItemNode* BattleRole::StepSkill()
+{
+    this->skills = this->skills != nullptr ? this->skills->next.get() : nullptr;
+    return this->skills;
+}
+
+// swd32.exe 0x004702E0: `count` raised by the skills of `category` usable by roles bit 0 or 2: for `type` 0 those
+// with unk52 kFirstSkillType..kLastSkillType, otherwise those with unk52 kSkillType1 (type 1 is that kind; others
+// are taken as themselves, but only kSkillType0 is told apart)
+void BattleRole::CountSkills(int category, int type, u8& count)
+{
+    const u32 kinds = BattleRole::CategoryKinds(category, kSkillCategories);
+    int wanted = type;
+
+    if (type == 0)
+    {
+        wanted = kSkillType0;
+    }
+    else if (type == 1)
+    {
+        wanted = kSkillType1;
+    }
+
+    this->ShowAllSkills();
+
+    while (ItemNode* const node = this->StepSkill())
+    {
+        const ObjectData& data = node->record.data;
+
+        if ((LowByte(data.usableBy) & kCountedUsers) == 0 || (kinds & data.kind) == 0)
+        {
+            continue;
+        }
+
+        if (wanted == kSkillType0)
+        {
+            if (data.unk52 >= kFirstSkillType && data.unk52 <= kLastSkillType)
+            {
+                ++count;
+            }
+        }
+        else if (data.unk52 == kSkillType1)
+        {
+            ++count;
+        }
+    }
+}
+
+// The objects of a node left to use: its count and pending ones less those already taken (unk06).
+int BattleRole::ObjectsLeft(const ItemNode& node)
+{
+    return node.count + node.pending - static_cast<u16>(node.unk06);
+}
+
+// swd32.exe 0x00470A10: `count` raised by the objects of `category` usable by roles bit 0 or 2 with some left, and
+// for category 4 by every object with unk40 bit kListedObject as well
+void BattleRole::CountObjects(int category, u16& count)
+{
+    const u32 kinds = BattleRole::CategoryKinds(category, kObjectCategories);
+    this->ShowAllItems();
+
+    while (ItemNode* const node = this->StepItem())
+    {
+        const ObjectData& data = node->record.data;
+
+        if ((kinds & data.kind) != 0 && (LowByte(data.usableBy) & kCountedUsers) != 0 && ObjectsLeft(*node) > 0)
+        {
+            ++count;
+        }
+
+        if (kinds == kCategory4 && (data.unk40 & kListedObject) != 0)
+        {
+            ++count;
+        }
+    }
+}
+
+// swd32.exe 0x00470910: the `index`th object of `category` (0..3) usable by roles bit 0 or 2 with some left: its
+// name, the count left, and `flags` kShownObject, with kCostlyObject when its unk40 cost (with kCostsStamina) is
+// above the role's stamina; 0 (flags 0) past the end. Index 0 takes the first object at all, shown only when it
+// qualifies.
+int BattleRole::ListObject(int category, int index, std::string& name, u16& flags, u16& count)
+{
+    int listed = 0;
+    ItemNode* node = nullptr;
+    this->ShowAllItems();
+    flags = 0;
+    const u32 kinds = BattleRole::CategoryKinds(category, kListCategories);
+
+    do
+    {
+        node = this->StepItem();
+
+        if (node == nullptr)
+        {
+            flags = 0;
+            return 0;
+        }
+
+        const ObjectData& data = node->record.data;
+
+        if ((kinds & data.kind) != 0 && (LowByte(data.usableBy) & kCountedUsers) != 0 && ObjectsLeft(*node) > 0)
+        {
+            ++listed;
+        }
+    } while (listed != index);
+
+    const ObjectData& data = node->record.data;
+
+    if ((kinds & data.kind) != 0 && (LowByte(data.usableBy) & kCountedUsers) != 0)
+    {
+        name = ObjectName(node->record);
+        count = static_cast<u16>(ObjectsLeft(*node));
+        flags = static_cast<u16>(flags | kShownObject);
+
+        if ((data.unk40 & kCostsStamina) != 0 && (data.unk40 & kCostMask) > this->roleRecord->stamina)
+        {
+            flags = static_cast<u16>(flags | kCostlyObject);
+        }
+    }
+
+    return 1;
+}
+
+// swd32.exe 0x00470FE0: with `throwable`, the `index`th object of kind bit kCountedKind that is not kThrownObject
+// (it becomes the selected item); without, the first kThrownObject (the index ignored, the selection kept). Its name
+// and count (with the pending ones) when usable by roles bit 0 or 2; 0 past the end. Index 0 takes the first object.
+int BattleRole::ThrowableObject(int throwable, int index, std::string& name, u16& count)
+{
+    int listed = 0;
+    ItemNode* node = nullptr;
+    bool selected = true;
+    this->ShowAllItems();
+
+    do
+    {
+        node = this->StepItem();
+
+        if (node == nullptr)
+        {
+            return 0;
+        }
+
+        if (throwable != 0)
+        {
+            if ((node->record.data.kind & kCountedKind) != 0 && node->id != kThrownObject)
+            {
+                ++listed;
+            }
+        }
+        else if (node->id == kThrownObject)
+        {
+            selected = false;
+            break;
+        }
+    } while (listed != index);
+
+    if (selected)
+    {
+        this->selectedItem = node;
+    }
+
+    if ((LowByte(node->record.data.usableBy) & kCountedUsers) != 0)
+    {
+        name = ObjectName(node->record);
+        count = static_cast<u16>(node->count + node->pending);
+    }
+
+    return 1;
 }
 }  // namespace swd3

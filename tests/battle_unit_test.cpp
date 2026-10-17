@@ -1159,3 +1159,88 @@ TEST_CASE("battle role: counting and listing the inventory")
     role.unk26DC = kProficiency;
     CHECK_EQ(role.Unk1EProficiency(all.services), kProficiency);
 }
+
+TEST_CASE("battle role: the object and skill lists of the battle menu")
+{
+    constexpr swd3::u32 kHerbKind = 0x10;  // category 0
+    constexpr swd3::u32 kThrowKind = 0x8000000;
+    constexpr swd3::u16 kThrownObject = 0x300;
+    constexpr swd3::u16 kUsable = 1;
+    constexpr swd3::i16 kTwo = 2;
+    constexpr swd3::u16 kListedBit = 0x2000;
+    constexpr int kCategory4 = 4;
+    constexpr swd3::u16 kCostly = 0x4000 | 50;
+    constexpr swd3::i16 kStamina = 40;
+    constexpr swd3::u16 kShown = 0x8000;
+    constexpr swd3::u16 kShownCostly = 0x8000 | 0x4000;
+    constexpr swd3::u16 kSkillType0 = 0x1C;
+    constexpr swd3::u16 kSkillType1 = 0x1F;
+    constexpr int kAnyIndex = 5;
+
+    swd3::ItemLink head = std::make_unique<swd3::ItemNode>();
+    swd3::ItemNode& herb = *head;
+    herb.record.data.kind = kHerbKind;
+    herb.record.data.usableBy = kUsable;
+    herb.record.data.unk40 = kCostly;
+    herb.count = kTwo;
+    herb.next = std::make_unique<swd3::ItemNode>();
+    swd3::ItemNode& spent = *herb.next;
+    spent.record.data.kind = kHerbKind;
+    spent.record.data.usableBy = kUsable;
+    spent.record.data.unk40 = kListedBit;
+    spent.count = kTwo;
+    spent.unk06 = kTwo;
+    spent.next = std::make_unique<swd3::ItemNode>();
+    swd3::ItemNode& thrown = *spent.next;
+    thrown.id = kThrownObject;
+    thrown.record.data.kind = kThrowKind;
+    thrown.record.data.usableBy = kUsable;
+    thrown.next = std::make_unique<swd3::ItemNode>();
+    swd3::ItemNode& dart = *thrown.next;
+    dart.record.data.kind = kThrowKind;
+    dart.record.data.usableBy = kUsable;
+    swd3::RoleRecord record;
+    record.stamina = kStamina;
+    swd3::BattleRole role;
+    role.roleRecord = &record;
+    role.SetInventory(&head);
+
+    swd3::u16 count = 0;
+    role.CountObjects(0, count);
+    CHECK_EQ(count, 1);
+    count = 0;
+    role.CountObjects(kCategory4, count);
+    CHECK_EQ(count, 1);
+    std::string name;
+    swd3::u16 flags = 0;
+    CHECK_EQ(role.ListObject(0, 1, name, flags, count), 1);
+    CHECK_EQ(flags, kShownCostly);
+    CHECK_EQ(count, kTwo);
+    record.stamina = static_cast<swd3::i16>(kCostly);
+    role.ListObject(0, 1, name, flags, count);
+    CHECK_EQ(flags, kShown);
+    CHECK_EQ(role.ListObject(0, 2, name, flags, count), 0);
+    CHECK_EQ(flags, 0);
+
+    CHECK_EQ(role.ThrowableObject(1, 1, name, count), 1);
+    CHECK(role.selectedItem == &dart);
+    CHECK_EQ(role.ThrowableObject(0, kAnyIndex, name, count), 1);
+    CHECK(role.selectedItem == &dart);
+    CHECK(role.inventoryNode == &thrown);
+
+    swd3::ItemNode skillHead;
+    skillHead.next = std::make_unique<swd3::ItemNode>();
+    skillHead.next->record.data.kind = kHerbKind;
+    skillHead.next->record.data.usableBy = kUsable;
+    skillHead.next->record.data.unk52 = kSkillType0;
+    skillHead.next->next = std::make_unique<swd3::ItemNode>();
+    skillHead.next->next->record.data.kind = kHerbKind;
+    skillHead.next->next->record.data.usableBy = kUsable;
+    skillHead.next->next->record.data.unk52 = kSkillType1;
+    role.SetSkills(&skillHead);
+    swd3::u8 skills = 0;
+    role.CountSkills(0, 0, skills);
+    CHECK_EQ(skills, 1);
+    role.CountSkills(0, 1, skills);
+    CHECK_EQ(skills, 2);
+}
