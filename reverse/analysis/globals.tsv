@@ -12,10 +12,11 @@
 0x004A135C	Talk::dialogOrigin	u32	src/talk/talk.h:153	the place of the next talk window (NoOriginX: by its speaker)
 0x004A1360	Talk::dialogOptions	u32	src/talk/talk.h:154	its options, a cleared bit turns one on
 0x004A1364	Talk::dialogTimeout	u32	src/talk/talk.h:155	
-0x004A6A38	Menu::tabs	std::array<MenuTab, Tabs>	src/menu/menu.h:502	
-0x004A6AA8	Menu::unk4A6AA8	u16	src/menu/menu.h:490	
-0x004A6AAC	Menu::tabGlow	std::array<i8, Tabs>	src/menu/menu.h:501	
-0x004A6AB0	Menu::lastPage	i32	src/menu/menu.h:499	
+0x004A6A00	InventoryPage::unk4A6A00	std::array<u16, 14>	src/menu/menu.h:238	the rows shown numbered from 100, ended by 0 (never read)
+0x004A6A38	Menu::tabs	std::array<MenuTab, Tabs>	src/menu/menu.h:560	
+0x004A6AA8	Menu::unk4A6AA8	u16	src/menu/menu.h:548	
+0x004A6AAC	Menu::tabGlow	std::array<i8, Tabs>	src/menu/menu.h:559	
+0x004A6AB0	Menu::lastPage	i32	src/menu/menu.h:557	
 0x004A74C8	BattleHud::coinDelay	u32	src/battle/battle_hud.h:97	low word: the delay, high word: the countdown
 0x004A74CC	BattleState::gaugeFull	i32	src/battle/battle_state.h:160	the full action gauge
 0x004A7548	BattleState::unk4A7548	i32	src/battle/battle_state.h:496	the command chosen in the menu (1-based)
@@ -358,63 +359,66 @@
 0x004CF738	Talk::dialogTimed	i32	src/talk/talk.h:158	dialogTimeout applies
 0x004CF73C	Talk::dialogCentred	i32	src/talk/talk.h:159	
 0x004FB568	Projector::particleRange	i32	src/pic/projector.h:158	the pixel range of ParticlePut with flag 0x40
-0x004FB808	Menu::beforeFrame	Handler	src/menu/menu.h:468	(none: not called)
-0x004FB810	Menu::hitPointBar	ActState	src/menu/menu.h:505	the bars of the role tabs
-0x004FB8A8	Menu::mode	u16	src/menu/menu.h:485	
-0x004FB8AC	Menu::clicks	u32	src/menu/menu.h:497	bits 0..1: a left click (single, double), bits 2..3: a right click
-0x004FB8D0	Menu::towns	std::vector<MenuTown>	src/menu/menu.h:540	(its count at 0x004FC834)
-0x004FB8D4	Menu::townShown	i32	src/menu/menu.h:543	
-0x004FB8D8	Menu::unk4FB8D8	ActState	src/menu/menu.h:506	
-0x004FB970	Menu::background	ActState	src/menu/menu.h:504	
-0x004FBA10	Menu::pageUp	Handler	src/menu/menu.h:473	
-0x004FBA18	Menu::unk4FBA18	ActState	src/menu/menu.h:507	
+0x004FB808	Menu::beforeFrame	Handler	src/menu/menu.h:526	(none: not called)
+0x004FB810	Menu::hitPointBar	ActState	src/menu/menu.h:563	the bars of the role tabs
+0x004FB8A8	Menu::mode	u16	src/menu/menu.h:543	
+0x004FB8AC	Menu::clicks	u32	src/menu/menu.h:555	bits 0..1: a left click (single, double), bits 2..3: a right click
+0x004FB8D0	Menu::towns	std::vector<MenuTown>	src/menu/menu.h:598	(its count at 0x004FC834)
+0x004FB8D4	Menu::townShown	i32	src/menu/menu.h:601	
+0x004FB8D8	Menu::unk4FB8D8	ActState	src/menu/menu.h:564	
+0x004FB970	Menu::background	ActState	src/menu/menu.h:562	
+0x004FBA10	Menu::pageUp	Handler	src/menu/menu.h:531	
+0x004FBA18	Menu::unk4FBA18	ActState	src/menu/menu.h:565	
 0x004FBAB0	Game::menuMode	i32	src/game/game.h:582	
-0x004FBAB4	Menu::unk4FBAB4	MenuScrollBar	src/menu/menu.h:545	a second bar of the equipment list (only drawn)
-0x004FBAB8	Menu::unk4FBAB8	u16	src/menu/menu.h:487	
-0x004FBAC0	Menu::left	Handler	src/menu/menu.h:474	
-0x004FBAC4	Menu::pointerX	i32	src/menu/menu.h:494	the pointer of the last frame
-0x004FBEC8	Menu::draw	Handler	src/menu/menu.h:480	
-0x004FBECC	Menu::unk4FBECC	u16	src/menu/menu.h:488	(low word)
-0x004FBED0	Menu::pointerY	i32	src/menu/menu.h:495	
-0x004FBED4	Menu::townTop	i32	src/menu/menu.h:541	
-0x004FBED8	Menu::flags	u32	src/menu/menu.h:493	
-0x004FBEE0	Menu::unk4FBEE0	ActState	src/menu/menu.h:509	
-0x004FBF78	Menu::pageDown	Handler	src/menu/menu.h:472	
-0x004FBF7C	Menu::end	Handler	src/menu/menu.h:478	
-0x004FBFA0	Menu::items	std::array<ActState, Tabs>	src/menu/menu.h:508	the four entries of a page
-0x004FC200	Menu::unk4FC200	u16	src/menu/menu.h:486	
-0x004FC208	Menu::face	ActState	src/menu/menu.h:510	the face of the name entry
-0x004FC2A0	Menu::description	std::string	src/menu/menu.h:553	the description of the chosen object
-0x004FC320	Menu::tint	i32	src/menu/menu.h:491	a screen tint while non-zero
-0x004FC328	Menu::unk4FC328	ActState	src/menu/menu.h:511	
-0x004FC3C0	Menu::select	Handler	src/menu/menu.h:479	
-0x004FC3C4	Menu::page	u16	src/menu/menu.h:484	(low word) the page index
-0x004FC3C8	Menu::slide	i32	src/menu/menu.h:498	
-0x004FC450	Menu::spiritBar	ActState	src/menu/menu.h:512	
-0x004FC4E8	Menu::up	Handler	src/menu/menu.h:471	
-0x004FC4F0	Menu::scrollBar	MenuScrollBar	src/menu/menu.h:534	
-0x004FC500	Menu::townBar	MenuScrollBar	src/menu/menu.h:544	
-0x004FC510	Menu::townRow	i32	src/menu/menu.h:542	
-0x004FC518	Menu::staminaBar	ActState	src/menu/menu.h:513	
+0x004FBAB4	Menu::unk4FBAB4	MenuScrollBar	src/menu/menu.h:603	a second bar of the equipment list (only drawn)
+0x004FBAB8	Menu::unk4FBAB8	u16	src/menu/menu.h:545	
+0x004FBAC0	Menu::left	Handler	src/menu/menu.h:532	
+0x004FBAC4	Menu::pointerX	i32	src/menu/menu.h:552	the pointer of the last frame
+0x004FBEC8	Menu::draw	Handler	src/menu/menu.h:538	
+0x004FBECC	Menu::unk4FBECC	u16	src/menu/menu.h:546	(low word)
+0x004FBED0	Menu::pointerY	i32	src/menu/menu.h:553	
+0x004FBED4	Menu::townTop	i32	src/menu/menu.h:599	
+0x004FBED8	Menu::flags	u32	src/menu/menu.h:551	
+0x004FBEE0	Menu::unk4FBEE0	ActState	src/menu/menu.h:567	
+0x004FBF78	Menu::pageDown	Handler	src/menu/menu.h:530	
+0x004FBF7C	Menu::end	Handler	src/menu/menu.h:536	
+0x004FBFA0	Menu::items	std::array<ActState, Tabs>	src/menu/menu.h:566	the four entries of a page
+0x004FC200	Menu::unk4FC200	u16	src/menu/menu.h:544	
+0x004FC208	Menu::face	ActState	src/menu/menu.h:568	the face of the name entry
+0x004FC2A0	Menu::description	std::string	src/menu/menu.h:611	the description of the chosen object
+0x004FC320	Menu::tint	i32	src/menu/menu.h:549	a screen tint while non-zero
+0x004FC328	Menu::unk4FC328	ActState	src/menu/menu.h:569	
+0x004FC3C0	Menu::select	Handler	src/menu/menu.h:537	
+0x004FC3C4	Menu::page	u16	src/menu/menu.h:542	(low word) the page index
+0x004FC3C8	Menu::slide	i32	src/menu/menu.h:556	
+0x004FC3D0	InventoryPage::unk4FC3D0	i32	src/menu/menu.h:235	(only set)
+0x004FC3D4	InventoryPage::unk4FC3D4	i32	src/menu/menu.h:236	
+0x004FC3DC	InventoryPage::unk4FC3DC	i32	src/menu/menu.h:237	
+0x004FC450	Menu::spiritBar	ActState	src/menu/menu.h:570	
+0x004FC4E8	Menu::up	Handler	src/menu/menu.h:529	
+0x004FC4F0	Menu::scrollBar	MenuScrollBar	src/menu/menu.h:592	
+0x004FC500	Menu::townBar	MenuScrollBar	src/menu/menu.h:602	
+0x004FC510	Menu::townRow	i32	src/menu/menu.h:600	
+0x004FC518	Menu::staminaBar	ActState	src/menu/menu.h:571	
 0x004FC5B0	BattleMessages::panelAct	ActState	src/battle/battle_message.h:143	act 0x233B: the frame picture of the panels
-0x004FC648	Menu::descriptionSlide	i32	src/menu/menu.h:546	the description box slides (up while positive)
-0x004FC64C	Menu::frame	Handler	src/menu/menu.h:469	
-0x004FC650	Menu::gauge	ActState	src/menu/menu.h:514	a step of the settings bars
-0x004FC6E8	Menu::unk4FC6E8	ActState	src/menu/menu.h:515	
-0x004FC780	Menu::titleGlow	i32	src/menu/menu.h:500	
-0x004FC784	Menu::frames	i32	src/menu/menu.h:492	
-0x004FC788	Menu::right	Handler	src/menu/menu.h:475	
-0x004FC790	Menu::unk4FC790	ActState	src/menu/menu.h:516	
-0x004FC828	Menu::down	Handler	src/menu/menu.h:470	
-0x004FC82C	Menu::unk4FC82C	u16	src/menu/menu.h:489	
-0x004FC830	Menu::descriptionTop	i32	src/menu/menu.h:547	its top
-0x004FC838	Menu::cancel	Handler	src/menu/menu.h:476	
-0x004FC83C	Menu::shift	Handler	src/menu/menu.h:477	
-0x004FC840	Menu::unk4FC840	ActState	src/menu/menu.h:517	
-0x004FC8B0	Menu::pageTable	std::array<Handler, Pages>	src/menu/menu.h:481	the role pages (entries 0xB..0x11)
-0x004FC900	Menu::code	u16	src/menu/menu.h:483	the code the menu was opened with
-0x004FC904	Menu::unk4FC904	i32	src/menu/menu.h:548	-1 while the description button is pressed
-0x004FC908	Menu::escapeDelay	i32	src/menu/menu.h:496	frames before RightControl acts as Escape again
+0x004FC648	Menu::descriptionSlide	i32	src/menu/menu.h:604	the description box slides (up while positive)
+0x004FC64C	Menu::frame	Handler	src/menu/menu.h:527	
+0x004FC650	Menu::gauge	ActState	src/menu/menu.h:572	a step of the settings bars
+0x004FC6E8	Menu::unk4FC6E8	ActState	src/menu/menu.h:573	
+0x004FC780	Menu::titleGlow	i32	src/menu/menu.h:558	
+0x004FC784	Menu::frames	i32	src/menu/menu.h:550	
+0x004FC788	Menu::right	Handler	src/menu/menu.h:533	
+0x004FC790	Menu::unk4FC790	ActState	src/menu/menu.h:574	
+0x004FC828	Menu::down	Handler	src/menu/menu.h:528	
+0x004FC82C	Menu::unk4FC82C	u16	src/menu/menu.h:547	
+0x004FC830	Menu::descriptionTop	i32	src/menu/menu.h:605	its top
+0x004FC838	Menu::cancel	Handler	src/menu/menu.h:534	
+0x004FC83C	Menu::shift	Handler	src/menu/menu.h:535	
+0x004FC840	Menu::unk4FC840	ActState	src/menu/menu.h:575	
+0x004FC8B0	Menu::pageTable	std::array<Handler, Pages>	src/menu/menu.h:539	the role pages (entries 0xB..0x11)
+0x004FC900	Menu::code	u16	src/menu/menu.h:541	the code the menu was opened with
+0x004FC904	Menu::unk4FC904	i32	src/menu/menu.h:606	-1 while the description button is pressed
+0x004FC908	Menu::escapeDelay	i32	src/menu/menu.h:554	frames before RightControl acts as Escape again
 0x004FC90C	Bestiary::top	i32	src/menu/menu.h:61	
 0x004FC910	Bestiary::category	i32	src/menu/menu.h:62	the tab chosen
 0x004FC914	Bestiary::shown	i32	src/menu/menu.h:63	
@@ -496,22 +500,35 @@
 0x004FD078	SkillsPage::stage	i32	src/menu/menu.h:167	
 0x004FD07C	SkillsPage::descriptionTop	i32	src/menu/menu.h:168	
 0x004FD080	SkillsPage::scrollArrows	u16	src/menu/menu.h:169	the list's (bits 0..7) and the towns' (bits 8..15)
-0x004FD08C	Menu::itemList	MenuList	src/menu/menu.h:533	(see MenuList)
-0x004FD0A8	Menu::unk4FD0A8	ActState	src/menu/menu.h:549	the description button
-0x004FD140	Menu::savedItems	ItemLink	src/menu/menu.h:552	`itemObjects` kept with it
-0x004FD15C	Menu::savedInventory	ItemLink	src/menu/menu.h:551	the inventory kept while the items page saves
-0x004FD1E8	Menu::itemObjects	ItemLink	src/menu/menu.h:550	the objects of the items page
-0x004FD29C	Menu::systemClick	i32	src/menu/menu.h:520	1: the confirm button clicked, 2: a right click
-0x004FD2A0	Menu::nameReply	i32	src/menu/menu.h:521	frames of the face's reply to a name
-0x004FD2A4	Menu::textSpeedShown	i32	src/menu/menu.h:522	
-0x004FD2AC	Menu::systemState	i32	src/menu/menu.h:523	1: the title entries, 2: chosen (5: the settings, 100: in game)
-0x004FD2B0	Menu::savedScreen	std::vector<u16>	src/menu/menu.h:524	the frame under the page in game
-0x004FD2B4	Menu::systemCursor	i32	src/menu/menu.h:525	the title entry
-0x004FD2B8	Menu::glow	std::array<i32, 4>	src/menu/menu.h:526	the glow of the four entries
-0x004FD2C8	Menu::systemRow	i32	src/menu/menu.h:527	the settings row, the fade and name entry steps otherwise
-0x004FD2CC	Menu::sampleLength	i32	src/menu/menu.h:528	characters of the text speed sample shown
-0x004FD2D0	Menu::enteredNames	std::vector<u8>	src/menu/menu.h:529	the two names typed (0x20 bytes)
-0x004FD2D4	Menu::sampleDelay	i32	src/menu/menu.h:530	
+0x004FD088	InventoryPage::openedAt	i32	src/menu/menu.h:222	the frame before the page opened
+0x004FD08C	Menu::itemList	MenuList	src/menu/menu.h:591	(see MenuList)
+0x004FD090	InventoryPage::followers	i32	src/menu/menu.h:227	the followers that can be called
+0x004FD094	InventoryPage::category	i32	src/menu/menu.h:223	0..6
+0x004FD09C	InventoryPage::roles	i32	src/menu/menu.h:225	the party roles
+0x004FD0A0	InventoryPage::target	i32	src/menu/menu.h:226	the role an object is used on
+0x004FD0A4	InventoryPage::followerRow	i32	src/menu/menu.h:228	
+0x004FD0A8	Menu::unk4FD0A8	ActState	src/menu/menu.h:607	the description button
+0x004FD140	Menu::savedItems	ItemLink	src/menu/menu.h:610	`itemObjects` kept with it
+0x004FD144	InventoryPage::discardChoice	i32	src/menu/menu.h:230	0: yes, 1: no
+0x004FD148	InventoryPage::unk4FD148	i32	src/menu/menu.h:231	the top of the role box below its first row, the follower box's choice
+0x004FD14C	InventoryPage::glow	i32	src/menu/menu.h:232	the mode tab drawn raised (0x23..0x26 after sorting)
+0x004FD154	InventoryPage::followerPresent	i32	src/menu/menu.h:229	the follower chosen is called
+0x004FD158	InventoryPage::arrows	u16	src/menu/menu.h:233	frames the arrows stay pressed: the list's (bits 0..7), the towns'
+0x004FD15C	Menu::savedInventory	ItemLink	src/menu/menu.h:609	the inventory kept while the items page saves
+0x004FD160	InventoryPage::unk4FD160	i32	src/menu/menu.h:224	(only cleared)
+0x004FD1E8	Menu::itemObjects	ItemLink	src/menu/menu.h:608	the objects of the items page
+0x004FD1F0	InventoryPage::unk4FD1F0	u16	src/menu/menu.h:234	(only cleared)
+0x004FD29C	Menu::systemClick	i32	src/menu/menu.h:578	1: the confirm button clicked, 2: a right click
+0x004FD2A0	Menu::nameReply	i32	src/menu/menu.h:579	frames of the face's reply to a name
+0x004FD2A4	Menu::textSpeedShown	i32	src/menu/menu.h:580	
+0x004FD2AC	Menu::systemState	i32	src/menu/menu.h:581	1: the title entries, 2: chosen (5: the settings, 100: in game)
+0x004FD2B0	Menu::savedScreen	std::vector<u16>	src/menu/menu.h:582	the frame under the page in game
+0x004FD2B4	Menu::systemCursor	i32	src/menu/menu.h:583	the title entry
+0x004FD2B8	Menu::glow	std::array<i32, 4>	src/menu/menu.h:584	the glow of the four entries
+0x004FD2C8	Menu::systemRow	i32	src/menu/menu.h:585	the settings row, the fade and name entry steps otherwise
+0x004FD2CC	Menu::sampleLength	i32	src/menu/menu.h:586	characters of the text speed sample shown
+0x004FD2D0	Menu::enteredNames	std::vector<u8>	src/menu/menu.h:587	the two names typed (0x20 bytes)
+0x004FD2D4	Menu::sampleDelay	i32	src/menu/menu.h:588	
 0x004FD2D8	StatusPage::bonus	RoleRecord	src/menu/menu.h:185	what the equipment gives
 0x004FD2DC	StatusPage::total	RoleRecord	src/menu/menu.h:186	the record with it
 0x004FD2E0	OptionsPage::arrows	u32	src/menu/menu.h:208	frames the scroll arrows stay pressed (bits 0..3 up, 4..7 down)

@@ -211,6 +211,33 @@ struct OptionsPage
     i32 sampleDelay = 0;     // 0x004FD308
 };
 
+// The items page (role page 0xB; 0x004FD088..0x004FD164): the inventory of one category with its counts, used, sorted
+// or discarded.
+struct InventoryPage
+{
+    static constexpr i32 Unk4FC3D0 = 0x60;
+    static constexpr i32 Unk4FC3DC = 2;
+    static constexpr u16 FirstRowNumber = 0x64;
+
+    i32 openedAt = 0;         // 0x004FD088 the frame before the page opened
+    i32 category = 0;         // 0x004FD094 0..6
+    i32 unk4FD160 = 0;        // 0x004FD160 (only cleared)
+    i32 roles = 0;            // 0x004FD09C the party roles
+    i32 target = 0;           // 0x004FD0A0 the role an object is used on
+    i32 followers = 0;        // 0x004FD090 the followers that can be called
+    i32 followerRow = 0;      // 0x004FD0A4
+    i32 followerPresent = 0;  // 0x004FD154 the follower chosen is called
+    i32 discardChoice = 0;    // 0x004FD144 0: yes, 1: no
+    i32 unk4FD148 = 0;        // 0x004FD148 the top of the role box below its first row, the follower box's choice
+    i32 glow = 0;             // 0x004FD14C the mode tab drawn raised (0x23..0x26 after sorting)
+    u16 arrows = 0;           // 0x004FD158 frames the arrows stay pressed: the list's (bits 0..7), the towns'
+    u16 unk4FD1F0 = 0;        // 0x004FD1F0 (only cleared)
+    i32 unk4FC3D0 = 0;        // 0x004FC3D0 (only set)
+    i32 unk4FC3D4 = 0;        // 0x004FC3D4
+    i32 unk4FC3DC = 0;        // 0x004FC3DC
+    std::array<u16, 14> unk4A6A00 = {};  // 0x004A6A00 the rows shown numbered from 100, ended by 0 (never read)
+};
+
 // The edges of a list's scroll bar as last drawn (DrawScrollBar), read by the clicks.
 struct MenuScrollBar
 {
@@ -443,6 +470,37 @@ public:
     void OptionsDrawSettings(Pixel color);
     void OptionsDrawKeys(Pixel color);
     void OptionsDraw();
+
+    // The items page (role page 0xB).
+    void ItemsDescribe();
+    void ItemsFit();
+    void ItemsMoved(u16 arrows);
+    void ItemsEnter();
+    void ItemsLeave();
+    void ItemsFrame();
+    void ItemsDown();
+    void ItemsUp();
+    void ItemsPageDown();
+    void ItemsPageUp();
+    void ItemsCategory(int step);
+    void ItemsLeft();
+    void ItemsRight();
+    void ItemsShift();
+    void ItemsEnd();
+    void ItemsFreeTowns();
+    void ItemsUse(ItemNode& node);
+    void ItemsSelect();
+    void ItemsCancel();
+    void ItemsDrawNotice(Pixel color);
+    void ItemsDrawFollowers(Pixel color, std::string& line);
+    void ItemsDrawTowns(Pixel color);
+    void ItemsDraw();
+    void ItemsCountShown();
+    void ItemsTake(int category);
+    void ItemsFill();
+    void ItemsReturn();
+    bool ItemsCallFollower();
+    void ItemsSave();
     void OptionsLeave();
     bool DrawNameEntry();
     void ActOnEntry();
@@ -552,6 +610,7 @@ public:
     ItemLink savedItems;          // 0x004FD140 `itemObjects` kept with it
     std::string description;      // 0x004FC2A0 the description of the chosen object
     OptionsPage options;
+    InventoryPage itemsPage;
 
 private:
     void Call(Handler handler);
