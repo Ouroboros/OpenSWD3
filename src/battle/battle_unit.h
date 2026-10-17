@@ -63,16 +63,6 @@ struct EffectNode
     u16 value = 0;                     // +0xA8
 };
 
-// An action queued for the unit (0x1DC bytes in the original).
-struct QueuedAction
-{
-    std::unique_ptr<QueuedAction> next;  // +0x00
-    i32 kind = 0;                        // +0x04
-    i32 unk08 = 0;
-    i32 target = 0;  // +0x0C
-    i32 data = 0;    // +0x9C
-};
-
 // The afterimages of a moving act (0x98 bytes; in a queued action at +0x134 and eight in a unit at +0xFCC). DrawTrail
 // pushes the current picture in front every third frame and draws the images fading by fadeStep.
 struct AfterimageTrail
@@ -102,6 +92,24 @@ struct AfterimageTrail
     i8 count = 0;       // +0x94 the images drawn
     i8 fadeStep = 0;    // +0x95
     u8 delay = 0;       // +0x96 frames until the next image is pushed
+};
+
+// An act flying along a line, queued on a unit (0x1DC bytes; AddQueuedAction appends one, RunQueuedActions runs them).
+struct QueuedAction
+{
+    std::unique_ptr<QueuedAction> next;  // +0x00
+    ActState act;                        // +0x04 the flying act
+    ActState impact;                     // +0x9C the act at the end (id 0: none; a negative id lands no hit)
+    AfterimageTrail trail;               // +0x134 drawn while `trailed`
+    i16 toX = 0;                         // +0x1CC
+    i16 toY = 0;                         // +0x1CE 0: the line stays level
+    i16 fromX = 0;                       // +0x1D0
+    i16 fromY = 0;                       // +0x1D2 0: the line stays level
+    u16 shakeFrames = 0;                 // +0x1D4 frames the act shakes before it flies
+    i16 steps = 0;                       // +0x1D6 line steps per frame flown (1: a speeding flight)
+    i16 flown = 0;                       // +0x1D8 the frames flown
+    u8 done = 0;                         // +0x1DA removed at the end of RunQueuedActions
+    u8 trailed = 0;                      // +0x1DB
 };
 
 // The placement of a unit (0x20 bytes, copied whole into the saved placement).
@@ -296,6 +304,8 @@ public:
     static constexpr u16 ReviveBit = 0x8000;  // CureEffects: revives a defeated party role
 
     static constexpr std::size_t Trails = 8;
+    // RunQueuedActions: the y offsets of a shaking queued act by its frames left (0x004A7E10).
+    static constexpr std::array<i16, 8> ShakeOffsets = {-1, -3, -3, -6, -6, -3, -3, 0};
     static constexpr int UnkSlot8 = 8;
     static constexpr int UnkSlot9 = 9;
     static constexpr u32 NoTarget = 0xFFFFFFFF;
@@ -406,6 +416,10 @@ public:
     void DrawAction(BattleServices& services, const BattleUnit& target, ActState& act);
     void AimAction(BattleServices& services, BattleUnit& target, ActState& act, i16 shiftX, i16 shiftY);
     int DrawAimed(BattleServices& services, BattleUnit& target, ActState& act, i16 shiftX, i16 shiftY);
+    int RunQueuedActions(BattleServices& services, BattleUnit& target, i32 action);
+    void
+    AddQueuedAction(i32 id, i32 action, i16 fromX, i16 fromY, i16 toX, i16 toY, i16 steps, u16 shakeFrames, i32 impact);
+    void TrailLastQueuedAction(i32 tintRed, i32 tintGreen, i32 tintBlue);
     void DrawTrail(BattleServices& services, AfterimageTrail& trail, u16 frame, u16 picture, u32 mode, i16 x, i16 y);
     int DrawRecoil(BattleServices& services, ActState& act, i16 y);
     int FlyAct(
@@ -582,10 +596,11 @@ public:
     u16 unk2A76 = 0;
     u16 attackStage = 0;  // +0x2A78 1..5
     u16 unk2A7A = 0;
-    u16 targetCount = 0;  // +0x2A7C
-    u16 damageSlot = 0;   // +0x2A7E
-    u16 actionCount = 0;  // +0x2A80
-    u16 unk2A82 = 0;
+    u16 targetCount = 0;    // +0x2A7C
+    u16 damageSlot = 0;     // +0x2A7E
+    u16 actionCount = 0;    // +0x2A80
+    u16 queuedActions = 0;  // +0x2A80 the acts AddQueuedAction appended
+    u16 landedActions = 0;  // +0x2A82 the queued acts that reached their end
     u16 pendingDamage = 0;  // +0x2A84 bit 15: healing
     u16 unk2A86 = 0;        // +0x2A86 (high byte at +0x2A87)
     u16 unk2A8A = 0;

@@ -1305,6 +1305,11 @@ constexpr int kTrailSpacing = 0x1E;
 constexpr int kTrailCentre = 0xC;
 constexpr int kTrailBlue = -12;
 constexpr int kTrailTintBase = 0x1F;
+
+// RunQueuedActions and TrailLastQueuedAction.
+constexpr i8 kAdditiveTrailFade = 3;  // an additive act's images fade by 3 a frame, the others by 1
+constexpr i32 kQueuedMaxDamage = 0x270F;
+constexpr i8 kQueuedTrailImages = 3;
 constexpr u16 kEffectIcons = 0x241D;
 
 // The value of a skill script: the word at +0xE.
@@ -2444,7 +2449,7 @@ void BattleUnit::Reset(BattleServices& services)
     this->targetCount = 0;
     this->actionCount = 0;
     this->damageSlot = 0;
-    this->unk2A82 = 0;
+    this->landedActions = 0;
     this->unk26B8 = 0;
     this->healChoice = 0;
     this->unk2A92 = 0;
@@ -4165,5 +4170,291 @@ void BattleUnit::DrawTrail(
             painter.DrawPicture(drawX, image.y, width, height, mode | Painter::TintUnder);
         }
     }
+}
+
+// swd32.exe 0x0047FC40: one frame of the queued acts (`action`, when not 0, given to each first); 1 when there are none
+// (queuedActions cleared). Each act, mirrored by the facing, shakes on its line for its shake frames (its y from
+// kShakeOffsets), then flies it (one step more a frame, doubling while speeding) with its trail; at the line's end its
+// impact act (if any) plays to its end within the frame (the original runs the whole node again until it waits), the
+// node is done and, unless the command is UnkAction1 or the impact is negative, the hit lands on `target`. Done nodes
+// are freed. A shaking node takes the arrival of the node before it (the original's first is uninitialised).
+int BattleUnit::RunQueuedActions(BattleServices& services, BattleUnit& target, i32 action)
+{
+    BattleState& battle = services.state;
+    Painter& painter = services.painter;
+    LineWalker& line = this->flight;
+    QueuedAction* node = this->actions.get();
+    int taken = 0;
+
+    if (node == nullptr)
+    {
+        this->queuedActions = 0;
+        return 1;
+    }
+
+    while (node != nullptr)
+    {
+        ActState& act = node->act;
+
+        if (action != 0)
+        {
+            act.action = action;
+        }
+
+        if (services.acts.Run(act) == 0)
+        {
+            return 0;
+        }
+
+        this->picture = services.archive.GetPicture(act.frame, act.picture);
+
+        // A missing picture is read through a null pointer in the original.
+        if (this->picture == nullptr)
+        {
+            return 0;
+        }
+
+        painter.SetSource(this->picture->data.data());
+        u32 flags = act.flags;
+        auto offsetX = static_cast<i16>(act.x);
+
+        if (this->facing == 1)
+        {
+            flags ^= Painter::Mirror;
+            offsetX = static_cast<i16>(this->picture->width - static_cast<u16>(act.x));
+        }
+
+        line = LineWalker{};
+        line.fromX = node->fromX - offsetX;
+        line.fromY = node->fromY - act.y;
+        line.toX = node->toX - offsetX;
+        line.toY = node->toY - act.y;
+
+        if (node->fromY == 0)
+        {
+            line.fromY = 0;
+        }
+
+        if (node->toY == 0)
+        {
+            line.toY = 0;
+        }
+
+        if (node->shakeFrames != 0)
+        {
+            // A negative phase (shake frames past 0x7FFF) is read before the table in the original.
+            const int phase = static_cast<i16>(node->shakeFrames) % static_cast<int>(BattleUnit::ShakeOffsets.size());
+            line.y = phase >= 0 ? BattleUnit::ShakeOffsets[static_cast<std::size_t>(phase)] : 0;
+            --node->shakeFrames;
+        }
+        else
+        {
+            if (node->steps == 1)
+            {
+                if (node->flown == 0)
+                {
+                    node->flown = 1;
+                }
+
+                node->flown =
+                    static_cast<i16>(node->flown <= kFlightDoubling ? 2 * node->flown : node->flown + kFlightGrowth);
+            }
+            else
+            {
+                ++node->flown;
+            }
+
+            taken = 0;
+
+            while (taken < node->flown * node->steps)
+            {
+                LineStep(line);
+
+                if (line.fromX + line.x == line.toX && line.fromY + line.y == line.toY)
+                {
+                    taken = kArrived;
+                    break;
+                }
+
+                ++taken;
+            }
+        }
+
+        services.audio.PlaySound(act.view, services.config.soundVolume);
+        act.view = 0;
+        const int x = line.fromX + line.x;
+        const int y = line.fromY + line.y;
+
+        if (node->trailed == 1)
+        {
+            node->trail.fadeStep = (flags & Painter::Additive) != 0 ? kAdditiveTrailFade : 1;
+            this->DrawTrail(
+                services,
+                node->trail,
+                act.frame,
+                act.picture,
+                flags,
+                static_cast<i16>(x),
+                static_cast<i16>(y)
+            );
+        }
+
+        painter.SetSource(this->picture->data.data());
+        painter.DrawPicture(x, y, this->picture->width, this->picture->height, flags);
+
+        if (taken != kArrived)
+        {
+            node = node->next.get();
+            continue;
+        }
+
+        ActState& impact = node->impact;
+
+        if (impact.id > 0)
+        {
+            if (services.acts.Run(impact) == 0)
+            {
+                return 0;
+            }
+
+            this->picture = services.archive.GetPicture(impact.frame, impact.picture);
+
+            if (this->picture == nullptr)
+            {
+                return 0;
+            }
+
+            painter.SetSource(this->picture->data.data());
+            u32 impactFlags = impact.flags;
+
+            if (this->facing == 1)
+            {
+                impactFlags ^= Painter::Mirror;
+            }
+
+            services.audio.PlaySound(impact.view, services.config.soundVolume);
+            services.audio.SetSoundPan(impact.view, line.toX >= kPanCentre ? kFadePan : -kFadePan);
+            impact.view = 0;
+            painter.DrawPicture(
+                line.fromX + line.x,
+                line.fromY + line.y,
+                this->picture->width,
+                this->picture->height,
+                impactFlags
+            );
+
+            if (impact.waiting == 0)
+            {
+                continue;
+            }
+        }
+
+        node->done = 1;
+        ++this->landedActions;
+        line = LineWalker{};
+
+        if ((this->command.actionFlags & UnitCommand::UnkAction1) == 0 && impact.id >= 0)
+        {
+            target.RaiseFlag26B8();
+            i16 spirit = 0;
+            i16 stamina = 0;
+            i32 damage = this->HitDamage(services, target, spirit, stamina);
+            battle.lastDamage = damage;
+
+            if (damage >= kQueuedMaxDamage)
+            {
+                damage = kQueuedMaxDamage;
+                battle.lastDamage = damage;
+            }
+
+            battle.hitDamage += damage;
+            target.SetDamageDigits(services, damage);
+            target.StepTargetCount(1);
+        }
+
+        node = node->next.get();
+    }
+
+    std::unique_ptr<QueuedAction>* link = &this->actions;
+
+    while (*link != nullptr)
+    {
+        if ((*link)->done == 1)
+        {
+            *link = std::move((*link)->next);
+        }
+        else
+        {
+            link = &(*link)->next;
+        }
+    }
+
+    return 0;
+}
+
+// swd32.exe 0x004800F0: appends an act (`id`, `action`) flying from (fromX, fromY) to (toX, toY) with `steps` line
+// steps a frame flown (1: speeding) after `shakeFrames` frames of shaking, and its impact act; counts it in
+// queuedActions
+void BattleUnit::
+    AddQueuedAction(i32 id, i32 action, i16 fromX, i16 fromY, i16 toX, i16 toY, i16 steps, u16 shakeFrames, i32 impact)
+{
+    std::unique_ptr<QueuedAction>* link = &this->actions;
+
+    while (*link != nullptr)
+    {
+        link = &(*link)->next;
+    }
+
+    *link = std::make_unique<QueuedAction>();
+    QueuedAction& node = **link;
+    node.act.id = id;
+    node.act.action = action;
+    node.impact.id = impact;
+    node.fromX = fromX;
+    node.fromY = fromY;
+    node.toX = toX;
+    node.toY = toY;
+    node.shakeFrames = shakeFrames;
+    node.steps = steps;
+    node.done = 0;
+    ++this->queuedActions;
+}
+
+// swd32.exe 0x004801A0: the last queued act leaves a trail (three images in place, tinted under them); its first call
+// clears the images. The original reads the list head as a node when nothing is queued.
+void BattleUnit::TrailLastQueuedAction(i32 tintRed, i32 tintGreen, i32 tintBlue)
+{
+    QueuedAction* last = this->actions.get();
+
+    if (last == nullptr)
+    {
+        return;
+    }
+
+    while (last->next != nullptr)
+    {
+        last = last->next.get();
+    }
+
+    last->trailed = 1;
+    AfterimageTrail& trail = last->trail;
+
+    if (trail.started != 0)
+    {
+        return;
+    }
+
+    trail.started = 1;
+
+    for (AfterimageTrail::Image& image : trail.images)
+    {
+        image.picture = AfterimageTrail::NoPicture;
+    }
+
+    trail.tintRed = tintRed;
+    trail.tintGreen = tintGreen;
+    trail.tintBlue = tintBlue;
+    trail.direction = AfterimageTrail::InPlace;
+    trail.count = kQueuedTrailImages;
 }
 }  // namespace swd3

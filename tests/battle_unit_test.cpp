@@ -16,6 +16,7 @@
 #include "crt/msvc.h"
 #include "draw/painter.h"
 #include "font/text_font.h"
+#include "game_data.h"
 #include "org/object_record.h"
 #include "party/party.h"
 #include "pic/rle.h"
@@ -401,4 +402,18 @@ TEST_CASE("battle unit: role and enemy blocks, reset")
     CHECK(role.battleRecord != nullptr);
     enemy.Reset(all.services);
     CHECK(enemy.data != nullptr);
+}
+
+TEST_CASE("battle unit: the shake offsets of a queued act match swd32.exe")
+{
+    constexpr swd3::u32 kShakeOffsetsAt = 0x004A7E10;
+    const std::vector<swd3::u8> exe = swd3test::ReadGameFile("swd32.exe");
+
+    if (exe.empty())
+    {
+        std::printf("  (swd32.exe not found, skipped)\n");
+        return;
+    }
+
+    CHECK(swd3test::SameTable(exe, kShakeOffsetsAt, swd3::BattleUnit::ShakeOffsets));
 }
