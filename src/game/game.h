@@ -245,6 +245,11 @@ private:
     void DrawSpellList(int x, int y, int cursor, int top);
     void DrawItemList(int x, int y, int cursor, int top);
     void DrawVictoryPanel();
+    void DrawLevelUpPanel();
+    void CheckLevelUps();
+    void DrawNewSpell();
+    void DrawNewSpecial();
+    void DrawLearnedBox(std::u8string_view line, bool sound);
     void DrawRolePanels();
     template <typename Next>
     void StepPanelGauge(i32& shown, i32& target, Next next, int picture, int x, int y, i32 downNear, i32 downFar);

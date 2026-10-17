@@ -720,7 +720,7 @@ void BattleMessages::DrawMastery()
         return;
     }
 
-    const std::string text = WinFormat(BattleMessages::MasteryLine, {this->state.unk53C154});
+    const std::string text = WinFormat(BattleMessages::MasteryLine, {this->state.lastLearned.name});
     const int halves = static_cast<int>(text.size()) / 2;
     const int width = kMasteryCharWidth * halves + kMasteryTextExtra;
     FillBox(

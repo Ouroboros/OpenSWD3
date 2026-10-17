@@ -216,6 +216,24 @@ constexpr int kVictoryProficiencyY = 0x104;
 constexpr std::u8string_view kExperienceLine = u8"每人得到經驗值:%d";   // swd32.exe 0x004A7A18
 constexpr std::u8string_view kGoldLine = u8"得到銀幣:%d";               // swd32.exe 0x004A7A0C
 constexpr std::u8string_view kProficiencyLine = u8"得到法寶經驗值:%d";  // swd32.exe 0x004A79F8
+constexpr u8 kNoLevelUp = 0xFF;                                         // the 升級 panel
+constexpr int kLevelUpTitleX = 0x108;
+constexpr std::u8string_view kLevelUpTitle = u8"升級";  // swd32.exe 0x004A7A44
+constexpr int kLevelUpBodyBottom = 0xF4;
+constexpr int kLevelUpGrowDivisor = 3;
+constexpr int kLevelUpTextY = 0xDC;
+constexpr u16 kLevelUpSound = 0x12B;
+constexpr std::u8string_view kNewSpellLine = u8"%s學到新魔法";    // swd32.exe 0x004A7AB4
+constexpr std::u8string_view kNewSpecialLine = u8"%s學到新絕招";  // swd32.exe 0x004A7AC4
+constexpr std::string_view kBracketFormat = "[%s]";               // swd32.exe 0x004A7AAC
+constexpr u16 kLearnedSound = 0x160;
+constexpr int kLearnedShadeX = 0xF6;
+constexpr int kLearnedFrameLeft = 0xFA;
+constexpr int kLearnedBodyBottom = 0xEC;
+constexpr int kLearnedTextX = 0x104;
+constexpr int kLearnedTextY = 0xBC;
+constexpr int kLearnedSkillY = 0xD2;
+constexpr u16 kLearnedSkillColor = 0xF000;
 
 // The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
 // here.
@@ -1606,7 +1624,7 @@ void Game::DrawCommandMenu(int x, int y, int cursor)
 }
 
 // swd32.exe 0x00468FF0: the first party role (not forced, standing) whose accessory proficiency has just filled
-// (FinishProficiency): its object read into unk53BC28 (the description freed), its name kept in unk53C154 for the
+// (FinishProficiency): its object read into unk53BC28 (the description freed), its name kept in lastLearned for the
 // message, unk53BFFC set and unk4A7646 the role
 void Game::AnnounceMastery()
 {
@@ -1631,7 +1649,7 @@ void Game::AnnounceMastery()
         this->database.LoadObject(battle.unk53BC28, finished);
         Database::FreeDescription(battle.unk53BC28);
         battle.unk53BFFC = 1;
-        battle.unk53C154 = ObjectName(battle.unk53BC28);
+        battle.lastLearned.name = ObjectName(battle.unk53BC28);
         battle.unk4A7646 = static_cast<u8>(index);
         return;
     }
@@ -2973,5 +2991,216 @@ void Game::DrawVictoryPanel()
         kTitleColor,
         TextFont::BoldOutline
     );
+}
+
+// swd32.exe 0x00467AC0: the 升級 panel while a role levels up (unk4A7646) or a skill was learned (unk53BFFC): a shade
+// with a title and a body frame; once the panel has grown, the name of the role that levelled up.
+void Game::DrawLevelUpPanel()
+{
+    BattleState& battle = this->battleState;
+    BattleMessages& messages = this->battleMessages;
+    TextFont& font = this->mediumFont;
+
+    if (battle.unk4A7646 != kNoLevelUp || battle.unk53BFFC == 1)
+    {
+        messages.panelAct.id = BattleMessages::PanelAct;
+        messages.panelAct.action = 0;
+        this->acts.Run(messages.panelAct);
+        FillBox(
+            this->painter,
+            kEscortShadeX,
+            kEscortShadeY,
+            kEscortShadeWidth,
+            messages.panelHeight + kVictoryShadeExtra,
+            0,
+            kListShade,
+            kListShade,
+            FillMode::Blend
+        );
+        DrawWindowFrame(
+            this->painter,
+            this->archive,
+            messages.panelAct.frame,
+            kEscortFrameLeft,
+            kEscortTitleTop,
+            kEscortFrameRight,
+            kEscortTitleBottom,
+            0,
+            kListFrameBorder
+        );
+        font.DrawText(
+            this->drawSurface,
+            kLevelUpTitleX,
+            kEscortTitleTop,
+            Big5(kLevelUpTitle),
+            kTitleColor,
+            TextFont::BoldOutline
+        );
+        DrawWindowFrame(
+            this->painter,
+            this->archive,
+            messages.panelAct.frame,
+            kEscortFrameLeft,
+            kEscortBodyTop,
+            kEscortFrameRight,
+            messages.panelHeight + kEscortBodyTop,
+            0,
+            kListFrameBorder
+        );
+    }
+
+    if (messages.GrowPanel(kEscortBodyTop, kLevelUpBodyBottom, kLevelUpGrowDivisor) != 1 ||
+        battle.unk4A7646 == kNoLevelUp)
+    {
+        return;
+    }
+
+    const auto role = static_cast<std::size_t>(battle.partyRoles[battle.unk4A7646]);
+    const Party::Name& name = this->party.names[role];
+    const std::string text(name.data(), std::find(name.begin(), name.end(), '\0') - name.begin());
+    font.DrawText(this->drawSurface, kVictoryTextX, kLevelUpTextY, text, kTitleColor, TextFont::BoldOutline);
+}
+
+// swd32.exe 0x00467C50: the first party role standing (not forced) with the experience of its next level (below the
+// level cap) levels up: the record is kept in unk4FF108, the next level's maxima and attributes (LevelUp of both
+// levels; a skill learned sets unk53BFFC) are added to it as the difference, hit points, spirit and stamina refilled,
+// its level and experience mark taken; unk4A7646 becomes the role and the level-up sound plays. Otherwise unk4A7646
+// is kNoLevelUp. unk53C4C8 is set either way.
+void Game::CheckLevelUps()
+{
+    BattleState& battle = this->battleState;
+
+    for (u32 index = 0; index < battle.roleCount; ++index)
+    {
+        const BattleRole& unit = this->battleRoles[index];
+
+        if (unit.unk2B00 == 1 || unit.unk2B04 == 1)
+        {
+            continue;
+        }
+
+        const auto role = battle.partyRoles[index];
+        RoleRecord& record = this->party.roles[static_cast<std::size_t>(role)];
+        const int next = record.level + 1;
+        u32 needed = 0;
+
+        if (record.level >= battle.timingWindow ||
+            (this->database.LoadLevelEntry(role + 1, next, needed), record.unk00 < static_cast<i32>(needed)))
+        {
+            battle.unk4A7646 = kNoLevelUp;
+            continue;
+        }
+
+        RoleRecord before;
+        RoleRecord after;
+        battle.unk4FF108 = record;
+        LevelUp(
+            before,
+            role + 1,
+            record.level,
+            battle.unk53BFFC,
+            this->party,
+            this->database,
+            battle.lastLearned,
+            this->errors
+        );
+        LevelUp(after, role + 1, next, battle.unk53BFFC, this->party, this->database, battle.lastLearned, this->errors);
+        record.level = after.level;
+        record.experience = after.experience;
+        record.maxHitPoints = static_cast<i16>(record.maxHitPoints + after.maxHitPoints - before.maxHitPoints);
+        record.hitPoints = record.maxHitPoints;
+        record.maxSpirit = static_cast<i16>(record.maxSpirit + after.maxSpirit - before.maxSpirit);
+        record.spirit = record.maxSpirit;
+        record.maxStamina = static_cast<i16>(record.maxStamina + after.maxStamina - before.maxStamina);
+        record.stamina = record.maxStamina;
+        record.attack = static_cast<i16>(record.attack + after.attack - before.attack);
+        record.defense = static_cast<i16>(record.defense + after.defense - before.defense);
+        record.unk14 = static_cast<i16>(record.unk14 + after.unk14 - before.unk14);
+        record.agility = static_cast<i16>(record.agility + after.agility - before.agility);
+        record.unk18 = static_cast<i16>(record.unk18 + after.unk18 - before.unk18);
+        record.unk1A = static_cast<i16>(record.unk1A + after.unk1A - before.unk1A);
+        record.ailmentChance = static_cast<i16>(record.ailmentChance + after.ailmentChance - before.ailmentChance);
+        record.unk1E = static_cast<i16>(record.unk1E + after.unk1E - before.unk1E);
+        battle.unk4A7646 = static_cast<u8>(index);
+        this->audio.StopSound(kVictorySound);
+        this->audio.PlaySound(kLevelUpSound, this->config.soundVolume);
+        break;
+    }
+
+    battle.unk53C4C8 = 1;
+}
+
+// swd32.exe 0x00468930: the box of a new spell (%s學到新魔法) of the role that levelled up
+void Game::DrawNewSpell()
+{
+    this->DrawLearnedBox(kNewSpellLine, false);
+}
+
+// swd32.exe 0x00468AD0: the box of a new special skill (%s學到新絕招), with kLearnedSound as it opens
+void Game::DrawNewSpecial()
+{
+    this->DrawLearnedBox(kNewSpecialLine, true);
+}
+
+// The box of 0x00468930 and 0x00468AD0 (inline in each): while a skill was learned (unk53BFFC), the line with the
+// role's name in a box as wide as it (20 pixels per two bytes), grown open; then the line in white and the skill's
+// name in brackets, centred below it on a dark background.
+void Game::DrawLearnedBox(std::u8string_view line, bool sound)
+{
+    BattleState& battle = this->battleState;
+    BattleMessages& messages = this->battleMessages;
+    TextFont& font = this->mediumFont;
+
+    if (battle.unk53BFFC != 1)
+    {
+        return;
+    }
+
+    if (sound && messages.panelHeight == 0)
+    {
+        this->audio.PlaySound(kLearnedSound, this->config.soundVolume);
+    }
+
+    const auto role = static_cast<std::size_t>(battle.partyRoles[battle.unk4A7646]);
+    const Party::Name& roleName = this->party.names[role];
+    const std::string name(roleName.data(), std::find(roleName.begin(), roleName.end(), '\0') - roleName.begin());
+    const std::string text = WinFormat(line, {name});
+    const int halves = static_cast<int>(text.size()) / 2;
+    messages.panelAct.id = BattleMessages::PanelAct;
+    messages.panelAct.action = 0;
+    this->acts.Run(messages.panelAct);
+    FillBox(
+        this->painter,
+        kLearnedShadeX,
+        kEscortShadeY,
+        kTagCharWidth * halves + 2 * kTagMargin,
+        messages.panelHeight + 2 * kTagMargin,
+        0,
+        kListShade,
+        kListShade,
+        FillMode::Blend
+    );
+    DrawWindowFrame(
+        this->painter,
+        this->archive,
+        messages.panelAct.frame,
+        kLearnedFrameLeft,
+        kEscortTitleTop,
+        kTagCharWidth * halves + kLearnedFrameLeft,
+        messages.panelHeight + kEscortTitleTop,
+        0,
+        kListFrameBorder
+    );
+
+    if (messages.GrowPanel(kEscortTitleTop, kLearnedBodyBottom, kLevelUpGrowDivisor) != 1)
+    {
+        return;
+    }
+
+    font.DrawText(this->drawSurface, kLearnedTextX, kLearnedTextY, text, kWhite, TextFont::BoldOutline);
+    const std::string skill = WinFormat(kBracketFormat, {battle.lastLearned.name});
+    const int quarters = static_cast<int>(skill.size()) >> 2;
+    const int skillX = ((kListAdvance * halves) >> 1) - kListAdvance * quarters + kLearnedFrameLeft;
+    font.DrawText(this->drawSurface, skillX, kLearnedSkillY, skill, kLearnedSkillColor, TextFont::BoldOutline);
 }
 }  // namespace swd3

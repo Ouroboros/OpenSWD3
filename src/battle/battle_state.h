@@ -10,6 +10,7 @@
 #include "core/types.h"
 #include "game/color_fade.h"
 #include "item/item_list.h"
+#include "org/level.h"
 #include "party/party.h"
 #include "pic/picture.h"
 #include "pic/projector.h"
@@ -336,6 +337,8 @@ public:
     std::array<u16, LootSlots> lootIds = {};  // 0x004FF2F0 the objects of the loot list
     i32 unk53C4C4 = 0;                        // set when an accessory gains proficiency at the victory
     i32 unk53BD20 = 0;
+    RoleRecord unk4FF108;  // the record of the role before its level-up
+    i32 unk53C4C8 = 0;
     i32 unk4A7564 = -1;      // the enemy the auto battle aims at (1-based), -1: none
     u16 unk4A7644 = 0xFFFF;  // a role unit that may take the panel in any battle state (SelectRoleUnit)
     i32 unk4A7548 = 1;       // the command chosen in the menu (1-based)
@@ -361,7 +364,7 @@ public:
     i32 unk4A756C = 1;
     // The proficiency filled in the battle (AnnounceMastery).
     ObjectRecord unk53BC28;
-    std::string unk53C154;  // its name for the message
+    LearnedSkill lastLearned;  // 0x0053C154 the name of the accessory or of the skill learned, for the messages
     i32 unk53BFFC = 0;
     u8 unk4A7646 = 0xFF;  // the role
     // The end of the battle (Game::CheckBattleEnd, Game::DrawBattlePrompt).
