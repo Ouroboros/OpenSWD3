@@ -102,6 +102,7 @@ public:
     void WipeSlotRecords();
     void SortDrawOrderAround(i32 acting, i32 target);
     void SetReturnedItem(int index, u16 id);
+    void TakeSlotRecordAt(std::size_t at, BattleSlotRecord& taken);
 
     i32 listBCount = 0;                              // 0x004FD3B0 entries of listB, at most 13
     ItemLink listB;                                  // 0x004FD4C0

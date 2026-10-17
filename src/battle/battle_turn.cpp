@@ -1,3 +1,4 @@
+#include "crt/msvc.h"
 #include "game/game.h"
 #include "item/item_list.h"
 #include "platform/display.h"
@@ -495,5 +496,140 @@ void Game::DrawBattlePrompt()
 
             break;
     }
+}
+
+// swd32.exe 0x0045D2F0: one frame of the field fade (while any step is set): `counting` counts its frames down; while
+// frames are left (not negative) the levels move by the steps, otherwise the steps take the fade's end levels (the
+// original copies them into the steps, not the levels). The field rows of the frame are tinted by the levels.
+void Game::FieldFadeFrame(int counting)
+{
+    ColorFade& fade = this->battleState.fieldFade;
+
+    if (fade.stepRed == 0 && fade.stepGreen == 0 && fade.stepBlue == 0)
+    {
+        return;
+    }
+
+    bool moving = true;
+
+    if (counting != 0)
+    {
+        if (fade.frames < 0)
+        {
+            moving = false;
+        }
+        else
+        {
+            --fade.frames;
+        }
+    }
+
+    if (moving && fade.frames >= 0)
+    {
+        fade.red += fade.stepRed;
+        fade.green += fade.stepGreen;
+        fade.blue += fade.stepBlue;
+    }
+    else
+    {
+        fade.stepRed = fade.startRed;
+        fade.stepGreen = fade.startGreen;
+        fade.stepBlue = fade.startBlue;
+    }
+
+    const auto blue = static_cast<int>(crt::Ftol(fade.blue));
+    const auto green = static_cast<int>(crt::Ftol(fade.green));
+    const auto red = static_cast<int>(crt::Ftol(fade.red));
+    const std::span<u16> field(this->drawSurface, static_cast<std::size_t>(Display::Width * BattleState::FieldHeight));
+    this->painter.TintPixels(field, red, green, blue);
+}
+
+// swd32.exe 0x0045EC80: while no unit acts, a side that is all down or turned to stone (UnkStatus4) loses: the party
+// (forced units left out; the count against the roles less the guests, in 8 bits) unless unk53BFE4, the stone roles
+// counted as defeated and the battle state 0x67; then, unless unk53C048, the enemies, counted as defeated, unk53C048
+// set, the auto battle off and the battle state 0x63. 1 when a side lost.
+int Game::CheckStoneSides()
+{
+    BattleState& battle = this->battleState;
+
+    if (battle.unk53AE70 != -1)
+    {
+        return 0;
+    }
+
+    u8 stoneRoles = 0;
+
+    for (u32 index = 0; index < battle.roleCount; ++index)
+    {
+        BattleRole& role = this->battleRoles[index];
+
+        if (role.unk2B00 != 1 && role.unk2B04 != 1 && role.HasEffectBits(BattleUnit::UnkStatus4) == 1)
+        {
+            ++stoneRoles;
+        }
+    }
+
+    const auto partyRoles = static_cast<u8>(
+        static_cast<u8>(battle.roleCount) - static_cast<u8>(battle.unk53BF26) - static_cast<u8>(battle.guestCount)
+    );
+
+    if (stoneRoles != 0 && battle.defeatedRoles + stoneRoles >= partyRoles && battle.unk53BFE4 == 0)
+    {
+        battle.defeatedRoles = static_cast<u8>(battle.defeatedRoles + stoneRoles);
+        battle.result = kBattleLost;
+        return 1;
+    }
+
+    if (battle.unk53C048 != 0)
+    {
+        return 0;
+    }
+
+    u8 stoneEnemies = 0;
+
+    for (u32 index = 0; index < battle.enemyCount; ++index)
+    {
+        if (this->battleEnemies[index].HasEffectBits(BattleUnit::UnkStatus4) == 1)
+        {
+            ++stoneEnemies;
+        }
+    }
+
+    if (stoneEnemies == 0 || battle.unk53BF00 + stoneEnemies < static_cast<i32>(battle.enemyCount) ||
+        battle.unk53BFE4 != 0)
+    {
+        return 0;
+    }
+
+    battle.unk53BF00 = static_cast<u8>(battle.unk53BF00 + stoneEnemies);
+    battle.unk53C048 = 1;
+    battle.autoBattle = 0;
+    battle.result = kBattleWon;
+    return 1;
+}
+
+// swd32.exe 0x0045F020: the next slot record taken into `taken`: the records of held roles (IsHeldOrHolding) at the
+// front are passed over; a used record taken is removed (the later ones move up, the free ones after the used ones
+// cleared). The original also takes unit 7 for a role (the one before the first) and reads past the records when all
+// are held; both stop the search here.
+void Game::TakeSlotRecord(BattleSlotRecord& taken)
+{
+    BattleState& battle = this->battleState;
+    std::size_t at = 0;
+
+    while (at < battle.unk524788.size())
+    {
+        const i32 unit = battle.unk524788[at].unit;
+
+        if (unit < BattleState::FirstRoleUnit ||
+            this->battleRoles[static_cast<std::size_t>(unit - BattleState::FirstRoleUnit)].IsHeldOrHolding() != 1)
+        {
+            break;
+        }
+
+        ++at;
+    }
+
+    battle.TakeSlotRecordAt(at, taken);
 }
 }  // namespace swd3

@@ -402,4 +402,46 @@ void BattleState::SetReturnedItem(int index, u16 id)
 {
     this->unk4FF2EA[static_cast<std::size_t>(index)] = id;
 }
+
+// The removal of 0x0045F020 (inline in the original): record `at` copied into `taken`; a used one is removed, the
+// later records moving up, and from the first free record on (from `at` when none is free) the records are cleared.
+// The original reads the table after the records for `at` 18; a free record is taken then.
+void BattleState::TakeSlotRecordAt(std::size_t at, BattleSlotRecord& taken)
+{
+    auto& records = this->unk524788;
+
+    if (at >= records.size())
+    {
+        taken = BattleSlotRecord{};
+        return;
+    }
+
+    taken = records[at];
+
+    if (taken.unit == -1)
+    {
+        return;
+    }
+
+    for (std::size_t move = at; move + 1 < records.size(); ++move)
+    {
+        records[move] = records[move + 1];
+    }
+
+    std::size_t clearFrom = at;
+
+    for (std::size_t place = 0; place < records.size(); ++place)
+    {
+        if (records[place].unit == -1)
+        {
+            clearFrom = place;
+            break;
+        }
+    }
+
+    for (std::size_t place = clearFrom; place < records.size(); ++place)
+    {
+        records[place] = BattleSlotRecord{};
+    }
+}
 }  // namespace swd3

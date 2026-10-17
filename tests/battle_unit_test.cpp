@@ -904,3 +904,31 @@ TEST_CASE("battle state: the quake steps match swd32.exe")
 
     CHECK(swd3test::SameTable(exe, kQuakeStepsAt, swd3::BattleState::QuakeSteps));
 }
+
+TEST_CASE("battle state: taking a slot record")
+{
+    constexpr swd3::i32 kFirstUnit = 3;
+    constexpr swd3::i32 kSecondUnit = 9;
+    constexpr std::size_t kTakenAt = 2;
+    swd3::BattleState state;
+    auto& records = state.unk524788;
+    records[0].unit = kFirstUnit;
+    records[1].unit = kSecondUnit;
+    swd3::BattleSlotRecord taken;
+    state.TakeSlotRecordAt(0, taken);
+    CHECK_EQ(taken.unit, kFirstUnit);
+    CHECK_EQ(records[0].unit, kSecondUnit);
+    CHECK_EQ(records[1].unit, -1);
+
+    // With no free record left after the move, the records are cleared from the one taken on.
+    for (std::size_t place = 0; place < records.size(); ++place)
+    {
+        records[place].unit = static_cast<swd3::i32>(place);
+    }
+
+    state.TakeSlotRecordAt(kTakenAt, taken);
+    CHECK_EQ(taken.unit, static_cast<swd3::i32>(kTakenAt));
+    CHECK_EQ(records[1].unit, 1);
+    CHECK_EQ(records[kTakenAt].unit, -1);
+    CHECK_EQ(records[kTakenAt + 1].unit, -1);
+}
