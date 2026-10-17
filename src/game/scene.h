@@ -194,6 +194,7 @@ struct ScriptObject
     ScriptObject(int pitch, int lines, int left, int top, int gridWidth, int gridHeight);
     ~ScriptObject();
     void Splash(int x, int y, int radius, int depth, crt::Random& random);
+    void MoveTo(int x, int y);
 
     void CopyScreen(std::span<const u16> pixels);
     void Refract(std::span<u16> pixels) const;

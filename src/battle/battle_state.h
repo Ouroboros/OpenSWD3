@@ -282,6 +282,12 @@ public:
     u16 unk53BF14 = 0;
     u16 unk53BF16 = 0;
     const ObjectRecord* unk5028FC = nullptr;  // the object of the last defeated enemy
+    // The hit acts of the units (0x004582B0, 0x00458DE0, PlayHitAct, FadeHitAct).
+    std::array<ActState, Units> unk5202A8;  // the hit act of each unit
+    std::array<ActState, Units> unk4FE600;  // the follow act of each unit
+    std::array<ActState, Units> unk524980;  // the fading act of each unit
+    std::array<i8, Units> unk521374 = {};   // the fade of unk524980
+    std::array<u16, Units> unk4FDF94 = {};  // the calls of WalkLine
 };
 
 }  // namespace swd3

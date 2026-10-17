@@ -3449,6 +3449,23 @@ ScriptObject::ScriptObject(int pitch, int lines, int left, int top, int gridWidt
 {
 }
 
+// swd32.exe 0x00430D10: the ripple moved to (x, y), kept one cell inside the right and bottom of the screen copy
+void ScriptObject::MoveTo(int x, int y)
+{
+    this->left = x;
+    this->top = y;
+
+    if (this->gridWidth + x > this->pitch)
+    {
+        this->left = this->pitch - this->gridWidth - 1;
+    }
+
+    if (this->gridHeight + y > this->lines)
+    {
+        this->top = this->lines - this->gridHeight - 1;
+    }
+}
+
 // swd32.exe 0x00430FF0: a drop of `radius` cells into the current page, deepest (radius x depth) at its centre;
 // a negative place is chosen at random inside the grid
 void ScriptObject::Splash(int x, int y, int radius, int depth, crt::Random& random)
