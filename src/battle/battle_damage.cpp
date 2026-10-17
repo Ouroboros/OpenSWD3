@@ -25,6 +25,10 @@ constexpr int kSpellPan = 0x10;
 constexpr i32 kSpellMaxDamage = 0x270F;
 constexpr u16 kDrainGainDelay = 8;  // the stamina gain shows 8 frames after the healing
 
+// MagicAttackFrame: a waiting follow-up darkens by kMagicFadeStep a frame down to kMagicFadeEnd.
+constexpr i16 kMagicFadeEnd = -0x20;
+constexpr i16 kMagicFadeStep = 8;
+
 }  // namespace
 
 // swd32.exe 0x0045D690: the drain of `attacker`'s command applied after a hit on `target`. A life drain heals the
@@ -259,6 +263,272 @@ int Game::DrainSpellFrame(BattleRole& role, BattleUnit& target)
     role.absorbFrames = 0;
     role.slotActs[0] = ActState{};
     act = ActState{};
+    return 1;
+}
+
+// swd32.exe 0x004745B0: one frame of `role`'s magic attack (its magic act in slot act 8, drawn by DrawAction; the
+// act's colour darkens the field); 1 once it is over. The magic act's target bits play the effect in the recoil act
+// (holding the act), quake, raise flag 26B8 of the target, fade the field, start the follow-up (the cast act or the
+// effect, slot act 0) or strike. The follow-up flies to the target (TargetsUnit; the original takes the start from
+// the stand act and marks the stand act waiting) or is placed on it, and may quake, raise flag 26B8 or strike; once
+// it waits it darkens by 8 a frame (not while held) before the acts, the trails and the targets are cleared.
+int Game::MagicAttackFrame(BattleRole& role, BattleUnit& target)
+{
+    BattleState& battle = this->battleState;
+    BattleServices& services = this->battleServices;
+    Painter& painter = this->painter;
+
+    if (role.unk2A74 != 0 || role.unk2AD8 == 1)
+    {
+        return 0;
+    }
+
+    ActState& magic = role.slotActs[BattleUnit::UnkSlot8];
+    role.unk2AAC = 1;
+    magic.hold = 0;
+
+    if ((magic.target & ActState::Holds) != 0)
+    {
+        magic.hold = 1;
+    }
+
+    magic.id = role.actId + BattleRole::MagicActs;
+    magic.action = role.unk2A8A;
+    role.DrawAction(services, target, magic);
+
+    if ((magic.target & ActState::Recoils) != 0)
+    {
+        if (magic.effectA != 0)
+        {
+            role.unk267C |= BattleUnit::Recoiling;
+            role.recoilAct.id = magic.effectA;
+            role.recoilAct.action = magic.effectQ;
+        }
+
+        if ((magic.target & ActState::Holds) != 0)
+        {
+            magic.hold = 1;
+        }
+
+        magic.target = static_cast<u16>(magic.target & ~ActState::Recoils);
+        magic.effectA = 0;
+        magic.effectQ = 0;
+    }
+
+    if ((role.unk267C & BattleUnit::Recoiling) != 0 &&
+        role.DrawRecoil(services, role.recoilAct, static_cast<i16>(magic.anchorY)) == 1)
+    {
+        magic.target = 0;
+        magic.hold = 0;
+        role.unk267C &= ~BattleUnit::Recoiling;
+    }
+
+    if ((magic.target & ActState::Quakes) != 0)
+    {
+        battle.quaking = 1;
+        battle.quakePhase = 0;
+    }
+
+    if ((magic.target & ActState::UnkTarget4) != 0)
+    {
+        magic.target = 0;
+        role.unk267C |= BattleUnit::FollowingUp;
+        target.RaiseFlag26B8();
+    }
+
+    ActState& follow = role.slotActs[0];
+
+    if ((magic.target & ActState::FollowsUp) != 0)
+    {
+        if ((magic.target & ActState::FadesField) != 0)
+        {
+            battle.fadingField = 1;
+            battle.StartFieldFade(
+                static_cast<i16>(magic.lights[0]),
+                static_cast<i16>(magic.lights[1]),
+                static_cast<i16>(magic.lights[2]),
+                static_cast<i16>(magic.lights[3]),
+                static_cast<i16>(magic.lights[4]),
+                static_cast<i16>(magic.lights[5]),
+                static_cast<i16>(magic.lights[6])
+            );
+            magic.target = static_cast<u16>(magic.target & ~ActState::FadesField);
+        }
+
+        magic.target = static_cast<u16>(magic.target & ~ActState::FollowsUp);
+        role.unk267C |= BattleUnit::FollowingUp;
+        role.slotTint = 0;
+        magic.target = 0;
+        follow = ActState{};
+    }
+
+    if ((magic.target & ActState::Strikes) != 0)
+    {
+        role.unk267C |= BattleUnit::FollowingUp;
+        role.slotTint = 0;
+        magic.target = 0;
+        role.Strike(services, target, 0);
+        follow = ActState{};
+    }
+
+    battle.darkRed = static_cast<i16>(magic.red);
+    battle.darkGreen = static_cast<i16>(magic.green);
+    battle.darkBlue = static_cast<i16>(magic.blue);
+    this->PrepareDarkenedCopies();
+
+    if (battle.darkRed != 0 || battle.darkGreen != 0 || battle.darkBlue != 0)
+    {
+        battle.unk53BF94 = 1;
+    }
+
+    if ((role.unk267C & BattleUnit::FollowingUp) == 0)
+    {
+        return 0;
+    }
+
+    follow.action = 0;
+    follow.id = role.command.castAct;
+
+    if (magic.effectA != 0)
+    {
+        follow.id = magic.effectA;
+        follow.action = magic.effectQ;
+    }
+
+    if ((role.command.flags & UnitCommand::TargetsUnit) != 0)
+    {
+        const int fromX = role.placement.x + static_cast<i16>(role.actAnchorX) - static_cast<i16>(role.actOffsetX);
+        const int fromY = static_cast<i16>(role.standAct.anchorY) + role.placement.y - role.standAct.y;
+
+        if (role.FlyAct(
+                services,
+                target,
+                follow,
+                0,
+                follow.id,
+                fromX,
+                fromY,
+                static_cast<i16>(role.command.target),
+                0
+            ) != 1)
+        {
+            return 0;
+        }
+
+        follow.target |= ActState::Strikes;
+        role.standAct.waiting = 1;
+        follow.waiting = 1;
+        role.slotTint = 0;
+    }
+    else
+    {
+        role.AimAction(services, target, follow, static_cast<i16>(magic.anchorX), static_cast<i16>(magic.anchorY));
+    }
+
+    if ((follow.target & ActState::Quakes) != 0)
+    {
+        battle.quaking = 1;
+        battle.quakePhase = 0;
+    }
+
+    if ((follow.target & ActState::UnkTarget4) != 0)
+    {
+        target.RaiseFlag26B8();
+        follow.target = 0;
+    }
+
+    if ((follow.target & ActState::Strikes) != 0)
+    {
+        role.slotTint = 0;
+        battle.proficiencyBonus = 0;
+        follow.target = 0;
+        role.Strike(services, target, 0);
+    }
+
+    // The original reads the current or the shadow picture through a null pointer when there is none.
+    if (role.picture != nullptr)
+    {
+        painter.SetSource(role.picture->data.data());
+    }
+
+    if (follow.waiting != 1)
+    {
+        if ((role.unk267C & BattleUnit::Recoiling) == 0 && role.picture != nullptr)
+        {
+            const DrawArgument argument =
+                role.shadowPicture != nullptr ? PaletteArgument(*role.shadowPicture) : DrawArgument{};
+            painter.DrawPicture(
+                static_cast<i16>(role.aimX),
+                static_cast<i16>(role.aimY),
+                role.picture->width,
+                role.picture->height,
+                role.unk26A4,
+                argument
+            );
+        }
+
+        return 0;
+    }
+
+    if ((role.unk267C & BattleUnit::Recoiling) != 0)
+    {
+        return 0;
+    }
+
+    magic.effectA = 0;
+    role.attackAct.effectA = 0;
+
+    if ((role.command.flags & UnitCommand::TargetsUnit) == 0)
+    {
+        if (role.slotTint > kMagicFadeEnd)
+        {
+            DrawOptions& options = painter.Options();
+            options.tintRed = role.slotTint;
+            options.tintGreen = role.slotTint;
+            options.tintBlue = role.slotTint;
+
+            if (role.picture != nullptr)
+            {
+                painter.DrawPicture(
+                    static_cast<i16>(role.aimX),
+                    static_cast<i16>(role.aimY),
+                    role.picture->width,
+                    role.picture->height,
+                    role.unk26A4,
+                    PaletteArgument(*role.picture)
+                );
+            }
+
+            role.slotTint = static_cast<i16>(role.slotTint - kMagicFadeStep);
+
+            if (role.held == 1)
+            {
+                role.slotTint = static_cast<i16>(role.slotTint + kMagicFadeStep);
+            }
+
+            return 0;
+        }
+
+        role.slotTint = 0;
+    }
+
+    if (magic.waiting != 1 || role.slotTint != 0)
+    {
+        return 0;
+    }
+
+    magic = ActState{};
+    role.attackAct = ActState{};
+    role.recoilAct = ActState{};
+    follow = ActState{};
+    role.trails = {};
+    role.targets.fill(BattleUnit::NoTarget);
+    role.slotTint = 0;
+    role.unk2AB0 = 0;
+    role.unk267C = 0;
+    role.unk26D4 = 0;
+    battle.criticalAttack = 0;
+    ++battle.attacksSinceCritical;
     return 1;
 }
 }  // namespace swd3
