@@ -64,6 +64,52 @@ struct Bestiary
     u16 scrollArrows = 0;                          // 0x004FCA80
 };
 
+// The altar page (role page 0x10; 0x004FCA88..0x004FCD20): two objects of the party in the two slots give two
+// results, one at each altar; the altar chosen makes its result with a morph of the pictures.
+struct AltarPage
+{
+    static constexpr int Objects = 0x4B0;
+    static constexpr int Rows = 0x10;
+    static constexpr std::size_t MorphColumns = 0x78;
+    static constexpr std::size_t MorphRows = 0xDC;
+
+    ItemNode resultEast;             // 0x004FCA88
+    ItemNode resultWest;             // 0x004FCBA0
+    ItemNode slotA;                  // 0x004FCBA8
+    ItemNode slotB;                  // 0x004FCC58
+    std::vector<i32> categories;     // 0x004FCAC4 by object id
+    std::vector<i32> levels;         // 0x004FCAB0
+    std::vector<u32> kinds;          // 0x004FCA90
+    std::vector<i32> altars;         // 0x004FCACC 1: never the east result, 2: never the west one
+    ItemLink objects;                // 0x004FCAE0 the objects of the tab, moved out of the inventory
+    ItemNode* firstShown = nullptr;  // 0x004FCD10
+    i32 count = 0;                   // 0x004FCAD8
+    i32 top = 0;                     // 0x004FCAD0
+    i32 row = 0;                     // 0x004FCBA4
+    i32 shown = 0;                   // 0x004FCB98
+    i32 tab = 0;                     // 0x004FCADC 0..2
+    i32 slot = 0;                    // 0x004FCAB8 the slot an object goes into
+    i32 stage = 0;                   // 0x004FCD20
+    i32 chosen = 0;                  // 0x004FCA8C 0: the east altar, 1: the west one
+    u32 tooHigh = 0;                 // 0x004FCAAC bit 0: the east result, bit 1: the west one
+    i32 hover = 0;                   // 0x004FCAD4 the pointer is on "執行"
+    i32 counter = 0;                 // 0x004FCAB4 the morph
+    i32 phase = 0;                   // 0x004FCAC8
+    u16 scrollArrows = 0;            // 0x004FCAA4
+    std::array<i16, 4> vitals = {};  // 0x004FCD14 the spirit and stamina of the east result, then of the west one
+    std::vector<i16> columnsA;       // 0x004FCD08 the morph's offsets
+    std::vector<i16> columnsB;       // 0x004FCB9C
+    std::vector<i16> rowsA;          // 0x004FCAA0
+    std::vector<i16> rowsB;          // 0x004FCD0C
+    std::vector<u16> frame;          // 0x004FCD1C the pictures of the morph
+    std::vector<u16> result;         // 0x004FCB90
+    std::vector<u16> pictureA;       // 0x004FCA9C
+    std::vector<u16> pictureB;       // 0x004FCA98
+};
+
+bool AltarTabTakes(const ItemNode& node, int tab);
+std::u8string_view CategoryName(u16 category);
+
 // The edges of a list's scroll bar as last drawn (DrawScrollBar), read by the clicks.
 struct MenuScrollBar
 {
@@ -162,6 +208,42 @@ public:
     std::string KnownValue(std::u8string_view label, int known, int needed, int value, int most);
     void BestiaryLines(int index);
     void DrawBestiaryTabs();
+
+    // The altar page (role page 0x10).
+    void AltarEnter();
+    void AltarLeave();
+    void AltarFillTab();
+    void AltarReturnObjects();
+    void AltarTakeObjects(ItemLink& source, int tab);
+    void AltarSortObjects();
+    void AltarPick();
+    void AltarPut(ItemNode& slot, int index);
+    bool AltarCombine();
+    void AltarMoved(u16 arrows);
+    void AltarChooseEast(bool soundFirst);
+    void AltarChooseWest();
+    void AltarDown();
+    void AltarUp();
+    void AltarPageDown();
+    void AltarPageUp();
+    void AltarTabChanged();
+    void AltarLeft();
+    void AltarRight();
+    void AltarSwitch(u16 slotSound);
+    void AltarShift();
+    void AltarEnd();
+    void AltarSelect();
+    void AltarSpend();
+    void AltarCancel();
+    void AltarFrame();
+    void AltarDraw();
+    void AltarDrawList(Pixel color);
+    void AltarDrawResults(Pixel color);
+    void AltarDrawResult(const ItemNode& result, std::u8string_view title, int x, int y, u32 flags);
+    void AltarPrepareMorph();
+    void AltarMorph();
+    void AltarFinishMorph();
+    void AltarResultVitals();
     void OptionsLeave();
     bool DrawNameEntry();
     void ActOnEntry();
@@ -252,6 +334,7 @@ public:
     MenuList itemList;        // 0x004FD08C (see MenuList)
     MenuScrollBar scrollBar;  // 0x004FC4F0
     Bestiary bestiary;
+    AltarPage altar;
     ItemLink itemObjects;        // 0x004FD1E8 the objects of the items page
     ItemLink savedInventory;     // 0x004FD15C the inventory kept while the items page saves
     ItemLink savedItems;         // 0x004FD140 `itemObjects` kept with it

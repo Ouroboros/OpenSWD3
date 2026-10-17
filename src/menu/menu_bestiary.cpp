@@ -187,6 +187,13 @@ u16 TextWord(std::string_view text, std::size_t at)
 
 }  // namespace
 
+// The name of category `category` of the table at 0x0049E370 (eight bytes each; the original reads on past its fifteen
+// names, here none).
+std::u8string_view CategoryName(u16 category)
+{
+    return category < kCategoryNames.size() ? kCategoryNames[category] : std::u8string_view();
+}
+
 // swd32.exe 0x004306C0: `text` (to %Q) in the large font from (x, y), wrapped where it passes `width` (the text cell
 // times the characters) or at %N for up to `lines` lines; %C and a digit change the colour to that digit (taken as a
 // colour value). Past the last line the text goes on over it.
@@ -847,8 +854,7 @@ void Menu::BestiaryLines(int index)
     if (known >= kKnowsCategory)
     {
         const i8 category = book.categories[std::min<std::size_t>(book.ids[entry], Bestiary::Monsters)];
-        const auto at = static_cast<std::size_t>(static_cast<u8>(category));
-        book.lines[0] = at < kCategoryNames.size() ? Big5(kCategoryNames[at]) : std::string();
+        book.lines[0] = Big5(CategoryName(static_cast<u8>(category)));
     }
 
     if (known >= kKnowsLevel)
