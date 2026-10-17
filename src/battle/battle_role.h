@@ -38,6 +38,8 @@ public:
     static constexpr std::size_t NoResistanceSlotA = 9;
     static constexpr std::size_t NoResistanceSlotB = 0xA;
 
+    static constexpr std::size_t ExtraActs = 5;
+
     BattleRole();
     void SetSkills(ItemNode* list);
     void SetInventory(ItemLink* list);
@@ -48,6 +50,8 @@ public:
     int AttackFrame(BattleServices& services, BattleUnit& target, int slot);
     void LoadItemAction(Database& database, u16 id, u32& act);
     void StartAbsorb(BattleServices& services, BattleUnit& source);
+    void FlyExtraAct(BattleServices& services, i32 id, i32 action, int slot, i16 x, i16 y, int steps);
+    int AbsorbFrame(BattleServices& services);
     void SetupGuest(const UnitPlacement& at, const RoleRecord& base, Database& database, ErrorReporter& reporter);
     void
     ApplyEquipment(std::span<const std::unique_ptr<ItemNode>> slots, CounterList& proficiency, ErrorReporter& reporter);
@@ -57,13 +61,14 @@ public:
     void PayStamina();
     void TakeCommand2F18();
 
-    std::unique_ptr<RoleRecord> ownedRecord;  // the 0x38 bytes at +0x00
-    ObjectRecord unk2B24;                     // +0x2B24
-    std::array<ActState, 5> unk2BC8;          // +0x2BC8
-    ItemNode* skills = nullptr;               // +0x2EC0 the first skill shown in the list
-    ItemNode* skillsHead = nullptr;           // +0x2EC4 the start of the list (its "無" head)
-    ItemLink* inventory = nullptr;            // +0x2EC8 the first item shown
-    ItemLink* inventoryHead = nullptr;        // +0x2ECC the party's items
+    std::unique_ptr<RoleRecord> ownedRecord;     // the 0x38 bytes at +0x00
+    ObjectRecord unk2B24;                        // +0x2B24
+    std::array<ActState, ExtraActs> extraActs;   // +0x2BC8 the sparks of an absorb (FlyExtraAct)
+    ItemNode* skills = nullptr;                  // +0x2EC0 the first skill shown in the list
+    ItemNode* skillsHead = nullptr;              // +0x2EC4 the start of the list (its "無" head)
+    ItemLink* inventory = nullptr;               // +0x2EC8 the first item shown
+    ItemLink* inventoryHead = nullptr;           // +0x2ECC the party's items
+    std::array<i32, ExtraActs> extraSteps = {};  // +0x2EF8 the line steps of each extra act this frame
     i32 unk2F0C = 0;
     u16 unk2F10 = 0;
     u16 unk2F12 = 0;
@@ -76,8 +81,8 @@ public:
     u16 bonusB = 0;  // +0x2F20 of their +0x36 words
     u16 bonusC = 0;  // +0x2F22 of their +0x38 words
     u16 unk2F24 = 0;
-    u16 unk2F26 = 0;
-    u8 critical = 0;  // +0x2F30 1: the next attack is critical (set by 0x0046FF00)
+    i16 absorbFrames = 0;  // +0x2F26 the frames of the running absorb (AbsorbFrame)
+    u8 critical = 0;       // +0x2F30 1: the next attack is critical (set by 0x0046FF00)
 };
 
 }  // namespace swd3

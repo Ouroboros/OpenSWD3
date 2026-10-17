@@ -65,7 +65,7 @@ public:
         picture.scaleY = scenario.scaleY;
         picture.flags = scenario.flags;
         picture.angle = scenario.angle;
-        this->projector.DrawScaled(this->screen, this->painter, picture);
+        this->projector.DrawScaled(this->screen.Pixels(), this->painter, picture);
     }
 
     std::vector<u8>
@@ -106,7 +106,8 @@ public:
 
         for (int frame = 0; frame < scenario.frames; ++frame)
         {
-            const int result = this->projector.DrawExplosion(this->screen, this->painter, this->random, effect);
+            const int result =
+                this->projector.DrawExplosion(this->screen.Pixels(), this->painter, this->random, effect);
             golden::Append32(out, static_cast<u32>(result));
             golden::Append32(out, static_cast<u32>(effect.particles));
             golden::Append32(out, static_cast<u32>(effect.opaque));
@@ -252,7 +253,7 @@ TEST_CASE("projector: the first explosion frame counts the opaque pixels")
     effect.speed = kSpeed;
     effect.bursts = kBursts;
     effect.divisor = 1;
-    CHECK_EQ(projector.DrawExplosion(screen, painter, random, effect), 0);
+    CHECK_EQ(projector.DrawExplosion(screen.Pixels(), painter, random, effect), 0);
     CHECK_EQ(effect.started, 1);
     CHECK_EQ(effect.pixelCount, kWidth * kHeight);
     CHECK_EQ(effect.slowLimit, kOpaque / swd3::Projector::SlowShare);

@@ -582,7 +582,7 @@ public:
     i32 guarding = 0;  // +0x2AF0
     i32 unk2AF4 = 0;
     i32 unk2AF8 = 0;
-    i32 unk2AFC = 0;
+    i32 absorbing = 0;  // +0x2AFC 1 while an absorb runs (AbsorbFrame)
     i32 unk2B00 = 0;
     i32 unk2B04 = 0;
     i32 facing = 0;  // +0x2B08

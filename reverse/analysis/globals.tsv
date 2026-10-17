@@ -308,7 +308,7 @@
 0x004CF734	Talk::dialogOffsetY	i32	src/talk/talk.h:157	
 0x004CF738	Talk::dialogTimed	i32	src/talk/talk.h:158	dialogTimeout applies
 0x004CF73C	Talk::dialogCentred	i32	src/talk/talk.h:159	
-0x004FB568	Projector::particleRange	i32	src/pic/projector.h:159	the pixel range of ParticlePut with flag 0x40
+0x004FB568	Projector::particleRange	i32	src/pic/projector.h:158	the pixel range of ParticlePut with flag 0x40
 0x004FB808	Menu::beforeFrame	Handler	src/menu/menu.h:121	(none: not called)
 0x004FB810	Menu::hitPointBar	ActState	src/menu/menu.h:158	the bars of the role tabs
 0x004FB8A8	Menu::mode	u16	src/menu/menu.h:138	

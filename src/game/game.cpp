@@ -187,6 +187,8 @@ Game::Game(std::string installDirectory)
           this->battleMessages,
           this->config,
           this->party,
+          this->crtRandom,
+          this->drawSurface,
       },
       actDrawer(this->acts, this->archive, this->painter),
       menu(*this)

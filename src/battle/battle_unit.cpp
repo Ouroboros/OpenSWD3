@@ -2473,7 +2473,7 @@ void BattleUnit::Reset(BattleServices& services)
     this->unk2ABC = 0;
     this->unk2ACC = 0;
     this->unk2AF8 = 0;
-    this->unk2AFC = 0;
+    this->absorbing = 0;
     this->unk2B00 = 0;
     this->unk2B04 = 0;
     this->facing = 0;

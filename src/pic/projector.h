@@ -12,7 +12,6 @@ namespace swd3
 
 class Graphics;
 class Painter;
-class Surface;
 
 namespace crt
 {
@@ -139,8 +138,8 @@ public:
     int SetScreen(int width, int height);
     int SetClip(int x, int y, int width, int height);
     void Step(DirectionWalker& walker) const;
-    void DrawScaled(Surface& surface, Painter& painter, const ProjectedPicture& picture);
-    int DrawExplosion(Surface& surface, Painter& painter, crt::Random& random, ParticleEffect& effect);
+    void DrawScaled(u16* screen, Painter& painter, const ProjectedPicture& picture);
+    int DrawExplosion(u16* screen, Painter& painter, crt::Random& random, ParticleEffect& effect);
     int ParticlePut(ParticleEffect& effect, int count, const Painter& painter, crt::Random& random);
 
     std::array<i32, Directions> dirX = {};  // +0x000

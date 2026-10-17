@@ -13,6 +13,7 @@
 #include "battle/battle_state.h"
 #include "battle/battle_unit.h"
 #include "config/config.h"
+#include "crt/msvc.h"
 #include "draw/painter.h"
 #include "font/text_font.h"
 #include "org/object_record.h"
@@ -71,6 +72,8 @@ struct Services
               this->messages,
               this->config,
               this->party,
+              this->crtRandom,
+              this->screenPixels,
           }
 
     {
@@ -96,6 +99,8 @@ struct Services
     swd3::BattleMessages messages;
     swd3::Config config;
     swd3::Party party;
+    swd3::crt::Random crtRandom;
+    swd3::u16* screenPixels = nullptr;
     swd3::BattleServices services;
 };
 

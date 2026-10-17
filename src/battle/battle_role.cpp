@@ -1,12 +1,15 @@
 #include "battle/battle_role.h"
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <optional>
 #include <string_view>
 
+#include "audio/audio_manager.h"
 #include "battle/battle_services.h"
 #include "battle/battle_state.h"
+#include "config/config.h"
 #include "core/assertion.h"
 #include "core/words.h"
 #include "draw/painter.h"
@@ -14,6 +17,8 @@
 #include "org/fame.h"
 #include "pic/rle.h"
 #include "platform/display.h"
+#include "res/act_archive.h"
+#include "res/tsw_archive.h"
 #include "text/big5.h"
 
 namespace swd3
@@ -82,6 +87,25 @@ constexpr u16 kAbsorbDivisor = 0x28;
 constexpr i32 kAbsorbTint = 5;
 constexpr u16 kAbsorbFlags = ParticleEffect::WithinRange | ParticleEffect::Mixed;
 
+// AbsorbFrame: the sparks (extra acts) beside the absorb; the first flies every frame, each other from its frame on.
+struct Spark
+{
+    i16 fromFrame = 0;
+    i32 action = 0;
+    int offsetY = 0;  // from the top of the picture still left
+    int steps = 0;
+};
+
+constexpr i32 kSparkAct = 0x186A;
+constexpr std::size_t kSparkColumnShift = 2;  // the sparks start a quarter across the picture
+constexpr std::array<Spark, BattleRole::ExtraActs> kSparks = {{
+    {0, 1, -5, 0xE},
+    {10, 2, -10, 0xA},
+    {20, 3, -15, 0xC},
+    {30, 1, 0, 8},
+    {40, 1, 5, 0x10},
+}};
+
 // The palette of a picture passed as the draw argument (the original passes the palette pointer).
 DrawArgument PaletteArgument(const Picture& picture)
 {
@@ -129,7 +153,7 @@ void BattleRole::ClearExtras()
     this->unk2F14 = 0;
     this->unk2F18 = 0;
     this->unk2F16 = 0;
-    this->unk2BC8.fill(ActState{});
+    this->extraActs.fill(ActState{});
     this->slotActs[BattleUnit::UnkSlot8] = ActState{};
     this->slotActs[BattleUnit::UnkSlot9] = ActState{};
     this->unk2B24 = ObjectRecord{};
@@ -901,6 +925,120 @@ void BattleRole::StartAbsorb(BattleServices& services, BattleUnit& source)
     this->unk2680 = 0;
     this->flight = LineWalker{};
     this->attackAct = ActState{};
-    this->unk2BC8.fill(ActState{});
+    this->extraActs.fill(ActState{});
+}
+
+// swd32.exe 0x00471FC0: one frame of extra act `slot` (`id`, `action`) flying from (x, y) into the role's main act
+// anchor, extraSteps[slot] * `steps` line steps a frame (one more each frame). Its sound plays centred; past the
+// role's x less unk2674 it is drawn there for the last time and its steps and the line are cleared.
+void BattleRole::FlyExtraAct(BattleServices& services, i32 id, i32 action, int slot, i16 x, i16 y, int steps)
+{
+    ActState& act = this->extraActs[static_cast<std::size_t>(slot)];
+    i32& count = this->extraSteps[static_cast<std::size_t>(slot)];
+    act.id = id;
+    act.action = action;
+    act.hold = 0;
+
+    if (this->held == 1)
+    {
+        act.hold = 1;
+    }
+
+    if (services.acts.Run(act) == 0)
+    {
+        return;
+    }
+
+    this->picture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->picture == nullptr)
+    {
+        return;
+    }
+
+    Painter& painter = services.painter;
+    painter.SetSource(this->picture->data.data());
+    LineWalker& line = this->flight;
+    line = LineWalker{};
+    line.fromX = static_cast<i16>(x - static_cast<u16>(act.x));
+    line.fromY = static_cast<i16>(y - static_cast<u16>(act.y));
+    line.toX = this->placement.x - static_cast<i16>(this->originX) + static_cast<i16>(this->mainAct.anchorX) - act.x;
+    line.toY = this->placement.y + static_cast<i16>(this->mainAct.anchorY) - this->mainAct.y - act.y;
+
+    for (int taken = 0; taken < count * steps; ++taken)
+    {
+        LineStep(line);
+    }
+
+    ++count;
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+    act.view = 0;
+    const int endX = line.toX - this->unk2674;
+    const int atX = line.fromX + line.x;
+
+    if (atX >= endX)
+    {
+        painter.DrawPicture(endX, line.toY, this->picture->width, this->picture->height, act.flags);
+        count = 0;
+        line = LineWalker{};
+        return;
+    }
+
+    painter.DrawPicture(atX, line.fromY + line.y, this->picture->width, this->picture->height, act.flags);
+}
+
+// swd32.exe 0x00471270: one frame of the absorb; 1 once the picture is gone (its pixels freed, the effect, the extra
+// steps, the follow-up line and the attack act cleared). While bursts are left the sparks fly from a quarter across the
+// picture's remaining top into the role, one more joining every ten frames.
+int BattleRole::AbsorbFrame(BattleServices& services)
+{
+    ParticleEffect& effect = this->absorb;
+    ++this->absorbFrames;
+    effect.tintRed = kAbsorbTint;
+    effect.tintGreen = kAbsorbTint;
+    effect.tintBlue = kAbsorbTint;
+    this->absorbing = 1;
+
+    if (services.state.projector.DrawExplosion(services.screen, services.painter, services.crtRandom, effect) == 1)
+    {
+        this->absorbFrames = 0;
+        this->absorbing = 0;
+        this->absorbPixels.clear();
+        effect = ParticleEffect{};
+        this->extraSteps.fill(0);
+        this->flight = LineWalker{};
+        this->attackAct = ActState{};
+        return 1;
+    }
+
+    if (effect.bursts == 0)
+    {
+        return 0;
+    }
+
+    for (std::size_t slot = 0; slot < kSparks.size(); ++slot)
+    {
+        const Spark& spark = kSparks[slot];
+
+        if (slot != 0 && this->absorbFrames < spark.fromFrame)
+        {
+            continue;
+        }
+
+        const int x = effect.x + (effect.width >> kSparkColumnShift);
+        const int y = effect.height - effect.bursts + effect.y + spark.offsetY;
+        this->FlyExtraAct(
+            services,
+            kSparkAct,
+            spark.action,
+            static_cast<int>(slot),
+            static_cast<i16>(x),
+            static_cast<i16>(y),
+            spark.steps
+        );
+    }
+
+    return 0;
 }
 }  // namespace swd3

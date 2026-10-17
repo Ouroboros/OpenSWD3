@@ -6,7 +6,6 @@
 #include "draw/painter.h"
 #include "gfx/graphics.h"
 #include "platform/display.h"
-#include "platform/surface.h"
 
 namespace swd3
 {
@@ -300,7 +299,7 @@ void Projector::Step(DirectionWalker& walker) const
 // swd32.exe 0x004344E0: the picture scaled by scaleX / scaleY (1024 = 1) upwards from its bottom row at (x, y),
 // skipping both colour keys; mixed with flags 0x16, mirrored with flag 1. The direction walkers are stepped but their
 // positions are unused. The mirrored bottom row reads one pixel past the picture, which counts as transparent here.
-void Projector::DrawScaled(Surface& surface, Painter& painter, const ProjectedPicture& picture)
+void Projector::DrawScaled(u16* screen, Painter& painter, const ProjectedPicture& picture)
 {
     const i64 lastRow = static_cast<i64>(picture.width) * (picture.height - 1);
     DrawOptions& options = painter.Options();
@@ -350,7 +349,7 @@ void Projector::DrawScaled(Surface& surface, Painter& painter, const ProjectedPi
 
                     if (pixel != fill && pixel != skip)
                     {
-                        u16& target = surface.Pixels()[this->screenRows[static_cast<std::size_t>(y)] + x];
+                        u16& target = screen[this->screenRows[static_cast<std::size_t>(y)] + x];
 
                         if ((picture.flags & ProjectedPicture::Mixed) != 0)
                         {
@@ -517,7 +516,7 @@ int Projector::ParticlePut(ParticleEffect& effect, int count, const Painter& pai
 // its life ends or it reached the target rectangle. Returns 1 when everything is gone. The mirrored picture is
 // clipped at x + width - column but drawn at x + column, and a mixed particle's top right pixel is written again
 // unmixed. Removing the last particle makes the one before it the next free particle (the next burst overwrites it).
-int Projector::DrawExplosion(Surface& surface, Painter& painter, crt::Random& random, ParticleEffect& effect)
+int Projector::DrawExplosion(u16* screen, Painter& painter, crt::Random& random, ParticleEffect& effect)
 {
     const u16 fill = painter.Rle().fill16;
     const u16 skip = painter.Rle().skip16;
@@ -561,7 +560,7 @@ int Projector::DrawExplosion(Surface& surface, Painter& painter, crt::Random& ra
         return 1;
     }
 
-    u16* pixels = surface.Pixels();
+    u16* pixels = screen;
 
     if (effect.bursts >= 1)
     {
