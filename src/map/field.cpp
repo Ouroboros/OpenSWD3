@@ -248,8 +248,9 @@ void Field::InsertRole(Role& role, int layer)
 Role* Field::RemoveRole(u16 id, int layer, int row, int keep)
 {
     std::vector<Role*>& lists = this->rows[static_cast<std::size_t>(layer)];
+    int at = row;
 
-    for (int at = row; at < this->state.map.height; ++at)
+    for (; at < this->state.map.height; ++at)
     {
         const auto index = static_cast<std::size_t>(at + Field::RowMargin);
 
@@ -302,6 +303,12 @@ Role* Field::RemoveRole(u16 id, int layer, int row, int keep)
 
         this->InsertRole(*removed, static_cast<int>(removed->flags & Role::LayerMask));
         return nullptr;
+    }
+
+    // 0x00411530 LABEL_10: the rows searched to the map's height without the role (not when `row` starts beyond it).
+    if (at == this->state.map.height)
+    {
+        DebugLog(u8"更新角色串列", u8"找不到角色(%d)/[%d] ", static_cast<i32>(id), layer);
     }
 
     return nullptr;

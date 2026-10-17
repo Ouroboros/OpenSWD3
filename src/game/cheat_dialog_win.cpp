@@ -62,7 +62,7 @@ constexpr int kColumnTextSize = 4;
 constexpr std::u8string_view kItemsTab = u8"物品";          // swd32.exe 0x004A020C
 constexpr std::u8string_view kAttributesSuffix = u8"屬性";  // the end of "%s屬性" (swd32.exe 0x004A01FC)
 constexpr std::u8string_view kVariablesTab = u8"變數";      // swd32.exe 0x004A01F4
-constexpr std::u8string_view kGoldLabel = u8"金";           // the first variable (swd32.exe 0x004A0288)
+constexpr std::u8string_view kMoneyLabel = u8"錢";          // the first variable (swd32.exe 0x004A0288)
 constexpr std::string_view kCompanyA = "Cmpy1";             // variables 11 and 12
 constexpr std::string_view kCompanyB = "Cmpy2";
 constexpr std::size_t kCompanyAVariable = 11;
@@ -242,7 +242,7 @@ void Fill(CheatDialog& cheat, HWND list)
 
             if (variable == 0)
             {
-                label = Big5(kGoldLabel);
+                label = Big5(kMoneyLabel);
             }
             else if (variable == kCompanyAVariable)
             {
