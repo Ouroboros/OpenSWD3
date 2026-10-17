@@ -19,6 +19,7 @@ constexpr int kMaxFontSize = 0x40;
 constexpr int kCacheFull = 0x7CF;
 constexpr int kHighBit = 0x80;  // the leftmost pixel of a glyph byte; a lead byte of Big5 from here
 constexpr u32 kWhite = 0xFFFFFF;
+constexpr int kPairWidth = 2;      // PutPair sets a pixel and the one right of it
 constexpr int kBackgroundPad = 2;  // the background of the last character reaches past it
 
 // The colour step per glyph row: -1 for kGradientDown, +1 for kGradientUp, else 0.
@@ -316,7 +317,7 @@ void TextFont::DrawGlyphBold(Pixel* target, int x, int y, int glyph, Pixel color
             {
                 for (int k = 0; k < CHAR_BIT; ++k)
                 {
-                    if ((bits[byte] & (kHighBit >> k)) != 0 && column >= left - k && column + k + 2 < right)
+                    if ((bits[byte] & (kHighBit >> k)) != 0 && column >= left - k && column + k + kPairWidth < right)
                     {
                         PutPair(target, base + CHAR_BIT * byte + k, color);
                     }
@@ -406,7 +407,7 @@ void TextFont::DrawGlyphBoldShadow(Pixel* target, int x, int y, int glyph, Pixel
 
                 for (int k = 0; k < CHAR_BIT; ++k)
                 {
-                    if ((bits[byte] & (kHighBit >> k)) != 0 && column >= left - k && column + k + 2 < right)
+                    if ((bits[byte] & (kHighBit >> k)) != 0 && column >= left - k && column + k + kPairWidth < right)
                     {
                         PutPair(target, pixel + k, color);
                         PutPair(target, pixel + this->targetWidth + k + 1, this->shadow);
@@ -503,11 +504,12 @@ void TextFont::DrawGlyphBoldOutline(Pixel* target, int x, int y, int glyph, Pixe
 
                 for (int k = 0; k < CHAR_BIT; ++k)
                 {
-                    if ((bits[byte] & (kHighBit >> k)) != 0 && column >= left - (k + 1) && column + k + 2 < right)
+                    if ((bits[byte] & (kHighBit >> k)) != 0 && column >= left - (k + 1) &&
+                        column + k + kPairWidth < right)
                     {
                         target[pixel + k - width] = this->shadow;
                         target[pixel + k - 1] = this->shadow;
-                        target[pixel + k + 2] = this->shadow;
+                        target[pixel + k + kPairWidth] = this->shadow;
                         PutPair(target, pixel + width + k - 1, this->shadow);
                         PutPair(target, pixel + width + k + 1, this->shadow);
                     }

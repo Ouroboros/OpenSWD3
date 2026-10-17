@@ -218,6 +218,8 @@ constexpr u32 kTargetsEnd = 0xFF00FF00;  // ends the jump targets of JumpByChoic
 
 constexpr int kOpcodeBytes = 2;        // the command word
 constexpr std::size_t kWordBytes = 2;  // an operand
+constexpr std::size_t kCodeWord = 0;   // the words of a command: its command word, then the operands
+constexpr std::size_t kFirstOperand = 1;
 
 // The bytes of each command below 0xC2 (0: its length depends on its operands), as 0x00427920 advances past them.
 constexpr std::array<u8, 0xC2> kCommandBytes = {

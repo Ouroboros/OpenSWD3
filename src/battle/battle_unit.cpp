@@ -12,6 +12,7 @@
 #include "battle/battle_state.h"
 #include "config/config.h"
 #include "core/format.h"
+#include "core/words.h"
 #include "crt/msvc.h"
 #include "draw/painter.h"
 #include "org/database.h"
@@ -70,6 +71,10 @@ constexpr int kTenths = 10;
 constexpr int kThousands = 1000;  // the places of the four damage digits
 constexpr int kHundreds = 100;
 constexpr int kTens = 10;
+constexpr std::size_t kThousandsDigit = 0;
+constexpr std::size_t kHundredsDigit = 1;
+constexpr std::size_t kTensDigit = 2;
+constexpr std::size_t kOnesDigit = 3;
 constexpr int kStatScalePercent = 10;  // StatsScaled moves the stats of a party role by this percent
 constexpr i16 kGuardPhaseEnd = 9;      // the last phase of a guard text letter
 constexpr i16 kGuardTextStep = 4;      // pixels the guard text rises a frame
@@ -1305,8 +1310,14 @@ void BattleUnit::DrawGuardText(BattleServices& services)
     const int left = this->placement.x - kGuardTextOffset;
     auto& phases = this->guardPhases;
 
-    if (phases[0] == kGuardPhaseEnd && phases[1] == kGuardPhaseEnd && phases[2] == kGuardPhaseEnd &&
-        phases[3] == kGuardPhaseEnd)
+    if (std::all_of(
+            phases.begin(),
+            phases.end(),
+            [](i16 phase)
+            {
+                return phase == kGuardPhaseEnd;
+            }
+        ))
     {
         const i16 rise = this->guardRise;
 
@@ -1403,12 +1414,12 @@ void BattleUnit::SetDamageDigits(BattleServices& services, int amount)
     }
 
     auto& digits = this->damageDigits[slot];
-    digits[0] = static_cast<i16>(amount / kThousands);
-    amount -= kThousands * digits[0];
-    digits[1] = static_cast<i16>(amount / kHundreds);
-    amount -= kHundreds * digits[1];
-    digits[2] = static_cast<i16>(amount / kTens);
-    digits[3] = static_cast<i16>(amount - static_cast<u16>(static_cast<u16>(digits[2]) * kTens));
+    digits[kThousandsDigit] = static_cast<i16>(amount / kThousands);
+    amount -= kThousands * digits[kThousandsDigit];
+    digits[kHundredsDigit] = static_cast<i16>(amount / kHundreds);
+    amount -= kHundreds * digits[kHundredsDigit];
+    digits[kTensDigit] = static_cast<i16>(amount / kTens);
+    digits[kOnesDigit] = static_cast<i16>(amount - static_cast<u16>(static_cast<u16>(digits[kTensDigit]) * kTens));
 }
 
 // swd32.exe 0x0047DBD0: the ailment of `skill` lands unless it is bit 13 (mark 0x20 instead) or the skill has flag 7,
@@ -2508,15 +2519,15 @@ void BattleUnit::LoadCommand(Database& database, u16 id)
     skill.unk00 = static_cast<u32>(this->command.unk00);
     skill.flags = this->command.actionFlags;
     skill.statusBits = static_cast<u32>(this->command.unk08);
-    skill.unk0C = this->command.flags | static_cast<u32>(this->command.unk0E[0]) << 16 |
-                  static_cast<u32>(this->command.unk0E[1]) << 24;
-    skill.unk10 = this->command.unk0E[2] | static_cast<u32>(this->command.unk0E[3]) << 8 |
-                  static_cast<u32>(this->command.followAct) << 16;
+    const auto& packed = this->command.unk0E;
+    skill.unk0C = MakeWords(MakeBytes(packed[1], packed[0]), this->command.flags);
+    skill.unk10 = MakeWords(this->command.followAct, MakeBytes(packed[3], packed[2]));
     skill.unk14 = this->command.castAct;
     skill.unk16 = this->command.unk16;
-    skill.ailment = static_cast<u16>(this->command.unk18[0] | this->command.unk18[1] << 8);
-    skill.element = static_cast<u16>(this->command.unk18[2] | this->command.unk18[3] << 8);
-    skill.unk1C = static_cast<u16>(this->command.unk18[4] | this->command.unk18[5] << 8);
+    const auto& pairs = this->command.unk18;
+    skill.ailment = MakeBytes(pairs[1], pairs[0]);
+    skill.element = MakeBytes(pairs[3], pairs[2]);
+    skill.unk1C = MakeBytes(pairs[5], pairs[4]);
     skill.unk1E = static_cast<u16>(this->command.unk1E);
     skill.unk20 = this->command.unk20;
     skill.unk22 = this->command.target;
@@ -2527,22 +2538,22 @@ void BattleUnit::LoadCommand(Database& database, u16 id)
     this->command.unk08 = static_cast<i32>(skill.statusBits);
     this->command.flags = static_cast<u16>(skill.unk0C);
     this->command.unk0E = {
-        static_cast<u8>(skill.unk0C >> 16),
-        static_cast<u8>(skill.unk0C >> 24),
-        static_cast<u8>(skill.unk10),
-        static_cast<u8>(skill.unk10 >> 8),
+        LowByte(HighWord(skill.unk0C)),
+        HighByte(HighWord(skill.unk0C)),
+        LowByte(LowWord(skill.unk10)),
+        HighByte(LowWord(skill.unk10)),
     };
 
-    this->command.followAct = static_cast<u16>(skill.unk10 >> 16);
+    this->command.followAct = HighWord(skill.unk10);
     this->command.castAct = skill.unk14;
     this->command.unk16 = skill.unk16;
     this->command.unk18 = {
-        static_cast<u8>(skill.ailment),
-        static_cast<u8>(skill.ailment >> 8),
-        static_cast<u8>(skill.element),
-        static_cast<u8>(skill.element >> 8),
-        static_cast<u8>(skill.unk1C),
-        static_cast<u8>(skill.unk1C >> 8),
+        LowByte(skill.ailment),
+        HighByte(skill.ailment),
+        LowByte(skill.element),
+        HighByte(skill.element),
+        LowByte(skill.unk1C),
+        HighByte(skill.unk1C),
     };
 
     this->command.unk1E = static_cast<i16>(skill.unk1E);

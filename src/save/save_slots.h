@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "core/types.h"
+#include "party/party.h"
 #include "res/act_state.h"
 #include "text/big5.h"
 
@@ -28,16 +29,16 @@ struct SavePreview
     static constexpr u16 Missing = 1;
     static constexpr u16 Loaded = 2;
 
-    std::array<SavePreviewRole, 4> roles;  // +0x00
-    i32 unk20 = 0;                         // +0x20
-    i32 unk24 = 0;                         // +0x24 2, or 3 with story flag 0x53
-    i32 unk28 = 0;                         // +0x28 the dword at +4 of the saved data
-    u16 state = 0;                         // +0x30 Missing, Loaded
-    std::vector<u16> thumbnail;            // +0x294 160 x 120 pixels
-    std::string date;                      // +0x298 "yyyy/mm/dd hh:mm"
-    std::string location;                  // +0x29C
-    std::array<char, 0x40> names = {};     // +0x2A0
-    std::string playTime;                  // +0x2A4
+    std::array<SavePreviewRole, Party::Roles> roles;  // +0x00
+    i32 unk20 = 0;                                    // +0x20
+    i32 unk24 = 0;                                    // +0x24 2, or 3 with story flag 0x53
+    i32 unk28 = 0;                                    // +0x28 the dword at +4 of the saved data
+    u16 state = 0;                                    // +0x30 Missing, Loaded
+    std::vector<u16> thumbnail;                       // +0x294 160 x 120 pixels
+    std::string date;                                 // +0x298 "yyyy/mm/dd hh:mm"
+    std::string location;                             // +0x29C
+    std::array<char, 0x40> names = {};                // +0x2A0
+    std::string playTime;                             // +0x2A4
 };
 
 // The save slots of the load and save screens: the newest slot, the previews of the page of three slots it is on and

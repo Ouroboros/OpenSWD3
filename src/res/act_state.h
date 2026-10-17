@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "core/types.h"
+#include "core/words.h"
 
 namespace swd3
 {
@@ -12,42 +13,48 @@ namespace swd3
 // one operand word.
 using ActScript = std::shared_ptr<const std::vector<u8>>;
 
+// A two-letter opcode as the script stores it, the first letter in the low byte.
+constexpr u16 ScriptTag(char first, char second)
+{
+    return MakeBytes(static_cast<u8>(second), static_cast<u8>(first));
+}
+
 // Opcodes of the action scripts.
 enum class ActOpcode : u16
 {
-    EndFrame = 'D' | 'E' << 8,  // ends the steps of this frame
-    Loop = 'V' | 'O' << 8,      // back to the start (stays while held)
-    Stop = '2' | 'O' << 8,      // stays here; waiting once no delay is left
-    View = 'V' | 'W' << 8,
-    Position = 'Y' | 'X' << 8,  // x, y
-    Size = 'H' | 'W' << 8,      // width, height
-    Counter = 'N' | 'T' << 8,
-    Wait = 'W' | 'T' << 8,
-    Invisible = 'I' | 'V' << 8,
-    Mask = 'M' | 'S' << 8,
-    Frame = 'F' | 'R' << 8,
-    Rotation = 'O' | 'R' << 8,
-    Delay = 'D' | 'S' << 8,
-    EffectQ = 'E' | 'Q' << 8,
-    OffsetX = 'X' | 'O' << 8,
-    OffsetY = 'Y' | 'O' << 8,
-    Picture = 'A' | 'P' << 8,  // picture number, counts the rounds of the counter
-    Action = 'A' | 'O' << 8,
-    Signal = 'S' | 'G' << 8,
-    DrawLevel = 'D' | 'L' << 8,
-    Visible = 'O' | 'N' << 8,
-    Lights = 'L' | 'F' << 8,  // seven values
-    Green = 'G' | 'C' << 8,
-    ClearColors = 'L' | 'C' << 8,
-    Red = 'R' | 'C' << 8,
-    Blue = 'B' | 'C' << 8,
-    EffectA = 'E' | 'A' << 8,
-    Half = 'H' | 'A' << 8,
-    MaskBlend = 'M' | 'A' << 8,
-    NoBlend = 'N' | 'A' << 8,
-    Target = 'T' | 'A' << 8,
-    AnchorX = 'X' | 'A' << 8,
-    AnchorY = 'Y' | 'A' << 8,
+    EndFrame = ScriptTag('D', 'E'),  // ends the steps of this frame
+    Loop = ScriptTag('V', 'O'),      // back to the start (stays while held)
+    Stop = ScriptTag('2', 'O'),      // stays here; waiting once no delay is left
+    View = ScriptTag('V', 'W'),
+    Position = ScriptTag('Y', 'X'),  // x, y
+    Size = ScriptTag('H', 'W'),      // width, height
+    Counter = ScriptTag('N', 'T'),
+    Wait = ScriptTag('W', 'T'),
+    Invisible = ScriptTag('I', 'V'),
+    Mask = ScriptTag('M', 'S'),
+    Frame = ScriptTag('F', 'R'),
+    Rotation = ScriptTag('O', 'R'),
+    Delay = ScriptTag('D', 'S'),
+    EffectQ = ScriptTag('E', 'Q'),
+    OffsetX = ScriptTag('X', 'O'),
+    OffsetY = ScriptTag('Y', 'O'),
+    Picture = ScriptTag('A', 'P'),  // picture number, counts the rounds of the counter
+    Action = ScriptTag('A', 'O'),
+    Signal = ScriptTag('S', 'G'),
+    DrawLevel = ScriptTag('D', 'L'),
+    Visible = ScriptTag('O', 'N'),
+    Lights = ScriptTag('L', 'F'),  // seven values
+    Green = ScriptTag('G', 'C'),
+    ClearColors = ScriptTag('L', 'C'),
+    Red = ScriptTag('R', 'C'),
+    Blue = ScriptTag('B', 'C'),
+    EffectA = ScriptTag('E', 'A'),
+    Half = ScriptTag('H', 'A'),
+    MaskBlend = ScriptTag('M', 'A'),
+    NoBlend = ScriptTag('N', 'A'),
+    Target = ScriptTag('T', 'A'),
+    AnchorX = ScriptTag('X', 'A'),
+    AnchorY = ScriptTag('Y', 'A'),
 };
 
 // Playback of an action script (0x98 bytes in the original; also the tail of a role at +0x40). Field offsets of the

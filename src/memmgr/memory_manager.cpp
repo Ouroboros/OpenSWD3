@@ -3,6 +3,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
+#include <string>
 
 #include "core/format.h"
 #include "platform/message_box.h"
@@ -139,37 +140,19 @@ bool MemoryManager::FreeBlock(MemoryNode* node)
             ReadDword(block, tail + kGuardBytes + sizeof(u32)) != MemoryManager::Guard)
         {
             char message[kLongMessage];
-            u8 user[kShownBytes] = {};
+            std::snprintf(message, sizeof(message), "block[0x%x][%d] overwrited! [", 0u, static_cast<int>(node->size));
+            std::string shown = message;
 
-            for (std::size_t i = 0; i < kShownBytes && kGuardBytes + i < block.size(); ++i)
+            for (std::size_t i = 0; i < kShownBytes; ++i)
             {
-                user[i] = block[kGuardBytes + i];
+                const u8 value = kGuardBytes + i < block.size() ? block[kGuardBytes + i] : u8{0};
+                char cell[kShortMessage];
+                std::snprintf(cell, sizeof(cell), i == 0 ? "%2X" : " %2X", value);
+                shown += cell;
             }
 
-            std::snprintf(
-                message,
-                sizeof(message),
-                "block[0x%x][%d] overwrited! [%2X %2X %2X %2X %2X %2X %2X %2X %2X %2X %2X %2X %2X %2X %2X %2X]",
-                0u,
-                static_cast<int>(node->size),
-                user[0],
-                user[1],
-                user[2],
-                user[3],
-                user[4],
-                user[5],
-                user[6],
-                user[7],
-                user[8],
-                user[9],
-                user[10],
-                user[11],
-                user[12],
-                user[13],
-                user[14],
-                user[15]
-            );
-            this->text = Utf8Bytes(message);
+            shown += ']';
+            this->text = Utf8Bytes(shown);
             intact = false;
         }
 

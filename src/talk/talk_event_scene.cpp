@@ -65,7 +65,7 @@ bool Talk::PanCamera(EventRun& run)
     constexpr i32 kDefaultPanStep = 4;  // a step that does not divide the distance becomes this
     i32 across = view.panAcross;
     i32 down = view.panDown;
-    std::size_t steps = 3;  // the operand the steps start at
+    Operands operands = this->OperandsOf(run);
 
     if ((across | down) != 0)
     {
@@ -74,22 +74,22 @@ bool Talk::PanCamera(EventRun& run)
 
     if (run.code == EventCommand::PanCamera)
     {
-        across = static_cast<i16>(this->Word(run, 1));
+        across = static_cast<i16>(operands.Word());
         view.panAcross = across;
-        down = static_cast<i16>(this->Word(run, 2));
+        down = static_cast<i16>(operands.Word());
         view.panDown = down;
     }
     else if (run.code == EventCommand::PanCameraTo)
     {
-        run.valueA = static_cast<i16>(this->Word(run, 1));
+        run.valueA = static_cast<i16>(operands.Word());
         across = run.valueA - (field.cameraLeft >> MapHeader::TileShift);
         view.panAcross = across;
-        down = static_cast<i16>(this->Word(run, 2)) - (field.cameraTop >> MapHeader::TileShift);
+        down = static_cast<i16>(operands.Word()) - (field.cameraTop >> MapHeader::TileShift);
         view.panDown = down;
     }
     else
     {
-        state.FindRoleOrPlayer(this->Word(run, 1), run.found);
+        state.FindRoleOrPlayer(operands.Word(), run.found);
         const Role* role = this->FoundRole(run);
         CameraRect rect = {field.cameraLeft, field.cameraTop, field.cameraRight, field.cameraBottom};
         field.CameraAround(role != nullptr ? role->x : 0, role != nullptr ? role->y : 0, rect);
@@ -97,12 +97,11 @@ bool Talk::PanCamera(EventRun& run)
         down = (rect.top - field.cameraTop) >> MapHeader::TileShift;
         view.panAcross = across;
         view.panDown = down;
-        steps = 2;  // after the role
     }
 
-    run.valueB = static_cast<i32>(steps);
-    i32 stepX = this->Word(run, steps);
-    i32 stepY = this->Word(run, steps + 1);
+    run.valueB = static_cast<i32>(operands.Index());  // the operand the steps start at
+    i32 stepX = operands.Word();
+    i32 stepY = operands.Word();
     view.panStepX = stepX;
     view.panStepY = stepY;
 
@@ -194,8 +193,8 @@ bool Talk::PanCamera(EventRun& run)
     {
         DebugLog(
             u8"pan past the map",
-            this->Word(run, 1),
-            this->Word(run, 2),
+            this->Word(run, kFirstOperand),
+            this->Word(run, kFirstOperand + 1),
             field.cameraLeft >> MapHeader::TileShift,
             field.cameraTop >> MapHeader::TileShift
         );
@@ -216,14 +215,15 @@ bool Talk::PlaceRole(EventRun& run)
     Game& owner = this->game;
     GameState& state = owner.state;
     const Role& player = state.roles[static_cast<std::size_t>(state.playerRole)];
-    const u16 operand = this->Word(run, 1);
-    const u16 mapOperand = this->Word(run, 2);
-    const auto talk = static_cast<i16>(this->Word(run, 3));
-    const u16 column = this->Word(run, 4);
-    const u16 row = this->Word(run, 5);
-    const auto act = static_cast<i16>(this->Word(run, 6));
-    const auto action = static_cast<i16>(this->Word(run, 7));
-    const auto direction = static_cast<i16>(this->Word(run, 8));
+    Operands operands = this->OperandsOf(run);
+    const u16 operand = operands.Word();
+    const u16 mapOperand = operands.Word();
+    const auto talk = static_cast<i16>(operands.Word());
+    const u16 column = operands.Word();
+    const u16 row = operands.Word();
+    const auto act = static_cast<i16>(operands.Word());
+    const auto action = static_cast<i16>(operands.Word());
+    const auto direction = static_cast<i16>(operands.Word());
     const u16 id = this->EventRoleId(run, operand);
     i16 setBits = 0;
     i16 event = -1;
@@ -330,12 +330,12 @@ bool Talk::LoadName(EventRun& run)
 
     if (run.code == EventCommand::RoleNamePlate)
     {
-        index = this->EventRoleId(run, this->Word(run, 1));
+        index = this->EventRoleId(run, this->OperandsOf(run).Word());
         run.found = index;
     }
     else
     {
-        const u16 variable = this->Word(run, 1);
+        const u16 variable = this->OperandsOf(run).Word();
         run.found = variable;
 
         if (variable != Party::FirstNameVariable && variable != Party::SecondNameVariable)
@@ -599,18 +599,19 @@ bool Talk::RunSceneCommand(EventRun& run)
         case EventCommand::FadeColors:
         {
             ColorFade& fade = view.fade;
-            fade.red = static_cast<float>(static_cast<i16>(this->Word(run, 1)));
-            fade.green = static_cast<float>(static_cast<i16>(this->Word(run, 2)));
-            fade.blue = static_cast<float>(static_cast<i16>(this->Word(run, 3)));
-            const i32 red = static_cast<i16>(this->Word(run, 4));
-            const i32 green = static_cast<i16>(this->Word(run, 5));
-            const i32 blue = static_cast<i16>(this->Word(run, 6));
+            Operands operands = this->OperandsOf(run);
+            fade.red = static_cast<float>(static_cast<i16>(operands.Word()));
+            fade.green = static_cast<float>(static_cast<i16>(operands.Word()));
+            fade.blue = static_cast<float>(static_cast<i16>(operands.Word()));
+            const i32 red = static_cast<i16>(operands.Word());
+            const i32 green = static_cast<i16>(operands.Word());
+            const i32 blue = static_cast<i16>(operands.Word());
             run.valueA = red;
             run.valueB = green;
             fade.startRed = static_cast<float>(red);
             fade.startGreen = static_cast<float>(green);
             fade.startBlue = static_cast<float>(blue);
-            fade.frames = this->Word(run, 7);
+            fade.frames = operands.Word();
             const auto frames = static_cast<double>(fade.frames);
             fade.stepRed =
                 static_cast<float>(static_cast<double>(red - static_cast<i32>(crt::Ftol(fade.red))) / frames);
@@ -633,8 +634,9 @@ bool Talk::RunSceneCommand(EventRun& run)
 
         case EventCommand::SeekAct:
         {
-            const u16 id = this->EventRoleId(run, this->Word(run, 1));
-            const auto steps = static_cast<i16>(this->Word(run, 2));
+            Operands operands = this->OperandsOf(run);
+            const u16 id = this->EventRoleId(run, operands.Word());
+            const auto steps = static_cast<i16>(operands.Word());
             state.FindRoleOrPlayer(id, run.found);
             run.valueB = steps;
             run.valueA = 0;
@@ -671,7 +673,8 @@ bool Talk::RunSceneCommand(EventRun& run)
         case EventCommand::LayerMiddle:
         case EventCommand::LayerBack:
         {
-            const u16 id = this->EventRoleId(run, this->Word(run, 1));
+            Operands operands = this->OperandsOf(run);
+            const u16 id = this->EventRoleId(run, operands.Word());
             state.FindRoleOrPlayer(id, run.found);
 
             if (Role* role = this->FoundRole(run))
@@ -706,10 +709,11 @@ bool Talk::RunSceneCommand(EventRun& run)
         {
             auto animation = std::make_unique<ScriptAnimation>();
             ResetPlayback(animation->act);
-            animation->x = static_cast<i16>(this->Word(run, 1));
-            animation->y = static_cast<i16>(this->Word(run, 2));
-            animation->act.id = this->Word(run, 3);
-            animation->act.action = this->Word(run, 4);
+            Operands operands = this->OperandsOf(run);
+            animation->x = static_cast<i16>(operands.Word());
+            animation->y = static_cast<i16>(operands.Word());
+            animation->act.id = operands.Word();
+            animation->act.action = operands.Word();
             animation->next = std::move(view.animationsA);
             view.animationsA = std::move(animation);
             this->Next(run);
@@ -718,7 +722,8 @@ bool Talk::RunSceneCommand(EventRun& run)
 
         case EventCommand::Sound:
         {
-            const u16 sound = this->Word(run, 1);
+            Operands operands = this->OperandsOf(run);
+            const u16 sound = operands.Word();
             owner.audio.PlaySound(sound, owner.config.soundVolume);
             this->Next(run);
             return false;
@@ -748,7 +753,7 @@ bool Talk::RunSceneCommand(EventRun& run)
         {
             constexpr std::size_t kShakesAt = 2;  // after the frames: the offsets, ended by kListEnd
             constexpr std::size_t kMaxShakes = 0x38;
-            const u16 frames = this->Word(run, 1);
+            const u16 frames = this->Word(run, kFirstOperand);
             std::size_t count = 0;
 
             while (this->Word(run, kShakesAt + count) != kListEnd &&
@@ -789,7 +794,8 @@ bool Talk::RunSceneCommand(EventRun& run)
 
         case EventCommand::JoinFollowers:
         {
-            const u16 id = this->Word(run, 1);
+            Operands operands = this->OperandsOf(run);
+            const u16 id = operands.Word();
 
             if (state.FindRoleOrPlayer(id, run.found))
             {
@@ -802,13 +808,14 @@ bool Talk::RunSceneCommand(EventRun& run)
 
         case EventCommand::LeaveFollowers:
         {
-            const u16 id = this->Word(run, 1);
-            const u16 path = this->Word(run, 2);
-            const u16 event = this->Word(run, 3);
-            const u16 act = this->Word(run, 4);
-            const u16 action = this->Word(run, 5);
-            const u16 direction = this->Word(run, 6);
-            const u16 flags = this->Word(run, 7);
+            Operands operands = this->OperandsOf(run);
+            const u16 id = operands.Word();
+            const u16 path = operands.Word();
+            const u16 event = operands.Word();
+            const u16 act = operands.Word();
+            const u16 action = operands.Word();
+            const u16 direction = operands.Word();
+            const u16 flags = operands.Word();
             owner.LeaveParty(id, path, event, act, action, direction, flags);
             this->Next(run);
             return false;
@@ -817,13 +824,13 @@ bool Talk::RunSceneCommand(EventRun& run)
         case EventCommand::Wait:
         {
             constexpr u16 kWaiting = 0x8000;  // the command marks its length while it waits
-            const u16 length = this->Word(run, 1);
+            const u16 length = this->Word(run, kFirstOperand);
             run.found = length;
 
             if ((length & kWaiting) == 0)
             {
                 this->waitLength = length;
-                this->SetWord(run, 1, static_cast<u16>(length | kWaiting));
+                this->SetWord(run, kFirstOperand, static_cast<u16>(length | kWaiting));
                 this->waitStart = owner.frameStart;
                 return false;
             }
@@ -833,7 +840,7 @@ bool Talk::RunSceneCommand(EventRun& run)
                 return false;
             }
 
-            this->SetWord(run, 1, static_cast<u16>(length & ~kWaiting));
+            this->SetWord(run, kFirstOperand, static_cast<u16>(length & ~kWaiting));
             this->Next(run);
             return true;
         }
@@ -841,7 +848,8 @@ bool Talk::RunSceneCommand(EventRun& run)
         case EventCommand::ClearRoleHidden:
         case EventCommand::SetRoleHidden:
         {
-            const u16 id = this->EventRoleId(run, this->Word(run, 1));
+            Operands operands = this->OperandsOf(run);
+            const u16 id = this->EventRoleId(run, operands.Word());
 
             if (state.FindRoleOrPlayer(id, run.found))
             {
@@ -888,8 +896,9 @@ bool Talk::RunSceneCommand(EventRun& run)
 
         case EventCommand::AttachAct:
         {
-            const u16 id = this->Word(run, 1);
-            const u16 act = this->Word(run, 2);
+            Operands operands = this->OperandsOf(run);
+            const u16 id = operands.Word();
+            const u16 act = operands.Word();
 
             if (state.FindRoleOrPlayer(id, run.found))
             {
@@ -902,7 +911,8 @@ bool Talk::RunSceneCommand(EventRun& run)
 
         case EventCommand::DetachAct:
         {
-            const u16 id = this->Word(run, 1);
+            Operands operands = this->OperandsOf(run);
+            const u16 id = operands.Word();
 
             if (state.FindRoleOrPlayer(id, run.found))
             {
@@ -922,7 +932,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             return true;
 
         case EventCommand::HoldRole:
-            state.FindRoleOrPlayer(this->Word(run, 1), run.found);
+            state.FindRoleOrPlayer(this->OperandsOf(run).Word(), run.found);
 
             if (run.found < GameState::Roles)
             {
@@ -935,8 +945,9 @@ bool Talk::RunSceneCommand(EventRun& run)
         case EventCommand::TurnToFace:
         {
             constexpr i32 kTurnDistance = 4;  // nearer than this the role faces direction 0
-            const u16 id = this->EventRoleId(run, this->Word(run, 1));
-            const u16 otherId = this->Word(run, 2);
+            Operands operands = this->OperandsOf(run);
+            const u16 id = this->EventRoleId(run, operands.Word());
+            const u16 otherId = operands.Word();
 
             if (!state.FindRoleOrPlayer(id, run.found))
             {
@@ -994,7 +1005,8 @@ bool Talk::RunSceneCommand(EventRun& run)
         {
             // The length is left in valueB only when the role is found; otherwise the last one is used (an
             // original bug).
-            const u16 id = this->EventRoleId(run, this->Word(run, 1));
+            Operands operands = this->OperandsOf(run);
+            const u16 id = this->EventRoleId(run, operands.Word());
 
             if (state.FindRoleOrPlayer(id, run.found))
             {
@@ -1003,7 +1015,7 @@ bool Talk::RunSceneCommand(EventRun& run)
 
                 if (run.code == EventCommand::FixSpeed)
                 {
-                    const u16 delay = this->Word(run, 2);
+                    const u16 delay = operands.Word();
                     role.act.speed = static_cast<i16>(delay | static_cast<u16>(ActState::FixedDelay));
                 }
                 else
@@ -1032,16 +1044,17 @@ bool Talk::RunSceneCommand(EventRun& run)
         {
             auto sprite = std::make_unique<ScriptSprite>();
             ResetPlayback(sprite->act);
-            sprite->act.id = this->Word(run, 1);
+            Operands operands = this->OperandsOf(run);
+            sprite->act.id = operands.Word();
             sprite->act.direction = 0;
-            sprite->act.action = this->Word(run, 2);
-            sprite->headX = static_cast<i16>(MapHeader::TileSize * this->Word(run, 3));
-            sprite->headSpeed = static_cast<i16>(MapHeader::TileSize * this->Word(run, 4));
-            sprite->targetX = static_cast<i16>(MapHeader::TileSize * this->Word(run, 5));
-            sprite->targetY = static_cast<i16>(MapHeader::TileSize * this->Word(run, 6));
+            sprite->act.action = operands.Word();
+            sprite->headX = static_cast<i16>(MapHeader::TileSize * operands.Word());
+            sprite->headSpeed = static_cast<i16>(MapHeader::TileSize * operands.Word());
+            sprite->targetX = static_cast<i16>(MapHeader::TileSize * operands.Word());
+            sprite->targetY = static_cast<i16>(MapHeader::TileSize * operands.Word());
             const i32 fromX = sprite->headX;
             const i32 fromY = sprite->headSpeed;
-            const auto speed = static_cast<double>(static_cast<i16>(this->Word(run, 7)));
+            const auto speed = static_cast<double>(static_cast<i16>(operands.Word()));
             const i32 across = sprite->targetX - fromX;
             const i32 down = sprite->targetY - fromY;
             const double scale = speed / std::sqrt(static_cast<double>(down * down + across * across));
@@ -1064,12 +1077,14 @@ bool Talk::RunSceneCommand(EventRun& run)
         {
             auto sprite = std::make_unique<ScriptSprite>();
             ResetPlayback(sprite->act);
-            sprite->act.id = this->Word(run, 1);
-            sprite->act.action = this->Word(run, 2);
-            const u16 target = this->Word(run, 3);
+            Operands operands = this->OperandsOf(run);
+            sprite->act.id = operands.Word();
+            sprite->act.action = operands.Word();
+            const u16 target = operands.Word();
+            const u16 place = operands.Word();
             sprite->targetX = static_cast<i16>(target);
             sprite->headX = static_cast<i16>(-ScriptSprite::HeadMargin);
-            sprite->targetY = static_cast<i16>(this->Word(run, 4) & (kPlaceAtTarget - 1));
+            sprite->targetY = static_cast<i16>(place & (kPlaceAtTarget - 1));
 
             if (target > Display::Width / 2)
             {
@@ -1078,7 +1093,7 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             sprite->headSpeed = 0;
 
-            if ((this->Word(run, 4) & kPlaceAtTarget) != 0)
+            if ((place & kPlaceAtTarget) != 0)
             {
                 sprite->headX = static_cast<i16>(target);
                 sprite->headSpeed = ScriptSprite::HeadPlaced;
@@ -1092,9 +1107,13 @@ bool Talk::RunSceneCommand(EventRun& run)
 
         case EventCommand::HeadOut:
         {
+            Operands operands = this->OperandsOf(run);
+            const u16 actId = operands.Word();
+            const u16 action = operands.Word();
+
             for (ScriptSprite* sprite = view.spritesB.get(); sprite != nullptr; sprite = sprite->next.get())
             {
-                if (sprite->act.id == this->Word(run, 1) && sprite->act.action == this->Word(run, 2))
+                if (sprite->act.id == actId && sprite->act.action == action)
                 {
                     if (sprite->headSpeed >= 0)
                     {
@@ -1115,7 +1134,8 @@ bool Talk::RunSceneCommand(EventRun& run)
 
         case EventCommand::LineEffect:
         {
-            const u16 mode = this->Word(run, 1);
+            Operands operands = this->OperandsOf(run);
+            const u16 mode = operands.Word();
 
             if (mode > ScriptEffect::NumberMask)
             {
@@ -1142,12 +1162,12 @@ bool Talk::RunSceneCommand(EventRun& run)
             constexpr u16 kStillLines = 2;
             constexpr int kSpareColumns = 4;  // past the count in the column buffers
             constexpr i16 kLineStart = 2;     // pixels a line starts with
-            const u16 color = this->Word(run, 2);
-            const u16 lines = this->Word(run, 3);
-            const u16 x = this->Word(run, 4);
-            const u16 y = this->Word(run, 5);
-            const u16 limit = this->Word(run, 6);
-            const u16 count = this->Word(run, 7);
+            const u16 color = operands.Word();
+            const u16 lines = operands.Word();
+            const u16 x = operands.Word();
+            const u16 y = operands.Word();
+            const u16 limit = operands.Word();
+            const u16 count = operands.Word();
             auto effect = std::make_unique<ScriptEffect>();
             effect->mode = mode;
             effect->color = static_cast<i16>(color);
@@ -1199,7 +1219,8 @@ bool Talk::RunSceneCommand(EventRun& run)
 
         case EventCommand::LineEffectMode:
         {
-            const u16 mode = this->Word(run, 1);
+            Operands operands = this->OperandsOf(run);
+            const u16 mode = operands.Word();
 
             if (mode > ScriptEffect::NumberMask)
             {
@@ -1228,7 +1249,7 @@ bool Talk::RunSceneCommand(EventRun& run)
             constexpr u16 kOpen = 0;  // the changes of LineEffectMode
             constexpr u16 kClose = 1;
             constexpr u16 kRemove = 2;
-            const u16 change = this->Word(run, 2);
+            const u16 change = operands.Word();
 
             if (change == kOpen)
             {
@@ -1272,18 +1293,26 @@ bool Talk::RunSceneCommand(EventRun& run)
             return false;
 
         case EventCommand::ChangeHead:
+        {
+            Operands operands = this->OperandsOf(run);
+            const u16 actId = operands.Word();
+            const u16 action = operands.Word();
+            const u16 newActId = operands.Word();
+            const u16 newAction = operands.Word();
+
             for (ScriptSprite* sprite = view.spritesB.get(); sprite != nullptr; sprite = sprite->next.get())
             {
-                if (sprite->act.id == this->Word(run, 1) && sprite->act.action == this->Word(run, 2))
+                if (sprite->act.id == actId && sprite->act.action == action)
                 {
-                    sprite->act.id = this->Word(run, 3);
-                    sprite->act.action = this->Word(run, 4);
+                    sprite->act.id = newActId;
+                    sprite->act.action = newAction;
                     break;
                 }
             }
 
             this->Next(run);
             return true;
+        }
 
         case EventCommand::RandomJump:
         {
@@ -1317,7 +1346,7 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             view.FreeSpritesB();
             {
-                const auto battle = static_cast<i16>(this->Word(run, 1));
+                const auto battle = static_cast<i16>(this->OperandsOf(run).Word());
                 owner.battleRequest = battle | static_cast<i32>(Game::ScriptedBattle);
                 this->Next(run);
                 return false;
@@ -1333,7 +1362,8 @@ bool Talk::RunSceneCommand(EventRun& run)
         case EventCommand::SetInParty:
         case EventCommand::ClearInParty:
         {
-            run.found = static_cast<u32>(this->Word(run, 1) - 1);  // the roles count from 1
+            Operands operands = this->OperandsOf(run);
+            run.found = static_cast<u32>(operands.Word() - 1);  // the roles count from 1
 
             if (run.found >= Party::Roles)
             {

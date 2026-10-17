@@ -1,11 +1,15 @@
 #include "save/save_slots.h"
 
+#include <array>
+#include <cstddef>
 #include <span>
 
 #include "codec/lzo.h"
 #include "core/format.h"
 #include "draw/painter.h"
 #include "file/file.h"
+#include "game/game_state.h"
+#include "party/party.h"
 #include "save/save_games.h"
 
 namespace swd3
@@ -17,7 +21,15 @@ namespace
 constexpr u32 kSecondsPerHour = 0xE10;
 constexpr u32 kSecondsPerMinute = 0x3C;
 constexpr std::size_t kRoleRecords = 0x104;
-constexpr std::size_t kRoleRecordBytes = 0x38;
+constexpr std::array<int, Party::Roles> kRoleFlags = {0x1E, 0x1F, 0x20, 0x21};  // the story flags of the roles
+constexpr u16 kAbsentRole = 0xFFFF;  // maxHitPoints of a role not in the party
+constexpr int kUnk24Flag = 0x53;
+constexpr i32 kUnk24Base = 2;
+constexpr char kDigitPlace = '_';                           // a place of DateTemplate the next header digit fills
+constexpr std::size_t kBlockHeaderBytes = 2 * sizeof(u32);  // a packed block: its packed size and its word count
+constexpr std::size_t kUnk20At = 0xC;                       // after the second table
+constexpr std::size_t kDataBlockAt = 0x24;
+constexpr std::size_t kUnk28At = 4;  // in the unpacked data
 
 u32 Dword(std::span<const u8> bytes, std::size_t at)
 {
@@ -78,21 +90,14 @@ void SaveSlots::LoadPreview(SavePreview& preview, int slot, const std::string& i
 
     if (view.size() >= SaveSlots::HeaderBytes)
     {
-        for (const auto& [from, to] :
-             {std::pair{0, 0},
-              {1, 1},
-              {2, 2},
-              {3, 3},
-              {4, 5},
-              {5, 6},
-              {6, 8},
-              {7, 9},
-              {8, 0xB},
-              {9, 0xC},
-              {0xA, 0xE},
-              {0xB, 0xF}})
+        std::size_t digit = 0;
+
+        for (char& place : date)
         {
-            date[static_cast<std::size_t>(to)] = static_cast<char>(view[static_cast<std::size_t>(from)]);
+            if (place == kDigitPlace)
+            {
+                place = static_cast<char>(view[digit++]);
+            }
         }
     }
 
@@ -102,11 +107,11 @@ void SaveSlots::LoadPreview(SavePreview& preview, int slot, const std::string& i
 
     for (std::size_t pixel = 0; pixel < preview.thumbnail.size(); ++pixel)
     {
-        preview.thumbnail[pixel] = Word(view, at + 2 * pixel);
+        preview.thumbnail[pixel] = Word(view, at + sizeof(u16) * pixel);
     }
 
     painter.ConvertPixels(preview.thumbnail);
-    at += 2 * SaveSlots::ThumbnailPixels;
+    at += sizeof(u16) * SaveSlots::ThumbnailPixels;
 
     for (std::size_t index = at; index < view.size() && view[index] != 0; ++index)
     {
@@ -116,61 +121,51 @@ void SaveSlots::LoadPreview(SavePreview& preview, int slot, const std::string& i
     at += SaveSlots::LocationBytes;
     const std::vector<u8> flags = Unpack(view, at);
 
-    auto flag = [&flags](std::size_t byte, u8 bit)
+    auto flag = [&flags](int number)
     {
-        return byte < flags.size() && (flags[byte] & bit) != 0;
+        const auto byte = static_cast<std::size_t>(number >> GameState::FlagByteShift);
+        return byte < flags.size() && (flags[byte] & GameState::BitMasks[number & GameState::FlagBitMask]) != 0;
     };
 
-    if (!flag(3, 0x40))
+    for (std::size_t role = 0; role < preview.roles.size(); ++role)
     {
-        preview.roles[0].maxHitPoints = 0xFFFF;
+        if (!flag(kRoleFlags[role]))
+        {
+            preview.roles[role].maxHitPoints = kAbsentRole;
+        }
     }
 
-    if (!flag(3, 0x80))
-    {
-        preview.roles[1].maxHitPoints = 0xFFFF;
-    }
-
-    if (!flag(4, 1))
-    {
-        preview.roles[2].maxHitPoints = 0xFFFF;
-    }
-
-    if (!flag(4, 2))
-    {
-        preview.roles[3].maxHitPoints = 0xFFFF;
-    }
-
-    preview.unk24 = (flag(0xA, 8) ? 1 : 0) + 2;
-    const std::size_t table = at + Dword(view, at) + 8;
+    preview.unk24 = (flag(kUnk24Flag) ? 1 : 0) + kUnk24Base;
+    const std::size_t table = at + Dword(view, at) + kBlockHeaderBytes;
     const std::size_t after = table + Dword(view, table);
-    preview.unk20 = static_cast<i32>(Dword(view, after + 0xC));
-    const std::size_t block = after + 0x24;
+    preview.unk20 = static_cast<i32>(Dword(view, after + kUnk20At));
+    const std::size_t block = after + kDataBlockAt;
     const std::vector<u8> data = Unpack(view, block);
-    preview.unk28 = static_cast<i32>(Dword(data, 4));
+    preview.unk28 = static_cast<i32>(Dword(data, kUnk28At));
 
     for (std::size_t role = 0; role < preview.roles.size(); ++role)
     {
         SavePreviewRole& entry = preview.roles[role];
 
-        if (entry.maxHitPoints != 0xFFFF)
+        if (entry.maxHitPoints != kAbsentRole)
         {
-            const std::size_t record = kRoleRecords + kRoleRecordBytes * role;
-            entry.maxHitPoints = Word(data, record + 0xA);
-            entry.maxSpirit = Word(data, record + 0xC);
-            entry.maxStamina = Word(data, record + 0xE);
-            entry.level = record + 0x2C < data.size() ? data[record + 0x2C] : u16{0};
+            const std::size_t record = kRoleRecords + sizeof(RoleRecord) * role;
+            entry.maxHitPoints = Word(data, record + offsetof(RoleRecord, maxHitPoints));
+            entry.maxSpirit = Word(data, record + offsetof(RoleRecord, maxSpirit));
+            entry.maxStamina = Word(data, record + offsetof(RoleRecord, maxStamina));
+            const std::size_t level = record + offsetof(RoleRecord, level);
+            entry.level = level < data.size() ? data[level] : u16{0};
         }
     }
 
-    const std::size_t names = block + Dword(view, block) + 8;
+    const std::size_t names = block + Dword(view, block) + kBlockHeaderBytes;
 
     for (std::size_t index = 0; index < preview.names.size() && names + index < view.size(); ++index)
     {
         preview.names[index] = static_cast<char>(view[names + index]);
     }
 
-    u32 seconds = Dword(view, names + 0x40);
+    u32 seconds = Dword(view, names + preview.names.size());
     preview.playTime = WinFormat(SaveSlots::Hours, {static_cast<i32>(seconds / kSecondsPerHour)});
     seconds %= kSecondsPerHour;
     preview.playTime += WinFormat(SaveSlots::Minutes, {static_cast<i32>(seconds / kSecondsPerMinute)});

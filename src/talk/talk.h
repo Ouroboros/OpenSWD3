@@ -35,6 +35,22 @@ struct EventRun
     i32 valueB = 0;
 };
 
+// The operands of a command, read in order after its command word (0 past the script).
+class Operands
+{
+public:
+    Operands(std::span<const u8> script, std::size_t cursor);
+
+    u16 Word();
+    u32 Dword();
+    std::size_t Index() const;  // the word of the command the next operand starts at
+
+private:
+    std::span<const u8> script;
+    std::size_t cursor;
+    std::size_t at;
+};
+
 // The talk windows (the original's DlgMessage, 0x0042ED40): each window opens out of its speaker, types its text a
 // character at a time into a 40 x 11 cell surface (the % codes change lines, pages, colours, styles and speed, add
 // choices and sounds), waits for a key, a click or its timeout, and closes.
@@ -148,6 +164,7 @@ public:
 
 private:
     void DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 heldAdvance);
+    Operands OperandsOf(const EventRun& run) const;
     u16 Word(const EventRun& run, std::size_t index) const;
     u32 Dword(const EventRun& run, std::size_t at) const;
     u8 Byte(const EventRun& run, std::size_t at) const;

@@ -121,8 +121,9 @@ bool Talk::RunStateCommand(EventRun& run)
     {
         case EventCommand::SetEvent:
         {
-            const u16 id = this->EventRoleId(run, this->Word(run, 1));
-            const u16 event = this->Word(run, 2);
+            Operands operands = this->OperandsOf(run);
+            const u16 id = this->EventRoleId(run, operands.Word());
+            const u16 event = operands.Word();
 
             if (state.FindRoleOrPlayer(id, run.found))
             {
@@ -151,7 +152,8 @@ bool Talk::RunStateCommand(EventRun& run)
 
         case EventCommand::SetRoleFastMove:
         {
-            const u16 id = this->EventRoleId(run, this->Word(run, 1));
+            Operands operands = this->OperandsOf(run);
+            const u16 id = this->EventRoleId(run, operands.Word());
 
             if (state.FindRoleOrPlayer(id, run.found))
             {
@@ -172,9 +174,10 @@ bool Talk::RunStateCommand(EventRun& run)
         case EventCommand::RoleSolid:
         {
             const u32 bit = RoleFlagOf(run.code);
-            const u16 operand = this->Word(run, 1);
+            Operands operands = this->OperandsOf(run);
+            const u16 operand = operands.Word();
             const u16 id = operand == Talk::Current ? static_cast<u16>(state.playerRole) : operand;
-            const bool set = this->Word(run, 2) != 0;
+            const bool set = operands.Word() != 0;
 
             if (state.FindRoleOrPlayer(id, run.found))
             {
@@ -215,8 +218,9 @@ bool Talk::RunStateCommand(EventRun& run)
 
         case EventCommand::DialogOffset:
         {
-            const auto x = static_cast<i16>(this->Word(run, 1));
-            const auto y = static_cast<i16>(this->Word(run, 2));
+            Operands operands = this->OperandsOf(run);
+            const auto x = static_cast<i16>(operands.Word());
+            const auto y = static_cast<i16>(operands.Word());
             this->dialogOptions &= ~Talk::Offset;
             this->dialogOffsetX = x;
             this->dialogOffsetY = y;
@@ -232,7 +236,8 @@ bool Talk::RunStateCommand(EventRun& run)
         case EventCommand::WaitAnimationA:
         case EventCommand::WaitAnimationB:
         {
-            const u16 rounds = this->Word(run, 1);
+            Operands operands = this->OperandsOf(run);
+            const u16 rounds = operands.Word();
             const ScriptAnimation* first =
                 run.code == EventCommand::WaitAnimationB ? view.animationsB.get() : view.animationsA.get();
 
@@ -247,8 +252,9 @@ bool Talk::RunStateCommand(EventRun& run)
 
         case EventCommand::WaitActRounds:
         {
-            const u16 id = this->EventRoleId(run, this->Word(run, 1));
-            const u16 wanted = this->Word(run, 2);
+            Operands operands = this->OperandsOf(run);
+            const u16 id = this->EventRoleId(run, operands.Word());
+            const u16 wanted = operands.Word();
 
             if (!state.FindRoleOrPlayer(id, run.found))
             {
@@ -277,8 +283,9 @@ bool Talk::RunStateCommand(EventRun& run)
 
         case EventCommand::DialogOrigin:
         {
-            u32 x = this->Word(run, 1);
-            u32 y = this->Word(run, 2);
+            Operands operands = this->OperandsOf(run);
+            u32 x = operands.Word();
+            u32 y = operands.Word();
 
             if (x > Display::Width - 1)
             {
@@ -297,8 +304,8 @@ bool Talk::RunStateCommand(EventRun& run)
 
         case EventCommand::StepRoles:
         {
-            constexpr std::size_t kRolesAt = 2;  // the roles follow the count
-            const u16 count = this->Word(run, 1);
+            constexpr std::size_t kRolesAt = kFirstOperand + 1;  // the roles follow the count
+            const u16 count = this->Word(run, kFirstOperand);
 
             for (u16 index = 0; index < count; ++index)
             {
@@ -337,7 +344,8 @@ bool Talk::RunStateCommand(EventRun& run)
             }
             else
             {
-                this->Jump(run, this->Dword(run, 2));
+                Operands operands = this->OperandsOf(run);
+                this->Jump(run, operands.Dword());
             }
 
             return true;
@@ -357,15 +365,16 @@ bool Talk::RunStateCommand(EventRun& run)
             return false;
 
         case EventCommand::SoundLong:
-            owner.audio.PlaySound(this->Word(run, 1), owner.config.soundVolume);
+            owner.audio.PlaySound(this->OperandsOf(run).Word(), owner.config.soundVolume);
             this->Next(run);
             return false;
 
         case EventCommand::ChangeMusic:
         {
-            const u16 first = this->Word(run, 1);
-            const u16 second = this->Word(run, 2);
-            const u16 marks = this->Word(run, 3);
+            Operands operands = this->OperandsOf(run);
+            const u16 first = operands.Word();
+            const u16 second = operands.Word();
+            const u16 marks = operands.Word();
             auto& tunes = view.musicTunes;
             tunes[Scene::StoryFade] = static_cast<i32>(Scene::FadePending | AudioManager::StopAtOnce);
             tunes[Scene::StoryFirst] = first;
@@ -403,7 +412,8 @@ bool Talk::RunStateCommand(EventRun& run)
 
         case EventCommand::MusicVolume:
         {
-            const u16 volume = this->Word(run, 1);
+            Operands operands = this->OperandsOf(run);
+            const u16 volume = operands.Word();
             run.valueA = volume <= Config::MaxVolume ? volume : Config::MaxVolume;
             owner.audio.SetMusicVolume(run.valueA);
             this->Next(run);
@@ -412,17 +422,19 @@ bool Talk::RunStateCommand(EventRun& run)
 
         case EventCommand::PutRoles:
         {
-            constexpr std::size_t kRolesAt = 2;     // the entries follow the count
-            constexpr std::size_t kEntryWords = 3;  // a role, a column and a row
-            const u16 count = this->Word(run, 1);
+            constexpr std::size_t kRolesAt = kFirstOperand + 1;  // the entries follow the count
+            constexpr std::size_t kEntryWords = 3;               // a role, a column and a row
+            constexpr std::size_t kColumnWord = 1;
+            constexpr std::size_t kRowWord = 2;
+            const u16 count = this->Word(run, kFirstOperand);
             run.valueA = 0;
 
             for (u16 index = 0; index < count; ++index)
             {
                 const std::size_t entry = kRolesAt + kEntryWords * index;
                 const u16 id = this->EventRoleId(run, this->Word(run, entry));
-                const u16 column = this->Word(run, entry + 1);
-                const u16 row = this->Word(run, entry + 2);
+                const u16 column = this->Word(run, entry + kColumnWord);
+                const u16 row = this->Word(run, entry + kRowWord);
                 state.FindRoleOrPlayer(id, run.found);
 
                 if (run.found < GameState::Roles)
@@ -450,7 +462,8 @@ bool Talk::RunStateCommand(EventRun& run)
 
         case EventCommand::CloseDialog:
         {
-            const u16 id = this->EventRoleId(run, this->Word(run, 1));
+            Operands operands = this->OperandsOf(run);
+            const u16 id = this->EventRoleId(run, operands.Word());
             std::unique_ptr<TalkWindow>* link = &view.talkWindows;
 
             while (*link != nullptr)
@@ -482,7 +495,8 @@ bool Talk::RunStateCommand(EventRun& run)
         case EventCommand::WaitDialogRead:
         case EventCommand::WaitDialogTyped:
         {
-            const u16 id = this->EventRoleId(run, this->Word(run, 1));
+            Operands operands = this->OperandsOf(run);
+            const u16 id = this->EventRoleId(run, operands.Word());
             run.found = TalkWindow::NoRole;
 
             if (id != TalkWindow::NoRole && !state.FindRoleOrPlayer(id, run.found))
@@ -519,10 +533,11 @@ bool Talk::RunStateCommand(EventRun& run)
 
         case EventCommand::SetActData:
         {
-            const u16 id = this->EventRoleId(run, this->Word(run, 1));
-            const u16 act = this->Word(run, 2);
-            const u16 action = this->Word(run, 3);
-            const u16 direction = this->Word(run, 4);
+            Operands operands = this->OperandsOf(run);
+            const u16 id = this->EventRoleId(run, operands.Word());
+            const u16 act = operands.Word();
+            const u16 action = operands.Word();
+            const u16 direction = operands.Word();
 
             if (state.FindRoleOrPlayer(id, run.found))
             {
@@ -585,7 +600,13 @@ bool Talk::RunStateCommand(EventRun& run)
 
         case EventCommand::SceneMusic:
         {
-            const u16 operand = this->Word(run, 1);
+            constexpr std::size_t kRecordWords = 3;  // the map and its two tunes; the marks stay
+            Operands operands = this->OperandsOf(run);
+            const u16 operand = operands.Word();
+            const u16 firstTune = operands.Word();
+            const u16 secondTune = operands.Word();
+            const u16 marks = operands.Word();
+            const std::array<u16, kRecordWords> record = {operand, firstTune, secondTune};
             const u16 map = operand == Talk::Current ? static_cast<u16>(owner.currentMap) : operand;
             std::vector<u8>& data = owner.databases.mapsData;
             std::size_t at = MapsDword(
@@ -599,13 +620,11 @@ bool Talk::RunStateCommand(EventRun& run)
                 at += MapsRecord::MusicBytes;
             }
 
-            constexpr std::size_t kRecordWords = 3;  // the map and its two tunes; the marks stay
-
             if (MapsWord(data, at) != 0 && at + MapsRecord::MusicMarksAt - 1 < data.size())
             {
                 for (std::size_t index = 0; index < kRecordWords; ++index)
                 {
-                    const u16 value = this->Word(run, 1 + index);
+                    const u16 value = record[index];
                     data[at + sizeof(u16) * index] = static_cast<u8>(value);
                     data[at + sizeof(u16) * index + 1] = static_cast<u8>(value >> CHAR_BIT);
                 }
@@ -613,7 +632,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
             if (MapsWord(data, at) == 0)
             {
-                DebugLog(u8"TalkOp:Scene_Music", operand, this->Word(run, 2), this->Word(run, 3), this->Word(run, 4));
+                DebugLog(u8"TalkOp:Scene_Music", operand, firstTune, secondTune, marks);
             }
 
             this->Next(run);
@@ -648,10 +667,11 @@ bool Talk::RunStateCommand(EventRun& run)
         case EventCommand::JumpIfActionNot:
         case EventCommand::JumpIfAction:
         {
-            const u16 operand = this->Word(run, 1);
+            Operands operands = this->OperandsOf(run);
+            const u16 operand = operands.Word();
             const u16 id = operand == Talk::Current ? static_cast<u16>(state.playerRole) : operand;
-            const u16 action = this->Word(run, 2);
-            const u32 target = this->Dword(run, 6);
+            const u16 action = operands.Word();
+            const u32 target = operands.Dword();
             Role loaded;
             const Role* role = &loaded;
 
@@ -680,8 +700,9 @@ bool Talk::RunStateCommand(EventRun& run)
 
         case EventCommand::AddItem:
         {
-            const u16 id = this->Word(run, 1);
-            const auto count = static_cast<i16>(this->Word(run, 2));
+            Operands operands = this->OperandsOf(run);
+            const u16 id = operands.Word();
+            const auto count = static_cast<i16>(operands.Word());
             const ItemNode* item = AddItem(party.inventory, id, count, ItemCountMode::Pending, owner.database);
             DebugLog(u8"%s,%d", item != nullptr ? item->id : id, count);
             this->Next(run);
@@ -693,7 +714,8 @@ bool Talk::RunStateCommand(EventRun& run)
         case EventCommand::JumpIfWorn:
         case EventCommand::JumpIfNotWorn:
         {
-            const auto id = static_cast<i16>(this->Word(run, 1));
+            Operands operands = this->OperandsOf(run);
+            const auto id = static_cast<i16>(operands.Word());
             const ItemNode* carried = FindItemOfKind(party.inventory, id);
             const ItemNode* worn = FindRoleItem(party.equipment, id);
             const bool wanted = run.code == EventCommand::JumpIfNoItem || run.code == EventCommand::JumpIfNotWorn;
@@ -709,14 +731,15 @@ bool Talk::RunStateCommand(EventRun& run)
                 return true;
             }
 
-            this->Jump(run, this->Dword(run, 4));
+            this->Jump(run, operands.Dword());
             return true;
         }
 
         case EventCommand::LearnSkill:
         {
-            const u16 role = this->Word(run, 1);
-            const u16 skill = this->Word(run, 2);
+            Operands operands = this->OperandsOf(run);
+            const u16 role = operands.Word();
+            const u16 skill = operands.Word();
             run.found = role;
 
             if (role >= Party::Roles)
@@ -751,9 +774,10 @@ bool Talk::RunStateCommand(EventRun& run)
         case EventCommand::Equip:
         {
             constexpr u16 kEquipSlots = 0xC;  // of the Party::SlotsPerRole a role has
-            const u16 role = this->Word(run, 1);
-            const u16 slot = this->Word(run, 2);
-            const auto kind = static_cast<i16>(this->Word(run, 3));
+            Operands operands = this->OperandsOf(run);
+            const u16 role = operands.Word();
+            const u16 slot = operands.Word();
+            const auto kind = static_cast<i16>(operands.Word());
             run.found = role;
 
             if (role >= Party::Roles || slot >= kEquipSlots)
@@ -821,10 +845,11 @@ bool Talk::RunStateCommand(EventRun& run)
 
         case EventCommand::ChangeVitals:
         {
-            const auto index = static_cast<u16>(this->Word(run, 1) - 1);  // the roles count from 1
-            const u16 hitPoints = this->Word(run, 2);
-            const u16 spirit = this->Word(run, 3);
-            const u16 stamina = this->Word(run, 4);
+            Operands operands = this->OperandsOf(run);
+            const auto index = static_cast<u16>(operands.Word() - 1);  // the roles count from 1
+            const u16 hitPoints = operands.Word();
+            const u16 spirit = operands.Word();
+            const u16 stamina = operands.Word();
 
             if (index >= Party::Roles)
             {
@@ -890,11 +915,12 @@ bool Talk::RunStateCommand(EventRun& run)
 
         case EventCommand::JumpIfFar:
         {
-            const u16 column = this->Word(run, 1);
-            const u16 row = this->Word(run, 2);
-            const u16 operand = this->Word(run, 3);
-            const u16 tiles = this->Word(run, 4);
-            const u32 target = this->Dword(run, 0xA);
+            Operands operands = this->OperandsOf(run);
+            const u16 column = operands.Word();
+            const u16 row = operands.Word();
+            const u16 operand = operands.Word();
+            const u16 tiles = operands.Word();
+            const u32 target = operands.Dword();
             const u16 id = operand == Talk::Current ? static_cast<u16>(state.playerRole) : operand;
 
             if (state.FindRoleOrPlayer(id, run.found))
@@ -922,8 +948,9 @@ bool Talk::RunStateCommand(EventRun& run)
 
         case EventCommand::MusicFade:
         {
-            const u16 mode = this->Word(run, 1);
-            const u16 length = this->Word(run, 2);
+            Operands operands = this->OperandsOf(run);
+            const u16 mode = operands.Word();
+            const u16 length = operands.Word();
             owner.audio.SetFadeMode(mode);
             owner.audio.SetFadeLength(length);
             this->Next(run);
@@ -933,9 +960,10 @@ bool Talk::RunStateCommand(EventRun& run)
 
         case EventCommand::StartTimer:
         {
-            const u16 minutes = this->Word(run, 1);
-            const u16 seconds = this->Word(run, 2);
-            const u16 event = this->Word(run, 3);
+            Operands operands = this->OperandsOf(run);
+            const u16 minutes = operands.Word();
+            const u16 seconds = operands.Word();
+            const u16 event = operands.Word();
             owner.StartTimer(minutes, seconds, event, 0);
             this->Next(run);
             return false;
@@ -969,7 +997,8 @@ bool Talk::RunSystemCommand(EventRun& run)
     switch (run.code)
     {
         case EventCommand::EndGame:
-            owner.menuState = Game::MenuEntering | (this->Byte(run, 2) == 1 ? Game::SystemMenuB : Game::SystemMenuA);
+            owner.menuState =
+                Game::MenuEntering | (this->Byte(run, kOpcodeBytes) == 1 ? Game::SystemMenuB : Game::SystemMenuA);
             owner.storyState = Game::StoryRunning;
             owner.ResetSaveSlots();
             owner.unk4CAEBC = 0;
@@ -1000,9 +1029,10 @@ bool Talk::RunSystemCommand(EventRun& run)
 
         case EventCommand::SpotlightAt:
         {
-            i32 x = MapHeader::TileSize * static_cast<i16>(this->Word(run, 1));
+            Operands operands = this->OperandsOf(run);
+            i32 x = MapHeader::TileSize * static_cast<i16>(operands.Word());
             view.spotlightX = x;
-            const i32 y = MapHeader::TileSize * static_cast<i16>(this->Word(run, 2));
+            const i32 y = MapHeader::TileSize * static_cast<i16>(operands.Word());
             view.spotlightY = y;
 
             if (x == -1)
@@ -1044,12 +1074,15 @@ bool Talk::RunSystemCommand(EventRun& run)
         }
 
         case EventCommand::SpotlightMove:
-            view.spotlightTargetX = MapHeader::TileSize * static_cast<i16>(this->Word(run, 1));
-            view.spotlightTargetY = MapHeader::TileSize * static_cast<i16>(this->Word(run, 2));
-            view.spotlightStepX = static_cast<i16>(this->Word(run, 3));
-            view.spotlightStepY = static_cast<i16>(this->Word(run, 4));
+        {
+            Operands operands = this->OperandsOf(run);
+            view.spotlightTargetX = MapHeader::TileSize * static_cast<i16>(operands.Word());
+            view.spotlightTargetY = MapHeader::TileSize * static_cast<i16>(operands.Word());
+            view.spotlightStepX = static_cast<i16>(operands.Word());
+            view.spotlightStepY = static_cast<i16>(operands.Word());
             this->Next(run);
             return false;
+        }
 
         case EventCommand::WaitSpotlight:
             if (view.spotlightX == view.spotlightTargetX && view.spotlightY == view.spotlightTargetY)
@@ -1061,10 +1094,11 @@ bool Talk::RunSystemCommand(EventRun& run)
 
         case EventCommand::ScreenAnimationB:
         {
-            const auto x = static_cast<i16>(this->Word(run, 1));
-            const auto y = static_cast<i16>(this->Word(run, 2));
-            const u16 act = this->Word(run, 3);
-            const u16 action = this->Word(run, 4);
+            Operands operands = this->OperandsOf(run);
+            const auto x = static_cast<i16>(operands.Word());
+            const auto y = static_cast<i16>(operands.Word());
+            const u16 act = operands.Word();
+            const u16 action = operands.Word();
             auto animation = std::make_unique<ScriptAnimation>();
             ResetPlayback(animation->act);
             animation->x = x;
@@ -1130,9 +1164,10 @@ bool Talk::RunSystemCommand(EventRun& run)
 
         case EventCommand::SetReturnMap:
         {
-            const u16 map = this->Word(run, 1);
-            const auto column = static_cast<i16>(this->Word(run, 2));
-            const auto row = static_cast<i16>(this->Word(run, 3));
+            Operands operands = this->OperandsOf(run);
+            const u16 map = operands.Word();
+            const auto column = static_cast<i16>(operands.Word());
+            const auto row = static_cast<i16>(operands.Word());
 
             if (map == Field::DemonRefiningPot)
             {
@@ -1160,7 +1195,7 @@ bool Talk::RunSystemCommand(EventRun& run)
 
         case EventCommand::OpenScript:
             owner.AudioPump();
-            run.valueA = static_cast<i16>(this->Word(run, 1));
+            run.valueA = static_cast<i16>(this->OperandsOf(run).Word());
             this->OpenScript(state.leader, static_cast<u32>(run.valueA));
             run.cursor = 0;
             return true;
@@ -1171,8 +1206,9 @@ bool Talk::RunSystemCommand(EventRun& run)
         case EventCommand::JumpIfNotMap:
         case EventCommand::JumpIfMap:
         {
-            const auto map = static_cast<i16>(this->Word(run, 1));
-            const u32 target = this->Dword(run, 4);
+            Operands operands = this->OperandsOf(run);
+            const auto map = static_cast<i16>(operands.Word());
+            const u32 target = operands.Dword();
             run.valueA = map;
 
             if ((run.code == EventCommand::JumpIfNotMap) == (run.valueA == owner.currentMap))
@@ -1188,7 +1224,8 @@ bool Talk::RunSystemCommand(EventRun& run)
         case EventCommand::JumpIfItemsAtLeast:
         case EventCommand::JumpIfItemsAtMost:
         {
-            const auto id = static_cast<i16>(this->Word(run, 1));
+            Operands operands = this->OperandsOf(run);
+            const auto id = static_cast<i16>(operands.Word());
             i32 count = 0;
 
             if (const ItemNode* carried = FindItemOfKind(party.inventory, id))
@@ -1202,7 +1239,7 @@ bool Talk::RunSystemCommand(EventRun& run)
             }
 
             run.valueB = count;
-            const i32 wanted = static_cast<i16>(this->Word(run, 2));
+            const i32 wanted = static_cast<i16>(operands.Word());
             run.valueA = wanted;
             const bool jumps = count == 0 ? run.code == EventCommand::JumpIfItemsAtMost
                                : run.code == EventCommand::JumpIfItemsAtLeast ? count >= wanted
@@ -1210,7 +1247,7 @@ bool Talk::RunSystemCommand(EventRun& run)
 
             if (jumps)
             {
-                this->Jump(run, this->Dword(run, 6));
+                this->Jump(run, operands.Dword());
                 return true;
             }
 
@@ -1281,12 +1318,12 @@ bool Talk::RunSystemCommand(EventRun& run)
 
         case EventCommand::GatherParty:
         {
-            const u16 command = this->Word(run, 0);
+            const u16 command = this->Word(run, kCodeWord);
 
             if ((command & kCommandStarted) == 0)
             {
                 run.valueA = 1;
-                this->SetWord(run, 0, static_cast<u16>(command | kCommandStarted));
+                this->SetWord(run, kCodeWord, static_cast<u16>(command | kCommandStarted));
                 view.playerHold |= Scene::HoldLocked;
                 player.act.action = 0;
                 view.trailY.fill(player.y);
@@ -1327,7 +1364,7 @@ bool Talk::RunSystemCommand(EventRun& run)
 
             if (run.valueB + 1 == view.unk4BABA0)
             {
-                this->SetWord(run, 0, static_cast<u16>(command & ~kCommandStarted));
+                this->SetWord(run, kCodeWord, static_cast<u16>(command & ~kCommandStarted));
                 this->Next(run);
             }
 
@@ -1336,7 +1373,8 @@ bool Talk::RunSystemCommand(EventRun& run)
 
         case EventCommand::PassWalls:
         {
-            const u16 operand = this->Word(run, 1);
+            Operands operands = this->OperandsOf(run);
+            const u16 operand = operands.Word();
             const u16 id = operand == Talk::Current ? static_cast<u16>(state.playerRole) : operand;
 
             if (state.FindRoleOrPlayer(id, run.found))
@@ -1350,10 +1388,11 @@ bool Talk::RunSystemCommand(EventRun& run)
 
         case EventCommand::Ripple:
         {
-            const i32 x = static_cast<i16>(this->Word(run, 1));
-            const i32 y = static_cast<i16>(this->Word(run, 2));
-            const i32 radius = static_cast<i16>(this->Word(run, 3));
-            const i32 depth = static_cast<i16>(this->Word(run, 4));
+            Operands operands = this->OperandsOf(run);
+            const i32 x = static_cast<i16>(operands.Word());
+            const i32 y = static_cast<i16>(operands.Word());
+            const i32 radius = static_cast<i16>(operands.Word());
+            const i32 depth = static_cast<i16>(operands.Word());
             run.valueA = x;
             run.valueB = y;
             constexpr int kSplashRadius = 0x18;
@@ -1387,7 +1426,8 @@ bool Talk::RunSystemCommand(EventRun& run)
         case EventCommand::JumpIfStatAtLeast:
         case EventCommand::JumpIfStatAtMost:
         {
-            const i32 field = static_cast<i16>(this->Word(run, 1));
+            Operands operands = this->OperandsOf(run);
+            const i32 field = static_cast<i16>(operands.Word());
             run.valueB = field;
 
             if (field > Party::LastStat)
@@ -1398,7 +1438,7 @@ bool Talk::RunSystemCommand(EventRun& run)
 
             const int value = party.RoleStat(field, 1);
             run.valueA = value;
-            const i32 wanted = this->Word(run, 2);
+            const i32 wanted = operands.Word();
 
             if (run.code == EventCommand::JumpIfStatAtLeast ? value < wanted : value > wanted)
             {
@@ -1406,7 +1446,7 @@ bool Talk::RunSystemCommand(EventRun& run)
                 return true;
             }
 
-            this->Jump(run, this->Dword(run, 6));
+            this->Jump(run, operands.Dword());
             return false;
         }
 
@@ -1414,8 +1454,9 @@ bool Talk::RunSystemCommand(EventRun& run)
         case EventCommand::AddStat:
         case EventCommand::SubtractStat:
         {
-            const i32 field = static_cast<i16>(this->Word(run, 1));
-            const i32 value = static_cast<i16>(this->Word(run, 2));
+            Operands operands = this->OperandsOf(run);
+            const i32 field = static_cast<i16>(operands.Word());
+            const i32 value = static_cast<i16>(operands.Word());
             run.valueB = field;
 
             if (field > Party::LastStat)
@@ -1442,7 +1483,8 @@ bool Talk::RunSystemCommand(EventRun& run)
         }
 
         case EventCommand::WaitCameraY:
-            if ((view.panAcross == 0 && view.panDown == 0) || field.cameraTop == static_cast<i16>(this->Word(run, 1)))
+            if ((view.panAcross == 0 && view.panDown == 0) ||
+                field.cameraTop == static_cast<i16>(this->OperandsOf(run).Word()))
             {
                 this->Next(run);
                 return true;

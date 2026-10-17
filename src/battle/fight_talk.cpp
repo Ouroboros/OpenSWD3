@@ -25,7 +25,7 @@ void FightTalk::Load(const std::string& installDirectory, u16 battle)
         this->open = true;
     }
 
-    this->file.SeekBegin(static_cast<i32>(FightTalk::HeaderBytes + 4 * static_cast<u32>(battle)));
+    this->file.SeekBegin(static_cast<i32>(FightTalk::HeaderBytes + sizeof(u32) * static_cast<u32>(battle)));
     u32 offset = 0;
     this->file.ReadDword(offset);
     this->file.SeekBegin(static_cast<i32>(offset + FightTalk::HeaderBytes));
