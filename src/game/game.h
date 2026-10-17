@@ -219,7 +219,9 @@ private:
     void ApplyHits();
     void NextEnemyTurn();
     void NextRoleTurn();
-    int ScrollListBack();
+    void ScrollListBack();
+    void ScrollListForward();
+    void AutoBattleTurn();
     void DrawRolePanels();
     template <typename Next>
     void StepPanelGauge(i32& shown, i32& target, Next next, int picture, int x, int y, i32 downNear, i32 downFar);

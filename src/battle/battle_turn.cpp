@@ -43,6 +43,7 @@ constexpr u16 kBackSound = 0x2E;
 constexpr i32 kListState2 = 2;
 constexpr i32 kListState4 = 4;
 constexpr i32 kListState1B = 0x1B;
+constexpr i32 kGuardOrder = 5;  // the order of a role that guards in the auto battle
 
 }  // namespace
 
@@ -765,9 +766,8 @@ void Game::NextRoleTurn()
 
 // swd32.exe 0x00461900: the back key in a list (kBackSound): battle state 2 scrolls unk53BD04 up by kListPage, states
 // 4 and 0x1B unk53BD08 (state 4 also keeps unk4A755C and the scroll for role unk4A7570); each first only marks its
-// list (unk4A7558, unk4A755C) unless unk53BD9C. Returns 1, the role for state 4, or the state less 0x1B for others
-// (as the original leaves them).
-int Game::ScrollListBack()
+// list (unk4A7558, unk4A755C) unless unk53BD9C.
+void Game::ScrollListBack()
 {
     BattleState& battle = this->battleState;
     battle.unk53BFBC = 0;
@@ -789,19 +789,19 @@ int Game::ScrollListBack()
         if (battle.unk53BD9C == 0 && battle.unk4A7558 != 1)
         {
             battle.unk4A7558 = 1;
-            return 1;
+            return;
         }
 
         scroll(battle.unk53BD04);
         battle.unk53BFB8 = 1;
-        return 1;
+        return;
     }
 
     if (battle.result != kListState4)
     {
         if (battle.result != kListState1B)
         {
-            return battle.result - kListState1B;
+            return;
         }
 
         this->audio.PlaySound(kBackSound, this->config.soundVolume);
@@ -809,12 +809,12 @@ int Game::ScrollListBack()
         if (battle.unk53BD9C == 0 && battle.unk4A755C != 1)
         {
             battle.unk4A755C = 1;
-            return 1;
+            return;
         }
 
         scroll(battle.unk53BD08);
         battle.unk53BFB8 = 1;
-        return 1;
+        return;
     }
 
     this->audio.PlaySound(kBackSound, this->config.soundVolume);
@@ -822,7 +822,7 @@ int Game::ScrollListBack()
     if (battle.unk53BD9C == 0 && battle.unk4A755C != 1)
     {
         battle.unk4A755C = 1;
-        return 1;
+        return;
     }
 
     scroll(battle.unk53BD08);
@@ -830,6 +830,160 @@ int Game::ScrollListBack()
     const auto role = static_cast<std::size_t>(battle.unk4A7570);
     battle.unk4FF578[role] = battle.unk4A755C;
     battle.unk52544C[role] = battle.unk53BD08;
-    return battle.unk4A7570;
+}
+
+// swd32.exe 0x00461A30: the forward key in a list (kBackSound): battle state 2 scrolls unk53BD04 down by kListPage
+// within unk53BDF2 entries (nothing below a page), states 4 and 0x1B unk53BD08 within unk53BDF4; each first only
+// marks the last row of its page (unk4A7558, unk4A755C, at most the entries) unless unk53BD9C. A list shorter than a
+// page goes back to 0 with the mark on its end. State 4, and the first mark of state 0x1B (the original shares that
+// code), keep the mark and the scroll for role unk4A7570.
+void Game::ScrollListForward()
+{
+    BattleState& battle = this->battleState;
+    battle.unk53BFBC = 0;
+
+    auto keepForRole = [&battle](i32 mark)
+    {
+        const auto role = static_cast<std::size_t>(battle.unk4A7570);
+        battle.unk53BFB8 = 1;
+        battle.unk4FF578[role] = mark;
+        battle.unk52544C[role] = battle.unk53BD08;
+    };
+
+    auto markPageEnd = [&battle, &keepForRole]
+    {
+        battle.unk4A755C = std::min<i32>(kListPage, battle.unk53BDF4);
+        keepForRole(battle.unk4A755C);
+    };
+
+    if (battle.result == kListState2)
+    {
+        this->audio.PlaySound(kBackSound, this->config.soundVolume);
+
+        if (battle.unk53BDF2 < kListPage)
+        {
+            return;
+        }
+
+        if (battle.unk53BD9C == 0 && battle.unk4A7558 != kListPage)
+        {
+            battle.unk4A7558 = kListPage;
+            return;
+        }
+
+        battle.unk53BD04 += kListPage;
+
+        if (battle.unk53BD04 + kListPage > battle.unk53BDF2)
+        {
+            battle.unk53BD04 = battle.unk53BDF2 - kListPage;
+        }
+
+        if (battle.unk53BD04 < 0)
+        {
+            battle.unk53BD04 = 0;
+            battle.unk4A7558 = battle.unk53BDF2;
+        }
+
+        battle.unk53BFB8 = 1;
+        return;
+    }
+
+    if (battle.result != kListState4 && battle.result != kListState1B)
+    {
+        return;
+    }
+
+    this->audio.PlaySound(kBackSound, this->config.soundVolume);
+
+    if (battle.unk53BD9C == 0 && battle.unk4A755C != kListPage)
+    {
+        markPageEnd();
+        return;
+    }
+
+    battle.unk53BD08 += kListPage;
+
+    if (battle.unk53BD08 + kListPage > battle.unk53BDF4)
+    {
+        battle.unk53BD08 = battle.unk53BDF4 - kListPage;
+    }
+
+    if (battle.unk53BD08 < 0)
+    {
+        battle.unk53BD08 = 0;
+        battle.unk4A755C = battle.unk53BDF4;
+    }
+
+    if (battle.result == kListState1B)
+    {
+        battle.unk53BFB8 = 1;
+        return;
+    }
+
+    keepForRole(battle.unk4A755C);
+}
+
+// swd32.exe 0x0045D490: the auto battle takes the current role's turn (unless in battle state 3): with no remembered
+// enemy (unk4A7564) the state becomes 3; otherwise the role acts on it (unk4A754C), or guards with MarkBit1 (its
+// order taken as 1); a defeated enemy gives way to the first standing one, and with none the auto battle ends.
+void Game::AutoBattleTurn()
+{
+    BattleState& battle = this->battleState;
+
+    if (battle.autoBattle != 1 || battle.currentUnit == 0 || battle.result == kTurnState)
+    {
+        return;
+    }
+
+    battle.unk53BCE8 = 1;
+    battle.unk53AF38[static_cast<std::size_t>(battle.currentUnit)] = 1;
+
+    if (battle.unk4A7564 == -1)
+    {
+        battle.unk53BFB8 = 1;
+        battle.result = kTurnState;
+        return;
+    }
+
+    battle.unk53BD50 = battle.currentUnit;
+    battle.currentUnit = 0;
+    battle.unk53BF60 = 1;
+    BattleRole& role = this->battleRoles[static_cast<std::size_t>(battle.unk53BD50 - BattleState::FirstRoleUnit)];
+    role.SetTarget(1);
+    battle.unk4A754C = battle.unk4A7564;
+    battle.result = 0;
+    battle.unk53BFBC = 0;
+    battle.unk53BFB8 = 0;
+
+    if (role.MarkBit1() == 1)
+    {
+        battle.unk53BCE8 = kGuardOrder;
+        battle.unk53AF38[static_cast<std::size_t>(battle.unk53BD50)] = kGuardOrder;
+        role.ResetAfterGuard();
+        role.SetTarget(1);
+        battle.pendingOrders[static_cast<std::size_t>(battle.unk53BD50 - BattleState::FirstRoleUnit)].unk00 = 1;
+        return;
+    }
+
+    if (!this->battleEnemies[static_cast<std::size_t>(battle.unk4A754C - 1)].IsDefeated())
+    {
+        return;
+    }
+
+    for (u32 enemy = 0; enemy < battle.enemyCount; ++enemy)
+    {
+        if (!this->battleEnemies[enemy].IsDefeated())
+        {
+            battle.unk4A754C = static_cast<i32>(enemy) + 1;
+            return;
+        }
+    }
+
+    role.SetTarget(0);
+    battle.unk53BCE8 = 0;
+    battle.unk4A754C = 1;
+    battle.unk4A7564 = -1;
+    battle.unk53AF38[static_cast<std::size_t>(battle.unk53BD50)] = 0;
+    battle.autoBattle = 0;
 }
 }  // namespace swd3

@@ -318,7 +318,10 @@ public:
     i32 unk4A755C = 1;
     i32 unk53BD04 = 0;  // the scroll of a list
     i32 unk53BD08 = 0;
-    i32 unk4A7570 = 2;  // a party role
+    i32 unk4A7570 = 2;   // a party role
+    u8 unk53BDF2 = 0;    // the entries of the list of state 2
+    u16 unk53BDF4 = 0;   // the entries of the lists of states 4 and 0x1B
+    i32 unk4A7564 = -1;  // the enemy the auto battle aims at (1-based), -1: none
     // The end of the battle (Game::CheckBattleEnd, Game::DrawBattlePrompt).
     i32 unk53C4A8 = 0;  // the fade of the field to black, 2 darker a frame
     i32 unk53BDC8 = 0;
