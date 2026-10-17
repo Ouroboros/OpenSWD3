@@ -11,6 +11,7 @@
 #include "item/item_list.h"
 #include "platform/system_info.h"
 #include "role/role_control.h"
+#include "talk/talk_event.h"
 
 namespace swd3
 {
@@ -53,7 +54,7 @@ constexpr i32 kIdlePoseFrames = 0x80;
 // The role faced turned to look back at the controlled role, the controlled role turned towards it, and the event of
 // the role taken by the leader. (When the controlled role walks into the role, the original runs the role's act a
 // second time where the controlled role's act would be run.)
-void RoleControl::Approach(Role& player, Role& other, bool walking)
+void RoleControl::Approach(Role& player, Role& other, u32 index, bool walking)
 {
     Game& game = this->game;
     const int facing =
@@ -69,7 +70,21 @@ void RoleControl::Approach(Role& player, Role& other, bool walking)
 
         if (game.acts.Run(other.act) == 0)
         {
-            DebugLog(u8"Act Err(approach)", other.id);
+            if (walking)
+            {
+                LogActError(u8"Act Err(KeyCole:Collision1)", other);  // 0x00403CEB
+            }
+            else
+            {
+                // 0x004037B7, the format 0x0049F6B0
+                DebugLog(
+                    u8"Act Err(KeyCole:Talk1) 設定錯誤\nGUID%d ,act[%d] qq[%d] dir[%d]",
+                    other.id,
+                    other.act.id,
+                    other.act.action,
+                    other.act.direction
+                );
+            }
         }
     }
 
@@ -79,7 +94,8 @@ void RoleControl::Approach(Role& player, Role& other, bool walking)
 
     if (game.acts.Run(walking ? other.act : player.act) == 0)
     {
-        DebugLog(u8"Act Err(approach)", player.id);
+        // 0x00403D38, 0x0040380C
+        LogActError(walking ? u8"Act Err(KeyCole:Collision2)" : u8"Act Err(KeyCole:Talk2)", player);
     }
 
     Role& leader = game.state.leader;
@@ -88,7 +104,15 @@ void RoleControl::Approach(Role& player, Role& other, bool walking)
     leader.event = other.event;
     leader.id = other.id;
     leader.flags = other.flags;
-    DebugLog(u8"talk to role", other.id);
+    // 0x00403DA8, 0x0040386D
+    DebugLog(
+        walking ? u8"\nRoleEventByCollision.GUID[%d].Talk[%d].Ridx[%d].RArgu[%x]"
+                : u8"\nRoleEventBy.GUID[%d].Talk[%d].Ridx[%d].RArgu[%x]",
+        leader.id,
+        leader.event,
+        index,
+        leader.flags
+    );
 }
 
 // swd32.exe 0x00402F80: the keys of the map. The debug keys (story flag 0x52, turned on in debug mode with Ctrl,
@@ -139,6 +163,8 @@ void RoleControl::ControlPlayer()
             {
                 owner.talk.skipAll = (owner.talk.skipAll + 1) % kToggleStates;
                 SleepMilliseconds(kSkipKeyPause);
+                // 0x004030EC, 0x00403105
+                DebugLog(owner.talk.skipAll != 0 ? u8"啟動快速模式" : u8"關閉快速模式");
                 return;
             }
 
@@ -186,6 +212,8 @@ void RoleControl::ControlPlayer()
             {
                 state.SetGameFlagTo(GameState::NoSlide, state.GameFlag(GameState::NoSlide) ? 0 : 1);
                 this->unk4CB220 = 0;
+                // 0x004032B9
+                DebugLog(state.GameFlag(GameState::NoSlide) ? u8"阻擋可通過" : u8"阻擋不可通過");
                 SleepMilliseconds(kToggleKeyPause);
                 return;
             }
@@ -215,6 +243,7 @@ void RoleControl::ControlPlayer()
         {
             owner.running = 0;
             SDL_ShowCursor();
+            // 0x0040336F calls nullsub_1 without arguments: nothing to log.
             CheatDialog dialog(owner);
 
             if (dialog.Run() == 0)
@@ -256,6 +285,8 @@ void RoleControl::ControlPlayer()
 
     if (input.IsKeyDown(owner.config.keys[static_cast<std::size_t>(Button::KeyR)]))
     {
+        // 0x004034DC
+        DebugLog(u8"切換移動速度");
         this->running = RoleControl::RunToggle[static_cast<std::size_t>(this->running) % RoleControl::RunToggle.size()];
         SleepMilliseconds(kRunKeyPause);
     }
@@ -322,7 +353,7 @@ void RoleControl::ControlPlayer()
 
         if (found < GameState::Roles && state.roles[found].talkState == Role::NoTalk)
         {
-            this->Approach(player, state.roles[found], false);
+            this->Approach(player, state.roles[found], found, false);
             owner.talk.advance = 0;
             return;
         }
@@ -507,12 +538,12 @@ void RoleControl::ControlPlayer()
                     leader.flags = 0;
                     leader.x = player.x - kRegionLeaderSteps * RolePath::StepX[facing];
                     leader.y = player.y - kRegionLeaderSteps * RolePath::StepY[facing];
-                    DebugLog(u8"map region event", region->event);
+                    DebugLog(u8"\nMapEvent.Talk[%d]", leader.event);  // 0x00403C42
                 }
             }
             else if (found < GameState::Roles)
             {
-                this->Approach(player, state.roles[found], true);
+                this->Approach(player, state.roles[found], found, true);
                 owner.talk.advance = 0;
             }
         }

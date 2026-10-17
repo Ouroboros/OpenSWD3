@@ -23,7 +23,7 @@ constexpr u8 kNoCommandByte = 0xFF;  // both bytes of EventCommand::None
 
 void LogActError(std::u8string_view where, const Role& role)
 {
-    const std::u8string format = std::u8string(where) + u8" 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]";
+    const std::u8string format = std::u8string(where) + u8" 設定錯誤 GUID[%d]\nact[%d] qq[%d] dir[%d]";
     DebugLog(format, role.id, role.act.id, role.act.action, role.act.direction);
 }
 

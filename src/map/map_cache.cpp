@@ -9,6 +9,7 @@
 #include "codec/lzo.h"
 #include "config/config.h"
 #include "core/byte_reader.h"
+#include "core/debug_log.h"
 #include "core/format.h"
 #include "core/log.h"
 #include "draw/painter.h"
@@ -242,6 +243,8 @@ void MapCache::ReadUnitBytes(u32 base, u32 size, u32& bytes)
 {
     if (size == 0)
     {
+        // 0x00427103 (nullsub_1, the same strings as 0x00426E30)
+        DebugLog(u8"地圖快取製作 這地圖是舊格式");
         return;
     }
 
@@ -257,17 +260,17 @@ void MapCache::DecompressMap(int unit, u32 base, u32 size, int bitsPerPixel, u32
 {
     if (size == 0)
     {
+        // 0x00426E30 (nullsub_1 with the title 0x004A12C8 and the text 0x004A12D8)
+        DebugLog(u8"地圖快取製作 這地圖是舊格式");
         return;
     }
 
     File cached;
+    const std::u8string path = PathFormat(kUnitFormat, {this->config.installDirectory, unit});
 
-    if (!cached.Open(
-            PathFormat(kUnitFormat, {this->config.installDirectory, unit}),
-            File::Disposition::OpenAlways,
-            File::Access::ReadWrite
-        ))
+    if (!cached.Open(path, File::Disposition::OpenAlways, File::Access::ReadWrite))
     {
+        ErrorLog(u8"DecompressMap ,%s can't open", path);
         return;
     }
 
@@ -312,6 +315,7 @@ void MapCache::DecompressMap(int unit, u32 base, u32 size, int bitsPerPixel, u32
 
         if (!this->lmf.Read(packed.data(), length))
         {
+            ErrorLog(u8"DecompressMap ,read block fail when ");
             cached.Close();
             return;
         }
@@ -352,11 +356,22 @@ const u8* MapCache::OpenUnit(int unit)
 
     if (!this->unitFile.Open(path, File::Disposition::OpenAlways, File::Access::Read))
     {
+        ErrorLog(u8"GetCacheMapUnit ,can't open %s", path);
         return nullptr;
     }
 
-    this->unitFile.CreateMapping();
+    if (!this->unitFile.CreateMapping())
+    {
+        ErrorLog(u8"GetCacheMapUnit ,can't createmapping:%s ,", path);
+    }
+
     this->view = this->unitFile.MapView(0, 0);
+
+    if (this->view == nullptr)
+    {
+        ErrorLog(u8"GetCacheMapUnit ,can't createview:%s ,", path);
+    }
+
     this->unitPath = path;
     return this->view;
 }
@@ -375,6 +390,7 @@ const u8* MapCache::GetCachedMap(u32 map, u32 base, u32 size, int bitsPerPixel)
 
     if (!table.Open(tablePath, File::Disposition::OpenAlways, File::Access::ReadWrite))
     {
+        ErrorLog(u8"GetCachedMap ,mcache.dat can't open");
         return nullptr;
     }
 
@@ -505,6 +521,11 @@ const u8* MapCache::GetCachedMap(u32 map, u32 base, u32 size, int bitsPerPixel)
     while (free < kept && slots[free].map != Slot::Free)
     {
         ++free;
+    }
+
+    if (free == count)
+    {
+        ErrorLog(u8"GetCachedMap ,No free slot");
     }
 
     if (free < kTableSlots)

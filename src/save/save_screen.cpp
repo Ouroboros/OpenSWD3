@@ -1659,7 +1659,7 @@ void Game::DrawSlotsPage()
     if (this->acts.Run(pointer) == 0)
     {
         DebugLog(
-            u8"Act Err(RefrashCursor) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]",
+            u8"Act Err(RefrashCursor) 設定錯誤 GUID[%d]\nact[%d] qq[%d] dir[%d]",
             this->scene.pointerRole.id,
             pointer.id,
             pointer.action,

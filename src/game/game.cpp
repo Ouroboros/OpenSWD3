@@ -931,12 +931,12 @@ void Game::NewGame()
 
     if (!setPointer(scene.pointerRole, 0))
     {
-        logPointer(u8"Act Err(Misc:Init:Mouse:Norm) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]", scene.pointerRole);
+        logPointer(u8"Act Err(Misc:Init:Mouse:Norm) 設定錯誤 GUID[%d]\nact[%d] qq[%d] dir[%d]", scene.pointerRole);
     }
 
     if (!setPointer(scene.pointerButtonRole, Scene::ButtonPointer))
     {
-        logPointer(u8"Act Err(Misc:Init:Mouse:Btn) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]", scene.pointerButtonRole);
+        logPointer(u8"Act Err(Misc:Init:Mouse:Btn) 設定錯誤 GUID[%d]\nact[%d] qq[%d] dir[%d]", scene.pointerButtonRole);
     }
 
     // The original reports the page pointer with the values of the button pointer.
@@ -944,7 +944,7 @@ void Game::NewGame()
     {
         logPointer(
             u8"Act Err(Misc:Init:Mouse:n"
-            u8"Page) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]",
+            u8"Page) 設定錯誤 GUID[%d]\nact[%d] qq[%d] dir[%d]",
             scene.pointerButtonRole
         );
     }
@@ -1162,7 +1162,7 @@ void Game::RefreshCursor()
     if (this->acts.Run(pointer.act) == 0)
     {
         DebugLog(
-            u8"Act Err(RefrashCursor) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]",
+            u8"Act Err(RefrashCursor) 設定錯誤 GUID[%d]\nact[%d] qq[%d] dir[%d]",
             static_cast<u32>(pointer.id),
             pointer.act.id,
             pointer.act.action,

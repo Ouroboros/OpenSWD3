@@ -8,6 +8,7 @@
 #include "game/direction.h"
 #include "game/game.h"
 #include "talk/script_text.h"
+#include "talk/talk_event.h"
 #include "ui/ui_draw.h"
 
 namespace swd3
@@ -1122,7 +1123,12 @@ void Talk::HandlePointer()
             player.act.action = 0;
             player.act.direction = faceAway(direction);
             player.act.delay = 0;
-            owner.acts.Run(player.act);
+
+            if (owner.acts.Run(player.act) == 0)
+            {
+                LogActError(u8"Act Err(Talk:MouseActiveStory)", player);
+            }
+
             owner.scene.playerHold = Scene::HoldLocked;
             DebugLog(
                 u8"\n"
@@ -1196,13 +1202,22 @@ void Talk::HandlePointer()
         target.act.action = 0;
         target.act.delay = 0;
         target.act.direction = direction;
-        owner.acts.Run(target.act);
+
+        if (owner.acts.Run(target.act) == 0)
+        {
+            LogActError(u8"Act Err(Talk:RoleTurn)", target);
+        }
     }
 
     player.act.action = 0;
     player.act.direction = faceAway(direction);
     player.act.delay = 0;
-    owner.acts.Run(player.act);
+
+    if (owner.acts.Run(player.act) == 0)
+    {
+        LogActError(u8"Act Err(Talk:MRoleTFace)", player);
+    }
+
     Role& leader = state.leader;
     leader.unk14 = target.unk14;
     leader.unk20 = target.unk20;

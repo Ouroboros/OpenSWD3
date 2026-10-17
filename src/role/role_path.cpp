@@ -113,7 +113,7 @@ void RolePath::Update()
             if (this->game.acts.Run(role.act) == 0)
             {
                 DebugLog(
-                    u8"Act Err(Path:NoPathCycle) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]",
+                    u8"Act Err(Path:NoPathCycle) 設定錯誤 GUID[%d]\nact[%d] qq[%d] dir[%d]",
                     role.id,
                     role.act.id,
                     role.act.action,
@@ -635,13 +635,13 @@ void RolePath::RunScript(int index)
             case PathCommand::SetAction:
                 role.act.action = operand(1);
                 role.unk18 += PathScript::CommandWords(1);
-                runAct(u8"Act Err(Path:ChangQQ) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]");
+                runAct(u8"Act Err(Path:ChangQQ) 設定錯誤 GUID[%d]\nact[%d] qq[%d] dir[%d]");
                 return;
 
             case PathCommand::SetDirection:
                 role.act.direction = operand(1);
                 role.unk18 += PathScript::CommandWords(1);
-                runAct(u8"Act Err(Path:chang_dir) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]");
+                runAct(u8"Act Err(Path:chang_dir) 設定錯誤 GUID[%d]\nact[%d] qq[%d] dir[%d]");
                 return;
 
             case PathCommand::SetCount:
@@ -671,7 +671,7 @@ void RolePath::RunScript(int index)
                     ++role.unk18;
                 }
 
-                runAct(u8"Act Err(Path:Active) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]");
+                runAct(u8"Act Err(Path:Active) 設定錯誤 GUID[%d]\nact[%d] qq[%d] dir[%d]");
                 return;
 
             case PathCommand::FindPath:
@@ -701,7 +701,7 @@ void RolePath::RunScript(int index)
 
                 if ((role.flags & Role::StepsAct) != 0)
                 {
-                    runAct(u8"Act Err(Path:WTime) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]");
+                    runAct(u8"Act Err(Path:WTime) 設定錯誤 GUID[%d]\nact[%d] qq[%d] dir[%d]");
                 }
 
                 if (passed)
@@ -996,7 +996,7 @@ void RolePath::RunScript(int index)
                     (static_cast<u32>(role.x) >> MapHeader::TileShift) +
                     static_cast<std::size_t>(state.map.width) * (static_cast<u32>(role.y) >> MapHeader::TileShift);
                 role.cell = cell < state.map.blocks.size() ? &state.map.blocks[cell] : nullptr;
-                runAct(u8"Act Err(Path:MoveRole) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]");
+                runAct(u8"Act Err(Path:MoveRole) 設定錯誤 GUID[%d]\nact[%d] qq[%d] dir[%d]");
                 owner.field.MarkRoleCells(role, leaderId);
                 role.unk18 += PathScript::CommandWords(2);
                 owner.field.RemoveRole(role.id, static_cast<int>(role.flags & Role::LayerMask), 0, 0);
@@ -1028,7 +1028,7 @@ void RolePath::RunScript(int index)
                 }
 
                 role.unk18 += PathScript::CommandWords(3);
-                runAct(u8"Act Err(Path:TakeActdata) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]");
+                runAct(u8"Act Err(Path:TakeActdata) 設定錯誤 GUID[%d]\nact[%d] qq[%d] dir[%d]");
                 return;
 
             case PathCommand::PlaySound:

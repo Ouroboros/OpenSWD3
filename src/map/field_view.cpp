@@ -1118,7 +1118,7 @@ void FieldView::DrawAnimations(std::unique_ptr<ScriptAnimation>& list)
         if (owner.acts.Run(animation.act) == 0)
         {
             DebugLog(
-                u8"Act Err(PicPaint:PlayAct) 設定錯誤  act[%d] qq[%d] dir[%d]",
+                u8"Act Err(PicPaint:PlayAct) 設定錯誤 \nact[%d] qq[%d] dir[%d]",
                 animation.act.id,
                 animation.act.action,
                 animation.act.direction
@@ -1175,7 +1175,7 @@ void FieldView::DrawSprites()
         if (owner.acts.Run(sprite.act) == 0)
         {
             DebugLog(
-                u8"Act Err(PicPaint:DrawTObj) 設定錯誤  act[%d] qq[%d] dir[%d]",
+                u8"Act Err(PicPaint:DrawTObj) 設定錯誤 \nact[%d] qq[%d] dir[%d]",
                 sprite.act.id,
                 sprite.act.action,
                 sprite.act.direction
@@ -1242,7 +1242,7 @@ void FieldView::DrawRoleHeads()
         if (owner.acts.Run(head.act) == 0)
         {
             DebugLog(
-                u8"Act Err(PicPaint:drawRoleHead) 設定錯誤  act[%d] qq[%d] dir[%d]",
+                u8"Act Err(PicPaint:drawRoleHead) 設定錯誤 \nact[%d] qq[%d] dir[%d]",
                 head.act.id,
                 head.act.action,
                 head.act.direction
@@ -3169,7 +3169,7 @@ void FieldView::Render()
         if (slot.id != 0 && owner.acts.Run(slot) == 0)
         {
             DebugLog(
-                u8"Act Err(picPaint:HeadSgn) 頭定符號設定錯誤  act[%d] qq[%d] dir[%d]",
+                u8"Act Err(picPaint:HeadSgn) 頭定符號設定錯誤 \nact[%d] qq[%d] dir[%d]",
                 slot.id,
                 slot.action,
                 slot.direction
@@ -3340,7 +3340,7 @@ void FieldView::Render()
         if (owner.acts.Run(role.act) == 0)
         {
             DebugLog(
-                u8"Act Err(picPaint:PathMove) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]",
+                u8"Act Err(picPaint:PathMove) 設定錯誤 GUID[%d]\nact[%d] qq[%d] dir[%d]",
                 role.id,
                 role.act.id,
                 role.act.action,
@@ -3398,7 +3398,7 @@ void FieldView::Render()
         if (owner.acts.Run(role.act) == 0)
         {
             DebugLog(
-                u8"Act Err(picPaint:CompanyMove) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]",
+                u8"Act Err(picPaint:CompanyMove) 設定錯誤 GUID[%d]\nact[%d] qq[%d] dir[%d]",
                 role.id,
                 role.act.id,
                 role.act.action,
@@ -3465,7 +3465,7 @@ void FieldView::Render()
     if ((player.flags & Role::Stepping) == 0 && (player.flags & Role::StepsAct) != 0 && owner.acts.Run(player.act) == 0)
     {
         DebugLog(
-            u8"Act Err(PicPaint:Render:MRl) 設定錯誤 GUID[%d] act[%d] qq[%d] dir[%d]",
+            u8"Act Err(PicPaint:Render:MRl) 設定錯誤 GUID[%d]\nact[%d] qq[%d] dir[%d]",
             player.id,
             player.act.id,
             player.act.action,

@@ -20,3 +20,22 @@
 - 移动：卷动或单步的选择、走／跑动作（双击或跑步旗标）、方向或动作变化时清 delay、速度（跑步加倍、跳过时 0x10）、遇敌（地图旗标 0x1770+地图号、旗标 0xC、无领队；成功时停乐音、关档案、进入战斗、解除地图单元映射、清各角色 SoundOnce）。不动时：动作 0，待机 0x80 帧后 0x34，计数器淡入至 0x10。每帧 idleFrames、unk4CB220 计数。
 - 表 0x00499380、0x004993A0、0x004993C0、0x004993CC、0x004993EC 已由 tests/game_state_test.cpp 与 exe 对照。
 - 结论：通过。
+
+## 0x004272C0、0x004272D0、0x004272E0、0x004272F0（静态对象 0x004CF6E0）
+
+0x004272C0 构造 cFile 0x4CF6E0（0x00438000）并以 atexit（0x00487BA0）登记析构 0x004272F0（0x00438030）。该对象在其余代码中无引用（反编译只在 0x004272D0、0x004272F0 出现），重建不建立，源码注释说明。exact。
+
+## 补正：0x00402F80 RoleControl::ControlPlayer 的调试日志（第 1 遍复查）
+
+此函数的反编译把 nullsub_1 显示为无参数调用，早先的核对漏看了日志。按汇编逐处核对 13 个 nullsub_1：
+- 0x004030EC／0x00403105：Ctrl+F9 切换跳过文字、Sleep(0x15E) 后「啟動快速模式」（0x0049F714）／「關閉快速模式」（0x0049F704），随后返回。
+- 0x004032B9：Ctrl+F3 切换旗标 0x14、清 0x4CB220 后，旗标置位为「阻擋可通過」（0x0049F6F8），否则「阻擋不可通過」（0x0049F6E8），再 Sleep(0x12C) 返回。
+- 0x0040336F：F4 显示光标后无参数调用，无文字可记。
+- 0x004034DC：跑步键按下时先记「切換移動速度」（0x0049F6D8），再切换并 Sleep(0xC8)。
+- 0x004037B7／0x0040380C：空格对话时对方转身失败记 "Act Err(KeyCole:Talk1)" + 0x0049F6B0「設定錯誤\nGUID%d ,act[%d] qq[%d] dir[%d]」（对方），控制角色转向失败记 "Act Err(KeyCole:Talk2)" + 0x0049F66C（控制角色）。
+- 0x0040386D："\nRoleEventBy.GUID[%d].Talk[%d].Ridx[%d].RArgu[%x]"（标识 & 0xFFFF、事件、找到的序号、旗标）。
+- 0x00403B84：区域找不到时 wsprintfA「錯誤的劇情點(%d)」后记录（已有）。
+- 0x00403C42：区域事件 "\nMapEvent.Talk[%d]"（区域事件，未掩码）。
+- 0x00403CEB／0x00403D38：走路碰撞时对方转身失败记 "Act Err(KeyCole:Collision1)"（对方），之后再次执行对方的动作（原版问题，重建保留）失败记 "Act Err(KeyCole:Collision2)"（控制角色的字段）。
+- 0x00403DA8："\nRoleEventByCollision.GUID[%d].Talk[%d].Ridx[%d].RArgu[%x]"。
+- 差异（diff 轮）：重建缺 8 条，另有 3 条自编文字（"Act Err(approach)"、"talk to role"、"map region event"）。已全部按原文改正，Approach 增加序号参数。复核一致（exact 轮）。
