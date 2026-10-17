@@ -479,8 +479,8 @@ public:
     i32 brightLevel = 1;     // +0x266C
     i32 unk2670 = 0;
     i32 unk2674 = 0;
-    u32 unk267C = 0;  // +0x267C BattleUnit::Stage bits
-    i32 unk2680 = 0;
+    u32 unk267C = 0;     // +0x267C BattleUnit::Stage bits
+    i32 throwSteps = 0;  // +0x2680 the frames of the thrown act so far (ThrowAct)
     i32 unk2684 = 0;
     i32 unk2690 = 0;
     u32 drawFlags = 0;   // +0x2694 bit 0: mirrored

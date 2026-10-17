@@ -52,6 +52,8 @@ public:
     void StartAbsorb(BattleServices& services, BattleUnit& source);
     void FlyExtraAct(BattleServices& services, i32 id, i32 action, int slot, i16 x, i16 y, int steps);
     int AbsorbFrame(BattleServices& services);
+    int ThrowAct(BattleServices& services, const BattleUnit& target);
+    int CatchAct(BattleServices& services, const BattleUnit& target);
     void SetupGuest(const UnitPlacement& at, const RoleRecord& base, Database& database, ErrorReporter& reporter);
     void
     ApplyEquipment(std::span<const std::unique_ptr<ItemNode>> slots, CounterList& proficiency, ErrorReporter& reporter);

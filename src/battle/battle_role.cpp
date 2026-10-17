@@ -98,6 +98,11 @@ struct Spark
 
 constexpr i32 kSparkAct = 0x186A;
 constexpr std::size_t kSparkColumnShift = 2;  // the sparks start a quarter across the picture
+
+// ThrowAct.
+constexpr i32 kThrownAct = 0x186B;
+constexpr int kThrowSteps = 8;    // line steps a frame per frame flown
+constexpr i32 kCaughtAction = 1;  // CatchAct: the thrown act flying back
 constexpr std::array<Spark, BattleRole::ExtraActs> kSparks = {{
     {0, 1, -5, 0xE},
     {10, 2, -10, 0xA},
@@ -922,7 +927,7 @@ void BattleRole::StartAbsorb(BattleServices& services, BattleUnit& source)
 
     this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag800);
     services.state.projector.SetScreen(Display::Width, Display::Height);
-    this->unk2680 = 0;
+    this->throwSteps = 0;
     this->flight = LineWalker{};
     this->attackAct = ActState{};
     this->extraActs.fill(ActState{});
@@ -1039,6 +1044,203 @@ int BattleRole::AbsorbFrame(BattleServices& services)
         );
     }
 
+    return 0;
+}
+
+// swd32.exe 0x004717F0: one frame of the thrown act (kThrownAct in the attack act) flying from the role's main act
+// anchor to the target's anchor (its draw position when the anchor has a zero coordinate), mirrored by the facing.
+// The flight takes 8 line steps a frame more each frame; once at the target's x it is drawn there, its steps, the line
+// and the attack act are cleared and 1 is returned.
+int BattleRole::ThrowAct(BattleServices& services, const BattleUnit& target)
+{
+    u16 anchorX = 0;
+    u16 anchorY = 0;
+    ActState& act = this->attackAct;
+    act.id = kThrownAct;
+    act.action = 0;
+    act.hold = 0;
+
+    if (this->held == 1)
+    {
+        act.hold = 1;
+    }
+
+    if (services.acts.Run(act) == 0)
+    {
+        return 0;
+    }
+
+    this->picture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->picture == nullptr)
+    {
+        return 0;
+    }
+
+    Painter& painter = services.painter;
+    painter.SetSource(this->picture->data.data());
+    this->actOffsetX = static_cast<u16>(act.x);
+    this->frameFlags = act.flags;
+
+    if (this->facing == 1)
+    {
+        this->frameFlags ^= Painter::Mirror;
+        this->actOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
+    }
+
+    target.GetOffset(anchorX, anchorY);
+    i16 toX = 0;
+    i16 toY = 0;
+
+    if (anchorX != 0 && anchorY != 0)
+    {
+        u16 originX = 0;
+        u16 originY = 0;
+        target.GetOrigin(originX, originY);
+        toX = static_cast<i16>(originX + anchorX - this->actOffsetX);
+        toY = static_cast<i16>(originY + anchorY - static_cast<u16>(act.y));
+    }
+    else
+    {
+        u16 x = 0;
+        u16 y = 0;
+        target.GetDrawPosition(x, y);
+        toX = static_cast<i16>(x - this->actOffsetX);
+        toY = static_cast<i16>(y - static_cast<u16>(act.y));
+    }
+
+    LineWalker& line = this->flight;
+    line = LineWalker{};
+    line.fromX = static_cast<i16>(this->actAnchorX) - static_cast<i16>(this->originX) + this->placement.x -
+                 static_cast<i16>(this->actOffsetX);
+    line.fromY = this->placement.y + static_cast<i16>(this->mainAct.anchorY) - this->mainAct.y - act.y;
+    line.toX = toX;
+    line.toY = toY;
+    bool arrived = false;
+
+    for (int taken = 0; taken < kThrowSteps * this->throwSteps; ++taken)
+    {
+        LineStep(line);
+
+        if (line.fromX + line.x == line.toX)
+        {
+            arrived = true;
+            break;
+        }
+    }
+
+    ++this->throwSteps;
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+    act.view = 0;
+
+    if (arrived)
+    {
+        painter.DrawPicture(toX, toY, this->picture->width, this->picture->height, this->frameFlags);
+        this->throwSteps = 0;
+        line = LineWalker{};
+        act = ActState{};
+        return 1;
+    }
+
+    painter.DrawPicture(
+        line.fromX + line.x,
+        line.fromY + line.y,
+        this->picture->width,
+        this->picture->height,
+        this->frameFlags
+    );
+    return 0;
+}
+
+// swd32.exe 0x00471AD0: one frame of the thrown act flying back (action kCaughtAction, unmirrored, with its own flags)
+// from the target's anchor (its draw position when the anchor has a zero coordinate) into the role's main act anchor,
+// 8 line steps a frame more each frame; once at the role's x it is drawn there, its steps, the line and the attack act
+// are cleared and 1 is returned.
+int BattleRole::CatchAct(BattleServices& services, const BattleUnit& target)
+{
+    u16 anchorX = 0;
+    u16 anchorY = 0;
+    ActState& act = this->attackAct;
+    act.id = kThrownAct;
+    act.action = kCaughtAction;
+    act.hold = 0;
+
+    if (this->held == 1)
+    {
+        act.hold = 1;
+    }
+
+    if (services.acts.Run(act) == 0)
+    {
+        return 0;
+    }
+
+    this->picture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->picture == nullptr)
+    {
+        return 0;
+    }
+
+    Painter& painter = services.painter;
+    painter.SetSource(this->picture->data.data());
+    target.GetOffset(anchorX, anchorY);
+    i16 fromX = 0;
+    i16 fromY = 0;
+
+    if (anchorX != 0 && anchorY != 0)
+    {
+        u16 originX = 0;
+        u16 originY = 0;
+        target.GetOrigin(originX, originY);
+        fromX = static_cast<i16>(originX + anchorX - static_cast<u16>(act.x));
+        fromY = static_cast<i16>(originY + anchorY - static_cast<u16>(act.y));
+    }
+    else
+    {
+        u16 x = 0;
+        u16 y = 0;
+        target.GetDrawPosition(x, y);
+        fromX = static_cast<i16>(x - static_cast<u16>(act.x));
+        fromY = static_cast<i16>(y - static_cast<u16>(act.y));
+    }
+
+    LineWalker& line = this->flight;
+    line = LineWalker{};
+    line.fromX = fromX;
+    line.fromY = fromY;
+    line.toX = this->placement.x - static_cast<i16>(this->originX) + static_cast<i16>(this->mainAct.anchorX) - act.x;
+    line.toY = this->placement.y + static_cast<i16>(this->mainAct.anchorY) - this->mainAct.y - act.y;
+    bool arrived = false;
+
+    for (int taken = 0; taken < kThrowSteps * this->throwSteps; ++taken)
+    {
+        LineStep(line);
+
+        if (line.fromX + line.x == line.toX)
+        {
+            arrived = true;
+            break;
+        }
+    }
+
+    ++this->throwSteps;
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+    act.view = 0;
+
+    if (arrived)
+    {
+        painter.DrawPicture(line.toX, line.toY, this->picture->width, this->picture->height, act.flags);
+        this->throwSteps = 0;
+        line = LineWalker{};
+        act = ActState{};
+        return 1;
+    }
+
+    painter
+        .DrawPicture(line.fromX + line.x, line.fromY + line.y, this->picture->width, this->picture->height, act.flags);
     return 0;
 }
 }  // namespace swd3
