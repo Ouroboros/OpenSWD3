@@ -67,6 +67,8 @@ public:
     static constexpr std::array<i16, 8> SwarmOffsetY = {-100, 100, 0, 0, -50, -50, 50, 50};
 
     BattleRole();
+    ~BattleRole();
+    void Release();
     void SetSkills(ItemNode* list);
     void SetInventory(ItemLink* list);
     void ClearExtras();

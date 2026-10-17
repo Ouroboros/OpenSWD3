@@ -14,6 +14,19 @@ BattleEnemy::BattleEnemy()
     this->data = this->ownedData.get();
 }
 
+// swd32.exe 0x00475590: the destructor: the enemy's mon.dat object freed (then the unit's, BattleUnit::~BattleUnit)
+BattleEnemy::~BattleEnemy()
+{
+    this->Release();
+}
+
+// swd32.exe 0x00476A60: the enemy's mon.dat object freed
+void BattleEnemy::Release()
+{
+    this->ownedData.reset();
+    this->data = nullptr;
+}
+
 // swd32.exe 0x00475720: an enemy entering battle: its placement, its mon.dat object (a named character or boss is
 // faster and stronger), its maximum hit points from its hit points, its level byte, its act (the object's, else the
 // placement's) and skill script; 撒旦 and 蚩尤 get fixed hit points

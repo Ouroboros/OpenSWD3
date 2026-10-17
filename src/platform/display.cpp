@@ -4,6 +4,7 @@
 
 #include <algorithm>
 
+#include "core/log.h"
 #include "platform/surface.h"
 
 namespace swd3
@@ -61,6 +62,7 @@ bool Display::Open(const std::string& title)
 {
     if (!SDL_WasInit(SDL_INIT_VIDEO) && !SDL_InitSubSystem(SDL_INIT_VIDEO))
     {
+        LogError(u8"video initialisation failed: %s", AsUtf8(SDL_GetError()));
         return false;
     }
 
@@ -76,6 +78,7 @@ bool Display::Open(const std::string& title)
 
     if (!created)
     {
+        LogError(u8"window creation failed: %s", AsUtf8(SDL_GetError()));
         return false;
     }
 
@@ -90,10 +93,18 @@ bool Display::Open(const std::string& title)
 
     if (this->texture == nullptr)
     {
+        LogError(u8"frame texture creation failed: %s", AsUtf8(SDL_GetError()));
         return false;
     }
 
     SDL_SetTextureScaleMode(this->texture, SDL_SCALEMODE_NEAREST);
+    const char* driver = SDL_GetRendererName(this->renderer);
+    LogInfo(
+        u8"display open window=%dx%d renderer=%s",
+        Display::DefaultWindowWidth,
+        Display::DefaultWindowHeight,
+        AsUtf8(driver != nullptr ? driver : "")
+    );
     return true;
 }
 

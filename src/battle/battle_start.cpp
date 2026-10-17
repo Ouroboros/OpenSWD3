@@ -124,6 +124,7 @@ void Game::MeasureUnits()
 // formation without enemies is reported and the battle does not start.
 void Game::StartBattle(u16 number)
 {
+    LogInfo(u8"battle %d on map %d", static_cast<i32>(number), this->currentMap);
     BattleState& battle = this->battleState;
     GameState& state = this->state;
     battle.battle = number;

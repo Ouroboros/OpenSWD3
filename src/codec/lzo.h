@@ -28,6 +28,7 @@ public:
     LzoDecoder(std::span<const u8> input, std::span<u8> output);
 
     LzoStatus Run();
+    LzoStatus RunFast();
 
     std::size_t Written() const;
 

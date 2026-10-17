@@ -1,5 +1,7 @@
 #include "platform/message_box.h"
 
+#include "core/log.h"
+
 #include <SDL3/SDL.h>
 #include <windows.h>
 
@@ -29,11 +31,13 @@ void ShowErrorMessage(std::u8string_view title, std::u8string_view text)
 
 void DialogErrorReporter::ShowError(std::u8string_view title, std::u8string_view text)
 {
+    LogError(u8"error dialog \"%s\": %s", title, text);
     ShowErrorMessage(title, text);
 }
 
 AssertChoice DialogErrorReporter::AskAssertion(std::u8string_view title, std::u8string_view text)
 {
+    LogError(u8"assertion dialog \"%s\": %s", title, text);
     const std::string caption = Terminated(title);
     const std::string message = Terminated(text);
     const SDL_MessageBoxButtonData buttons[] = {

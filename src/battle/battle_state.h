@@ -176,7 +176,7 @@ public:
     // Set by the battle start (0x00451B10).
     u16 spellStage = 0;                   // 0x0053C050 BattleState::SpellStage bits of the running spell
     u16 battle = 0;                       // 0x0053C052 the battle number
-    BattleFile file;                      // 0x004FF5B8 battle.ffd
+    BattleFile file{&this->projector};    // 0x004FF5B8 battle.ffd
     BattleFormation formation;            // 0x004FF1E0
     Projector projector;                  // 0x0053B0B8
     Picture background;                   // 0x00502940 the picture of all_map2.tsw

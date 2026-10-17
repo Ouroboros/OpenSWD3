@@ -1,22 +1,25 @@
 #pragma once
 
-#include <string_view>
+#include "core/log.h"
 
 namespace swd3
 {
 
 // swd32.exe 0x0044A240: the game's debug log. The shipped build compiled it to an empty function (it is also the
-// default pixel converter, see PixelFormat), so every message is discarded; the calls are kept where the original
-// makes them. Formats are UTF-8.
+// default pixel converter, see PixelFormat); here its messages go to the debug level of the rebuild's log. Formats
+// are UTF-8.
 template <typename... Args>
-void DebugLog(std::u8string_view /*format*/, const Args&... /*args*/)
+void DebugLog(const LogFormat& format, const Args&... args)
 {
+    Log(LogLevel::Debug, format, args...);
 }
 
-// swd32.exe 0x00411F90: the error log, also compiled to an empty function in the shipped build.
+// swd32.exe 0x00411F90: the error log, also compiled to an empty function in the shipped build; here its messages go
+// to the warning level of the rebuild's log.
 template <typename... Args>
-void ErrorLog(std::u8string_view /*format*/, const Args&... /*args*/)
+void ErrorLog(const LogFormat& format, const Args&... args)
 {
+    Log(LogLevel::Warning, format, args...);
 }
 
 }  // namespace swd3

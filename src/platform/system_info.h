@@ -25,6 +25,11 @@ struct LocalDateTime
 };
 
 LocalDateTime LocalTime();
+// The id of this process.
+u32 ProcessId();
+// The processor faults that end the process logged first (an unhandled structured exception on Windows, a fault
+// signal elsewhere).
+void InstallFaultLog();
 // Sleep(): the calling thread waits.
 void SleepMilliseconds(u32 milliseconds);
 

@@ -150,6 +150,13 @@ u32 LzoDecoder::TrailingLiterals() const
     return this->input[this->inputPosition - kOffsetBytes] & kTrailingMask;
 }
 
+// swd32.exe 0x00439C20: lzo1x_decompress_asm_fast, called by nothing: the output of Run (the original copies in dwords
+// without checking the ends, so it may write up to three bytes past the output)
+LzoStatus LzoDecoder::RunFast()
+{
+    return this->Run();
+}
+
 // swd32.exe 0x004399E0: lzo1x_decompress
 LzoStatus LzoDecoder::Run()
 {

@@ -50,6 +50,21 @@ void BattleFormation::Load(std::span<const u8> bytes)
     ReadWords(reader, this->enemyY);
 }
 
+// swd32.exe 0x0045F0F0: battle.ffd's reader with the battle's projector and its table of the numbers 0..29 with five
+// quarters of each
+BattleFile::BattleFile(const Projector* projector)
+    : projector(projector)
+{
+    constexpr i32 kQuarters = 5;
+    constexpr i32 kQuarter = 4;
+
+    for (std::size_t step = 0; step < BattleFile::Steps; ++step)
+    {
+        const auto index = static_cast<i32>(step);
+        this->unk3104[step] = {index, kQuarters * index / kQuarter};
+    }
+}
+
 // swd32.exe 0x0045F130: the header of battle.ffd (false when the file cannot be opened)
 bool BattleFile::ReadHeader(std::string_view path)
 {

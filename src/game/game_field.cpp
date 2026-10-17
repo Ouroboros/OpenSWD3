@@ -663,6 +663,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
     Scene& view = this->scene;
     GameState& game = this->state;
     const int previous = this->currentMap;
+    LogInfo(u8"map %d at (%d, %d) from map %d", map, x, y, previous);
     game.ClearFrameInterval();
 
     if (this->drawSurface != nullptr)

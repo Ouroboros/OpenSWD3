@@ -26,6 +26,8 @@ public:
     void Setup(const UnitPlacement& at, u16 id, Database& database);
     void Reload(u16 id, Database& database);
     BattleEnemy();
+    ~BattleEnemy();
+    void Release();
 };
 
 }  // namespace swd3

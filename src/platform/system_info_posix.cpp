@@ -1,9 +1,11 @@
 #include "platform/system_info.h"
 
+#include <csignal>
 #include <ctime>
 #include <limits>
 
 #include <SDL3/SDL.h>
+#include <unistd.h>
 
 namespace swd3
 {
@@ -51,6 +53,32 @@ LocalDateTime LocalTime()
     std::tm local{};
     localtime_r(&now, &local);
     return {local.tm_year + kTmYearBase, local.tm_mon + kTmMonthBase, local.tm_mday, local.tm_hour, local.tm_min};
+}
+
+u32 ProcessId()
+{
+    return static_cast<u32>(getpid());
+}
+
+namespace
+{
+
+// A fault signal: logged, then the default action ends the process.
+void FaultSignal(int signal)
+{
+    SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "fault signal %d ends the process", signal);
+    std::signal(signal, SIG_DFL);
+    std::raise(signal);
+}
+
+}  // namespace
+
+void InstallFaultLog()
+{
+    for (const int signal : {SIGSEGV, SIGBUS, SIGFPE, SIGILL, SIGABRT})
+    {
+        std::signal(signal, &FaultSignal);
+    }
 }
 
 }  // namespace swd3

@@ -3,6 +3,7 @@
 #include <array>
 #include <span>
 #include <string_view>
+#include <utility>
 
 #include "core/types.h"
 
@@ -38,6 +39,8 @@ struct BattleFormation
     void Load(std::span<const u8> bytes);
 };
 
+class Projector;
+
 // battle.ffd (the object at 0x004FF5B8): a header of 0x2714 bytes (a table of record numbers from +4 and, from
 // +0x1F44, the number of formations of each battle) followed by the 0x10C-byte formations.
 class BattleFile
@@ -47,12 +50,18 @@ public:
     static constexpr u32 RecordBytes = 0x10C;
     static constexpr u32 RecordsAt = 4;  // the table of record numbers
     static constexpr u32 CountsAt = 0x1F44;
+    static constexpr std::size_t Steps = 0x1E;
+
+    explicit BattleFile(const Projector* projector = nullptr);
 
     bool ReadHeader(std::string_view path);
     bool ReadFormation(std::string_view path, BattleFormation& formation, u16 battle, i8 choice);
     std::span<const u8> Counts() const;
 
+    const Projector* projector = nullptr;     // +0x00 the battle's projector (never read)
     std::array<u8, HeaderBytes> header = {};  // +0x04
+    // +0x3104: the numbers 0..29 with five quarters of each (never read).
+    std::array<std::pair<i32, i32>, Steps> unk3104 = {};
 };
 
 }  // namespace swd3

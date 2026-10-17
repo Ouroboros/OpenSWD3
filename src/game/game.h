@@ -118,7 +118,7 @@ public:
 
     explicit Game(std::string installDirectory);
 
-    int Run();
+    int Run(std::string_view commandLine);
 
 private:
     void Start();
@@ -237,6 +237,13 @@ private:
     void LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, int options);
     void PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction, int previous);
     void Destroy();
+    bool InstallFromCommandLine(std::string_view commandLine);
+    void DrawPauseBanner();
+    static int CheckStart();
+    void Activate(int state);
+    void FreeItemLists();
+    void ReleaseBattle();
+    void ReleaseGame();
     void PlaySoundAt(u16 sound, int x, int y);
     u32 RollEncounter(int steps, int force);
     u32 LoadRoleRecord(Role& role, u16 id);

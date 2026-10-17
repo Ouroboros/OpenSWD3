@@ -58,4 +58,34 @@ LocalDateTime LocalTime()
     return {year, month, day, hour, minute};
 }
 
+u32 ProcessId()
+{
+    return static_cast<u32>(::GetCurrentProcessId());
+}
+
+namespace
+{
+
+// An unhandled structured exception: its code and address (with the executable's base, to find it in the map) logged;
+// the system then ends the process.
+LONG WINAPI FaultFilter(EXCEPTION_POINTERS* exception)
+{
+    const EXCEPTION_RECORD& record = *exception->ExceptionRecord;
+    SDL_LogCritical(
+        SDL_LOG_CATEGORY_APPLICATION,
+        "unhandled exception 0x%08lX at %p (executable at %p)",
+        static_cast<unsigned long>(record.ExceptionCode),
+        record.ExceptionAddress,
+        static_cast<void*>(::GetModuleHandleW(nullptr))
+    );
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
+}  // namespace
+
+void InstallFaultLog()
+{
+    ::SetUnhandledExceptionFilter(&FaultFilter);
+}
+
 }  // namespace swd3

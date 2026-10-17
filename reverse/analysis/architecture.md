@@ -27,6 +27,7 @@
 - `MediaDecoder`：FFmpeg（MP3、Bink 视频与音频）。
 - `GlyphRasterizer`：中文字形栅格化。各平台都用自带字库 swd3font.bin（由用户提供的 mingliu.ttc 生成的完整 Big5 細明體 12/16/20 像素点阵），不依赖系统字体（用户 2026-10-16 要求）。
 - `FileSystem`：游戏目录内的文件读取；POSIX 上按大小写不敏感查找。
+- `LogFile`：重建版的运行日志（用户 2026-10-17 要求）。写到可执行文件同目录的 `logs/<程序名>-<本地时间 YYYY-MM-DD_HH-MM-SS>-<进程号>.log`，每行 `MM-DDTHH:MM:SS.mmm [LEVEL] [thread=线程号] [文件:行] 内容`，逐行落盘。它接管 SDL 的日志输出，SDL 自身与各线程的消息一并写入；`core/log.h` 的 `LogDebug`／`LogInfo`／`LogWarning`／`LogError` 记录调用处的文件与行。原程序编译为空函数的调试日志（0x0044A240）与错误日志（0x00411F90）分别写到 DEBUG 与 WARN 级；错误对话框、`Fault`／`Hang`、未处理异常与故障信号也记入日志。
 
 ## 与原程序的已知偏差
 

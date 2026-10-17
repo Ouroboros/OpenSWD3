@@ -34,6 +34,20 @@ BattleRole::BattleRole()
     this->battleRecord = this->ownedRecord.get();
 }
 
+// swd32.exe 0x0046E4D0: the destructor: the role's buffers freed (then the unit's, BattleUnit::~BattleUnit)
+BattleRole::~BattleRole()
+{
+    this->Release();
+}
+
+// swd32.exe 0x00475180: the description of unk2B24 and the battle copy of the role's record freed
+void BattleRole::Release()
+{
+    this->unk2B24.description.reset();
+    this->ownedRecord.reset();
+    this->battleRecord = nullptr;
+}
+
 // swd32.exe 0x0046E870
 void BattleRole::SetSkills(ItemNode* list)
 {

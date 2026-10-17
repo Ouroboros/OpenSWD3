@@ -31,6 +31,8 @@ constexpr u32 kShiftKey = 0x4;     // MK_SHIFT
 constexpr u32 kControlKey = 0x8;   // MK_CONTROL
 constexpr u32 kMiddleButton = 0x10;
 constexpr Uint32 kLauncherWait = 16;
+constexpr std::u8string_view kLogSeparator =
+    u8"=========================================================================";  // the first line of the error log
 constexpr int kEffectsOffFlag = GameState::PlainScreen;
 constexpr int kMinimumTileCache = 0x400000;
 constexpr int kMaximumTileCache = 0x1000000;
@@ -151,6 +153,114 @@ u32 MouseKeys(SDL_MouseButtonFlags buttons)
 
 }  // namespace
 
+// The dynamic initializers of the original's global objects: each constructs its object and registers the destructor
+// with atexit. Here the objects are members of the game, constructed and destroyed with it; the ones nothing uses are
+// not made.
+// swd32.exe 0x00401000: MemMgr (0x004B6C78), used by nothing: not made
+// swd32.exe 0x00401010
+// swd32.exe 0x00401020
+// swd32.exe 0x00401030
+// swd32.exe 0x00401040: the Miles startup (0x004A9AC8): AudioManager::system
+// swd32.exe 0x00401050
+// swd32.exe 0x00401060
+// swd32.exe 0x00401070
+// swd32.exe 0x00401080: the sound effects (0x004C8450): AudioManager::effects
+// swd32.exe 0x00401090
+// swd32.exe 0x004010A0
+// swd32.exe 0x004010B0
+// swd32.exe 0x004010C0: the MIDI player (0x004B7EB8): AudioManager::midi
+// swd32.exe 0x004010D0
+// swd32.exe 0x004010E0
+// swd32.exe 0x004010F0
+// swd32.exe 0x00401100: the music stream player (0x004C9288): AudioManager::streams
+// swd32.exe 0x00401110
+// swd32.exe 0x00401120
+// swd32.exe 0x00401130
+// swd32.exe 0x00401140: the music queue (0x004BA6E8): AudioManager::queue
+// swd32.exe 0x00401150
+// swd32.exe 0x00401160
+// swd32.exe 0x00401170
+// swd32.exe 0x00401180: the head of the script objects (0x004AC990, an object of its own): Scene::objects
+// swd32.exe 0x00401190
+// swd32.exe 0x004011B0
+// swd32.exe 0x004011C0
+// swd32.exe 0x004011D0: the 20-pixel font (0x004AB998): largeFont
+// swd32.exe 0x004011E0
+// swd32.exe 0x004011F0
+// swd32.exe 0x00401200
+// swd32.exe 0x00401210: the 16-pixel font (0x004C9A28): mediumFont
+// swd32.exe 0x00401220
+// swd32.exe 0x00401230
+// swd32.exe 0x00401240
+// swd32.exe 0x00401250: the 12-pixel font (0x004A9ED0): smallFont
+// swd32.exe 0x00401260
+// swd32.exe 0x00401270
+// swd32.exe 0x00401280
+// swd32.exe 0x00401290: the file of maps.dat (0x004B74A0): GameDatabases::maps
+// swd32.exe 0x004012A0
+// swd32.exe 0x004012B0
+// swd32.exe 0x004012C0
+// swd32.exe 0x004012D0: the file of HUGE.lmf (0x004B8868): MapCache::lmf
+// swd32.exe 0x004012E0
+// swd32.exe 0x004012F0
+// swd32.exe 0x00401300
+// swd32.exe 0x00401310: a file (0x004CAD50) used by nothing: not made
+// swd32.exe 0x00401320
+// swd32.exe 0x00401330
+// swd32.exe 0x00401340
+// swd32.exe 0x00401350: the file of path.dat (0x004B9F18): GameDatabases::paths
+// swd32.exe 0x00401360
+// swd32.exe 0x00401370
+// swd32.exe 0x00401380
+// swd32.exe 0x00401390: the file of the story (0x004A98C8): GameDatabases::story
+// swd32.exe 0x004013A0
+// swd32.exe 0x004013B0
+// swd32.exe 0x004013C0
+// swd32.exe 0x004013D0: the file of the mapped unit (0x004CAA28): MapCache::unitFile
+// swd32.exe 0x004013E0
+// swd32.exe 0x004013F0
+// swd32.exe 0x00401400
+// swd32.exe 0x00401410: a file (0x004B7AD0) used by nothing: not made
+// swd32.exe 0x00401420
+// swd32.exe 0x00401430
+// swd32.exe 0x00401440
+// swd32.exe 0x00401450: the file of the map movies (0x004A9380): FieldView::file
+// swd32.exe 0x00401460
+// swd32.exe 0x00401470
+// swd32.exe 0x00401480
+// swd32.exe 0x00401490: the DirectDraw wrapper (0x004AB870, no destructor registered): graphics
+// swd32.exe 0x004014A0
+// swd32.exe 0x004014B0: the DirectInput object (0x004B8748): input
+// swd32.exe 0x004014C0
+// swd32.exe 0x004014D0
+// swd32.exe 0x004014E0
+// swd32.exe 0x004272C0: a file (0x004CF6E0) used by nothing: not made
+// swd32.exe 0x004272D0
+// swd32.exe 0x004272E0
+// swd32.exe 0x004272F0
+// swd32.exe 0x004517A0: the ten battle roles (0x005029D0, by the vector constructor and destructor iterators):
+// battleRoles
+// swd32.exe 0x004517B0
+// swd32.exe 0x004517D0
+// swd32.exe 0x004517E0
+// swd32.exe 0x00451800: the eight enemies (0x00525508): battleEnemies
+// swd32.exe 0x00451810
+// swd32.exe 0x00451830
+// swd32.exe 0x00451840
+// swd32.exe 0x00451860: a battle unit (0x00521598) used by nothing: not made
+// swd32.exe 0x00451870
+// swd32.exe 0x00451880
+// swd32.exe 0x00451890
+// swd32.exe 0x004518A0: the battle's projector (0x0053B0B8, released at exit): BattleState::projector
+// swd32.exe 0x004518B0
+// swd32.exe 0x004518C0
+// swd32.exe 0x004518D0
+// swd32.exe 0x004518E0: battle.ffd's reader (0x004FF5B8, no destructor registered): BattleState::file
+// swd32.exe 0x004518F0
+// swd32.exe 0x00451900: a file (0x00521538) used by nothing: not made
+// swd32.exe 0x00451910
+// swd32.exe 0x00451920
+// swd32.exe 0x00451930
 Game::Game(std::string installDirectory)
     : screen(Display::Width, Display::Height),
       inputDevice(this->display),
@@ -203,11 +313,26 @@ Game::Game(std::string installDirectory)
     this->glyphs.Load(GlyphLibraryPath());
 }
 
-// swd32.exe 0x00409EC0: creates the window, sends itself the start message and runs the message loop
-int Game::Run()
+// swd32.exe 0x00409EC0: an installation's command line is handled alone; otherwise creates the window (WM_CREATE ends
+// it when the start check fails), sends itself the start message and runs the message loop: the frames while the game
+// runs, the pause banner while F8 holds it. The original first leaves when a window of its class is open already.
+int Game::Run(std::string_view commandLine)
 {
+    if (this->InstallFromCommandLine(commandLine))
+    {
+        return 0;
+    }
+
+    ErrorLog(kLogSeparator);
+
     if (!this->display.Open(Utf8Chars(Game::WindowTitle)))
     {
+        return 0;
+    }
+
+    if (Game::CheckStart() == 0)
+    {
+        this->Destroy();
         return 0;
     }
 
@@ -223,6 +348,11 @@ int Game::Run()
         while (SDL_PollEvent(&event))
         {
             this->HandleEvent(event);
+        }
+
+        if (this->quit)
+        {
+            break;
         }
 
         if (this->state.GameFlag(GameState::TextBox) != SDL_TextInputActive(this->display.Window()))
@@ -246,6 +376,10 @@ int Game::Run()
         {
             this->MainFrame();
         }
+        else if (this->running == 0 && this->active == 1)
+        {
+            this->DrawPauseBanner();
+        }
 
         if (this->active == 0)
         {
@@ -262,8 +396,11 @@ int Game::Run()
 // the launcher, then the display for a new or continued game
 void Game::Start()
 {
+    LogInfo(u8"start install_directory=%s", AsUtf8(this->config.installDirectory));
+
     if (!this->resources.Open(Concat({this->config.installDirectory, Game::Executable})))
     {
+        LogError(u8"swd32.exe not readable in %s", AsUtf8(this->config.installDirectory));
         this->errors.ShowError(u8"swd3r", u8"swd32.exe not found in the game directory");
         this->quit = true;
         return;
@@ -279,7 +416,20 @@ void Game::Start()
         this->state.SetGameFlag(Launcher::SavedGameFlag);
     }
 
-    switch (this->RunLauncher())
+    LogInfo(
+        u8"installation cd_root=%s install_type=%d sound=%d music=%d cache=%d text_speed=%d battle_speed=%d",
+        AsUtf8(this->config.cdRoot),
+        static_cast<i32>(this->config.installType),
+        this->config.soundVolume,
+        this->config.musicVolume,
+        this->config.cacheSize,
+        this->config.textSpeed,
+        this->config.battleSpeed
+    );
+    const Launcher::Choice choice = this->RunLauncher();
+    LogInfo(u8"launcher choice=%d", static_cast<i32>(choice));
+
+    switch (choice)
     {
         case Launcher::Choice::Continue:
             this->StartGraphics();
@@ -305,9 +455,23 @@ void Game::Start()
     }
 }
 
-// WM_DESTROY sent to the main window.
+// WM_DESTROY sent to the main window (part of 0x0040A0D0): the game released when it ran (flag 1) or a quit was asked;
+// the message loop ends.
 void Game::Destroy()
 {
+    if (this->quit)
+    {
+        return;
+    }
+
+    const bool release = this->state.GameFlag(GameState::Running) || (this->systemFlags & Game::QuitRequested) != 0;
+    LogInfo(u8"window destroyed release=%d", release ? 1 : 0);
+
+    if (release)
+    {
+        this->ReleaseGame();
+    }
+
     this->quit = true;
 }
 
@@ -1473,6 +1637,20 @@ void Game::HandleEvent(const SDL_Event& event)
     {
         this->Destroy();
         return;
+    }
+
+    // WM_SIZE and WM_ACTIVATEAPP: while the game runs, a minimised or deactivated window makes it inactive and a
+    // restored or activated one active again (Alt+Enter toggles the full screen instead of this).
+    if (this->state.GameFlag(GameState::Running))
+    {
+        if (event.type == SDL_EVENT_WINDOW_MINIMIZED || event.type == SDL_EVENT_WINDOW_FOCUS_LOST)
+        {
+            this->Activate(0);
+        }
+        else if (event.type == SDL_EVENT_WINDOW_RESTORED || event.type == SDL_EVENT_WINDOW_FOCUS_GAINED)
+        {
+            this->Activate(1);
+        }
     }
 
     if (this->display.HandleEvent(event))

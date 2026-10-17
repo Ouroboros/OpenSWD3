@@ -100,7 +100,9 @@ bool File::Open(std::string_view name, Disposition disposition, Access access)
 
     if (this->file == nullptr)
     {
-        this->SetError(std::strerror(errno));
+        const int failure = errno;
+        this->SetError(std::strerror(failure));
+        LogDebug(u8"open failed %s: %s", AsUtf8(path), AsUtf8(std::strerror(failure)));
         return false;
     }
 

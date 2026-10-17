@@ -399,7 +399,7 @@ void Game::LeaveSaveScreen()
     this->FreeSavePreviews();
 }
 
-// The three previews freed (inline in the original, 0x004099C0 three times).
+// swd32.exe 0x00406E00: the three previews freed (0x004099C0 three times)
 void Game::FreeSavePreviews()
 {
     for (SavePreview& preview : this->saveSlots.previews)

@@ -303,6 +303,8 @@ bool Game::PlayVideo(std::size_t& cursor, u16& pc)
         }
     }
 
+    LogInfo(u8"video %s", AsUtf8(path));
+
     this->movie.Close();
     this->movie.Open(path, this->config.musicVolume * Movie::MaxVolume / Config::MaxVolume);
     this->systemFlags |= Game::VideoPlaying;
