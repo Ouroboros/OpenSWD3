@@ -363,6 +363,7 @@ public:
     i16 HitDamage(BattleServices& services, BattleUnit& target, i16& spiritDamage, i16& staminaDamage);
     void DrawAction(BattleServices& services, const BattleUnit& target, ActState& act);
     void AimAction(BattleServices& services, BattleUnit& target, ActState& act, i16 shiftX, i16 shiftY);
+    int DrawRecoil(BattleServices& services, ActState& act, i16 y);
     int FlyAct(
         BattleServices& services,
         const BattleUnit& target,
@@ -491,7 +492,7 @@ public:
     std::array<std::array<i16, DamageDigits>, MaxTargets> unk283C = {};       // +0x283C
     std::array<i16, GuardLetters> guardPhases = {};  // +0x2884 the pop phases of the four letters of the guard text
     u16 unk2954 = 0;
-    u16 unk2956 = 0;
+    i16 recoilTint = 0;  // +0x2956 the tint of a waiting recoil act, darkening to its end (DrawRecoil)
     u16 unk2958 = 0;
     std::array<u16, MaxTargets> unk295A = {};  // +0x295A
     i16 guardRise = 0;                         // +0x29A0

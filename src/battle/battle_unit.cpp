@@ -1295,6 +1295,8 @@ constexpr int kShadowShare = 3;    // the shadow is a third of the picture heigh
 constexpr std::size_t kShadowShearShift = 2;
 constexpr int kShadowTint = -6;
 constexpr int kInvisibleShadowTint = -1;
+constexpr i16 kRecoilFadeEnd = -0x20;  // DrawRecoil: the tint at which a waiting recoil act is over
+constexpr i16 kRecoilFadeStep = 2;
 constexpr u16 kEffectIcons = 0x241D;
 
 // The value of a skill script: the word at +0xE.
@@ -3873,5 +3875,89 @@ void BattleUnit::AimAction(BattleServices& services, BattleUnit& target, ActStat
         act.target = 0;
         target.RaiseFlag26B8();
     }
+}
+
+// swd32.exe 0x00483B30: one frame of the recoil act `act` at the place DrawAction drew the unit's act, `y` lower (the
+// act measured from its anchor, mirrored by the facing like the unit). Its sound pans to the unit's side of the
+// screen. Once the act waits, it is drawn tinted by recoilTint, darkening by 2 a frame (not while held) until it
+// reaches kRecoilFadeEnd: then recoilTint is cleared and 1 tells that the recoil is over.
+int BattleUnit::DrawRecoil(BattleServices& services, ActState& act, i16 y)
+{
+    if (services.acts.Run(act) == 0)
+    {
+        return 0;
+    }
+
+    this->picture = services.archive.GetPicture(act.frame, act.picture);
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+    services.audio.SetSoundPan(act.view, static_cast<i16>(this->actX) >= kPanCentre ? kFadePan : -kFadePan);
+    act.view = 0;
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->picture == nullptr)
+    {
+        return 0;
+    }
+
+    this->unk26A4 = act.flags;
+    this->aimOffsetX = static_cast<u16>(act.x);
+
+    auto mirror = [this, &act]
+    {
+        this->unk26A4 ^= Painter::Mirror;
+
+        if (act.x != 0)
+        {
+            this->aimOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
+        }
+    };
+
+    if ((this->unk2B00 == 1 || this->unk2B04 == 1) && this->facing == 1)
+    {
+        mirror();
+    }
+
+    if (this->facing == 1 && this->unk2B00 == 0 && this->unk2B04 == 0)
+    {
+        mirror();
+    }
+
+    Painter& painter = services.painter;
+    painter.SetSource(this->picture->data.data());
+    const int drawX =
+        static_cast<i16>(this->actAnchorX) - static_cast<i16>(this->aimOffsetX) + static_cast<i16>(this->actX);
+    const int drawY = static_cast<i16>(this->actY) - act.y + y;
+
+    if (act.waiting != 1)
+    {
+        if ((this->unk26A4 & ActState::Signal) != 0)
+        {
+            painter.Options().alpha = act.signal;
+        }
+
+        painter.DrawPicture(drawX, drawY, this->picture->width, this->picture->height, this->unk26A4);
+        painter.Options().alpha = 0;
+        return 0;
+    }
+
+    if (this->recoilTint <= kRecoilFadeEnd)
+    {
+        this->recoilTint = 0;
+        return 1;
+    }
+
+    DrawOptions& options = painter.Options();
+    options.tintRed = this->recoilTint;
+    options.tintGreen = this->recoilTint;
+    options.tintBlue = this->recoilTint;
+    painter.DrawPicture(drawX, drawY, this->picture->width, this->picture->height, this->unk26A4);
+    this->recoilTint = static_cast<i16>(this->recoilTint - kRecoilFadeStep);
+
+    if (this->held == 1)
+    {
+        this->recoilTint = static_cast<i16>(this->recoilTint + kRecoilFadeStep);
+    }
+
+    return 0;
 }
 }  // namespace swd3
