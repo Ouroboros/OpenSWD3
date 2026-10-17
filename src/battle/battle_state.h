@@ -395,6 +395,7 @@ public:
     std::array<i32, Units> unk5241B4 = {};  // per slot: the spirit damage of the last hit
     std::array<i32, Units> unk524220 = {};  // per slot: the stamina damage of the last hit
     std::array<i32, Units> unk52411C = {};  // per slot: 1 while the hit fades (FadeHitAct)
+    i32 unk4FE5C8 = 0;                      // the frames of a hit act on a whole side (Game::HitAllFrame)
     i32 unk4A7564 = -1;                     // the enemy the auto battle aims at (1-based), -1: none
     u16 unk4A7644 = 0xFFFF;                 // a role unit that may take the panel in any battle state (SelectRoleUnit)
     i32 unk4A7548 = 1;                      // the command chosen in the menu (1-based)

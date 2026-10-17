@@ -290,6 +290,12 @@ private:
     void RippleHitFrame(BattleUnit& target, BattleUnit& attacker, int index, u16& targetX);
     bool DrawHitPicture(BattleUnit& target, BattleUnit& attacker, u32 act, int index, u16& x, u16& y, int& originX);
     void TakeHitBits(BattleUnit& target, BattleUnit& attacker, int index);
+    int HitAllFrame(BattleUnit& target, BattleUnit& attacker, u32 act, int index, int all);
+    void PlaceAllHit(BattleUnit& attacker, int width, int index, u16& delay);
+    void NudgeAllHit(BattleUnit& target, BattleUnit& attacker, int all);
+    void RaiseAllHit(BattleUnit& target, int all);
+    void ShowAllHitDigits(BattleUnit& unit, i16 damage, u16& delay, i32& spirit, i32& stamina);
+    void StrikeAllHit(BattleUnit& target, BattleUnit& attacker, int index, int all, u16& delay);
     void DrawRolePanels();
     template <typename Next>
     void StepPanelGauge(i32& shown, i32& target, Next next, int picture, int x, int y, i32 downNear, i32 downFar);

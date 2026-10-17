@@ -37,6 +37,10 @@ constexpr u16 kHitNudgeFrames = 0x1E;
 constexpr std::array<std::pair<u16, u16>, 3> kHitNudges = {{{0x1000, 1}, {0x2000, 2}, {0x4000, 3}}};
 constexpr i32 kMaxHitDamage = 0x270F;
 constexpr u16 kDigitsDelay = 8;
+constexpr int kAllHitLeftX = 0xA0;  // HitAllFrame: the place of a picture without an anchor
+constexpr int kAllHitRightX = 0x1E0;
+constexpr int kAllHitY = 0xEB;
+constexpr u16 kAllHitNudge = 0x1000;
 
 }  // namespace
 
@@ -862,5 +866,522 @@ void Game::TakeHitBits(BattleUnit& target, BattleUnit& attacker, int index)
     battle.hitDamage = battle.unk5242B0[at];
     battle.unk52411C[at] = 0;
     hit.target = 0;
+}
+
+// swd32.exe 0x00458DE0: one frame of the hit act `act` of `attacker` on `target` or, with `all` 1, on its whole side
+// (unit slot `index`); 1 once the hit act waits with no follow act left (the follow act cleared), 0 when an act ends.
+// The picture is read straight from its file (counting unk4FE5C8), placed at the attacker's offset from its origin less
+// the act's anchor, or on a fixed place by the side (kAllHitLeftX, kAllHitRightX, kAllHitY: an enemy attacker
+// unmirrored keeps y 0), walking along y 0 for a moving attack. The follow act clears the hit act's sound instead of
+// its own (kept). The target bits work as in HitTargetFrame, on every unit of the side with `all`: the roles hit by
+// a role while unk53BF64 and unk53AE7C take the damage at once (Damage), as do all roles while unk53BF68; the spirit
+// and stamina of a hit are cleared after their digits (so the slots record 0 for them), and the digit delay of the
+// enemies runs on from the walk speed without a reset (kept).
+int Game::HitAllFrame(BattleUnit& target, BattleUnit& attacker, u32 act, int index, int all)
+{
+    BattleState& battle = this->battleState;
+    Painter& painter = this->painter;
+    const auto at = static_cast<std::size_t>(index);
+    ActState& hit = battle.unk5202A8[at];
+    ActState& follow = battle.unk4FE600[at];
+    u16 delay = 0;
+    battle.lastDamage = 0;
+
+    if (hit.waiting == 0)
+    {
+        hit.id = static_cast<i32>(act);
+        hit.action = 0;
+        hit.hold = 0;
+
+        if (battle.paused == 1)
+        {
+            hit.hold = 1;
+        }
+
+        if (this->acts.Run(hit) == 0)
+        {
+            return 0;
+        }
+
+        const std::unique_ptr<Picture> picture = this->archive.LoadPictureDirect(hit.frame, hit.picture);
+        this->audio.PlaySound(hit.view, this->config.soundVolume);
+        hit.view = 0;
+
+        // A picture that does not load is read through a null pointer in the original.
+        if (picture != nullptr)
+        {
+            painter.SetSource(picture->data.data());
+        }
+
+        this->PlaceAllHit(attacker, picture != nullptr ? picture->width : 0, index, delay);
+        u32 flags = hit.flags;
+
+        if (attacker.kind == 0)
+        {
+            flags ^= Painter::Mirror;
+        }
+
+        if (battle.mirrored == 1)
+        {
+            flags ^= Painter::Mirror;
+        }
+
+        if (picture != nullptr)
+        {
+            painter.DrawPicture(battle.unk53BDE0, battle.unk53BDE4, picture->width, picture->height, flags);
+        }
+
+        ++battle.unk4FE5C8;
+        battle.darkBlue = static_cast<i16>(hit.blue);
+        battle.darkRed = static_cast<i16>(hit.red);
+        battle.darkGreen = static_cast<i16>(hit.green);
+        battle.unk53BF94 = 1;
+        battle.unk53BF98 = 1;
+        this->PrepareDarkenedCopies();
+    }
+
+    if (battle.unk4FF0BC[at] == 1)
+    {
+        follow.id = hit.effectA;
+        follow.action = hit.effectQ;
+
+        if (this->acts.Run(follow) == 0)
+        {
+            return 0;
+        }
+
+        if (follow.target != 0)
+        {
+            hit.target = follow.target;
+            follow.target = 0;
+        }
+
+        const std::unique_ptr<Picture> picture = this->archive.LoadPictureDirect(follow.frame, follow.picture);
+        this->audio.PlaySound(follow.view, this->config.soundVolume);
+        u32 flags = follow.flags;
+        hit.view = 0;
+
+        if (attacker.kind == 0)
+        {
+            flags ^= Painter::Mirror;
+        }
+
+        if (picture != nullptr)
+        {
+            painter.SetSource(picture->data.data());
+            painter.DrawPicture(battle.unk53BDE0, battle.unk53BDE4, picture->width, picture->height, flags);
+        }
+
+        if (follow.waiting == 1)
+        {
+            battle.unk4FF0BC[at] = 0;
+        }
+    }
+
+    if ((hit.target & ActState::Recoils) != 0)
+    {
+        battle.unk4FF0BC[at] = 1;
+        hit.target = 0;
+    }
+
+    if ((hit.target & ActState::Quakes) != 0)
+    {
+        battle.quaking = 1;
+        battle.quakePhase = 0;
+    }
+
+    if ((hit.target & ActState::FollowsUp) != 0)
+    {
+        if ((hit.target & kAllHitNudge) != 0)
+        {
+            hit.target = static_cast<u16>(hit.target & ~kAllHitNudge);
+            this->NudgeAllHit(target, attacker, all);
+        }
+
+        if ((hit.target & ActState::FadesField) != 0)
+        {
+            battle.StartFieldFade(
+                static_cast<i16>(hit.lights[0]),
+                static_cast<i16>(hit.lights[1]),
+                static_cast<i16>(hit.lights[2]),
+                static_cast<i16>(hit.lights[3]),
+                static_cast<i16>(hit.lights[4]),
+                static_cast<i16>(hit.lights[5]),
+                static_cast<i16>(hit.lights[6])
+            );
+            hit.target = static_cast<u16>(hit.target & ~ActState::FadesField);
+            battle.fadingField = 1;
+        }
+    }
+
+    if ((hit.target & ActState::UnkTarget4) != 0)
+    {
+        this->RaiseAllHit(target, all);
+        hit.target = 0;
+    }
+
+    if ((hit.target & (ActState::Strikes | ActState::UnkTarget10)) != 0)
+    {
+        this->StrikeAllHit(target, attacker, index, all, delay);
+        hit.target = 0;
+    }
+
+    if (battle.unk53AE7A > 0)
+    {
+        battle.darkenByTint = 1;
+
+        if (this->PushUnits(hit.picture, hit.waiting) == 0)
+        {
+            return 0;
+        }
+    }
+
+    if (hit.waiting != 1 || battle.unk4FF0BC[at] != 0)
+    {
+        return 0;
+    }
+
+    if (battle.unk53AE7A > 0)
+    {
+        this->PushUnits(hit.picture, 1);
+    }
+
+    battle.unk4FE5C8 = 0;
+    follow = ActState{};
+    battle.unk4FF0BC[at] = 0;
+    return 1;
+}
+
+// The place of the picture of HitAllFrame (inline in the original); see there. `delay` takes the walk speed of a
+// moving attack, which walks along y 0 from the attacker (slot 0 counts the walk); reaching the end strikes and ends
+// the act.
+void Game::PlaceAllHit(BattleUnit& attacker, int width, int index, u16& delay)
+{
+    BattleState& battle = this->battleState;
+    ActState& hit = battle.unk5202A8[static_cast<std::size_t>(index)];
+    u16 offsetX = 0;
+    u16 offsetY = 0;
+    u16 x = 0;
+    u16 y = 0;
+    attacker.GetOffset(offsetX, offsetY);
+
+    if (offsetX != 0 && offsetY != 0)
+    {
+        attacker.GetOrigin(x, y);
+        x = static_cast<u16>(x + offsetX);
+        y = static_cast<u16>(y + offsetY);
+    }
+
+    int originX = hit.x;
+    u16 anchorX = hit.anchorX;
+
+    if (attacker.kind == 0)
+    {
+        if (originX != 0)
+        {
+            originX = width - hit.x;
+        }
+
+        if (hit.anchorX != 0)
+        {
+            anchorX = static_cast<u16>(width - hit.anchorX);
+        }
+    }
+
+    if (battle.mirrored == 1)
+    {
+        if (originX != 0)
+        {
+            originX = width - hit.x;
+        }
+
+        if (hit.anchorX != 0)
+        {
+            anchorX = hit.anchorX;
+        }
+    }
+
+    if (anchorX != 0 || hit.anchorY != 0)
+    {
+        if (x != 0 || y != 0)
+        {
+            x = static_cast<u16>(x - anchorX);
+            y = static_cast<u16>(y - hit.anchorY);
+        }
+    }
+    else
+    {
+        x = 0;
+        y = 0;
+
+        if (battle.mirrored == 1)
+        {
+            x = static_cast<u16>(Display::Width - width);
+        }
+
+        if (originX != 0)
+        {
+            const bool leftSide = (attacker.kind != 0) != (battle.mirrored == 1);
+            x = static_cast<u16>((leftSide ? kAllHitLeftX : kAllHitRightX) - originX);
+
+            if (attacker.kind != 0 || battle.mirrored == 1)
+            {
+                y = static_cast<u16>(kAllHitY - static_cast<u16>(hit.y));
+            }
+
+            if (attacker.kind == 0 && battle.mirrored == 1)
+            {
+                x = static_cast<u16>(kAllHitLeftX - static_cast<u16>(hit.x));
+            }
+        }
+    }
+
+    battle.unk53BDE0 = static_cast<i16>(x);
+    battle.unk53BDE4 = static_cast<i16>(y);
+
+    if (attacker.CommandTarget(delay) != 1)
+    {
+        return;
+    }
+
+    u16 fromX = 0;
+    u16 fromY = 0;
+    attacker.GetDrawPosition(fromX, fromY);
+    fromX = static_cast<u16>(fromX - originX);
+
+    if (x == 0)
+    {
+        x = static_cast<u16>(-originX);
+    }
+
+    if (this->WalkLine(
+            battle.unk53BDE0,
+            battle.unk53BDE4,
+            static_cast<i16>(fromX),
+            0,
+            static_cast<i16>(x),
+            0,
+            delay,
+            0
+        ) == 1)
+    {
+        hit.target |= ActState::Strikes;
+        hit.waiting = 1;
+    }
+}
+
+// The nudge of HitAllFrame (inline in the original): with `all` every enemy (a role attacking) or every role,
+// otherwise the target.
+void Game::NudgeAllHit(BattleUnit& target, BattleUnit& attacker, int all)
+{
+    BattleState& battle = this->battleState;
+
+    if (all != 1)
+    {
+        target.SetNudge(kHitNudgeFrames, 1);
+        return;
+    }
+
+    if (attacker.kind == 1)
+    {
+        for (u32 index = 0; index < battle.enemyCount; ++index)
+        {
+            this->battleEnemies[index].SetNudge(kHitNudgeFrames, 1);
+        }
+
+        return;
+    }
+
+    for (u32 index = 0; index < battle.roleCount; ++index)
+    {
+        this->battleRoles[index].SetNudge(kHitNudgeFrames, 1);
+    }
+}
+
+// The flag 26B8 of HitAllFrame (inline in the original): with `all` every role in battle standing (while
+// unk53BF68) or every enemy standing, otherwise the target.
+void Game::RaiseAllHit(BattleUnit& target, int all)
+{
+    BattleState& battle = this->battleState;
+
+    if (all != 1)
+    {
+        target.RaiseFlag26B8();
+        return;
+    }
+
+    if (battle.unk53BF68 == 1)
+    {
+        for (u32 index = 0; index < battle.roleCount; ++index)
+        {
+            BattleRole& role = this->battleRoles[index];
+
+            if (role.unk2B00 != 1 && role.unk2B04 != 1 && !role.IsDefeated())
+            {
+                role.RaiseFlag26B8();
+            }
+        }
+
+        return;
+    }
+
+    for (u32 index = 0; index < battle.enemyCount; ++index)
+    {
+        BattleEnemy& enemy = this->battleEnemies[index];
+
+        if (!enemy.IsDefeated())
+        {
+            enemy.RaiseFlag26B8();
+        }
+    }
+}
+
+// The digits of one hit of HitAllFrame (inline in the original): the damage capped at kMaxHitDamage (none for -1),
+// then the spirit and stamina digits each kDigitsDelay later, those two cleared once shown. The spirit and stamina
+// left are returned.
+void Game::ShowAllHitDigits(BattleUnit& unit, i16 damage, u16& delay, i32& spirit, i32& stamina)
+{
+    BattleState& battle = this->battleState;
+    battle.lastDamage = damage;
+
+    if (battle.lastDamage >= kMaxHitDamage)
+    {
+        battle.lastDamage = kMaxHitDamage;
+    }
+
+    if (battle.lastDamage == -1)
+    {
+        battle.lastDamage = 0;
+    }
+    else
+    {
+        unit.SetDamageDigits(this->battleServices, battle.lastDamage);
+        unit.StepTargetCount(1);
+        delay = static_cast<u16>(delay + kDigitsDelay);
+    }
+
+    if (battle.spiritDamage != 0)
+    {
+        unit.PushTarget(BattleUnit::SpiritGainTarget);
+        unit.SetDamageDigits(this->battleServices, battle.spiritDamage);
+        unit.PushTargetAlt(delay);
+        unit.StepTargetCount(1);
+        delay = static_cast<u16>(delay + kDigitsDelay);
+        battle.spiritDamage = 0;
+    }
+
+    if (battle.staminaDamage != 0)
+    {
+        unit.PushTarget(BattleUnit::StaminaGainTarget);
+        unit.SetDamageDigits(this->battleServices, battle.staminaDamage);
+        unit.PushTargetAlt(delay);
+        unit.StepTargetCount(1);
+        battle.staminaDamage = 0;
+    }
+
+    spirit = battle.spiritDamage;
+    stamina = battle.staminaDamage;
+}
+
+// The strike of HitAllFrame (inline in the original); see there.
+void Game::StrikeAllHit(BattleUnit& target, BattleUnit& attacker, int index, int all, u16& delay)
+{
+    BattleState& battle = this->battleState;
+    ActState& hit = battle.unk5202A8[static_cast<std::size_t>(index)];
+    i32 spirit = 0;
+    i32 stamina = 0;
+
+    if (all != 1)
+    {
+        if ((hit.target & ActState::Strikes) != 0)
+        {
+            target.RaiseFlag26B8();
+            battle.quakePhase = 0;
+        }
+
+        const i16 damage =
+            attacker.kind == 1
+                ? attacker.HitDamage(this->battleServices, target, battle.spiritDamage, battle.staminaDamage)
+                : attacker.EnemyHitDamage(this->battleServices, target);
+        delay = 0;
+        this->ShowAllHitDigits(target, damage, delay, spirit, stamina);
+        battle.hitDamage += battle.lastDamage;
+        return;
+    }
+
+    if ((battle.unk53BF64 == 1 && battle.unk53AE7C == 1) || battle.unk53BF68 == 1)
+    {
+        for (u32 slot = 0; slot < battle.roleCount; ++slot)
+        {
+            BattleRole& role = this->battleRoles[slot];
+
+            if (role.unk2B00 == 1 || role.unk2B04 == 1 || role.StatusBit13() == 1)
+            {
+                continue;
+            }
+
+            i16 damage = 0;
+
+            if (battle.unk53BF68 != 1)
+            {
+                damage = attacker.HitDamage(this->battleServices, role, battle.spiritDamage, battle.staminaDamage);
+            }
+            else
+            {
+                if (role.IsDefeated())
+                {
+                    continue;
+                }
+
+                if ((hit.target & ActState::Strikes) != 0)
+                {
+                    role.RaiseFlag26B8();
+                }
+
+                damage = attacker.EnemyHitDamage(this->battleServices, role);
+            }
+
+            delay = 0;
+            this->ShowAllHitDigits(role, damage, delay, spirit, stamina);
+            battle.unk5242B0[slot] += battle.lastDamage;
+            battle.unk5241B4[slot] = spirit;
+            battle.hitDamage = battle.unk5242B0[slot];
+            battle.unk524220[slot] = stamina;
+
+            if (battle.unk53BF64 == 1 && battle.unk53AE7C == 1)
+            {
+                role.Damage(
+                    this->battleServices,
+                    battle.unk5242B0[slot],
+                    static_cast<i16>(spirit),
+                    static_cast<i16>(stamina)
+                );
+            }
+        }
+
+        return;
+    }
+
+    for (u32 slot = 0; slot < battle.enemyCount; ++slot)
+    {
+        BattleEnemy& enemy = this->battleEnemies[slot];
+
+        if (enemy.IsDefeated())
+        {
+            continue;
+        }
+
+        if ((hit.target & ActState::Strikes) != 0)
+        {
+            enemy.RaiseFlag26B8();
+        }
+
+        const i16 damage = attacker.HitDamage(this->battleServices, enemy, battle.spiritDamage, battle.staminaDamage);
+        this->ShowAllHitDigits(enemy, damage, delay, spirit, stamina);
+        battle.unk5242B0[slot] += battle.lastDamage;
+        battle.unk5241B4[slot] = spirit;
+        battle.unk524220[slot] = stamina;
+        battle.hitDamage = battle.unk5242B0[slot];
+    }
 }
 }  // namespace swd3
