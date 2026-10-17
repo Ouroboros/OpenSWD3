@@ -1355,6 +1355,14 @@ constexpr int kNearAbove = 5;
 constexpr u16 kFarCatch = 8;
 constexpr u16 kNearCatch = 5;
 
+// HurtFrame.
+constexpr i32 kHurtAction = 0x25;
+constexpr i32 kGuardHurtAction = 0x27;
+constexpr int kHurtRed = 0xF;     // the red flash an enemy leaves behind
+constexpr int kHurtFlash = 0x10;  // the red flash over the picture
+constexpr u16 kHurtFrames = 2;    // frames a stagger step lasts
+constexpr u16 kLastHurtStep = 5;
+
 // FadeInvisible and StepAccessoryCounters.
 constexpr i16 kInvisibleFadeFrames = 0x18;
 constexpr int kShadowLeftShift = 5;
@@ -6794,5 +6802,271 @@ int BattleUnit::CatchRoll(BattleServices& services, u8 level)
     }
 
     return above >= kNearAbove && static_cast<u16>(services.random.Below(kCatchRoll)) < data.unk91 ? 1 : 0;
+}
+
+// swd32.exe 0x0047BA80: one frame of the unit staggering from a hit (hurtStep 0..5, one step every second frame not
+// held); 1 once over (hurtStep back to 1, the attack act and the targets cleared, `charging` set) or when its act
+// ends. A party role takes its hurt pose (its guard pose while guarding or marked, not held; a poisoned one the
+// hurt pose), others the shadow action. The picture shakes back by kStaggerShake (UnkStatus4 copies the main act and
+// stays), over its shadow, with a flash; an enemy also leaves a red flash behind, lifted by kStaggerRise (up with
+// unk2B10, else to the side). Its effects, overlay and a recoil effect follow.
+int BattleUnit::HurtFrame(BattleServices& services)
+{
+    Painter& painter = services.painter;
+    ActState& act = this->attackAct;
+    act.id = this->actId;
+
+    if (this->kind != 1 || this->unk2B00 != 0 || this->unk2B04 != 0)
+    {
+        act.action = kEnemyHomeAction;
+    }
+    else
+    {
+        act.action = kHurtAction;
+
+        if ((this->GetGuard() == 1 || (this->marks & BattleUnit::UnkMark1) != 0) &&
+            (this->marks & BattleUnit::Held) == 0)
+        {
+            act.action = kGuardHurtAction;
+        }
+
+        if ((this->status & BattleUnit::UnkStatus1000) != 0)
+        {
+            act.action = kHurtAction;
+        }
+    }
+
+    act.hold = 0;
+
+    if (this->held == 1)
+    {
+        act.hold = 1;
+    }
+
+    if (services.acts.Run(act) == 0)
+    {
+        return 1;
+    }
+
+    if (this->unk2AF4 == 1 && this->kind == 0)
+    {
+        act.picture = this->mainAct.picture;
+    }
+
+    if (this->guarding == 1)
+    {
+        return 1;
+    }
+
+    const bool still = (this->status & BattleUnit::UnkStatus4) != 0;
+
+    if (still)
+    {
+        act = this->mainAct;
+    }
+
+    this->shadowPicture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->shadowPicture == nullptr)
+    {
+        return 0;
+    }
+
+    const Picture& picture = *this->shadowPicture;
+    painter.SetSource(picture.data.data());
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+
+    if (act.view != 0)
+    {
+        services.audio.SetSoundPan(act.view, this->facing == 1 ? -kFadePan : kFadePan);
+    }
+
+    const std::size_t step = this->hurtStep;
+    const int placeX = this->placement.x;
+    this->unk2670 = act.x;
+    act.view = 0;
+    int y = this->placement.y - act.y;
+    const int shake = BattleUnit::StaggerShake[step];
+    int x = shake + placeX - act.x;
+
+    if (this->unk2B00 == 1)
+    {
+        if (this->facing != 0)
+        {
+            x = placeX - shake - act.x;
+        }
+        else
+        {
+            this->unk2670 = picture.width - act.x;
+            x = placeX + BattleUnit::StaggerShake[step] - this->unk2670;
+        }
+    }
+
+    if (this->facing == 1 && this->unk2B00 == 0)
+    {
+        this->unk2670 = picture.width - act.x;
+        x = placeX - BattleUnit::StaggerShake[step] - this->unk2670;
+    }
+
+    if (still)
+    {
+        x = placeX - this->unk2670;
+    }
+
+    DrawOptions& options = painter.Options();
+
+    if (this->kind == 0 && !still)
+    {
+        options.tintRed = kHurtRed;
+        options.tintGreen = 0;
+        options.tintBlue = 0;
+        this->unk26A4 = this->drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip);
+        const u32 flash = this->unk26A4 | Painter::TintUnder;
+
+        if (this->unk2B10 != 0)
+        {
+            painter.DrawPicture(
+                placeX - this->unk2670,
+                this->placement.y - BattleUnit::StaggerRise[step] - act.y,
+                picture.width,
+                picture.height,
+                flash
+            );
+            x = placeX - this->unk2670;
+            y = this->placement.y - BattleUnit::StaggerLift[step] - act.y;
+        }
+        else if (this->facing != 0)
+        {
+            painter.DrawPicture(
+                placeX + BattleUnit::StaggerRise[step] - this->unk2670,
+                this->placement.y - act.y,
+                picture.width,
+                picture.height,
+                flash
+            );
+            x = placeX + BattleUnit::StaggerLift[step] - this->unk2670;
+        }
+        else
+        {
+            painter.DrawPicture(
+                placeX - BattleUnit::StaggerRise[step] - this->unk2670,
+                this->placement.y - act.y,
+                picture.width,
+                picture.height,
+                flash
+            );
+            x = placeX - BattleUnit::StaggerLift[step] - this->unk2670;
+        }
+    }
+
+    const int shadowHeight = picture.height / kShadowShare;
+    options.scaleHeight = shadowHeight;
+    options.shear = picture.height >> kShadowShearShift;
+    const int tint = this->unk2B00 == 1 ? kInvisibleShadowTint : kShadowTint;
+    options.tintRed = tint;
+    options.tintGreen = tint;
+    options.tintBlue = tint;
+    this->unk26A4 = (this->drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+    painter.DrawPicture(x, this->placement.y - shadowHeight, picture.width, picture.height, this->unk26A4);
+    this->drawFlags &= Painter::RleSource | Painter::Mirror | Painter::Flip;
+    painter.DrawPicture(x, y, picture.width, picture.height, this->drawFlags);
+
+    if (!still && act.action != kGuardHurtAction)
+    {
+        painter.Options().tintRed = kHurtFlash;
+        painter.DrawPicture(x, y, picture.width, picture.height, this->drawFlags | Painter::TintUnder);
+    }
+
+    this->DrawEffects(services, x, y);
+
+    if (!still && act.rotation != 0 && act.actionCode != 0)
+    {
+        this->unk2554 = services.archive.GetPicture(act.rotation, static_cast<u16>(act.actionCode - 1));
+
+        if (this->unk2554 != nullptr)
+        {
+            painter.SetSource(this->unk2554->data.data());
+            painter.DrawPicture(
+                placeX + static_cast<i16>(act.offsetX) - this->unk2670,
+                this->placement.y + static_cast<i16>(act.offsetY) - act.y,
+                this->unk2554->width,
+                this->unk2554->height,
+                this->drawFlags | Painter::Additive
+            );
+        }
+    }
+
+    if ((act.target & ActState::Recoils) != 0)
+    {
+        ActState& effect = this->castAct;
+        effect.action = act.effectQ;
+        effect.id = act.effectA;
+
+        if (services.acts.Run(effect) == 0)
+        {
+            return 0;
+        }
+
+        services.audio.PlaySound(effect.view, services.config.soundVolume);
+        effect.view = 0;
+        this->picture = services.archive.GetPicture(effect.frame, effect.picture);
+
+        if (this->picture != nullptr)
+        {
+            painter.SetSource(this->picture->data.data());
+            u32 flags = effect.flags;
+            int offsetX = effect.x;
+
+            if (act.anchorX != 0)
+            {
+                this->actAnchorX = act.anchorX;
+            }
+
+            if (this->facing == 1)
+            {
+                flags ^= Painter::Mirror;
+                offsetX = this->picture->width - offsetX;
+                this->actAnchorX = static_cast<u16>(picture.width - act.anchorX);
+            }
+
+            painter.DrawPicture(
+                x + static_cast<i16>(this->actAnchorX) - offsetX,
+                y + static_cast<i16>(act.anchorY) - effect.y,
+                this->picture->width,
+                this->picture->height,
+                flags
+            );
+        }
+    }
+
+    if (this->held == 0)
+    {
+        ++this->glowPhase;
+
+        if (this->glowPhase == kHurtFrames)
+        {
+            ++this->hurtStep;
+            this->glowPhase = 0;
+        }
+    }
+
+    this->unk2AAC = 1;
+
+    if (this->hurtStep <= kLastHurtStep)
+    {
+        return 0;
+    }
+
+    services.state.unk53BF46 = 0;
+    services.state.unk53BF48 = 0;
+    this->hurtStep = 1;
+    painter.Options().shear = 0;
+    this->unk2AAC = 0;
+    this->charging = 1;
+    this->unk2B10 = 0;
+    act = ActState{};
+    this->targets.fill(BattleUnit::NoTarget);
+    return 1;
 }
 }  // namespace swd3

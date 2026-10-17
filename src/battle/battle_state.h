@@ -178,6 +178,8 @@ public:
     std::array<PendingOrder, RoleUnits> pendingOrders = {};  // 0x00520E90
     i32 unk53BF80 = 0;  // cleared when a party unit's order is taken (InsertSlotRecord)
     i32 unk53BFD0 = 0;
+    i16 unk53BF46 = 0;  // cleared when a stagger ends (HurtFrame)
+    i16 unk53BF48 = 0;
     std::array<i32, 0x12> unk4FF0BC = {};
     i32 unk525450 = 0;
     i32 unk525454 = 0;

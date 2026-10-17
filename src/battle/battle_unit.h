@@ -310,6 +310,11 @@ public:
 
     static constexpr std::size_t Trails = 8;
     static constexpr std::size_t Drains = 4;
+    // HurtFrame: the shake (0x004A7E08) and the lift of the flash (0x004A7DF0, read one entry on at 0x004A7DF4, its
+    // last entry then the bytes of the shake table: as in the original) by hurtStep.
+    static constexpr std::array<u8, 6> StaggerShake = {30, 40, 45, 47, 49, 50};
+    static constexpr std::array<i32, 6> StaggerLift = {14, -12, 10, -8, 6, -4};
+    static constexpr std::array<i32, 6> StaggerRise = {-12, 10, -8, 6, -4, 0x2F2D281E};
     // RunQueuedActions: the y offsets of a shaking queued act by its frames left (0x004A7E10).
     static constexpr std::array<i16, 8> ShakeOffsets = {-1, -3, -3, -6, -6, -3, -3, 0};
     // DefeatHop: the heights of the hop by frame (0x004A7DB4).
@@ -489,6 +494,7 @@ public:
     void StartDrainEffect(BattleServices& services, int slot, BattleUnit& source);
     int DrainEffectFrame(BattleServices& services, int slot);
     int CatchRoll(BattleServices& services, u8 level);
+    int HurtFrame(BattleServices& services);
     void DrawTrail(BattleServices& services, AfterimageTrail& trail, u16 frame, u16 picture, u32 mode, i16 x, i16 y);
     int DrawRecoil(BattleServices& services, ActState& act, i16 y);
     int FlyAct(
@@ -665,7 +671,7 @@ public:
     u16 commandB = 0;  // +0x2A70 commands 2, 3, 6, 13, 14 and 15
     u16 unk2A72 = 0;
     u16 unk2A74 = 0;
-    u16 unk2A78 = 0;
+    u16 hurtStep = 0;  // +0x2A78 the step of the stagger (HurtFrame)
     u16 unk2A76 = 0;
     u16 attackStage = 0;  // +0x2A78 1..5
     u16 unk2A7A = 0;
@@ -697,7 +703,7 @@ public:
     i32 defeated = 0;  // +0x2AB8
     i32 dying = 0;     // +0x2ABC 1 while the defeat runs (DefeatFrame)
     i32 outline = 0;   // +0x2AC0
-    i32 charging = 0;  // +0x2AC4 1: ChargeAttackFrame is in its charge
+    i32 charging = 0;  // +0x2AC4 1: ChargeAttackFrame is in its charge (also set when a stagger ends)
     i32 unk2AC8 = 0;
     i32 unk2ACC = 0;
     i32 held = 0;  // +0x2AD0

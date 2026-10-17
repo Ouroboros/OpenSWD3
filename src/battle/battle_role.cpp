@@ -1464,7 +1464,7 @@ int BattleRole::GlowAct(BattleServices& services, int x, int y)
     this->glowOffsetX = 0;
     this->glowPhase = kGlowRising;
     this->absorbFrames = 0;
-    this->unk2A78 = 0;
+    this->hurtStep = 0;
     act = ActState{};
     this->extraActs.fill(ActState{});
     return 1;

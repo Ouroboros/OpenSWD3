@@ -447,3 +447,21 @@ TEST_CASE("battle unit: the hop heights of defeat pose 50 match swd32.exe")
 
     CHECK(swd3test::SameTable(exe, kHopHeightsAt, swd3::BattleUnit::HopHeights));
 }
+
+TEST_CASE("battle unit: the stagger tables match swd32.exe")
+{
+    constexpr swd3::u32 kStaggerShakeAt = 0x004A7E08;
+    constexpr swd3::u32 kStaggerLiftAt = 0x004A7DF0;
+    constexpr swd3::u32 kStaggerRiseAt = 0x004A7DF4;
+    const std::vector<swd3::u8> exe = swd3test::ReadGameFile("swd32.exe");
+
+    if (exe.empty())
+    {
+        std::printf("  (swd32.exe not found, skipped)\n");
+        return;
+    }
+
+    CHECK(swd3test::SameTable(exe, kStaggerShakeAt, swd3::BattleUnit::StaggerShake));
+    CHECK(swd3test::SameTable(exe, kStaggerLiftAt, swd3::BattleUnit::StaggerLift));
+    CHECK(swd3test::SameTable(exe, kStaggerRiseAt, swd3::BattleUnit::StaggerRise));
+}
