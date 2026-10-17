@@ -27,6 +27,7 @@ public:
     void DrawCounter(int right, int y, u32 value, int alpha);
     void DrawGhost(ActState& state, int x, int y, int alpha);
     void DrawWithMode(ActState& state, int x, int y, u32 mode);
+    void DrawPicture(u16 file, u16 picture, int x, int y);
 
 private:
     ActArchive& acts;

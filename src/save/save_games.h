@@ -15,6 +15,7 @@ public:
 
     static std::string SlotPath(std::string_view installDirectory, int slot);
     static bool AnyExists(std::string_view installDirectory);
+    static bool IsFree(std::string_view installDirectory, int slot);
 };
 
 }  // namespace swd3

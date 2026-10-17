@@ -50,4 +50,12 @@ void SleepMilliseconds(u32 milliseconds)
     SDL_Delay(milliseconds);
 }
 
+LocalDateTime LocalTime()
+{
+    SYSTEMTIME now{};
+    ::GetLocalTime(&now);
+    const auto [year, month, dayOfWeek, day, hour, minute, second, milliseconds] = now;
+    return {year, month, day, hour, minute};
+}
+
 }  // namespace swd3

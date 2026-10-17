@@ -440,6 +440,7 @@ struct Scene
     void FreeAnimations();
     void FreeMarks();
     void ResetLeaves();
+    void ResetEffects();
     void FreeObjects();
 };
 

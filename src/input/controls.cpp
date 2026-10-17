@@ -11,6 +11,7 @@ namespace
 {
 
 constexpr int kConfirmFrames = 2;  // PressConfirm holds Space and the left button this long
+constexpr i32 kRepeatDelay = 0xA;  // Repeating: held frames before the button repeats
 
 // The key slots in the order the poll updates them (the mouse buttons follow).
 constexpr std::array<Button, 16> kPollOrder = {
@@ -129,6 +130,15 @@ int Controls::PressConfirm()
     this->At(Button::MouseLeft).heldFrames = kConfirmFrames;
     this->At(Button::Enter).heldFrames = 1;
     return kConfirmFrames;
+}
+
+// swd32.exe 0x0043C090: the button counts this frame: pressed in its first frame held, then every second frame after
+// ten
+bool Controls::Repeating(Button button) const
+{
+    const ButtonState& state = this->At(button);
+    return state.press != 0 &&
+           (state.heldFrames == 1 || (state.heldFrames > kRepeatDelay && (state.heldFrames & 1) == 0));
 }
 
 }  // namespace swd3

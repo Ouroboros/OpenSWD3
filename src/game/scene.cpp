@@ -3,6 +3,13 @@
 namespace swd3
 {
 
+namespace
+{
+
+constexpr i16 kHeatLength = 4;  // Scene::heatLengths after ResetEffects
+
+}  // namespace
+
 // swd32.exe 0x0040F500
 void Scene::FreeEffects()
 {
@@ -57,6 +64,27 @@ void Scene::ResetLeaves()
 void Scene::FreeObjects()
 {
     this->objects.reset();
+}
+
+// swd32.exe 0x00411D00: the effects of the scene ended before a game is loaded: the lists freed, the fade stopped (its
+// steps 0), the quake cleared and the heat shimmer reset (the original clears 0x100 bytes from 0x004AC9BC)
+void Scene::ResetEffects()
+{
+    this->FreeEffects();
+    this->FreeSpritesA();
+    this->FreeSpritesB();
+    this->FreeNodes();
+    this->FreeAnimations();
+    this->FreeMarks();
+    this->ResetLeaves();
+    this->fade.stepBlue = 0;
+    this->shake.fill(Scene::ShakeEnd);
+    this->fade.stepGreen = 0;
+    this->heatCounts.fill(1);
+    this->fade.stepRed = 0;
+    this->heatLengths.fill(kHeatLength);
+    this->heatFrame = 0;
+    this->heatOffsets.fill(0);
 }
 
 }  // namespace swd3

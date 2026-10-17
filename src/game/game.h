@@ -140,6 +140,36 @@ private:
     void ResetSaveSlots();
     void StartStory(int withMap);
     void LoadFameFile();
+    void SaveFameFile();
+    void SaveScreenFrame();
+    void SaveScreenKeys();
+    void FlagViewKeys();
+    void LeaveSaveScreen();
+    void FreeSavePreviews();
+    void ReloadSavePage();
+    void DrawSaveScreen();
+    void DrawFlagView();
+
+    // What the slots page does after the mouse and the keys (SaveSlotsFrame).
+    enum class SlotsStep
+    {
+        Keys,    // the keys are read, then Escape
+        Chosen,  // a slot is taken
+        Leave,   // the screen is left
+        Done,    // nothing more this frame
+    };
+
+    void SaveSlotsFrame();
+    SlotsStep SlotsMouse();
+    SlotsStep TakeSlot();
+    SlotsStep SlotsKeys();
+    void SaveGame();
+    void WriteSave(File& file);
+    std::vector<u8> PackParty() const;
+    void LoadGame();
+    void ReadSave(File& file);
+    void UnpackParty(std::span<const u8> data);
+    void DrawSlotsPage();
     void DrawTextInput(const TextInput& box);
     void MainFrame();
     void MusicCue();
@@ -465,6 +495,10 @@ private:
     SaveSlots saveSlots;
     std::unique_ptr<TextInput> textInput;  // 0x004CACD8 the text box the keyboard goes to (with flag 0x50)
     ActState unk4CC200;
+    i32 flagCursor = 0;   // 0x004CC29C the flag chosen in the flag view
+    u32 saveFrames = 0;   // 0x004CC2A4 frames since the save screen opened
+    u16 unk4CC2AA = 0;    // 0x004CC2AA
+    ActState slotsTitle;  // 0x004CC168 the title of the slots page (act 0x232A)
     u8 unk4CC160 = 0;
     u8 unk4CC161 = 0;
     i32 unk4CC298 = 0;

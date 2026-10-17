@@ -167,4 +167,18 @@ void ActDrawer::DrawWithMode(ActState& state, int x, int y, u32 mode)
         .DrawPicture(x - state.x, y - state.y, picture->width, picture->height, mode | (state.flags & 0x80000003u));
 }
 
+// swd32.exe 0x0040EC80: picture `picture` of `file` at (x, y), opaque
+void ActDrawer::DrawPicture(u16 file, u16 picture, int x, int y)
+{
+    const Picture* source = this->archive.GetPicture(file, picture);
+
+    if (source == nullptr)
+    {
+        return;
+    }
+
+    this->painter.SetSource(source->data.data());
+    this->painter.DrawPicture(x, y, source->width, source->height, 0);
+}
+
 }  // namespace swd3

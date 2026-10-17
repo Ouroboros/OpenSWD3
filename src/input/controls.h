@@ -60,6 +60,7 @@ public:
     ButtonState& At(Button button);
     const ButtonState& At(Button button) const;
     int PressConfirm();
+    bool Repeating(Button button) const;
 
     std::array<ButtonState, Buttons> buttons = {};
     i32 now = 0;              // 0x004CB224 the frame time of this poll

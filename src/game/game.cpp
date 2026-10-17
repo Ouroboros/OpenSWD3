@@ -1025,6 +1025,33 @@ void Game::LoadFameFile()
     }
 }
 
+// swd32.exe 0x00409CE0: counters 1..500 of the second fame list written to Fame.dat (0x200 words; nothing when it does
+// not open)
+void Game::SaveFameFile()
+{
+    std::array<u16, kFameWords> values = {};
+
+    for (int id = 1; id <= kFameCounters; ++id)
+    {
+        values[static_cast<std::size_t>(id)] =
+            static_cast<u16>(FindCounterValue(this->party.fame.lists[Fame::FameList], static_cast<i16>(id)));
+    }
+
+    File file;
+
+    if (file.Open(
+            Concat({this->config.installDirectory, "Fame.dat"}),
+            File::Disposition::OpenAlways,
+            File::Access::ReadWrite
+        ))
+    {
+        u32 bytes = sizeof(values);
+        file.Write(values.data(), bytes);
+    }
+
+    file.Close();
+}
+
 // swd32.exe 0x00411700: the name box (picture 0x2449) behind the text typed (a lead byte left alone shows as '@') in
 // the large font and the cursor box
 void Game::DrawTextInput(const TextInput& box)

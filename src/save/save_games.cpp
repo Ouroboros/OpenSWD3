@@ -34,4 +34,17 @@ bool SaveGames::AnyExists(std::string_view installDirectory)
     return found != 0;
 }
 
+// swd32.exe 0x004094A0: whether save `slot` does not open for reading and writing (a free slot)
+bool SaveGames::IsFree(std::string_view installDirectory, int slot)
+{
+    File file;
+    const bool free = !file.Open(
+        SaveGames::SlotPath(installDirectory, slot),
+        File::Disposition::OpenExisting,
+        File::Access::ReadWrite
+    );
+    file.Close();
+    return free;
+}
+
 }  // namespace swd3

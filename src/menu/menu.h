@@ -2,9 +2,12 @@
 
 #include <array>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "core/types.h"
+#include "item/item_list.h"
+#include "menu/menu_list.h"
 #include "res/act_state.h"
 
 namespace swd3
@@ -72,6 +75,7 @@ public:
     static constexpr int KeyLoadMode = 2;     // Ctrl+L on the map
     static constexpr int TitleLoadMode = 3;   // loading from the title or the launcher
     static constexpr int ScriptSaveMode = 4;  // talk command SaveMenu
+    static constexpr int ItemSaveMode = 5;    // the items page (0x004485F0)
     static constexpr int Tabs = 4;
     // swd32.exe 0x004A6A38: the tabs as the executable holds them.
     static constexpr std::array<MenuTab, Tabs> InitialTabs = {{
@@ -97,6 +101,8 @@ public:
     void DrawBox(int x, int y, int width, int height, int mode, int red, int green, int blue);
     void DrawPageTitle();
     void DrawRoleTabs(int offset);
+    void ItemsAfterSave(int saved);
+    void OptionsLeave();
     bool DrawNameEntry();
     void ActOnEntry();
     void DrawSettings();
@@ -181,6 +187,14 @@ public:
     i32 sampleLength = 0;          // 0x004FD2CC characters of the text speed sample shown
     std::vector<u8> enteredNames;  // 0x004FD2D0 the two names typed (0x20 bytes)
     i32 sampleDelay = 0;           // 0x004FD2D4
+
+    // The items page.
+    MenuList itemList;           // 0x004FD08C (see MenuList)
+    ItemLink itemObjects;        // 0x004FD1E8 the objects of the items page
+    ItemLink savedInventory;     // 0x004FD15C the inventory kept while the items page saves
+    ItemLink savedItems;         // 0x004FD140 `itemObjects` kept with it
+    std::string description;     // 0x004FC2A0 the description of the chosen object
+    std::vector<u16> unk4FD318;  // 0x004FD318 the options page's list
 
 private:
     void Call(Handler handler);
