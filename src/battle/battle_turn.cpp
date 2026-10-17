@@ -125,6 +125,13 @@ constexpr int kRefineBarUp = 3;
 constexpr int kRefineBarWidth = 0x6A;
 constexpr int kRefineColumnWidth = 0x70;
 constexpr std::u8string_view kNoObject = u8"無";  // swd32.exe 0x0049F9FC
+constexpr int kSpecialBoxHeight = 0xAC;           // the 絕招 list
+constexpr int kSpecialFrameBottom = 0xA8;
+constexpr std::size_t kSpecialCommandName = 3;
+constexpr u16 kSkillListEnd = 0xFFFF;
+constexpr int kSpecialRowHeight = 0x16;
+constexpr int kSpecialBarTop = 0x25;
+constexpr int kSpecialBarWidth = 0xC0;
 
 // The name of accessory command `kind`: kinds past the table read the variables after it in the original; no name
 // here.
@@ -2055,5 +2062,123 @@ void Game::DrawRefineList(int x, int y, int cursor)
 
     font.SetBackground(TextFont::NoBackground);
     battle.unk53BDF4 = static_cast<u16>(battle.unk53BDF4 + pieces);
+}
+
+// swd32.exe 0x00466500: the 絕招 list of the current role at (x, y): the panel act run on (not restarted), a darkened
+// box with a title and a body frame, then up to 7 skills of type 1 (their names kept in unk53C184, cut to its bytes:
+// the original copies the whole name over what follows); unk53BDF3 counts them. Row `cursor` (from 1) is drawn again
+// a pixel up and left under a gradient bar, and its skill index becomes unk53BD10.
+void Game::DrawSpecialList(int x, int y, int cursor)
+{
+    BattleState& battle = this->battleState;
+    BattleMessages& messages = this->battleMessages;
+    TextFont& font = this->mediumFont;
+
+    if (battle.currentUnit == 0)
+    {
+        return;
+    }
+
+    BattleRole& role = this->battleRoles[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)];
+    messages.panelAct.id = BattleMessages::PanelAct;
+    messages.panelAct.action = 0;
+    this->acts.Run(messages.panelAct);
+    FillBox(this->painter, x, y, kListBoxWidth, kSpecialBoxHeight, 0, kThrowShade, kThrowShade, FillMode::Tint);
+    DrawWindowFrame(
+        this->painter,
+        this->archive,
+        messages.panelAct.frame,
+        x + kListFrameInset,
+        y + kThrowTitleTop,
+        x + kListFrameRight,
+        y + kThrowTitleBottom,
+        0,
+        kListFrameBorder
+    );
+    DrawWindowFrame(
+        this->painter,
+        this->archive,
+        messages.panelAct.frame,
+        x + kListFrameInset,
+        y + kListFrameTop,
+        x + kListFrameRight,
+        y + kSpecialFrameBottom,
+        0,
+        kListFrameBorder
+    );
+    const std::string title = Big5(BattleState::FixedCommandNames[kSpecialCommandName]);
+    font.DrawText(this->drawSurface, x + kThrowTitleX, y + kThrowTitleTop, title, kTitleColor, TextFont::BoldOutline);
+    font.SetShadow(0);
+    font.SetBackground(TextFont::NoBackground);
+    font.SetAdvance(kListAdvance);
+    battle.unk53BDF3 = 0;
+    role.CountSkills(0, 1, battle.unk53BDF3);
+    role.ShowAllSkills();
+    int row = 0;
+
+    for (int index = 1;; ++index)
+    {
+        std::string name;
+        u16 cost = 0;
+        role.ListSkill(this->database, 0, 1, index, name, cost);
+
+        if (cost == kSkillListEnd)
+        {
+            break;
+        }
+
+        if (cost != 0)
+        {
+            battle.unk53C184 = {};
+            std::copy_n(name.begin(), std::min(name.size(), battle.unk53C184.size() - 1), battle.unk53C184.begin());
+            const std::string_view shown(battle.unk53C184.data());
+            const int rowY = y + kSpecialRowHeight * row;
+            font.DrawText(
+                this->drawSurface,
+                x + kListNameX,
+                rowY + kListFrameTop,
+                shown,
+                battle.lightColor,
+                TextFont::BoldOutline
+            );
+
+            if (cursor == row + 1)
+            {
+                font.DrawText(
+                    this->drawSurface,
+                    x + kListNameX - 1,
+                    rowY + kListFrameTop - 1,
+                    shown,
+                    battle.lightColor,
+                    TextFont::BoldOutline
+                );
+                FillBox(
+                    this->painter,
+                    x,
+                    rowY + kSpecialBarTop,
+                    kSpecialBarWidth,
+                    kListBarHeight,
+                    kListBarRed,
+                    kListBarGreen,
+                    0,
+                    FillMode::Gradient
+                );
+                font.SetBackground(TextFont::NoBackground);
+                battle.unk53BFB8 = 1;
+                battle.unk53BD10 = index;
+            }
+
+            ++row;
+        }
+
+        if (row >= kListRowsShown)
+        {
+            font.SetBackground(TextFont::NoBackground);
+            return;
+        }
+    }
+
+    role.ShowAllSkills();
+    font.SetBackground(TextFont::NoBackground);
 }
 }  // namespace swd3
