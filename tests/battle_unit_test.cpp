@@ -816,6 +816,9 @@ TEST_CASE("battle state: the initial turn and push values match swd32.exe")
     constexpr swd3::u32 kAimedEnemyAt = 0x004A7626;
     constexpr swd3::u32 kLastHitsAt = 0x004A7620;
     constexpr swd3::u32 kAutoAimAt = 0x004A7554;
+    constexpr swd3::u32 kOpeningPlacesAt = 0x004A7580;
+    constexpr swd3::u32 kPanelsArgumentAt = 0x004A7628;
+    constexpr swd3::u32 kEndFlagAt = 0x004A763C;
     constexpr swd3::u32 kPushAt = 0x004A7638;
     constexpr swd3::u32 kTurnPointerAt = 0x004A7640;
     constexpr swd3::u32 kTurnStepAt = 0x004A7550;
@@ -848,6 +851,22 @@ TEST_CASE("battle state: the initial turn and push values match swd32.exe")
         )
     );
     CHECK(swd3test::SameTable(exe, kAutoAimAt, std::array<swd3::i32, 1>{state.unk4A7554}));
+    CHECK(
+        swd3test::SameTable(
+            exe,
+            kOpeningPlacesAt,
+            std::array<swd3::i32, 6>{
+                state.unk4A7580,
+                state.unk4A7584,
+                state.unk4A7588,
+                state.unk4A758C,
+                state.unk4A7590,
+                state.unk4A7594
+            }
+        )
+    );
+    CHECK(swd3test::SameTable(exe, kPanelsArgumentAt, std::array<swd3::u16, 1>{state.unk4A7628}));
+    CHECK(swd3test::SameTable(exe, kEndFlagAt, std::array<swd3::i32, 1>{state.unk4A763C}));
     CHECK(swd3test::SameTable(exe, kPushAt, std::array<swd3::i16, 1>{state.unk4A7638}));
     CHECK(swd3test::SameTable(exe, kTurnPointerAt, std::array<swd3::i32, 1>{state.unk4A7640}));
     CHECK(swd3test::SameTable(exe, kTurnStepAt, std::array<swd3::i32, 1>{state.unk4A7550}));

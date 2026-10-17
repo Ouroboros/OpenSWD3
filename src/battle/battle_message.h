@@ -139,6 +139,7 @@ public:
     void Draw();
 
     std::unique_ptr<BattleMessage> messages;                 // 0x005214F8
+    std::array<i32, 8> unk5214FC = {};                       // cleared with messages by Game::EndBattle
     ActState panelAct;                                       // 0x004FC5B0 act 0x233B: the frame picture of the panels
     i32 panelHeight = 0;                                     // 0x0053C4BC grown by GrowPanel
     u16 lootCount = 0;                                       // 0x0053C498
