@@ -200,6 +200,9 @@ constexpr i32 kFuryFull = 0x38;
 constexpr double kFuryScale = 47.0;  // swd32.exe 0x00499D40
 constexpr u16 kFurySound = 0xBC;
 
+// Regenerate: the gains show 6 frames apart.
+constexpr u16 kRegenerateDelay = 6;
+
 // CanAbsorb.
 constexpr u16 kMaxAbsorbClass = 0x15;   // ObjectData::unk52
 constexpr int kAbsorbLevelsAbove = 12;  // a target this many levels above the role is never absorbed
@@ -3087,6 +3090,61 @@ void BattleRole::AddFury(BattleServices& services, int damage)
     {
         fury = kFuryFull;
         services.audio.PlaySound(kFurySound, services.config.soundVolume);
+    }
+}
+
+// swd32.exe 0x0046EE60: the turn's regeneration of a role still up: its armour bonuses (percent of its maxima, at
+// least 1) heal its hit points, spirit and stamina, each shown 6 frames after the one before
+void BattleRole::Regenerate(BattleServices& services)
+{
+    const RoleRecord& record = *this->roleRecord;
+
+    if ((record.unk24 & RoleRecord::Defeated) != 0)
+    {
+        return;
+    }
+
+    u16 delay = 0;
+
+    auto share = [](u16 bonus, i16 maximum)
+    {
+        const auto value = static_cast<u16>(bonus * maximum / kPercent);
+        return value == 0 ? u16{1} : value;
+    };
+
+    if (this->bonusA != 0)
+    {
+        this->unk29A6 = static_cast<u16>(-static_cast<i16>(share(this->bonusA, record.maxHitPoints)));
+        this->Damage(services, static_cast<i16>(this->unk29A6), 0, 0);
+        this->PushTarget(BattleUnit::HealTarget);
+        this->SetDamageDigits(services, static_cast<i16>(this->unk29A6));
+        this->PushTargetAlt(0);
+        this->StepTargetCount(1);
+        delay = kRegenerateDelay;
+        this->unk29A6 = 0;
+    }
+
+    if (this->bonusB != 0)
+    {
+        this->unk29A8 = share(this->bonusB, record.maxSpirit);
+        this->Damage(services, 0, static_cast<i16>(this->unk29A8), 0);
+        this->PushTarget(BattleUnit::SpiritGainTarget);
+        this->SetDamageDigits(services, static_cast<i16>(this->unk29A8));
+        this->PushTargetAlt(delay);
+        this->StepTargetCount(1);
+        delay = static_cast<u16>(delay + kRegenerateDelay);
+        this->unk29A8 = 0;
+    }
+
+    if (this->bonusC != 0)
+    {
+        this->unk29AA = share(this->bonusC, record.maxStamina);
+        this->Damage(services, 0, 0, static_cast<i16>(this->unk29AA));
+        this->PushTarget(BattleUnit::StaminaGainTarget);
+        this->SetDamageDigits(services, static_cast<i16>(this->unk29AA));
+        this->PushTargetAlt(delay);
+        this->StepTargetCount(1);
+        this->unk29AA = 0;
     }
 }
 }  // namespace swd3

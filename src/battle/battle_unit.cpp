@@ -1326,6 +1326,11 @@ constexpr int kHomeShare = 6;
 constexpr i16 kInvisibleFadeFrames = 0x18;
 constexpr int kShadowLeftShift = 5;
 constexpr double kCounterPercent = 100.0;  // swd32.exe 0x00499D28
+
+// StepGauge.
+constexpr std::size_t kAgilityShare = 2;  // the gauge fills by a quarter of the agility a tick
+constexpr int kBoostShare = 4;
+constexpr int kInvisibleSlowdown = 4;
 constexpr u16 kEffectIcons = 0x241D;
 
 // The value of a skill script: the word at +0xE.
@@ -4989,5 +4994,81 @@ int BattleUnit::StepAccessoryCounters(CounterList& list, u16 amount)
     }
 
     return counts;
+}
+
+// swd32.exe 0x0046E520: one tick of the action gauge: nothing while held, stopped (Unk4000), defeated or full
+// (unk2AB0). Below gaugeFull it fills by a quarter of the agility (an eighth while Slowed; a quarter more and 1 with
+// `boost`), 30% more with SpeedUp, 30% less with SpeedDown, and less by half the unk26DC percent of it and 4 while
+// Invisible (0). Full, it is marked full, the main act's effect cleared, the cast act marked waiting and the facing
+// of a unit with unk2B20 turned back (1).
+int BattleUnit::StepGauge(BattleServices& services, int boost)
+{
+    if ((this->marks & BattleUnit::Held) != 0 || (this->marks & BattleUnit::Unk4000) != 0)
+    {
+        return 0;
+    }
+
+    if (this->defeated == 1 || this->unk2AB0 == 1)
+    {
+        return 0;
+    }
+
+    const u16 gauge = this->gauge;
+
+    if (static_cast<i32>(gauge) >= services.state.gaugeFull)
+    {
+        this->unk2AB0 = 1;
+        this->unk2AEC = 0;
+
+        if (this->unk2B20 == 1)
+        {
+            this->unk2B20 = 0;
+
+            if (this->unk2B04 == 0)
+            {
+                this->facing = 0;
+            }
+        }
+
+        this->mainAct.effectA = 0;
+        this->mainAct.effectQ = 0;
+        this->castAct.waiting = 1;
+        return 1;
+    }
+
+    const u32 status = this->status;
+    int speed = static_cast<u16>(this->battleRecord->agility) >> kAgilityShare;
+
+    if ((status & BattleUnit::Slowed) != 0)
+    {
+        speed >>= 1;
+    }
+
+    if (boost == 1)
+    {
+        speed += speed / kBoostShare + 1;
+    }
+
+    int extra = 0;
+    int cut = 0;
+
+    if ((status & BattleUnit::SpeedUp) != 0)
+    {
+        extra = kSpeedChangePercent * speed / kPercent;
+    }
+
+    if ((status & BattleUnit::SpeedDown) != 0)
+    {
+        cut = kSpeedChangePercent * speed / kPercent;
+    }
+
+    if ((status & BattleUnit::Invisible) != 0)
+    {
+        cut += this->unk26DC * speed / kPercent / 2 + kInvisibleSlowdown;
+    }
+
+    this->unk2AB0 = 0;
+    this->gauge = static_cast<u16>(gauge - cut + extra + speed);
+    return 0;
 }
 }  // namespace swd3

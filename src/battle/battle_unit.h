@@ -439,6 +439,7 @@ public:
     int LoadEnemyCommand(Database& database, int choice, u32& act);
     int FadeInvisible(BattleServices& services, int mode);
     int StepAccessoryCounters(CounterList& list, u16 amount);
+    int StepGauge(BattleServices& services, int boost);
     void DrawTrail(BattleServices& services, AfterimageTrail& trail, u16 frame, u16 picture, u32 mode, i16 x, i16 y);
     int DrawRecoil(BattleServices& services, ActState& act, i16 y);
     int FlyAct(
@@ -663,6 +664,7 @@ public:
     i32 facing = 0;  // +0x2B08
     i32 unk2B0C = 0;
     i32 fadedIn = 0;  // +0x2B1C a forced unit has faded in for its attack (AttackFrame)
+    i32 unk2B20 = 0;  // +0x2B20 1: the facing turns back when the gauge fills (StepGauge)
     i32 unk2B10 = 0;
     i32 unk2B14 = 0;
     i32 goldGuard = 0;  // +0x2B18

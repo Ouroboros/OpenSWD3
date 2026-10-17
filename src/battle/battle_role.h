@@ -78,6 +78,7 @@ public:
     u16 UseSelectedItem();
     void CancelCommand();
     void AddFury(BattleServices& services, int damage);
+    void Regenerate(BattleServices& services);
     void SetupGuest(const UnitPlacement& at, const RoleRecord& base, Database& database, ErrorReporter& reporter);
     void ApplyEquipment(
         std::span<const std::unique_ptr<ItemNode>> slots,
