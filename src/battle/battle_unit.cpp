@@ -1324,6 +1324,11 @@ constexpr u16 kSecondHomePose = 2;
 constexpr int kHomeSteps = 0x23;
 constexpr int kHomeShare = 6;
 
+// WalkToTarget.
+constexpr i32 kRoleWalkAction = 0x2A;
+constexpr int kWalkSteps = 0x20;
+constexpr int kWalkShare = 16;
+
 // FadeInvisible and StepAccessoryCounters.
 constexpr i16 kInvisibleFadeFrames = 0x18;
 constexpr int kShadowLeftShift = 5;
@@ -6214,5 +6219,188 @@ int BattleUnit::DefeatParticles(BattleServices& services, const Picture& picture
     ++this->glowLevel;
     this->absorb.x = x + this->glowLevel % kShakeSpan;
     return this->RunDefeatParticles(services);
+}
+
+// swd32.exe 0x00482310: one frame of the unit walking from its place to the target (the attack act's walk action, the
+// stand pose in the recoil act giving its x): kWalkSteps line steps a frame more each frame; with UnkFlag20 none
+// until the act follows up, then a sixteenth of the distance a frame more. A forced fading command (FadesIn) takes its
+// command B at once; an invisible unit first fades out. Drawn over its shadow (an invisible unit smears; at the end it
+// is drawn actOffsetX further left, as in the original). At the target the acts and the line are cleared and command A
+// becomes command B.
+void BattleUnit::WalkToTarget(BattleServices& services, const BattleUnit& target)
+{
+    if (this->unk2AD8 == 1)
+    {
+        return;
+    }
+
+    if (this->unk2B00 == 1 && (this->command.flags & UnitCommand::FadesIn) != 0)
+    {
+        this->commandA = this->commandB;
+        return;
+    }
+
+    if ((this->status & BattleUnit::Invisible) != 0 && this->FadeInvisible(services, 0) == 1)
+    {
+        return;
+    }
+
+    this->unk2AAC = 1;
+    ActState& act = this->attackAct;
+    ActState& pose = this->recoilAct;
+    act.id = this->actId;
+    act.action = this->kind != 0 ? kRoleWalkAction : kEnemyHomeAction;
+    act.hold = 0;
+
+    if (this->held == 1)
+    {
+        act.hold = 1;
+    }
+
+    if (services.acts.Run(act) == 0)
+    {
+        return;
+    }
+
+    this->picture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (this->picture == nullptr)
+    {
+        return;
+    }
+
+    Painter& painter = services.painter;
+    painter.SetSource(this->picture->data.data());
+    u16 targetX = 0;
+    u16 targetY = 0;
+    target.GetDrawPosition(targetX, targetY);
+    pose.id = this->actId;
+    pose.action = kHomePose;
+
+    if (this->kind == 0)
+    {
+        if (this->unk2A8C == 1)
+        {
+            pose.action = kHomePose1;
+        }
+
+        if (this->unk2A8C == kSecondHomePose)
+        {
+            pose.action = kHomePose2;
+        }
+    }
+
+    if (services.acts.Run(pose) == 0)
+    {
+        return;
+    }
+
+    this->actOffsetX = static_cast<u16>(act.x);
+    this->frameFlags = act.flags;
+    this->unk2670 = pose.x;
+
+    if (this->facing == 1)
+    {
+        this->frameFlags ^= Painter::Mirror;
+        this->actOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
+        this->unk2670 = this->picture->width - pose.x;
+    }
+
+    const int toX = targetX - this->unk2670;
+    const int toY = targetY - act.y;
+
+    if (this->kind == 1 && this->unk2A8E != act.picture)
+    {
+        this->unk2A8E = act.picture;
+    }
+
+    ++this->throwSteps;
+    LineWalker& line = this->flight;
+    line = LineWalker{};
+    line.fromX = this->placement.x - static_cast<i16>(this->actOffsetX);
+    line.fromY = this->placement.y - act.y;
+    line.toX = toX;
+    line.toY = toY;
+    int steps = kWalkSteps;
+
+    if ((this->command.flags & UnitCommand::UnkFlag20) != 0)
+    {
+        steps = 0;
+
+        if ((act.target & ActState::FollowsUp) != 0)
+        {
+            steps = (toX >= line.fromX ? toX - line.fromX : line.fromX - toX) / kWalkShare;
+        }
+        else
+        {
+            --this->throwSteps;
+        }
+    }
+
+    bool arrived = false;
+
+    for (int taken = 0; taken < steps * this->throwSteps; ++taken)
+    {
+        LineStep(line);
+
+        if (line.fromX + line.x == line.toX)
+        {
+            arrived = true;
+            break;
+        }
+    }
+
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+    act.view = 0;
+    const bool invisible = (this->status & BattleUnit::Invisible) != 0;
+
+    if (arrived)
+    {
+        if (invisible)
+        {
+            painter.DrawPicture(
+                line.toX - static_cast<i16>(this->actOffsetX),
+                line.toY,
+                this->picture->width,
+                this->picture->height,
+                this->frameFlags | Painter::SmearUnder
+            );
+        }
+        else
+        {
+            painter.DrawPicture(line.toX, line.toY, this->picture->width, this->picture->height, this->frameFlags);
+        }
+
+        this->throwSteps = 0;
+        this->unk2A8E = 0;
+        line = LineWalker{};
+        pose = ActState{};
+        act = ActState{};
+        this->commandA = this->commandB;
+        return;
+    }
+
+    painter.SetSource(this->picture->data.data());
+    const int x = line.fromX + line.x;
+    const int y = line.fromY + line.y;
+
+    if (invisible)
+    {
+        painter.DrawPicture(x, y, this->picture->width, this->picture->height, this->frameFlags | Painter::SmearUnder);
+        return;
+    }
+
+    const int shadowHeight = this->picture->height / kShadowShare;
+    DrawOptions& options = painter.Options();
+    options.scaleHeight = shadowHeight;
+    options.shear = this->picture->height >> kShadowShearShift;
+    const int tint = this->unk2B00 == 1 ? kInvisibleShadowTint : kShadowTint;
+    options.tintRed = tint;
+    options.tintGreen = tint;
+    options.tintBlue = tint;
+    this->unk26A4 = (this->frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+    painter.DrawPicture(x, y + act.y - shadowHeight, this->picture->width, this->picture->height, this->unk26A4);
+    painter.DrawPicture(x, y, this->picture->width, this->picture->height, this->frameFlags);
 }
 }  // namespace swd3
