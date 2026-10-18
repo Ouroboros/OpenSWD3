@@ -1329,7 +1329,7 @@ void Game::UnpackParty(std::span<const u8> data)
             }
             else
             {
-                DebugLog(u8"載入道具 位置(%d)裝備了沒有定義的物品號碼(%d)", index, id);
+                DebugLog(u8"載入道具 位置(%d)裝備了沒有定義的物品號碼(%d)", static_cast<i32>(index), id);
                 slot->record.description.reset();
                 slot->id = ItemNode::Empty;
             }
@@ -1367,7 +1367,7 @@ void Game::UnpackParty(std::span<const u8> data)
             }
             else
             {
-                DebugLog(u8"載入法術 角色(%d)擁有未定義的法術(%d)", list, id);
+                DebugLog(u8"載入法術 角色(%d)擁有未定義的法術(%d)", static_cast<i32>(list), id);
             }
         }
 

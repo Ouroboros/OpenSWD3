@@ -8,17 +8,27 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Scalar SSE2 floating point without contraction: every float/double intermediate is rounded like the original's
-# x87 code running at the 53-bit precision set by the MSVC runtime.
+# x87 code running at the 53-bit precision set by the MSVC runtime (x64 always uses SSE2).
 if(MSVC)
-    add_compile_options(/arch:SSE2 /clang:-ffp-contract=off)
+    if(CMAKE_SIZEOF_VOID_P EQUAL 4)
+        add_compile_options(/arch:SSE2)
+    endif()
+    add_compile_options(/clang:-ffp-contract=off)
 else()
     add_compile_options(-msse2 -mfpmath=sse -ffp-contract=off -fno-strict-aliasing)
 endif()
 
+# The dependencies of scripts/deps: windows and linux for x64 (the default), windows-x86 and linux-i386 for 32 bits.
 if(WIN32)
     set(SWD3_DEPS_PLATFORM windows)
+    if(CMAKE_SIZEOF_VOID_P EQUAL 4)
+        set(SWD3_DEPS_PLATFORM windows-x86)
+    endif()
 else()
     set(SWD3_DEPS_PLATFORM linux)
+    if(CMAKE_SIZEOF_VOID_P EQUAL 4)
+        set(SWD3_DEPS_PLATFORM linux-i386)
+    endif()
 endif()
 set(SWD3_DEPS_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/third_party/install/${SWD3_DEPS_PLATFORM}"
     CACHE PATH "Prefix of SDL3/FFmpeg built by scripts/deps")
@@ -56,8 +66,10 @@ target_compile_definitions(swd3_core PRIVATE TOML_EXCEPTIONS=0)
 target_compile_options(swd3_core PRIVATE ${SWD3_WARNINGS})
 target_link_libraries(swd3_core PUBLIC SDL3::SDL3-static swd3::ffmpeg)
 if(NOT WIN32)
-    # Pull in the fmod replacement of src/platform/libm_posix.cpp before avutil needs it.
-    target_link_options(swd3_core PUBLIC -Wl,--undefined=fmod)
+    # Pull in the fmod replacement of src/platform/libm_posix.cpp (i386 only) before avutil needs it.
+    if(CMAKE_SIZEOF_VOID_P EQUAL 4)
+        target_link_options(swd3_core PUBLIC -Wl,--undefined=fmod)
+    endif()
 endif()
 if(WIN32)
     target_compile_definitions(swd3_core PUBLIC NOMINMAX _CRT_SECURE_NO_WARNINGS)

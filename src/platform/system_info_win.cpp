@@ -71,9 +71,11 @@ constexpr std::size_t kNumberChars = 24;
 constexpr int kFrames = 64;
 constexpr DWORD kCppException = 0xE06D7363;  // the exception code of a C++ throw (MSVC)
 constexpr ULONG_PTR kCppMagic = 0x19930520;  // ExceptionInformation[0] of a C++ throw
+constexpr DWORD kImageBaseParameters = 4;    // x64 throws add the image base as the fourth parameter
 constexpr std::string_view kStdException = ".?AVexception@std@@";
 
-// The parts of a C++ throw MSVC passes (32-bit: absolute pointers).
+// The parts of a C++ throw MSVC passes. Their references are 32 bits wide: absolute addresses on x86, offsets from
+// the image base (ExceptionInformation[3]) on x64.
 struct TypeDescriptor
 {
     const void* vftable;
@@ -83,28 +85,35 @@ struct TypeDescriptor
 
 struct CatchableType
 {
-    unsigned properties;
-    TypeDescriptor* type;
-    int memberDisplacement;
-    int virtualBaseDisplacement;
-    int displacementWithin;
-    int size;
-    void* copy;
+    u32 properties;
+    i32 type;
+    i32 memberDisplacement;
+    i32 virtualBaseDisplacement;
+    i32 displacementWithin;
+    i32 size;
+    i32 copy;
 };
 
 struct CatchableTypeArray
 {
-    int count;
-    CatchableType* types[1];
+    i32 count;
+    i32 types[1];
 };
 
 struct ThrowInfo
 {
-    unsigned attributes;
-    void* unwind;
-    void* forwardCompatibility;
-    CatchableTypeArray* catchable;
+    u32 attributes;
+    i32 unwind;
+    i32 forwardCompatibility;
+    i32 catchable;
 };
+
+// The object a reference of a throw names (null for 0); `base` is 0 on x86.
+template <typename T>
+const T* ThrowPart(std::uintptr_t base, i32 reference)
+{
+    return reference == 0 ? nullptr : reinterpret_cast<const T*>(base + static_cast<u32>(reference));
+}
 
 // The directory of the executable with its trailing backslash.
 std::wstring ExecutableDirectory()
@@ -194,16 +203,23 @@ void LogCppException(const EXCEPTION_RECORD& record)
         return;
     }
 
+    const std::uintptr_t base = record.NumberParameters >= kImageBaseParameters ? record.ExceptionInformation[3] : 0;
     const auto* thrown = reinterpret_cast<const ThrowInfo*>(record.ExceptionInformation[2]);
     auto* object = reinterpret_cast<std::byte*>(record.ExceptionInformation[1]);
+    const auto* catchable = thrown != nullptr ? ThrowPart<CatchableTypeArray>(base, thrown->catchable) : nullptr;
 
-    if (thrown == nullptr || thrown->catchable == nullptr || thrown->catchable->count < 1)
+    if (catchable == nullptr || catchable->count < 1)
     {
         return;
     }
 
+    auto typeAt = [base, catchable](int index)
+    {
+        return ThrowPart<CatchableType>(base, catchable->types[index]);
+    };
+
     std::array<wchar_t, kNameChars> name = {};
-    const char* decorated = thrown->catchable->types[0]->type->name;
+    const char* decorated = ThrowPart<TypeDescriptor>(base, typeAt(0)->type)->name;
     const std::string_view mangled(decorated + 1);
     const std::wstring wideMangled = Utf16(std::u8string(mangled.begin(), mangled.end()));
     const bool named = ::UnDecorateSymbolNameW(
@@ -214,11 +230,11 @@ void LogCppException(const EXCEPTION_RECORD& record)
                        ) != 0;
     std::string message;
 
-    for (int index = 0; index < thrown->catchable->count; ++index)
+    for (int index = 0; index < catchable->count; ++index)
     {
-        const CatchableType& type = *thrown->catchable->types[index];
+        const CatchableType& type = *typeAt(index);
 
-        if (type.type->name == kStdException)
+        if (ThrowPart<TypeDescriptor>(base, type.type)->name == kStdException)
         {
             message = reinterpret_cast<const std::exception*>(object + type.memberDisplacement)->what();
             break;
@@ -239,17 +255,25 @@ void LogStack(HANDLE process, HANDLE thread, const CONTEXT& faulted, SDL_LogPrio
 {
     CONTEXT context = faulted;
     STACKFRAME64 frame{};
+#if defined(_M_X64)
+    constexpr DWORD kMachine = IMAGE_FILE_MACHINE_AMD64;
+    frame.AddrPC.Offset = context.Rip;
+    frame.AddrFrame.Offset = context.Rbp;
+    frame.AddrStack.Offset = context.Rsp;
+#else
+    constexpr DWORD kMachine = IMAGE_FILE_MACHINE_I386;
     frame.AddrPC.Offset = context.Eip;
-    frame.AddrPC.Mode = AddrModeFlat;
     frame.AddrFrame.Offset = context.Ebp;
-    frame.AddrFrame.Mode = AddrModeFlat;
     frame.AddrStack.Offset = context.Esp;
+#endif
+    frame.AddrPC.Mode = AddrModeFlat;
+    frame.AddrFrame.Mode = AddrModeFlat;
     frame.AddrStack.Mode = AddrModeFlat;
 
     for (int index = 0; index < kFrames; ++index)
     {
         if (::StackWalk64(
-                IMAGE_FILE_MACHINE_I386,
+                kMachine,
                 process,
                 thread,
                 &frame,
@@ -352,13 +376,29 @@ LONG WINAPI FaultFilter(EXCEPTION_POINTERS* exception)
     {
         SDL_LogCritical(
             SDL_LOG_CATEGORY_APPLICATION,
-            "access violation: %s address 0x%08lX",
+            "access violation: %s address 0x%llX",
             record.ExceptionInformation[0] == 0 ? "read" : (record.ExceptionInformation[0] == 1 ? "write" : "execute"),
-            static_cast<unsigned long>(record.ExceptionInformation[1])
+            static_cast<unsigned long long>(record.ExceptionInformation[1])
         );
     }
 
     const CONTEXT& context = *exception->ContextRecord;
+#if defined(_M_X64)
+    SDL_LogCritical(
+        SDL_LOG_CATEGORY_APPLICATION,
+        "registers rax=%016llX rbx=%016llX rcx=%016llX rdx=%016llX rsi=%016llX rdi=%016llX rbp=%016llX rsp=%016llX "
+        "rip=%016llX",
+        context.Rax,
+        context.Rbx,
+        context.Rcx,
+        context.Rdx,
+        context.Rsi,
+        context.Rdi,
+        context.Rbp,
+        context.Rsp,
+        context.Rip
+    );
+#else
     SDL_LogCritical(
         SDL_LOG_CATEGORY_APPLICATION,
         "registers eax=%08lX ebx=%08lX ecx=%08lX edx=%08lX esi=%08lX edi=%08lX ebp=%08lX esp=%08lX eip=%08lX",
@@ -372,6 +412,7 @@ LONG WINAPI FaultFilter(EXCEPTION_POINTERS* exception)
         context.Esp,
         context.Eip
     );
+#endif
     SDL_LogCritical(
         SDL_LOG_CATEGORY_APPLICATION,
         "call stack (symbols %s from %s):",

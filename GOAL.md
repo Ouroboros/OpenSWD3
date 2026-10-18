@@ -4,7 +4,7 @@
 
 ## 目标与范围
 
-目标目录 `/mnt/e/Game/swd3`，主程序 `swd32.exe`（SHA-256 `4c4c2268…c03f2a`），实现语言 C++20；IDAT 路径见 AGENTS.md。范围为 `swd32.exe` 的函数全集（游戏代码、静态链接的 MSVC 调试版 CRT、全局初始化 thunk、EH funclet）及其依赖的常量表、全局数据与游戏数据文件。尽量还原原模块与代码结构，以正经的 C++ 类和结构体组织（见 reverse/analysis/architecture.md），原逻辑和逻辑BUG完整保留，越界读写类BUG不复现并逐条记录；平台层按 AGENTS.md 使用 SDL3 与 FFmpeg n9.0，窗口化显示（逻辑 640×480，窗口默认 1280×960、可拉伸，最近邻等比缩放加黑边，Alt+Enter 全屏）。Windows x86 为主平台，须可正常游玩；Linux 只要求编译、单元测试通过并用于代码验证。
+目标目录 `/mnt/e/Game/swd3`，主程序 `swd32.exe`（SHA-256 `4c4c2268…c03f2a`），实现语言 C++20；IDAT 路径见 AGENTS.md。范围为 `swd32.exe` 的函数全集（游戏代码、静态链接的 MSVC 调试版 CRT、全局初始化 thunk、EH funclet）及其依赖的常量表、全局数据与游戏数据文件。尽量还原原模块与代码结构，以正经的 C++ 类和结构体组织（见 reverse/analysis/architecture.md），原逻辑和逻辑BUG完整保留，越界读写类BUG不复现并逐条记录；平台层按 AGENTS.md 使用 SDL3 与 FFmpeg n9.0，窗口化显示（逻辑 640×480，窗口默认 1280×960、可拉伸，最近邻等比缩放加黑边，Alt+Enter 全屏）。Windows x64 为主平台（用户要求 2026-10-18，x86 保留为可选构建），须可正常游玩；Linux 只要求编译、单元测试通过并用于代码验证。
 
 ## 不做的事项
 

@@ -56,9 +56,9 @@ OpenSWD3 <模块>：<结果>（<提交>）。
 
 使用SDL3负责跨平台窗口、画面呈现、键盘／鼠标／手柄输入和音频输出；沿用FFmpeg 9.0（n9.0）最小LGPL静态构建及其脚本，仅启用Bink视频与音频、MP3的解封装和解码、本地文件读取及必要的音频重采样和像素格式转换。原程序的游戏逻辑、资源格式解析、绘制规则、播放控制和逻辑时序仍依据原汇编还原并保留原有BUG。
 
-SDL3与FFmpeg由构建脚本自行下载源码并构建，不查找或复用本机其他位置的现成副本。FFmpeg启用x86汇编，汇编器为nasm（WSL中`/opt/nasm`，`/usr/local/bin/nasm`链接；Windows目标在WSL中交叉编译，同样使用该nasm）。
+SDL3与FFmpeg由构建脚本自行下载源码并构建，不查找或复用本机其他位置的现成副本。FFmpeg启用x86／x86_64汇编，汇编器为nasm（WSL中`/opt/nasm`，`/usr/local/bin/nasm`链接；Windows目标在WSL中交叉编译，同样使用该nasm）。
 
-平台定位：Windows（x86）是主平台，最终产物必须能正常游玩，画面内容、输入、音频、视频播放与原程序一致。显示改为窗口化：逻辑画面640×480与窗口大小分离，窗口默认1280×960、可用鼠标拉伸，最近邻任意比例等比缩放，不成原比例时留黑边，Alt+Enter切换无边框全屏，鼠标坐标换算到逻辑画面。平台层是C++类（Display、Surface、Input、AudioDevice、MediaDecoder、GlyphRasterizer、FileSystem），不模拟Win32、DirectDraw、DirectInput、Miles与GDI的API。Linux只要求编译通过、单元测试通过并可用于代码验证，不要求音频输出或可正常游玩。
+平台定位：Windows（x64，用户要求 2026-10-18；x86 保留为可选构建）是主平台，最终产物必须能正常游玩，画面内容、输入、音频、视频播放与原程序一致。显示改为窗口化：逻辑画面640×480与窗口大小分离，窗口默认1280×960、可用鼠标拉伸，最近邻任意比例等比缩放，不成原比例时留黑边，Alt+Enter切换无边框全屏，鼠标坐标换算到逻辑画面。平台层是C++类（Display、Surface、Input、AudioDevice、MediaDecoder、GlyphRasterizer、FileSystem），不模拟Win32、DirectDraw、DirectInput、Miles与GDI的API。Linux只要求编译通过、单元测试通过并可用于代码验证，不要求音频输出或可正常游玩。
 
 ## 动态采集
 
@@ -159,8 +159,8 @@ SDL3与FFmpeg由构建脚本自行下载源码并构建，不查找或复用本�
 ### 工作环境与平台
 
 - 日常工作环境为 WSL。
-- Linux 目标在 WSL 中构建为 i386 静态程序（与 Windows x86 相同的 32 位整数与指针宽度）：`cmake --preset linux`、`cmake --build --preset linux`，构建目录build/linux/；单元测试`ctest --preset linux`。sysroot 为`/opt/sysroot-i386`（`scripts/deps/setup_i386_sysroot.sh`生成，Ubuntu noble 的 libc6-dev-i386、lib32stdc++-13-dev 等包解压而成，不改动系统目录），工具链文件cmake/toolchain-linux-i386-clang.cmake。
-- Windows 目标使用 clang-cl／lld-link 交叉构建 x86 产物（MSVC 14.44 与 Windows SDK 10.0.26100 头文件和库）：`cmake --preset windows`、`cmake --build --preset windows`，构建目录build/windows/，工具链文件cmake/toolchain-windows-x86-clang-cl.cmake。
+- Linux 目标在 WSL 中构建为 x86_64 静态程序（与 Windows x64 相同的整数与指针宽度）：`cmake --preset linux`、`cmake --build --preset linux`，构建目录build/linux/；单元测试`ctest --preset linux`；工具链文件cmake/toolchain-linux-x64-clang.cmake。32 位的 `linux-i386` 预设保留（构建目录build/linux-i386/，sysroot 为`/opt/sysroot-i386`，由`scripts/deps/setup_i386_sysroot.sh`生成，工具链文件cmake/toolchain-linux-i386-clang.cmake）。
+- Windows 目标使用 clang-cl／lld-link 交叉构建 x64 产物（MSVC 14.44 与 Windows SDK 10.0.26100 头文件和库）：`cmake --preset windows`、`cmake --build --preset windows`，构建目录build/windows/，工具链文件cmake/toolchain-windows-x64-clang-cl.cmake。32 位的 `windows-x86` 预设保留（构建目录build/windows-x86/，工具链文件cmake/toolchain-windows-x86-clang-cl.cmake）。依赖按平台名安装到third_party/install/<平台>：windows、linux（x64），windows-x86、linux-i386（32 位）。
 - 两个平台分别使用独立的构建目录。
 
 ### 构建记录
