@@ -677,10 +677,10 @@ int Game::RoleAttackFrame(BattleRole& unit, int target)
     battle.unk524420[at] = target;
     battle.unk53BFC0 = 0;
 
+    // 0x00453ACF..0x00453B10: a defeat keeps the damage (no -1 as after the special attacks)
     if (battle.unk53AF68 == 0 && aimed.Damage(services, battle.hitDamage, 0, 0) == 1)
     {
         this->RoleDefeated(target);
-        battle.hitDamage = -1;
         unit.SetCommand(kAfterAction);
     }
 
