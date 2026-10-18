@@ -56,6 +56,24 @@ public:
     void SetAdvance(int advance);
     void SetBackground(Pixel color);
     void SetShadow(Pixel color);
+
+    // The rebuild's smooth battle (deviations.md): what a draw reads besides its arguments and the glyphs, kept with a
+    // recorded draw to draw it again alike.
+    struct DrawState
+    {
+        int targetWidth = 0;
+        int targetHeight = 0;
+        int advance = 0;
+        Pixel shadow = 0;
+        Pixel background = 0;
+        int clipX = 0;
+        int clipY = 0;
+        int clipWidth = 0;
+        int clipHeight = 0;
+    };
+
+    DrawState SaveDrawState() const;
+    void RestoreDrawState(const DrawState& state);
     void DrawGlyph(Pixel* target, int x, int y, int glyph, Pixel color, int style);
     void DrawGlyphBold(Pixel* target, int x, int y, int glyph, Pixel color, int style);
     void DrawGlyphShadow(Pixel* target, int x, int y, int glyph, Pixel color, int style);

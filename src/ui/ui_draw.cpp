@@ -1,8 +1,10 @@
 #include "ui/ui_draw.h"
 
+#include <array>
 #include <span>
 
 #include "core/words.h"
+#include "draw/paint_record.h"
 #include "draw/painter.h"
 #include "pic/picture.h"
 #include "platform/display.h"
@@ -72,6 +74,22 @@ void Draw(Painter& painter, const Picture* piece, int x, int y, int alpha)
     painter.DrawPicture(x, y, piece->width, piece->height, alpha != 0 ? kTranslucent : 0);
 }
 
+// A recorded FillBox drawn again (the rebuild's smooth battle).
+void RedrawBox(Painter& painter, std::span<const int> values)
+{
+    FillBox(
+        painter,
+        values[0],
+        values[1],
+        values[2],
+        values[3],
+        values[4],
+        values[5],
+        values[6],
+        static_cast<FillMode>(values[7])
+    );
+}
+
 }  // namespace
 
 // swd32.exe 0x0043B110: the box is cut to the clip rectangle first. The blend walks width / 2 pixel pairs in a loop
@@ -79,6 +97,14 @@ void Draw(Painter& painter, const Picture* piece, int x, int y, int alpha)
 // first pair only.
 void FillBox(Painter& painter, int x, int y, int width, int height, int red, int green, int blue, FillMode mode)
 {
+    if (PaintRecord* record = PaintRecord::Active(); record != nullptr)
+    {
+        const std::array<int, PaintRecord::CallValues> values =
+            {x, y, width, height, red, green, blue, static_cast<int>(mode)};
+        record->Call(painter, &RedrawBox, values);
+    }
+
+    const PaintRecord::Pause inner;
     const auto [clipX, clipY, clipWidth, clipHeight] = painter.ClipRect();
 
     if (x < clipX)

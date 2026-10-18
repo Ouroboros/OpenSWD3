@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "core/glide.h"
 #include "core/types.h"
 #include "crt/msvc.h"
 #include "file/file.h"
@@ -199,26 +200,10 @@ public:
 private:
     struct TileSet;
 
-    // How the camera or a role is shown moving to where the game frames drew it: from `fromX`, `fromY` to `toX`, `toY`
-    // over `frames` game frames from frame `start`, `frames` being the frames between its last two moves (a role that
-    // steps every few frames glides at an even pace instead of moving in one frame and standing in the others).
-    struct Glide
-    {
-        double fromX = 0.0;
-        double fromY = 0.0;
-        i32 toX = 0;
-        i32 toY = 0;
-        u32 start = 0;
-        u32 frames = 1;
-        u32 moved = 0;  // the frame of its last move
-    };
-
     void PaintWorld();
     void ClipToSpotlight();
     void CapturePlaces();
     void CaptureLayer(std::vector<Pixel>& layer) const;
-    static void Follow(Glide& glide, i32 x, i32 y, u32 frame, bool continuous, u32 pace);
-    static std::array<double, 2> Shown(const Glide& glide, double time);
 
     // An element of a screen effect (a weather particle, a leaf, a bolt, a firefly, a bubble, a sprite) followed by
     // smooth motion: its glide, whether its place is on the screen rather than the map, the game frame that last

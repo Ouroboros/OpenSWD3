@@ -3,6 +3,7 @@
 #include <climits>
 #include <cstring>
 
+#include "draw/paint_record.h"
 #include "gfx/graphics.h"
 #include "platform/display.h"
 #include "platform/glyph_rasterizer.h"
@@ -247,6 +248,34 @@ void TextFont::SetBackground(Pixel color)
 void TextFont::SetShadow(Pixel color)
 {
     this->shadow = color;
+}
+
+TextFont::DrawState TextFont::SaveDrawState() const
+{
+    return DrawState{
+        this->targetWidth,
+        this->targetHeight,
+        this->advance,
+        this->shadow,
+        this->background,
+        this->clipX,
+        this->clipY,
+        this->clipWidth,
+        this->clipHeight,
+    };
+}
+
+void TextFont::RestoreDrawState(const DrawState& state)
+{
+    if (state.targetWidth != this->targetWidth || state.targetHeight != this->targetHeight)
+    {
+        this->SetTarget(state.targetWidth, state.targetHeight);
+    }
+
+    this->advance = state.advance;
+    this->shadow = state.shadow;
+    this->background = state.background;
+    this->SetClip(state.clipX, state.clipY, state.clipWidth, state.clipHeight);
 }
 
 // swd32.exe 0x00435680: one pixel per set bit. A column is drawn when clipX <= x < clipX + clipWidth - 1 (the last
@@ -636,6 +665,13 @@ int TextFont::InsertGlyph(u16 code)
 // entry is cleared.
 void TextFont::DrawText(Pixel* target, int x, int y, std::string_view text, Pixel color, int style)
 {
+    if (PaintRecord* record = PaintRecord::Active(); record != nullptr)
+    {
+        record->Text(*this, target, x, y, text, color, style);
+    }
+
+    const PaintRecord::Pause inner;
+
     int offset = 0;
     const int last = static_cast<int>(text.size()) - 1;
 
@@ -732,6 +768,11 @@ void TextFont::DrawText(Pixel* target, int x, int y, std::string_view text, Pixe
 // swd32.exe 0x00436EA0: a rectangle clamped to the target; the bottom clamp is tested on the unclamped top
 void TextFont::FillRect(Pixel* target, int x, int y, int width, int height, Pixel color)
 {
+    if (PaintRecord* record = PaintRecord::Active(); record != nullptr)
+    {
+        record->Fill(*this, target, x, y, width, height, color);
+    }
+
     int left = x;
     int right = x + width;
     const int unclampedBottom = y + height;

@@ -115,6 +115,8 @@ void Game::UpdateUnits()
     {
         const i32 unit = battle.drawOrder[index];
 
+        this->battleSmooth.Unit(unit);
+
         if (unit >= BattleState::FirstRoleUnit)
         {
             if (unit - BattleState::FirstRoleUnit < static_cast<i32>(battle.roleCount))
@@ -127,6 +129,8 @@ void Game::UpdateUnits()
             this->EnemyFrame(unit);
         }
     }
+
+    this->battleSmooth.Unit(-1);
 }
 
 // swd32.exe 0x00453200: one frame of the battle; it returns unk53BDC8 (1, or the end CheckBattleEnd set), 3 when game
@@ -215,6 +219,7 @@ int Game::BattleFrame()
     }
 
     battle.unk53C044 = battle.unk53AE70 == -1 && battle.currentUnit == 0 ? 1 : 0;
+    this->battleSmooth.Begin();
     this->DrawBattleBackground(battle.shake);
 
     if (battle.unk53BF64 == 1 || battle.unk53BF68 == 1)
@@ -273,6 +278,7 @@ int Game::BattleFrame()
 
     if (this->state.GameFlag(kQuitFlag))
     {
+        this->battleSmooth.Cancel();
         return kQuitBattle;
     }
 
@@ -291,10 +297,16 @@ int Game::BattleFrame()
     }
 
     this->FieldFadeFrame(1);
+    const bool smooth = this->battleSmooth.End();
 
     if (battle.quaking == 1 || (battle.panelFlags & kQuakePanel) != 0)
     {
         this->QuakeFrame();
+    }
+    else if (smooth)
+    {
+        this->CopyToPrimary();
+        this->battleFrameShown = true;
     }
     else
     {

@@ -20,7 +20,7 @@ void FieldView::CapturePlaces()
     const u32 frame = owner.gameFrames;
     const bool continuous = this->placesValid && frame == this->placesFrame + 1 && owner.currentMap == this->placesMap;
     this->glides.resize(1 + GameState::Roles);
-    FieldView::Follow(this->glides[0], field.cameraLeft, field.cameraTop, frame, continuous, 0);
+    this->glides[0].Follow(field.cameraLeft, field.cameraTop, frame, continuous, 0);
 
     for (std::size_t index = 0; index < GameState::Roles; ++index)
     {
@@ -28,7 +28,7 @@ void FieldView::CapturePlaces()
         const bool controlled = index == static_cast<std::size_t>(owner.state.playerRole);
         const u32 next = role.act.delay + 1u;
         const u32 pace = controlled || next > kMaxStepFrames ? 0 : next;
-        FieldView::Follow(this->glides[1 + index], role.x, role.y, frame, continuous, pace);
+        this->glides[1 + index].Follow(role.x, role.y, frame, continuous, pace);
     }
 
     if (!continuous)
@@ -86,7 +86,7 @@ std::array<i32, 2> FieldView::FollowEffect(u64 key, i32 x, i32 y, bool screen, u
     EffectGlide& effect = entry->second;
     const bool continuous = !added && effect.seen + 1 == frame && effect.screen == screen &&
                             std::abs(x - effect.glide.toX) <= snap && std::abs(y - effect.glide.toY) <= snap;
-    FieldView::Follow(effect.glide, x, y, frame, continuous, pace);
+    effect.glide.Follow(x, y, frame, continuous, pace);
     effect.screen = screen;
     effect.seen = frame;
     return {x, y};
@@ -104,57 +104,6 @@ std::array<i32, 2> FieldView::EffectPlace(const EffectGlide& effect, int column,
     return {
         FloorDivide(this->paintCameraX + column, scale) + CeilDivide(effect.fineX - this->paintCameraX - column, scale),
         FloorDivide(this->paintCameraY + row, scale) + CeilDivide(effect.fineY - this->paintCameraY - row, scale),
-    };
-}
-
-// `pace`: the frames to the next move when known, 0 to take the frames since the last move.
-void FieldView::Follow(Glide& glide, i32 x, i32 y, u32 frame, bool continuous, u32 pace)
-{
-    if (!continuous)
-    {
-        glide = Glide{static_cast<double>(x), static_cast<double>(y), x, y, frame, 1, frame};
-        return;
-    }
-
-    if (x == glide.toX && y == glide.toY)
-    {
-        return;
-    }
-
-    if (std::abs(x - glide.toX) > kSnapDistance || std::abs(y - glide.toY) > kSnapDistance)
-    {
-        glide = Glide{static_cast<double>(x), static_cast<double>(y), x, y, frame, 1, frame};
-        return;
-    }
-
-    const std::array<double, 2> shown = FieldView::Shown(glide, static_cast<double>(frame));
-    const u32 gap = frame - glide.moved;
-    glide.fromX = shown[0];
-    glide.fromY = shown[1];
-    glide.toX = x;
-    glide.toY = y;
-    glide.start = frame;
-
-    if (pace != 0)
-    {
-        glide.frames = pace;
-    }
-    else if (gap >= 1 && gap <= kMaxGlideFrames)
-    {
-        glide.frames = gap;
-    }
-
-    glide.moved = frame;
-}
-
-// Where a glide is shown at `time` (game frames: the last frame plus how far the next is).
-std::array<double, 2> FieldView::Shown(const Glide& glide, double time)
-{
-    const double progress =
-        std::clamp((time - static_cast<double>(glide.start)) / static_cast<double>(glide.frames), 0.0, 1.0);
-    return {
-        glide.fromX + (glide.toX - glide.fromX) * progress,
-        glide.fromY + (glide.toY - glide.fromY) * progress,
     };
 }
 
@@ -197,7 +146,7 @@ void FieldView::PaintBetween(double alpha, Surface& out)
 
     // The places in 1/scale pixels: the camera's, and every role's from the camera's (so that a role moving with
     // the camera keeps its place on the screen); a role that is not gliding stays on its pixel.
-    const std::array<double, 2> camera = FieldView::Shown(this->glides[0], time);
+    const std::array<double, 2> camera = this->glides[0].Shown(time);
     const auto fineCameraX = static_cast<i32>(std::lround(camera[0] * scale));
     const auto fineCameraY = static_cast<i32>(std::lround(camera[1] * scale));
     std::array<i32, GameState::Roles> fineX = {};
@@ -214,7 +163,7 @@ void FieldView::PaintBetween(double alpha, Surface& out)
 
         if (role.x == glide.toX && role.y == glide.toY)
         {
-            const std::array<double, 2> place = FieldView::Shown(glide, time);
+            const std::array<double, 2> place = glide.Shown(time);
             fineX[index] = fineCameraX + static_cast<i32>(std::lround((place[0] - camera[0]) * scale));
             fineY[index] = fineCameraY + static_cast<i32>(std::lround((place[1] - camera[1]) * scale));
         }
@@ -240,7 +189,7 @@ void FieldView::PaintBetween(double alpha, Surface& out)
             continue;
         }
 
-        const std::array<double, 2> place = FieldView::Shown(effect.glide, time);
+        const std::array<double, 2> place = effect.glide.Shown(time);
         const std::array<double, 2> from = effect.screen ? std::array<double, 2>{} : camera;
         const std::array<i32, 2> base =
             effect.screen ? std::array<i32, 2>{} : std::array<i32, 2>{fineCameraX, fineCameraY};

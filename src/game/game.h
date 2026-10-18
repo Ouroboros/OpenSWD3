@@ -11,6 +11,7 @@
 #include "battle/battle_message.h"
 #include "battle/battle_role.h"
 #include "battle/battle_services.h"
+#include "battle/battle_smooth.h"
 #include "battle/battle_state.h"
 #include "battle/fight_talk.h"
 #include "config/config.h"
@@ -68,6 +69,7 @@ class Game
     friend class CheatDialog;
     friend class Menu;
     friend class FieldView;
+    friend class BattleSmooth;
     friend class Talk;
     friend class RoleControl;
     friend class RolePath;
@@ -525,6 +527,7 @@ private:
     MapCache mapCache;
     Field field;
     FieldView fieldView;
+    BattleSmooth battleSmooth;  // the rebuild's smooth battle
     Talk talk;
     RoleControl roleControl;
     RolePath rolePath;
@@ -580,6 +583,7 @@ private:
     // last game frame was due (SDL nanoseconds), the frame drawn between game frames and when the next one is due.
     bool smoothMotion = false;
     bool mapFrameShown = false;
+    bool battleFrameShown = false;  // the last game frame showed a battle frame that can be drawn again
     u32 gameFrames = 0;
     u32 framesBetween = 0;
     u64 paintBetweenNs = 0;  // the time the frames between took to paint, in all and the longest

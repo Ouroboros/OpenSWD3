@@ -200,6 +200,16 @@ public:
     static std::span<const i32> WaveOffsets();
 
 private:
+    struct Placement;
+
+public:
+    // The rebuild's smooth battle (deviations.md): what a draw reads besides its arguments, kept with a recorded draw
+    // to draw it again alike.
+    struct DrawState;
+    DrawState SaveDrawState() const;
+    void RestoreDrawState(const DrawState& state);
+
+private:
     // Placement of the current DrawPicture after clipping.
     struct Placement
     {
@@ -380,6 +390,30 @@ private:
     int zoomAnchorY = 0x48;
     int zoomX = 0x600;
     int zoomY = 0x400;
+};
+
+struct Painter::DrawState
+{
+    u16* target = nullptr;
+    int clipX = 0;
+    int clipY = 0;
+    int clipWidth = 0;
+    int clipHeight = 0;
+    const u8* source = nullptr;
+    const u16* palette = nullptr;
+    DrawOptions options;
+    Placement placement;
+    int mirrorStart = 0;
+    int waveMode = 0;
+    int wavePhase = 0;
+    int waveStart = 0;
+    int wavePosition = 0;
+    int waveEnd = 0;
+    int smearCounter = 0;
+    int zoomAnchorX = 0;
+    int zoomAnchorY = 0;
+    int zoomX = 0;
+    int zoomY = 0;
 };
 
 }  // namespace swd3

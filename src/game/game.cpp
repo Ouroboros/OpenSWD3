@@ -289,6 +289,7 @@ Game::Game(std::u8string installDirectory)
       mapCache(this->config, this->painter),
       field(this->state, this->mapCache, this->config, this->codec),
       fieldView(*this),
+      battleSmooth(*this),
       talk(*this),
       roleControl(*this),
       rolePath(*this),
@@ -422,6 +423,7 @@ int Game::Run([[maybe_unused]] std::u8string_view commandLine)
         );
     }
 
+    this->battleSmooth.LogTotals();
     return 0;
 }
 
@@ -1336,8 +1338,8 @@ void Game::StoreDisplay() const
 
 bool Game::PresentBetween()
 {
-    if (!this->smoothMotion || !this->mapFrameShown || this->smoothScreen == nullptr || this->active == 0 ||
-        this->running == 0 || this->quit || (this->systemFlags & Game::VideoPlaying) != 0)
+    if (!this->smoothMotion || !(this->mapFrameShown || this->battleFrameShown) || this->smoothScreen == nullptr ||
+        this->active == 0 || this->running == 0 || this->quit || (this->systemFlags & Game::VideoPlaying) != 0)
     {
         return false;
     }
@@ -1370,6 +1372,18 @@ bool Game::PresentBetween()
     }
 
     const u64 paintStart = SDL_GetTicksNS();
+
+    if (this->battleFrameShown)
+    {
+        const Surface& shown = this->battleSmooth.PaintBetween(alpha);
+        const u64 painted = SDL_GetTicksNS() - paintStart;
+        this->paintBetweenNs += painted;
+        this->paintBetweenMostNs = std::max(this->paintBetweenMostNs, painted);
+        this->display.Present(shown);
+        ++this->framesBetween;
+        return true;
+    }
+
     int scale = this->renderScaleSetting;
 
     if (scale == Game::AutoRenderScale)
@@ -1683,6 +1697,7 @@ void Game::MainFrame()
 
     this->frameDueNs = SDL_GetTicksNS() - static_cast<u64>(now - this->lastFrame) * kNanosecondsPerMillisecond;
     this->mapFrameShown = false;
+    this->battleFrameShown = false;
     ++this->gameFrames;
 
     if ((this->deviceFlags & 1) != 0)

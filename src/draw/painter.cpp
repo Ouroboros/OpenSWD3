@@ -4,6 +4,7 @@
 #include <cstring>
 
 #include "core/words.h"
+#include "draw/paint_record.h"
 #include "pic/picture.h"
 #include "platform/display.h"
 #include "platform/surface.h"
@@ -449,6 +450,40 @@ void Painter::SetSource(const void* data)
     this->source = static_cast<const u8*>(data);
 }
 
+Painter::DrawState Painter::SaveDrawState() const
+{
+    return DrawState{
+        this->target,       this->clipX,       this->clipY,       this->clipWidth,    this->clipHeight,
+        this->source,       this->palette,     this->options,     this->placement,    this->mirrorStart,
+        this->waveMode,     this->wavePhase,   this->waveStart,   this->wavePosition, this->waveEnd,
+        this->smearCounter, this->zoomAnchorX, this->zoomAnchorY, this->zoomX,        this->zoomY,
+    };
+}
+
+void Painter::RestoreDrawState(const DrawState& state)
+{
+    this->target = state.target;
+    this->clipX = state.clipX;
+    this->clipY = state.clipY;
+    this->clipWidth = state.clipWidth;
+    this->clipHeight = state.clipHeight;
+    this->source = state.source;
+    this->palette = state.palette;
+    this->options = state.options;
+    this->placement = state.placement;
+    this->mirrorStart = state.mirrorStart;
+    this->waveMode = state.waveMode;
+    this->wavePhase = state.wavePhase;
+    this->waveStart = state.waveStart;
+    this->wavePosition = state.wavePosition;
+    this->waveEnd = state.waveEnd;
+    this->smearCounter = state.smearCounter;
+    this->zoomAnchorX = state.zoomAnchorX;
+    this->zoomAnchorY = state.zoomAnchorY;
+    this->zoomX = state.zoomX;
+    this->zoomY = state.zoomY;
+}
+
 const void* Painter::Source() const
 {
     return this->source;
@@ -518,6 +553,11 @@ void Painter::DrawOutline(int x, int y, int width, int height, u32 mode, const D
 // afterwards.
 int Painter::DrawPicture(int x, int y, int width, int height, u32 mode, const DrawArgument& argument)
 {
+    if (PaintRecord* record = PaintRecord::Active(); record != nullptr)
+    {
+        record->Picture(*this, x, y, width, height, mode, argument);
+    }
+
     if (this->source == nullptr)
     {
         this->options = DrawOptions{};

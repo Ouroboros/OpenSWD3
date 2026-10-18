@@ -12,6 +12,7 @@
 #endif
 
 #include "core/words.h"
+#include "draw/paint_record.h"
 #include "draw/painter.h"
 
 namespace swd3
@@ -188,6 +189,11 @@ __attribute__((target("avx2"))) std::size_t TintAvx2(std::span<u16> pixels, cons
 // pixels.
 void Painter::TintPixels(std::span<u16> pixels, int red, int green, int blue) const
 {
+    if (PaintRecord* record = PaintRecord::Active(); record != nullptr)
+    {
+        record->Pixels(pixels.data(), pixels.size(), PaintRecord::PixelOp::Tint, red, green, blue);
+    }
+
     constexpr std::size_t kFastPixels = 0x40;
 
     if (pixels.size() >= kFastPixels)
@@ -325,6 +331,11 @@ void Painter::TintPixelsFast(std::span<u16> pixels, int red, int green, int blue
 // swd32.exe 0x00420560: the red channel moved by `delta` tint steps, saturating at the mask or 0
 void Painter::ShiftRed(std::span<u16> pixels, int delta) const
 {
+    if (PaintRecord* record = PaintRecord::Active(); record != nullptr)
+    {
+        record->Pixels(pixels.data(), pixels.size(), PaintRecord::PixelOp::ShiftRed, delta, 0, 0);
+    }
+
     const u32 mask = this->red.mask;
     const u32 otherBits = 0xFFFFFFFFu - mask;
     const auto step = static_cast<i32>(this->red.halves[ColorChannel::TintHalf]);
@@ -360,12 +371,22 @@ void Painter::ShiftRed(std::span<u16> pixels, int delta) const
 // swd32.exe 0x00420600: the green channel, two pixels per step
 void Painter::ShiftGreenPairs(std::span<u16> pixels, int delta) const
 {
+    if (PaintRecord* record = PaintRecord::Active(); record != nullptr)
+    {
+        record->Pixels(pixels.data(), pixels.size(), PaintRecord::PixelOp::ShiftGreen, delta, 0, 0);
+    }
+
     ShiftChannelPairs(pixels, delta, this->green);
 }
 
 // swd32.exe 0x004206F0: the blue channel, two pixels per step
 void Painter::ShiftBluePairs(std::span<u16> pixels, int delta) const
 {
+    if (PaintRecord* record = PaintRecord::Active(); record != nullptr)
+    {
+        record->Pixels(pixels.data(), pixels.size(), PaintRecord::PixelOp::ShiftBlue, delta, 0, 0);
+    }
+
     ShiftChannelPairs(pixels, delta, this->blue);
 }
 
@@ -373,6 +394,11 @@ void Painter::ShiftBluePairs(std::span<u16> pixels, int delta) const
 // (through the channel ramps). The channel masks are cut to 16 bits first, as in the original.
 void Painter::MixPixels(std::span<const u16> other, std::span<u16> pixels)
 {
+    if (PaintRecord* record = PaintRecord::Active(); record != nullptr)
+    {
+        record->Mix(other, pixels);
+    }
+
     this->red.mask = LowWord(this->red.mask);
     this->green.mask = LowWord(this->green.mask);
     this->blue.mask = LowWord(this->blue.mask);
@@ -394,6 +420,11 @@ void Painter::MixPixels(std::span<const u16> other, std::span<u16> pixels)
 // swd32.exe 0x00421FB0: every pixel grey ((r + g + b) / 4 in each channel)
 void Painter::GrayPixels(std::span<u16> pixels) const
 {
+    if (PaintRecord* record = PaintRecord::Active(); record != nullptr)
+    {
+        record->Pixels(pixels.data(), pixels.size(), PaintRecord::PixelOp::Gray, 0, 0, 0);
+    }
+
     for (u16& pixel : pixels)
     {
         pixel = this->Gray(pixel);
