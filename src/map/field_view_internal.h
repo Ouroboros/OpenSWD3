@@ -6,7 +6,6 @@
 #include <array>
 #include <climits>
 #include <cmath>
-#include <cstdint>
 #include <cstring>
 #include <span>
 
@@ -71,16 +70,16 @@ constexpr i32 kBubbleSnap = 6;     // a bubble moves 2 pixels at most; the origi
                                    // spent one, which then jumps
 constexpr i32 kHeadSnap = Display::Width;  // a head slides in by two thirds of the way in its first frame
 
-inline u64 EffectKey(EffectKind kind, std::uintptr_t which)
+inline u64 EffectKey(EffectKind kind, u64 which)
 {
     constexpr int kKindShift = 56;
     constexpr u64 kWhichMask = (u64{1} << kKindShift) - 1;
-    return static_cast<u64>(kind) << kKindShift | (static_cast<u64>(which) & kWhichMask);
+    return static_cast<u64>(kind) << kKindShift | (which & kWhichMask);
 }
 
 inline u64 EffectKey(EffectKind kind, const void* node)
 {
-    return EffectKey(kind, reinterpret_cast<std::uintptr_t>(node));
+    return EffectKey(kind, reinterpret_cast<u64>(node));
 }
 
 constexpr int kPanScale = 0x40;  // the pan at kSoundRange to the side

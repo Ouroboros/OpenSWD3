@@ -51,7 +51,7 @@ void FieldView::CapturePlaces()
     this->placesMap = owner.currentMap;
     // The spotlight is drawn where it is now and moves after (0x00416B30).
     this->FollowEffect(
-        EffectKey(EffectKind::Spotlight, std::uintptr_t{0}),
+        EffectKey(EffectKind::Spotlight, u64{0}),
         owner.scene.spotlightX,
         owner.scene.spotlightY,
         true,
@@ -266,7 +266,10 @@ void FieldView::PaintBetween(double alpha, Surface& out)
     // What the map part changes is kept and put back after each painting: the camera, the roles' places, the random
     // numbers, the particles and acts of the screen effects, the spotlight, the tile grid's origin, and the painter's
     // options and target.
-    const std::array<i32, 4> cameraKept = {field.cameraLeft, field.cameraTop, field.cameraRight, field.cameraBottom};
+    const i32 cameraLeft = field.cameraLeft;
+    const i32 cameraTop = field.cameraTop;
+    const i32 cameraRight = field.cameraRight;
+    const i32 cameraBottom = field.cameraBottom;
     std::array<i32, GameState::Roles> roleX = {};
     std::array<i32, GameState::Roles> roleY = {};
 
@@ -294,11 +297,14 @@ void FieldView::PaintBetween(double alpha, Surface& out)
     const i16 fireflyCount = view.fireflyCount;
     const i16 firefliesShown = view.firefliesShown;
     const auto fireflies = view.fireflies;
-    const std::array<i32, 4> spotlight = {view.spotlightX, view.spotlightY, view.spotlightStepX, view.spotlightStepY};
+    const i32 spotlightX = view.spotlightX;
+    const i32 spotlightY = view.spotlightY;
+    const i32 spotlightStepX = view.spotlightStepX;
+    const i32 spotlightStepY = view.spotlightStepY;
     const std::array<i32, 2> tileOrigin = {this->tileX, this->tileY};
     const DrawOptions options = painter.Options();
     const int wavePhase = painter.WavePhase();
-    const std::array<int, 4> clip = painter.ClipRect();
+    const auto [clipX, clipY, clipWidth, clipHeight] = painter.ClipRect();
     u16* const target = painter.Target();
     Pixel* const drawSurface = owner.drawSurface;
 
@@ -322,15 +328,15 @@ void FieldView::PaintBetween(double alpha, Surface& out)
         view.fireflyCount = fireflyCount;
         view.firefliesShown = firefliesShown;
         view.fireflies = fireflies;
-        view.spotlightX = spotlight[0];
-        view.spotlightY = spotlight[1];
-        view.spotlightStepX = spotlight[2];
-        view.spotlightStepY = spotlight[3];
+        view.spotlightX = spotlightX;
+        view.spotlightY = spotlightY;
+        view.spotlightStepX = spotlightStepX;
+        view.spotlightStepY = spotlightStepY;
         this->tileX = tileOrigin[0];
         this->tileY = tileOrigin[1];
         painter.Options() = options;
         painter.SetWavePhase(wavePhase);
-        painter.SetClip(clip[0], clip[1], clip[0] + clip[2], clip[1] + clip[3]);
+        painter.SetClip(clipX, clipY, clipX + clipWidth, clipY + clipHeight);
         painter.SetTarget(target);
         owner.drawSurface = drawSurface;
     };
@@ -395,7 +401,7 @@ void FieldView::PaintBetween(double alpha, Surface& out)
         this->parts.resize(blocks * blocks);
     }
 
-    auto spotlightGlide = this->effectGlides.find(EffectKey(EffectKind::Spotlight, std::uintptr_t{0}));
+    auto spotlightGlide = this->effectGlides.find(EffectKey(EffectKind::Spotlight, u64{0}));
 
     if (spotlightGlide != this->effectGlides.end() && spotlightGlide->second.seen != this->placesFrame)
     {
@@ -464,7 +470,7 @@ void FieldView::PaintBetween(double alpha, Surface& out)
 
             if (this->fadeTinted)
             {
-                painter.TintPixelsFast(screen, this->fadeLevels[0], this->fadeLevels[1], this->fadeLevels[2]);
+                painter.TintPixelsFast(screen, this->fadeLevels.red, this->fadeLevels.green, this->fadeLevels.blue);
             }
 
             FieldView::CopySpans(this->finalSpans, this->finalLayer, 1, screen);
@@ -472,10 +478,10 @@ void FieldView::PaintBetween(double alpha, Surface& out)
     }
 
     this->replaying = false;
-    field.cameraLeft = cameraKept[0];
-    field.cameraTop = cameraKept[1];
-    field.cameraRight = cameraKept[2];
-    field.cameraBottom = cameraKept[3];
+    field.cameraLeft = cameraLeft;
+    field.cameraTop = cameraTop;
+    field.cameraRight = cameraRight;
+    field.cameraBottom = cameraBottom;
 
     for (std::size_t index = 0; index < GameState::Roles; ++index)
     {
@@ -608,19 +614,21 @@ void FieldView::Weave(std::span<const Surface* const> parts, int scale, std::spa
 #if defined(__SSE2__)
             // Eight pixels of each part at a time, interleaved by unpacking.
             constexpr std::size_t kLanes = sizeof(__m128i) / sizeof(Pixel);
+            constexpr std::size_t kPairBlocks = 2;  // the scales woven by unpacking pairs, then pairs of pairs
+            constexpr std::size_t kQuadBlocks = 4;
 
-            if (blocks == 2)
+            if (blocks == kPairBlocks)
             {
                 for (; x + kLanes <= kWidth; x += kLanes)
                 {
                     const __m128i first = _mm_loadu_si128(reinterpret_cast<const __m128i*>(sources[0] + x));
                     const __m128i second = _mm_loadu_si128(reinterpret_cast<const __m128i*>(sources[1] + x));
-                    auto* out = reinterpret_cast<__m128i*>(line + 2 * x);
+                    auto* out = reinterpret_cast<__m128i*>(line + kPairBlocks * x);
                     _mm_storeu_si128(out, _mm_unpacklo_epi16(first, second));
                     _mm_storeu_si128(out + 1, _mm_unpackhi_epi16(first, second));
                 }
             }
-            else if (blocks == 4)
+            else if (blocks == kQuadBlocks)
             {
                 for (; x + kLanes <= kWidth; x += kLanes)
                 {
@@ -632,7 +640,7 @@ void FieldView::Weave(std::span<const Surface* const> parts, int scale, std::spa
                     const __m128i highPairs = _mm_unpackhi_epi16(first, second);
                     const __m128i lowOthers = _mm_unpacklo_epi16(third, fourth);
                     const __m128i highOthers = _mm_unpackhi_epi16(third, fourth);
-                    auto* out = reinterpret_cast<__m128i*>(line + 4 * x);
+                    auto* out = reinterpret_cast<__m128i*>(line + kQuadBlocks * x);
                     _mm_storeu_si128(out, _mm_unpacklo_epi32(lowPairs, lowOthers));
                     _mm_storeu_si128(out + 1, _mm_unpackhi_epi32(lowPairs, lowOthers));
                     _mm_storeu_si128(out + 2, _mm_unpacklo_epi32(highPairs, highOthers));

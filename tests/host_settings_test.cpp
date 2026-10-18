@@ -117,7 +117,7 @@ TEST_CASE("host settings: the render scale is a whole number or auto")
     CHECK(chosen.values.display.renderScale == swd3::ScaleChoice{});
     CHECK(!swd3::ParseHostSettings("", kBase).values.display.renderScale.has_value());
 
-    for (const char* bad :
+    for (const std::string_view bad :
          {"[display]\nrender_scale = 9\n",
           "[display]\nrender_scale = 0\n",
           "[display]\nrender_scale = \"big\"\n",

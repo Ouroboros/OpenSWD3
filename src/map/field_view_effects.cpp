@@ -642,7 +642,7 @@ void FieldView::DrawLightning()
 
         int level = 0;
         const std::array<i32, 2> place = this->FollowEffect(
-            EffectKey(EffectKind::Lightning, static_cast<std::uintptr_t>(&bolt - view.bolts.data())),
+            EffectKey(EffectKind::Lightning, static_cast<u64>(&bolt - view.bolts.data())),
             bolt.x / kSubpixels,
             bolt.y,
             true,
@@ -785,7 +785,7 @@ void FieldView::DrawFireflies()
         }
 
         const std::array<i32, 2> place = this->FollowEffect(
-            EffectKey(EffectKind::Fireflies, static_cast<std::uintptr_t>(&fly - view.fireflies.data())),
+            EffectKey(EffectKind::Fireflies, static_cast<u64>(&fly - view.fireflies.data())),
             fly.x / kSubpixels,
             fly.y,
             true,

@@ -271,7 +271,16 @@ private:
     std::vector<Span> finalSpans;       // where finalLayer differs from fadedLayer
     std::vector<Surface> parts;         // the logical screens of a render scale above 1 (PaintBetween)
     bool fadeTinted = false;
-    std::array<int, 3> fadeLevels = {};
+
+    // The levels the fade tinted the last game frame by.
+    struct FadeLevels
+    {
+        int red = 0;
+        int green = 0;
+        int blue = 0;
+    };
+
+    FadeLevels fadeLevels;
 
     void DrawSmallText(int x, int y, u32 color, const std::string& text);
     void DrawTileGrid(const TileSet& tiles);

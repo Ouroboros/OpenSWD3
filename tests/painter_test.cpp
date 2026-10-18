@@ -103,7 +103,11 @@ TEST_CASE("painter: RGB565 display tables")
 
 TEST_CASE("painter: the fast tint matches the original tint for every colour")
 {
-    constexpr int kFurthest = 40;  // levels past a channel's range saturate alike
+    constexpr int kFurthest = 40;          // levels past a channel's range saturate alike
+    constexpr std::size_t kChannels = 3;   // red, green and blue
+    constexpr std::size_t kTintMixes = 3;  // all three channels alike, unlike, one of them still
+    constexpr int kHalf = 2;
+    constexpr int kThird = 3;
     constexpr std::size_t kColors = 0x10000;
     Surface screen(Display::Width, Display::Height);
     Painter painter;
@@ -126,13 +130,13 @@ TEST_CASE("painter: the fast tint matches the original tint for every colour")
 
     for (int level = -kFurthest; level <= kFurthest; ++level)
     {
-        const std::array<std::array<int, 3>, 3> levels = {{
+        const std::array<std::array<int, kChannels>, kTintMixes> levels = {{
             {level, level, level},
-            {level, -level / 2, level / 3},
+            {level, -level / kHalf, level / kThird},
             {-level, level, 0},
         }};
 
-        for (const std::array<int, 3>& tint : levels)
+        for (const std::array<int, kChannels>& tint : levels)
         {
             // One pixel at a time TintPixels runs the original's loop.
             slow = colors;

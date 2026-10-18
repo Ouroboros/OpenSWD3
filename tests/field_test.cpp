@@ -216,6 +216,8 @@ TEST_CASE("field view: the parts of a render scale are woven into its blocks")
     using swd3::FieldView;
     constexpr int kWidth = Display::Width;
     constexpr int kHeight = Display::Height;
+    constexpr std::size_t kPartStride = 0x1000;  // every pixel of every part a value of its own
+    constexpr int kColumnStride = 7;
     int wrong = 0;
 
     for (int scale = 1; scale <= swd3::Game::MaxRenderScale; ++scale)
@@ -231,7 +233,8 @@ TEST_CASE("field view: the parts of a render scale are woven into its blocks")
             {
                 for (int x = 0; x < kWidth; ++x)
                 {
-                    parts[part].Row(y)[x] = static_cast<swd3::u16>(part * 0x1000 + static_cast<std::size_t>(y + x * 7));
+                    parts[part].Row(y)[x] =
+                        static_cast<swd3::u16>(part * kPartStride + static_cast<std::size_t>(y + x * kColumnStride));
                 }
             }
         }
@@ -270,11 +273,12 @@ TEST_CASE("field view: spans of a logical layer scaled into blocks")
     constexpr swd3::u32 kStart = Display::Width - 5;  // a run over the end of the first row
     constexpr swd3::u32 kLength = 12;
     constexpr swd3::u16 kUntouched = 0xFFFF;
+    constexpr std::size_t kPatternPeriod = 0x7FFF;  // pixel values that differ from kUntouched
     std::vector<swd3::u16> layer(Display::Pixels);
 
     for (std::size_t index = 0; index < layer.size(); ++index)
     {
-        layer[index] = static_cast<swd3::u16>(index % 0x7FFF);
+        layer[index] = static_cast<swd3::u16>(index % kPatternPeriod);
     }
 
     std::vector<swd3::u16> screen(kBlocks * kBlocks * Display::Pixels, kUntouched);

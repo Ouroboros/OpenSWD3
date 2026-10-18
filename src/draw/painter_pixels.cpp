@@ -2,6 +2,7 @@
 #include <array>
 #include <bit>
 #include <cstring>
+#include <limits>
 
 #if defined(__SSE2__)
 #include <immintrin.h>
@@ -22,7 +23,8 @@ namespace
 constexpr u32 kLowHalf = 0xFFFF;  // the low and the high pixel of a pair
 constexpr u32 kHighHalf = ~kLowHalf;
 constexpr std::size_t kPairPixels = 2;
-constexpr int kPixelBits = 16;  // the bits of a display pixel
+constexpr int kPixelBits = 16;            // the bits of a display pixel
+constexpr std::size_t kTintChannels = 3;  // red, green and blue
 
 u32 ReadPair(const u16* pixels)
 {
@@ -101,36 +103,37 @@ struct TintLane
     u16 subtract;  // when lowering
 };
 
-using TintLanes = std::array<TintLane, 3>;
+using TintLanes = std::array<TintLane, kTintChannels>;
 
 Painter::TintPath tintPath = Painter::TintPath::Best;
 
 #if defined(__SSE2__) && (defined(__clang__) || defined(__GNUC__))
-#define SWD3_TINT_AVX2 1
 
 // Whether the processor and the system run AVX2 (CPUID 7 EBX bit 5, AVX and OSXSAVE in CPUID 1, the AVX state in
 // XCR0).
 bool HasAvx2()
 {
-    constexpr unsigned kOsSaves = 1u << 27;
-    constexpr unsigned kAvx = 1u << 28;
-    constexpr unsigned kAvx2 = 1u << 5;
-    constexpr unsigned kAvxState = 0x6;  // the SSE and AVX registers saved by the system
-    unsigned eax = 0;
-    unsigned ebx = 0;
-    unsigned ecx = 0;
-    unsigned edx = 0;
+    constexpr u32 kFeatureLeaf = 1;  // CPUID leaves: processor features, extended features
+    constexpr u32 kExtendedLeaf = 7;
+    constexpr u32 kOsSaves = 1u << 27;
+    constexpr u32 kAvx = 1u << 28;
+    constexpr u32 kAvx2 = 1u << 5;
+    constexpr u32 kAvxState = 0x6;  // the SSE and AVX registers saved by the system
+    u32 eax = 0;
+    u32 ebx = 0;
+    u32 ecx = 0;
+    u32 edx = 0;
 
-    if (__get_cpuid(1, &eax, &ebx, &ecx, &edx) == 0 || (ecx & (kOsSaves | kAvx)) != (kOsSaves | kAvx))
+    if (__get_cpuid(kFeatureLeaf, &eax, &ebx, &ecx, &edx) == 0 || (ecx & (kOsSaves | kAvx)) != (kOsSaves | kAvx))
     {
         return false;
     }
 
-    unsigned low = 0;
-    unsigned high = 0;
+    u32 low = 0;
+    u32 high = 0;
     __asm__("xgetbv" : "=a"(low), "=d"(high) : "c"(0));
 
-    if ((low & kAvxState) != kAvxState || __get_cpuid_count(7, 0, &eax, &ebx, &ecx, &edx) == 0)
+    if ((low & kAvxState) != kAvxState || __get_cpuid_count(kExtendedLeaf, 0, &eax, &ebx, &ecx, &edx) == 0)
     {
         return false;
     }
@@ -142,11 +145,11 @@ bool HasAvx2()
 __attribute__((target("avx2"))) std::size_t TintAvx2(std::span<u16> pixels, const TintLanes& lanes)
 {
     constexpr std::size_t kLanes = sizeof(__m256i) / sizeof(u16);
-    std::array<__m256i, 3> masks{};
-    std::array<__m256i, 3> tops{};
-    std::array<__m256i, 3> adds{};
-    std::array<__m256i, 3> subtracts{};
-    std::array<__m128i, 3> lifts{};
+    std::array<__m256i, kTintChannels> masks{};
+    std::array<__m256i, kTintChannels> tops{};
+    std::array<__m256i, kTintChannels> adds{};
+    std::array<__m256i, kTintChannels> subtracts{};
+    std::array<__m128i, kTintChannels> lifts{};
 
     for (std::size_t at = 0; at < lanes.size(); ++at)
     {
@@ -259,7 +262,7 @@ void Painter::TintPixelsFast(std::span<u16> pixels, int red, int green, int blue
         for (const Lane& channel : lanes)
         {
             u32 value = static_cast<u32>(pixel & channel.mask) << channel.lift;
-            value = std::min<u32>(value + channel.add, 0xFFFF);
+            value = std::min<u32>(value + channel.add, std::numeric_limits<u16>::max());
             value = value > channel.subtract ? value - channel.subtract : 0;
             result |= (value & channel.top) >> channel.lift;
         }
@@ -270,7 +273,7 @@ void Painter::TintPixelsFast(std::span<u16> pixels, int red, int green, int blue
     std::size_t index = 0;
     const TintPath path = tintPath;
 
-#if defined(SWD3_TINT_AVX2)
+#if defined(__SSE2__) && (defined(__clang__) || defined(__GNUC__))
     static const bool avx2 = HasAvx2();
 
     if (avx2 && path == TintPath::Best)
@@ -281,11 +284,11 @@ void Painter::TintPixelsFast(std::span<u16> pixels, int red, int green, int blue
 
 #if defined(__SSE2__)
     constexpr std::size_t kLanes = sizeof(__m128i) / sizeof(u16);
-    std::array<__m128i, 3> masks{};
-    std::array<__m128i, 3> tops{};
-    std::array<__m128i, 3> adds{};
-    std::array<__m128i, 3> subtracts{};
-    std::array<__m128i, 3> lifts{};
+    std::array<__m128i, kTintChannels> masks{};
+    std::array<__m128i, kTintChannels> tops{};
+    std::array<__m128i, kTintChannels> adds{};
+    std::array<__m128i, kTintChannels> subtracts{};
+    std::array<__m128i, kTintChannels> lifts{};
 
     for (std::size_t at = 0; at < lanes.size(); ++at)
     {
