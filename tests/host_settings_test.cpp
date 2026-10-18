@@ -139,7 +139,7 @@ TEST_CASE("host settings: the user's file over the program's, [game] read with i
 {
     const std::string program =
         "[window]\nwidth = 1000\nheight = 800\n"
-        "[game]\nsound_volume = 11\ncache_size = 140\neffects_off = false\nsession_open = true\n"
+        "[game]\nsound_volume = 11\ncache_size = 140\neffects_off = false\nrunning = false\nsession_open = true\n"
         "[game.keys]\nup = 200\ngive_up = 1\n";
     const std::string user = "[window]\nwidth = 700\n[game]\nsound_volume = 3\n[game.keys]\nup = 72\n";
     const swd3::HostSettings settings = swd3::ParseHostSettings(user, program, kBase);
@@ -149,6 +149,7 @@ TEST_CASE("host settings: the user's file over the program's, [game] read with i
     CHECK_EQ(settings.values.game.soundVolume.value_or(-1), 3);
     CHECK_EQ(settings.values.game.cacheSize.value_or(-1), 140);
     CHECK(settings.values.game.sessionOpen.value_or(false));
+    CHECK(!settings.values.game.running.value_or(true));
     CHECK_EQ(settings.values.game.keys.up.value_or(-1), 72);
     CHECK_EQ(settings.values.game.keys.giveUp.value_or(-1), 1);
     CHECK(!settings.values.game.keys.down.has_value());
@@ -172,6 +173,7 @@ TEST_CASE("host settings: the program's file updated, the user's untouched")
             [](swd3::Settings& settings)
             {
                 settings.game.musicVolume = 4;
+                settings.game.running = false;
                 settings.game.keys.menu = 28;
             },
             error
@@ -180,6 +182,7 @@ TEST_CASE("host settings: the program's file updated, the user's untouched")
     const swd3::HostSettings read = swd3::LoadHostSettings({}, file, kBase);
     CHECK(read.programHasGame);
     CHECK_EQ(read.values.game.musicVolume.value_or(-1), 4);
+    CHECK(read.values.game.running.has_value() && !*read.values.game.running);
     CHECK_EQ(read.values.game.keys.menu.value_or(-1), 28);
     const auto written = std::filesystem::last_write_time(file);
     CHECK(

@@ -633,6 +633,7 @@ void Game::InitInstall()
     settings.battleSpeed = kDefaultBattleSpeed;
     settings.settingsFile = this->host.programFile;
     settings.Apply(this->host.values.game, this->unknown14, this->effectsOff);
+    this->roleControl.running = this->host.values.game.running.value_or(true) ? 1 : 0;
     this->ApplyHostPaths();
     this->SizeCaches();
     this->mapCache.Check(MapCache::CheckSessionMark);

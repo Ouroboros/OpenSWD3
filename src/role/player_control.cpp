@@ -283,12 +283,13 @@ void RoleControl::ControlPlayer()
     }
 
     // 0x004034CD: the original toggles while the key is down and sleeps 200 ms (0x004034FC); the rebuild toggles once
-    // per press without the sleep (deviations.md 0x00402F80)
+    // per press without the sleep, and keeps the toggle in [game] running (deviations.md 0x00402F80)
     if (input.IsKeyPressed(owner.config.keys[static_cast<std::size_t>(Button::KeyR)]))
     {
         // 0x004034DC
         DebugLog(u8"切換移動速度");
         this->running = RoleControl::RunToggle[static_cast<std::size_t>(this->running) % RoleControl::RunToggle.size()];
+        owner.config.StoreRunning(this->running != 0);
     }
 
     const bool still = owner.unk4A9488 == 0 && owner.unk4A948C == 0 && owner.unk4B7518 == 0 && owner.unk4B7920 == 0;

@@ -56,6 +56,7 @@
 # effects_off = false   # 关闭画面特效
 # text_speed = 2        # 文字速度 0（最快）..4
 # battle_speed = 11     # 战斗速度 0..11
+# running = true        # 地图上跑步（true）还是走路（false）；按 R 切换时写入，下次启动恢复
 # debug = false         # 调试热键
 # unk14 = 100           # Env.dat 偏移 0x14 的值，用途未明（游戏里保存设置时写 100）
 # red_mask = 31744      # 地图缓存所对应的显示颜色掩码，显示格式变了会清空缓存（程序维护）

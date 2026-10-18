@@ -82,6 +82,8 @@ public:
     void SaveKeys();
     void Apply(const GameSettings& game, i32& unknown14, u8& effectsOff);
     void SetDefaultKeys();
+    // The walk/run toggle kept in [game] running (the rebuild's, see deviations.md 0x00402F80).
+    void StoreRunning(bool running) const;
 
 private:
     void StoreKeys(GameSettings& game) const;

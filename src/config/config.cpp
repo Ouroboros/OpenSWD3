@@ -205,6 +205,16 @@ void Config::StoreKeys(GameSettings& game) const
     }
 }
 
+void Config::StoreRunning(bool running) const
+{
+    this->Store(
+        [running](GameSettings& game)
+        {
+            game.running = running;
+        }
+    );
+}
+
 // [game] of the program's settings file changed by `change` (a failure is logged).
 void Config::Store(const std::function<void(GameSettings&)>& change) const
 {
