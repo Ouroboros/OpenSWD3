@@ -316,7 +316,7 @@ int Game::BattleFrame()
             name,
             [this]
             {
-                this->AudioPump();
+                this->audioDevice.Serve();
             }
         );
         battle.unk53BFE8 = 0;

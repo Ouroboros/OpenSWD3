@@ -45,7 +45,7 @@ void BattleState::TakePendingAction()
 
 // swd32.exe 0x0045B190: the units from the top down: each pass takes the first unit with a y not yet taken, then the
 // lowest y among the enemies after it and the roles (a role at the same y as an enemy comes after it); a unit with y 0
-// is never the first pick
+// is never the first pick. With none left the first pick is unit 18, whose y is the dword after unitY (darkFrames).
 void BattleState::SortDrawOrder()
 {
     const u32 units = this->enemyCount + this->roleCount;
@@ -59,7 +59,7 @@ void BattleState::SortDrawOrder()
             ++first;
         }
 
-        i32 lowest = first < static_cast<u32>(BattleState::Units) ? this->unitY[first] : 0;
+        i32 lowest = first < static_cast<u32>(BattleState::Units) ? this->unitY[first] : this->darkFrames;
         u32 chosen = first;
 
         for (u32 enemy = first + 1; enemy < this->enemyCount; ++enemy)

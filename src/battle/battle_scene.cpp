@@ -203,7 +203,7 @@ void Game::PrepareDarkenedCopies()
 
     for (std::unique_ptr<Surface>& copy : battle.surfaces)
     {
-        this->AudioPump();
+        this->audioDevice.Serve();
         this->drawSurface = this->painter.LockSurface(*copy);
         this->painter.SetTarget(this->drawSurface);
         this->painter.UnlockSurface(*copy);
