@@ -1353,7 +1353,7 @@ constexpr int kWalkShare = 16;
 // TickEffects, CanUseAccessory, the drain effects and CatchRoll.
 constexpr u16 kEffectTick = 0xF;
 constexpr std::size_t kPoisonResistance = 4;  // RoleRecord::unk2D: the resistance of element 5
-constexpr i16 kPoisonKind = 5;
+constexpr i16 kPoisonElement = 5;
 constexpr u32 kStaminaDrainBits = 0x2000000;
 constexpr i16 kStaminaDrain = 10;
 constexpr u16 kAccessory19 = 0x19;
@@ -6729,7 +6729,7 @@ void BattleUnit::PlayIdleFollowUp(BattleServices& services)
 
 // swd32.exe 0x0047DAD0: one tick of the unit's effects (not while held): each timer rises by kEffectTick; a full one
 // (gaugeFull) restarts and takes a turn off. A poison (UnkStatus1000) sets the pending damage when none is pending,
-// scaled by the element 5 resistance of the battle record and halved by an effect of kind 5; a stamina drain
+// scaled by the element 5 resistance of the battle record and halved by an effect of element 5; a stamina drain
 // (kStaminaDrainBits) takes 10 stamina a turn, ending when less is left. Then the finished effects expire.
 void BattleUnit::TickEffects(BattleServices& services)
 {
@@ -6752,7 +6752,8 @@ void BattleUnit::TickEffects(BattleServices& services)
             auto damage = static_cast<i16>(node->value);
             ScaleByTenths(static_cast<i8>(this->battleRecord->unk2D[kPoisonResistance]), damage);
 
-            if (this->HasEffectKind(kPoisonKind) == 1)
+            // 0x0047DB51 calls sub_47E4C0 (HasEffectElement)
+            if (this->HasEffectElement(kPoisonElement) == 1)
             {
                 damage = static_cast<i16>(damage / 2);
             }
