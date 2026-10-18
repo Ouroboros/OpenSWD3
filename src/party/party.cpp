@@ -404,8 +404,9 @@ void ApplyObject(RoleRecord& record, const ObjectData& object, Database& databas
         const i16 maxHitPoints = record.maxHitPoints;
         const i16 maxSpirit = record.maxSpirit;
         const i16 maxStamina = record.maxStamina;
-        add(record.hitPoints, static_cast<u16>(static_cast<i16>(maxHitPoints * object.unk34) / kPercent));
-        add(record.spirit, static_cast<u16>(static_cast<i16>(maxSpirit * object.unk36) / kPercent));
+        // 0x0044D887..0x0044D8E4: each a 32-bit product of the two signed words, then / 100
+        add(record.hitPoints, static_cast<u16>(maxHitPoints * static_cast<i16>(object.unk34) / kPercent));
+        add(record.spirit, static_cast<u16>(maxSpirit * static_cast<i16>(object.unk36) / kPercent));
         add(record.stamina, static_cast<u16>(maxStamina * static_cast<i16>(object.unk38) / kPercent));
         clampVitals();
     }

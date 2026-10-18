@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstring>
 
+#include "core/debug_log.h"
 #include "org/database.h"
 #include "text/big5.h"
 
@@ -56,7 +57,8 @@ void InsertHead(ItemLink& list, std::unique_ptr<ItemNode> node)
     list = std::move(node);
 }
 
-// A new node of `id` (the empty entry, or the object of mon.dat); null when mon.dat has no such object.
+// A new node of `id` (the empty entry, or the object of mon.dat); null when mon.dat has no such object (logged as in
+// 0x0044D0F0 and 0x0044D2D0).
 std::unique_ptr<ItemNode> NewNode(u16 id, Database& database)
 {
     auto node = std::make_unique<ItemNode>();
@@ -67,6 +69,7 @@ std::unique_ptr<ItemNode> NewNode(u16 id, Database& database)
     }
     else if (!database.LoadObject(node->record, id))
     {
+        DebugLog(u8"增加道具 沒有定義物品號碼(%d)", id);  // 0x004A73C0 + 0x004A6BA0
         return nullptr;
     }
 
