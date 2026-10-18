@@ -160,7 +160,7 @@ struct UnitCommand
         UnkFlag2 = 2,
         UnkFlag8 = 8,      // with UnkFlag20: a party role walks home after it acts (ReturnHome)
         UnkFlag10 = 0x10,  // an enemy walks home after it acts
-        UnkFlag20 = 0x20,  // the walk home waits for the act to follow up, then covers a sixth a frame
+        UnkFlag20 = 0x20,  // the walks wait for the act to follow up, then cover 1/16 (there) or 1/12 (home) a frame
         AtTarget = 0x38,   // any of bits 3..5: DrawAction places the act on the target (inferred from DrawAction)
         FadesIn = 0x18,    // bits 3 and 4: a unit with unk2B00 fades in before it attacks (AttackFrame)
     };

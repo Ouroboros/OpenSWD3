@@ -1343,7 +1343,7 @@ constexpr i32 kHomePose1 = 0x30;  // an enemy with unk2A8C 1
 constexpr i32 kHomePose2 = 0x31;  // and with kSecondHomePose
 constexpr u16 kSecondHomePose = 2;
 constexpr int kHomeSteps = 0x23;
-constexpr int kHomeShare = 6;
+constexpr int kHomeShare = 12;  // 0x00482AC0: imul by 0x2AAAAAAB, sar 1
 
 // WalkToTarget.
 constexpr i32 kRoleWalkAction = 0x2A;
@@ -3204,7 +3204,8 @@ bool BattleUnit::ShowsPicture(i16 picture) const
 
     if (picture != -1)
     {
-        return this->mainAct.picture == static_cast<u16>(picture - 1);
+        // 0x00482EF4: the zero-extended picture against the sign-extended picture - 1
+        return static_cast<int>(this->mainAct.picture) == picture - 1;
     }
 
     return this->mainAct.waiting == 1;
@@ -4890,7 +4891,7 @@ void BattleUnit::DrawActionAt(BattleServices& services, i16 x, i16 y, ActState& 
 // `action` when given; the stand pose in the recoil act gives its x); 1 when there is no walk (a party role without
 // kWalksHome or UnkFlag8 / UnkFlag20, an enemy without UnkFlag10, a forced unit) or it arrived (the acts and the line
 // cleared, kWalksHome cleared). The walk takes 0x23 line steps a frame more each frame; with UnkFlag20 none until the
-// act follows up, then a sixth of the distance a frame more. Drawn over its shadow (an invisible unit smears) with
+// act follows up, then a twelfth of the distance a frame more. Drawn over its shadow (an invisible unit smears) with
 // the act's overlay.
 int BattleUnit::ReturnHome(BattleServices& services, const BattleUnit& target, i32 id, i32 action)
 {

@@ -190,3 +190,9 @@
 - 0x004800F0 AddQueuedAction（第 8 参数为步数、第 9 参数为抖动帧，与调用方一致）、0x004801A0 TrailLastQueuedAction（空队列写表头已登记）。
 - 0x00480220 ChooseCommand：选择顺序（治疗 > 物品/技能轮替 > 状态位 5/8 > 无空闲回合时丢弃 0..1 掷骰）、物品 0..4/5..7/8..9 三选（每 7 回合强制第三件）、技能 0..6/7..9 两选（每 5 回合强制第二个，仅第二个复位等待）、0..9 掷骰 < idleTurns + 机率、禁用条件（0xD98 bit 28 的强制单位、0xD94 bit 12 且 0x53BF28）、技能值为赋值、物品值为累加、0x1C 号动作的就绪姿势 0x2C..0x2F；拆出的 ChooseAttack/MarkDelayedAttack 即 LABEL_118/LABEL_123（标志 0x10 且命令 A 为 1 时改为 0xC8）。
 - 0x00480AD0 Data、0x00480AE0 PlayIdleEffect、0x00480D40 PlayIdleFollowUp。
+
+## 防御、伤害计算、拖影与走位 0x00480EE0..0x00482F10
+
+- 0x00480EE0 Defense（返回值高位恒 0）、0x00481010 HitDamage（护罩、增益先落、治疗/恢复、攻击 = 攻击力或加成 + 1..level/3+3、±30%、暴击动作 1/2/8/0x11、减防御至少 1；激怒分支 0x0048162A 起为 32 位乘法，伪代码的 i16 截断不存在；剑气 ×2.5；元素抗性；技能 0x0048193x 等对回复灵力/体力的零判断为 16 位 `test bx, bx`；护卫 −1/3；倒下角色清零）、0x00481A40 EnemyHitDamage（护罩、治疗解除、增益；角色目标的灵扇按熟练度 /20 的五档掩码 0x1080..0x12EF；献祭 0x8000 以 esi 攻击方 Damage(0x270F)、ebx 目标取 hp；命令 1 与其他命令的两种掷骰；护卫减 10..39%；角色加怒气）、0x00481FB0 MarkBit8Clear、0x00481FC0 MarkBit1、0x00481FD0 ClearMoveAxes、0x00482030 RestartMainAct、0x00482080 SetNudge、0x004820A0 DrawTrail（每 3 帧推入；方向 0/1/2 的 x；按当前帧号取各图；加色时 tint level − 0x1F、蓝 −12）、0x00482310 WalkToTarget（UnkFlag20 时距离 /16；调用方忽略返回值）、0x00482DA0 AddFury（flt_499D40 = 47.0f）、0x00482E80 HasBlock38、0x00482E90 DrainKind、0x00482F10 AccessoryProficiency：一致（exact 轮）。
+- 0x00482840 ReturnHome：差异（diff 轮）：UnkFlag20 且动作跟进时每帧步数为距离 ÷ 12（0x00482AC0/0x00482AD8 `imul 2AAAAAABh` 取高位后 `sar edx, 1`），重建按 ÷ 6；kHomeShare 改为 12。修正后通过（exact 轮）。
+- 0x00482EC0 ShowsPicture：差异（diff 轮）：0x00482EF4 以零扩展的图片号与符号扩展的 picture − 1 作 32 位比较，重建把右侧转成 u16（picture ≤ 0 时结果不同）；改为 int 比较。修正后通过（exact 轮）。
