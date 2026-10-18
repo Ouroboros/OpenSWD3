@@ -24,8 +24,8 @@
 - 已识别函数数：1626（无 FLIRT 数据库导出；函数外代码头 0）。
 - 函数总数：1626（范围缺口已闭合，见 reverse/analysis/scope-and-gaps.md 与 reverse/evidence/scope/）。
 - 已实现／总数：1626／1626；静态链接的 CRT 与导入跳转按 AGENTS.md 映射到标准库或平台层；旧逐句转写实现（804 个）保存在标签 legacy-transliteration，仅作参考。
-- 已验证／总数：970／1626。
-- 待实现／待验证：0／656。
+- 已验证／总数：986／1626。
+- 待实现／待验证：0／640。
 - 模块归属：1626 个全部归属（reverse/functions.tsv 的 module 列）。
 
 ## 当前工作

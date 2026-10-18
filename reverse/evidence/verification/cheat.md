@@ -31,3 +31,7 @@
 ## 0x00411030 Party::SetRoleStat、0x004112B0 Party::RoleStat
 
 角色记录 0x4AB790 起每个 0x38 字节：0..0xD 为 +4 起的 word（读取时 0..5 movsx，6..0xD 零扩展），0xE 为 +0x20 的 dword（经验），0xF 为 +0 的 dword，0x10 为 +0x2C 的字节（等级；设定时再调 0x00477290 LoadLevelEntry(角色 + 1, 等级 + 1)，成功则写经验）；其余号码返回 0。与 RoleRecord 偏移及重建实现一致。exact。
+
+## 补正：0x0040F890 CheatProcedure（字符串截断复查）
+
+WM_INITDIALOG 的第 1..4 页标签为 wsprintfA(0x004A0204 "%s法術", 名字)（注释显示 "%s"），重建只用名字（diff 轮）；改为名字加 "法術"。修正后通过（exact 轮）。

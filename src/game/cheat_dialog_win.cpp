@@ -61,6 +61,7 @@ constexpr std::array<int, 4> kColumnWidths = {0x78, 0x40, 0x40, 0x60};
 constexpr int kColumnTextSize = 4;
 constexpr std::u8string_view kItemsTab = u8"物品";          // swd32.exe 0x004A020C
 constexpr std::u8string_view kAttributesSuffix = u8"屬性";  // the end of "%s屬性" (swd32.exe 0x004A01FC)
+constexpr std::u8string_view kSkillsSuffix = u8"法術";      // the end of "%s法術" (swd32.exe 0x004A0204)
 constexpr std::u8string_view kVariablesTab = u8"變數";      // swd32.exe 0x004A01F4
 constexpr std::u8string_view kMoneyLabel = u8"錢";          // the first variable (swd32.exe 0x004A0288)
 constexpr std::string_view kCompanyA = "Cmpy1";             // variables 11 and 12
@@ -367,7 +368,7 @@ INT_PTR CALLBACK CheatProcedure(HWND dialog, UINT message, WPARAM word, LPARAM d
             {
                 const Party::Name& name = cheat->party.names[static_cast<std::size_t>(role)];
                 const std::string text(name.data(), strnlen(name.data(), name.size()));
-                labels[static_cast<std::size_t>(CheatDialog::FirstSkillsTab + role)] = text;
+                labels[static_cast<std::size_t>(CheatDialog::FirstSkillsTab + role)] = text + Big5(kSkillsSuffix);
                 labels[static_cast<std::size_t>(CheatDialog::FirstAttributesTab + role)] =
                     text + Big5(kAttributesSuffix);
             }

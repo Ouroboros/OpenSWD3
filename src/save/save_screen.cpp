@@ -160,13 +160,13 @@ constexpr int kPlaceHeight = 0xE;
 constexpr int kPlaceShade = -12;
 constexpr int kPlaceCharWidth = 3;
 constexpr int kPlaceChars = 0x20;
-constexpr Pixel kPlaceColor = 0xE6E6;  // swd32.exe 0x0049E0DC
-constexpr u16 kAbsentRole = 0xFFFF;    // SavePreviewRole::maxHitPoints of a role not in the party
+constexpr std::size_t kPlaceColor = 5;  // swd32.exe 0x0049E0DC: the low word of the converted primary text colour 5
+constexpr u16 kAbsentRole = 0xFFFF;     // SavePreviewRole::maxHitPoints of a role not in the party
 constexpr int kFaceStep = 0x48;
 constexpr int kFaceX = 0xE0;
 constexpr int kFaceTop = 0x88;
 constexpr int kSecondFaceDrop = 0x10;
-constexpr std::string_view kLevelFormat = "%d";
+constexpr std::u8string_view kLevelFormat = u8"%d級";  // swd32.exe 0x0049FA84
 constexpr int kDigitWidth = 4;
 constexpr int kLevelStep = 0x12;
 constexpr int kLevelX = 0xF0;
@@ -1519,7 +1519,7 @@ void Game::DrawSlotsPage()
                 kPlaceCharWidth * (kPlaceChars - length),
                 y + kPlaceTop + 1,
                 preview.location,
-                kPlaceColor,
+                static_cast<Pixel>(this->textColors.primary[kPlaceColor]),
                 kPlainStyle
             );
 

@@ -220,7 +220,8 @@ constexpr std::u8string_view kGoldLine = u8"得到銀幣:%d";               // s
 constexpr std::u8string_view kProficiencyLine = u8"得到法寶經驗值:%d";  // swd32.exe 0x004A79F8
 constexpr u8 kNoLevelUp = 0xFF;                                         // the 升級 panel
 constexpr int kLevelUpTitleX = 0x108;
-constexpr std::u8string_view kLevelUpTitle = u8"升級";  // swd32.exe 0x004A7A44
+constexpr std::u8string_view kLevelUpTitle = u8"升級";       // swd32.exe 0x004A7A44
+constexpr std::u8string_view kLevelUpLine = u8"%s升第%d級";  // swd32.exe 0x004A7A38: the name and the new level
 constexpr int kLevelUpBodyBottom = 0xF4;
 constexpr int kLevelUpGrowDivisor = 3;
 constexpr int kLevelUpTextY = 0xDC;
@@ -3266,7 +3267,7 @@ void Game::DrawVictoryPanel()
 }
 
 // swd32.exe 0x00467AC0: the 升級 panel while a role levels up (unk4A7646) or a skill was learned (unk53BFFC): a shade
-// with a title and a body frame; once the panel has grown, the name of the role that levelled up.
+// with a title and a body frame; once the panel has grown, "<name>升第<level>級" of the role that levelled up.
 void Game::DrawLevelUpPanel()
 {
     BattleState& battle = this->battleState;
@@ -3329,7 +3330,8 @@ void Game::DrawLevelUpPanel()
 
     const auto role = static_cast<std::size_t>(battle.partyRoles[battle.unk4A7646]);
     const Party::Name& name = this->party.names[role];
-    const std::string text(name.data(), std::find(name.begin(), name.end(), '\0') - name.begin());
+    const std::string roleName(name.data(), std::find(name.begin(), name.end(), '\0') - name.begin());
+    const std::string text = WinFormat(kLevelUpLine, {roleName, static_cast<i32>(this->party.roles[role].level)});
     font.DrawText(this->drawSurface, kVictoryTextX, kLevelUpTextY, text, kTitleColor, TextFont::BoldOutline);
 }
 

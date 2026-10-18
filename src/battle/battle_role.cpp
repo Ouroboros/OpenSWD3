@@ -269,7 +269,7 @@ constexpr i16 kRefusalFrames = 0x14;
 constexpr int kRefusalFlags = BattleMessage::BlackBar | BattleMessage::Centered;
 constexpr u16 kRefusedSound = 0x8C;
 constexpr std::size_t kClearedNameBytes = 0x10;
-constexpr std::u8string_view kNumberFormat = u8"%d";  // swd32.exe 0x004A7CDC
+constexpr std::u8string_view kNoObjectEffect = u8"%d物品特效號碼沒設";  // swd32.exe 0x004A7CDC
 constexpr u32 kNoObjectActLine = 0x926;
 constexpr u32 kSeparateKind = 0x800;  // ObjectData::kind: the object plays its own act (UnkCommandFlag1000)
 constexpr u32 kReusableKind = 0x80;   // an object not taken when used
@@ -4293,10 +4293,11 @@ int BattleRole::CanPaySkill(BattleServices& services, int category, int index)
 // skill name cleared, the used item 0; UnkCommandFlag4000 set and the object chosen. A listed object of category 4
 // loads its unk3E script, unk29A4 its unk24 (1). Otherwise its unk48 script (unk3E without one); a spirit or stamina
 // cost (unk2F10, unk2F12) above the role's gives 0. The heals as SelectSkill; `act` the cast act (a maintenance
-// assert "%d" with the object's id when it has none); an object of kind kSeparateKind sets UnkCommandFlag1000 with
-// its unk50 as the used item. `kind` 1 for category 0 or a shared kind bit 8; category 5 (throwing) 2 for
-// kThrownObject with UnkCommandFlag2000, 3 for another object without it. The object's taken count rises unless it
-// is of kind bit kReusableKind (without kind bit kThrowKind) or of category 3. 0 past the end or for index 0.
+// assert "%d物品特效號碼沒設" with the object's id when it has none); an object of kind kSeparateKind sets
+// UnkCommandFlag1000 with its unk50 as the used item. `kind` 1 for category 0 or a shared kind bit 8; category 5
+// (throwing) 2 for kThrownObject with UnkCommandFlag2000, 3 for another object without it. The object's taken count
+// rises unless it is of kind bit kReusableKind (without kind bit kThrowKind) or of category 3. 0 past the end or for
+// index 0.
 int BattleRole::SelectObject(Database& database, ErrorReporter& reporter, int category, int index, u32& act, u16& kind)
 {
     const u32 kinds = BattleRole::CategoryKinds(category, kObjectCategories);
@@ -4385,7 +4386,7 @@ int BattleRole::SelectObject(Database& database, ErrorReporter& reporter, int ca
 
         if (this->command.castAct == 0)
         {
-            MaintenanceAssert(reporter, kNumberFormat, node->id, kManroleFile, kNoObjectActLine);
+            MaintenanceAssert(reporter, kNoObjectEffect, node->id, kManroleFile, kNoObjectActLine);
         }
 
         if ((data.kind & kSeparateKind) != 0)
