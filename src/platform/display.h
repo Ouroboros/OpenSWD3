@@ -5,12 +5,14 @@
 struct SDL_Window;
 struct SDL_Renderer;
 struct SDL_Texture;
+struct SDL_Cursor;
 union SDL_Event;
 
 namespace swd3
 {
 
 class Surface;
+struct IconImage;
 
 // Where the logical screen is drawn inside the render output (in output pixels).
 struct Viewport
@@ -70,6 +72,10 @@ public:
     // A window position (as reported by mouse events) in logical screen coordinates.
     LogicalPoint WindowToLogical(float windowX, float windowY) const;
     void WarpPointer(int x, int y);
+    // The icon of the window, and the pointer shown over it while the system cursor is visible (swd32.exe 0x00409EC0
+    // registers its window class with icon 0x65 and the blank cursor 0x67).
+    void SetIcon(const IconImage& icon);
+    void SetCursor(const IconImage& cursor);
 
     SDL_Window* Window() const
     {
@@ -99,6 +105,7 @@ private:
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
     SDL_Texture* texture = nullptr;
+    SDL_Cursor* cursor = nullptr;
 };
 
 }  // namespace swd3

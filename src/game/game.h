@@ -78,6 +78,8 @@ public:
     static constexpr std::u8string_view DirectInputFailed = u8"DirectInput 初始化錯誤%n";  // 0x004A0F5C
     static constexpr std::u8string_view Executable = u8"swd32.exe";
     static constexpr u32 StartSound = 0x78;
+    static constexpr u32 WindowIcon = 0x65;    // the icon group of the window class (swd32.exe 0x00409F49)
+    static constexpr u32 WindowCursor = 0x67;  // the cursor group (swd32.exe 0x00409F52)
     static constexpr int FrameInterval = 0x23;
     // swd32.exe 0x0049FBA8: the signed speeds of the nibbles of a map setting (8 and above count down from -7).
     static constexpr std::array<i32, 16> SpeedNibbles = {0, 1, 2, 3, 4, 5, 6, 7, 8, -7, -6, -5, -4, -3, -2, -1};

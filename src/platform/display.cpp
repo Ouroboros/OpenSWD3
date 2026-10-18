@@ -3,8 +3,10 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
+#include <cstring>
 
 #include "core/log.h"
+#include "platform/exe_resources.h"
 #include "platform/surface.h"
 
 namespace swd3
@@ -14,6 +16,34 @@ namespace
 {
 
 constexpr float kHalf = 0.5F;  // the picture is centred in the window
+
+// A copy of `icon` as an SDL surface; null when it is empty.
+SDL_Surface* MakeIconSurface(const IconImage& icon)
+{
+    if (icon.width <= 0 || icon.height <= 0 ||
+        icon.pixels.size() != static_cast<std::size_t>(icon.width) * static_cast<std::size_t>(icon.height))
+    {
+        return nullptr;
+    }
+
+    SDL_Surface* surface = SDL_CreateSurface(icon.width, icon.height, SDL_PIXELFORMAT_ARGB8888);
+
+    if (surface == nullptr)
+    {
+        return nullptr;
+    }
+
+    for (int row = 0; row < icon.height; ++row)
+    {
+        std::memcpy(
+            static_cast<u8*>(surface->pixels) + static_cast<std::ptrdiff_t>(row) * surface->pitch,
+            icon.pixels.data() + static_cast<std::size_t>(row) * static_cast<std::size_t>(icon.width),
+            static_cast<std::size_t>(icon.width) * sizeof(u32)
+        );
+    }
+
+    return surface;
+}
 
 }  // namespace
 
@@ -41,6 +71,11 @@ LogicalPoint ToLogical(const Viewport& viewport, float outputX, float outputY)
 
 Display::~Display()
 {
+    if (this->cursor != nullptr)
+    {
+        SDL_DestroyCursor(this->cursor);
+    }
+
     if (this->texture != nullptr)
     {
         SDL_DestroyTexture(this->texture);
@@ -238,4 +273,45 @@ void Display::WarpPointer(int x, int y)
     const float outputY = viewport.y + static_cast<float>(y) * viewport.height / Display::Height;
     SDL_WarpMouseInWindow(this->window, outputX * scaleX, outputY * scaleY);
 }
+
+void Display::SetIcon(const IconImage& icon)
+{
+    SDL_Surface* surface = MakeIconSurface(icon);
+
+    if (this->window != nullptr && surface != nullptr && !SDL_SetWindowIcon(this->window, surface))
+    {
+        LogError(u8"window icon not set: %s", AsUtf8(SDL_GetError()));
+    }
+
+    SDL_DestroySurface(surface);
+}
+
+void Display::SetCursor(const IconImage& cursor)
+{
+    SDL_Surface* surface = MakeIconSurface(cursor);
+
+    if (surface == nullptr)
+    {
+        return;
+    }
+
+    SDL_Cursor* made = SDL_CreateColorCursor(surface, cursor.hotX, cursor.hotY);
+    SDL_DestroySurface(surface);
+
+    if (made == nullptr)
+    {
+        LogError(u8"cursor not made: %s", AsUtf8(SDL_GetError()));
+        return;
+    }
+
+    SDL_SetCursor(made);
+
+    if (this->cursor != nullptr)
+    {
+        SDL_DestroyCursor(this->cursor);
+    }
+
+    this->cursor = made;
+}
+
 }  // namespace swd3

@@ -458,6 +458,13 @@ void Game::Start()
         return;
     }
 
+    IconImage picture;
+
+    if (this->resources.FindIcon(ExeResources::GroupIcon, Game::WindowIcon, picture))
+    {
+        this->display.SetIcon(picture);
+    }
+
     this->systemSound.Play(this->resources.Find("WAVE", Game::StartSound));
     this->config.SetDefaultKeys();
     this->InitInstall();
@@ -478,6 +485,13 @@ void Game::Start()
     );
     const Launcher::Choice choice = this->RunLauncher();
     LogInfo(u8"launcher choice=%d", static_cast<i32>(choice));
+
+    // The launcher is a dialog with the arrow pointer; over the game window the pointer is the window class's cursor
+    // 0x67, which is blank.
+    if (this->resources.FindIcon(ExeResources::GroupCursor, Game::WindowCursor, picture))
+    {
+        this->display.SetCursor(picture);
+    }
 
     switch (choice)
     {

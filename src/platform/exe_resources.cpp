@@ -59,6 +59,23 @@ constexpr int kGreen565Shift = 5;
 constexpr std::size_t kGreenAt = 1;  // a pixel or palette entry: blue, green, red
 constexpr std::size_t kRedAt = 2;
 
+// Icon and cursor resources: a group lists its members, a member is a bitmap of twice its height (the colours, then
+// the 1-bit mask), a cursor member starts with its hotspot.
+constexpr std::size_t kGroupCountAt = 4;
+constexpr std::size_t kGroupEntriesAt = 6;
+constexpr std::size_t kGroupEntryBytes = 14;
+constexpr std::size_t kGroupBitsAt = 6;
+constexpr std::size_t kGroupIdAt = 12;
+constexpr std::size_t kHotYAt = 2;
+constexpr std::size_t kCursorBitmapAt = 4;
+constexpr u16 kMaskBits = 1;
+constexpr u16 kHighColorBits = 32;
+constexpr std::size_t kHighColorBytes = 4;
+constexpr u32 kOpaque = 0xFF000000u;
+constexpr u32 kMaskedInverted = 0xFF000000u;  // a masked pixel of a colour inverts the screen: shown black
+constexpr int kRedShift = 16;
+constexpr int kGreenShift = 8;
+
 class Reader
 {
 public:
@@ -92,6 +109,94 @@ struct Section
     u32 size = 0;
     u32 raw = 0;
 };
+
+std::size_t BitmapStride(i32 width, u16 bits)
+{
+    constexpr std::size_t kRowAlignBits = kRowAlign * CHAR_BIT;
+    return (static_cast<std::size_t>(width) * bits + kRowAlignBits - 1) / kRowAlignBits * kRowAlign;
+}
+
+bool DecodeIconBitmap(std::span<const u8> bitmap, IconImage& out)
+{
+    const Reader reader(bitmap);
+    const u32 headerSize = reader.Dword(0);
+    const auto width = static_cast<i32>(reader.Dword(kBitmapWidthAt));
+    const auto height = static_cast<i32>(reader.Dword(kBitmapHeightAt)) / 2;
+    const u16 bits = reader.Word(kBitmapBitsAt);
+
+    if (!reader.Has(0, kBitmapHeaderBytes) || headerSize < kBitmapHeaderBytes ||
+        reader.Dword(kBitmapCompressionAt) != 0 || width <= 0 || height <= 0 ||
+        (bits != 1 && bits != 4 && bits != kIndexedBits && bits != kTrueColorBits && bits != kHighColorBits))
+    {
+        return false;
+    }
+
+    u32 colors = 0;
+
+    if (bits <= kIndexedBits)
+    {
+        colors = reader.Dword(kBitmapColorsAt);
+
+        if (colors == 0)
+        {
+            colors = 1u << bits;
+        }
+    }
+
+    const std::size_t palette = headerSize;
+    const std::size_t pixels = palette + kPaletteEntryBytes * static_cast<std::size_t>(colors);
+    const std::size_t stride = BitmapStride(width, bits);
+    const std::size_t mask = pixels + stride * static_cast<std::size_t>(height);
+    const std::size_t maskStride = BitmapStride(width, kMaskBits);
+
+    if (!reader
+             .Has(pixels, stride * static_cast<std::size_t>(height) + maskStride * static_cast<std::size_t>(height)) ||
+        !reader.Has(palette, kPaletteEntryBytes * static_cast<std::size_t>(colors)))
+    {
+        return false;
+    }
+
+    out.width = width;
+    out.height = height;
+    out.pixels.assign(static_cast<std::size_t>(width) * static_cast<std::size_t>(height), 0);
+
+    auto rgb = [&bitmap](std::size_t at)
+    {
+        return static_cast<u32>(bitmap[at + kRedAt]) << kRedShift |
+               static_cast<u32>(bitmap[at + kGreenAt]) << kGreenShift | static_cast<u32>(bitmap[at]);
+    };
+
+    for (int row = 0; row < height; ++row)
+    {
+        const auto stored = static_cast<std::size_t>(height - 1 - row);
+        const std::size_t source = pixels + stride * stored;
+        const std::size_t maskRow = mask + maskStride * stored;
+
+        for (int column = 0; column < width; ++column)
+        {
+            const auto at = static_cast<std::size_t>(column);
+            u32 color = 0;
+
+            if (bits <= kIndexedBits)
+            {
+                const std::size_t bit = at * bits;
+                const u32 byte = bitmap[source + bit / CHAR_BIT];
+                const u32 index = byte >> (CHAR_BIT - bits - bit % CHAR_BIT) & ((1u << bits) - 1);
+                color = rgb(palette + kPaletteEntryBytes * (index < colors ? index : 0));
+            }
+            else
+            {
+                color = rgb(source + (bits == kTrueColorBits ? kTrueColorBytes : kHighColorBytes) * at);
+            }
+
+            const bool masked = (bitmap[maskRow + at / CHAR_BIT] >> (CHAR_BIT - 1 - at % CHAR_BIT) & 1) != 0;
+            out.pixels[static_cast<std::size_t>(row) * static_cast<std::size_t>(width) + at] =
+                !masked ? (color | kOpaque) : (color != 0 ? kMaskedInverted : 0);
+        }
+    }
+
+    return true;
+}
 
 }  // namespace
 
@@ -250,6 +355,62 @@ std::span<const u8> ExeResources::Find(std::string_view type, u32 id) const
     }
 
     return {};
+}
+
+bool ExeResources::FindIcon(u32 groupType, u32 group, IconImage& out) const
+{
+    const std::span<const u8> directory = this->Find(groupType, group);
+    const Reader reader(directory);
+
+    if (!reader.Has(0, kGroupEntriesAt))
+    {
+        return false;
+    }
+
+    const u16 count = reader.Word(kGroupCountAt);
+    u16 bestBits = 0;
+    u32 best = 0;
+
+    for (u16 index = 0; index < count; ++index)
+    {
+        const std::size_t entry = kGroupEntriesAt + kGroupEntryBytes * index;
+
+        if (!reader.Has(entry, kGroupEntryBytes))
+        {
+            break;
+        }
+
+        const u16 bits = reader.Word(entry + kGroupBitsAt);
+
+        if (best == 0 || bits > bestBits)
+        {
+            bestBits = bits;
+            best = reader.Word(entry + kGroupIdAt);
+        }
+    }
+
+    if (best == 0)
+    {
+        return false;
+    }
+
+    const bool cursor = groupType == ExeResources::GroupCursor;
+    const std::span<const u8> member = this->Find(cursor ? ExeResources::Cursor : ExeResources::Icon, best);
+    const Reader memberReader(member);
+
+    if (cursor && !memberReader.Has(0, kCursorBitmapAt))
+    {
+        return false;
+    }
+
+    if (!DecodeIconBitmap(cursor ? member.subspan(kCursorBitmapAt) : member, out))
+    {
+        return false;
+    }
+
+    out.hotX = cursor ? memberReader.Word(0) : 0;
+    out.hotY = cursor ? memberReader.Word(kHotYAt) : 0;
+    return true;
 }
 
 bool DecodeBitmap(std::span<const u8> bitmap, Surface& out)
