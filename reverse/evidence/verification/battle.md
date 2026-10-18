@@ -140,3 +140,16 @@
 - 0x004755E0 AdvanceGauge：差异（diff 轮）：0x0047561B `and eax, 0FFFFh; cmp eax, edx; jl` 为零扩展 gauge 与 dword 0x004A74CC 的有符号比较，重建把 gaugeFull 转 u32 作无符号比较（gaugeFull = 每档 × (档数 − 速度) 为负时结果不同）；改为 i32 有符号比较。修正后通过（exact 轮）。
 - 0x004758A0 EnemyAttackFrame：动作 0x28/0x30/0x31 或 +0x2A0E，反冲、跟进与场地淡化、地震、0x11 命中、颜色暗化 0x53BF98、飞行用槽 0x6C8、每帧 −4 且 0x2C 标志直接到 −0x20、结束时 gauge + 10..129。两段内联命中合并为 EnemyStrike：RollEvade 的 ecx 为 arg_0（目标）；第二段闪避参数取被 sub_482E90 返回值覆盖的 var_4（0x00475C23），重建以 `chance = kind` 保留。差异（diff 轮）：目标反射（sub_47F360 = 1）时 0x00475C03、0x00475E41 `push 1; mov ecx, esi` 对敌人自身调用 sub_47CEC0，重建对目标计数；改为敌人。修正后通过（exact 轮）。
 - 0x00476080 ChooseHeal（0..4 第一种、5..9 第二种，hitPoints 或 0x26B4 低于 0x4C/3）、0x00476140 CommandStatusBit（0xD98 bit 28、0xD94 bit 12）、0x00476160 LoadSkillAction（act 取 object + 0x50 = this + 0x60）、0x004761D0 PrepareCommand、0x00476250 LoadEnemyCommand（0x72/0x76）、0x004762F0 RollDrop（0..19 < dropChance）、0x00476330 CatchRoll（0x00476368/0x00476383 jle 有符号；0..11 掷骰丢弃）：一致。
+
+## 敌人辅助、mon.dat/level.dat 读取与计数表 0x004763D0..0x00478330
+
+逐函数对照汇编，全部一致，无代码改动（exact 轮）：
+
+- 0x004763D0 RunAway（≤ 6 有符号结束、首图音效 0x10F、动作 0x24、fadeLevel 0xF 时 0x2F、每帧 0x19）、0x00476600 RefineTalisman（熟练度 0x32..0x4F 两选、0x50..0x64 三选；0x3C/0x5A；类型 0x8000000 返回 +0x48）。
+- 0x00476780 ItemName（id 恒取 itemA，保留）、0x00476860 SkillName、0x004768D0 IsSmallMachine、0x00476900 CommandValues、0x00476920 SetResistances、0x004769A0 SetWords66、0x00476A10 SetWords72（第四值写 +0x74，保留）、0x00476A60 BattleEnemy::Release。
+- 0x00476A80 Database::LoadSkill：opcode 0..0x19 的操作数宽度与标志位（3→1、9→2、0xB→4、0xE→8、0xF..0x11→0x10..0x40、6→0x80、0x12..0x15→0x100..0x800、0x16→0x1000、0x18→0x2000、0x19→0x4000；0xA 置 unk1E 高位）逐一对上。
+- 0x00476DB0 Database::LoadObject：标签与字段偏移逐一对上；0x7D0 共 15 字节（抗性 9、0x9B、0x9C、+0x54、+0x52）；名字/说明的 "$$" 搜索 0xFF 上限与跳过字节数一致；读位置 0x204 后 FILE_CURRENT 4 × id − 4。
+- 0x00477290 Database::LoadLevelEntry（偏移 4 × (index + 0x64 × group) + 0x70，经验在 opcode 0 的 +0x16）、0x00477400 LevelUp（0x00477524 `movsx ax, byte ptr [edx]` 取 opcode 低字节；断言 0x004A7D04 "升級魔法編號為0!!" 行 0x330；0x00477584/0x004775A2 16 位 cmp 节点 id，0x8000 不追加）、0x004776A0 CloseFiles、0x004776F0 ClearCounterList。
+- 0x00477710 AddCounterCapped、0x00477780 SetCounterCapped、0x00477800 FindCounterValue、0x00477830 StepCounterProgress（伪代码漏掉 0x00477884 `fmul flt_499D28` = 100.0f，重建乘 100 正确）、0x00477920 SetCounterProgress、0x004779F0 FindCounterPercent、0x00477A20 SetProficiency（上限 0x00477A8B `and eax, 0FFFFh` 取 word；非空表从第一节点起找；done 不改）、0x00477B40 GetProficiency、0x00477BD0 LearnSkill（断言 0x004A7D38 "魔法編號為0!!" 行 0x50A；16 位 cmp）。
+- 0x00477C90 Fame::Save（三个头部 dword 之和取低 16 位 × 0xE + 0x1E；压缩失败 "save fame compress false !!"）、0x00477F10 Fame::Load（计数写头部低 word；"Load fame decompress false !!"）、0x00478110 Fame::Free、0x00478220 FreeDescription。
+- 0x00478250 BattleUnit 构造（targets −1、0x29A2 = 0xFFFF、0x2668 = 0xF、0x266C = 1、0x2A0A = 4、0x2A68 = 2、0x2A6A = 0x18、0x26BC = 0x062B062B，与成员默认值一致）、0x00478300 析构、0x00478330 SetTarget。
