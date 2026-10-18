@@ -670,7 +670,10 @@ bool Talk::OpenScript(Role& context, u32 index)
 
     if (!this->game.databases.story.Open(path, File::Disposition::OpenExisting, File::Access::Read))
     {
-        DebugLog(u8"檔案開啟", u8"劇情資料(1)無法讀取/%s");
+        // 0x0042E4D7: 0x004A1D58 copied over FileName, its digit (0x004AAED9) set to the file number
+        std::u8string message = u8"劇情資料(1)無法讀取/%s";
+        message[message.find(u8'1')] = static_cast<char8_t>(index / Talk::EventsPerFile + u8'1');
+        DebugLog(u8"檔案開啟 %s", message);
         owner.Destroy();
         return false;
     }

@@ -439,13 +439,13 @@ ItemNode* AddItem(ItemLink& list, u16 id, i16 amount, ItemCountMode mode, Databa
 
 // swd32.exe 0x0045D180: one of item `id` added (to the pending count when `pending` is 1) unless the entry holds
 // MaxCount in all; a new entry goes first, its object loaded from mon.dat even when it has none. The record of the
-// entry is returned; id 0 returns that of the first entry. The original takes the inventory list directly and for id
-// 0 of an empty list returns the address 0xC.
+// entry is returned. The original takes the inventory list directly; its head is a static node (0x004A9940) whose
+// record (0x004A994C, all zero) id 0 returns (0x0045D18A): nullptr here, read by the callers as an empty name.
 ObjectRecord* AddOneItem(ItemLink& list, u16 id, int pending, Database& database)
 {
     if (id == 0)
     {
-        return list != nullptr ? &list->record : nullptr;
+        return nullptr;
     }
 
     for (ItemNode* node = list.get(); node != nullptr; node = node->next.get())

@@ -54,3 +54,7 @@
 - 差异（diff 轮）：漏了三条日志：关窗时说话者动作失败 "Act Err(DlgMessage:Fr)"（0x0042FB2B）、结束与翻页动作失败 "Act Err(DlgMessage:EndBtn)"/"Act Err(DlgMessage:NextPage)"（0x0043010D、0x00430151；后者压的仍是结束按钮角色 0x004C96EC 等，0x0043012B..0x0043014B）。已补。修正后通过（exact 轮）。
 - 0x00430350：背景 0xFFFE，阴影取 0x0049E108[shade]，颜色取 0x0049E0C8[color]，样式原样；画后背景 0xFFFE、阴影 0。序号超出 0..15 的越界读取已记入 deviations.md。通过。
 - 0x00430BE0：可选正负号，最多 9 位十进制，其他字符为假；空数字的越界见 deviations.md。通过。
+
+## 补验 0x0042E480 OpenScript
+
+关闭剧情文件、按 index / 2000 + 1 组 Talk%d.dat 路径、AIL_serve、打开（共享读）、定位 4 × (index % 2000) + 0x200 读偏移入 +0x14、+0x20 清零、AIL_serve、定位偏移 + 0x200 读 0x8000 字节、AIL_serve：一致。差异（diff 轮）：打开失败时原版把 0x004A1D58 "劇情資料(1)無法讀取/%s" 复制进 FileName，再把 0x004AAED9（FileName+9，即括号内数字）改成 index / 2000 + 0x31，以 FileName 为参数记日志（0x0042E4D7..0x0042E4F7）；重建固定写 1。改为运行时文件号，标题与正文合为 "檔案開啟 %s"。修正后通过（exact 轮）。
