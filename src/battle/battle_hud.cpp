@@ -168,8 +168,14 @@ int BattleHud::DrawPortrait(u16 index, int x, int y, int dim)
     options.tintBlue = kDimTint;
     options.tintRed = 0;
     const Picture* current = this->lastPicture;
-    return this->painter
-        .DrawPicture(x - state.x, y - state.y, current->width, current->height, state.flags | Painter::TintUnder);
+    return this->painter.DrawPicture(
+        x - state.x,
+        y - state.y,
+        current->width,
+        current->height,
+        state.flags | Painter::TintUnder,
+        PaletteArgument(*current)
+    );
 }
 
 // swd32.exe 0x00450400: the looping arrow (act 0x2392) of one of four slots
@@ -191,7 +197,8 @@ int BattleHud::DrawArrow(int x, int y, int slot)
         return 0;
     }
 
-    return this->painter.DrawPicture(x - state.x, y - state.y, picture->width, picture->height, state.flags);
+    return this->painter
+        .DrawPicture(x - state.x, y - state.y, picture->width, picture->height, state.flags, PaletteArgument(*picture));
 }
 
 // swd32.exe 0x00450490: only positive widths are drawn
@@ -415,12 +422,15 @@ int BattleHud::DrawEffectAt(int id, int action, int x, int y, int mirror)
     }
 
     u32 flags = state.flags;
-    i16 offset = static_cast<i16>(state.x);
+    i32 offset = state.x;
 
     if (mirror == 1)
     {
         flags = (state.flags & 1) != 0 ? state.flags & ~1u : state.flags | 1;
-        offset = static_cast<i16>(picture->width - state.x);
+        // 0x00450AE2 mov dx / sub dx: only the low word becomes width - x, the high word of x stays
+        offset = static_cast<i32>(
+            (static_cast<u32>(state.x) & 0xFFFF0000u) | static_cast<u16>(picture->width - static_cast<u16>(state.x))
+        );
     }
 
     this->painter.SetSource(picture->data.data());
