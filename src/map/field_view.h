@@ -177,27 +177,33 @@ public:
 private:
     struct TileSet;
 
-    // Where a game frame drew the camera and the roles.
-    struct FramePlaces
+    // How the camera or a role is shown moving to where the game frames drew it: from `fromX`, `fromY` to `toX`, `toY`
+    // over `frames` game frames from frame `start`, `frames` being the frames between its last two moves (a role that
+    // steps every few frames glides at an even pace instead of moving in one frame and standing in the others).
+    struct Glide
     {
-        bool valid = false;
-        u32 frame = 0;  // Game::mapFrames when drawn
-        int map = 0;
-        i32 cameraLeft = 0;
-        i32 cameraTop = 0;
-        i32 cameraWidth = 0;
-        i32 cameraHeight = 0;
-        std::vector<i32> roleX;
-        std::vector<i32> roleY;
+        double fromX = 0.0;
+        double fromY = 0.0;
+        i32 toX = 0;
+        i32 toY = 0;
+        u32 start = 0;
+        u32 frames = 1;
+        u32 moved = 0;  // the frame of its last move
     };
 
     void PaintWorld();
     void ClipToSpotlight();
     void CapturePlaces();
     void CaptureLayer(std::vector<Pixel>& layer) const;
+    static void Follow(Glide& glide, i32 x, i32 y, u32 frame, bool continuous);
+    static std::array<double, 2> Shown(const Glide& glide, double time);
 
-    FramePlaces previousPlaces;
-    FramePlaces currentPlaces;
+    bool placesValid = false;
+    u32 placesFrame = 0;  // Game::gameFrames of the last map frame
+    int placesMap = 0;
+    i32 cameraWidth = 0;
+    i32 cameraHeight = 0;
+    std::vector<Glide> glides;          // the camera, then the roles
     std::vector<Pixel> worldLayer;      // the last game frame after the map, before the interface
     std::vector<Pixel> interfaceLayer;  // after the interface, before the fade
     std::vector<Pixel> fadedLayer;      // after the fade

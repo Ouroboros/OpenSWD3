@@ -25,6 +25,7 @@ constexpr int kRoleMarginX = Display::Width / 2;  // roles this far beside the s
 constexpr int kReflectionRowsAbove = 5;           // the reflections are drawn from this many rows above the camera
 constexpr u32 kNoFrame = 0xFFFF;                  // the frame of a role without an act
 constexpr i32 kSnapDistance = 0x80;  // smooth motion: a camera or role moving further in a frame jumps there
+constexpr u32 kMaxGlideFrames = 8;   // longer pauses between moves keep the last pace
 constexpr int kPerMille = 1000;      // random.Below(kPerMille): the chances are in thousandths
 constexpr int kSoundRange = 0x200;   // the distance (pixels) a role is heard from
 constexpr int kSoundScale = 0x80;    // the volume and the distance kept for the sounds
@@ -3030,7 +3031,8 @@ void FieldView::PaintWorld()
     }
 }
 
-// Where the game frame about to be painted draws the camera and the roles, the last one's kept as the one before.
+// Where the game frame about to be painted draws the camera and the roles: each starts a glide to its new place when
+// it moved (from where it is shown at the start of this frame), lasting the frames since its last move.
 void FieldView::CapturePlaces()
 {
     Game& owner = this->game;
@@ -3040,24 +3042,69 @@ void FieldView::CapturePlaces()
         return;
     }
 
-    std::swap(this->previousPlaces, this->currentPlaces);
-    FramePlaces& places = this->currentPlaces;
     const Field& field = owner.field;
-    places.valid = true;
-    places.frame = owner.gameFrames;
-    places.map = owner.currentMap;
-    places.cameraLeft = field.cameraLeft;
-    places.cameraTop = field.cameraTop;
-    places.cameraWidth = field.cameraRight - field.cameraLeft;
-    places.cameraHeight = field.cameraBottom - field.cameraTop;
-    places.roleX.resize(GameState::Roles);
-    places.roleY.resize(GameState::Roles);
+    const u32 frame = owner.gameFrames;
+    const bool continuous = this->placesValid && frame == this->placesFrame + 1 && owner.currentMap == this->placesMap;
+    this->glides.resize(1 + GameState::Roles);
+    FieldView::Follow(this->glides[0], field.cameraLeft, field.cameraTop, frame, continuous);
 
     for (std::size_t index = 0; index < GameState::Roles; ++index)
     {
-        places.roleX[index] = owner.state.roles[index].x;
-        places.roleY[index] = owner.state.roles[index].y;
+        const Role& role = owner.state.roles[index];
+        FieldView::Follow(this->glides[1 + index], role.x, role.y, frame, continuous);
     }
+
+    this->placesValid = true;
+    this->placesFrame = frame;
+    this->placesMap = owner.currentMap;
+    this->cameraWidth = field.cameraRight - field.cameraLeft;
+    this->cameraHeight = field.cameraBottom - field.cameraTop;
+}
+
+void FieldView::Follow(Glide& glide, i32 x, i32 y, u32 frame, bool continuous)
+{
+    if (!continuous)
+    {
+        glide = Glide{static_cast<double>(x), static_cast<double>(y), x, y, frame, 1, frame};
+        return;
+    }
+
+    if (x == glide.toX && y == glide.toY)
+    {
+        return;
+    }
+
+    if (std::abs(x - glide.toX) > kSnapDistance || std::abs(y - glide.toY) > kSnapDistance)
+    {
+        glide = Glide{static_cast<double>(x), static_cast<double>(y), x, y, frame, 1, frame};
+        return;
+    }
+
+    const std::array<double, 2> shown = FieldView::Shown(glide, static_cast<double>(frame));
+    const u32 gap = frame - glide.moved;
+    glide.fromX = shown[0];
+    glide.fromY = shown[1];
+    glide.toX = x;
+    glide.toY = y;
+    glide.start = frame;
+
+    if (gap >= 1 && gap <= kMaxGlideFrames)
+    {
+        glide.frames = gap;
+    }
+
+    glide.moved = frame;
+}
+
+// Where a glide is shown at `time` (game frames: the last frame plus how far the next is).
+std::array<double, 2> FieldView::Shown(const Glide& glide, double time)
+{
+    const double progress =
+        std::clamp((time - static_cast<double>(glide.start)) / static_cast<double>(glide.frames), 0.0, 1.0);
+    return {
+        glide.fromX + (glide.toX - glide.fromX) * progress,
+        glide.fromY + (glide.toY - glide.fromY) * progress,
+    };
 }
 
 void FieldView::CaptureLayer(std::vector<Pixel>& layer) const
@@ -3082,7 +3129,7 @@ void FieldView::PaintBetween(double alpha, Surface& out)
         return;
     }
 
-    if (this->movie.active != 0 || !this->currentPlaces.valid)
+    if (this->movie.active != 0 || !this->placesValid || this->glides.size() != 1 + GameState::Roles)
     {
         std::copy(this->finalLayer.begin(), this->finalLayer.end(), pixels.begin());
         return;
@@ -3092,18 +3139,12 @@ void FieldView::PaintBetween(double alpha, Surface& out)
     Field& field = owner.field;
     Scene& view = owner.scene;
     Painter& painter = owner.painter;
-    const FramePlaces& from = this->previousPlaces;
-    const FramePlaces& to = this->currentPlaces;
-    const bool blend = from.valid && from.frame + 1 == to.frame && from.map == to.map;
+    const double time = static_cast<double>(this->placesFrame) + alpha;
 
-    auto between = [alpha, blend](i32 start, i32 end)
+    auto shown = [time](const Glide& glide)
     {
-        if (!blend || std::abs(end - start) > kSnapDistance)
-        {
-            return end;
-        }
-
-        return start + static_cast<i32>(std::lround(static_cast<double>(end - start) * alpha));
+        const std::array<double, 2> place = FieldView::Shown(glide, time);
+        return std::array<i32, 2>{static_cast<i32>(std::lround(place[0])), static_cast<i32>(std::lround(place[1]))};
     };
 
     // What the map part changes is kept and put back afterwards: the camera, the roles' places, the random
@@ -3143,19 +3184,22 @@ void FieldView::PaintBetween(double alpha, Surface& out)
     u16* const target = painter.Target();
     Pixel* const drawSurface = owner.drawSurface;
 
-    field.cameraLeft = between(from.cameraLeft, to.cameraLeft);
-    field.cameraTop = between(from.cameraTop, to.cameraTop);
-    field.cameraRight = field.cameraLeft + to.cameraWidth;
-    field.cameraBottom = field.cameraTop + to.cameraHeight;
+    const std::array<i32, 2> cameraShown = shown(this->glides[0]);
+    field.cameraLeft = cameraShown[0];
+    field.cameraTop = cameraShown[1];
+    field.cameraRight = field.cameraLeft + this->cameraWidth;
+    field.cameraBottom = field.cameraTop + this->cameraHeight;
 
     for (std::size_t index = 0; index < GameState::Roles; ++index)
     {
         Role& role = state.roles[index];
+        const Glide& glide = this->glides[1 + index];
 
-        if (role.x == to.roleX[index] && role.y == to.roleY[index])
+        if (role.x == glide.toX && role.y == glide.toY)
         {
-            role.x = between(from.roleX[index], to.roleX[index]);
-            role.y = between(from.roleY[index], to.roleY[index]);
+            const std::array<i32, 2> place = shown(glide);
+            role.x = place[0];
+            role.y = place[1];
         }
     }
 
