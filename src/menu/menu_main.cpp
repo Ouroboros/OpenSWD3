@@ -111,7 +111,7 @@ void Menu::MainFrame()
         within = step % kTitleSteps;
     }
 
-    if (static_cast<u32>(x) <= static_cast<u32>(kTitlesLeft) || x >= right)
+    if (static_cast<u32>(x) <= static_cast<u32>(kTitlesLeft) || static_cast<u32>(x) >= static_cast<u32>(right))
     {
         return;
     }
@@ -147,8 +147,8 @@ void Menu::MainFrame()
 void Menu::MainLeft()
 {
     Game& owner = this->game;
-    int page = this->page - 1;
-    this->page = static_cast<u16>(page);
+    u16 page = static_cast<u16>(this->page - 1);
+    this->page = page;
 
     if (this->page <= FirstRolePage - 1)
     {
@@ -167,8 +167,8 @@ void Menu::MainRight()
 {
     Game& owner = this->game;
     const u16 last = owner.state.GameFlag(kSwappedPagesFlag) ? kLastSwappedPage : kLastPage;
-    int page = this->page + 1;
-    this->page = static_cast<u16>(page);
+    u16 page = static_cast<u16>(this->page + 1);
+    this->page = page;
 
     if (this->page > last)
     {
