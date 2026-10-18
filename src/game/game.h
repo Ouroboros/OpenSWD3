@@ -153,6 +153,10 @@ private:
     void ShowMapFrame();
     bool PresentBetween();
     bool CopyToPrimary();
+    // The display setup of the system tab (deviations.md): smoothMotion, vsync, frameRate and renderScaleSetting put
+    // to use, and written to [display] of the program's settings file.
+    void ApplyDisplay();
+    void StoreDisplay() const;
     std::u8string MusicPath(int index) const;
     void PlayMusic(const std::u8string& path);
     void ResetSaveSlots();
@@ -585,6 +589,8 @@ private:
     u64 nextDrawNs = 0;
     std::unique_ptr<Surface> smoothScreen;  // the frames between, at the render scale
     int renderScaleSetting = 0;             // [display] render_scale (AutoRenderScale: by the window)
+    bool vsync = true;                      // [display] vsync
+    i64 frameRate = 0;                      // [display] frame_rate (0: no limit)
     u32 frameStart = 0;                     // 0x004AAECC
     u32 unk4C844C = 0;
     u32 unk4C8444 = 0;

@@ -350,21 +350,13 @@ int Game::Run([[maybe_unused]] std::u8string_view commandLine)
     }
 
     const DisplaySettings& shown = this->host.values.display;
-    const bool vsync = shown.vsync.value_or(true);
-    const i64 frameRate = shown.frameRate.value_or(0);
     this->smoothMotion = shown.smoothMotion.value_or(true);
-    this->display.SetVSync(vsync);
-    this->frameRatePeriodNs = frameRate > 0 ? kNanosecondsPerSecond / static_cast<u64>(frameRate) : 0;
+    this->vsync = shown.vsync.value_or(true);
+    this->frameRate = shown.frameRate.value_or(0);
     const ScaleChoice renderScale = shown.renderScale.value_or(ScaleChoice{});
     this->renderScaleSetting = renderScale.automatic ? Game::AutoRenderScale : static_cast<int>(renderScale.factor);
     this->smoothScreen = std::make_unique<Surface>(Display::Width, Display::Height);
-    LogInfo(
-        u8"smooth_motion=%d vsync=%d frame_rate=%d render_scale=%d (0: auto)",
-        this->smoothMotion ? 1 : 0,
-        vsync ? 1 : 0,
-        static_cast<i32>(frameRate),
-        this->renderScaleSetting
-    );
+    this->ApplyDisplay();
 
     if (Game::CheckStart() == 0)
     {
@@ -1305,10 +1297,47 @@ void Game::ShowMapFrame()
     this->mapFrameShown = true;
 }
 
+void Game::ApplyDisplay()
+{
+    this->display.SetVSync(this->vsync);
+    this->frameRatePeriodNs = this->frameRate > 0 ? kNanosecondsPerSecond / static_cast<u64>(this->frameRate) : 0;
+    this->nextDrawNs = 0;
+    LogInfo(
+        u8"smooth_motion=%d vsync=%d frame_rate=%d render_scale=%d (0: auto)",
+        this->smoothMotion ? 1 : 0,
+        this->vsync ? 1 : 0,
+        static_cast<i32>(this->frameRate),
+        this->renderScaleSetting
+    );
+}
+
+void Game::StoreDisplay() const
+{
+    std::string error;
+
+    if (!UpdateSettingsFile(
+            this->host.programFile,
+            [this](Settings& settings)
+            {
+                DisplaySettings& stored = settings.display;
+                stored.smoothMotion = this->smoothMotion;
+                stored.vsync = this->vsync;
+                stored.frameRate = this->frameRate;
+                stored.renderScale = this->renderScaleSetting == Game::AutoRenderScale
+                                         ? ScaleChoice{}
+                                         : ScaleChoice{false, this->renderScaleSetting};
+            },
+            error
+        ))
+    {
+        LogWarning(u8"settings: [display] cannot be saved: %s", AsUtf8(error));
+    }
+}
+
 bool Game::PresentBetween()
 {
-    if (!this->mapFrameShown || this->smoothScreen == nullptr || this->active == 0 || this->running == 0 ||
-        this->quit || (this->systemFlags & Game::VideoPlaying) != 0)
+    if (!this->smoothMotion || !this->mapFrameShown || this->smoothScreen == nullptr || this->active == 0 ||
+        this->running == 0 || this->quit || (this->systemFlags & Game::VideoPlaying) != 0)
     {
         return false;
     }

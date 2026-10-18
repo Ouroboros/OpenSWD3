@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <limits>
 #include <span>
 #include <string>
 
@@ -25,6 +26,7 @@ constexpr i32 kKeys = 5;
 constexpr i32 kKeyChosen = 6;
 constexpr i32 kKeyWaiting = 7;
 constexpr i32 kCannotSave = 0xA;
+constexpr i32 kDisplay = 8;  // the rebuild's display setup (deviations.md)
 
 // The tabs (OptionsPage::entry).
 constexpr i32 kSaveEntry = 0;
@@ -41,6 +43,7 @@ constexpr i32 kEffectsRow = 3;
 constexpr i32 kTextSpeedRow = 4;
 constexpr i32 kBattleSpeedRow = 5;
 constexpr i32 kKeysRow = 6;
+constexpr i32 kDisplayRow = 7;  // the rebuild's display setup, below the key setup
 constexpr i32 kEndRow = 0;
 constexpr i32 kRestartRow = 1;
 constexpr i32 kQuitRows = 2;
@@ -86,6 +89,15 @@ constexpr i32 kSampleDelayFactor = 2;
 constexpr i32 kEffectsOffFlag = GameState::PlainScreen;
 constexpr i32 kSaveBlockedFlag = GameState::TimerEvent;
 constexpr i32 kNoSaveMap = 0x16;
+
+// The rows of the display setup (OptionsPage::displayRow), and the frame rates it steps through (0: no limit, the
+// most of all).
+constexpr i32 kSmoothRow = 0;
+constexpr i32 kVSyncRow = 1;
+constexpr i32 kFrameRateRow = 2;
+constexpr i32 kRenderScaleRow = 3;
+constexpr i32 kDisplayBackRow = 4;
+constexpr std::array<i64, 8> kFrameRates = {30, 60, 75, 120, 144, 165, 240, 0};
 constexpr u32 kGameSavedFlag = 2;  // Menu::flags: saved since the menu opened, quitting needs no confirmation
 
 // The quit fade.
@@ -143,9 +155,16 @@ constexpr u32 kStepsFrom = 0xD6;  // left of this only the key setup row is clic
 constexpr int kStepsLeft = 0x13D;
 constexpr int kStepWidth = 0x10;
 constexpr u32 kKeysRowFrom = 0x5E;
-// The rows of the settings between these y.
-constexpr std::array<std::pair<u32, u32>, 7> kSettingsRows = {
-    {{0x82, 0xA1}, {0xA2, 0xC1}, {0xC2, 0xE1}, {0xE2, 0x101}, {0x102, 0x121}, {0x122, 0x141}, {0x142, 0x161}}
+// The rows of the settings between these y (the last one the display setup's).
+constexpr std::array<std::pair<u32, u32>, 8> kSettingsRows = {
+    {{0x82, 0xA1},
+     {0xA2, 0xC1},
+     {0xC2, 0xE1},
+     {0xE2, 0x101},
+     {0x102, 0x121},
+     {0x122, 0x141},
+     {0x142, 0x161},
+     {0x162, 0x181}}
 };
 
 // The drawing.
@@ -172,6 +191,29 @@ constexpr std::u8string_view kConfirm = u8"確定";                       // swd
 constexpr std::u8string_view kGiveUp = u8"放棄";                        // swd32.exe 0x004A7314
 constexpr std::u8string_view kKeyButtons = u8" 設定 放棄 恢復預設值 ";  // swd32.exe 0x004A72FC
 constexpr std::u8string_view kPressKey = u8"請按一個鍵";                // swd32.exe 0x004A72F0
+// The texts of the display setup.
+constexpr std::u8string_view kDisplaySetup = u8"顯示設定";
+constexpr std::array<std::u8string_view, 5> kDisplayLabels = {
+    u8"平滑畫面",
+    u8"垂直同步",
+    u8"畫格上限",
+    u8"繪製倍率",
+    u8"返回",
+};
+
+constexpr std::u8string_view kNoLimit = u8"不限";
+constexpr std::u8string_view kAutomatic = u8"自動";
+constexpr std::u8string_view kTimes = u8"%d 倍";
+constexpr std::u8string_view kSmoothOn = u8"兩幀之間插值重畫";
+constexpr std::u8string_view kSmoothOff = u8"原版每 35 毫秒一畫";
+constexpr std::u8string_view kVSyncOn = u8"跟隨顯示器刷新";
+constexpr std::u8string_view kVSyncOff = u8"可能出現撕裂";
+constexpr std::u8string_view kRateFollows = u8"跟隨顯示器刷新率";
+constexpr std::u8string_view kRateFree = u8"不限制";
+constexpr std::u8string_view kRateLine = u8"每秒最多 %d 幀";
+constexpr std::u8string_view kScaleNow = u8"目前 %d 倍";
+constexpr std::u8string_view kScaleCost = u8"越大越細、越耗 CPU";
+constexpr std::u8string_view kNeedsSmooth = u8"需開啟平滑畫面";
 constexpr int kTabsBoxX = 0xD0;
 constexpr int kTabsBoxY = 0x36;
 constexpr int kTabsBoxWidth = 0x13C;
@@ -196,6 +238,9 @@ constexpr int kListBoxY = 0x74;
 constexpr int kListBoxWidth = 0x190;
 constexpr int kNotesBoxHeight = 0x15E;
 constexpr int kSettingsBoxHeight = 0xF8;
+constexpr int kDisplayRowHeight = 0x20;  // the settings box grown by the display setup's row
+constexpr int kDisplayBoxHeight = 0xB8;  // the display setup: its five rows
+constexpr int kDisplayFrameBottom = 0x128;
 constexpr int kListFrameLeft = 0xD8;
 constexpr int kListFrameTop = 0x78;
 constexpr int kListFrameRight = 0x25C;
@@ -209,7 +254,7 @@ constexpr int kNotesTop = 0x84;
 constexpr int kNoteHeight = 0x41;
 constexpr int kVolumeLabelX = 0x108;
 constexpr int kLabelX = 0xDC;
-constexpr std::array<int, 7> kRowY = {0x82, 0xA2, 0xC2, 0xE2, 0x102, 0x122, 0x142};
+constexpr std::array<int, 8> kRowY = {0x82, 0xA2, 0xC2, 0xE2, 0x102, 0x122, 0x142, 0x162};
 constexpr int kVersionX = 0x20C;
 constexpr int kVersionY = 0x159;
 constexpr i32 kStepOff = 0x22;
@@ -291,7 +336,84 @@ std::u8string_view KeyName(i32 code)
     return menu_text::kKeyNames[static_cast<std::size_t>(code)];
 }
 
+constexpr i64 FrameRateRank(i64 rate)
+{
+    return rate == 0 ? std::numeric_limits<i64>::max() : rate;
+}
+
 }  // namespace
+
+// The value of display setup row `row` stepped up (`up`) or down, past the last back to the first when `wrap`; put to
+// use and written when it changed.
+void Menu::OptionsStepDisplay(i32 row, bool up, bool wrap)
+{
+    Game& owner = this->game;
+
+    switch (row)
+    {
+        case kSmoothRow:
+            owner.smoothMotion = wrap ? !owner.smoothMotion : up;
+            break;
+
+        case kVSyncRow:
+            owner.vsync = wrap ? !owner.vsync : up;
+            break;
+
+        case kFrameRateRow:
+        {
+            const i64 rank = FrameRateRank(owner.frameRate);
+            i64 rate = owner.frameRate;
+
+            if (up)
+            {
+                const auto next = std::ranges::find_if(
+                    kFrameRates,
+                    [rank](i64 each)
+                    {
+                        return FrameRateRank(each) > rank;
+                    }
+                );
+                rate = next != kFrameRates.end() ? *next : wrap ? kFrameRates.front() : rate;
+            }
+            else
+            {
+                const auto before = std::find_if(
+                    kFrameRates.rbegin(),
+                    kFrameRates.rend(),
+                    [rank](i64 each)
+                    {
+                        return FrameRateRank(each) < rank;
+                    }
+                );
+                rate = before != kFrameRates.rend() ? *before : rate;
+            }
+
+            owner.frameRate = rate;
+            break;
+        }
+
+        case kRenderScaleRow:
+        {
+            const auto most = static_cast<int>(DisplaySettings::MaximumRenderScale);
+            int scale = owner.renderScaleSetting + (up ? 1 : -1);
+
+            if (scale > most)
+            {
+                scale = wrap ? Game::AutoRenderScale : most;
+            }
+
+            owner.renderScaleSetting = std::max(scale, Game::AutoRenderScale);
+            break;
+        }
+
+        default:
+            return;
+    }
+
+    owner.ApplyDisplay();
+    owner.StoreDisplay();
+    owner.audio.PlaySound(kMoveSound, owner.config.soundVolume);
+}
 
 // swd32.exe 0x0044AF30: the system tab opened: the notes are the flags 0xE75..0xF9F set (their numbers from 1), the
 // scroll bars cleared
@@ -476,6 +598,26 @@ void Menu::OptionsFrame()
         return;
     }
 
+    if (page.stage == kDisplay)
+    {
+        for (i32 row = kSmoothRow; row <= kDisplayBackRow; ++row)
+        {
+            if (x > kStepsFrom && x < kSettingsRight && Inside(y, kSettingsRows[static_cast<std::size_t>(row)]))
+            {
+                page.displayRow = row;
+
+                if ((this->clicks & kSingleClick) != 0)
+                {
+                    this->OptionsSelect();
+                }
+
+                return;
+            }
+        }
+
+        return;
+    }
+
     if (page.stage != kOpened)
     {
         if (page.stage != kConfirming || page.entry < kSettingsEntry)
@@ -589,6 +731,11 @@ void Menu::OptionsFrame()
         page.row = kKeysRow;
         this->OptionsSelect();
     }
+    else if (x > kKeysRowFrom && Inside(y, kSettingsRows[kDisplayRow]))
+    {
+        page.row = kDisplayRow;
+        this->OptionsSelect();
+    }
 }
 
 // swd32.exe 0x0044B560: on the tabs the next one; the next page of notes (the down arrow pressed for three frames);
@@ -643,9 +790,9 @@ void Menu::OptionsDown()
 
             if (page.entry == kSettingsEntry)
             {
-                if (++page.row > kKeysRow)
+                if (++page.row > kDisplayRow)
                 {
-                    page.row = kKeysRow;
+                    page.row = kDisplayRow;
                 }
 
                 owner.audio.PlaySound(kMoveSound, owner.config.soundVolume);
@@ -676,6 +823,15 @@ void Menu::OptionsDown()
             if (++page.keyRow >= kKeyRows)
             {
                 page.keyRow = 0;
+            }
+
+            owner.audio.PlaySound(kMoveSound, owner.config.soundVolume);
+            return;
+
+        case kDisplay:
+            if (++page.displayRow > kDisplayBackRow)
+            {
+                page.displayRow = 0;
             }
 
             owner.audio.PlaySound(kMoveSound, owner.config.soundVolume);
@@ -758,6 +914,14 @@ void Menu::OptionsUp()
 
             break;
 
+        case kDisplay:
+            if (--page.displayRow < 0)
+            {
+                page.displayRow = kDisplayBackRow;
+            }
+
+            break;
+
         default:
             return;
     }
@@ -795,7 +959,7 @@ void Menu::OptionsPageDown()
             }
             else if (page.entry == kSettingsEntry)
             {
-                page.row = kKeysRow;
+                page.row = kDisplayRow;
                 owner.audio.PlaySound(kMoveSound, owner.config.soundVolume);
             }
             else if (page.entry == kQuitEntry)
@@ -817,6 +981,11 @@ void Menu::OptionsPageDown()
 
         case kKeys:
             page.keyRow = kLastKeyRow;
+            owner.audio.PlaySound(kMoveSound, owner.config.soundVolume);
+            return;
+
+        case kDisplay:
+            page.displayRow = kDisplayBackRow;
             owner.audio.PlaySound(kMoveSound, owner.config.soundVolume);
             return;
 
@@ -871,6 +1040,11 @@ void Menu::OptionsPageUp()
 
         case kKeys:
             page.keyRow = 0;
+            owner.audio.PlaySound(kMoveSound, owner.config.soundVolume);
+            return;
+
+        case kDisplay:
+            page.displayRow = 0;
             owner.audio.PlaySound(kMoveSound, owner.config.soundVolume);
             return;
 
@@ -1012,6 +1186,10 @@ void Menu::OptionsLeft()
 
             break;
 
+        case kDisplay:
+            this->OptionsStepDisplay(page.displayRow, false, false);
+            return;
+
         default:
             return;
     }
@@ -1147,6 +1325,10 @@ void Menu::OptionsRight()
 
             break;
 
+        case kDisplay:
+            this->OptionsStepDisplay(page.displayRow, true, false);
+            return;
+
         default:
             return;
     }
@@ -1238,6 +1420,12 @@ void Menu::OptionsSelect()
                     page.keys = settings.keys;
                     owner.audio.PlaySound(kMoveSound, settings.soundVolume);
                 }
+                else if (page.row == kDisplayRow)
+                {
+                    page.displayRow = 0;
+                    page.stage = kDisplay;
+                    owner.audio.PlaySound(kMoveSound, settings.soundVolume);
+                }
 
                 return;
             }
@@ -1305,6 +1493,17 @@ void Menu::OptionsSelect()
             owner.audio.PlaySound(kMoveSound, settings.soundVolume);
             return;
 
+        case kDisplay:
+            if (page.displayRow == kDisplayBackRow)
+            {
+                page.stage = kOpened;
+                owner.audio.PlaySound(kMoveSound, settings.soundVolume);
+                return;
+            }
+
+            this->OptionsStepDisplay(page.displayRow, true, true);
+            return;
+
         case kCannotSave:
             page.stage = kOnTabs;
             return;
@@ -1346,6 +1545,10 @@ void Menu::OptionsCancel()
             page.stage = kOnTabs;
             return;
 
+        case kDisplay:
+            page.stage = kOpened;
+            return;
+
         default:
             return;
     }
@@ -1364,7 +1567,17 @@ void Menu::OptionsDrawSettings(Pixel color)
     TextFont& medium = owner.mediumFont;
     this->gauge.id = Scene::InterfaceAct;
     this->gauge.action = kStepOff;
-    FillBox(painter, kListBoxX, kListBoxY, kListBoxWidth, kSettingsBoxHeight, 0, 0, 0, FillMode::Quarter);
+    FillBox(
+        painter,
+        kListBoxX,
+        kListBoxY,
+        kListBoxWidth,
+        kSettingsBoxHeight + kDisplayRowHeight,
+        0,
+        0,
+        0,
+        FillMode::Quarter
+    );
     DrawWindowFrame(
         painter,
         owner.archive,
@@ -1372,7 +1585,7 @@ void Menu::OptionsDrawSettings(Pixel color)
         kListFrameLeft,
         kListFrameTop,
         kListFrameRight,
-        kSettingsFrameBottom,
+        kSettingsFrameBottom + kDisplayRowHeight,
         0,
         kFrameBorder
     );
@@ -1383,7 +1596,8 @@ void Menu::OptionsDrawSettings(Pixel color)
     large.DrawText(owner.drawSurface, kLabelX, kRowY[kTextSpeedRow], menu_text::kTextSpeed, color, kPanelStyle);
     large.DrawText(owner.drawSurface, kLabelX, kRowY[kBattleSpeedRow], menu_text::kBattleSpeed, color, kPanelStyle);
     large.DrawText(owner.drawSurface, kLabelX, kRowY[kKeysRow], kKeySetup, color, kPanelStyle);
-    medium.DrawText(owner.drawSurface, kVersionX, kVersionY, kVersion, color, kPanelStyle);
+    large.DrawText(owner.drawSurface, kLabelX, kRowY[kDisplayRow], kDisplaySetup, color, kPanelStyle);
+    medium.DrawText(owner.drawSurface, kVersionX, kVersionY + kDisplayRowHeight, kVersion, color, kPanelStyle);
 
     auto bar = [this, &owner](int y, i32 value)
     {
@@ -1471,6 +1685,94 @@ void Menu::OptionsDrawSettings(Pixel color)
         painter,
         kHighlightX,
         kHighlightHeight * page.row + kHighlightTop,
+        kHighlightWidth,
+        kHighlightHeight,
+        kHighlightRed,
+        kHighlightGreen,
+        0,
+        FillMode::Gradient
+    );
+}
+
+// The rebuild's display setup of the system tab (deviations.md), in the box of the settings: the labels, each value
+// with a line about it, and the row highlight.
+void Menu::OptionsDrawDisplay(Pixel color)
+{
+    Game& owner = this->game;
+    Painter& painter = owner.painter;
+    TextFont& large = owner.largeFont;
+    TextFont& medium = owner.mediumFont;
+    FillBox(painter, kListBoxX, kListBoxY, kListBoxWidth, kDisplayBoxHeight, 0, 0, 0, FillMode::Quarter);
+    DrawWindowFrame(
+        painter,
+        owner.archive,
+        owner.battleMessages.panelAct.frame,
+        kListFrameLeft,
+        kListFrameTop,
+        kListFrameRight,
+        kDisplayFrameBottom,
+        0,
+        kFrameBorder
+    );
+
+    for (std::size_t row = 0; row < kDisplayLabels.size(); ++row)
+    {
+        large.DrawText(owner.drawSurface, kLabelX, kRowY[row], kDisplayLabels[row], color, kPanelStyle);
+    }
+
+    auto show = [&](i32 row, const std::string& value, const std::string& line)
+    {
+        const int y = kRowY[static_cast<std::size_t>(row)];
+        large.DrawText(owner.drawSurface, kBarStepsLeft, y, value, color, kPanelStyle);
+        medium.DrawText(owner.drawSurface, kLineX, y + kLineDrop, line, color, kPanelStyle);
+    };
+
+    const auto text = [](std::u8string_view words)
+    {
+        return WinFormat(words, {});
+    };
+
+    show(
+        kSmoothRow,
+        text(owner.smoothMotion ? menu_text::kOn : menu_text::kOff),
+        text(owner.smoothMotion ? kSmoothOn : kSmoothOff)
+    );
+    show(kVSyncRow, text(owner.vsync ? menu_text::kOn : menu_text::kOff), text(owner.vsync ? kVSyncOn : kVSyncOff));
+    const auto rate = static_cast<i32>(owner.frameRate);
+    std::string rateLine = text(owner.vsync ? kRateFollows : kRateFree);
+
+    if (!owner.smoothMotion)
+    {
+        rateLine = text(kNeedsSmooth);
+    }
+    else if (rate != 0)
+    {
+        rateLine = WinFormat(kRateLine, {rate});
+    }
+
+    show(kFrameRateRow, rate == 0 ? text(kNoLimit) : WinFormat("%d", {rate}), rateLine);
+    const int scale = owner.renderScaleSetting;
+    std::string scaleLine = text(kScaleCost);
+
+    if (!owner.smoothMotion)
+    {
+        scaleLine = text(kNeedsSmooth);
+    }
+    else if (scale == Game::AutoRenderScale)
+    {
+        const int fit = std::min(owner.display.FitScale(), static_cast<int>(DisplaySettings::MaximumAutoScale));
+        scaleLine = WinFormat(kScaleNow, {static_cast<i32>(fit)});
+    }
+
+    show(
+        kRenderScaleRow,
+        scale == Game::AutoRenderScale ? text(kAutomatic) : WinFormat(kTimes, {static_cast<i32>(scale)}),
+        scaleLine
+    );
+    FillBox(
+        painter,
+        kHighlightX,
+        kHighlightHeight * this->options.displayRow + kHighlightTop,
         kHighlightWidth,
         kHighlightHeight,
         kHighlightRed,
@@ -1867,6 +2169,11 @@ void Menu::OptionsDraw()
     if (page.stage == kKeys || page.stage == kKeyChosen || page.stage == kKeyWaiting)
     {
         this->OptionsDrawKeys(color);
+    }
+
+    if (page.stage == kDisplay)
+    {
+        this->OptionsDrawDisplay(color);
     }
 }
 

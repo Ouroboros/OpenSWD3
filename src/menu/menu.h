@@ -190,7 +190,7 @@ struct StatusPage
 struct OptionsPage
 {
     i32 entry = 0;     // 0x004FD310 the tab: save, load, notes, settings, quit
-    i32 stage = 0;     // 0x004FD2F8 0: the tabs, 1: a tab opened, 2: confirming, 5..7: the key setup
+    i32 stage = 0;     // 0x004FD2F8 0: the tabs, 1: a tab opened, 2: confirming, 5..7: the key setup, 8: display
     i32 row = 0;       // 0x004FD30C the row of the settings or of the quit box
     i32 locked = 0;    // 0x004FD3A8 the quit fade runs
     i32 choice = 0;    // 0x004FD3A4 the confirmation's choice, then the fade's frames from 0x1E
@@ -209,6 +209,7 @@ struct OptionsPage
     i32 sampleLength = 0;    // 0x004FD300 characters of the speed sample shown
     i32 textSpeedShown = 0;  // 0x004FD304
     i32 sampleDelay = 0;     // 0x004FD308
+    i32 displayRow = 0;      // the rebuild's display setup (stage 8): the row chosen
 };
 
 // The items page (role page 0xB; 0x004FD088..0x004FD164): the inventory of one category with its counts, used, sorted
@@ -469,6 +470,8 @@ public:
     void OptionsCancel();
     void OptionsDrawSettings(Pixel color);
     void OptionsDrawKeys(Pixel color);
+    void OptionsDrawDisplay(Pixel color);
+    void OptionsStepDisplay(i32 row, bool up, bool wrap);
     void OptionsDraw();
 
     // The items page (role page 0xB).
