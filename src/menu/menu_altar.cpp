@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 
+#include "core/debug_log.h"
 #include "core/format.h"
 #include "draw/painter.h"
 #include "font/text_font.h"
@@ -1653,7 +1654,7 @@ void Menu::AltarPrepareMorph()
     std::fill(altar.rowsA.begin(), altar.rowsA.end(), i16{0});
     std::fill(altar.rowsB.begin(), altar.rowsB.end(), i16{0});
 
-    auto unpack = [this, &owner](i32 act, i32 action, std::vector<u16>& pixels)
+    auto unpack = [this, &owner](i32 act, i32 action, std::vector<u16>& pixels, int step)
     {
         this->gauge.id = act;
         this->gauge.action = action;
@@ -1661,6 +1662,13 @@ void Menu::AltarPrepareMorph()
 
         if (owner.acts.Run(this->gauge) == 0)
         {
+            DebugLog(
+                u8"Act Err(Botl::GetOriginal%d) 設定錯誤 \nact[%d] qq[%d] dir[%d]",
+                step,
+                this->gauge.id,
+                this->gauge.action,
+                this->gauge.direction
+            );  // the four texts of 0x0043FDE0 with the format 0x0049FD0C
             return false;
         }
 
@@ -1681,24 +1689,24 @@ void Menu::AltarPrepareMorph()
         return true;
     };
 
-    if (!unpack(kAltarAct, kMorphFrameAction, altar.frame))
+    if (!unpack(kAltarAct, kMorphFrameAction, altar.frame, 1))
     {
         return;
     }
 
     const ItemNode& result = altar.chosen != 0 ? altar.resultWest : altar.resultEast;
 
-    if (!unpack(result.record.data.unk50, kPictureAction, altar.result))
+    if (!unpack(result.record.data.unk50, kPictureAction, altar.result, 2))
     {
         return;
     }
 
-    if (!unpack(altar.slotA.record.data.unk50, kPictureAction, altar.pictureA))
+    if (!unpack(altar.slotA.record.data.unk50, kPictureAction, altar.pictureA, 3))
     {
         return;
     }
 
-    unpack(altar.slotB.record.data.unk50, kPictureAction, altar.pictureB);
+    unpack(altar.slotB.record.data.unk50, kPictureAction, altar.pictureB, 4);
 }
 
 // swd32.exe 0x004400A0: a frame of the morph. Up to 0x8C: before 0x78 the columns and rows wander (more as the counter
@@ -1713,11 +1721,13 @@ void Menu::AltarMorph()
     const i32 counter = altar.counter;
     const int pitch = owner.painter.ScreenPitch();
 
-    auto settle = [](std::vector<i16>& values)
+    // The first offsets of each pair are cut to 16 bits before the division, the second ones are not.
+    auto settle = [](std::vector<i16>& values, bool cutFirst)
     {
         for (i16& value : values)
         {
-            value = static_cast<i16>(static_cast<i16>(kSettle * value) / kTenths);
+            const int scaled = cutFirst ? static_cast<i16>(kSettle * value) : kSettle * value;
+            value = static_cast<i16>(scaled / kTenths);
         }
     };
 
@@ -1725,10 +1735,10 @@ void Menu::AltarMorph()
     {
         if (counter >= kSettleStart)
         {
-            settle(altar.columnsA);
-            settle(altar.columnsB);
-            settle(altar.rowsA);
-            settle(altar.rowsB);
+            settle(altar.columnsA, true);
+            settle(altar.columnsB, false);
+            settle(altar.rowsA, true);
+            settle(altar.rowsB, false);
         }
         else
         {
