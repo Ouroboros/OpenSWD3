@@ -103,6 +103,8 @@ struct TintLane
 
 using TintLanes = std::array<TintLane, 3>;
 
+Painter::TintPath tintPath = Painter::TintPath::Best;
+
 #if defined(__SSE2__) && (defined(__clang__) || defined(__GNUC__))
 #define SWD3_TINT_AVX2 1
 
@@ -190,6 +192,11 @@ void Painter::TintPixels(std::span<u16> pixels, int red, int green, int blue) co
     }
 }
 
+void Painter::SetTintPath(TintPath path)
+{
+    tintPath = path;
+}
+
 void Painter::TintPixelsFast(std::span<u16> pixels, int red, int green, int blue) const
 {
     using Lane = TintLane;
@@ -246,11 +253,12 @@ void Painter::TintPixelsFast(std::span<u16> pixels, int red, int green, int blue
     };
 
     std::size_t index = 0;
+    const TintPath path = tintPath;
 
 #if defined(SWD3_TINT_AVX2)
     static const bool avx2 = HasAvx2();
 
-    if (avx2)
+    if (avx2 && path == TintPath::Best)
     {
         index = TintAvx2(pixels, lanes);
     }
@@ -273,7 +281,7 @@ void Painter::TintPixelsFast(std::span<u16> pixels, int red, int green, int blue
         lifts[at] = _mm_cvtsi32_si128(lanes[at].lift);
     }
 
-    for (; index + kLanes <= pixels.size(); index += kLanes)
+    for (; path != TintPath::Scalar && index + kLanes <= pixels.size(); index += kLanes)
     {
         auto* place = reinterpret_cast<__m128i*>(pixels.data() + index);
         const __m128i pixel = _mm_loadu_si128(place);

@@ -118,6 +118,11 @@ TEST_CASE("painter: the fast tint matches TintPixels for every colour")
     }
 
     int mismatches = 0;
+    constexpr std::array<Painter::TintPath, 3> kPaths = {
+        Painter::TintPath::Best,
+        Painter::TintPath::Sse2,
+        Painter::TintPath::Scalar,
+    };
 
     for (int level = -kFurthest; level <= kFurthest; ++level)
     {
@@ -130,29 +135,19 @@ TEST_CASE("painter: the fast tint matches TintPixels for every colour")
         for (const std::array<int, 3>& tint : levels)
         {
             slow = colors;
-            fast = colors;
             painter.TintPixels(slow, tint[0], tint[1], tint[2]);
-            painter.TintPixelsFast(fast, tint[0], tint[1], tint[2]);
-            mismatches += slow == fast ? 0 : 1;
 
-            // Runs of 15 leave the 16-pixel loop out: 8 pixels at a time, then one by one.
-            constexpr std::size_t kShortRun = 15;
-            fast = colors;
-
-            for (std::size_t at = 0; at < kColors; at += kShortRun)
+            for (const Painter::TintPath path : kPaths)
             {
-                painter.TintPixelsFast(
-                    std::span<u16>(fast).subspan(at, std::min(kShortRun, kColors - at)),
-                    tint[0],
-                    tint[1],
-                    tint[2]
-                );
+                Painter::SetTintPath(path);
+                fast = colors;
+                painter.TintPixelsFast(fast, tint[0], tint[1], tint[2]);
+                mismatches += slow == fast ? 0 : 1;
             }
-
-            mismatches += slow == fast ? 0 : 1;
         }
     }
 
+    Painter::SetTintPath(Painter::TintPath::Best);
     CHECK_EQ(mismatches, 0);
 }
 

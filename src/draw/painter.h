@@ -179,6 +179,17 @@ public:
     // the game sets up) a tinted channel is its value plus the level kept within the channel, done here in a loop
     // the compiler vectorizes; other formats go through TintPixels.
     void TintPixelsFast(std::span<u16> pixels, int red, int green, int blue) const;
+
+    // The widest instructions TintPixelsFast uses (for the tests and benchmarks of each path): the best the processor
+    // runs (AVX2 or SSE2), SSE2, or none.
+    enum class TintPath
+    {
+        Best,
+        Sse2,
+        Scalar,
+    };
+
+    static void SetTintPath(TintPath path);
     void ShiftRed(std::span<u16> pixels, int delta) const;
     void ShiftGreenPairs(std::span<u16> pixels, int delta) const;
     void ShiftBluePairs(std::span<u16> pixels, int delta) const;
