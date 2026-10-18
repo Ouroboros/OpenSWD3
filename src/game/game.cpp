@@ -29,6 +29,7 @@ namespace
 constexpr Uint64 kSlowIteration = 100;  // milliseconds: a longer message loop iteration is logged
 constexpr u32 kCatchUpFrames = 4;       // a game frame this many intervals late restarts the frame clock
 constexpr u64 kNanosecondsPerMillisecond = 1000000;
+constexpr u64 kNanosecondsPerMicrosecond = 1000;
 constexpr u64 kNanosecondsPerSecond = 1000000000;
 constexpr u32 kLeftButton = 0x1;   // MK_LBUTTON
 constexpr u32 kRightButton = 0x2;  // MK_RBUTTON
@@ -416,6 +417,16 @@ int Game::Run([[maybe_unused]] std::u8string_view commandLine)
         static_cast<i32>(this->gameFrames),
         static_cast<i32>(this->framesBetween)
     );
+
+    if (this->framesBetween != 0)
+    {
+        LogInfo(
+            u8"frames between: painted in %d us on average, %d us at most",
+            static_cast<i32>(this->paintBetweenNs / this->framesBetween / kNanosecondsPerMicrosecond),
+            static_cast<i32>(this->paintBetweenMostNs / kNanosecondsPerMicrosecond)
+        );
+    }
+
     return 0;
 }
 
@@ -1326,7 +1337,11 @@ bool Game::PresentBetween()
                     : std::min(1.0, static_cast<double>(now - this->frameDueNs) / static_cast<double>(interval));
     }
 
+    const u64 paintStart = SDL_GetTicksNS();
     this->fieldView.PaintBetween(alpha, *this->smoothScreen);
+    const u64 painted = SDL_GetTicksNS() - paintStart;
+    this->paintBetweenNs += painted;
+    this->paintBetweenMostNs = std::max(this->paintBetweenMostNs, painted);
     this->display.Present(*this->smoothScreen);
     ++this->framesBetween;
     return true;

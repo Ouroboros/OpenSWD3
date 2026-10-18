@@ -2923,6 +2923,7 @@ void FieldView::Paint()
     {
         const ColorFade& fade = view.fade;
         this->CaptureLayer(this->interfaceLayer);
+        this->MarkChanges(this->worldLayer, this->interfaceSpans);
         this->fadeTinted = fade.stepRed != 0.0F || fade.stepGreen != 0.0F || fade.stepBlue != 0.0F;
     }
 
@@ -3161,8 +3162,8 @@ void FieldView::PaintBetween(double alpha, Surface& out)
     // What the map part changes is kept and put back afterwards: the camera, the roles' places, the random
     // numbers, the particles and acts of the screen effects, the spotlight, and the painter's options and target.
     const std::array<i32, 4> camera = {field.cameraLeft, field.cameraTop, field.cameraRight, field.cameraBottom};
-    std::vector<i32> roleX(GameState::Roles);
-    std::vector<i32> roleY(GameState::Roles);
+    std::array<i32, GameState::Roles> roleX = {};
+    std::array<i32, GameState::Roles> roleY = {};
 
     for (std::size_t index = 0; index < GameState::Roles; ++index)
     {
@@ -3268,25 +3269,75 @@ void FieldView::PaintBetween(double alpha, Surface& out)
     owner.drawSurface = drawSurface;
 
     // The interface of the last game frame (what it drew over its map), its fade, then what it drew after the fade.
-    for (std::size_t index = 0; index < Display::Pixels; ++index)
-    {
-        if (this->interfaceLayer[index] != this->worldLayer[index])
-        {
-            pixels[index] = this->interfaceLayer[index];
-        }
-    }
+    FieldView::CopySpans(this->interfaceSpans, this->interfaceLayer, pixels);
 
     if (this->fadeTinted)
     {
-        painter.TintPixels(pixels, this->fadeLevels[0], this->fadeLevels[1], this->fadeLevels[2]);
+        // The tint of a colour depends on the levels alone: every colour is tinted once for the levels of the game
+        // frame, then looked up.
+        constexpr std::size_t kColors = 0x10000;
+
+        if (this->fadeTable.size() != kColors || this->fadeTableLevels != this->fadeLevels)
+        {
+            this->fadeTable.resize(kColors);
+
+            for (std::size_t color = 0; color < kColors; ++color)
+            {
+                this->fadeTable[color] = static_cast<u16>(color);
+            }
+
+            painter.TintPixels(this->fadeTable, this->fadeLevels[0], this->fadeLevels[1], this->fadeLevels[2]);
+            this->fadeTableLevels = this->fadeLevels;
+        }
+
+        for (Pixel& pixel : pixels)
+        {
+            pixel = this->fadeTable[pixel];
+        }
     }
 
-    for (std::size_t index = 0; index < Display::Pixels; ++index)
+    FieldView::CopySpans(this->finalSpans, this->finalLayer, pixels);
+}
+
+// The runs where the frame being drawn now differs from `before` (once a game frame).
+void FieldView::MarkChanges(const std::vector<Pixel>& before, std::vector<Span>& spans) const
+{
+    spans.clear();
+    const Pixel* now = this->game.drawSurface;
+
+    if (now == nullptr || before.size() != Display::Pixels)
     {
-        if (this->finalLayer[index] != this->fadedLayer[index])
+        return;
+    }
+
+    u32 index = 0;
+
+    while (index < Display::Pixels)
+    {
+        while (index < Display::Pixels && now[index] == before[index])
         {
-            pixels[index] = this->finalLayer[index];
+            ++index;
         }
+
+        const u32 start = index;
+
+        while (index < Display::Pixels && now[index] != before[index])
+        {
+            ++index;
+        }
+
+        if (index != start)
+        {
+            spans.push_back(Span{start, index - start});
+        }
+    }
+}
+
+void FieldView::CopySpans(const std::vector<Span>& spans, const std::vector<Pixel>& from, std::span<Pixel> to)
+{
+    for (const Span& run : spans)
+    {
+        std::copy_n(from.begin() + run.start, run.length, to.begin() + run.start);
     }
 }
 
@@ -3826,6 +3877,7 @@ void FieldView::Render()
     if (owner.smoothMotion)
     {
         this->CaptureLayer(this->finalLayer);
+        this->MarkChanges(this->fadedLayer, this->finalSpans);
     }
 
     owner.ShowMapFrame();

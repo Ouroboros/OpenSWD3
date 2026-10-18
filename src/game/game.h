@@ -576,6 +576,8 @@ private:
     bool mapFrameShown = false;
     u32 gameFrames = 0;
     u32 framesBetween = 0;
+    u64 paintBetweenNs = 0;  // the time the frames between took to paint, in all and the longest
+    u64 paintBetweenMostNs = 0;
     u64 frameDueNs = 0;
     u64 frameRatePeriodNs = 0;
     u64 nextDrawNs = 0;

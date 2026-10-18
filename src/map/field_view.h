@@ -203,13 +203,28 @@ private:
     int placesMap = 0;
     i32 cameraWidth = 0;
     i32 cameraHeight = 0;
-    std::vector<Glide> glides;          // the camera, then the roles
+    std::vector<Glide> glides;  // the camera, then the roles
+
+    // A run of pixels a later step of the last game frame drew over.
+    struct Span
+    {
+        u32 start = 0;
+        u32 length = 0;
+    };
+
+    void MarkChanges(const std::vector<Pixel>& before, std::vector<Span>& spans) const;
+    static void CopySpans(const std::vector<Span>& spans, const std::vector<Pixel>& from, std::span<Pixel> to);
+
     std::vector<Pixel> worldLayer;      // the last game frame after the map, before the interface
     std::vector<Pixel> interfaceLayer;  // after the interface, before the fade
     std::vector<Pixel> fadedLayer;      // after the fade
     std::vector<Pixel> finalLayer;      // as shown (the notices, the timer and the debug display too)
+    std::vector<Span> interfaceSpans;   // where interfaceLayer differs from worldLayer
+    std::vector<Span> finalSpans;       // where finalLayer differs from fadedLayer
     bool fadeTinted = false;
     std::array<int, 3> fadeLevels = {};
+    std::vector<u16> fadeTable;  // every colour as the fade tints it (Painter::TintPixels), for fadeTableLevels
+    std::array<int, 3> fadeTableLevels = {};
 
     void DrawSmallText(int x, int y, u32 color, const std::string& text);
     void DrawTileGrid(const TileSet& tiles);
