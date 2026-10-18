@@ -244,7 +244,7 @@ void Menu::StatusCompute()
                 );
             }
 
-            resistance = std::abs(resistance);
+            resistance = static_cast<i8>(std::abs(resistance));  // 0x0044ADE7 neg bl: -128 stays -128
             const auto scaled = static_cast<i32>(static_cast<u32>(kMagicScale) * value);
             page.total.unk2D[element] =
                 static_cast<u8>(page.total.unk2D[element] + resistance * (scaled / maximum / kPercent) / kTenth);

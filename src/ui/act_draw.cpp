@@ -63,6 +63,12 @@ void ActDrawer::DrawGlow(ActState& state, int x, int y, int level)
 {
     if (this->acts.Run(state) == 0)
     {
+        DebugLog(
+            u8"Act Err(Menu::DrawActAlpha) 設定錯誤 \nact[%d] qq[%d] dir[%d]",
+            state.id,
+            state.action,
+            state.direction
+        );  // 0x004A6B1C + 0x0049FD0C
         return;
     }
 
