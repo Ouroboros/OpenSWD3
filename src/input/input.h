@@ -78,6 +78,7 @@ public:
     int Init();
     int PollKeyboard();
     int IsKeyDown(int scanCode) const;
+    bool IsKeyPressed(int scanCode) const;
     int FirstKeyDown() const;
     int PressKey(int scanCode);
     int ReadMouse(int& x, int& y);
@@ -89,7 +90,8 @@ private:
     InputDevice& device;
     bool acquired = false;
     std::array<u8, KeyCount> keys{};  // KeyDown set while down
-    i32 mouseOriginX = 0;             // axis value at screen x 0
+    std::array<u8, KeyCount> previousKeys{};
+    i32 mouseOriginX = 0;  // axis value at screen x 0
     i32 mouseOriginY = 0;
     i32 sensitivity = Tenths;
 };

@@ -33,9 +33,10 @@ int Input::Init()
     return 0;
 }
 
-// swd32.exe 0x004372B0
+// swd32.exe 0x004372B0 (the rebuild also keeps the previous state for IsKeyPressed)
 int Input::PollKeyboard()
 {
+    this->previousKeys = this->keys;
     this->device.KeyboardState(this->keys);
     return 1;
 }
@@ -44,6 +45,13 @@ int Input::PollKeyboard()
 int Input::IsKeyDown(int scanCode) const
 {
     return this->keys[static_cast<std::size_t>(scanCode)] & Input::KeyDown;
+}
+
+// Whether the key went down since the previous poll (the rebuild's walk/run toggle, see deviations.md 0x00402F80).
+bool Input::IsKeyPressed(int scanCode) const
+{
+    const auto code = static_cast<std::size_t>(scanCode);
+    return (this->keys[code] & Input::KeyDown) != 0 && (this->previousKeys[code] & Input::KeyDown) == 0;
 }
 
 // swd32.exe 0x004372E0: the lowest pressed scan code; 0 when none (indistinguishable from code 0)
