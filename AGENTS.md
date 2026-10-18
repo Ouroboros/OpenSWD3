@@ -66,7 +66,7 @@ SDL3与FFmpeg由构建脚本自行下载源码并构建，不查找或复用本�
 
 ## CRT 与命名
 
-已识别的静态链接 MSVC CRT 函数使用 C++ 标准库，不重写 MSVC 的堆、启动代码与库内部实现；只在游戏可观察到差异时保留原行为：`rand`／`srand`（MSVC LCG）、`_ftol` 截断与溢出值、`difftime` 的 32 位减法等，集中在src/crt/。函数表中 CRT 函数的source记录对应的平台 CRT 调用。
+已识别的静态链接 MSVC CRT 函数直接使用当前版本的 C/C++ 运行库，不重写 MSVC 的 CRT（包括 `rand`／`srand`、`_ftol`、`difftime`、`vsprintf` 等的原实现），游戏调用的入口最多在 src/crt/ 中包装一层（用户要求 2026-10-18）。函数表中 CRT 函数的source记录对应的平台 CRT 调用。
 
 类名、函数名和变量名不必照搬原名，使用本项目的命名风格；每个还原函数定义前写`// swd32.exe 0x<地址>`，函数表source记录`路径:符号`。
 

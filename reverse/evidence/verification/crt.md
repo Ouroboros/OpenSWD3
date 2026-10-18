@@ -4,7 +4,7 @@
 
 ### 方法
 
-按 AGENTS.md「CRT 与命名」，已识别的 MSVC 调试版 CRT 函数使用 C++ 标准库，只在游戏可观察到差异时保留原行为（集中在 src/crt/）。逐行核对两点：
+按 AGENTS.md「CRT 与命名」，已识别的 MSVC 调试版 CRT 函数直接使用当前版本的 C/C++ 运行库，游戏调用的入口在 src/crt/ 中各包装一层（用户要求 2026-10-18）。逐行核对两点：
 
 1. 识别：导入跳转为单条 `jmp ds:__imp_X`；CRT 函数位于 0x00487AF0–0x00497FCC 的 CRT 区（structure-overview.md），由调试版 CRT 断言里的源文件名（onexit.c、dbgheap.c、vsprintf.c 等）确定模块，表中列出各函数自身引用的断言源文件或所在模块。
 2. 游戏可观察性：内部 CRT 函数只经入口影响游戏，所以以 tmp/crt_audit.py 扫描全部汇编的调用关系，找出被游戏代码区（0x00402230–0x00486A70）直接调用的入口，逐个核对重建侧行为：
@@ -17,7 +17,7 @@
    - strstr（Game::PlayVideo、SoundEffects::Open）：std::u8string::find / std::string::find。
    - 其余 CRT 函数没有游戏调用者，属于启动、堆、C++ 异常、printf 内部、数学错误处理与环境变量等库内部实现，不重写。
 
-src/crt/ 中保留原行为的函数（0x00489654 _ftol、0x00489B10/0x00489B20 srand/rand、0x00489B50 difftime、0x00489B70 time、0x00489D90 vsprintf、0x0048A1F0 floor 及其数学错误辅助）另见本文件末尾。
+src/crt/ 中的包装（0x00489654 _ftol、0x00489B10/0x00489B20 srand/rand、0x00489B50 difftime、0x00489B70 time、0x00489D90 vsprintf、0x0048A1F0 floor 及其数学错误辅助）另见本文件末尾。
 
 ### 识别与映射表
 
@@ -260,14 +260,18 @@ src/crt/ 中保留原行为的函数（0x00489654 _ftol、0x00489B10/0x00489B20 
 | 0x00497F00 | CRT:_mbschr | 69 条指令，位于 mbschr.c 模块（同模块函数引用其断言源文件） | C++ runtime multibyte | 0/1 |
 | 0x00497FC6 | import:RtlUnwind | 导入跳转 `jmp ds:__imp_RtlUnwind`（1 条指令） | compiler structured exception support | 0/2 |
 
-### src/crt 中保留原行为的函数
+### src/crt 的包装（用户要求 2026-10-18：直接使用当前版本的 CRT，最多包装一层）
 
-- 0x00489654 _ftol：`fstcw`、`or ah, 0Ch`（向零舍入）、`fistp` 64 位、恢复控制字；越界与 NaN 得整数不定值 0x8000000000000000。重建 Ftol 相同（exact 轮）。
-- 0x00489B10 srand、0x00489B20 rand：状态 0x004A833C（初值 1）；`imul 343FDh`、`add 269EC3h`、`sar 10h`、`and 7FFFh`（算术右移经掩码后与逻辑右移相同）。重建 Random::Seed/Next 相同（exact 轮）。
-- 0x00489B50 difftime：32 位 `sub` 后 `fild`。重建 Difftime 相同（exact 轮）。
-- 0x00489B70 time：GetLocalTime/GetSystemTime（按分钟缓存夏令时判断）经 __loctotime_t 换回 1970 年起的 UTC 秒数；重建取 std::time，正常时区下结果相同（exact 轮）。
-- 0x0048A1F0 floor 及 0x0048F9A0..0x00490750、0x00494800 数学错误辅助（_frnd、_handle_qnan1、_except1、_raise_exc、_handle_exc、_umatherr、_set_errno、_getfpename、_errcode、_set_exp、_sptype、_decomp、_statfp、_clrfp、_ctrlfp、_set_statfp、_matherr）：有限值在向下舍入模式 frndint，无穷原样、NaN 经错误处理原样返回（只设游戏不读的 errno）；std::floor 结果相同（exact 轮）。
-- 0x00489D90 vsprintf：唯一游戏调用者 0x004302F0（FieldView 调试文字，"MAct[%4.1f/%4.1f] ..." 等）。差异（diff 轮）：原版 %f 经 _cftof（0x0048D630）→ _fltout2（0x00493540，17 位有效数字）→ _fptostr（0x00493440，保留位数 ≥ 0 时下一位 ≥ '5' 进位，溢出时小数点后移），精确平局逢 5 进位（2.25 → "2.3"）；重建交给 snprintf（glibc 与新版 UCRT 对精确平局取偶数，2.25 → "2.2"），角色 x 为 16 的倍数加 4 时调试文字不同。改为逐个转换说明符处理，%f 由 detail::FormatFixed 按上述两步舍入，其余转换仍用 snprintf；超过 255 字符截断（原版写出缓冲区，已登记）。tests/msvc_crt_test.cpp 覆盖平局、进位溢出、小于半个单位与调试行的完整格式。修正后通过（exact 轮）。
+| 地址 | 原版 | 重建 | 与原版的差异 |
+|---|---|---|---|
+| 0x00489654 _ftol | `fstcw`、`or ah, 0Ch`（向零舍入）、`fistp` 64 位；越界与 NaN 得整数不定值 | `std::llrint(std::trunc(value))` | 范围内相同；越界与 NaN 由当前 CRT 决定（x86 上同为不定值） |
+| 0x00489B10 srand、0x00489B20 rand | 状态 0x004A833C（初值 1），`imul 343FDh`、`add 269EC3h`、取 16..30 位 | `std::srand`、`std::rand` 取低 15 位 | Windows 的 UCRT 用同一 LCG 且 RAND_MAX 为 0x7FFF（每线程一份状态，游戏单线程）；Linux 的 glibc 序列不同 |
+| 0x00489B50 difftime | 32 位 `sub` 后 `fild` | `std::difftime`（time_t） | 仅 32 位相减溢出（相隔 68 年以上）时不同 |
+| 0x00489B70 time | GetLocalTime 经 __loctotime_t 换回 UTC 秒数 | `std::time` | 正常时区下相同 |
+| 0x0048A1F0 floor 及 0x0048F9A0..0x00490750、0x00494800 数学错误辅助 | `frndint` 向下舍入；无穷大与 NaN 经错误处理链原样返回（只设 errno） | `std::floor` | 相同 |
+| 0x00489D90 vsprintf | 唯一游戏调用者 0x004302F0（FieldView 调试文字 "MAct[%4.1f/%4.1f] ..."）；%f 经 _cftof → _fltout2（17 位有效数字）→ _fptostr（中点进位） | `std::snprintf` 写入 256 字节缓冲区（超长截断，原版写出界） | %f 的舍入按当前 CRT（精确值舍入），精确中点（如 2.25 取一位）可能与原版不同；只影响 F1 调试显示 |
+
+msvc_crt_test 检查 Sprintf 与当前 snprintf 的结果一致、255 字符截断与 Ftol 向零截断。差异登记于 deviations.md（0x00489D90、0x00489B20、0x00489B50）。
 
 ### EH funclet 0x00497FD0..0x00498418
 

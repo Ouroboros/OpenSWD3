@@ -208,6 +208,9 @@
 | 0x00469D20 | 越界 | 指令 0x32、0x33、0x38、0x46、0x4A、0x4B、0x50 总按敌人表取单位，编号超出八个敌人（含负数）时读写到敌人数组之外 | 超出时不读写 | 架构 v3 |
 | 0x00469D20 | 越界 | 指令 0x49 第三个字为 0 时整数除零崩溃 | Fault() 报告后结束 | 架构 v3 |
 | 0x0048A1F0 | 平台替换 | floor 以 FPU 舍入模式取整，无穷大与 NaN 经数学错误处理链（设 errno、查 0x004A85E0 函数名表、调用 _matherr）原样返回 | std::floor（结果相同，不设 errno） | 架构 v3 |
+| 0x00489D90 | 平台替换（用户要求） | vsprintf 的 %f 经 _cftof／_fltout2／_fptostr：取 17 位有效数字后中点进位（2.25 取一位为 2.3） | std::snprintf，舍入按当前 CRT；只影响 F1 调试显示 0x004302F0 | 架构 v3 |
+| 0x00489B10、0x00489B20 | 平台替换（用户要求） | srand／rand 为 MSVC LCG（状态 0x004A833C，乘 0x343FD 加 0x269EC3，取 16..30 位） | std::srand／std::rand（取低 15 位，即 Windows 的 RAND_MAX）：Windows UCRT 为同一 LCG；Linux glibc 序列不同。使用者：爆炸与粒子（Projector 0x00438FA0 等）、水花 ScriptObject::Splash、RolePath 0x00406770 的一次消耗 | 架构 v3 |
+| 0x00489B50 | 平台替换（用户要求） | difftime 为 32 位相减 | std::difftime；仅相隔 68 年以上时不同 | 架构 v3 |
 | 0x0043B9A0 | 越界 | 跳过的项数超过链表长度时经空节点读下一项 | 到链表尾即停（结果为空） | 架构 v3 |
 | 0x0043B9C0 | 越界 | 同上 | 返回空 | 架构 v3 |
 | 0x0043BCC0 | 越界 | 所选项超出链表时以空节点取说明 | 说明为空 | 架构 v3 |

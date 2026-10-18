@@ -1,3 +1,5 @@
+#include <array>
+#include <cstdio>
 #include <string>
 
 #include "crt/msvc.h"
@@ -5,18 +7,24 @@
 
 using swd3::crt::Sprintf;
 
-TEST_CASE("msvc crt: %f rounds an exact tie half up as _fptostr does")
+TEST_CASE("msvc crt: Sprintf writes what the current runtime's snprintf writes")
 {
-    CHECK(Sprintf("%4.1f", 2.25) == " 2.3");
-    CHECK(Sprintf("%4.1f", 2.75) == " 2.8");
-    CHECK(Sprintf("%4.1f", 0.0) == " 0.0");
-    CHECK(Sprintf("%4.1f", 9.96) == "10.0");
-    CHECK(Sprintf("%.1f", 0.04) == "0.0");
-    CHECK(Sprintf("%.1f", 0.06) == "0.1");
+    std::array<char, 0x40> expected = {};
+    std::snprintf(expected.data(), expected.size(), "MAct[%4.1f/%4.1f] LTCor[%4d/%4d]", 10.25, 3.0625, 12, 3);
+    CHECK(Sprintf("MAct[%4.1f/%4.1f] LTCor[%4d/%4d]", 10.25, 3.0625, 12, 3) == std::string(expected.data()));
+    CHECK(Sprintf("ULck[%x] %d%%", 0x2A, 5) == "ULck[2a] 5%");
+    CHECK(Sprintf("[%s]", std::string("name")) == "[name]");
 }
 
-TEST_CASE("msvc crt: Sprintf takes each conversion in turn")
+TEST_CASE("msvc crt: Sprintf keeps the 255 characters of the game's buffers")
 {
-    CHECK(Sprintf("MAct[%4.1f/%4.1f] LTCor[%4d/%4d]", 10.25, 3.0625, 12, 3) == "MAct[10.3/ 3.1] LTCor[  12/   3]");
-    CHECK(Sprintf("ULck[%x] %d%%", 0x2A, 5) == "ULck[2a] 5%");
+    constexpr std::size_t kBufferChars = 0xFF;
+    const std::string longText(kBufferChars + 10, 'x');
+    CHECK_EQ(Sprintf("%s", longText).size(), kBufferChars);
+}
+
+TEST_CASE("msvc crt: Ftol truncates towards zero")
+{
+    CHECK_EQ(swd3::crt::Ftol(2.75), 2);
+    CHECK_EQ(swd3::crt::Ftol(-2.75), -2);
 }
