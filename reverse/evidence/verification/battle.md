@@ -178,3 +178,15 @@
 - 0x0047D7D0 ResetAfterGuard、0x0047D7F0 GetGuard（标记 0x42）、0x0047D810 SetStatus（0x200 置 brightLevel −0x20）、0x0047D830 ClearStatus（0x1000 同时结束护卫）、0x0047D860 SetWord2A0A、0x0047D870 SetGuarding、0x0047D880..0x0047D8F0 命令动作位与 ActSpeed（bit 15 时低 15 位）、0x0047D900 SetAction（清主动作）、0x0047D930 IsGuarding、0x0047D950 SetVitals、0x0047DA10 SetAttributes（角色 +0x26/+0x28/+0x16）、0x0047DA90 SetLevel、0x0047DAB0 SetB00、0x0047DAC0 SetB04：一致（exact 轮）。
 - 0x0047DAD0 TickEffects：计时每次 + 0xF、满 gaugeFull 复位并减一回合；毒按战斗副本 +0x31 的抗性 ScaleByTenths；耗体力每回合 10。差异（diff 轮）：0x0047DB51 调用的是 sub_47E4C0（HasEffectElement，按效果元素 +0xA4 查找），重建调用 HasEffectKind（0x0047E500，按位查找，kind 5 时找位为 0 的效果）；改为 HasEffectElement(5)。修正后通过（exact 轮）。其余调用点（HitDamage 0x00481010 的 0x0047E580/0x0047E500 ×2/0x0047E4C0）与重建一致。
 - 0x0047DBD0 AddAilment（MissedAilment 置标记 0x20；1..10 掷骰比 +0x1C/+0x5E；同位效果只刷新回合与数值，查找含头节点；新节点插在头节点之后；各位的动作 0x2AF8 帧号与图标 1..0xB；0x200 角色四项属性 −10%）、0x0047E070 AddBuff（0x4000000 为护罩计数；元素与整段 flags 比较；元素与状态位的 14 条消息 0x004A7E34..0x004A7F28 逐条读字节核对）、0x0047E4C0 HasEffectElement（0x0047E4D4 16 位 cmp）、0x0047E500 HasEffectKind、0x0047E580 HasEffectBits、0x0047E5C0 ApplyPendingDamage、0x0047E650 DrawEffects（第一个带动作的效果，含头节点；石化灰 0x28、0x1000 tint −12/0/−12）、0x0047E7F0 DrawEffectIcons（0x241D）、0x0047E880 CureEffects（复活位 0x8000；清除后从第一个效果重新查找）、0x0047E950 ExpireEffects（释放后跳过下一个节点；各状态位的清除与 21 条消息逐条核对；0x200 的属性恢复在 0x0047EAE1 等处为零扩展 32 位计算，伪代码的 i16 截断不存在；clearAll 清标记 0x142、状态与全部节点）、0x0047F150 Damage（0x0047F1DB/0x0047F278/0x0047F2C1 等比较均为有符号；金钱护卫在金钱非 0 时扣金钱；敌人倒下随机姿势 1..10）、0x0047F340 EffectFlag2、0x0047F360 EffectFlag3、0x0047F380 SetDefeatPose、0x0047F3A0 SetDefeatPoseFixed：一致（exact 轮）。
+
+## 淡入淡出、飞行与排队动作、敌人选指令 0x0047F3C0..0x00480D40
+
+逐函数对照汇编，全部一致，无代码改动（exact 轮）：
+
+- 0x0047F3C0 FadeMainOut（glowLevel 每帧 −2 至 −0x20，清反冲动作；0x47F3C0 的参数未使用）、0x0047F580 FadeMainIn（brightLevel +1 至 0，清标记 0x200）、0x0047F710 FadeInvisible（至 0x18；阴影以主图为源、取阴影图宽高绘制；模式 0 置 Invisible，清标记 0x480）。
+- 0x0047F900 SetFacing、0x0047F910 ActId、0x0047F920 IsHeldOrHolding。
+- 0x0047F940 FlyAct：锚点 0x0047F9BE movsx；目标坐标差 0x0047FAC6 movsx（16 位）；-1 步数从 1 起倍增、超过 0x20 后 +0x30；到达判定为 x 相等。
+- 0x0047FC40 RunQueuedActions：偏移 x 0x0047FD06 movsx；flown 比较 0x0047FD99 jg 有符号；抖动表 0x004A7E10 与 ShakeOffsets 相同；晃动节点沿用上一节点的到达结果（首节点未初始化已登记）；冲击动作未结束时原版在同一帧重跑整个节点，重建 `continue` 不前进节点，行为相同；DrawTrail 不改 0x254C。
+- 0x004800F0 AddQueuedAction（第 8 参数为步数、第 9 参数为抖动帧，与调用方一致）、0x004801A0 TrailLastQueuedAction（空队列写表头已登记）。
+- 0x00480220 ChooseCommand：选择顺序（治疗 > 物品/技能轮替 > 状态位 5/8 > 无空闲回合时丢弃 0..1 掷骰）、物品 0..4/5..7/8..9 三选（每 7 回合强制第三件）、技能 0..6/7..9 两选（每 5 回合强制第二个，仅第二个复位等待）、0..9 掷骰 < idleTurns + 机率、禁用条件（0xD98 bit 28 的强制单位、0xD94 bit 12 且 0x53BF28）、技能值为赋值、物品值为累加、0x1C 号动作的就绪姿势 0x2C..0x2F；拆出的 ChooseAttack/MarkDelayedAttack 即 LABEL_118/LABEL_123（标志 0x10 且命令 A 为 1 时改为 0xC8）。
+- 0x00480AD0 Data、0x00480AE0 PlayIdleEffect、0x00480D40 PlayIdleFollowUp。
