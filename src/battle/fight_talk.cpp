@@ -25,13 +25,17 @@ void FightTalk::Load(const std::u8string& installDirectory, u16 battle)
 
     if (!this->open)
     {
+        // The original tests the handle against 0, so a failed open (-1) is kept as open and its reads fail: the
+        // script is all zero.
+        this->open = true;
+
         if (!this->file
                  .Open(Concat({installDirectory, u8"figtalk.dat"}), File::Disposition::OpenAlways, File::Access::Read))
         {
+            this->script.assign(FightTalk::ScriptBytes, 0);
+            this->cursor = 0;
             return;
         }
-
-        this->open = true;
     }
 
     this->file.SeekBegin(static_cast<i32>(FightTalk::HeaderBytes + sizeof(u32) * static_cast<u32>(battle)));

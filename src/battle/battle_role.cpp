@@ -4051,7 +4051,13 @@ int BattleRole::StepWornCounters(CounterList& list, u16 amount)
         {
             if (at->done == 0)
             {
-                at->value = static_cast<u16>(std::min<int>(at->value + amount, data.unk44));
+                at->value = static_cast<u16>(at->value + amount);  // a u16 add (0x0046F60B), then held to unk44
+
+                if (at->value >= data.unk44)
+                {
+                    at->value = data.unk44;
+                }
+
                 at->percent = static_cast<u16>(
                     crt::Ftol(static_cast<double>(at->value) / static_cast<double>(data.unk44) * kCounterPercent)
                 );
