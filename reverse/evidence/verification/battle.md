@@ -115,3 +115,20 @@
 - 补正 0x00467AC0 DrawLevelUpPanel：上一批依 IDA 注释把 0x004A7A38 当作 "%s"，实际为 "%s升第%d級"（名字、movzx 的等级字节 0x4AB7BC + 0x38 × 队伍角色）；重建只画名字（diff 轮），改为完整格式。修正后通过（exact 轮）。全量复查见 save.md 补正一节：74 处注释截断中，其余均已在重建中有完整字面量（0x434DD0 的两条 particle_put 消息框只在内存分配失败时出现，重建无此路径；0x4A7600 为数据表）。
 - 0x0046F8C0 AttackFrame（淡入、居中 0x140/0x136、暴击动作 0x29 与武器施法动作、强制单位动作 0x28/0x30/0x31、反冲、地震、跟进与场地淡化、命中、飞行动作 slotActs[1] 的起点、等待后以 4 递减的暗化（> −32 有符号）、清除与连击）、0x0046FF00 RollCritical（随机数只在 8 次以上且不足 roleCount + 8 时消费）、0x0046FFE0 ShowAllSkills、0x0046FFF0 PrepareCommand、0x00470180 ListSkill（16 字节缓冲溢出得到元素号）、0x004702E0 CountSkills、0x00470380 CanPaySkill（"物品不夠!!"、"靈力值不夠!!"、"體力值不夠!!"）、0x004705C0 SelectSkill（两条失败路径都 `or ax, 0FFFFh` 返回 0xFFFF）、0x004707B0 LoadItemAction（局部记录 +0x50/+0x3E/+0x34；释放的是自身对象的说明）、0x00470820 FinishCommand、0x00470890 PayStamina、0x004708C0 TakeCommand2F18、0x00470900 ShowAllItems、0x00470910 ListObject、0x00470A10 CountObjects：通过。
 - 0x00470AC0 SelectObject：流程一致；差异（diff 轮）：断言消息 0x004A7CDC 实为 "%d物品特效號碼沒設"（注释显示 "%d"），重建只用 "%d"；改为完整字符串。修正后通过（exact 轮）。
+
+## 角色道具、吸收、投掷与法术帧 0x00470E20..0x00474BA0
+
+逐函数对照汇编，全部一致，无代码改动（exact 轮）：
+
+- 0x00470E20 UseSelectedItem（多次使用 0x400、次数掩码 0xFF、保留种类 0x80、0x8000000、无动作 0x2000）、0x00470F70 ListedObject、0x00470FE0 ThrowableObject、0x00471080 CountUsableObjects。
+- 0x004710D0 StartAbsorb：y 取 `movsx edx, [esp+20h+var_E]`（16 位符号扩展）；屏幕尺寸按已记录的平台替换取逻辑 640×480。0x00471270 AbsorbFrame：火花表 5 项、动作 0x186A、粒子标志 0x56（WithinRange 0x40 | Mixed 0x16）。
+- 0x004714B0 BeatsLevel（高于角色 35/100，低 1..7 级 70/100，8..12 级 90/100，≥ 13 必中，同级 0）、0x00471540 StepBack（2/6 终点、动作 0x2A、音效 0x2F 声像 ±0x10、每帧 0x10）、0x004717D0/0x004717E0 Word2A86Bit13/Bit12。
+- 0x004717F0 ThrowAct、0x00471AD0 CatchAct（动作 0x186B，每帧多 8 线段步，到达判定为 x 相等）、0x00471D60 GlowAct（0x24 动作、±2、峰值 0x3E、tint = glowLevel/2 − 0x1F、结束音 0x6A；原版清的是反冲动作的音效，保留）。
+- 0x00471FC0 FlyExtraAct：伪代码的 a5 − x 为 0x0047204F 的 16 位 `sub dx` 后 movsx，与重建 i16 一致。0x004721F0 PoseAtTarget（动作 0x2B、0x8000 镜像一次、阴影 −6/−1、声像以 0x140 为界）。
+- 0x00472430 Steal（无物 25000；熟练度 < 100 时 0..9 掷骰减 熟练度/25 下限 0，≥ 难度失败）、0x004724D0 AttackPose（0x28；返回施法动作 | 0x8000 或 2）、0x00472710 CanTarget、0x00472730 CanAbsorb（三处掷骰比较均为 setle 有符号）、0x004728D0 MarkBit11Clear。
+- 0x004728E0 DirectAttack：0x00472B7C `movsx eax, ax` 对应 HitDamage 返回 i16；阴影 y 为 0x00472A04 的 16 位 `sub di` 后 movsx。0x00472C70 DrainShare（0x37、步进 0xC、熟练度 >> 1，0x00472CAB 有符号 imul/除 100 + 1）。
+- 0x00472CE0 CastAt（0x2D，不动 hold；0x00472E1C movsx 偏移）、0x00473010 MagicFrame、0x004731A0 DrainSpellFrame（飞回 0x47F940 参数逐个对上；0x47F150 第三参为 word 0x52441C）。
+- 0x004735B0 BeamSpellFrame：0x004737F4 `cmp cx, 0FFE2h; jle`、0x0047397D/0x00473B45 jg 均为有符号；0x17FE、0x1F88、−0x1F、+2。
+- 0x00473C10 ChargeAttackFrame：冲刺 `idiv 96h` 有符号（0x00473E26），0x10F4 = 2、0x10F8 = 3、0x10F9 = 1、0xC 蓝色；跟进坐标在 0x00474269 movsx（重建 i16）；0x53CEB4 只加低字节（重建 u8）。重建把内联的冲锋部分拆为 ChargeOnTarget，结果一致。
+- 0x004745B0 MagicAttackFrame：0x004749CB `cmp ax, 0FFE0h; jle` 有符号，每帧 −8、hold 时加回；TargetsUnit 起点取站立动作 0x3B0/0x34C。0x00474B60 RollChance（0x46 × p / 100 有符号 + 0xA，16 位 cmp）。
+- 0x00474BA0 SwarmSpellFrame：偏移表 0x004A7C04/0x004A7C14 与 SwarmOffsetX/Y 逐项相同；每 3 帧（i16 有符号取模）、上限 8、0x28、0x34、音效 0x3E、拖影 0xC。
