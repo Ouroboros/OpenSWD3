@@ -549,6 +549,30 @@ void FieldView::DrawRoleHeads()
     while (*link != nullptr)
     {
         ScriptSprite& head = **link;
+        const std::array<i32, 2> place =
+            this->FollowEffect(EffectKey(EffectKind::RoleHeads, &head), head.headX, head.targetY, true, 0, kHeadSnap);
+
+        if (this->replaying)
+        {
+            // Smooth motion: the frame the act showed last where the head glides, nothing stepped, moved or freed.
+            const Picture* shown = owner.archive.GetPicture(head.act.frame, head.act.picture);
+
+            if (shown != nullptr)
+            {
+                painter.Options().alpha = head.act.signal;
+                painter.SetSource(shown->data.data());
+                painter.DrawPicture(
+                    place[0] - head.act.x,
+                    place[1] - head.act.y,
+                    shown->width,
+                    shown->height,
+                    head.act.flags
+                );
+            }
+
+            link = &head.next;
+            continue;
+        }
 
         if (owner.acts.Run(head.act) == 0)
         {
@@ -567,8 +591,8 @@ void FieldView::DrawRoleHeads()
             painter.Options().alpha = head.act.signal;
             painter.SetSource(picture->data.data());
             painter.DrawPicture(
-                head.headX - head.act.x,
-                head.targetY - head.act.y,
+                place[0] - head.act.x,
+                place[1] - head.act.y,
                 picture->width,
                 picture->height,
                 head.act.flags

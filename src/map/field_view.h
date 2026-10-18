@@ -261,10 +261,13 @@ private:
     void MarkChanges(const std::vector<Pixel>& before, std::vector<Span>& spans) const;
 
     std::vector<Pixel> worldLayer;      // the last game frame after the map, before the interface
-    std::vector<Pixel> interfaceLayer;  // after the interface, before the fade
+    std::vector<Pixel> talkLayer;       // after the lines and the talk windows
+    std::vector<Pixel> headsLayer;      // after the role heads
+    std::vector<Pixel> interfaceLayer;  // after the gold and the pointer, before the fade
     std::vector<Pixel> fadedLayer;      // after the fade
     std::vector<Pixel> finalLayer;      // as shown (the notices, the timer and the debug display too)
-    std::vector<Span> interfaceSpans;   // where interfaceLayer differs from worldLayer
+    std::vector<Span> talkSpans;        // where talkLayer differs from worldLayer
+    std::vector<Span> interfaceSpans;   // where interfaceLayer differs from headsLayer
     std::vector<Span> finalSpans;       // where finalLayer differs from fadedLayer
     std::vector<Surface> parts;         // the logical screens of a render scale above 1 (PaintBetween)
     bool fadeTinted = false;

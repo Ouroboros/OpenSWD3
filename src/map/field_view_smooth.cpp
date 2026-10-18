@@ -49,6 +49,15 @@ void FieldView::CapturePlaces()
     this->placesValid = true;
     this->placesFrame = frame;
     this->placesMap = owner.currentMap;
+    // The spotlight is drawn where it is now and moves after (0x00416B30).
+    this->FollowEffect(
+        EffectKey(EffectKind::Spotlight, std::uintptr_t{0}),
+        owner.scene.spotlightX,
+        owner.scene.spotlightY,
+        true,
+        0,
+        kEffectSnap
+    );
     this->cameraWidth = field.cameraRight - field.cameraLeft;
     this->cameraHeight = field.cameraBottom - field.cameraTop;
 }
@@ -165,6 +174,7 @@ void FieldView::PaintBetween(double alpha, Surface& out)
     const int scale = std::max(1, out.Width() / Display::Width);
     const std::span<Pixel> pixels(out.Pixels(), static_cast<std::size_t>(out.Width()) * out.Height());
     const bool layered = this->finalLayer.size() == Display::Pixels && this->worldLayer.size() == Display::Pixels &&
+                         this->talkLayer.size() == Display::Pixels && this->headsLayer.size() == Display::Pixels &&
                          this->interfaceLayer.size() == Display::Pixels && this->fadedLayer.size() == Display::Pixels;
 
     if (!layered)
@@ -385,6 +395,13 @@ void FieldView::PaintBetween(double alpha, Surface& out)
         this->parts.resize(blocks * blocks);
     }
 
+    auto spotlightGlide = this->effectGlides.find(EffectKey(EffectKind::Spotlight, std::uintptr_t{0}));
+
+    if (spotlightGlide != this->effectGlides.end() && spotlightGlide->second.seen != this->placesFrame)
+    {
+        spotlightGlide = this->effectGlides.end();
+    }
+
     this->replaying = true;
 
     for (std::size_t row = 0; row < blocks; ++row)
@@ -416,6 +433,14 @@ void FieldView::PaintBetween(double alpha, Surface& out)
                 state.roles[index].y = rowPlaces[row][1 + index];
             }
 
+            if (spotlightGlide != this->effectGlides.end())
+            {
+                const std::array<i32, 2> light =
+                    this->EffectPlace(spotlightGlide->second, static_cast<int>(column), static_cast<int>(row));
+                view.spotlightX = light[0];
+                view.spotlightY = light[1];
+            }
+
             owner.drawSurface = painter.LockSurface(part);
             painter.SetTarget(owner.drawSurface);
             painter.UnlockSurface(part);
@@ -427,11 +452,14 @@ void FieldView::PaintBetween(double alpha, Surface& out)
             }
 
             this->PaintWorld();
-            putBack();
 
-            // The interface of the last game frame (what it drew over its map), its fade, then what it drew after
-            // the fade.
+            // The interface of the last game frame: the lines and talk windows it drew over its map, its role heads
+            // drawn again where they glide, what it drew after them, its fade, then what it drew after the fade.
             const std::span<Pixel> screen(part.Pixels(), Display::Pixels);
+            FieldView::CopySpans(this->talkSpans, this->talkLayer, 1, screen);
+            painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+            this->DrawRoleHeads();
+            putBack();
             FieldView::CopySpans(this->interfaceSpans, this->interfaceLayer, 1, screen);
 
             if (this->fadeTinted)

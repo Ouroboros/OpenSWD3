@@ -62,11 +62,14 @@ enum class EffectKind : u64
     Fireflies,
     Bubbles,
     Sprites,
+    RoleHeads,
+    Spotlight,
 };
 
 constexpr i32 kEffectSnap = 0x80;  // an element moving further in a frame has been placed again: it jumps
 constexpr i32 kBubbleSnap = 6;     // a bubble moves 2 pixels at most; the original copies the next bubble into a
                                    // spent one, which then jumps
+constexpr i32 kHeadSnap = Display::Width;  // a head slides in by two thirds of the way in its first frame
 
 inline u64 EffectKey(EffectKind kind, std::uintptr_t which)
 {

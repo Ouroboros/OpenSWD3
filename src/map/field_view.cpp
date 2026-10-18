@@ -192,7 +192,19 @@ void FieldView::Paint()
     painter.SetClipClamped(0, 0, Display::Width, Display::Height);
     this->DrawLines();
     owner.talk.Draw();
+
+    if (capture)
+    {
+        this->CaptureLayer(this->talkLayer);
+        this->MarkChanges(this->worldLayer, this->talkSpans);
+    }
+
     this->DrawRoleHeads();
+
+    if (capture)
+    {
+        this->CaptureLayer(this->headsLayer);
+    }
 
     if ((state.leader.id == Role::NoId || state.leader.unk20 < kUnkLeader20Limit) &&
         !state.GameFlag(GameState::HideHud))
@@ -216,7 +228,7 @@ void FieldView::Paint()
     {
         const ColorFade& fade = view.fade;
         this->CaptureLayer(this->interfaceLayer);
-        this->MarkChanges(this->worldLayer, this->interfaceSpans);
+        this->MarkChanges(this->headsLayer, this->interfaceSpans);
         this->fadeTinted = fade.stepRed != 0.0F || fade.stepGreen != 0.0F || fade.stepBlue != 0.0F;
     }
 
