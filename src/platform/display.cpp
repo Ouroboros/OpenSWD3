@@ -165,6 +165,21 @@ void Display::Present(const Surface& screen)
     SDL_RenderPresent(this->renderer);
 }
 
+bool Display::SetVSync(bool enabled)
+{
+    if (!this->IsOpen() || !SDL_SetRenderVSync(this->renderer, enabled ? 1 : 0))
+    {
+        LogWarning(
+            u8"vsync %s failed: %s",
+            enabled ? std::u8string_view(u8"on") : std::u8string_view(u8"off"),
+            AsUtf8(SDL_GetError())
+        );
+        return false;
+    }
+
+    return true;
+}
+
 bool Display::HandleEvent(const SDL_Event& event)
 {
     this->TrackWindow(event);

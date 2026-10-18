@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <memory>
 #include <span>
@@ -15,6 +16,7 @@ namespace swd3
 {
 
 class Game;
+class Surface;
 struct Picture;
 struct Role;
 struct ScriptAnimation;
@@ -162,12 +164,46 @@ public:
 
     void DrawDebug(int cameraLeft, int cameraTop);
 
+    // The rebuild's smooth motion (deviations.md): the map drawn between two game frames with the camera and the roles
+    // placed `alpha` (0..1) of the way from where the frame before last drew them to where the last one did, the
+    // interface of the last frame laid over it. Nothing the game frames read is changed.
+    void PaintBetween(double alpha, Surface& out);
+
     i32 tileX = 0;  // 0x004CC2E4 the screen x of the first visible tile column
     i32 tileY = 0;  // 0x004CC2E8
     MapMovie movie;
+    bool replaying = false;  // PaintBetween is drawing: the state of the game frames is left alone
 
 private:
     struct TileSet;
+
+    // Where a game frame drew the camera and the roles.
+    struct FramePlaces
+    {
+        bool valid = false;
+        u32 frame = 0;  // Game::mapFrames when drawn
+        int map = 0;
+        i32 cameraLeft = 0;
+        i32 cameraTop = 0;
+        i32 cameraWidth = 0;
+        i32 cameraHeight = 0;
+        std::vector<i32> roleX;
+        std::vector<i32> roleY;
+    };
+
+    void PaintWorld();
+    void ClipToSpotlight();
+    void CapturePlaces();
+    void CaptureLayer(std::vector<Pixel>& layer) const;
+
+    FramePlaces previousPlaces;
+    FramePlaces currentPlaces;
+    std::vector<Pixel> worldLayer;      // the last game frame after the map, before the interface
+    std::vector<Pixel> interfaceLayer;  // after the interface, before the fade
+    std::vector<Pixel> fadedLayer;      // after the fade
+    std::vector<Pixel> finalLayer;      // as shown (the notices, the timer and the debug display too)
+    bool fadeTinted = false;
+    std::array<int, 3> fadeLevels = {};
 
     void DrawSmallText(int x, int y, u32 color, const std::string& text);
     void DrawTileGrid(const TileSet& tiles);

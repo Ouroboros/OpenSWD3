@@ -90,6 +90,12 @@ struct DisplaySettings
     std::optional<double> scale;  // scale: 1.0..4.0, before width and height
     std::optional<i64> width;     // width and height: given together
     std::optional<i64> height;
+    std::optional<bool> smoothMotion;  // smooth_motion: the map drawn between game frames (default true)
+    std::optional<bool> vsync;         // vsync: frames shown at the display's refresh (default true)
+    std::optional<i64> frameRate;      // frame_rate: the most frames drawn a second, 0 for no limit (default 0)
+
+    static constexpr i64 MinimumFrameRate = 30;
+    static constexpr i64 MaximumFrameRate = 1000;
 
     static constexpr auto Fields()
     {
@@ -97,6 +103,9 @@ struct DisplaySettings
             SettingField<DisplaySettings, std::optional<double>>{"scale", &DisplaySettings::scale},
             SettingField<DisplaySettings, std::optional<i64>>{"width", &DisplaySettings::width},
             SettingField<DisplaySettings, std::optional<i64>>{"height", &DisplaySettings::height},
+            SettingField<DisplaySettings, std::optional<bool>>{"smooth_motion", &DisplaySettings::smoothMotion},
+            SettingField<DisplaySettings, std::optional<bool>>{"vsync", &DisplaySettings::vsync},
+            SettingField<DisplaySettings, std::optional<i64>>{"frame_rate", &DisplaySettings::frameRate},
         };
     }
 

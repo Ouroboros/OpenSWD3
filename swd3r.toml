@@ -44,6 +44,15 @@
 # width = 640
 # height = 480
 
+# 平滑画面：游戏逻辑仍按原版每 35 ms 一帧，地图上的镜头和人物在两帧之间按显示器刷新率插值重画，
+# 画面比实际状态晚最多一帧。关闭后与原版一样每帧画一次。
+# vsync：等显示器刷新再显示，消除撕裂。
+# frame_rate：每秒最多画几帧，0 表示不限（开 vsync 时即跟随显示器刷新率）；其他取值 30..1000。
+
+# smooth_motion = true
+# vsync = true
+# frame_rate = 0
+
 [game]
 
 # 游戏本身的设置，原程序存在 Env.dat。第一次启动时 swd3r.default.toml 还没有 [game]，

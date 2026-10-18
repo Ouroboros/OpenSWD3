@@ -146,6 +146,11 @@ private:
     void NewGame();
     void RefreshCursor();
     void ShowFrame();
+    // The rebuild's smooth motion (deviations.md): a map frame kept for the frames drawn until the next game frame
+    // (shown at once without smooth motion), and one such frame drawn and shown when it is due.
+    void ShowMapFrame();
+    bool PresentBetween();
+    bool CopyToPrimary();
     std::u8string MusicPath(int index) const;
     void PlayMusic(const std::u8string& path);
     void ResetSaveSlots();
@@ -563,8 +568,18 @@ private:
     i32 unk4ACEF4 = 0;
     i32 unk4B7BC4 = 0;
     TextEntryState textEntry;
-    i32 running = 0;     // 0x004CC2AC frames run (F8 toggles)
-    u32 lastFrame = 0;   // 0x004CC2B0
+    i32 running = 0;    // 0x004CC2AC frames run (F8 toggles)
+    u32 lastFrame = 0;  // 0x004CC2B0
+    // The rebuild's smooth motion: whether the last game frame showed the map, the game frames run so far, when the
+    // last game frame was due (SDL nanoseconds), the frame drawn between game frames and when the next one is due.
+    bool smoothMotion = false;
+    bool mapFrameShown = false;
+    u32 gameFrames = 0;
+    u32 framesBetween = 0;
+    u64 frameDueNs = 0;
+    u64 frameRatePeriodNs = 0;
+    u64 nextDrawNs = 0;
+    std::unique_ptr<Surface> smoothScreen;
     u32 frameStart = 0;  // 0x004AAECC
     u32 unk4C844C = 0;
     u32 unk4C8444 = 0;

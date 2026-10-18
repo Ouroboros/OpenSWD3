@@ -90,6 +90,22 @@ TEST_CASE("host settings: the display stays at 640x480")
     CHECK(swd3::ParseHostSettings("[display]\nscale = 1\n", kBase).warnings.empty());
 }
 
+TEST_CASE("host settings: smooth motion, vsync and the frame rate")
+{
+    constexpr swd3::i64 kFrameRate = 144;
+    const swd3::HostSettings set =
+        swd3::ParseHostSettings("[display]\nsmooth_motion = false\nvsync = false\nframe_rate = 144\n", kBase);
+    CHECK(set.warnings.empty());
+    CHECK(!set.values.display.smoothMotion.value_or(true));
+    CHECK(!set.values.display.vsync.value_or(true));
+    CHECK_EQ(set.values.display.frameRate.value_or(0), kFrameRate);
+    CHECK(!swd3::ParseHostSettings("", kBase).values.display.smoothMotion.has_value());
+    CHECK(swd3::ParseHostSettings("[display]\nframe_rate = 0\n", kBase).warnings.empty());
+    const swd3::HostSettings slow = swd3::ParseHostSettings("[display]\nframe_rate = 10\n", kBase);
+    CHECK_EQ(slow.warnings.size(), static_cast<std::size_t>(1));
+    CHECK(!slow.values.display.frameRate.has_value());
+}
+
 TEST_CASE("host settings: the struct written by toml++ reads back the same")
 {
     swd3::Settings settings;

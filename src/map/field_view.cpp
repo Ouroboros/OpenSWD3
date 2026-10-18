@@ -24,10 +24,11 @@ constexpr int kScreenRows = Display::Height / MapHeader::TileSize;
 constexpr int kRoleMarginX = Display::Width / 2;  // roles this far beside the screen are still drawn
 constexpr int kReflectionRowsAbove = 5;           // the reflections are drawn from this many rows above the camera
 constexpr u32 kNoFrame = 0xFFFF;                  // the frame of a role without an act
-constexpr int kPerMille = 1000;                   // random.Below(kPerMille): the chances are in thousandths
-constexpr int kSoundRange = 0x200;                // the distance (pixels) a role is heard from
-constexpr int kSoundScale = 0x80;                 // the volume and the distance kept for the sounds
-constexpr int kPanScale = 0x40;                   // the pan at kSoundRange to the side
+constexpr i32 kSnapDistance = 0x80;  // smooth motion: a camera or role moving further in a frame jumps there
+constexpr int kPerMille = 1000;      // random.Below(kPerMille): the chances are in thousandths
+constexpr int kSoundRange = 0x200;   // the distance (pixels) a role is heard from
+constexpr int kSoundScale = 0x80;    // the volume and the distance kept for the sounds
+constexpr int kPanScale = 0x40;      // the pan at kSoundRange to the side
 
 constexpr int kSpriteMargin = 0x48;   // sprites this far off the screen are still drawn
 constexpr int kSpriteArrival = 0x20;  // a sprite this near its target is freed
@@ -584,7 +585,7 @@ void FieldView::DrawRoles()
             {
                 this->DrawRole(*role);
 
-                if (role->sound != 0)
+                if (role->sound != 0 && !this->replaying)
                 {
                     this->UpdateRoleSound(*role);
                 }
@@ -628,7 +629,7 @@ int FieldView::DrawRole(Role& role)
         }
     }
 
-    if (role.act.view != 0)
+    if (role.act.view != 0 && !this->replaying)
     {
         this->game.PlaySoundAt(role.act.view, x, y);
         role.act.view = 0;
@@ -717,7 +718,10 @@ int FieldView::DrawRole(Role& role)
         }
     }
 
-    role.act.unknown89 = static_cast<u8>(painter.WavePhase());
+    if (!this->replaying)
+    {
+        role.act.unknown89 = static_cast<u8>(painter.WavePhase());
+    }
 
     if ((role.flags & Role::Bubbles) != 0 && !this->game.state.GameFlag(GameState::PlainScreen))
     {
@@ -943,12 +947,67 @@ void FieldView::DrawBubbles(int x, int y, u16 role)
     Random& random = owner.random;
     Scene& view = owner.scene;
     Painter& painter = owner.painter;
+    const bool warm = owner.currentMap == Field::MonasteryOutside;
+
+    auto draw = [&](const RoleMarkNode& bubble, const Picture& picture)
+    {
+        DrawOptions& options = painter.Options();
+
+        if (warm)
+        {
+            options.tintRed = bubble.life - kWarmRed;
+            options.tintGreen = bubble.life - kWarmGreen;
+            options.tintBlue = bubble.life - kWarmBlue;
+        }
+        else
+        {
+            options.tintBlue = (bubble.life >> 1) - kColdTint;
+            options.tintGreen = (bubble.life >> 1) - kColdTint;
+            options.tintRed = (bubble.life >> 1) - kColdTint;
+        }
+
+        painter.SetSource(picture.data.data());
+        painter.DrawPicture(
+            bubble.x / kSubpixels - view.unk4ACAF8.x - field.cameraLeft,
+            bubble.y - view.unk4ACAF8.y - field.cameraTop,
+            picture.width,
+            picture.height,
+            view.unk4ACAF8.flags
+        );
+    };
+
+    if (this->replaying)
+    {
+        // Smooth motion: the bubbles as they are (the effect act is put back by PaintBetween).
+        view.unk4ACAF8.id = Scene::EffectAct;
+        view.unk4ACAF8.action = kBubbleAction;
+        owner.acts.Run(view.unk4ACAF8);
+        const Picture* shown = owner.archive.GetPicture(view.unk4ACAF8.frame, view.unk4ACAF8.picture);
+
+        for (const RoleMark& mark : view.marks)
+        {
+            if (shown == nullptr || static_cast<i16>(mark.role) != static_cast<int>(role))
+            {
+                continue;
+            }
+
+            for (const RoleMarkNode* bubble = mark.nodes.get(); bubble != nullptr; bubble = bubble->next.get())
+            {
+                if (bubble->life > 0)
+                {
+                    draw(*bubble, *shown);
+                }
+            }
+        }
+
+        return;
+    }
+
     const int sway = static_cast<int>(random.Below(kSwayRange)) - kSwayShift;
     view.unk4ACAF8.id = Scene::EffectAct;
     view.unk4ACAF8.action = kBubbleAction;
     owner.acts.Run(view.unk4ACAF8);
     const Picture* picture = owner.archive.GetPicture(view.unk4ACAF8.frame, view.unk4ACAF8.picture);
-    const bool warm = owner.currentMap == Field::MonasteryOutside;
 
     for (RoleMark& mark : view.marks)
     {
@@ -1004,29 +1063,7 @@ void FieldView::DrawBubbles(int x, int y, u16 role)
             {
                 if (picture != nullptr)
                 {
-                    DrawOptions& options = painter.Options();
-
-                    if (warm)
-                    {
-                        options.tintRed = bubble.life - kWarmRed;
-                        options.tintGreen = bubble.life - kWarmGreen;
-                        options.tintBlue = bubble.life - kWarmBlue;
-                    }
-                    else
-                    {
-                        options.tintBlue = (bubble.life >> 1) - kColdTint;
-                        options.tintGreen = (bubble.life >> 1) - kColdTint;
-                        options.tintRed = (bubble.life >> 1) - kColdTint;
-                    }
-
-                    painter.SetSource(picture->data.data());
-                    painter.DrawPicture(
-                        bubble.x / kSubpixels - view.unk4ACAF8.x - field.cameraLeft,
-                        bubble.y - view.unk4ACAF8.y - field.cameraTop,
-                        picture->width,
-                        picture->height,
-                        view.unk4ACAF8.flags
-                    );
+                    draw(bubble, *picture);
                 }
 
                 link = &bubble.next;
@@ -1115,6 +1152,28 @@ void FieldView::DrawAnimations(std::unique_ptr<ScriptAnimation>& list)
         const int x = static_cast<u16>(animation.x);
         const int y = static_cast<u16>(animation.y);
 
+        if (this->replaying)
+        {
+            // Smooth motion: the frame the act showed last, nothing stepped, played or freed.
+            const Picture* shown = owner.archive.GetPicture(animation.act.frame, animation.act.picture);
+
+            if (shown != nullptr)
+            {
+                painter.Options().alpha = animation.act.signal;
+                painter.SetSource(shown->data.data());
+                painter.DrawPicture(
+                    x - animation.act.x,
+                    y - animation.act.y,
+                    shown->width,
+                    shown->height,
+                    animation.act.flags
+                );
+            }
+
+            link = &animation.next;
+            continue;
+        }
+
         if (owner.acts.Run(animation.act) == 0)
         {
             DebugLog(
@@ -1171,6 +1230,30 @@ void FieldView::DrawSprites()
         ScriptSprite& sprite = **link;
         const auto screenX = static_cast<int>(crt::Ftol(sprite.x)) - field.cameraLeft;
         const auto screenY = static_cast<int>(crt::Ftol(sprite.y)) - field.cameraTop;
+
+        if (this->replaying)
+        {
+            // Smooth motion: the frame the act showed last at the sprite's place, nothing stepped, moved or freed.
+            const Picture* shown = owner.archive.GetPicture(sprite.act.frame, sprite.act.picture);
+
+            if (shown != nullptr && screenX > -kSpriteMargin && screenX < Display::Width + kSpriteMargin &&
+                screenY > -kSpriteMargin && screenY < Display::Height + kSpriteMargin)
+            {
+                painter.Options().alpha = sprite.act.signal;
+                painter.SetSource(shown->data.data());
+                painter.DrawPicture(
+                    screenX - sprite.act.x,
+                    screenY - sprite.act.y,
+                    shown->width,
+                    shown->height,
+                    sprite.act.flags,
+                    PictureArgument(*shown)
+                );
+            }
+
+            link = &sprite.next;
+            continue;
+        }
 
         if (owner.acts.Run(sprite.act) == 0)
         {
@@ -2239,7 +2322,11 @@ void FieldView::DrawRipples()
         ripple.CopyScreen(screen);
         ripple.Refract(screen);
 
-        if (ripple.Step())
+        if (this->replaying)
+        {
+            link = &ripple.next;
+        }
+        else if (ripple.Step())
         {
             *link = std::move(ripple.next);
         }
@@ -2784,23 +2871,11 @@ void FieldView::Paint()
     GameState& state = owner.state;
     Painter& painter = owner.painter;
     Scene& view = owner.scene;
-    const Field& field = owner.field;
-
-    auto lightClip = [&painter, &view]()
-    {
-        painter.SetClipClamped(
-            view.spotlightX - Scene::SpotlightRadius,
-            view.spotlightY - Scene::SpotlightRadius,
-            view.spotlightX + Scene::SpotlightRadius,
-            view.spotlightY + Scene::SpotlightRadius
-        );
-    };
-
     painter.SetClipClamped(0, 0, Display::Width, Display::Height);
 
     if ((view.screenFlags & Scene::SpotlightClip) != 0)
     {
-        lightClip();
+        this->ClipToSpotlight();
     }
 
     if (this->movie.active != 0)
@@ -2809,72 +2884,14 @@ void FieldView::Paint()
     }
     else
     {
-        bool later = true;
+        this->PaintWorld();
+    }
 
-        if (state.GameFlag(GameState::OverlaysFirst) || state.GameFlag(GameState::Spotlight))
-        {
-            std::memset(owner.drawSurface, 0, sizeof(Pixel) * Display::Pixels);
-        }
+    const bool capture = owner.smoothMotion;
 
-        if ((view.screenFlags & Scene::BlackScreen) != 0)
-        {
-            std::memset(owner.drawSurface, 0, sizeof(Pixel) * Display::Pixels);
-        }
-        else
-        {
-            this->DrawOverlays();
-
-            if (!state.GameFlag(GameState::PlainScreen) && state.GameFlag(GameState::Spotlight))
-            {
-                lightClip();
-            }
-
-            const bool scrolled =
-                (field.cameraLeft & MapHeader::TileFraction) != 0 || (field.cameraTop & MapHeader::TileFraction) != 0;
-
-            if (state.map.bitsPerPixel == MapHeader::TrueColorBits)
-            {
-                scrolled ? this->DrawTiles16Scrolled(0) : this->DrawTiles16(0);
-            }
-            else
-            {
-                painter.SetPalette(field.palette.data());
-                scrolled ? this->DrawTiles8Scrolled(0) : this->DrawTiles8(0);
-            }
-
-            painter.SetPalette(nullptr);
-
-            if (!state.GameFlag(GameState::HideActRoles))
-            {
-                this->DrawReflections();
-            }
-
-            this->DrawRoles();
-            this->DrawAnimations(view.animationsA);
-            this->DrawSprites();
-
-            if (!state.GameFlag(GameState::PlainScreen) && (view.screenFlags & Scene::BlackScreen) == 0)
-            {
-                this->DrawLeaves();
-                this->DrawLightning();
-                this->DrawFireflies();
-                this->DrawWeather();
-                this->DrawHeat();
-                this->DrawRipples();
-            }
-
-            if (!state.GameFlag(GameState::PlainScreen))
-            {
-                this->DrawSpotlight();
-                this->DrawAnimations(view.animationsB);
-                later = false;
-            }
-        }
-
-        if (later)
-        {
-            this->DrawAnimations(view.animationsB);
-        }
+    if (capture)
+    {
+        this->CaptureLayer(this->worldLayer);
     }
 
     painter.SetClipClamped(0, 0, Display::Width, Display::Height);
@@ -2900,8 +2917,322 @@ void FieldView::Paint()
         owner.RefreshCursor();
     }
 
+    if (capture)
+    {
+        const ColorFade& fade = view.fade;
+        this->CaptureLayer(this->interfaceLayer);
+        this->fadeTinted = fade.stepRed != 0.0F || fade.stepGreen != 0.0F || fade.stepBlue != 0.0F;
+    }
+
     this->FadeColors(1);
+
+    if (capture)
+    {
+        const ColorFade& fade = view.fade;
+        this->fadeLevels = {
+            static_cast<int>(crt::Ftol(fade.red)),
+            static_cast<int>(crt::Ftol(fade.green)),
+            static_cast<int>(crt::Ftol(fade.blue)),
+        };
+
+        this->CaptureLayer(this->fadedLayer);
+    }
+
     owner.notices.Draw(owner.smallFont, painter, state, owner.textColors);
+}
+
+// The spotlight's square of the screen as the clip (part of 0x00412930).
+void FieldView::ClipToSpotlight()
+{
+    const Scene& view = this->game.scene;
+    this->game.painter.SetClipClamped(
+        view.spotlightX - Scene::SpotlightRadius,
+        view.spotlightY - Scene::SpotlightRadius,
+        view.spotlightX + Scene::SpotlightRadius,
+        view.spotlightY + Scene::SpotlightRadius
+    );
+}
+
+// The map part of the frame without a movie (part of 0x00412930): the overlays, the tiles, reflections, roles,
+// animations, sprites and the screen effects.
+void FieldView::PaintWorld()
+{
+    Game& owner = this->game;
+    GameState& state = owner.state;
+    Painter& painter = owner.painter;
+    Scene& view = owner.scene;
+    const Field& field = owner.field;
+    bool later = true;
+
+    if (state.GameFlag(GameState::OverlaysFirst) || state.GameFlag(GameState::Spotlight))
+    {
+        std::memset(owner.drawSurface, 0, sizeof(Pixel) * Display::Pixels);
+    }
+
+    if ((view.screenFlags & Scene::BlackScreen) != 0)
+    {
+        std::memset(owner.drawSurface, 0, sizeof(Pixel) * Display::Pixels);
+    }
+    else
+    {
+        this->DrawOverlays();
+
+        if (!state.GameFlag(GameState::PlainScreen) && state.GameFlag(GameState::Spotlight))
+        {
+            this->ClipToSpotlight();
+        }
+
+        const bool scrolled =
+            (field.cameraLeft & MapHeader::TileFraction) != 0 || (field.cameraTop & MapHeader::TileFraction) != 0;
+
+        if (state.map.bitsPerPixel == MapHeader::TrueColorBits)
+        {
+            scrolled ? this->DrawTiles16Scrolled(0) : this->DrawTiles16(0);
+        }
+        else
+        {
+            painter.SetPalette(field.palette.data());
+            scrolled ? this->DrawTiles8Scrolled(0) : this->DrawTiles8(0);
+        }
+
+        painter.SetPalette(nullptr);
+
+        if (!state.GameFlag(GameState::HideActRoles))
+        {
+            this->DrawReflections();
+        }
+
+        this->DrawRoles();
+        this->DrawAnimations(view.animationsA);
+        this->DrawSprites();
+
+        if (!state.GameFlag(GameState::PlainScreen) && (view.screenFlags & Scene::BlackScreen) == 0)
+        {
+            this->DrawLeaves();
+            this->DrawLightning();
+            this->DrawFireflies();
+            this->DrawWeather();
+            this->DrawHeat();
+            this->DrawRipples();
+        }
+
+        if (!state.GameFlag(GameState::PlainScreen))
+        {
+            this->DrawSpotlight();
+            this->DrawAnimations(view.animationsB);
+            later = false;
+        }
+    }
+
+    if (later)
+    {
+        this->DrawAnimations(view.animationsB);
+    }
+}
+
+// Where the game frame about to be painted draws the camera and the roles, the last one's kept as the one before.
+void FieldView::CapturePlaces()
+{
+    Game& owner = this->game;
+
+    if (!owner.smoothMotion)
+    {
+        return;
+    }
+
+    std::swap(this->previousPlaces, this->currentPlaces);
+    FramePlaces& places = this->currentPlaces;
+    const Field& field = owner.field;
+    places.valid = true;
+    places.frame = owner.gameFrames;
+    places.map = owner.currentMap;
+    places.cameraLeft = field.cameraLeft;
+    places.cameraTop = field.cameraTop;
+    places.cameraWidth = field.cameraRight - field.cameraLeft;
+    places.cameraHeight = field.cameraBottom - field.cameraTop;
+    places.roleX.resize(GameState::Roles);
+    places.roleY.resize(GameState::Roles);
+
+    for (std::size_t index = 0; index < GameState::Roles; ++index)
+    {
+        places.roleX[index] = owner.state.roles[index].x;
+        places.roleY[index] = owner.state.roles[index].y;
+    }
+}
+
+void FieldView::CaptureLayer(std::vector<Pixel>& layer) const
+{
+    const Pixel* pixels = this->game.drawSurface;
+
+    if (pixels != nullptr)
+    {
+        layer.assign(pixels, pixels + Display::Pixels);
+    }
+}
+
+void FieldView::PaintBetween(double alpha, Surface& out)
+{
+    Game& owner = this->game;
+    const std::span<Pixel> pixels(out.Pixels(), Display::Pixels);
+    const bool layered = this->finalLayer.size() == Display::Pixels && this->worldLayer.size() == Display::Pixels &&
+                         this->interfaceLayer.size() == Display::Pixels && this->fadedLayer.size() == Display::Pixels;
+
+    if (!layered)
+    {
+        return;
+    }
+
+    if (this->movie.active != 0 || !this->currentPlaces.valid)
+    {
+        std::copy(this->finalLayer.begin(), this->finalLayer.end(), pixels.begin());
+        return;
+    }
+
+    GameState& state = owner.state;
+    Field& field = owner.field;
+    Scene& view = owner.scene;
+    Painter& painter = owner.painter;
+    const FramePlaces& from = this->previousPlaces;
+    const FramePlaces& to = this->currentPlaces;
+    const bool blend = from.valid && from.frame + 1 == to.frame && from.map == to.map;
+
+    auto between = [alpha, blend](i32 start, i32 end)
+    {
+        if (!blend || std::abs(end - start) > kSnapDistance)
+        {
+            return end;
+        }
+
+        return start + static_cast<i32>(std::lround(static_cast<double>(end - start) * alpha));
+    };
+
+    // What the map part changes is kept and put back afterwards: the camera, the roles' places, the random
+    // numbers, the particles and acts of the screen effects, the spotlight, and the painter's options and target.
+    const std::array<i32, 4> camera = {field.cameraLeft, field.cameraTop, field.cameraRight, field.cameraBottom};
+    std::vector<i32> roleX(GameState::Roles);
+    std::vector<i32> roleY(GameState::Roles);
+
+    for (std::size_t index = 0; index < GameState::Roles; ++index)
+    {
+        roleX[index] = state.roles[index].x;
+        roleY[index] = state.roles[index].y;
+    }
+
+    const Random random = owner.random;
+    const auto weather = view.weather;
+    const auto weatherShades = view.weatherShades;
+    const auto weatherMotion = view.weatherMotion;
+    const auto leaves = view.leaves;
+    const auto leafActs = view.unk4AD0D8;
+    const ActState effectAct = view.unk4ACAF8;
+    const ActState spotlightAct = view.unk4AD3F0;
+    const auto heatLengths = view.heatLengths;
+    const auto heatCounts = view.heatCounts;
+    const auto heatOffsets = view.heatOffsets;
+    const u16 heatFrame = view.heatFrame;
+    const i16 lightningCount = view.lightningCount;
+    const i16 lightningShown = view.lightningShown;
+    const auto bolts = view.bolts;
+    const i16 fireflyCount = view.fireflyCount;
+    const i16 firefliesShown = view.firefliesShown;
+    const auto fireflies = view.fireflies;
+    const std::array<i32, 4> spotlight = {view.spotlightX, view.spotlightY, view.spotlightStepX, view.spotlightStepY};
+    const DrawOptions options = painter.Options();
+    const int wavePhase = painter.WavePhase();
+    const std::array<int, 4> clip = painter.ClipRect();
+    u16* const target = painter.Target();
+    Pixel* const drawSurface = owner.drawSurface;
+
+    field.cameraLeft = between(from.cameraLeft, to.cameraLeft);
+    field.cameraTop = between(from.cameraTop, to.cameraTop);
+    field.cameraRight = field.cameraLeft + to.cameraWidth;
+    field.cameraBottom = field.cameraTop + to.cameraHeight;
+
+    for (std::size_t index = 0; index < GameState::Roles; ++index)
+    {
+        Role& role = state.roles[index];
+
+        if (role.x == to.roleX[index] && role.y == to.roleY[index])
+        {
+            role.x = between(from.roleX[index], to.roleX[index]);
+            role.y = between(from.roleY[index], to.roleY[index]);
+        }
+    }
+
+    this->replaying = true;
+    owner.drawSurface = painter.LockSurface(out);
+    painter.SetTarget(owner.drawSurface);
+    painter.UnlockSurface(out);
+    painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+
+    if ((view.screenFlags & Scene::SpotlightClip) != 0)
+    {
+        this->ClipToSpotlight();
+    }
+
+    this->PaintWorld();
+    this->replaying = false;
+
+    field.cameraLeft = camera[0];
+    field.cameraTop = camera[1];
+    field.cameraRight = camera[2];
+    field.cameraBottom = camera[3];
+
+    for (std::size_t index = 0; index < GameState::Roles; ++index)
+    {
+        state.roles[index].x = roleX[index];
+        state.roles[index].y = roleY[index];
+    }
+
+    owner.random = random;
+    view.weather = weather;
+    view.weatherShades = weatherShades;
+    view.weatherMotion = weatherMotion;
+    view.leaves = leaves;
+    view.unk4AD0D8 = leafActs;
+    view.unk4ACAF8 = effectAct;
+    view.unk4AD3F0 = spotlightAct;
+    view.heatLengths = heatLengths;
+    view.heatCounts = heatCounts;
+    view.heatOffsets = heatOffsets;
+    view.heatFrame = heatFrame;
+    view.lightningCount = lightningCount;
+    view.lightningShown = lightningShown;
+    view.bolts = bolts;
+    view.fireflyCount = fireflyCount;
+    view.firefliesShown = firefliesShown;
+    view.fireflies = fireflies;
+    view.spotlightX = spotlight[0];
+    view.spotlightY = spotlight[1];
+    view.spotlightStepX = spotlight[2];
+    view.spotlightStepY = spotlight[3];
+    painter.Options() = options;
+    painter.SetWavePhase(wavePhase);
+    painter.SetClip(clip[0], clip[1], clip[0] + clip[2], clip[1] + clip[3]);
+    painter.SetTarget(target);
+    owner.drawSurface = drawSurface;
+
+    // The interface of the last game frame (what it drew over its map), its fade, then what it drew after the fade.
+    for (std::size_t index = 0; index < Display::Pixels; ++index)
+    {
+        if (this->interfaceLayer[index] != this->worldLayer[index])
+        {
+            pixels[index] = this->interfaceLayer[index];
+        }
+    }
+
+    if (this->fadeTinted)
+    {
+        painter.TintPixels(pixels, this->fadeLevels[0], this->fadeLevels[1], this->fadeLevels[2]);
+    }
+
+    for (std::size_t index = 0; index < Display::Pixels; ++index)
+    {
+        if (this->finalLayer[index] != this->fadedLayer[index])
+        {
+            pixels[index] = this->finalLayer[index];
+        }
+    }
 }
 
 void FieldView::DrawSmallText(int x, int y, u32 color, const std::string& text)
@@ -3426,6 +3757,7 @@ void FieldView::Render()
     owner.drawSurface = owner.painter.LockSurface(*owner.offscreen);
     owner.painter.SetTarget(owner.drawSurface);
     owner.painter.UnlockSurface(*owner.offscreen);
+    this->CapturePlaces();
     this->Paint();
     this->DrawTimer(kTimerX, kTimerY, 0);
 
@@ -3435,7 +3767,13 @@ void FieldView::Render()
     }
 
     owner.audioDevice.Serve();
-    owner.ShowFrame();
+
+    if (owner.smoothMotion)
+    {
+        this->CaptureLayer(this->finalLayer);
+    }
+
+    owner.ShowMapFrame();
 
     if ((player.x & MapHeader::TileFraction) == 0 && (player.y & MapHeader::TileFraction) == 0)
     {

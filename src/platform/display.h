@@ -66,6 +66,8 @@ public:
     }
 
     void Present(const Surface& screen);
+    // Presenting waits for the display's refresh (`enabled`); false when the renderer cannot.
+    bool SetVSync(bool enabled);
     // Handles Alt+Enter; true when the event was consumed.
     bool HandleEvent(const SDL_Event& event);
     void ToggleFullscreen();

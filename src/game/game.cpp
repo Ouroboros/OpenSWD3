@@ -27,10 +27,13 @@ namespace
 {
 
 constexpr Uint64 kSlowIteration = 100;  // milliseconds: a longer message loop iteration is logged
-constexpr u32 kLeftButton = 0x1;        // MK_LBUTTON
-constexpr u32 kRightButton = 0x2;       // MK_RBUTTON
-constexpr u32 kShiftKey = 0x4;          // MK_SHIFT
-constexpr u32 kControlKey = 0x8;        // MK_CONTROL
+constexpr u32 kCatchUpFrames = 4;       // a game frame this many intervals late restarts the frame clock
+constexpr u64 kNanosecondsPerMillisecond = 1000000;
+constexpr u64 kNanosecondsPerSecond = 1000000000;
+constexpr u32 kLeftButton = 0x1;   // MK_LBUTTON
+constexpr u32 kRightButton = 0x2;  // MK_RBUTTON
+constexpr u32 kShiftKey = 0x4;     // MK_SHIFT
+constexpr u32 kControlKey = 0x8;   // MK_CONTROL
 constexpr u32 kMiddleButton = 0x10;
 constexpr Uint32 kLauncherWait = 16;
 constexpr Uint64 kSlowLauncherFrame =
@@ -345,6 +348,20 @@ int Game::Run([[maybe_unused]] std::u8string_view commandLine)
         return 0;
     }
 
+    const DisplaySettings& shown = this->host.values.display;
+    const bool vsync = shown.vsync.value_or(true);
+    const i64 frameRate = shown.frameRate.value_or(0);
+    this->smoothMotion = shown.smoothMotion.value_or(true);
+    this->display.SetVSync(vsync);
+    this->frameRatePeriodNs = frameRate > 0 ? kNanosecondsPerSecond / static_cast<u64>(frameRate) : 0;
+    this->smoothScreen = std::make_unique<Surface>(Display::Width, Display::Height);
+    LogInfo(
+        u8"smooth_motion=%d vsync=%d frame_rate=%d",
+        this->smoothMotion ? 1 : 0,
+        vsync ? 1 : 0,
+        static_cast<i32>(frameRate)
+    );
+
     if (Game::CheckStart() == 0)
     {
         this->Destroy();
@@ -374,6 +391,7 @@ int Game::Run([[maybe_unused]] std::u8string_view commandLine)
 
         const Uint64 handled = SDL_GetTicks();
         this->LoopFrame();
+        const bool presented = this->PresentBetween();
         const Uint64 finished = SDL_GetTicks();
 
         if (finished - started > kSlowIteration)
@@ -386,10 +404,18 @@ int Game::Run([[maybe_unused]] std::u8string_view commandLine)
             );
         }
 
-        SDL_Delay(1);
+        if (!presented)
+        {
+            SDL_Delay(1);
+        }
     }
 
     SDL_RemoveEventWatch(&Game::LiveResize, this);
+    LogInfo(
+        u8"frames: %d game frames, %d drawn between them",
+        static_cast<i32>(this->gameFrames),
+        static_cast<i32>(this->framesBetween)
+    );
     return 0;
 }
 
@@ -452,6 +478,7 @@ bool SDLCALL Game::LiveResize(void* data, SDL_Event* event)
     if (event->type == SDL_EVENT_WINDOW_EXPOSED && event->window.data1 == 1 && !game->quit)
     {
         game->LoopFrame();
+        game->PresentBetween();
     }
 
     return true;
@@ -1228,11 +1255,19 @@ void Game::RefreshCursor()
 // The frame drawn on the frame surface shown: the original blits it to the primary surface (DDBLT_WAIT).
 void Game::ShowFrame()
 {
+    if (this->CopyToPrimary())
+    {
+        this->graphics.Present();
+    }
+}
+
+bool Game::CopyToPrimary()
+{
     Surface* primary = this->graphics.GetSurface(Graphics::SurfaceId::Primary);
 
     if (primary == nullptr || this->offscreen == nullptr)
     {
-        return;
+        return false;
     }
 
     for (int row = 0; row < std::min(primary->Height(), this->offscreen->Height()); ++row)
@@ -1241,7 +1276,60 @@ void Game::ShowFrame()
         std::copy(source, source + std::min(primary->Width(), this->offscreen->Width()), primary->Row(row));
     }
 
-    this->graphics.Present();
+    return true;
+}
+
+void Game::ShowMapFrame()
+{
+    if (!this->smoothMotion)
+    {
+        this->ShowFrame();
+        return;
+    }
+
+    this->CopyToPrimary();
+    this->mapFrameShown = true;
+}
+
+bool Game::PresentBetween()
+{
+    if (!this->mapFrameShown || this->smoothScreen == nullptr || this->active == 0 || this->running == 0 ||
+        this->quit || (this->systemFlags & Game::VideoPlaying) != 0)
+    {
+        return false;
+    }
+
+    const u64 now = SDL_GetTicksNS();
+
+    if (this->frameRatePeriodNs != 0)
+    {
+        if (now < this->nextDrawNs)
+        {
+            return false;
+        }
+
+        this->nextDrawNs += this->frameRatePeriodNs;
+
+        if (this->nextDrawNs < now)
+        {
+            this->nextDrawNs = now + this->frameRatePeriodNs;
+        }
+    }
+
+    const u64 interval = static_cast<u64>(std::max(this->state.frameInterval, 0)) * kNanosecondsPerMillisecond;
+    double alpha = 1.0;
+
+    if (interval != 0)
+    {
+        alpha = now <= this->frameDueNs
+                    ? 0.0
+                    : std::min(1.0, static_cast<double>(now - this->frameDueNs) / static_cast<double>(interval));
+    }
+
+    this->fieldView.PaintBetween(alpha, *this->smoothScreen);
+    this->display.Present(*this->smoothScreen);
+    ++this->framesBetween;
+    return true;
 }
 
 // swd32.exe 0x0040EB60: <install directory>Music\<name>.mp3 for tune `index` of the name list of maps.dat's table 2
@@ -1514,12 +1602,28 @@ void Game::MainFrame()
     const u32 now = SystemUptime();
     this->frameStart = now;
 
-    if (now - this->lastFrame < static_cast<u32>(this->state.frameInterval))
+    const auto interval = static_cast<u32>(this->state.frameInterval);
+
+    if (now - this->lastFrame < interval)
     {
         return;
     }
 
-    this->lastFrame = now;
+    // The original takes the time of the loop pass the frame is due in (lastFrame = now), so its frames come late by
+    // the pass; the rebuild keeps the frame clock (deviations.md): a frame is due an interval after the last was due,
+    // restarting from now after a pause or with no interval.
+    if (interval == 0 || now - this->lastFrame >= kCatchUpFrames * interval)
+    {
+        this->lastFrame = now;
+    }
+    else
+    {
+        this->lastFrame += interval;
+    }
+
+    this->frameDueNs = SDL_GetTicksNS() - static_cast<u64>(now - this->lastFrame) * kNanosecondsPerMillisecond;
+    this->mapFrameShown = false;
+    ++this->gameFrames;
 
     if ((this->deviceFlags & 1) != 0)
     {

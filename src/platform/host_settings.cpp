@@ -311,6 +311,14 @@ void Validate(Settings& settings, std::vector<std::string>& warnings)
     {
         warnings.emplace_back("[display] only the original 640x480 is drawn for now: 640x480 kept");
     }
+
+    if (display.frameRate.has_value() && *display.frameRate != 0 &&
+        (*display.frameRate < DisplaySettings::MinimumFrameRate ||
+         *display.frameRate > DisplaySettings::MaximumFrameRate))
+    {
+        warnings.emplace_back("[display] frame_rate must be 0 or 30..1000: 0 (no limit) kept");
+        display.frameRate.reset();
+    }
 }
 
 std::string_view WithoutMark(std::string_view text)
