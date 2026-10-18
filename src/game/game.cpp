@@ -26,10 +26,11 @@ namespace swd3
 namespace
 {
 
-constexpr u32 kLeftButton = 0x1;   // MK_LBUTTON
-constexpr u32 kRightButton = 0x2;  // MK_RBUTTON
-constexpr u32 kShiftKey = 0x4;     // MK_SHIFT
-constexpr u32 kControlKey = 0x8;   // MK_CONTROL
+constexpr Uint64 kSlowIteration = 100;  // milliseconds: a longer message loop iteration is logged
+constexpr u32 kLeftButton = 0x1;        // MK_LBUTTON
+constexpr u32 kRightButton = 0x2;       // MK_RBUTTON
+constexpr u32 kShiftKey = 0x4;          // MK_SHIFT
+constexpr u32 kControlKey = 0x8;        // MK_CONTROL
 constexpr u32 kMiddleButton = 0x10;
 constexpr Uint32 kLauncherWait = 16;
 constexpr Uint64 kSlowLauncherFrame =
@@ -359,6 +360,7 @@ int Game::Run([[maybe_unused]] std::u8string_view commandLine)
     while (!this->quit)
     {
         SDL_Event event;
+        const Uint64 started = SDL_GetTicks();
 
         while (SDL_PollEvent(&event))
         {
@@ -370,7 +372,20 @@ int Game::Run([[maybe_unused]] std::u8string_view commandLine)
             break;
         }
 
+        const Uint64 handled = SDL_GetTicks();
         this->LoopFrame();
+        const Uint64 finished = SDL_GetTicks();
+
+        if (finished - started > kSlowIteration)
+        {
+            LogInfo(
+                u8"slow iteration %d ms (events %d ms, frame %d ms)",
+                static_cast<i32>(finished - started),
+                static_cast<i32>(handled - started),
+                static_cast<i32>(finished - handled)
+            );
+        }
+
         SDL_Delay(1);
     }
 
