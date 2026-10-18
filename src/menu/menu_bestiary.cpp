@@ -3,6 +3,7 @@
 #include <cstring>
 #include <string>
 
+#include "core/debug_log.h"
 #include "core/format.h"
 #include "draw/painter.h"
 #include "font/text_font.h"
@@ -643,6 +644,10 @@ void Menu::BestiaryList(int category)
                 book.names[entry] = ObjectName(record);
                 book.known[entry] = static_cast<i8>(book.defeated[static_cast<std::size_t>(id)]);
             }
+            else
+            {
+                DebugLog(u8"怪物集合 物品資料無法讀取(%d)", id);  // 0x004A6B48 + 0x004A6B54
+            }
         }
     }
 
@@ -747,7 +752,12 @@ void Menu::BestiaryChoose(u32 id)
     book.monster.count = 1;
     book.monster.pending = 0;
     book.monster.unk06 = 0;
-    owner.database.LoadObject(book.monster.record, static_cast<u16>(id));
+
+    if (!owner.database.LoadObject(book.monster.record, static_cast<u16>(id)))
+    {
+        DebugLog(u8"讀取道具(book) 沒有定義物品號碼(%d)", id);  // 0x004A6B90 + 0x004A6BA0
+    }
+
     const ObjectData& data = book.monster.record.data;
     const int level = data.level;
     int spirit = 0;
