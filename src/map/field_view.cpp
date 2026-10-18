@@ -4,6 +4,7 @@
 #include <array>
 #include <climits>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <span>
 
@@ -45,6 +46,34 @@ i32 FloorDivide(i32 value, i32 divisor)
 i32 CeilDivide(i32 value, i32 divisor)
 {
     return -FloorDivide(-value, divisor);
+}
+
+// The screen effects whose elements smooth motion follows (FieldView::FollowEffect), and the key of an element: its
+// kind in the top byte, its index (or its node's address) below.
+enum class EffectKind : u64
+{
+    Weather = 1,
+    Leaves,
+    Lightning,
+    Fireflies,
+    Bubbles,
+    Sprites,
+};
+
+constexpr i32 kEffectSnap = 0x80;  // an element moving further in a frame has been placed again: it jumps
+constexpr i32 kBubbleSnap = 6;     // a bubble moves 2 pixels at most; the original copies the next bubble into a
+                                   // spent one, which then jumps
+
+u64 EffectKey(EffectKind kind, std::uintptr_t which)
+{
+    constexpr int kKindShift = 56;
+    constexpr u64 kWhichMask = (u64{1} << kKindShift) - 1;
+    return static_cast<u64>(kind) << kKindShift | (static_cast<u64>(which) & kWhichMask);
+}
+
+u64 EffectKey(EffectKind kind, const void* node)
+{
+    return EffectKey(kind, reinterpret_cast<std::uintptr_t>(node));
 }
 
 constexpr int kPanScale = 0x40;  // the pan at kSoundRange to the side
@@ -985,10 +1014,18 @@ void FieldView::DrawBubbles(int x, int y, u16 role)
             options.tintRed = (bubble.life >> 1) - kColdTint;
         }
 
+        const std::array<i32, 2> place = this->FollowEffect(
+            EffectKey(EffectKind::Bubbles, &bubble),
+            bubble.x / kSubpixels,
+            bubble.y,
+            false,
+            0,
+            kBubbleSnap
+        );
         painter.SetSource(picture.data.data());
         painter.DrawPicture(
-            bubble.x / kSubpixels - view.unk4ACAF8.x - field.cameraLeft,
-            bubble.y - view.unk4ACAF8.y - field.cameraTop,
+            place[0] - view.unk4ACAF8.x - field.cameraLeft,
+            place[1] - view.unk4ACAF8.y - field.cameraTop,
             picture.width,
             picture.height,
             view.unk4ACAF8.flags
@@ -1247,12 +1284,20 @@ void FieldView::DrawSprites()
     while (*link != nullptr)
     {
         ScriptSprite& sprite = **link;
-        const auto screenX = static_cast<int>(crt::Ftol(sprite.x)) - field.cameraLeft;
-        const auto screenY = static_cast<int>(crt::Ftol(sprite.y)) - field.cameraTop;
+        const std::array<i32, 2> place = this->FollowEffect(
+            EffectKey(EffectKind::Sprites, &sprite),
+            static_cast<i32>(crt::Ftol(sprite.x)),
+            static_cast<i32>(crt::Ftol(sprite.y)),
+            false,
+            0,
+            kEffectSnap
+        );
+        const auto screenX = place[0] - field.cameraLeft;
+        const auto screenY = place[1] - field.cameraTop;
 
         if (this->replaying)
         {
-            // Smooth motion: the frame the act showed last at the sprite's place, nothing stepped, moved or freed.
+            // Smooth motion: the frame the act showed last where the sprite glides, nothing stepped, moved or freed.
             const Picture* shown = owner.archive.GetPicture(sprite.act.frame, sprite.act.picture);
 
             if (shown != nullptr && screenX > -kSpriteMargin && screenX < Display::Width + kSpriteMargin &&
@@ -1775,10 +1820,19 @@ void FieldView::DrawWeather()
         options.tintGreen = shade.tint;
         options.tintRed = shade.tint;
         options.alpha = view.unk4ACAF8.signal;
+        // A particle moves once in speed + 1 frames.
+        const std::array<i32, 2> place = this->FollowEffect(
+            EffectKey(EffectKind::Weather, particle),
+            drop.x,
+            drop.y,
+            false,
+            static_cast<u32>(std::max(motion.speed, 0) + 1),
+            kEffectSnap
+        );
         painter.SetSource(picture->data.data());
         painter.DrawPicture(
-            drop.x - view.unk4ACAF8.x - field.cameraLeft,
-            drop.y - view.unk4ACAF8.y - field.cameraTop,
+            place[0] - view.unk4ACAF8.x - field.cameraLeft,
+            place[1] - view.unk4ACAF8.y - field.cameraTop,
             picture->width,
             picture->height,
             view.weatherActions == Scene::GlowWeatherActions ? Painter::Additive : Painter::Subtractive
@@ -1860,10 +1914,12 @@ void FieldView::DrawLeaves()
 
         if (picture != nullptr)
         {
+            const std::array<i32, 2> place =
+                this->FollowEffect(EffectKey(EffectKind::Leaves, index), leaf.x, leaf.y, false, 0, kEffectSnap);
             painter.SetSource(picture->data.data());
             painter.DrawPicture(
-                leaf.x - act.x - field.cameraLeft,
-                leaf.y - act.y - field.cameraTop,
+                place[0] - act.x - field.cameraLeft,
+                place[1] - act.y - field.cameraTop,
                 picture->width,
                 picture->height,
                 act.flags
@@ -2044,8 +2100,16 @@ void FieldView::DrawLightning()
         }
 
         int level = 0;
-        int x = bolt.x;
-        std::ptrdiff_t row = static_cast<std::ptrdiff_t>(pitch) * bolt.y;
+        const std::array<i32, 2> place = this->FollowEffect(
+            EffectKey(EffectKind::Lightning, static_cast<std::uintptr_t>(&bolt - view.bolts.data())),
+            bolt.x / kSubpixels,
+            bolt.y,
+            true,
+            0,
+            kEffectSnap
+        );
+        int x = bolt.x + (place[0] - bolt.x / kSubpixels) * kSubpixels;
+        std::ptrdiff_t row = static_cast<std::ptrdiff_t>(pitch) * place[1];
 
         for (int segment = 0; bolt.length >= 0;)
         {
@@ -2179,9 +2243,17 @@ void FieldView::DrawFireflies()
             level = 0;
         }
 
-        int x = fly.x;
+        const std::array<i32, 2> place = this->FollowEffect(
+            EffectKey(EffectKind::Fireflies, static_cast<std::uintptr_t>(&fly - view.fireflies.data())),
+            fly.x / kSubpixels,
+            fly.y,
+            true,
+            0,
+            kEffectSnap
+        );
+        int x = fly.x + (place[0] - fly.x / kSubpixels) * kSubpixels;
         const int sway = kFireflySway[static_cast<std::size_t>(fly.phase / kSwayFrames) % kFireflySway.size()];
-        std::ptrdiff_t row = static_cast<std::ptrdiff_t>(pitch) * fly.y;
+        std::ptrdiff_t row = static_cast<std::ptrdiff_t>(pitch) * place[1];
 
         for (int segment = 0; fly.length > 0;)
         {
@@ -3078,11 +3150,71 @@ void FieldView::CapturePlaces()
         FieldView::Follow(this->glides[1 + index], role.x, role.y, frame, continuous, pace);
     }
 
+    if (!continuous)
+    {
+        this->effectGlides.clear();
+    }
+    else
+    {
+        std::erase_if(
+            this->effectGlides,
+            [frame](const auto& item)
+            {
+                return item.second.seen + 1 < frame;
+            }
+        );
+    }
+
     this->placesValid = true;
     this->placesFrame = frame;
     this->placesMap = owner.currentMap;
     this->cameraWidth = field.cameraRight - field.cameraLeft;
     this->cameraHeight = field.cameraBottom - field.cameraTop;
+}
+
+std::array<i32, 2> FieldView::FollowEffect(u64 key, i32 x, i32 y, bool screen, u32 pace, i32 snap)
+{
+    if (!this->game.smoothMotion)
+    {
+        return {x, y};
+    }
+
+    if (this->replaying)
+    {
+        const auto found = this->effectGlides.find(key);
+
+        if (found == this->effectGlides.end() || found->second.seen != this->placesFrame)
+        {
+            return {x, y};
+        }
+
+        return this->EffectPlace(found->second, this->paintColumn, this->paintRow);
+    }
+
+    const u32 frame = this->placesFrame;
+    auto [entry, added] = this->effectGlides.try_emplace(key);
+    EffectGlide& effect = entry->second;
+    const bool continuous = !added && effect.seen + 1 == frame && effect.screen == screen &&
+                            std::abs(x - effect.glide.toX) <= snap && std::abs(y - effect.glide.toY) <= snap;
+    FieldView::Follow(effect.glide, x, y, frame, continuous, pace);
+    effect.screen = screen;
+    effect.seen = frame;
+    return {x, y};
+}
+
+std::array<i32, 2> FieldView::EffectPlace(const EffectGlide& effect, int column, int row) const
+{
+    const int scale = this->paintScale;
+
+    if (effect.screen)
+    {
+        return {CeilDivide(effect.fineX - column, scale), CeilDivide(effect.fineY - row, scale)};
+    }
+
+    return {
+        FloorDivide(this->paintCameraX + column, scale) + CeilDivide(effect.fineX - this->paintCameraX - column, scale),
+        FloorDivide(this->paintCameraY + row, scale) + CeilDivide(effect.fineY - this->paintCameraY - row, scale),
+    };
 }
 
 // `pace`: the frames to the next move when known, 0 to take the frames since the last move.
@@ -3205,6 +3337,28 @@ void FieldView::PaintBetween(double alpha, Surface& out)
         this->placesKey.push_back(fineY[index]);
     }
 
+    // The effect elements the last game frame drew, placed like the roles (on the map) or on the screen.
+    this->paintScale = scale;
+    this->paintCameraX = fineCameraX;
+    this->paintCameraY = fineCameraY;
+
+    for (auto& [key, effect] : this->effectGlides)
+    {
+        if (effect.seen != this->placesFrame)
+        {
+            continue;
+        }
+
+        const std::array<double, 2> place = FieldView::Shown(effect.glide, time);
+        const std::array<double, 2> from = effect.screen ? std::array<double, 2>{} : camera;
+        const std::array<i32, 2> base =
+            effect.screen ? std::array<i32, 2>{} : std::array<i32, 2>{fineCameraX, fineCameraY};
+        effect.fineX = base[0] + static_cast<i32>(std::lround((place[0] - from[0]) * scale));
+        effect.fineY = base[1] + static_cast<i32>(std::lround((place[1] - from[1]) * scale));
+        this->placesKey.push_back(effect.fineX);
+        this->placesKey.push_back(effect.fineY);
+    }
+
     // Within a game frame the picture depends on these places alone (the rest is put back the same every time):
     // with every place as last painted, the last picture stands.
     if (this->paintedValid && this->paintedFrame == this->placesFrame && this->paintedKey == this->placesKey &&
@@ -3302,7 +3456,7 @@ void FieldView::PaintBetween(double alpha, Surface& out)
     std::array<std::size_t, Game::MaxRenderScale> columnShown = {};
     std::array<std::size_t, Game::MaxRenderScale> rowShown = {};
 
-    auto placesOf = [&fineX, &fineY, scale](std::vector<i32>& places, i32 fineCamera, int offset, bool across)
+    auto placesOf = [this, &fineX, &fineY, scale](std::vector<i32>& places, i32 fineCamera, int offset, bool across)
     {
         const i32 cameraPlace = FloorDivide(fineCamera + offset, scale);
         places.resize(1 + GameState::Roles);
@@ -3312,6 +3466,15 @@ void FieldView::PaintBetween(double alpha, Surface& out)
         {
             const i32 fine = across ? fineX[index] : fineY[index];
             places[1 + index] = cameraPlace + CeilDivide(fine - fineCamera - offset, scale);
+        }
+
+        for (const auto& [key, effect] : this->effectGlides)
+        {
+            if (effect.seen == this->placesFrame)
+            {
+                const std::array<i32, 2> spot = this->EffectPlace(effect, across ? offset : 0, across ? 0 : offset);
+                places.push_back(across ? spot[0] : spot[1]);
+            }
         }
     };
 
@@ -3353,6 +3516,8 @@ void FieldView::PaintBetween(double alpha, Surface& out)
             }
 
             Surface& part = scale > 1 ? this->parts[row * blocks + column] : out;
+            this->paintColumn = static_cast<int>(column);
+            this->paintRow = static_cast<int>(row);
 
             if (part.Width() != Display::Width || part.Height() != Display::Height)
             {

@@ -5,6 +5,7 @@
 #include <memory>
 #include <span>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 #include "core/types.h"
@@ -219,12 +220,37 @@ private:
     static void Follow(Glide& glide, i32 x, i32 y, u32 frame, bool continuous, u32 pace);
     static std::array<double, 2> Shown(const Glide& glide, double time);
 
+    // An element of a screen effect (a weather particle, a leaf, a bolt, a firefly, a bubble, a sprite) followed by
+    // smooth motion: its glide, whether its place is on the screen rather than the map, the game frame that last
+    // drew it, and where the painting under way shows it (in 1/scale pixels).
+    struct EffectGlide
+    {
+        Glide glide;
+        bool screen = false;
+        u32 seen = 0;
+        i32 fineX = 0;
+        i32 fineY = 0;
+    };
+
+    // Where an effect element is drawn: a game frame follows its place (a move further than `snap` jumps); a
+    // painting between game frames gets the place it glides to, for the block column and row being painted.
+    std::array<i32, 2> FollowEffect(u64 key, i32 x, i32 y, bool screen, u32 pace, i32 snap);
+    // Its place for the block column and row of a render scale painted now.
+    std::array<i32, 2> EffectPlace(const EffectGlide& effect, int column, int row) const;
+
     bool placesValid = false;
     u32 placesFrame = 0;  // Game::gameFrames of the last map frame
     int placesMap = 0;
     i32 cameraWidth = 0;
     i32 cameraHeight = 0;
     std::vector<Glide> glides;  // the camera, then the roles
+    std::unordered_map<u64, EffectGlide> effectGlides;
+    // The painting PaintBetween does: its render scale, its camera (in 1/scale pixels), the block column and row.
+    int paintScale = 1;
+    i32 paintCameraX = 0;
+    i32 paintCameraY = 0;
+    int paintColumn = 0;
+    int paintRow = 0;
     // The places PaintBetween last painted at (the camera's, then every role's), its game frame and its target.
     std::vector<i32> paintedKey;
     std::vector<i32> placesKey;
