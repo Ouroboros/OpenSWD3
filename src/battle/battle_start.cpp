@@ -23,7 +23,7 @@ constexpr std::size_t kCommandClearBytes = 4;  // the original clears commandEna
 constexpr std::array<u16, kGuests> kGuestFlags = {34, 35, 38, 44, 45, 46, 47, 49};
 constexpr std::array<u16, kGuests> kGuestActs = {3, 4, 10, 33, 34, 37, 38, 40};
 // swd32.exe 0x004A75D8: the battle act of each party role (賽特, 妮可, 卡瑪, 李靖), dwords read as words.
-constexpr std::array<u32, Party::Roles> kRoleActs = {1, 2, 8, 0x17};
+constexpr std::array<u32, Party::Roles> kRoleActs = {1, 2, 8, 0x11};
 constexpr i16 kGuestX = 0x2EE;
 constexpr i16 kGuestY = 0x136;
 constexpr i16 kPanelMirror = 0x270;
