@@ -346,7 +346,8 @@ void BattleUnit::ClearFlag26B8()
     this->unk26B8 &= ~kFlag26B8;
 }
 
-// swd32.exe 0x00478780: not while status bit 25 is set; raising it again restarts the attack
+// swd32.exe 0x00478780: not while status bit 25 is set; raising it again restarts the stagger (hurtStep, +0x2A78)
+// and the attack act
 void BattleUnit::RaiseFlag26B8()
 {
     if ((this->status & kRaiseBlocked) != 0)
@@ -356,7 +357,7 @@ void BattleUnit::RaiseFlag26B8()
 
     if (static_cast<i32>(this->unk26B8) < 0)
     {
-        this->attackStage = 0;
+        this->hurtStep = 0;
         this->attackAct.position = 0;
     }
 
@@ -672,7 +673,14 @@ int BattleUnit::DrawFadeOut(BattleServices& services)
         options.tintRed = level - BattleUnit::Opaque;
         options.tintGreen = level - BattleUnit::Opaque;
         options.tintBlue = level - BattleUnit::Opaque;
-        services.painter.DrawPicture(x, y, this->picture->width, this->picture->height, this->drawFlags);
+        services.painter.DrawPicture(
+            x,
+            y,
+            this->picture->width,
+            this->picture->height,
+            this->drawFlags,
+            PaletteArgument(*this->picture)
+        );
 
         if (this->held == 0)
         {
@@ -683,8 +691,14 @@ int BattleUnit::DrawFadeOut(BattleServices& services)
     }
 
     services.painter.Options().alpha = level;
-    services.painter
-        .DrawPicture(x, y, this->picture->width, this->picture->height, this->drawFlags | Painter::Translucent);
+    services.painter.DrawPicture(
+        x,
+        y,
+        this->picture->width,
+        this->picture->height,
+        this->drawFlags | Painter::Translucent,
+        PaletteArgument(*this->picture)
+    );
 
     if (this->held == 0)
     {
@@ -777,8 +791,14 @@ int BattleUnit::DrawFadeIn(BattleServices& services, const BattleUnit& anchor)
     }
 
     services.painter.Options().alpha = level;
-    services.painter
-        .DrawPicture(x, y, this->picture->width, this->picture->height, this->drawFlags | Painter::Translucent);
+    services.painter.DrawPicture(
+        x,
+        y,
+        this->picture->width,
+        this->picture->height,
+        this->drawFlags | Painter::Translucent,
+        PaletteArgument(*this->picture)
+    );
 
     if (this->held == 0)
     {
@@ -2686,10 +2706,10 @@ void BattleUnit::Reset(BattleServices& services)
     this->unk2A6E = 0;
     this->unk2A72 = 0;
     this->unk2A74 = 0;
-    this->attackStage = 0;
+    this->hurtStep = 0;
     this->unk2A7A = 0;
     this->targetCount = 0;
-    this->actionCount = 0;
+    this->queuedActions = 0;
     this->damageSlot = 0;
     this->landedActions = 0;
     this->unk26B8 = 0;
@@ -2736,7 +2756,7 @@ void BattleUnit::Reset(BattleServices& services)
     this->unk2B04 = 0;
     this->facing = 0;
     this->unk2B0C = 0;
-    this->name = 0;
+    this->unk2B20 = 0;
 }
 
 // swd32.exe 0x0047F900
@@ -2846,9 +2866,9 @@ int BattleUnit::AdvanceGauge(const BattleServices& services, int boost)
     this->unk2AB0 = 1;
     this->unk2AEC = 0;
 
-    if (this->name == 1)
+    if (this->unk2B20 == 1)
     {
-        this->name = 0;
+        this->unk2B20 = 0;
         this->facing = 0;
     }
 
@@ -2972,7 +2992,7 @@ int BattleUnit::SetFacingIfAble(int value)
 {
     if (this->kind != BattleUnit::PartyRole || this->defeated != 1)
     {
-        this->name = value;
+        this->unk2B20 = value;
         this->facing = value;
         return value;
     }

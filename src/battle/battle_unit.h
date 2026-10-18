@@ -694,11 +694,9 @@ public:
     u16 unk2A74 = 0;
     u16 hurtStep = 0;  // +0x2A78 the step of the stagger (HurtFrame)
     u16 unk2A76 = 0;
-    u16 attackStage = 0;  // +0x2A78 1..5
     u16 unk2A7A = 0;
     u16 targetCount = 0;    // +0x2A7C
     u16 damageSlot = 0;     // +0x2A7E
-    u16 actionCount = 0;    // +0x2A80
     u16 queuedActions = 0;  // +0x2A80 the acts AddQueuedAction appended
     u16 landedActions = 0;  // +0x2A82 the queued acts that reached their end
     u16 pendingDamage = 0;  // +0x2A84 bit 15: healing
@@ -748,11 +746,10 @@ public:
     i32 facing = 0;  // +0x2B08
     i32 unk2B0C = 0;
     i32 fadedIn = 0;  // +0x2B1C a forced unit has faded in for its attack (AttackFrame)
-    i32 unk2B20 = 0;  // +0x2B20 1: the facing turns back when the gauge fills (StepGauge)
+    i32 unk2B20 = 0;  // +0x2B20 set with the facing (SetFacingIfAble); 1: the facing turns back when the gauge fills
     i32 unk2B10 = 0;
     i32 unk2B14 = 0;
     i32 goldGuard = 0;  // +0x2B18
-    i32 name = 0;       // +0x2B20
 };
 
 int ScaleByTenths(i8 tenths, i16& value);

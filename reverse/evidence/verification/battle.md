@@ -161,3 +161,14 @@
 - 0x00479850 DefeatFrame：立即结束分支（角色记录 +0x25 |= 0x80、ExpireEffects(1)）；姿势分派 1..0xF、0x32、0x33、0x64 与各辅助函数逐个对照（剪裁矩形、tint、步长、终点；结束比较 0x004799E3 jg、0x0047A1A7 jle、0x0047A271/0x0047A75D/0x0047AA86/0x0047B752/0x0047B848 jge 等全为有符号）；case 7 第一块高度 h/2、第四块 y + 0x10，case 0x32/0x33 首帧播放施法动作的音效并把站立动作音效设为 0x31，HopHeights 与 0x004A7DB4 相同；LABEL_139/140/52/149/141 对应 EndDefeat / EndParticleDefeat。一致（exact 轮）。
 - 0x0047BA80 HurtFrame：动作 0x24/0x25/0x27、0x004A7E08（movsx 字节）与 0x004A7DF0/0x004A7DF4（错开一个 dword，StaggerRise[5] 读到 0x004A7E08 的字节）三表与重建相同；敌人红色残影、阴影、闪光、覆盖图、反冲效果、每两帧一步到 5 后复位：一致（exact 轮）。
 - 0x0047C1F0 DrawDamageNumbers：槽位字段（+0x2724 数字、+0x283C 跳动、+0x26DE 延迟、+0x295A 淡出、+0x29C4 字体）、DigitHops（0x004A7D8C）、淡出 0x30、缩放 + 0x1A 一致。差异（diff 轮）：额外数字在槽位已满时，重建不清除 0x2AE8 标志；原版先清标志再越界写入。改为先清标志、有空位才写入，越界部分记入 deviations.md。修正后通过（exact 轮）。
+
+## 战斗单位辅助 0x0047C660..0x0047D640；同一偏移的重复成员
+
+- 0x0047C660 SetAC0、0x0047C670 IsAE4Clear、0x0047C680 GetWordDA6、0x0047C690 MarkAC8、0x0047CC40 SetHeld、0x0047CC50 SetAD4、0x0047CC60 DrawFlash（2..0x18 上升再回落，绘制参数 0）、0x0047CD60 RollEvade（隐身 (0..9)+1 ≤ 9；指定几率 /10；连续失败 0x18 必中、0x14 起 1/3；闪避 ≤ 6 先过 80% 的否决，短路保持随机数次数）、0x0047CE70 Mirrored、0x0047CE80 IsDefeated、0x0047CEA0 StatusBit13、0x0047CEB0 IsAB8、0x0047CEC0 StepTargetCount（上限 0x22）、0x0047CF00 PushTargetAlt、0x0047CF20 DrawGuardText（跳动表即 0x004A7D8C；第 4 个字母 x 为 (u16)(三宽之和)）、0x0047D2E0 ScaleByTenths、0x0047D640 SetDamageDigits（伪代码的 (__int16) 截断不存在：0x0047D70E/0x0047D754/0x0047D78C 对 32 位 edi 做 imul；末位 0x0047D7B1 `imul cx, 0Ah` 16 位；屏障结束消息 0x004A7E20 实为 "%s抵抗所有攻擊解除"）：一致（exact 轮）。
+- 0x0047C6B0 DrawFadeOut、0x0047C950 DrawFadeIn：差异（diff 轮）：原版 DrawFadeOut 的两次绘制与 DrawFadeIn 的非混合绘制以 `[picture+4]` 作第 6 参数（DrawFadeIn 的混合绘制为 0），重建未传；按原版补 PaletteArgument。0x0047CB32/0x0047CB45 锚点坐标 movsx 与重建一致。修正后通过（exact 轮）。
+- 重复成员（diff 轮）：BattleUnit 中三处原版同一字段被拆成两个成员，读写互不相通：
+  1. +0x2A78：HurtFrame/GlowAct 用 hurtStep，RaiseFlag26B8（0x00478780 清 +0x2A78）与 Reset 清的是 attackStage，再次受击时受击步数不归零。
+  2. +0x2B20：SetFacingIfAble（0x00483FF0 写 `[this+0xAC8*4]`）与 AdvanceGauge、Reset 用 name，StepGauge（0x0046E520）与 DefeatFrame 读的 unk2B20 从未被写入。
+  3. +0x2A80：Reset 清的是从不读取的 actionCount，AddQueuedAction 等用的 queuedActions 未清。
+  合并为 hurtStep、unk2B20、queuedActions 各一个成员；受影响的 0x00478780 RaiseFlag26B8、0x004755E0 AdvanceGauge、0x0047D350 Reset、0x00483FF0 SetFacingIfAble 修正后通过（exact 轮）。StepGauge、DefeatFrame、HurtFrame 代码不变，读写的字段现与原版同一。
+- 0x0047D350 Reset：清除的动作槽（0x2A0、0x338、0x3D0、0x468、0x500、0x598、槽 10 = 0xC20、槽 0..7）、数组（0x295A、0x29C4 各 0x46 字节、0xFCC、0x283C）、ExpireEffects(1)、角色释放 +0xC 与各字段逐项对上（0x2724、0x26DE、0x2A70、0x2A76 不清，与原版同）。
