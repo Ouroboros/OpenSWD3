@@ -7229,6 +7229,7 @@ void BattleUnit::IdleFrame(BattleServices& services, int paused)
     act.action = kShadowAction;
     this->unk2A88 = static_cast<u16>(act.action);
 
+    // 0x00478D13 calls nullsub_1 without arguments for a party role: nothing to log.
     if (this->kind != 1)
     {
         act.action += this->unk2684;
@@ -8419,15 +8420,19 @@ int BattleUnit::DrawDamageNumbers(BattleServices& services)
         }
 
         // The extra number takes the next slot (its fourth digit as it was; the original writes past the slots when
-        // they are all used).
-        if (this->extraNumber == 1 && this->targetCount < MaxTargets)
+        // they are all used, here it is dropped).
+        if (this->extraNumber == 1)
         {
             this->extraNumber = 0;
-            std::array<i16, DamageDigits>& extra = this->damageDigits[this->targetCount];
-            extra[0] = static_cast<i16>(services.state.unk53AEDC);
-            extra[1] = static_cast<i16>(services.state.unk53AEE0);
-            extra[2] = static_cast<i16>(services.state.unk53AEE4);
-            ++this->targetCount;
+
+            if (this->targetCount < MaxTargets)
+            {
+                std::array<i16, DamageDigits>& extra = this->damageDigits[this->targetCount];
+                extra[0] = static_cast<i16>(services.state.unk53AEDC);
+                extra[1] = static_cast<i16>(services.state.unk53AEE0);
+                extra[2] = static_cast<i16>(services.state.unk53AEE4);
+                ++this->targetCount;
+            }
         }
 
         if (fade >= kNumberFadeEnd)
