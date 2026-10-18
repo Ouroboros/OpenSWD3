@@ -236,7 +236,7 @@ int MidiPlayer::Play(const std::u8string& fileName, int id, int volume, int loop
 }
 
 // swd32.exe 0x00485180: fades and retires sequences. A sequence in an unexpected state is retired when the one before
-// it was (never the first: the original seeds that flag with a stack slot that is never 1).
+// it was; the original seeds that flag with an uninitialised stack slot, here it starts false (see deviations.md).
 bool MidiPlayer::Update()
 {
     if (!this->IsOpen() || !this->IsEnabled())

@@ -1,0 +1,12 @@
+# 影片与音频验证记录
+
+## 影片、MIDI、音乐队列与音效 0x00484550..0x00486490（第 1 遍）
+
+逐函数对照汇编，全部一致，无逻辑改动（exact 轮）。Bink、Miles 的调用由平台层（FFmpeg 解码、SDL 输出、Miles 模拟）替换，已登记于 deviations.md（0x00484550、0x004845A0/0x00484650、0x00484730、0x00484950、0x00484DD0 等 MIDI、0x00486490）。
+
+- 0x00484550 Movie::Init、0x00484590 Movie::Movie、0x004845A0 Open（失败保留错误文本、音量 <0 为 0、上限 0x8000）、0x00484620 Close、0x00484650 Frame（拷贝失败 "BinkCopyToBuffer Fial"；帧数大于当前帧时返回正值并前进，否则负值）、0x004846D0 Position、0x004846F0 Waiting、0x00484710 Width、0x00484720 Height。
+- 0x00484730 PlayVideo（读到 "%Q"、pc 同步前进；.avi/.mpg 改 bik；音量 (musicVolume << 15) / 11；光驱检查与对象泄漏按平台替换）、0x00484920 StopVideo、0x00484950 VideoFrame（居中 (480−h)/2、(640−w)/2；0x004849C2 的 nullsub_1 无参数，按既有写法加注释；最后一帧后停止）、0x00484DA0 VideoPosition。
+- 0x00484DC0 ~MidiPlayer、0x00484DD0 Open（映射器失败再试设备 0，错误文本以 " //" 连接）、0x00484ED0 Close、0x00484F60 Play（打不开文件时丢失节点、初始化 −1 仍播放）、0x00485180 Update（状态 1/2 退役、4/8/0x10 保留、其他取"上一个已退役"标志；淡出每次 −fadeStep、音量 /16 钳位为 0 退役。该标志原版以未初始化栈值起始，补记 deviations.md 并改正注释）、0x00485290 IsStopped、0x004852C0 FreeNode、0x004852F0 Find。空闲链表以 vector 末尾表示原版表头（push_back/pop_back 为后进先出），活动链表 push_front，与原版顺序一致。
+- 0x00485330 AudioDevice::Serve、0x00485340/0x00485350/0x00485360/0x004853C0 AudioSystem、0x004853E0/0x00485440 MusicQueue 构造/析构（模式与待切换 3、音量 0x7F；列表 1 在 +0x464、列表 2 在 +0x43C）、0x00485460 ClearSlots、0x004854B0 Update（待切换 1/2 时置模式并清对应索引，3 时静音；流播放前 MessageBeep(0)；循环时索引到 2 归 0）。
+- 0x00485610 PlaySound（(v << 7) / 11）、0x00485650 SetSoundPan、0x00485670 PlaySoundAt、0x004856C0 Game::PlayMusic（剧情标志 3；流 100）、0x00485710 StopMusic、0x00485720 StopSound、0x00485740 StopAllSounds、0x00485750 Game::PlaySoundAt（距离 < 0x200；音量 × (0x80 − d·0x80/0x200) / 11；声像 (x − px)·0x40 / 0x200）、0x00485830 IsMusicStopped、0x00485850 SetMusicVolume、0x00485880 UpdateMusicFade、0x004858D0 PollMusicFade、0x00485910 SetMusicFade。
+- 0x00485930/0x00485960 SoundEffects 构造/析构、0x004859B0 Open（all.snd；44.1 kHz 16 位立体声，失败后改 waveOut、减半采样率、再 8 位，低于 0x2B11 失败；Emulated 输出改 waveOut；声道数 −8 上限 16）、0x00485C20 Close、0x00485CC0 IsOpen、0x00485CD0 IsEnabled、0x00485CE0 Play（RIFF 与压缩两种载入；引用计数 +1）、0x00485E90 Stop、0x00485F30 StopAll、0x00485FE0 SetVolume、0x00486030 SetPan、0x00486080 Update（状态 1..2 退役）、0x00486160 FreeNode、0x00486190 AllocNode、0x004861B0 PushActive、0x004861D0 Find、0x00486210 Unlink、0x00486260 ClampVolume、0x00486280 ClampPan（+0x3F 钳位 0..0x7F）、0x004862A0 HasDriver、0x004862B0 LoadIndex（自 0x1C 读 3000 × 0x2C 字节；大小 & 0x3FFFFFF、类型 & 3 << 26、偏移 +0x18）、0x00486430 FreeIndex、0x00486490 LoadSound（类型 0 补 0x18 字节头；非 1 类型移动 fmt、修补大小与 "ta"；大小取实际读取字节数）。

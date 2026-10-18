@@ -329,6 +329,7 @@ void Game::VideoFrame()
     const int y = (Display::Height - this->movie.Height()) / 2;
     const int x = (Display::Width - this->movie.Width()) / 2;
     const int left = this->movie.Frame(*this->offscreen, x, y, this->errors);
+    // 0x004849C2 calls nullsub_1 without arguments: nothing to log.
     this->ShowFrame();
 
     if (left <= 0)
