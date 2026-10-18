@@ -4,6 +4,7 @@
 #include <span>
 #include <string>
 
+#include "core/debug_log.h"
 #include "core/format.h"
 #include "draw/painter.h"
 #include "font/text_font.h"
@@ -148,7 +149,8 @@ constexpr u32 kGreenRed = 2;
 constexpr u32 kGreenGreen = 0x1C;
 constexpr u32 kGreenBlue = 0xD;
 constexpr u32 kGrey = 0x10;
-constexpr Pixel kTopColor = 0xCFE9;  // swd32.exe 0x0049E0E0
+constexpr std::size_t kTopColor =
+    6;  // swd32.exe 0x0049E0E0: the low word of TextColors::primary[6] (converted at start)
 constexpr int kDim = -4;
 constexpr int kPanelStyle = 4;
 constexpr int kFrameBorder = static_cast<int>(0x80000008);
@@ -919,6 +921,7 @@ void Menu::EquipPutOn()
     else
     {
         AddItem(page.unk4FCE20, removed.id, 1, ItemCountMode::Count, owner.database);
+        DebugLog(u8"裝備道具歸還 卸下了種類不符的裝備(%d)", removed.id);  // 0x004A6DEC + 0x004A6DFC
     }
 
     page.count = CountItems(page.objects);
@@ -1592,7 +1595,7 @@ void Menu::EquipDrawStats(int slot, int role)
             topX,
             kFacesY - slide,
             WinFormat(kNumberFormat, {value}),
-            kTopColor,
+            static_cast<Pixel>(owner.textColors.primary[kTopColor]),
             kPanelStyle
         );
 
