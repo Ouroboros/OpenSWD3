@@ -132,3 +132,11 @@
 - 0x00473C10 ChargeAttackFrame：冲刺 `idiv 96h` 有符号（0x00473E26），0x10F4 = 2、0x10F8 = 3、0x10F9 = 1、0xC 蓝色；跟进坐标在 0x00474269 movsx（重建 i16）；0x53CEB4 只加低字节（重建 u8）。重建把内联的冲锋部分拆为 ChargeOnTarget，结果一致。
 - 0x004745B0 MagicAttackFrame：0x004749CB `cmp ax, 0FFE0h; jle` 有符号，每帧 −8、hold 时加回；TargetsUnit 起点取站立动作 0x3B0/0x34C。0x00474B60 RollChance（0x46 × p / 100 有符号 + 0xA，16 位 cmp）。
 - 0x00474BA0 SwarmSpellFrame：偏移表 0x004A7C04/0x004A7C14 与 SwarmOffsetX/Y 逐项相同；每 3 帧（i16 有符号取模）、上限 8、0x28、0x34、音效 0x3E、拖影 0xC。
+
+## 角色收尾与敌人行动 0x00474E60..0x00476330
+
+- 0x00474E60 LeapSpellFrame（阶段 0..3，0x00474F80 `cmp [esi+267Ch], 3; jl` 有符号）、0x00474FC0 Strike（sub_477830 参数 0x2F1A、0xF8、0xF6；0x00475062 `movsx edx, word_521520` 加成仅在伤害非 0 时加；闪避时只置 0x2B14）、0x004750C0 CancelCommand（命令 0x28 字节、名字前 0x10 字节）、0x00475160 Unk1EProficiency、0x00475180 Release、0x004751C0 BoomerangFrame（0x1BF3、去 0x1C 步、回 0x20 步抖 7 帧、无冲击 −1、音效 0x114）：一致（exact 轮）。
+- 0x00475560/0x00475590 BattleEnemy 构造/析构、0x00475720 Setup（命名角色 agility + 6、attack + 0xA；maxHitPoints 取 movsx 的 hitPoints；撒旦 0x1C → 41000、蚩尤 0x2E → 120000）、0x00475820 Reload、0x00475870 Unk62And8A：一致。
+- 0x004755E0 AdvanceGauge：差异（diff 轮）：0x0047561B `and eax, 0FFFFh; cmp eax, edx; jl` 为零扩展 gauge 与 dword 0x004A74CC 的有符号比较，重建把 gaugeFull 转 u32 作无符号比较（gaugeFull = 每档 × (档数 − 速度) 为负时结果不同）；改为 i32 有符号比较。修正后通过（exact 轮）。
+- 0x004758A0 EnemyAttackFrame：动作 0x28/0x30/0x31 或 +0x2A0E，反冲、跟进与场地淡化、地震、0x11 命中、颜色暗化 0x53BF98、飞行用槽 0x6C8、每帧 −4 且 0x2C 标志直接到 −0x20、结束时 gauge + 10..129。两段内联命中合并为 EnemyStrike：RollEvade 的 ecx 为 arg_0（目标）；第二段闪避参数取被 sub_482E90 返回值覆盖的 var_4（0x00475C23），重建以 `chance = kind` 保留。差异（diff 轮）：目标反射（sub_47F360 = 1）时 0x00475C03、0x00475E41 `push 1; mov ecx, esi` 对敌人自身调用 sub_47CEC0，重建对目标计数；改为敌人。修正后通过（exact 轮）。
+- 0x00476080 ChooseHeal（0..4 第一种、5..9 第二种，hitPoints 或 0x26B4 低于 0x4C/3）、0x00476140 CommandStatusBit（0xD98 bit 28、0xD94 bit 12）、0x00476160 LoadSkillAction（act 取 object + 0x50 = this + 0x60）、0x004761D0 PrepareCommand、0x00476250 LoadEnemyCommand（0x72/0x76）、0x004762F0 RollDrop（0..19 < dropChance）、0x00476330 CatchRoll（0x00476368/0x00476383 jle 有符号；0..11 掷骰丢弃）：一致。

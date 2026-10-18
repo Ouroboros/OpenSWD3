@@ -2805,7 +2805,8 @@ int BattleUnit::AdvanceGauge(const BattleServices& services, int boost)
 
     const u16 gauge = this->gauge;
 
-    if (gauge < static_cast<u32>(services.state.gaugeFull))
+    // 0x0047561B: the zero-extended gauge against the dword 0x004A74CC, signed (jl)
+    if (static_cast<i32>(gauge) < services.state.gaugeFull)
     {
         int step = this->data->data.agility >> kAgilityShift;
 

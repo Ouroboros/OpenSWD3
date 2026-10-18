@@ -843,9 +843,9 @@ int Game::EnemyAttackFrame(BattleUnit& enemy, BattleUnit& target)
 
 // A strike of EnemyAttackFrame (inline twice in the original): unless the enemy has struck this turn the target may
 // evade by `chance`; the Strikes bit raises its flag 26B8; a hit's damage (at most kSpellMaxDamage) is counted and
-// shown on the target, or on the enemy when the target reflects it (`attackFirst`: the attack act's strike marks the
-// enemy before it pushes the number). A hit that does not drain counts on the target. `chance` keeps the drain kind of
-// the attack act's strike (as in the original).
+// shown on the target, or counted and shown on the enemy when the target reflects it (`attackFirst`: the attack act's
+// strike marks the enemy before it pushes the number). A hit that does not drain counts on the target. `chance` keeps
+// the drain kind of the attack act's strike (as in the original).
 void Game::EnemyStrike(BattleUnit& enemy, BattleUnit& target, u16 bits, u16& chance, bool attackFirst)
 {
     BattleState& battle = this->battleState;
@@ -893,7 +893,8 @@ void Game::EnemyStrike(BattleUnit& enemy, BattleUnit& target, u16 bits, u16& cha
         }
 
         enemy.SetDamageDigits(services, battle.lastDamage);
-        target.StepTargetCount(1);
+        // 0x00475C03 / 0x00475E41: the reflected hit counts on the enemy (ecx = esi)
+        enemy.StepTargetCount(1);
         return;
     }
 
