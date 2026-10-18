@@ -4,6 +4,7 @@
 #include <string>
 
 #include "battle/battle_items.h"
+#include "core/debug_log.h"
 #include "core/format.h"
 #include "draw/painter.h"
 #include "font/text_font.h"
@@ -755,18 +756,25 @@ void Game::ShopOpenList()
         shop.listTop = 0;
         shop.itemCount = 0;
         ItemLink goods;
+        const std::vector<u16>& ids = this->unk4B7928;
 
-        for (const u16 id : this->unk4B7928)
+        for (std::size_t at = 0; at < ids.size() && ids[at] != 0; ++at)
         {
-            if (id == 0)
+            if (AddItem(goods, ids[at], kMaxCount, ItemCountMode::Count, this->database) == nullptr)
             {
-                break;
+                // swd32.exe 0x0044E5CD: as the original, the id after the one that failed
+                const u16 next = at + 1 < ids.size() ? ids[at + 1] : u16{0};
+                DebugLog(u8"商店存貨設定 沒有定義物品號碼(%d)", next);  // 0x004A73E0 + 0x004A6BA0
             }
-
-            AddItem(goods, id, kMaxCount, ItemCountMode::Count, this->database);
         }
 
         SortBattleItems(shop, goods);
+
+        if (goods != nullptr)
+        {
+            DebugLog(u8"商店存貨設定 物品入庫發生錯誤");  // 0x004A73E0 + 0x004A73CC
+        }
+
         const ItemNode* chosen = ItemAfter(shop.listTop + shop.listRow, shop.itemsHead.next);
         this->menu.description =
             chosen != nullptr ? ObjectDescription(this->databases.mapsData, chosen->id) : std::string();
