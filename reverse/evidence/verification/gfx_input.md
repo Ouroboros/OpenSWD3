@@ -18,3 +18,7 @@ DirectDraw 由模拟表面替换（deviations.md 0x00437570 等一行；Lock/Unl
 - 0x004377D0 CreateSurfaces：先查显存；窗口模式建主表面、裁剪器与桌面大小的后台缓冲（重建为逻辑画面大小），记两者跨度与高度；全屏只建主表面，后台记录取主表面的值。通过。
 - 0x00437A50 ReleaseSurfaces（设备为空时返回 0）、0x00437AD0 ReleaseDevice、0x00437AE0 Present（全屏等垂直同步后翻页，窗口 Blt 后台到主表面）：通过。
 - 0x00437B60 CreateOffscreen（已用显存加 w × h × 位深 / 8）、0x00437C00 FillSurfaceColor、0x00437C40 ClearSurface（填清屏色）、0x00437C80 MatchSurfaceColor（GDI 写 (0, 0) 读回后恢复，位深 < 32 时取低位；CLR_INVALID 取当前左上像素）、0x00437D80 BitDepth、0x00437DC0 QueryVideoMemory、0x00437DF0 GetSurface（0x2711..0x2713）、0x00437E20 Device、0x00437E30 DetectPixelFormat（绿 0x7E0 → 2，蓝 0x3F → 1，红 0xFC00 → 3，依次覆盖，返回绿掩码）、0x00437E90 BackSize（后台跨度字节与高度）：通过。
+
+## 0x00464DA0 Controls::PressConfirm
+
+0x4B7CC0 = 1（Space 按下）、0x4B7CCC = 2（Space 持续帧）、0x4B7DAC = 2（左键持续帧）、0x4B7D7C = 1（Enter 持续帧），返回 2：一致，通过。

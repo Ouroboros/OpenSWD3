@@ -1807,7 +1807,7 @@ void Game::BuildCommandMenu()
     {
         battle.commandEnabled = {0, 1, 0, 0, 1, 0, 0, 0};
 
-        if (battle.commandEnabled[static_cast<std::size_t>(battle.unk4A7548 - 1)] == 0)
+        if (!this->CommandEnabled(battle.unk4A7548))
         {
             battle.unk4A7548 = kGuardedCommand;
         }
@@ -2656,9 +2656,12 @@ void Game::DrawTargetTag(int x, int y)
     BattleState& battle = this->battleState;
     BattleMessages& messages = this->battleMessages;
     TextFont& font = this->mediumFont;
-    const auto unit = static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit);
+    // Without a current unit (the auto battle) the original reads the order before the first: taken as not set.
+    const bool partyOrder =
+        battle.currentUnit >= BattleState::FirstRoleUnit &&
+        battle.pendingOrders[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)].unk00 == 1;
 
-    if (battle.pendingOrders[unit].unk00 == 1 || battle.unk53BF88 == 1 || battle.unk4A754C <= 0 ||
+    if (partyOrder || battle.unk53BF88 == 1 || battle.unk4A754C <= 0 ||
         battle.unk4A754C > static_cast<i32>(battle.enemyCount))
     {
         return;
