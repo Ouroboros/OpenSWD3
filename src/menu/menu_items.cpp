@@ -1292,8 +1292,8 @@ void Menu::ItemsUse(ItemNode& node)
             leader.event = kHomeEvent;
             leader.id = kWarpLeader;
             leader.x = player.x;
-            owner.scene.returnColumn = player.x >> kTileShift;
-            owner.scene.returnRow = player.y >> kTileShift;
+            owner.scene.returnColumn = static_cast<i32>(static_cast<u32>(player.x) >> kTileShift);
+            owner.scene.returnRow = static_cast<i32>(static_cast<u32>(player.y) >> kTileShift);
             owner.scene.returnMap = owner.currentMap;
             owner.scene.unk4C8BE0 = player.act.id;
             leader.flags = player.flags;
@@ -1456,6 +1456,8 @@ void Menu::ItemsSelect()
 
             if (owner.LoadRoleRecord(role, static_cast<u16>(page.followerRow + kFirstFollower)) == GameState::NotFound)
             {
+                // swd32.exe 0x00446E7A: 0x004A6FA8 + 0x004A6FB8
+                DebugLog(u8"靈界指標問題 Maps找不到這個指標 [%d]", page.followerRow);
                 this->code = kListCode;
             }
             else
