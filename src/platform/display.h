@@ -65,7 +65,11 @@ public:
         return this->renderer != nullptr;
     }
 
+    // The screen shown scaled to the window; a screen larger than the logical one (the map drawn at a render scale)
+    // goes through a texture of its own size.
     void Present(const Surface& screen);
+    // The largest whole multiple of the logical screen the window's output holds (at least 1).
+    int FitScale() const;
     // Presenting waits for the display's refresh (`enabled`); false when the renderer cannot.
     bool SetVSync(bool enabled);
     // Handles Alt+Enter; true when the event was consumed.
@@ -107,6 +111,9 @@ private:
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
     SDL_Texture* texture = nullptr;
+    SDL_Texture* scaledTexture = nullptr;  // for screens larger than Width x Height
+    int scaledWidth = 0;
+    int scaledHeight = 0;
     SDL_Cursor* cursor = nullptr;
 };
 

@@ -81,6 +81,8 @@ public:
     static constexpr u32 WindowIcon = 0x65;    // the icon group of the window class (swd32.exe 0x00409F49)
     static constexpr u32 WindowCursor = 0x67;  // the cursor group (swd32.exe 0x00409F52)
     static constexpr int FrameInterval = 0x23;
+    static constexpr int AutoRenderScale = 0;  // renderScaleSetting: the largest whole scale the window shows
+    static constexpr int MaxRenderScale = 8;   // DisplaySettings::MaximumRenderScale
     // swd32.exe 0x0049FBA8: the signed speeds of the nibbles of a map setting (8 and above count down from -7).
     static constexpr std::array<i32, 16> SpeedNibbles = {0, 1, 2, 3, 4, 5, 6, 7, 8, -7, -6, -5, -4, -3, -2, -1};
 
@@ -581,8 +583,9 @@ private:
     u64 frameDueNs = 0;
     u64 frameRatePeriodNs = 0;
     u64 nextDrawNs = 0;
-    std::unique_ptr<Surface> smoothScreen;
-    u32 frameStart = 0;  // 0x004AAECC
+    std::unique_ptr<Surface> smoothScreen;  // the frames between, at the render scale
+    int renderScaleSetting = 0;             // [display] render_scale (AutoRenderScale: by the window)
+    u32 frameStart = 0;                     // 0x004AAECC
     u32 unk4C844C = 0;
     u32 unk4C8444 = 0;
     u32 unk4C8448 = 0;   // the time the last frame took

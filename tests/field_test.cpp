@@ -12,6 +12,7 @@
 #include "game_data.h"
 #include "map/blocking_map.h"
 #include "map/field.h"
+#include "map/field_view.h"
 #include "map/map_cache.h"
 #include "pic/rle.h"
 #include "platform/display.h"
@@ -207,4 +208,88 @@ TEST_CASE("field: the cells around a footprint")
         all.field.ProbeCells(static_cast<std::ptrdiff_t>(at(kLargeX, kLargeY)), kLargeSide, kLargeSide, kMask),
         BlockingMap::ProbeUpLeft | BlockingMap::ProbeUp | BlockingMap::ProbeUpRight | BlockingMap::ProbeRight
     );
+}
+
+TEST_CASE("field view: the parts of a render scale are woven into its blocks")
+{
+    using swd3::Display;
+    using swd3::FieldView;
+    constexpr int kWidth = Display::Width;
+    constexpr int kHeight = Display::Height;
+    int wrong = 0;
+
+    for (int scale = 1; scale <= swd3::Game::MaxRenderScale; ++scale)
+    {
+        const auto blocks = static_cast<std::size_t>(scale);
+        std::vector<swd3::Surface> parts(blocks * blocks);
+
+        for (std::size_t part = 0; part < parts.size(); ++part)
+        {
+            parts[part].Resize(kWidth, kHeight);
+
+            for (int y = 0; y < kHeight; ++y)
+            {
+                for (int x = 0; x < kWidth; ++x)
+                {
+                    parts[part].Row(y)[x] = static_cast<swd3::u16>(part * 0x1000 + static_cast<std::size_t>(y + x * 7));
+                }
+            }
+        }
+
+        std::vector<const swd3::Surface*> pointers;
+
+        for (const swd3::Surface& part : parts)
+        {
+            pointers.push_back(&part);
+        }
+
+        std::vector<swd3::u16> woven(blocks * blocks * Display::Pixels);
+        FieldView::Weave(pointers, scale, woven);
+        const std::size_t pitch = blocks * kWidth;
+
+        for (std::size_t y = 0; y < blocks * kHeight; ++y)
+        {
+            for (std::size_t x = 0; x < pitch; ++x)
+            {
+                const swd3::Surface& part = parts[(y % blocks) * blocks + x % blocks];
+                wrong += woven[y * pitch + x] == part.Row(static_cast<int>(y / blocks))[x / blocks] ? 0 : 1;
+            }
+        }
+    }
+
+    CHECK_EQ(wrong, 0);
+}
+
+TEST_CASE("field view: spans of a logical layer scaled into blocks")
+{
+    using swd3::Display;
+    using swd3::FieldView;
+    constexpr int kScale = 3;
+    constexpr std::size_t kBlocks = kScale;
+    constexpr std::size_t kPitch = kBlocks * Display::Width;
+    constexpr swd3::u32 kStart = Display::Width - 5;  // a run over the end of the first row
+    constexpr swd3::u32 kLength = 12;
+    constexpr swd3::u16 kUntouched = 0xFFFF;
+    std::vector<swd3::u16> layer(Display::Pixels);
+
+    for (std::size_t index = 0; index < layer.size(); ++index)
+    {
+        layer[index] = static_cast<swd3::u16>(index % 0x7FFF);
+    }
+
+    std::vector<swd3::u16> screen(kBlocks * kBlocks * Display::Pixels, kUntouched);
+    FieldView::CopySpans({FieldView::Span{kStart, kLength}}, layer, kScale, screen);
+    int wrong = 0;
+
+    for (std::size_t y = 0; y < kBlocks * Display::Height; ++y)
+    {
+        for (std::size_t x = 0; x < kPitch; ++x)
+        {
+            const std::size_t index = (y / kBlocks) * Display::Width + x / kBlocks;
+            const bool inside = index >= kStart && index < kStart + kLength;
+            wrong += screen[y * kPitch + x] == (inside ? layer[index] : kUntouched) ? 0 : 1;
+        }
+    }
+
+    CHECK_EQ(wrong, 0);
 }

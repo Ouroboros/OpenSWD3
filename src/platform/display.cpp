@@ -81,6 +81,11 @@ Display::~Display()
         SDL_DestroyTexture(this->texture);
     }
 
+    if (this->scaledTexture != nullptr)
+    {
+        SDL_DestroyTexture(this->scaledTexture);
+    }
+
     if (this->renderer != nullptr)
     {
         SDL_DestroyRenderer(this->renderer);
@@ -156,13 +161,61 @@ void Display::Present(const Surface& screen)
         return;
     }
 
-    SDL_UpdateTexture(this->texture, nullptr, screen.Pixels(), screen.Width() * static_cast<int>(sizeof(Pixel)));
+    SDL_Texture* shown = this->texture;
+
+    if (screen.Width() != Display::Width || screen.Height() != Display::Height)
+    {
+        if (this->scaledTexture == nullptr || this->scaledWidth != screen.Width() ||
+            this->scaledHeight != screen.Height())
+        {
+            if (this->scaledTexture != nullptr)
+            {
+                SDL_DestroyTexture(this->scaledTexture);
+            }
+
+            this->scaledTexture = SDL_CreateTexture(
+                this->renderer,
+                SDL_PIXELFORMAT_RGB565,
+                SDL_TEXTUREACCESS_STREAMING,
+                screen.Width(),
+                screen.Height()
+            );
+            this->scaledWidth = screen.Width();
+            this->scaledHeight = screen.Height();
+
+            if (this->scaledTexture == nullptr)
+            {
+                LogError(u8"scaled frame texture creation failed: %s", AsUtf8(SDL_GetError()));
+                return;
+            }
+
+            SDL_SetTextureScaleMode(this->scaledTexture, SDL_SCALEMODE_NEAREST);
+            LogInfo(u8"scaled frame texture %dx%d", screen.Width(), screen.Height());
+        }
+
+        shown = this->scaledTexture;
+    }
+
+    SDL_UpdateTexture(shown, nullptr, screen.Pixels(), screen.Width() * static_cast<int>(sizeof(Pixel)));
     SDL_SetRenderDrawColor(this->renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(this->renderer);
     const Viewport viewport = this->CurrentViewport();
     const SDL_FRect target{viewport.x, viewport.y, viewport.width, viewport.height};
-    SDL_RenderTexture(this->renderer, this->texture, nullptr, &target);
+    SDL_RenderTexture(this->renderer, shown, nullptr, &target);
     SDL_RenderPresent(this->renderer);
+}
+
+int Display::FitScale() const
+{
+    if (!this->IsOpen())
+    {
+        return 1;
+    }
+
+    int width = 0;
+    int height = 0;
+    SDL_GetRenderOutputSize(this->renderer, &width, &height);
+    return std::max(1, std::min(width / Display::Width, height / Display::Height));
 }
 
 bool Display::SetVSync(bool enabled)

@@ -106,6 +106,35 @@ TEST_CASE("host settings: smooth motion, vsync and the frame rate")
     CHECK(!slow.values.display.frameRate.has_value());
 }
 
+TEST_CASE("host settings: the render scale is a whole number or auto")
+{
+    constexpr swd3::i64 kScale = 3;
+    const swd3::HostSettings three = swd3::ParseHostSettings("[display]\nrender_scale = 3\n", kBase);
+    CHECK(three.warnings.empty());
+    CHECK((three.values.display.renderScale == swd3::ScaleChoice{false, kScale}));
+    const swd3::HostSettings chosen = swd3::ParseHostSettings("[display]\nrender_scale = \"auto\"\n", kBase);
+    CHECK(chosen.warnings.empty());
+    CHECK(chosen.values.display.renderScale == swd3::ScaleChoice{});
+    CHECK(!swd3::ParseHostSettings("", kBase).values.display.renderScale.has_value());
+
+    for (const char* bad :
+         {"[display]\nrender_scale = 9\n",
+          "[display]\nrender_scale = 0\n",
+          "[display]\nrender_scale = \"big\"\n",
+          "[display]\nrender_scale = 2.5\n"})
+    {
+        const swd3::HostSettings read = swd3::ParseHostSettings(bad, kBase);
+        CHECK_EQ(read.warnings.size(), static_cast<std::size_t>(1));
+        CHECK(!read.values.display.renderScale.has_value());
+    }
+
+    swd3::Settings written;
+    written.display.renderScale = swd3::ScaleChoice{};
+    CHECK(swd3::SettingsText(written).find("render_scale = 'auto'") != std::string::npos);
+    written.display.renderScale = swd3::ScaleChoice{false, kScale};
+    CHECK(swd3::SettingsText(written).find("render_scale = 3") != std::string::npos);
+}
+
 TEST_CASE("host settings: the struct written by toml++ reads back the same")
 {
     swd3::Settings settings;

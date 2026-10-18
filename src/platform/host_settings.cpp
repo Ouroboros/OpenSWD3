@@ -23,6 +23,7 @@ namespace
 constexpr double kMinimumScale = 1.0;
 constexpr double kMaximumScale = 4.0;
 constexpr double kScaleTolerance = 1e-9;
+constexpr std::string_view kAutoScale = "auto";              // render_scale chosen by the window
 constexpr std::string_view kByteOrderMark = "\xEF\xBB\xBF";  // a file saved by Notepad starts with it
 
 struct LevelName
@@ -165,25 +166,45 @@ private:
     template <typename V>
     bool Scalar(const toml::node& node, const std::string& name, V& value)
     {
-        std::optional<V> read;
-
-        if constexpr (std::is_same_v<V, double>)
+        if constexpr (std::is_same_v<V, ScaleChoice>)
         {
-            read = node.is_number() ? node.value<double>() : std::nullopt;
+            if (const std::optional<i64> number = node.value_exact<i64>(); number.has_value())
+            {
+                value = ScaleChoice{false, *number};
+                return true;
+            }
+
+            if (const std::optional<std::string> text = node.value_exact<std::string>(); text == kAutoScale)
+            {
+                value = ScaleChoice{};
+                return true;
+            }
+
+            this->warnings.push_back(LineOf(node) + name + " must be a whole number or \"auto\": the default kept");
+            return false;
         }
         else
         {
-            read = node.value_exact<V>();
-        }
+            std::optional<V> read;
 
-        if (!read.has_value())
-        {
-            this->warnings.push_back(LineOf(node) + name + " must be " + TypeName<V>() + ": the default kept");
-            return false;
-        }
+            if constexpr (std::is_same_v<V, double>)
+            {
+                read = node.is_number() ? node.value<double>() : std::nullopt;
+            }
+            else
+            {
+                read = node.value_exact<V>();
+            }
 
-        value = *read;
-        return true;
+            if (!read.has_value())
+            {
+                this->warnings.push_back(LineOf(node) + name + " must be " + TypeName<V>() + ": the default kept");
+                return false;
+            }
+
+            value = *read;
+            return true;
+        }
     }
 
     std::vector<std::string>& warnings;
@@ -206,6 +227,17 @@ toml::table ToTable(const T& in)
                     if constexpr (SettingTable<V>)
                     {
                         table.insert(field.key, ToTable(value));
+                    }
+                    else if constexpr (std::is_same_v<V, std::optional<ScaleChoice>>)
+                    {
+                        if (value.has_value() && value->automatic)
+                        {
+                            table.insert(field.key, std::string(kAutoScale));
+                        }
+                        else if (value.has_value())
+                        {
+                            table.insert(field.key, value->factor);
+                        }
                     }
                     else if constexpr (IsOptional<V>::value)
                     {
@@ -318,6 +350,13 @@ void Validate(Settings& settings, std::vector<std::string>& warnings)
     {
         warnings.emplace_back("[display] frame_rate must be 0 or 30..1000: 0 (no limit) kept");
         display.frameRate.reset();
+    }
+
+    if (display.renderScale.has_value() && !display.renderScale->automatic &&
+        (display.renderScale->factor < 1 || display.renderScale->factor > DisplaySettings::MaximumRenderScale))
+    {
+        warnings.emplace_back("[display] render_scale must be \"auto\" or 1..8: \"auto\" kept");
+        display.renderScale.reset();
     }
 }
 

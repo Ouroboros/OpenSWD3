@@ -355,12 +355,15 @@ int Game::Run([[maybe_unused]] std::u8string_view commandLine)
     this->smoothMotion = shown.smoothMotion.value_or(true);
     this->display.SetVSync(vsync);
     this->frameRatePeriodNs = frameRate > 0 ? kNanosecondsPerSecond / static_cast<u64>(frameRate) : 0;
+    const ScaleChoice renderScale = shown.renderScale.value_or(ScaleChoice{});
+    this->renderScaleSetting = renderScale.automatic ? Game::AutoRenderScale : static_cast<int>(renderScale.factor);
     this->smoothScreen = std::make_unique<Surface>(Display::Width, Display::Height);
     LogInfo(
-        u8"smooth_motion=%d vsync=%d frame_rate=%d",
+        u8"smooth_motion=%d vsync=%d frame_rate=%d render_scale=%d (0: auto)",
         this->smoothMotion ? 1 : 0,
         vsync ? 1 : 0,
-        static_cast<i32>(frameRate)
+        static_cast<i32>(frameRate),
+        this->renderScaleSetting
     );
 
     if (Game::CheckStart() == 0)
@@ -1338,6 +1341,19 @@ bool Game::PresentBetween()
     }
 
     const u64 paintStart = SDL_GetTicksNS();
+    int scale = this->renderScaleSetting;
+
+    if (scale == Game::AutoRenderScale)
+    {
+        scale = std::min(this->display.FitScale(), static_cast<int>(DisplaySettings::MaximumAutoScale));
+    }
+
+    if (this->smoothScreen->Width() != Display::Width * scale)
+    {
+        this->smoothScreen = std::make_unique<Surface>(Display::Width * scale, Display::Height * scale);
+        LogInfo(u8"render scale %d", scale);
+    }
+
     this->fieldView.PaintBetween(alpha, *this->smoothScreen);
     const u64 painted = SDL_GetTicksNS() - paintStart;
     this->paintBetweenNs += painted;

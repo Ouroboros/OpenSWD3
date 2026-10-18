@@ -10,6 +10,7 @@
 #include "core/types.h"
 #include "crt/msvc.h"
 #include "file/file.h"
+#include "platform/surface.h"
 #include "text/big5.h"
 
 namespace swd3
@@ -165,9 +166,29 @@ public:
     void DrawDebug(int cameraLeft, int cameraTop);
 
     // The rebuild's smooth motion (deviations.md): the map drawn between two game frames with the camera and the roles
-    // placed `alpha` (0..1) of the way from where the frame before last drew them to where the last one did, the
-    // interface of the last frame laid over it. Nothing the game frames read is changed.
+    // shown where they glide to at `alpha` (0..1) of the way to the next game frame, the interface of the last frame
+    // laid over it. `out` is the logical screen times a whole render scale N: the camera and the roles are placed to
+    // 1/N of a pixel, every pixel of the game shown as an N x N block. Nothing the game frames read is changed.
     void PaintBetween(double alpha, Surface& out);
+
+    // A run of pixels of the logical screen (a later step of the last game frame drew over them).
+    struct Span
+    {
+        u32 start = 0;
+        u32 length = 0;
+    };
+
+    // The pixels of `spans` of a logical layer into a screen `scale` times as large, each as a scale x scale block.
+    static void CopySpans(
+        const std::vector<Span>& spans,
+        const std::vector<Pixel>& from,
+        int scale,
+        std::span<Pixel> to
+    );
+    static void ScaleLayer(const std::vector<Pixel>& from, int scale, std::span<Pixel> to);
+    // The N x N logical screens of a render scale N woven into one: screen b * N + a gives the pixels of column a
+    // and row b of every block.
+    static void Weave(std::span<const Surface* const> parts, int scale, std::span<Pixel> to);
 
     i32 tileX = 0;  // 0x004CC2E4 the screen x of the first visible tile column
     i32 tileY = 0;  // 0x004CC2E8
@@ -211,15 +232,7 @@ private:
     const Pixel* paintedTarget = nullptr;
     bool paintedValid = false;
 
-    // A run of pixels a later step of the last game frame drew over.
-    struct Span
-    {
-        u32 start = 0;
-        u32 length = 0;
-    };
-
     void MarkChanges(const std::vector<Pixel>& before, std::vector<Span>& spans) const;
-    static void CopySpans(const std::vector<Span>& spans, const std::vector<Pixel>& from, std::span<Pixel> to);
 
     std::vector<Pixel> worldLayer;      // the last game frame after the map, before the interface
     std::vector<Pixel> interfaceLayer;  // after the interface, before the fade
@@ -227,6 +240,7 @@ private:
     std::vector<Pixel> finalLayer;      // as shown (the notices, the timer and the debug display too)
     std::vector<Span> interfaceSpans;   // where interfaceLayer differs from worldLayer
     std::vector<Span> finalSpans;       // where finalLayer differs from fadedLayer
+    std::vector<Surface> parts;         // the logical screens of a render scale above 1 (PaintBetween)
     bool fadeTinted = false;
     std::array<int, 3> fadeLevels = {};
 

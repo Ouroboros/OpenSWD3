@@ -26,6 +26,15 @@ struct SettingField
     Value Owner::* member;
 };
 
+// A scale written as a whole number or "auto".
+struct ScaleChoice
+{
+    bool automatic = true;
+    i64 factor = 1;  // when not automatic
+
+    bool operator==(const ScaleChoice&) const = default;
+};
+
 // [paths]: relative paths are taken from the executable's directory.
 struct PathSettings
 {
@@ -93,9 +102,15 @@ struct DisplaySettings
     std::optional<bool> smoothMotion;  // smooth_motion: the map drawn between game frames (default true)
     std::optional<bool> vsync;         // vsync: frames shown at the display's refresh (default true)
     std::optional<i64> frameRate;      // frame_rate: the most frames drawn a second, 0 for no limit (default 0)
+    // render_scale: the map drawn between game frames at this many times 640x480, so that the camera and the roles
+    // move by 1/scale of a pixel; "auto" (the default) takes the largest whole scale the window shows, at most
+    // MaximumAutoScale.
+    std::optional<ScaleChoice> renderScale;
 
     static constexpr i64 MinimumFrameRate = 30;
     static constexpr i64 MaximumFrameRate = 1000;
+    static constexpr i64 MaximumRenderScale = 8;
+    static constexpr i64 MaximumAutoScale = 4;
 
     static constexpr auto Fields()
     {
@@ -106,6 +121,7 @@ struct DisplaySettings
             SettingField<DisplaySettings, std::optional<bool>>{"smooth_motion", &DisplaySettings::smoothMotion},
             SettingField<DisplaySettings, std::optional<bool>>{"vsync", &DisplaySettings::vsync},
             SettingField<DisplaySettings, std::optional<i64>>{"frame_rate", &DisplaySettings::frameRate},
+            SettingField<DisplaySettings, std::optional<ScaleChoice>>{"render_scale", &DisplaySettings::renderScale},
         };
     }
 

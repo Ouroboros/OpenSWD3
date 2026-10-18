@@ -1,10 +1,15 @@
 #include "map/field_view.h"
 
 #include <algorithm>
+#include <array>
 #include <climits>
 #include <cmath>
 #include <cstring>
 #include <span>
+
+#if defined(__SSE2__)
+#include <emmintrin.h>
+#endif
 
 #include "core/byte_reader.h"
 #include "core/debug_log.h"
@@ -30,7 +35,19 @@ constexpr u32 kMaxStepFrames = 0x80;  // a role whose act holds a frame longer h
 constexpr int kPerMille = 1000;       // random.Below(kPerMille): the chances are in thousandths
 constexpr int kSoundRange = 0x200;    // the distance (pixels) a role is heard from
 constexpr int kSoundScale = 0x80;     // the volume and the distance kept for the sounds
-constexpr int kPanScale = 0x40;       // the pan at kSoundRange to the side
+
+i32 FloorDivide(i32 value, i32 divisor)
+{
+    const i32 quotient = value / divisor;
+    return value % divisor != 0 && (value < 0) != (divisor < 0) ? quotient - 1 : quotient;
+}
+
+i32 CeilDivide(i32 value, i32 divisor)
+{
+    return -FloorDivide(-value, divisor);
+}
+
+constexpr int kPanScale = 0x40;  // the pan at kSoundRange to the side
 
 constexpr int kSpriteMargin = 0x48;   // sprites this far off the screen are still drawn
 constexpr int kSpriteArrival = 0x20;  // a sprite this near its target is freed
@@ -3132,7 +3149,8 @@ void FieldView::CaptureLayer(std::vector<Pixel>& layer) const
 void FieldView::PaintBetween(double alpha, Surface& out)
 {
     Game& owner = this->game;
-    const std::span<Pixel> pixels(out.Pixels(), Display::Pixels);
+    const int scale = std::max(1, out.Width() / Display::Width);
+    const std::span<Pixel> pixels(out.Pixels(), static_cast<std::size_t>(out.Width()) * out.Height());
     const bool layered = this->finalLayer.size() == Display::Pixels && this->worldLayer.size() == Display::Pixels &&
                          this->interfaceLayer.size() == Display::Pixels && this->fadedLayer.size() == Display::Pixels;
 
@@ -3143,7 +3161,7 @@ void FieldView::PaintBetween(double alpha, Surface& out)
 
     if (this->movie.active != 0 || !this->placesValid || this->glides.size() != 1 + GameState::Roles)
     {
-        std::copy(this->finalLayer.begin(), this->finalLayer.end(), pixels.begin());
+        FieldView::ScaleLayer(this->finalLayer, scale, pixels);
         this->paintedValid = false;
         return;
     }
@@ -3154,29 +3172,41 @@ void FieldView::PaintBetween(double alpha, Surface& out)
     Painter& painter = owner.painter;
     const double time = static_cast<double>(this->placesFrame) + alpha;
 
-    auto shown = [time](const Glide& glide)
-    {
-        const std::array<double, 2> place = FieldView::Shown(glide, time);
-        return std::array<i32, 2>{static_cast<i32>(std::lround(place[0])), static_cast<i32>(std::lround(place[1]))};
-    };
-
-    // Within a game frame the picture depends on where the camera and the roles are shown alone (the rest is put
-    // back the same every time): with every place as last painted, the last picture stands.
+    // The places in 1/scale pixels: the camera's, and every role's from the camera's (so that a role moving with
+    // the camera keeps its place on the screen); a role that is not gliding stays on its pixel.
+    const std::array<double, 2> camera = FieldView::Shown(this->glides[0], time);
+    const auto fineCameraX = static_cast<i32>(std::lround(camera[0] * scale));
+    const auto fineCameraY = static_cast<i32>(std::lround(camera[1] * scale));
+    std::array<i32, GameState::Roles> fineX = {};
+    std::array<i32, GameState::Roles> fineY = {};
     this->placesKey.clear();
-    const std::array<i32, 2> cameraPlace = shown(this->glides[0]);
-    this->placesKey.push_back(cameraPlace[0]);
-    this->placesKey.push_back(cameraPlace[1]);
+    this->placesKey.push_back(scale);
+    this->placesKey.push_back(fineCameraX);
+    this->placesKey.push_back(fineCameraY);
 
     for (std::size_t index = 0; index < GameState::Roles; ++index)
     {
         const Role& role = state.roles[index];
         const Glide& glide = this->glides[1 + index];
-        const bool gliding = role.x == glide.toX && role.y == glide.toY;
-        const std::array<i32, 2> place = gliding ? shown(glide) : std::array<i32, 2>{role.x, role.y};
-        this->placesKey.push_back(place[0]);
-        this->placesKey.push_back(place[1]);
+
+        if (role.x == glide.toX && role.y == glide.toY)
+        {
+            const std::array<double, 2> place = FieldView::Shown(glide, time);
+            fineX[index] = fineCameraX + static_cast<i32>(std::lround((place[0] - camera[0]) * scale));
+            fineY[index] = fineCameraY + static_cast<i32>(std::lround((place[1] - camera[1]) * scale));
+        }
+        else
+        {
+            fineX[index] = role.x * scale;
+            fineY[index] = role.y * scale;
+        }
+
+        this->placesKey.push_back(fineX[index]);
+        this->placesKey.push_back(fineY[index]);
     }
 
+    // Within a game frame the picture depends on these places alone (the rest is put back the same every time):
+    // with every place as last painted, the last picture stands.
     if (this->paintedValid && this->paintedFrame == this->placesFrame && this->paintedKey == this->placesKey &&
         this->paintedTarget == out.Pixels())
     {
@@ -3188,9 +3218,10 @@ void FieldView::PaintBetween(double alpha, Surface& out)
     this->paintedTarget = out.Pixels();
     this->paintedValid = true;
 
-    // What the map part changes is kept and put back afterwards: the camera, the roles' places, the random
-    // numbers, the particles and acts of the screen effects, the spotlight, and the painter's options and target.
-    const std::array<i32, 4> camera = {field.cameraLeft, field.cameraTop, field.cameraRight, field.cameraBottom};
+    // What the map part changes is kept and put back after each painting: the camera, the roles' places, the random
+    // numbers, the particles and acts of the screen effects, the spotlight, the tile grid's origin, and the painter's
+    // options and target.
+    const std::array<i32, 4> cameraKept = {field.cameraLeft, field.cameraTop, field.cameraRight, field.cameraBottom};
     std::array<i32, GameState::Roles> roleX = {};
     std::array<i32, GameState::Roles> roleY = {};
 
@@ -3219,49 +3250,158 @@ void FieldView::PaintBetween(double alpha, Surface& out)
     const i16 firefliesShown = view.firefliesShown;
     const auto fireflies = view.fireflies;
     const std::array<i32, 4> spotlight = {view.spotlightX, view.spotlightY, view.spotlightStepX, view.spotlightStepY};
+    const std::array<i32, 2> tileOrigin = {this->tileX, this->tileY};
     const DrawOptions options = painter.Options();
     const int wavePhase = painter.WavePhase();
     const std::array<int, 4> clip = painter.ClipRect();
     u16* const target = painter.Target();
     Pixel* const drawSurface = owner.drawSurface;
 
-    const std::array<i32, 2> cameraShown = shown(this->glides[0]);
-    field.cameraLeft = cameraShown[0];
-    field.cameraTop = cameraShown[1];
-    field.cameraRight = field.cameraLeft + this->cameraWidth;
-    field.cameraBottom = field.cameraTop + this->cameraHeight;
-
-    for (std::size_t index = 0; index < GameState::Roles; ++index)
+    auto putBack = [&]()
     {
-        Role& role = state.roles[index];
-        const Glide& glide = this->glides[1 + index];
+        owner.random = random;
+        view.weather = weather;
+        view.weatherShades = weatherShades;
+        view.weatherMotion = weatherMotion;
+        view.leaves = leaves;
+        view.unk4AD0D8 = leafActs;
+        view.unk4ACAF8 = effectAct;
+        view.unk4AD3F0 = spotlightAct;
+        view.heatLengths = heatLengths;
+        view.heatCounts = heatCounts;
+        view.heatOffsets = heatOffsets;
+        view.heatFrame = heatFrame;
+        view.lightningCount = lightningCount;
+        view.lightningShown = lightningShown;
+        view.bolts = bolts;
+        view.fireflyCount = fireflyCount;
+        view.firefliesShown = firefliesShown;
+        view.fireflies = fireflies;
+        view.spotlightX = spotlight[0];
+        view.spotlightY = spotlight[1];
+        view.spotlightStepX = spotlight[2];
+        view.spotlightStepY = spotlight[3];
+        this->tileX = tileOrigin[0];
+        this->tileY = tileOrigin[1];
+        painter.Options() = options;
+        painter.SetWavePhase(wavePhase);
+        painter.SetClip(clip[0], clip[1], clip[0] + clip[2], clip[1] + clip[3]);
+        painter.SetTarget(target);
+        owner.drawSurface = drawSurface;
+    };
 
-        if (role.x == glide.toX && role.y == glide.toY)
+    // At a render scale N the screen is N x N logical screens woven together: the one of column a and row b of the
+    // blocks shows a place p (in 1/N pixels) at the pixel ceil((p - a) / N), so it is the map painted at the camera
+    // floor((camera + a) / N) with each role at that camera plus ceil((its place - camera - a) / N). Columns that
+    // place the camera and every role alike (and rows alike) show the same screen, which is painted once. The
+    // interface, the fade and what follows it lie on the pixels of the logical screen, so they are laid on each
+    // screen before the weaving.
+    const auto blocks = static_cast<std::size_t>(scale);
+    std::array<std::vector<i32>, Game::MaxRenderScale> columnPlaces;
+    std::array<std::vector<i32>, Game::MaxRenderScale> rowPlaces;
+    std::array<std::size_t, Game::MaxRenderScale> columnShown = {};
+    std::array<std::size_t, Game::MaxRenderScale> rowShown = {};
+
+    auto placesOf = [&fineX, &fineY, scale](std::vector<i32>& places, i32 fineCamera, int offset, bool across)
+    {
+        const i32 cameraPlace = FloorDivide(fineCamera + offset, scale);
+        places.resize(1 + GameState::Roles);
+        places[0] = cameraPlace;
+
+        for (std::size_t index = 0; index < GameState::Roles; ++index)
         {
-            const std::array<i32, 2> place = shown(glide);
-            role.x = place[0];
-            role.y = place[1];
+            const i32 fine = across ? fineX[index] : fineY[index];
+            places[1 + index] = cameraPlace + CeilDivide(fine - fineCamera - offset, scale);
+        }
+    };
+
+    for (std::size_t offset = 0; offset < blocks; ++offset)
+    {
+        placesOf(columnPlaces[offset], fineCameraX, static_cast<int>(offset), true);
+        placesOf(rowPlaces[offset], fineCameraY, static_cast<int>(offset), false);
+        columnShown[offset] = offset;
+        rowShown[offset] = offset;
+
+        for (std::size_t earlier = 0; earlier < offset; ++earlier)
+        {
+            if (columnShown[offset] == offset && columnPlaces[earlier] == columnPlaces[offset])
+            {
+                columnShown[offset] = earlier;
+            }
+
+            if (rowShown[offset] == offset && rowPlaces[earlier] == rowPlaces[offset])
+            {
+                rowShown[offset] = earlier;
+            }
         }
     }
 
-    this->replaying = true;
-    owner.drawSurface = painter.LockSurface(out);
-    painter.SetTarget(owner.drawSurface);
-    painter.UnlockSurface(out);
-    painter.SetClipClamped(0, 0, Display::Width, Display::Height);
-
-    if ((view.screenFlags & Scene::SpotlightClip) != 0)
+    if (scale > 1)
     {
-        this->ClipToSpotlight();
+        this->parts.resize(blocks * blocks);
     }
 
-    this->PaintWorld();
-    this->replaying = false;
+    this->replaying = true;
 
-    field.cameraLeft = camera[0];
-    field.cameraTop = camera[1];
-    field.cameraRight = camera[2];
-    field.cameraBottom = camera[3];
+    for (std::size_t row = 0; row < blocks; ++row)
+    {
+        for (std::size_t column = 0; column < blocks; ++column)
+        {
+            if (rowShown[row] != row || columnShown[column] != column)
+            {
+                continue;
+            }
+
+            Surface& part = scale > 1 ? this->parts[row * blocks + column] : out;
+
+            if (part.Width() != Display::Width || part.Height() != Display::Height)
+            {
+                part.Resize(Display::Width, Display::Height);
+            }
+
+            field.cameraLeft = columnPlaces[column][0];
+            field.cameraTop = rowPlaces[row][0];
+            field.cameraRight = field.cameraLeft + this->cameraWidth;
+            field.cameraBottom = field.cameraTop + this->cameraHeight;
+
+            for (std::size_t index = 0; index < GameState::Roles; ++index)
+            {
+                state.roles[index].x = columnPlaces[column][1 + index];
+                state.roles[index].y = rowPlaces[row][1 + index];
+            }
+
+            owner.drawSurface = painter.LockSurface(part);
+            painter.SetTarget(owner.drawSurface);
+            painter.UnlockSurface(part);
+            painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+
+            if ((view.screenFlags & Scene::SpotlightClip) != 0)
+            {
+                this->ClipToSpotlight();
+            }
+
+            this->PaintWorld();
+            putBack();
+
+            // The interface of the last game frame (what it drew over its map), its fade, then what it drew after
+            // the fade.
+            const std::span<Pixel> screen(part.Pixels(), Display::Pixels);
+            FieldView::CopySpans(this->interfaceSpans, this->interfaceLayer, 1, screen);
+
+            if (this->fadeTinted)
+            {
+                painter.TintPixelsFast(screen, this->fadeLevels[0], this->fadeLevels[1], this->fadeLevels[2]);
+            }
+
+            FieldView::CopySpans(this->finalSpans, this->finalLayer, 1, screen);
+        }
+    }
+
+    this->replaying = false;
+    field.cameraLeft = cameraKept[0];
+    field.cameraTop = cameraKept[1];
+    field.cameraRight = cameraKept[2];
+    field.cameraBottom = cameraKept[3];
 
     for (std::size_t index = 0; index < GameState::Roles; ++index)
     {
@@ -3269,43 +3409,20 @@ void FieldView::PaintBetween(double alpha, Surface& out)
         state.roles[index].y = roleY[index];
     }
 
-    owner.random = random;
-    view.weather = weather;
-    view.weatherShades = weatherShades;
-    view.weatherMotion = weatherMotion;
-    view.leaves = leaves;
-    view.unk4AD0D8 = leafActs;
-    view.unk4ACAF8 = effectAct;
-    view.unk4AD3F0 = spotlightAct;
-    view.heatLengths = heatLengths;
-    view.heatCounts = heatCounts;
-    view.heatOffsets = heatOffsets;
-    view.heatFrame = heatFrame;
-    view.lightningCount = lightningCount;
-    view.lightningShown = lightningShown;
-    view.bolts = bolts;
-    view.fireflyCount = fireflyCount;
-    view.firefliesShown = firefliesShown;
-    view.fireflies = fireflies;
-    view.spotlightX = spotlight[0];
-    view.spotlightY = spotlight[1];
-    view.spotlightStepX = spotlight[2];
-    view.spotlightStepY = spotlight[3];
-    painter.Options() = options;
-    painter.SetWavePhase(wavePhase);
-    painter.SetClip(clip[0], clip[1], clip[0] + clip[2], clip[1] + clip[3]);
-    painter.SetTarget(target);
-    owner.drawSurface = drawSurface;
-
-    // The interface of the last game frame (what it drew over its map), its fade, then what it drew after the fade.
-    FieldView::CopySpans(this->interfaceSpans, this->interfaceLayer, pixels);
-
-    if (this->fadeTinted)
+    if (scale > 1)
     {
-        painter.TintPixelsFast(pixels, this->fadeLevels[0], this->fadeLevels[1], this->fadeLevels[2]);
-    }
+        std::array<const Surface*, Game::MaxRenderScale * Game::MaxRenderScale> shown = {};
 
-    FieldView::CopySpans(this->finalSpans, this->finalLayer, pixels);
+        for (std::size_t row = 0; row < blocks; ++row)
+        {
+            for (std::size_t column = 0; column < blocks; ++column)
+            {
+                shown[row * blocks + column] = &this->parts[rowShown[row] * blocks + columnShown[column]];
+            }
+        }
+
+        FieldView::Weave(std::span<const Surface* const>(shown.data(), blocks * blocks), scale, pixels);
+    }
 }
 
 // The runs where the frame being drawn now differs from `before` (once a game frame).
@@ -3342,11 +3459,122 @@ void FieldView::MarkChanges(const std::vector<Pixel>& before, std::vector<Span>&
     }
 }
 
-void FieldView::CopySpans(const std::vector<Span>& spans, const std::vector<Pixel>& from, std::span<Pixel> to)
+void FieldView::CopySpans(
+    const std::vector<Span>& spans,
+    const std::vector<Pixel>& from,
+    int scale,
+    std::span<Pixel> to
+)
 {
+    if (scale == 1)
+    {
+        for (const Span& run : spans)
+        {
+            std::copy_n(from.begin() + run.start, run.length, to.begin() + run.start);
+        }
+
+        return;
+    }
+
+    constexpr auto kWidth = static_cast<u32>(Display::Width);
+    const auto blocks = static_cast<std::size_t>(scale);
+    const std::size_t pitch = kWidth * blocks;
+
     for (const Span& run : spans)
     {
-        std::copy_n(from.begin() + run.start, run.length, to.begin() + run.start);
+        const u32 end = run.start + run.length;
+
+        for (u32 at = run.start; at < end;)
+        {
+            const u32 y = at / kWidth;
+            const u32 piece = std::min(end, (y + 1) * kWidth) - at;
+            Pixel* first = to.data() + y * blocks * pitch + (at % kWidth) * blocks;
+
+            for (u32 pixel = 0; pixel < piece; ++pixel)
+            {
+                std::fill_n(first + pixel * blocks, blocks, from[at + pixel]);
+            }
+
+            for (std::size_t row = 1; row < blocks; ++row)
+            {
+                std::copy_n(first, piece * blocks, first + row * pitch);
+            }
+
+            at += piece;
+        }
+    }
+}
+
+void FieldView::ScaleLayer(const std::vector<Pixel>& from, int scale, std::span<Pixel> to)
+{
+    FieldView::CopySpans({Span{0, Display::Pixels}}, from, scale, to);
+}
+
+void FieldView::Weave(std::span<const Surface* const> parts, int scale, std::span<Pixel> to)
+{
+    const auto blocks = static_cast<std::size_t>(scale);
+    const std::size_t pitch = static_cast<std::size_t>(Display::Width) * blocks;
+
+    constexpr auto kWidth = static_cast<std::size_t>(Display::Width);
+    std::array<const Pixel*, Game::MaxRenderScale> sources = {};
+
+    for (int y = 0; y < Display::Height; ++y)
+    {
+        for (std::size_t row = 0; row < blocks; ++row)
+        {
+            Pixel* line = to.data() + (static_cast<std::size_t>(y) * blocks + row) * pitch;
+
+            for (std::size_t column = 0; column < blocks; ++column)
+            {
+                sources[column] = parts[row * blocks + column]->Row(y);
+            }
+
+            std::size_t x = 0;
+
+#if defined(__SSE2__)
+            // Eight pixels of each part at a time, interleaved by unpacking.
+            constexpr std::size_t kLanes = sizeof(__m128i) / sizeof(Pixel);
+
+            if (blocks == 2)
+            {
+                for (; x + kLanes <= kWidth; x += kLanes)
+                {
+                    const __m128i first = _mm_loadu_si128(reinterpret_cast<const __m128i*>(sources[0] + x));
+                    const __m128i second = _mm_loadu_si128(reinterpret_cast<const __m128i*>(sources[1] + x));
+                    auto* out = reinterpret_cast<__m128i*>(line + 2 * x);
+                    _mm_storeu_si128(out, _mm_unpacklo_epi16(first, second));
+                    _mm_storeu_si128(out + 1, _mm_unpackhi_epi16(first, second));
+                }
+            }
+            else if (blocks == 4)
+            {
+                for (; x + kLanes <= kWidth; x += kLanes)
+                {
+                    const __m128i first = _mm_loadu_si128(reinterpret_cast<const __m128i*>(sources[0] + x));
+                    const __m128i second = _mm_loadu_si128(reinterpret_cast<const __m128i*>(sources[1] + x));
+                    const __m128i third = _mm_loadu_si128(reinterpret_cast<const __m128i*>(sources[2] + x));
+                    const __m128i fourth = _mm_loadu_si128(reinterpret_cast<const __m128i*>(sources[3] + x));
+                    const __m128i lowPairs = _mm_unpacklo_epi16(first, second);
+                    const __m128i highPairs = _mm_unpackhi_epi16(first, second);
+                    const __m128i lowOthers = _mm_unpacklo_epi16(third, fourth);
+                    const __m128i highOthers = _mm_unpackhi_epi16(third, fourth);
+                    auto* out = reinterpret_cast<__m128i*>(line + 4 * x);
+                    _mm_storeu_si128(out, _mm_unpacklo_epi32(lowPairs, lowOthers));
+                    _mm_storeu_si128(out + 1, _mm_unpackhi_epi32(lowPairs, lowOthers));
+                    _mm_storeu_si128(out + 2, _mm_unpacklo_epi32(highPairs, highOthers));
+                    _mm_storeu_si128(out + 3, _mm_unpackhi_epi32(highPairs, highOthers));
+                }
+            }
+#endif
+
+            for (; x < kWidth; ++x)
+            {
+                for (std::size_t column = 0; column < blocks; ++column)
+                {
+                    line[x * blocks + column] = sources[column][x];
+                }
+            }
+        }
     }
 }
 
