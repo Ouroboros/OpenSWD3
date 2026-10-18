@@ -70,6 +70,8 @@ u16 ReadWord(std::span<const u8> data, std::size_t offset)
 // current format gives its keys, unknown14, settings bytes, channel masks, debug bit and session mark (its directories
 // and installation type are not used any more). An old-format file gives nothing (the original turned it into the
 // defaults). See deviations.md.
+// swd32.exe 0x00498170 (EH unwind of 0x00423FB0: the new cFile's memory freed when its constructor throws)
+// swd32.exe 0x0049817B (EH handler of 0x00423FB0)
 std::optional<GameSettings> Config::ImportEnv(std::span<const u8> data)
 {
     if (data.size() < Config::StringsAt || ReadDword(data, 0) != Config::CurrentFormat)
@@ -110,10 +112,14 @@ std::optional<GameSettings> Config::ImportEnv(std::span<const u8> data)
 
 // swd32.exe 0x00423A10 (the installation's first Env.dat, written by the install command line): removed with the
 // command line; [game] is imported from Env.dat once instead (see ImportEnvFile and deviations.md).
+// swd32.exe 0x00498110 (EH unwind of 0x00423A10: the new cFile's memory freed when its constructor throws)
+// swd32.exe 0x0049811B (EH handler of 0x00423A10)
 
 // swd32.exe 0x00423AF0 (Env.dat rewritten with the keys, unknown14 and the settings bytes): the same values set in
 // [game] of the program's settings file (its channel masks and debug bit kept). The rewritten file ended with a session
 // mark of 0 (0x00423D8C), so saving the settings clears the mark. See deviations.md.
+// swd32.exe 0x00498130 (EH unwind of 0x00423AF0: the new cFile's memory freed when its constructor throws)
+// swd32.exe 0x0049813B (EH handler of 0x00423AF0)
 void Config::Update(const Settings& settings)
 {
     this->Store(
@@ -134,6 +140,8 @@ void Config::Update(const Settings& settings)
 
 // swd32.exe 0x00423E00 (the key setup's keys written over the head of Env.dat, where they spoilt the format mark so the
 // next start reset every setting): the keys set in [game.keys]; nothing else changes. See deviations.md.
+// swd32.exe 0x00498150 (EH unwind of 0x00423E00: the new cFile's memory freed when its constructor throws)
+// swd32.exe 0x0049815B (EH handler of 0x00423E00)
 void Config::SaveKeys()
 {
     this->Store(
