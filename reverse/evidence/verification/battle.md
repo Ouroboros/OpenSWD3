@@ -196,3 +196,12 @@
 - 0x00480EE0 Defense（返回值高位恒 0）、0x00481010 HitDamage（护罩、增益先落、治疗/恢复、攻击 = 攻击力或加成 + 1..level/3+3、±30%、暴击动作 1/2/8/0x11、减防御至少 1；激怒分支 0x0048162A 起为 32 位乘法，伪代码的 i16 截断不存在；剑气 ×2.5；元素抗性；技能 0x0048193x 等对回复灵力/体力的零判断为 16 位 `test bx, bx`；护卫 −1/3；倒下角色清零）、0x00481A40 EnemyHitDamage（护罩、治疗解除、增益；角色目标的灵扇按熟练度 /20 的五档掩码 0x1080..0x12EF；献祭 0x8000 以 esi 攻击方 Damage(0x270F)、ebx 目标取 hp；命令 1 与其他命令的两种掷骰；护卫减 10..39%；角色加怒气）、0x00481FB0 MarkBit8Clear、0x00481FC0 MarkBit1、0x00481FD0 ClearMoveAxes、0x00482030 RestartMainAct、0x00482080 SetNudge、0x004820A0 DrawTrail（每 3 帧推入；方向 0/1/2 的 x；按当前帧号取各图；加色时 tint level − 0x1F、蓝 −12）、0x00482310 WalkToTarget（UnkFlag20 时距离 /16；调用方忽略返回值）、0x00482DA0 AddFury（flt_499D40 = 47.0f）、0x00482E80 HasBlock38、0x00482E90 DrainKind、0x00482F10 AccessoryProficiency：一致（exact 轮）。
 - 0x00482840 ReturnHome：差异（diff 轮）：UnkFlag20 且动作跟进时每帧步数为距离 ÷ 12（0x00482AC0/0x00482AD8 `imul 2AAAAAABh` 取高位后 `sar edx, 1`），重建按 ÷ 6；kHomeShare 改为 12。修正后通过（exact 轮）。
 - 0x00482EC0 ShowsPicture：差异（diff 轮）：0x00482EF4 以零扩展的图片号与符号扩展的 picture − 1 作 32 位比较，重建把右侧转成 u16（picture ≤ 0 时结果不同）；改为 int 比较。修正后通过（exact 轮）。
+
+## 饰品、动作绘制与吸取效果 0x00482F70..0x00484500
+
+逐函数对照汇编，全部一致，无代码改动（exact 轮）：
+
+- 0x00482F70 AccessoryValue（+0x40 低 14 位）、0x00482FC0 CanUseAccessory（耗体力大于当前体力不可用；0x19/0x1C/0x1D/0x20/0x39 五种条件）、0x004830A0 StepAccessoryCounters（第二件从第一件结束处继续查找，保留）。
+- 0x004831C0 DrawAction（强制时 0x2C 外加 Additive；抖动按 0..1 掷骰、nudge 减半至 1；AtTarget 0x38；描边 x 0x004833CB movsx；波浪取本单位主动作的 wait；覆盖图的镜像 x 减覆盖图宽，等待时清除）、0x00483700 DrawOverlay、0x00483820 StatusBit5Or8、0x00483840 CommandTarget、0x00483870 GetStamina、0x004838A0 GetSpirit。
+- 0x004838D0 AimAction（调用方不使用返回值）、0x00483B30 DrawRecoil（等待后 −2 至 −0x20）、0x00483DB0 DrawAimed（只看朝向，x 无条件镜像；阴影图调色板参数）、0x00483FD0 SetValueAAC、0x00483FE0 SetDisplayName。
+- 0x00484020 StartDrainEffect（源坐标 0x004840B3 movsx 后减 1；目标为锚点左 0x32、下 0x28；速度 0x28、寿命 0x14、爆发 h/2、除数 0x3C、tint 5、标志 0x56）、0x004841B0 DrainEffectFrame、0x00484230 DrawActionAt（强制时无条件加 Additive；SG 两位都在时取主动作透明度）、0x00484500 GetHitPoints。
