@@ -1328,7 +1328,7 @@ void Game::ScrollListForward()
     {
         this->audio.PlaySound(kBackSound, this->config.soundVolume);
 
-        if (battle.unk53BDF2 < kListPage)
+        if (static_cast<i8>(battle.unk53BDF2) < kListPage)
         {
             return;
         }
@@ -1341,15 +1341,15 @@ void Game::ScrollListForward()
 
         battle.unk53BD04 += kListPage;
 
-        if (battle.unk53BD04 + kListPage > battle.unk53BDF2)
+        if (battle.unk53BD04 + kListPage > static_cast<i8>(battle.unk53BDF2))
         {
-            battle.unk53BD04 = battle.unk53BDF2 - kListPage;
+            battle.unk53BD04 = static_cast<i8>(battle.unk53BDF2) - kListPage;
         }
 
         if (battle.unk53BD04 < 0)
         {
             battle.unk53BD04 = 0;
-            battle.unk4A7558 = battle.unk53BDF2;
+            battle.unk4A7558 = static_cast<i8>(battle.unk53BDF2);
         }
 
         battle.unk53BFB8 = 1;
@@ -3874,7 +3874,7 @@ void Game::MenuUp()
 
             if (--battle.unk4A7560 < 1)
             {
-                battle.unk4A7560 = battle.unk53BDF3;
+                battle.unk4A7560 = static_cast<i8>(battle.unk53BDF3);
             }
 
             tick();
@@ -3922,16 +3922,17 @@ bool Game::CommandEnabled(i32 command) const
     return command >= 1 && at < this->battleState.commandEnabled.size() && this->battleState.commandEnabled[at] != 0;
 }
 
-// A 1-based place moved by `step`, wrapping within 1..`count` (the original tests only the end it moves towards).
+// A 1-based place moved by `step`, wrapping at the end it moves towards only (0x00460C40: below 1 to `count`;
+// 0x00461240: past `count` to 1). A place left past the other end by another count stays there.
 void Game::StepWrapped(i32& place, int step, i32 count)
 {
     place += step;
 
-    if (place < 1)
+    if (step < 0 && place < 1)
     {
         place = count;
     }
-    else if (place > count)
+    else if (step > 0 && place > count)
     {
         place = 1;
     }
@@ -4123,7 +4124,7 @@ void Game::MenuDown()
         }
 
         case kListState2:
-            if (listDown(battle.unk4A7558, battle.unk53BD04, battle.unk53BDF2))
+            if (listDown(battle.unk4A7558, battle.unk53BD04, static_cast<i8>(battle.unk53BDF2)))
             {
                 tick();
             }
@@ -4180,7 +4181,7 @@ void Game::MenuDown()
                 return;
             }
 
-            if (++battle.unk4A7560 > battle.unk53BDF3)
+            if (++battle.unk4A7560 > static_cast<i8>(battle.unk53BDF3))
             {
                 battle.unk4A7560 = 1;
             }
@@ -5692,26 +5693,29 @@ void Game::ConfirmTarget()
     battle.currentUnit = 0;
     battle.unk53BF60 = 1;
 
-    // In the auto battle without a current unit the original works on the role 8 before the first.
-    if (battle.unk53BD50 < BattleState::FirstRoleUnit)
+    // In the auto battle without a current unit the original works on the role 8 before the first and its order
+    // before the orders: those calls and writes are left out, the rest done.
+    const bool hasRole = battle.unk53BD50 >= BattleState::FirstRoleUnit;
+    const auto unit = hasRole ? static_cast<std::size_t>(battle.unk53BD50 - BattleState::FirstRoleUnit) : 0;
+    BattleRole* role = hasRole ? &this->battleRoles[unit] : nullptr;
+
+    if (role != nullptr)
     {
-        battle.result = 0;
-        battle.unk53BFBC = 0;
-        battle.unk53BFB8 = 0;
-        return;
+        role->SetTarget(1);
     }
 
-    const auto unit = static_cast<std::size_t>(battle.unk53BD50 - BattleState::FirstRoleUnit);
-    BattleRole& role = this->battleRoles[unit];
-    role.SetTarget(1);
     battle.result = 0;
     battle.unk53BFBC = 0;
     battle.unk53BFB8 = 0;
 
     if (battle.unk53BF88 == 1)
     {
-        battle.pendingOrders[unit].unk04 = 1;
-        battle.pendingOrders[unit].unk10 = 0;
+        if (role != nullptr)
+        {
+            battle.pendingOrders[unit].unk04 = 1;
+            battle.pendingOrders[unit].unk10 = 0;
+        }
+
         battle.unk53AF38[static_cast<std::size_t>(battle.unk53BD50)] = battle.unk53BCE8;
     }
 
@@ -5719,9 +5723,13 @@ void Game::ConfirmTarget()
     {
         battle.unk53BCE8 = kItemCommand;
         battle.unk53AF38[static_cast<std::size_t>(battle.unk53BD50)] = kItemCommand;
-        role.UseSelectedItem();
 
-        if (role.Word2A86Bit13() == 1)
+        if (role != nullptr)
+        {
+            role->UseSelectedItem();
+        }
+
+        if (role != nullptr && role->Word2A86Bit13() == 1)
         {
             battle.unk53BCE8 = kThrowOrder;
             battle.unk53C01C = 1;
@@ -5733,9 +5741,9 @@ void Game::ConfirmTarget()
             AddOneItem(this->party.inventory, kThrownObject, 0, this->database);
         }
     }
-    else if (battle.unk53BCE8 == kSkillCommand)
+    else if (battle.unk53BCE8 == kSkillCommand && role != nullptr)
     {
-        role.TakeCommand2F18();
+        role->TakeCommand2F18();
     }
 
     if (battle.unk4A7548 == kListState1B)
@@ -5766,12 +5774,12 @@ void Game::ConfirmTarget()
 
     if (battle.autoBattle == 1)
     {
-        if (role.MarkBit1() == 1)
+        if (role != nullptr && role->MarkBit1() == 1)
         {
             battle.unk53BCE8 = kGuardCommand;
             battle.unk53AF38[static_cast<std::size_t>(battle.unk53BD50)] = kGuardCommand;
-            role.ResetAfterGuard();
-            role.SetTarget(1);
+            role->ResetAfterGuard();
+            role->SetTarget(1);
             battle.pendingOrders[unit].unk00 = 1;
         }
 
