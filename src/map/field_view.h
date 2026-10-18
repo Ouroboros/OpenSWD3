@@ -204,6 +204,12 @@ private:
     i32 cameraWidth = 0;
     i32 cameraHeight = 0;
     std::vector<Glide> glides;  // the camera, then the roles
+    // The places PaintBetween last painted at (the camera's, then every role's), its game frame and its target.
+    std::vector<i32> paintedKey;
+    std::vector<i32> placesKey;
+    u32 paintedFrame = 0;
+    const Pixel* paintedTarget = nullptr;
+    bool paintedValid = false;
 
     // A run of pixels a later step of the last game frame drew over.
     struct Span
@@ -223,8 +229,6 @@ private:
     std::vector<Span> finalSpans;       // where finalLayer differs from fadedLayer
     bool fadeTinted = false;
     std::array<int, 3> fadeLevels = {};
-    std::vector<u16> fadeTable;  // every colour as the fade tints it (Painter::TintPixels), for fadeTableLevels
-    std::array<int, 3> fadeTableLevels = {};
 
     void DrawSmallText(int x, int y, u32 color, const std::string& text);
     void DrawTileGrid(const TileSet& tiles);

@@ -1,5 +1,8 @@
+#include <algorithm>
+#include <array>
 #include <cstdio>
 #include <cstring>
+#include <span>
 #include <vector>
 
 #include "core/types.h"
@@ -96,6 +99,61 @@ TEST_CASE("painter: RGB565 display tables")
     CHECK_EQ(painter.MakeColor(kTopLevel, kTopLevel, kTopLevel), swd3::MakeWords(white, white));
     CHECK_EQ(painter.Red().Ramp(-1), 0u);
     CHECK_EQ(painter.Red().Ramp(kPastTop), Surface::RedMask);
+}
+
+TEST_CASE("painter: the fast tint matches TintPixels for every colour")
+{
+    constexpr int kFurthest = 40;  // levels past a channel's range saturate alike
+    constexpr std::size_t kColors = 0x10000;
+    Surface screen(Display::Width, Display::Height);
+    Painter painter;
+    CHECK(painter.Init(screen));
+    std::vector<u16> colors(kColors);
+    std::vector<u16> slow(kColors);
+    std::vector<u16> fast(kColors);
+
+    for (std::size_t color = 0; color < kColors; ++color)
+    {
+        colors[color] = static_cast<u16>(color);
+    }
+
+    int mismatches = 0;
+
+    for (int level = -kFurthest; level <= kFurthest; ++level)
+    {
+        const std::array<std::array<int, 3>, 3> levels = {{
+            {level, level, level},
+            {level, -level / 2, level / 3},
+            {-level, level, 0},
+        }};
+
+        for (const std::array<int, 3>& tint : levels)
+        {
+            slow = colors;
+            fast = colors;
+            painter.TintPixels(slow, tint[0], tint[1], tint[2]);
+            painter.TintPixelsFast(fast, tint[0], tint[1], tint[2]);
+            mismatches += slow == fast ? 0 : 1;
+
+            // Runs of 15 leave the 16-pixel loop out: 8 pixels at a time, then one by one.
+            constexpr std::size_t kShortRun = 15;
+            fast = colors;
+
+            for (std::size_t at = 0; at < kColors; at += kShortRun)
+            {
+                painter.TintPixelsFast(
+                    std::span<u16>(fast).subspan(at, std::min(kShortRun, kColors - at)),
+                    tint[0],
+                    tint[1],
+                    tint[2]
+                );
+            }
+
+            mismatches += slow == fast ? 0 : 1;
+        }
+    }
+
+    CHECK_EQ(mismatches, 0);
 }
 
 TEST_CASE("painter: unassigned modes draw nothing")

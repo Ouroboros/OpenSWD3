@@ -175,6 +175,10 @@ public:
     // Pixel operations on arrays of display pixels.
     void BlendPairsWithColor(std::span<u32> pairs, u32 colorPair) const;
     void TintPixels(std::span<u16> pixels, int red, int green, int blue) const;
+    // The rebuild's: what TintPixels gives, faster. With every tint step the lowest bit of its channel (the formats
+    // the game sets up) a tinted channel is its value plus the level kept within the channel, done here in a loop
+    // the compiler vectorizes; other formats go through TintPixels.
+    void TintPixelsFast(std::span<u16> pixels, int red, int green, int blue) const;
     void ShiftRed(std::span<u16> pixels, int delta) const;
     void ShiftGreenPairs(std::span<u16> pixels, int delta) const;
     void ShiftBluePairs(std::span<u16> pixels, int delta) const;

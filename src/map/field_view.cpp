@@ -3144,6 +3144,7 @@ void FieldView::PaintBetween(double alpha, Surface& out)
     if (this->movie.active != 0 || !this->placesValid || this->glides.size() != 1 + GameState::Roles)
     {
         std::copy(this->finalLayer.begin(), this->finalLayer.end(), pixels.begin());
+        this->paintedValid = false;
         return;
     }
 
@@ -3158,6 +3159,34 @@ void FieldView::PaintBetween(double alpha, Surface& out)
         const std::array<double, 2> place = FieldView::Shown(glide, time);
         return std::array<i32, 2>{static_cast<i32>(std::lround(place[0])), static_cast<i32>(std::lround(place[1]))};
     };
+
+    // Within a game frame the picture depends on where the camera and the roles are shown alone (the rest is put
+    // back the same every time): with every place as last painted, the last picture stands.
+    this->placesKey.clear();
+    const std::array<i32, 2> cameraPlace = shown(this->glides[0]);
+    this->placesKey.push_back(cameraPlace[0]);
+    this->placesKey.push_back(cameraPlace[1]);
+
+    for (std::size_t index = 0; index < GameState::Roles; ++index)
+    {
+        const Role& role = state.roles[index];
+        const Glide& glide = this->glides[1 + index];
+        const bool gliding = role.x == glide.toX && role.y == glide.toY;
+        const std::array<i32, 2> place = gliding ? shown(glide) : std::array<i32, 2>{role.x, role.y};
+        this->placesKey.push_back(place[0]);
+        this->placesKey.push_back(place[1]);
+    }
+
+    if (this->paintedValid && this->paintedFrame == this->placesFrame && this->paintedKey == this->placesKey &&
+        this->paintedTarget == out.Pixels())
+    {
+        return;
+    }
+
+    std::swap(this->paintedKey, this->placesKey);
+    this->paintedFrame = this->placesFrame;
+    this->paintedTarget = out.Pixels();
+    this->paintedValid = true;
 
     // What the map part changes is kept and put back afterwards: the camera, the roles' places, the random
     // numbers, the particles and acts of the screen effects, the spotlight, and the painter's options and target.
@@ -3273,27 +3302,7 @@ void FieldView::PaintBetween(double alpha, Surface& out)
 
     if (this->fadeTinted)
     {
-        // The tint of a colour depends on the levels alone: every colour is tinted once for the levels of the game
-        // frame, then looked up.
-        constexpr std::size_t kColors = 0x10000;
-
-        if (this->fadeTable.size() != kColors || this->fadeTableLevels != this->fadeLevels)
-        {
-            this->fadeTable.resize(kColors);
-
-            for (std::size_t color = 0; color < kColors; ++color)
-            {
-                this->fadeTable[color] = static_cast<u16>(color);
-            }
-
-            painter.TintPixels(this->fadeTable, this->fadeLevels[0], this->fadeLevels[1], this->fadeLevels[2]);
-            this->fadeTableLevels = this->fadeLevels;
-        }
-
-        for (Pixel& pixel : pixels)
-        {
-            pixel = this->fadeTable[pixel];
-        }
+        painter.TintPixelsFast(pixels, this->fadeLevels[0], this->fadeLevels[1], this->fadeLevels[2]);
     }
 
     FieldView::CopySpans(this->finalSpans, this->finalLayer, pixels);
