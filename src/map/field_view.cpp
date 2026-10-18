@@ -24,12 +24,13 @@ constexpr int kScreenRows = Display::Height / MapHeader::TileSize;
 constexpr int kRoleMarginX = Display::Width / 2;  // roles this far beside the screen are still drawn
 constexpr int kReflectionRowsAbove = 5;           // the reflections are drawn from this many rows above the camera
 constexpr u32 kNoFrame = 0xFFFF;                  // the frame of a role without an act
-constexpr i32 kSnapDistance = 0x80;  // smooth motion: a camera or role moving further in a frame jumps there
-constexpr u32 kMaxGlideFrames = 8;   // longer pauses between moves keep the last pace
-constexpr int kPerMille = 1000;      // random.Below(kPerMille): the chances are in thousandths
-constexpr int kSoundRange = 0x200;   // the distance (pixels) a role is heard from
-constexpr int kSoundScale = 0x80;    // the volume and the distance kept for the sounds
-constexpr int kPanScale = 0x40;      // the pan at kSoundRange to the side
+constexpr i32 kSnapDistance = 0x80;   // smooth motion: a camera or role moving further in a frame jumps there
+constexpr u32 kMaxGlideFrames = 8;    // longer pauses between moves keep the last pace
+constexpr u32 kMaxStepFrames = 0x80;  // a role whose act holds a frame longer has stopped: its glide takes the last gap
+constexpr int kPerMille = 1000;       // random.Below(kPerMille): the chances are in thousandths
+constexpr int kSoundRange = 0x200;    // the distance (pixels) a role is heard from
+constexpr int kSoundScale = 0x80;     // the volume and the distance kept for the sounds
+constexpr int kPanScale = 0x40;       // the pan at kSoundRange to the side
 
 constexpr int kSpriteMargin = 0x48;   // sprites this far off the screen are still drawn
 constexpr int kSpriteArrival = 0x20;  // a sprite this near its target is freed
@@ -3032,7 +3033,9 @@ void FieldView::PaintWorld()
 }
 
 // Where the game frame about to be painted draws the camera and the roles: each starts a glide to its new place when
-// it moved (from where it is shown at the start of this frame), lasting the frames since its last move.
+// it moved (from where it is shown at the start of this frame). A role other than the controlled one steps when its
+// act's delay runs out, so its next step is the delay plus one frames away; the camera and the controlled role move
+// every frame they move at all, so theirs last the frames since their last move.
 void FieldView::CapturePlaces()
 {
     Game& owner = this->game;
@@ -3046,12 +3049,15 @@ void FieldView::CapturePlaces()
     const u32 frame = owner.gameFrames;
     const bool continuous = this->placesValid && frame == this->placesFrame + 1 && owner.currentMap == this->placesMap;
     this->glides.resize(1 + GameState::Roles);
-    FieldView::Follow(this->glides[0], field.cameraLeft, field.cameraTop, frame, continuous);
+    FieldView::Follow(this->glides[0], field.cameraLeft, field.cameraTop, frame, continuous, 0);
 
     for (std::size_t index = 0; index < GameState::Roles; ++index)
     {
         const Role& role = owner.state.roles[index];
-        FieldView::Follow(this->glides[1 + index], role.x, role.y, frame, continuous);
+        const bool controlled = index == static_cast<std::size_t>(owner.state.playerRole);
+        const u32 next = role.act.delay + 1u;
+        const u32 pace = controlled || next > kMaxStepFrames ? 0 : next;
+        FieldView::Follow(this->glides[1 + index], role.x, role.y, frame, continuous, pace);
     }
 
     this->placesValid = true;
@@ -3061,7 +3067,8 @@ void FieldView::CapturePlaces()
     this->cameraHeight = field.cameraBottom - field.cameraTop;
 }
 
-void FieldView::Follow(Glide& glide, i32 x, i32 y, u32 frame, bool continuous)
+// `pace`: the frames to the next move when known, 0 to take the frames since the last move.
+void FieldView::Follow(Glide& glide, i32 x, i32 y, u32 frame, bool continuous, u32 pace)
 {
     if (!continuous)
     {
@@ -3088,7 +3095,11 @@ void FieldView::Follow(Glide& glide, i32 x, i32 y, u32 frame, bool continuous)
     glide.toY = y;
     glide.start = frame;
 
-    if (gap >= 1 && gap <= kMaxGlideFrames)
+    if (pace != 0)
+    {
+        glide.frames = pace;
+    }
+    else if (gap >= 1 && gap <= kMaxGlideFrames)
     {
         glide.frames = gap;
     }

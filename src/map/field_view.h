@@ -195,7 +195,7 @@ private:
     void ClipToSpotlight();
     void CapturePlaces();
     void CaptureLayer(std::vector<Pixel>& layer) const;
-    static void Follow(Glide& glide, i32 x, i32 y, u32 frame, bool continuous);
+    static void Follow(Glide& glide, i32 x, i32 y, u32 frame, bool continuous, u32 pace);
     static std::array<double, 2> Shown(const Glide& glide, double time);
 
     bool placesValid = false;
