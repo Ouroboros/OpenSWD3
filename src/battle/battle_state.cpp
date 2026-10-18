@@ -231,18 +231,17 @@ void BattleState::InsertSlotRecord(int kind, i32 unit, int at)
     record.kind = 1;
 
     // A unit before the party units reads before the orders in the original.
-    if (unit < BattleState::FirstRoleUnit)
+    if (unit >= BattleState::FirstRoleUnit)
     {
-        return;
+        PendingOrder& order = this->pendingOrders[static_cast<std::size_t>(unit - BattleState::FirstRoleUnit)];
+        record.unk14 = order.unk04;
+        record.unk0C = order.unk00;
+        record.unk18 = order.unk08;
+        record.unk0A = order.unk0C;
+        record.unk04 = order.unk10;
+        order = PendingOrder{};
     }
 
-    PendingOrder& order = this->pendingOrders[static_cast<std::size_t>(unit - BattleState::FirstRoleUnit)];
-    record.unk14 = order.unk04;
-    record.unk0C = order.unk00;
-    record.unk18 = order.unk08;
-    record.unk0A = order.unk0C;
-    record.unk04 = order.unk10;
-    order = PendingOrder{};
     this->unk53BF80 = 0;
     this->unk53BFD0 = 0;
 }

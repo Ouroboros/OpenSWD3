@@ -4645,9 +4645,10 @@ int Game::MouseHover()
         }
     }
 
+    // The pointer is compared unsigned throughout (jbe/jnb in the original).
     auto inside = [](int value, int low, int high)
     {
-        return value > low && value < high;
+        return static_cast<u32>(value) > static_cast<u32>(low) && static_cast<u32>(value) < static_cast<u32>(high);
     };
 
     // The step of a hit test over bands (inline in the original): the band of `value` among `bands` bands of `size`
@@ -4723,7 +4724,9 @@ int Game::MouseHover()
         {
             part = kScrollAbove;
         }
-        else if (x < right && inside(y, hud.scrollThumbBottom, hud.scrollTrackBottom))
+        else if (
+            static_cast<u32>(x) < static_cast<u32>(right) && inside(y, hud.scrollThumbBottom, hud.scrollTrackBottom)
+        )
         {
             part = kScrollBelow;
         }
@@ -4800,8 +4803,10 @@ int Game::MouseHover()
             if (inside(x, left + kMenuHitLeft, left + kMenuHitRight) &&
                 inside(y, top + kMenuHitTop, top + kMenuHitBottom))
             {
-                const int index = (y - top - kMenuHitTop) / kMenuRowHeight +
-                                  kMenuColumn * ((x - left - kMenuHitLeft) / kMenuHitColumn);
+                const auto index = static_cast<int>(
+                    static_cast<u32>(y - top - kMenuHitTop) / kMenuRowHeight +
+                    kMenuColumn * (static_cast<u32>(x - left - kMenuHitLeft) / kMenuHitColumn)
+                );
 
                 if (index < battle.unk53BF22 + kMenuFixedCommands)
                 {
@@ -4853,7 +4858,7 @@ int Game::MouseHover()
             {
                 const int row = band(y, kListHitFirst, kListRowHeight, kListHitEnd);
 
-                if (row >= 0 && battle.unk53BD04 + row + 1 <= battle.unk53BDF2)
+                if (row >= 0 && battle.unk53BD04 + row + 1 <= static_cast<i8>(battle.unk53BDF2))
                 {
                     return pickRow(battle.unk4A7558, row);
                 }
@@ -4939,7 +4944,7 @@ int Game::MouseHover()
 
             const int row = band(y, kSpecialHitFirst, kListBarHeight, kSpecialHitEnd);
 
-            if (row < 0 || row + 1 > battle.unk53BDF3)
+            if (row < 0 || row + 1 > static_cast<i8>(battle.unk53BDF3))
             {
                 battle.unk53BFB8 = 0;
                 return 0;
@@ -5003,7 +5008,7 @@ int Game::HoverRefineCell()
             return 0;
         }
 
-        if (x <= kRefineHitLeft || x >= right)
+        if (static_cast<u32>(x) <= static_cast<u32>(kRefineHitLeft) || static_cast<u32>(x) >= static_cast<u32>(right))
         {
             continue;
         }
@@ -5011,7 +5016,8 @@ int Game::HoverRefineCell()
         int row = 0;
         int bottom = kRefineRowFirst;
 
-        while (y <= bottom - kListRowHeight || y >= bottom)
+        while (static_cast<u32>(y) <= static_cast<u32>(bottom - kListRowHeight) ||
+               static_cast<u32>(y) >= static_cast<u32>(bottom))
         {
             bottom += kListRowHeight;
             ++row;
@@ -5165,10 +5171,22 @@ int Game::HoverTarget()
         battle.unk53BFBC = 1;
     };
 
-    auto overPortrait = [x, y](i32 role)
+    // The pointer is compared unsigned (jb/ja in the original).
+    auto overPortraitRow = [y]
     {
-        const int left = BattleState::PortraitX[static_cast<std::size_t>(role)];
-        return y >= kPortraitHitTop && y <= kPortraitHitBottom && x >= left && x <= left + kPortraitHitWidth;
+        return static_cast<u32>(y) >= static_cast<u32>(kPortraitHitTop) &&
+               static_cast<u32>(y) <= static_cast<u32>(kPortraitHitBottom);
+    };
+
+    auto overPortraitAt = [x](int left)
+    {
+        return static_cast<u32>(x) >= static_cast<u32>(left) &&
+               static_cast<u32>(x) <= static_cast<u32>(left + kPortraitHitWidth);
+    };
+
+    auto overPortrait = [&overPortraitRow, &overPortraitAt](i32 role)
+    {
+        return overPortraitRow() && overPortraitAt(BattleState::PortraitX[static_cast<std::size_t>(role)]);
     };
 
     if (partyRoles >= static_cast<i32>(Party::Roles))
@@ -5229,7 +5247,7 @@ int Game::HoverTarget()
 
     portraits[static_cast<std::size_t>(battle.unk53C4AC)] = 0;
 
-    if (y < kPortraitHitTop || y > kPortraitHitBottom)
+    if (!overPortraitRow())
     {
         battle.unk53BFB8 = 0;
         return 0;
@@ -5244,9 +5262,7 @@ int Game::HoverTarget()
             continue;
         }
 
-        const int left = BattleState::PortraitX[static_cast<std::size_t>(battle.partyRoles[index])];
-
-        if (x >= left && x <= left + kPortraitHitWidth)
+        if (overPortraitAt(BattleState::PortraitX[static_cast<std::size_t>(battle.partyRoles[index])]))
         {
             battle.unk53C4AC = battle.partyRoles[index];
             portraits[static_cast<std::size_t>(battle.unk53C4AC)] = 1;

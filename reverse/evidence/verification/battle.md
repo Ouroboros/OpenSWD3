@@ -57,3 +57,12 @@
 - 0x0045D8F0 BattleDebugKeys：键码 0x1D/0x9D、0x3D、0x3B、0x2D、0x25、0x2C、0x20、0x21、0x2F、0x43、0x12、0x2E、0x3F、0x3C、0x11、0x23、0x24、0x19 与常量、字符串 0x004A7838/0x004A782C/0x004A7820 逐一对照；C 键的越界调用已列入 deviations.md：通过。
 - 0x0045DEE0 DrawBattleDebug：坐标、格式字符串 0x004A792C..0x004A78C4 与英文格式；敌人行的参数顺序为生命（0x484500 的第一个输出）、0x4786D0、0x4786B0（均 and 0xFFFF）、记录 +0x54 的 movzx 等级；word_4A7630、word_4A7644 与 byte_4A7646 movsx；TswMem 为有符号 /1000；FRAME 为 idiv：通过。
 - 0x0045E580 CheckBattleEnd（第一比较 jb 无符号，第二比较 jge 有符号）、0x0045E660 DrawBattlePrompt、0x0045E7D0 QuakeFrame（movsx 表 0x004A75EC = 4,3,4,3,4,3,2,3,2,3，两次 Blt 的源与目标矩形、清除 0x500 × step 字节）：通过。
+
+## 归还、槽记录、战斗文件与按键 0x0045E9C0..0x0045FC60
+
+- 0x0045E9C0 ReturnBattleItems（0x4FF2EC、0x4FF2EE 两个 word，非零才加；每个仍在外的投掷物加一个 0x300；清 0x53BF26、0x53C4B0、0x4FF2EC）、0x0045EA30 ReleaseBattle（10 个角色、8 个敌人）、0x0045EA80 TryRetreat（0x118, 0xA, 0x32, 0x004A7954 "無法撤退!!", 0x40000002；音效 0x8C）、0x0045EB40 ApplyHits（角色清 0x524400 + 4 × 单位 = 0x524420[角色下标]）、0x0045EC60 SetReturnedItem、0x0045EC80 CheckStoneSides（角色侧的人数为 8 位、0x67；敌人侧 0x63）、0x0045EDF0 AddSlotRecord：通过。
+- 0x0045EE70 InsertSlotRecord：指令表字段对应（+0x14 ← +4、+0xC ← +0、+0x18 ← +8、+0xA ← +0xC 低 word、+4 ← +0x10），下移次数 v3 − at + 1（jl 有符号）。差异（diff 轮）：kind 1 且单位 < 8 时重建提前返回，漏掉原版之后的 0x53BF80、0x53BFD0 清零（越界取指令不做，已列入 deviations.md）；改为只跳过取指令。现有调用者 kind 1 时单位都 ≥ 8。修正后通过（exact 轮）。
+- 0x0045EFB0 RemoveSlotRecord（最后一项读表外后被 0xFF 覆盖，无影响）、0x0045F020 TakeSlotRecord（单位 ≥ 7 视为角色；搬移到第 16 项为止；无空记录时从 at 清起）：通过。
+- 0x0045F0F0 BattleFile（30 项 {i, 5i/4}）、0x0045F130 ReadHeader（0x2714 字节，计数表在 +0x1F44）、0x0045F1B0 ReadFormation（计数 movsx，jle/jg 有符号；记录号表在 +4；0x10C × 记录 + 0x2714）：通过。文件以共享方式打开属用户要求的平台替换。
+- 0x0045F2A0 BattleKeys：数字键 2..9 对应指令 1..8，可用字节 0x524414..0x52441B，指令 5 的特殊流程；按钮编号 0 Escape、1 Space、2 RightShift、3..6 方向、7/8 翻页、9 RightCtrl、0xC Enter、0xE/0xF 鼠标、0x11 A、0x12 G 与 Controls 一致；G 键检查 0x53BF1C 为 word（cmp word）、撤退标记 or byte 0x53BF1D, 40h（= word 0x4000），SetTarget 的 ecx 为 0x5029D0 + (53BD54 − 8) × 0x2F34；滑块比较为无符号；确认键 6 帧重复：通过。
+- 0x0045FC60 MouseHover：各状态的矩形、带宽与行列常量逐一对照（含 0x1E 状态的列从固定 0xEA 起、行找不到时换下一列、失败时清 0x4A7644；3 状态角色路径 RoleCycle 0x004A7970、循环后 SetAC0(0) 的 ecx 为 role[0x53C4AC]；0x433AA0 的 ebp 参数只作临时寄存器）。差异（diff 轮）：原版所有指针坐标比较都是无符号（jbe/jnb/jb/ja），指令菜单下标用无符号除法（mul + shr）；byte_53BDF2、byte_53BDF3 用 movsx。重建原先用有符号比较并把两个字节当无符号；改为一致。修正后通过（exact 轮）。
