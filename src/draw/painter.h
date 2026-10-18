@@ -175,9 +175,9 @@ public:
     // Pixel operations on arrays of display pixels.
     void BlendPairsWithColor(std::span<u32> pairs, u32 colorPair) const;
     void TintPixels(std::span<u16> pixels, int red, int green, int blue) const;
-    // The rebuild's: what TintPixels gives, faster. With every tint step the lowest bit of its channel (the formats
-    // the game sets up) a tinted channel is its value plus the level kept within the channel, done here in a loop
-    // the compiler vectorizes; other formats go through TintPixels.
+    // The rebuild's: what TintPixels gives pixel by pixel, faster. With every tint step the lowest bit of its channel
+    // (the formats the game sets up) a tinted channel is its value plus the level kept within the channel, done here
+    // 16 (AVX2) or 8 (SSE2) pixels at a time; other formats go pixel by pixel.
     void TintPixelsFast(std::span<u16> pixels, int red, int green, int blue) const;
 
     // The widest instructions TintPixelsFast uses (for the tests and benchmarks of each path): the best the processor
@@ -271,6 +271,7 @@ private:
     Tint CurrentTint() const;
     bool Tinted() const;
     u16 TintPixel(const Tint& tint, u16 dest) const;
+    void TintPixelsEach(std::span<u16> pixels, int red, int green, int blue) const;
     u16 AddTinted(const Tint& tint, u16 source, u16 dest) const;
     u16 Add(u16 source, u16 dest) const;
     u16 SubtractTintedSource(const Tint& tint, u16 source, u16 dest) const;

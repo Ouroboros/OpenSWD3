@@ -181,8 +181,23 @@ __attribute__((target("avx2"))) std::size_t TintAvx2(std::span<u16> pixels, cons
 }  // namespace
 
 // swd32.exe 0x00420490: tint steps added to every pixel, saturating like the tint effect. The original treats a
-// count of 0 as 2^32; an empty span tints nothing here.
+// count of 0 as 2^32; an empty span tints nothing here. Longer runs go through TintPixelsFast, which gives the same
+// pixels.
 void Painter::TintPixels(std::span<u16> pixels, int red, int green, int blue) const
+{
+    constexpr std::size_t kFastPixels = 0x40;
+
+    if (pixels.size() >= kFastPixels)
+    {
+        this->TintPixelsFast(pixels, red, green, blue);
+        return;
+    }
+
+    this->TintPixelsEach(pixels, red, green, blue);
+}
+
+// The pixels one at a time (0x00420490 as the original runs it).
+void Painter::TintPixelsEach(std::span<u16> pixels, int red, int green, int blue) const
 {
     const Tint tint = this->MakeTint(red, green, blue);
 
@@ -233,7 +248,7 @@ void Painter::TintPixelsFast(std::span<u16> pixels, int red, int green, int blue
 
     if (!fits)
     {
-        this->TintPixels(pixels, red, green, blue);
+        this->TintPixelsEach(pixels, red, green, blue);
         return;
     }
 

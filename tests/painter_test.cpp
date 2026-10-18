@@ -101,7 +101,7 @@ TEST_CASE("painter: RGB565 display tables")
     CHECK_EQ(painter.Red().Ramp(kPastTop), Surface::RedMask);
 }
 
-TEST_CASE("painter: the fast tint matches TintPixels for every colour")
+TEST_CASE("painter: the fast tint matches the original tint for every colour")
 {
     constexpr int kFurthest = 40;  // levels past a channel's range saturate alike
     constexpr std::size_t kColors = 0x10000;
@@ -134,8 +134,13 @@ TEST_CASE("painter: the fast tint matches TintPixels for every colour")
 
         for (const std::array<int, 3>& tint : levels)
         {
+            // One pixel at a time TintPixels runs the original's loop.
             slow = colors;
-            painter.TintPixels(slow, tint[0], tint[1], tint[2]);
+
+            for (u16& color : slow)
+            {
+                painter.TintPixels(std::span<u16>(&color, 1), tint[0], tint[1], tint[2]);
+            }
 
             for (const Painter::TintPath path : kPaths)
             {
