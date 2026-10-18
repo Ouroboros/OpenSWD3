@@ -89,3 +89,16 @@
 - 0x00468930 DrawNewSpell、0x00468AD0 DrawNewSpecial（"%s學到新魔法"/"%s學到新絕招"、"[%s]"，后者在面板高度 0 时播 0x160）、0x00468C80 LearnSpecials（类型 0x1F 的技能设定所需战斗数 unk44 与下一招 unk42 | 0x80000000；0x1BB0 旗标时跳过 0x665/0x669；新节点挂在表尾）、0x00468ED0 DrawMastery（不运行面板动作，0x11 字距）、0x00468FF0 AnnounceMastery（0x46F850 的 ecx 为当前角色）：通过。
 - 0x00469080 DrawLootPanel（"%-12s X %2d"）、0x00469220 DrawDefeatPanel、0x00469340 DrawCraftResultPanel、0x004694E0 TakePendingAction（4 × 10 队列）、0x00469550 DrawMessageBox、0x00469620 GrowPanel（有符号除法）、0x004698E0 Add（Rise 时 y = 1、+0x14 = −32）、0x00469960 Draw（绘制与滑出两段：0x50 步长、Rise 速度加倍、−32 以上保留）：通过。
 - 0x00469650 DrawResistancePanel：分支与坐标一致；原版条长用单精度常量（0x00499D10 = −0.1f、0x00499D14 = 120f、0x00499D18 = 0.1f）并以 fstp dword 存 float，重建用 double 的 0.1；对全部 i8 抗性值逐一计算两种算法的 ftol 结果，差异 0 处（tmp/resist_check.py），等价：通过。
+
+## 0x00469D20 FightTalkFrame（战斗剧本解释器）
+
+逐条指令对照（0xFFFF、1..6、8..0x1F、0x21..0x25、0x27..0x53；7、0x20、0x26 与其他值为 default：返回 1 且游标不动）。各指令选择单位时的比较类型按汇编整理：jbe（无符号）为 2、0xA、0xB、0xE、0x14、0x15、0x1A、0x1B、0x1C、0x1D、0x27、0x2C、0x34、0x3B、0x3D、0x40、0x4C、0x4F；jle（有符号）为 5、8、9、0xD、0xF、0x12、0x17、0x28、0x36、0x3A、0x44；0x32、0x33、0x38、0x46、0x4A、0x4B、0x50 不比较、总按敌人表（0x525508 + 0x2B28 × 单位）取对象。其他核对要点：命令 2/0x2C/0x3B 的窗口（0x40AFF0 的 x、y 参数为 __int16）、命令 1 结束时 FightTalkEnd、0xE/0x3D 的列表计数与 LABEL_410..413 的跳转（空列表时游标不动）、0x13 只有多于一项时消费随机数、0x24/0x25 的线条效果、0x2A 的说话者（0x20 字节）与默认名替换、0x3A 敌人分支测试的是两个函数地址（恒非零，只前进游标）、0x3E 的 ftol 依次作用于三个起始值、0x41/0x42 的数量比较（movsx + jg）、0x4F 的伤害取负前为 movsx。
+
+差异（diff 轮）：
+1. 0x14：0x0046B978 用 jbe 无符号选择单位，重建先转 i16；改为 u16。
+2. 0x17：0x0046AC17 `cmp word ptr [esi+4], 7; jle` 为有符号，重建用无符号；0x476160 把 act 零扩展写入整个 dword 0x53BD40，重建只替换低 word；角色分支原版以 dword 写入 order+0xC（+0xE 随之为 0），重建补写 +0xE = 0。均改为一致。
+3. 0x1C：spirit 用 movsx word_53CE9A（0x0046BE23），重建按 u16 零扩展；改为 i16。
+4. 0x24/0x25：原版 4 处 nullsub_1 日志（"對話系統(GAON) 代碼值太大(%d)"、"對話系統(GAON) 代碼值重複(%d)"、"對話系統(GAON) 位置超出螢幕(x%d ,y%d ,w%d ,h%d)"、"對話系統(G_AREA_OFF) 代碼值太大(%d)"，参数为第三个字或矩形的四个 movsx 值），重建缺；补上。
+5. 0x3E：0x0046D55C `xor ecx, ecx` 后 0x0046D580 `mov cx, [esi+0Eh]`，帧数为零扩展；重建按 word 2 的符号填高 word（起始红色为负时帧数变负、淡化立即结束）；改为零扩展。
+6. 0x38、0x46、0x4A、0x4B、0x50：原版总按敌人表取对象，重建对编号 ≥ 8 改写了角色或越界下标；0x32、0x33 也直接下标。改为只对八个敌人生效，超出时不读写（deviations.md 合并为一行）；0x49 除零补记一行。
+修正后通过（exact 轮）。

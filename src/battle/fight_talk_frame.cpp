@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstring>
 
+#include "core/debug_log.h"
 #include "core/fault.h"
 #include "core/format.h"
 #include "core/spline.h"
@@ -233,7 +234,7 @@ int Game::FightTalkFrame()
 
         case kTalkFace:
             this->SetTalkCommandUnit(talk.UnsignedWord(1));
-            this->TalkUnit(static_cast<i16>(this->TalkCommandUnit())).SetFacing(1);
+            this->TalkUnit(this->TalkCommandUnit()).SetFacing(1);  // 0x0046B978: jbe, the unit unsigned
             talk.cursor += 2 * sizeof(u16);
             return 1;
 
@@ -1050,7 +1051,8 @@ int Game::FightTalkSkill()
     FightTalk& talk = this->fightTalk;
     talk.unk53CCE8 = talk.Word(1);
 
-    if (talk.UnsignedWord(2) <= kLastEnemy)
+    // 0x0046AC17: cmp word ptr [esi+4], 7; jle (signed)
+    if (talk.Word(2) <= kLastEnemy)
     {
         talk.unk53CCEC = talk.Word(2);
         talk.unk53CCF0 = talk.Word(3);
@@ -1081,7 +1083,7 @@ int Game::FightTalkSkill()
         u16 act = static_cast<u16>(battle.unk53BD40);
         this->battleEnemies[static_cast<std::size_t>(talk.unk53CCEC)]
             .LoadSkillAction(this->database, static_cast<u16>(talk.unk53CCE8), act);
-        battle.unk53BD40 = static_cast<i32>((static_cast<u32>(battle.unk53BD40) & ~kLowWordMask) | act);
+        battle.unk53BD40 = act;  // 0x00476160 stores the act zero-extended into the whole dword
         battle.InsertSlotRecord(kEnemySlot, talk.unk53CCEC, 0);
     }
     else
@@ -1105,6 +1107,7 @@ int Game::FightTalkSkill()
         actor.LoadItemAction(this->database, static_cast<u16>(talk.unk53CCE8), act);
         battle.unk4FE5D4[role] = static_cast<i32>(act);
         battle.pendingOrders[role].unk0C = static_cast<u16>(actor.ActSpeed());
+        battle.pendingOrders[role].unk0E = 0;
 
         if (actor.ActFlag1() == 1)
         {
@@ -1234,7 +1237,7 @@ int Game::FightTalkUnits(u16 command)
                 set.GetHitPoints(talk.unk53CCE8, talk.unk53CCEC);
                 battle.hitPoints[role] = talk.unk53CCEC;
                 set.GetSpirit(talk.unk53CE98, talk.unk53CE9A);
-                battle.spirit[role] = talk.unk53CE9A;
+                battle.spirit[role] = static_cast<i16>(talk.unk53CE9A);  // 0x0046BE23: movsx
             }
 
             talk.cursor += 5 * sizeof(u16);
@@ -1396,6 +1399,7 @@ int Game::FightTalkLines()
         {
             talk.unk53CE90 =
                 static_cast<i32>((static_cast<u32>(talk.unk53CE90) & kLowWordMask) | (1u << kHighWordShift));
+            DebugLog(u8"對話系統(GAON) 代碼值重複(%d)", talk.UnsignedWord(2));  // 0x004A186C + 0x004A7B8C
         }
         else
         {
@@ -1445,7 +1449,22 @@ int Game::FightTalkLines()
                 effect->next = std::move(this->scene.effects);
                 this->scene.effects = std::move(effect);
             }
+            else
+            {
+                // 0x004A186C + 0x004A7B68
+                DebugLog(
+                    u8"對話系統(GAON) 位置超出螢幕(x%d ,y%d ,w%d ,h%d)",
+                    effect->x,
+                    effect->y,
+                    effect->limit,
+                    effect->count
+                );
+            }
         }
+    }
+    else
+    {
+        DebugLog(u8"對話系統(GAON) 代碼值太大(%d)", talk.UnsignedWord(2));  // 0x004A186C + 0x004A7B9C
     }
 
     talk.cursor += 8 * sizeof(u16);
@@ -1501,6 +1520,10 @@ int Game::FightTalkLinesMode()
                 );
             }
         }
+    }
+    else
+    {
+        DebugLog(u8"對話系統(G_AREA_OFF) 代碼值太大(%d)", talk.UnsignedWord(2));  // 0x004A1810 + 0x004A7B9C
     }
 
     talk.cursor += 3 * sizeof(u16);
@@ -1999,8 +2022,7 @@ int Game::FightTalkLineWindow()
 }
 
 // Command 0x3E of FightTalkFrame (inline in the original): the field fades from the colour of words 2..4 to that of
-// words 5..7 over the frames of word 8 (the high word of the frames keeps the sign of word 2, as the original's
-// register does).
+// words 5..7 over the frames of word 8 (zero-extended: 0x0046D55C clears ecx before 0x0046D580 loads the word).
 int Game::FightTalkFieldFade()
 {
     ColorFade& fade = this->battleState.fieldFade;
@@ -2017,8 +2039,7 @@ int Game::FightTalkFieldFade()
     fade.startRed = static_cast<float>(toRed);
     fade.startGreen = static_cast<float>(toGreen);
     fade.startBlue = static_cast<float>(toBlue);
-    const u32 signWord = talk.Word(1) < 0 ? ~kLowWordMask : 0;
-    fade.frames = static_cast<i32>(signWord | talk.UnsignedWord(7));
+    fade.frames = static_cast<i32>(talk.UnsignedWord(7));
     const auto frames = static_cast<double>(fade.frames);
     fade.stepRed = static_cast<float>(static_cast<double>(toRed - static_cast<i32>(crt::Ftol(fade.red))) / frames);
     fade.stepGreen =
@@ -2295,7 +2316,16 @@ int Game::FightTalkMisc(u16 command)
 
         case kTalkJoinFirst:
         {
-            BattleEnemy& enemy = this->battleEnemies[static_cast<std::size_t>(talk.Word(1))];
+            const auto joined = static_cast<std::size_t>(talk.Word(1));
+
+            // An enemy past the enemies is read and written past them by the original.
+            if (joined >= this->battleEnemies.size())
+            {
+                talk.cursor += 2 * sizeof(u16);
+                return 1;
+            }
+
+            BattleEnemy& enemy = this->battleEnemies[joined];
             talk.unk53CE90 = static_cast<i32>(
                 (static_cast<u32>(talk.unk53CE90) & kLowWordMask) | (static_cast<u32>(enemy.ActId()) << kHighWordShift)
             );
@@ -2311,9 +2341,14 @@ int Game::FightTalkMisc(u16 command)
         }
 
         case kTalkDefeatPose:
-            this->battleEnemies[static_cast<std::size_t>(talk.Word(1))].SetDefeatPoseFixed(
-                static_cast<u8>(talk.UnsignedWord(2))
-            );
+            // An enemy past the enemies is written past them by the original.
+            if (static_cast<std::size_t>(talk.Word(1)) < this->battleEnemies.size())
+            {
+                this->battleEnemies[static_cast<std::size_t>(talk.Word(1))].SetDefeatPoseFixed(
+                    static_cast<u8>(talk.UnsignedWord(2))
+                );
+            }
+
             talk.cursor += 3 * sizeof(u16);
             return 1;
 
@@ -2385,8 +2420,14 @@ int Game::FightTalkMisc(u16 command)
 
         case kTalkWords66:
             this->SetTalkCommandUnit(talk.UnsignedWord(1));
-            this->TalkUnit(this->TalkCommandUnit())
-                .SetWords66(talk.Word(2), talk.Word(3), talk.Word(4), talk.Word(5), talk.Word(6), talk.Word(7));
+
+            // 0x0046CEEA: always an enemy (0x525508 + 0x2B28 x unit); a unit past them is written past the enemies.
+            if (this->TalkCommandUnit() < this->battleEnemies.size())
+            {
+                this->battleEnemies[this->TalkCommandUnit()]
+                    .SetWords66(talk.Word(2), talk.Word(3), talk.Word(4), talk.Word(5), talk.Word(6), talk.Word(7));
+            }
+
             talk.cursor += 8 * sizeof(u16);
             return 1;
 
@@ -2490,7 +2531,13 @@ int Game::FightTalkMisc(u16 command)
 
         case kTalkLevel:
             this->SetTalkCommandUnit(talk.UnsignedWord(1));
-            this->TalkUnit(this->TalkCommandUnit()).SetLevel(talk.Word(2));
+
+            // 0x0046BF4B: always an enemy, as command 0x38.
+            if (this->TalkCommandUnit() < this->battleEnemies.size())
+            {
+                this->battleEnemies[this->TalkCommandUnit()].SetLevel(talk.Word(2));
+            }
+
             talk.cursor += 3 * sizeof(u16);
             return 1;
 
@@ -2516,14 +2563,26 @@ int Game::FightTalkMisc(u16 command)
                 values[index] = talk.Word(index + 2);
             }
 
-            this->TalkUnit(this->TalkCommandUnit()).SetResistances(values);
+            // 0x0046D9AD: always an enemy, as command 0x38.
+            if (this->TalkCommandUnit() < this->battleEnemies.size())
+            {
+                this->battleEnemies[this->TalkCommandUnit()].SetResistances(values);
+            }
+
             talk.cursor += (kResistanceWords + 2) * sizeof(u16);
             return 1;
         }
 
         case kTalkWords72:
             this->SetTalkCommandUnit(talk.UnsignedWord(1));
-            this->TalkUnit(this->TalkCommandUnit()).SetWords72(talk.Word(2), talk.Word(3), talk.Word(4), talk.Word(5));
+
+            // 0x0046CF43: always an enemy, as command 0x38.
+            if (this->TalkCommandUnit() < this->battleEnemies.size())
+            {
+                this->battleEnemies[this->TalkCommandUnit()]
+                    .SetWords72(talk.Word(2), talk.Word(3), talk.Word(4), talk.Word(5));
+            }
+
             talk.cursor += 6 * sizeof(u16);
             return 1;
 
@@ -2559,7 +2618,13 @@ int Game::FightTalkMisc(u16 command)
         case kTalkReload:
             this->SetTalkCommandUnit(talk.UnsignedWord(1));
             talk.unk53CCE8 = talk.Word(2);
-            this->battleEnemies[this->TalkCommandUnit()].Reload(static_cast<u16>(talk.unk53CCE8), this->database);
+
+            // 0x0046DDCA: always an enemy, as command 0x38.
+            if (this->TalkCommandUnit() < this->battleEnemies.size())
+            {
+                this->battleEnemies[this->TalkCommandUnit()].Reload(static_cast<u16>(talk.unk53CCE8), this->database);
+            }
+
             talk.cursor += 3 * sizeof(u16);
             return 1;
 
