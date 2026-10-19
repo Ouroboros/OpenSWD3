@@ -431,6 +431,11 @@ void Menu::Move(std::size_t which, i32 drawn, i32 from, i32 to)
 
 i32 Menu::Shown(std::size_t which, i32 value) const
 {
+    return static_cast<i32>(std::lround(this->ShownFine(which, value)));
+}
+
+double Menu::ShownFine(std::size_t which, i32 value) const
+{
     const ValueMotion& motion = this->motions[which];
 
     if (!this->replaying || this->replayExact || motion.frame != this->game.gameFrames || motion.drawn != value)
@@ -438,7 +443,7 @@ i32 Menu::Shown(std::size_t which, i32 value) const
         return value;
     }
 
-    return static_cast<i32>(std::lround(this->ValueAt(motion, this->replayNow)));
+    return this->ValueAt(motion, this->replayNow);
 }
 
 double Menu::ValueAt(const ValueMotion& motion, u32 now) const
@@ -451,6 +456,7 @@ double Menu::ValueAt(const ValueMotion& motion, u32 now) const
 // Whether a value moves on from the frame drawn: a step of this frame not yet taken.
 bool Menu::Moving(u32 now) const
 {
+    constexpr double kStill = 1e-6;  // a value this close to the one drawn shows the frame drawn
     const u32 frame = this->game.gameFrames;
 
     return std::any_of(
@@ -458,7 +464,7 @@ bool Menu::Moving(u32 now) const
         this->motions.end(),
         [this, frame, now](const ValueMotion& motion)
         {
-            return motion.frame == frame && std::lround(this->ValueAt(motion, now)) != motion.drawn;
+            return motion.frame == frame && std::abs(this->ValueAt(motion, now) - motion.drawn) > kStill;
         }
     );
 }

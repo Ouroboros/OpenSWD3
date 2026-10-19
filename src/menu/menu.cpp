@@ -1,5 +1,6 @@
 #include "menu/menu.h"
 
+#include <cmath>
 #include <span>
 #include <string>
 #include <utility>
@@ -743,10 +744,12 @@ void Menu::DrawPageTitle()
     }
 
     this->Move(TitleGlowValue, this->titleGlow, last, this->titleGlow);
-    const i32 glow = this->Shown(TitleGlowValue, this->titleGlow);
+    const double fineGlow = this->ShownFine(TitleGlowValue, this->titleGlow);
+    const i32 glow = static_cast<i32>(std::lround(fineGlow));
+    const auto arrowGlow = static_cast<i32>(std::floor(fineGlow));
     const int spacing = swapped ? kSwappedTitleSpacing : kTitleSpacing;
     this->unk4FC790.direction = swapped ? ActState::Right : ActState::Left;
-    owner.actDrawer.DrawGhost(this->unk4FC790, 0, kTitleArrowY, glow);
+    owner.actDrawer.DrawGhost(this->unk4FC790, 0, kTitleArrowY, arrowGlow, fineGlow - arrowGlow);
     this->unk4FC790.flags &= Painter::RleSource | Painter::Mirror | Painter::Flip;
     this->unk4FBEE0.id = Scene::InterfaceAct;
     const int x = spacing * (this->page - Menu::FirstRolePage) + kTitleX;
@@ -824,7 +827,9 @@ void Menu::DrawRoleTabs(int offset)
         }
 
         this->Move(TabGlowValue + index, glow, glowBefore, glow);
-        const i32 shownGlow = this->Shown(TabGlowValue + index, glow);
+        const double fineGlow = this->ShownFine(TabGlowValue + index, glow);
+        const auto shownGlow = static_cast<i32>(std::floor(fineGlow));
+        const double glowFraction = fineGlow - shownGlow;
 
         const MenuTab& tab = this->tabs[index];
 
@@ -835,13 +840,13 @@ void Menu::DrawRoleTabs(int offset)
 
         const RoleRecord& role = owner.party.roles[index];
         const int x = tab.x - offset;
-        owner.actDrawer.DrawGhost(this->items[index], x, tab.y, shownGlow);
+        owner.actDrawer.DrawGhost(this->items[index], x, tab.y, shownGlow, glowFraction);
         painter.SetClipClamped(0, 0, kBarLength * role.hitPoints / role.maxHitPoints + kBarX, Display::Height);
-        owner.actDrawer.DrawGhost(this->hitPointBar, kBarX - offset, tab.y - kHitPointBarUp, shownGlow);
+        owner.actDrawer.DrawGhost(this->hitPointBar, kBarX - offset, tab.y - kHitPointBarUp, shownGlow, glowFraction);
         painter.SetClipClamped(0, 0, kBarLength * role.spirit / role.maxSpirit + kBarX, Display::Height);
-        owner.actDrawer.DrawGhost(this->spiritBar, kBarX - offset, tab.y - kSpiritBarUp, shownGlow);
+        owner.actDrawer.DrawGhost(this->spiritBar, kBarX - offset, tab.y - kSpiritBarUp, shownGlow, glowFraction);
         painter.SetClipClamped(0, 0, kBarLength * role.stamina / role.maxStamina + kBarX, Display::Height);
-        owner.actDrawer.DrawGhost(this->staminaBar, kBarX - offset, tab.y + kStaminaBarDown, shownGlow);
+        owner.actDrawer.DrawGhost(this->staminaBar, kBarX - offset, tab.y + kStaminaBarDown, shownGlow, glowFraction);
         owner.mediumFont.DrawText(
             painter.Target(),
             x - kNameLeft,

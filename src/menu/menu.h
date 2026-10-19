@@ -341,6 +341,8 @@ public:
     // Where value `which` is shown when the frame drew `value`: that value in a frame; between frames how far its step
     // has gone (the value drawn when it took no step).
     i32 Shown(std::size_t which, i32 value) const;
+    // The same unrounded (a glow drawn between two translucency levels).
+    double ShownFine(std::size_t which, i32 value) const;
     // The drawing of the menu frame (the main menu or the shop) starts: the state it reads and the screen under it are
     // kept; its end: whether the frames between it and the next can paint it again.
     void KeepFrame();

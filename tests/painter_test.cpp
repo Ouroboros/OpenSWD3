@@ -262,3 +262,35 @@ TEST_CASE("painter: the grey effect draws without a tint option")
     painter.DrawPicture(kPictureX, kPictureY, 1, 1, Painter::GrayUnder);
     CHECK(screen.Row(kPictureY)[kPictureX] != kBackground);
 }
+
+TEST_CASE("painter: a translucency fraction mixes two levels and keeps a whole level as it was")
+{
+    constexpr int kLevel = 7;
+    Surface screen(Display::Width, Display::Height);
+    screen.Fill(kBackground);
+    Painter painter;
+    painter.Init(screen);
+    painter.SetTarget(screen.Pixels());
+    const std::vector<u16> pixels = {kPixelA, kPixelB};
+    const auto picture =
+        RlePicture(static_cast<int>(pixels.size()), {{static_cast<u16>(pixels.size()), kPixelA, kPixelB}});
+    const auto width = static_cast<int>(pixels.size());
+
+    auto draw = [&](int row, int level, double fraction)
+    {
+        painter.SetSource(picture.data());
+        painter.Options().alpha = level;
+        painter.Options().alphaFraction = fraction;
+        painter.DrawPicture(kPictureX, kPictureY + row, width, 1, Painter::Translucent);
+        return std::vector<u16>(
+            screen.Row(kPictureY + row) + kPictureX,
+            screen.Row(kPictureY + row) + kPictureX + width
+        );
+    };
+
+    const std::vector<u16> low = draw(0, kLevel, 0.0);
+    const std::vector<u16> high = draw(1, kLevel + 1, 0.0);
+    CHECK(low != high);
+    CHECK(draw(2, kLevel, 1.0) == high);
+    CHECK_EQ(painter.Options().alphaFraction, 0.0);
+}

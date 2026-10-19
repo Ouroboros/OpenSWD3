@@ -34,6 +34,9 @@ struct DrawOptions
     int scaleHeight = 0;  // output height of the vertically scaled effects (0: unscaled)
     int shear = 0;        // horizontal shear over the picture height (kShadow)
     int alpha = 0;        // kTranslucent level 1..15
+    // The rebuild's smooth motion (a menu frame painted between frames): a translucent draw that far (0..1) from
+    // `alpha` towards the next level, the colours of the two levels mixed.
+    double alphaFraction = 0.0;
 };
 
 // One colour channel of the display format.
@@ -275,6 +278,8 @@ private:
 
     // Pixel helpers.
     u16 Blend(u16 dest, u16 source, int level) const;
+    // Blend at `level`, or between it and the next level by DrawOptions::alphaFraction.
+    u16 BlendFine(u16 dest, u16 source, int level) const;
     u16 AlphaBlend(u16 dest, u16 source, int level) const;
     u32 AlphaBlendPair(u32 dest, u32 source, int level) const;
     Tint MakeTint(int red, int green, int blue) const;

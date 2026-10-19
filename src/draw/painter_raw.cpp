@@ -145,7 +145,7 @@ int Painter::BlitRawTranslucent(int, int, int width, int, const DrawArgument&)
 
             if (pixel != key)
             {
-                dest[column] = this->Blend(dest[column], pixel, level);
+                dest[column] = this->BlendFine(dest[column], pixel, level);
             }
         }
 

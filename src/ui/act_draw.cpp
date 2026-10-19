@@ -134,7 +134,7 @@ void ActDrawer::DrawCounter(int right, int y, u32 value, int alpha)
 }
 
 // swd32.exe 0x0043B080: translucent at `alpha`, keeping only the mirror bits of the script's mode
-void ActDrawer::DrawGhost(ActState& state, int x, int y, int alpha)
+void ActDrawer::DrawGhost(ActState& state, int x, int y, int alpha, double alphaFraction)
 {
     if (this->acts.Run(state) == 0)
     {
@@ -156,6 +156,7 @@ void ActDrawer::DrawGhost(ActState& state, int x, int y, int alpha)
 
     this->painter.SetSource(picture->data.data());
     this->painter.Options().alpha = alpha;
+    this->painter.Options().alphaFraction = alphaFraction;
     this->painter.DrawPicture(
         x - state.x,
         y - state.y,

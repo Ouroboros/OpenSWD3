@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <utility>
 
@@ -87,6 +88,29 @@ u16 Painter::Blend(u16 dest, u16 source, int level) const
         (half & this->halfMaskPairs[kHalfShift - 1]) + (quarter & this->halfMaskPairs[kQuarterShift - 1]) +
         (eighth & this->halfMaskPairs[kEighthShift - 1]) + (sixteenth & this->halfMaskPairs[kSixteenthShift - 1])
     );
+}
+
+u16 Painter::BlendFine(u16 dest, u16 source, int level) const
+{
+    const u16 low = this->Blend(dest, source, level);
+    const double fraction = this->options.alphaFraction;
+
+    if (fraction <= 0.0)
+    {
+        return low;
+    }
+
+    const u16 high = this->Blend(dest, source, level + 1);
+    u32 mixed = 0;
+
+    for (const ColorChannel* channel : {&this->red, &this->green, &this->blue})
+    {
+        const auto from = static_cast<double>((low & channel->mask) >> channel->shift);
+        const auto to = static_cast<double>((high & channel->mask) >> channel->shift);
+        mixed |= (static_cast<u32>(std::lround(from + (to - from) * fraction)) << channel->shift) & channel->mask;
+    }
+
+    return static_cast<u16>(mixed);
 }
 
 // The alpha map holds premultiplied sources: the destination terms 1/2, 1/4, 1/8 and 1/16 are added for the bits
@@ -990,7 +1014,7 @@ int Painter::BlitTranslucent(int, int, int, int, const DrawArgument&)
             {
                 for (int i = 0; i < count; ++i)
                 {
-                    at[i] = this->Blend(at[i], Word(pixels, i), level);
+                    at[i] = this->BlendFine(at[i], Word(pixels, i), level);
                 }
             }
         }
@@ -1012,7 +1036,7 @@ int Painter::BlitTranslucentMirrored(int, int, int width, int, const DrawArgumen
             {
                 for (int i = 0; i < count; ++i)
                 {
-                    at[-1 - i] = this->Blend(at[-1 - i], Word(pixels, i), level);
+                    at[-1 - i] = this->BlendFine(at[-1 - i], Word(pixels, i), level);
                 }
             }
         }
