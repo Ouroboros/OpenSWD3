@@ -15,6 +15,7 @@
 #include "battle/battle_services.h"
 #include "battle/battle_state.h"
 #include "battle/battle_unit_constants.h"
+#include "battle/smooth/smooth_projector.h"
 #include "battle/smooth/smooth_unit.h"
 #include "config/config.h"
 #include "core/format.h"
@@ -130,6 +131,31 @@ constexpr i16 kWaveEnd = 0x2D;
 constexpr int kWaveShare = 3;
 constexpr i16 kZoomEnd = 0x1E;
 constexpr i16 kZoomStep = 2;
+constexpr i16 kParticlesStarted = 0x65;
+constexpr i32 kBurstTarget = 2;
+constexpr u16 kBurstSpeed = 0x32;
+constexpr u16 kBurstLife = 0xFA;
+constexpr u16 kBurstDivisor = 0xA;
+constexpr i32 kSweepLeft = -0x1E;
+constexpr i32 kSweepRight = 0x29E;
+constexpr i32 kSweepAbove = 0xA;
+constexpr u16 kSweepSpeed = 0x64;
+constexpr u16 kSweepLife = 0x64;
+constexpr i32 kProjectedAngle = 0x5A;
+constexpr i16 kProjectedStep = 2;
+constexpr i32 kProjectedTint = 5;
+constexpr i32 kProjectedGrowth = 4;
+constexpr i32 kWobbles = 6;
+constexpr i16 kWobbleTop = 0x18;
+constexpr i16 kWobbleBottom = -8;
+constexpr i16 kWobbleRise = 4;
+constexpr i32 kStripRight = 0x154;
+constexpr i32 kStripWidth = 0x140;
+constexpr u16 kStripSpeed = 0x18;
+constexpr u16 kStripLife = 0x64;
+constexpr u16 kStripDivisor = 0x28;
+constexpr i32 kStripTint = 0xF;
+constexpr int kShakeSpan = 3;
 }  // namespace
 
 UnitFrame::UnitFrame(BattleUnit& unit)
@@ -2900,6 +2926,128 @@ int UnitFrame::Home(BattleServices& services, const BattleUnit& target, i32 id, 
     return result;
 }
 
+void UnitFrame::Idle(BattleServices& services, int paused, Scene& scene)
+{
+    IdleView view;
+
+    if (!this->IdleAdvance(services, paused, view))
+    {
+        return;
+    }
+
+    scene.Add(
+        [view](BattleServices& drawing)
+        {
+            const PaintRecord::Motion moving({view.motion[0], view.motion[1]});
+            UnitFrame::IdleDraw(drawing, view);
+        }
+    );
+
+    if (view.thrownLost)
+    {
+        return;
+    }
+
+    PictureSteps steps;
+    this->IdleEffectAdvance(services, steps);
+    scene.Add(std::move(steps));
+    steps = PictureSteps{};
+    this->FollowUpAdvance(services, steps);
+    scene.Add(std::move(steps));
+    steps = PictureSteps{};
+    this->EffectsAdvance(services, view.x, view.y, view.picture, steps);
+    scene.Add(std::move(steps));
+}
+
+void UnitFrame::Walk(BattleServices& services, const BattleUnit& target, Scene& scene)
+{
+    WalkView view;
+
+    if (!this->WalkAdvance(services, target, view))
+    {
+        return;
+    }
+
+    scene.Add(
+        [view](BattleServices& drawing)
+        {
+            const PaintRecord::Motion moving(view.motion);
+            UnitFrame::DrawWalk(drawing, view);
+        }
+    );
+}
+
+int UnitFrame::Hurt(BattleServices& services, Scene& scene)
+{
+    HurtView view;
+    int result = 0;
+
+    if (!this->HurtAdvance(services, view, result))
+    {
+        return result;
+    }
+
+    scene.Add(
+        [view](BattleServices& drawing)
+        {
+            UnitFrame::HurtDrawBody(drawing, view);
+        }
+    );
+    PictureSteps steps;
+    this->EffectsAdvance(services, view.x, view.y, view.picture, steps);
+
+    if (!steps.empty())
+    {
+        scene.Add(
+            [steps = std::move(steps), motion = view.bodyMotion](BattleServices& drawing)
+            {
+                const PaintRecord::Motion moving(motion);
+                DrawSteps(drawing, steps);
+            }
+        );
+    }
+
+    const bool finished = this->HurtAdvanceTail(services, view);
+    scene.Add(
+        [view](BattleServices& drawing)
+        {
+            UnitFrame::HurtDrawTail(drawing, view);
+        }
+    );
+
+    if (!finished)
+    {
+        return 0;
+    }
+
+    return this->HurtStep(services);
+}
+
+int UnitFrame::Numbers(BattleServices& services, Scene& scene)
+{
+    NumbersView view;
+    const int result = this->NumbersAdvance(services, view);
+    scene.Add(
+        [view = std::move(view)](BattleServices& drawing)
+        {
+            UnitFrame::DrawNumbers(drawing, view);
+        }
+    );
+    return result;
+}
+
+void UnitFrame::Guard(Scene& scene)
+{
+    GuardView view;
+    this->GuardAdvance(view);
+    scene.Add(
+        [view](BattleServices& drawing)
+        {
+            UnitFrame::DrawGuard(drawing, view);
+        }
+    );
+}
+
 // What BattleUnit::DrawActionAt decides of the frame; the draws into `scene`.
 void UnitFrame::DrawActionAtAdvance(BattleServices& services, i16 x, i16 y, ActState& act, Scene& scene)
 {
@@ -3490,8 +3638,7 @@ void UnitFrame::DrawEffectIconsAdvance(BattleServices& services, int x, int y, S
             if (unit.picture != nullptr)
             {
                 painter.SetSource(unit.picture->data.data());
-                services.painter
-                    .DrawPicture(x + count * unit.picture->width, y, unit.picture->width, unit.picture->height, 0);
+                painter.DrawPicture(x + count * unit.picture->width, y, unit.picture->width, unit.picture->height, 0);
             }
 
             ++count;
@@ -4177,6 +4324,252 @@ int UnitFrame::DefeatZoomAdvance(BattleServices& services, const Picture& pictur
     unit.slotTint = static_cast<i16>(unit.slotTint + kZoomStep);
     ++unit.glowLevel;
     return 0;
+}
+
+// What BattleUnit::RunDefeatParticles decides of the frame; the draws into `scene`.
+int UnitFrame::RunDefeatParticlesAdvance(BattleServices& services, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+
+    if (ExplosionFrame(services.state.projector)
+            .Explosion(services.screen, services.painter, services.crtRandom, unit.absorb, scene) == 1)
+    {
+        unit.glowLevel = kParticlesDone;
+    }
+
+    return 0;
+}
+
+// What BattleUnit::DefeatBurst decides of the frame; the draws into `scene`.
+int UnitFrame::DefeatBurstAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+
+    if (unit.glowLevel == kParticlesDone)
+    {
+        return unit.EndParticleDefeat(services);
+    }
+
+    if (unit.absorbPixels.empty())
+    {
+        ParticleEffect& effect = unit.absorb;
+        effect = ParticleEffect{};
+        unit.DecodeForParticles(services, picture);
+        effect.width = picture.width;
+        effect.height = picture.height;
+        effect.x = x;
+        effect.y = y;
+        effect.flags = static_cast<u16>(effect.flags | ParticleEffect::Mixed);
+        effect.bursts = 1;
+        effect.divisor = kBurstDivisor;
+
+        if (unit.defeatPose == kBurstPose)
+        {
+            effect.targetLeft = x + (picture.width >> 1);
+            effect.targetTop = y + (picture.height >> 1);
+            effect.targetWidth = kBurstTarget;
+            effect.targetHeight = kBurstTarget;
+            effect.speed = kBurstSpeed;
+            effect.lifeBase = kBurstLife;
+        }
+        else
+        {
+            effect.targetLeft = unit.facing == 1 ? kSweepRight : kSweepLeft;
+            effect.targetTop = y - kSweepAbove;
+            effect.targetWidth = kBurstTarget;
+            effect.targetHeight = picture.height + kSweepAbove;
+            effect.speed = kSweepSpeed;
+            effect.lifeBase = kSweepLife;
+        }
+
+        if (unit.Mirrored() == 1)
+        {
+            effect.flags = static_cast<u16>(effect.flags | ParticleEffect::Mirrored);
+        }
+
+        services.state.projector.SetScreen(Display::Width, Display::Height);
+
+        if (unit.defeatPose == kBurstPose)
+        {
+            unit.castAct.view = kDefeatSound;
+        }
+
+        services.audio.PlaySound(kDefeatSound, services.config.soundVolume);
+        unit.glowLevel = 1;
+    }
+
+    return this->RunDefeatParticlesAdvance(services, scene);
+}
+
+// What BattleUnit::DefeatParticles decides of the frame; the draws into `scene`.
+int UnitFrame::DefeatParticlesAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+
+    if (unit.glowLevel == kParticlesDone)
+    {
+        return unit.EndParticleDefeat(services);
+    }
+
+    if (unit.glowLevel == 0)
+    {
+        if (unit.throwSteps >= kWobbles)
+        {
+            unit.recoilTint = 0;
+            unit.glowLevel = 1;
+            unit.throwSteps = 0;
+            return 0;
+        }
+
+        if (unit.recoilTint == kWobbleTop)
+        {
+            services.audio.PlaySound(kWobbleSound, services.config.soundVolume);
+        }
+
+        ScenePainter painter(services, scene);
+        painter.SetSource(picture.data.data());
+        DrawOptions& options = painter.Options();
+        options.tintRed = unit.recoilTint;
+        options.tintGreen = unit.recoilTint;
+        options.tintBlue = unit.recoilTint;
+        painter.DrawPicture(
+            unit.placement.x - static_cast<i16>(unit.originX),
+            unit.placement.y - unit.mainAct.y,
+            picture.width,
+            picture.height,
+            unit.drawFlags | Painter::Additive
+        );
+        const i32 wobble = unit.throwSteps;
+
+        if (wobble % 2 != 0)
+        {
+            --unit.recoilTint;
+        }
+        else
+        {
+            unit.recoilTint = static_cast<i16>(unit.recoilTint + kWobbleRise);
+        }
+
+        if (unit.recoilTint >= kWobbleTop || unit.recoilTint <= kWobbleBottom)
+        {
+            unit.throwSteps = wobble + 1;
+        }
+
+        return 0;
+    }
+
+    if (unit.absorbPixels.empty())
+    {
+        ParticleEffect& effect = unit.absorb;
+        effect = ParticleEffect{};
+        unit.DecodeForParticles(services, picture);
+        effect.width = picture.width;
+        effect.height = picture.height;
+        effect.x = x;
+        effect.y = y;
+        effect.targetLeft = unit.facing == 1 ? kStripRight : 0;
+        effect.targetTop = 1;
+        effect.targetWidth = kStripWidth;
+        effect.targetHeight = 1;
+        effect.speed = kStripSpeed;
+        effect.lifeBase = kStripLife;
+        effect.bursts = static_cast<u16>(picture.height >> 2);
+        effect.divisor = kStripDivisor;
+        effect.flags = kStripFlags;
+
+        if (unit.Mirrored() == 1)
+        {
+            effect.flags = static_cast<u16>(effect.flags | ParticleEffect::Mirrored);
+        }
+
+        effect.tintRed = kStripTint;
+        effect.tintGreen = kStripTint;
+        effect.tintBlue = kStripTint;
+        services.state.projector.SetScreen(Display::Width, Display::Height);
+        services.audio.PlaySound(kDefeatSound, services.config.soundVolume);
+        unit.glowLevel = kParticlesStarted;
+    }
+
+    ++unit.glowLevel;
+    unit.absorb.x = x + unit.glowLevel % kShakeSpan;
+    return this->RunDefeatParticlesAdvance(services, scene);
+}
+
+// What BattleUnit::DefeatProjected decides of the frame; the draws into `scene`.
+int UnitFrame::DefeatProjectedAdvance(BattleServices& services, const Picture& picture, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+
+    if (unit.glowLevel >= kParticlesDone)
+    {
+        unit.glowLevel = 0;
+        return unit.EndDefeat(services);
+    }
+
+    ProjectedPicture& projected = unit.projected;
+
+    if (unit.glowLevel == 0)
+    {
+        projected.scaleX = kZoomUnit;
+        projected.scaleY = kZoomUnit;
+        projected.unk08 = picture.width >> 1;
+        projected.unk0C = picture.height;
+        projected.width = picture.width;
+        projected.height = picture.height;
+        projected.flags = ProjectedPicture::Mixed;
+        projected.x = unit.placement.x - (picture.width >> 1);
+        projected.y = unit.placement.y;
+
+        if (unit.Mirrored() == 1)
+        {
+            projected.flags = static_cast<u16>(projected.flags | ProjectedPicture::Mirrored);
+        }
+
+        projected.angle = kProjectedAngle;
+        unit.projectedPixels.clear();
+        const std::optional<RawPicture> raw = RleCodec(services.painter).Decode(picture.data);
+
+        if (raw.has_value())
+        {
+            unit.projectedPixels.resize(raw->pixels.size() / sizeof(u16));
+            std::memcpy(unit.projectedPixels.data(), raw->pixels.data(), unit.projectedPixels.size() * sizeof(u16));
+        }
+
+        projected.pixels = unit.projectedPixels;
+        const u16 sound = unit.castAct.view;
+        unit.standAct.view = kDefeatSound;
+        services.audio.PlaySound(sound, services.config.soundVolume);
+    }
+
+    unit.glowLevel = static_cast<i16>(unit.glowLevel + kProjectedStep);
+    projected.tintRed = kProjectedTint;
+    projected.tintGreen = kProjectedTint;
+    projected.tintBlue = kProjectedTint;
+    projected.scaleX += kProjectedGrowth;
+    projected.scaleY += kProjectedGrowth;
+    ExplosionFrame(services.state.projector).Scaled(services.screen, services.painter, projected, scene);
+    return 0;
+}
+
+// What BattleUnit::DrainEffectFrame decides of the frame; the draws into `scene`.
+int UnitFrame::DrainEffectFrameAdvance(BattleServices& services, int slot, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+    ParticleEffect& effect = unit.drains[static_cast<std::size_t>(slot)];
+    effect.tintRed = kDrainTint;
+    effect.tintGreen = kDrainTint;
+    effect.tintBlue = kDrainTint;
+    unit.absorbing = 1;
+
+    if (ExplosionFrame(services.state.projector)
+            .Explosion(services.screen, services.painter, services.crtRandom, effect, scene) != 1)
+    {
+        return 0;
+    }
+
+    unit.drainPixels[static_cast<std::size_t>(slot)].clear();
+    effect = ParticleEffect{};
+    return 1;
 }
 
 }  // namespace swd3::smooth

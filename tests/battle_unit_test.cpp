@@ -86,6 +86,8 @@ struct Services
         this->painter.Init(this->screen);
         this->painter.SetTarget(this->screen.Pixels());
         this->painter.SetClipClamped(0, 0, swd3::Display::Width, swd3::Display::Height);
+        this->hud.Attach(this->services);
+        this->messages.Attach(this->services);
     }
 
     swd3::Surface screen;

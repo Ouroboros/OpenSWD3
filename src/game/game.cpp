@@ -323,6 +323,8 @@ Game::Game(std::u8string installDirectory)
 {
     this->config.installDirectory = std::move(installDirectory);
     this->archive.SetMapPictureSource(&this->field);
+    this->battleHud.Attach(this->battleServices);
+    this->battleMessages.Attach(this->battleServices);
     this->archive.SetAudioServe(
         [this]
         {

@@ -9,6 +9,7 @@
 #include "battle/battle_role_constants.h"
 #include "battle/battle_services.h"
 #include "battle/battle_state.h"
+#include "battle/smooth/smooth_projector.h"
 #include "battle/smooth/smooth_unit.h"
 #include "config/config.h"
 #include "core/words.h"
@@ -70,6 +71,25 @@ constexpr u32 kLeapHome = 3;
 constexpr i32 kLeapReturnAction = 2;  // the walk home takes the action two after the magic act's
 constexpr u32 kLeapReturning = 2;
 constexpr int kSpeedingFlight = -1;  // FlyAct: the steps double each frame
+constexpr i32 kSparkAct = 0x186A;
+constexpr std::size_t kSparkColumnShift = 2;  // the sparks start a quarter across the picture
+
+// AbsorbFrame: the sparks (extra acts) beside the absorb; the first flies every frame, each other from its frame on.
+struct Spark
+{
+    i16 fromFrame = 0;
+    i32 action = 0;
+    int offsetY = 0;  // from the top of the picture still left
+    int steps = 0;
+};
+
+constexpr std::array<Spark, BattleRole::ExtraActs> kSparks = {{
+    {0, 1, -5, 0xE},
+    {10, 2, -10, 0xA},
+    {20, 3, -15, 0xC},
+    {30, 1, 0, 8},
+    {40, 1, 5, 0x10},
+}};
 }  // namespace
 
 RoleFrame::RoleFrame(BattleRole& role)
@@ -90,7 +110,7 @@ int RoleFrame::AttackAdvance(BattleServices& services, BattleUnit& target, int s
     }
 
     if (role.unk2B00 == 1 && (role.command.flags & UnitCommand::FadesIn) != 0 && role.fadedIn == 0 &&
-        role.DrawFadeIn(services, target) == 0)
+        UnitFrame(role).DrawFadeInAdvance(services, target, scene) == 0)
     {
         role.fadedIn = 1;
         return 0;
@@ -2167,6 +2187,61 @@ int RoleFrame::LeapSpellFrameAdvance(BattleServices& services, BattleUnit& targe
     role.unk267C = 0;
     magic = ActState{};
     return 1;
+}
+
+// What BattleRole::AbsorbFrame decides of the frame; the draws into `scene`.
+int RoleFrame::AbsorbFrameAdvance(BattleServices& services, Scene& scene)
+{
+    BattleRole& role = this->role;
+    ParticleEffect& effect = role.absorb;
+    ++role.absorbFrames;
+    effect.tintRed = kAbsorbTint;
+    effect.tintGreen = kAbsorbTint;
+    effect.tintBlue = kAbsorbTint;
+    role.absorbing = 1;
+
+    if (ExplosionFrame(services.state.projector)
+            .Explosion(services.screen, services.painter, services.crtRandom, effect, scene) == 1)
+    {
+        role.absorbFrames = 0;
+        role.absorbing = 0;
+        role.absorbPixels.clear();
+        effect = ParticleEffect{};
+        role.extraSteps.fill(0);
+        role.flight = LineWalker{};
+        role.attackAct = ActState{};
+        return 1;
+    }
+
+    if (effect.bursts == 0)
+    {
+        return 0;
+    }
+
+    for (std::size_t slot = 0; slot < kSparks.size(); ++slot)
+    {
+        const Spark& spark = kSparks[slot];
+
+        if (slot != 0 && role.absorbFrames < spark.fromFrame)
+        {
+            continue;
+        }
+
+        const int x = effect.x + (effect.width >> kSparkColumnShift);
+        const int y = effect.height - effect.bursts + effect.y + spark.offsetY;
+        this->FlyExtraActAdvance(
+            services,
+            kSparkAct,
+            spark.action,
+            static_cast<int>(slot),
+            static_cast<i16>(x),
+            static_cast<i16>(y),
+            spark.steps,
+            scene
+        );
+    }
+
+    return 0;
 }
 
 }  // namespace swd3::smooth

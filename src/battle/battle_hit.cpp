@@ -77,7 +77,7 @@ int Game::PlayHitAct(BattleUnit& unit, u32 act, int index)
 {
     smooth::Scene scene;
     const auto result = smooth::HitFrame(*this).PlayHitActAdvance(unit, act, index, scene);
-    scene.DrawAll(this->battleServices);
+    scene.Show(this->battleServices);
     return result;
 }
 
@@ -88,7 +88,7 @@ int Game::FadeHitAct(BattleUnit& unit, u32 act, i32 action, int index)
 {
     smooth::Scene scene;
     const auto result = smooth::HitFrame(*this).FadeHitActAdvance(unit, act, action, index, scene);
-    scene.DrawAll(this->battleServices);
+    scene.Show(this->battleServices);
     return result;
 }
 
@@ -273,7 +273,7 @@ int Game::HitTargetFrame(BattleUnit& target, BattleUnit& attacker, u32 act, int 
 {
     smooth::Scene scene;
     const auto result = smooth::HitFrame(*this).HitTargetFrameAdvance(target, attacker, act, index, scene);
-    scene.DrawAll(this->battleServices);
+    scene.Show(this->battleServices);
     return result;
 }
 
@@ -283,7 +283,7 @@ void Game::RippleHitFrame(BattleUnit& target, BattleUnit& attacker, int index, u
 {
     smooth::Scene scene;
     smooth::HitFrame(*this).RippleHitFrameAdvance(target, attacker, index, targetX, scene);
-    scene.DrawAll(this->battleServices);
+    scene.Show(this->battleServices);
 }
 
 // The picture of HitTargetFrame (inline in the original); see there. The act runs a step (false once it ends: the
@@ -295,7 +295,7 @@ bool Game::DrawHitPicture(BattleUnit& target, BattleUnit& attacker, u32 act, int
     smooth::Scene scene;
     const auto result =
         smooth::HitFrame(*this).DrawHitPictureAdvance(target, attacker, act, index, x, y, originX, scene);
-    scene.DrawAll(this->battleServices);
+    scene.Show(this->battleServices);
     return result;
 }
 
@@ -432,7 +432,7 @@ int Game::HitAllFrame(BattleUnit& target, BattleUnit& attacker, u32 act, int ind
 {
     smooth::Scene scene;
     const auto result = smooth::HitFrame(*this).HitAllFrameAdvance(target, attacker, act, index, all, scene);
-    scene.DrawAll(this->battleServices);
+    scene.Show(this->battleServices);
     return result;
 }
 
@@ -794,7 +794,9 @@ int Game::HitFrame()
 // the client area holds (written from the start of the frame without its pitch).
 void Game::FlashFrameWhite()
 {
-    std::fill_n(this->drawSurface, static_cast<std::size_t>(Display::Width) * Display::Height, kWhitePixel);
+    smooth::Scene scene;
+    smooth::FillScreen(kWhitePixel, static_cast<std::size_t>(Display::Width) * Display::Height, scene);
+    scene.Show(this->battleServices);
 }
 
 // The damage of the last hit cleared (inline in 0x0045C010).

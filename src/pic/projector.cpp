@@ -1,5 +1,7 @@
 #include "pic/projector.h"
 
+#include "battle/smooth/smooth_projector.h"
+
 #include <cmath>
 
 #include "crt/msvc.h"
@@ -23,11 +25,9 @@ constexpr int kQuarterTurn = 90;  // the direction tables are in degrees
 constexpr int kHalfTurn = 2 * kQuarterTurn;
 constexpr int kThreeQuarterTurn = 3 * kQuarterTurn;
 constexpr int kFullTurn = 4 * kQuarterTurn;
-constexpr i32 kSlopeUnit = 1000;       // a direction steps kSlopeUnit across
-constexpr i32 kSteepSlope = 100000;    // the slope of a straight up or down direction
-constexpr int kScaleBits = 10;         // Picture scales are in 1/1024
-constexpr std::size_t kLowerLeft = 2;  // a particle is two by two pixels
-constexpr std::size_t kLowerRight = 3;
+constexpr i32 kSlopeUnit = 1000;     // a direction steps kSlopeUnit across
+constexpr i32 kSteepSlope = 100000;  // the slope of a straight up or down direction
+constexpr int kScaleBits = 10;       // Picture scales are in 1/1024
 
 void FillRows(std::vector<i32>& table, int width, int height)
 {
@@ -516,212 +516,14 @@ int Projector::ParticlePut(ParticleEffect& effect, int count, const Painter& pai
 // its life ends or it reached the target rectangle. Returns 1 when everything is gone. The mirrored picture is
 // clipped at x + width - column but drawn at x + column, and a mixed particle's top right pixel is written again
 // unmixed. Removing the last particle makes the one before it the next free particle (the next burst overwrites it).
+// The rebuild's smooth battle splits it into what it decides and what it draws (smooth::ExplosionFrame).
 int Projector::DrawExplosion(u16* screen, Painter& painter, crt::Random& random, ParticleEffect& effect)
 {
-    const u16 fill = painter.Rle().fill16;
-    const u16 skip = painter.Rle().skip16;
-    const int x = effect.x;
-    int y = effect.y;
-
-    if (effect.started == 0)
-    {
-        random.Seed(static_cast<u32>(crt::Time()));
-        DrawOptions& options = painter.Options();
-        options.tintRed = effect.tintRed;
-        options.tintGreen = effect.tintGreen;
-        options.tintBlue = effect.tintBlue;
-        const int pixelCount = effect.height * effect.width;
-        effect.pixelCount = pixelCount;
-        effect.particles = 0;
-        effect.started = 1;
-        effect.opaque = 0;
-
-        for (int i = 0; i < pixelCount; ++i)
-        {
-            const u16 pixel = effect.pixels[static_cast<std::size_t>(i)];
-
-            if (pixel != fill && pixel != skip)
-            {
-                ++effect.opaque;
-            }
-        }
-
-        effect.slowLimit = effect.opaque / Projector::SlowShare;
-        effect.burstStep = pixelCount / effect.bursts;
-    }
-
-    if (effect.bursts > 0 && effect.particles < effect.opaque / effect.divisor)
-    {
-        this->ParticlePut(effect, effect.pixelCount / effect.bursts, painter, random);
-    }
-
-    if (effect.particles <= 0 && effect.bursts == 0)
-    {
-        return 1;
-    }
-
-    u16* pixels = screen;
-
-    if (effect.bursts >= 1)
-    {
-        const bool mirrored = (effect.flags & ParticleEffect::Mirrored) != 0;
-        std::size_t row = 0;
-
-        for (int line = 0; line < effect.height - 1; ++line, ++y)
-        {
-            for (int column = 0; column < effect.width; ++column)
-            {
-                const int sourceColumn = mirrored ? effect.width - column : column;
-                const int clipX = mirrored ? sourceColumn + x : column + x;
-
-                if (clipX < 0 || clipX >= this->screenWidth || y < 0 || y >= this->screenHeight)
-                {
-                    continue;
-                }
-
-                const u16 pixel = effect.pixels[row + static_cast<std::size_t>(sourceColumn)];
-
-                if (pixel == fill || pixel == skip)
-                {
-                    continue;
-                }
-
-                u16& target = pixels[this->screenRows[static_cast<std::size_t>(y)] + column + x];
-
-                if ((effect.flags & ParticleEffect::Mixed) != 0)
-                {
-                    Mix(painter, pixel, target);
-                }
-                else
-                {
-                    target = pixel;
-                }
-            }
-
-            row += effect.width;
-        }
-    }
-
-    for (auto particle = effect.list.begin(); particle != effect.list.end();)
-    {
-        if (effect.particles <= effect.slowLimit)
-        {
-            const int speed = effect.speed;
-            particle->speed = random.Next() % speed + speed;
-        }
-
-        for (int step = 0; step < particle->speed; ++step)
-        {
-            LineStep(particle->walker);
-        }
-
-        particle->life -= particle->speed;
-        const int px = particle->walker.x;
-        const int py = particle->walker.y;
-        bool remove = particle->life <= 0;
-
-        if (!remove && px >= effect.targetLeft && py >= effect.targetTop &&
-            px < effect.targetWidth + effect.targetLeft && py < effect.targetHeight + effect.targetTop)
-        {
-            remove = true;
-        }
-
-        if (!remove)
-        {
-            const bool mixed = (effect.flags & ParticleEffect::Mixed) != 0;
-
-            if (px + 1 >= 0 && px + 1 < this->screenWidth && py >= 0 && py < this->screenHeight)
-            {
-                u16* line = pixels + this->screenRows[static_cast<std::size_t>(py)] + px;
-
-                if (mixed)
-                {
-                    if (particle->pixels[0] != fill)
-                    {
-                        Mix(painter, particle->pixels[0], line[0]);
-                    }
-
-                    if (particle->pixels[1] != fill)
-                    {
-                        Mix(painter, particle->pixels[1], line[1]);
-                    }
-
-                    line[1] = particle->pixels[1];
-                }
-                else
-                {
-                    if (particle->pixels[0] != fill)
-                    {
-                        line[0] = particle->pixels[0];
-                    }
-
-                    if (particle->pixels[1] != fill)
-                    {
-                        line[1] = particle->pixels[1];
-                    }
-                }
-            }
-
-            if (px + 1 >= 0 && px + 1 < this->screenWidth && py + 1 >= 0 && py + 1 < this->screenHeight)
-            {
-                u16* line = pixels + this->screenRows[static_cast<std::size_t>(py + 1)] + px;
-
-                if (mixed)
-                {
-                    if (particle->pixels[kLowerLeft] != fill)
-                    {
-                        Mix(painter, particle->pixels[kLowerLeft], line[0]);
-                    }
-
-                    if (particle->pixels[kLowerRight] != fill)
-                    {
-                        Mix(painter, particle->pixels[kLowerRight], line[1]);
-                    }
-                }
-                else
-                {
-                    if (particle->pixels[kLowerLeft] != fill)
-                    {
-                        line[0] = particle->pixels[kLowerLeft];
-                    }
-
-                    if (particle->pixels[kLowerRight] != fill)
-                    {
-                        line[1] = particle->pixels[kLowerRight];
-                    }
-                }
-            }
-
-            ++particle;
-            continue;
-        }
-
-        const bool first = particle == effect.list.begin();
-        const bool last = std::next(particle) == effect.list.end();
-
-        if (first && last)
-        {
-            effect.list.clear();
-            effect.tail = effect.list.end();
-            effect.particles = 0;
-            return 0;
-        }
-
-        if (!first && last)
-        {
-            effect.tail = std::prev(particle);
-        }
-        else if (effect.tail == particle)
-        {
-            effect.tail = effect.list.end();
-        }
-
-        particle = effect.list.erase(particle);
-        --effect.particles;
-        --effect.opaque;
-    }
-
-    return 0;
+    smooth::ExplosionView view;
+    smooth::ExplosionFrame parts(*this);
+    const int result = parts.Advance(painter, random, effect, view);
+    parts.Draw(screen, painter, view);
+    return result;
 }
 
 }  // namespace swd3

@@ -44,4 +44,5 @@ constexpr i32 kThrownAct = 0x186B;
 constexpr i16 kBeamGlowEnd = -0x1E;
 constexpr i32 kImpactAct = 0x1F88;
 constexpr i32 kRiseAct = 0x17FE;
+constexpr i32 kAbsorbTint = 5;
 }  // namespace swd3

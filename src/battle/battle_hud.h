@@ -6,6 +6,13 @@
 #include "core/types.h"
 #include "res/act_state.h"
 
+namespace swd3::smooth
+{
+
+class HudFrame;
+
+}  // namespace swd3::smooth
+
 namespace swd3
 {
 
@@ -14,6 +21,7 @@ class AudioManager;
 class Painter;
 class Random;
 class TswArchive;
+struct BattleServices;
 struct Picture;
 
 // A battle animation loaded picture by picture (0xC4 bytes in the original): its playback, the pictures of its frames
@@ -35,12 +43,18 @@ struct BattleAnimation
 // gauges, numbers, scroll bars, the coin toss and the timing bar, with the small looping animations they keep.
 class BattleHud
 {
+    friend class smooth::HudFrame;
+
 public:
     // The marks of the timing bar (swd32.exe 0x004A74D0).
     static constexpr std::array<u16, 3> TimingMarks = {20, 40, 55};
     static constexpr u32 InitialCoinDelay = 0x10001;
 
     BattleHud(Painter& painter, TswArchive& archive, ActArchive& acts, Random& random, AudioManager& audio);
+
+    // The rebuild's smooth battle: the services its draws are handed to (BattleServices::frame), set once the battle's
+    // services are built.
+    void Attach(BattleServices& battle);
 
     int DrawPictureFrame0(int id, int x, int y);
     int DrawPortrait(u16 index, int x, int y, int dim);
@@ -106,6 +120,7 @@ private:
     ActArchive& acts;
     Random& random;
     AudioManager& audio;
+    BattleServices* services = nullptr;
 };
 
 }  // namespace swd3

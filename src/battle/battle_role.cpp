@@ -96,20 +96,8 @@ constexpr int kAbsorbDown = 0x28;
 constexpr u16 kTallPicture = 100;
 constexpr u16 kShortBurstCut = 10;
 constexpr u16 kAbsorbDivisor = 0x28;
-constexpr i32 kAbsorbTint = 5;
+
 constexpr u16 kAbsorbFlags = ParticleEffect::WithinRange | ParticleEffect::Mixed;
-
-// AbsorbFrame: the sparks (extra acts) beside the absorb; the first flies every frame, each other from its frame on.
-struct Spark
-{
-    i16 fromFrame = 0;
-    i32 action = 0;
-    int offsetY = 0;  // from the top of the picture still left
-    int steps = 0;
-};
-
-constexpr i32 kSparkAct = 0x186A;
-constexpr std::size_t kSparkColumnShift = 2;  // the sparks start a quarter across the picture
 
 // ThrowAct.
 
@@ -239,13 +227,6 @@ constexpr int kFarBelowChance = 80;
 constexpr int kAbsorbChanceBase = 20;
 constexpr int kAbsorbChanceStep = 5;  // less per level above
 constexpr int kBelowChanceStep = 10;  // more per level below
-constexpr std::array<Spark, BattleRole::ExtraActs> kSparks = {{
-    {0, 1, -5, 0xE},
-    {10, 2, -10, 0xA},
-    {20, 3, -15, 0xC},
-    {30, 1, 0, 8},
-    {40, 1, 5, 0x10},
-}};
 
 constexpr u16 kCoinArmour = 0x39D;  // 投幣式鎧甲: the gold pays for the hits
 constexpr int kTenths = 10;
@@ -666,7 +647,7 @@ int BattleRole::AttackFrame(BattleServices& services, BattleUnit& target, int sl
 {
     smooth::Scene scene;
     const int result = smooth::RoleFrame(*this).AttackAdvance(services, target, slot, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -763,7 +744,7 @@ void BattleRole::FlyExtraAct(BattleServices& services, i32 id, i32 action, int s
 {
     smooth::Scene scene;
     smooth::RoleFrame(*this).FlyExtraActAdvance(services, id, action, slot, x, y, steps, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
 }
 
 // swd32.exe 0x00471270: one frame of the absorb; 1 once the picture is gone (its pixels freed, the effect, the extra
@@ -771,53 +752,10 @@ void BattleRole::FlyExtraAct(BattleServices& services, i32 id, i32 action, int s
 // picture's remaining top into the role, one more joining every ten frames.
 int BattleRole::AbsorbFrame(BattleServices& services)
 {
-    ParticleEffect& effect = this->absorb;
-    ++this->absorbFrames;
-    effect.tintRed = kAbsorbTint;
-    effect.tintGreen = kAbsorbTint;
-    effect.tintBlue = kAbsorbTint;
-    this->absorbing = 1;
-
-    if (services.state.projector.DrawExplosion(services.screen, services.painter, services.crtRandom, effect) == 1)
-    {
-        this->absorbFrames = 0;
-        this->absorbing = 0;
-        this->absorbPixels.clear();
-        effect = ParticleEffect{};
-        this->extraSteps.fill(0);
-        this->flight = LineWalker{};
-        this->attackAct = ActState{};
-        return 1;
-    }
-
-    if (effect.bursts == 0)
-    {
-        return 0;
-    }
-
-    for (std::size_t slot = 0; slot < kSparks.size(); ++slot)
-    {
-        const Spark& spark = kSparks[slot];
-
-        if (slot != 0 && this->absorbFrames < spark.fromFrame)
-        {
-            continue;
-        }
-
-        const int x = effect.x + (effect.width >> kSparkColumnShift);
-        const int y = effect.height - effect.bursts + effect.y + spark.offsetY;
-        this->FlyExtraAct(
-            services,
-            kSparkAct,
-            spark.action,
-            static_cast<int>(slot),
-            static_cast<i16>(x),
-            static_cast<i16>(y),
-            spark.steps
-        );
-    }
-
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::RoleFrame(*this).AbsorbFrameAdvance(services, scene);
+    scene.Show(services);
+    return result;
 }
 
 // swd32.exe 0x004717F0: one frame of the thrown act (kThrownAct in the attack act) flying from the role's main act
@@ -828,7 +766,7 @@ int BattleRole::ThrowAct(BattleServices& services, const BattleUnit& target)
 {
     smooth::Scene scene;
     const auto result = smooth::RoleFrame(*this).ThrowActAdvance(services, target, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -840,7 +778,7 @@ int BattleRole::CatchAct(BattleServices& services, const BattleUnit& target)
 {
     smooth::Scene scene;
     const auto result = smooth::RoleFrame(*this).CatchActAdvance(services, target, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -853,7 +791,7 @@ int BattleRole::GlowAct(BattleServices& services, int x, int y)
 {
     smooth::Scene scene;
     const auto result = smooth::RoleFrame(*this).GlowActAdvance(services, x, y, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -865,7 +803,7 @@ int BattleRole::PoseAtTarget(BattleServices& services, const BattleUnit& target)
 {
     smooth::Scene scene;
     const auto result = smooth::RoleFrame(*this).PoseAtTargetAdvance(services, target, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -918,7 +856,7 @@ u16 BattleRole::AttackPose(BattleServices& services)
 {
     smooth::Scene scene;
     const auto result = smooth::RoleFrame(*this).AttackPoseAdvance(services, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -996,7 +934,7 @@ int BattleRole::DirectAttack(BattleServices& services, BattleUnit& target)
 {
     smooth::Scene scene;
     const auto result = smooth::RoleFrame(*this).DirectAttackAdvance(services, target, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -1007,7 +945,7 @@ int BattleRole::CastAt(BattleServices& services, const BattleUnit& target, i32 s
 {
     smooth::Scene scene;
     const auto result = smooth::RoleFrame(*this).CastAtAdvance(services, target, spell, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -1019,7 +957,7 @@ int BattleRole::MagicFrame(BattleServices& services, const BattleUnit& target)
 {
     smooth::Scene scene;
     const auto result = smooth::RoleFrame(*this).MagicFrameAdvance(services, target, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -1033,7 +971,7 @@ int BattleRole::BeamSpellFrame(BattleServices& services, BattleUnit& target)
 {
     smooth::Scene scene;
     const auto result = smooth::RoleFrame(*this).BeamSpellFrameAdvance(services, target, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -1048,7 +986,7 @@ int BattleRole::ChargeAttackFrame(BattleServices& services, BattleUnit& target, 
 {
     smooth::Scene scene;
     const auto result = smooth::RoleFrame(*this).ChargeAttackFrameAdvance(services, target, slot, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -1058,7 +996,7 @@ int BattleRole::ChargeOnTarget(BattleServices& services, BattleUnit& target)
 {
     smooth::Scene scene;
     const auto result = smooth::RoleFrame(*this).ChargeOnTargetAdvance(services, target, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -1072,7 +1010,7 @@ int BattleRole::SwarmSpellFrame(BattleServices& services, BattleUnit& target)
 {
     smooth::Scene scene;
     const auto result = smooth::RoleFrame(*this).SwarmSpellFrameAdvance(services, target, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -1084,7 +1022,7 @@ int BattleRole::BoomerangFrame(BattleServices& services, BattleUnit& target)
 {
     smooth::Scene scene;
     const auto result = smooth::RoleFrame(*this).BoomerangFrameAdvance(services, target, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -1096,7 +1034,7 @@ int BattleRole::LeapSpellFrame(BattleServices& services, BattleUnit& target)
 {
     smooth::Scene scene;
     const auto result = smooth::RoleFrame(*this).LeapSpellFrameAdvance(services, target, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -1668,7 +1606,7 @@ int BattleRole::StepBack(BattleServices& services, int mode)
 {
     smooth::Scene scene;
     const auto result = smooth::RoleFrame(*this).StepBackAdvance(services, mode, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 

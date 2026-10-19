@@ -134,7 +134,6 @@ constexpr u16 kMaxEscorts = 2;
 constexpr i8 kListGlowOn = static_cast<i8>(0x80);
 constexpr u16 kNoUnit = 0xFFFF;
 constexpr u16 kAnswersStart = 2;
-constexpr u16 kWhitePixel = 0xFFFF;
 constexpr i16 kFadeWord = 8;
 constexpr int kRippleGrid = 0xC8;
 constexpr u16 kGaugeFullSound = 0x2C;  // RoleFrame
@@ -220,7 +219,7 @@ void Game::RoleDefeated(int target)
     battle.unk4A7626 = static_cast<u16>(target);
     battle.unk502984[static_cast<std::size_t>(target)] = target;
     battle.flashing = 1;
-    std::fill_n(this->drawSurface, static_cast<std::size_t>(Display::Width) * Display::Height, kWhitePixel);
+    this->FlashFrameWhite();
 }
 
 // The command A above 0x63 of RoleActionFrame (inline in the original): 100 at once; 200 walks to the target and 300
@@ -1307,7 +1306,7 @@ int Game::TimingAttackFrame(BattleRole& unit, int target)
         battle.unk502984[static_cast<std::size_t>(target)] = target;
         battle.flashing = 1;
         enemy.SetHeld(1);
-        std::fill_n(this->drawSurface, static_cast<std::size_t>(Display::Width) * Display::Height, kWhitePixel);
+        this->FlashFrameWhite();
         setLow(hud.timingCounter, kTimingDone);
     }
 

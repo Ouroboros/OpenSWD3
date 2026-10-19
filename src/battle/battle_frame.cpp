@@ -5,6 +5,8 @@
 #include <span>
 
 #include "battle/battle_items.h"
+#include "battle/smooth/smooth_draw.h"
+#include "battle/smooth/smooth_messages.h"
 #include "core/format.h"
 #include "crt/msvc.h"
 #include "game/screenshot.h"
@@ -215,6 +217,8 @@ int Game::BattleFrame()
     }
 
     battle.unk53C044 = battle.unk53AE70 == -1 && battle.currentUnit == 0 ? 1 : 0;
+    smooth::Scene frameScene;
+    this->battleServices.frame = this->battleDeferred ? &frameScene : nullptr;
     this->battleSmooth.Begin();
     this->DrawBattleBackground(battle.shake);
 
@@ -243,7 +247,8 @@ int Game::BattleFrame()
         this->acts.Run(panel);
         const auto unit = static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit);
         const int x = BattleState::PortraitX[static_cast<std::size_t>(battle.partyRoles[unit])];
-        DrawWindowFrame(
+        smooth::Scene scene;
+        smooth::WindowFrame(
             this->painter,
             this->archive,
             panel.frame,
@@ -252,8 +257,10 @@ int Game::BattleFrame()
             x + kCurrentPanelWidth,
             kCurrentPanelBottom,
             0,
-            kCurrentPanelBorder
+            kCurrentPanelBorder,
+            scene
         );
+        scene.Show(this->battleServices);
 
         if (battle.grayBandShown == 0 && this->battleRoles[unit].Flag26B8() == 0)
         {
@@ -263,8 +270,14 @@ int Game::BattleFrame()
 
     this->DrawRolePanels();
     this->DrawBattleMenu();
+
     this->BattleEndFrame();
-    this->battleMessages.Draw();
+    {
+        smooth::Scene scene;
+        smooth::MessagesFrame(this->battleMessages).Frame(scene);
+        scene.Show(this->battleServices);
+    }
+
     this->fieldView.DrawLines();
     this->fieldView.DrawRoleHeads();
     this->talk.Draw();
@@ -274,6 +287,7 @@ int Game::BattleFrame()
 
     if (this->state.GameFlag(kQuitFlag))
     {
+        this->battleServices.frame = nullptr;
         this->battleSmooth.Cancel();
         return kQuitBattle;
     }
@@ -292,6 +306,8 @@ int Game::BattleFrame()
         battle.fadingField = 0;
     }
 
+    this->battleServices.frame = nullptr;
+    frameScene.DrawAll(this->battleServices);
     this->FieldFadeFrame(1);
     const bool smooth = this->battleSmooth.End();
 

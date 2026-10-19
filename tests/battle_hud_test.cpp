@@ -8,13 +8,21 @@
 
 #include "audio/audio_manager.h"
 #include "battle/battle_hud.h"
+#include "battle/battle_message.h"
+#include "battle/battle_services.h"
+#include "battle/battle_state.h"
+#include "config/config.h"
+#include "crt/msvc.h"
 #include "draw/painter.h"
+#include "font/text_font.h"
 #include "game_data.h"
 #include "golden/hud_scenarios.h"
 #include "golden_check.h"
+#include "party/party.h"
 #include "pic/rle.h"
 #include "platform/audio_device.h"
 #include "platform/display.h"
+#include "platform/glyph_rasterizer.h"
 #include "platform/surface.h"
 #include "random/random.h"
 #include "recording_reporter.h"
@@ -30,6 +38,14 @@ using golden::u64;
 namespace
 {
 
+class NullRasterizer : public swd3::GlyphRasterizer
+{
+public:
+    void RenderText(swd3::Surface&, std::string_view, int, std::string_view, swd3::u32) override
+    {
+    }
+};
+
 class HudBackend : public golden::HudBackend
 {
 public:
@@ -39,9 +55,37 @@ public:
           archive(this->codec, this->errors),
           acts(this->errors),
           audio(this->device),
-          hud(this->painter, this->archive, this->acts, this->random, this->audio)
+          hud(this->painter, this->archive, this->acts, this->random, this->audio),
+          panelFont(this->rasterizer),
+          messageFont(this->rasterizer),
+          messages(
+              this->painter,
+              this->archive,
+              this->acts,
+              this->hud,
+              this->state,
+              this->panelFont,
+              this->messageFont
+          ),
+          services{
+              this->state,
+              this->random,
+              this->archive,
+              this->acts,
+              this->painter,
+              this->audio,
+              this->hud,
+              this->messages,
+              this->config,
+              this->party,
+              this->crtRandom,
+              this->screenPixels,
+          }
+
     {
         this->painter.Init(this->screen);
+        this->hud.Attach(this->services);
+        this->messages.Attach(this->services);
         this->archive.SetGameDirectory(swd3test::GameDirectory());
         this->acts.SetGameDirectory(swd3test::GameDirectory());
     }
@@ -223,6 +267,16 @@ private:
     swd3::AudioManager audio;
     swd3::BattleHud hud;
     swd3::BattleAnimation animation;
+    swd3::BattleState state;
+    NullRasterizer rasterizer;
+    swd3::TextFont panelFont;
+    swd3::TextFont messageFont;
+    swd3::BattleMessages messages;
+    swd3::Config config;
+    swd3::Party party;
+    swd3::crt::Random crtRandom;
+    swd3::u16* screenPixels = nullptr;
+    swd3::BattleServices services;
 };
 
 }  // namespace

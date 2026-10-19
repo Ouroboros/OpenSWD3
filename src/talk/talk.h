@@ -13,6 +13,13 @@
 #include "talk/event_command.h"
 #include "ui/marching_rect.h"
 
+namespace swd3::smooth
+{
+
+class TalkFrame;
+
+}  // namespace swd3::smooth
+
 namespace swd3
 {
 
@@ -56,6 +63,8 @@ private:
 // choices and sounds), waits for a key, a click or its timeout, and closes.
 class Talk
 {
+    friend class smooth::TalkFrame;  // the rebuild's smooth battle: Draw split (battle/smooth/smooth_talk.h)
+
 public:
     static constexpr u16 Current =
         0xFFF0;  // an operand standing for the role of the event, the controlled role or the map
@@ -165,7 +174,6 @@ public:
     u32 waitStart = 0;                         // 0x004CF6B4
 
 private:
-    void DrawWindow(TalkWindow& window, Surface& surface, u16* pixels, i32 heldAdvance);
     Operands OperandsOf(const EventRun& run) const;
     u16 Word(const EventRun& run, std::size_t index) const;
     u32 Dword(const EventRun& run, std::size_t at) const;

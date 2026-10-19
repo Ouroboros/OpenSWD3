@@ -65,6 +65,8 @@ public:
 
     int LeapSpellFrameAdvance(BattleServices& services, BattleUnit& target, Scene& scene);
 
+    int AbsorbFrameAdvance(BattleServices& services, Scene& scene);
+
 private:
     BattleRole& role;
 };

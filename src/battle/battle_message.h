@@ -23,6 +23,7 @@ class BattleState;
 class Painter;
 class TextFont;
 class TswArchive;
+struct BattleServices;
 struct ObjectData;
 
 // A floating text of the battle (a 0x24-byte list node in the original). The text is not copied: messages formatted
@@ -133,6 +134,10 @@ public:
         TextFont& messageFont
     );
 
+    // The rebuild's smooth battle: the services its draws are handed to (BattleServices::frame), set once the battle's
+    // services are built.
+    void Attach(BattleServices& battle);
+
     void DrawLootPanel();
     void DrawDefeatPanel();
     void DrawCraftResultPanel();
@@ -169,6 +174,7 @@ private:
     BattleState& state;
     TextFont& panelFont;    // 0x004C9A28 (16 pixels)
     TextFont& messageFont;  // 0x004AB998 (20 pixels)
+    BattleServices* services = nullptr;
 };
 
 }  // namespace swd3

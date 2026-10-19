@@ -40,4 +40,8 @@ constexpr i32 kRunEnd = 6;  // fadeLevel at which the run is over
 constexpr i32 kRunSoundAt = 0xF;
 constexpr int kRunStep = 0x19;
 constexpr int kZoomUnit = 0x400;
+constexpr i32 kDrainTint = 5;
+constexpr i16 kParticlesDone = 100;
+constexpr u16 kWobbleSound = 0xEB;
+constexpr u16 kStripFlags = ParticleEffect::WithinRange | ParticleEffect::Mixed;
 }  // namespace swd3

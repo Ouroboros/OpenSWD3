@@ -1,3 +1,5 @@
+#include "battle/battle_turn_constants.h"
+#include "battle/smooth/smooth_turn.h"
 #include "core/fault.h"
 #include "core/format.h"
 #include "crt/msvc.h"
@@ -25,8 +27,7 @@ constexpr u16 kBossReward = 0x14;  // unk53BF16 gained by an enemy of ObjectData
 constexpr u16 kEnemyReward = 3;
 constexpr i16 kDefeatCount = 1;  // the bestiary count of a defeated enemy
 constexpr std::size_t kLastTurnUnit = BattleState::RoleUnits - 1;
-constexpr i32 kFieldFadeStep = 2;
-constexpr i32 kFieldFadeEnd = -0x20;
+
 constexpr u16 kThrownObject = 0x300;  // the object a thrown attack takes (given back unless it lands)
 constexpr i32 kLostEnd = 2;           // unk53BDC8 when the party is down
 constexpr i32 kLostQuietly = 0x68;    // a battle state that ends with unk53BDC8 0
@@ -54,23 +55,20 @@ constexpr i32 kGuardOrder = 5;                               // the order of a r
 constexpr i32 kFirstPanelUnit = BattleState::FirstRoleUnit;  // the four party roles have the panels
 constexpr i32 kLastPanelUnit = BattleState::FirstRoleUnit + 3;
 constexpr u16 kNoPanelRole = 0xFFFF;
-constexpr i32 kMenuState = 1;          // the command menu
-constexpr i32 kMenuColumn = 4;         // commands per column
+constexpr i32 kMenuState = 1;  // the command menu
+
 constexpr i32 kMenuFixedCommands = 5;  // before the accessory commands
-constexpr i32 kListPages = 3;
+
 constexpr i32 kMenuStep = 5;
 constexpr i32 kMenuStepMost = 10;
-constexpr std::size_t kFixedCommands = 5;  // the commands of the menu before the accessory ones
+
 constexpr std::size_t kAccessorySlots = 2;
 constexpr std::size_t kFirstAccessorySlot = 7;  // the equipment slots of the accessories
-constexpr u16 kFirstAccessoryCommand = 0x15;    // the accessory kinds that add a command
+
 constexpr u16 kLastAccessoryCommand = 0x31;
 constexpr u16 kSpiritPact = 6;
 constexpr i32 kGuardedCommand = 2;
-constexpr i32 kFuryFullBlock = 0x38;  // roleBlock[0] of a full fury gauge
-constexpr u16 kHighlightBackground = 0xF000;
-constexpr int kMenuRowHeight = 0x18;
-constexpr int kMenuColumnWidth = 0x30;
+
 constexpr i32 kTargetState = 3;  // battle states of the menu
 constexpr i32 kTalkState = 7;
 constexpr i32 kSkillListState = 8;
@@ -79,164 +77,11 @@ constexpr i32 kItemCommand = 3;
 constexpr i32 kSkillCommand = 4;
 constexpr u16 kNoTalkRole = 0xFFFF;
 constexpr i32 kListRows = 5;
-constexpr int kTabEffect = 0x2394;  // the page tabs of the list of state 2
-constexpr int kTabsDrop = 0x20;
-constexpr int kTabWidth = 0x2A;
-constexpr int kOpenTabFrame = 4;
-constexpr i32 kListPanelFrames = 0xA;
-constexpr int kListBoxDrop = 0x24;
-constexpr int kListBoxWidth = 0xBE;
-constexpr int kListBoxHeight = 0x98;
-constexpr int kListShade = 4;
-constexpr int kListFrameInset = 6;
-constexpr int kListFrameTop = 0x28;
-constexpr int kListFrameRight = 0xBA;
-constexpr int kListFrameBottom = 0xB8;
-constexpr int kListFrameBorder = BattleMessage::Frame | 8;
-constexpr i32 kListGrowStep = 2;
-constexpr i32 kListGrowMost = 7;
-constexpr int kThrowBoxHeight = 0xBC;  // the 投擲 list
-constexpr int kThrowShade = -8;
-constexpr int kThrowTitleTop = 8;
-constexpr int kThrowTitleBottom = 0x18;
-constexpr int kThrowTitleX = 0x50;
-constexpr std::u8string_view kThrowTitle = u8"投擲";  // swd32.exe 0x004A76A0
-constexpr u16 kTitleColor = 0xFFC0;
-constexpr int kListAdvance = 0x10;
-constexpr int kThrowCategory = 4;
-constexpr int kListRowsShown = 7;
-constexpr int kListRowHeight = 0x14;
-constexpr int kListRowTop = 0x2C;
-constexpr int kListNameX = 0x10;
-constexpr int kListCountX = 0x90;
-constexpr std::string_view kCountFormat = "%2d";  // swd32.exe 0x004A79CC
-constexpr int kListBarTop = 0x28;
-constexpr int kListBarWidth = 0xC2;
-constexpr int kListBarHeight = 0x18;
-constexpr int kListBarRed = 0x1F;
-constexpr int kListBarGreen = 0x14;
-constexpr int kRefineBoxWidth = 0xF2;  // the 煉符 grid
-constexpr int kRefineBoxHeight = 0x9C;
-constexpr int kRefineFrameRight = 0xEE;
-constexpr int kRefineFrameBottom = 0x98;
-constexpr int kRefineTitleX = 0x6A;
-constexpr u16 kRefineCommand = 0x1E;
-constexpr int kRefineColumns = 2;
-constexpr int kRefineRows = 5;
-constexpr int kRefineBarLeft = 4;
-constexpr int kRefineBarUp = 3;
-constexpr int kRefineBarWidth = 0x6A;
-constexpr int kRefineColumnWidth = 0x70;
-constexpr std::u8string_view kNoObject = u8"無";  // swd32.exe 0x0049F9FC
-constexpr int kSpecialBoxHeight = 0xAC;           // the 絕招 list
-constexpr int kSpecialFrameBottom = 0xA8;
-constexpr std::size_t kSpecialCommandName = 3;
-constexpr u16 kSkillListEnd = 0xFFFF;
-constexpr int kSpecialRowHeight = 0x16;
-constexpr int kSpecialBarTop = 0x25;
-constexpr int kSpecialBarWidth = 0xC0;
-constexpr int kEscortShadeX = 0xC4;  // the 佈置護駕 panel
-constexpr int kEscortShadeY = 0xB0;
-constexpr int kEscortShadeWidth = 0xBC;
-constexpr int kEscortShadeHeight = 0x58;
-constexpr int kEscortFrameLeft = 0xC8;
-constexpr int kEscortFrameRight = 0x178;
-constexpr int kEscortTitleTop = 0xB4;
-constexpr int kEscortTitleBottom = 0xC4;
-constexpr int kEscortTitleX = 0xFC;
-constexpr std::u8string_view kEscortTitle = u8"佈置護駕";  // swd32.exe 0x004A79D0
-constexpr int kEscortBodyTop = 0xD4;
-constexpr int kEscortBodyBottom = 0x104;
-constexpr int kEscortBarLeft = 2;
-constexpr int kEscortBarUp = 0x12;
-constexpr int kEscortAdvance = 0x12;
-constexpr int kEscortRowTop = 8;
-constexpr int kEscortNameX = 0xC;
-constexpr int kEscortNoneTop = 0x1E;
-constexpr u16 kWhite = 0xFFFF;
-constexpr int kTagMirrorRight = 0x276;  // the name tag of the aimed enemy
-constexpr int kTagCharWidth = 0x14;
-constexpr int kTagMargin = 4;
-constexpr int kTagFrameHeight = 0x10;
-constexpr int kTagNameX = 2;
-constexpr u16 kKnownHitPoints = 10;  // bestiary counts that show the hit points and the gauge
-constexpr u16 kKnownGauge = 0xF;
-constexpr std::u8string_view kHitPointsFormat = u8"生命:%d/%d";  // swd32.exe 0x004A79DC
-constexpr int kTagHitPointsLeft = 0x8C;
-constexpr int kTagHitPointsGap = 0xA;
-constexpr int kTagHitPointsUp = 2;
-constexpr int kTagGaugeTop = 0x11;
-constexpr int kTagGaugeHeight = 3;
-constexpr u32 kTagGaugeRed = 0x18;
-constexpr int kControlTiles = 0x234E;  // the 控制 menu
-constexpr int kControlBoxLeft = 8;
-constexpr int kControlTitleUp = 0x28;
-constexpr int kControlTitleTextUp = 0x20;
-constexpr int kControlColumns = 4;
-constexpr int kControlTitleRows = 2;
-constexpr i8 kControlFill = 0x48;
-constexpr u16 kControlCommand = 0x19;
-constexpr int kControlObjects = 3;
-constexpr int kControlSkills = 2;
-constexpr std::u8string_view kSpecialFormat = u8"特殊%d";  // swd32.exe 0x004A79F0
-constexpr std::u8string_view kReleaseName = u8"釋放";      // swd32.exe 0x004A79E8
-constexpr u16 kStaminaCostBit = 0x8000;                    // the spell list
-constexpr int kElementIcons = 0x241C;
-constexpr int kSpellIconLeft = 4;
-constexpr int kSpellRowTop = 0x25;
-constexpr int kSpellNameX = 0xC;
-constexpr std::string_view kCostFormat = "%3d";
-constexpr int kSpellBarLeft = 8;
-constexpr int kSpellBarUp = 4;
-constexpr int kDescriptionTop = 0x15E;
-constexpr int kDescriptionHeight = 0x28;
-constexpr int kDescriptionGreen = 5;
-constexpr int kDescriptionBlue = 0x1F;
-constexpr int kDescriptionCentre = 0x140;
-constexpr int kDescriptionTextTop = 0x168;
-constexpr int kItemPages = 4;  // the object list
-constexpr int kItemBoxWidth = 0xCC;
-constexpr int kItemFrameRight = 0xC8;
-constexpr u16 kShownItem = 0x8000;
-constexpr u16 kCostlyItem = 0x4000;
-constexpr int kItemBarWidth = 0xCE;
-constexpr int kVictoryShadeExtra = 0x28;  // the 戰鬥勝利 panel
-constexpr int kVictoryTitleX = 0xF8;
-constexpr std::u8string_view kVictoryTitle = u8"戰鬥勝利";  // swd32.exe 0x004A7A2C
-constexpr u16 kGoldGiven = 0x8000;                          // BattleState::unk53BF12: the gold of the battle is given
-constexpr u16 kGoldMask = 0x7FFF;
-constexpr u16 kVictorySound = 0x12C;
-constexpr std::size_t kBattlesFought = 1;  // RoleBattleBlock::unk00 [1] (inferred: battles fought)
-constexpr u32 kManyEnemies = 3;
-constexpr std::size_t kGoldVariable = 0;
-constexpr int kVictoryBodyBottom = 0x11C;
-constexpr int kVictoryGrowDivisor = 2;
-constexpr int kVictoryTextX = 0xD0;
-constexpr int kVictoryExperienceY = 0xDC;
-constexpr int kVictoryGoldY = 0xF0;
-constexpr int kVictoryProficiencyY = 0x104;
-constexpr std::u8string_view kExperienceLine = u8"每人得到經驗值:%d";   // swd32.exe 0x004A7A18
-constexpr std::u8string_view kGoldLine = u8"得到銀幣:%d";               // swd32.exe 0x004A7A0C
-constexpr std::u8string_view kProficiencyLine = u8"得到法寶經驗值:%d";  // swd32.exe 0x004A79F8
-constexpr u8 kNoLevelUp = 0xFF;                                         // the 升級 panel
-constexpr int kLevelUpTitleX = 0x108;
-constexpr std::u8string_view kLevelUpTitle = u8"升級";       // swd32.exe 0x004A7A44
-constexpr std::u8string_view kLevelUpLine = u8"%s升第%d級";  // swd32.exe 0x004A7A38: the name and the new level
-constexpr int kLevelUpBodyBottom = 0xF4;
-constexpr int kLevelUpGrowDivisor = 3;
-constexpr int kLevelUpTextY = 0xDC;
+
 constexpr u16 kLevelUpSound = 0x12B;
 constexpr std::u8string_view kNewSpellLine = u8"%s學到新魔法";    // swd32.exe 0x004A7AB4
 constexpr std::u8string_view kNewSpecialLine = u8"%s學到新絕招";  // swd32.exe 0x004A7AC4
-constexpr std::string_view kBracketFormat = "[%s]";               // swd32.exe 0x004A7AAC
-constexpr u16 kLearnedSound = 0x160;
-constexpr int kLearnedShadeX = 0xF6;
-constexpr int kLearnedFrameLeft = 0xFA;
-constexpr int kLearnedBodyBottom = 0xEC;
-constexpr int kLearnedTextX = 0x104;
-constexpr int kLearnedTextY = 0xBC;
-constexpr int kLearnedSkillY = 0xD2;
-constexpr u16 kLearnedSkillColor = 0xF000;
+
 constexpr std::size_t kNeededBattles = 2;  // RoleBattleBlock::unk00: the battles the next special needs
 constexpr std::size_t kNextSpecial = 3;    // the next special skill with bit 31, -1: none
 constexpr i32 kNoSpecial = -1;
@@ -246,36 +91,7 @@ constexpr u16 kSpecialType = 0x1F;
 constexpr int kSpecialsFlag = 0x1BB0;
 constexpr u32 kBarredSpecialA = 0x665;
 constexpr u32 kBarredSpecialB = 0x669;
-constexpr std::size_t kStatRolls = 9;  // the stats of a level-up
-constexpr std::size_t kStatLines = 7;
-constexpr int kStatsShadeY = 0x4C;
-constexpr int kStatsShadeWidth = 0xD4;
-constexpr int kStatsTitleTop = 0x50;
-constexpr int kStatsTitleBottom = 0x60;
-constexpr int kStatsFrameRight = 0x190;
-constexpr int kStatsTitleX = 0x118;
-constexpr int kStatsBodyTop = 0x70;
-constexpr int kStatsBodyBottom = 0x10C;
-constexpr int kStatsTextX = 0xD8;
-constexpr int kStatsFirstY = 0x78;
-constexpr int kStatsLineHeight = 0x14;
-constexpr std::array<std::u8string_view, kStatLines> kStatLabels = {
-    u8"生命力:%4d",  // swd32.exe 0x004A7AA0
-    u8"魔法力:%4d",  // swd32.exe 0x004A7A94
-    u8"體  力:%4d",  // swd32.exe 0x004A7A88
-    u8"力  量:%4d",  // swd32.exe 0x004A7A7C
-    u8"耐  力:%4d",  // swd32.exe 0x004A7A70
-    u8"智  慧:%4d",  // swd32.exe 0x004A7A64
-    u8"敏  捷:%4d",  // swd32.exe 0x004A7A58
-};
 
-constexpr u16 kShowNow = 0x64;  // BattleState::unk53BDEA: the new values show at once
-constexpr u16 kRollStart = 0x1E;
-constexpr std::string_view kArrow = " ==> ";         // swd32.exe 0x004A7A50
-constexpr std::string_view kNewValueFormat = "%4d";  // swd32.exe 0x004A7A4C
-constexpr int kStatsArrowX = 0x136;
-constexpr int kStatsNewX = 0x158;
-constexpr u16 kRollSound = 0x125;
 constexpr i32 kLastMenuCommand = 8;  // the up key
 constexpr i32 kEscortRows = 2;
 constexpr int kHangTries = 2;      // full cycles after which a search of the original would never end
@@ -301,40 +117,7 @@ constexpr int kDefeatHurt = 0x7530;
 constexpr int kToggleStates = 2;
 constexpr std::size_t kClearedTurnUnits = 8;  // the original clears 0x28 bytes from 0x0053AF30
 constexpr i16 kDebugStep = 10;
-constexpr int kDebugTop = 0xA;  // the debug overlay
-constexpr int kDebugRolesX = 0x208;
-constexpr int kDebugListX = 0x64;
-constexpr int kDebugPartyX = 0x78;
-constexpr int kDebugPartyRow = 0x1E;
-constexpr int kDebugDrawRow = 0x32;
-constexpr int kDebugStateX = 0xF0;
-constexpr int kDebugRightX = 0x1A4;
-constexpr int kDebugFarX = 0x1C2;
-constexpr int kDebugFlagsY = 0x1E;
-constexpr int kDebugMenuY = 0x32;
-constexpr int kDebugUnitsY = 0x46;
-constexpr int kDebugCountsY = 0x5A;
-constexpr int kDebugAimY = 0x6E;
-constexpr u16 kGaugePixel = 0xEEEE;
-constexpr int kKilobyte = 1000;
-constexpr i32 kMillisecondsPerSecond = 1000;
-constexpr std::string_view kDebugNumber = "%d";
-constexpr std::u8string_view kEnemyDebugLine = u8"生命:%-3d 鎖定:%-1d 命令:%-1d lv:%-2d";  // swd32.exe 0x004A792C
-constexpr std::u8string_view kRoleDebugLine = u8"鎖定:%d 命令:%-3d";                       // swd32.exe 0x004A7918
-constexpr std::u8string_view kAttackOrder = u8"攻擊順序:";                                 // swd32.exe 0x004A790C
-constexpr std::u8string_view kPartyOrder = u8"我方等待順序:";                              // swd32.exe 0x004A78FC
-constexpr std::u8string_view kDrawOrder = u8"排列順序:";                                   // swd32.exe 0x004A78F0
-constexpr std::u8string_view kUnitsDebugLine = u8"目前角色:%d SEL:%d";                     // swd32.exe 0x004A78DC
-constexpr std::u8string_view kFlagsDebugLine = u8"無敵:%d UM:%d 戰鬥:%d";                  // swd32.exe 0x004A78C4
-constexpr std::string_view kMenuDebugLine = "fMenu:%d mMove%d";
-constexpr std::string_view kCountsDebugLine = "MsD:%d dRole1:%d CanS:%d";
-constexpr std::string_view kAimDebugLine = "MS:%d Stop:%d mStop%d";
-constexpr std::string_view kLockDebugLine = "A.Lockc:%d ";
-constexpr std::string_view kCacheDebugLine = "TswMem:%dK";
-constexpr std::string_view kLevelUpDebugLine = "w"
-                                               "Ll:%d iMn:%d";  // swd32.exe 0x004A7854 (one string)
-constexpr std::string_view kBfDebugLine = "bf:%d";
-constexpr std::string_view kFrameDebugLine = "FRAME:%d";
+
 constexpr int kPanelsTop = 0x182;  // the pointer over the battle
 constexpr int kPanelLeftMargin = 0x18;
 constexpr int kPanelWidth = 0x74;
@@ -390,7 +173,7 @@ constexpr int kPortraitHitWidth = 0x7C;
 constexpr int kNoPicture = -1;
 constexpr int kPictureMissed = 0;
 constexpr int kPictureHit = 1;
-constexpr i32 kMenuOpened = 6;  // the confirm key of the menu
+
 constexpr i32 kFirstAccessoryMenuCommand = 6;
 constexpr int kListPointerX = 0x108;
 constexpr int kListPointerY = 0xB0;
@@ -477,21 +260,7 @@ constexpr int kEscortListX = 0xC4;
 constexpr int kEscortListY = 0xCE;
 constexpr int kControlMenuX = 0xC;
 constexpr int kControlMenuY = 8;
-constexpr int kMenuPointerShiftX = 0x10;
-constexpr int kMenuPointerShiftY = 0x30;
-constexpr i32 kMenuIdleFrames = 0x96;
-constexpr int kMenuHomeX = 0x122;
-constexpr int kMenuHomeY = 0xA0;
-constexpr i32 kMenuPointerLeft = 0x32;
-constexpr i32 kMenuPointerRight = 0x23A;
-constexpr i32 kMenuPointerTop = 0x1E;
-constexpr i32 kMenuPointerBottom = 0x168;
-constexpr int kMenuNameStep = 8;
-constexpr int kMenuNameCenter = 5;
-constexpr int kMenuNameShift = 2;
-constexpr int kMenuNameY = 0xE;
-constexpr int kCommandMenuX = 0xE;
-constexpr int kCommandMenuY = 0x2A;
+
 constexpr int kRoleAimDrop = 0xA;
 constexpr int kTargetTagX = 0xC;
 constexpr int kTargetTagY = 0xE;
@@ -829,24 +598,10 @@ void Game::SortActingDrawOrder()
 // also the painter's tint), 2 darker a frame; 1 once past -32 (the fade reset to 0).
 int Game::FadeFieldOut()
 {
-    BattleState& battle = this->battleState;
-    DrawOptions& options = this->painter.Options();
-    options.tintRed = battle.unk53C4A8;
-    options.tintGreen = battle.unk53C4A8;
-    options.tintBlue = battle.unk53C4A8;
-    const std::span<u16> frame(this->drawSurface, static_cast<std::size_t>(Display::Width * Display::Height));
-    this->painter.ShiftRed(frame, battle.unk53C4A8);
-    this->painter.ShiftGreenPairs(frame, options.tintGreen);
-    this->painter.ShiftBluePairs(frame, options.tintBlue);
-    battle.unk53C4A8 -= kFieldFadeStep;
-
-    if (battle.unk53C4A8 > kFieldFadeEnd)
-    {
-        return 0;
-    }
-
-    battle.unk53C4A8 = 0;
-    return 1;
+    smooth::Scene scene;
+    const auto result = smooth::TurnFrame(*this).FadeFieldOutAdvance(scene);
+    scene.Show(this->battleServices);
+    return result;
 }
 
 // swd32.exe 0x0045E9C0: the objects held back in the battle given to the inventory: unk4FF2EA[1] and [2], and one
@@ -979,45 +734,9 @@ void Game::DrawBattlePrompt()
 // original copies them into the steps, not the levels). The field rows of the frame are tinted by the levels.
 void Game::FieldFadeFrame(int counting)
 {
-    ColorFade& fade = this->battleState.fieldFade;
-
-    if (fade.stepRed == 0 && fade.stepGreen == 0 && fade.stepBlue == 0)
-    {
-        return;
-    }
-
-    bool moving = true;
-
-    if (counting != 0)
-    {
-        if (fade.frames < 0)
-        {
-            moving = false;
-        }
-        else
-        {
-            --fade.frames;
-        }
-    }
-
-    if (moving && fade.frames >= 0)
-    {
-        fade.red += fade.stepRed;
-        fade.green += fade.stepGreen;
-        fade.blue += fade.stepBlue;
-    }
-    else
-    {
-        fade.stepRed = fade.startRed;
-        fade.stepGreen = fade.startGreen;
-        fade.stepBlue = fade.startBlue;
-    }
-
-    const auto blue = static_cast<int>(crt::Ftol(fade.blue));
-    const auto green = static_cast<int>(crt::Ftol(fade.green));
-    const auto red = static_cast<int>(crt::Ftol(fade.red));
-    const std::span<u16> field(this->drawSurface, static_cast<std::size_t>(Display::Width * BattleState::FieldHeight));
-    this->painter.TintPixels(field, red, green, blue);
+    smooth::Scene scene;
+    smooth::TurnFrame(*this).FieldFadeFrameAdvance(counting, scene);
+    scene.Show(this->battleServices);
 }
 
 // swd32.exe 0x0045EC80: while no unit acts, a side that is all down or turned to stone (UnkStatus4) loses: the party
@@ -1821,76 +1540,9 @@ void Game::BuildCommandMenu()
 // box. The original first enables command 4 for a role whose fury is full (BuildCommandMenu then sets it anew).
 void Game::DrawCommandMenu(int x, int y, int cursor)
 {
-    BattleState& battle = this->battleState;
-    TextFont& font = this->largeFont;
-
-    if (battle.currentUnit == 0)
-    {
-        return;
-    }
-
-    font.SetShadow(0);
-    font.SetBackground(TextFont::NoBackground);
-    BattleRole& role = this->battleRoles[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)];
-
-    if (role.roleBlock[0] == kFuryFullBlock && role.MarkBit1() == 0)
-    {
-        battle.commandEnabled[3] = 1;
-    }
-
-    this->BuildCommandMenu();
-
-    auto highlight = [this, &font, &battle](int left, int top, std::u8string_view name)
-    {
-        font.SetBackground(kHighlightBackground);
-        font.DrawText(this->drawSurface, left, top, name, battle.lightColor, TextFont::BoldOutline);
-        font.SetBackground(TextFont::NoBackground);
-    };
-
-    for (std::size_t command = 0; command < BattleState::FixedCommandNames.size(); ++command)
-    {
-        const std::u8string_view name = BattleState::FixedCommandNames[command];
-        const u16 color = battle.commandEnabled[command] == 1 ? battle.lightColor : battle.darkColor;
-        const auto row = static_cast<int>(command % static_cast<std::size_t>(kMenuColumn));
-        const auto column = static_cast<int>(command / static_cast<std::size_t>(kMenuColumn));
-        const int top = y + kMenuRowHeight * row;
-        font.DrawText(this->drawSurface, x + kMenuColumnWidth * column, top, name, color, TextFont::BoldShadow);
-
-        if (static_cast<int>(command) + 1 == cursor)
-        {
-            highlight(kMenuColumnWidth * column + x - 1, top - 1, name);
-        }
-    }
-
-    for (std::size_t extra = 0; extra < battle.commandNames.size(); ++extra)
-    {
-        const std::u8string_view name = battle.commandNames[extra];
-        const int top = y + kMenuRowHeight * (static_cast<int>(extra) + 1);
-
-        if (name.empty())
-        {
-            continue;
-        }
-
-        u8& enabled = battle.commandEnabled[kFixedCommands + extra];
-
-        if (role.CanUseAccessory(battle.commandKinds[extra]) == 1 && enabled == 1)
-        {
-            font.DrawText(this->drawSurface, x + kMenuColumnWidth, top, name, battle.lightColor, TextFont::BoldShadow);
-        }
-        else
-        {
-            enabled = 0;
-            font.DrawText(this->drawSurface, x + kMenuColumnWidth, top, name, battle.darkColor, TextFont::BoldShadow);
-        }
-
-        if (static_cast<int>(kFixedCommands + extra) + 1 == cursor)
-        {
-            highlight(x + kMenuColumnWidth - 1, top - 1, name);
-        }
-    }
-
-    font.SetBackground(TextFont::NoBackground);
+    smooth::Scene scene;
+    smooth::TurnFrame(*this).DrawCommandMenuAdvance(x, y, cursor, scene);
+    scene.Show(this->battleServices);
 }
 
 // swd32.exe 0x00468FF0: the first party role (not forced, standing) whose accessory proficiency has just filled
@@ -2137,49 +1789,9 @@ void Game::MenuCancel()
 // box with the panel frame below the tabs; unk53BD94 grows by 2 a call up to 7.
 void Game::DrawListTabs(int x, int y)
 {
-    BattleState& battle = this->battleState;
-    BattleMessages& messages = this->battleMessages;
-    const int tabsY = y + kTabsDrop;
-    int tabX = x + kTabWidth * (kListPages - 1);
-
-    for (int tab = kListPages - 1; tab >= 0; --tab)
-    {
-        this->battleHud.DrawEffectAt(kTabEffect, tab, tabX, tabsY, 0);
-        tabX -= kTabWidth;
-    }
-
-    this->battleHud
-        .DrawEffectAt(kTabEffect, battle.unk53BD18 + kOpenTabFrame, x + kTabWidth * battle.unk53BD18, tabsY, 0);
-    this->mediumFont.SetBackground(kHighlightBackground);
-    this->mediumFont.SetBackground(TextFont::NoBackground);
-    messages.panelAct = ActState{};
-    battle.unk53BD90 = kListPanelFrames;
-    messages.panelAct.id = BattleMessages::PanelAct;
-    messages.panelAct.action = 0;
-    this->acts.Run(messages.panelAct);
-    FillBox(
-        this->painter,
-        x,
-        y + kListBoxDrop,
-        kListBoxWidth,
-        kListBoxHeight,
-        0,
-        kListShade,
-        kListShade,
-        FillMode::Quarter
-    );
-    DrawWindowFrame(
-        this->painter,
-        this->archive,
-        messages.panelAct.frame,
-        x + kListFrameInset,
-        y + kListFrameTop,
-        x + kListFrameRight,
-        y + kListFrameBottom,
-        0,
-        kListFrameBorder
-    );
-    battle.unk53BD94 = std::min(battle.unk53BD94 + kListGrowStep, kListGrowMost);
+    smooth::Scene scene;
+    smooth::TurnFrame(*this).DrawListTabsAdvance(x, y, scene);
+    scene.Show(this->battleServices);
 }
 
 // swd32.exe 0x00465E50: the 投擲 list of the current role at (x, y): a darkened box with a title frame (投擲) and a
@@ -2187,129 +1799,9 @@ void Game::DrawListTabs(int x, int y)
 // `cursor` (from 1) is drawn again a pixel up and left under a gradient bar, and its entry becomes unk53BD14.
 void Game::DrawThrowList(int x, int y, int cursor, int top)
 {
-    BattleState& battle = this->battleState;
-    BattleMessages& messages = this->battleMessages;
-    TextFont& font = this->mediumFont;
-
-    if (battle.currentUnit == 0)
-    {
-        return;
-    }
-
-    BattleRole& role = this->battleRoles[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)];
-    messages.panelAct = ActState{};
-    messages.panelAct.id = BattleMessages::PanelAct;
-    messages.panelAct.action = 0;
-    this->acts.Run(messages.panelAct);
-    FillBox(this->painter, x, y, kListBoxWidth, kThrowBoxHeight, 0, kThrowShade, kThrowShade, FillMode::Tint);
-    DrawWindowFrame(
-        this->painter,
-        this->archive,
-        messages.panelAct.frame,
-        x + kListFrameInset,
-        y + kThrowTitleTop,
-        x + kListFrameRight,
-        y + kThrowTitleBottom,
-        0,
-        kListFrameBorder
-    );
-    DrawWindowFrame(
-        this->painter,
-        this->archive,
-        messages.panelAct.frame,
-        x + kListFrameInset,
-        y + kListFrameTop,
-        x + kListFrameRight,
-        y + kListFrameBottom,
-        0,
-        kListFrameBorder
-    );
-    font.DrawText(
-        this->drawSurface,
-        x + kThrowTitleX,
-        y + kThrowTitleTop,
-        kThrowTitle,
-        kTitleColor,
-        TextFont::BoldOutline
-    );
-    font.SetShadow(0);
-    font.SetBackground(TextFont::NoBackground);
-    font.SetAdvance(kListAdvance);
-    battle.unk53BDF4 = 0;
-    role.CountObjects(kThrowCategory, battle.unk53BDF4);
-    role.ShowAllItems();
-    int entry = top;
-    int row = 0;
-
-    while (true)
-    {
-        const int next = entry + 1;
-        std::string name;
-        u16 count = 0;
-
-        if (role.ListedObject(next, name, count) == 0)
-        {
-            break;
-        }
-
-        if (row >= kListRowsShown)
-        {
-            font.SetBackground(TextFont::NoBackground);
-            return;
-        }
-
-        const int rowY = y + kListRowHeight * row;
-        font.DrawText(
-            this->drawSurface,
-            x + kListNameX,
-            rowY + kListRowTop,
-            name,
-            battle.lightColor,
-            TextFont::BoldOutline
-        );
-        const std::string number = WinFormat(kCountFormat, {static_cast<i32>(static_cast<i16>(count))});
-        font.DrawText(
-            this->drawSurface,
-            x + kListCountX,
-            rowY + kListRowTop,
-            number,
-            battle.lightColor,
-            TextFont::BoldOutline
-        );
-
-        if (cursor == row + 1)
-        {
-            font.DrawText(
-                this->drawSurface,
-                x + kListNameX - 1,
-                rowY + kListRowTop - 1,
-                name,
-                battle.lightColor,
-                TextFont::BoldOutline
-            );
-            font.SetBackground(TextFont::NoBackground);
-            FillBox(
-                this->painter,
-                x,
-                rowY + kListBarTop,
-                kListBarWidth,
-                kListBarHeight,
-                kListBarRed,
-                kListBarGreen,
-                0,
-                FillMode::Gradient
-            );
-            battle.unk53BD14 = next;
-            battle.unk53BFB8 = 1;
-        }
-
-        font.SetBackground(TextFont::NoBackground);
-        entry = next;
-        ++row;
-    }
-
-    role.ShowAllItems();
-    font.SetBackground(TextFont::NoBackground);
+    smooth::Scene scene;
+    smooth::TurnFrame(*this).DrawThrowListAdvance(x, y, cursor, top, scene);
+    scene.Show(this->battleServices);
 }
 
 // swd32.exe 0x00466190: the 煉符 grid of the current role at (x, y): two columns of five cells. The first cells, one
@@ -2318,122 +1810,9 @@ void Game::DrawThrowList(int x, int y, int cursor, int top)
 // without paper). unk53BDF4 then adds the throwable pieces.
 void Game::DrawRefineList(int x, int y, int cursor)
 {
-    BattleState& battle = this->battleState;
-    BattleMessages& messages = this->battleMessages;
-    TextFont& font = this->mediumFont;
-
-    if (battle.currentUnit == 0)
-    {
-        return;
-    }
-
-    BattleRole& role = this->battleRoles[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)];
-    messages.panelAct = ActState{};
-    messages.panelAct.id = BattleMessages::PanelAct;
-    messages.panelAct.action = 0;
-    this->acts.Run(messages.panelAct);
-    FillBox(this->painter, x, y, kRefineBoxWidth, kRefineBoxHeight, 0, kThrowShade, kThrowShade, FillMode::Tint);
-    DrawWindowFrame(
-        this->painter,
-        this->archive,
-        messages.panelAct.frame,
-        x + kListFrameInset,
-        y + kThrowTitleTop,
-        x + kRefineFrameRight,
-        y + kThrowTitleBottom,
-        0,
-        kListFrameBorder
-    );
-    DrawWindowFrame(
-        this->painter,
-        this->archive,
-        messages.panelAct.frame,
-        x + kListFrameInset,
-        y + kListFrameTop,
-        x + kRefineFrameRight,
-        y + kRefineFrameBottom,
-        0,
-        kListFrameBorder
-    );
-    const std::string title = Big5(BattleState::AccessoryCommandNames[kRefineCommand - kFirstAccessoryCommand]);
-    font.DrawText(this->drawSurface, x + kRefineTitleX, y + kThrowTitleTop, title, kTitleColor, TextFont::BoldOutline);
-    font.SetShadow(0);
-    font.SetBackground(TextFont::NoBackground);
-    font.SetAdvance(kListAdvance);
-    std::string name;
-    u16 count = 0;
-    int object = 1;
-    int piece = 0;
-    role.ThrowableObject(0, 1, name, count);
-    battle.unk53BDF4 = count;
-    role.ShowAllItems();
-    u16 pieces = 0;
-    role.CountUsableObjects(pieces);
-    role.ShowAllItems();
-    count = 0;
-    battle.unk53BD14 = 1;
-    int cell = 1;
-    int columnX = x + kListNameX;
-
-    for (int column = 0; column < kRefineColumns; ++column)
-    {
-        int rowY = y + kListRowTop;
-
-        for (int row = 0; row < kRefineRows; ++row)
-        {
-            if (cell > battle.unk53BDF4)
-            {
-                if (cell <= battle.unk53BDF4 + pieces)
-                {
-                    role.ThrowableObject(1, object, name, count);
-
-                    if (++piece == static_cast<i16>(count))
-                    {
-                        ++object;
-                        piece = 0;
-                    }
-                }
-                else
-                {
-                    name = Big5(kNoObject);
-                }
-            }
-
-            if (cursor == cell)
-            {
-                FillBox(
-                    this->painter,
-                    columnX - kRefineBarLeft,
-                    rowY - kRefineBarUp,
-                    kRefineBarWidth,
-                    kListBarHeight,
-                    kListBarRed,
-                    kListBarGreen,
-                    0,
-                    FillMode::Gradient
-                );
-                font.DrawText(this->drawSurface, columnX, rowY, name, battle.lightColor, TextFont::BoldOutline);
-                font.SetBackground(TextFont::NoBackground);
-                battle.unk53BFB8 = 1;
-                battle.unk53BD14 = piece == 1 ? object + 1 : object;
-
-                if (battle.unk53BDF4 == 0)
-                {
-                    --battle.unk53BD14;
-                }
-            }
-
-            font.DrawText(this->drawSurface, columnX, rowY, name, battle.lightColor, TextFont::BoldOutline);
-            font.SetBackground(TextFont::NoBackground);
-            ++cell;
-            rowY += kListRowHeight;
-        }
-
-        columnX += kRefineColumnWidth;
-    }
-
-    font.SetBackground(TextFont::NoBackground);
-    battle.unk53BDF4 = static_cast<u16>(battle.unk53BDF4 + pieces);
+    smooth::Scene scene;
+    smooth::TurnFrame(*this).DrawRefineListAdvance(x, y, cursor, scene);
+    scene.Show(this->battleServices);
 }
 
 // swd32.exe 0x00466500: the 絕招 list of the current role at (x, y): the panel act run on (not restarted), a darkened
@@ -2442,116 +1821,9 @@ void Game::DrawRefineList(int x, int y, int cursor)
 // a pixel up and left under a gradient bar, and its skill index becomes unk53BD10.
 void Game::DrawSpecialList(int x, int y, int cursor)
 {
-    BattleState& battle = this->battleState;
-    BattleMessages& messages = this->battleMessages;
-    TextFont& font = this->mediumFont;
-
-    if (battle.currentUnit == 0)
-    {
-        return;
-    }
-
-    BattleRole& role = this->battleRoles[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)];
-    messages.panelAct.id = BattleMessages::PanelAct;
-    messages.panelAct.action = 0;
-    this->acts.Run(messages.panelAct);
-    FillBox(this->painter, x, y, kListBoxWidth, kSpecialBoxHeight, 0, kThrowShade, kThrowShade, FillMode::Tint);
-    DrawWindowFrame(
-        this->painter,
-        this->archive,
-        messages.panelAct.frame,
-        x + kListFrameInset,
-        y + kThrowTitleTop,
-        x + kListFrameRight,
-        y + kThrowTitleBottom,
-        0,
-        kListFrameBorder
-    );
-    DrawWindowFrame(
-        this->painter,
-        this->archive,
-        messages.panelAct.frame,
-        x + kListFrameInset,
-        y + kListFrameTop,
-        x + kListFrameRight,
-        y + kSpecialFrameBottom,
-        0,
-        kListFrameBorder
-    );
-    const std::string title = Big5(BattleState::FixedCommandNames[kSpecialCommandName]);
-    font.DrawText(this->drawSurface, x + kThrowTitleX, y + kThrowTitleTop, title, kTitleColor, TextFont::BoldOutline);
-    font.SetShadow(0);
-    font.SetBackground(TextFont::NoBackground);
-    font.SetAdvance(kListAdvance);
-    battle.unk53BDF3 = 0;
-    role.CountSkills(0, 1, battle.unk53BDF3);
-    role.ShowAllSkills();
-    int row = 0;
-
-    for (int index = 1;; ++index)
-    {
-        std::string name;
-        u16 cost = 0;
-        role.ListSkill(this->database, 0, 1, index, name, cost);
-
-        if (cost == kSkillListEnd)
-        {
-            break;
-        }
-
-        if (cost != 0)
-        {
-            battle.unk53C184 = {};
-            std::copy_n(name.begin(), std::min(name.size(), battle.unk53C184.size() - 1), battle.unk53C184.begin());
-            const std::string_view shown(battle.unk53C184.data());
-            const int rowY = y + kSpecialRowHeight * row;
-            font.DrawText(
-                this->drawSurface,
-                x + kListNameX,
-                rowY + kListFrameTop,
-                shown,
-                battle.lightColor,
-                TextFont::BoldOutline
-            );
-
-            if (cursor == row + 1)
-            {
-                font.DrawText(
-                    this->drawSurface,
-                    x + kListNameX - 1,
-                    rowY + kListFrameTop - 1,
-                    shown,
-                    battle.lightColor,
-                    TextFont::BoldOutline
-                );
-                FillBox(
-                    this->painter,
-                    x,
-                    rowY + kSpecialBarTop,
-                    kSpecialBarWidth,
-                    kListBarHeight,
-                    kListBarRed,
-                    kListBarGreen,
-                    0,
-                    FillMode::Gradient
-                );
-                font.SetBackground(TextFont::NoBackground);
-                battle.unk53BFB8 = 1;
-                battle.unk53BD10 = index;
-            }
-
-            ++row;
-        }
-
-        if (row >= kListRowsShown)
-        {
-            font.SetBackground(TextFont::NoBackground);
-            return;
-        }
-    }
-
-    role.ShowAllSkills();
-    font.SetBackground(TextFont::NoBackground);
+    smooth::Scene scene;
+    smooth::TurnFrame(*this).DrawSpecialListAdvance(x, y, cursor, scene);
+    scene.Show(this->battleServices);
 }
 
 // swd32.exe 0x004667B0: the 佈置護駕 panel: the panel act run on, a shade with a title frame (佈置護駕) and a body
@@ -2559,93 +1831,9 @@ void Game::DrawSpecialList(int x, int y, int cursor)
 // white at an 18-pixel advance, with 無 below a lone escort.
 void Game::DrawEscortList(int x, int y)
 {
-    BattleState& battle = this->battleState;
-    BattleMessages& messages = this->battleMessages;
-    TextFont& font = this->mediumFont;
-    messages.panelAct.id = BattleMessages::PanelAct;
-    messages.panelAct.action = 0;
-    this->acts.Run(messages.panelAct);
-    FillBox(
-        this->painter,
-        kEscortShadeX,
-        kEscortShadeY,
-        kEscortShadeWidth,
-        kEscortShadeHeight,
-        0,
-        kListShade,
-        kListShade,
-        FillMode::Blend
-    );
-    DrawWindowFrame(
-        this->painter,
-        this->archive,
-        messages.panelAct.frame,
-        kEscortFrameLeft,
-        kEscortTitleTop,
-        kEscortFrameRight,
-        kEscortTitleBottom,
-        0,
-        kListFrameBorder
-    );
-    font.DrawText(
-        this->drawSurface,
-        kEscortTitleX,
-        kEscortTitleTop,
-        Big5(kEscortTitle),
-        kTitleColor,
-        TextFont::BoldOutline
-    );
-    DrawWindowFrame(
-        this->painter,
-        this->archive,
-        messages.panelAct.frame,
-        kEscortFrameLeft,
-        kEscortBodyTop,
-        kEscortFrameRight,
-        kEscortBodyBottom,
-        0,
-        kListFrameBorder
-    );
-    FillBox(
-        this->painter,
-        x - kEscortBarLeft,
-        y + kSpecialRowHeight * battle.unk53BCF8 - kEscortBarUp,
-        kEscortShadeWidth,
-        kListBarHeight,
-        kListBarRed,
-        kListBarGreen,
-        0,
-        FillMode::Gradient
-    );
-
-    for (int left = battle.unk53BF26; left > 0; --left)
-    {
-        font.SetAdvance(kEscortAdvance);
-        const BattleRole& escort = this->battleRoles[battle.roleCount - static_cast<u32>(left)];
-        const int rowY = y + kSpecialRowHeight * (battle.unk53BF26 - left) + kEscortRowTop;
-        font.DrawText(
-            this->drawSurface,
-            x + kEscortNameX,
-            rowY,
-            ObjectName(*escort.Data()),
-            kWhite,
-            TextFont::BoldOutline
-        );
-    }
-
-    if (battle.unk53BF26 == 1)
-    {
-        font.DrawText(
-            this->drawSurface,
-            x + kEscortNameX,
-            y + kEscortNoneTop,
-            Big5(kNoObject),
-            kWhite,
-            TextFont::BoldOutline
-        );
-    }
-
-    font.SetAdvance(kListAdvance);
+    smooth::Scene scene;
+    smooth::TurnFrame(*this).DrawEscortListAdvance(x, y, scene);
+    scene.Show(this->battleServices);
 }
 
 // swd32.exe 0x00466950: the name tag of the aimed enemy (unk4A754C, 1-based) at (x, y), unless the current role's
@@ -2654,82 +1842,9 @@ void Game::DrawEscortList(int x, int y)
 // ("生命:%d/%d", to the left when swapped); from 15 its action gauge as a dark red bar below.
 void Game::DrawTargetTag(int x, int y)
 {
-    BattleState& battle = this->battleState;
-    BattleMessages& messages = this->battleMessages;
-    TextFont& font = this->mediumFont;
-    // Without a current unit (the auto battle) the original reads the order before the first: taken as not set.
-    const bool partyOrder =
-        battle.currentUnit >= BattleState::FirstRoleUnit &&
-        battle.pendingOrders[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)].unk00 == 1;
-
-    if (partyOrder || battle.unk53BF88 == 1 || battle.unk4A754C <= 0 ||
-        battle.unk4A754C > static_cast<i32>(battle.enemyCount))
-    {
-        return;
-    }
-
-    BattleEnemy& enemy = this->battleEnemies[static_cast<std::size_t>(battle.unk4A754C - 1)];
-    const std::string name = ObjectName(*enemy.Data());
-    const int halves = static_cast<int>(name.size()) / 2;
-    const int left = battle.mirrored == 1 ? kTagMirrorRight - kTagCharWidth * halves - x : x;
-    messages.panelAct.id = BattleMessages::PanelAct;
-    messages.panelAct.action = 0;
-    this->acts.Run(messages.panelAct);
-    const int width = kTagCharWidth * halves;
-    FillBox(
-        this->painter,
-        left - kTagMargin,
-        y - kTagMargin,
-        width + 2 * kTagMargin,
-        kListBarHeight,
-        0,
-        kThrowShade,
-        kThrowShade,
-        FillMode::Tint
-    );
-    const int right = left + width;
-    DrawWindowFrame(
-        this->painter,
-        this->archive,
-        messages.panelAct.frame,
-        left,
-        y,
-        right,
-        y + kTagFrameHeight,
-        0,
-        kListFrameBorder
-    );
-    font.SetAdvance(kTagCharWidth);
-    font.DrawText(this->drawSurface, left + kTagNameX, y, name, kWhite, TextFont::BoldOutline);
-    font.SetAdvance(kListAdvance);
-    const u16 known =
-        static_cast<u16>(FindCounterValue(this->party.fame.lists[Fame::FameList], static_cast<i16>(enemy.ActId())));
-
-    if (known >= kKnownHitPoints)
-    {
-        i32 hitPoints = 0;
-        i32 maximum = 0;
-        enemy.GetHitPoints(hitPoints, maximum);
-        const std::string text = WinFormat(kHitPointsFormat, {hitPoints, maximum});
-        const int textX = battle.mirrored != 0 ? left - kTagHitPointsLeft : right + kTagHitPointsGap;
-        font.DrawText(this->drawSurface, textX, y - kTagHitPointsUp, text, kWhite, TextFont::BoldOutline);
-    }
-
-    if (known < kKnownGauge)
-    {
-        return;
-    }
-
-    const auto gauge = static_cast<u16>(enemy.GaugeLength(this->battleServices));
-
-    if (gauge == 0)
-    {
-        return;
-    }
-
-    const int barX = battle.mirrored != 0 ? left - kTagHitPointsLeft : right + kTagHitPointsGap;
-    this->battleHud
-        .FillColor(barX, y + kTagGaugeTop, gauge, kTagGaugeHeight, this->painter.MakeColor(kTagGaugeRed, 0, 0));
+    smooth::Scene scene;
+    smooth::TurnFrame(*this).DrawTargetTagAdvance(x, y, scene);
+    scene.Show(this->battleServices);
 }
 
 // swd32.exe 0x00466C00: the 控制 menu of the controlled enemy (unk4A762C) at (x, y): a tile box with the title, a tile
@@ -2738,101 +1853,9 @@ void Game::DrawTargetTag(int x, int y)
 // first object's, see ItemName) and a skill unk53BD48 to its number.
 void Game::DrawControlMenu(int x, int y, int cursor)
 {
-    BattleState& battle = this->battleState;
-    TextFont& font = this->mediumFont;
-    BattleEnemy& enemy = this->battleEnemies[static_cast<std::size_t>(static_cast<i16>(battle.unk4A762C))];
-
-    auto entry = [this, &font, x](int top, const std::string& text, bool chosen)
-    {
-        font.SetBackground(TextFont::NoBackground);
-        font.DrawText(this->drawSurface, x, top, text, kWhite, TextFont::BoldOutline);
-
-        if (chosen)
-        {
-            font.SetBackground(kHighlightBackground);
-            font.DrawText(this->drawSurface, x, top, text, kWhite, TextFont::BoldOutline);
-        }
-    };
-
-    this->battleHud.DrawTileBox(
-        kControlTiles,
-        x - kControlBoxLeft,
-        y - kControlTitleUp,
-        kControlColumns,
-        kControlTitleRows,
-        kControlFill
-    );
-    font.DrawText(
-        this->drawSurface,
-        x,
-        y - kControlTitleTextUp,
-        Big5(BattleState::AccessoryCommandNames[kControlCommand - kFirstAccessoryCommand]),
-        kWhite,
-        TextFont::BoldOutline
-    );
-    this->battleHud.DrawTileBox(
-        kControlTiles,
-        x - kControlBoxLeft,
-        y - kControlBoxLeft,
-        kControlColumns,
-        battle.unk4A7568,
-        kControlFill
-    );
-    font.SetShadow(0);
-    entry(y, Big5(BattleState::FixedCommandNames[0]), cursor == 1);
-    int shown = 0;
-    int number = 1;
-    int top = y;
-
-    for (int choice = 0; choice < kControlObjects; ++choice)
-    {
-        std::string name;
-        u32 id = 0;
-
-        if (enemy.ItemName(this->database, choice, name, id) != 1)
-        {
-            continue;
-        }
-
-        ++shown;
-        ++number;
-        top += kListRowHeight;
-        entry(top, name, cursor == number);
-
-        if (cursor == number)
-        {
-            battle.unk53BD48 = 0;
-            battle.unk53BD44 = static_cast<i32>(id);
-        }
-    }
-
-    number = shown + 1;
-    top = y + kListRowHeight * shown;
-
-    for (int choice = 0; choice < kControlSkills; ++choice)
-    {
-        std::string name;
-
-        if (enemy.SkillName(this->database, choice, name) != 1)
-        {
-            continue;
-        }
-
-        ++shown;
-        ++number;
-        top += kListRowHeight;
-        entry(top, WinFormat(kSpecialFormat, {choice + 1}), cursor == number);
-
-        if (cursor == number)
-        {
-            battle.unk53BD44 = 0;
-            battle.unk53BD48 = choice + 1;
-        }
-    }
-
-    const int last = shown + 1;
-    entry(y + kListRowHeight * last, Big5(kReleaseName), cursor == last + 1);
-    font.SetBackground(TextFont::NoBackground);
+    smooth::Scene scene;
+    smooth::TurnFrame(*this).DrawControlMenuAdvance(x, y, cursor, scene);
+    scene.Show(this->battleServices);
 }
 
 // swd32.exe 0x004655B0: the spells of the current role's open page (unk53BD18) from entry `top` + 1 at (x, y), up to
@@ -2842,113 +1865,9 @@ void Game::DrawControlMenu(int x, int y, int cursor)
 // unk53BD10.
 void Game::DrawSpellList(int x, int y, int cursor, int top)
 {
-    BattleState& battle = this->battleState;
-    TextFont& font = this->mediumFont;
-
-    if (battle.currentUnit == 0)
-    {
-        return;
-    }
-
-    BattleRole& role = this->battleRoles[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)];
-    font.SetShadow(0);
-    font.SetBackground(TextFont::NoBackground);
-    font.SetAdvance(kListAdvance);
-    battle.unk53BDF2 = 0;
-    role.CountSkills(battle.unk53BD18, 0, battle.unk53BDF2);
-    role.ShowAllSkills();
-    int row = 0;
-
-    for (int index = top + 1;; ++index)
-    {
-        std::string name;
-        u16 cost = 0;
-        const u16 icon = role.ListSkill(this->database, battle.unk53BD18, 0, index, name, cost);
-
-        if (cost == kSkillListEnd)
-        {
-            break;
-        }
-
-        battle.unk53C184 = {};
-        std::copy_n(name.begin(), std::min(name.size(), battle.unk53C184.size() - 1), battle.unk53C184.begin());
-        const std::string_view shown(battle.unk53C184.data());
-        u16 maximum = 0;
-        u16 have = 0;
-
-        if ((cost & kStaminaCostBit) != 0)
-        {
-            role.GetStamina(maximum, have);
-            cost = static_cast<u16>(cost & ~kStaminaCostBit);
-        }
-        else
-        {
-            role.GetSpirit(maximum, have);
-        }
-
-        const int rowY = y + kListRowHeight * row + kSpellRowTop;
-
-        if (icon != kSkillListEnd)
-        {
-            this->battleHud.DrawPictureFrame(kElementIcons, icon - 1, x - kSpellIconLeft, rowY);
-        }
-
-        const bool isShort = static_cast<i16>(have) < static_cast<i16>(cost);
-        const u16 color = isShort ? battle.darkColor : battle.lightColor;
-        font.DrawText(this->drawSurface, x + kSpellNameX, rowY, shown, color, TextFont::BoldOutline);
-        const std::string number = WinFormat(kCostFormat, {static_cast<i32>(static_cast<i16>(cost))});
-        font.DrawText(this->drawSurface, x + kListCountX, rowY, number, color, TextFont::BoldOutline);
-
-        if (cursor == row + 1)
-        {
-            font.DrawText(this->drawSurface, x + kSpellNameX - 1, rowY - 1, shown, color, TextFont::BoldOutline);
-            FillBox(
-                this->painter,
-                x - kSpellBarLeft,
-                rowY - kSpellBarUp,
-                kSpecialBarWidth,
-                kListBarHeight,
-                kListBarRed,
-                kListBarGreen,
-                0,
-                FillMode::Gradient
-            );
-            FillBox(
-                this->painter,
-                0,
-                kDescriptionTop,
-                Display::Width,
-                kDescriptionHeight,
-                0,
-                kDescriptionGreen,
-                kDescriptionBlue,
-                FillMode::Gradient
-            );
-            const std::string description =
-                role.skills != nullptr ? ObjectDescription(this->databases.mapsData, role.skills->id) : std::string();
-            const auto halves = static_cast<int>(description.size()) >> 1;
-            font.DrawText(
-                this->drawSurface,
-                kDescriptionCentre - ((kListAdvance * halves) >> 1),
-                kDescriptionTextTop,
-                description,
-                kWhite,
-                TextFont::BoldOutline
-            );
-            font.SetBackground(TextFont::NoBackground);
-            battle.unk53BFB8 = 1;
-            battle.unk53BD10 = index;
-        }
-
-        if (++row >= kListRowsShown)
-        {
-            font.SetBackground(TextFont::NoBackground);
-            return;
-        }
-    }
-
-    role.ShowAllSkills();
-    font.SetBackground(TextFont::NoBackground);
+    smooth::Scene scene;
+    smooth::TurnFrame(*this).DrawSpellListAdvance(x, y, cursor, top, scene);
+    scene.Show(this->battleServices);
 }
 
 // swd32.exe 0x004659C0: the object list of category unk4A7570 at (x, y): its four page tabs (frames 3..0 right to
@@ -2958,144 +1877,9 @@ void Game::DrawSpellList(int x, int y, int cursor, int top)
 // object's description is centred in a bar at the bottom.
 void Game::DrawItemList(int x, int y, int cursor, int top)
 {
-    BattleState& battle = this->battleState;
-    BattleMessages& messages = this->battleMessages;
-    TextFont& font = this->mediumFont;
-
-    if (battle.currentUnit == 0)
-    {
-        return;
-    }
-
-    BattleRole& role = this->battleRoles[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)];
-    const int tabsY = y + kTabsDrop;
-    int tabX = x + kTabWidth * (kItemPages - 1);
-
-    for (int tab = kItemPages - 1; tab >= 0; --tab)
-    {
-        this->battleHud.DrawEffectAt(kTabEffect, tab, tabX, tabsY, 0);
-        tabX -= kTabWidth;
-    }
-
-    this->battleHud
-        .DrawEffectAt(kTabEffect, battle.unk4A7570 + kOpenTabFrame, x + kTabWidth * battle.unk4A7570, tabsY, 0);
-    font.SetBackground(kHighlightBackground);
-    font.SetBackground(TextFont::NoBackground);
-    messages.panelAct = ActState{};
-    messages.panelAct.id = BattleMessages::PanelAct;
-    messages.panelAct.action = 0;
-    this->acts.Run(messages.panelAct);
-    FillBox(
-        this->painter,
-        x,
-        y + kListBoxDrop,
-        kItemBoxWidth,
-        kListBoxHeight,
-        0,
-        kListShade,
-        kListShade,
-        FillMode::Quarter
-    );
-    DrawWindowFrame(
-        this->painter,
-        this->archive,
-        messages.panelAct.frame,
-        x + kListFrameInset,
-        y + kListFrameTop,
-        x + kItemFrameRight,
-        y + kListFrameBottom,
-        0,
-        kListFrameBorder
-    );
-    font.SetShadow(0);
-    font.SetBackground(TextFont::NoBackground);
-    font.SetAdvance(kListAdvance);
-    battle.unk53BDF4 = 0;
-    role.CountObjects(battle.unk4A7570, battle.unk53BDF4);
-    role.ShowAllItems();
-    int row = 0;
-
-    for (int index = top + 1;; ++index)
-    {
-        std::string name;
-        u16 flags = 0;
-        u16 count = 0;
-
-        if (role.ListObject(battle.unk4A7570, index, name, flags, count) == 0)
-        {
-            break;
-        }
-
-        if ((flags & kShownItem) != 0)
-        {
-            const std::string number = WinFormat(kCountFormat, {static_cast<i32>(static_cast<i16>(count))});
-            const u16 color = (flags & kCostlyItem) != 0 ? battle.darkColor : battle.lightColor;
-            const int rowY = y + kListRowHeight * row;
-            font.DrawText(this->drawSurface, x + kListCountX, rowY + kListRowTop, number, color, TextFont::BoldOutline);
-            font.DrawText(this->drawSurface, x + kListNameX, rowY + kListRowTop, name, color, TextFont::BoldOutline);
-
-            if (cursor == row + 1)
-            {
-                font.DrawText(
-                    this->drawSurface,
-                    x + kListNameX - 1,
-                    rowY + kListRowTop - 1,
-                    name,
-                    color,
-                    TextFont::BoldOutline
-                );
-                font.SetBackground(TextFont::NoBackground);
-                FillBox(
-                    this->painter,
-                    x,
-                    rowY + kListBarTop,
-                    kItemBarWidth,
-                    kListBarHeight,
-                    kListBarRed,
-                    kListBarGreen,
-                    0,
-                    FillMode::Gradient
-                );
-                battle.unk53BD14 = index;
-                battle.unk53BFB8 = 1;
-                FillBox(
-                    this->painter,
-                    0,
-                    kDescriptionTop,
-                    Display::Width,
-                    kDescriptionHeight,
-                    0,
-                    kDescriptionGreen,
-                    kDescriptionBlue,
-                    FillMode::Gradient
-                );
-                const std::string description =
-                    role.inventoryNode != nullptr ? ObjectDescription(this->databases.mapsData, role.inventoryNode->id)
-                                                  : std::string();
-                const auto halves = static_cast<int>(description.size()) >> 1;
-                font.DrawText(
-                    this->drawSurface,
-                    kDescriptionCentre - ((kListAdvance * halves) >> 1),
-                    kDescriptionTextTop,
-                    description,
-                    kWhite,
-                    TextFont::BoldOutline
-                );
-            }
-
-            font.SetBackground(TextFont::NoBackground);
-            ++row;
-        }
-
-        if (row >= kListRowsShown)
-        {
-            font.SetBackground(TextFont::NoBackground);
-            return;
-        }
-    }
-
-    role.ShowAllItems();
-    font.SetBackground(TextFont::NoBackground);
+    smooth::Scene scene;
+    smooth::TurnFrame(*this).DrawItemListAdvance(x, y, cursor, top, scene);
+    scene.Show(this->battleServices);
 }
 
 // swd32.exe 0x00467710: the 戰鬥勝利 panel. The first time (the gold not yet given, bit 15 of unk53BF12): the music
@@ -3106,233 +1890,18 @@ void Game::DrawItemList(int x, int y, int cursor, int top)
 // gold is given. Once the panel has grown, the experience, the gold and the proficiency are shown.
 void Game::DrawVictoryPanel()
 {
-    BattleState& battle = this->battleState;
-    BattleMessages& messages = this->battleMessages;
-    BattleServices& services = this->battleServices;
-    TextFont& font = this->mediumFont;
-    messages.panelAct.id = BattleMessages::PanelAct;
-    messages.panelAct.action = 0;
-    this->acts.Run(messages.panelAct);
-    FillBox(
-        this->painter,
-        kEscortShadeX,
-        kEscortShadeY,
-        kEscortShadeWidth,
-        messages.panelHeight + kVictoryShadeExtra,
-        0,
-        kListShade,
-        kListShade,
-        FillMode::Blend
-    );
-    DrawWindowFrame(
-        this->painter,
-        this->archive,
-        messages.panelAct.frame,
-        kEscortFrameLeft,
-        kEscortTitleTop,
-        kEscortFrameRight,
-        kEscortTitleBottom,
-        0,
-        kListFrameBorder
-    );
-    font.DrawText(
-        this->drawSurface,
-        kVictoryTitleX,
-        kEscortTitleTop,
-        Big5(kVictoryTitle),
-        kTitleColor,
-        TextFont::BoldOutline
-    );
-    DrawWindowFrame(
-        this->painter,
-        this->archive,
-        messages.panelAct.frame,
-        kEscortFrameLeft,
-        kEscortBodyTop,
-        kEscortFrameRight,
-        messages.panelHeight + kEscortBodyTop,
-        0,
-        kListFrameBorder
-    );
-
-    if ((battle.unk53BF12 & kGoldGiven) == 0)
-    {
-        this->audio.StopMusic();
-        this->audio.StopAllSounds();
-        this->audio.PlaySound(kVictorySound, this->config.soundVolume);
-
-        for (u32 index = 0; index < battle.enemyCount; ++index)
-        {
-            const u16 drop = this->battleEnemies[index].RollDrop(services);
-
-            if (drop == 0)
-            {
-                continue;
-            }
-
-            const auto known = std::find(battle.lootIds.begin(), battle.lootIds.end(), drop);
-
-            if (known != battle.lootIds.end())
-            {
-                AddOneItem(this->party.inventory, drop, 1, this->database);
-                ++messages.lootCounts[static_cast<std::size_t>(known - battle.lootIds.begin())];
-                continue;
-            }
-
-            // The original appends past its ten slots when more objects drop.
-            const std::size_t slot = messages.lootCount;
-            ObjectRecord* record = AddOneItem(this->party.inventory, drop, 1, this->database);
-
-            if (slot >= battle.lootIds.size())
-            {
-                continue;
-            }
-
-            ++messages.lootCounts[slot];
-            ++messages.lootCount;
-            messages.lootNames[slot] = record != nullptr
-                                           ? std::string_view(record->data.name.data(), ObjectName(*record).size())
-                                           : std::string_view();
-            battle.lootIds[slot] = drop;
-        }
-
-        for (u32 index = 0; index < battle.roleCount; ++index)
-        {
-            BattleRole& role = this->battleRoles[index];
-
-            if (role.unk2B00 == 1 || role.unk2B04 == 1 || role.IsDefeated())
-            {
-                continue;
-            }
-
-            const auto partyRole = static_cast<std::size_t>(battle.partyRoles[index]);
-            RoleRecord& record = this->party.roles[partyRole];
-
-            if (record.level < battle.timingWindow)
-            {
-                record.unk00 += battle.unk53BF14;
-            }
-
-            if (role.StepWornCounters(this->party.fame.lists[Fame::ProficiencyList], battle.unk53BF16) == 1)
-            {
-                battle.unk53C4C4 = 1;
-            }
-
-            i32& battles = this->party.battleBlocks[partyRole].unk00[kBattlesFought];
-            ++battles;
-
-            if (battle.enemyCount >= kManyEnemies)
-            {
-                ++battles;
-            }
-
-            role.ExpireEffects(services, 1);
-            role.RestartMainAct(1, 1);
-        }
-
-        battle.unk53BD20 = 0;
-        battle.unk53BF12 = static_cast<u16>(battle.unk53BF12 | kGoldGiven);
-        this->party.variables[kGoldVariable] += battle.unk53BF12 & kGoldMask;
-    }
-
-    if (messages.GrowPanel(kEscortBodyTop, kVictoryBodyBottom, kVictoryGrowDivisor) != 1)
-    {
-        return;
-    }
-
-    font.DrawText(
-        this->drawSurface,
-        kVictoryTextX,
-        kVictoryExperienceY,
-        WinFormat(kExperienceLine, {static_cast<i32>(battle.unk53BF14)}),
-        kTitleColor,
-        TextFont::BoldOutline
-    );
-    font.DrawText(
-        this->drawSurface,
-        kVictoryTextX,
-        kVictoryGoldY,
-        WinFormat(kGoldLine, {static_cast<i32>(battle.unk53BF12 & kGoldMask)}),
-        kTitleColor,
-        TextFont::BoldOutline
-    );
-    font.DrawText(
-        this->drawSurface,
-        kVictoryTextX,
-        kVictoryProficiencyY,
-        WinFormat(kProficiencyLine, {static_cast<i32>(battle.unk53BF16)}),
-        kTitleColor,
-        TextFont::BoldOutline
-    );
+    smooth::Scene scene;
+    smooth::TurnFrame(*this).DrawVictoryPanelAdvance(scene);
+    scene.Show(this->battleServices);
 }
 
 // swd32.exe 0x00467AC0: the 升級 panel while a role levels up (unk4A7646) or a skill was learned (unk53BFFC): a shade
 // with a title and a body frame; once the panel has grown, "<name>升第<level>級" of the role that levelled up.
 void Game::DrawLevelUpPanel()
 {
-    BattleState& battle = this->battleState;
-    BattleMessages& messages = this->battleMessages;
-    TextFont& font = this->mediumFont;
-
-    if (battle.unk4A7646 != kNoLevelUp || battle.unk53BFFC == 1)
-    {
-        messages.panelAct.id = BattleMessages::PanelAct;
-        messages.panelAct.action = 0;
-        this->acts.Run(messages.panelAct);
-        FillBox(
-            this->painter,
-            kEscortShadeX,
-            kEscortShadeY,
-            kEscortShadeWidth,
-            messages.panelHeight + kVictoryShadeExtra,
-            0,
-            kListShade,
-            kListShade,
-            FillMode::Blend
-        );
-        DrawWindowFrame(
-            this->painter,
-            this->archive,
-            messages.panelAct.frame,
-            kEscortFrameLeft,
-            kEscortTitleTop,
-            kEscortFrameRight,
-            kEscortTitleBottom,
-            0,
-            kListFrameBorder
-        );
-        font.DrawText(
-            this->drawSurface,
-            kLevelUpTitleX,
-            kEscortTitleTop,
-            Big5(kLevelUpTitle),
-            kTitleColor,
-            TextFont::BoldOutline
-        );
-        DrawWindowFrame(
-            this->painter,
-            this->archive,
-            messages.panelAct.frame,
-            kEscortFrameLeft,
-            kEscortBodyTop,
-            kEscortFrameRight,
-            messages.panelHeight + kEscortBodyTop,
-            0,
-            kListFrameBorder
-        );
-    }
-
-    if (messages.GrowPanel(kEscortBodyTop, kLevelUpBodyBottom, kLevelUpGrowDivisor) != 1 ||
-        battle.unk4A7646 == kNoLevelUp)
-    {
-        return;
-    }
-
-    const auto role = static_cast<std::size_t>(battle.partyRoles[battle.unk4A7646]);
-    const Party::Name& name = this->party.names[role];
-    const std::string roleName(name.data(), std::find(name.begin(), name.end(), '\0') - name.begin());
-    const std::string text = WinFormat(kLevelUpLine, {roleName, static_cast<i32>(this->party.roles[role].level)});
-    font.DrawText(this->drawSurface, kVictoryTextX, kLevelUpTextY, text, kTitleColor, TextFont::BoldOutline);
+    smooth::Scene scene;
+    smooth::TurnFrame(*this).DrawLevelUpPanelAdvance(scene);
+    scene.Show(this->battleServices);
 }
 
 // swd32.exe 0x00467C50: the first party role standing (not forced) with the experience of its next level (below the
@@ -3421,61 +1990,9 @@ void Game::DrawNewSpecial()
 // name in brackets, centred below it on a dark background.
 void Game::DrawLearnedBox(std::u8string_view line, bool sound)
 {
-    BattleState& battle = this->battleState;
-    BattleMessages& messages = this->battleMessages;
-    TextFont& font = this->mediumFont;
-
-    if (battle.unk53BFFC != 1)
-    {
-        return;
-    }
-
-    if (sound && messages.panelHeight == 0)
-    {
-        this->audio.PlaySound(kLearnedSound, this->config.soundVolume);
-    }
-
-    const auto role = static_cast<std::size_t>(battle.partyRoles[battle.unk4A7646]);
-    const Party::Name& roleName = this->party.names[role];
-    const std::string name(roleName.data(), std::find(roleName.begin(), roleName.end(), '\0') - roleName.begin());
-    const std::string text = WinFormat(line, {name});
-    const int halves = static_cast<int>(text.size()) / 2;
-    messages.panelAct.id = BattleMessages::PanelAct;
-    messages.panelAct.action = 0;
-    this->acts.Run(messages.panelAct);
-    FillBox(
-        this->painter,
-        kLearnedShadeX,
-        kEscortShadeY,
-        kTagCharWidth * halves + 2 * kTagMargin,
-        messages.panelHeight + 2 * kTagMargin,
-        0,
-        kListShade,
-        kListShade,
-        FillMode::Blend
-    );
-    DrawWindowFrame(
-        this->painter,
-        this->archive,
-        messages.panelAct.frame,
-        kLearnedFrameLeft,
-        kEscortTitleTop,
-        kTagCharWidth * halves + kLearnedFrameLeft,
-        messages.panelHeight + kEscortTitleTop,
-        0,
-        kListFrameBorder
-    );
-
-    if (messages.GrowPanel(kEscortTitleTop, kLearnedBodyBottom, kLevelUpGrowDivisor) != 1)
-    {
-        return;
-    }
-
-    font.DrawText(this->drawSurface, kLearnedTextX, kLearnedTextY, text, kWhite, TextFont::BoldOutline);
-    const std::string skill = WinFormat(kBracketFormat, {battle.lastLearned.name});
-    const int quarters = static_cast<int>(skill.size()) >> 2;
-    const int skillX = ((kListAdvance * halves) >> 1) - kListAdvance * quarters + kLearnedFrameLeft;
-    font.DrawText(this->drawSurface, skillX, kLearnedSkillY, skill, kLearnedSkillColor, TextFont::BoldOutline);
+    smooth::Scene scene;
+    smooth::TurnFrame(*this).DrawLearnedBoxAdvance(line, sound, scene);
+    scene.Show(this->battleServices);
 }
 
 // swd32.exe 0x00468C80: each battle role standing (not forced) whose next special skill is not exhausted (battle
@@ -3562,191 +2079,9 @@ void Game::LearnSpecials()
 // after another: the maxima first, then the attributes (strength does not wait for the maxima, as in the original).
 void Game::DrawLevelUpStats()
 {
-    BattleState& battle = this->battleState;
-    BattleMessages& messages = this->battleMessages;
-    TextFont& font = this->mediumFont;
-
-    if (battle.unk4A7646 == kNoLevelUp)
-    {
-        return;
-    }
-
-    const auto partyRole = static_cast<std::size_t>(battle.partyRoles[battle.unk4A7646]);
-    const RoleRecord& now = this->party.roles[partyRole];
-    const RoleRecord& before = battle.unk4FF108;
-    std::array<i16, kStatRolls>& rolls = battle.statRolls;
-    messages.panelAct.id = BattleMessages::PanelAct;
-    messages.panelAct.action = 0;
-    this->acts.Run(messages.panelAct);
-    FillBox(
-        this->painter,
-        kEscortShadeX,
-        kStatsShadeY,
-        kStatsShadeWidth,
-        messages.panelHeight + kVictoryShadeExtra,
-        0,
-        kListShade,
-        kListShade,
-        FillMode::Blend
-    );
-    DrawWindowFrame(
-        this->painter,
-        this->archive,
-        messages.panelAct.frame,
-        kEscortFrameLeft,
-        kStatsTitleTop,
-        kStatsFrameRight,
-        kStatsTitleBottom,
-        0,
-        kListFrameBorder
-    );
-    const Party::Name& name = this->party.names[partyRole];
-    const std::string roleName(name.data(), std::find(name.begin(), name.end(), '\0') - name.begin());
-    font.DrawText(this->drawSurface, kStatsTitleX, kStatsTitleTop, roleName, kTitleColor, TextFont::BoldOutline);
-    DrawWindowFrame(
-        this->painter,
-        this->archive,
-        messages.panelAct.frame,
-        kEscortFrameLeft,
-        kStatsBodyTop,
-        kStatsFrameRight,
-        messages.panelHeight + kStatsBodyTop,
-        0,
-        kListFrameBorder
-    );
-
-    if (messages.GrowPanel(kStatsBodyTop, kStatsBodyBottom, kVictoryGrowDivisor) != 1)
-    {
-        return;
-    }
-
-    const std::array<i32, kStatLines> old = {
-        before.maxHitPoints,
-        before.maxSpirit,
-        before.maxStamina,
-        static_cast<u16>(before.attack),
-        static_cast<u16>(before.defense),
-        static_cast<u16>(before.unk14),
-        static_cast<u16>(before.agility),
-    };
-
-    for (std::size_t line = 0; line < kStatLines; ++line)
-    {
-        const int y = kStatsFirstY + kStatsLineHeight * static_cast<int>(line);
-        font.DrawText(
-            this->drawSurface,
-            kStatsTextX,
-            y,
-            WinFormat(kStatLabels[line], {old[line]}),
-            kWhite,
-            TextFont::BoldOutline
-        );
-    }
-
-    const bool showNow = battle.unk53BDEA == kShowNow;
-
-    if (showNow)
-    {
-        rolls = {};
-    }
-    else
-    {
-        if (battle.unk53BDEA == kRollStart - 1)
-        {
-            rolls[0] = static_cast<i16>(now.maxHitPoints - before.maxHitPoints);
-            rolls[1] = static_cast<i16>(now.maxSpirit - before.maxSpirit);
-            rolls[2] = static_cast<i16>(now.maxStamina - before.maxStamina);
-            rolls[3] = static_cast<i16>(now.attack - before.attack);
-            rolls[4] = static_cast<i16>(now.defense - before.defense);
-            rolls[5] = static_cast<i16>(now.unk14 - before.unk14);
-            rolls[6] = static_cast<i16>(now.agility - before.agility);
-            rolls[7] = static_cast<i16>(now.unk18 - before.unk18);
-            rolls[8] = static_cast<i16>(now.unk1A - before.unk1A);
-        }
-
-        if (battle.unk53BDEA < kRollStart && ++battle.unk53BDEA < kRollStart)
-        {
-            return;
-        }
-    }
-
-    auto rise = [this, &font](int y, i32 value)
-    {
-        font.DrawText(this->drawSurface, kStatsArrowX, y, kArrow, kWhite, TextFont::BoldOutline);
-        font.DrawText(
-            this->drawSurface,
-            kStatsNewX,
-            y,
-            WinFormat(kNewValueFormat, {value}),
-            kLearnedSkillColor,
-            TextFont::BoldOutline
-        );
-    };
-
-    auto tick = [this]
-    {
-        this->audio.PlaySound(kRollSound, this->config.soundVolume);
-    };
-
-    auto lineY = [](int line)
-    {
-        return kStatsFirstY + kStatsLineHeight * line;
-    };
-
-    if (now.maxHitPoints > before.maxHitPoints)
-    {
-        rise(lineY(0), now.maxHitPoints - rolls[0]);
-
-        if (rolls[0] > 0)
-        {
-            --rolls[0];
-            tick();
-        }
-    }
-
-    if (now.maxSpirit > before.maxSpirit)
-    {
-        rise(lineY(1), now.maxSpirit - rolls[1]);
-
-        if (rolls[0] == 0 && rolls[1] > 0)
-        {
-            --rolls[1];
-            tick();
-        }
-    }
-
-    if (now.maxStamina > before.maxStamina)
-    {
-        rise(lineY(2), now.maxStamina - rolls[2]);
-
-        if (rolls[1] == 0 && rolls[2] > 0)
-        {
-            --rolls[2];
-            tick();
-        }
-    }
-
-    // The attributes compare and count unsigned.
-    auto attribute = [&](std::size_t line, i16 newValue, i16 oldValue, std::size_t roll, bool ready)
-    {
-        if (static_cast<u16>(newValue) <= static_cast<u16>(oldValue))
-        {
-            return;
-        }
-
-        rise(lineY(static_cast<int>(line)), static_cast<u16>(newValue) - static_cast<u16>(rolls[roll]));
-
-        if (ready && rolls[roll] != 0)
-        {
-            rolls[roll] = static_cast<i16>(rolls[roll] - 1);
-            tick();
-        }
-    };
-
-    attribute(3, now.attack, before.attack, 3, true);
-    attribute(4, now.defense, before.defense, 4, rolls[3] == 0);
-    attribute(5, now.unk14, before.unk14, 5, rolls[4] == 0);
-    attribute(6, now.agility, before.agility, 6, rolls[5] == 0);
+    smooth::Scene scene;
+    smooth::TurnFrame(*this).DrawLevelUpStatsAdvance(scene);
+    scene.Show(this->battleServices);
 }
 
 // swd32.exe 0x00460C40: the up key of the battle menu, by battle state: 1 moves the command up (skipping disabled
@@ -4461,156 +2796,9 @@ int Game::BattleDebugKeys()
 // and the state values (無敵, UM, 戰鬥, the menu, the counts, the aim, the locks, the picture cache, the frame).
 void Game::DrawBattleDebug()
 {
-    BattleState& battle = this->battleState;
-    BattleServices& services = this->battleServices;
-    TextFont& font = this->mediumFont;
-
-    auto text = [this, &font](int x, int y, const std::string& line)
-    {
-        font.DrawText(this->drawSurface, x, y, line, kWhite, TextFont::BoldOutline);
-    };
-
-    if (battle.unk5244E0 == 1)
-    {
-        font.SetBackground(TextFont::NoBackground);
-        font.SetShadow(0);
-        int y = kDebugTop;
-
-        for (u32 index = 0; index < battle.enemyCount; ++index)
-        {
-            BattleEnemy& enemy = this->battleEnemies[index];
-            battle.unk5028FC = enemy.Data();
-            i32 hitPoints = 0;
-            i32 maximum = 0;
-            enemy.GetHitPoints(hitPoints, maximum);
-            const i32 level = battle.unk5028FC->data.level;
-            text(
-                kDebugTop,
-                y,
-                WinFormat(
-                    kEnemyDebugLine,
-                    {hitPoints, static_cast<i32>(enemy.GetWord2A74()), static_cast<i32>(enemy.GetCommandA()), level}
-                )
-            );
-            y += kListRowHeight;
-        }
-
-        y = kDebugTop;
-
-        for (u32 index = 0; index < battle.roleCount; ++index)
-        {
-            BattleRole& role = this->battleRoles[index];
-            text(
-                kDebugRolesX,
-                y,
-                WinFormat(kRoleDebugLine, {static_cast<i32>(role.GetWord2A74()), static_cast<i32>(role.GetCommandA())})
-            );
-            y += kListRowHeight;
-        }
-
-        const auto enemies = static_cast<int>(battle.enemyCount);
-        const auto units = static_cast<int>(battle.enemyCount + battle.roleCount);
-        const int recordsY = kListRowHeight * enemies + kDebugTop;
-        text(kDebugTop, recordsY, Big5(kAttackOrder));
-
-        for (int at = 0; at < units; ++at)
-        {
-            text(
-                kDebugListX + kListRowHeight * at,
-                recordsY,
-                WinFormat(kDebugNumber, {battle.unk524788[static_cast<std::size_t>(at)].unit})
-            );
-        }
-
-        const int partyY = kListRowHeight * enemies + kDebugPartyRow;
-        text(kDebugTop, partyY, Big5(kPartyOrder));
-
-        for (u32 at = 0; at < battle.roleCount; ++at)
-        {
-            text(
-                kDebugPartyX + kListRowHeight * static_cast<int>(at),
-                partyY,
-                WinFormat(kDebugNumber, {battle.unk520DD0[at]})
-            );
-        }
-
-        const int drawY = kListRowHeight * enemies + kDebugDrawRow;
-        text(kDebugTop, drawY, Big5(kDrawOrder));
-
-        for (int at = 0; at < units; ++at)
-        {
-            text(
-                kDebugListX + kListRowHeight * at,
-                drawY,
-                WinFormat(kDebugNumber, {battle.drawOrder[static_cast<std::size_t>(at)]})
-            );
-        }
-
-        text(kDebugStateX, kDebugUnitsY, WinFormat(kUnitsDebugLine, {battle.unk53AE70, battle.currentUnit}));
-
-        for (u32 index = 0; index < battle.enemyCount; ++index)
-        {
-            BattleEnemy& enemy = this->battleEnemies[index];
-            enemy.GetPosition(battle.unk53BF4A, battle.unk53BF4E);
-            const int row = Display::Width * static_cast<i16>(battle.unk53BF4E);
-            const int gauge = enemy.GaugeLength(services);
-
-            // The original writes the pixels wherever the place puts them.
-            for (int pixel = 0; pixel < gauge; ++pixel)
-            {
-                for (const int at :
-                     {row + pixel + static_cast<i16>(battle.unk53BF4A),
-                      row + pixel + Display::Width + static_cast<i16>(battle.unk53BF4A)})
-                {
-                    if (at >= 0 && at < Display::Width * Display::Height)
-                    {
-                        this->drawSurface[at] = kGaugePixel;
-                    }
-                }
-            }
-        }
-
-        text(
-            kDebugStateX,
-            kDebugFlagsY,
-            WinFormat(
-                kFlagsDebugLine,
-                {battle.unk53AF68, static_cast<i32>(battle.unk4A7630), this->fightTalk.unk4A7B58}
-            )
-        );
-        text(kDebugStateX, kDebugMenuY, WinFormat(kMenuDebugLine, {battle.result, battle.unk53BFBC}));
-        text(
-            kDebugStateX,
-            kDebugCountsY,
-            WinFormat(
-                kCountsDebugLine,
-                {static_cast<i32>(battle.unk53BF00),
-                 static_cast<i32>(battle.unk4A7626),
-                 static_cast<i32>(battle.unk4A75FC)}
-            )
-        );
-        text(
-            kDebugStateX,
-            kDebugAimY,
-            WinFormat(kAimDebugLine, {battle.unk4A754C, battle.unk53BFC0, battle.unk53BFC4})
-        );
-        text(kDebugRightX, kDebugFlagsY, WinFormat(kLockDebugLine, {battle.unk53AE74}));
-        text(kDebugRightX, kDebugMenuY, WinFormat(kCacheDebugLine, {this->archive.CacheBytes() / kKilobyte}));
-        text(
-            kDebugRightX,
-            kDebugUnitsY,
-            WinFormat(
-                kLevelUpDebugLine,
-                {static_cast<i32>(static_cast<i8>(battle.unk4A7646)),
-                 static_cast<i32>(static_cast<i16>(battle.unk4A7644))}
-            )
-        );
-        text(kDebugFarX, kDebugCountsY, WinFormat(kBfDebugLine, {battle.unk53BDA0}));
-        text(kDebugStateX, kDebugTop, WinFormat(kFrameDebugLine, {kMillisecondsPerSecond / battle.unk4A75E8}));
-    }
-
-    font.SetShadow(0);
-    font.SetBackground(TextFont::NoBackground);
+    smooth::Scene scene;
+    smooth::TurnFrame(*this).DrawBattleDebugAdvance(scene);
+    scene.Show(this->battleServices);
 }
 
 // swd32.exe 0x0045FC60: the pointer over the battle (only when it moved, or while unk53BFBC): the click regions of
@@ -7101,64 +5289,9 @@ void Game::DrawBattleMenu()
 // on) and the command menu.
 void Game::DrawCommandPanel(i32 nameIndex)
 {
-    BattleState& battle = this->battleState;
-    i32 grown = battle.unk53BD94;
-
-    if (grown != kMenuOpened)
-    {
-        if (battle.unk53BFB0 == 0)
-        {
-            battle.unk53BD24 = this->state.pointerX - kMenuPointerShiftX;
-            battle.unk53BD28 = this->state.pointerY - kMenuPointerShiftY;
-            battle.unk53BFB0 = 1;
-        }
-
-        if (battle.unk53BDA8 >= kMenuIdleFrames)
-        {
-            battle.unk53BD24 = kMenuHomeX;
-            battle.unk53BD28 = kMenuHomeY;
-        }
-
-        if (battle.pointerX < kMenuPointerLeft || battle.pointerX > kMenuPointerRight ||
-            battle.pointerY < kMenuPointerTop || battle.pointerY > kMenuPointerBottom)
-        {
-            battle.unk53BD24 = kMenuHomeX;
-            battle.unk53BD28 = kMenuHomeY;
-            this->input.SetMousePosition(kMenuHomeX, kMenuHomeY);
-            grown = battle.unk53BD94;
-        }
-    }
-
-    if (grown >= kMenuOpened)
-    {
-        grown = kMenuOpened;
-        battle.unk53BD94 = kMenuOpened;
-    }
-
-    if (battle.unk53BD98 < 0)
-    {
-        battle.unk53BD98 = 0;
-    }
-
-    this->battleHud.DrawTallGauge(battle.unk53BD24, battle.unk53BD28, grown);
-
-    if (battle.unk53BD94 < kMenuOpened)
-    {
-        ++battle.unk53BD94;
-        --battle.unk53BD98;
-        return;
-    }
-
-    TextFont& font = this->mediumFont;
-    font.SetShadow(0);
-    font.SetBackground(TextFont::NoBackground);
-    const Party::Name& name =
-        this->party.names[static_cast<std::size_t>(battle.partyRoles[static_cast<std::size_t>(nameIndex)])];
-    const std::string text(name.data(), std::find(name.begin(), name.end(), '\0') - name.begin());
-    const int halfLength = static_cast<int>(text.size()) >> 1;
-    const int x = battle.unk53BD24 + kMenuNameStep * (kMenuNameCenter - (halfLength - kMenuNameShift));
-    font.DrawText(this->drawSurface, x, battle.unk53BD28 + kMenuNameY, text, kTitleColor, TextFont::BoldOutline);
-    this->DrawCommandMenu(battle.unk53BD24 + kCommandMenuX, battle.unk53BD28 + kCommandMenuY, battle.unk4A7548);
+    smooth::Scene scene;
+    smooth::TurnFrame(*this).DrawCommandPanelAdvance(nameIndex, scene);
+    scene.Show(this->battleServices);
 }
 
 // Battle state 3 of DrawBattleMenu (inline in the original). Aiming at every unit (unk53BF88), a pointer over each

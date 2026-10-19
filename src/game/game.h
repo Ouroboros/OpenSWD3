@@ -63,6 +63,10 @@ namespace swd3::smooth
 {
 
 class HitFrame;
+class TurnFrame;
+class DamageFrame;
+class BattleFrame;
+class TalkFrame;
 
 }  // namespace swd3::smooth
 
@@ -81,6 +85,10 @@ class Game
     friend class RoleControl;
     friend class RolePath;
     friend class smooth::HitFrame;
+    friend class smooth::TurnFrame;
+    friend class smooth::DamageFrame;
+    friend class smooth::BattleFrame;
+    friend class smooth::TalkFrame;
 
 public:
     static constexpr std::u8string_view WindowTitle = u8"軒轅劍參 DVD";                    // 0x0049FAC4
@@ -511,8 +519,6 @@ private:
     int FightTalkMusic();
     int FightTalkCounters();
     void DrawRolePanels();
-    template <typename Next>
-    void StepPanelGauge(i32& shown, i32& target, Next next, int picture, int x, int y, i32 downNear, i32 downFar);
     void MeasureUnits();
 
     DialogErrorReporter errors;
@@ -598,7 +604,10 @@ private:
     bool smoothMotion = false;
     bool mapFrameShown = false;
     bool battleFrameShown = false;  // the last game frame showed a battle frame that can be drawn again
-    bool menuFrameShown = false;    // the last game frame showed a frame of the main menu or the shop
+    // The rebuild's smooth battle while its parts are being split: the battle frame's draws gathered into one scene
+    // drawn once the frame is decided (off: the original's order).
+    bool battleDeferred = false;
+    bool menuFrameShown = false;  // the last game frame showed a frame of the main menu or the shop
     u32 gameFrames = 0;
     u32 framesBetween = 0;
     u64 paintBetweenNs = 0;  // the time the frames between took to paint, in all and the longest

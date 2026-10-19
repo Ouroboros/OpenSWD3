@@ -613,7 +613,7 @@ int BattleUnit::DrawFadeOut(BattleServices& services)
 {
     smooth::Scene scene;
     const auto result = smooth::UnitFrame(*this).DrawFadeOutAdvance(services, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -623,7 +623,7 @@ int BattleUnit::DrawFadeIn(BattleServices& services, const BattleUnit& anchor)
 {
     smooth::Scene scene;
     const auto result = smooth::UnitFrame(*this).DrawFadeInAdvance(services, anchor, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -1101,7 +1101,7 @@ constexpr int kDrainDown = 0x28;
 constexpr u16 kDrainSpeed = 0x28;
 constexpr u16 kDrainLife = 0x14;
 constexpr u16 kDrainDivisor = 0x3C;
-constexpr i32 kDrainTint = 5;
+
 constexpr u32 kUnusedCatchRoll = 12;
 constexpr u32 kCatchRoll = 10;
 constexpr int kFarAbove = 10;
@@ -1208,36 +1208,6 @@ constexpr u8 kHopPose = 0x32;
 constexpr u8 kProjectedPose = 0x33;
 constexpr u8 kParticlePose = 0x64;
 
-constexpr i16 kParticlesDone = 100;
-constexpr i16 kParticlesStarted = 0x65;
-constexpr i32 kBurstTarget = 2;
-constexpr u16 kBurstSpeed = 0x32;
-constexpr u16 kBurstLife = 0xFA;
-constexpr u16 kBurstDivisor = 0xA;
-constexpr i32 kSweepLeft = -0x1E;
-constexpr i32 kSweepRight = 0x29E;
-constexpr i32 kSweepAbove = 0xA;
-constexpr u16 kSweepSpeed = 0x64;
-constexpr u16 kSweepLife = 0x64;
-
-constexpr i32 kProjectedAngle = 0x5A;
-constexpr i16 kProjectedStep = 2;
-constexpr i32 kProjectedTint = 5;
-constexpr i32 kProjectedGrowth = 4;
-constexpr i32 kWobbles = 6;
-constexpr i16 kWobbleTop = 0x18;
-constexpr i16 kWobbleBottom = -8;
-constexpr i16 kWobbleRise = 4;
-constexpr u16 kWobbleSound = 0xEB;
-constexpr i32 kStripRight = 0x154;
-constexpr i32 kStripWidth = 0x140;
-constexpr u16 kStripSpeed = 0x18;
-constexpr u16 kStripLife = 0x64;
-constexpr u16 kStripDivisor = 0x28;
-constexpr u16 kStripFlags = ParticleEffect::WithinRange | ParticleEffect::Mixed;
-constexpr i32 kStripTint = 0xF;
-constexpr int kShakeSpan = 3;
-
 // The value of a skill script: the word at +0xE.
 u16 SkillValue(const SkillScript& skill)
 {
@@ -1286,9 +1256,9 @@ void BattleUnit::Announce(BattleServices& services, std::u8string_view format, i
 // (the later ones only advance once the first is past phase 0), then rise and fade out by 4 per frame
 void BattleUnit::DrawGuardText(BattleServices& services)
 {
-    smooth::GuardView view;
-    smooth::UnitFrame(*this).GuardAdvance(view);
-    smooth::UnitFrame::DrawGuard(services, view);
+    smooth::Scene scene;
+    smooth::UnitFrame(*this).Guard(scene);
+    scene.Show(services);
 }
 
 // swd32.exe 0x0047D640: splits `amount` into the four digits of the current target slot (a set bit 15 negates it).
@@ -1752,7 +1722,7 @@ void BattleUnit::DrawEffectIcons(BattleServices& services, int x, int y)
 {
     smooth::Scene scene;
     smooth::UnitFrame(*this).DrawEffectIconsAdvance(services, x, y, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
 }
 
 // swd32.exe 0x0047E880: ReviveBit revives a defeated party role (its record no longer marked, its turn reset);
@@ -3225,10 +3195,10 @@ int BattleUnit::FlyAct(
     int backwards
 )
 {
-    smooth::PictureSteps draws;
+    smooth::Scene scene;
     const int result =
-        smooth::UnitFrame(*this).FlyAdvance(services, target, act, slot, id, fromX, fromY, steps, backwards, draws);
-    smooth::DrawSteps(services, draws);
+        smooth::UnitFrame(*this).Fly(services, target, act, slot, id, fromX, fromY, steps, backwards, scene);
+    scene.Show(services);
     return result;
 }
 
@@ -3239,12 +3209,9 @@ int BattleUnit::FlyAct(
 // follows, cleared once the act waits.
 void BattleUnit::DrawAction(BattleServices& services, const BattleUnit& target, ActState& act)
 {
-    smooth::ActionView view;
-
-    if (smooth::UnitFrame(*this).ActionAdvance(services, target, act, view))
-    {
-        smooth::UnitFrame::DrawActionView(services, view);
-    }
+    smooth::Scene scene;
+    smooth::UnitFrame(*this).Action(services, target, act, scene);
+    scene.Show(services);
 }
 
 // swd32.exe 0x004838D0: one frame of `act` placed on the target (mirrored by the facing like the unit), or with a
@@ -3339,9 +3306,9 @@ void BattleUnit::AimAction(BattleServices& services, BattleUnit& target, ActStat
 // reaches kRecoilFadeEnd: then recoilTint is cleared and 1 tells that the recoil is over.
 int BattleUnit::DrawRecoil(BattleServices& services, ActState& act, i16 y)
 {
-    smooth::PictureSteps steps;
-    const int result = smooth::UnitFrame(*this).RecoilAdvance(services, act, y, steps);
-    smooth::DrawSteps(services, steps);
+    smooth::Scene scene;
+    const int result = smooth::UnitFrame(*this).Recoil(services, act, y, scene);
+    scene.Show(services);
     return result;
 }
 
@@ -3351,7 +3318,7 @@ int BattleUnit::DrawAimed(BattleServices& services, BattleUnit& target, ActState
 {
     smooth::Scene scene;
     const auto result = smooth::UnitFrame(*this).DrawAimedAdvance(services, target, act, shiftX, shiftY, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -3370,9 +3337,9 @@ void BattleUnit::DrawTrail(
     i16 y
 )
 {
-    smooth::PictureSteps steps;
-    smooth::UnitFrame(*this).TrailAdvance(services, trail, frame, picture, mode, x, y, steps);
-    smooth::DrawSteps(services, steps);
+    smooth::Scene scene;
+    smooth::UnitFrame(*this).Trail(services, trail, frame, picture, mode, x, y, scene);
+    scene.Show(services);
 }
 
 // swd32.exe 0x0047FC40: one frame of the queued acts (`action`, when not 0, given to each first); 1 when there are none
@@ -3383,9 +3350,9 @@ void BattleUnit::DrawTrail(
 // are freed. A shaking node takes the arrival of the node before it (the original's first is uninitialised).
 int BattleUnit::RunQueuedActions(BattleServices& services, BattleUnit& target, i32 action)
 {
-    smooth::PictureSteps steps;
-    const int result = smooth::UnitFrame(*this).QueuedAdvance(services, target, action, steps);
-    smooth::DrawSteps(services, steps);
+    smooth::Scene scene;
+    const int result = smooth::UnitFrame(*this).Queued(services, target, action, scene);
+    scene.Show(services);
     return result;
 }
 
@@ -3471,7 +3438,7 @@ void BattleUnit::DrawActionAt(BattleServices& services, i16 x, i16 y, ActState& 
 {
     smooth::Scene scene;
     smooth::UnitFrame(*this).DrawActionAtAdvance(services, x, y, act, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
 }
 
 // swd32.exe 0x00482840: one frame of the unit walking back from the target to its place (the attack act, or `id` /
@@ -3482,15 +3449,9 @@ void BattleUnit::DrawActionAt(BattleServices& services, i16 x, i16 y, ActState& 
 // the act's overlay. The rebuild's continuous motion splits it into HomeAdvance and the draw (DrawWalk).
 int BattleUnit::ReturnHome(BattleServices& services, const BattleUnit& target, i32 id, i32 action)
 {
-    smooth::WalkView view;
-    const int result = smooth::UnitFrame(*this).HomeAdvance(services, target, id, action, view);
-
-    if (view.picture.shown)
-    {
-        const PaintRecord::Motion moving(view.motion);
-        smooth::UnitFrame::DrawWalk(services, view);
-    }
-
+    smooth::Scene scene;
+    const int result = smooth::UnitFrame(*this).Home(services, target, id, action, scene);
+    scene.Show(services);
     return result;
 }
 
@@ -3525,7 +3486,7 @@ int BattleUnit::FadeInvisible(BattleServices& services, int mode)
 {
     smooth::Scene scene;
     const auto result = smooth::UnitFrame(*this).FadeInvisibleAdvance(services, mode, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -3669,7 +3630,7 @@ int BattleUnit::FadeMainOut(BattleServices& services)
 {
     smooth::Scene scene;
     const auto result = smooth::UnitFrame(*this).FadeMainOutAdvance(services, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -3679,7 +3640,7 @@ int BattleUnit::FadeMainIn(BattleServices& services)
 {
     smooth::Scene scene;
     const auto result = smooth::UnitFrame(*this).FadeMainInAdvance(services, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -3689,7 +3650,7 @@ void BattleUnit::DrawMainFaded(BattleServices& services, int tint)
 {
     smooth::Scene scene;
     smooth::UnitFrame(*this).DrawMainFadedAdvance(services, tint, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
 }
 
 // swd32.exe 0x00480EE0: the unit's defence: a party role's from its battle record (+30% DefenseUp, -30% DefenseDown,
@@ -3906,7 +3867,7 @@ void BattleUnit::DrawDefeatPiece(
 {
     smooth::Scene scene;
     smooth::UnitFrame(*this).DrawDefeatPieceAdvance(services, picture, left, top, right, bottom, x, y, height, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
 }
 
 // Pose 1: the picture rises by glowLevel (0x1F more a frame up to 0x1E0), glowing, scaled up by glowLevel rows.
@@ -3914,7 +3875,7 @@ int BattleUnit::DefeatRising(BattleServices& services, const Picture& picture, i
 {
     smooth::Scene scene;
     const auto result = smooth::UnitFrame(*this).DefeatRisingAdvance(services, picture, x, y, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -3922,72 +3883,19 @@ int BattleUnit::DefeatRising(BattleServices& services, const Picture& picture, i
 // the unit faces (8); 1 once they are gone.
 int BattleUnit::DefeatBurst(BattleServices& services, const Picture& picture, int x, int y)
 {
-    if (this->glowLevel == kParticlesDone)
-    {
-        return this->EndParticleDefeat(services);
-    }
-
-    if (this->absorbPixels.empty())
-    {
-        ParticleEffect& effect = this->absorb;
-        effect = ParticleEffect{};
-        this->DecodeForParticles(services, picture);
-        effect.width = picture.width;
-        effect.height = picture.height;
-        effect.x = x;
-        effect.y = y;
-        effect.flags = static_cast<u16>(effect.flags | ParticleEffect::Mixed);
-        effect.bursts = 1;
-        effect.divisor = kBurstDivisor;
-
-        if (this->defeatPose == kBurstPose)
-        {
-            effect.targetLeft = x + (picture.width >> 1);
-            effect.targetTop = y + (picture.height >> 1);
-            effect.targetWidth = kBurstTarget;
-            effect.targetHeight = kBurstTarget;
-            effect.speed = kBurstSpeed;
-            effect.lifeBase = kBurstLife;
-        }
-        else
-        {
-            effect.targetLeft = this->facing == 1 ? kSweepRight : kSweepLeft;
-            effect.targetTop = y - kSweepAbove;
-            effect.targetWidth = kBurstTarget;
-            effect.targetHeight = picture.height + kSweepAbove;
-            effect.speed = kSweepSpeed;
-            effect.lifeBase = kSweepLife;
-        }
-
-        if (this->Mirrored() == 1)
-        {
-            effect.flags = static_cast<u16>(effect.flags | ParticleEffect::Mirrored);
-        }
-
-        services.state.projector.SetScreen(Display::Width, Display::Height);
-
-        if (this->defeatPose == kBurstPose)
-        {
-            this->castAct.view = kDefeatSound;
-        }
-
-        services.audio.PlaySound(kDefeatSound, services.config.soundVolume);
-        this->glowLevel = 1;
-    }
-
-    return this->RunDefeatParticles(services);
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).DefeatBurstAdvance(services, picture, x, y, scene);
+    scene.Show(services);
+    return result;
 }
 
 // The explosion of a particle pose; glowLevel kParticlesDone once it is over.
 int BattleUnit::RunDefeatParticles(BattleServices& services)
 {
-    if (services.state.projector.DrawExplosion(services.screen, services.painter, services.crtRandom, this->absorb) ==
-        1)
-    {
-        this->glowLevel = kParticlesDone;
-    }
-
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).RunDefeatParticlesAdvance(services, scene);
+    scene.Show(services);
+    return result;
 }
 
 // The picture decoded into absorbPixels for a particle pose.
@@ -4010,7 +3918,7 @@ int BattleUnit::DefeatSplitRows(BattleServices& services, const Picture& picture
 {
     smooth::Scene scene;
     const auto result = smooth::UnitFrame(*this).DefeatSplitRowsAdvance(services, picture, x, y, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -4019,7 +3927,7 @@ int BattleUnit::DefeatSplitColumns(BattleServices& services, const Picture& pict
 {
     smooth::Scene scene;
     const auto result = smooth::UnitFrame(*this).DefeatSplitColumnsAdvance(services, picture, x, y, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -4029,7 +3937,7 @@ int BattleUnit::DefeatFill(BattleServices& services, const Picture& picture, int
 {
     smooth::Scene scene;
     const auto result = smooth::UnitFrame(*this).DefeatFillAdvance(services, picture, x, y, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -4038,7 +3946,7 @@ int BattleUnit::DefeatFadeOut(BattleServices& services, const Picture& picture)
 {
     smooth::Scene scene;
     const auto result = smooth::UnitFrame(*this).DefeatFadeOutAdvance(services, picture, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -4048,7 +3956,7 @@ int BattleUnit::DefeatQuarters(BattleServices& services, const Picture& picture,
 {
     smooth::Scene scene;
     const auto result = smooth::UnitFrame(*this).DefeatQuartersAdvance(services, picture, x, y, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -4057,7 +3965,7 @@ int BattleUnit::DefeatWave(BattleServices& services, const Picture& picture)
 {
     smooth::Scene scene;
     const auto result = smooth::UnitFrame(*this).DefeatWaveAdvance(services, picture, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -4066,7 +3974,7 @@ int BattleUnit::DefeatSink(BattleServices& services, const Picture& picture)
 {
     smooth::Scene scene;
     const auto result = smooth::UnitFrame(*this).DefeatSinkAdvance(services, picture, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -4075,7 +3983,7 @@ int BattleUnit::DefeatZoom(BattleServices& services, const Picture& picture)
 {
     smooth::Scene scene;
     const auto result = smooth::UnitFrame(*this).DefeatZoomAdvance(services, picture, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -4084,7 +3992,7 @@ int BattleUnit::DefeatStrips(BattleServices& services, const Picture& picture, i
 {
     smooth::Scene scene;
     const auto result = smooth::UnitFrame(*this).DefeatStripsAdvance(services, picture, x, y, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -4093,7 +4001,7 @@ int BattleUnit::DefeatHalves(BattleServices& services, const Picture& picture, i
 {
     smooth::Scene scene;
     const auto result = smooth::UnitFrame(*this).DefeatHalvesAdvance(services, picture, x, y, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -4102,7 +4010,7 @@ int BattleUnit::DefeatSlide(BattleServices& services, const Picture& picture)
 {
     smooth::Scene scene;
     const auto result = smooth::UnitFrame(*this).DefeatSlideAdvance(services, picture, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -4112,7 +4020,7 @@ int BattleUnit::DefeatHop(BattleServices& services, const Picture& picture, int 
 {
     smooth::Scene scene;
     const auto result = smooth::UnitFrame(*this).DefeatHopAdvance(services, picture, x, y, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -4120,148 +4028,20 @@ int BattleUnit::DefeatHop(BattleServices& services, const Picture& picture, int 
 // other frame number up to 100; the cast act's sound plays first.
 int BattleUnit::DefeatProjected(BattleServices& services, const Picture& picture)
 {
-    if (this->glowLevel >= kParticlesDone)
-    {
-        this->glowLevel = 0;
-        return this->EndDefeat(services);
-    }
-
-    ProjectedPicture& projected = this->projected;
-
-    if (this->glowLevel == 0)
-    {
-        projected.scaleX = kZoomUnit;
-        projected.scaleY = kZoomUnit;
-        projected.unk08 = picture.width >> 1;
-        projected.unk0C = picture.height;
-        projected.width = picture.width;
-        projected.height = picture.height;
-        projected.flags = ProjectedPicture::Mixed;
-        projected.x = this->placement.x - (picture.width >> 1);
-        projected.y = this->placement.y;
-
-        if (this->Mirrored() == 1)
-        {
-            projected.flags = static_cast<u16>(projected.flags | ProjectedPicture::Mirrored);
-        }
-
-        projected.angle = kProjectedAngle;
-        this->projectedPixels.clear();
-        const std::optional<RawPicture> raw = RleCodec(services.painter).Decode(picture.data);
-
-        if (raw.has_value())
-        {
-            this->projectedPixels.resize(raw->pixels.size() / sizeof(u16));
-            std::memcpy(this->projectedPixels.data(), raw->pixels.data(), this->projectedPixels.size() * sizeof(u16));
-        }
-
-        projected.pixels = this->projectedPixels;
-        const u16 sound = this->castAct.view;
-        this->standAct.view = kDefeatSound;
-        services.audio.PlaySound(sound, services.config.soundVolume);
-    }
-
-    this->glowLevel = static_cast<i16>(this->glowLevel + kProjectedStep);
-    projected.tintRed = kProjectedTint;
-    projected.tintGreen = kProjectedTint;
-    projected.tintBlue = kProjectedTint;
-    projected.scaleX += kProjectedGrowth;
-    projected.scaleY += kProjectedGrowth;
-    services.state.projector.DrawScaled(services.screen, services.painter, projected);
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).DefeatProjectedAdvance(services, picture, scene);
+    scene.Show(services);
+    return result;
 }
 
 // Pose 100: the unit wobbles (recoilTint, flickering up by 4 and down by 1, kWobbleSound at its top) six times, then
 // shakes while it breaks into particles that fly off a strip across the field.
 int BattleUnit::DefeatParticles(BattleServices& services, const Picture& picture, int x, int y)
 {
-    if (this->glowLevel == kParticlesDone)
-    {
-        return this->EndParticleDefeat(services);
-    }
-
-    if (this->glowLevel == 0)
-    {
-        if (this->throwSteps >= kWobbles)
-        {
-            this->recoilTint = 0;
-            this->glowLevel = 1;
-            this->throwSteps = 0;
-            return 0;
-        }
-
-        if (this->recoilTint == kWobbleTop)
-        {
-            services.audio.PlaySound(kWobbleSound, services.config.soundVolume);
-        }
-
-        Painter& painter = services.painter;
-        painter.SetSource(picture.data.data());
-        DrawOptions& options = painter.Options();
-        options.tintRed = this->recoilTint;
-        options.tintGreen = this->recoilTint;
-        options.tintBlue = this->recoilTint;
-        painter.DrawPicture(
-            this->placement.x - static_cast<i16>(this->originX),
-            this->placement.y - this->mainAct.y,
-            picture.width,
-            picture.height,
-            this->drawFlags | Painter::Additive
-        );
-        const i32 wobble = this->throwSteps;
-
-        if (wobble % 2 != 0)
-        {
-            --this->recoilTint;
-        }
-        else
-        {
-            this->recoilTint = static_cast<i16>(this->recoilTint + kWobbleRise);
-        }
-
-        if (this->recoilTint >= kWobbleTop || this->recoilTint <= kWobbleBottom)
-        {
-            this->throwSteps = wobble + 1;
-        }
-
-        return 0;
-    }
-
-    if (this->absorbPixels.empty())
-    {
-        ParticleEffect& effect = this->absorb;
-        effect = ParticleEffect{};
-        this->DecodeForParticles(services, picture);
-        effect.width = picture.width;
-        effect.height = picture.height;
-        effect.x = x;
-        effect.y = y;
-        effect.targetLeft = this->facing == 1 ? kStripRight : 0;
-        effect.targetTop = 1;
-        effect.targetWidth = kStripWidth;
-        effect.targetHeight = 1;
-        effect.speed = kStripSpeed;
-        effect.lifeBase = kStripLife;
-        effect.bursts = static_cast<u16>(picture.height >> 2);
-        effect.divisor = kStripDivisor;
-        effect.flags = kStripFlags;
-
-        if (this->Mirrored() == 1)
-        {
-            effect.flags = static_cast<u16>(effect.flags | ParticleEffect::Mirrored);
-        }
-
-        effect.tintRed = kStripTint;
-        effect.tintGreen = kStripTint;
-        effect.tintBlue = kStripTint;
-        services.state.projector.SetScreen(Display::Width, Display::Height);
-        services.audio.PlaySound(kDefeatSound, services.config.soundVolume);
-        this->glowLevel = kParticlesStarted;
-    }
-
-    ++this->glowLevel;
-    this->absorb.x = x + this->glowLevel % kShakeSpan;
-    return this->RunDefeatParticles(services);
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).DefeatParticlesAdvance(services, picture, x, y, scene);
+    scene.Show(services);
+    return result;
 }
 
 // The place of WalkToTarget (part of 0x00482310): the act's offset and the stand pose's mirrored by the facing, the
@@ -4585,15 +4365,9 @@ std::array<int, 3> BattleUnit::IdleMotion(BattleServices& services, const ActSta
 // becomes command B. The rebuild's continuous motion splits it into WalkAdvance and the draw (DrawWalk).
 void BattleUnit::WalkToTarget(BattleServices& services, const BattleUnit& target)
 {
-    smooth::WalkView view;
-
-    if (!smooth::UnitFrame(*this).WalkAdvance(services, target, view))
-    {
-        return;
-    }
-
-    const PaintRecord::Motion moving(view.motion);
-    smooth::UnitFrame::DrawWalk(services, view);
+    smooth::Scene scene;
+    smooth::UnitFrame(*this).Walk(services, target, scene);
+    scene.Show(services);
 }
 
 // swd32.exe 0x0047DAD0: one tick of the unit's effects (not while held): each timer rises by kEffectTick; a full one
@@ -4749,20 +4523,10 @@ void BattleUnit::StartDrainEffect(BattleServices& services, int slot, BattleUnit
 // effect cleared)
 int BattleUnit::DrainEffectFrame(BattleServices& services, int slot)
 {
-    ParticleEffect& effect = this->drains[static_cast<std::size_t>(slot)];
-    effect.tintRed = kDrainTint;
-    effect.tintGreen = kDrainTint;
-    effect.tintBlue = kDrainTint;
-    this->absorbing = 1;
-
-    if (services.state.projector.DrawExplosion(services.screen, services.painter, services.crtRandom, effect) != 1)
-    {
-        return 0;
-    }
-
-    this->drainPixels[static_cast<std::size_t>(slot)].clear();
-    effect = ParticleEffect{};
-    return 1;
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).DrainEffectFrameAdvance(services, slot, scene);
+    scene.Show(services);
+    return result;
 }
 
 // swd32.exe 0x00476330: whether `level` catches the enemy (never with UnkMark800 or when its object's unk91 is 0; a
@@ -4806,33 +4570,10 @@ int BattleUnit::CatchRoll(BattleServices& services, u8 level)
 // unk2B10, else to the side). Its effects, overlay and a recoil effect follow.
 int BattleUnit::HurtFrame(BattleServices& services)
 {
-    smooth::UnitFrame parts(*this);
-    smooth::HurtView view;
-    int result = 0;
-
-    if (!parts.HurtAdvance(services, view, result))
-    {
-        return result;
-    }
-
-    smooth::UnitFrame::HurtDrawBody(services, view);
-
-    {
-        const PaintRecord::Motion moving(view.bodyMotion);
-        smooth::PictureSteps steps;
-        parts.EffectsAdvance(services, view.x, view.y, view.picture, steps);
-        smooth::DrawSteps(services, steps);
-    }
-
-    const bool finished = parts.HurtAdvanceTail(services, view);
-    smooth::UnitFrame::HurtDrawTail(services, view);
-
-    if (!finished)
-    {
-        return 0;
-    }
-
-    return parts.HurtStep(services);
+    smooth::Scene scene;
+    const int result = smooth::UnitFrame(*this).Hurt(services, scene);
+    scene.Show(services);
+    return result;
 }
 
 // swd32.exe 0x00478B60: one frame of the unit at rest (`paused`: its acts hold). drawAtSaved moves it first (1 shakes
@@ -4847,31 +4588,9 @@ int BattleUnit::HurtFrame(BattleServices& services)
 // draws of the unit (IdleDraw), run here in the original's order.
 void BattleUnit::IdleFrame(BattleServices& services, int paused)
 {
-    smooth::UnitFrame parts(*this);
-    smooth::IdleView view;
-
-    if (!parts.IdleAdvance(services, paused, view))
-    {
-        return;
-    }
-
-    const PaintRecord::Motion moving({view.motion[0], view.motion[1]});
-    smooth::UnitFrame::IdleDraw(services, view);
-
-    if (view.thrownLost)
-    {
-        return;
-    }
-
-    smooth::PictureSteps steps;
-    parts.IdleEffectAdvance(services, steps);
-    smooth::DrawSteps(services, steps);
-    steps.clear();
-    parts.FollowUpAdvance(services, steps);
-    smooth::DrawSteps(services, steps);
-    steps.clear();
-    parts.EffectsAdvance(services, view.x, view.y, view.picture, steps);
-    smooth::DrawSteps(services, steps);
+    smooth::Scene scene;
+    smooth::UnitFrame(*this).Idle(services, paused, scene);
+    scene.Show(services);
 }
 
 // The movement of IdleFrame by drawAtSaved (inline in the original): 1 shakes the unit a pixel at random while nudge
@@ -5466,7 +5185,7 @@ int BattleUnit::RunAway(BattleServices& services)
 {
     smooth::Scene scene;
     const auto result = smooth::UnitFrame(*this).RunAwayAdvance(services, scene);
-    scene.DrawAll(services);
+    scene.Show(services);
     return result;
 }
 
@@ -5537,9 +5256,9 @@ int BattleUnit::StepOrbCounters(CounterList& list, const UnitCommand& command)
 // leading zero digit is not drawn. 1 once every slot is done (all cleared).
 int BattleUnit::DrawDamageNumbers(BattleServices& services)
 {
-    smooth::NumbersView view;
-    const int result = smooth::UnitFrame(*this).NumbersAdvance(services, view);
-    smooth::UnitFrame::DrawNumbers(services, view);
+    smooth::Scene scene;
+    const int result = smooth::UnitFrame(*this).Numbers(services, scene);
+    scene.Show(services);
     return result;
 }
 

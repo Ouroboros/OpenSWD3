@@ -265,6 +265,12 @@ public:
     );
     int Queued(BattleServices& services, BattleUnit& target, i32 action, Scene& scene);
     int Home(BattleServices& services, const BattleUnit& target, i32 id, i32 action, Scene& scene);
+    // IdleFrame, WalkToTarget, HurtFrame, DrawDamageNumbers and DrawGuardText into a scene.
+    void Idle(BattleServices& services, int paused, Scene& scene);
+    void Walk(BattleServices& services, const BattleUnit& target, Scene& scene);
+    int Hurt(BattleServices& services, Scene& scene);
+    int Numbers(BattleServices& services, Scene& scene);
+    void Guard(Scene& scene);
     // DrawAction: false when it draws nothing.
     bool ActionAdvance(BattleServices& services, const BattleUnit& target, ActState& act, ActionView& view);
     static void DrawActionView(BattleServices& services, const ActionView& view);
@@ -334,6 +340,16 @@ public:
     int DefeatWaveAdvance(BattleServices& services, const Picture& picture, Scene& scene);
 
     int DefeatZoomAdvance(BattleServices& services, const Picture& picture, Scene& scene);
+
+    int RunDefeatParticlesAdvance(BattleServices& services, Scene& scene);
+
+    int DefeatBurstAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene);
+
+    int DefeatParticlesAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene);
+
+    int DefeatProjectedAdvance(BattleServices& services, const Picture& picture, Scene& scene);
+
+    int DrainEffectFrameAdvance(BattleServices& services, int slot, Scene& scene);
 
 private:
     int FlashStep();
