@@ -59,6 +59,13 @@
 #include "text/text_input.h"
 #include "ui/act_draw.h"
 
+namespace swd3::smooth
+{
+
+class HitFrame;
+
+}  // namespace swd3::smooth
+
 namespace swd3
 {
 
@@ -73,6 +80,7 @@ class Game
     friend class Talk;
     friend class RoleControl;
     friend class RolePath;
+    friend class smooth::HitFrame;
 
 public:
     static constexpr std::u8string_view WindowTitle = u8"軒轅劍參 DVD";                    // 0x0049FAC4

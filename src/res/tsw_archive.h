@@ -119,10 +119,16 @@ public:
     int CacheBytes() const;
     // The rebuild's smooth battle: the id and frame of a picture in the cache; false for one outside it.
     bool Locate(const Picture* picture, u32& id, u32& frame) const;
-    // The same for a cached picture by its pixel data (Painter::SetSource), with the picture.
-    const Picture* LocateData(const void* data, u32& id, u32& frame) const;
+    // The same for a picture of the cache or the kept ones by its pixel data (Painter::SetSource), with the picture;
+    // `kept` tells which.
+    const Picture* LocateData(const void* data, u32& id, u32& frame, bool& kept) const;
     // The same by its palette (the argument PaletteArgument gives).
-    const Picture* LocatePalette(const void* palette, u32& id, u32& frame) const;
+    const Picture* LocatePalette(const void* palette, u32& id, u32& frame, bool& kept) const;
+    // The rebuild's smooth battle: LoadPictureDirect, its picture kept apart from the cache so a frame drawn again
+    // finds it without reading the file (the one kept already for id and frame when there is one).
+    const Picture* LoadPictureKept(u32 id, u32 frame);
+    // The kept picture of id and frame; nullptr once it is let go.
+    const Picture* FindKept(u32 id, u32 frame);
 
 private:
     // Entry header of a frame set as read by ReadHeader: format and palette.
@@ -173,6 +179,12 @@ private:
         bool serveAround
     );
     void FreeBuffers();
+    const Picture* LocateMatch(
+        const std::function<bool(const Picture&)>& matches,
+        u32& id,
+        u32& frame,
+        bool& kept
+    ) const;
     File* ArchiveOf(u32 id);
     u32 MagicDirectoryOffset(int index) const;
     TswFrameEntry& MagicFrame(int slot, int frame);
@@ -190,6 +202,7 @@ private:
     int cacheLimit = 0x600000;
     int cacheBytes = 0;
     std::array<std::list<CacheEntry>, Chains> chains;
+    std::list<CacheEntry> kept;  // LoadPictureKept, the last used first
     std::array<u16, Chains> chainCounts{};
     Picture* current = nullptr;
     bool magicMode = false;

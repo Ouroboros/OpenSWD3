@@ -1,12 +1,16 @@
 #include "battle/smooth/smooth_draw.h"
 
+#include <memory>
 #include <optional>
+#include <span>
 #include <utility>
 
 #include "battle/battle_services.h"
 #include "core/log.h"
 #include "draw/paint_record.h"
 #include "draw/painter.h"
+#include "game/scene.h"
+#include "platform/display.h"
 #include "res/tsw_archive.h"
 
 namespace swd3::smooth
@@ -14,7 +18,12 @@ namespace swd3::smooth
 
 const Picture* PictureRef::Get(TswArchive& archive) const
 {
-    return this->shown ? archive.GetPicture(this->id, this->frame) : nullptr;
+    if (!this->shown)
+    {
+        return nullptr;
+    }
+
+    return this->kept ? archive.FindKept(this->id, this->frame) : archive.GetPicture(this->id, this->frame);
 }
 
 PictureRef RefOf(TswArchive& archive, const Picture* picture)
@@ -158,21 +167,19 @@ void ScenePainter::SetClipClamped(int left, int top, int right, int bottom)
 
 void ScenePainter::DrawPicture(int x, int y, int width, int height, u32 mode, const DrawArgument& argument)
 {
-    TswArchive& archive = this->services.archive;
     const DrawOptions options = this->options;
     this->options = DrawOptions{};
-    const void* data = this->services.painter.Source();
-    PictureRef source;
-    source.shown = data != nullptr && archive.LocateData(data, source.id, source.frame) != nullptr;
-    // The argument of a draw: the palette of a cached picture (PaletteArgument), a colour pair, or none.
+    const PictureRef source = this->Source();
+    // The argument of a draw: the palette of a cached or kept picture (PaletteArgument), a colour pair, or none.
     PictureRef palette;
     palette.shown =
-        argument.alphaMap != nullptr && archive.LocatePalette(argument.alphaMap, palette.id, palette.frame) != nullptr;
+        argument.alphaMap != nullptr &&
+        this->services.archive.LocatePalette(argument.alphaMap, palette.id, palette.frame, palette.kept) != nullptr;
     const u32 colorPair = argument.colorPair;
 
-    if ((data != nullptr && !source.shown) || (argument.alphaMap != nullptr && !palette.shown))
+    if (argument.alphaMap != nullptr && !palette.shown)
     {
-        LogWarning(u8"smooth battle: a draw of a picture outside the cache or with an alpha map is not kept");
+        LogWarning(u8"smooth battle: a draw with an alpha map outside the cache is not kept");
     }
 
     this->scene.Add(
@@ -195,12 +202,13 @@ void ScenePainter::DrawPicture(int x, int y, int width, int height, u32 mode, co
     );
 }
 
-// The picture the painter holds now as a cached reference (none outside the cache, warned).
+// The picture the painter holds now as a reference of the cache or the kept pictures (none outside them, warned).
 PictureRef ScenePainter::Source() const
 {
     const void* data = this->services.painter.Source();
     PictureRef source;
-    source.shown = data != nullptr && this->services.archive.LocateData(data, source.id, source.frame) != nullptr;
+    source.shown =
+        data != nullptr && this->services.archive.LocateData(data, source.id, source.frame, source.kept) != nullptr;
 
     if (data != nullptr && !source.shown)
     {
@@ -246,6 +254,33 @@ void ScenePainter::DrawZoomed(int x, int y, int width, int height, bool mirrored
 void ScenePainter::DrawZoomedMirrored(int x, int y, int width, int height)
 {
     this->DrawZoomed(x, y, width, height, true);
+}
+
+// The shape is kept without its screen copy, the copy taken where the scene draws.
+void ScenePainter::Refract(const ScriptObject& ripple)
+{
+    auto shape = std::make_shared<ScriptObject>();
+    shape->pitch = ripple.pitch;
+    shape->lines = ripple.lines;
+    shape->left = ripple.left;
+    shape->top = ripple.top;
+    shape->gridWidth = ripple.gridWidth;
+    shape->gridHeight = ripple.gridHeight;
+    shape->damping = ripple.damping;
+    shape->page = ripple.page;
+    shape->heights = ripple.heights;
+
+    this->scene.Add(
+        [shape](BattleServices& drawing)
+        {
+            const std::span<u16> screen(
+                drawing.screen,
+                static_cast<std::size_t>(drawing.painter.ScreenPitch()) * Display::Height
+            );
+            shape->CopyScreen(screen);
+            shape->Refract(screen);
+        }
+    );
 }
 
 }  // namespace swd3::smooth

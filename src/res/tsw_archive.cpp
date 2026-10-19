@@ -18,6 +18,9 @@ namespace swd3
 namespace
 {
 
+// LoadPictureKept: the pictures kept, enough for the direct pictures of a battle frame.
+constexpr std::size_t kKeptPictures = 32;
+
 // Bucket of the cache chains: by id, map pictures by unit.
 int ChainOf(u32 id, u32 frame)
 {
@@ -230,6 +233,7 @@ int TswArchive::CloseAll()
     this->opened = false;
     this->magicMode = false;
     this->CacheClear();
+    this->kept.clear();
     this->FreeBuffers();
     this->magicAges.fill(0);
     this->magicSlots.fill(0);
@@ -759,13 +763,46 @@ bool TswArchive::Locate(const Picture* picture, u32& id, u32& frame) const
     return false;
 }
 
-const Picture* TswArchive::LocateData(const void* data, u32& id, u32& frame) const
+const Picture* TswArchive::LocateData(const void* data, u32& id, u32& frame, bool& kept) const
 {
+    return this->LocateMatch(
+        [data](const Picture& picture)
+        {
+            return picture.data.data() == data;
+        },
+        id,
+        frame,
+        kept
+    );
+}
+
+const Picture* TswArchive::LocatePalette(const void* palette, u32& id, u32& frame, bool& kept) const
+{
+    return this->LocateMatch(
+        [palette](const Picture& picture)
+        {
+            return !picture.palette.empty() && picture.palette.data() == palette;
+        },
+        id,
+        frame,
+        kept
+    );
+}
+
+const Picture* TswArchive::LocateMatch(
+    const std::function<bool(const Picture&)>& matches,
+    u32& id,
+    u32& frame,
+    bool& kept
+) const
+{
+    kept = false;
+
     for (const std::list<CacheEntry>& entries : this->chains)
     {
         for (const CacheEntry& entry : entries)
         {
-            if (entry.picture.data.data() == data)
+            if (matches(entry.picture))
             {
                 id = entry.id;
                 frame = entry.frame;
@@ -774,25 +811,50 @@ const Picture* TswArchive::LocateData(const void* data, u32& id, u32& frame) con
         }
     }
 
-    return nullptr;
-}
-
-const Picture* TswArchive::LocatePalette(const void* palette, u32& id, u32& frame) const
-{
-    for (const std::list<CacheEntry>& entries : this->chains)
+    for (const CacheEntry& entry : this->kept)
     {
-        for (const CacheEntry& entry : entries)
+        if (matches(entry.picture))
         {
-            if (!entry.picture.palette.empty() && entry.picture.palette.data() == palette)
-            {
-                id = entry.id;
-                frame = entry.frame;
-                return &entry.picture;
-            }
+            id = entry.id;
+            frame = entry.frame;
+            kept = true;
+            return &entry.picture;
         }
     }
 
     return nullptr;
 }
 
+const Picture* TswArchive::LoadPictureKept(u32 id, u32 frame)
+{
+    std::unique_ptr<Picture> picture = this->LoadPictureDirect(id, frame);
+
+    if (const Picture* held = this->FindKept(id, frame); held != nullptr)
+    {
+        return held;
+    }
+
+    this->kept.push_front(CacheEntry{.id = LowWord(id), .frame = LowWord(frame), .picture = std::move(*picture)});
+
+    if (this->kept.size() > kKeptPictures)
+    {
+        this->kept.pop_back();
+    }
+
+    return &this->kept.front().picture;
+}
+
+const Picture* TswArchive::FindKept(u32 id, u32 frame)
+{
+    for (auto entry = this->kept.begin(); entry != this->kept.end(); ++entry)
+    {
+        if (entry->id == LowWord(id) && entry->frame == LowWord(frame))
+        {
+            this->kept.splice(this->kept.begin(), this->kept, entry);
+            return &this->kept.front().picture;
+        }
+    }
+
+    return nullptr;
+}
 }  // namespace swd3

@@ -12,6 +12,7 @@ namespace swd3
 
 struct BattleServices;
 struct Picture;
+struct ScriptObject;
 class TswArchive;
 
 }  // namespace swd3
@@ -27,6 +28,7 @@ struct PictureRef
     u32 id = 0;
     u32 frame = 0;
     bool shown = false;
+    bool kept = false;  // TswArchive::LoadPictureKept
 
     const Picture* Get(TswArchive& archive) const;
 };
@@ -92,6 +94,8 @@ public:
     void SetZoom(int anchorX, int anchorY, int zoomX, int zoomY);
     void DrawZoomed(int x, int y, int width, int height, bool mirrored = false);
     void DrawZoomedMirrored(int x, int y, int width, int height);
+    // The screen copied into a ripple of the shape `ripple` has now, then refracted through it.
+    void Refract(const ScriptObject& ripple);
 
 private:
     BattleServices& services;
