@@ -23,7 +23,7 @@ const Picture* PictureRef::Get(TswArchive& archive) const
         return nullptr;
     }
 
-    return this->kept ? archive.FindKept(this->id, this->frame) : archive.GetPicture(this->id, this->frame);
+    return this->kept ? archive.FindKept(this->id, this->frame) : archive.Peek(this->id, this->frame);
 }
 
 PictureRef RefOf(TswArchive& archive, const Picture* picture)

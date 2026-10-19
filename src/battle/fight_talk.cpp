@@ -36,6 +36,8 @@ void FightTalk::Load(const std::u8string& installDirectory, u16 battle)
             this->cursor = 0;
             return;
         }
+
+        this->file.Preload();
     }
 
     this->file.SeekBegin(static_cast<i32>(FightTalk::HeaderBytes + sizeof(u32) * static_cast<u32>(battle)));

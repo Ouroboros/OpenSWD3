@@ -124,11 +124,14 @@ public:
     const Picture* LocateData(const void* data, u32& id, u32& frame, bool& kept) const;
     // The same by its palette (the argument PaletteArgument gives).
     const Picture* LocatePalette(const void* palette, u32& id, u32& frame, bool& kept) const;
-    // The rebuild's smooth battle: LoadPictureDirect, its picture kept apart from the cache so a frame drawn again
-    // finds it without reading the file (the one kept already for id and frame when there is one).
+    // The rebuild: the load of LoadPictureDirect, its picture kept apart from the cache (LoadPictureDirect copies
+    // it): a picture loaded again and a frame of the smooth battle drawn again take it without reading the file.
     const Picture* LoadPictureKept(u32 id, u32 frame);
     // The kept picture of id and frame; nullptr once it is let go.
     const Picture* FindKept(u32 id, u32 frame);
+    // The rebuild's smooth battle: the cached picture of id and frame without reading or reordering the cache; nullptr
+    // once it is evicted.
+    const Picture* Peek(u32 id, u32 frame) const;
 
 private:
     // Entry header of a frame set as read by ReadHeader: format and palette.
@@ -139,6 +142,14 @@ private:
         u16 format = 0;
         u16 width = 0;
         u16 height = 0;
+    };
+
+    // ReadMagicHeader: what the header of a magic entry gives the slots.
+    struct MagicHeader
+    {
+        bool read = false;
+        std::vector<u16> palette;
+        std::vector<TswFrameEntry> frames;
     };
 
     struct CacheEntry
@@ -160,6 +171,7 @@ private:
     void OpenArchives();
     void ReadMagicDirectory(File& file);
     void CacheMagicFrames(File& file, int index);
+    const MagicHeader& ReadMagicHeader(File& file, int index);
     bool CacheLoad(u32 id, u32 frame);
     Picture* CacheFind(u32 id, u32 frame);
     void CacheEvict();
@@ -168,6 +180,7 @@ private:
     bool ReadHeader(File& file, FrameInfo& info, u16& frameCount);
     bool LoadPicture(File& file, int index, u32 frame, Picture& picture);
     bool ReadFrame(File& file, u32 base, FrameInfo& info, int frame);
+    int SelectMagicSlot(int index);
     bool LoadPictureB(File& file, int index, u32 frame, Picture& picture);
     bool ReadFrameB(File& file, u32 base, FrameInfo& info, int frame);
     bool Decompress(
@@ -202,7 +215,8 @@ private:
     int cacheLimit = 0x600000;
     int cacheBytes = 0;
     std::array<std::list<CacheEntry>, Chains> chains;
-    std::list<CacheEntry> kept;  // LoadPictureKept, the last used first
+    std::list<CacheEntry> kept;             // LoadPictureKept, the last used first
+    std::vector<MagicHeader> magicHeaders;  // ReadMagicHeader, by entry
     std::array<u16, Chains> chainCounts{};
     Picture* current = nullptr;
     bool magicMode = false;

@@ -124,6 +124,35 @@ bool File::Close()
         this->error.clear();
     }
 
+    this->preloaded = false;
+    this->content.clear();
+    this->position = 0;
+    return true;
+}
+
+bool File::Preload()
+{
+    if (this->file == nullptr || this->preloaded)
+    {
+        return this->preloaded;
+    }
+
+    const long at = std::ftell(this->file);
+    const u32 size = this->Size();
+    std::vector<u8> bytes(size);
+    std::fseek(this->file, 0, SEEK_SET);
+    const std::size_t done = std::fread(bytes.data(), 1, size, this->file);
+    std::fseek(this->file, at, SEEK_SET);
+
+    if (at < 0 || done != size)
+    {
+        std::clearerr(this->file);
+        return false;
+    }
+
+    this->content = std::move(bytes);
+    this->position = static_cast<u32>(at);
+    this->preloaded = true;
     return true;
 }
 
@@ -185,6 +214,14 @@ const u8* File::MapView(u32 offset, u32 size)
     }
 
     const u32 length = size != 0 ? size : fileSize - offset;
+
+    if (this->preloaded)
+    {
+        this->view.assign(this->content.begin() + offset, this->content.begin() + offset + length);
+        this->viewed = true;
+        return this->view.data();
+    }
+
     const long position = std::ftell(this->file);
     this->view.assign(length, 0);
     std::fseek(this->file, static_cast<long>(offset), SEEK_SET);
@@ -241,6 +278,11 @@ u32 File::Size()
         return InvalidPosition;
     }
 
+    if (this->preloaded)
+    {
+        return static_cast<u32>(this->content.size());
+    }
+
     const long position = std::ftell(this->file);
     std::fseek(this->file, 0, SEEK_END);
     const long size = std::ftell(this->file);
@@ -266,6 +308,17 @@ bool File::Read(void* buffer, u32& bytes)
 {
     if (this->file != nullptr && buffer != nullptr && bytes != 0)
     {
+        if (this->preloaded)
+        {
+            const std::size_t size = this->content.size();
+            const u32 done =
+                static_cast<u32>(std::min<std::size_t>(bytes, this->position < size ? size - this->position : 0));
+            std::memcpy(buffer, this->content.data() + std::min<std::size_t>(this->position, size), done);
+            this->position += done;
+            bytes = done;
+            return true;
+        }
+
         const std::size_t done = std::fread(buffer, 1, bytes, this->file);
 
         if (done == bytes || !std::ferror(this->file))
@@ -312,6 +365,23 @@ u32 File::Seek(Origin origin, i32 distance)
         return 0;
     }
 
+    if (this->preloaded)
+    {
+        const i64 base = origin == Origin::Begin     ? 0
+                         : origin == Origin::Current ? static_cast<i64>(this->position)
+                                                     : static_cast<i64>(this->content.size());
+        const i64 target = base + distance;
+
+        if (target < 0 || target > static_cast<i64>(InvalidPosition - 1))
+        {
+            this->SetError(std::strerror(EINVAL));
+            return InvalidPosition;
+        }
+
+        this->position = static_cast<u32>(target);
+        return this->position;
+    }
+
     if (std::fseek(this->file, distance, seekOrigin(origin)) != 0)
     {
         this->SetError(std::strerror(errno));
@@ -342,6 +412,12 @@ u32 File::SeekEnd(i32 distance)
 // swd32.exe 0x004384D0
 bool File::Tell(u32& position)
 {
+    if (this->file != nullptr && this->preloaded)
+    {
+        position = this->position;
+        return true;
+    }
+
     if (this->file != nullptr)
     {
         const long current = std::ftell(this->file);

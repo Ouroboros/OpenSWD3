@@ -96,7 +96,13 @@ void ActArchive::SetCacheLimit(int bytes)
 // swd32.exe 0x00432020: read-only, not shared
 bool ActArchive::OpenFile(File& file, const std::u8string& name)
 {
-    return file.Open(name, File::Disposition::OpenExisting, File::Access::Read);
+    if (!file.Open(name, File::Disposition::OpenExisting, File::Access::Read))
+    {
+        return false;
+    }
+
+    file.Preload();
+    return true;
 }
 
 // swd32.exe 0x00432050: script `index` of an entry: from its offset to the next non-zero offset (the last one to the

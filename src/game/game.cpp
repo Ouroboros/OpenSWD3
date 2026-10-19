@@ -43,7 +43,7 @@ constexpr std::u8string_view kLogSeparator =
     u8"=========================================================================";  // the first line of the error log
 constexpr int kEffectsOffFlag = GameState::PlainScreen;
 constexpr int kMinimumTileCache = 0x400000;
-constexpr int kMaximumTileCache = 0x1000000;
+constexpr int kMaximumTileCache = 0x10000000;  // 256 MB; the original's 16 MB (deviations.md)
 constexpr int kActCache = 0x80000;
 constexpr Uint32 kLowDiskPause = 0x400;
 constexpr int kDiskReserve = 0x40;
@@ -692,7 +692,8 @@ void Game::InitInstall()
 // swd32.exe 0x004242B0 (the CD-ROM drives found for the CD checks): removed with the CD checks (the rebuild never
 // looks for a CD, see deviations.md)
 
-// swd32.exe 0x00424330: a sixth of the physical memory (4 to 16 MB) for the picture cache, 512 KB for the scripts
+// swd32.exe 0x00424330: a sixth of the physical memory (4 MB to kMaximumTileCache) for the picture cache, 512 KB for
+// the scripts
 void Game::SizeCaches()
 {
     int bytes = static_cast<int>(TotalPhysicalMemory() / kTileCacheShare);

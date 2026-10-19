@@ -59,6 +59,10 @@ public:
         return this->name;
     }
 
+    // The rebuild: the whole of a file opened for reading held in memory, so its reads and seeks (Read, Seek, Tell,
+    // Size, MapView) need no file access; false (the file read as before) when it cannot be read.
+    bool Preload();
+
     bool CreateMapping();
     bool CloseMapping();
     // The bytes [offset, offset + size) of the mapping (to the end of the file for size 0); nullptr on failure.
@@ -103,6 +107,9 @@ private:
     std::vector<u8> view;
     std::u8string name;
     std::string error;
+    bool preloaded = false;  // Preload: the reads served from `content` at `position`
+    std::vector<u8> content;
+    u32 position = 0;
 };
 
 }  // namespace swd3

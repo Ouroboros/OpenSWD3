@@ -130,6 +130,7 @@ File* Database::OpenData(File& file, bool& open, std::string_view name)
         return nullptr;
     }
 
+    file.Preload();
     open = true;
     return &file;
 }

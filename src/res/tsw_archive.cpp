@@ -18,7 +18,7 @@ namespace swd3
 namespace
 {
 
-// LoadPictureKept: the pictures kept, enough for the direct pictures of a battle frame.
+// LoadPictureKept: the pictures kept, enough for the direct pictures of a battle frame and an animation.
 constexpr std::size_t kKeptPictures = 32;
 
 // Bucket of the cache chains: by id, map pictures by unit.
@@ -185,8 +185,17 @@ Picture* TswArchive::GetPicture(u32 id, u32 frame)
     return this->current;
 }
 
-// swd32.exe 0x00431760: a picture outside the cache, owned by the caller. The load result is not checked.
+// swd32.exe 0x00431760: a picture outside the cache, owned by the caller. The load result is not checked. The
+// rebuild copies it from the kept pictures (LoadPictureKept).
 std::unique_ptr<Picture> TswArchive::LoadPictureDirect(u32 id, u32 frame)
+{
+    return std::make_unique<Picture>(*this->LoadPictureKept(id, frame));
+}
+
+// The load of LoadPictureDirect into the kept pictures, the last used first. One loaded before is not read again: the
+// magic slots move as the original's load moves them and the picture is the one a load reads (its file and the
+// direct load's buffer unchanged); a load that failed or a buffer a failed load let go reads the file as the original.
+const Picture* TswArchive::LoadPictureKept(u32 id, u32 frame)
 {
     if (!this->opened)
     {
@@ -194,31 +203,50 @@ std::unique_ptr<Picture> TswArchive::LoadPictureDirect(u32 id, u32 frame)
     }
 
     this->magicMode = false;
+    const int index = static_cast<int>(LowWord(id) % TswArchive::IndicesPerFile);
 
     if (IsMagic(id))
     {
         this->magicMode = true;
-        this->CacheMagicFrames(
-            this->files[TswArchive::MagicFile],
-            static_cast<int>(LowWord(id) % TswArchive::IndicesPerFile)
-        );
+        this->CacheMagicFrames(this->files[TswArchive::MagicFile], index);
     }
 
-    auto picture = std::make_unique<Picture>();
+    const Picture* held = this->FindKept(id, frame);
+
+    if (held != nullptr && !held->data.empty() && this->packedB.present)
+    {
+        if (this->magicMode)
+        {
+            this->SelectMagicSlot(index);
+        }
+
+        this->magicMode = false;
+        return held;
+    }
+
+    Picture picture;
 
     if (File* archive = this->ArchiveOf(id))
     {
-        this->LoadPictureB(
-            *archive,
-            static_cast<int>(LowWord(id) % TswArchive::IndicesPerFile),
-            LowWord(frame),
-            *picture
-        );
+        this->LoadPictureB(*archive, index, LowWord(frame), picture);
     }
 
-    this->codec.ConvertTo16(*picture);
+    this->codec.ConvertTo16(picture);
     this->magicMode = false;
-    return picture;
+
+    if (held != nullptr)
+    {
+        this->kept.pop_front();
+    }
+
+    this->kept.push_front(CacheEntry{.id = LowWord(id), .frame = LowWord(frame), .picture = std::move(picture)});
+
+    if (this->kept.size() > kKeptPictures)
+    {
+        this->kept.pop_back();
+    }
+
+    return &this->kept.front().picture;
 }
 
 // swd32.exe 0x00431960: closes the archives and empties every cache
@@ -262,11 +290,10 @@ void TswArchive::ReadMagicDirectory(File& file)
 
 // swd32.exe 0x00431AA0: keeps the frame table of magic entry `index` in one of five slots (a slot holding it, the
 // first empty one, else the one unused longest; every slot passed over ages by one) with absolute frame offsets, and
-// the entry's palette for the next load.
+// the entry's palette for the next load. The rebuild reads the header and the frame table of an entry once
+// (ReadMagicHeader).
 void TswArchive::CacheMagicFrames(File& file, int index)
 {
-    FrameInfo info;
-    u16 count = 0;
     int slot = 0;
     bool found = false;
 
@@ -276,10 +303,8 @@ void TswArchive::CacheMagicFrames(File& file, int index)
 
         if (held == index)
         {
-            file.Seek(File::Origin::Begin, static_cast<i32>(this->MagicDirectoryOffset(index)));
-            this->ReadHeader(file, info, count);
             this->magicAges[static_cast<std::size_t>(slot)] = 0;
-            this->magicPalette = info.palette;
+            this->magicPalette = this->ReadMagicHeader(file, index).palette;
             return;
         }
 
@@ -312,22 +337,53 @@ void TswArchive::CacheMagicFrames(File& file, int index)
         this->magicAges[static_cast<std::size_t>(slot)] = 0;
     }
 
+    const MagicHeader& header = this->ReadMagicHeader(file, index);
+    this->magicPalette = header.palette;
+
+    for (std::size_t frame = 0; frame < header.frames.size(); ++frame)
+    {
+        this->MagicFrame(slot, static_cast<int>(frame)) = header.frames[frame];
+    }
+}
+
+// The header of magic entry `index` as 0x00431AA0 reads it: the palette, and each frame record (read after a fresh
+// read of the header) with its offset made absolute; read from the file once.
+const TswArchive::MagicHeader& TswArchive::ReadMagicHeader(File& file, int index)
+{
+    if (this->magicHeaders.empty())
+    {
+        this->magicHeaders.resize(TswArchive::IndicesPerFile);
+    }
+
+    MagicHeader& header = this->magicHeaders[static_cast<std::size_t>(index)];
+
+    if (header.read)
+    {
+        return header;
+    }
+
+    FrameInfo info;
+    u16 count = 0;
     const u32 base = this->MagicDirectoryOffset(index);
     file.Seek(File::Origin::Begin, static_cast<i32>(base));
     this->ReadHeader(file, info, count);
-    this->magicPalette = info.palette;
+    header.palette = info.palette;
     i32 skip = 0;
 
     for (int frame = 0; frame < count; ++frame)
     {
-        TswFrameEntry& entry = this->MagicFrame(slot, frame);
+        TswFrameEntry entry;
         file.Seek(File::Origin::Begin, static_cast<i32>(base));
         this->ReadHeader(file, info, count);
         file.Seek(File::Origin::Current, skip);
         ReadValue(file, entry);
         entry.offset = file.Seek(File::Origin::Begin, static_cast<i32>(base + entry.offset));
         skip += sizeof(TswFrameEntry);
+        header.frames.push_back(entry);
     }
+
+    header.read = true;
+    return header;
 }
 
 // swd32.exe 0x00431C50: a new entry goes to the front of its chain before loading (a failed load leaves it there
@@ -658,6 +714,22 @@ bool TswArchive::ReadFrame(File& file, u32 base, FrameInfo& info, int frame)
     return this->Decompress(this->packed, file, entry, info, true, true);
 }
 
+// The slot of magic entry `index` in the direct load (inline in 0x00433720): the one holding it becomes the current
+// slot; without one the current slot stays.
+int TswArchive::SelectMagicSlot(int index)
+{
+    for (int slot = 0; slot < TswArchive::MagicSlots; ++slot)
+    {
+        if (this->magicSlots[static_cast<std::size_t>(slot)] == index)
+        {
+            this->magicSlot = slot;
+            return slot;
+        }
+    }
+
+    return this->magicSlot;
+}
+
 // swd32.exe 0x00433720: the direct-load variant of 0x00433380 (no log; magic pictures take the slot palette)
 bool TswArchive::LoadPictureB(File& file, int index, u32 frame, Picture& picture)
 {
@@ -666,23 +738,7 @@ bool TswArchive::LoadPictureB(File& file, int index, u32 frame, Picture& picture
 
     if (this->magicMode)
     {
-        int slot = 0;
-
-        for (;; ++slot)
-        {
-            if (slot == TswArchive::MagicSlots)
-            {
-                slot = this->magicSlot;
-                break;
-            }
-
-            if (this->magicSlots[static_cast<std::size_t>(slot)] == index)
-            {
-                this->magicSlot = slot;
-                break;
-            }
-        }
-
+        const int slot = this->SelectMagicSlot(index);
         file.Seek(File::Origin::Begin, static_cast<i32>(this->MagicFrame(slot, static_cast<int>(frame)).offset));
     }
     else
@@ -825,25 +881,6 @@ const Picture* TswArchive::LocateMatch(
     return nullptr;
 }
 
-const Picture* TswArchive::LoadPictureKept(u32 id, u32 frame)
-{
-    std::unique_ptr<Picture> picture = this->LoadPictureDirect(id, frame);
-
-    if (const Picture* held = this->FindKept(id, frame); held != nullptr)
-    {
-        return held;
-    }
-
-    this->kept.push_front(CacheEntry{.id = LowWord(id), .frame = LowWord(frame), .picture = std::move(*picture)});
-
-    if (this->kept.size() > kKeptPictures)
-    {
-        this->kept.pop_back();
-    }
-
-    return &this->kept.front().picture;
-}
-
 const Picture* TswArchive::FindKept(u32 id, u32 frame)
 {
     for (auto entry = this->kept.begin(); entry != this->kept.end(); ++entry)
@@ -857,4 +894,18 @@ const Picture* TswArchive::FindKept(u32 id, u32 frame)
 
     return nullptr;
 }
+
+const Picture* TswArchive::Peek(u32 id, u32 frame) const
+{
+    for (const CacheEntry& entry : this->chains[static_cast<std::size_t>(ChainOf(id, frame))])
+    {
+        if (entry.id == static_cast<u16>(id) && entry.frame == static_cast<u16>(frame))
+        {
+            return &entry.picture;
+        }
+    }
+
+    return nullptr;
+}
+
 }  // namespace swd3

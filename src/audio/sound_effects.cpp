@@ -444,6 +444,8 @@ bool SoundEffects::LoadIndex(const std::u8string& directory)
         return false;
     }
 
+    this->file.Preload();
+
     this->table.assign(SoundEffects::Sounds, SoundEntry{});
     this->file.SeekBegin(kIndexStart);
     std::vector<u8> index(SoundEffects::Sounds * kIndexRecordBytes, 0);
