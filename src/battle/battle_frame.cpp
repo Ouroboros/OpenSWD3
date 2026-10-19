@@ -115,8 +115,6 @@ void Game::UpdateUnits()
     {
         const i32 unit = battle.drawOrder[index];
 
-        this->battleSmooth.Unit(unit);
-
         if (unit >= BattleState::FirstRoleUnit)
         {
             if (unit - BattleState::FirstRoleUnit < static_cast<i32>(battle.roleCount))
@@ -129,8 +127,6 @@ void Game::UpdateUnits()
             this->EnemyFrame(unit);
         }
     }
-
-    this->battleSmooth.Unit(-1);
 }
 
 // swd32.exe 0x00453200: one frame of the battle; it returns unk53BDC8 (1, or the end CheckBattleEnd set), 3 when game

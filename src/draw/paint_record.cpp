@@ -1,11 +1,12 @@
 #include "draw/paint_record.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
-#include <functional>
 
 #include "font/text_font.h"
 #include "pic/rle.h"
+#include "platform/display.h"
 
 namespace swd3
 {
@@ -17,19 +18,6 @@ constexpr std::size_t kCopyAlign = 8;    // the copies start aligned for the 16-
 constexpr std::size_t kCopyPadding = 8;  // and end in zero words, the end of an RLE line list
 
 PaintRecord* activeRecord = nullptr;
-
-constexpr u64 kHashStart = 0xCBF29CE484222325;  // FNV-1a
-constexpr u64 kHashPrime = 0x100000001B3;
-
-u64 Hash(u64 hash, u64 value)
-{
-    for (std::size_t byte = 0; byte < sizeof(value); ++byte)
-    {
-        hash = (hash ^ ((value >> (byte * 8)) & 0xFF)) * kHashPrime;
-    }
-
-    return hash;
-}
 
 u16 Word(const u8* bytes, std::ptrdiff_t index = 0)
 {
@@ -68,7 +56,8 @@ void PaintRecord::Start(u16* pixels, std::size_t count)
     this->base.assign(pixels, pixels + count);
     this->commands.clear();
     this->copies.clear();
-    this->tag = NoTag;
+    this->motion = {0, 0};
+    this->clipped = false;
     this->complete = true;
     this->recording = true;
     activeRecord = this;
@@ -77,7 +66,6 @@ void PaintRecord::Start(u16* pixels, std::size_t count)
 void PaintRecord::Stop()
 {
     this->recording = false;
-    this->tag = NoTag;
 
     if (activeRecord == this)
     {
@@ -90,24 +78,53 @@ bool PaintRecord::Complete() const
     return this->complete && !this->base.empty();
 }
 
-std::span<const u16> PaintRecord::Base() const
-{
-    return this->base;
-}
-
 std::size_t PaintRecord::Draws() const
 {
     return this->commands.size();
 }
 
-void PaintRecord::SetTag(int value)
+std::size_t PaintRecord::Moving() const
 {
-    this->tag = value;
+    return static_cast<std::size_t>(std::ranges::count_if(
+        this->commands,
+        [](const Command& command)
+        {
+            return command.motion[0] != 0 || command.motion[1] != 0;
+        }
+    ));
 }
 
 PaintRecord* PaintRecord::Active()
 {
     return activeRecord;
+}
+
+PaintRecord::Motion::Motion(std::array<int, 2> motion, bool clipped)
+    : record(activeRecord)
+{
+    if (this->record != nullptr)
+    {
+        this->kept = this->record->motion;
+        this->keptClipped = this->record->clipped;
+        this->record->motion = motion;
+        this->record->clipped = clipped;
+    }
+}
+
+PaintRecord::Motion::~Motion()
+{
+    if (this->record != nullptr)
+    {
+        this->record->motion = this->kept;
+        this->record->clipped = this->keptClipped;
+    }
+}
+
+void PaintRecord::Push(Command command)
+{
+    command.motion = this->motion;
+    command.clipped = this->clipped;
+    this->commands.push_back(command);
 }
 
 PaintRecord::Pause::Pause()
@@ -192,7 +209,6 @@ void PaintRecord::Picture(
         return;
     }
 
-    command.tag = this->tag;
     command.x = x;
     command.y = y;
     command.width = width;
@@ -206,7 +222,7 @@ void PaintRecord::Picture(
         return;
     }
 
-    this->commands.push_back(command);
+    this->Push(command);
 }
 
 void PaintRecord::Zoomed(const Painter& painter, int x, int y, int width, int height, bool mirrored)
@@ -219,7 +235,6 @@ void PaintRecord::Zoomed(const Painter& painter, int x, int y, int width, int he
         return;
     }
 
-    command.tag = this->tag;
     command.x = x;
     command.y = y;
     command.width = width;
@@ -231,7 +246,7 @@ void PaintRecord::Zoomed(const Painter& painter, int x, int y, int width, int he
         return;
     }
 
-    this->commands.push_back(command);
+    this->Push(command);
 }
 
 void PaintRecord::Pixels(const u16* pixels, std::size_t count, PixelOp op, int red, int green, int blue, u32 colorPair)
@@ -241,14 +256,14 @@ void PaintRecord::Pixels(const u16* pixels, std::size_t count, PixelOp op, int r
         return;
     }
 
-    Command command{Kind::Pixels, op, this->tag};
+    Command command{Kind::Pixels, op};
     command.pixelsAt = static_cast<std::size_t>(pixels - this->target);
     command.pixelCount = count;
     command.red = red;
     command.green = green;
     command.blue = blue;
     command.colorPair = colorPair;
-    this->commands.push_back(command);
+    this->Push(command);
 }
 
 void PaintRecord::Mix(std::span<const u16> other, std::span<const u16> pixels)
@@ -258,12 +273,12 @@ void PaintRecord::Mix(std::span<const u16> other, std::span<const u16> pixels)
         return;
     }
 
-    Command command{Kind::Mix, PixelOp::Tint, this->tag};
+    Command command{Kind::Mix};
     command.pixelsAt = static_cast<std::size_t>(pixels.data() - this->target);
     command.pixelCount = pixels.size();
     command.dataSize = other.size_bytes();
     command.dataAt = this->Keep(other.data(), command.dataSize);
-    this->commands.push_back(command);
+    this->Push(command);
 }
 
 void PaintRecord::Text(TextFont& font, const u16* to, int x, int y, std::string_view text, u16 color, int style)
@@ -273,14 +288,14 @@ void PaintRecord::Text(TextFont& font, const u16* to, int x, int y, std::string_
         return;
     }
 
-    Command command{Kind::Text, PixelOp::Tint, this->tag, x, y};
+    Command command{Kind::Text, PixelOp::Tint, x, y};
     command.red = color;
     command.green = style;
     command.font = &font;
     command.fontState = font.SaveDrawState();
     command.dataSize = text.size();
     command.dataAt = this->Keep(text.data(), text.size());
-    this->commands.push_back(command);
+    this->Push(command);
 }
 
 void PaintRecord::Fill(TextFont& font, const u16* to, int x, int y, int width, int height, u16 color)
@@ -290,16 +305,16 @@ void PaintRecord::Fill(TextFont& font, const u16* to, int x, int y, int width, i
         return;
     }
 
-    Command command{Kind::Fill, PixelOp::Tint, this->tag, x, y, width, height};
+    Command command{Kind::Fill, PixelOp::Tint, x, y, width, height};
     command.red = color;
     command.font = &font;
     command.fontState = font.SaveDrawState();
-    this->commands.push_back(command);
+    this->Push(command);
 }
 
 void PaintRecord::Call(const Painter& painter, Redraw redraw, std::span<const int> values)
 {
-    Command command{Kind::Call, PixelOp::Tint, this->tag};
+    Command command{Kind::Call};
     command.state = painter.SaveDrawState();
 
     if (!this->recording || command.state.target != this->target)
@@ -316,81 +331,20 @@ void PaintRecord::Call(const Painter& painter, Redraw redraw, std::span<const in
     command.redraw = redraw;
     command.valueCount = values.size();
     std::copy(values.begin(), values.end(), command.values.begin());
-    this->commands.push_back(command);
+    this->Push(command);
 }
 
-// Draws of the same picture, size and effect (the same text, the same box) for the same tag: the draw found again.
-u64 PaintRecord::Key(const Command& command) const
-{
-    u64 hash = Hash(kHashStart, static_cast<u64>(command.kind));
-    hash = Hash(hash, static_cast<u64>(static_cast<u32>(command.tag)));
-
-    switch (command.kind)
-    {
-        case Kind::Picture:
-        case Kind::Zoomed:
-        case Kind::ZoomedMirrored:
-            hash = Hash(hash, std::hash<const u8*>{}(command.state.source));
-            hash = Hash(hash, static_cast<u64>(static_cast<u32>(command.width)));
-            hash = Hash(hash, static_cast<u64>(static_cast<u32>(command.height)));
-            return Hash(hash, command.mode);
-
-        case Kind::Text:
-        {
-            hash = Hash(hash, std::hash<const TextFont*>{}(command.font));
-            hash = Hash(hash, static_cast<u64>(static_cast<u32>(command.red)));
-            const std::string_view text(
-                reinterpret_cast<const char*>(this->copies.data() + command.dataAt),
-                command.dataSize
-            );
-            return Hash(hash, std::hash<std::string_view>{}(text));
-        }
-
-        case Kind::Call:
-            hash = Hash(hash, std::hash<Redraw>{}(command.redraw));
-
-            for (std::size_t value = 2; value < command.valueCount; ++value)
-            {
-                hash = Hash(hash, static_cast<u64>(static_cast<u32>(command.values[value])));
-            }
-
-            return hash;
-
-        default:
-            return 0;
-    }
-}
-
-void PaintRecord::Places(std::vector<Place>& places) const
-{
-    places.clear();
-
-    for (const Command& command : this->commands)
-    {
-        const bool call = command.kind == Kind::Call;
-        places.push_back({
-            this->Key(command),
-            call ? command.values[0] : command.x,
-            call ? command.values[1] : command.y,
-            command.tag,
-        });
-    }
-}
-
-void PaintRecord::Replay(
-    Painter& painter,
-    std::span<u16> out,
-    int pitch,
-    std::span<const std::array<int, 2>> offsets
-) const
+void PaintRecord::Replay(Painter& painter, std::span<u16> out, int pitch, double share) const
 {
     std::copy_n(this->base.begin(), std::min(this->base.size(), out.size()), out.begin());
     const Painter::DrawState kept = painter.SaveDrawState();
 
-    for (std::size_t index = 0; index < this->commands.size(); ++index)
+    for (const Command& command : this->commands)
     {
-        const Command& command = this->commands[index];
-        const std::array<int, 2> shift = index < offsets.size() ? offsets[index] : std::array<int, 2>{0, 0};
+        const std::array<int, 2> shift = {
+            static_cast<int>(std::lround(command.motion[0] * share)),
+            static_cast<int>(std::lround(command.motion[1] * share)),
+        };
 
         const int x = command.x + shift[0];
         const int y = command.y + shift[1];
@@ -405,6 +359,24 @@ void PaintRecord::Replay(
                 Painter::DrawState state = command.state;
                 state.target = out.data();
                 state.source = data;
+
+                if (command.clipped)
+                {
+                    const int left = std::max(state.clipX + shift[0], 0);
+                    const int top = std::max(state.clipY + shift[1], 0);
+                    const int right = std::min(state.clipX + state.clipWidth + shift[0], Display::Width);
+                    const int bottom = std::min(state.clipY + state.clipHeight + shift[1], Display::Height);
+                    state.clipX = left;
+                    state.clipY = top;
+                    state.clipWidth = std::max(right - left, 0);
+                    state.clipHeight = std::max(bottom - top, 0);
+
+                    if (state.clipWidth == 0 || state.clipHeight == 0)
+                    {
+                        break;
+                    }
+                }
+
                 painter.RestoreDrawState(state);
 
                 if (command.kind == Kind::Picture)
@@ -527,7 +499,7 @@ bool PaintRecord::Matches(Painter& painter, std::span<const u16> drawn, std::vec
     }
 
     scratch.resize(drawn.size());
-    this->Replay(painter, scratch, pitch, {});
+    this->Replay(painter, scratch, pitch, 0.0);
     return std::equal(drawn.begin(), drawn.end(), scratch.begin());
 }
 

@@ -59,6 +59,15 @@ bool ActArchive::ScriptRestarted() const
     return this->restarted;
 }
 
+ActState ActArchive::Peek(const ActState& state)
+{
+    ActState next = state;
+    const bool kept = this->restarted;
+    this->Run(next);
+    this->restarted = kept;
+    return next;
+}
+
 // Opens the six archives (inline at the start of 0x00432A50 and 0x00432BC0).
 void ActArchive::OpenArchives()
 {

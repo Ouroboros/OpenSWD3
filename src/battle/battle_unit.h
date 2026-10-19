@@ -580,6 +580,52 @@ private:
     void MirrorRecoil(u32 actFlags, bool forced);
     void Announce(BattleServices& services, std::u8string_view format, int flags);
 
+    // Where a walk (WalkToTarget, ReturnHome) or a flight (RunQueuedActions) is drawn in a frame, as the frame's acts
+    // and steps make it: the line walked, the place, whether it arrived, the act's mirrored offset and draw flags, the
+    // stand pose's offset, the steps or frames after the frame. The rebuild's smooth battle reckons the next frame
+    // with the same functions.
+    struct Stride
+    {
+        LineWalker line;
+        int x = 0;
+        int y = 0;
+        bool arrived = false;
+        u16 offsetX = 0;
+        i32 poseX = 0;
+        u32 flags = 0;
+        i32 steps = 0;
+        u16 shakeFrames = 0;
+        i16 flown = 0;
+        int taken = 0;
+        const Picture* picture = nullptr;
+    };
+
+    Stride WalkStride(
+        BattleServices& services,
+        const BattleUnit& target,
+        const ActState& act,
+        const ActState& pose,
+        i32 steps
+    ) const;
+    Stride HomeStride(
+        BattleServices& services,
+        const BattleUnit& target,
+        const ActState& act,
+        const ActState& pose,
+        i32 steps
+    ) const;
+    Stride FlightStride(BattleServices& services, const QueuedAction& node, const ActState& act, int taken) const;
+    // How a draw made with act `act` at `x`, `y` (the act's offset `offsetX`, act.y taken off) moves by the next
+    // game frame, where `next` is drawn with act `nextAct` (none: it stays).
+    static std::array<int, 2> StrideMotion(
+        const Stride& now,
+        const ActState& act,
+        const Stride& next,
+        const ActState& nextAct
+    );
+    // How IdleFrame's draws at `x`, `y` with act `act` move by the next game frame: the unit and its shadow's y.
+    std::array<int, 3> IdleMotion(BattleServices& services, const ActState& act, int x, int y) const;
+
 public:
     // +0x00..+0x0F: what the unit is.
     RoleRecord* battleRecord =

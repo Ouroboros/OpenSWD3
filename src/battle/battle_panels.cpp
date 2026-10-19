@@ -3,6 +3,7 @@
 #include <string_view>
 
 #include "crt/msvc.h"
+#include "draw/paint_record.h"
 #include "game/game.h"
 #include "ui/ui_draw.h"
 
@@ -437,6 +438,7 @@ void Game::DrawRolePanels()
         const i32 step = (kAutoTargetX - battle.autoBoxX) / kAutoSlide;
         battle.autoBoxX += step;
         battle.autoBoxStep = step;
+        const PaintRecord::Motion moving({(kAutoTargetX - battle.autoBoxX) / kAutoSlide, 0});
         this->battleMessages
             .DrawMessageBox(battle.autoBoxX - kAutoLeft, kAutoY, kAutoWidth, kAutoHeight, 0, 0, kAutoBattle);
     }

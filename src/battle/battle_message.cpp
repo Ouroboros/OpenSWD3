@@ -1,6 +1,7 @@
 #include "battle/battle_message.h"
 #include "text/big5.h"
 
+#include <array>
 #include <cstring>
 #include <string>
 
@@ -8,6 +9,7 @@
 #include "battle/battle_state.h"
 #include "core/format.h"
 #include "crt/msvc.h"
+#include "draw/paint_record.h"
 #include "draw/painter.h"
 #include "font/text_font.h"
 #include "org/object_record.h"
@@ -597,6 +599,11 @@ void BattleMessages::Draw()
             continue;
         }
 
+        // The rebuild's smooth battle: a sliding message moves on by the same halving next frame (on its last frame
+        // the slide out takes over).
+        const bool slidesNext = !paused && message->frames > 1;
+        std::array<int, 2> slide = {0, 0};
+
         if ((flags & BattleMessage::FromRight) != 0)
         {
             y = kSlideTextY;
@@ -613,6 +620,8 @@ void BattleMessages::Draw()
             }
 
             x = message->slideX;
+            slide = {slidesNext ? ((half + kSlideStopX + x) >> 1) - x : 0, 0};
+            const PaintRecord::Motion moving(slide);
             this->hud.FillColor(x - half, kBarTop, kSlideBoxWidth, kMessageBarHeight, kBlack);
         }
 
@@ -627,6 +636,8 @@ void BattleMessages::Draw()
             }
 
             x = message->slideX;
+            slide = {slidesNext ? ((x + half + kSlideStopX) >> 1) - x : 0, 0};
+            const PaintRecord::Motion moving(slide);
             this->hud.FillColor(x - half, kBarTop, kSlideBoxWidth, kMessageBarHeight, kBlack);
         }
 
@@ -636,10 +647,16 @@ void BattleMessages::Draw()
             y = (message->slideY + kRiseTarget) / 2;
             message->slideY = y;
             message->slideX = x;
+            slide = {0, slidesNext ? (y + kRiseTarget) / 2 - y : 0};
+            const PaintRecord::Motion moving(slide);
             this->hud.FillColor(kSlideStopX, y - kMessageTextDown, kSlideBoxWidth, kMessageBarHeight, kBlack);
         }
 
-        this->DrawMessageText(x, y, message->Text());
+        {
+            const PaintRecord::Motion moving(slide);
+            this->DrawMessageText(x, y, message->Text());
+        }
+
         --message->frames;
     }
 
@@ -659,6 +676,7 @@ void BattleMessages::Draw()
                 message.slideX += kSlideOutStep;
             }
 
+            const PaintRecord::Motion moving({paused ? 0 : kSlideOutStep, 0});
             this->hud.FillColor(message.slideX - half, kBarTop, kSlideBoxWidth, kMessageBarHeight, kBlack);
             this->DrawMessageText(message.slideX, kSlideTextY, message.Text());
             keep = message.slideX < Display::Width;
@@ -673,6 +691,7 @@ void BattleMessages::Draw()
                 message.slideX -= kSlideOutStep;
             }
 
+            const PaintRecord::Motion moving({paused ? 0 : -kSlideOutStep, 0});
             this->hud.FillColor(message.slideX - half, kBarTop, kSlideBoxWidth, kMessageBarHeight, kBlack);
             this->DrawMessageText(message.slideX, kSlideTextY, message.Text());
             keep = message.slideX > 0;
@@ -688,6 +707,7 @@ void BattleMessages::Draw()
             }
 
             message.y *= kRiseAcceleration;
+            const PaintRecord::Motion moving({0, paused ? 0 : -message.y});
             this->hud.FillColor(
                 message.slideX - half,
                 message.slideY - kMessageTextDown,

@@ -14,14 +14,13 @@ namespace swd3
 {
 
 // The rebuild's smooth battle (deviations.md): the draws of a game frame to one target, each with a copy of what it
-// reads and the tag of the unit it was drawn for, so that the frame can be drawn again between game frames with the
-// draws of each unit moved. A draw that cannot be kept (a palette or alpha map picture, a tile) leaves the record
-// incomplete; what is written to the target past the painter and the fonts is found by Matches.
+// reads and how far it moves by the next game frame (as the code drawing it reckons it under a Motion), so that the
+// frame can be drawn again between game frames with every draw that far along its way. A draw that cannot be kept (an
+// alpha map picture, a palette picture) leaves the record incomplete; what is written to the target past the painter,
+// the fonts and FillBox is found by Matches.
 class PaintRecord
 {
 public:
-    static constexpr int NoTag = 0;
-
     // The pixel operations of the painter on part of the target.
     enum class PixelOp : u8
     {
@@ -34,17 +33,25 @@ public:
     };
 
     // A draw of the caller's own drawn again: redraw(painter, values) with the painter's state as it was, values[0] and
-    // values[1] being its x and y (moved with its tag).
+    // values[1] being its x and y (moved with its motion).
     static constexpr std::size_t CallValues = 8;
     using Redraw = void (*)(Painter& painter, std::span<const int> values);
 
-    // Where a draw was made and what it drew (0: a draw that is not followed), to find it again in the next frame.
-    struct Place
+    // The draws made while it lives move by `motion` by the next game frame (no record recording: nothing); the other
+    // draws stay where they are.
+    class Motion
     {
-        u64 key = 0;
-        int x = 0;
-        int y = 0;
-        int tag = NoTag;
+    public:
+        // `clipped`: the clip rectangle of the draws is theirs and moves with them.
+        explicit Motion(std::array<int, 2> motion, bool clipped = false);
+        ~Motion();
+        Motion(const Motion&) = delete;
+        Motion& operator=(const Motion&) = delete;
+
+    private:
+        PaintRecord* record;
+        std::array<int, 2> kept{};
+        bool keptClipped = false;
     };
 
     // Recording starts on the `pixels` of `target`, which are kept as the base the draws are drawn again over.
@@ -52,8 +59,8 @@ public:
     void Stop();
     bool Complete() const;
     std::size_t Draws() const;
-    std::span<const u16> Base() const;
-    void SetTag(int tag);
+    // The draws that move by the next game frame.
+    std::size_t Moving() const;
 
     // The record taking the draws, if one is recording.
     static PaintRecord* Active();
@@ -80,11 +87,9 @@ public:
     void Fill(TextFont& font, const u16* target, int x, int y, int width, int height, u16 color);
     void Call(const Painter& painter, Redraw redraw, std::span<const int> values);
 
-    // The places of the draws, in their order.
-    void Places(std::vector<Place>& places) const;
-    // The draws drawn again over the base into `out` (the pixels of the target, its pitch), draw i moved by offsets[i]
-    // (none when empty); the painter's state is left as it was.
-    void Replay(Painter& painter, std::span<u16> out, int pitch, std::span<const std::array<int, 2>> offsets) const;
+    // The draws drawn again over the base into `out` (the pixels of the target, its pitch), each `share` (0..1) of its
+    // motion along; the painter's and the fonts' state is left as it was.
+    void Replay(Painter& painter, std::span<u16> out, int pitch, double share) const;
     // Whether drawing again unmoved gives `drawn` (every write to the target was kept); `scratch` takes the replay.
     bool Matches(Painter& painter, std::span<const u16> drawn, std::vector<u16>& scratch, int pitch) const;
 
@@ -105,7 +110,6 @@ private:
     {
         Kind kind = Kind::Picture;
         PixelOp op = PixelOp::Tint;
-        int tag = NoTag;
         int x = 0;
         int y = 0;
         int width = 0;
@@ -125,11 +129,13 @@ private:
         Redraw redraw = nullptr;
         std::array<int, CallValues> values{};
         std::size_t valueCount = 0;
+        std::array<int, 2> motion{};
+        bool clipped = false;
     };
 
     bool OnTarget(const u16* pixels, std::size_t count) const;
-    u64 Key(const Command& command) const;
     std::size_t Keep(const void* data, std::size_t size);
+    void Push(Command command);
     bool KeepSource(Command& command, const Painter& painter, bool rle);
 
     u16* target = nullptr;
@@ -137,7 +143,8 @@ private:
     std::vector<u16> base;
     std::vector<Command> commands;
     std::vector<u8> copies;
-    int tag = NoTag;
+    std::array<int, 2> motion{};
+    bool clipped = false;
     bool complete = true;
     bool recording = false;
 };

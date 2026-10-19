@@ -1,6 +1,7 @@
 #include "battle/battle_unit.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <cstring>
 #include <optional>
 #include <string>
@@ -14,8 +15,10 @@
 #include "battle/battle_state.h"
 #include "config/config.h"
 #include "core/format.h"
+#include "core/glide.h"
 #include "core/words.h"
 #include "crt/msvc.h"
+#include "draw/paint_record.h"
 #include "draw/painter.h"
 #include "org/database.h"
 #include "org/fame.h"
@@ -1660,6 +1663,9 @@ void BattleUnit::DrawGuardText(BattleServices& services)
             this->guardRise = static_cast<i16>(rise + kGuardTextStep);
         }
 
+        // The rebuild's smooth battle: the letters rise on next frame, unless they are gone then.
+        const bool goneNext = this->guardRise >= kGuardTextRise;
+        const PaintRecord::Motion rising({0, goneNext || this->held != 0 ? 0 : -kGuardTextStep});
         u32 offset = 0;
 
         for (int letter = 0; letter < static_cast<int>(phases.size()); ++letter)
@@ -1677,10 +1683,40 @@ void BattleUnit::DrawGuardText(BattleServices& services)
     }
 
     hud.digitMode = 0;
+    // The rebuild's smooth battle: each letter moves to its next phase, or to the first rise once all have popped.
+    auto nextPhases = phases;
+    nextPhases[0] = std::min<i16>(static_cast<i16>(nextPhases[0] + 1), kGuardPhaseEnd);
+
+    for (std::size_t letter = 1; letter < nextPhases.size() && phases[0] > 0; ++letter)
+    {
+        nextPhases[letter] =
+            std::min<i16>(static_cast<i16>(nextPhases[letter] + (this->held == 0 ? 1 : 0)), kGuardPhaseEnd);
+    }
+
+    const bool risesNext = std::all_of(
+        nextPhases.begin(),
+        nextPhases.end(),
+        [](i16 phase)
+        {
+            return phase == kGuardPhaseEnd;
+        }
+    );
+
+    auto popMotion = [&](std::size_t letter) -> std::array<int, 2>
+    {
+        const int height = BattleUnit::PopOffsets[static_cast<std::size_t>(phases[letter])];
+        const int heightNext = risesNext ? this->guardRise + (this->held == 0 ? kGuardTextStep : 0)
+                                         : BattleUnit::PopOffsets[static_cast<std::size_t>(nextPhases[letter])];
+        return {0, height - heightNext};
+    };
+
+    std::optional<PaintRecord::Motion> popping(std::in_place, popMotion(0));
     u32 offset = hud.DrawDigit(0, 0, left, top - BattleUnit::PopOffsets[static_cast<std::size_t>(phases[0])]);
 
     for (std::size_t letter = 1; letter < phases.size() && phases[0] > 0; ++letter)
     {
+        popping.reset();
+        popping.emplace(popMotion(letter));
         offset += hud.DrawDigit(
             0,
             static_cast<int>(letter),
@@ -4482,78 +4518,28 @@ int BattleUnit::RunQueuedActions(BattleServices& services, BattleUnit& target, i
         }
 
         painter.SetSource(this->picture->data.data());
-        u32 flags = act.flags;
-        auto offsetX = static_cast<i16>(act.x);
+        const Stride stride = this->FlightStride(services, *node, act, taken);
+        const u32 flags = stride.flags;
+        line = stride.line;
+        node->shakeFrames = stride.shakeFrames;
+        node->flown = stride.flown;
+        taken = stride.taken;
+        std::array<int, 2> motion = {0, 0};
 
-        if (this->facing == 1)
+        if (taken != kArrived && PaintRecord::Active() != nullptr)
         {
-            flags ^= Painter::Mirror;
-            offsetX = static_cast<i16>(this->picture->width - static_cast<u16>(act.x));
-        }
-
-        line = LineWalker{};
-        line.fromX = node->fromX - offsetX;
-        line.fromY = node->fromY - act.y;
-        line.toX = node->toX - offsetX;
-        line.toY = node->toY - act.y;
-
-        if (node->fromY == 0)
-        {
-            line.fromY = 0;
-        }
-
-        if (node->toY == 0)
-        {
-            line.toY = 0;
-        }
-
-        if (node->shakeFrames != 0)
-        {
-            // A negative phase (shake frames past 0x7FFF) is read before the table in the original.
-            const int phase = static_cast<i16>(node->shakeFrames) % static_cast<int>(BattleUnit::ShakeOffsets.size());
-            line.y = phase >= 0 ? BattleUnit::ShakeOffsets[static_cast<std::size_t>(phase)] : 0;
-            --node->shakeFrames;
-        }
-        else
-        {
-            if (node->steps == 1)
-            {
-                if (node->flown == 0)
-                {
-                    node->flown = 1;
-                }
-
-                node->flown =
-                    static_cast<i16>(node->flown <= kFlightDoubling ? 2 * node->flown : node->flown + kFlightGrowth);
-            }
-            else
-            {
-                ++node->flown;
-            }
-
-            taken = 0;
-
-            while (taken < node->flown * node->steps)
-            {
-                LineStep(line);
-
-                if (line.fromX + line.x == line.toX && line.fromY + line.y == line.toY)
-                {
-                    taken = kArrived;
-                    break;
-                }
-
-                ++taken;
-            }
+            const ActState nextAct = services.acts.Peek(act);
+            motion = BattleUnit::StrideMotion(stride, act, this->FlightStride(services, *node, nextAct, 0), nextAct);
         }
 
         services.audio.PlaySound(act.view, services.config.soundVolume);
         act.view = 0;
-        const int x = line.fromX + line.x;
-        const int y = line.fromY + line.y;
+        const int x = stride.x;
+        const int y = stride.y;
 
         if (node->trailed == 1)
         {
+            const PaintRecord::Motion still({0, 0});
             node->trail.fadeStep = (flags & Painter::Additive) != 0 ? kAdditiveTrailFade : 1;
             this->DrawTrail(
                 services,
@@ -4567,7 +4553,11 @@ int BattleUnit::RunQueuedActions(BattleServices& services, BattleUnit& target, i
         }
 
         painter.SetSource(this->picture->data.data());
-        painter.DrawPicture(x, y, this->picture->width, this->picture->height, flags);
+
+        {
+            const PaintRecord::Motion moving(motion);
+            painter.DrawPicture(x, y, this->picture->width, this->picture->height, flags);
+        }
 
         if (taken != kArrived)
         {
@@ -4974,56 +4964,24 @@ int BattleUnit::ReturnHome(BattleServices& services, const BattleUnit& target, i
 
     services.audio.PlaySound(act.view, services.config.soundVolume);
     act.view = 0;
-    this->actOffsetX = static_cast<u16>(pose.x);
-    this->frameFlags = act.flags;
-    this->unk2670 = pose.x;
-
-    if (this->facing == 1)
-    {
-        this->frameFlags ^= Painter::Mirror;
-        this->actOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
-        this->unk2670 = this->picture->width - pose.x;
-    }
-
-    u16 targetX = 0;
-    u16 targetY = 0;
-    target.GetDrawPosition(targetX, targetY);
+    const Stride stride = this->HomeStride(services, target, act, pose, this->throwSteps + 1);
+    this->actOffsetX = stride.offsetX;
+    this->frameFlags = stride.flags;
+    this->unk2670 = stride.poseX;
     LineWalker& line = this->flight;
-    line = LineWalker{};
-    line.fromX = static_cast<i16>(targetX) - this->unk2670;
-    line.fromY = static_cast<i16>(targetY) - act.y;
-    line.toX = this->placement.x - static_cast<i16>(this->originX);
-    line.toY = this->placement.y - act.y;
-    ++this->throwSteps;
-    int steps = kHomeSteps;
+    line = stride.line;
+    this->throwSteps = stride.steps;
+    const bool arrived = stride.arrived;
+    std::array<int, 2> motion = {0, 0};
 
-    if ((this->command.flags & UnitCommand::UnkFlag20) != 0)
+    if (!arrived && PaintRecord::Active() != nullptr)
     {
-        steps = 0;
-
-        if ((act.target & ActState::FollowsUp) != 0)
-        {
-            steps = (line.toX >= line.fromX ? line.toX - line.fromX : line.fromX - line.toX) / kHomeShare;
-        }
-        else
-        {
-            --this->throwSteps;
-        }
+        const ActState nextAct = services.acts.Peek(act);
+        const Stride next = this->HomeStride(services, target, nextAct, services.acts.Peek(pose), this->throwSteps + 1);
+        motion = BattleUnit::StrideMotion(stride, act, next, nextAct);
     }
 
-    bool arrived = false;
-
-    for (int taken = 0; taken < this->throwSteps * steps; ++taken)
-    {
-        LineStep(line);
-
-        if (line.fromX + line.x == line.toX)
-        {
-            arrived = true;
-            break;
-        }
-    }
-
+    const PaintRecord::Motion moving(motion);
     services.audio.PlaySound(act.view, services.config.soundVolume);
     act.view = 0;
     painter.SetSource(this->picture->data.data());
@@ -5656,6 +5614,11 @@ int BattleUnit::DefeatRising(BattleServices& services, const Picture& picture, i
     options.tintBlue = tint;
     options.scaleHeight = this->glowLevel + picture.height;
     this->drawFlags |= Painter::ScaledGlow;
+    // The rebuild's smooth battle: the rise of the next frame, until the pose ends.
+    const int level = this->glowLevel + kRisingStep;
+    const int risen = kRisingTintLift * tint + this->glowLevel;
+    const int risesTo = kRisingTintLift * 2 * (level / kRisingTintDivisor) + level;
+    const PaintRecord::Motion moving({0, level > kRisingEnd ? 0 : risen - risesTo});
     painter
         .DrawPicture(x, y - kRisingTintLift * tint - this->glowLevel, picture.width, picture.height, this->drawFlags);
     this->glowLevel = static_cast<i16>(this->glowLevel + kRisingStep);
@@ -5761,6 +5724,9 @@ int BattleUnit::DefeatSplitRows(BattleServices& services, const Picture& picture
     this->StartDefeatDraw(services, picture);
     const int shift = 2 * this->glowLevel;
     const int half = picture.width >> 1;
+    // The rebuild's smooth battle: the halves part by 2 a frame more until the split ends.
+    const int parts = this->glowLevel + kSplitStep > kSplitEnd ? 0 : 2 * kSplitStep;
+    std::optional<PaintRecord::Motion> moving(std::in_place, std::array<int, 2>{0, -parts}, true);
     this->DrawDefeatPiece(
         services,
         picture,
@@ -5772,6 +5738,8 @@ int BattleUnit::DefeatSplitRows(BattleServices& services, const Picture& picture
         y - shift,
         picture.height
     );
+    moving.reset();
+    moving.emplace(std::array<int, 2>{0, parts}, true);
     this->DrawDefeatPiece(
         services,
         picture,
@@ -6196,7 +6164,19 @@ int BattleUnit::DefeatSlide(BattleServices& services, const Picture& picture)
     options.tintRed = this->glowLevel;
     options.tintGreen = this->glowLevel;
     options.tintBlue = this->glowLevel;
-    painter.DrawPicture(x + 2 * this->glowLevel, y, picture.width, picture.height, this->drawFlags | Painter::Additive);
+
+    {
+        // The rebuild's smooth battle: the copy moves 2 back a frame until the slide ends.
+        const PaintRecord::Motion moving({this->glowLevel - 1 <= kFadedOut ? 0 : -2, 0});
+        painter.DrawPicture(
+            x + 2 * this->glowLevel,
+            y,
+            picture.width,
+            picture.height,
+            this->drawFlags | Painter::Additive
+        );
+    }
+
     --this->glowLevel;
     return 0;
 }
@@ -6380,6 +6360,319 @@ int BattleUnit::DefeatParticles(BattleServices& services, const Picture& picture
     return this->RunDefeatParticles(services);
 }
 
+// The place of WalkToTarget (part of 0x00482310): the act's offset and the stand pose's mirrored by the facing, the
+// line from the unit's place to the target's, kWalkSteps line steps a frame more each frame (with UnkFlag20 none until
+// the act follows up, then a sixteenth of the distance a frame more), arrived once its x is reached.
+BattleUnit::Stride BattleUnit::WalkStride(
+    BattleServices& services,
+    const BattleUnit& target,
+    const ActState& act,
+    const ActState& pose,
+    i32 steps
+) const
+{
+    Stride stride;
+    stride.picture = services.archive.GetPicture(act.frame, act.picture);
+    stride.steps = steps;
+
+    if (stride.picture == nullptr)
+    {
+        return stride;
+    }
+
+    u16 targetX = 0;
+    u16 targetY = 0;
+    target.GetDrawPosition(targetX, targetY);
+    stride.offsetX = static_cast<u16>(act.x);
+    stride.flags = act.flags;
+    stride.poseX = pose.x;
+
+    if (this->facing == 1)
+    {
+        stride.flags ^= Painter::Mirror;
+        stride.offsetX = static_cast<u16>(stride.picture->width - static_cast<u16>(act.x));
+        stride.poseX = stride.picture->width - pose.x;
+    }
+
+    LineWalker& line = stride.line;
+    line.fromX = this->placement.x - static_cast<i16>(stride.offsetX);
+    line.fromY = this->placement.y - act.y;
+    line.toX = targetX - stride.poseX;
+    line.toY = targetY - act.y;
+    int perFrame = kWalkSteps;
+
+    if ((this->command.flags & UnitCommand::UnkFlag20) != 0)
+    {
+        perFrame = 0;
+
+        if ((act.target & ActState::FollowsUp) != 0)
+        {
+            perFrame = (line.toX >= line.fromX ? line.toX - line.fromX : line.fromX - line.toX) / kWalkShare;
+        }
+        else
+        {
+            --stride.steps;
+        }
+    }
+
+    for (int taken = 0; taken < perFrame * stride.steps; ++taken)
+    {
+        LineStep(line);
+
+        if (line.fromX + line.x == line.toX)
+        {
+            stride.arrived = true;
+            break;
+        }
+    }
+
+    stride.x = stride.arrived ? line.toX : line.fromX + line.x;
+    stride.y = stride.arrived ? line.toY : line.fromY + line.y;
+    return stride;
+}
+
+// The place of ReturnHome (part of 0x00482840): the stand pose's offset (the act's when mirrored) and the pose's, the
+// line from the target back to the unit's place, kHomeSteps line steps a frame more each frame (with UnkFlag20 none
+// until the act follows up, then a twelfth of the distance a frame more), arrived once its x is reached.
+BattleUnit::Stride BattleUnit::HomeStride(
+    BattleServices& services,
+    const BattleUnit& target,
+    const ActState& act,
+    const ActState& pose,
+    i32 steps
+) const
+{
+    Stride stride;
+    stride.picture = services.archive.GetPicture(act.frame, act.picture);
+    stride.steps = steps;
+
+    if (stride.picture == nullptr)
+    {
+        return stride;
+    }
+
+    stride.offsetX = static_cast<u16>(pose.x);
+    stride.flags = act.flags;
+    stride.poseX = pose.x;
+
+    if (this->facing == 1)
+    {
+        stride.flags ^= Painter::Mirror;
+        stride.offsetX = static_cast<u16>(stride.picture->width - static_cast<u16>(act.x));
+        stride.poseX = stride.picture->width - pose.x;
+    }
+
+    u16 targetX = 0;
+    u16 targetY = 0;
+    target.GetDrawPosition(targetX, targetY);
+    LineWalker& line = stride.line;
+    line.fromX = static_cast<i16>(targetX) - stride.poseX;
+    line.fromY = static_cast<i16>(targetY) - act.y;
+    line.toX = this->placement.x - static_cast<i16>(this->originX);
+    line.toY = this->placement.y - act.y;
+    int perFrame = kHomeSteps;
+
+    if ((this->command.flags & UnitCommand::UnkFlag20) != 0)
+    {
+        perFrame = 0;
+
+        if ((act.target & ActState::FollowsUp) != 0)
+        {
+            perFrame = (line.toX >= line.fromX ? line.toX - line.fromX : line.fromX - line.toX) / kHomeShare;
+        }
+        else
+        {
+            --stride.steps;
+        }
+    }
+
+    for (int taken = 0; taken < stride.steps * perFrame; ++taken)
+    {
+        LineStep(line);
+
+        if (line.fromX + line.x == line.toX)
+        {
+            stride.arrived = true;
+            break;
+        }
+    }
+
+    stride.x = stride.arrived ? line.toX : line.fromX + line.x;
+    stride.y = stride.arrived ? line.toY : line.fromY + line.y;
+    return stride;
+}
+
+// The place of a queued act (part of 0x0047FC40): its line less the act's offset (mirrored by the facing; a line end
+// at y 0 stays at 0); while it shakes its y comes from ShakeOffsets and the shake frames count down, then it flies
+// (one step more a frame, doubling while speeding) and arrives at the line's end. A shaking act keeps `taken`.
+BattleUnit::Stride BattleUnit::FlightStride(
+    BattleServices& services,
+    const QueuedAction& node,
+    const ActState& act,
+    int taken
+) const
+{
+    Stride stride;
+    stride.picture = services.archive.GetPicture(act.frame, act.picture);
+    stride.shakeFrames = node.shakeFrames;
+    stride.flown = node.flown;
+    stride.taken = taken;
+
+    if (stride.picture == nullptr)
+    {
+        return stride;
+    }
+
+    stride.flags = act.flags;
+    auto offsetX = static_cast<i16>(act.x);
+
+    if (this->facing == 1)
+    {
+        stride.flags ^= Painter::Mirror;
+        offsetX = static_cast<i16>(stride.picture->width - static_cast<u16>(act.x));
+    }
+
+    stride.offsetX = static_cast<u16>(offsetX);
+    LineWalker& line = stride.line;
+    line.fromX = node.fromX - offsetX;
+    line.fromY = node.fromY - act.y;
+    line.toX = node.toX - offsetX;
+    line.toY = node.toY - act.y;
+
+    if (node.fromY == 0)
+    {
+        line.fromY = 0;
+    }
+
+    if (node.toY == 0)
+    {
+        line.toY = 0;
+    }
+
+    if (stride.shakeFrames != 0)
+    {
+        // A negative phase (shake frames past 0x7FFF) is read before the table in the original.
+        const int phase = static_cast<i16>(stride.shakeFrames) % static_cast<int>(BattleUnit::ShakeOffsets.size());
+        line.y = phase >= 0 ? BattleUnit::ShakeOffsets[static_cast<std::size_t>(phase)] : 0;
+        --stride.shakeFrames;
+    }
+    else
+    {
+        if (node.steps == 1)
+        {
+            if (stride.flown == 0)
+            {
+                stride.flown = 1;
+            }
+
+            stride.flown =
+                static_cast<i16>(stride.flown <= kFlightDoubling ? 2 * stride.flown : stride.flown + kFlightGrowth);
+        }
+        else
+        {
+            ++stride.flown;
+        }
+
+        stride.taken = 0;
+
+        while (stride.taken < stride.flown * node.steps)
+        {
+            LineStep(line);
+
+            if (line.fromX + line.x == line.toX && line.fromY + line.y == line.toY)
+            {
+                stride.taken = kArrived;
+                break;
+            }
+
+            ++stride.taken;
+        }
+    }
+
+    stride.x = line.fromX + line.x;
+    stride.y = line.fromY + line.y;
+    stride.arrived = stride.taken == kArrived;
+    return stride;
+}
+
+// The same picture moves as drawn; a new picture is a new pose, drawn where the place moved (its offset from the act
+// taken back). A move past a glide's reach is a jump: it stays until then.
+std::array<int, 2> BattleUnit::StrideMotion(
+    const Stride& now,
+    const ActState& act,
+    const Stride& next,
+    const ActState& nextAct
+)
+{
+    if (now.picture == nullptr || next.picture == nullptr)
+    {
+        return {0, 0};
+    }
+
+    std::array<int, 2> motion = {next.x - now.x, next.y - now.y};
+
+    if (next.picture != now.picture)
+    {
+        motion[0] += static_cast<i16>(next.offsetX) - static_cast<i16>(now.offsetX);
+        motion[1] += nextAct.y - act.y;
+    }
+
+    if (std::abs(motion[0]) > Glide::SnapDistance || std::abs(motion[1]) > Glide::SnapDistance)
+    {
+        return {0, 0};
+    }
+
+    return motion;
+}
+
+// IdleFrame's place next frame: the act one frame on, the place lifted or dropped by MoveIdle (a shake is random: it
+// stays). The shadow moves with the place only.
+std::array<int, 3> BattleUnit::IdleMotion(BattleServices& services, const ActState& act, int x, int y) const
+{
+    const ActState next = services.acts.Peek(act);
+    const Picture* picture = services.archive.GetPicture(next.frame, next.picture);
+
+    if (picture == nullptr || this->shadowPicture == nullptr)
+    {
+        return {0, 0, 0};
+    }
+
+    int placeY = this->placement.y;
+
+    if (this->nudge != 0 && this->drawAtSaved == kRising)
+    {
+        placeY = std::max(placeY - kRiseStep, 0);
+    }
+    else if (this->nudge != 0 && this->drawAtSaved == kDropping)
+    {
+        placeY = std::min(placeY + kDropStep, static_cast<int>(this->savedPlacement.y));
+    }
+
+    auto originX = static_cast<u16>(next.x);
+
+    if (this->facing == 1 && next.x != 0)
+    {
+        originX = static_cast<u16>(picture->width - static_cast<u16>(next.x));
+    }
+
+    const int nextX = this->unk26A8 + this->placement.x - static_cast<i16>(originX);
+    const int nextY = placeY - this->unk26AC - next.y;
+    std::array<int, 2> motion = {nextX - x, nextY - y};
+
+    if (picture != this->shadowPicture)
+    {
+        motion[0] += static_cast<i16>(originX) - static_cast<i16>(this->originX);
+        motion[1] += next.y - act.y;
+    }
+
+    if (std::abs(motion[0]) > Glide::SnapDistance || std::abs(motion[1]) > Glide::SnapDistance)
+    {
+        return {0, 0, 0};
+    }
+
+    return {motion[0], motion[1], placeY - this->placement.y};
+}
+
 // swd32.exe 0x00482310: one frame of the unit walking from its place to the target (the attack act's walk action, the
 // stand pose in the recoil act giving its x): kWalkSteps line steps a frame more each frame; with UnkFlag20 none
 // until the act follows up, then a sixteenth of the distance a frame more. A forced fading command (FadesIn) takes its
@@ -6431,9 +6724,6 @@ void BattleUnit::WalkToTarget(BattleServices& services, const BattleUnit& target
 
     Painter& painter = services.painter;
     painter.SetSource(this->picture->data.data());
-    u16 targetX = 0;
-    u16 targetY = 0;
-    target.GetDrawPosition(targetX, targetY);
     pose.id = this->actId;
     pose.action = kHomePose;
 
@@ -6455,61 +6745,30 @@ void BattleUnit::WalkToTarget(BattleServices& services, const BattleUnit& target
         return;
     }
 
-    this->actOffsetX = static_cast<u16>(act.x);
-    this->frameFlags = act.flags;
-    this->unk2670 = pose.x;
-
-    if (this->facing == 1)
-    {
-        this->frameFlags ^= Painter::Mirror;
-        this->actOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
-        this->unk2670 = this->picture->width - pose.x;
-    }
-
-    const int toX = targetX - this->unk2670;
-    const int toY = targetY - act.y;
+    const Stride stride = this->WalkStride(services, target, act, pose, this->throwSteps + 1);
+    this->actOffsetX = stride.offsetX;
+    this->frameFlags = stride.flags;
+    this->unk2670 = stride.poseX;
 
     if (this->kind == 1 && this->unk2A8E != act.picture)
     {
         this->unk2A8E = act.picture;
     }
 
-    ++this->throwSteps;
+    this->throwSteps = stride.steps;
     LineWalker& line = this->flight;
-    line = LineWalker{};
-    line.fromX = this->placement.x - static_cast<i16>(this->actOffsetX);
-    line.fromY = this->placement.y - act.y;
-    line.toX = toX;
-    line.toY = toY;
-    int steps = kWalkSteps;
+    line = stride.line;
+    const bool arrived = stride.arrived;
+    std::array<int, 2> motion = {0, 0};
 
-    if ((this->command.flags & UnitCommand::UnkFlag20) != 0)
+    if (!arrived && PaintRecord::Active() != nullptr)
     {
-        steps = 0;
-
-        if ((act.target & ActState::FollowsUp) != 0)
-        {
-            steps = (toX >= line.fromX ? toX - line.fromX : line.fromX - toX) / kWalkShare;
-        }
-        else
-        {
-            --this->throwSteps;
-        }
+        const ActState nextAct = services.acts.Peek(act);
+        const Stride next = this->WalkStride(services, target, nextAct, services.acts.Peek(pose), this->throwSteps + 1);
+        motion = BattleUnit::StrideMotion(stride, act, next, nextAct);
     }
 
-    bool arrived = false;
-
-    for (int taken = 0; taken < steps * this->throwSteps; ++taken)
-    {
-        LineStep(line);
-
-        if (line.fromX + line.x == line.toX)
-        {
-            arrived = true;
-            break;
-        }
-    }
-
+    const PaintRecord::Motion moving(motion);
     services.audio.PlaySound(act.view, services.config.soundVolume);
     act.view = 0;
     const bool invisible = (this->status & BattleUnit::Invisible) != 0;
@@ -7040,10 +7299,78 @@ int BattleUnit::HurtFrame(BattleServices& services)
         x = placeX - this->unk2670;
     }
 
+    // The rebuild's smooth battle: the places of a stagger step (the unit, an enemy's red flash), and how far they move
+    // to the step of the next frame (none once the stagger ends).
+    auto bodyAt = [&](std::size_t at) -> std::array<int, 2>
+    {
+        const int shaken = BattleUnit::StaggerShake[at];
+        int bodyX = shaken + placeX - act.x;
+        int bodyY = this->placement.y - act.y;
+
+        if (this->unk2B00 == 1)
+        {
+            bodyX = this->facing != 0 ? placeX - shaken - act.x : placeX + shaken - this->unk2670;
+        }
+
+        if (this->facing == 1 && this->unk2B00 == 0)
+        {
+            bodyX = placeX - shaken - this->unk2670;
+        }
+
+        if (still)
+        {
+            bodyX = placeX - this->unk2670;
+        }
+
+        if (this->kind == 0 && !still)
+        {
+            const int lift = BattleUnit::StaggerLift[at];
+            bodyX = placeX - this->unk2670;
+
+            if (this->unk2B10 != 0)
+            {
+                bodyY = this->placement.y - lift - act.y;
+            }
+            else
+            {
+                bodyX += this->facing != 0 ? lift : -lift;
+            }
+        }
+
+        return {bodyX, bodyY};
+    };
+
+    auto flashAt = [&](std::size_t at) -> std::array<int, 2>
+    {
+        const int rise = BattleUnit::StaggerRise[at];
+
+        if (this->unk2B10 != 0)
+        {
+            return {placeX - this->unk2670, this->placement.y - rise - act.y};
+        }
+
+        return {placeX + (this->facing != 0 ? rise : -rise) - this->unk2670, this->placement.y - act.y};
+    };
+
+    auto between = [](const std::array<int, 2>& from, const std::array<int, 2>& to) -> std::array<int, 2>
+    {
+        const std::array<int, 2> by = {to[0] - from[0], to[1] - from[1]};
+        return std::abs(by[0]) > Glide::SnapDistance || std::abs(by[1]) > Glide::SnapDistance ? std::array<int, 2>{0, 0}
+                                                                                              : by;
+    };
+
+    const int nextPhase = this->glowPhase + (this->held == 0 ? 1 : 0);
+    const std::size_t nextStep = step + (nextPhase == kHurtFrames ? 1 : 0);
+    const bool staggersNext = nextStep <= kLastHurtStep;
+    const std::array<int, 2> bodyMotion =
+        staggersNext ? between(bodyAt(step), bodyAt(nextStep)) : std::array<int, 2>{0, 0};
+    const std::array<int, 2> flashMotion =
+        staggersNext ? between(flashAt(step), flashAt(nextStep)) : std::array<int, 2>{0, 0};
     DrawOptions& options = painter.Options();
 
     if (this->kind == 0 && !still)
     {
+        const PaintRecord::Motion flashMoving(flashMotion);
         options.tintRed = kHurtRed;
         options.tintGreen = 0;
         options.tintBlue = 0;
@@ -7094,7 +7421,13 @@ int BattleUnit::HurtFrame(BattleServices& services)
     options.tintGreen = tint;
     options.tintBlue = tint;
     this->unk26A4 = (this->drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
-    painter.DrawPicture(x, this->placement.y - shadowHeight, picture.width, picture.height, this->unk26A4);
+
+    {
+        const PaintRecord::Motion shadowMoving({bodyMotion[0], 0});
+        painter.DrawPicture(x, this->placement.y - shadowHeight, picture.width, picture.height, this->unk26A4);
+    }
+
+    const PaintRecord::Motion moving(bodyMotion);
     this->drawFlags &= Painter::RleSource | Painter::Mirror | Painter::Flip;
     painter.DrawPicture(x, y, picture.width, picture.height, this->drawFlags);
 
@@ -7465,12 +7798,16 @@ void BattleUnit::IdleFrame(BattleServices& services, int paused)
     const int x = this->unk26A8 + this->placement.x - static_cast<i16>(this->originX);
     const int y = this->placement.y - this->unk26AC - act.y;
     const u32 mirrored = this->drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip);
+    const std::array<int, 3> motion =
+        PaintRecord::Active() != nullptr ? this->IdleMotion(services, act, x, y) : std::array<int, 3>{0, 0, 0};
+    const PaintRecord::Motion moving({motion[0], motion[1]});
 
     if (this->guarding == 0 && (marks & BattleUnit::GuardingMark) == 0)
     {
         if (this->drawAtSaved != kRising && this->drawAtSaved != kDropping &&
             (this->status & BattleUnit::Invisible) == 0)
         {
+            const PaintRecord::Motion shadowMoving({motion[0], motion[2]});
             const int shadowHeight = picture.height / kShadowShare;
             DrawOptions& options = painter.Options();
             options.scaleHeight = shadowHeight;
@@ -8405,24 +8742,56 @@ int BattleUnit::DrawDamageNumbers(BattleServices& services)
                 return y - BattleUnit::DigitHops[static_cast<std::size_t>(hops[digit])];
             };
 
+            // The rebuild's smooth battle: each digit moves to its next hop, or to the first rise once all land.
+            std::array<i16, DamageDigits> nextHops = hops;
+
+            for (std::size_t digit = 0; this->held == 0 && digit < nextHops.size(); ++digit)
+            {
+                if (digit > 0 && nextHops[digit - 1] <= 0)
+                {
+                    break;
+                }
+
+                nextHops[digit] = static_cast<i16>(std::min<int>(nextHops[digit] + 1, kLastHop));
+            }
+
+            const bool landsNext = std::all_of(
+                nextHops.begin(),
+                nextHops.end(),
+                [](i16 hop)
+                {
+                    return hop == kLastHop;
+                }
+            );
+
+            auto drawHop = [&](std::size_t digit, int at)
+            {
+                const int risesNext = fade + (this->held == 0 ? kNumberFadeStep : 0);
+                const int heightNext =
+                    landsNext ? risesNext : BattleUnit::DigitHops[static_cast<std::size_t>(nextHops[digit])];
+                const int height = BattleUnit::DigitHops[static_cast<std::size_t>(hops[digit])];
+                const PaintRecord::Motion moving({0, height - heightNext});
+                hud.DrawNumber(font, digits[digit], at, hopY(digit));
+            };
+
             if (digits[0] != 0)
             {
-                hud.DrawNumber(font, digits[0], x - kDigitWidth, hopY(0));
+                drawHop(0, x - kDigitWidth);
             }
 
             if ((digits[1] != 0 || digits[0] != 0) && hops[0] > 0)
             {
-                hud.DrawNumber(font, digits[1], x, hopY(1));
+                drawHop(1, x);
             }
 
             if (hops[1] > 0)
             {
                 if (digits[0] != 0 || digits[1] != 0 || digits[2] != 0)
                 {
-                    hud.DrawNumber(font, digits[2], x + kDigitWidth, hopY(2));
+                    drawHop(2, x + kDigitWidth);
                 }
 
-                hud.DrawNumber(font, digits[3], x + 2 * kDigitWidth, hopY(3));
+                drawHop(3, x + 2 * kDigitWidth);
             }
 
             if (this->held == 0)
@@ -8481,6 +8850,8 @@ int BattleUnit::DrawDamageNumbers(BattleServices& services)
         };
 
         const int risenY = y - fade;
+        const bool clearedNext = fade >= kNumberFadeEnd;
+        const PaintRecord::Motion rising({0, clearedNext || this->held != 0 ? 0 : -kNumberFadeStep});
         fading();
 
         if (digits[0] != 0)
