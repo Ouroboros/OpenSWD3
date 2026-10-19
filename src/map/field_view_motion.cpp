@@ -81,18 +81,15 @@ void FieldView::AdvanceMotion(u32 now)
         return;
     }
 
-    const auto moving = [&owner]
-    {
-        return owner.running != 0 && owner.inactive == 0 && owner.active != 0 &&
-               (owner.systemFlags & (Game::VideoPlaying | Game::UnkSystem1 | Game::QuitRequested)) == 0 &&
-               owner.storyState == Game::StoryRunning && owner.inBattle == 0 && owner.menuState == Game::NoMenu &&
-               owner.state.frameInterval > 0;
-    };
+    const bool moving = owner.running != 0 && owner.inactive == 0 && owner.active != 0 &&
+                        (owner.systemFlags & (Game::VideoPlaying | Game::UnkSystem1 | Game::QuitRequested)) == 0 &&
+                        owner.storyState == Game::StoryRunning && owner.inBattle == 0 &&
+                        owner.menuState == Game::NoMenu && owner.state.frameInterval > 0;
 
-    if (!moving() || !this->motionClockSet || now - this->motionClock > kMostTicks)
+    if (!moving || !this->motionClockSet || now - this->motionClock > kMostTicks)
     {
         this->motionClock = now;
-        this->motionClockSet = moving();
+        this->motionClockSet = moving;
         return;
     }
 
@@ -100,22 +97,13 @@ void FieldView::AdvanceMotion(u32 now)
     {
         ++this->motionClock;
         this->MotionTick();
-
-        // A step that leaves the map (an encounter starting the battle) ends the motion there, with the audio served as
-        // the original's frame ends after ControlPlayer starts the battle (EndMainFrame), so that the music it stopped
-        // has stopped when the battle begins.
-        if (!moving())
-        {
-            this->motionClockSet = false;
-            owner.AudioPump();
-            return;
-        }
     }
 }
 
-// A millisecond of the controlled role: standing on a tile, the arrows start a step (RoleControl::StepNow); a step
-// under way moves it (and the camera when it follows) by its speed, a game frame's worth every frame interval, and on
-// the next tile it settles and the arrows may take the next step at once.
+// A millisecond of the controlled role: a step ControlPlayer set in a frame moves it (and the camera when it follows)
+// by its speed, a game frame's worth every frame interval; the step starts at the frame, so it reaches the next tile
+// at a later frame's time, where the role settles as the end of the original's frame does (SettlePlayer) and that
+// frame's ControlPlayer decides the next step.
 void FieldView::MotionTick()
 {
     Game& owner = this->game;
@@ -145,16 +133,7 @@ void FieldView::MotionTick()
 
     if (!motion.active)
     {
-        const bool onTile = ((player.x | player.y) & MapHeader::TileFraction) == 0;
-        const bool waiting = this->refused && this->refusedFrame == owner.gameFrames;
-
-        if (!stepping && (!onTile || waiting || !this->TryStep()))
-        {
-            this->BeginWaitingEvent();
-            return;
-        }
-
-        if (onTile && !this->BeginWaitingEvent())
+        if (!stepping)
         {
             return;
         }
@@ -192,57 +171,9 @@ void FieldView::MotionTick()
     motion.active = false;
     this->PinGlides();
     this->SettlePlayer();
-
-    const bool stepped = this->TryStep();
-
-    if (this->BeginWaitingEvent() && stepped)
-    {
-        this->BeginPlayerMotion();
-    }
 }
 
-// An event set off and not begun yet (the leader's script not read) begins as soon as the controlled role stands on a
-// tile (Talk::BeginEvent, part of 0x00427920), after the step of the keys is decided, as the original's frame runs
-// ControlPlayer before the event; its commands run with the frames. Whether no event waits (a step may start).
-bool FieldView::BeginWaitingEvent()
-{
-    Game& owner = this->game;
-    Role& leader = owner.state.leader;
-    const Role& player = owner.state.roles[static_cast<std::size_t>(owner.state.playerRole)];
-
-    if (leader.id == Role::NoId || leader.unk14 != 0)
-    {
-        return true;
-    }
-
-    if (((player.x | player.y) & MapHeader::TileFraction) != 0)
-    {
-        return false;
-    }
-
-    return owner.talk.BeginEvent(leader) && leader.unk14 != 0;
-}
-
-// A step from the keys (RoleControl::StepNow); one tried and refused (blocked, an event in the way) is not tried again
-// before the next game frame, whose ControlPlayer tries it as the original does once a frame. A step taken that moves
-// neither the role nor the camera (the role at the edge of the screen with the camera at the map's: the original walks
-// on the spot until the next frame) counts as refused.
-bool FieldView::TryStep()
-{
-    Game& owner = this->game;
-    const RoleControl::Stepped stepped = owner.roleControl.StepNow();
-    const bool moves = owner.unk4B7518 != 0 || owner.unk4B7920 != 0 || owner.unk4A9488 != 0 || owner.unk4A948C != 0;
-
-    if (stepped == RoleControl::Stepped::Refused || (stepped == RoleControl::Stepped::Taken && !moves))
-    {
-        this->refused = true;
-        this->refusedFrame = owner.gameFrames;
-    }
-
-    return stepped == RoleControl::Stepped::Taken && moves;
-}
-
-// A step set by ControlPlayer or RoleControl::StepNow starts from where the role and the camera are.
+// A step set by ControlPlayer starts from where the role and the camera are.
 void FieldView::BeginPlayerMotion()
 {
     Game& owner = this->game;

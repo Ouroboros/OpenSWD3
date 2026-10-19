@@ -27,64 +27,6 @@ void LogActError(std::u8string_view where, const Role& role)
     DebugLog(format, role.id, role.act.id, role.act.action, role.act.direction);
 }
 
-// The first frame of an event (part of 0x00427920): once the controlled role stands on a tile, its script is read
-// from Talk<event / 2000 + 1>.dat (0x8000 bytes, the rest 0x0C), the role of the event marked (flag 0x80000) and the
-// controlled role held. Whether it began (a missing Talk file ends the game).
-bool Talk::BeginEvent(Role& context)
-{
-    Game& owner = this->game;
-    GameState& state = owner.state;
-    Role& player = state.roles[static_cast<std::size_t>(state.playerRole)];
-
-    if (((player.x | player.y) & MapHeader::TileFraction) != 0)
-    {
-        return false;
-    }
-
-    if (context.id != TalkWindow::NoRole)
-    {
-        u32 index = 0;
-        state.FindRoleOrPlayer(context.id, index);
-
-        if (index < GameState::Roles)
-        {
-            state.roles[index].flags |= Role::InEvent;
-        }
-    }
-
-    const u32 file = context.event / Talk::EventsPerFile;
-    const std::u8string path = PathFormat("%sTalk%d.dat", {owner.config.installDirectory, file + 1});
-    File& story = owner.databases.story;
-    owner.audioDevice.Serve();
-    story.Close();
-
-    if (!story.Open(path, File::Disposition::OpenExisting, File::Access::Read))
-    {
-        DebugLog(u8"SWD3-Talk 找不到 Talk%d", file + 1);  // 0x00427A1F (nullsub_1 with the text 0x004A1C00)
-        owner.Destroy();
-        return false;
-    }
-
-    story.SeekBegin(static_cast<i32>(sizeof(u32) * (context.event % Talk::EventsPerFile) + Talk::FileHeaderBytes));
-    u32 offset = 0;
-    story.ReadDword(offset);
-    context.unk14 = static_cast<i32>(offset);
-    context.unk20 = 0;
-    story.SeekBegin(static_cast<i32>(offset + Talk::FileHeaderBytes));
-    std::fill(owner.databases.script.begin(), owner.databases.script.end(), Talk::ScriptFill);
-    u32 bytes = static_cast<u32>(owner.databases.script.size());
-    story.Read(owner.databases.script.data(), bytes);
-    owner.scene.playerHold |= Scene::HoldLocked;
-
-    if (owner.acts.Run(player.act) == 0)
-    {
-        LogActError(u8"Act Err(Talk:LoadTalk)", player);
-    }
-
-    owner.audioDevice.Serve();
-    return true;
-}
-
 // swd32.exe 0x00427920: the event script of `context` (the leader) from where it stopped. On its first frame the
 // script is read from Talk<event / 2000 + 1>.dat (0x8000 bytes, the rest 0x0C) once the controlled role stands on a
 // tile, and the role of the event is marked (flag 0x80000). The commands run until one waits for the next frame;
@@ -102,9 +44,56 @@ void Talk::RunEvent(Role& context)
         return;
     }
 
-    if (context.unk14 == 0 && !this->BeginEvent(context))
+    if (context.unk14 == 0)
     {
-        return;
+        Role& player = state.roles[static_cast<std::size_t>(state.playerRole)];
+
+        if (((player.x | player.y) & MapHeader::TileFraction) != 0)
+        {
+            return;
+        }
+
+        if (context.id != TalkWindow::NoRole)
+        {
+            u32 index = 0;
+            state.FindRoleOrPlayer(context.id, index);
+
+            if (index < GameState::Roles)
+            {
+                state.roles[index].flags |= Role::InEvent;
+            }
+        }
+
+        const u32 file = context.event / Talk::EventsPerFile;
+        const std::u8string path = PathFormat("%sTalk%d.dat", {owner.config.installDirectory, file + 1});
+        File& story = owner.databases.story;
+        owner.audioDevice.Serve();
+        story.Close();
+
+        if (!story.Open(path, File::Disposition::OpenExisting, File::Access::Read))
+        {
+            DebugLog(u8"SWD3-Talk 找不到 Talk%d", file + 1);  // 0x00427A1F (nullsub_1 with the text 0x004A1C00)
+            owner.Destroy();
+            return;
+        }
+
+        story.SeekBegin(static_cast<i32>(sizeof(u32) * (context.event % Talk::EventsPerFile) + Talk::FileHeaderBytes));
+        u32 offset = 0;
+        story.ReadDword(offset);
+        context.unk14 = static_cast<i32>(offset);
+        context.unk20 = 0;
+        story.SeekBegin(static_cast<i32>(offset + Talk::FileHeaderBytes));
+        std::fill(owner.databases.script.begin(), owner.databases.script.end(), Talk::ScriptFill);
+        u32 bytes = static_cast<u32>(owner.databases.script.size());
+        story.Read(owner.databases.script.data(), bytes);
+        owner.scene.playerHold |= Scene::HoldLocked;
+
+        if (owner.acts.Run(player.act) == 0)
+        {
+            LogActError(u8"Act Err(Talk:LoadTalk)", player);
+        }
+
+        owner.audioDevice.Serve();
     }
 
     EventRun run{context, context.unk20};

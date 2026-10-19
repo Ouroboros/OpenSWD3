@@ -1347,11 +1347,7 @@ void Game::StoreDisplay() const
 
 bool Game::PresentBetween()
 {
-    // A step taken between frames may start a battle, which lets the map's view go: the map is drawn only while it is
-    // still shown.
-    const bool onMap = this->mapFrameShown && this->inBattle == 0 && this->mapCache.view != nullptr;
-
-    if (!this->smoothMotion || !(onMap || this->battleFrameShown) || this->smoothScreen == nullptr ||
+    if (!this->smoothMotion || !(this->mapFrameShown || this->battleFrameShown) || this->smoothScreen == nullptr ||
         this->active == 0 || this->running == 0 || this->quit || (this->systemFlags & Game::VideoPlaying) != 0)
     {
         return false;

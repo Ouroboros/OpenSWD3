@@ -279,15 +279,11 @@ private:
 
     void MotionTick();
     void BeginPlayerMotion();
-    bool TryStep();
     void PinGlides();
-    bool BeginWaitingEvent();
     void EndPlayerMotion(bool atFrame);
     i32 MotionPixels(int scale) const;
     PlayerMotion playerMotion;
     u32 motionClock = 0;
-    u32 refusedFrame = 0;  // the game frame a step from the keys was last refused in (tried again next frame)
-    bool refused = false;
     bool motionClockSet = false;
     std::unordered_map<u64, EffectGlide> effectGlides;
     // The painting PaintBetween does: its render scale, its camera (in 1/scale pixels), the block column and row.

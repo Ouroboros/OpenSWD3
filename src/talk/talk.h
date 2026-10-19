@@ -141,7 +141,6 @@ public:
     bool OpenScript(Role& context, u32 index);
     bool CommandsRole(std::span<const u8> command, u32 role);
     void RunEvent(Role& context);
-    bool BeginEvent(Role& context);
 
     i32 unit = 0;     // 0x004A99F8 the text cell in pixels
     i32 advance = 0;  // 0x004A99F4 the text is to move on (a key or a click)
