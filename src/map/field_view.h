@@ -203,7 +203,7 @@ private:
     void PaintWorld();
     void ClipToSpotlight();
     void CapturePlaces();
-    void AimControlled();
+    void AimNextFrame();
     void RefreshAim(double time);
 
     // Where role `index` steps next as the game frames move it (a move record or a follower's), and in how many game

@@ -39,6 +39,8 @@ public:
     static constexpr std::array<i32, 8> StepX = {4, 0, -4, -4, -4, 0, 4, 4};
     static constexpr std::array<i32, 8> StepY = {4, 4, 4, 0, -4, -4, -4, 0};
     static constexpr int FollowerSpeed = 2;  // a follower steps at double speed (0x00406960)
+    static constexpr u32 BlockedTries =
+        8;  // after this many blocked steps a role walks through other roles (0x00406580)
     // swd32.exe 0x0049947C (a copy at 0x0049967C): the act direction of each path direction.
     static constexpr std::array<i32, 8> Facing = {
         ActState::DownRight,
@@ -58,6 +60,9 @@ public:
 
     void Update();
     void RunScript(int index);
+    // The rebuild's smooth motion (deviations.md): whether the next frame's path script of role `index` takes a step
+    // (it runs, and its command at the role's place is PathCommand::Step); nothing is changed.
+    bool StepsNext(int index) const;
     bool FindPath(int index, u16 tileX, u16 tileY);
     int Step(int index);
     std::size_t JumpTo(int index, u32 offset);

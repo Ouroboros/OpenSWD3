@@ -714,7 +714,7 @@ void FieldView::Render()
         view.unk4B873C = layer * view.unk4B7A98;
     }
 
-    this->AimControlled();
+    this->AimNextFrame();
 
     if (view.shake[0] != Scene::ShakeEnd && owner.currentMap != Field::DemonRefiningPot)
     {

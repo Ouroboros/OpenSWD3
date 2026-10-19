@@ -23,7 +23,7 @@ namespace
 
 constexpr u16 kFree = 0xFFFF;
 constexpr u8 kPathEnd = 0xFF;
-constexpr u32 kBlockedTries = 8;   // after this many blocked steps a role walks through other roles
+constexpr u32 kBlockedTries = RolePath::BlockedTries;
 constexpr int kNearMargin = 0x50;  // a follower or moved role appears this far around the camera
 constexpr int kFarMargin = 0xA0;
 constexpr int kStepsPerTile = MapHeader::TileSize / 4;  // RolePath::StepX and StepY move 4 pixels
@@ -555,6 +555,27 @@ void RolePath::Follow(int index)
         move.stepX = static_cast<i16>(kFollowerSpeed * RolePath::StepX[step]);
         move.stepY = static_cast<i16>(kFollowerSpeed * RolePath::StepY[step]);
     }
+}
+
+// The conditions of Update (0x00405430) for running the path script, and the command RunScript (0x00405500) reads
+// first.
+bool RolePath::StepsNext(int index) const
+{
+    const GameState& state = this->game.state;
+    const Role& role = state.roles[static_cast<std::size_t>(index)];
+
+    if ((role.flags & Role::Follower) != 0 || static_cast<i32>(role.flags) < 0 || role.talkState == Role::TalkWaiting ||
+        role.unk1C == 0)
+    {
+        return false;
+    }
+
+    const std::span<const u8> data = this->game.databases.paths.View();
+    const std::size_t at =
+        PathScript::DataAt +
+        PathScript::Dword(data, PathScript::DataAt + PathScript::TargetBytes * static_cast<std::size_t>(role.unk1C)) +
+        PathScript::WordBytes * static_cast<std::size_t>(role.unk18);
+    return static_cast<PathCommand>(PathScript::Word(data, at)) == PathCommand::Step;
 }
 
 // swd32.exe 0x00405500: the path script of role `index` (path.dat, its path at the role's step): commands run until
