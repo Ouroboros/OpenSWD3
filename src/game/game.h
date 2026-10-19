@@ -11,9 +11,9 @@
 #include "battle/battle_message.h"
 #include "battle/battle_role.h"
 #include "battle/battle_services.h"
-#include "battle/battle_smooth.h"
 #include "battle/battle_state.h"
 #include "battle/fight_talk.h"
+#include "battle/smooth/smooth_play.h"
 #include "config/config.h"
 #include "core/types.h"
 #include "crt/msvc.h"
@@ -80,7 +80,6 @@ class Game
     friend class CheatDialog;
     friend class Menu;
     friend class FieldView;
-    friend class BattleSmooth;
     friend class Talk;
     friend class RoleControl;
     friend class RolePath;
@@ -547,7 +546,6 @@ private:
     MapCache mapCache;
     Field field;
     FieldView fieldView;
-    BattleSmooth battleSmooth;  // the rebuild's smooth battle
     Talk talk;
     RoleControl roleControl;
     RolePath rolePath;
@@ -563,6 +561,7 @@ private:
     BattleMessages battleMessages;
     FightTalk fightTalk;
     BattleServices battleServices;
+    smooth::BattlePlayer battlePlayer;           // the rebuild's smooth battle
     std::unique_ptr<ScriptObject> battleRipple;  // 0x00520DA4 the ripple of the ripple battle (unk53C03C)
     std::array<BattleRole, BattleState::RoleUnits> battleRoles;   // 0x005029D0
     std::array<BattleEnemy, BattleState::Enemies> battleEnemies;  // 0x00525508
@@ -604,8 +603,8 @@ private:
     bool smoothMotion = false;
     bool mapFrameShown = false;
     bool battleFrameShown = false;  // the last game frame showed a battle frame that can be drawn again
-    // The rebuild's smooth battle while its parts are being split: the battle frame's draws gathered into one scene
-    // drawn once the frame is decided (off: the original's order).
+    // The rebuild's smooth battle checked: with smooth motion off, the battle frame's draws gathered into one scene
+    // and drawn once the frame is decided, where they are (off: each drawn at once, in the original's order).
     bool battleDeferred = false;
     bool menuFrameShown = false;  // the last game frame showed a frame of the main menu or the shop
     u32 gameFrames = 0;

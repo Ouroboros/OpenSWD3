@@ -13,11 +13,10 @@
 namespace swd3
 {
 
-// The rebuild's smooth battle (deviations.md): the draws of a game frame to one target, each with a copy of what it
-// reads and how far it moves by the next game frame (as the code drawing it reckons it under a Motion), so that the
-// frame can be drawn again between game frames with every draw that far along its way. A draw that cannot be kept (an
-// alpha map picture, a palette picture) leaves the record incomplete; what is written to the target past the painter,
-// the fonts and FillBox is found by Matches.
+// The rebuild's smooth map (deviations.md): the draws of a game frame to one target, each with a copy of what it
+// reads, so that they can be drawn again between game frames over another base (the talk and interface layers over
+// the map drawn again). A draw that cannot be kept (an alpha map picture, a palette picture) leaves the record
+// incomplete; what is written to the target past the painter, the fonts and FillBox is found by Matches.
 class PaintRecord
 {
 public:
@@ -33,34 +32,15 @@ public:
     };
 
     // A draw of the caller's own drawn again: redraw(painter, values) with the painter's state as it was, values[0] and
-    // values[1] being its x and y (moved with its motion).
+    // values[1] being its x and y.
     static constexpr std::size_t CallValues = 8;
     using Redraw = void (*)(Painter& painter, std::span<const int> values);
-
-    // The draws made while it lives move by `motion` by the next game frame (no record recording: nothing); the other
-    // draws stay where they are.
-    class Motion
-    {
-    public:
-        // `clipped`: the clip rectangle of the draws is theirs and moves with them.
-        explicit Motion(std::array<int, 2> motion, bool clipped = false);
-        ~Motion();
-        Motion(const Motion&) = delete;
-        Motion& operator=(const Motion&) = delete;
-
-    private:
-        PaintRecord* record;
-        std::array<int, 2> kept{};
-        bool keptClipped = false;
-    };
 
     // Recording starts on the `pixels` of `target`, which are kept as the base the draws are drawn again over.
     void Start(u16* target, std::size_t pixels);
     void Stop();
     bool Complete() const;
     std::size_t Draws() const;
-    // The draws that move by the next game frame.
-    std::size_t Moving() const;
 
     // The record taking the draws, if one is recording.
     static PaintRecord* Active();
@@ -87,11 +67,11 @@ public:
     void Fill(TextFont& font, const u16* target, int x, int y, int width, int height, u16 color);
     void Call(const Painter& painter, Redraw redraw, std::span<const int> values);
 
-    // The draws drawn again over the base into `out` (the pixels of the target, its pitch), each `share` (0..1) of its
-    // motion along; the painter's and the fonts' state is left as it was.
-    void Replay(Painter& painter, std::span<u16> out, int pitch, double share) const;
-    // The draws drawn again over what `out` holds (another base), each `share` of its motion along.
-    void DrawOver(Painter& painter, std::span<u16> out, int pitch, double share) const;
+    // The draws drawn again over the base into `out` (the pixels of the target, its pitch); the painter's and the
+    // fonts' state is left as it was.
+    void Replay(Painter& painter, std::span<u16> out, int pitch) const;
+    // The draws drawn again over what `out` holds (another base).
+    void DrawOver(Painter& painter, std::span<u16> out, int pitch) const;
     // Whether drawing again unmoved gives `drawn` (every write to the target was kept); `scratch` takes the replay.
     bool Matches(Painter& painter, std::span<const u16> drawn, std::vector<u16>& scratch, int pitch) const;
 
@@ -131,8 +111,6 @@ private:
         Redraw redraw = nullptr;
         std::array<int, CallValues> values{};
         std::size_t valueCount = 0;
-        std::array<int, 2> motion{};
-        bool clipped = false;
     };
 
     bool OnTarget(const u16* pixels, std::size_t count) const;
@@ -145,8 +123,6 @@ private:
     std::vector<u16> base;
     std::vector<Command> commands;
     std::vector<u8> copies;
-    std::array<int, 2> motion{};
-    bool clipped = false;
     bool complete = true;
     bool recording = false;
 };

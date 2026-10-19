@@ -52,14 +52,11 @@ std::vector<u16> RlePicture(int width, const std::vector<std::vector<u16>>& line
     return data;
 }
 
-// The picture at (x, y) over the background (moving by `motion` when recorded), the tint on a row after it.
-void Draw(Painter& painter, const std::vector<u16>& picture, u16* row, int x, int y, std::array<int, 2> motion)
+// The picture at (x, y) over the background, the tint on a row after it.
+void Draw(Painter& painter, const std::vector<u16>& picture, u16* row, int x, int y)
 {
-    {
-        const PaintRecord::Motion moving(motion);
-        painter.SetSource(picture.data());
-        painter.DrawPicture(x, y, kWidth, 2, Painter::Copy);
-    }
+    painter.SetSource(picture.data());
+    painter.DrawPicture(x, y, kWidth, 2, Painter::Copy);
 
     painter.TintPixels(std::span<u16>(row, kTintPixels), kTintLevel, kTintLevel, kTintLevel);
 }
@@ -71,7 +68,7 @@ std::size_t Pixels(const Painter& painter)
 
 }  // namespace
 
-TEST_CASE("paint record: the draws drawn again give the frame, a moving draw lands its share along")
+TEST_CASE("paint record: the draws drawn again give the frame")
 {
     Surface screen(Display::Width, Display::Height);
     screen.Fill(kBackground);
@@ -82,11 +79,10 @@ TEST_CASE("paint record: the draws drawn again give the frame, a moving draw lan
 
     PaintRecord record;
     record.Start(screen.Pixels(), Pixels(painter));
-    Draw(painter, picture, screen.Row(kTintRow), kPictureX, kPictureY, {2 * kMove[0], 2 * kMove[1]});
+    Draw(painter, picture, screen.Row(kTintRow), kPictureX, kPictureY);
     record.Stop();
     CHECK(record.Complete());
     CHECK_EQ(record.Draws(), std::size_t{2});
-    CHECK_EQ(record.Moving(), std::size_t{1});
 
     // The record keeps copies: the picture changed afterwards does not change the draws.
     const std::vector<u16> kept = picture;
@@ -98,12 +94,11 @@ TEST_CASE("paint record: the draws drawn again give the frame, a moving draw lan
     Surface expected(Display::Width, Display::Height);
     expected.Fill(kBackground);
     painter.SetTarget(expected.Pixels());
-    Draw(painter, kept, expected.Row(kTintRow), kPictureX + kMove[0], kPictureY + kMove[1], {0, 0});
+    Draw(painter, kept, expected.Row(kTintRow), kPictureX, kPictureY);
     painter.SetTarget(screen.Pixels());
 
     std::vector<u16> out(Pixels(painter));
-    constexpr double kHalfway = 0.5;
-    record.Replay(painter, out, painter.ScreenPitch(), kHalfway);
+    record.Replay(painter, out, painter.ScreenPitch());
     CHECK(std::equal(out.begin(), out.end(), expected.Pixels()));
     CHECK(painter.Target() == screen.Pixels());
 }
@@ -129,6 +124,5 @@ TEST_CASE("paint record: a write past the painter is found")
     std::vector<u16> scratch;
     CHECK(record.Complete());
     CHECK_EQ(record.Draws(), std::size_t{3});
-    CHECK_EQ(record.Moving(), std::size_t{0});
     CHECK(!record.Matches(painter, {screen.Pixels(), Pixels(painter)}, scratch, painter.ScreenPitch()));
 }

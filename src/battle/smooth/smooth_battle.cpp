@@ -635,7 +635,6 @@ void BattleFrame::DrawRolePanelsAdvance(Scene& scene)
         const i32 step = (kAutoTargetX - battle.autoBoxX) / kAutoSlide;
         battle.autoBoxX += step;
         battle.autoBoxStep = step;
-        const PaintRecord::Motion moving({(kAutoTargetX - battle.autoBoxX) / kAutoSlide, 0});
         MessagesFrame(game.battleMessages)
             .DrawMessageBoxAdvance(
                 battle.autoBoxX - kAutoLeft,

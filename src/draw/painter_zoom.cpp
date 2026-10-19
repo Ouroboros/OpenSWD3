@@ -1,5 +1,6 @@
 #include <cstring>
 
+#include "draw/draw_placer.h"
 #include "draw/paint_record.h"
 #include "draw/painter.h"
 #include "pic/rle.h"
@@ -27,6 +28,11 @@ u16 Word(const u8* bytes, std::ptrdiff_t index = 0)
 // remaining repeats of their source line in the same way. Positions are tracked in pixels from the target start.
 void Painter::DrawZoomed(int x, int y, int width, int height)
 {
+    if (DrawPlacer* placer = DrawPlacer::Active(); placer != nullptr)
+    {
+        placer->Place(x, y);
+    }
+
     if (PaintRecord* record = PaintRecord::Active(); record != nullptr)
     {
         record->Zoomed(*this, x, y, width, height, false);
@@ -219,6 +225,11 @@ void Painter::DrawZoomed(int x, int y, int width, int height)
 // limit is that edge, or edge + span for runs cut by the left clip edge.
 void Painter::DrawZoomedMirrored(int x, int y, int width, int height)
 {
+    if (DrawPlacer* placer = DrawPlacer::Active(); placer != nullptr)
+    {
+        placer->Place(x, y);
+    }
+
     if (PaintRecord* record = PaintRecord::Active(); record != nullptr)
     {
         record->Zoomed(*this, x, y, width, height, true);

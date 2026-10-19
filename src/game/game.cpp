@@ -289,7 +289,6 @@ Game::Game(std::u8string installDirectory)
       mapCache(this->config, this->painter),
       field(this->state, this->mapCache, this->config, this->codec),
       fieldView(*this),
-      battleSmooth(*this),
       talk(*this),
       roleControl(*this),
       rolePath(*this),
@@ -318,6 +317,7 @@ Game::Game(std::u8string installDirectory)
           this->crtRandom,
           this->drawSurface,
       },
+      battlePlayer(this->battleServices),
       actDrawer(this->acts, this->archive, this->painter),
       menu(*this)
 {
@@ -427,7 +427,6 @@ int Game::Run([[maybe_unused]] std::u8string_view commandLine)
         );
     }
 
-    this->battleSmooth.LogTotals();
     this->menu.LogTotals();
     return 0;
 }
@@ -1402,7 +1401,7 @@ bool Game::PresentBetween()
 
     if (this->battleFrameShown)
     {
-        const Surface& shown = this->battleSmooth.PaintBetween(alpha);
+        const Surface& shown = this->battlePlayer.PaintBetween(alpha);
         const u64 painted = SDL_GetTicksNS() - paintStart;
         this->paintBetweenNs += painted;
         this->paintBetweenMostNs = std::max(this->paintBetweenMostNs, painted);

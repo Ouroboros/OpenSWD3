@@ -3,6 +3,7 @@
 #include <array>
 #include <functional>
 #include <memory>
+#include <source_location>
 #include <span>
 #include <string>
 #include <string_view>
@@ -45,7 +46,7 @@ struct PictureRef
 PictureRef RefOf(TswArchive& archive, const Picture* picture);
 
 // A picture drawn at (x, y) with `mode`, the painter's options set first as the frame set them (each only when
-// marked: the others stay as they are); `motion`: the rebuild's smooth battle reckoning.
+// marked: the others stay as they are).
 struct PictureStep
 {
     PictureRef picture;
@@ -59,7 +60,6 @@ struct PictureStep
     bool palette = false;  // drawn with the picture's palette (PaletteArgument)
     bool blended = false;
     int alpha = 0;
-    std::array<int, 2> motion = {};
 };
 
 using PictureSteps = std::vector<PictureStep>;
@@ -71,12 +71,17 @@ void DrawSteps(BattleServices& services, const PictureSteps& steps);
 // drawn by the part drawing it); the original's order draws them as they come.
 class Scene
 {
+    friend class BattlePlayer;
+
 public:
     using Draw = std::function<void(BattleServices& services)>;
+    using Where = std::source_location;
 
-    void Add(Draw draw);
-    void Add(PictureSteps steps);
-    void Add(const PictureStep& step);
+    // Each draw is added with the place of the code adding it: the smooth battle takes the draws of a frame for those
+    // of the frame before by it (BattlePlayer).
+    void Add(Draw draw, Where where = Where::current());
+    void Add(PictureSteps steps, Where where = Where::current());
+    void Add(const PictureStep& step, Where where = Where::current());
     void Add(Scene&& scene);
     void DrawAll(BattleServices& services) const;
     // The draws handed on: to the battle frame's scene (BattleServices::frame), or drawn at once without one.
@@ -84,7 +89,14 @@ public:
     bool Empty() const;
 
 private:
-    std::vector<Draw> draws;
+    struct Step
+    {
+        Draw draw;
+        const char* file = nullptr;
+        u32 line = 0;
+    };
+
+    std::vector<Step> steps;
 };
 
 // What a part deciding a frame draws with in place of the painter: each call adds to the scene, in its order, what the
@@ -93,7 +105,7 @@ private:
 class ScenePainter
 {
 public:
-    ScenePainter(BattleServices& services, Scene& scene);
+    ScenePainter(BattleServices& services, Scene& scene, Scene::Where where = Scene::Where::current());
 
     ScenePainter(const ScenePainter&) = delete;
     ScenePainter& operator=(const ScenePainter&) = delete;
@@ -127,6 +139,7 @@ public:
 private:
     BattleServices& services;
     Scene& scene;
+    Scene::Where where;
 
     PictureRef Source();
     void Draw(int x, int y, int width, int height, u32 mode, const DrawArgument& argument, bool outline);
@@ -147,7 +160,7 @@ private:
 class SceneFont
 {
 public:
-    SceneFont(TextFont& font, Scene& scene);
+    SceneFont(TextFont& font, Scene& scene, Scene::Where where = Scene::Where::current());
 
     void SetAdvance(int advance);
     void SetBackground(Pixel color);
@@ -158,10 +171,11 @@ public:
 private:
     TextFont& font;
     Scene& scene;
+    Scene::Where where;
 };
 
 // The first `count` pixels of the screen (from its start, without its pitch) set to `color`.
-void FillScreen(u16 color, std::size_t count, Scene& scene);
+void FillScreen(u16 color, std::size_t count, Scene& scene, Scene::Where where = Scene::Where::current());
 
 // FillBox (ui_draw.h) added to `scene`: it holds nothing of the frame, so it is drawn as it is.
 void Box(
@@ -174,7 +188,8 @@ void Box(
     int green,
     int blue,
     FillMode mode,
-    Scene& scene
+    Scene& scene,
+    Scene::Where where = Scene::Where::current()
 );
 
 // DrawWindowFrame (ui_draw.h) added to `scene`: it holds nothing of the frame, so it is drawn as it is.
@@ -188,7 +203,8 @@ void WindowFrame(
     int bottom,
     int alpha,
     int border,
-    Scene& scene
+    Scene& scene,
+    Scene::Where where = Scene::Where::current()
 );
 
 }  // namespace swd3::smooth

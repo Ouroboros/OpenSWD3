@@ -25,7 +25,6 @@ constexpr u16 kRising = 2;        // lifts to the top
 constexpr u16 kDropping = 3;      // drops back to its saved place
 constexpr u16 kReadyAct = 0x1C;   // an act whose ready pose is unk2690
 constexpr i16 kNumberFadeEnd = 0x30;
-constexpr int kSnapDistance = 0x80;  // smooth battle: a motion further in a frame jumps there
 constexpr int kSpeeding = -1;
 constexpr i32 kFlightDoubling = 0x20;
 constexpr i32 kFlightGrowth = 0x30;

@@ -218,8 +218,7 @@ int Game::BattleFrame()
 
     battle.unk53C044 = battle.unk53AE70 == -1 && battle.currentUnit == 0 ? 1 : 0;
     smooth::Scene frameScene;
-    this->battleServices.frame = this->battleDeferred ? &frameScene : nullptr;
-    this->battleSmooth.Begin();
+    this->battleServices.frame = this->smoothMotion || this->battleDeferred ? &frameScene : nullptr;
     this->DrawBattleBackground(battle.shake);
 
     if (battle.unk53BF64 == 1 || battle.unk53BF68 == 1)
@@ -288,7 +287,6 @@ int Game::BattleFrame()
     if (this->state.GameFlag(kQuitFlag))
     {
         this->battleServices.frame = nullptr;
-        this->battleSmooth.Cancel();
         return kQuitBattle;
     }
 
@@ -306,10 +304,19 @@ int Game::BattleFrame()
         battle.fadingField = 0;
     }
 
-    this->battleServices.frame = nullptr;
-    frameScene.DrawAll(this->battleServices);
     this->FieldFadeFrame(1);
-    const bool smooth = this->battleSmooth.End();
+    this->battleServices.frame = nullptr;
+
+    if (this->smoothMotion)
+    {
+        this->battlePlayer.Show(std::move(frameScene));
+    }
+    else
+    {
+        frameScene.DrawAll(this->battleServices);
+    }
+
+    const bool smooth = this->smoothMotion;
 
     if (battle.quaking == 1 || (battle.panelFlags & kQuakePanel) != 0)
     {

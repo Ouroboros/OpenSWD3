@@ -56,8 +56,6 @@ void PaintRecord::Start(u16* pixels, std::size_t count)
     this->base.assign(pixels, pixels + count);
     this->commands.clear();
     this->copies.clear();
-    this->motion = {0, 0};
-    this->clipped = false;
     this->complete = true;
     this->recording = true;
     activeRecord = this;
@@ -83,47 +81,13 @@ std::size_t PaintRecord::Draws() const
     return this->commands.size();
 }
 
-std::size_t PaintRecord::Moving() const
-{
-    return static_cast<std::size_t>(std::ranges::count_if(
-        this->commands,
-        [](const Command& command)
-        {
-            return command.motion[0] != 0 || command.motion[1] != 0;
-        }
-    ));
-}
-
 PaintRecord* PaintRecord::Active()
 {
     return activeRecord;
 }
 
-PaintRecord::Motion::Motion(std::array<int, 2> motion, bool clipped)
-    : record(activeRecord)
-{
-    if (this->record != nullptr)
-    {
-        this->kept = this->record->motion;
-        this->keptClipped = this->record->clipped;
-        this->record->motion = motion;
-        this->record->clipped = clipped;
-    }
-}
-
-PaintRecord::Motion::~Motion()
-{
-    if (this->record != nullptr)
-    {
-        this->record->motion = this->kept;
-        this->record->clipped = this->keptClipped;
-    }
-}
-
 void PaintRecord::Push(Command command)
 {
-    command.motion = this->motion;
-    command.clipped = this->clipped;
     this->commands.push_back(command);
 }
 
@@ -334,25 +298,20 @@ void PaintRecord::Call(const Painter& painter, Redraw redraw, std::span<const in
     this->Push(command);
 }
 
-void PaintRecord::Replay(Painter& painter, std::span<u16> out, int pitch, double share) const
+void PaintRecord::Replay(Painter& painter, std::span<u16> out, int pitch) const
 {
     std::copy_n(this->base.begin(), std::min(this->base.size(), out.size()), out.begin());
-    this->DrawOver(painter, out, pitch, share);
+    this->DrawOver(painter, out, pitch);
 }
 
-void PaintRecord::DrawOver(Painter& painter, std::span<u16> out, int pitch, double share) const
+void PaintRecord::DrawOver(Painter& painter, std::span<u16> out, int pitch) const
 {
     const Painter::DrawState kept = painter.SaveDrawState();
 
     for (const Command& command : this->commands)
     {
-        const std::array<int, 2> shift = {
-            static_cast<int>(std::lround(command.motion[0] * share)),
-            static_cast<int>(std::lround(command.motion[1] * share)),
-        };
-
-        const int x = command.x + shift[0];
-        const int y = command.y + shift[1];
+        const int x = command.x;
+        const int y = command.y;
         const u8* data = this->copies.data() + command.dataAt;
 
         switch (command.kind)
@@ -364,23 +323,6 @@ void PaintRecord::DrawOver(Painter& painter, std::span<u16> out, int pitch, doub
                 Painter::DrawState state = command.state;
                 state.target = out.data();
                 state.source = data;
-
-                if (command.clipped)
-                {
-                    const int left = std::max(state.clipX + shift[0], 0);
-                    const int top = std::max(state.clipY + shift[1], 0);
-                    const int right = std::min(state.clipX + state.clipWidth + shift[0], Display::Width);
-                    const int bottom = std::min(state.clipY + state.clipHeight + shift[1], Display::Height);
-                    state.clipX = left;
-                    state.clipY = top;
-                    state.clipWidth = std::max(right - left, 0);
-                    state.clipHeight = std::max(bottom - top, 0);
-
-                    if (state.clipWidth == 0 || state.clipHeight == 0)
-                    {
-                        break;
-                    }
-                }
 
                 painter.RestoreDrawState(state);
 
@@ -404,7 +346,7 @@ void PaintRecord::DrawOver(Painter& painter, std::span<u16> out, int pitch, doub
             case Kind::Pixels:
             case Kind::Mix:
             {
-                const std::ptrdiff_t at = static_cast<std::ptrdiff_t>(command.pixelsAt) + shift[1] * pitch + shift[0];
+                const auto at = static_cast<std::ptrdiff_t>(command.pixelsAt);
 
                 if (at < 0 || static_cast<std::size_t>(at) + command.pixelCount > out.size())
                 {
@@ -485,8 +427,6 @@ void PaintRecord::DrawOver(Painter& painter, std::span<u16> out, int pitch, doub
                 state.target = out.data();
                 painter.RestoreDrawState(state);
                 std::array<int, CallValues> values = command.values;
-                values[0] += shift[0];
-                values[1] += shift[1];
                 command.redraw(painter, std::span<const int>(values.data(), command.valueCount));
                 break;
             }
@@ -504,7 +444,7 @@ bool PaintRecord::Matches(Painter& painter, std::span<const u16> drawn, std::vec
     }
 
     scratch.resize(drawn.size());
-    this->Replay(painter, scratch, pitch, 0.0);
+    this->Replay(painter, scratch, pitch);
     return std::equal(drawn.begin(), drawn.end(), scratch.begin());
 }
 

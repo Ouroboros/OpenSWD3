@@ -344,14 +344,6 @@ int UnitFrame::HomeAdvance(BattleServices& services, const BattleUnit& target, i
     line = stride.line;
     unit.throwSteps = stride.steps;
 
-    if (!stride.arrived && PaintRecord::Active() != nullptr)
-    {
-        const ActState nextAct = services.acts.Peek(act);
-        const BattleUnit::Stride next =
-            unit.HomeStride(services, target, nextAct, services.acts.Peek(pose), unit.throwSteps + 1);
-        view.motion = BattleUnit::StrideMotion(stride, act, next, nextAct);
-    }
-
     services.audio.PlaySound(act.view, services.config.soundVolume);
     act.view = 0;
     const bool invisible = (unit.status & BattleUnit::Invisible) != 0;
@@ -474,14 +466,6 @@ bool UnitFrame::WalkAdvance(BattleServices& services, const BattleUnit& target, 
     unit.throwSteps = stride.steps;
     LineWalker& line = unit.flight;
     line = stride.line;
-
-    if (!stride.arrived && PaintRecord::Active() != nullptr)
-    {
-        const ActState nextAct = services.acts.Peek(act);
-        const BattleUnit::Stride next =
-            unit.WalkStride(services, target, nextAct, services.acts.Peek(pose), unit.throwSteps + 1);
-        view.motion = BattleUnit::StrideMotion(stride, act, next, nextAct);
-    }
 
     services.audio.PlaySound(act.view, services.config.soundVolume);
     act.view = 0;
@@ -830,8 +814,6 @@ bool UnitFrame::IdleAdvance(BattleServices& services, int paused, IdleView& view
     view.y = unit.placement.y - unit.unk26AC - act.y;
     view.mirrored = unit.drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip);
     view.flags = unit.drawFlags;
-    view.motion =
-        PaintRecord::Active() != nullptr ? unit.IdleMotion(services, act, view.x, view.y) : std::array<int, 3>{0, 0, 0};
     view.body = unit.guarding == 0 && (marks & BattleUnit::GuardingMark) == 0;
 
     if (view.body)
@@ -958,7 +940,6 @@ void UnitFrame::IdleDraw(BattleServices& services, const IdleView& view)
 
         if (view.shadow)
         {
-            const PaintRecord::Motion shadowMoving({view.motion[0], view.motion[2]});
             const int shadowHeight = picture.height / kShadowShare;
             DrawOptions& options = painter.Options();
             options.scaleHeight = shadowHeight;
@@ -1092,11 +1073,9 @@ int UnitFrame::NumbersAdvance(BattleServices& services, NumbersView& view)
         view.steps.push_back(NumberStep{.kind = NumberStep::Kind::Fade, .fade = fade});
     };
 
-    auto digitStep = [&view](i16 font, int value, int x, int y, std::array<int, 2> motion)
+    auto digitStep = [&view](i16 font, int value, int x, int y)
     {
-        view.steps.push_back(
-            NumberStep{.kind = NumberStep::Kind::Digit, .font = font, .value = value, .x = x, .y = y, .motion = motion}
-        );
+        view.steps.push_back(NumberStep{.kind = NumberStep::Kind::Digit, .font = font, .value = value, .x = x, .y = y});
     };
 
     const int x = unit.placement.x;
@@ -1133,35 +1112,9 @@ int UnitFrame::NumbersAdvance(BattleServices& services, NumbersView& view)
                 return y - BattleUnit::DigitHops[static_cast<std::size_t>(hops[digit])];
             };
 
-            // The rebuild's smooth battle: each digit moves to its next hop, or to the first rise once all land.
-            std::array<i16, BattleUnit::DamageDigits> nextHops = hops;
-
-            for (std::size_t digit = 0; unit.held == 0 && digit < nextHops.size(); ++digit)
-            {
-                if (digit > 0 && nextHops[digit - 1] <= 0)
-                {
-                    break;
-                }
-
-                nextHops[digit] = static_cast<i16>(std::min<int>(nextHops[digit] + 1, kLastHop));
-            }
-
-            const bool landsNext = std::all_of(
-                nextHops.begin(),
-                nextHops.end(),
-                [](i16 hop)
-                {
-                    return hop == kLastHop;
-                }
-            );
-
             auto drawHop = [&](std::size_t digit, int at)
             {
-                const int risesNext = fade + (unit.held == 0 ? kNumberFadeStep : 0);
-                const int heightNext =
-                    landsNext ? risesNext : BattleUnit::DigitHops[static_cast<std::size_t>(nextHops[digit])];
-                const int height = BattleUnit::DigitHops[static_cast<std::size_t>(hops[digit])];
-                digitStep(font, digits[digit], at, hopY(digit), {0, height - heightNext});
+                digitStep(font, digits[digit], at, hopY(digit));
             };
 
             if (digits[0] != 0)
@@ -1232,29 +1185,27 @@ int UnitFrame::NumbersAdvance(BattleServices& services, NumbersView& view)
         }
 
         const int risenY = y - fade;
-        const bool clearedNext = fade >= kNumberFadeEnd;
-        const std::array<int, 2> rising = {0, clearedNext || unit.held != 0 ? 0 : -kNumberFadeStep};
         fadeStep(fade);
 
         if (digits[0] != 0)
         {
-            digitStep(font, digits[0], x - kDigitWidth, risenY, rising);
+            digitStep(font, digits[0], x - kDigitWidth, risenY);
         }
 
         if (digits[0] != 0 || digits[1] != 0)
         {
             fadeStep(fade);
-            digitStep(font, digits[1], x, risenY, rising);
+            digitStep(font, digits[1], x, risenY);
         }
 
         fadeStep(fade);
 
         if (digits[0] != 0 || digits[1] != 0 || digits[2] != 0)
         {
-            digitStep(font, digits[2], x + kDigitWidth, risenY, rising);
+            digitStep(font, digits[2], x + kDigitWidth, risenY);
         }
 
-        digitStep(font, digits[3], x + 2 * kDigitWidth, risenY, rising);
+        digitStep(font, digits[3], x + 2 * kDigitWidth, risenY);
         clearMode();
     }
 
@@ -1293,7 +1244,6 @@ void UnitFrame::DrawNumbers(BattleServices& services, const NumbersView& view)
 
             case NumberStep::Kind::Digit:
             {
-                const PaintRecord::Motion moving(step.motion);
                 hud.DrawNumber(step.font, step.value, step.x, step.y);
                 break;
             }
@@ -1343,8 +1293,6 @@ void UnitFrame::GuardAdvance(GuardView& view)
             unit.guardRise = static_cast<i16>(rise + kGuardTextStep);
         }
 
-        // The rebuild's smooth battle: the letters rise on next frame, unless they are gone then.
-        const bool goneNext = unit.guardRise >= kGuardTextRise;
         view.fading = true;
         view.fade = unit.guardRise;
         view.letters = static_cast<int>(phases.size());
@@ -1352,49 +1300,19 @@ void UnitFrame::GuardAdvance(GuardView& view)
         for (std::size_t letter = 0; letter < phases.size(); ++letter)
         {
             view.y[letter] = top - unit.guardRise;
-            view.motion[letter] = {0, goneNext || unit.held != 0 ? 0 : -kGuardTextStep};
         }
 
         return;
     }
 
     view.clearMode = true;
-    // The rebuild's smooth battle: each letter moves to its next phase, or to the first rise once all have popped.
-    auto nextPhases = phases;
-    nextPhases[0] = std::min<i16>(static_cast<i16>(nextPhases[0] + 1), kGuardPhaseEnd);
-
-    for (std::size_t letter = 1; letter < nextPhases.size() && phases[0] > 0; ++letter)
-    {
-        nextPhases[letter] =
-            std::min<i16>(static_cast<i16>(nextPhases[letter] + (unit.held == 0 ? 1 : 0)), kGuardPhaseEnd);
-    }
-
-    const bool risesNext = std::all_of(
-        nextPhases.begin(),
-        nextPhases.end(),
-        [](i16 phase)
-        {
-            return phase == kGuardPhaseEnd;
-        }
-    );
-
-    auto popMotion = [&](std::size_t letter) -> std::array<int, 2>
-    {
-        const int height = BattleUnit::PopOffsets[static_cast<std::size_t>(phases[letter])];
-        const int heightNext = risesNext ? unit.guardRise + (unit.held == 0 ? kGuardTextStep : 0)
-                                         : BattleUnit::PopOffsets[static_cast<std::size_t>(nextPhases[letter])];
-        return {0, height - heightNext};
-    };
-
     view.letters = 1;
     view.y[0] = top - BattleUnit::PopOffsets[static_cast<std::size_t>(phases[0])];
-    view.motion[0] = popMotion(0);
 
     for (std::size_t letter = 1; letter < phases.size() && phases[0] > 0; ++letter)
     {
         view.letters = static_cast<int>(letter) + 1;
         view.y[letter] = top - BattleUnit::PopOffsets[static_cast<std::size_t>(phases[letter])];
-        view.motion[letter] = popMotion(letter);
 
         if (unit.held == 0)
         {
@@ -1429,7 +1347,6 @@ void UnitFrame::DrawGuard(BattleServices& services, const GuardView& view)
     for (int letter = 0; letter < view.letters; ++letter)
     {
         const auto at = static_cast<std::size_t>(letter);
-        const PaintRecord::Motion moving(view.motion[at]);
 
         if (view.fading)
         {
@@ -1552,70 +1469,6 @@ bool UnitFrame::HurtAdvance(BattleServices& services, HurtView& view, int& resul
         x = placeX - unit.unk2670;
     }
 
-    // The rebuild's smooth battle: the places of a stagger step (the unit, an enemy's red flash), and how far they move
-    // to the step of the next frame (none once the stagger ends).
-    auto bodyAt = [&](std::size_t at) -> std::array<int, 2>
-    {
-        const int shaken = BattleUnit::StaggerShake[at];
-        int bodyX = shaken + placeX - act.x;
-        int bodyY = unit.placement.y - act.y;
-
-        if (unit.unk2B00 == 1)
-        {
-            bodyX = unit.facing != 0 ? placeX - shaken - act.x : placeX + shaken - unit.unk2670;
-        }
-
-        if (unit.facing == 1 && unit.unk2B00 == 0)
-        {
-            bodyX = placeX - shaken - unit.unk2670;
-        }
-
-        if (still)
-        {
-            bodyX = placeX - unit.unk2670;
-        }
-
-        if (unit.kind == 0 && !still)
-        {
-            const int lift = BattleUnit::StaggerLift[at];
-            bodyX = placeX - unit.unk2670;
-
-            if (unit.unk2B10 != 0)
-            {
-                bodyY = unit.placement.y - lift - act.y;
-            }
-            else
-            {
-                bodyX += unit.facing != 0 ? lift : -lift;
-            }
-        }
-
-        return {bodyX, bodyY};
-    };
-
-    auto flashAt = [&](std::size_t at) -> std::array<int, 2>
-    {
-        const int rise = BattleUnit::StaggerRise[at];
-
-        if (unit.unk2B10 != 0)
-        {
-            return {placeX - unit.unk2670, unit.placement.y - rise - act.y};
-        }
-
-        return {placeX + (unit.facing != 0 ? rise : -rise) - unit.unk2670, unit.placement.y - act.y};
-    };
-
-    auto between = [](const std::array<int, 2>& from, const std::array<int, 2>& to) -> std::array<int, 2>
-    {
-        const std::array<int, 2> by = {to[0] - from[0], to[1] - from[1]};
-        return std::abs(by[0]) > kSnapDistance || std::abs(by[1]) > kSnapDistance ? std::array<int, 2>{0, 0} : by;
-    };
-
-    const int nextPhase = unit.glowPhase + (unit.held == 0 ? 1 : 0);
-    const std::size_t nextStep = step + (nextPhase == kHurtFrames ? 1 : 0);
-    const bool staggersNext = nextStep <= kLastHurtStep;
-    view.bodyMotion = staggersNext ? between(bodyAt(step), bodyAt(nextStep)) : std::array<int, 2>{0, 0};
-    view.flashMotion = staggersNext ? between(flashAt(step), flashAt(nextStep)) : std::array<int, 2>{0, 0};
     view.picture = {act.frame, act.picture, true};
     view.bodyWidth = picture.width;
     const u32 mirrored = unit.drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip);
@@ -1676,7 +1529,6 @@ void UnitFrame::HurtDrawBody(BattleServices& services, const HurtView& view)
 
     if (view.flash)
     {
-        const PaintRecord::Motion flashMoving(view.flashMotion);
         options.tintRed = kHurtRed;
         options.tintGreen = 0;
         options.tintBlue = 0;
@@ -1691,11 +1543,9 @@ void UnitFrame::HurtDrawBody(BattleServices& services, const HurtView& view)
     options.tintBlue = view.shadowTint;
 
     {
-        const PaintRecord::Motion shadowMoving({view.bodyMotion[0], 0});
         painter.DrawPicture(view.x, view.shadowY - shadowHeight, picture.width, picture.height, view.shadowFlags);
     }
 
-    const PaintRecord::Motion moving(view.bodyMotion);
     painter.DrawPicture(view.x, view.y, picture.width, picture.height, view.flags);
 
     if (view.red)
@@ -1776,7 +1626,6 @@ bool UnitFrame::HurtAdvanceTail(BattleServices& services, HurtView& view)
 void UnitFrame::HurtDrawTail(BattleServices& services, const HurtView& view)
 {
     Painter& painter = services.painter;
-    const PaintRecord::Motion moving(view.bodyMotion);
 
     if (const Picture* overlay = view.overlay.Get(services.archive); overlay != nullptr)
     {
@@ -2718,14 +2567,6 @@ int UnitFrame::QueuedAdvance(BattleServices& services, BattleUnit& target, i32 a
         node->shakeFrames = stride.shakeFrames;
         node->flown = stride.flown;
         taken = stride.taken;
-        std::array<int, 2> motion = {0, 0};
-
-        if (taken != kArrived && PaintRecord::Active() != nullptr)
-        {
-            const ActState nextAct = services.acts.Peek(act);
-            motion = BattleUnit::StrideMotion(stride, act, unit.FlightStride(services, *node, nextAct, 0), nextAct);
-        }
-
         services.audio.PlaySound(act.view, services.config.soundVolume);
         act.view = 0;
         const int x = stride.x;
@@ -2746,9 +2587,7 @@ int UnitFrame::QueuedAdvance(BattleServices& services, BattleUnit& target, i32 a
             );
         }
 
-        steps.push_back(
-            PictureStep{.picture = {act.frame, act.picture, true}, .x = x, .y = y, .mode = flags, .motion = motion}
-        );
+        steps.push_back(PictureStep{.picture = {act.frame, act.picture, true}, .x = x, .y = y, .mode = flags});
 
         if (taken != kArrived)
         {
@@ -2917,7 +2756,6 @@ int UnitFrame::Home(BattleServices& services, const BattleUnit& target, i32 id, 
         scene.Add(
             [view](BattleServices& drawing)
             {
-                const PaintRecord::Motion moving(view.motion);
                 UnitFrame::DrawWalk(drawing, view);
             }
         );
@@ -2938,7 +2776,6 @@ void UnitFrame::Idle(BattleServices& services, int paused, Scene& scene)
     scene.Add(
         [view](BattleServices& drawing)
         {
-            const PaintRecord::Motion moving({view.motion[0], view.motion[1]});
             UnitFrame::IdleDraw(drawing, view);
         }
     );
@@ -2971,7 +2808,6 @@ void UnitFrame::Walk(BattleServices& services, const BattleUnit& target, Scene& 
     scene.Add(
         [view](BattleServices& drawing)
         {
-            const PaintRecord::Motion moving(view.motion);
             UnitFrame::DrawWalk(drawing, view);
         }
     );
@@ -2996,16 +2832,7 @@ int UnitFrame::Hurt(BattleServices& services, Scene& scene)
     PictureSteps steps;
     this->EffectsAdvance(services, view.x, view.y, view.picture, steps);
 
-    if (!steps.empty())
-    {
-        scene.Add(
-            [steps = std::move(steps), motion = view.bodyMotion](BattleServices& drawing)
-            {
-                const PaintRecord::Motion moving(motion);
-                DrawSteps(drawing, steps);
-            }
-        );
-    }
+    scene.Add(std::move(steps));
 
     const bool finished = this->HurtAdvanceTail(services, view);
     scene.Add(
@@ -4002,11 +3829,6 @@ int UnitFrame::DefeatRisingAdvance(BattleServices& services, const Picture& pict
     options.tintBlue = tint;
     options.scaleHeight = unit.glowLevel + picture.height;
     unit.drawFlags |= Painter::ScaledGlow;
-    // The rebuild's smooth battle: the rise of the next frame, until the pose ends.
-    const int level = unit.glowLevel + kRisingStep;
-    const int risen = kRisingTintLift * tint + unit.glowLevel;
-    const int risesTo = kRisingTintLift * 2 * (level / kRisingTintDivisor) + level;
-    const PaintRecord::Motion moving({0, level > kRisingEnd ? 0 : risen - risesTo});
     painter.DrawPicture(x, y - kRisingTintLift * tint - unit.glowLevel, picture.width, picture.height, unit.drawFlags);
     unit.glowLevel = static_cast<i16>(unit.glowLevel + kRisingStep);
     return 0;
@@ -4080,13 +3902,7 @@ int UnitFrame::DefeatSlideAdvance(BattleServices& services, const Picture& pictu
     options.tintRed = unit.glowLevel;
     options.tintGreen = unit.glowLevel;
     options.tintBlue = unit.glowLevel;
-
-    {
-        // The rebuild's smooth battle: the copy moves 2 back a frame until the slide ends.
-        const PaintRecord::Motion moving({unit.glowLevel - 1 <= kFadedOut ? 0 : -2, 0});
-        painter
-            .DrawPicture(x + 2 * unit.glowLevel, y, picture.width, picture.height, unit.drawFlags | Painter::Additive);
-    }
+    painter.DrawPicture(x + 2 * unit.glowLevel, y, picture.width, picture.height, unit.drawFlags | Painter::Additive);
 
     --unit.glowLevel;
     return 0;
@@ -4151,9 +3967,6 @@ int UnitFrame::DefeatSplitRowsAdvance(BattleServices& services, const Picture& p
     unit.StartDefeatDraw(services, picture);
     const int shift = 2 * unit.glowLevel;
     const int half = picture.width >> 1;
-    // The rebuild's smooth battle: the halves part by 2 a frame more until the split ends.
-    const int parts = unit.glowLevel + kSplitStep > kSplitEnd ? 0 : 2 * kSplitStep;
-    std::optional<PaintRecord::Motion> moving(std::in_place, std::array<int, 2>{0, -parts}, true);
     this->DrawDefeatPieceAdvance(
         services,
         picture,
@@ -4166,8 +3979,6 @@ int UnitFrame::DefeatSplitRowsAdvance(BattleServices& services, const Picture& p
         picture.height,
         scene
     );
-    moving.reset();
-    moving.emplace(std::array<int, 2>{0, parts}, true);
     this->DrawDefeatPieceAdvance(
         services,
         picture,

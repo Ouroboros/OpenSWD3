@@ -4,6 +4,7 @@
 #include <cstring>
 
 #include "core/words.h"
+#include "draw/draw_placer.h"
 #include "draw/paint_record.h"
 #include "pic/picture.h"
 #include "platform/display.h"
@@ -553,6 +554,11 @@ void Painter::DrawOutline(int x, int y, int width, int height, u32 mode, const D
 // afterwards.
 int Painter::DrawPicture(int x, int y, int width, int height, u32 mode, const DrawArgument& argument)
 {
+    if (DrawPlacer* placer = DrawPlacer::Active(); placer != nullptr)
+    {
+        placer->Place(x, y);
+    }
+
     if (PaintRecord* record = PaintRecord::Active(); record != nullptr)
     {
         record->Picture(*this, x, y, width, height, mode, argument);

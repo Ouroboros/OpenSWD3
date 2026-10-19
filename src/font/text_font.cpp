@@ -3,6 +3,7 @@
 #include <climits>
 #include <cstring>
 
+#include "draw/draw_placer.h"
 #include "draw/paint_record.h"
 #include "gfx/graphics.h"
 #include "platform/display.h"
@@ -665,6 +666,11 @@ int TextFont::InsertGlyph(u16 code)
 // entry is cleared.
 void TextFont::DrawText(Pixel* target, int x, int y, std::string_view text, Pixel color, int style)
 {
+    if (DrawPlacer* placer = DrawPlacer::Active(); placer != nullptr)
+    {
+        placer->Place(x, y);
+    }
+
     if (PaintRecord* record = PaintRecord::Active(); record != nullptr)
     {
         record->Text(*this, target, x, y, text, color, style);

@@ -21,7 +21,7 @@ namespace swd3::smooth
 {
 
 // What BattleMessages::Draw draws, in its order: the framed bar (its frame picture `frame`), the black bar, the black
-// box behind a sliding message at (x, y), a message's text at (x, y); `motion`: the rebuild's smooth battle reckoning.
+// box behind a sliding message at (x, y), a message's text at (x, y).
 struct MessageStep
 {
     enum class Kind : u8
@@ -37,7 +37,6 @@ struct MessageStep
     int y = 0;
     u16 frame = 0;
     std::string text;
-    std::array<int, 2> motion = {};
 };
 
 struct MessagesView

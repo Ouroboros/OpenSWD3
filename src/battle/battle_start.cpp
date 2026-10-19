@@ -131,6 +131,7 @@ void Game::StartBattle(u16 number)
     this->audio.StopMusic();
     SetGaugeFull(battle, this->config.battleSpeed);
     battle.unk525470 = ActState{};
+    this->battlePlayer.Clear();
     battle.unk4FF168.fill(0);
     battle.unk524324.fill(0);
     battle.unk4FE5D4.fill(0);

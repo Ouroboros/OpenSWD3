@@ -619,16 +619,6 @@ private:
         i32 steps
     ) const;
     Stride FlightStride(BattleServices& services, const QueuedAction& node, const ActState& act, int taken) const;
-    // How a draw made with act `act` at `x`, `y` (the act's offset `offsetX`, act.y taken off) moves by the next
-    // game frame, where `next` is drawn with act `nextAct` (none: it stays).
-    static std::array<int, 2> StrideMotion(
-        const Stride& now,
-        const ActState& act,
-        const Stride& next,
-        const ActState& nextAct
-    );
-    // How IdleFrame's draws at `x`, `y` with act `act` move by the next game frame: the unit and its shadow's y.
-    std::array<int, 3> IdleMotion(BattleServices& services, const ActState& act, int x, int y) const;
 
 public:
     // +0x00..+0x0F: what the unit is.

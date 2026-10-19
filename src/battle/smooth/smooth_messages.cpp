@@ -132,9 +132,9 @@ void MessagesFrame::Advance(MessagesView& view)
         return;
     }
 
-    auto step = [&view](MessageStep::Kind kind, int x, int y, std::array<int, 2> motion)
+    auto step = [&view](MessageStep::Kind kind, int x, int y)
     {
-        view.steps.push_back(MessageStep{.kind = kind, .x = x, .y = y, .motion = motion});
+        view.steps.push_back(MessageStep{.kind = kind, .x = x, .y = y});
         return &view.steps.back();
     };
 
@@ -150,12 +150,12 @@ void MessagesFrame::Advance(MessagesView& view)
             owner.panelAct.id = BattleMessages::PanelAct;
             owner.panelAct.action = 0;
             owner.acts.Run(owner.panelAct);
-            step(MessageStep::Kind::Bar, 0, 0, {})->frame = owner.panelAct.frame;
+            step(MessageStep::Kind::Bar, 0, 0)->frame = owner.panelAct.frame;
         }
 
         if ((message->flags & BattleMessage::BlackBar) != 0)
         {
-            step(MessageStep::Kind::BlackBar, 0, 0, {});
+            step(MessageStep::Kind::BlackBar, 0, 0);
         }
 
         const int flags = message->flags;
@@ -175,11 +175,6 @@ void MessagesFrame::Advance(MessagesView& view)
             continue;
         }
 
-        // The rebuild's smooth battle: a sliding message moves on by the same halving next frame (on its last frame
-        // the slide out takes over).
-        const bool slidesNext = !paused && message->frames > 1;
-        std::array<int, 2> slide = {0, 0};
-
         if ((flags & BattleMessage::FromRight) != 0)
         {
             y = kSlideTextY;
@@ -196,8 +191,7 @@ void MessagesFrame::Advance(MessagesView& view)
             }
 
             x = message->slideX;
-            slide = {slidesNext ? ((half + kSlideStopX + x) >> 1) - x : 0, 0};
-            step(MessageStep::Kind::Box, x - half, kBarTop, slide);
+            step(MessageStep::Kind::Box, x - half, kBarTop);
         }
 
         if ((message->flags & BattleMessage::FromLeft) != 0)
@@ -211,8 +205,7 @@ void MessagesFrame::Advance(MessagesView& view)
             }
 
             x = message->slideX;
-            slide = {slidesNext ? ((x + half + kSlideStopX) >> 1) - x : 0, 0};
-            step(MessageStep::Kind::Box, x - half, kBarTop, slide);
+            step(MessageStep::Kind::Box, x - half, kBarTop);
         }
 
         if ((message->flags & BattleMessage::Rise) != 0)
@@ -221,11 +214,10 @@ void MessagesFrame::Advance(MessagesView& view)
             y = (message->slideY + kRiseTarget) / 2;
             message->slideY = y;
             message->slideX = x;
-            slide = {0, slidesNext ? (y + kRiseTarget) / 2 - y : 0};
-            step(MessageStep::Kind::Box, kSlideStopX, y - kMessageTextDown, slide);
+            step(MessageStep::Kind::Box, kSlideStopX, y - kMessageTextDown);
         }
 
-        step(MessageStep::Kind::Text, x, y, slide)->text = message->Text();
+        step(MessageStep::Kind::Text, x, y)->text = message->Text();
         --message->frames;
     }
 
@@ -245,9 +237,8 @@ void MessagesFrame::Advance(MessagesView& view)
                 message.slideX += kSlideOutStep;
             }
 
-            const std::array<int, 2> moving = {paused ? 0 : kSlideOutStep, 0};
-            step(MessageStep::Kind::Box, message.slideX - half, kBarTop, moving);
-            step(MessageStep::Kind::Text, message.slideX, kSlideTextY, moving)->text = message.Text();
+            step(MessageStep::Kind::Box, message.slideX - half, kBarTop);
+            step(MessageStep::Kind::Text, message.slideX, kSlideTextY)->text = message.Text();
             keep = message.slideX < Display::Width;
         }
 
@@ -260,9 +251,8 @@ void MessagesFrame::Advance(MessagesView& view)
                 message.slideX -= kSlideOutStep;
             }
 
-            const std::array<int, 2> moving = {paused ? 0 : -kSlideOutStep, 0};
-            step(MessageStep::Kind::Box, message.slideX - half, kBarTop, moving);
-            step(MessageStep::Kind::Text, message.slideX, kSlideTextY, moving)->text = message.Text();
+            step(MessageStep::Kind::Box, message.slideX - half, kBarTop);
+            step(MessageStep::Kind::Text, message.slideX, kSlideTextY)->text = message.Text();
             keep = message.slideX > 0;
         }
 
@@ -276,9 +266,8 @@ void MessagesFrame::Advance(MessagesView& view)
             }
 
             message.y *= kRiseAcceleration;
-            const std::array<int, 2> moving = {0, paused ? 0 : -message.y};
-            step(MessageStep::Kind::Box, message.slideX - half, message.slideY - kMessageTextDown, moving);
-            step(MessageStep::Kind::Text, message.slideX, message.slideY, moving)->text = message.Text();
+            step(MessageStep::Kind::Box, message.slideX - half, message.slideY - kMessageTextDown);
+            step(MessageStep::Kind::Text, message.slideX, message.slideY)->text = message.Text();
             keep = message.slideY > kRiseStart;
         }
 
@@ -300,8 +289,6 @@ void MessagesFrame::Draw(const MessagesView& view)
 
     for (const MessageStep& step : view.steps)
     {
-        const PaintRecord::Motion moving(step.motion);
-
         switch (step.kind)
         {
             case MessageStep::Kind::Bar:

@@ -54,13 +54,6 @@ void DrawSteps(BattleServices& services, const PictureSteps& steps)
             continue;
         }
 
-        std::optional<PaintRecord::Motion> moving;
-
-        if (step.motion[0] != 0 || step.motion[1] != 0)
-        {
-            moving.emplace(step.motion);
-        }
-
         painter.SetSource(picture->data.data());
 
         if (step.tinted)
@@ -87,54 +80,55 @@ void DrawSteps(BattleServices& services, const PictureSteps& steps)
     }
 }
 
-void Scene::Add(Draw draw)
+void Scene::Add(Draw draw, Where where)
 {
-    this->draws.push_back(std::move(draw));
+    this->steps.push_back(Step{std::move(draw), where.file_name(), where.line()});
 }
 
-void Scene::Add(PictureSteps steps)
+void Scene::Add(PictureSteps steps, Where where)
 {
     if (steps.empty())
     {
         return;
     }
 
-    this->draws.emplace_back(
+    this->Add(
         [steps = std::move(steps)](BattleServices& services)
         {
             DrawSteps(services, steps);
-        }
+        },
+        where
     );
 }
 
-void Scene::Add(const PictureStep& step)
+void Scene::Add(const PictureStep& step, Where where)
 {
-    this->Add(PictureSteps{step});
+    this->Add(PictureSteps{step}, where);
 }
 
 void Scene::Add(Scene&& scene)
 {
-    if (this->draws.empty())
+    if (this->steps.empty())
     {
-        this->draws = std::move(scene.draws);
+        this->steps = std::move(scene.steps);
     }
     else
     {
-        this->draws.insert(
-            this->draws.end(),
-            std::make_move_iterator(scene.draws.begin()),
-            std::make_move_iterator(scene.draws.end())
+        this->steps.insert(
+            this->steps.end(),
+            std::make_move_iterator(scene.steps.begin()),
+            std::make_move_iterator(scene.steps.end())
         );
     }
 
-    scene.draws.clear();
+    scene.steps.clear();
 }
 
 void Scene::DrawAll(BattleServices& services) const
 {
-    for (const Draw& draw : this->draws)
+    for (const Step& step : this->steps)
     {
-        draw(services);
+        step.draw(services);
     }
 }
 
@@ -147,17 +141,18 @@ void Scene::Show(BattleServices& services)
     }
 
     this->DrawAll(services);
-    this->draws.clear();
+    this->steps.clear();
 }
 
 bool Scene::Empty() const
 {
-    return this->draws.empty();
+    return this->steps.empty();
 }
 
-ScenePainter::ScenePainter(BattleServices& services, Scene& scene)
+ScenePainter::ScenePainter(BattleServices& services, Scene& scene, Scene::Where where)
     : services(services),
-      scene(scene)
+      scene(scene),
+      where(where)
 {
 }
 
@@ -186,7 +181,8 @@ void ScenePainter::SetWave(int mode)
         [mode](BattleServices& drawing)
         {
             drawing.painter.SetWave(mode);
-        }
+        },
+        this->where
     );
 }
 
@@ -197,7 +193,8 @@ void ScenePainter::SetClipClamped(int left, int top, int right, int bottom)
         [left, top, right, bottom](BattleServices& drawing)
         {
             drawing.painter.SetClipClamped(left, top, right, bottom);
-        }
+        },
+        this->where
     );
 }
 
@@ -259,7 +256,8 @@ void ScenePainter::Draw(int x, int y, int width, int height, u32 mode, const Dra
             {
                 painter.DrawPicture(x, y, width, height, mode, drawn);
             }
-        }
+        },
+        this->where
     );
 }
 
@@ -329,7 +327,8 @@ void ScenePainter::SetZoom(int anchorX, int anchorY, int zoomX, int zoomY)
         [anchorX, anchorY, zoomX, zoomY](BattleServices& drawing)
         {
             drawing.painter.SetZoom(anchorX, anchorY, zoomX, zoomY);
-        }
+        },
+        this->where
     );
 }
 
@@ -352,7 +351,8 @@ void ScenePainter::DrawZoomed(int x, int y, int width, int height, bool mirrored
             {
                 painter.DrawZoomed(x, y, width, height);
             }
-        }
+        },
+        this->where
     );
 }
 
@@ -384,7 +384,8 @@ void ScenePainter::Refract(const ScriptObject& ripple)
             );
             shape->CopyScreen(screen);
             shape->Refract(screen);
-        }
+        },
+        this->where
     );
 }
 
@@ -405,7 +406,8 @@ void ScenePainter::TintPixels(std::span<u16> pixels, int red, int green, int blu
         [count = this->ScreenPixels(pixels), red, green, blue](BattleServices& drawing)
         {
             drawing.painter.TintPixels(std::span<u16>(drawing.screen, count), red, green, blue);
-        }
+        },
+        this->where
     );
 }
 
@@ -415,7 +417,8 @@ void ScenePainter::ShiftRed(std::span<u16> pixels, int amount)
         [count = this->ScreenPixels(pixels), amount](BattleServices& drawing)
         {
             drawing.painter.ShiftRed(std::span<u16>(drawing.screen, count), amount);
-        }
+        },
+        this->where
     );
 }
 
@@ -425,7 +428,8 @@ void ScenePainter::ShiftGreenPairs(std::span<u16> pixels, int amount)
         [count = this->ScreenPixels(pixels), amount](BattleServices& drawing)
         {
             drawing.painter.ShiftGreenPairs(std::span<u16>(drawing.screen, count), amount);
-        }
+        },
+        this->where
     );
 }
 
@@ -435,7 +439,8 @@ void ScenePainter::ShiftBluePairs(std::span<u16> pixels, int amount)
         [count = this->ScreenPixels(pixels), amount](BattleServices& drawing)
         {
             drawing.painter.ShiftBluePairs(std::span<u16>(drawing.screen, count), amount);
-        }
+        },
+        this->where
     );
 }
 
@@ -464,13 +469,15 @@ void ScenePainter::CopyScreen(const Surface& from, Surface&)
                     drawing.screen + static_cast<std::ptrdiff_t>(row) * pitch
                 );
             }
-        }
+        },
+        this->where
     );
 }
 
-SceneFont::SceneFont(TextFont& font, Scene& scene)
+SceneFont::SceneFont(TextFont& font, Scene& scene, Scene::Where where)
     : font(font),
-      scene(scene)
+      scene(scene),
+      where(where)
 {
 }
 
@@ -500,7 +507,8 @@ void SceneFont::DrawText(Pixel*, int x, int y, std::string_view text, Pixel colo
             font->RestoreDrawState(state);
             font->DrawText(drawing.screen, x, y, text, color, style);
             font->RestoreDrawState(live);
-        }
+        },
+        this->where
     );
 }
 
@@ -515,27 +523,42 @@ void SceneFont::DrawText(Pixel*, int x, int y, std::u8string_view text, Pixel co
             font->RestoreDrawState(state);
             font->DrawText(drawing.screen, x, y, text, color, style);
             font->RestoreDrawState(live);
-        }
+        },
+        this->where
     );
 }
 
-void FillScreen(u16 color, std::size_t count, Scene& scene)
+void FillScreen(u16 color, std::size_t count, Scene& scene, Scene::Where where)
 {
     scene.Add(
         [color, count](BattleServices& drawing)
         {
             std::fill_n(drawing.screen, count, color);
-        }
+        },
+        where
     );
 }
 
-void Box(Painter&, int x, int y, int width, int height, int red, int green, int blue, FillMode mode, Scene& scene)
+void Box(
+    Painter&,
+    int x,
+    int y,
+    int width,
+    int height,
+    int red,
+    int green,
+    int blue,
+    FillMode mode,
+    Scene& scene,
+    Scene::Where where
+)
 {
     scene.Add(
         [x, y, width, height, red, green, blue, mode](BattleServices& drawing)
         {
             FillBox(drawing.painter, x, y, width, height, red, green, blue, mode);
-        }
+        },
+        where
     );
 }
 
@@ -549,14 +572,16 @@ void WindowFrame(
     int bottom,
     int alpha,
     int border,
-    Scene& scene
+    Scene& scene,
+    Scene::Where where
 )
 {
     scene.Add(
         [id, left, top, right, bottom, alpha, border](BattleServices& drawing)
         {
             DrawWindowFrame(drawing.painter, drawing.archive, id, left, top, right, bottom, alpha, border);
-        }
+        },
+        where
     );
 }
 

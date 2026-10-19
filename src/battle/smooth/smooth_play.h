@@ -1,0 +1,69 @@
+#pragma once
+
+#include <array>
+#include <map>
+#include <memory>
+#include <tuple>
+#include <vector>
+
+#include "battle/smooth/smooth_draw.h"
+#include "core/types.h"
+#include "draw/draw_placer.h"
+
+namespace swd3
+{
+
+class Surface;
+struct BattleServices;
+
+}  // namespace swd3
+
+// The rebuild's smooth battle (deviations.md): the battle frames drawn between game frames. A frame is decided into
+// its scene every game frame; the scene is drawn then and again at every refresh until the next, each picture and text
+// moving from where the frame before drew it to where this frame draws it.
+namespace swd3::smooth
+{
+
+class BattlePlayer : public DrawPlacer
+{
+public:
+    explicit BattlePlayer(BattleServices& services);
+
+    // The decided frame's scene drawn to the frame's screen at the places of the frame before: the draws of the same
+    // code (the same draw of the same step), as many as in the frame before, are each taken for the nearest of those
+    // before (others are drawn where they are).
+    void Show(Scene&& scene);
+    // The frame drawn again `alpha` (0 to 1) of the way to its own places, into a screen of its own; the painter and
+    // the HUD are left as they were.
+    Surface& PaintBetween(double alpha);
+    // No frame before (a battle starts).
+    void Clear();
+
+    void Place(int& x, int& y) override;
+
+private:
+    // The code of a draw: the step (where it was added to the scene) and the draw within it.
+    using Key = std::tuple<const char*, u32, u32>;
+    using Places = std::map<Key, std::vector<std::array<int, 2>>>;
+
+    // The scene drawn into `target` with the painter and the HUD left as they were.
+    void DrawInto(Surface& target);
+    void Replay();
+    void Match();
+
+    BattleServices& services;
+    Scene scene;
+    Places before;                                          // the places of the frame before
+    Places places;                                          // the places of this frame
+    std::vector<std::pair<Key, std::array<int, 2>>> drawn;  // the draws of this frame in their order
+    std::vector<std::array<int, 2>> moves;                  // each draw's way back to its place before
+    std::unique_ptr<Surface> screen;
+    bool measuring = false;
+    double share = 1.0;
+    std::size_t next = 0;
+    const char* stepFile = nullptr;
+    u32 stepLine = 0;
+    u32 stepDraws = 0;
+};
+
+}  // namespace swd3::smooth

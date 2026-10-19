@@ -27,7 +27,7 @@ namespace swd3::smooth
 // What IdleFrame draws of the unit, as its frame decides it (IdleAdvance) for IdleDraw: the body at (x, y) with its
 // flags (mirrored: the mirror bits alone), the shadow, outlines, smear, blend, wave, barrier flash, grey and red
 // copies, the gold over a gold guard, the thrown act and the overlay; thrownLost: the thrown act did not run (the
-// frame ends after the body). `motion` is the rebuild's smooth battle reckoning.
+// frame ends after the body).
 struct IdleView
 {
     PictureRef picture;
@@ -66,11 +66,10 @@ struct IdleView
     int overlayX = 0;
     int overlayY = 0;
     u32 overlayFlags = 0;
-    std::array<int, 3> motion = {};
 };
 
 // What a walk (WalkToTarget, ReturnHome) draws, as its frame decides it: the picture at (x, y) with its flags, the
-// shadow for the place at shadowY, the overlay of a walk home. `motion` is the rebuild's smooth battle reckoning.
+// shadow for the place at shadowY, the overlay of a walk home.
 struct WalkView
 {
     PictureRef picture;
@@ -84,12 +83,10 @@ struct WalkView
     int overlayX = 0;
     int overlayY = 0;
     u32 overlayFlags = 0;
-    std::array<int, 2> motion = {};
 };
 
 // What DrawDamageNumbers draws, in the order it does it: the HUD's digit mode cleared, the fade of the rising digits
-// set (it holds for the next picture drawn only), a digit drawn (moving by `motion` by the next frame, the rebuild's
-// smooth battle reckoning).
+// set (it holds for the next picture drawn only), a digit drawn.
 struct NumberStep
 {
     enum class Kind : u8
@@ -105,7 +102,6 @@ struct NumberStep
     int x = 0;
     int y = 0;
     int fade = 0;
-    std::array<int, 2> motion = {};
 };
 
 struct NumbersView
@@ -114,7 +110,7 @@ struct NumbersView
 };
 
 // What DrawGuardText draws: the HUD's digit mode cleared, `letters` letters from `left` at their heights (each after
-// the width of the ones before), faded by `fade` while they rise; `motion`: the rebuild's smooth battle reckoning.
+// the width of the ones before), faded by `fade` while they rise.
 struct GuardView
 {
     bool clearMode = false;
@@ -123,12 +119,11 @@ struct GuardView
     int left = 0;
     int letters = 0;
     std::array<int, 4> y = {};
-    std::array<std::array<int, 2>, 4> motion = {};
 };
 
 // What HurtFrame draws: the red flash an enemy leaves, the shadow (its top at shadowY less a third of the picture), the
 // unit at (x, y), its red copy; after the unit's effects the overlay and the recoil effect. `bodyWidth`: the hurt
-// picture's width; `bodyMotion` and `flashMotion`: the rebuild's smooth battle reckoning.
+// picture's width.
 struct HurtView
 {
     PictureRef picture;
@@ -152,8 +147,6 @@ struct HurtView
     int recoilX = 0;
     int recoilY = 0;
     u32 recoilFlags = 0;
-    std::array<int, 2> bodyMotion = {};
-    std::array<int, 2> flashMotion = {};
 };
 
 // What DrawAction draws: the outline (at the unit's place), the shadow (its top at shadowY less a third of the

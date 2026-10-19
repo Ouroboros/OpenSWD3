@@ -170,7 +170,7 @@ void FieldView::LayLayer(
 {
     if (redrawn)
     {
-        record.DrawOver(this->game.painter, screen, Display::Width, 0.0);
+        record.DrawOver(this->game.painter, screen, Display::Width);
         return;
     }
 
