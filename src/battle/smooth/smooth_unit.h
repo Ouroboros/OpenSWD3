@@ -269,6 +269,72 @@ public:
     bool ActionAdvance(BattleServices& services, const BattleUnit& target, ActState& act, ActionView& view);
     static void DrawActionView(BattleServices& services, const ActionView& view);
 
+    void DrawActionAtAdvance(BattleServices& services, i16 x, i16 y, ActState& act, Scene& scene);
+
+    int DrawAimedAdvance(
+        BattleServices& services,
+        BattleUnit& target,
+        ActState& act,
+        i16 shiftX,
+        i16 shiftY,
+        Scene& scene
+    );
+
+    void DrawMainFadedAdvance(BattleServices& services, int tint, Scene& scene);
+
+    int FadeMainInAdvance(BattleServices& services, Scene& scene);
+
+    int FadeMainOutAdvance(BattleServices& services, Scene& scene);
+
+    int FadeInvisibleAdvance(BattleServices& services, int mode, Scene& scene);
+
+    int DrawFadeInAdvance(BattleServices& services, const BattleUnit& anchor, Scene& scene);
+
+    int DrawFadeOutAdvance(BattleServices& services, Scene& scene);
+
+    void DrawEffectIconsAdvance(BattleServices& services, int x, int y, Scene& scene);
+
+    int RunAwayAdvance(BattleServices& services, Scene& scene);
+
+    void DrawDefeatPieceAdvance(
+        BattleServices& services,
+        const Picture& picture,
+        int left,
+        int top,
+        int right,
+        int bottom,
+        int x,
+        int y,
+        int height,
+        Scene& scene
+    );
+
+    int DefeatFadeOutAdvance(BattleServices& services, const Picture& picture, Scene& scene);
+
+    int DefeatFillAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene);
+
+    int DefeatHalvesAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene);
+
+    int DefeatHopAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene);
+
+    int DefeatQuartersAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene);
+
+    int DefeatRisingAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene);
+
+    int DefeatSinkAdvance(BattleServices& services, const Picture& picture, Scene& scene);
+
+    int DefeatSlideAdvance(BattleServices& services, const Picture& picture, Scene& scene);
+
+    int DefeatSplitColumnsAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene);
+
+    int DefeatSplitRowsAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene);
+
+    int DefeatStripsAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene);
+
+    int DefeatWaveAdvance(BattleServices& services, const Picture& picture, Scene& scene);
+
+    int DefeatZoomAdvance(BattleServices& services, const Picture& picture, Scene& scene);
+
 private:
     int FlashStep();
     void ChooseOverlay(BattleServices& services, u16 frame, u16 picture, int offsetX, int offsetY, WalkView& view);

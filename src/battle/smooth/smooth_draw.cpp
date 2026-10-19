@@ -195,4 +195,57 @@ void ScenePainter::DrawPicture(int x, int y, int width, int height, u32 mode, co
     );
 }
 
+// The picture the painter holds now as a cached reference (none outside the cache, warned).
+PictureRef ScenePainter::Source() const
+{
+    const void* data = this->services.painter.Source();
+    PictureRef source;
+    source.shown = data != nullptr && this->services.archive.LocateData(data, source.id, source.frame) != nullptr;
+
+    if (data != nullptr && !source.shown)
+    {
+        LogWarning(u8"smooth battle: a draw of a picture outside the cache is not kept");
+    }
+
+    return source;
+}
+
+void ScenePainter::SetZoom(int anchorX, int anchorY, int zoomX, int zoomY)
+{
+    this->scene.Add(
+        [anchorX, anchorY, zoomX, zoomY](BattleServices& drawing)
+        {
+            drawing.painter.SetZoom(anchorX, anchorY, zoomX, zoomY);
+        }
+    );
+}
+
+void ScenePainter::DrawZoomed(int x, int y, int width, int height, bool mirrored)
+{
+    const PictureRef source = this->Source();
+
+    this->scene.Add(
+        [source, x, y, width, height, mirrored](BattleServices& drawing)
+        {
+            Painter& painter = drawing.painter;
+            const Picture* picture = source.Get(drawing.archive);
+            painter.SetSource(picture != nullptr ? picture->data.data() : nullptr);
+
+            if (mirrored)
+            {
+                painter.DrawZoomedMirrored(x, y, width, height);
+            }
+            else
+            {
+                painter.DrawZoomed(x, y, width, height);
+            }
+        }
+    );
+}
+
+void ScenePainter::DrawZoomedMirrored(int x, int y, int width, int height)
+{
+    this->DrawZoomed(x, y, width, height, true);
+}
+
 }  // namespace swd3::smooth

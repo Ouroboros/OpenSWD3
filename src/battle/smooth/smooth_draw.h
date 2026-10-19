@@ -89,10 +89,15 @@ public:
     void SetWave(int mode);
     void SetClipClamped(int left, int top, int right, int bottom);
     void DrawPicture(int x, int y, int width, int height, u32 mode, const DrawArgument& argument = {});
+    void SetZoom(int anchorX, int anchorY, int zoomX, int zoomY);
+    void DrawZoomed(int x, int y, int width, int height, bool mirrored = false);
+    void DrawZoomedMirrored(int x, int y, int width, int height);
 
 private:
     BattleServices& services;
     Scene& scene;
+
+    PictureRef Source() const;
     DrawOptions options;
 };
 

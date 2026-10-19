@@ -96,6 +96,40 @@ constexpr u8 kTrailDelay = 2;  // a new image every third frame
 constexpr i16 kTrailLevel = 0xC;
 constexpr int kTrailSpacing = 0x1E;
 constexpr int kTrailTintBase = 0x1F;
+constexpr i16 kBlueFillStep = 4;
+constexpr int kBlueFillTint = 0x10;
+constexpr i32 kCommand1Action = 0x28;  // the fade in action after command 1
+constexpr i16 kDarkFillStep = 0xE;
+constexpr int kDarkFillTint = -0x18;
+constexpr u16 kEffectIcons = 0x241D;
+constexpr int kFadeInSound = 0x30;
+constexpr int kFadeOutSound = 0x2F;
+constexpr i16 kFadeOutStep = 2;
+constexpr i16 kHalvesFast = 4;
+constexpr i16 kHalvesPause = 8;
+constexpr i16 kHalvesSlow = 9;
+constexpr u16 kPose2 = 2;
+constexpr i32 kPose2Action = 0x31;  // of pose 2
+constexpr i32 kPoseAction = 0x30;   // the fade in action of a posed unit
+constexpr int kQuarterDrop = 0x10;
+constexpr i16 kRisingEnd = 0x1E0;
+constexpr i16 kRisingStep = 0x1F;
+constexpr int kRisingTintDivisor = -31;
+constexpr int kRisingTintLift = 4;
+constexpr u16 kRunSound = 0x2F;
+constexpr int kShadowLeftShift = 5;
+constexpr int kSinkAlphaBase = 0x1F;
+constexpr i16 kSinkFadeFrom = -0x10;
+constexpr int kSinkStep = 10;
+constexpr i16 kSlideFadeFrom = -15;
+constexpr i16 kSplitEnd = 0x20;
+constexpr i16 kSplitStep = 2;
+constexpr u16 kStepPicture = 1;  // the picture of the act that plays the step sound
+constexpr u16 kStepSound = 0x10F;
+constexpr i16 kWaveEnd = 0x2D;
+constexpr int kWaveShare = 3;
+constexpr i16 kZoomEnd = 0x1E;
+constexpr i16 kZoomStep = 2;
 }  // namespace
 
 UnitFrame::UnitFrame(BattleUnit& unit)
@@ -2864,6 +2898,1285 @@ int UnitFrame::Home(BattleServices& services, const BattleUnit& target, i32 id, 
     }
 
     return result;
+}
+
+// What BattleUnit::DrawActionAt decides of the frame; the draws into `scene`.
+void UnitFrame::DrawActionAtAdvance(BattleServices& services, i16 x, i16 y, ActState& act, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+
+    if (services.acts.Run(act) == 0)
+    {
+        return;
+    }
+
+    unit.picture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (unit.picture == nullptr)
+    {
+        return;
+    }
+
+    ScenePainter painter(services, scene);
+    unit.frameFlags = act.flags;
+    unit.actOffsetX = static_cast<u16>(act.x);
+    unit.actAnchorX = act.anchorX;
+
+    auto mirror = [&unit, &act]
+    {
+        unit.frameFlags ^= Painter::Mirror;
+        unit.actOffsetX = static_cast<u16>(unit.picture->width - static_cast<u16>(act.x));
+
+        if (act.anchorX != 0)
+        {
+            unit.actAnchorX = static_cast<u16>(unit.picture->width - act.anchorX);
+        }
+    };
+
+    if (unit.unk2B00 == 1 || unit.unk2B04 == 1)
+    {
+        if (unit.facing == 1)
+        {
+            mirror();
+        }
+
+        if (unit.unk2B00 == 1)
+        {
+            unit.frameFlags |= Painter::Additive;
+        }
+    }
+
+    if (unit.facing == 1 && unit.unk2B00 == 0 && unit.unk2B04 == 0)
+    {
+        mirror();
+    }
+
+    unit.actX = static_cast<u16>(x - unit.actOffsetX);
+    unit.actY = static_cast<u16>(y - static_cast<u16>(act.y));
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+    const int centre = static_cast<i16>(unit.actX) + static_cast<i16>(unit.actOffsetX);
+    services.audio.SetSoundPan(act.view, centre >= kPanCentre ? kFadePan : -kFadePan);
+    act.view = 0;
+    const int shadowHeight = unit.picture->height / kShadowShare;
+    DrawOptions& options = painter.Options();
+    options.scaleHeight = shadowHeight;
+    options.shear = unit.picture->height >> kShadowShearShift;
+    const bool invisible = (unit.status & BattleUnit::Invisible) != 0;
+    const int tint = invisible ? kInvisibleShadowTint : kShadowTint;
+    options.tintRed = tint;
+    options.tintGreen = tint;
+    options.tintBlue = tint;
+    unit.unk26A4 = (unit.frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+    painter.SetSource(unit.picture->data.data());
+    painter.DrawPicture(
+        static_cast<i16>(unit.actX),
+        act.y + static_cast<i16>(unit.actY) - shadowHeight,
+        unit.picture->width,
+        unit.picture->height,
+        unit.unk26A4
+    );
+    painter.SetSource(unit.picture->data.data());
+
+    if (invisible)
+    {
+        painter.DrawPicture(
+            static_cast<i16>(unit.actX),
+            static_cast<i16>(unit.actY),
+            unit.picture->width,
+            unit.picture->height,
+            unit.frameFlags | Painter::SmearUnder
+        );
+        return;
+    }
+
+    if ((unit.frameFlags & ActState::Signal) == ActState::Signal)
+    {
+        painter.Options().alpha = unit.mainAct.signal;
+    }
+
+    painter.DrawPicture(
+        static_cast<i16>(unit.actX),
+        static_cast<i16>(unit.actY),
+        unit.picture->width,
+        unit.picture->height,
+        unit.frameFlags
+    );
+}
+
+// What BattleUnit::DrawAimed decides of the frame; the draws into `scene`.
+int UnitFrame::DrawAimedAdvance(
+    BattleServices& services,
+    BattleUnit& target,
+    ActState& act,
+    i16 shiftX,
+    i16 shiftY,
+    Scene& scene
+)
+{
+    BattleUnit& unit = this->unit;
+    ScenePainter painter(services, scene);
+    u16 targetX = 0;
+    u16 targetY = 0;
+    act.hold = 0;
+
+    if (unit.held == 1)
+    {
+        act.hold = 1;
+    }
+
+    if (services.acts.Run(act) == 0)
+    {
+        return 0;
+    }
+
+    unit.picture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (unit.picture == nullptr)
+    {
+        return 0;
+    }
+
+    unit.unk26A4 = act.flags;
+    unit.aimOffsetX = static_cast<u16>(act.x);
+    unit.aimAnchorX = act.anchorX;
+
+    if (unit.facing == 1)
+    {
+        unit.unk26A4 ^= Painter::Mirror;
+        unit.aimOffsetX = static_cast<u16>(unit.picture->width - static_cast<u16>(act.x));
+
+        if (act.anchorX != 0)
+        {
+            unit.aimAnchorX = static_cast<u16>(unit.picture->width - act.anchorX);
+        }
+    }
+
+    target.GetDrawPosition(targetX, targetY);
+    unit.aimX = static_cast<u16>(targetX - unit.aimOffsetX);
+    unit.aimY = static_cast<u16>(targetY - static_cast<u16>(act.y));
+
+    if ((act.anchorX != 0 || act.anchorY != 0) && (shiftX != 0 || shiftY != 0))
+    {
+        unit.aimX = static_cast<u16>(unit.actX + unit.actAnchorX - unit.aimAnchorX);
+        unit.aimY = static_cast<u16>(unit.actY - act.anchorY + shiftY);
+    }
+
+    unit.ClearMoveAxes(unit.aimX, unit.aimY);
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+    services.audio.SetSoundPan(act.view, static_cast<i16>(targetX) >= kPanCentre ? kFadePan : -kFadePan);
+    act.view = 0;
+
+    if ((act.target & ActState::Quakes) != 0)
+    {
+        services.state.quaking = 1;
+        services.state.quakePhase = 0;
+    }
+
+    if ((act.target & ActState::UnkTarget4) != 0)
+    {
+        act.target = 0;
+        target.RaiseFlag26B8();
+    }
+
+    painter.SetSource(unit.picture->data.data());
+
+    // The original reads the palette of the shadow picture through a null pointer when there is none.
+    const DrawArgument argument = unit.shadowPicture != nullptr ? PaletteArgument(*unit.shadowPicture) : DrawArgument{};
+    painter.DrawPicture(
+        static_cast<i16>(unit.aimX),
+        static_cast<i16>(unit.aimY),
+        unit.picture->width,
+        unit.picture->height,
+        unit.unk26A4,
+        argument
+    );
+    return act.waiting == 1 ? 1 : 0;
+}
+
+// What BattleUnit::DrawMainFaded decides of the frame; the draws into `scene`.
+void UnitFrame::DrawMainFadedAdvance(BattleServices& services, int tint, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+    ScenePainter painter(services, scene);
+    ActState& act = unit.mainAct;
+    act.hold = 0;
+
+    if (unit.held == 1)
+    {
+        act.hold = 1;
+    }
+
+    unit.picture = services.archive.GetPicture(act.frame, act.picture);
+
+    auto tintAll = [&painter, tint]
+    {
+        DrawOptions& options = painter.Options();
+        options.tintRed = tint;
+        options.tintGreen = tint;
+        options.tintBlue = tint;
+    };
+
+    const int x = unit.placement.x - static_cast<i16>(unit.originX);
+    const int y = unit.placement.y - act.y;
+
+    // A missing picture is read through a null pointer in the original.
+    if (unit.picture != nullptr)
+    {
+        painter.SetSource(unit.picture->data.data());
+        tintAll();
+        painter.DrawPicture(x, y, unit.picture->width, unit.picture->height, unit.drawFlags | Painter::Additive);
+    }
+
+    if (act.rotation == 0 || act.actionCode == 0)
+    {
+        return;
+    }
+
+    tintAll();
+    unit.unk2554 = services.archive.GetPicture(act.rotation, static_cast<u16>(act.actionCode - 1));
+
+    if (unit.unk2554 == nullptr)
+    {
+        return;
+    }
+
+    painter.SetSource(unit.unk2554->data.data());
+    painter.DrawPicture(
+        x + static_cast<i16>(act.offsetX),
+        y + static_cast<i16>(act.offsetY),
+        unit.unk2554->width,
+        unit.unk2554->height,
+        unit.drawFlags | Painter::Additive
+    );
+}
+
+// What BattleUnit::FadeMainIn decides of the frame; the draws into `scene`.
+int UnitFrame::FadeMainInAdvance(BattleServices& services, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+    this->DrawMainFadedAdvance(services, unit.brightLevel, scene);
+
+    if (unit.held == 0)
+    {
+        ++unit.brightLevel;
+    }
+
+    if (unit.brightLevel < 0)
+    {
+        return 0;
+    }
+
+    unit.marks = static_cast<u16>(unit.marks & ~BattleUnit::UnkMark200);
+    unit.brightLevel = 1;
+    return 1;
+}
+
+// What BattleUnit::FadeMainOut decides of the frame; the draws into `scene`.
+int UnitFrame::FadeMainOutAdvance(BattleServices& services, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+    this->DrawMainFadedAdvance(services, unit.glowLevel, scene);
+
+    if (unit.held == 0)
+    {
+        unit.glowLevel = static_cast<i16>(unit.glowLevel - kFadeOutStep);
+    }
+
+    if (unit.glowLevel > kFadedOut)
+    {
+        return 0;
+    }
+
+    unit.glowLevel = kFadedOut;
+    unit.recoilAct = ActState{};
+    return 1;
+}
+
+// What BattleUnit::FadeInvisible decides of the frame; the draws into `scene`.
+int UnitFrame::FadeInvisibleAdvance(BattleServices& services, int mode, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+    ScenePainter painter(services, scene);
+    unit.mainAct.hold = 0;
+
+    if (unit.held == 1)
+    {
+        unit.mainAct.hold = 1;
+    }
+
+    unit.picture = services.archive.GetPicture(unit.mainAct.frame, unit.mainAct.picture);
+    ++unit.glowLevel;
+
+    if (unit.glowLevel > kInvisibleFadeFrames)
+    {
+        unit.glowLevel = kInvisibleFadeFrames;
+
+        if (mode == 1)
+        {
+            unit.marks = static_cast<u16>(unit.marks & ~(BattleUnit::InvisibleMark | BattleUnit::UnkMark400));
+            unit.glowLevel = 0;
+            return 0;
+        }
+
+        if (mode == 0)
+        {
+            unit.status |= BattleUnit::Invisible;
+        }
+
+        unit.marks = static_cast<u16>(unit.marks & ~(BattleUnit::InvisibleMark | BattleUnit::UnkMark400));
+        return 0;
+    }
+
+    // A missing picture is read through a null pointer in the original.
+    if (unit.picture == nullptr || unit.shadowPicture == nullptr)
+    {
+        return 1;
+    }
+
+    painter.SetSource(unit.picture->data.data());
+    const int shadowHeight = unit.shadowPicture->height / kShadowShare;
+    DrawOptions& options = painter.Options();
+    options.scaleHeight = shadowHeight;
+    options.shear = unit.shadowPicture->height >> kShadowShearShift;
+    options.tintRed = kInvisibleShadowTint;
+    options.tintGreen = kInvisibleShadowTint;
+    options.tintBlue = kInvisibleShadowTint;
+    unit.unk26A4 = (unit.drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+    const int x = unit.placement.x - static_cast<i16>(unit.originX);
+    painter.DrawPicture(
+        x - kShadowLeftShift,
+        unit.placement.y - shadowHeight,
+        unit.shadowPicture->width,
+        unit.shadowPicture->height,
+        unit.unk26A4
+    );
+
+    if (mode == 0)
+    {
+        painter.Options().alpha = Painter::MaxAlpha - unit.glowLevel / 2;
+    }
+    else if (mode == 1)
+    {
+        painter.Options().alpha = unit.glowLevel / 2;
+    }
+
+    unit.unk26A4 = unit.drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip);
+    painter.DrawPicture(
+        x,
+        unit.placement.y - unit.mainAct.y,
+        unit.picture->width,
+        unit.picture->height,
+        unit.unk26A4 | Painter::Translucent
+    );
+    return 1;
+}
+
+// What BattleUnit::DrawFadeIn decides of the frame; the draws into `scene`.
+int UnitFrame::DrawFadeInAdvance(BattleServices& services, const BattleUnit& anchor, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+    ScenePainter painter(services, scene);
+
+    if (static_cast<i32>(unit.status) < 0)
+    {
+        return 1;
+    }
+
+    if (unit.brightLevel >= BattleUnit::Opaque)
+    {
+        unit.recoilAct = ActState{};
+        unit.unk2AAC = 0;
+        return 1;
+    }
+
+    unit.unk2AAC = 1;
+    unit.recoilAct.action = unit.commandA == BattleUnit::UnkCommand1 ? kCommand1Action : kShadowAction;
+    unit.recoilAct.id = unit.actId;
+    const u16 pose = unit.unk2A8C;
+
+    if (pose != 0)
+    {
+        unit.recoilAct.action = pose == kPose2 ? kPose2Action : kPoseAction;
+    }
+
+    if (services.acts.Run(unit.recoilAct) == 0)
+    {
+        return 0;
+    }
+
+    if ((unit.recoilAct.flags & ActState::Signal) != 0)
+    {
+        unit.brightLevel = BattleUnit::FadedIn;
+        return 0;
+    }
+
+    unit.picture = services.archive.GetPicture(unit.recoilAct.frame, 0);
+
+    if (unit.brightLevel == 1)
+    {
+        unit.recoilAct.view = kFadeInSound;
+        services.audio.PlaySound(kFadeInSound, services.config.soundVolume);
+        services.audio.SetSoundPan(unit.recoilAct.view, unit.facing == 1 ? -kFadePan : kFadePan);
+        unit.recoilAct.view = 0;
+    }
+
+    if (unit.picture == nullptr)
+    {
+        return 0;
+    }
+
+    painter.SetSource(unit.picture->data.data());
+    const u32 actFlags = unit.recoilAct.flags;
+    unit.originX = static_cast<u16>(unit.recoilAct.x);
+    const i32 blend = unit.unk2B00;
+    unit.drawFlags = actFlags;
+    unit.recoilAct.hold = 1;
+    unit.MirrorRecoil(actFlags, blend == 1);
+    u16 anchorX = 0;
+    u16 anchorY = 0;
+    anchor.GetDrawPosition(anchorX, anchorY);
+    const int x = static_cast<i16>(anchorX) - static_cast<i16>(unit.originX);
+    const int y = static_cast<i16>(anchorY) - unit.recoilAct.y;
+    const i32 level = unit.brightLevel;
+
+    if (unit.unk2B00 == 1)
+    {
+        DrawOptions& options = painter.Options();
+        options.tintRed = level - BattleUnit::FadedIn;
+        options.tintGreen = level - BattleUnit::FadedIn;
+        options.tintBlue = level - BattleUnit::FadedIn;
+        painter.DrawPicture(x, y, unit.picture->width, unit.picture->height, unit.drawFlags);
+
+        if (unit.held == 0)
+        {
+            ++unit.brightLevel;
+        }
+
+        return 0;
+    }
+
+    painter.Options().alpha = level;
+    painter.DrawPicture(
+        x,
+        y,
+        unit.picture->width,
+        unit.picture->height,
+        unit.drawFlags | Painter::Translucent,
+        PaletteArgument(*unit.picture)
+    );
+
+    if (unit.held == 0)
+    {
+        unit.brightLevel += unit.unk2A0A;
+    }
+
+    return 0;
+}
+
+// What BattleUnit::DrawFadeOut decides of the frame; the draws into `scene`.
+int UnitFrame::DrawFadeOutAdvance(BattleServices& services, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+    ScenePainter painter(services, scene);
+
+    if (static_cast<i32>(unit.status) < 0 || unit.fadeLevel <= 0)
+    {
+        return 1;
+    }
+
+    unit.recoilAct.id = unit.actId;
+    const i32 paused = unit.held;
+    unit.unk2AAC = 1;
+    unit.recoilAct.action = kShadowAction;
+    unit.recoilAct.hold = paused == 1 ? 1 : 0;
+
+    if (services.acts.Run(unit.recoilAct) == 0)
+    {
+        return 1;
+    }
+
+    unit.picture = services.archive.GetPicture(unit.recoilAct.frame, unit.recoilAct.picture);
+
+    if ((unit.recoilAct.flags & ActState::Signal) != 0)
+    {
+        unit.fadeLevel = 0;
+        return 0;
+    }
+
+    if (unit.fadeLevel == BattleUnit::Opaque)
+    {
+        unit.recoilAct.view = kFadeOutSound;
+        services.audio.PlaySound(kFadeOutSound, services.config.soundVolume);
+        services.audio.SetSoundPan(unit.recoilAct.view, unit.facing == 1 ? kFadePan : -kFadePan);
+        unit.recoilAct.view = 0;
+    }
+
+    if (unit.picture == nullptr)
+    {
+        return 0;
+    }
+
+    painter.SetSource(unit.picture->data.data());
+    const i32 blend = unit.unk2B00;
+    const u32 actFlags = unit.recoilAct.flags;
+    unit.drawFlags = actFlags;
+    unit.MirrorRecoil(actFlags, blend == 1);
+    const i32 level = unit.fadeLevel;
+    const int x = unit.placement.x - static_cast<i16>(unit.originX);
+    const int y = unit.placement.y - unit.recoilAct.y;
+
+    if (blend == 1)
+    {
+        DrawOptions& options = painter.Options();
+        options.tintRed = level - BattleUnit::Opaque;
+        options.tintGreen = level - BattleUnit::Opaque;
+        options.tintBlue = level - BattleUnit::Opaque;
+        painter.DrawPicture(
+            x,
+            y,
+            unit.picture->width,
+            unit.picture->height,
+            unit.drawFlags,
+            PaletteArgument(*unit.picture)
+        );
+
+        if (unit.held == 0)
+        {
+            --unit.fadeLevel;
+        }
+
+        return 0;
+    }
+
+    painter.Options().alpha = level;
+    painter.DrawPicture(
+        x,
+        y,
+        unit.picture->width,
+        unit.picture->height,
+        unit.drawFlags | Painter::Translucent,
+        PaletteArgument(*unit.picture)
+    );
+
+    if (unit.held == 0)
+    {
+        unit.fadeLevel -= unit.unk2A0A;
+    }
+
+    return 0;
+}
+
+// What BattleUnit::DrawEffectIcons decides of the frame; the draws into `scene`.
+void UnitFrame::DrawEffectIconsAdvance(BattleServices& services, int x, int y, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+    ScenePainter painter(services, scene);
+
+    if (unit.effects.next == nullptr)
+    {
+        return;
+    }
+
+    int count = 0;
+
+    for (const EffectNode* node = &unit.effects; node != nullptr; node = node->next.get())
+    {
+        if (node->icon != 0 && static_cast<i32>(node->bits) >= 0)
+        {
+            unit.picture = services.archive.GetPicture(kEffectIcons, static_cast<u16>(node->icon - 1u));
+
+            if (unit.picture != nullptr)
+            {
+                painter.SetSource(unit.picture->data.data());
+                services.painter
+                    .DrawPicture(x + count * unit.picture->width, y, unit.picture->width, unit.picture->height, 0);
+            }
+
+            ++count;
+        }
+    }
+}
+
+// What BattleUnit::RunAway decides of the frame; the draws into `scene`.
+int UnitFrame::RunAwayAdvance(BattleServices& services, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+    ScenePainter painter(services, scene);
+    ActState& run = unit.recoilAct;
+
+    if (unit.fadeLevel <= kRunEnd)
+    {
+        run = ActState{};
+        return 1;
+    }
+
+    if (run.picture == kStepPicture)
+    {
+        services.audio.PlaySound(kStepSound, services.config.soundVolume);
+    }
+
+    run.id = unit.actId;
+    unit.unk2AAC = 1;
+    run.action = kShadowAction;
+    run.hold = 0;
+
+    if (unit.held == 1)
+    {
+        run.hold = 1;
+    }
+
+    if (services.acts.Run(run) == 0)
+    {
+        return 1;
+    }
+
+    unit.picture = services.archive.GetPicture(run.frame, run.picture);
+    unit.frameFlags = run.flags;
+    unit.actOffsetX = static_cast<u16>(run.x);
+
+    if (unit.fadeLevel == kRunSoundAt)
+    {
+        run.view = kRunSound;
+        services.audio.PlaySound(run.view, services.config.soundVolume);
+        services.audio.SetSoundPan(run.view, unit.facing == 1 ? kFadePan : -kFadePan);
+        run.view = 0;
+    }
+
+    unit.frameFlags ^= Painter::Mirror;
+
+    if (unit.facing == 1)
+    {
+        unit.frameFlags ^= Painter::Mirror;
+
+        // A missing picture is read through a null pointer in the original.
+        if (run.x != 0 && unit.picture != nullptr)
+        {
+            unit.actOffsetX = static_cast<u16>(unit.picture->width - static_cast<u16>(run.x));
+        }
+    }
+
+    u16 x = 0;
+    u16 y = 0;
+    unit.GetPosition(x, y);
+    const int stepped = unit.facing == 1 ? x + kRunStep : x - kRunStep;
+    unit.SetPosition(static_cast<i16>(stepped), static_cast<i16>(y));
+
+    if (unit.picture != nullptr)
+    {
+        painter.SetSource(unit.picture->data.data());
+        painter.DrawPicture(
+            unit.placement.x - static_cast<i16>(unit.actOffsetX),
+            unit.placement.y - run.y,
+            unit.picture->width,
+            unit.picture->height,
+            unit.frameFlags,
+            PaletteArgument(*unit.picture)
+        );
+    }
+
+    --unit.fadeLevel;
+    return 0;
+}
+
+// What BattleUnit::DrawDefeatPiece decides of the frame; the draws into `scene`.
+void UnitFrame::DrawDefeatPieceAdvance(
+    BattleServices& services,
+    const Picture& picture,
+    int left,
+    int top,
+    int right,
+    int bottom,
+    int x,
+    int y,
+    int height,
+    Scene& scene
+)
+{
+    BattleUnit& unit = this->unit;
+    ScenePainter painter(services, scene);
+    painter.SetClipClamped(left, top, right, bottom);
+    DrawOptions& options = painter.Options();
+    options.tintRed = -unit.glowLevel;
+    options.tintGreen = -unit.glowLevel;
+    options.tintBlue = -unit.glowLevel;
+    painter.DrawPicture(x, y, picture.width, height, unit.drawFlags | Painter::Additive);
+}
+
+// What BattleUnit::DefeatFadeOut decides of the frame; the draws into `scene`.
+int UnitFrame::DefeatFadeOutAdvance(BattleServices& services, const Picture& picture, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+
+    if (unit.glowLevel <= kFadedOut)
+    {
+        unit.glowLevel = 0;
+        unit.slotTint = 0;
+        return unit.EndDefeat(services);
+    }
+
+    unit.StartDefeatDraw(services, picture);
+    ScenePainter painter(services, scene);
+    DrawOptions& options = painter.Options();
+    options.tintRed = unit.glowLevel;
+    options.tintGreen = unit.glowLevel;
+    options.tintBlue = unit.glowLevel;
+    painter.DrawPicture(
+        unit.placement.x - static_cast<i16>(unit.originX),
+        unit.placement.y - unit.mainAct.y,
+        picture.width,
+        picture.height,
+        unit.drawFlags | Painter::Additive
+    );
+    --unit.glowLevel;
+    return 0;
+}
+
+// What BattleUnit::DefeatFill decides of the frame; the draws into `scene`.
+int UnitFrame::DefeatFillAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+
+    if (unit.glowLevel >= picture.height)
+    {
+        unit.defeatPose = kBurstPose;
+        unit.glowLevel = 0;
+        return 0;
+    }
+
+    unit.StartDefeatDraw(services, picture);
+    ScenePainter painter(services, scene);
+    painter.DrawPicture(x, y, picture.width, picture.height, unit.drawFlags);
+
+    if (unit.glowLevel > picture.height)
+    {
+        unit.glowLevel = static_cast<i16>(picture.height - 1);
+    }
+
+    DrawOptions& options = painter.Options();
+    const bool blue = unit.defeatPose == kBlueFillPose;
+    options.tintRed = blue ? 0 : kDarkFillTint;
+    options.tintGreen = blue ? 0 : kDarkFillTint;
+    options.tintBlue = blue ? kBlueFillTint : kDarkFillTint;
+    painter.DrawPicture(
+        x,
+        y,
+        picture.width,
+        blue ? unit.glowLevel + 1 : unit.glowLevel,
+        unit.drawFlags | Painter::TintUnder
+    );
+    painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+    unit.glowLevel = static_cast<i16>(unit.glowLevel + (blue ? kBlueFillStep : kDarkFillStep));
+    return 0;
+}
+
+// What BattleUnit::DefeatHalves decides of the frame; the draws into `scene`.
+int UnitFrame::DefeatHalvesAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+    ScenePainter painter(services, scene);
+
+    if (unit.glowLevel > kSplitEnd)
+    {
+        unit.glowLevel = 0;
+        unit.slotTint = 0;
+        return unit.EndDefeat(services);
+    }
+
+    unit.StartDefeatDraw(services, picture);
+    const int shift = 2 * unit.glowLevel;
+    const int half = picture.height >> 1;
+    this->DrawDefeatPieceAdvance(
+        services,
+        picture,
+        x - shift,
+        y,
+        x + picture.width - shift,
+        y + half,
+        x - shift,
+        y,
+        picture.height,
+        scene
+    );
+    this->DrawDefeatPieceAdvance(
+        services,
+        picture,
+        x + shift,
+        y + half,
+        x + shift + picture.width,
+        y + picture.height,
+        x + shift,
+        y,
+        picture.height,
+        scene
+    );
+
+    if (unit.glowLevel >= kHalvesSlow)
+    {
+        ++unit.glowLevel;
+    }
+    else if (unit.glowLevel == kHalvesPause)
+    {
+        ++unit.slotTint;
+
+        if (unit.slotTint == kHalvesPause)
+        {
+            unit.glowLevel = kHalvesSlow;
+        }
+    }
+    else
+    {
+        unit.glowLevel = static_cast<i16>(unit.glowLevel + kHalvesFast);
+    }
+
+    painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+    return 0;
+}
+
+// What BattleUnit::DefeatHop decides of the frame; the draws into `scene`.
+int UnitFrame::DefeatHopAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+
+    if (unit.glowLevel >= static_cast<i16>(BattleUnit::HopHeights.size()))
+    {
+        unit.glowLevel = 0;
+        return unit.EndDefeat(services);
+    }
+
+    if (unit.glowLevel == 0)
+    {
+        const u16 sound = unit.castAct.view;
+        unit.standAct.view = kDefeatSound;
+        services.audio.PlaySound(sound, services.config.soundVolume);
+    }
+
+    ScenePainter painter(services, scene);
+    painter.SetSource(picture.data.data());
+    painter.Options().alpha = Painter::MaxAlpha - unit.glowLevel;
+    painter.DrawPicture(
+        x,
+        y - BattleUnit::HopHeights[static_cast<std::size_t>(unit.glowLevel)],
+        picture.width,
+        picture.height,
+        unit.drawFlags | Painter::Translucent | Painter::Flip
+    );
+    ++unit.glowLevel;
+    return 0;
+}
+
+// What BattleUnit::DefeatQuarters decides of the frame; the draws into `scene`.
+int UnitFrame::DefeatQuartersAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+    ScenePainter painter(services, scene);
+
+    if (unit.glowLevel >= kSplitEnd)
+    {
+        unit.glowLevel = 0;
+        return unit.EndDefeat(services);
+    }
+
+    unit.StartDefeatDraw(services, picture);
+    const int shift = unit.glowLevel;
+    const int halfWidth = picture.width >> 1;
+    const int halfHeight = picture.height >> 1;
+    this->DrawDefeatPieceAdvance(
+        services,
+        picture,
+        x - shift,
+        y - shift,
+        x + halfWidth - shift,
+        y + halfHeight - shift,
+        x - shift,
+        y - shift,
+        halfHeight,
+        scene
+    );
+    this->DrawDefeatPieceAdvance(
+        services,
+        picture,
+        x - shift,
+        y + halfHeight + shift,
+        x + halfWidth - shift,
+        y + picture.height + shift,
+        x - shift,
+        y + shift,
+        picture.height,
+        scene
+    );
+    this->DrawDefeatPieceAdvance(
+        services,
+        picture,
+        x + halfWidth + shift,
+        y - shift,
+        x + picture.width + shift,
+        y + halfHeight - shift,
+        x + shift,
+        y - shift,
+        picture.height,
+        scene
+    );
+    this->DrawDefeatPieceAdvance(
+        services,
+        picture,
+        x + halfWidth + shift,
+        y + halfHeight + shift,
+        x + picture.width + shift,
+        y + picture.height + shift,
+        x + shift,
+        y + shift + kQuarterDrop,
+        picture.height,
+        scene
+    );
+    ++unit.glowLevel;
+    painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+    return 0;
+}
+
+// What BattleUnit::DefeatRising decides of the frame; the draws into `scene`.
+int UnitFrame::DefeatRisingAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+
+    if (unit.glowLevel > kRisingEnd)
+    {
+        unit.glowLevel = 0;
+        return unit.EndDefeat(services);
+    }
+
+    unit.StartDefeatDraw(services, picture);
+    ScenePainter painter(services, scene);
+    const int tint = 2 * (unit.glowLevel / kRisingTintDivisor);
+    DrawOptions& options = painter.Options();
+    options.tintRed = tint;
+    options.tintGreen = tint;
+    options.tintBlue = tint;
+    options.scaleHeight = unit.glowLevel + picture.height;
+    unit.drawFlags |= Painter::ScaledGlow;
+    // The rebuild's smooth battle: the rise of the next frame, until the pose ends.
+    const int level = unit.glowLevel + kRisingStep;
+    const int risen = kRisingTintLift * tint + unit.glowLevel;
+    const int risesTo = kRisingTintLift * 2 * (level / kRisingTintDivisor) + level;
+    const PaintRecord::Motion moving({0, level > kRisingEnd ? 0 : risen - risesTo});
+    painter.DrawPicture(x, y - kRisingTintLift * tint - unit.glowLevel, picture.width, picture.height, unit.drawFlags);
+    unit.glowLevel = static_cast<i16>(unit.glowLevel + kRisingStep);
+    return 0;
+}
+
+// What BattleUnit::DefeatSink decides of the frame; the draws into `scene`.
+int UnitFrame::DefeatSinkAdvance(BattleServices& services, const Picture& picture, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+
+    if (unit.glowLevel <= kFadedOut)
+    {
+        unit.glowLevel = 0;
+        unit.slotTint = 0;
+        return unit.EndDefeat(services);
+    }
+
+    unit.StartDefeatDraw(services, picture);
+    ScenePainter painter(services, scene);
+    const int x = unit.placement.x - static_cast<i16>(unit.originX);
+    const int y = unit.placement.y - unit.mainAct.y;
+    painter.Options().alpha = Painter::MaxAlpha;
+
+    if (unit.glowLevel <= kSinkFadeFrom)
+    {
+        painter.Options().alpha = unit.glowLevel + kSinkAlphaBase;
+    }
+
+    painter.DrawPicture(x, y, picture.width, picture.height, unit.drawFlags | Painter::Translucent);
+    painter.Options().alpha = 0;
+    DrawOptions& options = painter.Options();
+    options.tintRed = unit.glowLevel;
+    options.tintGreen = unit.glowLevel;
+    options.tintBlue = unit.glowLevel;
+    painter.DrawPicture(
+        x,
+        y + kSinkStep * unit.glowLevel,
+        picture.width,
+        picture.height,
+        unit.drawFlags | Painter::Additive
+    );
+    --unit.glowLevel;
+    return 0;
+}
+
+// What BattleUnit::DefeatSlide decides of the frame; the draws into `scene`.
+int UnitFrame::DefeatSlideAdvance(BattleServices& services, const Picture& picture, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+
+    if (unit.glowLevel <= kFadedOut)
+    {
+        unit.glowLevel = 0;
+        unit.slotTint = 0;
+        return unit.EndDefeat(services);
+    }
+
+    unit.StartDefeatDraw(services, picture);
+    ScenePainter painter(services, scene);
+    const int x = unit.placement.x - static_cast<i16>(unit.originX);
+    const int y = unit.placement.y - unit.mainAct.y;
+
+    if (unit.glowLevel >= kSlideFadeFrom)
+    {
+        painter.Options().alpha = unit.glowLevel + Painter::MaxAlpha;
+    }
+
+    painter.DrawPicture(x, y, picture.width, picture.height, unit.drawFlags | Painter::Translucent);
+    painter.Options().alpha = 0;
+    DrawOptions& options = painter.Options();
+    options.tintRed = unit.glowLevel;
+    options.tintGreen = unit.glowLevel;
+    options.tintBlue = unit.glowLevel;
+
+    {
+        // The rebuild's smooth battle: the copy moves 2 back a frame until the slide ends.
+        const PaintRecord::Motion moving({unit.glowLevel - 1 <= kFadedOut ? 0 : -2, 0});
+        painter
+            .DrawPicture(x + 2 * unit.glowLevel, y, picture.width, picture.height, unit.drawFlags | Painter::Additive);
+    }
+
+    --unit.glowLevel;
+    return 0;
+}
+
+// What BattleUnit::DefeatSplitColumns decides of the frame; the draws into `scene`.
+int UnitFrame::DefeatSplitColumnsAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+    ScenePainter painter(services, scene);
+
+    if (unit.glowLevel > kSplitEnd)
+    {
+        unit.glowLevel = 0;
+        return unit.EndDefeat(services);
+    }
+
+    unit.StartDefeatDraw(services, picture);
+    const int shift = 2 * unit.glowLevel;
+    const int half = picture.height >> 1;
+    this->DrawDefeatPieceAdvance(
+        services,
+        picture,
+        x - shift,
+        y,
+        x + picture.width - shift,
+        y + half,
+        x - shift,
+        y,
+        picture.height,
+        scene
+    );
+    this->DrawDefeatPieceAdvance(
+        services,
+        picture,
+        x + shift,
+        y + half,
+        x + shift + picture.width,
+        y + picture.height,
+        x + shift,
+        y,
+        picture.height,
+        scene
+    );
+    unit.glowLevel = static_cast<i16>(unit.glowLevel + kSplitStep);
+    painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+    return 0;
+}
+
+// What BattleUnit::DefeatSplitRows decides of the frame; the draws into `scene`.
+int UnitFrame::DefeatSplitRowsAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+    ScenePainter painter(services, scene);
+
+    if (unit.glowLevel > kSplitEnd)
+    {
+        unit.glowLevel = 0;
+        return unit.EndDefeat(services);
+    }
+
+    unit.StartDefeatDraw(services, picture);
+    const int shift = 2 * unit.glowLevel;
+    const int half = picture.width >> 1;
+    // The rebuild's smooth battle: the halves part by 2 a frame more until the split ends.
+    const int parts = unit.glowLevel + kSplitStep > kSplitEnd ? 0 : 2 * kSplitStep;
+    std::optional<PaintRecord::Motion> moving(std::in_place, std::array<int, 2>{0, -parts}, true);
+    this->DrawDefeatPieceAdvance(
+        services,
+        picture,
+        x,
+        y - shift,
+        x + half,
+        y + picture.height - shift,
+        x,
+        y - shift,
+        picture.height,
+        scene
+    );
+    moving.reset();
+    moving.emplace(std::array<int, 2>{0, parts}, true);
+    this->DrawDefeatPieceAdvance(
+        services,
+        picture,
+        x + half,
+        y + shift,
+        x + picture.width,
+        y + shift + picture.height,
+        x,
+        y + shift,
+        picture.height,
+        scene
+    );
+    unit.glowLevel = static_cast<i16>(unit.glowLevel + kSplitStep);
+    painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+    return 0;
+}
+
+// What BattleUnit::DefeatStrips decides of the frame; the draws into `scene`.
+int UnitFrame::DefeatStripsAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+    ScenePainter painter(services, scene);
+
+    if (unit.glowLevel > kSplitEnd)
+    {
+        unit.glowLevel = 0;
+        return unit.EndDefeat(services);
+    }
+
+    unit.StartDefeatDraw(services, picture);
+    const int shift = 2 * unit.glowLevel;
+    const int strip = picture.height >> 2;
+    const int height = picture.height;
+    this->DrawDefeatPieceAdvance(
+        services,
+        picture,
+        x - shift,
+        y,
+        x + picture.width - shift,
+        y + strip,
+        x - shift,
+        y,
+        height,
+        scene
+    );
+    this->DrawDefeatPieceAdvance(
+        services,
+        picture,
+        x + shift,
+        y + strip,
+        x + shift + picture.width,
+        y + 2 * strip,
+        x + shift,
+        y,
+        height,
+        scene
+    );
+    this->DrawDefeatPieceAdvance(
+        services,
+        picture,
+        x - shift,
+        y + 2 * strip,
+        x + picture.width - shift,
+        y + 3 * strip,
+        x - shift,
+        y,
+        height,
+        scene
+    );
+    this->DrawDefeatPieceAdvance(
+        services,
+        picture,
+        x + shift,
+        y + 3 * strip,
+        x + shift + picture.width,
+        y + height,
+        x + shift,
+        y,
+        height,
+        scene
+    );
+    unit.glowLevel = static_cast<i16>(unit.glowLevel + kSplitStep);
+    painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+    return 0;
+}
+
+// What BattleUnit::DefeatWave decides of the frame; the draws into `scene`.
+int UnitFrame::DefeatWaveAdvance(BattleServices& services, const Picture& picture, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+
+    if (unit.glowLevel >= kWaveEnd)
+    {
+        unit.glowLevel = 0;
+        unit.slotTint = 0;
+        return unit.EndDefeat(services);
+    }
+
+    unit.StartDefeatDraw(services, picture);
+    ScenePainter painter(services, scene);
+    const int wave = unit.glowLevel / kWaveShare + 1;
+    painter.SetWave(wave);
+    painter.Options().alpha = Painter::MaxAlpha - wave;
+    painter.DrawPicture(
+        unit.placement.x - static_cast<i16>(unit.originX),
+        unit.placement.y - unit.mainAct.y,
+        picture.width,
+        picture.height,
+        unit.drawFlags | Painter::Translucent
+    );
+    painter.Options().alpha = 0;
+    painter.SetWave(0);
+    ++unit.glowLevel;
+    return 0;
+}
+
+// What BattleUnit::DefeatZoom decides of the frame; the draws into `scene`.
+int UnitFrame::DefeatZoomAdvance(BattleServices& services, const Picture& picture, Scene& scene)
+{
+    BattleUnit& unit = this->unit;
+
+    if (unit.glowLevel >= kZoomEnd)
+    {
+        unit.glowLevel = 0;
+        unit.slotTint = 0;
+        return unit.EndDefeat(services);
+    }
+
+    if (unit.glowLevel == 0)
+    {
+        services.audio.PlaySound(kDefeatSound, services.config.soundVolume);
+    }
+
+    ScenePainter painter(services, scene);
+    painter.SetZoom(
+        unit.mainAct.x,
+        unit.mainAct.y,
+        unit.glowLevel * unit.slotTint + kZoomUnit,
+        kZoomUnit - unit.glowLevel * (unit.slotTint + 1)
+    );
+    painter.SetSource(picture.data.data());
+    const int x = unit.placement.x - static_cast<i16>(unit.originX);
+    const int y = unit.placement.y - unit.mainAct.y;
+
+    if ((unit.drawFlags & Painter::Mirror) != 0)
+    {
+        painter.DrawZoomedMirrored(x, y, picture.width, picture.height);
+    }
+    else
+    {
+        painter.DrawZoomed(x, y, picture.width, picture.height);
+    }
+
+    unit.slotTint = static_cast<i16>(unit.slotTint + kZoomStep);
+    ++unit.glowLevel;
+    return 0;
 }
 
 }  // namespace swd3::smooth

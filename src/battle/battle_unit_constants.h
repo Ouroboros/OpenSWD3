@@ -31,4 +31,13 @@ constexpr i32 kFlightDoubling = 0x20;
 constexpr i32 kFlightGrowth = 0x30;
 constexpr int kArrived = -1;
 
+constexpr u8 kBlueFillPose = 0xA;
+constexpr u8 kBurstPose = 2;
+constexpr u16 kDefeatSound = 0x31;
+constexpr i16 kFadedOut = -0x20;
+constexpr i16 kInvisibleFadeFrames = 0x18;
+constexpr i32 kRunEnd = 6;  // fadeLevel at which the run is over
+constexpr i32 kRunSoundAt = 0xF;
+constexpr int kRunStep = 0x19;
+constexpr int kZoomUnit = 0x400;
 }  // namespace swd3

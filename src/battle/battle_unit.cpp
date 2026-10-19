@@ -47,12 +47,8 @@ constexpr u32 kGaugeDivisors = 9;
 constexpr std::size_t kClearedNameBytes = 0x10;  // ResetTurn clears only the start of the skill name
 constexpr int kRoleGaugeBase = 0x32;             // a party role starts a turn at kRoleGaugeBase + 0..kRoleGaugeSpread-1
 constexpr u32 kRoleGaugeSpread = 0x8C;
-constexpr int kFadeOutSound = 0x2F;
-constexpr int kFadeInSound = 0x30;
-constexpr i32 kCommand1Action = 0x28;  // the fade in action after command 1
-constexpr i32 kPoseAction = 0x30;      // the fade in action of a posed unit
-constexpr i32 kPose2Action = 0x31;     // of pose 2
-constexpr i16 kSpeedMask = 0x7FFF;     // the speed of a command with bit 15 set
+
+constexpr i16 kSpeedMask = 0x7FFF;  // the speed of a command with bit 15 set
 constexpr i32 kUnkBlock38 = 0x38;
 constexpr u32 kCommandStatusBit = 0x10000000;  // command +0x08 bit 28
 constexpr u16 kAccessoryValueMask = 0x3FFF;
@@ -61,7 +57,7 @@ constexpr u8 kDefeatPoses = 10;        // a defeated unit takes a pose of 1..kDe
 constexpr u8 kFallbackDefeatPose = 6;  // or this one when none was taken
 constexpr u16 kTurnFlashFall = 8;      // the tint pulse falls from here after ResetTurn
 constexpr int kResetClearsGuard = 8;   // ResetTurn mode bit
-constexpr u16 kPose2 = 2;
+
 constexpr u32 kEvadeRoll = 10;       // evade chances are in tenths
 constexpr u16 kInvisibleEvades = 9;  // an invisible unit evades 9 times in kEvadeRoll
 constexpr u32 kLikelyEvadeOdds = 3;
@@ -615,191 +611,20 @@ void BattleUnit::MirrorRecoil(u32 actFlags, bool forced)
 // darker in blend mode; 1 once it is gone
 int BattleUnit::DrawFadeOut(BattleServices& services)
 {
-    if (static_cast<i32>(this->status) < 0 || this->fadeLevel <= 0)
-    {
-        return 1;
-    }
-
-    this->recoilAct.id = this->actId;
-    const i32 paused = this->held;
-    this->unk2AAC = 1;
-    this->recoilAct.action = kShadowAction;
-    this->recoilAct.hold = paused == 1 ? 1 : 0;
-
-    if (services.acts.Run(this->recoilAct) == 0)
-    {
-        return 1;
-    }
-
-    this->picture = services.archive.GetPicture(this->recoilAct.frame, this->recoilAct.picture);
-
-    if ((this->recoilAct.flags & ActState::Signal) != 0)
-    {
-        this->fadeLevel = 0;
-        return 0;
-    }
-
-    if (this->fadeLevel == BattleUnit::Opaque)
-    {
-        this->recoilAct.view = kFadeOutSound;
-        services.audio.PlaySound(kFadeOutSound, services.config.soundVolume);
-        services.audio.SetSoundPan(this->recoilAct.view, this->facing == 1 ? kFadePan : -kFadePan);
-        this->recoilAct.view = 0;
-    }
-
-    if (this->picture == nullptr)
-    {
-        return 0;
-    }
-
-    services.painter.SetSource(this->picture->data.data());
-    const i32 blend = this->unk2B00;
-    const u32 actFlags = this->recoilAct.flags;
-    this->drawFlags = actFlags;
-    this->MirrorRecoil(actFlags, blend == 1);
-    const i32 level = this->fadeLevel;
-    const int x = this->placement.x - static_cast<i16>(this->originX);
-    const int y = this->placement.y - this->recoilAct.y;
-
-    if (blend == 1)
-    {
-        DrawOptions& options = services.painter.Options();
-        options.tintRed = level - BattleUnit::Opaque;
-        options.tintGreen = level - BattleUnit::Opaque;
-        options.tintBlue = level - BattleUnit::Opaque;
-        services.painter.DrawPicture(
-            x,
-            y,
-            this->picture->width,
-            this->picture->height,
-            this->drawFlags,
-            PaletteArgument(*this->picture)
-        );
-
-        if (this->held == 0)
-        {
-            --this->fadeLevel;
-        }
-
-        return 0;
-    }
-
-    services.painter.Options().alpha = level;
-    services.painter.DrawPicture(
-        x,
-        y,
-        this->picture->width,
-        this->picture->height,
-        this->drawFlags | Painter::Translucent,
-        PaletteArgument(*this->picture)
-    );
-
-    if (this->held == 0)
-    {
-        this->fadeLevel -= this->unk2A0A;
-    }
-
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).DrawFadeOutAdvance(services, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // swd32.exe 0x0047C950: fades the unit in at the draw position of `anchor` (sound 0x30 on the first frame); 1 once it
 // is fully visible
 int BattleUnit::DrawFadeIn(BattleServices& services, const BattleUnit& anchor)
 {
-    if (static_cast<i32>(this->status) < 0)
-    {
-        return 1;
-    }
-
-    if (this->brightLevel >= BattleUnit::Opaque)
-    {
-        this->recoilAct = ActState{};
-        this->unk2AAC = 0;
-        return 1;
-    }
-
-    this->unk2AAC = 1;
-    this->recoilAct.action = this->commandA == BattleUnit::UnkCommand1 ? kCommand1Action : kShadowAction;
-    this->recoilAct.id = this->actId;
-    const u16 pose = this->unk2A8C;
-
-    if (pose != 0)
-    {
-        this->recoilAct.action = pose == kPose2 ? kPose2Action : kPoseAction;
-    }
-
-    if (services.acts.Run(this->recoilAct) == 0)
-    {
-        return 0;
-    }
-
-    if ((this->recoilAct.flags & ActState::Signal) != 0)
-    {
-        this->brightLevel = BattleUnit::FadedIn;
-        return 0;
-    }
-
-    this->picture = services.archive.GetPicture(this->recoilAct.frame, 0);
-
-    if (this->brightLevel == 1)
-    {
-        this->recoilAct.view = kFadeInSound;
-        services.audio.PlaySound(kFadeInSound, services.config.soundVolume);
-        services.audio.SetSoundPan(this->recoilAct.view, this->facing == 1 ? -kFadePan : kFadePan);
-        this->recoilAct.view = 0;
-    }
-
-    if (this->picture == nullptr)
-    {
-        return 0;
-    }
-
-    services.painter.SetSource(this->picture->data.data());
-    const u32 actFlags = this->recoilAct.flags;
-    this->originX = static_cast<u16>(this->recoilAct.x);
-    const i32 blend = this->unk2B00;
-    this->drawFlags = actFlags;
-    this->recoilAct.hold = 1;
-    this->MirrorRecoil(actFlags, blend == 1);
-    u16 anchorX = 0;
-    u16 anchorY = 0;
-    anchor.GetDrawPosition(anchorX, anchorY);
-    const int x = static_cast<i16>(anchorX) - static_cast<i16>(this->originX);
-    const int y = static_cast<i16>(anchorY) - this->recoilAct.y;
-    const i32 level = this->brightLevel;
-
-    if (this->unk2B00 == 1)
-    {
-        DrawOptions& options = services.painter.Options();
-        options.tintRed = level - BattleUnit::FadedIn;
-        options.tintGreen = level - BattleUnit::FadedIn;
-        options.tintBlue = level - BattleUnit::FadedIn;
-        services.painter.DrawPicture(x, y, this->picture->width, this->picture->height, this->drawFlags);
-
-        if (this->held == 0)
-        {
-            ++this->brightLevel;
-        }
-
-        return 0;
-    }
-
-    services.painter.Options().alpha = level;
-    services.painter.DrawPicture(
-        x,
-        y,
-        this->picture->width,
-        this->picture->height,
-        this->drawFlags | Painter::Translucent,
-        PaletteArgument(*this->picture)
-    );
-
-    if (this->held == 0)
-    {
-        this->brightLevel += this->unk2A0A;
-    }
-
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).DrawFadeInAdvance(services, anchor, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // swd32.exe 0x0047CC40
@@ -1327,12 +1152,6 @@ constexpr u16 kFanShare = 0x14;  // the spirit fan guards more by each 20% of pr
 constexpr std::array<u16, 5> kFanGuards = {0x1080, 0x10C8, 0x10E9, 0x10EF, 0x12EF};
 
 // RunAway.
-constexpr i32 kRunEnd = 6;       // fadeLevel at which the run is over
-constexpr u16 kStepPicture = 1;  // the picture of the act that plays the step sound
-constexpr u16 kStepSound = 0x10F;
-constexpr i32 kRunSoundAt = 0xF;
-constexpr u16 kRunSound = 0x2F;
-constexpr int kRunStep = 0x19;
 
 // StepOrbCounters.
 constexpr u16 kOrbStep = 0xC;  // the proficiency an element orb gains from a hit of its element
@@ -1354,8 +1173,7 @@ constexpr u16 kSureRefine = 0x5A;
 constexpr u32 kRefinedKind = 0x8000000;
 
 // FadeInvisible and StepAccessoryCounters.
-constexpr i16 kInvisibleFadeFrames = 0x18;
-constexpr int kShadowLeftShift = 5;
+
 constexpr double kCounterPercent = 100.0;  // swd32.exe 0x00499D28
 
 // StepGauge.
@@ -1364,8 +1182,7 @@ constexpr int kBoostShare = 4;
 constexpr int kInvisibleSlowdown = 4;
 
 // FadeMainOut and Defense.
-constexpr i16 kFadeOutStep = 2;
-constexpr i16 kFadedOut = -0x20;
+
 constexpr int kDefenseChangePercent = 30;
 constexpr int kBarrierPercent = 70;
 
@@ -1373,7 +1190,7 @@ constexpr int kBarrierPercent = 70;
 constexpr i32 kDefeatAction = 0x24;
 constexpr i16 kDefeatedAtOnce = 0x3E8;
 constexpr u8 kRisingPose = 1;
-constexpr u8 kBurstPose = 2;
+
 constexpr u8 kSplitRowsPose = 3;
 constexpr u8 kSplitColumnsPose = 4;
 constexpr u8 kFillPose = 5;
@@ -1381,7 +1198,7 @@ constexpr u8 kFadePose = 6;
 constexpr u8 kQuartersPose = 7;
 constexpr u8 kSweepPose = 8;
 constexpr u8 kWavePose = 9;
-constexpr u8 kBlueFillPose = 0xA;
+
 constexpr u8 kSinkPose = 0xB;
 constexpr u8 kZoomPose = 0xC;
 constexpr u8 kStripsPose = 0xD;
@@ -1390,11 +1207,7 @@ constexpr u8 kSlidePose = 0xF;
 constexpr u8 kHopPose = 0x32;
 constexpr u8 kProjectedPose = 0x33;
 constexpr u8 kParticlePose = 0x64;
-constexpr u16 kDefeatSound = 0x31;
-constexpr i16 kRisingEnd = 0x1E0;
-constexpr int kRisingTintDivisor = -31;
-constexpr int kRisingTintLift = 4;
-constexpr i16 kRisingStep = 0x1F;
+
 constexpr i16 kParticlesDone = 100;
 constexpr i16 kParticlesStarted = 0x65;
 constexpr i32 kBurstTarget = 2;
@@ -1406,25 +1219,7 @@ constexpr i32 kSweepRight = 0x29E;
 constexpr i32 kSweepAbove = 0xA;
 constexpr u16 kSweepSpeed = 0x64;
 constexpr u16 kSweepLife = 0x64;
-constexpr i16 kSplitEnd = 0x20;
-constexpr i16 kSplitStep = 2;
-constexpr int kDarkFillTint = -0x18;
-constexpr int kBlueFillTint = 0x10;
-constexpr i16 kDarkFillStep = 0xE;
-constexpr i16 kBlueFillStep = 4;
-constexpr int kQuarterDrop = 0x10;
-constexpr i16 kWaveEnd = 0x2D;
-constexpr int kWaveShare = 3;
-constexpr i16 kSinkFadeFrom = -0x10;
-constexpr int kSinkAlphaBase = 0x1F;
-constexpr int kSinkStep = 10;
-constexpr i16 kZoomEnd = 0x1E;
-constexpr int kZoomUnit = 0x400;
-constexpr i16 kZoomStep = 2;
-constexpr i16 kHalvesSlow = 9;
-constexpr i16 kHalvesPause = 8;
-constexpr i16 kHalvesFast = 4;
-constexpr i16 kSlideFadeFrom = -15;
+
 constexpr i32 kProjectedAngle = 0x5A;
 constexpr i16 kProjectedStep = 2;
 constexpr i32 kProjectedTint = 5;
@@ -1442,7 +1237,6 @@ constexpr u16 kStripDivisor = 0x28;
 constexpr u16 kStripFlags = ParticleEffect::WithinRange | ParticleEffect::Mixed;
 constexpr i32 kStripTint = 0xF;
 constexpr int kShakeSpan = 3;
-constexpr u16 kEffectIcons = 0x241D;
 
 // The value of a skill script: the word at +0xE.
 u16 SkillValue(const SkillScript& skill)
@@ -1956,29 +1750,9 @@ bool BattleUnit::ApplyPendingDamage(BattleServices& services)
 // swd32.exe 0x0047E7F0: the icons (picture 0x241D, frame icon - 1) of the effects in a row, the head node first
 void BattleUnit::DrawEffectIcons(BattleServices& services, int x, int y)
 {
-    if (this->effects.next == nullptr)
-    {
-        return;
-    }
-
-    int count = 0;
-
-    for (const EffectNode* node = &this->effects; node != nullptr; node = node->next.get())
-    {
-        if (node->icon != 0 && static_cast<i32>(node->bits) >= 0)
-        {
-            this->picture = services.archive.GetPicture(kEffectIcons, static_cast<u16>(node->icon - 1u));
-
-            if (this->picture != nullptr)
-            {
-                services.painter.SetSource(this->picture->data.data());
-                services.painter
-                    .DrawPicture(x + count * this->picture->width, y, this->picture->width, this->picture->height, 0);
-            }
-
-            ++count;
-        }
-    }
+    smooth::Scene scene;
+    smooth::UnitFrame(*this).DrawEffectIconsAdvance(services, x, y, scene);
+    scene.DrawAll(services);
 }
 
 // swd32.exe 0x0047E880: ReviveBit revives a defeated party role (its record no longer marked, its turn reset);
@@ -3575,84 +3349,10 @@ int BattleUnit::DrawRecoil(BattleServices& services, ActState& act, i16 y)
 // with the shadow picture's palette as the draw argument; 1 once the act waits.
 int BattleUnit::DrawAimed(BattleServices& services, BattleUnit& target, ActState& act, i16 shiftX, i16 shiftY)
 {
-    u16 targetX = 0;
-    u16 targetY = 0;
-    act.hold = 0;
-
-    if (this->held == 1)
-    {
-        act.hold = 1;
-    }
-
-    if (services.acts.Run(act) == 0)
-    {
-        return 0;
-    }
-
-    this->picture = services.archive.GetPicture(act.frame, act.picture);
-
-    // A missing picture is read through a null pointer in the original.
-    if (this->picture == nullptr)
-    {
-        return 0;
-    }
-
-    this->unk26A4 = act.flags;
-    this->aimOffsetX = static_cast<u16>(act.x);
-    this->aimAnchorX = act.anchorX;
-
-    if (this->facing == 1)
-    {
-        this->unk26A4 ^= Painter::Mirror;
-        this->aimOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
-
-        if (act.anchorX != 0)
-        {
-            this->aimAnchorX = static_cast<u16>(this->picture->width - act.anchorX);
-        }
-    }
-
-    target.GetDrawPosition(targetX, targetY);
-    this->aimX = static_cast<u16>(targetX - this->aimOffsetX);
-    this->aimY = static_cast<u16>(targetY - static_cast<u16>(act.y));
-
-    if ((act.anchorX != 0 || act.anchorY != 0) && (shiftX != 0 || shiftY != 0))
-    {
-        this->aimX = static_cast<u16>(this->actX + this->actAnchorX - this->aimAnchorX);
-        this->aimY = static_cast<u16>(this->actY - act.anchorY + shiftY);
-    }
-
-    this->ClearMoveAxes(this->aimX, this->aimY);
-    services.audio.PlaySound(act.view, services.config.soundVolume);
-    services.audio.SetSoundPan(act.view, static_cast<i16>(targetX) >= kPanCentre ? kFadePan : -kFadePan);
-    act.view = 0;
-
-    if ((act.target & ActState::Quakes) != 0)
-    {
-        services.state.quaking = 1;
-        services.state.quakePhase = 0;
-    }
-
-    if ((act.target & ActState::UnkTarget4) != 0)
-    {
-        act.target = 0;
-        target.RaiseFlag26B8();
-    }
-
-    services.painter.SetSource(this->picture->data.data());
-
-    // The original reads the palette of the shadow picture through a null pointer when there is none.
-    const DrawArgument argument =
-        this->shadowPicture != nullptr ? PaletteArgument(*this->shadowPicture) : DrawArgument{};
-    services.painter.DrawPicture(
-        static_cast<i16>(this->aimX),
-        static_cast<i16>(this->aimY),
-        this->picture->width,
-        this->picture->height,
-        this->unk26A4,
-        argument
-    );
-    return act.waiting == 1 ? 1 : 0;
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).DrawAimedAdvance(services, target, act, shiftX, shiftY, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // swd32.exe 0x004820A0: one frame of the trail: every third frame the images move back one place and the current
@@ -3769,103 +3469,9 @@ void BattleUnit::TrailLastQueuedAction(i32 tintRed, i32 tintGreen, i32 tintBlue)
 // destination with the act's own flags; a blending act (both bits of ActState::Signal) takes the main act's level.
 void BattleUnit::DrawActionAt(BattleServices& services, i16 x, i16 y, ActState& act)
 {
-    if (services.acts.Run(act) == 0)
-    {
-        return;
-    }
-
-    this->picture = services.archive.GetPicture(act.frame, act.picture);
-
-    // A missing picture is read through a null pointer in the original.
-    if (this->picture == nullptr)
-    {
-        return;
-    }
-
-    Painter& painter = services.painter;
-    this->frameFlags = act.flags;
-    this->actOffsetX = static_cast<u16>(act.x);
-    this->actAnchorX = act.anchorX;
-
-    auto mirror = [this, &act]
-    {
-        this->frameFlags ^= Painter::Mirror;
-        this->actOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
-
-        if (act.anchorX != 0)
-        {
-            this->actAnchorX = static_cast<u16>(this->picture->width - act.anchorX);
-        }
-    };
-
-    if (this->unk2B00 == 1 || this->unk2B04 == 1)
-    {
-        if (this->facing == 1)
-        {
-            mirror();
-        }
-
-        if (this->unk2B00 == 1)
-        {
-            this->frameFlags |= Painter::Additive;
-        }
-    }
-
-    if (this->facing == 1 && this->unk2B00 == 0 && this->unk2B04 == 0)
-    {
-        mirror();
-    }
-
-    this->actX = static_cast<u16>(x - this->actOffsetX);
-    this->actY = static_cast<u16>(y - static_cast<u16>(act.y));
-    services.audio.PlaySound(act.view, services.config.soundVolume);
-    const int centre = static_cast<i16>(this->actX) + static_cast<i16>(this->actOffsetX);
-    services.audio.SetSoundPan(act.view, centre >= kPanCentre ? kFadePan : -kFadePan);
-    act.view = 0;
-    const int shadowHeight = this->picture->height / kShadowShare;
-    DrawOptions& options = painter.Options();
-    options.scaleHeight = shadowHeight;
-    options.shear = this->picture->height >> kShadowShearShift;
-    const bool invisible = (this->status & BattleUnit::Invisible) != 0;
-    const int tint = invisible ? kInvisibleShadowTint : kShadowTint;
-    options.tintRed = tint;
-    options.tintGreen = tint;
-    options.tintBlue = tint;
-    this->unk26A4 = (this->frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
-    painter.SetSource(this->picture->data.data());
-    painter.DrawPicture(
-        static_cast<i16>(this->actX),
-        act.y + static_cast<i16>(this->actY) - shadowHeight,
-        this->picture->width,
-        this->picture->height,
-        this->unk26A4
-    );
-    painter.SetSource(this->picture->data.data());
-
-    if (invisible)
-    {
-        painter.DrawPicture(
-            static_cast<i16>(this->actX),
-            static_cast<i16>(this->actY),
-            this->picture->width,
-            this->picture->height,
-            this->frameFlags | Painter::SmearUnder
-        );
-        return;
-    }
-
-    if ((this->frameFlags & ActState::Signal) == ActState::Signal)
-    {
-        painter.Options().alpha = this->mainAct.signal;
-    }
-
-    painter.DrawPicture(
-        static_cast<i16>(this->actX),
-        static_cast<i16>(this->actY),
-        this->picture->width,
-        this->picture->height,
-        this->frameFlags
-    );
+    smooth::Scene scene;
+    smooth::UnitFrame(*this).DrawActionAtAdvance(services, x, y, act, scene);
+    scene.DrawAll(services);
 }
 
 // swd32.exe 0x00482840: one frame of the unit walking back from the target to its place (the attack act, or `id` /
@@ -3917,79 +3523,10 @@ int BattleUnit::LoadEnemyCommand(Database& database, int choice, u32& act)
 // Invisible, both clear InvisibleMark and UnkMark400 (mode 1 also glowLevel)
 int BattleUnit::FadeInvisible(BattleServices& services, int mode)
 {
-    Painter& painter = services.painter;
-    this->mainAct.hold = 0;
-
-    if (this->held == 1)
-    {
-        this->mainAct.hold = 1;
-    }
-
-    this->picture = services.archive.GetPicture(this->mainAct.frame, this->mainAct.picture);
-    ++this->glowLevel;
-
-    if (this->glowLevel > kInvisibleFadeFrames)
-    {
-        this->glowLevel = kInvisibleFadeFrames;
-
-        if (mode == 1)
-        {
-            this->marks = static_cast<u16>(this->marks & ~(BattleUnit::InvisibleMark | BattleUnit::UnkMark400));
-            this->glowLevel = 0;
-            return 0;
-        }
-
-        if (mode == 0)
-        {
-            this->status |= BattleUnit::Invisible;
-        }
-
-        this->marks = static_cast<u16>(this->marks & ~(BattleUnit::InvisibleMark | BattleUnit::UnkMark400));
-        return 0;
-    }
-
-    // A missing picture is read through a null pointer in the original.
-    if (this->picture == nullptr || this->shadowPicture == nullptr)
-    {
-        return 1;
-    }
-
-    painter.SetSource(this->picture->data.data());
-    const int shadowHeight = this->shadowPicture->height / kShadowShare;
-    DrawOptions& options = painter.Options();
-    options.scaleHeight = shadowHeight;
-    options.shear = this->shadowPicture->height >> kShadowShearShift;
-    options.tintRed = kInvisibleShadowTint;
-    options.tintGreen = kInvisibleShadowTint;
-    options.tintBlue = kInvisibleShadowTint;
-    this->unk26A4 = (this->drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
-    const int x = this->placement.x - static_cast<i16>(this->originX);
-    painter.DrawPicture(
-        x - kShadowLeftShift,
-        this->placement.y - shadowHeight,
-        this->shadowPicture->width,
-        this->shadowPicture->height,
-        this->unk26A4
-    );
-
-    if (mode == 0)
-    {
-        painter.Options().alpha = Painter::MaxAlpha - this->glowLevel / 2;
-    }
-    else if (mode == 1)
-    {
-        painter.Options().alpha = this->glowLevel / 2;
-    }
-
-    this->unk26A4 = this->drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip);
-    painter.DrawPicture(
-        x,
-        this->placement.y - this->mainAct.y,
-        this->picture->width,
-        this->picture->height,
-        this->unk26A4 | Painter::Translucent
-    );
-    return 1;
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).FadeInvisibleAdvance(services, mode, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // swd32.exe 0x004830A0: the proficiency counters of the two worn accessories (their unk50) stepped by `amount` up to
@@ -4130,99 +3667,29 @@ int BattleUnit::StepGauge(BattleServices& services, int boost)
 // frame while not held); 1 once at kFadedOut (the recoil act cleared)
 int BattleUnit::FadeMainOut(BattleServices& services)
 {
-    this->DrawMainFaded(services, this->glowLevel);
-
-    if (this->held == 0)
-    {
-        this->glowLevel = static_cast<i16>(this->glowLevel - kFadeOutStep);
-    }
-
-    if (this->glowLevel > kFadedOut)
-    {
-        return 0;
-    }
-
-    this->glowLevel = kFadedOut;
-    this->recoilAct = ActState{};
-    return 1;
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).FadeMainOutAdvance(services, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // swd32.exe 0x0047F580: one frame of the unit's main act and overlay brightening (tinted by brightLevel, rising by 1
 // a frame while not held); 1 once at 0 (UnkMark200 cleared, brightLevel 1)
 int BattleUnit::FadeMainIn(BattleServices& services)
 {
-    this->DrawMainFaded(services, this->brightLevel);
-
-    if (this->held == 0)
-    {
-        ++this->brightLevel;
-    }
-
-    if (this->brightLevel < 0)
-    {
-        return 0;
-    }
-
-    this->marks = static_cast<u16>(this->marks & ~BattleUnit::UnkMark200);
-    this->brightLevel = 1;
-    return 1;
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).FadeMainInAdvance(services, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // The draw of FadeMainOut and FadeMainIn (inline in both): the main act's picture and its overlay additively at the
 // unit's place, tinted by `tint`.
 void BattleUnit::DrawMainFaded(BattleServices& services, int tint)
 {
-    Painter& painter = services.painter;
-    ActState& act = this->mainAct;
-    act.hold = 0;
-
-    if (this->held == 1)
-    {
-        act.hold = 1;
-    }
-
-    this->picture = services.archive.GetPicture(act.frame, act.picture);
-
-    auto tintAll = [&painter, tint]
-    {
-        DrawOptions& options = painter.Options();
-        options.tintRed = tint;
-        options.tintGreen = tint;
-        options.tintBlue = tint;
-    };
-
-    const int x = this->placement.x - static_cast<i16>(this->originX);
-    const int y = this->placement.y - act.y;
-
-    // A missing picture is read through a null pointer in the original.
-    if (this->picture != nullptr)
-    {
-        painter.SetSource(this->picture->data.data());
-        tintAll();
-        painter.DrawPicture(x, y, this->picture->width, this->picture->height, this->drawFlags | Painter::Additive);
-    }
-
-    if (act.rotation == 0 || act.actionCode == 0)
-    {
-        return;
-    }
-
-    tintAll();
-    this->unk2554 = services.archive.GetPicture(act.rotation, static_cast<u16>(act.actionCode - 1));
-
-    if (this->unk2554 == nullptr)
-    {
-        return;
-    }
-
-    painter.SetSource(this->unk2554->data.data());
-    painter.DrawPicture(
-        x + static_cast<i16>(act.offsetX),
-        y + static_cast<i16>(act.offsetY),
-        this->unk2554->width,
-        this->unk2554->height,
-        this->drawFlags | Painter::Additive
-    );
+    smooth::Scene scene;
+    smooth::UnitFrame(*this).DrawMainFadedAdvance(services, tint, scene);
+    scene.DrawAll(services);
 }
 
 // swd32.exe 0x00480EE0: the unit's defence: a party role's from its battle record (+30% DefenseUp, -30% DefenseDown,
@@ -4437,42 +3904,18 @@ void BattleUnit::DrawDefeatPiece(
     int height
 )
 {
-    Painter& painter = services.painter;
-    painter.SetClipClamped(left, top, right, bottom);
-    DrawOptions& options = painter.Options();
-    options.tintRed = -this->glowLevel;
-    options.tintGreen = -this->glowLevel;
-    options.tintBlue = -this->glowLevel;
-    painter.DrawPicture(x, y, picture.width, height, this->drawFlags | Painter::Additive);
+    smooth::Scene scene;
+    smooth::UnitFrame(*this).DrawDefeatPieceAdvance(services, picture, left, top, right, bottom, x, y, height, scene);
+    scene.DrawAll(services);
 }
 
 // Pose 1: the picture rises by glowLevel (0x1F more a frame up to 0x1E0), glowing, scaled up by glowLevel rows.
 int BattleUnit::DefeatRising(BattleServices& services, const Picture& picture, int x, int y)
 {
-    if (this->glowLevel > kRisingEnd)
-    {
-        this->glowLevel = 0;
-        return this->EndDefeat(services);
-    }
-
-    this->StartDefeatDraw(services, picture);
-    Painter& painter = services.painter;
-    const int tint = 2 * (this->glowLevel / kRisingTintDivisor);
-    DrawOptions& options = painter.Options();
-    options.tintRed = tint;
-    options.tintGreen = tint;
-    options.tintBlue = tint;
-    options.scaleHeight = this->glowLevel + picture.height;
-    this->drawFlags |= Painter::ScaledGlow;
-    // The rebuild's smooth battle: the rise of the next frame, until the pose ends.
-    const int level = this->glowLevel + kRisingStep;
-    const int risen = kRisingTintLift * tint + this->glowLevel;
-    const int risesTo = kRisingTintLift * 2 * (level / kRisingTintDivisor) + level;
-    const PaintRecord::Motion moving({0, level > kRisingEnd ? 0 : risen - risesTo});
-    painter
-        .DrawPicture(x, y - kRisingTintLift * tint - this->glowLevel, picture.width, picture.height, this->drawFlags);
-    this->glowLevel = static_cast<i16>(this->glowLevel + kRisingStep);
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).DefeatRisingAdvance(services, picture, x, y, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // Poses 2 and 8: the picture breaks into particles, into its middle (2, with the cast act's sound) or off the side
@@ -4565,501 +4008,112 @@ void BattleUnit::DecodeForParticles(BattleServices& services, const Picture& pic
 // Pose 3: the left half rises and the right half sinks by 2 a frame, darkening, up to 0x20.
 int BattleUnit::DefeatSplitRows(BattleServices& services, const Picture& picture, int x, int y)
 {
-    if (this->glowLevel > kSplitEnd)
-    {
-        this->glowLevel = 0;
-        return this->EndDefeat(services);
-    }
-
-    this->StartDefeatDraw(services, picture);
-    const int shift = 2 * this->glowLevel;
-    const int half = picture.width >> 1;
-    // The rebuild's smooth battle: the halves part by 2 a frame more until the split ends.
-    const int parts = this->glowLevel + kSplitStep > kSplitEnd ? 0 : 2 * kSplitStep;
-    std::optional<PaintRecord::Motion> moving(std::in_place, std::array<int, 2>{0, -parts}, true);
-    this->DrawDefeatPiece(
-        services,
-        picture,
-        x,
-        y - shift,
-        x + half,
-        y + picture.height - shift,
-        x,
-        y - shift,
-        picture.height
-    );
-    moving.reset();
-    moving.emplace(std::array<int, 2>{0, parts}, true);
-    this->DrawDefeatPiece(
-        services,
-        picture,
-        x + half,
-        y + shift,
-        x + picture.width,
-        y + shift + picture.height,
-        x,
-        y + shift,
-        picture.height
-    );
-    this->glowLevel = static_cast<i16>(this->glowLevel + kSplitStep);
-    services.painter.SetClipClamped(0, 0, Display::Width, Display::Height);
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).DefeatSplitRowsAdvance(services, picture, x, y, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // Pose 4: the top half slides left and the bottom half right by 2 a frame, darkening, up to 0x20.
 int BattleUnit::DefeatSplitColumns(BattleServices& services, const Picture& picture, int x, int y)
 {
-    if (this->glowLevel > kSplitEnd)
-    {
-        this->glowLevel = 0;
-        return this->EndDefeat(services);
-    }
-
-    this->StartDefeatDraw(services, picture);
-    const int shift = 2 * this->glowLevel;
-    const int half = picture.height >> 1;
-    this->DrawDefeatPiece(
-        services,
-        picture,
-        x - shift,
-        y,
-        x + picture.width - shift,
-        y + half,
-        x - shift,
-        y,
-        picture.height
-    );
-    this->DrawDefeatPiece(
-        services,
-        picture,
-        x + shift,
-        y + half,
-        x + shift + picture.width,
-        y + picture.height,
-        x + shift,
-        y,
-        picture.height
-    );
-    this->glowLevel = static_cast<i16>(this->glowLevel + kSplitStep);
-    services.painter.SetClipClamped(0, 0, Display::Width, Display::Height);
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).DefeatSplitColumnsAdvance(services, picture, x, y, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // Poses 5 and 10: a tint fills the picture from the top (5: dark, 0xE rows a frame; 10: blue, 4 rows a frame); once
 // full the unit goes on with pose 2.
 int BattleUnit::DefeatFill(BattleServices& services, const Picture& picture, int x, int y)
 {
-    if (this->glowLevel >= picture.height)
-    {
-        this->defeatPose = kBurstPose;
-        this->glowLevel = 0;
-        return 0;
-    }
-
-    this->StartDefeatDraw(services, picture);
-    Painter& painter = services.painter;
-    painter.DrawPicture(x, y, picture.width, picture.height, this->drawFlags);
-
-    if (this->glowLevel > picture.height)
-    {
-        this->glowLevel = static_cast<i16>(picture.height - 1);
-    }
-
-    DrawOptions& options = painter.Options();
-    const bool blue = this->defeatPose == kBlueFillPose;
-    options.tintRed = blue ? 0 : kDarkFillTint;
-    options.tintGreen = blue ? 0 : kDarkFillTint;
-    options.tintBlue = blue ? kBlueFillTint : kDarkFillTint;
-    painter.DrawPicture(
-        x,
-        y,
-        picture.width,
-        blue ? this->glowLevel + 1 : this->glowLevel,
-        this->drawFlags | Painter::TintUnder
-    );
-    painter.SetClipClamped(0, 0, Display::Width, Display::Height);
-    this->glowLevel = static_cast<i16>(this->glowLevel + (blue ? kBlueFillStep : kDarkFillStep));
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).DefeatFillAdvance(services, picture, x, y, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // Pose 6: the picture darkens by one tint step a frame at the unit's place down to -0x20.
 int BattleUnit::DefeatFadeOut(BattleServices& services, const Picture& picture)
 {
-    if (this->glowLevel <= kFadedOut)
-    {
-        this->glowLevel = 0;
-        this->slotTint = 0;
-        return this->EndDefeat(services);
-    }
-
-    this->StartDefeatDraw(services, picture);
-    Painter& painter = services.painter;
-    DrawOptions& options = painter.Options();
-    options.tintRed = this->glowLevel;
-    options.tintGreen = this->glowLevel;
-    options.tintBlue = this->glowLevel;
-    painter.DrawPicture(
-        this->placement.x - static_cast<i16>(this->originX),
-        this->placement.y - this->mainAct.y,
-        picture.width,
-        picture.height,
-        this->drawFlags | Painter::Additive
-    );
-    --this->glowLevel;
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).DefeatFadeOutAdvance(services, picture, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // Pose 7: the four quarters fly apart diagonally by 1 a frame, darkening, up to 0x20 (the top left one drawn half
 // high, the bottom right one 0x10 lower: as in the original).
 int BattleUnit::DefeatQuarters(BattleServices& services, const Picture& picture, int x, int y)
 {
-    if (this->glowLevel >= kSplitEnd)
-    {
-        this->glowLevel = 0;
-        return this->EndDefeat(services);
-    }
-
-    this->StartDefeatDraw(services, picture);
-    const int shift = this->glowLevel;
-    const int halfWidth = picture.width >> 1;
-    const int halfHeight = picture.height >> 1;
-    this->DrawDefeatPiece(
-        services,
-        picture,
-        x - shift,
-        y - shift,
-        x + halfWidth - shift,
-        y + halfHeight - shift,
-        x - shift,
-        y - shift,
-        halfHeight
-    );
-    this->DrawDefeatPiece(
-        services,
-        picture,
-        x - shift,
-        y + halfHeight + shift,
-        x + halfWidth - shift,
-        y + picture.height + shift,
-        x - shift,
-        y + shift,
-        picture.height
-    );
-    this->DrawDefeatPiece(
-        services,
-        picture,
-        x + halfWidth + shift,
-        y - shift,
-        x + picture.width + shift,
-        y + halfHeight - shift,
-        x + shift,
-        y - shift,
-        picture.height
-    );
-    this->DrawDefeatPiece(
-        services,
-        picture,
-        x + halfWidth + shift,
-        y + halfHeight + shift,
-        x + picture.width + shift,
-        y + picture.height + shift,
-        x + shift,
-        y + shift + kQuarterDrop,
-        picture.height
-    );
-    ++this->glowLevel;
-    services.painter.SetClipClamped(0, 0, Display::Width, Display::Height);
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).DefeatQuartersAdvance(services, picture, x, y, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // Pose 9: the picture waves away (wave row glowLevel / 3 + 1), more transparent each frame, up to 0x2D frames.
 int BattleUnit::DefeatWave(BattleServices& services, const Picture& picture)
 {
-    if (this->glowLevel >= kWaveEnd)
-    {
-        this->glowLevel = 0;
-        this->slotTint = 0;
-        return this->EndDefeat(services);
-    }
-
-    this->StartDefeatDraw(services, picture);
-    Painter& painter = services.painter;
-    const int wave = this->glowLevel / kWaveShare + 1;
-    painter.SetWave(wave);
-    painter.Options().alpha = Painter::MaxAlpha - wave;
-    painter.DrawPicture(
-        this->placement.x - static_cast<i16>(this->originX),
-        this->placement.y - this->mainAct.y,
-        picture.width,
-        picture.height,
-        this->drawFlags | Painter::Translucent
-    );
-    painter.Options().alpha = 0;
-    painter.SetWave(0);
-    ++this->glowLevel;
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).DefeatWaveAdvance(services, picture, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // Pose 11: the picture sinks by 10 a frame, darkening, under its fading translucent copy, down to -0x20.
 int BattleUnit::DefeatSink(BattleServices& services, const Picture& picture)
 {
-    if (this->glowLevel <= kFadedOut)
-    {
-        this->glowLevel = 0;
-        this->slotTint = 0;
-        return this->EndDefeat(services);
-    }
-
-    this->StartDefeatDraw(services, picture);
-    Painter& painter = services.painter;
-    const int x = this->placement.x - static_cast<i16>(this->originX);
-    const int y = this->placement.y - this->mainAct.y;
-    painter.Options().alpha = Painter::MaxAlpha;
-
-    if (this->glowLevel <= kSinkFadeFrom)
-    {
-        painter.Options().alpha = this->glowLevel + kSinkAlphaBase;
-    }
-
-    painter.DrawPicture(x, y, picture.width, picture.height, this->drawFlags | Painter::Translucent);
-    painter.Options().alpha = 0;
-    DrawOptions& options = painter.Options();
-    options.tintRed = this->glowLevel;
-    options.tintGreen = this->glowLevel;
-    options.tintBlue = this->glowLevel;
-    painter.DrawPicture(
-        x,
-        y + kSinkStep * this->glowLevel,
-        picture.width,
-        picture.height,
-        this->drawFlags | Painter::Additive
-    );
-    --this->glowLevel;
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).DefeatSinkAdvance(services, picture, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // Pose 12: the picture zooms about the main act's position, wider and flatter each frame, for 0x1E frames.
 int BattleUnit::DefeatZoom(BattleServices& services, const Picture& picture)
 {
-    if (this->glowLevel >= kZoomEnd)
-    {
-        this->glowLevel = 0;
-        this->slotTint = 0;
-        return this->EndDefeat(services);
-    }
-
-    if (this->glowLevel == 0)
-    {
-        services.audio.PlaySound(kDefeatSound, services.config.soundVolume);
-    }
-
-    Painter& painter = services.painter;
-    painter.SetZoom(
-        this->mainAct.x,
-        this->mainAct.y,
-        this->glowLevel * this->slotTint + kZoomUnit,
-        kZoomUnit - this->glowLevel * (this->slotTint + 1)
-    );
-    painter.SetSource(picture.data.data());
-    const int x = this->placement.x - static_cast<i16>(this->originX);
-    const int y = this->placement.y - this->mainAct.y;
-
-    if ((this->drawFlags & Painter::Mirror) != 0)
-    {
-        painter.DrawZoomedMirrored(x, y, picture.width, picture.height);
-    }
-    else
-    {
-        painter.DrawZoomed(x, y, picture.width, picture.height);
-    }
-
-    this->slotTint = static_cast<i16>(this->slotTint + kZoomStep);
-    ++this->glowLevel;
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).DefeatZoomAdvance(services, picture, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // Pose 13: four strips of a quarter of the height slide apart, alternately left and right, by 2 a frame, darkening.
 int BattleUnit::DefeatStrips(BattleServices& services, const Picture& picture, int x, int y)
 {
-    if (this->glowLevel > kSplitEnd)
-    {
-        this->glowLevel = 0;
-        return this->EndDefeat(services);
-    }
-
-    this->StartDefeatDraw(services, picture);
-    const int shift = 2 * this->glowLevel;
-    const int strip = picture.height >> 2;
-    const int height = picture.height;
-    this->DrawDefeatPiece(services, picture, x - shift, y, x + picture.width - shift, y + strip, x - shift, y, height);
-    this->DrawDefeatPiece(
-        services,
-        picture,
-        x + shift,
-        y + strip,
-        x + shift + picture.width,
-        y + 2 * strip,
-        x + shift,
-        y,
-        height
-    );
-    this->DrawDefeatPiece(
-        services,
-        picture,
-        x - shift,
-        y + 2 * strip,
-        x + picture.width - shift,
-        y + 3 * strip,
-        x - shift,
-        y,
-        height
-    );
-    this->DrawDefeatPiece(
-        services,
-        picture,
-        x + shift,
-        y + 3 * strip,
-        x + shift + picture.width,
-        y + height,
-        x + shift,
-        y,
-        height
-    );
-    this->glowLevel = static_cast<i16>(this->glowLevel + kSplitStep);
-    services.painter.SetClipClamped(0, 0, Display::Width, Display::Height);
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).DefeatStripsAdvance(services, picture, x, y, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // Pose 14: the halves slide apart like pose 4, fast (4 a frame) to 8, then waiting 8 frames, then 1 a frame to 0x20.
 int BattleUnit::DefeatHalves(BattleServices& services, const Picture& picture, int x, int y)
 {
-    if (this->glowLevel > kSplitEnd)
-    {
-        this->glowLevel = 0;
-        this->slotTint = 0;
-        return this->EndDefeat(services);
-    }
-
-    this->StartDefeatDraw(services, picture);
-    const int shift = 2 * this->glowLevel;
-    const int half = picture.height >> 1;
-    this->DrawDefeatPiece(
-        services,
-        picture,
-        x - shift,
-        y,
-        x + picture.width - shift,
-        y + half,
-        x - shift,
-        y,
-        picture.height
-    );
-    this->DrawDefeatPiece(
-        services,
-        picture,
-        x + shift,
-        y + half,
-        x + shift + picture.width,
-        y + picture.height,
-        x + shift,
-        y,
-        picture.height
-    );
-
-    if (this->glowLevel >= kHalvesSlow)
-    {
-        ++this->glowLevel;
-    }
-    else if (this->glowLevel == kHalvesPause)
-    {
-        ++this->slotTint;
-
-        if (this->slotTint == kHalvesPause)
-        {
-            this->glowLevel = kHalvesSlow;
-        }
-    }
-    else
-    {
-        this->glowLevel = static_cast<i16>(this->glowLevel + kHalvesFast);
-    }
-
-    services.painter.SetClipClamped(0, 0, Display::Width, Display::Height);
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).DefeatHalvesAdvance(services, picture, x, y, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // Pose 15: the picture slides right by 2 a frame, darkening, beside its fading translucent copy, down to -0x20.
 int BattleUnit::DefeatSlide(BattleServices& services, const Picture& picture)
 {
-    if (this->glowLevel <= kFadedOut)
-    {
-        this->glowLevel = 0;
-        this->slotTint = 0;
-        return this->EndDefeat(services);
-    }
-
-    this->StartDefeatDraw(services, picture);
-    Painter& painter = services.painter;
-    const int x = this->placement.x - static_cast<i16>(this->originX);
-    const int y = this->placement.y - this->mainAct.y;
-
-    if (this->glowLevel >= kSlideFadeFrom)
-    {
-        painter.Options().alpha = this->glowLevel + Painter::MaxAlpha;
-    }
-
-    painter.DrawPicture(x, y, picture.width, picture.height, this->drawFlags | Painter::Translucent);
-    painter.Options().alpha = 0;
-    DrawOptions& options = painter.Options();
-    options.tintRed = this->glowLevel;
-    options.tintGreen = this->glowLevel;
-    options.tintBlue = this->glowLevel;
-
-    {
-        // The rebuild's smooth battle: the copy moves 2 back a frame until the slide ends.
-        const PaintRecord::Motion moving({this->glowLevel - 1 <= kFadedOut ? 0 : -2, 0});
-        painter.DrawPicture(
-            x + 2 * this->glowLevel,
-            y,
-            picture.width,
-            picture.height,
-            this->drawFlags | Painter::Additive
-        );
-    }
-
-    --this->glowLevel;
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).DefeatSlideAdvance(services, picture, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // Pose 50: the picture hops (BattleUnit::HopHeights) upside down, more transparent each frame, for 15 frames; the
 // cast act's sound plays first (the stand act's sound set to kDefeatSound).
 int BattleUnit::DefeatHop(BattleServices& services, const Picture& picture, int x, int y)
 {
-    if (this->glowLevel >= static_cast<i16>(BattleUnit::HopHeights.size()))
-    {
-        this->glowLevel = 0;
-        return this->EndDefeat(services);
-    }
-
-    if (this->glowLevel == 0)
-    {
-        const u16 sound = this->castAct.view;
-        this->standAct.view = kDefeatSound;
-        services.audio.PlaySound(sound, services.config.soundVolume);
-    }
-
-    Painter& painter = services.painter;
-    painter.SetSource(picture.data.data());
-    painter.Options().alpha = Painter::MaxAlpha - this->glowLevel;
-    painter.DrawPicture(
-        x,
-        y - BattleUnit::HopHeights[static_cast<std::size_t>(this->glowLevel)],
-        picture.width,
-        picture.height,
-        this->drawFlags | Painter::Translucent | Painter::Flip
-    );
-    ++this->glowLevel;
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).DefeatHopAdvance(services, picture, x, y, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // Pose 51: the picture projected (DrawScaled) at the unit's place, growing by 4 in both scales and turned, every
@@ -6410,81 +5464,10 @@ bool BattleUnit::FanGuards(BattleServices& services, u16 ailment)
 // facing, stepping kRunStep a frame; its first picture plays a step sound, fadeLevel kRunSoundAt the run sound.
 int BattleUnit::RunAway(BattleServices& services)
 {
-    Painter& painter = services.painter;
-    ActState& run = this->recoilAct;
-
-    if (this->fadeLevel <= kRunEnd)
-    {
-        run = ActState{};
-        return 1;
-    }
-
-    if (run.picture == kStepPicture)
-    {
-        services.audio.PlaySound(kStepSound, services.config.soundVolume);
-    }
-
-    run.id = this->actId;
-    this->unk2AAC = 1;
-    run.action = kShadowAction;
-    run.hold = 0;
-
-    if (this->held == 1)
-    {
-        run.hold = 1;
-    }
-
-    if (services.acts.Run(run) == 0)
-    {
-        return 1;
-    }
-
-    this->picture = services.archive.GetPicture(run.frame, run.picture);
-    this->frameFlags = run.flags;
-    this->actOffsetX = static_cast<u16>(run.x);
-
-    if (this->fadeLevel == kRunSoundAt)
-    {
-        run.view = kRunSound;
-        services.audio.PlaySound(run.view, services.config.soundVolume);
-        services.audio.SetSoundPan(run.view, this->facing == 1 ? kFadePan : -kFadePan);
-        run.view = 0;
-    }
-
-    this->frameFlags ^= Painter::Mirror;
-
-    if (this->facing == 1)
-    {
-        this->frameFlags ^= Painter::Mirror;
-
-        // A missing picture is read through a null pointer in the original.
-        if (run.x != 0 && this->picture != nullptr)
-        {
-            this->actOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(run.x));
-        }
-    }
-
-    u16 x = 0;
-    u16 y = 0;
-    this->GetPosition(x, y);
-    const int stepped = this->facing == 1 ? x + kRunStep : x - kRunStep;
-    this->SetPosition(static_cast<i16>(stepped), static_cast<i16>(y));
-
-    if (this->picture != nullptr)
-    {
-        painter.SetSource(this->picture->data.data());
-        painter.DrawPicture(
-            this->placement.x - static_cast<i16>(this->actOffsetX),
-            this->placement.y - run.y,
-            this->picture->width,
-            this->picture->height,
-            this->frameFlags,
-            PaletteArgument(*this->picture)
-        );
-    }
-
-    --this->fadeLevel;
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::UnitFrame(*this).RunAwayAdvance(services, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // swd32.exe 0x0046F6E0: the worn element orbs (AccessoryKind 0x33) step their proficiency counters (their unk50) in
