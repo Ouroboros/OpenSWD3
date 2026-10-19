@@ -1649,6 +1649,7 @@ void Menu::SkillsDraw()
 
     if (page.descriptionSlide != 0 || page.descriptionTop == kDescriptionUp)
     {
+        const i32 topBefore = page.descriptionTop;
         const int half = page.descriptionSlide >> 1;
         page.descriptionSlide = half;
         page.descriptionTop -= half;
@@ -1667,13 +1668,15 @@ void Menu::SkillsDraw()
             page.descriptionSlide = 0;
         }
 
+        this->Move(SkillsDescriptionValue, page.descriptionTop, topBefore, page.descriptionTop);
+        const i32 top = this->Shown(SkillsDescriptionValue, page.descriptionTop);
         const ItemNode* chosen = ItemAfter(page.top + page.row, page.list);
         FillBox(
             owner.painter,
             kDescriptionBoxX,
-            page.descriptionTop - kDescriptionBoxUp,
+            top - kDescriptionBoxUp,
             kDescriptionBoxWidth,
-            kDescriptionBoxBottom - page.descriptionTop,
+            kDescriptionBoxBottom - top,
             kTabsShade,
             kTabsShade,
             kTabsBlue,
@@ -1684,7 +1687,7 @@ void Menu::SkillsDraw()
             owner.archive,
             panel.frame,
             kDescriptionTextX,
-            page.descriptionTop,
+            top,
             kDescriptionFrameRight,
             kDescriptionFrameBottom,
             0,
@@ -1693,7 +1696,7 @@ void Menu::SkillsDraw()
         owner.DrawWrappedText(
             chosen != nullptr ? chosen->record.description.value_or(std::string()) : std::string(),
             kDescriptionTextX,
-            page.descriptionTop,
+            top,
             kDescriptionLines,
             kDescriptionWidth
         );

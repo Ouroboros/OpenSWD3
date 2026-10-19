@@ -27,7 +27,8 @@ class Notices
 public:
     static constexpr int HiddenFlag = 0xE;
 
-    void Draw(TextFont& font, Painter& painter, const GameState& state, const TextColors& colors);
+    // `step` false (a menu frame painted again between frames): drawn without counting their frames down.
+    void Draw(TextFont& font, Painter& painter, const GameState& state, const TextColors& colors, bool step = true);
 
     Notice head;
 };

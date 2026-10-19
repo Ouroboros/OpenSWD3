@@ -69,6 +69,8 @@ public:
     void SetFadeLength(int length);
     int FadeMode() const;
     int Fading() const;
+    // The rebuild's smooth motion: no sound is played while a menu frame is painted again between frames.
+    void SetMuted(bool value);
 
 private:
     AudioSystem system;
@@ -79,6 +81,7 @@ private:
     int musicFadeMode = 0;    // 0x004B7380
     int musicFadeLength = 0;  // 0x004B74F0
     int musicFading = 0;      // 0x004B7378
+    bool muted = false;
 };
 
 }  // namespace swd3

@@ -316,6 +316,43 @@ public:
     void ItemsAfterSave(int saved);
     void DrawScrollBar(int x, int y, int height, int arrows, float from, float to, MenuScrollBar& bar);
 
+    // The rebuild's continuous motion of the menus and the shop (deviations.md): the values a frame steps that move a
+    // picture (the slides, the growing boxes) or change a glow or a tint. A frame decides each step; the frames painted
+    // between it and the next run its drawing again from the state it started from, each value shown that far along
+    // its step.
+    enum MovingValue : std::size_t
+    {
+        SlideValue = 0,                        // Menu::slide
+        EquipSlideValue,                       // EquipPage::slide
+        DescriptionTopValue,                   // Menu::descriptionTop
+        SkillsDescriptionValue,                // SkillsPage::descriptionTop
+        ItemsGrowValue,                        // the frames the items page's boxes have grown, in GrowSteps
+        TitleGlowValue,                        // Menu::titleGlow
+        TabGlowValue,                          // Menu::tabGlow, a value for each tab
+        FaceSlideValue = TabGlowValue + Tabs,  // BattleState::faceSlides, a value for each role
+        MovingValues = FaceSlideValue + Party::Roles,
+    };
+
+    static constexpr i32 GrowSteps = 0x100;  // ItemsGrowValue: the parts of a frame of growth
+
+    // A frame steps value `which` from `from` to `to`, having drawn `drawn`: the frames painted until the next frame
+    // show it moving there over the frame interval from where it is shown now.
+    void Move(std::size_t which, i32 drawn, i32 from, i32 to);
+    // Where value `which` is shown when the frame drew `value`: that value in a frame; between frames how far its step
+    // has gone (the value drawn when it took no step).
+    i32 Shown(std::size_t which, i32 value) const;
+    // The drawing of the menu frame (the main menu or the shop) starts: the state it reads and the screen under it are
+    // kept; its end: whether the frames between it and the next can paint it again.
+    void KeepFrame();
+    void FrameDrawn();
+    // The drawing of the frame changes what cannot be put back (`replayable` false): it is not painted again.
+    void KeepFrameFrom(bool replayable);
+    // The menu frame painted again on the 640 x 480 `target` with its values where they are now; false when the frame
+    // drawn stays shown (no step under way).
+    bool PaintBetween(Pixel* target);
+    bool Replaying() const;
+    void LogTotals() const;
+
     // The bestiary (role page 0x11).
     void BestiaryEnter();
     void BestiaryLeave();
@@ -628,7 +665,46 @@ public:
     InventoryPage itemsPage;
 
 private:
+    // A step of a moving value: from `from` to `to` over `length` milliseconds from `start` (the time of game frame
+    // `frame`), the frame having drawn `drawn`.
+    struct ValueMotion
+    {
+        double from = 0.0;
+        i32 to = 0;
+        i32 drawn = 0;
+        u32 start = 0;
+        i32 length = 1;
+        u32 frame = 0;
+    };
+
+    struct FrameState;
+
     void Call(Handler handler);
+    // The menu frame drawn from Present: the page over its background, the tabs, the gold, the pointer, the tint and
+    // the notices; false when the page closed the menu.
+    bool PaintPage(bool replay);
+    void Replay(Pixel* target, u32 now, bool exact, i32 pointerX, i32 pointerY);
+    double ValueAt(const ValueMotion& motion, u32 now) const;
+    bool Moving(u32 now) const;
+    void SaveFrame(FrameState& kept) const;
+    void LoadFrame(const FrameState& kept);
+
+    std::array<ValueMotion, MovingValues> motions = {};
+    std::unique_ptr<FrameState> frameBefore;  // the state the frame's drawing started from
+    std::unique_ptr<FrameState> frameAfter;   // the state it left (put back after a painting between)
+    std::vector<Pixel> frameBase;             // the screen under the frame's drawing
+    std::vector<Pixel> frameShown;            // the frame drawn
+    bool frameKept = false;
+    bool frameReplayable = false;
+    u32 frameKeptAt = 0;  // Game::gameFrames of the frame kept
+    bool frameChecked = false;
+    bool replaying = false;
+    bool replayExact = false;  // the values shown as the frame drew them
+    // The frames kept to be painted again, those whose drawing run again did not give them, the paintings between.
+    u32 framesKept = 0;
+    u32 framesMismatched = 0;
+    u32 framesPainted = 0;
+    u32 replayNow = 0;
 
     Game& game;
 };

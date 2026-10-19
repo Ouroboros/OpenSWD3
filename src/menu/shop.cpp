@@ -1270,9 +1270,7 @@ void Game::DrawEquipmentCompare()
 // and the scroll bar; the total, equip and too little money prompts; the pointer
 void Game::ShopFrame()
 {
-    BattleState& shop = this->battleState;
     Menu& menu = this->menu;
-    const auto color = static_cast<Pixel>(this->painter.MakeColor(kTextRed, kTextGreen, kTextBlue));
 
     if ((this->menuState & Game::MenuEntering) != 0)
     {
@@ -1295,9 +1293,20 @@ void Game::ShopFrame()
         return;
     }
 
+    menu.KeepFrame();
     this->drawSurface = this->painter.LockSurface(*this->offscreen);
     this->painter.SetTarget(this->drawSurface);
     this->painter.UnlockSurface(*this->offscreen);
+    this->DrawShop();
+    menu.FrameDrawn();
+    this->ShowMenuFrame();
+}
+
+void Game::DrawShop()
+{
+    BattleState& shop = this->battleState;
+    Menu& menu = this->menu;
+    const auto color = static_cast<Pixel>(this->painter.MakeColor(kTextRed, kTextGreen, kTextBlue));
     std::copy(shop.shopScreen.begin(), shop.shopScreen.end(), this->drawSurface);
     ActState& panel = this->battleMessages.panelAct;
 
@@ -1330,10 +1339,11 @@ void Game::ShopFrame()
         {
             if (this->state.GameFlag(Party::FirstRoleFlag + role))
             {
+                const auto index = static_cast<std::size_t>(role);
                 this->actDrawer.Draw(
-                    menu.items[static_cast<std::size_t>(role)],
-                    shop.faceSlides[static_cast<std::size_t>(role)] + kFaceX,
-                    kFaceTops[static_cast<std::size_t>(role)]
+                    menu.items[index],
+                    menu.Shown(Menu::FaceSlideValue + index, shop.faceSlides[index]) + kFaceX,
+                    kFaceTops[index]
                 );
             }
         }
@@ -1493,7 +1503,6 @@ void Game::ShopFrame()
 
     this->scene.pointerRole.act.action = Scene::ChoicePointer;
     this->RefreshCursor();
-    this->ShowFrame();
 }
 
 // The list page of the shop (inline in 0x0044EA60, stages from 2).
@@ -1724,6 +1733,17 @@ void Game::DrawShopChosen(const ItemNode& item, Pixel color)
         face.action = kFaceChosenAction;
     }
 
+    // The rebuild's continuous motion: the faces drawn this frame slide to where the next frame draws them.
+    const std::array<i16, Party::Roles> drawn = shop.faceSlides;
+
+    auto move = [&menu, &shop, &drawn]()
+    {
+        for (std::size_t role = 0; role < drawn.size(); ++role)
+        {
+            menu.Move(Menu::FaceSlideValue + role, drawn[role], drawn[role], shop.faceSlides[role]);
+        }
+    };
+
     for (i16& slide : shop.faceSlides)
     {
         slide = std::min<i16>(static_cast<i16>(slide + 1), kFaceSlideMost);
@@ -1731,6 +1751,7 @@ void Game::DrawShopChosen(const ItemNode& item, Pixel color)
 
     if ((item.record.data.kind & kEquipmentKinds) == 0)
     {
+        move();
         return;
     }
 
@@ -1747,6 +1768,8 @@ void Game::DrawShopChosen(const ItemNode& item, Pixel color)
         slide = std::max<i16>(static_cast<i16>(slide - 2), kFaceSlideLeast);
         menu.items[static_cast<std::size_t>(role)].action = role == 0 ? kFaceUnusableAction : kFaceAction;
     }
+
+    move();
 }
 
 }  // namespace swd3

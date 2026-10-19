@@ -82,6 +82,8 @@ public:
     int FirstKeyDown() const;
     int PressKey(int scanCode);
     int ReadMouse(int& x, int& y);
+    // The rebuild's smooth motion: the screen position ReadMouse would give now, the origin left as it is.
+    void PeekMouse(int& x, int& y) const;
     void SetMousePosition(int x, int y);
     void SetSensitivity(double sensitivity);
     void Release();

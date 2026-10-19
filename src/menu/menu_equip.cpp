@@ -1215,8 +1215,10 @@ void Menu::EquipDraw()
         page.unk4FCD5C = page.stage;
     }
 
+    const i32 slideBefore = page.slide;
     page.slide >>= 1;
-    const int slide = page.slide;
+    this->Move(EquipSlideValue, page.slide, slideBefore, page.slide);
+    const int slide = this->Shown(EquipSlideValue, page.slide);
     owner.acts.Run(panel);
     this->face.id = kFaceAct;
     this->face.direction = 0;
@@ -1578,7 +1580,7 @@ void Menu::EquipDrawStats(int slot, int role)
     const EquipStats& now = page.stats[static_cast<std::size_t>(std::clamp(role, 0, Party::Roles - 1))];
     const EquipStats& tried = page.stats[kTriedStats];
     const auto color = static_cast<Pixel>(owner.painter.MakeColor(kTextRed, kTextGreen, kTextBlue));
-    const int slide = page.slide;
+    const int slide = this->Shown(EquipSlideValue, page.slide);
 
     auto line = [&](std::u8string_view label, int value, int changed, int lineY, int topX)
     {
@@ -1688,6 +1690,7 @@ void Menu::DrawDescriptionBox(std::string_view text)
         return;
     }
 
+    const i32 topBefore = this->descriptionTop;
     const int half = this->descriptionSlide >> 1;
     this->descriptionSlide = half;
     int top = this->descriptionTop - half;
@@ -1709,6 +1712,8 @@ void Menu::DrawDescriptionBox(std::string_view text)
         this->descriptionSlide = 0;
     }
 
+    this->Move(DescriptionTopValue, this->descriptionTop, topBefore, this->descriptionTop);
+    top = this->Shown(DescriptionTopValue, this->descriptionTop);
     FillBox(
         owner.painter,
         kDescriptionBoxX,
@@ -1725,13 +1730,13 @@ void Menu::DrawDescriptionBox(std::string_view text)
         owner.archive,
         owner.battleMessages.panelAct.frame,
         kDescriptionTextX,
-        this->descriptionTop,
+        top,
         kDescriptionFrameRight,
         kDescriptionFrameBottom,
         0,
         kFrameBorder
     );
-    owner.DrawWrappedText(text, kDescriptionTextX, this->descriptionTop, kDescriptionLines, kDescriptionWidth);
+    owner.DrawWrappedText(text, kDescriptionTextX, top, kDescriptionLines, kDescriptionWidth);
 }
 
 // swd32.exe 0x00442960: picture `picture` of `file` at (x, y), opaque, as ActDrawer::DrawPicture (the original also

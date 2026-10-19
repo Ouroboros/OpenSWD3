@@ -59,6 +59,11 @@ bool ActArchive::ScriptRestarted() const
     return this->restarted;
 }
 
+void ActArchive::SetScriptRestarted(bool value)
+{
+    this->restarted = value;
+}
+
 ActState ActArchive::Peek(const ActState& state)
 {
     ActState next = state;

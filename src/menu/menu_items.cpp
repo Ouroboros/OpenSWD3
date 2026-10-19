@@ -1815,16 +1815,26 @@ void Menu::ItemsDraw()
     }
 
     owner.acts.Run(panel);
-    int grown = kGrowFrames;
+    // The rebuild's continuous motion: the boxes grow on to where this frame grew them (in Menu::GrowSteps a frame).
+    constexpr int kGrowParts = kGrowFrames * Menu::GrowSteps;
+    const int growth = std::min(elapsed, kGrowFrames) * Menu::GrowSteps;
 
-    if (elapsed < kGrowFrames)
+    if (elapsed >= 1 && elapsed <= kGrowFrames)
+    {
+        this->Move(ItemsGrowValue, growth, growth - Menu::GrowSteps, growth);
+    }
+
+    const int grownParts = this->Shown(ItemsGrowValue, growth);
+    int grown = kGrowParts;
+
+    if (grownParts < kGrowParts)
     {
         FillBox(
             painter,
             kListBoxX,
             kListBoxY,
             kListBoxWidth,
-            kListBoxGrowth * elapsed / kGrowFrames + kListBoxExtra,
+            kListBoxGrowth * grownParts / kGrowParts + kListBoxExtra,
             0,
             0,
             kListBoxBlue,
@@ -1837,7 +1847,7 @@ void Menu::ItemsDraw()
             kListFrameLeft,
             kListFrameTop,
             kListFrameRight,
-            kListBoxGrowth * elapsed / kGrowFrames + kListFrameTop,
+            kListBoxGrowth * grownParts / kGrowParts + kListFrameTop,
             0,
             kFrameBorder
         );
@@ -1853,10 +1863,10 @@ void Menu::ItemsDraw()
             0,
             kFrameBorder
         );
-        grown = elapsed;
+        grown = grownParts;
     }
 
-    owner.mediumFont.SetClip(0, 0, kTabsClipGrowth * grown / kGrowFrames + kTabsClipLeft, kScreenHeight);
+    owner.mediumFont.SetClip(0, 0, kTabsClipGrowth * grown / kGrowParts + kTabsClipLeft, kScreenHeight);
 
     for (int tab = 0; tab < static_cast<int>(kModeLabels.size()); ++tab)
     {
@@ -1905,7 +1915,7 @@ void Menu::ItemsDraw()
     this->unk4FD0A8.action = page.category + kFirstCategoryAction;
     owner.actDrawer.Draw(this->unk4FD0A8, kCategoryIconStep * page.category + kCategoryIconX, kCategoryIconY);
     owner.largeFont
-        .SetClip(0, 0, kScreenWidth, kListClipGrowth * std::min(elapsed, kGrowFrames) / kGrowFrames + kListClipTop);
+        .SetClip(0, 0, kScreenWidth, kListClipGrowth * std::min(grownParts, kGrowParts) / kGrowParts + kListClipTop);
     std::string line;  // the original's command line buffer, written by the rows and read by the followers
 
     if (this->itemObjects != nullptr)

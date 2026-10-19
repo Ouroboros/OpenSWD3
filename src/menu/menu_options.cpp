@@ -2138,6 +2138,8 @@ void Menu::OptionsDraw()
 
             if (page.choice >= kQuitFadeFrom)
             {
+                // The rebuild's continuous motion: the fade ends by leaving the game, which is not painted again.
+                this->KeepFrameFrom(false);
                 this->tint = kQuitFadeFrom - page.choice++;
 
                 if (page.choice >= kQuitFadeEnd)

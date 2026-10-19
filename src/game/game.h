@@ -153,6 +153,8 @@ private:
     // The rebuild's smooth motion (deviations.md): a map frame kept for the frames drawn until the next game frame
     // (shown at once without smooth motion), and one such frame drawn and shown when it is due.
     void ShowMapFrame();
+    // The same for a frame of the main menu or the shop (Menu::PaintBetween).
+    void ShowMenuFrame();
     bool PresentBetween();
     // The rebuild's continuous motion (deviations.md) up to now, at most to the due time of the next game frame.
     void AdvanceMotion();
@@ -197,6 +199,8 @@ private:
     void UnpackParty(std::span<const u8> data);
     void DrawSlotsPage();
     void ShopFrame();
+    // The page of the shop drawn over the grey map (part of 0x0044EA60), also painted again between frames.
+    void DrawShop();
     void OpenShop();
     void ResetShopActs();
     void CloseShop();
@@ -586,6 +590,7 @@ private:
     bool smoothMotion = false;
     bool mapFrameShown = false;
     bool battleFrameShown = false;  // the last game frame showed a battle frame that can be drawn again
+    bool menuFrameShown = false;    // the last game frame showed a frame of the main menu or the shop
     u32 gameFrames = 0;
     u32 framesBetween = 0;
     u64 paintBetweenNs = 0;  // the time the frames between took to paint, in all and the longest
@@ -594,6 +599,7 @@ private:
     u64 frameRatePeriodNs = 0;
     u64 nextDrawNs = 0;
     std::unique_ptr<Surface> smoothScreen;  // the frames between, at the render scale
+    std::unique_ptr<Surface> menuScreen;    // the menu frames between
     int renderScaleSetting = 0;             // [display] render_scale (AutoRenderScale: by the window)
     bool vsync = true;                      // [display] vsync
     i64 frameRate = 0;                      // [display] frame_rate (0: no limit)

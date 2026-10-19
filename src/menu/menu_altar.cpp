@@ -1342,6 +1342,9 @@ void Menu::AltarDraw()
 
     if (altar.stage == kMorphing)
     {
+        // The rebuild's continuous motion: the morph changes its pictures each frame, which are not kept.
+        this->KeepFrameFrom(false);
+
         if (altar.counter > kMorphShown)
         {
             this->background.id = kFaceAct;

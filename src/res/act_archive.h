@@ -51,6 +51,8 @@ public:
     void SetUseCache(int value);
     int CacheBytes() const;
     bool ScriptRestarted() const;
+    // The rebuild's smooth motion: the flag put back after a menu frame is painted again.
+    void SetScriptRestarted(bool value);
     int Run(ActState& state);
     // The rebuild's smooth battle: `state` one frame on (a copy run; what Run leaves in the archive is kept).
     ActState Peek(const ActState& state);

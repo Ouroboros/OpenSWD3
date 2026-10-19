@@ -24,7 +24,7 @@ constexpr std::size_t kNoticeColor = 3;
 
 // swd32.exe 0x004153D0: right aligned in the small font, one line every 24 pixels (unless flag 0xE hides them); each
 // counts its frames down and is freed after its last
-void Notices::Draw(TextFont& font, Painter& painter, const GameState& state, const TextColors& colors)
+void Notices::Draw(TextFont& font, Painter& painter, const GameState& state, const TextColors& colors, bool step)
 {
     font.SetBackground(TextFont::NoBackground);
     font.SetShadow(0);
@@ -52,7 +52,11 @@ void Notices::Draw(TextFont& font, Painter& painter, const GameState& state, con
 
         y += kLineHeight;
 
-        if (--notice.frames == 0)
+        if (!step)
+        {
+            previous = &notice;
+        }
+        else if (--notice.frames == 0)
         {
             previous->next = std::move(notice.next);
         }

@@ -1,5 +1,6 @@
 #include "input/input.h"
 
+#include <algorithm>
 #include <cstring>
 
 #include "crt/msvc.h"
@@ -119,6 +120,13 @@ int Input::ReadMouse(int& x, int& y)
     x = screenX;
     y = screenY;
     return buttons;
+}
+
+void Input::PeekMouse(int& x, int& y) const
+{
+    const MouseState state = this->device.Mouse();
+    x = std::clamp((state.x - this->mouseOriginX) * this->sensitivity / Input::Tenths, 0, Input::ScreenRight);
+    y = std::clamp((state.y - this->mouseOriginY) * this->sensitivity / Input::Tenths, 0, Input::ScreenBottom);
 }
 
 // swd32.exe 0x00437430: moves the origin so that the current axes map to (x, y) clamped to the screen. The original

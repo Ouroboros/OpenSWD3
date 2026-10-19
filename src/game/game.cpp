@@ -357,6 +357,7 @@ int Game::Run([[maybe_unused]] std::u8string_view commandLine)
     const ScaleChoice renderScale = shown.renderScale.value_or(ScaleChoice{});
     this->renderScaleSetting = renderScale.automatic ? Game::AutoRenderScale : static_cast<int>(renderScale.factor);
     this->smoothScreen = std::make_unique<Surface>(Display::Width, Display::Height);
+    this->menuScreen = std::make_unique<Surface>(Display::Width, Display::Height);
     this->ApplyDisplay();
 
     if (Game::CheckStart() == 0)
@@ -425,6 +426,7 @@ int Game::Run([[maybe_unused]] std::u8string_view commandLine)
     }
 
     this->battleSmooth.LogTotals();
+    this->menu.LogTotals();
     return 0;
 }
 
@@ -1301,6 +1303,18 @@ void Game::ShowMapFrame()
     this->mapFrameShown = true;
 }
 
+void Game::ShowMenuFrame()
+{
+    if (!this->smoothMotion)
+    {
+        this->ShowFrame();
+        return;
+    }
+
+    this->CopyToPrimary();
+    this->menuFrameShown = true;
+}
+
 void Game::AdvanceMotion()
 {
     const u32 now = SystemUptime();
@@ -1347,8 +1361,9 @@ void Game::StoreDisplay() const
 
 bool Game::PresentBetween()
 {
-    if (!this->smoothMotion || !(this->mapFrameShown || this->battleFrameShown) || this->smoothScreen == nullptr ||
-        this->active == 0 || this->running == 0 || this->quit || (this->systemFlags & Game::VideoPlaying) != 0)
+    if (!this->smoothMotion || !(this->mapFrameShown || this->battleFrameShown || this->menuFrameShown) ||
+        this->smoothScreen == nullptr || this->menuScreen == nullptr || this->active == 0 || this->running == 0 ||
+        this->quit || (this->systemFlags & Game::VideoPlaying) != 0)
     {
         return false;
     }
@@ -1389,6 +1404,18 @@ bool Game::PresentBetween()
         this->paintBetweenNs += painted;
         this->paintBetweenMostNs = std::max(this->paintBetweenMostNs, painted);
         this->display.Present(shown);
+        ++this->framesBetween;
+        return true;
+    }
+
+    if (this->menuFrameShown)
+    {
+        Surface& screen = *this->menuScreen;
+        const bool painted = this->menu.PaintBetween(screen.Pixels());
+        const u64 took = SDL_GetTicksNS() - paintStart;
+        this->paintBetweenNs += took;
+        this->paintBetweenMostNs = std::max(this->paintBetweenMostNs, took);
+        this->display.Present(painted ? screen : *this->offscreen);
         ++this->framesBetween;
         return true;
     }
@@ -1708,6 +1735,7 @@ void Game::MainFrame()
     this->fieldView.AdvanceMotion(this->lastFrame);
     this->mapFrameShown = false;
     this->battleFrameShown = false;
+    this->menuFrameShown = false;
     ++this->gameFrames;
 
     if ((this->deviceFlags & 1) != 0)

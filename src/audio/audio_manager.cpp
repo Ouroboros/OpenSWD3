@@ -77,6 +77,11 @@ MusicQueue& AudioManager::Queue()
 // swd32.exe 0x00485610: sound `id` once, centred, at the options' volume 0..11
 int AudioManager::PlaySound(u16 id, int volume)
 {
+    if (this->muted)
+    {
+        return 1;
+    }
+
     return this->effects.Play(id, ScaledVolume(volume), 0, 1);
 }
 
@@ -89,8 +94,17 @@ int AudioManager::SetSoundPan(u16 id, int pan)
 // swd32.exe 0x00485670
 int AudioManager::PlaySoundAt(u16 id, u16 volume)
 {
-    this->effects.Play(id, ScaledVolume(volume), 0, 1);
+    if (!this->muted)
+    {
+        this->effects.Play(id, ScaledVolume(volume), 0, 1);
+    }
+
     return 1;
+}
+
+void AudioManager::SetMuted(bool value)
+{
+    this->muted = value;
 }
 
 // swd32.exe 0x00485710: fades the music out in one update

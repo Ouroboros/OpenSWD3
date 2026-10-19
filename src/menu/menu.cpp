@@ -127,13 +127,6 @@ bool Repeating(const ButtonState& button, i32 parity)
 
 }  // namespace
 
-Menu::Menu(Game& game)
-    : game(game)
-{
-}
-
-Menu::~Menu() = default;
-
 void Menu::Nothing()
 {
 }
@@ -598,11 +591,45 @@ void Menu::Present()
 {
     Game& owner = this->game;
     GameState& state = owner.state;
+    // The rebuild's continuous motion: the main menu of the map only (the title and the system menus as they were).
+    const bool smooth = (owner.menuState & Game::MenuNumberMask) == Game::MainMenu;
 
-    if (this->frames == kOpenedFrame)
+    if (smooth)
     {
-        this->slide = kSlideMaximum;
+        this->KeepFrame();
     }
+
+    owner.drawSurface = owner.painter.LockSurface(*owner.offscreen);
+    owner.painter.SetTarget(owner.drawSurface);
+    owner.painter.UnlockSurface(*owner.offscreen);
+
+    if (!this->PaintPage(false))
+    {
+        return;
+    }
+
+    if (owner.menuMode == Menu::NoSlotsMode && smooth)
+    {
+        this->FrameDrawn();
+        owner.ShowMenuFrame();
+    }
+    else if (owner.menuMode == Menu::NoSlotsMode)
+    {
+        owner.ShowFrame();
+    }
+
+    this->lastPage = this->page;
+    this->pointerX = state.pointerX;
+    this->pointerY = state.pointerY;
+}
+
+// The drawing of Present on the target set; `replay`: painted again between frames (the notices kept as they are).
+bool Menu::PaintPage(bool replay)
+{
+    Game& owner = this->game;
+    GameState& state = owner.state;
+    const i32 slideBefore = this->frames == kOpenedFrame ? kSlideMaximum : this->slide;
+    this->slide = slideBefore;
 
     const bool swapped = state.GameFlag(kSwappedPagesFlag);
     const bool doubling = (this->page == Menu::UnkPageF && this->code > Menu::MainCode && swapped) ||
@@ -611,15 +638,12 @@ void Menu::Present()
     if (!doubling)
     {
         this->slide >>= 1;
+        this->Move(SlideValue, this->slide, slideBefore, this->slide);
     }
-
-    owner.drawSurface = owner.painter.LockSurface(*owner.offscreen);
-    owner.painter.SetTarget(owner.drawSurface);
-    owner.painter.UnlockSurface(*owner.offscreen);
 
     if (this->code != Menu::SystemPage)
     {
-        int offset = this->frames < kSlideFrames ? this->slide : 0;
+        int offset = this->frames < kSlideFrames ? this->Shown(SlideValue, this->slide) : 0;
 
         if (swapped && this->page == Menu::UnkPageF)
         {
@@ -635,7 +659,7 @@ void Menu::Present()
 
         if (owner.menuState == Game::NoMenu)
         {
-            return;
+            return false;
         }
     }
 
@@ -650,20 +674,25 @@ void Menu::Present()
                     this->slide = 1;
                 }
 
-                owner.actDrawer.Draw(this->unk4FC840, -this->slide, 0);
-                this->DrawRoleTabs(this->slide);
+                const i32 drawn = this->slide;
+                const i32 shown = this->Shown(SlideValue, drawn);
+                owner.actDrawer.Draw(this->unk4FC840, -shown, 0);
+                this->DrawRoleTabs(shown);
                 this->slide *= kSlideGrowth;
 
                 if (this->slide > kSlideMaximum)
                 {
                     this->slide = kSlideMaximum;
                 }
+
+                this->Move(SlideValue, drawn, drawn, this->slide);
             }
             else
             {
+                const i32 shown = this->Shown(SlideValue, this->slide);
                 this->DrawPageTitle();
-                owner.actDrawer.Draw(this->unk4FC840, -this->slide, 0);
-                this->DrawRoleTabs(this->slide);
+                owner.actDrawer.Draw(this->unk4FC840, -shown, 0);
+                this->DrawRoleTabs(shown);
             }
         }
 
@@ -690,13 +719,10 @@ void Menu::Present()
                 .TintPixels(std::span<u16>(owner.drawSurface, Display::Pixels), this->tint, this->tint, this->tint);
         }
 
-        owner.notices.Draw(owner.smallFont, owner.painter, state, owner.textColors);
-        owner.ShowFrame();
+        owner.notices.Draw(owner.smallFont, owner.painter, state, owner.textColors, !replay);
     }
 
-    this->lastPage = this->page;
-    this->pointerX = state.pointerX;
-    this->pointerY = state.pointerY;
+    return true;
 }
 
 // swd32.exe 0x0043A880: the title of the role page: glowing in (out on page 1's code) over 8..16 steps; once fully lit
@@ -716,9 +742,11 @@ void Menu::DrawPageTitle()
         this->titleGlow = last - 1 < kTitleDim ? kTitleDim : last - 1;
     }
 
+    this->Move(TitleGlowValue, this->titleGlow, last, this->titleGlow);
+    const i32 glow = this->Shown(TitleGlowValue, this->titleGlow);
     const int spacing = swapped ? kSwappedTitleSpacing : kTitleSpacing;
     this->unk4FC790.direction = swapped ? ActState::Right : ActState::Left;
-    owner.actDrawer.DrawGhost(this->unk4FC790, 0, kTitleArrowY, this->titleGlow);
+    owner.actDrawer.DrawGhost(this->unk4FC790, 0, kTitleArrowY, glow);
     this->unk4FC790.flags &= Painter::RleSource | Painter::Mirror | Painter::Flip;
     this->unk4FBEE0.id = Scene::InterfaceAct;
     const int x = spacing * (this->page - Menu::FirstRolePage) + kTitleX;
@@ -756,9 +784,9 @@ void Menu::DrawPageTitle()
 
     owner.painter.SetSource(picture->data.data());
     DrawOptions& options = owner.painter.Options();
-    options.tintBlue = this->titleGlow - kTitleLit;
-    options.tintGreen = this->titleGlow - kTitleLit;
-    options.tintRed = this->titleGlow - kTitleLit;
+    options.tintBlue = glow - kTitleLit;
+    options.tintGreen = glow - kTitleLit;
+    options.tintRed = glow - kTitleLit;
     owner.painter.DrawPicture(
         x - this->unk4FBEE0.x,
         kTitleY - this->unk4FBEE0.y,
@@ -779,6 +807,7 @@ void Menu::DrawRoleTabs(int offset)
     for (std::size_t index = 0; index < Menu::Tabs; ++index)
     {
         i8& glow = this->tabGlow[index];
+        const i8 glowBefore = glow;
 
         if (this->unk4FBECC == index)
         {
@@ -794,6 +823,9 @@ void Menu::DrawRoleTabs(int offset)
             glow = kTabGlowMaximum;
         }
 
+        this->Move(TabGlowValue + index, glow, glowBefore, glow);
+        const i32 shownGlow = this->Shown(TabGlowValue + index, glow);
+
         const MenuTab& tab = this->tabs[index];
 
         if (tab.role == Menu::NoRole)
@@ -803,13 +835,13 @@ void Menu::DrawRoleTabs(int offset)
 
         const RoleRecord& role = owner.party.roles[index];
         const int x = tab.x - offset;
-        owner.actDrawer.DrawGhost(this->items[index], x, tab.y, glow);
+        owner.actDrawer.DrawGhost(this->items[index], x, tab.y, shownGlow);
         painter.SetClipClamped(0, 0, kBarLength * role.hitPoints / role.maxHitPoints + kBarX, Display::Height);
-        owner.actDrawer.DrawGhost(this->hitPointBar, kBarX - offset, tab.y - kHitPointBarUp, glow);
+        owner.actDrawer.DrawGhost(this->hitPointBar, kBarX - offset, tab.y - kHitPointBarUp, shownGlow);
         painter.SetClipClamped(0, 0, kBarLength * role.spirit / role.maxSpirit + kBarX, Display::Height);
-        owner.actDrawer.DrawGhost(this->spiritBar, kBarX - offset, tab.y - kSpiritBarUp, glow);
+        owner.actDrawer.DrawGhost(this->spiritBar, kBarX - offset, tab.y - kSpiritBarUp, shownGlow);
         painter.SetClipClamped(0, 0, kBarLength * role.stamina / role.maxStamina + kBarX, Display::Height);
-        owner.actDrawer.DrawGhost(this->staminaBar, kBarX - offset, tab.y + kStaminaBarDown, glow);
+        owner.actDrawer.DrawGhost(this->staminaBar, kBarX - offset, tab.y + kStaminaBarDown, shownGlow);
         owner.mediumFont.DrawText(
             painter.Target(),
             x - kNameLeft,
