@@ -12,6 +12,11 @@
 namespace swd3
 {
 
+namespace smooth
+{
+class MessagesFrame;
+}
+
 class ActArchive;
 class BattleHud;
 class BattleState;
@@ -52,6 +57,8 @@ struct BattleMessage
 // The battle messages and the result panels of a battle (0x00469080..0x00469960).
 class BattleMessages
 {
+    friend class smooth::MessagesFrame;  // the rebuild's smooth battle: Draw split (smooth/smooth_messages.h)
+
 public:
     // The texts of the battle (Big5 in the executable; UTF-8 here, converted where drawn).
     static constexpr std::u8string_view AttackDownEnd = u8"%s降低攻擊力效果解除";       // swd32.exe 0x004A8038

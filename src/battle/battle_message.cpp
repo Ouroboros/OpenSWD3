@@ -6,7 +6,9 @@
 #include <string>
 
 #include "battle/battle_hud.h"
+#include "battle/battle_message_constants.h"
 #include "battle/battle_state.h"
+#include "battle/smooth/smooth_messages.h"
 #include "core/format.h"
 #include "crt/msvc.h"
 #include "draw/paint_record.h"
@@ -26,9 +28,6 @@ namespace
 constexpr Pixel kPanelTextColor = 0xFFC0;
 constexpr Pixel kMessageTextColor = 0xFFFF;
 constexpr int kTextStyle = TextFont::BoldOutline;
-constexpr int kFrameThickness = 8;
-constexpr int kFrameBorder = BattleMessage::Frame | kFrameThickness;
-constexpr u32 kBlack = 0xFF;
 constexpr int kElements = 9;
 
 // The shade behind every panel: a blend towards (kShadeRed, kShadeGreen, kShadeBlue), kShadeExtra taller than the
@@ -37,7 +36,6 @@ constexpr int kShadeRed = 0;
 constexpr int kShadeGreen = 4;
 constexpr int kShadeBlue = 4;
 constexpr int kShadeExtra = 0x28;
-constexpr int kShadeMargin = 4;
 constexpr int kPanelShadeWidth = 0xB8;
 constexpr int kGrowDivisor = 3;
 constexpr int kPanelAdvance = 0x10;  // the usual glyph advance of the panel font
@@ -103,40 +101,7 @@ constexpr int kMiddleLevel = 0xD;
 constexpr int kDarkLevel = 2;
 constexpr int kWhiteLevel = 0x1F;
 
-// The message bar at the top of the battle screen.
-constexpr int kBarLeft = 0xA;
-constexpr int kBarTop = 0xA;
-constexpr int kBarWidth = 0x26C;
-constexpr int kMessageBarHeight = 0x20;
-constexpr int kBarTintRed = -8;
-constexpr int kBarTintGreen = -8;
-constexpr int kBarTintBlue = 0xA;
-constexpr int kBarFrameLeft = kBarLeft + kShadeMargin;
-constexpr int kBarFrameTop = kBarTop + kShadeMargin;
-constexpr int kBarFrameRight = 0x272;
-constexpr int kBarFrameBottom = 0x26;
-constexpr int kMessageTextRight = 0x10;  // a message is drawn this far right of and kMessageTextDown below its x, y
-constexpr int kMessageTextDown = 6;
-constexpr int kLeftTextX = 0x12;
-constexpr int kCenterX = 0x13B;
-constexpr int kCenteredGlyph = 0x14;  // the glyph width used to centre a message
-
-// Sliding and rising messages stop at kSlideStopX (plus half their width) on a black box kSlideBoxWidth wide.
-constexpr int kSlideTextY = 0x10;
-constexpr int kSlideStopX = 0xE3;
-constexpr int kSlideBoxWidth = 0xB0;
-constexpr int kSlideOutStep = 0x50;  // pixels an expired message slides out a frame
-constexpr int kSlideGlyph = 0x16;
-constexpr int kSlideGlyphs = 8;
-constexpr i32 kRiseStart = -0x20;  // a rising message starts here and is gone above it
-constexpr i32 kRiseSpeed = 1;
-constexpr int kRiseTarget = 0x20;     // it drops halfway towards kRiseTarget a frame
-constexpr i32 kRiseAcceleration = 2;  // an expired rising message doubles its speed every frame
-
-int HalfWidth(const BattleMessage& message)
-{
-    return (kSlideGlyph * (kSlideGlyphs - (message.length >> 1))) >> 1;
-}
+constexpr i32 kRiseSpeed = 1;  // the speed a rising message starts with
 
 }  // namespace
 
@@ -536,198 +501,9 @@ void BattleMessages::Append(std::unique_ptr<BattleMessage> message, int x, int y
 // paused) and are freed once off screen. The boxes of expired messages are still drawn.
 void BattleMessages::Draw()
 {
-    if (this->messages == nullptr)
-    {
-        return;
-    }
-
-    const bool paused = this->state.paused != 0;
-
-    for (BattleMessage* message = this->messages.get(); message != nullptr; message = message->next.get())
-    {
-        int y = message->y + kMessageTextDown;
-        int x = message->x + kMessageTextRight;
-
-        if (message->flags < 0)
-        {
-            this->panelAct.id = BattleMessages::PanelAct;
-            this->panelAct.action = 0;
-            this->acts.Run(this->panelAct);
-            FillBox(
-                this->painter,
-                kBarLeft,
-                kBarTop,
-                kBarWidth,
-                kMessageBarHeight,
-                kBarTintRed,
-                kBarTintGreen,
-                kBarTintBlue,
-                FillMode::Tint
-            );
-            DrawWindowFrame(
-                this->painter,
-                this->archive,
-                this->panelAct.frame,
-                kBarFrameLeft,
-                kBarFrameTop,
-                kBarFrameRight,
-                kBarFrameBottom,
-                0,
-                kFrameBorder
-            );
-        }
-
-        if ((message->flags & BattleMessage::BlackBar) != 0)
-        {
-            this->hud.FillColor(kBarLeft, kBarTop, kBarWidth, kMessageBarHeight, kBlack);
-        }
-
-        const int flags = message->flags;
-
-        if ((flags & BattleMessage::Left) != 0)
-        {
-            x = kLeftTextX;
-        }
-
-        if ((flags & BattleMessage::Centered) != 0)
-        {
-            x = kCenterX - ((kCenteredGlyph * (message->length >> 1)) >> 1);
-        }
-
-        if (message->frames <= 0)
-        {
-            continue;
-        }
-
-        // The rebuild's smooth battle: a sliding message moves on by the same halving next frame (on its last frame
-        // the slide out takes over).
-        const bool slidesNext = !paused && message->frames > 1;
-        std::array<int, 2> slide = {0, 0};
-
-        if ((flags & BattleMessage::FromRight) != 0)
-        {
-            y = kSlideTextY;
-            const int half = HalfWidth(*message);
-
-            if (message->slideX == 0)
-            {
-                message->slideX = Display::Width;
-            }
-
-            if (!paused)
-            {
-                message->slideX = (half + kSlideStopX + message->slideX) >> 1;
-            }
-
-            x = message->slideX;
-            slide = {slidesNext ? ((half + kSlideStopX + x) >> 1) - x : 0, 0};
-            const PaintRecord::Motion moving(slide);
-            this->hud.FillColor(x - half, kBarTop, kSlideBoxWidth, kMessageBarHeight, kBlack);
-        }
-
-        if ((message->flags & BattleMessage::FromLeft) != 0)
-        {
-            y = kSlideTextY;
-            const int half = HalfWidth(*message);
-
-            if (!paused)
-            {
-                message->slideX = (message->slideX + half + kSlideStopX) >> 1;
-            }
-
-            x = message->slideX;
-            slide = {slidesNext ? ((x + half + kSlideStopX) >> 1) - x : 0, 0};
-            const PaintRecord::Motion moving(slide);
-            this->hud.FillColor(x - half, kBarTop, kSlideBoxWidth, kMessageBarHeight, kBlack);
-        }
-
-        if ((message->flags & BattleMessage::Rise) != 0)
-        {
-            x = HalfWidth(*message) + kSlideStopX;
-            y = (message->slideY + kRiseTarget) / 2;
-            message->slideY = y;
-            message->slideX = x;
-            slide = {0, slidesNext ? (y + kRiseTarget) / 2 - y : 0};
-            const PaintRecord::Motion moving(slide);
-            this->hud.FillColor(kSlideStopX, y - kMessageTextDown, kSlideBoxWidth, kMessageBarHeight, kBlack);
-        }
-
-        {
-            const PaintRecord::Motion moving(slide);
-            this->DrawMessageText(x, y, message->Text());
-        }
-
-        --message->frames;
-    }
-
-    std::unique_ptr<BattleMessage>* link = &this->messages;
-
-    while (*link != nullptr)
-    {
-        BattleMessage& message = **link;
-        bool keep = message.frames > 0;
-
-        if (!keep && (message.flags & BattleMessage::FromLeft) != 0)
-        {
-            const int half = HalfWidth(message);
-
-            if (!paused)
-            {
-                message.slideX += kSlideOutStep;
-            }
-
-            const PaintRecord::Motion moving({paused ? 0 : kSlideOutStep, 0});
-            this->hud.FillColor(message.slideX - half, kBarTop, kSlideBoxWidth, kMessageBarHeight, kBlack);
-            this->DrawMessageText(message.slideX, kSlideTextY, message.Text());
-            keep = message.slideX < Display::Width;
-        }
-
-        if (!keep && (message.flags & BattleMessage::FromRight) != 0)
-        {
-            const int half = HalfWidth(message);
-
-            if (!paused)
-            {
-                message.slideX -= kSlideOutStep;
-            }
-
-            const PaintRecord::Motion moving({paused ? 0 : -kSlideOutStep, 0});
-            this->hud.FillColor(message.slideX - half, kBarTop, kSlideBoxWidth, kMessageBarHeight, kBlack);
-            this->DrawMessageText(message.slideX, kSlideTextY, message.Text());
-            keep = message.slideX > 0;
-        }
-
-        if (!keep && (message.flags & BattleMessage::Rise) != 0)
-        {
-            const int half = HalfWidth(message);
-
-            if (!paused)
-            {
-                message.slideY -= message.y;
-            }
-
-            message.y *= kRiseAcceleration;
-            const PaintRecord::Motion moving({0, paused ? 0 : -message.y});
-            this->hud.FillColor(
-                message.slideX - half,
-                message.slideY - kMessageTextDown,
-                kSlideBoxWidth,
-                kMessageBarHeight,
-                kBlack
-            );
-            this->DrawMessageText(message.slideX, message.slideY, message.Text());
-            keep = message.slideY > kRiseStart;
-        }
-
-        if (keep)
-        {
-            link = &message.next;
-        }
-        else
-        {
-            *link = std::move(message.next);
-        }
-    }
+    smooth::MessagesView view;
+    smooth::MessagesFrame(*this).Advance(view);
+    smooth::MessagesFrame(*this).Draw(view);
 }
 
 // swd32.exe 0x00468ED0: while a proficiency has just filled (unk53BFFC), the box "法寶%s已完全成長!!" with the
