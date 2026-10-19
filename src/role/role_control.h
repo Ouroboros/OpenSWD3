@@ -25,6 +25,17 @@ public:
     u32 StepEvent(int index, int stepX, int stepY, u32& role) const;
     u32 FindRoleAhead(int index, int stepX, int stepY) const;
     void ControlPlayer();
+    void MeasureLanes();
+    bool StartStep(Role& player, int stepX, int stepY, int pressed);
+
+    enum class Stepped
+    {
+        No,
+        Refused,
+        Taken,
+    };
+
+    Stepped StepNow();
 
     // The rebuild's smooth motion (deviations.md): the step ControlPlayer gives the controlled role next frame when it
     // stands still then, from the keys as the next poll reads them (nothing is changed): the camera's and the role's

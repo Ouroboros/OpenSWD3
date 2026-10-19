@@ -127,6 +127,8 @@ void FieldView::ShakeCamera()
     Field& field = this->game.field;
     Scene& view = this->game.scene;
 
+    this->shakeShift = {0, 0};
+
     if (view.shake[0] == Scene::ShakeEnd || this->game.currentMap == Field::DemonRefiningPot)
     {
         return;
@@ -149,6 +151,7 @@ void FieldView::ShakeCamera()
         view.shakeIndex = static_cast<i32>(at) + kShakeEntry;
     }
 
+    this->shakeShift = {dx, dy};
     view.unk4A93E4 = field.cameraLeft;
     field.cameraLeft += dx;
     view.unk4A992C = field.cameraTop;
@@ -395,13 +398,18 @@ void FieldView::Render()
     }
 
     Role& player = state.roles[static_cast<std::size_t>(state.playerRole)];
-    const int scroll = owner.state.walkSpeed;
-    player.x += scroll * (owner.unk4B7518 + owner.unk4A9488);
-    player.y += scroll * (owner.unk4B7920 + owner.unk4A948C);
-    field.cameraLeft += owner.unk4B7518 * scroll;
-    field.cameraTop += owner.unk4B7920 * scroll;
-    field.cameraRight += owner.unk4B7518 * scroll;
-    field.cameraBottom += owner.unk4B7920 * scroll;
+
+    // The rebuild's continuous motion moves the controlled role and the camera a millisecond at a time instead.
+    if (!owner.smoothMotion)
+    {
+        const int scroll = owner.state.walkSpeed;
+        player.x += scroll * (owner.unk4B7518 + owner.unk4A9488);
+        player.y += scroll * (owner.unk4B7920 + owner.unk4A948C);
+        field.cameraLeft += owner.unk4B7518 * scroll;
+        field.cameraTop += owner.unk4B7920 * scroll;
+        field.cameraRight += owner.unk4B7518 * scroll;
+        field.cameraBottom += owner.unk4B7920 * scroll;
+    }
 
     auto moveCell = [&state, width](Role& role, int direction)
     {
@@ -649,42 +657,13 @@ void FieldView::Render()
 
     owner.ShowMapFrame();
 
-    if ((player.x & MapHeader::TileFraction) == 0 && (player.y & MapHeader::TileFraction) == 0)
+    // The rebuild's continuous motion settles the controlled role when it reaches a tile; here only while it stands.
+    const bool stepping = owner.unk4B7518 != 0 || owner.unk4B7920 != 0 || owner.unk4A9488 != 0 || owner.unk4A948C != 0;
+
+    if ((player.x & MapHeader::TileFraction) == 0 && (player.y & MapHeader::TileFraction) == 0 &&
+        (!owner.smoothMotion || !stepping))
     {
-        field.RemoveRole(
-            player.id,
-            static_cast<int>(player.flags & Role::LayerMask),
-            (static_cast<u32>(player.y) >> MapHeader::TileShift) - 1,
-            0
-        );
-        field.ClearRoleCells(player, leaderId);
-
-        if (player.cell != nullptr)
-        {
-            const std::ptrdiff_t at = player.cell - state.map.blocks.data() + owner.unk4B7518 + owner.unk4A9488 +
-                                      static_cast<std::ptrdiff_t>(width) * (owner.unk4B7920 + owner.unk4A948C);
-            player.cell = at >= 0 && static_cast<std::size_t>(at) < state.map.blocks.size()
-                              ? &state.map.blocks[static_cast<std::size_t>(at)]
-                              : nullptr;
-        }
-
-        field.MarkRoleCells(player, leaderId);
-        owner.unk4B7920 = 0;
-        owner.unk4A948C = 0;
-        owner.unk4B7518 = 0;
-        owner.unk4A9488 = 0;
-
-        if (view.trailX[0] != player.x || view.trailY[0] != player.y)
-        {
-            std::copy_backward(view.trailX.begin(), view.trailX.end() - 1, view.trailX.end());
-            std::copy_backward(view.trailY.begin(), view.trailY.end() - 1, view.trailY.end());
-            std::copy_backward(view.trailDirection.begin(), view.trailDirection.end() - 1, view.trailDirection.end());
-            view.trailX[0] = player.x;
-            view.trailY[0] = player.y;
-            view.trailDirection[0] = player.act.direction;
-        }
-
-        this->UpdateRoleCellFlags(player);
+        this->SettlePlayer();
     }
 
     if ((player.flags & Role::Stepping) == 0 && (player.flags & Role::StepsAct) != 0 && owner.acts.Run(player.act) == 0)

@@ -114,202 +114,13 @@ void RoleControl::Approach(Role& player, Role& other, u32 index, bool walking)
     );
 }
 
-// swd32.exe 0x00402F80: the keys of the map. The debug keys (story flag 0x52, turned on in debug mode with Ctrl,
-// right Shift, Home and End): F12 or Ctrl+S / Ctrl+L the save and load screens, Ctrl+F9 skipping texts, Ctrl+Q
-// quitting, Ctrl+F1..F3 the debug lines, cells and flag 0x14, Tab with keypad + / - the map's speed, F4 the cheat
-// dialog, F7 1000 gold, F6 ten of every item. Key slot 16 toggles running. Then, when the controlled role stands
-// still and no menu is open: Space and Enter move the talk windows on (or close the choices); Space talks to the
-// role in front, Enter opens the menu; the arrows move the role (or the choice): a step slides along walls, runs into
-// map regions and roles with events, scrolls the camera or moves the role alone, and may meet enemies.
-void RoleControl::ControlPlayer()
+// The lanes of a step of the controlled role (part of 0x00402F80): the camera follows a step past the middle of the
+// screen while the map goes on, otherwise the role steps alone while it stays inside the map and the screen.
+void RoleControl::MeasureLanes()
 {
-    Game& owner = this->game;
-    GameState& state = owner.state;
-    const Input& input = owner.input;
-    Scene& view = owner.scene;
-    const Field& field = owner.field;
-    Controls& controls = owner.controls;
-    Role& player = state.roles[static_cast<std::size_t>(state.playerRole)];
-    Role& leader = state.leader;
-    int pressed = 0;
-    int stepX = 0;
-    int stepY = 0;
-
-    if (owner.config.debugMode == 1 && input.IsKeyDown(Input::RightControl) && input.IsKeyDown(Input::RightShift) &&
-        input.IsKeyDown(Input::Home) && input.IsKeyDown(Input::End))
-    {
-        state.SetGameFlag(GameState::DebugKeys);
-    }
-
-    if (state.GameFlag(GameState::DebugKeys))
-    {
-        const bool idle = leader.id == Role::NoId && view.talkWindows == nullptr;
-
-        if (input.IsKeyDown(Input::F12) && idle)
-        {
-            SleepMilliseconds(kDebugKeyPause);
-            owner.storyState = Game::SaveSlotsState;
-            owner.menuMode = Menu::KeySaveMode;
-            owner.unk4CAEBC = 0;
-            owner.unk4CAEC0 = 0;
-            owner.ResetSaveSlots();
-            return;
-        }
-
-        if (input.IsKeyDown(Input::LeftControl) || input.IsKeyDown(Input::RightControl))
-        {
-            if (input.IsKeyDown(Input::F9))
-            {
-                owner.talk.skipAll = (owner.talk.skipAll + 1) % kToggleStates;
-                SleepMilliseconds(kSkipKeyPause);
-                // 0x004030EC, 0x00403105
-                DebugLog(owner.talk.skipAll != 0 ? u8"啟動快速模式" : u8"關閉快速模式");
-                return;
-            }
-
-            if (input.IsKeyDown(Input::Q))
-            {
-                owner.inactive = 1;
-                state.ClearFrameInterval();
-                owner.systemFlags |= Game::QuitRequested;
-                state.ClearGameFlag(GameState::Running);
-                return;
-            }
-
-            if (input.IsKeyDown(Input::S) && idle)
-            {
-                owner.unk4CAEBC = 1;
-                owner.unk4CAEC0 = 0;
-                SleepMilliseconds(kDebugKeyPause);
-                owner.menuMode = Menu::KeySaveMode;
-                owner.storyState = Game::SaveSlotsState;
-                owner.ResetSaveSlots();
-                return;
-            }
-
-            if (input.IsKeyDown(Input::L) && idle)
-            {
-                owner.unk4CAEBC = 1;
-                owner.unk4CAEC0 = 1;
-                SleepMilliseconds(kDebugKeyPause);
-                owner.menuMode = Menu::KeyLoadMode;
-                owner.storyState = Game::SaveSlotsState;
-                owner.ResetSaveSlots();
-                return;
-            }
-
-            if (input.IsKeyDown(Input::F1) || input.IsKeyDown(Input::F2))
-            {
-                i32& shown = input.IsKeyDown(Input::F1) ? owner.debugText : owner.debugCells;
-                shown = shown == 0 ? 1 : 0;
-                this->unk4CB220 = 0;
-                SleepMilliseconds(kToggleKeyPause);
-                return;
-            }
-
-            if (input.IsKeyDown(Input::F3))
-            {
-                state.SetGameFlagTo(GameState::NoSlide, state.GameFlag(GameState::NoSlide) ? 0 : 1);
-                this->unk4CB220 = 0;
-                // 0x004032B9
-                DebugLog(state.GameFlag(GameState::NoSlide) ? u8"阻擋可通過" : u8"阻擋不可通過");
-                SleepMilliseconds(kToggleKeyPause);
-                return;
-            }
-
-            if (input.IsKeyDown(Input::Tab) && input.IsKeyDown(Input::NumpadPlus))
-            {
-                if (++view.unk49E0BC > kMaxMapSpeed)
-                {
-                    view.unk49E0BC = kMaxMapSpeed;
-                }
-
-                this->unk4CB220 = 0;
-            }
-
-            if (input.IsKeyDown(Input::Tab) && input.IsKeyDown(Input::NumpadMinus))
-            {
-                if (--view.unk49E0BC < 1)
-                {
-                    view.unk49E0BC = 1;
-                }
-
-                this->unk4CB220 = 0;
-            }
-        }
-
-        if (input.IsKeyDown(Input::F4))
-        {
-            owner.running = 0;
-            SDL_ShowCursor();
-            // 0x0040336F calls nullsub_1 without arguments: nothing to log.
-            CheatDialog dialog(owner);
-
-            if (dialog.Run() == 0)
-            {
-                owner.running = 1;
-            }
-
-            return;
-        }
-
-        if (input.IsKeyDown(Input::F7))
-        {
-            owner.party.variables[Party::Gold] += kDebugGold;
-            SleepMilliseconds(kGoldKeyPause);
-        }
-
-        if (input.IsKeyDown(Input::F6))
-        {
-            for (u16 id = kFirstDebugItem; id < kDebugItemsEnd; ++id)
-            {
-                ObjectRecord record;
-
-                if (owner.database.LoadObject(record, id))
-                {
-                    const u16 kind = record.data.unk52;
-
-                    if (kind < kFirstSkippedKind || std::ranges::find(kDebugKinds, kind) != kDebugKinds.end())
-                    {
-                        ItemLink& list =
-                            owner.party.inventory != nullptr ? owner.party.inventory->next : owner.party.inventory;
-                        AddItem(list, id, kDebugItemCount, ItemCountMode::Pending, owner.database);
-                    }
-                }
-            }
-
-            SleepMilliseconds(kDebugKeyPause);
-        }
-    }
-
-    // 0x004034CD: the original toggles while the key is down and sleeps 200 ms (0x004034FC); the rebuild toggles once
-    // per press without the sleep, and keeps the toggle in [game] running (deviations.md 0x00402F80)
-    if (input.IsKeyPressed(owner.config.keys[static_cast<std::size_t>(Button::KeyR)]))
-    {
-        // 0x004034DC
-        DebugLog(u8"切換移動速度");
-        this->running = RoleControl::RunToggle[static_cast<std::size_t>(this->running) % RoleControl::RunToggle.size()];
-        owner.config.StoreRunning(this->running != 0);
-    }
-
-    const bool still = owner.unk4A9488 == 0 && owner.unk4A948C == 0 && owner.unk4B7518 == 0 && owner.unk4B7920 == 0;
-    owner.talk.advance = 0;
-
-    if (owner.unk4CAD24 == 0)
-    {
-        owner.counterAlpha -= kCounterFade;
-
-        if (owner.counterAlpha < 0)
-        {
-            owner.counterAlpha = 0;
-        }
-    }
-
-    if (controls.mouseSuppressed != 0 || !still || owner.menuState != Game::NoMenu)
-    {
-        return;
-    }
-
+    const GameState& state = this->game.state;
+    const Field& field = this->game.field;
+    const Role& player = state.roles[static_cast<std::size_t>(state.playerRole)];
     const auto screenX = static_cast<u32>(player.x - field.cameraLeft);
     const auto screenY = static_cast<u32>(player.y - field.cameraTop);
     this->scrollLeft = field.cameraLeft > 0 && screenX <= kScrollX ? 1 : 0;
@@ -320,161 +131,18 @@ void RoleControl::ControlPlayer()
     this->stepRight = screenX < kStepRightLimit ? 1 : 0;
     this->stepUp = player.y != 0 ? 1 : 0;
     this->stepDown = screenY < kStepDownLimit ? 1 : 0;
-    const bool choices = !state.clickRegions.regions.empty();
-    const ButtonState& space = controls.At(Button::Space);
-    const ButtonState& enter = controls.At(Button::Enter);
-    const bool spaceDown = space.press != 0 && space.heldFrames == 1;
-    const bool enterDown = enter.press != 0 && enter.heldFrames == 1;
+}
 
-    if (!choices && spaceDown)
-    {
-        owner.talk.advance = 1;
-    }
-
-    if (view.talkWindows != nullptr && enterDown)
-    {
-        ++owner.talk.advance;
-    }
-
-    if ((spaceDown || enterDown) && choices)
-    {
-        if ((state.clickRegions.flags & ClickRegions::TalkChoices) != 0)
-        {
-            state.clickRegions.Free();
-        }
-
-        return;
-    }
-
-    if (spaceDown && leader.id == Role::NoId)
-    {
-        const auto facing = static_cast<std::size_t>(player.act.direction) & kDirectionMask;
-        const u32 found =
-            this->FindRoleAhead(state.playerRole, RoleControl::AheadX[facing], RoleControl::AheadY[facing]);
-
-        if (found < GameState::Roles && state.roles[found].talkState == Role::NoTalk)
-        {
-            this->Approach(player, state.roles[found], found, false);
-            owner.talk.advance = 0;
-            return;
-        }
-    }
-
-    if (enterDown && leader.id == Role::NoId)
-    {
-        owner.menuState = Game::MenuEntering | Game::MainMenu;
-        return;
-    }
-
-    if (view.playerHold != 0 && !choices)
-    {
-        return;
-    }
-
-    auto changeChoice = [&owner, &state, this](const ButtonState& button, int by)
-    {
-        if (button.heldFrames == 1 || (button.heldFrames & kRepeatMask) == kRepeatMask)
-        {
-            if (by > 0 && static_cast<u32>(++owner.talk.choice) >= static_cast<u32>(state.clickRegions.Count()))
-            {
-                owner.talk.choice = 0;
-            }
-
-            if (by < 0 && --owner.talk.choice < 0)
-            {
-                owner.talk.choice = state.clickRegions.Count() - 1;
-            }
-
-            this->choiceMoved = 1;
-        }
-    };
-
-    bool across = false;
-    const ButtonState& left = controls.At(Button::Left);
-    const ButtonState& right = controls.At(Button::Right);
-    const ButtonState& up = controls.At(Button::Up);
-    const ButtonState& down = controls.At(Button::Down);
-
-    if (left.press > 0)
-    {
-        pressed = left.press;
-
-        if (!choices)
-        {
-            player.act.direction = ActState::Left;
-            across = true;
-            stepX = -1;
-        }
-        else
-        {
-            changeChoice(left, -1);
-        }
-    }
-    else if (right.press > 0)
-    {
-        pressed = right.press;
-
-        if (!choices)
-        {
-            player.act.direction = ActState::Right;
-            across = true;
-            stepX = 1;
-        }
-        else
-        {
-            changeChoice(right, 1);
-        }
-    }
-
-    if (up.press > 0)
-    {
-        pressed |= up.press;
-
-        if (!choices)
-        {
-            if (across)
-            {
-                player.act.direction = player.act.direction == ActState::Left    ? ActState::UpLeft
-                                       : player.act.direction == ActState::Right ? ActState::UpRight
-                                                                                 : player.act.direction;
-            }
-            else
-            {
-                player.act.direction = ActState::Up;
-            }
-
-            stepY = -1;
-        }
-        else
-        {
-            changeChoice(up, -1);
-        }
-    }
-    else if (down.press > 0)
-    {
-        pressed |= down.press;
-
-        if (!choices)
-        {
-            if (across)
-            {
-                player.act.direction = player.act.direction == ActState::Left    ? ActState::DownLeft
-                                       : player.act.direction == ActState::Right ? ActState::DownRight
-                                                                                 : player.act.direction;
-            }
-            else
-            {
-                player.act.direction = ActState::Down;
-            }
-
-            stepY = 1;
-        }
-        else
-        {
-            changeChoice(down, 1);
-        }
-    }
-
+// The step of the controlled role (part of 0x00402F80): the step of the arrows slides along the walls,
+// runs into the map regions and the roles with events (a role met is walked up to), and is taken: the camera follows
+// it or the role steps alone, the walk or run starts with its speed, and the steps on the map count towards an
+// encounter. Whether a step is taken.
+bool RoleControl::StartStep(Role& player, int stepX, int stepY, int pressed)
+{
+    Game& owner = this->game;
+    GameState& state = owner.state;
+    Scene& view = owner.scene;
+    Role& leader = state.leader;
     const int wantedX = stepX;
     const int wantedY = stepY;
 
@@ -678,7 +346,362 @@ void RoleControl::ControlPlayer()
 
         owner.battleRequest = 0;
     }
-    else
+
+    return stepX != 0 || stepY != 0;
+}
+
+// swd32.exe 0x00402F80: the keys of the map. The debug keys (story flag 0x52, turned on in debug mode with Ctrl,
+// right Shift, Home and End): F12 or Ctrl+S / Ctrl+L the save and load screens, Ctrl+F9 skipping texts, Ctrl+Q
+// quitting, Ctrl+F1..F3 the debug lines, cells and flag 0x14, Tab with keypad + / - the map's speed, F4 the cheat
+// dialog, F7 1000 gold, F6 ten of every item. Key slot 16 toggles running. Then, when the controlled role stands
+// still and no menu is open: Space and Enter move the talk windows on (or close the choices); Space talks to the
+// role in front, Enter opens the menu; the arrows move the role (or the choice): a step slides along walls, runs into
+// map regions and roles with events, scrolls the camera or moves the role alone, and may meet enemies.
+void RoleControl::ControlPlayer()
+{
+    Game& owner = this->game;
+    GameState& state = owner.state;
+    const Input& input = owner.input;
+    Scene& view = owner.scene;
+    Controls& controls = owner.controls;
+    Role& player = state.roles[static_cast<std::size_t>(state.playerRole)];
+    Role& leader = state.leader;
+    int pressed = 0;
+    int stepX = 0;
+    int stepY = 0;
+
+    if (owner.config.debugMode == 1 && input.IsKeyDown(Input::RightControl) && input.IsKeyDown(Input::RightShift) &&
+        input.IsKeyDown(Input::Home) && input.IsKeyDown(Input::End))
+    {
+        state.SetGameFlag(GameState::DebugKeys);
+    }
+
+    if (state.GameFlag(GameState::DebugKeys))
+    {
+        const bool idle = leader.id == Role::NoId && view.talkWindows == nullptr;
+
+        if (input.IsKeyDown(Input::F12) && idle)
+        {
+            SleepMilliseconds(kDebugKeyPause);
+            owner.storyState = Game::SaveSlotsState;
+            owner.menuMode = Menu::KeySaveMode;
+            owner.unk4CAEBC = 0;
+            owner.unk4CAEC0 = 0;
+            owner.ResetSaveSlots();
+            return;
+        }
+
+        if (input.IsKeyDown(Input::LeftControl) || input.IsKeyDown(Input::RightControl))
+        {
+            if (input.IsKeyDown(Input::F9))
+            {
+                owner.talk.skipAll = (owner.talk.skipAll + 1) % kToggleStates;
+                SleepMilliseconds(kSkipKeyPause);
+                // 0x004030EC, 0x00403105
+                DebugLog(owner.talk.skipAll != 0 ? u8"啟動快速模式" : u8"關閉快速模式");
+                return;
+            }
+
+            if (input.IsKeyDown(Input::Q))
+            {
+                owner.inactive = 1;
+                state.ClearFrameInterval();
+                owner.systemFlags |= Game::QuitRequested;
+                state.ClearGameFlag(GameState::Running);
+                return;
+            }
+
+            if (input.IsKeyDown(Input::S) && idle)
+            {
+                owner.unk4CAEBC = 1;
+                owner.unk4CAEC0 = 0;
+                SleepMilliseconds(kDebugKeyPause);
+                owner.menuMode = Menu::KeySaveMode;
+                owner.storyState = Game::SaveSlotsState;
+                owner.ResetSaveSlots();
+                return;
+            }
+
+            if (input.IsKeyDown(Input::L) && idle)
+            {
+                owner.unk4CAEBC = 1;
+                owner.unk4CAEC0 = 1;
+                SleepMilliseconds(kDebugKeyPause);
+                owner.menuMode = Menu::KeyLoadMode;
+                owner.storyState = Game::SaveSlotsState;
+                owner.ResetSaveSlots();
+                return;
+            }
+
+            if (input.IsKeyDown(Input::F1) || input.IsKeyDown(Input::F2))
+            {
+                i32& shown = input.IsKeyDown(Input::F1) ? owner.debugText : owner.debugCells;
+                shown = shown == 0 ? 1 : 0;
+                this->unk4CB220 = 0;
+                SleepMilliseconds(kToggleKeyPause);
+                return;
+            }
+
+            if (input.IsKeyDown(Input::F3))
+            {
+                state.SetGameFlagTo(GameState::NoSlide, state.GameFlag(GameState::NoSlide) ? 0 : 1);
+                this->unk4CB220 = 0;
+                // 0x004032B9
+                DebugLog(state.GameFlag(GameState::NoSlide) ? u8"阻擋可通過" : u8"阻擋不可通過");
+                SleepMilliseconds(kToggleKeyPause);
+                return;
+            }
+
+            if (input.IsKeyDown(Input::Tab) && input.IsKeyDown(Input::NumpadPlus))
+            {
+                if (++view.unk49E0BC > kMaxMapSpeed)
+                {
+                    view.unk49E0BC = kMaxMapSpeed;
+                }
+
+                this->unk4CB220 = 0;
+            }
+
+            if (input.IsKeyDown(Input::Tab) && input.IsKeyDown(Input::NumpadMinus))
+            {
+                if (--view.unk49E0BC < 1)
+                {
+                    view.unk49E0BC = 1;
+                }
+
+                this->unk4CB220 = 0;
+            }
+        }
+
+        if (input.IsKeyDown(Input::F4))
+        {
+            owner.running = 0;
+            SDL_ShowCursor();
+            // 0x0040336F calls nullsub_1 without arguments: nothing to log.
+            CheatDialog dialog(owner);
+
+            if (dialog.Run() == 0)
+            {
+                owner.running = 1;
+            }
+
+            return;
+        }
+
+        if (input.IsKeyDown(Input::F7))
+        {
+            owner.party.variables[Party::Gold] += kDebugGold;
+            SleepMilliseconds(kGoldKeyPause);
+        }
+
+        if (input.IsKeyDown(Input::F6))
+        {
+            for (u16 id = kFirstDebugItem; id < kDebugItemsEnd; ++id)
+            {
+                ObjectRecord record;
+
+                if (owner.database.LoadObject(record, id))
+                {
+                    const u16 kind = record.data.unk52;
+
+                    if (kind < kFirstSkippedKind || std::ranges::find(kDebugKinds, kind) != kDebugKinds.end())
+                    {
+                        ItemLink& list =
+                            owner.party.inventory != nullptr ? owner.party.inventory->next : owner.party.inventory;
+                        AddItem(list, id, kDebugItemCount, ItemCountMode::Pending, owner.database);
+                    }
+                }
+            }
+
+            SleepMilliseconds(kDebugKeyPause);
+        }
+    }
+
+    // 0x004034CD: the original toggles while the key is down and sleeps 200 ms (0x004034FC); the rebuild toggles once
+    // per press without the sleep, and keeps the toggle in [game] running (deviations.md 0x00402F80)
+    if (input.IsKeyPressed(owner.config.keys[static_cast<std::size_t>(Button::KeyR)]))
+    {
+        // 0x004034DC
+        DebugLog(u8"切換移動速度");
+        this->running = RoleControl::RunToggle[static_cast<std::size_t>(this->running) % RoleControl::RunToggle.size()];
+        owner.config.StoreRunning(this->running != 0);
+    }
+
+    const bool still = owner.unk4A9488 == 0 && owner.unk4A948C == 0 && owner.unk4B7518 == 0 && owner.unk4B7920 == 0;
+    owner.talk.advance = 0;
+
+    if (owner.unk4CAD24 == 0)
+    {
+        owner.counterAlpha -= kCounterFade;
+
+        if (owner.counterAlpha < 0)
+        {
+            owner.counterAlpha = 0;
+        }
+    }
+
+    if (controls.mouseSuppressed != 0 || !still || owner.menuState != Game::NoMenu)
+    {
+        return;
+    }
+
+    this->MeasureLanes();
+    const bool choices = !state.clickRegions.regions.empty();
+    const ButtonState& space = controls.At(Button::Space);
+    const ButtonState& enter = controls.At(Button::Enter);
+    const bool spaceDown = space.press != 0 && space.heldFrames == 1;
+    const bool enterDown = enter.press != 0 && enter.heldFrames == 1;
+
+    if (!choices && spaceDown)
+    {
+        owner.talk.advance = 1;
+    }
+
+    if (view.talkWindows != nullptr && enterDown)
+    {
+        ++owner.talk.advance;
+    }
+
+    if ((spaceDown || enterDown) && choices)
+    {
+        if ((state.clickRegions.flags & ClickRegions::TalkChoices) != 0)
+        {
+            state.clickRegions.Free();
+        }
+
+        return;
+    }
+
+    if (spaceDown && leader.id == Role::NoId)
+    {
+        const auto facing = static_cast<std::size_t>(player.act.direction) & kDirectionMask;
+        const u32 found =
+            this->FindRoleAhead(state.playerRole, RoleControl::AheadX[facing], RoleControl::AheadY[facing]);
+
+        if (found < GameState::Roles && state.roles[found].talkState == Role::NoTalk)
+        {
+            this->Approach(player, state.roles[found], found, false);
+            owner.talk.advance = 0;
+            return;
+        }
+    }
+
+    if (enterDown && leader.id == Role::NoId)
+    {
+        owner.menuState = Game::MenuEntering | Game::MainMenu;
+        return;
+    }
+
+    if (view.playerHold != 0 && !choices)
+    {
+        return;
+    }
+
+    auto changeChoice = [&owner, &state, this](const ButtonState& button, int by)
+    {
+        if (button.heldFrames == 1 || (button.heldFrames & kRepeatMask) == kRepeatMask)
+        {
+            if (by > 0 && static_cast<u32>(++owner.talk.choice) >= static_cast<u32>(state.clickRegions.Count()))
+            {
+                owner.talk.choice = 0;
+            }
+
+            if (by < 0 && --owner.talk.choice < 0)
+            {
+                owner.talk.choice = state.clickRegions.Count() - 1;
+            }
+
+            this->choiceMoved = 1;
+        }
+    };
+
+    bool across = false;
+    const ButtonState& left = controls.At(Button::Left);
+    const ButtonState& right = controls.At(Button::Right);
+    const ButtonState& up = controls.At(Button::Up);
+    const ButtonState& down = controls.At(Button::Down);
+
+    if (left.press > 0)
+    {
+        pressed = left.press;
+
+        if (!choices)
+        {
+            player.act.direction = ActState::Left;
+            across = true;
+            stepX = -1;
+        }
+        else
+        {
+            changeChoice(left, -1);
+        }
+    }
+    else if (right.press > 0)
+    {
+        pressed = right.press;
+
+        if (!choices)
+        {
+            player.act.direction = ActState::Right;
+            across = true;
+            stepX = 1;
+        }
+        else
+        {
+            changeChoice(right, 1);
+        }
+    }
+
+    if (up.press > 0)
+    {
+        pressed |= up.press;
+
+        if (!choices)
+        {
+            if (across)
+            {
+                player.act.direction = player.act.direction == ActState::Left    ? ActState::UpLeft
+                                       : player.act.direction == ActState::Right ? ActState::UpRight
+                                                                                 : player.act.direction;
+            }
+            else
+            {
+                player.act.direction = ActState::Up;
+            }
+
+            stepY = -1;
+        }
+        else
+        {
+            changeChoice(up, -1);
+        }
+    }
+    else if (down.press > 0)
+    {
+        pressed |= down.press;
+
+        if (!choices)
+        {
+            if (across)
+            {
+                player.act.direction = player.act.direction == ActState::Left    ? ActState::DownLeft
+                                       : player.act.direction == ActState::Right ? ActState::DownRight
+                                                                                 : player.act.direction;
+            }
+            else
+            {
+                player.act.direction = ActState::Down;
+            }
+
+            stepY = 1;
+        }
+        else
+        {
+            changeChoice(down, 1);
+        }
+    }
+
+    if (!this->StartStep(player, stepX, stepY, pressed))
     {
         if (player.act.action != player.act.lastAction)
         {
@@ -707,6 +730,96 @@ void RoleControl::ControlPlayer()
     }
 
     ++this->unk4CB220;
+}
+
+// The rebuild's continuous motion (deviations.md): the step ControlPlayer takes from the arrows (part of 0x00402F80),
+// taken now from the keys as they are, between frames, once the controlled role stands on a tile: each arrow pressed as
+// Controls::Update leaves it at the next poll turns the role and gives the step. Nothing while a menu, a choice, a
+// blocking talk or the mouse holds the role, or while Space or Enter goes down (the frame handles those): No when no
+// step was tried (nothing changed), Refused when the step was tried and not taken.
+RoleControl::Stepped RoleControl::StepNow()
+{
+    Game& owner = this->game;
+    GameState& state = owner.state;
+    const Controls& controls = owner.controls;
+    Role& player = state.roles[static_cast<std::size_t>(state.playerRole)];
+
+    auto keyDown = [&owner](Button button)
+    {
+        return owner.input.IsKeyDownNow(owner.config.keys[static_cast<std::size_t>(button)]);
+    };
+
+    auto pressNow = [&controls, &keyDown](Button button)
+    {
+        const ButtonState& polled = controls.At(button);
+
+        if (keyDown(button))
+        {
+            return polled.releasedAt != 0 ? Controls::ClickSequence[static_cast<std::size_t>(polled.clicks)]
+                                          : polled.press;
+        }
+
+        return 0;
+    };
+
+    auto goesDown = [&controls, &keyDown](Button button)
+    {
+        const ButtonState& polled = controls.At(button);
+        return keyDown(button) && (polled.releasedAt != 0 || polled.heldFrames == 0);
+    };
+
+    if (controls.mouseSuppressed != 0 || owner.menuState != Game::NoMenu || !state.clickRegions.regions.empty() ||
+        owner.scene.playerHold != 0 || goesDown(Button::Space) || goesDown(Button::Enter))
+    {
+        return Stepped::No;
+    }
+
+    int pressed = 0;
+    int stepX = 0;
+    int stepY = 0;
+    i32 direction = player.act.direction;
+
+    if (const int left = pressNow(Button::Left); left > 0)
+    {
+        pressed = left;
+        direction = ActState::Left;
+        stepX = -1;
+    }
+    else if (const int right = pressNow(Button::Right); right > 0)
+    {
+        pressed = right;
+        direction = ActState::Right;
+        stepX = 1;
+    }
+
+    if (const int up = pressNow(Button::Up); up > 0)
+    {
+        pressed |= up;
+        direction = stepX < 0 ? ActState::UpLeft : stepX > 0 ? ActState::UpRight : ActState::Up;
+        stepY = -1;
+    }
+    else if (const int down = pressNow(Button::Down); down > 0)
+    {
+        pressed |= down;
+        direction = stepX < 0 ? ActState::DownLeft : stepX > 0 ? ActState::DownRight : ActState::Down;
+        stepY = 1;
+    }
+
+    if (stepX == 0 && stepY == 0)
+    {
+        return Stepped::No;
+    }
+
+    player.act.direction = direction;
+    this->MeasureLanes();
+
+    if (!this->StartStep(player, stepX, stepY, pressed))
+    {
+        return Stepped::Refused;
+    }
+
+    this->idleFrames = 0;
+    return Stepped::Taken;
 }
 
 // The still role's part of ControlPlayer (0x004034CD on) for the next frame: each button pressed as Controls::Update

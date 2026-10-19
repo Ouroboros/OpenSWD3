@@ -19,19 +19,10 @@ void FieldView::CapturePlaces()
 
     const Field& field = owner.field;
     const GameState& state = owner.state;
-    const Scene& view = owner.scene;
     const u32 frame = owner.gameFrames;
     const bool continuous = this->placesValid && frame == this->placesFrame + 1 && owner.currentMap == this->placesMap;
     const auto playerIndex = static_cast<std::size_t>(state.playerRole);
-    const bool quaking = view.shake[0] != Scene::ShakeEnd && owner.currentMap != Field::DemonRefiningPot;
-    const bool led = std::ranges::any_of(
-        state.moves,
-        [playerIndex](const MoveRecord& move)
-        {
-            return static_cast<std::size_t>(move.role) == playerIndex && move.step < MoveRecord::StepMask;
-        }
-    );
-    this->keyed = !quaking && !led;
+    this->keyed = false;  // the continuous motion moves the controlled role (its glide is not used)
     this->placesContinuous = continuous;
     this->glides.resize(1 + GameState::Roles);
 
@@ -446,13 +437,27 @@ void FieldView::PaintBetween(double alpha, Surface& out)
     Scene& view = owner.scene;
     Painter& painter = owner.painter;
     const double time = static_cast<double>(this->placesFrame) + alpha;
-    this->RefreshAim(time);
 
-    // The places in 1/scale pixels: the camera's, and every role's from the camera's (so that a role moving with
-    // the camera keeps its place on the screen); a role that is not gliding stays on its pixel.
+    // The places in 1/scale pixels: the camera's and the controlled role's where the continuous motion has them (the
+    // camera shaken as the frame shown shook it), every other role's where its glide shows it; a role that is not
+    // gliding stays on its pixel.
+    const bool walking = this->playerMotion.active;
+
+    if (walking)
+    {
+        this->PinGlides();
+    }
+
     const std::array<double, 2> camera = this->glides[0].Shown(time);
-    const auto fineCameraX = static_cast<i32>(std::lround(camera[0] * scale));
-    const auto fineCameraY = static_cast<i32>(std::lround(camera[1] * scale));
+    const std::array<i32, 2> cameraFine = walking ? this->CameraFine(scale)
+                                                  : std::array<i32, 2>{
+                                                        static_cast<i32>(std::lround(camera[0] * scale)),
+                                                        static_cast<i32>(std::lround(camera[1] * scale))
+                                                    };
+
+    const i32 fineCameraX = cameraFine[0] + this->shakeShift[0] * scale;
+    const i32 fineCameraY = cameraFine[1] + this->shakeShift[1] * scale;
+    const std::array<i32, 2> playerFine = this->PlayerFine(scale);
     std::array<i32, GameState::Roles> fineX = {};
     std::array<i32, GameState::Roles> fineY = {};
     this->placesKey.clear();
@@ -467,11 +472,16 @@ void FieldView::PaintBetween(double alpha, Surface& out)
 
         const bool aimed = index < this->rolesAimed.size() && this->rolesAimed[index] != 0;
 
-        if (aimed || (role.x == glide.toX && role.y == glide.toY))
+        if (walking && index == static_cast<std::size_t>(state.playerRole))
+        {
+            fineX[index] = playerFine[0];
+            fineY[index] = playerFine[1];
+        }
+        else if (aimed || (role.x == glide.toX && role.y == glide.toY))
         {
             const std::array<double, 2> place = glide.Shown(time);
-            fineX[index] = fineCameraX + static_cast<i32>(std::lround((place[0] - camera[0]) * scale));
-            fineY[index] = fineCameraY + static_cast<i32>(std::lround((place[1] - camera[1]) * scale));
+            fineX[index] = static_cast<i32>(std::lround(place[0] * scale));
+            fineY[index] = static_cast<i32>(std::lround(place[1] * scale));
         }
         else
         {
@@ -496,11 +506,8 @@ void FieldView::PaintBetween(double alpha, Surface& out)
         }
 
         const std::array<double, 2> place = effect.glide.Shown(time);
-        const std::array<double, 2> from = effect.screen ? std::array<double, 2>{} : camera;
-        const std::array<i32, 2> base =
-            effect.screen ? std::array<i32, 2>{} : std::array<i32, 2>{fineCameraX, fineCameraY};
-        effect.fineX = base[0] + static_cast<i32>(std::lround((place[0] - from[0]) * scale));
-        effect.fineY = base[1] + static_cast<i32>(std::lround((place[1] - from[1]) * scale));
+        effect.fineX = static_cast<i32>(std::lround(place[0] * scale));
+        effect.fineY = static_cast<i32>(std::lround(place[1] * scale));
         this->placesKey.push_back(effect.fineX);
         this->placesKey.push_back(effect.fineY);
     }

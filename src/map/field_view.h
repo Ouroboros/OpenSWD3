@@ -155,6 +155,13 @@ public:
     int ReadMovieFrame();
     void Paint();
     void Render();
+    // The rebuild's continuous motion (deviations.md): the controlled role and the camera moved a millisecond at a time
+    // up to `now` (SystemUptime milliseconds), the controlled role settled on each tile it reaches; their places in
+    // 1/scale pixels.
+    void AdvanceMotion(u32 now);
+    void SettlePlayer();
+    std::array<i32, 2> CameraFine(int scale) const;
+    std::array<i32, 2> PlayerFine(int scale) const;
     void UpdateRoleCellFlags(Role& role);
 
     // swd32.exe 0x004302F0: a formatted line in the small font (a UTF-8 format; UTF-8 arguments are converted to Big5,
@@ -195,7 +202,8 @@ public:
     i32 tileX = 0;  // 0x004CC2E4 the screen x of the first visible tile column
     i32 tileY = 0;  // 0x004CC2E8
     MapMovie movie;
-    bool replaying = false;  // PaintBetween is drawing: the state of the game frames is left alone
+    bool replaying = false;           // PaintBetween is drawing: the state of the game frames is left alone
+    std::array<i32, 2> shakeShift{};  // the quake's offset of the camera in the frame shown
 
 private:
     struct TileSet;
@@ -246,6 +254,40 @@ private:
     bool keyed = false;         // the keys move the controlled role: it and the camera head for the next frame
     bool placesContinuous = false;
     std::vector<u8> rolesAimed;  // per role: heading for where the next frame puts it
+
+    // The step of the controlled role under way (continuous motion): where it and the camera started, the walking
+    // speed (pixels a game frame), the directions across and down and whether the camera follows, the milliseconds
+    // gone, and the places the motion left (anything else moving them ends it).
+    struct PlayerMotion
+    {
+        bool active = false;
+        i32 startX = 0;
+        i32 startY = 0;
+        i32 cameraX = 0;
+        i32 cameraY = 0;
+        i32 speed = 0;
+        i32 across = 0;
+        i32 down = 0;
+        i32 scrollAcross = 0;
+        i32 scrollDown = 0;
+        i32 elapsed = 0;
+        i32 leftX = 0;
+        i32 leftY = 0;
+        i32 leftCameraX = 0;
+        i32 leftCameraY = 0;
+    };
+
+    void MotionTick();
+    void BeginPlayerMotion();
+    bool TryStep();
+    void PinGlides();
+    void EndPlayerMotion(bool atFrame);
+    i32 MotionPixels(int scale) const;
+    PlayerMotion playerMotion;
+    u32 motionClock = 0;
+    u32 refusedFrame = 0;  // the game frame a step from the keys was last refused in (tried again next frame)
+    bool refused = false;
+    bool motionClockSet = false;
     std::unordered_map<u64, EffectGlide> effectGlides;
     // The painting PaintBetween does: its render scale, its camera (in 1/scale pixels), the block column and row.
     int paintScale = 1;

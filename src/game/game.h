@@ -154,6 +154,8 @@ private:
     // (shown at once without smooth motion), and one such frame drawn and shown when it is due.
     void ShowMapFrame();
     bool PresentBetween();
+    // The rebuild's continuous motion (deviations.md) up to now, at most to the due time of the next game frame.
+    void AdvanceMotion();
     bool CopyToPrimary();
     // The display setup of the system tab (deviations.md): smoothMotion, vsync, frameRate and renderScaleSetting put
     // to use, and written to [display] of the program's settings file.

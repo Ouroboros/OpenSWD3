@@ -388,6 +388,7 @@ int Game::Run([[maybe_unused]] std::u8string_view commandLine)
 
         const Uint64 handled = SDL_GetTicks();
         this->LoopFrame();
+        this->AdvanceMotion();
         const bool presented = this->PresentBetween();
         const Uint64 finished = SDL_GetTicks();
 
@@ -486,6 +487,7 @@ bool SDLCALL Game::LiveResize(void* data, SDL_Event* event)
     if (event->type == SDL_EVENT_WINDOW_EXPOSED && event->window.data1 == 1 && !game->quit)
     {
         game->LoopFrame();
+        game->AdvanceMotion();
         game->PresentBetween();
     }
 
@@ -1299,6 +1301,13 @@ void Game::ShowMapFrame()
     this->mapFrameShown = true;
 }
 
+void Game::AdvanceMotion()
+{
+    const u32 now = SystemUptime();
+    const u32 due = this->lastFrame + static_cast<u32>(std::max(this->state.frameInterval, 0));
+    this->fieldView.AdvanceMotion(static_cast<i32>(now - due) > 0 ? due : now);
+}
+
 void Game::ApplyDisplay()
 {
     this->display.SetVSync(this->vsync);
@@ -1338,7 +1347,11 @@ void Game::StoreDisplay() const
 
 bool Game::PresentBetween()
 {
-    if (!this->smoothMotion || !(this->mapFrameShown || this->battleFrameShown) || this->smoothScreen == nullptr ||
+    // A step taken between frames may start a battle, which lets the map's view go: the map is drawn only while it is
+    // still shown.
+    const bool onMap = this->mapFrameShown && this->inBattle == 0 && this->mapCache.view != nullptr;
+
+    if (!this->smoothMotion || !(onMap || this->battleFrameShown) || this->smoothScreen == nullptr ||
         this->active == 0 || this->running == 0 || this->quit || (this->systemFlags & Game::VideoPlaying) != 0)
     {
         return false;
@@ -1696,6 +1709,7 @@ void Game::MainFrame()
     }
 
     this->frameDueNs = SDL_GetTicksNS() - static_cast<u64>(now - this->lastFrame) * kNanosecondsPerMillisecond;
+    this->fieldView.AdvanceMotion(this->lastFrame);
     this->mapFrameShown = false;
     this->battleFrameShown = false;
     ++this->gameFrames;
