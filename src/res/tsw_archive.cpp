@@ -741,4 +741,58 @@ void TswArchive::FreeBuffers()
     this->packedB = PackedBuffer{};
 }
 
+bool TswArchive::Locate(const Picture* picture, u32& id, u32& frame) const
+{
+    for (const std::list<CacheEntry>& entries : this->chains)
+    {
+        for (const CacheEntry& entry : entries)
+        {
+            if (&entry.picture == picture)
+            {
+                id = entry.id;
+                frame = entry.frame;
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+const Picture* TswArchive::LocateData(const void* data, u32& id, u32& frame) const
+{
+    for (const std::list<CacheEntry>& entries : this->chains)
+    {
+        for (const CacheEntry& entry : entries)
+        {
+            if (entry.picture.data.data() == data)
+            {
+                id = entry.id;
+                frame = entry.frame;
+                return &entry.picture;
+            }
+        }
+    }
+
+    return nullptr;
+}
+
+const Picture* TswArchive::LocatePalette(const void* palette, u32& id, u32& frame) const
+{
+    for (const std::list<CacheEntry>& entries : this->chains)
+    {
+        for (const CacheEntry& entry : entries)
+        {
+            if (!entry.picture.palette.empty() && entry.picture.palette.data() == palette)
+            {
+                id = entry.id;
+                frame = entry.frame;
+                return &entry.picture;
+            }
+        }
+    }
+
+    return nullptr;
+}
+
 }  // namespace swd3

@@ -37,6 +37,8 @@ struct DrawOptions
     // The rebuild's smooth motion (a menu frame painted between frames): a translucent draw that far (0..1) from
     // `alpha` towards the next level, the colours of the two levels mixed.
     double alphaFraction = 0.0;
+
+    bool operator==(const DrawOptions& other) const = default;
 };
 
 // One colour channel of the display format.

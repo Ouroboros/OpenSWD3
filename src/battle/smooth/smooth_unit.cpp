@@ -5,6 +5,7 @@
 #include <cstring>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include "audio/audio_manager.h"
 #include "battle/battle_enemy.h"
@@ -2778,6 +2779,91 @@ int UnitFrame::QueuedAdvance(BattleServices& services, BattleUnit& target, i32 a
     }
 
     return 0;
+}
+
+void UnitFrame::Action(BattleServices& services, const BattleUnit& target, ActState& act, Scene& scene)
+{
+    ActionView view;
+
+    if (this->ActionAdvance(services, target, act, view))
+    {
+        scene.Add(
+            [view](BattleServices& drawing)
+            {
+                UnitFrame::DrawActionView(drawing, view);
+            }
+        );
+    }
+}
+
+int UnitFrame::Recoil(BattleServices& services, ActState& act, i16 y, Scene& scene)
+{
+    PictureSteps steps;
+    const int result = this->RecoilAdvance(services, act, y, steps);
+    scene.Add(std::move(steps));
+    return result;
+}
+
+int UnitFrame::Fly(
+    BattleServices& services,
+    const BattleUnit& target,
+    ActState& act,
+    int slot,
+    i32 id,
+    int fromX,
+    int fromY,
+    int steps,
+    int backwards,
+    Scene& scene
+)
+{
+    PictureSteps draws;
+    const int result = this->FlyAdvance(services, target, act, slot, id, fromX, fromY, steps, backwards, draws);
+    scene.Add(std::move(draws));
+    return result;
+}
+
+void UnitFrame::Trail(
+    BattleServices& services,
+    AfterimageTrail& trail,
+    u16 frame,
+    u16 picture,
+    u32 mode,
+    i16 x,
+    i16 y,
+    Scene& scene
+)
+{
+    PictureSteps steps;
+    this->TrailAdvance(services, trail, frame, picture, mode, x, y, steps);
+    scene.Add(std::move(steps));
+}
+
+int UnitFrame::Queued(BattleServices& services, BattleUnit& target, i32 action, Scene& scene)
+{
+    PictureSteps steps;
+    const int result = this->QueuedAdvance(services, target, action, steps);
+    scene.Add(std::move(steps));
+    return result;
+}
+
+int UnitFrame::Home(BattleServices& services, const BattleUnit& target, i32 id, i32 action, Scene& scene)
+{
+    WalkView view;
+    const int result = this->HomeAdvance(services, target, id, action, view);
+
+    if (view.picture.shown)
+    {
+        scene.Add(
+            [view](BattleServices& drawing)
+            {
+                const PaintRecord::Motion moving(view.motion);
+                UnitFrame::DrawWalk(drawing, view);
+            }
+        );
+    }
+
+    return result;
 }
 
 }  // namespace swd3::smooth

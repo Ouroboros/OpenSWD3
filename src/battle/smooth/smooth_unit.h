@@ -237,6 +237,34 @@ public:
         PictureSteps& draws
     );
     int QueuedAdvance(BattleServices& services, BattleUnit& target, i32 action, PictureSteps& steps);
+
+    // The same decided into a scene, for the parts that run them.
+    void Action(BattleServices& services, const BattleUnit& target, ActState& act, Scene& scene);
+    int Recoil(BattleServices& services, ActState& act, i16 y, Scene& scene);
+    int Fly(
+        BattleServices& services,
+        const BattleUnit& target,
+        ActState& act,
+        int slot,
+        i32 id,
+        int fromX,
+        int fromY,
+        int steps,
+        int backwards,
+        Scene& scene
+    );
+    void Trail(
+        BattleServices& services,
+        AfterimageTrail& trail,
+        u16 frame,
+        u16 picture,
+        u32 mode,
+        i16 x,
+        i16 y,
+        Scene& scene
+    );
+    int Queued(BattleServices& services, BattleUnit& target, i32 action, Scene& scene);
+    int Home(BattleServices& services, const BattleUnit& target, i32 id, i32 action, Scene& scene);
     // DrawAction: false when it draws nothing.
     bool ActionAdvance(BattleServices& services, const BattleUnit& target, ActState& act, ActionView& view);
     static void DrawActionView(BattleServices& services, const ActionView& view);

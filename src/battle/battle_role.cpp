@@ -8,8 +8,11 @@
 
 #include "audio/audio_manager.h"
 #include "battle/battle_message.h"
+#include "battle/battle_role_constants.h"
 #include "battle/battle_services.h"
 #include "battle/battle_state.h"
+#include "battle/smooth/smooth_draw.h"
+#include "battle/smooth/smooth_role.h"
 #include "config/config.h"
 #include "core/assertion.h"
 #include "core/words.h"
@@ -79,21 +82,10 @@ constexpr std::u8string_view kNoEscortAct = u8"護駕actNumber為0!!";         /
 constexpr std::u8string_view kNoGuestAct = u8"Npc角色actNumber為0!!";       // swd32.exe 0x004A7C7C
 constexpr std::u8string_view kNoWeaponAct = u8"武器%d號的強攻擊act沒設!!";  // swd32.exe 0x004A7C94
 constexpr i16 kStatLimit = 0x270F;
-constexpr i32 kMaxDamage = 0x270F;
+
 constexpr u16 kStruckEvasion = 8;
 
 // AttackFrame.
-constexpr i32 kAttackAction = 0x28;
-constexpr i32 kCriticalAction = 0x29;
-constexpr i32 kForcedAttackAction = 0x30;   // unk2A8C 1 of a forced unit
-constexpr i32 kForcedAttackAction2 = 0x31;  // unk2A8C 2
-constexpr u16 kSecondForcedAttack = 2;
-constexpr i16 kForcedX = 0x140;  // a unit with unk2B04 attacks from the middle of the field
-constexpr i16 kForcedY = 0x136;
-constexpr std::size_t kFlightAct = 1;  // the slot act a flying follow-up uses
-constexpr i16 kSlotFadeEnd = -0x20;
-constexpr i16 kSlotFadeStep = 4;
-constexpr u32 kRepeatAttack = 1;  // unk26CC bit 0: the attack repeats extraAttacks times (skill 0x15)
 
 // StartAbsorb: the particles fly into a point beside the role; a picture of kTallPicture rows or more bursts in half
 // its height, a shorter one in its height less kShortBurstCut.
@@ -120,39 +112,16 @@ constexpr i32 kSparkAct = 0x186A;
 constexpr std::size_t kSparkColumnShift = 2;  // the sparks start a quarter across the picture
 
 // ThrowAct.
-constexpr i32 kThrownAct = 0x186B;
-constexpr int kThrowSteps = 8;    // line steps a frame per frame flown
-constexpr i32 kCaughtAction = 1;  // CatchAct: the thrown act flying back
 
 // GlowAct.
-constexpr i32 kGlowAction = 0x24;
-constexpr u16 kGlowRising = 0;
-constexpr u16 kGlowFalling = 1;
-constexpr u16 kGlowDone = 2;
-constexpr i16 kGlowStep = 2;
-constexpr i16 kGlowPeak = 0x3E;
-constexpr int kGlowTintBase = 0x1F;  // the tint is glowLevel / 2 - kGlowTintBase
-constexpr u16 kGlowEndSound = 0x6A;
 
 // PoseAtTarget.
-constexpr i32 kTargetPose = 0x2B;
-constexpr u32 kMirroredOnce = 0x8000;  // ActState::unknown1C: the act was mirrored already
-constexpr int kShadowShare = 3;        // the shadow is a third of the picture height high
-constexpr std::size_t kShadowShearShift = 2;
-constexpr int kShadowTint = -6;
-constexpr int kFaintShadowTint = -1;
-constexpr int kShadowLeft = 5;
-constexpr int kPanCentre = 0x140;  // the sound pans right of the middle of the 640-pixel screen
-constexpr int kTargetPan = 0x10;
 
 // Steal and AttackPose.
 constexpr u16 kNothingToSteal = 25000;  // Steal: the target has no item
 constexpr u16 kStealRoll = 10;          // the roll is 0..9 less one per kStealShare percent of proficiency
 constexpr u16 kStealShare = 25;
-constexpr u16 kSureSteal = 100;   // a proficiency of 100 or more always steals
-constexpr u16 kHitCast = 0x8000;  // AttackPose: the cast act with bit 15 tells that the attack hits
-constexpr u16 kPoseDone = 2;
-constexpr i32 kCastPose = 0x2D;
+constexpr u16 kSureSteal = 100;  // a proficiency of 100 or more always steals
 
 // BeamSpellFrame: the stages in unk267C.
 constexpr u32 kBeamGlow = 0x1;
@@ -168,33 +137,10 @@ constexpr i32 kImpactAct = 0x1F88;
 constexpr int kSpeedingFlight = -1;  // FlyAct: the steps double each frame
 
 // ChargeAttackFrame.
-constexpr i32 kChargeAction = 0x28;  // past unk2A8A
-constexpr u16 kChargePicture = 2;    // the charge act is run on to its third picture
-constexpr int kChargeAlpha = 8;
-constexpr int kChargeBlue = 10;
-constexpr int kDashStep = 10;
-constexpr int kDashLength = 150;
-constexpr u16 kNoUnk2A8E = 0xFFFF;
-constexpr i32 kTrailBlueTint = 0xC;
-constexpr i8 kChargeTrailImages = 3;
 
 // SwarmSpellFrame.
-constexpr i16 kSwarmInterval = 3;  // a new act every third frame
-constexpr u16 kSwarmActs = 8;
-constexpr int kSwarmAbove = 0x28;
-constexpr u16 kSwarmShake = 0x34;
-constexpr u16 kSwarmSound = 0x3E;
 
 // BoomerangFrame: the stages in unk267C.
-constexpr u32 kBoomerangGoing = 0;
-constexpr u32 kBoomerangReturning = 1;
-constexpr u32 kBoomerangBackHome = 2;
-constexpr i32 kBoomerangAct = 0x1BF3;
-constexpr i16 kBoomerangOut = 0x1C;
-constexpr i16 kBoomerangBack = 0x20;
-constexpr u16 kBoomerangShake = 7;
-constexpr i32 kNoImpact = -1;  // a queued act without an impact act that lands no hit
-constexpr u16 kBoomerangSound = 0x114;
 
 // LeapSpellFrame: the stages in unk267C.
 constexpr u32 kLeapCasting = 0;
@@ -295,11 +241,6 @@ constexpr int kNearBelow = 8;
 constexpr int kSureBelow = 13;
 
 // StepBack.
-constexpr i32 kStepBackAction = 0x2A;
-constexpr i16 kStandBackEnd = 2;
-constexpr i16 kStepBackEnd = 6;
-constexpr u16 kStepBackSound = 0x2F;
-constexpr int kStepBackShift = 0x10;
 
 // CanAbsorb.
 constexpr u16 kMaxAbsorbClass = 0x15;   // ObjectData::unk52
@@ -739,301 +680,10 @@ void BattleRole::Strike(BattleServices& services, BattleUnit& target, int evadab
 // recoil tint is left at 1.
 int BattleRole::AttackFrame(BattleServices& services, BattleUnit& target, int slot)
 {
-    BattleState& battle = services.state;
-
-    if (this->unk2A74 != 0 || this->unk2AD8 == 1)
-    {
-        return 0;
-    }
-
-    if (this->unk2B00 == 1 && (this->command.flags & UnitCommand::FadesIn) != 0 && this->fadedIn == 0 &&
-        this->DrawFadeIn(services, target) == 0)
-    {
-        this->fadedIn = 1;
-        return 0;
-    }
-
-    if (this->unk2B04 == 1)
-    {
-        this->placement.x = kForcedX;
-        this->placement.y = kForcedY;
-    }
-
-    this->unk2AAC = 1;
-    ActState& attack = this->standAct;
-    attack.hold = 0;
-
-    if (this->held == 1)
-    {
-        attack.hold = 1;
-    }
-
-    if ((attack.target & ActState::Holds) != 0)
-    {
-        attack.hold = 1;
-    }
-
-    const bool forced = this->unk2B00 == 1 || this->unk2B04 == 1;
-
-    if (this->critical == 1)
-    {
-        battle.criticalAttack = 1;
-        attack.id = this->actId;
-        attack.action = kCriticalAction;
-
-        if (forced)
-        {
-            attack.action = kAttackAction;
-        }
-        else
-        {
-            this->command.castAct = this->weapon.data.unk48;
-        }
-    }
-    else
-    {
-        attack.id = this->actId;
-        attack.action = kAttackAction;
-
-        if (forced && this->unk2A8C != 0)
-        {
-            attack.action = this->unk2A8C == kSecondForcedAttack ? kForcedAttackAction2 : kForcedAttackAction;
-        }
-    }
-
-    this->DrawAction(services, target, attack);
-
-    if ((attack.target & ActState::Recoils) != 0)
-    {
-        if (attack.effectA != 0)
-        {
-            this->recoilAct.id = attack.effectA;
-            this->unk267C |= BattleUnit::Recoiling;
-            this->recoilAct.action = attack.effectQ;
-        }
-
-        if ((attack.target & ActState::Holds) != 0)
-        {
-            attack.hold = 1;
-        }
-
-        attack.target = static_cast<u16>(attack.target & ~ActState::Recoils);
-        attack.effectA = 0;
-        attack.effectQ = 0;
-    }
-
-    if ((this->unk267C & BattleUnit::Recoiling) != 0 &&
-        this->DrawRecoil(services, this->recoilAct, static_cast<i16>(attack.anchorY)) == 1)
-    {
-        if ((attack.target & ActState::Holds) != 0)
-        {
-            attack.target = static_cast<u16>(attack.target & ~ActState::Holds);
-        }
-
-        attack.hold = 0;
-        this->unk267C &= ~BattleUnit::Recoiling;
-    }
-
-    if ((attack.target & ActState::Quakes) != 0)
-    {
-        battle.quaking = 1;
-        battle.quakePhase = 0;
-    }
-
-    ActState& follow = this->slotActs[static_cast<std::size_t>(slot)];
-
-    if ((attack.target & ActState::FollowsUp) != 0)
-    {
-        if ((attack.target & ActState::FadesField) != 0)
-        {
-            battle.fadingField = 1;
-            battle.StartFieldFade(
-                static_cast<i16>(attack.lights[0]),
-                static_cast<i16>(attack.lights[1]),
-                static_cast<i16>(attack.lights[2]),
-                static_cast<i16>(attack.lights[3]),
-                static_cast<i16>(attack.lights[4]),
-                static_cast<i16>(attack.lights[5]),
-                static_cast<i16>(attack.lights[6])
-            );
-            attack.target = static_cast<u16>(attack.target & ~ActState::FadesField);
-        }
-
-        attack.target = static_cast<u16>(attack.target & ~ActState::FollowsUp);
-        this->unk267C |= BattleUnit::FollowingUp;
-        follow = ActState{};
-    }
-
-    if ((attack.target & ActState::UnkTarget4) != 0)
-    {
-        target.RaiseFlag26B8();
-        attack.target = 0;
-        this->unk267C |= BattleUnit::FollowingUp;
-    }
-
-    if ((attack.target & ActState::Strikes) != 0)
-    {
-        this->unk267C |= BattleUnit::FollowingUp;
-        this->slotTint = 0;
-        battle.proficiencyBonus = 0;
-        follow = ActState{};
-        this->Strike(services, target, 1);
-        attack.target = 0;
-    }
-
-    if ((this->unk267C & BattleUnit::FollowingUp) == 0)
-    {
-        return 0;
-    }
-
-    follow.id = this->command.castAct;
-    follow.action = 0;
-
-    if (attack.effectA != 0)
-    {
-        follow.id = attack.effectA;
-    }
-
-    if (follow.id != 0)
-    {
-        if ((this->command.flags & UnitCommand::TargetsUnit) != 0)
-        {
-            const int fromX =
-                static_cast<i16>(this->actAnchorX) - static_cast<i16>(this->actOffsetX) + this->placement.x;
-            const int fromY = this->placement.y + static_cast<i16>(attack.anchorY) - attack.y;
-
-            if (this->FlyAct(
-                    services,
-                    target,
-                    this->slotActs[kFlightAct],
-                    0,
-                    follow.id,
-                    fromX,
-                    fromY,
-                    static_cast<i16>(this->command.target),
-                    0
-                ) != 1)
-            {
-                return 0;
-            }
-
-            attack.waiting = 1;
-            follow.waiting = 1;
-            follow.target |= ActState::Strikes;
-        }
-        else
-        {
-            this->AimAction(
-                services,
-                target,
-                follow,
-                static_cast<i16>(attack.anchorX),
-                static_cast<i16>(attack.anchorY)
-            );
-        }
-
-        if ((follow.target & ActState::Strikes) != 0)
-        {
-            this->Strike(services, target, 1);
-            follow.target = 0;
-        }
-    }
-    else
-    {
-        follow.waiting = 1;
-    }
-
-    Painter& painter = services.painter;
-
-    if (follow.waiting != 1)
-    {
-        // A missing picture is read through a null pointer in the original.
-        if (this->picture != nullptr)
-        {
-            painter.DrawPicture(
-                static_cast<i16>(this->aimX),
-                static_cast<i16>(this->aimY),
-                this->picture->width,
-                this->picture->height,
-                this->unk26A4
-            );
-        }
-
-        return 0;
-    }
-
-    if (follow.id != 0 && (this->command.flags & UnitCommand::TargetsUnit) == 0 && this->slotTint > kSlotFadeEnd)
-    {
-        DrawOptions& options = painter.Options();
-        options.tintRed = this->slotTint;
-        options.tintGreen = this->slotTint;
-        options.tintBlue = this->slotTint;
-
-        if ((this->unk26A4 & ActState::NoBlend) != 0)
-        {
-            options.tintRed = 0;
-            options.tintGreen = 0;
-            options.tintBlue = 0;
-            this->slotTint = kSlotFadeEnd;
-        }
-
-        if (this->picture != nullptr)
-        {
-            painter.DrawPicture(
-                static_cast<i16>(this->aimX),
-                static_cast<i16>(this->aimY),
-                this->picture->width,
-                this->picture->height,
-                this->unk26A4,
-                PaletteArgument(*this->picture)
-            );
-        }
-
-        this->slotTint = static_cast<i16>(this->slotTint - kSlotFadeStep);
-
-        if (this->held == 1)
-        {
-            this->slotTint = static_cast<i16>(this->slotTint + kSlotFadeStep);
-        }
-
-        return 0;
-    }
-
-    if (attack.waiting != 1)
-    {
-        return 0;
-    }
-
-    this->standAct = ActState{};
-    this->recoilAct = ActState{};
-    follow = ActState{};
-    this->slotActs[kFlightAct] = ActState{};
-    this->slotActs[kFlightAct + 1] = ActState{};
-    this->targets.fill(BattleUnit::NoTarget);
-    this->slotTint = 0;
-    this->recoilTint = 1;
-    this->unk2AB0 = 0;
-    this->fadedIn = 0;
-    this->unk267C = 0;
-
-    if (battle.criticalAttack == 0)
-    {
-        if (this->extraAttacks == 0)
-        {
-            this->unk26CC &= ~kRepeatAttack;
-        }
-
-        if (this->extraAttacks != 0)
-        {
-            --this->extraAttacks;
-            return 0;
-        }
-    }
-
-    ++battle.attacksSinceCritical;
-    this->critical = 0;
-    battle.criticalAttack = 0;
-    return 1;
+    smooth::Scene scene;
+    const int result = smooth::RoleFrame(*this).AttackAdvance(services, target, slot, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // swd32.exe 0x004707B0: item `id` of mon.dat taken as the role's action: its act, its command script (an item without
@@ -1127,59 +777,9 @@ void BattleRole::StartAbsorb(BattleServices& services, BattleUnit& source)
 // role's x less unk2674 it is drawn there for the last time and its steps and the line are cleared.
 void BattleRole::FlyExtraAct(BattleServices& services, i32 id, i32 action, int slot, i16 x, i16 y, int steps)
 {
-    ActState& act = this->extraActs[static_cast<std::size_t>(slot)];
-    i32& count = this->extraSteps[static_cast<std::size_t>(slot)];
-    act.id = id;
-    act.action = action;
-    act.hold = 0;
-
-    if (this->held == 1)
-    {
-        act.hold = 1;
-    }
-
-    if (services.acts.Run(act) == 0)
-    {
-        return;
-    }
-
-    this->picture = services.archive.GetPicture(act.frame, act.picture);
-
-    // A missing picture is read through a null pointer in the original.
-    if (this->picture == nullptr)
-    {
-        return;
-    }
-
-    Painter& painter = services.painter;
-    painter.SetSource(this->picture->data.data());
-    LineWalker& line = this->flight;
-    line = LineWalker{};
-    line.fromX = static_cast<i16>(x - static_cast<u16>(act.x));
-    line.fromY = static_cast<i16>(y - static_cast<u16>(act.y));
-    line.toX = this->placement.x - static_cast<i16>(this->originX) + static_cast<i16>(this->mainAct.anchorX) - act.x;
-    line.toY = this->placement.y + static_cast<i16>(this->mainAct.anchorY) - this->mainAct.y - act.y;
-
-    for (int taken = 0; taken < count * steps; ++taken)
-    {
-        LineStep(line);
-    }
-
-    ++count;
-    services.audio.PlaySound(act.view, services.config.soundVolume);
-    act.view = 0;
-    const int endX = line.toX - this->unk2674;
-    const int atX = line.fromX + line.x;
-
-    if (atX >= endX)
-    {
-        painter.DrawPicture(endX, line.toY, this->picture->width, this->picture->height, act.flags);
-        count = 0;
-        line = LineWalker{};
-        return;
-    }
-
-    painter.DrawPicture(atX, line.fromY + line.y, this->picture->width, this->picture->height, act.flags);
+    smooth::Scene scene;
+    smooth::RoleFrame(*this).FlyExtraActAdvance(services, id, action, slot, x, y, steps, scene);
+    scene.DrawAll(services);
 }
 
 // swd32.exe 0x00471270: one frame of the absorb; 1 once the picture is gone (its pixels freed, the effect, the extra
@@ -1242,104 +842,10 @@ int BattleRole::AbsorbFrame(BattleServices& services)
 // and the attack act are cleared and 1 is returned.
 int BattleRole::ThrowAct(BattleServices& services, const BattleUnit& target)
 {
-    u16 anchorX = 0;
-    u16 anchorY = 0;
-    ActState& act = this->attackAct;
-    act.id = kThrownAct;
-    act.action = 0;
-    act.hold = 0;
-
-    if (this->held == 1)
-    {
-        act.hold = 1;
-    }
-
-    if (services.acts.Run(act) == 0)
-    {
-        return 0;
-    }
-
-    this->picture = services.archive.GetPicture(act.frame, act.picture);
-
-    // A missing picture is read through a null pointer in the original.
-    if (this->picture == nullptr)
-    {
-        return 0;
-    }
-
-    Painter& painter = services.painter;
-    painter.SetSource(this->picture->data.data());
-    this->actOffsetX = static_cast<u16>(act.x);
-    this->frameFlags = act.flags;
-
-    if (this->facing == 1)
-    {
-        this->frameFlags ^= Painter::Mirror;
-        this->actOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
-    }
-
-    target.GetOffset(anchorX, anchorY);
-    i16 toX = 0;
-    i16 toY = 0;
-
-    if (anchorX != 0 && anchorY != 0)
-    {
-        u16 originX = 0;
-        u16 originY = 0;
-        target.GetOrigin(originX, originY);
-        toX = static_cast<i16>(originX + anchorX - this->actOffsetX);
-        toY = static_cast<i16>(originY + anchorY - static_cast<u16>(act.y));
-    }
-    else
-    {
-        u16 x = 0;
-        u16 y = 0;
-        target.GetDrawPosition(x, y);
-        toX = static_cast<i16>(x - this->actOffsetX);
-        toY = static_cast<i16>(y - static_cast<u16>(act.y));
-    }
-
-    LineWalker& line = this->flight;
-    line = LineWalker{};
-    line.fromX = static_cast<i16>(this->actAnchorX) - static_cast<i16>(this->originX) + this->placement.x -
-                 static_cast<i16>(this->actOffsetX);
-    line.fromY = this->placement.y + static_cast<i16>(this->mainAct.anchorY) - this->mainAct.y - act.y;
-    line.toX = toX;
-    line.toY = toY;
-    bool arrived = false;
-
-    for (int taken = 0; taken < kThrowSteps * this->throwSteps; ++taken)
-    {
-        LineStep(line);
-
-        if (line.fromX + line.x == line.toX)
-        {
-            arrived = true;
-            break;
-        }
-    }
-
-    ++this->throwSteps;
-    services.audio.PlaySound(act.view, services.config.soundVolume);
-    act.view = 0;
-
-    if (arrived)
-    {
-        painter.DrawPicture(toX, toY, this->picture->width, this->picture->height, this->frameFlags);
-        this->throwSteps = 0;
-        line = LineWalker{};
-        act = ActState{};
-        return 1;
-    }
-
-    painter.DrawPicture(
-        line.fromX + line.x,
-        line.fromY + line.y,
-        this->picture->width,
-        this->picture->height,
-        this->frameFlags
-    );
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::RoleFrame(*this).ThrowActAdvance(services, target, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // swd32.exe 0x00471AD0: one frame of the thrown act flying back (action kCaughtAction, unmirrored, with its own flags)
@@ -1348,89 +854,10 @@ int BattleRole::ThrowAct(BattleServices& services, const BattleUnit& target)
 // are cleared and 1 is returned.
 int BattleRole::CatchAct(BattleServices& services, const BattleUnit& target)
 {
-    u16 anchorX = 0;
-    u16 anchorY = 0;
-    ActState& act = this->attackAct;
-    act.id = kThrownAct;
-    act.action = kCaughtAction;
-    act.hold = 0;
-
-    if (this->held == 1)
-    {
-        act.hold = 1;
-    }
-
-    if (services.acts.Run(act) == 0)
-    {
-        return 0;
-    }
-
-    this->picture = services.archive.GetPicture(act.frame, act.picture);
-
-    // A missing picture is read through a null pointer in the original.
-    if (this->picture == nullptr)
-    {
-        return 0;
-    }
-
-    Painter& painter = services.painter;
-    painter.SetSource(this->picture->data.data());
-    target.GetOffset(anchorX, anchorY);
-    i16 fromX = 0;
-    i16 fromY = 0;
-
-    if (anchorX != 0 && anchorY != 0)
-    {
-        u16 originX = 0;
-        u16 originY = 0;
-        target.GetOrigin(originX, originY);
-        fromX = static_cast<i16>(originX + anchorX - static_cast<u16>(act.x));
-        fromY = static_cast<i16>(originY + anchorY - static_cast<u16>(act.y));
-    }
-    else
-    {
-        u16 x = 0;
-        u16 y = 0;
-        target.GetDrawPosition(x, y);
-        fromX = static_cast<i16>(x - static_cast<u16>(act.x));
-        fromY = static_cast<i16>(y - static_cast<u16>(act.y));
-    }
-
-    LineWalker& line = this->flight;
-    line = LineWalker{};
-    line.fromX = fromX;
-    line.fromY = fromY;
-    line.toX = this->placement.x - static_cast<i16>(this->originX) + static_cast<i16>(this->mainAct.anchorX) - act.x;
-    line.toY = this->placement.y + static_cast<i16>(this->mainAct.anchorY) - this->mainAct.y - act.y;
-    bool arrived = false;
-
-    for (int taken = 0; taken < kThrowSteps * this->throwSteps; ++taken)
-    {
-        LineStep(line);
-
-        if (line.fromX + line.x == line.toX)
-        {
-            arrived = true;
-            break;
-        }
-    }
-
-    ++this->throwSteps;
-    services.audio.PlaySound(act.view, services.config.soundVolume);
-    act.view = 0;
-
-    if (arrived)
-    {
-        painter.DrawPicture(line.toX, line.toY, this->picture->width, this->picture->height, act.flags);
-        this->throwSteps = 0;
-        line = LineWalker{};
-        act = ActState{};
-        return 1;
-    }
-
-    painter
-        .DrawPicture(line.fromX + line.x, line.fromY + line.y, this->picture->width, this->picture->height, act.flags);
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::RoleFrame(*this).CatchActAdvance(services, target, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // swd32.exe 0x00471D60: one frame of the role's glow act (usedItem, action kGlowAction) drawn additively at (x, y) less
@@ -1440,96 +867,10 @@ int BattleRole::CatchAct(BattleServices& services, const BattleUnit& target)
 // act's.
 int BattleRole::GlowAct(BattleServices& services, int x, int y)
 {
-    ActState& act = this->attackAct;
-    act.id = this->usedItem;
-    act.action = kGlowAction;
-    act.hold = 0;
-
-    if (this->held == 1)
-    {
-        act.hold = 1;
-    }
-
-    if (services.acts.Run(act) == 0)
-    {
-        return 0;
-    }
-
-    this->picture = services.archive.GetPicture(act.frame, act.picture);
-    services.audio.PlaySound(act.view, services.config.soundVolume);
-    this->recoilAct.view = 0;
-    this->glowFlags = act.flags;
-    this->glowOffsetX = act.x;
-
-    // A missing picture is read through a null pointer in the original.
-    if (this->picture == nullptr)
-    {
-        return 0;
-    }
-
-    if (this->facing == 0)
-    {
-        this->glowFlags ^= Painter::Mirror;
-        this->glowOffsetX = this->picture->width - act.x;
-    }
-
-    DrawOptions& options = services.painter.Options();
-
-    auto tint = [this, &options]
-    {
-        const int level = this->glowLevel / 2 - kGlowTintBase;
-        options.tintRed = level;
-        options.tintGreen = level;
-        options.tintBlue = level;
-    };
-
-    if (this->glowPhase == kGlowRising)
-    {
-        tint();
-        this->glowLevel = static_cast<i16>(this->glowLevel + kGlowStep);
-
-        if (this->glowLevel > kGlowPeak)
-        {
-            this->glowPhase = kGlowFalling;
-        }
-    }
-
-    if (this->glowPhase == kGlowFalling)
-    {
-        tint();
-        this->glowLevel = static_cast<i16>(this->glowLevel - kGlowStep);
-        ++this->absorbFrames;
-
-        if (this->glowLevel <= 0)
-        {
-            this->glowPhase = kGlowDone;
-        }
-    }
-
-    services.painter.SetSource(this->picture->data.data());
-    services.painter.DrawPicture(
-        x - this->glowOffsetX,
-        y - act.y,
-        this->picture->width,
-        this->picture->height,
-        this->glowFlags | Painter::Additive
-    );
-
-    if (this->glowPhase != kGlowDone)
-    {
-        return 0;
-    }
-
-    services.audio.PlaySound(kGlowEndSound, services.config.soundVolume);
-    this->glowLevel = 0;
-    this->glowFlags = 0;
-    this->glowOffsetX = 0;
-    this->glowPhase = kGlowRising;
-    this->absorbFrames = 0;
-    this->hurtStep = 0;
-    act = ActState{};
-    this->extraActs.fill(ActState{});
-    return 1;
+    smooth::Scene scene;
+    const auto result = smooth::RoleFrame(*this).GlowActAdvance(services, x, y, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // swd32.exe 0x004721F0: one frame of the role's pose kTargetPose (in the stand act) at the target's draw position over
@@ -1538,71 +879,10 @@ int BattleRole::GlowAct(BattleServices& services, int x, int y)
 // shadow is fainter with unk2B00; the sound pans right of the middle of the screen.
 int BattleRole::PoseAtTarget(BattleServices& services, const BattleUnit& target)
 {
-    u16 targetX = 0;
-    u16 targetY = 0;
-    ActState& act = this->standAct;
-    act.action = kTargetPose;
-    act.hold = 0;
-    act.id = this->actId;
-
-    if (this->held == 1)
-    {
-        act.hold = 1;
-    }
-
-    if (services.acts.Run(act) == 0)
-    {
-        return 0;
-    }
-
-    this->picture = services.archive.GetPicture(act.frame, act.picture);
-
-    // A missing picture is read through a null pointer in the original.
-    if (this->picture == nullptr)
-    {
-        return 0;
-    }
-
-    Painter& painter = services.painter;
-    painter.SetSource(this->picture->data.data());
-
-    if (act.waiting != 0)
-    {
-        act = ActState{};
-        return 1;
-    }
-
-    if (this->facing == 1 && act.unknown1C == 0)
-    {
-        act.flags ^= Painter::Mirror;
-        act.unknown1C = static_cast<i32>(act.flags | kMirroredOnce);
-        act.x = this->picture->width - act.x;
-    }
-
-    target.GetDrawPosition(targetX, targetY);
-    const auto x = static_cast<i16>(targetX - static_cast<u16>(act.x));
-    const auto y = static_cast<i16>(targetY - static_cast<u16>(act.y));
-    const int shadowHeight = this->picture->height / kShadowShare;
-    DrawOptions& options = painter.Options();
-    options.scaleHeight = shadowHeight;
-    options.shear = this->picture->height >> kShadowShearShift;
-    const int tint = this->unk2B00 == 1 ? kFaintShadowTint : kShadowTint;
-    options.tintRed = tint;
-    options.tintGreen = tint;
-    options.tintBlue = tint;
-    services.audio.PlaySound(act.view, services.config.soundVolume);
-    services.audio.SetSoundPan(act.view, x > kPanCentre ? kTargetPan : -kTargetPan);
-    this->unk26A4 = (act.flags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
-    act.view = 0;
-    painter.DrawPicture(
-        x - kShadowLeft,
-        act.y + y - shadowHeight,
-        this->picture->width,
-        this->picture->height,
-        this->unk26A4
-    );
-    painter.DrawPicture(x, y, this->picture->width, this->picture->height, act.flags);
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::RoleFrame(*this).PoseAtTargetAdvance(services, target, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // swd32.exe 0x00472430: the item stolen from the target (taken from it), 0 when the roll fails, kNothingToSteal when it
@@ -1652,77 +932,10 @@ int BattleRole::CanTarget(const BattleUnit& target)
 // (the bits cleared), kPoseDone (the act cleared) once it waits, otherwise 0.
 u16 BattleRole::AttackPose(BattleServices& services)
 {
-    ActState& act = this->standAct;
-    act.id = this->actId;
-    this->unk2AAC = 1;
-    act.action = kAttackAction;
-    act.hold = 0;
-
-    if (this->held == 1)
-    {
-        act.hold = 1;
-    }
-
-    if (services.acts.Run(act) == 0)
-    {
-        return 0;
-    }
-
-    this->picture = services.archive.GetPicture(act.frame, act.picture);
-
-    // A missing picture is read through a null pointer in the original.
-    if (this->picture == nullptr)
-    {
-        return 0;
-    }
-
-    Painter& painter = services.painter;
-    painter.SetSource(this->picture->data.data());
-    this->actOffsetX = static_cast<u16>(act.x);
-    this->frameFlags = act.flags;
-    this->actAnchorX = act.anchorX;
-
-    if (this->facing == 1)
-    {
-        this->frameFlags ^= Painter::Mirror;
-        this->actOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
-
-        if (act.anchorX != 0)
-        {
-            this->actAnchorX = static_cast<u16>(this->picture->width - act.anchorX);
-        }
-    }
-
-    const int shadowHeight = this->picture->height / kShadowShare;
-    DrawOptions& options = painter.Options();
-    options.scaleHeight = shadowHeight;
-    options.tintRed = kShadowTint;
-    options.tintGreen = kShadowTint;
-    options.tintBlue = kShadowTint;
-    options.shear = this->picture->height >> kShadowShearShift;
-    services.audio.PlaySound(act.view, services.config.soundVolume);
-    services.audio.SetSoundPan(act.view, -kTargetPan);
-    act.view = 0;
-    this->unk26A4 = (act.flags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
-    const int x = this->placement.x - act.x;
-    painter
-        .DrawPicture(x, this->placement.y - shadowHeight, this->picture->width, this->picture->height, this->unk26A4);
-    painter.DrawPicture(x, this->placement.y - act.y, this->picture->width, this->picture->height, act.flags);
-
-    if ((act.target & (ActState::Strikes | ActState::FollowsUp)) != 0)
-    {
-        act.target = 0;
-        return static_cast<u16>(this->command.castAct | kHitCast);
-    }
-
-    if (act.waiting != 1)
-    {
-        return 0;
-    }
-
-    this->unk2AAC = 0;
-    act = ActState{};
-    return kPoseDone;
+    smooth::Scene scene;
+    const auto result = smooth::RoleFrame(*this).AttackPoseAdvance(services, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // swd32.exe 0x00472730: whether the role absorbs the target: only an Absorbable monster (not UnkKind20) of class up to
@@ -1797,120 +1010,10 @@ int BattleRole::CanAbsorb(BattleServices& services, const BattleUnit& target) co
 // acts cleared) once the stand act waits after it.
 int BattleRole::DirectAttack(BattleServices& services, BattleUnit& target)
 {
-    BattleState& battle = services.state;
-    u16 targetX = 0;
-    u16 targetY = 0;
-    ActState& act = this->standAct;
-    act.id = this->actId;
-    this->unk2AAC = 1;
-    act.action = kForcedAttackAction;
-    act.hold = 0;
-
-    if (this->held == 1)
-    {
-        act.hold = 1;
-    }
-
-    if (services.acts.Run(act) == 0)
-    {
-        return 0;
-    }
-
-    this->picture = services.archive.GetPicture(act.frame, act.picture);
-
-    // A missing picture is read through a null pointer in the original.
-    if (this->picture == nullptr)
-    {
-        return 0;
-    }
-
-    Painter& painter = services.painter;
-    painter.SetSource(this->picture->data.data());
-    this->frameFlags = act.flags;
-    this->actOffsetX = static_cast<u16>(act.x);
-    this->actAnchorX = act.anchorX;
-
-    if (this->facing == 1)
-    {
-        this->frameFlags ^= Painter::Mirror;
-        this->actOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
-
-        if (act.anchorX != 0)
-        {
-            this->actAnchorX = static_cast<u16>(this->picture->width - act.anchorX);
-        }
-    }
-
-    target.GetDrawPosition(targetX, targetY);
-    const auto shadowY = static_cast<i16>(targetY - static_cast<u16>(act.y));
-    const int shadowHeight = this->picture->height / kShadowShare;
-    DrawOptions& options = painter.Options();
-    options.scaleHeight = shadowHeight;
-    options.shear = this->picture->height >> kShadowShearShift;
-    const int tint = this->unk2B00 == 1 ? kFaintShadowTint : kShadowTint;
-    options.tintRed = tint;
-    options.tintGreen = tint;
-    options.tintBlue = tint;
-    services.audio.PlaySound(act.view, services.config.soundVolume);
-    const int x = this->placement.x - static_cast<i16>(this->actOffsetX);
-    services.audio.SetSoundPan(act.view, x >= kPanCentre ? kTargetPan : -kTargetPan);
-    this->unk26A4 = (this->frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
-    act.view = 0;
-    painter.DrawPicture(x, act.y + shadowY - shadowHeight, this->picture->width, this->picture->height, this->unk26A4);
-    painter.DrawPicture(x, this->placement.y - act.y, this->picture->width, this->picture->height, this->frameFlags);
-
-    if ((act.target & (ActState::Strikes | ActState::FollowsUp)) != 0)
-    {
-        act.target = 0;
-        this->unk267C = BattleUnit::FollowingUp;
-        target.RaiseFlag26B8();
-        i16 spirit = 0;
-        i16 stamina = 0;
-        i32 damage = this->HitDamage(services, target, spirit, stamina);
-        battle.lastDamage = damage;
-
-        if (damage >= kMaxDamage)
-        {
-            damage = kMaxDamage;
-            battle.lastDamage = damage;
-        }
-
-        battle.hitDamage += damage;
-        target.SetDamageDigits(services, damage);
-        target.StepTargetCount(1);
-    }
-
-    if (this->unk267C != BattleUnit::FollowingUp)
-    {
-        return 0;
-    }
-
-    ActState& follow = this->slotActs[0];
-    follow.id = this->command.castAct;
-    follow.action = 0;
-    this->AimAction(services, target, follow, 0, 0);
-
-    if (this->picture != nullptr)
-    {
-        painter.SetSource(this->picture->data.data());
-        painter.DrawPicture(
-            static_cast<i16>(this->aimX),
-            static_cast<i16>(this->aimY),
-            this->picture->width,
-            this->picture->height,
-            this->unk26A4
-        );
-    }
-
-    if (act.waiting != 1)
-    {
-        return 0;
-    }
-
-    this->unk267C = 0;
-    follow = ActState{};
-    act = ActState{};
-    return 1;
+    smooth::Scene scene;
+    const auto result = smooth::RoleFrame(*this).DirectAttackAdvance(services, target, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // swd32.exe 0x00472CE0: one frame of the role's cast pose (kCastPose in the stand act, its hold left as it is) at its
@@ -1918,114 +1021,10 @@ int BattleRole::DirectAttack(BattleServices& services, BattleUnit& target)
 // `spell` (slot act 0) is drawn on the target each frame, and 1 (both acts cleared) tells that it waits.
 int BattleRole::CastAt(BattleServices& services, const BattleUnit& target, i32 spell)
 {
-    ActState& act = this->standAct;
-    act.id = this->actId;
-    this->unk2AAC = 1;
-    act.action = kCastPose;
-
-    if (services.acts.Run(act) == 0)
-    {
-        return 0;
-    }
-
-    this->picture = services.archive.GetPicture(act.frame, act.picture);
-
-    // A missing picture is read through a null pointer in the original.
-    if (this->picture == nullptr)
-    {
-        return 0;
-    }
-
-    Painter& painter = services.painter;
-    painter.SetSource(this->picture->data.data());
-    u32 flags = act.flags;
-    auto offsetX = static_cast<i16>(act.x);
-    this->actAnchorX = act.anchorX;
-
-    if (this->facing == 1)
-    {
-        flags ^= Painter::Mirror;
-        offsetX = static_cast<i16>(this->picture->width - static_cast<u16>(act.x));
-
-        if (act.anchorX != 0)
-        {
-            this->actAnchorX = static_cast<u16>(this->picture->width - act.anchorX);
-        }
-    }
-
-    const int shadowHeight = this->picture->height / kShadowShare;
-    DrawOptions& options = painter.Options();
-    options.scaleHeight = shadowHeight;
-    options.shear = this->picture->height >> kShadowShearShift;
-    const int tint = this->unk2B00 == 1 ? kFaintShadowTint : kShadowTint;
-    options.tintRed = tint;
-    options.tintGreen = tint;
-    options.tintBlue = tint;
-    services.audio.PlaySound(act.view, services.config.soundVolume);
-    const int x = this->placement.x - offsetX;
-    services.audio.SetSoundPan(act.view, x >= kPanCentre ? kTargetPan : -kTargetPan);
-    this->unk26A4 = (flags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
-    act.view = 0;
-    painter
-        .DrawPicture(x, this->placement.y - shadowHeight, this->picture->width, this->picture->height, this->unk26A4);
-    painter.DrawPicture(x, this->placement.y - act.y, this->picture->width, this->picture->height, flags);
-
-    if ((act.target & (ActState::Strikes | ActState::FollowsUp)) == 0)
-    {
-        return 0;
-    }
-
-    ActState& effect = this->slotActs[0];
-    effect.id = spell;
-    effect.action = 0;
-
-    if (services.acts.Run(effect) == 0)
-    {
-        return 0;
-    }
-
-    this->picture = services.archive.GetPicture(effect.frame, effect.picture);
-
-    if (this->picture == nullptr)
-    {
-        return 0;
-    }
-
-    painter.SetSource(this->picture->data.data());
-    u32 effectFlags = effect.flags;
-    auto effectOffsetX = static_cast<i16>(effect.x);
-    this->actAnchorX = effect.anchorX;
-
-    if (this->facing == 1)
-    {
-        effectFlags ^= Painter::Mirror;
-        effectOffsetX = static_cast<i16>(this->picture->width - static_cast<u16>(effect.x));
-
-        if (effect.anchorX != 0)
-        {
-            this->actAnchorX = static_cast<u16>(this->picture->width - effect.anchorX);
-        }
-    }
-
-    u16 targetX = 0;
-    u16 targetY = 0;
-    target.GetDrawPosition(targetX, targetY);
-    painter.DrawPicture(
-        static_cast<i16>(targetX - effectOffsetX),
-        static_cast<i16>(targetY - static_cast<u16>(effect.y)),
-        this->picture->width,
-        this->picture->height,
-        effectFlags
-    );
-
-    if (effect.waiting != 1)
-    {
-        return 0;
-    }
-
-    effect = ActState{};
-    act = ActState{};
-    return 1;
+    smooth::Scene scene;
+    const auto result = smooth::RoleFrame(*this).CastAtAdvance(services, target, spell, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // swd32.exe 0x00473010: one frame of the role's magic act (its act + MagicActs, action unk2A8A, slot act 8) drawn by
@@ -2034,72 +1033,10 @@ int BattleRole::CastAt(BattleServices& services, const BattleUnit& target, i32 s
 // marks the spell over.
 int BattleRole::MagicFrame(BattleServices& services, const BattleUnit& target)
 {
-    BattleState& battle = services.state;
-    ActState& act = this->slotActs[BattleUnit::UnkSlot8];
-    act.action = this->unk2A8A;
-    this->unk2AAC = 1;
-    act.id = this->actId + BattleRole::MagicActs;
-    this->DrawAction(services, target, act);
-
-    if ((act.target & ActState::Recoils) != 0)
-    {
-        if (act.effectA != 0)
-        {
-            this->unk267C |= BattleUnit::Recoiling;
-            this->recoilAct.id = act.effectA;
-            this->recoilAct.action = act.effectQ;
-        }
-
-        if ((act.target & ActState::Holds) != 0)
-        {
-            act.hold = 1;
-        }
-
-        act.effectA = 0;
-        act.target = static_cast<u16>(act.target & ~ActState::Recoils);
-        act.effectQ = 0;
-    }
-
-    if ((this->unk267C & BattleUnit::Recoiling) != 0 &&
-        this->DrawRecoil(services, this->recoilAct, static_cast<i16>(act.anchorY)) == 1)
-    {
-        this->unk267C &= ~BattleUnit::Recoiling;
-        act.target = 0;
-        act.hold = 0;
-        this->recoilAct = ActState{};
-    }
-
-    if ((act.target & ActState::FollowsUp) != 0)
-    {
-        if ((act.target & ActState::FadesField) != 0)
-        {
-            battle.fadingField = 1;
-            battle.StartFieldFade(
-                static_cast<i16>(act.lights[0]),
-                static_cast<i16>(act.lights[1]),
-                static_cast<i16>(act.lights[2]),
-                static_cast<i16>(act.lights[3]),
-                static_cast<i16>(act.lights[4]),
-                static_cast<i16>(act.lights[5]),
-                static_cast<i16>(act.lights[6])
-            );
-            act.target = static_cast<u16>(act.target & ~ActState::FadesField);
-        }
-
-        if ((battle.spellStage & BattleState::SpellCast) == 0)
-        {
-            battle.spellStage = static_cast<u16>(battle.spellStage | BattleState::SpellCast);
-        }
-    }
-
-    if ((battle.spellStage & BattleState::SpellOver) == 0)
-    {
-        return 0;
-    }
-
-    this->unk267C = 0;
-    act = ActState{};
-    return 1;
+    smooth::Scene scene;
+    const auto result = smooth::RoleFrame(*this).MagicFrameAdvance(services, target, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // swd32.exe 0x004735B0: one frame of the role's beam spell; 1 once it is over (the four acts cleared). Stage 0 draws
@@ -2333,344 +1270,20 @@ int BattleRole::BeamSpellFrame(BattleServices& services, BattleUnit& target)
 // strikes; a follow-up runs the cast act (slot act 0) on the target, drawn with the shadow's palette.
 int BattleRole::ChargeAttackFrame(BattleServices& services, BattleUnit& target, int slot)
 {
-    BattleState& battle = services.state;
-    Painter& painter = services.painter;
-
-    if (this->unk2A74 != 0 || this->unk2AD8 == 1)
-    {
-        return 0;
-    }
-
-    this->unk2AAC = 1;
-    ActState& magic = this->slotActs[BattleUnit::UnkSlot8 + static_cast<std::size_t>(slot)];
-    ActState& charge = this->attackAct;
-    magic.id = this->actId + BattleRole::MagicActs;
-    magic.action = this->unk2A8A;
-    this->DrawAction(services, target, magic);
-
-    auto slide = [this, &painter]
-    {
-        if (this->picture == nullptr)
-        {
-            return;
-        }
-
-        const int x = static_cast<i16>(this->actX) - this->fadeLevel;
-        const int y = static_cast<i16>(this->actY);
-        painter.Options().alpha = kChargeAlpha;
-        painter.DrawPicture(x, y, this->picture->width, this->picture->height, this->frameFlags | Painter::Translucent);
-        painter.Options().tintBlue = kChargeBlue;
-        painter.DrawPicture(x, y, this->picture->width, this->picture->height, this->frameFlags | Painter::TintUnder);
-    };
-
-    auto endDash = [this, &magic, &charge]
-    {
-        magic.target = 0;
-        this->glowLevel = 0;
-        this->unk2678 = 0;
-        this->unk2A8E = kNoUnk2A8E;
-        magic.hold = 0;
-        charge.hold = 0;
-    };
-
-    if ((magic.target & ActState::FollowsUp) != 0 && (magic.target & ActState::Dashes) != 0)
-    {
-        AfterimageTrail& dashTrail = this->trails[0];
-
-        if (dashTrail.started == 0)
-        {
-            dashTrail = AfterimageTrail{};
-            dashTrail.started = 1;
-
-            for (AfterimageTrail::Image& image : dashTrail.images)
-            {
-                image.picture = AfterimageTrail::NoPicture;
-            }
-
-            dashTrail.tintBlue = kTrailBlueTint;
-            this->fadeLevel = 0;
-        }
-
-        magic.hold = 1;
-        charge.id = this->actId + BattleRole::MagicActs;
-        charge.action = this->unk2A8A + kChargeAction;
-
-        while (charge.picture < kChargePicture)
-        {
-            if (services.acts.Run(charge) == 0)
-            {
-                return 0;
-            }
-        }
-
-        slide();
-        this->fadeLevel += this->facing == 0 ? kDashStep : -kDashStep;
-        charge.hold = 1;
-
-        if ((charge.target & ActState::Strikes) != 0)
-        {
-            target.RaiseFlag26B8();
-            charge.target = 0;
-        }
-
-        if (this->fadeLevel % kDashLength != 0)
-        {
-            return 0;
-        }
-
-        endDash();
-        this->charging = 1;
-    }
-
-    if (this->charging == 1)
-    {
-        if (charge.waiting != 0)
-        {
-            slide();
-            this->fadeLevel += this->facing == 0 ? -kDashStep : kDashStep;
-            charge.hold = 1;
-
-            if (this->fadeLevel == 0)
-            {
-                endDash();
-                this->fadeLevel = 0;
-                this->charging = 0;
-            }
-        }
-        else if (this->ChargeOnTarget(services, target) == 0)
-        {
-            return 0;
-        }
-    }
-
-    if ((magic.target & ActState::FollowsUp) != 0)
-    {
-        this->unk267C |= BattleUnit::FollowingUp;
-        magic.target = 0;
-    }
-
-    if ((magic.target & ActState::Strikes) != 0)
-    {
-        this->Strike(services, target, 0);
-        magic.target = 0;
-        this->unk267C |= BattleUnit::FollowingUp;
-        this->slotTint = 0;
-        battle.proficiencyBonus = 0;
-        this->slotActs[0] = ActState{};
-    }
-
-    if ((this->unk267C & BattleUnit::FollowingUp) == 0)
-    {
-        return 0;
-    }
-
-    ActState& follow = this->slotActs[0];
-    follow.action = 0;
-    follow.id = this->command.castAct;
-    this->AimAction(services, target, follow, static_cast<i16>(magic.anchorX), static_cast<i16>(magic.anchorY));
-
-    if ((follow.target & ActState::Strikes) != 0)
-    {
-        this->slotTint = 0;
-        follow.target = 0;
-        this->Strike(services, target, 0);
-    }
-
-    if (this->picture != nullptr)
-    {
-        painter.SetSource(this->picture->data.data());
-    }
-
-    if (follow.waiting == 1)
-    {
-        magic.effectA = 0;
-        charge.effectA = 0;
-
-        if (magic.waiting != 1 || this->charging != 0)
-        {
-            return 0;
-        }
-
-        magic = ActState{};
-        charge = ActState{};
-        this->recoilAct = ActState{};
-        follow = ActState{};
-        this->slotActs[1] = ActState{};
-        this->trails = {};
-        this->targets.fill(BattleUnit::NoTarget);
-        this->slotTint = 0;
-        this->unk2AB0 = 0;
-        this->unk267C = 0;
-        this->unk26D4 = 0;
-        battle.criticalAttack = 0;
-        ++battle.attacksSinceCritical;
-        this->charging = 0;
-        return 1;
-    }
-
-    if ((this->unk267C & BattleUnit::Recoiling) == 0 && this->picture != nullptr)
-    {
-        const DrawArgument argument =
-            this->shadowPicture != nullptr ? PaletteArgument(*this->shadowPicture) : DrawArgument{};
-        painter.DrawPicture(
-            static_cast<i16>(this->aimX),
-            static_cast<i16>(this->aimY),
-            this->picture->width,
-            this->picture->height,
-            this->unk26A4,
-            argument
-        );
-    }
-
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::RoleFrame(*this).ChargeAttackFrameAdvance(services, target, slot, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // The charge part of ChargeAttackFrame (inline in the original): the charge act on the target with trail 1, and its
 // follow-up mirrored twice beside it; 0 when an act ends the frame.
 int BattleRole::ChargeOnTarget(BattleServices& services, BattleUnit& target)
 {
-    Painter& painter = services.painter;
-    ActState& charge = this->attackAct;
-    charge.id = this->actId + BattleRole::MagicActs;
-    charge.action = this->unk2A8A + kChargeAction;
-
-    if (services.acts.Run(charge) == 0)
-    {
-        return 0;
-    }
-
-    this->picture = services.archive.GetPicture(charge.frame, charge.picture);
-    services.audio.PlaySound(charge.view, services.config.soundVolume);
-    charge.view = 0;
-    this->unk26A4 = charge.flags;
-    this->actOffsetX = static_cast<u16>(charge.x);
-    const u16 chargeAnchorX = charge.anchorX;
-
-    // A missing picture is read through a null pointer in the original.
-    if (this->picture == nullptr)
-    {
-        return 0;
-    }
-
-    if (this->facing == 1)
-    {
-        this->unk26A4 ^= Painter::Mirror;
-        this->actOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(charge.x));
-    }
-
-    u16 targetX = 0;
-    u16 targetY = 0;
-    target.GetDrawPosition(targetX, targetY);
-    const auto dashX = static_cast<i16>(targetX - this->actOffsetX);
-    const auto dashY = static_cast<i16>(targetY - static_cast<u16>(charge.y));
-    AfterimageTrail& trail = this->trails[1];
-
-    if (trail.started == 0)
-    {
-        trail = AfterimageTrail{};
-        trail.started = 1;
-
-        for (AfterimageTrail::Image& image : trail.images)
-        {
-            image.picture = AfterimageTrail::NoPicture;
-        }
-
-        trail.tintBlue = kTrailBlueTint;
-    }
-
-    trail.direction = AfterimageTrail::InPlace;
-    trail.count = kChargeTrailImages;
-    trail.fadeStep = 1;
-    this->DrawTrail(services, trail, charge.frame, charge.picture, this->unk26A4, dashX, dashY);
-    this->picture = services.archive.GetPicture(charge.frame, charge.picture);
-
-    if (this->picture == nullptr)
-    {
-        return 0;
-    }
-
-    painter.SetSource(this->picture->data.data());
-    painter.DrawPicture(dashX, dashY, this->picture->width, this->picture->height, this->unk26A4);
-
-    if ((charge.target & ActState::FollowsUp) != 0)
-    {
-        this->unk267C |= BattleUnit::ChargeFollowing;
-        charge.target = 0;
-        this->slotActs[1] = ActState{};
-    }
-
-    if ((this->unk267C & BattleUnit::ChargeFollowing) == 0)
-    {
-        return 1;
-    }
-
-    ActState& follow = this->slotActs[1];
-    follow.action = 0;
-    follow.id = this->command.castAct;
-
-    if (charge.effectA != 0)
-    {
-        follow.id = charge.effectA;
-    }
-
-    if (follow.waiting != 0)
-    {
-        return 1;
-    }
-
-    if (services.acts.Run(follow) == 0)
-    {
-        return 0;
-    }
-
-    this->picture = services.archive.GetPicture(follow.frame, follow.picture);
-
-    if (this->picture == nullptr)
-    {
-        return 0;
-    }
-
-    u16 followAnchorX = follow.anchorX;
-    this->unk26A4 = follow.flags;
-    this->aimOffsetX = static_cast<u16>(follow.x);
-
-    if (this->facing == 1)
-    {
-        this->unk26A4 ^= Painter::Mirror;
-        this->aimOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(follow.x));
-    }
-
-    services.audio.PlaySound(follow.view, services.config.soundVolume);
-    services.audio.SetSoundPan(follow.view, this->facing == 1 ? kTargetPan : -kTargetPan);
-    follow.view = 0;
-    painter.SetSource(this->picture->data.data());
-    this->unk26A4 ^= Painter::Mirror;
-    this->aimOffsetX = static_cast<u16>(this->picture->width - this->aimOffsetX);
-
-    if (followAnchorX != 0)
-    {
-        followAnchorX = static_cast<u16>(this->picture->width - follow.anchorX);
-    }
-
-    i16 x = 0;
-    i16 y = 0;
-
-    if ((follow.anchorX != 0 || follow.anchorY != 0) && (charge.anchorX != 0 || charge.anchorY != 0))
-    {
-        x = static_cast<i16>(dashX - followAnchorX + chargeAnchorX);
-        y = static_cast<i16>(charge.anchorY - follow.anchorY + dashY);
-    }
-
-    painter.DrawPicture(x, y, this->picture->width, this->picture->height, this->unk26A4);
-
-    if ((follow.target & ActState::Strikes) != 0)
-    {
-        this->slotTint = 0;
-        follow.target = 0;
-        this->Strike(services, target, 0);
-    }
-
-    return 1;
+    smooth::Scene scene;
+    const auto result = smooth::RoleFrame(*this).ChargeOnTargetAdvance(services, target, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // swd32.exe 0x00474BA0: one frame of the role's swarm spell (magic act in slot act 8); 1 once it is over. The magic
@@ -2681,107 +1294,10 @@ int BattleRole::ChargeOnTarget(BattleServices& services, BattleUnit& target)
 // it ends.
 int BattleRole::SwarmSpellFrame(BattleServices& services, BattleUnit& target)
 {
-    ActState& magic = this->slotActs[BattleUnit::UnkSlot8];
-    u16 targetX = 0;
-    u16 targetY = 0;
-    magic.action = this->unk2A8A;
-    this->unk2AAC = 1;
-    magic.id = this->actId + BattleRole::MagicActs;
-    this->DrawAction(services, target, magic);
-
-    if ((magic.target & ActState::Recoils) != 0)
-    {
-        if (magic.effectA != 0)
-        {
-            this->unk267C |= BattleUnit::Recoiling;
-            this->recoilAct.id = magic.effectA;
-            this->recoilAct.action = magic.effectQ;
-        }
-
-        if ((magic.target & ActState::Holds) != 0)
-        {
-            magic.hold = 1;
-        }
-
-        magic.effectA = 0;
-        magic.target = static_cast<u16>(magic.target & ~ActState::Recoils);
-        magic.effectQ = 0;
-    }
-
-    if ((this->unk267C & BattleUnit::Recoiling) != 0 &&
-        this->DrawRecoil(services, this->recoilAct, static_cast<i16>(magic.anchorY)) == 1)
-    {
-        magic.target = 0;
-        this->unk267C &= ~BattleUnit::Recoiling;
-        magic.hold = 0;
-    }
-
-    auto aim = [this, &target, &targetX, &targetY]
-    {
-        target.GetDrawPosition(targetX, targetY);
-
-        if ((this->command.actionFlags & UnitCommand::UnkAction2) != 0)
-        {
-            targetX = 0;
-            targetY = 0;
-        }
-
-        this->ClearMoveAxes(targetX, targetY);
-    };
-
-    if ((magic.target & (ActState::Strikes | ActState::FollowsUp)) != 0)
-    {
-        this->unk267C |= BattleUnit::FollowingUp;
-        magic.target = 0;
-        aim();
-        this->unk2F0C = this->unk2F24;
-        ++this->unk2F24;
-    }
-
-    if ((this->unk267C & BattleUnit::FollowingUp) == 0)
-    {
-        return 0;
-    }
-
-    ++this->glowLevel;
-
-    if (this->glowLevel % kSwarmInterval == 1 && this->queuedActions < kSwarmActs)
-    {
-        aim();
-        const std::size_t place = this->queuedActions & (kSwarmActs - 1);
-        this->AddQueuedAction(
-            this->command.castAct,
-            this->unk2F0C,
-            static_cast<i16>(this->placement.x + BattleRole::SwarmOffsetX[place]),
-            static_cast<i16>(this->placement.y + BattleRole::SwarmOffsetY[place]),
-            static_cast<i16>(targetX),
-            static_cast<i16>(targetY - kSwarmAbove),
-            1,
-            kSwarmShake,
-            0
-        );
-        this->TrailLastQueuedAction(0, 0, kTrailBlueTint);
-        services.audio.PlaySound(kSwarmSound, services.config.soundVolume);
-    }
-
-    if (this->RunQueuedActions(services, target, this->unk2F0C) != 1)
-    {
-        return 0;
-    }
-
-    this->unk267C = 0;
-
-    if (magic.waiting != 1)
-    {
-        return 0;
-    }
-
-    this->glowLevel = 0;
-    this->unk2F0C = 0;
-    this->unk2F24 = 0;
-    this->slotActs[0] = ActState{};
-    magic = ActState{};
-    return 1;
+    smooth::Scene scene;
+    const auto result = smooth::RoleFrame(*this).SwarmSpellFrameAdvance(services, target, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // swd32.exe 0x004751C0: one frame of the role's boomerang throw (pose kForcedAttackAction in the stand act, its hold
@@ -2790,133 +1306,10 @@ int BattleRole::SwarmSpellFrame(BattleServices& services, BattleUnit& target)
 // arrives, then back (kBoomerangBack steps after kBoomerangShake frames of shaking), and sound kBoomerangSound plays.
 int BattleRole::BoomerangFrame(BattleServices& services, BattleUnit& target)
 {
-    Painter& painter = services.painter;
-    ActState& act = this->standAct;
-    act.id = this->actId;
-    this->unk2AAC = 1;
-    act.action = kForcedAttackAction;
-
-    if (services.acts.Run(act) == 0)
-    {
-        return 0;
-    }
-
-    this->picture = services.archive.GetPicture(act.frame, act.picture);
-
-    // A missing picture is read through a null pointer in the original.
-    if (this->picture == nullptr)
-    {
-        return 0;
-    }
-
-    painter.SetSource(this->picture->data.data());
-    this->frameFlags = act.flags;
-    this->actOffsetX = static_cast<u16>(act.x);
-    this->actAnchorX = act.anchorX;
-
-    if (this->facing == 1)
-    {
-        this->frameFlags ^= Painter::Mirror;
-        this->actOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
-
-        if (act.anchorX != 0)
-        {
-            this->actAnchorX = static_cast<u16>(this->picture->width - act.anchorX);
-        }
-    }
-
-    const int shadowHeight = this->picture->height / kShadowShare;
-    DrawOptions& options = painter.Options();
-    options.scaleHeight = shadowHeight;
-    options.shear = this->picture->height >> kShadowShearShift;
-    const int tint = this->unk2B00 == 1 ? kFaintShadowTint : kShadowTint;
-    options.tintRed = tint;
-    options.tintGreen = tint;
-    options.tintBlue = tint;
-    services.audio.PlaySound(act.view, services.config.soundVolume);
-    const int x = this->placement.x - static_cast<i16>(this->actOffsetX);
-    services.audio.SetSoundPan(act.view, x >= kPanCentre ? kTargetPan : -kTargetPan);
-    this->unk26A4 = (this->frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
-    act.view = 0;
-    painter
-        .DrawPicture(x, this->placement.y - shadowHeight, this->picture->width, this->picture->height, this->unk26A4);
-    painter.DrawPicture(x, this->placement.y - act.y, this->picture->width, this->picture->height, this->frameFlags);
-
-    if ((act.target & (ActState::Strikes | ActState::FollowsUp)) == 0)
-    {
-        return 0;
-    }
-
-    ActState& thrown = this->slotActs[0];
-    thrown.action = 0;
-    thrown.id = kBoomerangAct;
-    u16 targetX = 0;
-    u16 targetY = 0;
-    target.GetDrawPosition(targetX, targetY);
-
-    if (this->unk267C == kBoomerangGoing)
-    {
-        if (this->unk2F0C == 0)
-        {
-            this->AddQueuedAction(
-                thrown.id,
-                0,
-                this->placement.x,
-                this->placement.y,
-                static_cast<i16>(targetX),
-                static_cast<i16>(targetY),
-                kBoomerangOut,
-                0,
-                kNoImpact
-            );
-            this->TrailLastQueuedAction(0, 0, kTrailBlueTint);
-            this->unk2F0C = 1;
-        }
-
-        if (this->RunQueuedActions(services, target, 0) == 1)
-        {
-            this->unk2F0C = 0;
-            this->unk267C = kBoomerangReturning;
-            target.RaiseFlag26B8();
-        }
-    }
-
-    if (this->unk267C == kBoomerangReturning)
-    {
-        if (this->unk2F0C == 0)
-        {
-            this->AddQueuedAction(
-                thrown.id,
-                0,
-                static_cast<i16>(targetX),
-                static_cast<i16>(targetY),
-                this->placement.x,
-                this->placement.y,
-                kBoomerangBack,
-                kBoomerangShake,
-                kNoImpact
-            );
-            this->TrailLastQueuedAction(0, 0, kTrailBlueTint);
-            this->unk2F0C = 1;
-        }
-
-        if (this->RunQueuedActions(services, target, 0) == 1)
-        {
-            this->unk2F0C = 0;
-            this->unk267C = kBoomerangBackHome;
-            services.audio.PlaySound(kBoomerangSound, services.config.soundVolume);
-        }
-    }
-
-    if (this->unk267C != kBoomerangBackHome)
-    {
-        return 0;
-    }
-
-    this->unk267C = 0;
-    thrown = ActState{};
-    act = ActState{};
-    return 1;
+    smooth::Scene scene;
+    const auto result = smooth::RoleFrame(*this).BoomerangFrameAdvance(services, target, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // swd32.exe 0x00474E60: one frame of the role's leap spell (magic act in slot act 8, stages in unk267C); 1 once the
@@ -3549,103 +1942,10 @@ int BattleRole::BeatsLevel(BattleServices& services, u16 level) const
 // (mode 1) or 2; 1 once there (the recoil act cleared), or for a defeated role. A held or holding role only counts.
 int BattleRole::StepBack(BattleServices& services, int mode)
 {
-    if (this->defeated == 1)
-    {
-        this->unk2AAC = 0;
-        return 1;
-    }
-
-    this->glowLevel = mode == 0 ? kStandBackEnd : kStepBackEnd;
-
-    if (this->IsHeldOrHolding() == 1)
-    {
-        if (this->fadeLevel <= this->glowLevel)
-        {
-            this->fadeLevel = BattleUnit::Opaque;
-            return 1;
-        }
-
-        --this->fadeLevel;
-        return 0;
-    }
-
-    ActState& act = this->recoilAct;
-
-    if (this->fadeLevel <= this->glowLevel)
-    {
-        act = ActState{};
-        this->fadeLevel = BattleUnit::Opaque;
-
-        if (mode == 1)
-        {
-            this->unk2AAC = 1;
-        }
-
-        return 1;
-    }
-
-    this->unk2AAC = 1;
-    act.id = this->actId;
-    act.action = kStepBackAction;
-    act.hold = 0;
-
-    if (this->held == 1)
-    {
-        act.hold = 1;
-    }
-
-    if (services.acts.Run(act) == 0)
-    {
-        return 1;
-    }
-
-    this->picture = services.archive.GetPicture(act.frame, act.picture);
-
-    // A missing picture is read through a null pointer in the original.
-    if (this->picture == nullptr)
-    {
-        return 0;
-    }
-
-    this->actOffsetX = static_cast<u16>(act.x);
-    this->frameFlags = act.flags ^ Painter::Mirror;
-
-    if (this->facing == 1)
-    {
-        this->frameFlags ^= Painter::Mirror;
-        this->actOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
-    }
-
-    if (this->fadeLevel == BattleUnit::Opaque && mode == 1)
-    {
-        act.view = kStepBackSound;
-        services.audio.PlaySound(kStepBackSound, services.config.soundVolume);
-        services.audio.SetSoundPan(act.view, this->facing == 1 ? -kTargetPan : kTargetPan);
-        act.view = 0;
-    }
-
-    u16 x = 0;
-    u16 y = 0;
-    this->GetPosition(x, y);
-
-    if (mode == 1)
-    {
-        x = static_cast<u16>(this->facing == 1 ? x - kStepBackShift : x + kStepBackShift);
-    }
-
-    this->SetPosition(static_cast<i16>(x), static_cast<i16>(y));
-    Painter& painter = services.painter;
-    painter.SetSource(this->picture->data.data());
-    painter.DrawPicture(
-        this->placement.x - static_cast<i16>(this->actOffsetX),
-        this->placement.y - act.y,
-        this->picture->width,
-        this->picture->height,
-        this->frameFlags,
-        PaletteArgument(*this->picture)
-    );
-    --this->fadeLevel;
-    return 0;
+    smooth::Scene scene;
+    const auto result = smooth::RoleFrame(*this).StepBackAdvance(services, mode, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // swd32.exe 0x00472C70: with a SpiritDrain accessory worn (its proficiency stepped by kDrainStep), `amount` becomes

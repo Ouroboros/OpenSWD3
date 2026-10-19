@@ -117,6 +117,12 @@ public:
     Picture* FindPicture(u32 id, u32 frame);
     bool LoadFromFile(const std::u8string& fileName, int index, u32 frame, Picture& picture);
     int CacheBytes() const;
+    // The rebuild's smooth battle: the id and frame of a picture in the cache; false for one outside it.
+    bool Locate(const Picture* picture, u32& id, u32& frame) const;
+    // The same for a cached picture by its pixel data (Painter::SetSource), with the picture.
+    const Picture* LocateData(const void* data, u32& id, u32& frame) const;
+    // The same by its palette (the argument PaletteArgument gives).
+    const Picture* LocatePalette(const void* palette, u32& id, u32& frame) const;
 
 private:
     // Entry header of a frame set as read by ReadHeader: format and palette.
