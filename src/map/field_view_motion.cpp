@@ -81,15 +81,18 @@ void FieldView::AdvanceMotion(u32 now)
         return;
     }
 
-    const bool moving = owner.running != 0 && owner.inactive == 0 && owner.active != 0 &&
-                        (owner.systemFlags & (Game::VideoPlaying | Game::UnkSystem1 | Game::QuitRequested)) == 0 &&
-                        owner.storyState == Game::StoryRunning && owner.inBattle == 0 &&
-                        owner.menuState == Game::NoMenu && owner.state.frameInterval > 0;
+    const auto moving = [&owner]
+    {
+        return owner.running != 0 && owner.inactive == 0 && owner.active != 0 &&
+               (owner.systemFlags & (Game::VideoPlaying | Game::UnkSystem1 | Game::QuitRequested)) == 0 &&
+               owner.storyState == Game::StoryRunning && owner.inBattle == 0 && owner.menuState == Game::NoMenu &&
+               owner.state.frameInterval > 0;
+    };
 
-    if (!moving || !this->motionClockSet || now - this->motionClock > kMostTicks)
+    if (!moving() || !this->motionClockSet || now - this->motionClock > kMostTicks)
     {
         this->motionClock = now;
-        this->motionClockSet = moving;
+        this->motionClockSet = moving();
         return;
     }
 
@@ -97,6 +100,16 @@ void FieldView::AdvanceMotion(u32 now)
     {
         ++this->motionClock;
         this->MotionTick();
+
+        // A step that leaves the map (an encounter starting the battle) ends the motion there, with the audio served as
+        // the original's frame ends after ControlPlayer starts the battle (EndMainFrame), so that the music it stopped
+        // has stopped when the battle begins.
+        if (!moving())
+        {
+            this->motionClockSet = false;
+            owner.AudioPump();
+            return;
+        }
     }
 }
 
