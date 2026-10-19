@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <vector>
 
 #include "core/types.h"
 
@@ -94,8 +95,47 @@ struct WalkView
     std::array<int, 2> motion = {};
 };
 
-// The parts of the frame functions of `unit` (IdleFrame, WalkToTarget, ReturnHome): what a frame decides into a view,
-// and the view drawn.
+// What DrawDamageNumbers draws, in the order it does it: the HUD's digit mode cleared, the fade of the rising digits
+// set (it holds for the next picture drawn only), a digit drawn (moving by `motion` by the next frame, the rebuild's
+// smooth battle reckoning).
+struct NumberStep
+{
+    enum class Kind : u8
+    {
+        ClearMode,
+        Fade,
+        Digit,
+    };
+
+    Kind kind = Kind::Digit;
+    i16 font = 0;
+    int value = 0;
+    int x = 0;
+    int y = 0;
+    int fade = 0;
+    std::array<int, 2> motion = {};
+};
+
+struct NumbersView
+{
+    std::vector<NumberStep> steps;
+};
+
+// What DrawGuardText draws: the HUD's digit mode cleared, `letters` letters from `left` at their heights (each after
+// the width of the ones before), faded by `fade` while they rise; `motion`: the rebuild's smooth battle reckoning.
+struct GuardView
+{
+    bool clearMode = false;
+    bool fading = false;
+    int fade = 0;
+    int left = 0;
+    int letters = 0;
+    std::array<int, 4> y = {};
+    std::array<std::array<int, 2>, 4> motion = {};
+};
+
+// The parts of the frame functions of `unit` (IdleFrame, WalkToTarget, ReturnHome, DrawDamageNumbers, DrawGuardText):
+// what a frame decides into a view, and the view drawn.
 class UnitFrame
 {
 public:
@@ -109,6 +149,12 @@ public:
     // ReturnHome: its result; the view keeps no picture when it draws nothing.
     int HomeAdvance(BattleServices& services, const BattleUnit& target, i32 id, i32 action, WalkView& view);
     static void DrawWalk(BattleServices& services, const WalkView& view);
+    // DrawDamageNumbers: its result.
+    int NumbersAdvance(BattleServices& services, NumbersView& view);
+    static void DrawNumbers(BattleServices& services, const NumbersView& view);
+    // DrawGuardText.
+    void GuardAdvance(GuardView& view);
+    static void DrawGuard(BattleServices& services, const GuardView& view);
 
 private:
     int FlashStep();

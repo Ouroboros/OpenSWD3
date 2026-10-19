@@ -66,6 +66,16 @@ constexpr std::size_t kGoldVariable = 0;
 constexpr int kGoldLeft = 10;
 constexpr int kGoldAbove = 0xF;
 
+constexpr int kNumberAbove = 0x1E;
+constexpr int kDigitWidth = 0xC;
+constexpr i16 kLastHop = 9;
+constexpr i16 kNumberFadeStep = 2;
+constexpr int kNumberScaleBase = 0x1A;
+constexpr int kGuardTextOffset = 0x14;  // the guard text starts left of and above the unit
+constexpr i16 kGuardPhaseEnd = 9;       // the last phase of a guard text letter
+constexpr i16 kGuardTextRise = 0x18;    // pixels the guard text rises before it is gone
+constexpr i16 kGuardTextStep = 4;       // pixels the guard text rises a frame
+constexpr int kGuardTextHeight = 0x1A;
 }  // namespace
 
 UnitFrame::UnitFrame(BattleUnit& unit)
@@ -983,6 +993,379 @@ void UnitFrame::IdleDraw(BattleServices& services, const IdleView& view)
     {
         painter.SetSource(overlay->data.data());
         painter.DrawPicture(view.overlayX, view.overlayY, overlay->width, overlay->height, view.overlayFlags);
+    }
+}
+
+// What DrawDamageNumbers decides of the frame: the delays counted down, the hops stepped, the extra number taken, the
+// fades risen and the slots cleared; the draws in their order into the view.
+int UnitFrame::NumbersAdvance(BattleServices& services, NumbersView& view)
+{
+    BattleUnit& unit = this->unit;
+
+    if (unit.unk2AD8 == 0)
+    {
+        return 0;
+    }
+
+    auto clearMode = [&view]
+    {
+        view.steps.push_back(NumberStep{NumberStep::Kind::ClearMode});
+    };
+
+    auto fadeStep = [&view](int fade)
+    {
+        view.steps.push_back(NumberStep{.kind = NumberStep::Kind::Fade, .fade = fade});
+    };
+
+    auto digitStep = [&view](i16 font, int value, int x, int y, std::array<int, 2> motion)
+    {
+        view.steps.push_back(
+            NumberStep{.kind = NumberStep::Kind::Digit, .font = font, .value = value, .x = x, .y = y, .motion = motion}
+        );
+    };
+
+    const int x = unit.placement.x;
+    const int y = unit.placement.y - kNumberAbove;
+
+    for (u16 slot = unit.damageSlot; slot < unit.targetCount; ++slot)
+    {
+        std::array<i16, BattleUnit::DamageDigits>& digits = unit.damageDigits[slot];
+        std::array<i16, BattleUnit::DamageDigits>& hops = unit.unk283C[slot];
+        i16& fade = unit.numberFades[slot];
+        const auto font = static_cast<i16>(unit.pushedTargets[slot]);
+
+        if (unit.damageDelays[slot] != 0)
+        {
+            --unit.damageDelays[slot];
+            continue;
+        }
+
+        const bool landed = std::all_of(
+            hops.begin(),
+            hops.end(),
+            [](i16 hop)
+            {
+                return hop == kLastHop;
+            }
+        );
+
+        if (!landed)
+        {
+            clearMode();
+
+            auto hopY = [y, &hops](std::size_t digit)
+            {
+                return y - BattleUnit::DigitHops[static_cast<std::size_t>(hops[digit])];
+            };
+
+            // The rebuild's smooth battle: each digit moves to its next hop, or to the first rise once all land.
+            std::array<i16, BattleUnit::DamageDigits> nextHops = hops;
+
+            for (std::size_t digit = 0; unit.held == 0 && digit < nextHops.size(); ++digit)
+            {
+                if (digit > 0 && nextHops[digit - 1] <= 0)
+                {
+                    break;
+                }
+
+                nextHops[digit] = static_cast<i16>(std::min<int>(nextHops[digit] + 1, kLastHop));
+            }
+
+            const bool landsNext = std::all_of(
+                nextHops.begin(),
+                nextHops.end(),
+                [](i16 hop)
+                {
+                    return hop == kLastHop;
+                }
+            );
+
+            auto drawHop = [&](std::size_t digit, int at)
+            {
+                const int risesNext = fade + (unit.held == 0 ? kNumberFadeStep : 0);
+                const int heightNext =
+                    landsNext ? risesNext : BattleUnit::DigitHops[static_cast<std::size_t>(nextHops[digit])];
+                const int height = BattleUnit::DigitHops[static_cast<std::size_t>(hops[digit])];
+                digitStep(font, digits[digit], at, hopY(digit), {0, height - heightNext});
+            };
+
+            if (digits[0] != 0)
+            {
+                drawHop(0, x - kDigitWidth);
+            }
+
+            if ((digits[1] != 0 || digits[0] != 0) && hops[0] > 0)
+            {
+                drawHop(1, x);
+            }
+
+            if (hops[1] > 0)
+            {
+                if (digits[0] != 0 || digits[1] != 0 || digits[2] != 0)
+                {
+                    drawHop(2, x + kDigitWidth);
+                }
+
+                drawHop(3, x + 2 * kDigitWidth);
+            }
+
+            if (unit.held == 0)
+            {
+                for (std::size_t digit = 0; digit < hops.size(); ++digit)
+                {
+                    if (digit > 0 && hops[digit - 1] <= 0)
+                    {
+                        break;
+                    }
+
+                    hops[digit] = static_cast<i16>(std::min<int>(hops[digit] + 1, kLastHop));
+                }
+            }
+
+            continue;
+        }
+
+        // The extra number takes the next slot (its fourth digit as it was; the original writes past the slots when
+        // they are all used, here it is dropped).
+        if (unit.extraNumber == 1)
+        {
+            unit.extraNumber = 0;
+
+            if (unit.targetCount < BattleUnit::MaxTargets)
+            {
+                std::array<i16, BattleUnit::DamageDigits>& extra = unit.damageDigits[unit.targetCount];
+                extra[0] = static_cast<i16>(services.state.unk53AEDC);
+                extra[1] = static_cast<i16>(services.state.unk53AEE0);
+                extra[2] = static_cast<i16>(services.state.unk53AEE4);
+                ++unit.targetCount;
+            }
+        }
+
+        if (fade >= kNumberFadeEnd)
+        {
+            hops.fill(0);
+            fade = 0;
+            clearMode();
+            ++unit.damageSlot;
+            digits.fill(0);
+            continue;
+        }
+
+        if (unit.held == 0)
+        {
+            fade = static_cast<i16>(fade + kNumberFadeStep);
+        }
+
+        const int risenY = y - fade;
+        const bool clearedNext = fade >= kNumberFadeEnd;
+        const std::array<int, 2> rising = {0, clearedNext || unit.held != 0 ? 0 : -kNumberFadeStep};
+        fadeStep(fade);
+
+        if (digits[0] != 0)
+        {
+            digitStep(font, digits[0], x - kDigitWidth, risenY, rising);
+        }
+
+        if (digits[0] != 0 || digits[1] != 0)
+        {
+            fadeStep(fade);
+            digitStep(font, digits[1], x, risenY, rising);
+        }
+
+        fadeStep(fade);
+
+        if (digits[0] != 0 || digits[1] != 0 || digits[2] != 0)
+        {
+            digitStep(font, digits[2], x + kDigitWidth, risenY, rising);
+        }
+
+        digitStep(font, digits[3], x + 2 * kDigitWidth, risenY, rising);
+        clearMode();
+    }
+
+    if (unit.damageSlot < unit.targetCount)
+    {
+        return 0;
+    }
+
+    clearMode();
+    unit.targetCount = 0;
+    unit.damageSlot = 0;
+    unit.unk2AD8 = 0;
+    return 1;
+}
+
+// What DrawDamageNumbers draws, as NumbersAdvance decided it.
+void UnitFrame::DrawNumbers(BattleServices& services, const NumbersView& view)
+{
+    BattleHud& hud = services.hud;
+    DrawOptions& options = services.painter.Options();
+
+    for (const NumberStep& step : view.steps)
+    {
+        switch (step.kind)
+        {
+            case NumberStep::Kind::ClearMode:
+                hud.digitMode = 0;
+                break;
+
+            case NumberStep::Kind::Fade:
+                options.tintRed = -step.fade;
+                options.tintGreen = -step.fade;
+                options.tintBlue = -step.fade;
+                options.scaleHeight = step.fade + kNumberScaleBase;
+                break;
+
+            case NumberStep::Kind::Digit:
+            {
+                const PaintRecord::Motion moving(step.motion);
+                hud.DrawNumber(step.font, step.value, step.x, step.y);
+                break;
+            }
+        }
+    }
+}
+
+// What DrawGuardText decides of the frame: the letters popped in or risen, the mark cleared at the top.
+void UnitFrame::GuardAdvance(GuardView& view)
+{
+    BattleUnit& unit = this->unit;
+
+    if ((unit.marks & 1) == 0)
+    {
+        return;
+    }
+
+    const int top = unit.placement.y - kGuardTextOffset;
+    view.left = unit.placement.x - kGuardTextOffset;
+    auto& phases = unit.guardPhases;
+
+    if (std::all_of(
+            phases.begin(),
+            phases.end(),
+            [](i16 phase)
+            {
+                return phase == kGuardPhaseEnd;
+            }
+        ))
+    {
+        const i16 rise = unit.guardRise;
+
+        if (rise >= kGuardTextRise)
+        {
+            phases = {};
+            unit.guardRise = 0;
+            view.clearMode = true;
+            unit.marks = static_cast<u16>(unit.marks & ~BattleUnit::UnkMark1);
+            unit.action = 0;
+            unit.unk26A8 = 0;
+            unit.unk26AC = 0;
+            return;
+        }
+
+        if (unit.held == 0)
+        {
+            unit.guardRise = static_cast<i16>(rise + kGuardTextStep);
+        }
+
+        // The rebuild's smooth battle: the letters rise on next frame, unless they are gone then.
+        const bool goneNext = unit.guardRise >= kGuardTextRise;
+        view.fading = true;
+        view.fade = unit.guardRise;
+        view.letters = static_cast<int>(phases.size());
+
+        for (std::size_t letter = 0; letter < phases.size(); ++letter)
+        {
+            view.y[letter] = top - unit.guardRise;
+            view.motion[letter] = {0, goneNext || unit.held != 0 ? 0 : -kGuardTextStep};
+        }
+
+        return;
+    }
+
+    view.clearMode = true;
+    // The rebuild's smooth battle: each letter moves to its next phase, or to the first rise once all have popped.
+    auto nextPhases = phases;
+    nextPhases[0] = std::min<i16>(static_cast<i16>(nextPhases[0] + 1), kGuardPhaseEnd);
+
+    for (std::size_t letter = 1; letter < nextPhases.size() && phases[0] > 0; ++letter)
+    {
+        nextPhases[letter] =
+            std::min<i16>(static_cast<i16>(nextPhases[letter] + (unit.held == 0 ? 1 : 0)), kGuardPhaseEnd);
+    }
+
+    const bool risesNext = std::all_of(
+        nextPhases.begin(),
+        nextPhases.end(),
+        [](i16 phase)
+        {
+            return phase == kGuardPhaseEnd;
+        }
+    );
+
+    auto popMotion = [&](std::size_t letter) -> std::array<int, 2>
+    {
+        const int height = BattleUnit::PopOffsets[static_cast<std::size_t>(phases[letter])];
+        const int heightNext = risesNext ? unit.guardRise + (unit.held == 0 ? kGuardTextStep : 0)
+                                         : BattleUnit::PopOffsets[static_cast<std::size_t>(nextPhases[letter])];
+        return {0, height - heightNext};
+    };
+
+    view.letters = 1;
+    view.y[0] = top - BattleUnit::PopOffsets[static_cast<std::size_t>(phases[0])];
+    view.motion[0] = popMotion(0);
+
+    for (std::size_t letter = 1; letter < phases.size() && phases[0] > 0; ++letter)
+    {
+        view.letters = static_cast<int>(letter) + 1;
+        view.y[letter] = top - BattleUnit::PopOffsets[static_cast<std::size_t>(phases[letter])];
+        view.motion[letter] = popMotion(letter);
+
+        if (unit.held == 0)
+        {
+            ++phases[letter];
+        }
+
+        if (phases[letter] > kGuardPhaseEnd)
+        {
+            phases[letter] = kGuardPhaseEnd;
+        }
+    }
+
+    if (++phases[0] > kGuardPhaseEnd)
+    {
+        phases[0] = kGuardPhaseEnd;
+    }
+}
+
+// What DrawGuardText draws, as GuardAdvance decided it: the letters side by side from `left`, each placed after the
+// width of the ones before it.
+void UnitFrame::DrawGuard(BattleServices& services, const GuardView& view)
+{
+    BattleHud& hud = services.hud;
+
+    if (view.clearMode)
+    {
+        hud.digitMode = 0;
+    }
+
+    u32 offset = 0;
+
+    for (int letter = 0; letter < view.letters; ++letter)
+    {
+        const auto at = static_cast<std::size_t>(letter);
+        const PaintRecord::Motion moving(view.motion[at]);
+
+        if (view.fading)
+        {
+            DrawOptions& options = services.painter.Options();
+            options.tintRed = -view.fade;
+            options.tintGreen = -view.fade;
+            options.tintBlue = -view.fade;
+            options.scaleHeight = view.fade + kGuardTextHeight;
+        }
+
+        offset += hud.DrawDigit(0, letter, static_cast<u16>(offset) + view.left, view.y[at]);
     }
 }
 

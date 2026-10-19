@@ -24,5 +24,6 @@ constexpr int kHurtFlash = 0x10;  // the red flash over the picture
 constexpr u16 kRising = 2;        // lifts to the top
 constexpr u16 kDropping = 3;      // drops back to its saved place
 constexpr u16 kReadyAct = 0x1C;   // an act whose ready pose is unk2690
+constexpr i16 kNumberFadeEnd = 0x30;
 
 }  // namespace swd3

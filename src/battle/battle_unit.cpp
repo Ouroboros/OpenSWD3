@@ -50,13 +50,10 @@ constexpr int kRoleGaugeBase = 0x32;             // a party role starts a turn a
 constexpr u32 kRoleGaugeSpread = 0x8C;
 constexpr int kFadeOutSound = 0x2F;
 constexpr int kFadeInSound = 0x30;
-constexpr i32 kCommand1Action = 0x28;   // the fade in action after command 1
-constexpr i32 kPoseAction = 0x30;       // the fade in action of a posed unit
-constexpr i32 kPose2Action = 0x31;      // of pose 2
-constexpr i16 kSpeedMask = 0x7FFF;      // the speed of a command with bit 15 set
-constexpr int kGuardTextOffset = 0x14;  // the guard text starts left of and above the unit
-constexpr i16 kGuardTextRise = 0x18;    // pixels the guard text rises before it is gone
-constexpr int kGuardTextHeight = 0x1A;
+constexpr i32 kCommand1Action = 0x28;  // the fade in action after command 1
+constexpr i32 kPoseAction = 0x30;      // the fade in action of a posed unit
+constexpr i32 kPose2Action = 0x31;     // of pose 2
+constexpr i16 kSpeedMask = 0x7FFF;     // the speed of a command with bit 15 set
 constexpr i32 kUnkBlock38 = 0x38;
 constexpr u32 kCommandStatusBit = 0x10000000;  // command +0x08 bit 28
 constexpr u16 kAccessoryValueMask = 0x3FFF;
@@ -80,8 +77,6 @@ constexpr std::size_t kHundredsDigit = 1;
 constexpr std::size_t kTensDigit = 2;
 constexpr std::size_t kOnesDigit = 3;
 constexpr int kStatScalePercent = 10;  // StatsScaled moves the stats of a party role by this percent
-constexpr i16 kGuardPhaseEnd = 9;      // the last phase of a guard text letter
-constexpr i16 kGuardTextStep = 4;      // pixels the guard text rises a frame
 constexpr int kUnkStatus1000Tint = -12;
 constexpr int kAgilityShift = 2;  // the gauge step is agility / 4, agility / 8 when slowed
 constexpr int kSlowedAgilityShift = 3;
@@ -1367,12 +1362,6 @@ constexpr int kRunStep = 0x19;
 constexpr u16 kOrbStep = 0xC;  // the proficiency an element orb gains from a hit of its element
 
 // DrawDamageNumbers.
-constexpr int kNumberAbove = 0x1E;
-constexpr int kDigitWidth = 0xC;
-constexpr i16 kLastHop = 9;
-constexpr i16 kNumberFadeEnd = 0x30;
-constexpr i16 kNumberFadeStep = 2;
-constexpr int kNumberScaleBase = 0x1A;
 
 // RollDrop.
 constexpr u32 kDropRoll = 20;
@@ -1527,120 +1516,9 @@ void BattleUnit::Announce(BattleServices& services, std::u8string_view format, i
 // (the later ones only advance once the first is past phase 0), then rise and fade out by 4 per frame
 void BattleUnit::DrawGuardText(BattleServices& services)
 {
-    if ((this->marks & 1) == 0)
-    {
-        return;
-    }
-
-    BattleHud& hud = services.hud;
-    const int top = this->placement.y - kGuardTextOffset;
-    const int left = this->placement.x - kGuardTextOffset;
-    auto& phases = this->guardPhases;
-
-    if (std::all_of(
-            phases.begin(),
-            phases.end(),
-            [](i16 phase)
-            {
-                return phase == kGuardPhaseEnd;
-            }
-        ))
-    {
-        const i16 rise = this->guardRise;
-
-        if (rise >= kGuardTextRise)
-        {
-            phases = {};
-            this->guardRise = 0;
-            hud.digitMode = 0;
-            this->marks = static_cast<u16>(this->marks & ~BattleUnit::UnkMark1);
-            this->action = 0;
-            this->unk26A8 = 0;
-            this->unk26AC = 0;
-            return;
-        }
-
-        if (this->held == 0)
-        {
-            this->guardRise = static_cast<i16>(rise + kGuardTextStep);
-        }
-
-        // The rebuild's smooth battle: the letters rise on next frame, unless they are gone then.
-        const bool goneNext = this->guardRise >= kGuardTextRise;
-        const PaintRecord::Motion rising({0, goneNext || this->held != 0 ? 0 : -kGuardTextStep});
-        u32 offset = 0;
-
-        for (int letter = 0; letter < static_cast<int>(phases.size()); ++letter)
-        {
-            const i16 current = this->guardRise;
-            DrawOptions& options = services.painter.Options();
-            options.tintRed = -current;
-            options.tintGreen = -current;
-            options.tintBlue = -current;
-            options.scaleHeight = current + kGuardTextHeight;
-            offset += hud.DrawDigit(0, letter, static_cast<u16>(offset) + left, top - current);
-        }
-
-        return;
-    }
-
-    hud.digitMode = 0;
-    // The rebuild's smooth battle: each letter moves to its next phase, or to the first rise once all have popped.
-    auto nextPhases = phases;
-    nextPhases[0] = std::min<i16>(static_cast<i16>(nextPhases[0] + 1), kGuardPhaseEnd);
-
-    for (std::size_t letter = 1; letter < nextPhases.size() && phases[0] > 0; ++letter)
-    {
-        nextPhases[letter] =
-            std::min<i16>(static_cast<i16>(nextPhases[letter] + (this->held == 0 ? 1 : 0)), kGuardPhaseEnd);
-    }
-
-    const bool risesNext = std::all_of(
-        nextPhases.begin(),
-        nextPhases.end(),
-        [](i16 phase)
-        {
-            return phase == kGuardPhaseEnd;
-        }
-    );
-
-    auto popMotion = [&](std::size_t letter) -> std::array<int, 2>
-    {
-        const int height = BattleUnit::PopOffsets[static_cast<std::size_t>(phases[letter])];
-        const int heightNext = risesNext ? this->guardRise + (this->held == 0 ? kGuardTextStep : 0)
-                                         : BattleUnit::PopOffsets[static_cast<std::size_t>(nextPhases[letter])];
-        return {0, height - heightNext};
-    };
-
-    std::optional<PaintRecord::Motion> popping(std::in_place, popMotion(0));
-    u32 offset = hud.DrawDigit(0, 0, left, top - BattleUnit::PopOffsets[static_cast<std::size_t>(phases[0])]);
-
-    for (std::size_t letter = 1; letter < phases.size() && phases[0] > 0; ++letter)
-    {
-        popping.reset();
-        popping.emplace(popMotion(letter));
-        offset += hud.DrawDigit(
-            0,
-            static_cast<int>(letter),
-            static_cast<u16>(offset) + left,
-            top - BattleUnit::PopOffsets[static_cast<std::size_t>(phases[letter])]
-        );
-
-        if (this->held == 0)
-        {
-            ++phases[letter];
-        }
-
-        if (phases[letter] > kGuardPhaseEnd)
-        {
-            phases[letter] = kGuardPhaseEnd;
-        }
-    }
-
-    if (++phases[0] > kGuardPhaseEnd)
-    {
-        phases[0] = kGuardPhaseEnd;
-    }
+    smooth::GuardView view;
+    smooth::UnitFrame(*this).GuardAdvance(view);
+    smooth::UnitFrame::DrawGuard(services, view);
 }
 
 // swd32.exe 0x0047D640: splits `amount` into the four digits of the current target slot (a set bit 15 negates it).
@@ -7877,192 +7755,10 @@ int BattleUnit::StepOrbCounters(CounterList& list, const UnitCommand& command)
 // leading zero digit is not drawn. 1 once every slot is done (all cleared).
 int BattleUnit::DrawDamageNumbers(BattleServices& services)
 {
-    BattleHud& hud = services.hud;
-    DrawOptions& options = services.painter.Options();
-
-    if (this->unk2AD8 == 0)
-    {
-        return 0;
-    }
-
-    const int x = this->placement.x;
-    const int y = this->placement.y - kNumberAbove;
-
-    for (u16 slot = this->damageSlot; slot < this->targetCount; ++slot)
-    {
-        std::array<i16, DamageDigits>& digits = this->damageDigits[slot];
-        std::array<i16, DamageDigits>& hops = this->unk283C[slot];
-        i16& fade = this->numberFades[slot];
-        const auto font = static_cast<i16>(this->pushedTargets[slot]);
-
-        if (this->damageDelays[slot] != 0)
-        {
-            --this->damageDelays[slot];
-            continue;
-        }
-
-        const bool landed = std::all_of(
-            hops.begin(),
-            hops.end(),
-            [](i16 hop)
-            {
-                return hop == kLastHop;
-            }
-        );
-
-        if (!landed)
-        {
-            hud.digitMode = 0;
-
-            auto hopY = [y, &hops](std::size_t digit)
-            {
-                return y - BattleUnit::DigitHops[static_cast<std::size_t>(hops[digit])];
-            };
-
-            // The rebuild's smooth battle: each digit moves to its next hop, or to the first rise once all land.
-            std::array<i16, DamageDigits> nextHops = hops;
-
-            for (std::size_t digit = 0; this->held == 0 && digit < nextHops.size(); ++digit)
-            {
-                if (digit > 0 && nextHops[digit - 1] <= 0)
-                {
-                    break;
-                }
-
-                nextHops[digit] = static_cast<i16>(std::min<int>(nextHops[digit] + 1, kLastHop));
-            }
-
-            const bool landsNext = std::all_of(
-                nextHops.begin(),
-                nextHops.end(),
-                [](i16 hop)
-                {
-                    return hop == kLastHop;
-                }
-            );
-
-            auto drawHop = [&](std::size_t digit, int at)
-            {
-                const int risesNext = fade + (this->held == 0 ? kNumberFadeStep : 0);
-                const int heightNext =
-                    landsNext ? risesNext : BattleUnit::DigitHops[static_cast<std::size_t>(nextHops[digit])];
-                const int height = BattleUnit::DigitHops[static_cast<std::size_t>(hops[digit])];
-                const PaintRecord::Motion moving({0, height - heightNext});
-                hud.DrawNumber(font, digits[digit], at, hopY(digit));
-            };
-
-            if (digits[0] != 0)
-            {
-                drawHop(0, x - kDigitWidth);
-            }
-
-            if ((digits[1] != 0 || digits[0] != 0) && hops[0] > 0)
-            {
-                drawHop(1, x);
-            }
-
-            if (hops[1] > 0)
-            {
-                if (digits[0] != 0 || digits[1] != 0 || digits[2] != 0)
-                {
-                    drawHop(2, x + kDigitWidth);
-                }
-
-                drawHop(3, x + 2 * kDigitWidth);
-            }
-
-            if (this->held == 0)
-            {
-                for (std::size_t digit = 0; digit < hops.size(); ++digit)
-                {
-                    if (digit > 0 && hops[digit - 1] <= 0)
-                    {
-                        break;
-                    }
-
-                    hops[digit] = static_cast<i16>(std::min<int>(hops[digit] + 1, kLastHop));
-                }
-            }
-
-            continue;
-        }
-
-        // The extra number takes the next slot (its fourth digit as it was; the original writes past the slots when
-        // they are all used, here it is dropped).
-        if (this->extraNumber == 1)
-        {
-            this->extraNumber = 0;
-
-            if (this->targetCount < MaxTargets)
-            {
-                std::array<i16, DamageDigits>& extra = this->damageDigits[this->targetCount];
-                extra[0] = static_cast<i16>(services.state.unk53AEDC);
-                extra[1] = static_cast<i16>(services.state.unk53AEE0);
-                extra[2] = static_cast<i16>(services.state.unk53AEE4);
-                ++this->targetCount;
-            }
-        }
-
-        if (fade >= kNumberFadeEnd)
-        {
-            hops.fill(0);
-            fade = 0;
-            hud.digitMode = 0;
-            ++this->damageSlot;
-            digits.fill(0);
-            continue;
-        }
-
-        if (this->held == 0)
-        {
-            fade = static_cast<i16>(fade + kNumberFadeStep);
-        }
-
-        auto fading = [&options, &fade]
-        {
-            options.tintRed = -fade;
-            options.tintGreen = -fade;
-            options.tintBlue = -fade;
-            options.scaleHeight = fade + kNumberScaleBase;
-        };
-
-        const int risenY = y - fade;
-        const bool clearedNext = fade >= kNumberFadeEnd;
-        const PaintRecord::Motion rising({0, clearedNext || this->held != 0 ? 0 : -kNumberFadeStep});
-        fading();
-
-        if (digits[0] != 0)
-        {
-            hud.DrawNumber(font, digits[0], x - kDigitWidth, risenY);
-        }
-
-        if (digits[0] != 0 || digits[1] != 0)
-        {
-            fading();
-            hud.DrawNumber(font, digits[1], x, risenY);
-        }
-
-        fading();
-
-        if (digits[0] != 0 || digits[1] != 0 || digits[2] != 0)
-        {
-            hud.DrawNumber(font, digits[2], x + kDigitWidth, risenY);
-        }
-
-        hud.DrawNumber(font, digits[3], x + 2 * kDigitWidth, risenY);
-        hud.digitMode = 0;
-    }
-
-    if (this->damageSlot < this->targetCount)
-    {
-        return 0;
-    }
-
-    hud.digitMode = 0;
-    this->targetCount = 0;
-    this->damageSlot = 0;
-    this->unk2AD8 = 0;
-    return 1;
+    smooth::NumbersView view;
+    const int result = smooth::UnitFrame(*this).NumbersAdvance(services, view);
+    smooth::UnitFrame::DrawNumbers(services, view);
+    return result;
 }
 
 // swd32.exe 0x00476780: object `choice` (0..2: itemA, itemB, itemC) of the enemy loaded into `object`, its name copied
