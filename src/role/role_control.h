@@ -19,12 +19,26 @@ public:
     explicit RoleControl(Game& game);
 
     u32 FreeLanes(int x, int y, int length, int stride, int limit, int axis) const;
-    void Slide(Role& role, int& stepX, int& stepY) const;
+    void Slide(const Role& role, int& stepX, int& stepY) const;
     u32 FindRoleAt(u32 x, u32 y) const;
     u32 FindTouchRoleAt(u32 x, u32 y) const;
     u32 StepEvent(int index, int stepX, int stepY, u32& role) const;
     u32 FindRoleAhead(int index, int stepX, int stepY) const;
     void ControlPlayer();
+
+    // The rebuild's smooth motion (deviations.md): the step ControlPlayer gives the controlled role next frame when it
+    // stands still then, from the keys as the next poll reads them (nothing is changed): the camera's and the role's
+    // steps across and down and the walking speed. A talk, a menu, a choice or an event in the way gives no step.
+    struct PlayerStep
+    {
+        i32 scrollX = 0;
+        i32 scrollY = 0;
+        i32 aloneX = 0;
+        i32 aloneY = 0;
+        i32 speed = 0;
+    };
+
+    PlayerStep PeekPlayerStep() const;
 
     // swd32.exe 0x004993C0: the run toggle.
     static constexpr std::array<i32, 3> RunToggle = {1, 0, 0};

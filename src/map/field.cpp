@@ -387,6 +387,26 @@ void Field::CenterCamera()
     }
 }
 
+std::array<i32, 2> Field::CameraCentredOn(i32 x, i32 y) const
+{
+    const i32 width = MapHeader::TileSize * this->state.map.width;
+    const i32 height = MapHeader::TileSize * this->state.map.height;
+    i32 left = std::max(x - kCameraLeft, 0);
+    i32 top = std::max(y - kCameraUp, 0);
+
+    if (left + Display::Width >= width)
+    {
+        left = MapHeader::TileSize * (this->state.map.width - kScreenColumns);
+    }
+
+    if (top + Display::Height >= height)
+    {
+        top = MapHeader::TileSize * (this->state.map.height - kScreenRows);
+    }
+
+    return {left, top};
+}
+
 // swd32.exe 0x00425BE0: map `map` of HUGE.lmf (from the CD for the small installation): its header, the cached unit of
 // its pixels, the tiles and blocks, the regions, the unit table, the roles of its two role sections and the overlays.
 // False on a missing file, map or section (a missing map also ends the game).
@@ -862,6 +882,19 @@ void Field::ClearRoleCells(const Role& role, i32 leader)
 MapRegion* Field::FindRegion(int id)
 {
     for (MapRegion* region = this->regions.next.get(); region != nullptr; region = region->next.get())
+    {
+        if (region->id == id)
+        {
+            return region;
+        }
+    }
+
+    return nullptr;
+}
+
+const MapRegion* Field::FindRegion(int id) const
+{
+    for (const MapRegion* region = this->regions.next.get(); region != nullptr; region = region->next.get())
     {
         if (region->id == id)
         {

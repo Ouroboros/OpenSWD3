@@ -203,6 +203,20 @@ private:
     void PaintWorld();
     void ClipToSpotlight();
     void CapturePlaces();
+    void AimControlled();
+    void RefreshAim(double time);
+
+    // Where role `index` steps next as the game frames move it (a move record or a follower's), and in how many game
+    // frames: `known` false when nothing moves it.
+    struct NextPlace
+    {
+        i32 x = 0;
+        i32 y = 0;
+        u32 frames = 1;
+        bool known = false;
+    };
+
+    NextPlace PredictRole(std::size_t index) const;
     void CaptureLayer(std::vector<Pixel>& layer) const;
 
     // An element of a screen effect (a weather particle, a leaf, a bolt, a firefly, a bubble, a sprite) followed by
@@ -229,6 +243,9 @@ private:
     i32 cameraWidth = 0;
     i32 cameraHeight = 0;
     std::vector<Glide> glides;  // the camera, then the roles
+    bool keyed = false;         // the keys move the controlled role: it and the camera head for the next frame
+    bool placesContinuous = false;
+    std::vector<u8> rolesAimed;  // per role: heading for where the next frame puts it
     std::unordered_map<u64, EffectGlide> effectGlides;
     // The painting PaintBetween does: its render scale, its camera (in 1/scale pixels), the block column and row.
     int paintScale = 1;

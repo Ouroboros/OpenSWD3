@@ -92,9 +92,12 @@ public:
     bool LoadUnitPicture(u32 unit, Picture& picture);
     bool LoadMapPicture(int unit, Picture& picture) override;
     void CenterCamera();
+    // The camera CenterCamera gives a controlled role at (x, y): its left and top.
+    std::array<i32, 2> CameraCentredOn(i32 x, i32 y) const;
     void MarkRoleCells(const Role& role, i32 leader);
     void ClearRoleCells(const Role& role, i32 leader);
     MapRegion* FindRegion(int id);
+    const MapRegion* FindRegion(int id) const;
     u32 ProbeCells(std::ptrdiff_t cell, int width, int height, u32 mask) const;
     void CameraAround(int x, int y, CameraRect& rect) const;
 

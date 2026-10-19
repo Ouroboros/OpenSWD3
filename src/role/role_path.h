@@ -38,6 +38,7 @@ public:
     // and 0x004993A0): the pixels of a step in each path direction.
     static constexpr std::array<i32, 8> StepX = {4, 0, -4, -4, -4, 0, 4, 4};
     static constexpr std::array<i32, 8> StepY = {4, 4, 4, 0, -4, -4, -4, 0};
+    static constexpr int FollowerSpeed = 2;  // a follower steps at double speed (0x00406960)
     // swd32.exe 0x0049947C (a copy at 0x0049967C): the act direction of each path direction.
     static constexpr std::array<i32, 8> Facing = {
         ActState::DownRight,
