@@ -23,11 +23,11 @@ namespace
 
 constexpr u16 kFree = 0xFFFF;
 constexpr u8 kPathEnd = 0xFF;
-constexpr u32 kBlockedTries = RolePath::BlockedTries;
+constexpr u32 kBlockedTries = 8;   // after this many blocked steps a role walks through other roles
 constexpr int kNearMargin = 0x50;  // a follower or moved role appears this far around the camera
 constexpr int kFarMargin = 0xA0;
 constexpr int kStepsPerTile = MapHeader::TileSize / 4;  // RolePath::StepX and StepY move 4 pixels
-constexpr int kFollowerSpeed = RolePath::FollowerSpeed;
+constexpr int kFollowerSpeed = 2;
 constexpr u32 kTrailSpacing = 2;   // the trail points between two followers
 constexpr u32 kWanderRoll = 0x50;  // a wandering role rolls 0..79: directions below 8, a rest above kRestAbove
 constexpr int kRestAbove = 0x3C;
@@ -68,6 +68,23 @@ u16 RolePath::RoleId(u32 index)
     }
 
     return id;
+}
+
+i32 RolePath::TileStart(i32 place, i32 step)
+{
+    const i32 fraction = place & MapHeader::TileFraction;
+
+    if (fraction == 0)
+    {
+        return place;
+    }
+
+    if (step == 0)
+    {
+        Hang();
+    }
+
+    return step > 0 ? place - fraction : place + MapHeader::TileSize - fraction;
 }
 
 // swd32.exe 0x00405430: every visible role but the first: followers trail the leader, held roles (flag bit 31 or
@@ -557,27 +574,6 @@ void RolePath::Follow(int index)
     }
 }
 
-// The conditions of Update (0x00405430) for running the path script, and the command RunScript (0x00405500) reads
-// first.
-bool RolePath::StepsNext(int index) const
-{
-    const GameState& state = this->game.state;
-    const Role& role = state.roles[static_cast<std::size_t>(index)];
-
-    if ((role.flags & Role::Follower) != 0 || static_cast<i32>(role.flags) < 0 || role.talkState == Role::TalkWaiting ||
-        role.unk1C == 0)
-    {
-        return false;
-    }
-
-    const std::span<const u8> data = this->game.databases.paths.View();
-    const std::size_t at =
-        PathScript::DataAt +
-        PathScript::Dword(data, PathScript::DataAt + PathScript::TargetBytes * static_cast<std::size_t>(role.unk1C)) +
-        PathScript::WordBytes * static_cast<std::size_t>(role.unk18);
-    return static_cast<PathCommand>(PathScript::Word(data, at)) == PathCommand::Step;
-}
-
 // swd32.exe 0x00405500: the path script of role `index` (path.dat, its path at the role's step): commands run until
 // one waits for the next frame (an act change, a count, a step, a move, a label, a sound). Command 0xB takes one word
 // only, so its operand runs as the next command; command 0x24 keeps no offset for a role facing direction 1 (here 0,
@@ -922,14 +918,10 @@ void RolePath::RunScript(int index)
                                                     [static_cast<std::size_t>(move.step & MoveRecord::StepMask) %
                                                      move.directions.size()];
 
-                                while ((other.x & MapHeader::TileFraction) != 0 && back < RolePath::Directions)
+                                if (back < RolePath::Directions)
                                 {
-                                    other.x -= RolePath::StepX[back];
-                                }
-
-                                while ((other.y & MapHeader::TileFraction) != 0 && back < RolePath::Directions)
-                                {
-                                    other.y -= RolePath::StepY[back];
+                                    other.x = RolePath::TileStart(other.x, RolePath::StepX[back]);
+                                    other.y = RolePath::TileStart(other.y, RolePath::StepY[back]);
                                 }
 
                                 owner.field
@@ -1344,14 +1336,10 @@ int RolePath::HoldRole(int index)
                 const int row = static_cast<int>(static_cast<u32>(role.y) >> MapHeader::TileShift) - 1;
                 const u8 back = move->CurrentDirection();
 
-                while ((role.x & MapHeader::TileFraction) != 0 && back < RolePath::Directions)
+                if (back < RolePath::Directions)
                 {
-                    role.x -= RolePath::StepX[back];
-                }
-
-                while ((role.y & MapHeader::TileFraction) != 0 && back < RolePath::Directions)
-                {
-                    role.y -= RolePath::StepY[back];
+                    role.x = RolePath::TileStart(role.x, RolePath::StepX[back]);
+                    role.y = RolePath::TileStart(role.y, RolePath::StepY[back]);
                 }
 
                 owner.field.RemoveRole(role.id, static_cast<int>(role.flags & Role::LayerMask), row, 0);
@@ -1524,14 +1512,10 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
                 const int row = static_cast<int>(static_cast<u32>(role.y) >> MapHeader::TileShift) - 1;
                 const u8 back = move.CurrentDirection();
 
-                while ((role.x & MapHeader::TileFraction) != 0 && back < static_cast<int>(RolePath::StepX.size()))
+                if (back < RolePath::Directions)
                 {
-                    role.x -= RolePath::StepX[back];
-                }
-
-                while ((role.y & MapHeader::TileFraction) != 0 && back < static_cast<int>(RolePath::StepX.size()))
-                {
-                    role.y -= RolePath::StepY[back];
+                    role.x = RolePath::TileStart(role.x, RolePath::StepX[back]);
+                    role.y = RolePath::TileStart(role.y, RolePath::StepY[back]);
                 }
 
                 owner.field.RemoveRole(role.id, static_cast<int>(role.flags & Role::LayerMask), row, 0);

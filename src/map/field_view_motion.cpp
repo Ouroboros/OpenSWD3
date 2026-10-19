@@ -8,7 +8,6 @@ namespace
 
 // A gap longer than this many milliseconds (a pause, a slow frame) is skipped rather than run.
 constexpr u32 kMostTicks = 0x100;
-constexpr int kPinScale = 0x100;  // the fineness of a pinned glide's place
 
 i32 Sign(i32 value)
 {
@@ -72,13 +71,34 @@ void FieldView::AdvanceMotion(u32 now)
 
     if (!owner.smoothMotion)
     {
+        // Smooth motion turned off: every motion under way ends where the game frames would have it.
         if (this->playerMotion.active)
         {
             this->EndPlayerMotion(true);
         }
 
+        for (std::size_t index = 0; index < this->roleMotions.size(); ++index)
+        {
+            this->FinishRoleStep(index);
+        }
+
+        if (this->panMotion.active)
+        {
+            this->panMotion.elapsed = std::max(static_cast<i32>(owner.state.frameInterval), 1);
+            this->PanTick();
+        }
+
         this->motionClockSet = false;
         return;
+    }
+
+    // Another map drops the motions of the map left.
+    if (owner.currentMap != this->motionMap)
+    {
+        this->motionMap = owner.currentMap;
+        this->playerMotion.active = false;
+        this->roleMotions.clear();
+        this->panMotion.active = false;
     }
 
     const bool moving = owner.running != 0 && owner.inactive == 0 && owner.active != 0 &&
@@ -97,6 +117,13 @@ void FieldView::AdvanceMotion(u32 now)
     {
         ++this->motionClock;
         this->MotionTick();
+
+        for (std::size_t index = 0; index < this->roleMotions.size(); ++index)
+        {
+            this->RoleTick(index);
+        }
+
+        this->PanTick();
     }
 }
 
@@ -169,7 +196,6 @@ void FieldView::MotionTick()
     }
 
     motion.active = false;
-    this->PinGlides();
     this->SettlePlayer();
 }
 
@@ -223,33 +249,6 @@ void FieldView::EndPlayerMotion(bool atFrame)
     player.y = motion.startY + motion.down * pixels;
 }
 
-// The glides of the camera and the controlled role held where the continuous motion has them, so that whatever glides
-// them next (a pan, an event's move) starts there.
-void FieldView::PinGlides()
-{
-    if (this->glides.size() != 1 + GameState::Roles)
-    {
-        return;
-    }
-
-    const Field& field = this->game.field;
-    const Role& player = this->game.state.roles[static_cast<std::size_t>(this->game.state.playerRole)];
-    const u32 frame = this->placesFrame;
-
-    const auto pin = [frame](Glide& glide, std::array<i32, 2> fine, i32 x, i32 y)
-    {
-        const double fromX = static_cast<double>(fine[0]) / kPinScale;
-        const double fromY = static_cast<double>(fine[1]) / kPinScale;
-        glide = Glide{fromX, fromY, x, y, static_cast<double>(frame), 1.0, frame};
-    };
-
-    pin(this->glides[0], this->CameraFine(kPinScale), field.cameraLeft, field.cameraTop);
-    pin(this->glides[1 + static_cast<std::size_t>(this->game.state.playerRole)],
-        this->PlayerFine(kPinScale),
-        player.x,
-        player.y);
-}
-
 // The distance of the step under way in 1/scale pixels.
 i32 FieldView::MotionPixels(int scale) const
 {
@@ -264,18 +263,236 @@ i32 FieldView::MotionPixels(int scale) const
     return motion.speed * motion.elapsed * scale / interval;
 }
 
+// The camera where the motion under way has it: following the step of the keys, centred on the controlled role an
+// event walks (as CenterCamera keeps it), or panning.
 std::array<i32, 2> FieldView::CameraFine(int scale) const
 {
-    const Field& field = this->game.field;
+    const Game& owner = this->game;
+    const Field& field = owner.field;
     const PlayerMotion& motion = this->playerMotion;
 
-    if (!motion.active)
+    if (motion.active)
     {
-        return {field.cameraLeft * scale, field.cameraTop * scale};
+        const i32 pixels = this->MotionPixels(scale);
+        return {
+            motion.cameraX * scale + motion.scrollAcross * pixels,
+            motion.cameraY * scale + motion.scrollDown * pixels,
+        };
     }
 
-    const i32 pixels = this->MotionPixels(scale);
-    return {motion.cameraX * scale + motion.scrollAcross * pixels, motion.cameraY * scale + motion.scrollDown * pixels};
+    const auto playerIndex = static_cast<std::size_t>(owner.state.playerRole);
+    const Role& player = owner.state.roles[playerIndex];
+
+    if (playerIndex < this->roleMotions.size() && this->roleMotions[playerIndex].active &&
+        (owner.scene.screenFlags & Scene::CameraHeld) == 0 &&
+        field.CameraCentredOn(player.x, player.y) == std::array<i32, 2>{field.cameraLeft, field.cameraTop})
+    {
+        const std::array<i32, 2> place = this->RoleFine(playerIndex, scale);
+        return field.CameraCentredOn(place[0], place[1], scale);
+    }
+
+    const PanMotion& pan = this->panMotion;
+    const auto interval = static_cast<i32>(owner.state.frameInterval);
+
+    if (pan.active && interval > 0)
+    {
+        return {
+            pan.fromX * scale + pan.byX * pan.elapsed * scale / interval,
+            pan.fromY * scale + pan.byY * pan.elapsed * scale / interval,
+        };
+    }
+
+    return {field.cameraLeft * scale, field.cameraTop * scale};
+}
+
+// A role where its step under way has it (the controlled role where the step of the keys has it).
+std::array<i32, 2> FieldView::RoleFine(std::size_t index, int scale) const
+{
+    const Game& owner = this->game;
+    const Role& role = owner.state.roles[index];
+
+    if (index == static_cast<std::size_t>(owner.state.playerRole) && this->playerMotion.active)
+    {
+        return this->PlayerFine(scale);
+    }
+
+    if (index < this->roleMotions.size() && this->roleMotions[index].active)
+    {
+        const RoleMotion& step = this->roleMotions[index];
+        return {
+            step.fromX * scale + step.byX * step.elapsed * scale / step.length,
+            step.fromY * scale + step.byY * step.elapsed * scale / step.length,
+        };
+    }
+
+    return {role.x * scale, role.y * scale};
+}
+
+// A step a frame takes for a role on a move or a follower: one still under way is finished first; it moves from the
+// frame on, over a frame until TimeRoleStep reads its act.
+void FieldView::StartRoleStep(std::size_t index, i32 byX, i32 byY, std::size_t move, u8 direction, bool follower)
+{
+    const Game& owner = this->game;
+    const Role& role = owner.state.roles[index];
+
+    if (this->roleMotions.size() <= index)
+    {
+        this->roleMotions.resize(GameState::Roles);
+    }
+
+    this->FinishRoleStep(index);
+    RoleMotion& step = this->roleMotions[index];
+    step = RoleMotion{};
+    step.active = byX != 0 || byY != 0;
+    step.follower = follower;
+    step.fromX = role.x;
+    step.fromY = role.y;
+    step.byX = byX;
+    step.byY = byY;
+    step.length = std::max(static_cast<i32>(owner.state.frameInterval), 1);
+    step.leftX = role.x;
+    step.leftY = role.y;
+    step.move = move;
+    step.direction = direction;
+}
+
+// The act run after the step sets the frames to the role's next step (its delay plus one): the step takes them, at
+// most RoleStepMostFrames, so that it ends as the next one starts.
+void FieldView::TimeRoleStep(std::size_t index)
+{
+    if (index >= this->roleMotions.size() || !this->roleMotions[index].active || this->roleMotions[index].timed)
+    {
+        return;
+    }
+
+    const Game& owner = this->game;
+    RoleMotion& step = this->roleMotions[index];
+    const auto frames = std::min(static_cast<i32>(owner.state.roles[index].act.delay) + 1, RoleStepMostFrames);
+    step.length = frames * std::max(static_cast<i32>(owner.state.frameInterval), 1);
+    step.timed = true;
+}
+
+// The step under way ends at once where it goes (a new step before its end, smooth motion turned off); whether the
+// role arrived on a tile.
+bool FieldView::FinishRoleStep(std::size_t index)
+{
+    if (index >= this->roleMotions.size() || !this->roleMotions[index].active)
+    {
+        return false;
+    }
+
+    this->roleMotions[index].elapsed = this->roleMotions[index].length;
+    this->RoleTick(index);
+    const Role& role = this->game.state.roles[index];
+    return ((role.x | role.y) & MapHeader::TileFraction) == 0;
+}
+
+// A millisecond of a role's step: the role moves by its share of the step; at the end, on a tile, it arrives as the
+// original's frame does when the step lands there. The controlled role an event walks keeps the camera centred on
+// it. A role moved by anything else ends its step where it is.
+void FieldView::RoleTick(std::size_t index)
+{
+    if (index >= this->roleMotions.size() || !this->roleMotions[index].active)
+    {
+        return;
+    }
+
+    Game& owner = this->game;
+    Role& role = owner.state.roles[index];
+    RoleMotion& step = this->roleMotions[index];
+
+    if (role.x != step.leftX || role.y != step.leftY)
+    {
+        step.active = false;
+        return;
+    }
+
+    step.elapsed = std::min(step.elapsed + 1, step.length);
+    role.x = step.fromX + step.byX * step.elapsed / step.length;
+    role.y = step.fromY + step.byY * step.elapsed / step.length;
+    step.leftX = role.x;
+    step.leftY = role.y;
+    const bool controlled = index == static_cast<std::size_t>(owner.state.playerRole);
+
+    if (controlled && (owner.scene.screenFlags & Scene::CameraHeld) == 0)
+    {
+        owner.field.CenterCamera();
+    }
+
+    if (step.elapsed < step.length)
+    {
+        return;
+    }
+
+    step.active = false;
+
+    if (((role.x | role.y) & MapHeader::TileFraction) != 0)
+    {
+        return;
+    }
+
+    if (step.follower)
+    {
+        this->ArriveFollower(index, step.move, step.direction);
+    }
+    else
+    {
+        this->ArriveMoving(index, step.move, step.direction);
+    }
+}
+
+// The pan of a frame (0x00414570) moves the camera by its step over the frame.
+void FieldView::StartPan(i32 byX, i32 byY)
+{
+    const Field& field = this->game.field;
+
+    if (this->panMotion.active)
+    {
+        this->panMotion.elapsed = std::max(static_cast<i32>(this->game.state.frameInterval), 1);
+        this->PanTick();
+    }
+
+    this->panMotion = PanMotion{
+        byX != 0 || byY != 0,
+        field.cameraLeft,
+        field.cameraTop,
+        byX,
+        byY,
+        0,
+        field.cameraLeft,
+        field.cameraTop
+    };
+}
+
+// A millisecond of the pan: the camera moves by its share of the step; moved by anything else, the pan ends there.
+void FieldView::PanTick()
+{
+    PanMotion& pan = this->panMotion;
+
+    if (!pan.active)
+    {
+        return;
+    }
+
+    Field& field = this->game.field;
+
+    if (field.cameraLeft != pan.leftX || field.cameraTop != pan.leftY)
+    {
+        pan.active = false;
+        return;
+    }
+
+    const auto interval = std::max(static_cast<i32>(this->game.state.frameInterval), 1);
+    pan.elapsed = std::min(pan.elapsed + 1, interval);
+    const i32 cameraX = pan.fromX + pan.byX * pan.elapsed / interval;
+    const i32 cameraY = pan.fromY + pan.byY * pan.elapsed / interval;
+    field.cameraRight += cameraX - field.cameraLeft;
+    field.cameraBottom += cameraY - field.cameraTop;
+    field.cameraLeft = cameraX;
+    field.cameraTop = cameraY;
+    pan.leftX = cameraX;
+    pan.leftY = cameraY;
+    pan.active = pan.elapsed < interval;
 }
 
 std::array<i32, 2> FieldView::PlayerFine(int scale) const

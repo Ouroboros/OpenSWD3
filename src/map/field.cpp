@@ -387,21 +387,21 @@ void Field::CenterCamera()
     }
 }
 
-std::array<i32, 2> Field::CameraCentredOn(i32 x, i32 y) const
+std::array<i32, 2> Field::CameraCentredOn(i32 x, i32 y, int scale) const
 {
-    const i32 width = MapHeader::TileSize * this->state.map.width;
-    const i32 height = MapHeader::TileSize * this->state.map.height;
-    i32 left = std::max(x - kCameraLeft, 0);
-    i32 top = std::max(y - kCameraUp, 0);
+    const i32 width = MapHeader::TileSize * this->state.map.width * scale;
+    const i32 height = MapHeader::TileSize * this->state.map.height * scale;
+    i32 left = std::max(x - kCameraLeft * scale, 0);
+    i32 top = std::max(y - kCameraUp * scale, 0);
 
-    if (left + Display::Width >= width)
+    if (left + Display::Width * scale >= width)
     {
-        left = MapHeader::TileSize * (this->state.map.width - kScreenColumns);
+        left = MapHeader::TileSize * (this->state.map.width - kScreenColumns) * scale;
     }
 
-    if (top + Display::Height >= height)
+    if (top + Display::Height * scale >= height)
     {
-        top = MapHeader::TileSize * (this->state.map.height - kScreenRows);
+        top = MapHeader::TileSize * (this->state.map.height - kScreenRows) * scale;
     }
 
     return {left, top};
@@ -882,19 +882,6 @@ void Field::ClearRoleCells(const Role& role, i32 leader)
 MapRegion* Field::FindRegion(int id)
 {
     for (MapRegion* region = this->regions.next.get(); region != nullptr; region = region->next.get())
-    {
-        if (region->id == id)
-        {
-            return region;
-        }
-    }
-
-    return nullptr;
-}
-
-const MapRegion* Field::FindRegion(int id) const
-{
-    for (const MapRegion* region = this->regions.next.get(); region != nullptr; region = region->next.get())
     {
         if (region->id == id)
         {

@@ -38,9 +38,6 @@ public:
     // and 0x004993A0): the pixels of a step in each path direction.
     static constexpr std::array<i32, 8> StepX = {4, 0, -4, -4, -4, 0, 4, 4};
     static constexpr std::array<i32, 8> StepY = {4, 4, 4, 0, -4, -4, -4, 0};
-    static constexpr int FollowerSpeed = 2;  // a follower steps at double speed (0x00406960)
-    static constexpr u32 BlockedTries =
-        8;  // after this many blocked steps a role walks through other roles (0x00406580)
     // swd32.exe 0x0049947C (a copy at 0x0049967C): the act direction of each path direction.
     static constexpr std::array<i32, 8> Facing = {
         ActState::DownRight,
@@ -56,13 +53,16 @@ public:
     static constexpr int Moves = 72;
     static constexpr u8 Directions = 8;
 
+    // The place of a role between tiles brought back against its step `step` (a value of StepX or StepY) to the start
+    // of the tile it set out from, as the original's loops reach it by taking the step off until the place is on a
+    // tile (StartPath, the event holds, the party joins and leaves): a place on a tile stays; without a step a place
+    // between tiles hangs, as those loops do. Moving on with the step instead, pass it negated.
+    static i32 TileStart(i32 place, i32 step);
+
     explicit RolePath(Game& game);
 
     void Update();
     void RunScript(int index);
-    // The rebuild's smooth motion (deviations.md): whether the next frame's path script of role `index` takes a step
-    // (it runs, and its command at the role's place is PathCommand::Step); nothing is changed.
-    bool StepsNext(int index) const;
     bool FindPath(int index, u16 tileX, u16 tileY);
     int Step(int index);
     std::size_t JumpTo(int index, u32 offset);

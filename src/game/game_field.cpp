@@ -574,14 +574,10 @@ void Game::FollowLeader(int index)
                 this->field.ClearRoleCells(role, this->unk4B7BC4);
                 const u8 direction = move.CurrentDirection();
 
-                while ((role.x & MapHeader::TileFraction) != 0 && direction < RolePath::StepX.size())
+                if (direction < RolePath::Directions)
                 {
-                    role.x -= RolePath::StepX[direction];
-                }
-
-                while ((role.y & MapHeader::TileFraction) != 0 && direction < RolePath::StepY.size())
-                {
-                    role.y -= RolePath::StepY[direction];
+                    role.x = RolePath::TileStart(role.x, RolePath::StepX[direction]);
+                    role.y = RolePath::TileStart(role.y, RolePath::StepY[direction]);
                 }
 
                 this->field.RemoveRole(
@@ -1282,21 +1278,8 @@ void Game::ReleaseRole(int index)
                     Hang();
                 }
 
-                auto align = [](i32& place, i32 step)
-                {
-                    for (int steps = 0; (place & kTileMask) != 0; ++steps)
-                    {
-                        if (steps > kTileMask)
-                        {
-                            Hang();
-                        }
-
-                        place -= step;
-                    }
-                };
-
-                align(role.x, RolePath::StepX[direction]);
-                align(role.y, RolePath::StepY[direction]);
+                role.x = RolePath::TileStart(role.x, RolePath::StepX[direction]);
+                role.y = RolePath::TileStart(role.y, RolePath::StepY[direction]);
             }
         }
 

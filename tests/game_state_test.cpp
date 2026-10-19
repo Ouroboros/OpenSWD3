@@ -206,3 +206,40 @@ TEST_CASE("game state: marching frame and the save thumbnail")
     CHECK_EQ(act.unknown1C, -1);
     CHECK_EQ(act.hold, 0);
 }
+
+TEST_CASE("game state: a role between tiles goes back to its tile as the original's loops take it")
+{
+    // The original takes the step off until the place is on a tile; its places are multiples of the 4 pixel steps.
+    constexpr int kFrom = -0x40;
+    constexpr int kTo = 0x400;
+    constexpr int kStep = 4;
+
+    auto loop = [](swd3::i32 place, swd3::i32 step)
+    {
+        while ((place & swd3::MapHeader::TileFraction) != 0)
+        {
+            place -= step;
+        }
+
+        return place;
+    };
+
+    for (const swd3::i32 step : swd3::RolePath::StepX)
+    {
+        for (int place = kFrom; place <= kTo; place += kStep)
+        {
+            if (step == 0 && (place & swd3::MapHeader::TileFraction) != 0)
+            {
+                continue;
+            }
+
+            CHECK_EQ(swd3::RolePath::TileStart(place, step), loop(place, step));
+            CHECK_EQ(swd3::RolePath::TileStart(place, -step), loop(place, -step));
+        }
+    }
+
+    // Any other place goes back to the start of the tile it set out from (forward with the step negated).
+    CHECK_EQ(swd3::RolePath::TileStart(0x3E, 4), 0x30);
+    CHECK_EQ(swd3::RolePath::TileStart(0x3E, -4), 0x40);
+    CHECK_EQ(swd3::RolePath::TileStart(0x3E, 0x10), 0x30);
+}

@@ -211,20 +211,6 @@ private:
     void PaintWorld();
     void ClipToSpotlight();
     void CapturePlaces();
-    void AimNextFrame();
-    void RefreshAim(double time);
-
-    // Where role `index` steps next as the game frames move it (a move record or a follower's), and in how many game
-    // frames: `known` false when nothing moves it.
-    struct NextPlace
-    {
-        i32 x = 0;
-        i32 y = 0;
-        u32 frames = 1;
-        bool known = false;
-    };
-
-    NextPlace PredictRole(std::size_t index) const;
     void CaptureLayer(std::vector<Pixel>& layer) const;
 
     // An element of a screen effect (a weather particle, a leaf, a bolt, a firefly, a bubble, a sprite) followed by
@@ -250,10 +236,6 @@ private:
     int placesMap = 0;
     i32 cameraWidth = 0;
     i32 cameraHeight = 0;
-    std::vector<Glide> glides;  // the camera, then the roles
-    bool keyed = false;         // the keys move the controlled role: it and the camera head for the next frame
-    bool placesContinuous = false;
-    std::vector<u8> rolesAimed;  // per role: heading for where the next frame puts it
 
     // The step of the controlled role under way (continuous motion): where it and the camera started, the walking
     // speed (pixels a game frame), the directions across and down and whether the camera follows, the milliseconds
@@ -277,14 +259,61 @@ private:
         i32 leftCameraY = 0;
     };
 
+    // A step of a role moved by its move record or as a follower (continuous motion): the step a frame took, from
+    // where, over how many milliseconds (its act's delay plus one frames, at most RoleStepMostFrames), the
+    // milliseconds gone and the place it left; reaching a tile it arrives as the original's frame does when the step
+    // lands there (ArriveMoving, ArriveFollower).
+    struct RoleMotion
+    {
+        bool active = false;
+        bool follower = false;
+        i32 fromX = 0;
+        i32 fromY = 0;
+        i32 byX = 0;
+        i32 byY = 0;
+        i32 length = 1;
+        i32 elapsed = 0;
+        i32 leftX = 0;
+        i32 leftY = 0;
+        std::size_t move = 0;  // the move record (GameState::moves or Scene::followerMoves)
+        bool timed = false;    // its length taken from the act run after the step
+        u8 direction = 0;
+    };
+
+    // The pan of the camera under way: the step a frame took, the milliseconds gone and the camera it left.
+    struct PanMotion
+    {
+        bool active = false;
+        i32 fromX = 0;
+        i32 fromY = 0;
+        i32 byX = 0;
+        i32 byY = 0;
+        i32 elapsed = 0;
+        i32 leftX = 0;
+        i32 leftY = 0;
+    };
+
+    static constexpr i32 RoleStepMostFrames = 8;  // a slower step moves in this many frames and then stands
+
     void MotionTick();
     void BeginPlayerMotion();
-    void PinGlides();
     void EndPlayerMotion(bool atFrame);
     i32 MotionPixels(int scale) const;
+    void StartRoleStep(std::size_t index, i32 byX, i32 byY, std::size_t move, u8 direction, bool follower);
+    void TimeRoleStep(std::size_t index);
+    bool FinishRoleStep(std::size_t index);
+    void RoleTick(std::size_t index);
+    void ArriveMoving(std::size_t index, std::size_t move, u8 direction);
+    void ArriveFollower(std::size_t index, std::size_t move, u8 direction);
+    void StartPan(i32 byX, i32 byY);
+    void PanTick();
+    std::array<i32, 2> RoleFine(std::size_t index, int scale) const;
     PlayerMotion playerMotion;
+    std::vector<RoleMotion> roleMotions;  // per role
+    PanMotion panMotion;
     u32 motionClock = 0;
     bool motionClockSet = false;
+    int motionMap = 0;  // the map the motions under way are on
     std::unordered_map<u64, EffectGlide> effectGlides;
     // The painting PaintBetween does: its render scale, its camera (in 1/scale pixels), the block column and row.
     int paintScale = 1;

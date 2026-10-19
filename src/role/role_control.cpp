@@ -165,7 +165,7 @@ u32 RoleControl::FreeLanes(int x, int y, int length, int stride, int limit, int 
 // swd32.exe 0x004040B0: a step into a wall turned into a slide along it: a straight step blocked ahead moves sideways
 // into a free lane (or the diagonal around the corner), a diagonal one keeps the free one of its two parts; with no
 // way the step is cleared
-void RoleControl::Slide(const Role& role, int& stepX, int& stepY) const
+void RoleControl::Slide(Role& role, int& stepX, int& stepY) const
 {
     const GameState& state = this->game.state;
     const std::ptrdiff_t cell = role.cell != nullptr ? role.cell - state.map.blocks.data() : 0;

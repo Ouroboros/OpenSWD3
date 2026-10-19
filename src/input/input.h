@@ -79,9 +79,6 @@ public:
     int PollKeyboard();
     int IsKeyDown(int scanCode) const;
     bool IsKeyPressed(int scanCode) const;
-    // The rebuild's smooth motion: whether the key is down now, as the next poll will read it (the state polled is
-    // left alone).
-    bool IsKeyDownNow(int scanCode) const;
     int FirstKeyDown() const;
     int PressKey(int scanCode);
     int ReadMouse(int& x, int& y);

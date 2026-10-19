@@ -3,6 +3,31 @@
 namespace swd3
 {
 
+namespace
+{
+
+// swd32.exe 0x00499534 and 0x00499554: the cell step of each path direction.
+constexpr std::array<i32, 8> kCellX = {1, 0, -1, -1, -1, 0, 1, 1};
+constexpr std::array<i32, 8> kCellY = {1, 1, 1, 0, -1, -1, -1, 0};
+
+// The cell of a role moved a step in path direction `direction` (inline in 0x004120B0).
+void MoveCell(GameState& state, Role& role, int direction)
+{
+    if (role.cell == nullptr || direction < 0 || direction >= RolePath::Directions)
+    {
+        return;
+    }
+
+    const std::ptrdiff_t at =
+        role.cell - state.map.blocks.data() + kCellX[static_cast<std::size_t>(direction)] +
+        static_cast<std::ptrdiff_t>(state.map.width) * kCellY[static_cast<std::size_t>(direction)];
+    role.cell = at >= 0 && static_cast<std::size_t>(at) < state.map.blocks.size()
+                    ? &state.map.blocks[static_cast<std::size_t>(at)]
+                    : nullptr;
+}
+
+}  // namespace
+
 FieldView::FieldView(Game& game)
     : game(game)
 {
@@ -101,11 +126,20 @@ void FieldView::PanCamera()
         return;
     }
 
-    field.cameraLeft += view.panStepX;
-    field.cameraRight += view.panStepX;
-    field.cameraTop += view.panStepY;
+    // The rebuild's continuous motion moves the camera by the step over the frame instead (StartPan).
+    if (this->game.smoothMotion)
+    {
+        this->StartPan(view.panStepX, view.panStepY);
+    }
+    else
+    {
+        field.cameraLeft += view.panStepX;
+        field.cameraRight += view.panStepX;
+        field.cameraTop += view.panStepY;
+        field.cameraBottom += view.panStepY;
+    }
+
     const int remaining = view.panDown - view.panStepY;
-    field.cameraBottom += view.panStepY;
     view.panAcross -= view.panStepX;
     view.panDown -= view.panStepY;
 
@@ -364,6 +398,99 @@ void FieldView::UpdateRoleCellFlags(Role& role)
     }
 }
 
+// A role on a move whose step lands on a tile (part of 0x004120B0): it leaves its old line; at the end of the move it
+// takes the move's act, action and direction, resumes a held move and, for role 1, stops the keys and recentres; its
+// cells follow its step.
+void FieldView::ArriveMoving(std::size_t index, std::size_t slot, u8 direction)
+{
+    Game& owner = this->game;
+    GameState& state = owner.state;
+    Scene& view = owner.scene;
+    Field& field = owner.field;
+    MoveRecord& move = state.moves[slot];
+    Role& role = state.roles[index];
+    const u16 id = role.id;
+    const i32 leaderId = owner.unk4B7BC4;
+    field.RemoveRole(
+        id,
+        static_cast<int>(role.flags & Role::LayerMask),
+        (static_cast<u32>(role.y) >> MapHeader::TileShift) - 1,
+        0
+    );
+
+    if (role.x == move.x && role.y == move.y)
+    {
+        role.act.speed = 0;
+        role.flags = (role.flags & ~(Role::Stepping | Role::FastMove | Role::Arrived)) | Role::Arrived;
+
+        if (move.act != -1)
+        {
+            role.act.id = move.act;
+        }
+
+        if (move.action != -1)
+        {
+            role.act.action = move.action;
+        }
+
+        if (move.direction != -1)
+        {
+            role.act.direction = move.direction;
+        }
+
+        if ((move.mode & MoveRecord::HoldAtEnd) == 0)
+        {
+            owner.rolePath.ResumeMove(static_cast<int>(index));
+            role.act.delay = 0;
+            role.flags &= ~Role::Held;
+        }
+
+        if (role.id == 1)
+        {
+            owner.unk4B7920 = 0;
+            owner.controls.buttons = {};
+            owner.unk4B7518 = 0;
+            owner.unk4A948C = 0;
+            owner.unk4A9488 = 0;
+
+            if ((view.screenFlags & Scene::CameraHeld) == 0)
+            {
+                field.CenterCamera();
+            }
+        }
+
+        role.flags &= ~Role::PassWalls;
+    }
+
+    field.ClearRoleCells(role, leaderId);
+
+    if (direction != MoveRecord::EndOfPath)
+    {
+        MoveCell(state, role, direction);
+    }
+
+    field.MarkRoleCells(role, leaderId);
+    move.step = static_cast<u16>((move.step + 1) | MoveRecord::Done);
+    this->UpdateRoleCellFlags(role);
+}
+
+// A follower whose step lands on a tile (part of 0x004120B0): its cells follow its step.
+void FieldView::ArriveFollower(std::size_t index, std::size_t slot, u8 direction)
+{
+    Game& owner = this->game;
+    GameState& state = owner.state;
+    Field& field = owner.field;
+    MoveRecord& move = owner.scene.followerMoves[slot];
+    Role& role = state.roles[index];
+    const i32 leaderId = owner.unk4B7BC4;
+    field.RemoveRole(role.id, static_cast<int>(role.flags & Role::LayerMask), 0, 0);
+    field.ClearRoleCells(role, leaderId);
+    MoveCell(state, role, direction);
+    field.MarkRoleCells(role, leaderId);
+    move.step = static_cast<u16>((move.step + 1) | MoveRecord::Done);
+    this->UpdateRoleCellFlags(role);
+}
+
 // swd32.exe 0x004120B0: a frame of the map: the screen acts step, the camera and the controlled role move by their
 // step, every role on a move steps along it (twice as fast without flag 0xD4 or with flag 0x4000000; at the end it
 // takes the move's act, resumes a held move and, for role 1, stops the keys and recentres), touch roles start their
@@ -372,15 +499,10 @@ void FieldView::UpdateRoleCellFlags(Role& role)
 // back
 void FieldView::Render()
 {
-    // swd32.exe 0x00499574: the act direction of each path direction; 0x00499534 and 0x00499554: its cell step.
-    static constexpr std::array<i32, 8> kCellX = {1, 0, -1, -1, -1, 0, 1, 1};
-    static constexpr std::array<i32, 8> kCellY = {1, 1, 1, 0, -1, -1, -1, 0};
     Game& owner = this->game;
     GameState& state = owner.state;
     Scene& view = owner.scene;
     Field& field = owner.field;
-    const i32 leaderId = owner.unk4B7BC4;
-    const int width = state.map.width;
 
     for (std::size_t act = view.unk4B9F68.size(); act-- > 0;)
     {
@@ -410,20 +532,6 @@ void FieldView::Render()
         field.cameraRight += owner.unk4B7518 * scroll;
         field.cameraBottom += owner.unk4B7920 * scroll;
     }
-
-    auto moveCell = [&state, width](Role& role, int direction)
-    {
-        if (role.cell == nullptr || direction < 0 || direction >= RolePath::Directions)
-        {
-            return;
-        }
-
-        const std::ptrdiff_t at = role.cell - state.map.blocks.data() + kCellX[static_cast<std::size_t>(direction)] +
-                                  static_cast<std::ptrdiff_t>(width) * kCellY[static_cast<std::size_t>(direction)];
-        role.cell = at >= 0 && static_cast<std::size_t>(at) < state.map.blocks.size()
-                        ? &state.map.blocks[static_cast<std::size_t>(at)]
-                        : nullptr;
-    };
 
     for (MoveRecord& move : state.moves)
     {
@@ -478,72 +586,21 @@ void FieldView::Render()
                 role.act.direction = RolePath::Facing[direction];
             }
 
-            role.x += stepX;
-            role.y += stepY;
+            const auto slot = static_cast<std::size_t>(&move - state.moves.data());
 
-            if (((role.x | role.y) & MapHeader::TileFraction) == 0)
+            if (owner.smoothMotion)
             {
-                field.RemoveRole(
-                    id,
-                    static_cast<int>(role.flags & Role::LayerMask),
-                    (static_cast<u32>(role.y) >> MapHeader::TileShift) - 1,
-                    0
-                );
+                this->StartRoleStep(index, stepX, stepY, slot, direction, false);
+            }
+            else
+            {
+                role.x += stepX;
+                role.y += stepY;
 
-                if (role.x == move.x && role.y == move.y)
+                if (((role.x | role.y) & MapHeader::TileFraction) == 0)
                 {
-                    role.act.speed = 0;
-                    role.flags = (role.flags & ~(Role::Stepping | Role::FastMove | Role::Arrived)) | Role::Arrived;
-
-                    if (move.act != -1)
-                    {
-                        role.act.id = move.act;
-                    }
-
-                    if (move.action != -1)
-                    {
-                        role.act.action = move.action;
-                    }
-
-                    if (move.direction != -1)
-                    {
-                        role.act.direction = move.direction;
-                    }
-
-                    if ((move.mode & MoveRecord::HoldAtEnd) == 0)
-                    {
-                        owner.rolePath.ResumeMove(index);
-                        role.act.delay = 0;
-                        role.flags &= ~Role::Held;
-                    }
-
-                    if (role.id == 1)
-                    {
-                        owner.unk4B7920 = 0;
-                        owner.controls.buttons = {};
-                        owner.unk4B7518 = 0;
-                        owner.unk4A948C = 0;
-                        owner.unk4A9488 = 0;
-
-                        if ((view.screenFlags & Scene::CameraHeld) == 0)
-                        {
-                            field.CenterCamera();
-                        }
-                    }
-
-                    role.flags &= ~Role::PassWalls;
+                    this->ArriveMoving(index, slot, direction);
                 }
-
-                field.ClearRoleCells(role, leaderId);
-
-                if (direction != MoveRecord::EndOfPath)
-                {
-                    moveCell(role, direction);
-                }
-
-                field.MarkRoleCells(role, leaderId);
-                move.step = static_cast<u16>((move.step + 1) | MoveRecord::Done);
-                this->UpdateRoleCellFlags(role);
             }
 
             if (state.leader.id == Role::NoId && (role.flags & Role::TouchEvent) != 0)
@@ -572,6 +629,8 @@ void FieldView::Render()
                 role.act.direction
             );
         }
+
+        this->TimeRoleStep(index);
 
         if (index == state.playerRole && (view.screenFlags & Scene::CameraHeld) == 0)
         {
@@ -606,17 +665,19 @@ void FieldView::Render()
                 role.act.direction = RolePath::Facing[direction];
             }
 
-            role.x += move.stepX;
-            role.y += move.stepY;
-
-            if (((role.x | role.y) & MapHeader::TileFraction) == 0)
+            if (owner.smoothMotion)
             {
-                field.RemoveRole(role.id, static_cast<int>(role.flags & Role::LayerMask), 0, 0);
-                field.ClearRoleCells(role, leaderId);
-                moveCell(role, direction);
-                field.MarkRoleCells(role, leaderId);
-                move.step = static_cast<u16>((move.step + 1) | MoveRecord::Done);
-                this->UpdateRoleCellFlags(role);
+                this->StartRoleStep(move.role, move.stepX, move.stepY, follower, direction, true);
+            }
+            else
+            {
+                role.x += move.stepX;
+                role.y += move.stepY;
+
+                if (((role.x | role.y) & MapHeader::TileFraction) == 0)
+                {
+                    this->ArriveFollower(move.role, follower, direction);
+                }
             }
         }
 
@@ -630,6 +691,8 @@ void FieldView::Render()
                 role.act.direction
             );
         }
+
+        this->TimeRoleStep(move.role);
     }
 
     this->PanCamera();
@@ -692,8 +755,6 @@ void FieldView::Render()
 
         view.unk4B873C = layer * view.unk4B7A98;
     }
-
-    this->AimNextFrame();
 
     if (view.shake[0] != Scene::ShakeEnd && owner.currentMap != Field::DemonRefiningPot)
     {

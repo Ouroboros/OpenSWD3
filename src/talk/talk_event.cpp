@@ -1225,14 +1225,10 @@ bool Talk::RunRoleCommand(EventRun& run)
 
                         const u8 back = move.CurrentDirection();
 
-                        while ((role.x & MapHeader::TileFraction) != 0 && back < RolePath::StepX.size())
+                        if (back < RolePath::Directions)
                         {
-                            role.x -= RolePath::StepX[back];
-                        }
-
-                        while ((role.y & MapHeader::TileFraction) != 0 && back < RolePath::StepY.size())
-                        {
-                            role.y -= RolePath::StepY[back];
+                            role.x = RolePath::TileStart(role.x, RolePath::StepX[back]);
+                            role.y = RolePath::TileStart(role.y, RolePath::StepY[back]);
                         }
 
                         owner.field.RemoveRole(role.id, static_cast<int>(role.flags & Role::LayerMask), row, 0);

@@ -3,11 +3,8 @@
 namespace swd3
 {
 
-// Where the game frame about to be painted draws the camera and the roles: each starts a glide to its new place when
-// it moved (from where it is shown at the start of this frame), a role other than the controlled one over the frames
-// to its next step (its act's delay plus one), the camera and the controlled role over the frames since their last
-// move. At the end of the frame (AimNextFrame) whatever the game's rules move heads for its next place instead; the
-// controlled role moved by the keys (no move record of its own, no quake) and its camera are left to it.
+// The game frame about to be painted for the effect elements (the camera and the roles move continuously, see
+// field_view_motion.cpp): the elements not drawn in the frame before are dropped.
 void FieldView::CapturePlaces()
 {
     Game& owner = this->game;
@@ -18,35 +15,8 @@ void FieldView::CapturePlaces()
     }
 
     const Field& field = owner.field;
-    const GameState& state = owner.state;
     const u32 frame = owner.gameFrames;
     const bool continuous = this->placesValid && frame == this->placesFrame + 1 && owner.currentMap == this->placesMap;
-    const auto playerIndex = static_cast<std::size_t>(state.playerRole);
-    this->keyed = false;  // the continuous motion moves the controlled role (its glide is not used)
-    this->placesContinuous = continuous;
-    this->glides.resize(1 + GameState::Roles);
-
-    this->rolesAimed.assign(GameState::Roles, 0);
-
-    for (std::size_t index = 0; index < GameState::Roles; ++index)
-    {
-        const bool controlled = index == playerIndex;
-
-        if (controlled && this->keyed)
-        {
-            continue;
-        }
-
-        const Role& role = state.roles[index];
-        const u32 next = role.act.delay + 1u;
-        const u32 pace = controlled || next > kMaxStepFrames ? 0 : next;
-        this->glides[1 + index].Follow(role.x, role.y, frame, continuous, pace);
-    }
-
-    if (!this->keyed)
-    {
-        this->glides[0].Follow(field.cameraLeft, field.cameraTop, frame, continuous, 0);
-    }
 
     if (!continuous)
     {
@@ -77,283 +47,6 @@ void FieldView::CapturePlaces()
     );
     this->cameraWidth = field.cameraRight - field.cameraLeft;
     this->cameraHeight = field.cameraBottom - field.cameraTop;
-}
-
-// The end of the map's frame (0x004120B0), once the cells are where the frame's steps left them (as the next frame's
-// path scripts find them): every role the game's rules move (FieldView::PredictRole) heads for its next place, and so
-// does the camera following a role the event walks or panning; while the keys move the controlled role, it and the
-// camera head for where the next frame puts them: within a tile the step goes on, on a tile ControlPlayer takes the
-// step RoleControl::PeekPlayerStep finds, and a pan goes on.
-void FieldView::AimNextFrame()
-{
-    Game& owner = this->game;
-
-    if (!owner.smoothMotion || this->glides.size() != 1 + GameState::Roles ||
-        this->rolesAimed.size() != GameState::Roles)
-    {
-        return;
-    }
-
-    const Field& field = owner.field;
-    const GameState& state = owner.state;
-    const Scene& view = owner.scene;
-    const u32 frame = this->placesFrame;
-    const auto playerIndex = static_cast<std::size_t>(state.playerRole);
-    const Role& player = state.roles[playerIndex];
-    const bool panning = view.panAcross != 0 || view.panDown != 0;
-    NextPlace playerNext;
-
-    for (std::size_t index = 0; index < GameState::Roles; ++index)
-    {
-        if (index == playerIndex && this->keyed)
-        {
-            continue;
-        }
-
-        const NextPlace next = this->PredictRole(index);
-
-        if (index == playerIndex)
-        {
-            playerNext = next;
-        }
-
-        if (!next.known)
-        {
-            continue;
-        }
-
-        const Role& role = state.roles[index];
-        this->rolesAimed[index] = 1;
-        this->glides[1 + index]
-            .Aim(next.x, next.y, role.x, role.y, frame, this->placesContinuous, static_cast<double>(next.frames));
-    }
-
-    if (!this->keyed)
-    {
-        // The camera of a role the event walks follows it (CenterCamera each frame), and a pan goes on by its step.
-        const bool quaking = view.shake[0] != Scene::ShakeEnd && owner.currentMap != Field::DemonRefiningPot;
-        const bool centred = playerNext.known && (view.screenFlags & Scene::CameraHeld) == 0;
-
-        if (quaking || (!panning && !centred))
-        {
-            return;
-        }
-
-        std::array<i32, 2> camera = {field.cameraLeft, field.cameraTop};
-
-        if (centred)
-        {
-            camera = field.CameraCentredOn(playerNext.x, playerNext.y);
-        }
-
-        if (panning)
-        {
-            camera[0] += view.panStepX;
-            camera[1] += view.panStepY;
-        }
-
-        const double frames = centred ? static_cast<double>(playerNext.frames) : 1.0;
-        this->glides[0]
-            .Aim(camera[0], camera[1], field.cameraLeft, field.cameraTop, frame, this->placesContinuous, frames);
-        return;
-    }
-
-    this->rolesAimed[playerIndex] = 1;
-    const bool stepping = owner.unk4B7518 != 0 || owner.unk4B7920 != 0 || owner.unk4A9488 != 0 || owner.unk4A948C != 0;
-    RoleControl::PlayerStep next{owner.unk4B7518, owner.unk4B7920, owner.unk4A9488, owner.unk4A948C, state.walkSpeed};
-
-    if (!stepping)
-    {
-        next = owner.roleControl.PeekPlayerStep();
-    }
-
-    this->glides[0].Aim(
-        field.cameraLeft + next.speed * next.scrollX + (panning ? view.panStepX : 0),
-        field.cameraTop + next.speed * next.scrollY + (panning ? view.panStepY : 0),
-        field.cameraLeft,
-        field.cameraTop,
-        frame,
-        this->placesContinuous
-    );
-    this->glides[1 + playerIndex].Aim(
-        player.x + next.speed * (next.scrollX + next.aloneX),
-        player.y + next.speed * (next.scrollY + next.aloneY),
-        player.x,
-        player.y,
-        frame,
-        this->placesContinuous
-    );
-}
-
-// The moves of the map's frame (0x004120B0) one frame on: a role steps when its act's delay runs out, so delay plus one
-// frames away. Within a tile it goes on by the step it takes now (doubled for a slow act or a fast move). On a tile the
-// step is set as the next frame's path script sets it, from the cells as they are now: along its record's next
-// direction (a path move only when its script runs on to a step, RolePath::StepsNext) unless the cells ahead are
-// blocked (RolePath::Step, 0x00406580: walls and roles, walls only after RolePath::BlockedTries tries;
-// RolePath::ScriptStep, 0x0042E280: walls, none with Role::PassWalls), none at the end of the record or where it
-// arrived; a follower, finding a new path then (RolePath::Follow, 0x00406960), is taken to go on the way it went unless
-// walls block it. A role that does not step (held for the event leader, facing a talker) stays.
-FieldView::NextPlace FieldView::PredictRole(std::size_t index) const
-{
-    const Game& owner = this->game;
-    const GameState& state = owner.state;
-    const Scene& view = owner.scene;
-    const Role& role = state.roles[index];
-    NextPlace next{role.x, role.y, role.act.delay + 1u, false};
-
-    if ((role.flags & Role::Visible) == 0 || next.frames > kMaxStepFrames)
-    {
-        return next;
-    }
-
-    const std::ptrdiff_t cell = role.cell != nullptr ? role.cell - state.map.blocks.data() : 0;
-
-    auto stepTowards = [&](std::size_t direction, u32 mask, int factor)
-    {
-        if (direction >= RolePath::Directions)
-        {
-            return;
-        }
-
-        const u32 probe = mask == 0 ? 0u : owner.field.ProbeCells(cell, role.act.width, role.act.height, mask);
-
-        if ((probe & RolePath::BlockedBy[direction]) == 0)
-        {
-            next.x += RolePath::StepX[direction] * factor;
-            next.y += RolePath::StepY[direction] * factor;
-        }
-    };
-
-    for (const MoveRecord& move : state.moves)
-    {
-        if (static_cast<std::size_t>(move.role) != index || move.role == MoveRecord::NoRole)
-        {
-            continue;
-        }
-
-        next.known = true;
-
-        if ((role.id == state.leader.id && move.Kind() == MoveKind::Path) ||
-            ((role.flags & Role::FacesTalker) != 0 && role.talkState == Role::TalkWaiting))
-        {
-            return next;
-        }
-
-        int factor = role.unkD4 == 0 ? kFastFactor : 1;
-        factor *= (role.flags & Role::FastMove) != 0 ? kFastFactor : 1;
-
-        if (move.step < MoveRecord::StepMask)
-        {
-            next.x += move.stepX * factor;
-            next.y += move.stepY * factor;
-            return next;
-        }
-
-        if (role.x == move.x && role.y == move.y)
-        {
-            return next;
-        }
-
-        u32 mask = MapHeader::Wall;
-
-        if (move.Kind() == MoveKind::Scripted)
-        {
-            mask = (role.flags & Role::PassWalls) != 0 ? 0u : static_cast<u32>(MapHeader::Wall);
-        }
-        else if (!owner.rolePath.StepsNext(static_cast<int>(index)))
-        {
-            return next;
-        }
-        else if (move.unk1A <= RolePath::BlockedTries)
-        {
-            mask = MapHeader::Wall | MapHeader::SolidRole;
-        }
-
-        stepTowards(move.CurrentDirection(), mask, factor);
-        return next;
-    }
-
-    for (u32 follower = 1; follower < static_cast<u32>(view.unk4BABA0) && follower < view.followerMoves.size();
-         ++follower)
-    {
-        const MoveRecord& move = view.followerMoves[follower];
-
-        if (static_cast<std::size_t>(move.role) != index)
-        {
-            continue;
-        }
-
-        next.known = true;
-
-        if (move.step < MoveRecord::StepMask)
-        {
-            next.x += move.stepX;
-            next.y += move.stepY;
-            return next;
-        }
-
-        const auto sign = [](i32 value)
-        {
-            return (value > 0) - (value < 0);
-        };
-
-        for (std::size_t direction = 0; direction < RolePath::Directions; ++direction)
-        {
-            if ((move.stepX != 0 || move.stepY != 0) && sign(RolePath::StepX[direction]) == sign(move.stepX) &&
-                sign(RolePath::StepY[direction]) == sign(move.stepY))
-            {
-                const u32 mask = state.GameFlag(GameState::FollowersPassWalls) ? 0u : static_cast<u32>(MapHeader::Wall);
-                stepTowards(direction, mask, RolePath::FollowerSpeed);
-                break;
-            }
-        }
-
-        return next;
-    }
-
-    return next;
-}
-
-// Between frames: a controlled role standing still that the keys now start heads for its first step at once, with
-// the camera, to be there when the next frame takes the step.
-void FieldView::RefreshAim(double time)
-{
-    Game& owner = this->game;
-
-    if (!this->keyed || this->glides.size() != 1 + GameState::Roles || owner.unk4B7518 != 0 || owner.unk4B7920 != 0 ||
-        owner.unk4A9488 != 0 || owner.unk4A948C != 0)
-    {
-        return;
-    }
-
-    const Field& field = owner.field;
-    const Scene& view = owner.scene;
-    const Role& player = owner.state.roles[static_cast<std::size_t>(owner.state.playerRole)];
-    Glide& role = this->glides[1 + static_cast<std::size_t>(owner.state.playerRole)];
-
-    if (role.toX != player.x || role.toY != player.y)
-    {
-        return;
-    }
-
-    const RoleControl::PlayerStep next = owner.roleControl.PeekPlayerStep();
-    const i32 x = player.x + next.speed * (next.scrollX + next.aloneX);
-    const i32 y = player.y + next.speed * (next.scrollY + next.aloneY);
-
-    if (x == player.x && y == player.y)
-    {
-        return;
-    }
-
-    const bool panning = view.panAcross != 0 || view.panDown != 0;
-    const double arrive = static_cast<double>(this->placesFrame) + 1.0;
-    role.Retarget(time, x, y, arrive);
-    this->glides[0].Retarget(
-        time,
-        field.cameraLeft + next.speed * next.scrollX + (panning ? view.panStepX : 0),
-        field.cameraTop + next.speed * next.scrollY + (panning ? view.panStepY : 0),
-        arrive
-    );
 }
 
 std::array<i32, 2> FieldView::FollowEffect(u64 key, i32 x, i32 y, bool screen, u32 pace, i32 snap)
@@ -425,7 +118,7 @@ void FieldView::PaintBetween(double alpha, Surface& out)
         return;
     }
 
-    if (this->movie.active != 0 || !this->placesValid || this->glides.size() != 1 + GameState::Roles)
+    if (this->movie.active != 0 || !this->placesValid)
     {
         FieldView::ScaleLayer(this->finalLayer, scale, pixels);
         this->paintedValid = false;
@@ -438,26 +131,11 @@ void FieldView::PaintBetween(double alpha, Surface& out)
     Painter& painter = owner.painter;
     const double time = static_cast<double>(this->placesFrame) + alpha;
 
-    // The places in 1/scale pixels: the camera's and the controlled role's where the continuous motion has them (the
-    // camera shaken as the frame shown shook it), every other role's where its glide shows it; a role that is not
-    // gliding stays on its pixel.
-    const bool walking = this->playerMotion.active;
-
-    if (walking)
-    {
-        this->PinGlides();
-    }
-
-    const std::array<double, 2> camera = this->glides[0].Shown(time);
-    const std::array<i32, 2> cameraFine = walking ? this->CameraFine(scale)
-                                                  : std::array<i32, 2>{
-                                                        static_cast<i32>(std::lround(camera[0] * scale)),
-                                                        static_cast<i32>(std::lround(camera[1] * scale))
-                                                    };
-
+    // The places in 1/scale pixels where the continuous motion has the camera (shaken as the frame shown shook it)
+    // and every role.
+    const std::array<i32, 2> cameraFine = this->CameraFine(scale);
     const i32 fineCameraX = cameraFine[0] + this->shakeShift[0] * scale;
     const i32 fineCameraY = cameraFine[1] + this->shakeShift[1] * scale;
-    const std::array<i32, 2> playerFine = this->PlayerFine(scale);
     std::array<i32, GameState::Roles> fineX = {};
     std::array<i32, GameState::Roles> fineY = {};
     this->placesKey.clear();
@@ -467,28 +145,9 @@ void FieldView::PaintBetween(double alpha, Surface& out)
 
     for (std::size_t index = 0; index < GameState::Roles; ++index)
     {
-        const Role& role = state.roles[index];
-        const Glide& glide = this->glides[1 + index];
-
-        const bool aimed = index < this->rolesAimed.size() && this->rolesAimed[index] != 0;
-
-        if (walking && index == static_cast<std::size_t>(state.playerRole))
-        {
-            fineX[index] = playerFine[0];
-            fineY[index] = playerFine[1];
-        }
-        else if (aimed || (role.x == glide.toX && role.y == glide.toY))
-        {
-            const std::array<double, 2> place = glide.Shown(time);
-            fineX[index] = static_cast<i32>(std::lround(place[0] * scale));
-            fineY[index] = static_cast<i32>(std::lround(place[1] * scale));
-        }
-        else
-        {
-            fineX[index] = role.x * scale;
-            fineY[index] = role.y * scale;
-        }
-
+        const std::array<i32, 2> place = this->RoleFine(index, scale);
+        fineX[index] = place[0];
+        fineY[index] = place[1];
         this->placesKey.push_back(fineX[index]);
         this->placesKey.push_back(fineY[index]);
     }

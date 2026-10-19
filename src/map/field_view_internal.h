@@ -33,10 +33,9 @@ constexpr int kScreenRows = Display::Height / MapHeader::TileSize;
 constexpr int kRoleMarginX = Display::Width / 2;  // roles this far beside the screen are still drawn
 constexpr int kReflectionRowsAbove = 5;           // the reflections are drawn from this many rows above the camera
 constexpr u32 kNoFrame = 0xFFFF;                  // the frame of a role without an act
-constexpr u32 kMaxStepFrames = 0x80;  // a role whose act holds a frame longer has stopped: its glide takes the last gap
-constexpr int kPerMille = 1000;       // random.Below(kPerMille): the chances are in thousandths
-constexpr int kSoundRange = 0x200;    // the distance (pixels) a role is heard from
-constexpr int kSoundScale = 0x80;     // the volume and the distance kept for the sounds
+constexpr int kPerMille = 1000;                   // random.Below(kPerMille): the chances are in thousandths
+constexpr int kSoundRange = 0x200;                // the distance (pixels) a role is heard from
+constexpr int kSoundScale = 0x80;                 // the volume and the distance kept for the sounds
 
 inline i32 FloorDivide(i32 value, i32 divisor)
 {

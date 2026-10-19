@@ -145,15 +145,8 @@ void Game::LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 dire
 
         if (last != MoveRecord::EndOfPath && last < RolePath::Directions)
         {
-            while ((role.x & MapHeader::TileFraction) != 0)
-            {
-                role.x += RolePath::StepX[last];
-            }
-
-            while ((role.y & MapHeader::TileFraction) != 0)
-            {
-                role.y += RolePath::StepY[last];
-            }
+            role.x = RolePath::TileStart(role.x, -RolePath::StepX[last]);
+            role.y = RolePath::TileStart(role.y, -RolePath::StepY[last]);
         }
 
         this->field.RemoveRole(

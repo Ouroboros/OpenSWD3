@@ -54,13 +54,6 @@ bool Input::IsKeyPressed(int scanCode) const
     return (this->keys[code] & Input::KeyDown) != 0 && (this->previousKeys[code] & Input::KeyDown) == 0;
 }
 
-bool Input::IsKeyDownNow(int scanCode) const
-{
-    InputDevice::KeyState now{};
-    this->device.KeyboardState(now);
-    return (now[static_cast<std::size_t>(scanCode)] & Input::KeyDown) != 0;
-}
-
 // swd32.exe 0x004372E0: the lowest pressed scan code; 0 when none (indistinguishable from code 0)
 int Input::FirstKeyDown() const
 {
