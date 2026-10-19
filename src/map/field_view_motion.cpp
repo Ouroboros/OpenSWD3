@@ -141,6 +141,11 @@ void FieldView::MotionTick()
         }
 
         this->BeginPlayerMotion();
+
+        if (!motion.active)
+        {
+            return;
+        }
     }
 
     ++motion.elapsed;
@@ -176,19 +181,22 @@ void FieldView::MotionTick()
 }
 
 // A step from the keys (RoleControl::StepNow); one tried and refused (blocked, an event in the way) is not tried again
-// before the next game frame, whose ControlPlayer tries it as the original does once a frame.
+// before the next game frame, whose ControlPlayer tries it as the original does once a frame. A step taken that moves
+// neither the role nor the camera (the role at the edge of the screen with the camera at the map's: the original walks
+// on the spot until the next frame) counts as refused.
 bool FieldView::TryStep()
 {
     Game& owner = this->game;
     const RoleControl::Stepped stepped = owner.roleControl.StepNow();
+    const bool moves = owner.unk4B7518 != 0 || owner.unk4B7920 != 0 || owner.unk4A9488 != 0 || owner.unk4A948C != 0;
 
-    if (stepped == RoleControl::Stepped::Refused)
+    if (stepped == RoleControl::Stepped::Refused || (stepped == RoleControl::Stepped::Taken && !moves))
     {
         this->refused = true;
         this->refusedFrame = owner.gameFrames;
     }
 
-    return stepped == RoleControl::Stepped::Taken;
+    return stepped == RoleControl::Stepped::Taken && moves;
 }
 
 // A step set by ControlPlayer or RoleControl::StepNow starts from where the role and the camera are.
@@ -198,16 +206,16 @@ void FieldView::BeginPlayerMotion()
     const Field& field = owner.field;
     const Role& player = owner.state.roles[static_cast<std::size_t>(owner.state.playerRole)];
     PlayerMotion& motion = this->playerMotion;
-    motion.active = true;
+    motion.across = Sign(owner.unk4B7518 + owner.unk4A9488);
+    motion.down = Sign(owner.unk4B7920 + owner.unk4A948C);
+    motion.scrollAcross = owner.unk4B7518;
+    motion.scrollDown = owner.unk4B7920;
+    motion.active = (motion.across != 0 || motion.down != 0) && owner.state.walkSpeed > 0;
     motion.startX = player.x;
     motion.startY = player.y;
     motion.cameraX = field.cameraLeft;
     motion.cameraY = field.cameraTop;
     motion.speed = owner.state.walkSpeed;
-    motion.across = Sign(owner.unk4B7518 + owner.unk4A9488);
-    motion.down = Sign(owner.unk4B7920 + owner.unk4A948C);
-    motion.scrollAcross = owner.unk4B7518;
-    motion.scrollDown = owner.unk4B7920;
     motion.elapsed = 0;
     motion.leftX = player.x;
     motion.leftY = player.y;
