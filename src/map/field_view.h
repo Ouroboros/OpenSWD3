@@ -260,7 +260,7 @@ private:
     };
 
     // A step of a role moved by its move record or as a follower (continuous motion): the step a frame took, from
-    // where, over how many milliseconds (its act's delay plus one frames, at most RoleStepMostFrames), the
+    // where, over how many milliseconds (its act's delay plus one frames; a frame past RoleStepMostFrames), the
     // milliseconds gone and the place it left; reaching a tile it arrives as the original's frame does when the step
     // lands there (ArriveMoving, ArriveFollower).
     struct RoleMotion
@@ -293,7 +293,7 @@ private:
         i32 leftY = 0;
     };
 
-    static constexpr i32 RoleStepMostFrames = 8;  // a slower step moves in this many frames and then stands
+    static constexpr i32 RoleStepMostFrames = 0x80;  // a role whose act holds longer has stopped: it steps in a frame
 
     void MotionTick();
     void BeginPlayerMotion();

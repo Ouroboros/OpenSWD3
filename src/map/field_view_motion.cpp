@@ -357,7 +357,8 @@ void FieldView::StartRoleStep(std::size_t index, i32 byX, i32 byY, std::size_t m
 }
 
 // The act run after the step sets the frames to the role's next step (its delay plus one): the step takes them, at
-// most RoleStepMostFrames, so that it ends as the next one starts.
+// most RoleStepMostFrames (a longer hold is the role stopping: the step takes a frame), so that it ends as the next
+// one starts.
 void FieldView::TimeRoleStep(std::size_t index)
 {
     if (index >= this->roleMotions.size() || !this->roleMotions[index].active || this->roleMotions[index].timed)
@@ -367,7 +368,8 @@ void FieldView::TimeRoleStep(std::size_t index)
 
     const Game& owner = this->game;
     RoleMotion& step = this->roleMotions[index];
-    const auto frames = std::min(static_cast<i32>(owner.state.roles[index].act.delay) + 1, RoleStepMostFrames);
+    const auto next = static_cast<i32>(owner.state.roles[index].act.delay) + 1;
+    const i32 frames = next > RoleStepMostFrames ? 1 : next;
     step.length = frames * std::max(static_cast<i32>(owner.state.frameInterval), 1);
     step.timed = true;
 }
