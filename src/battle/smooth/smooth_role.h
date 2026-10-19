@@ -61,6 +61,10 @@ public:
 
     int SwarmSpellFrameAdvance(BattleServices& services, BattleUnit& target, Scene& scene);
 
+    int BeamSpellFrameAdvance(BattleServices& services, BattleUnit& target, Scene& scene);
+
+    int LeapSpellFrameAdvance(BattleServices& services, BattleUnit& target, Scene& scene);
+
 private:
     BattleRole& role;
 };

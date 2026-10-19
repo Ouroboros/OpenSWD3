@@ -124,17 +124,6 @@ constexpr u16 kStealShare = 25;
 constexpr u16 kSureSteal = 100;  // a proficiency of 100 or more always steals
 
 // BeamSpellFrame: the stages in unk267C.
-constexpr u32 kBeamGlow = 0x1;
-constexpr u32 kBeamRise = 0x2;
-constexpr u32 kBeamFly = 0x4;
-constexpr u32 kBeamImpact = 0x4000;
-constexpr u32 kBeamFadeIn = 0x2000;
-constexpr i16 kBeamRiseStart = -0x1F;
-constexpr i16 kBeamGlowEnd = -0x1E;
-constexpr i16 kBeamFadeStep = 2;
-constexpr i32 kRiseAct = 0x17FE;
-constexpr i32 kImpactAct = 0x1F88;
-constexpr int kSpeedingFlight = -1;  // FlyAct: the steps double each frame
 
 // ChargeAttackFrame.
 
@@ -143,11 +132,6 @@ constexpr int kSpeedingFlight = -1;  // FlyAct: the steps double each frame
 // BoomerangFrame: the stages in unk267C.
 
 // LeapSpellFrame: the stages in unk267C.
-constexpr u32 kLeapCasting = 0;
-constexpr u32 kLeapAtTarget = 1;
-constexpr u32 kLeapReturning = 2;
-constexpr u32 kLeapHome = 3;
-constexpr i32 kLeapReturnAction = 2;  // the walk home takes the action two after the magic act's
 
 // UseSelectedItem: bits of the item's object.
 constexpr u16 kMultiUse = 0x400;  // ObjectData::unk3C: the item has uses in the low byte
@@ -1047,218 +1031,10 @@ int BattleRole::MagicFrame(BattleServices& services, const BattleUnit& target)
 // it waits. Stage 0x2000 fades the last picture back in with the magic act's flags, 2 a frame up to 0.
 int BattleRole::BeamSpellFrame(BattleServices& services, BattleUnit& target)
 {
-    BattleState& battle = services.state;
-    Painter& painter = services.painter;
-    ActState& magic = this->slotActs[BattleUnit::UnkSlot8];
-    ActState& rise = this->slotActs[BattleUnit::UnkSlot9];
-    this->unk2AAC = 1;
-    magic.id = this->actId + BattleRole::MagicActs;
-    magic.action = this->unk2A8A;
-
-    if (services.acts.Run(magic) == 0)
-    {
-        return 0;
-    }
-
-    this->picture = services.archive.GetPicture(magic.frame, magic.picture);
-
-    // A missing picture is read through a null pointer in the original.
-    if (this->picture == nullptr)
-    {
-        return 0;
-    }
-
-    painter.SetSource(this->picture->data.data());
-    auto offsetX = static_cast<i16>(magic.x);
-    u32 flags = magic.flags;
-    this->actAnchorX = magic.anchorX;
-
-    if (this->facing == 1)
-    {
-        flags ^= Painter::Mirror;
-        offsetX = static_cast<i16>(this->picture->width - static_cast<u16>(magic.x));
-
-        if (magic.anchorX != 0)
-        {
-            this->actAnchorX = static_cast<u16>(this->picture->width - magic.anchorX);
-        }
-    }
-
-    const int x = this->placement.x - offsetX;
-    const int magicY = this->placement.y - magic.y;
-
-    auto tint = [&painter](int level)
-    {
-        DrawOptions& options = painter.Options();
-        options.tintRed = level;
-        options.tintGreen = level;
-        options.tintBlue = level;
-    };
-
-    if ((magic.target & ActState::FollowsUp) != 0)
-    {
-        this->slotTint = kBeamRiseStart;
-        this->unk267C |= kBeamGlow | kBeamRise;
-        magic.target = 0;
-        this->glowLevel = 0;
-    }
-
-    if (this->unk267C == 0)
-    {
-        services.audio.PlaySound(magic.view, services.config.soundVolume);
-        services.audio.SetSoundPan(magic.view, x >= kPanCentre ? kTargetPan : -kTargetPan);
-        magic.view = 0;
-        const int shadowHeight = this->picture->height / kShadowShare;
-        DrawOptions& options = painter.Options();
-        options.scaleHeight = shadowHeight;
-        options.tintRed = kShadowTint;
-        options.tintGreen = kShadowTint;
-        options.tintBlue = kShadowTint;
-        options.shear = this->picture->height >> kShadowShearShift;
-        this->unk26A4 = (flags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
-        painter.DrawPicture(
-            x - kShadowLeft,
-            this->placement.y - shadowHeight,
-            this->picture->width,
-            this->picture->height,
-            this->unk26A4
-        );
-        painter.DrawPicture(x, magicY, this->picture->width, this->picture->height, flags);
-    }
-
-    if ((this->unk267C & kBeamGlow) != 0)
-    {
-        if (this->glowLevel > kBeamGlowEnd)
-        {
-            tint(this->glowLevel);
-            painter.DrawPicture(x, magicY, this->picture->width, this->picture->height, flags | Painter::Additive);
-            --this->glowLevel;
-        }
-        else
-        {
-            this->unk267C &= ~kBeamGlow;
-        }
-    }
-
-    if ((this->unk267C & kBeamRise) != 0)
-    {
-        rise.action = 0;
-        rise.id = kRiseAct;
-
-        if (services.acts.Run(rise) == 0)
-        {
-            return 0;
-        }
-
-        this->picture = services.archive.GetPicture(rise.frame, rise.picture);
-
-        if (this->picture == nullptr)
-        {
-            return 0;
-        }
-
-        painter.SetSource(this->picture->data.data());
-        flags = rise.flags;
-        this->aimOffsetX = static_cast<u16>(rise.x);
-        this->aimAnchorX = rise.anchorX;
-
-        if (this->facing == 1)
-        {
-            flags ^= Painter::Mirror;
-            this->aimOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(rise.x));
-
-            if (rise.anchorX != 0)
-            {
-                this->aimAnchorX = static_cast<u16>(this->picture->width - rise.anchorX);
-            }
-        }
-
-        services.audio.PlaySound(rise.view, services.config.soundVolume);
-        services.audio.SetSoundPan(rise.view, x >= kPanCentre ? kTargetPan : -kTargetPan);
-        rise.view = 0;
-
-        if (this->slotTint > 0)
-        {
-            this->unk267C = kBeamFly;
-            this->glowLevel = 0;
-            this->slotTint = 0;
-        }
-        else
-        {
-            tint(this->slotTint);
-            const int riseX =
-                static_cast<i16>(this->actAnchorX) - static_cast<i16>(this->aimAnchorX) - offsetX + this->placement.x;
-            const int riseY =
-                this->placement.y - static_cast<i16>(rise.anchorY) + static_cast<i16>(magic.anchorY) - magic.y;
-            painter.DrawPicture(riseX, riseY, this->picture->width, this->picture->height, flags | Painter::Additive);
-            ++this->slotTint;
-        }
-    }
-
-    if (this->unk267C == kBeamFly)
-    {
-        const int fromX = this->placement.x - offsetX + static_cast<i16>(this->actAnchorX);
-        const int fromY = this->placement.y + static_cast<i16>(magic.anchorY) - magic.y;
-
-        if (this->FlyAct(services, target, this->slotActs[0], 0, kRiseAct, fromX, fromY, kSpeedingFlight, 0) == 1)
-        {
-            target.RaiseFlag26B8();
-            i16 spirit = 0;
-            i16 stamina = 0;
-            i32 damage = this->HitDamage(services, target, spirit, stamina);
-            battle.lastDamage = damage;
-
-            if (damage >= kMaxDamage)
-            {
-                damage = kMaxDamage;
-                battle.lastDamage = damage;
-            }
-
-            battle.hitDamage += damage;
-            target.SetDamageDigits(services, damage);
-            target.StepTargetCount(1);
-            this->unk267C = kBeamImpact;
-            this->glowLevel = kBeamRiseStart;
-        }
-    }
-
-    if ((this->unk267C & kBeamImpact) != 0)
-    {
-        ActState& impact = this->slotActs[1];
-        impact.id = kImpactAct;
-        impact.action = 0;
-
-        if (this->DrawAimed(services, target, impact, 0, 0) == 1)
-        {
-            this->unk267C = kBeamFadeIn;
-        }
-    }
-
-    if ((this->unk267C & kBeamFadeIn) == 0)
-    {
-        return 0;
-    }
-
-    if (this->glowLevel <= 0)
-    {
-        tint(this->glowLevel);
-
-        if (this->picture != nullptr)
-        {
-            painter.DrawPicture(x, magicY, this->picture->width, this->picture->height, flags | Painter::Additive);
-        }
-
-        this->glowLevel = static_cast<i16>(this->glowLevel + kBeamFadeStep);
-        return 0;
-    }
-
-    this->glowLevel = 0;
-    this->unk267C = 0;
-    magic = ActState{};
-    rise = ActState{};
-    this->slotActs[0] = ActState{};
-    this->slotActs[1] = ActState{};
-    return 1;
+    smooth::Scene scene;
+    const auto result = smooth::RoleFrame(*this).BeamSpellFrameAdvance(services, target, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // swd32.exe 0x00473C10: one frame of the role's charge attack (magic act in slot act 8 + `slot`, drawn by DrawAction);
@@ -1318,62 +1094,10 @@ int BattleRole::BoomerangFrame(BattleServices& services, BattleUnit& target)
 // stage; a follow-up marks the spell cast.
 int BattleRole::LeapSpellFrame(BattleServices& services, BattleUnit& target)
 {
-    BattleState& battle = services.state;
-    ActState& magic = this->slotActs[BattleUnit::UnkSlot8];
-    magic.id = this->actId + BattleRole::MagicActs;
-    this->unk2AAC = 1;
-    magic.action = this->unk2A8A;
-
-    if (this->unk267C == kLeapCasting)
-    {
-        this->DrawAction(services, target, magic);
-    }
-
-    if (this->unk267C == kLeapAtTarget)
-    {
-        u16 targetX = 0;
-        u16 targetY = 0;
-        ++magic.action;
-        target.GetDrawPosition(targetX, targetY);
-        this->DrawActionAt(services, static_cast<i16>(targetX), static_cast<i16>(targetY), magic);
-    }
-
-    if (this->unk267C == kLeapReturning)
-    {
-        this->command.flags = static_cast<u16>(this->command.flags | UnitCommand::UnkFlag8);
-        magic.action += kLeapReturnAction;
-
-        if (this->ReturnHome(services, target, magic.id, magic.action) == 1)
-        {
-            this->unk267C = kLeapHome;
-        }
-    }
-
-    if (magic.waiting == 1)
-    {
-        magic = ActState{};
-        ++this->unk267C;
-    }
-
-    if ((magic.target & ActState::FollowsUp) != 0)
-    {
-        if ((battle.spellStage & BattleState::SpellCast) == 0)
-        {
-            battle.spellStage = static_cast<u16>(battle.spellStage | BattleState::SpellCast);
-        }
-
-        magic.target = 0;
-    }
-
-    if ((battle.spellStage & BattleState::SpellOver) == 0 ||
-        static_cast<i32>(this->unk267C) < static_cast<i32>(kLeapHome))
-    {
-        return 0;
-    }
-
-    this->unk267C = 0;
-    magic = ActState{};
-    return 1;
+    smooth::Scene scene;
+    const auto result = smooth::RoleFrame(*this).LeapSpellFrameAdvance(services, target, scene);
+    scene.DrawAll(services);
+    return result;
 }
 
 // swd32.exe 0x00470E20: the selected item used up: 0 when none is selected or it is not in the list, otherwise its id

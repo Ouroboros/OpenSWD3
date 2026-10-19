@@ -57,6 +57,19 @@ constexpr i16 kSwarmInterval = 3;  // a new act every third frame
 constexpr u16 kSwarmShake = 0x34;
 constexpr int kThrowSteps = 8;  // line steps a frame per frame flown
 constexpr i32 kTrailBlueTint = 0xC;
+constexpr u32 kBeamFadeIn = 0x2000;
+constexpr i16 kBeamFadeStep = 2;
+constexpr u32 kBeamFly = 0x4;
+constexpr u32 kBeamGlow = 0x1;
+constexpr u32 kBeamImpact = 0x4000;
+constexpr u32 kBeamRise = 0x2;
+constexpr i16 kBeamRiseStart = -0x1F;
+constexpr u32 kLeapAtTarget = 1;
+constexpr u32 kLeapCasting = 0;
+constexpr u32 kLeapHome = 3;
+constexpr i32 kLeapReturnAction = 2;  // the walk home takes the action two after the magic act's
+constexpr u32 kLeapReturning = 2;
+constexpr int kSpeedingFlight = -1;  // FlyAct: the steps double each frame
 }  // namespace
 
 RoleFrame::RoleFrame(BattleRole& role)
@@ -1870,6 +1883,288 @@ int RoleFrame::SwarmSpellFrameAdvance(BattleServices& services, BattleUnit& targ
     role.unk2F0C = 0;
     role.unk2F24 = 0;
     role.slotActs[0] = ActState{};
+    magic = ActState{};
+    return 1;
+}
+
+// What BattleRole::BeamSpellFrame decides of the frame; the draws into `scene`.
+int RoleFrame::BeamSpellFrameAdvance(BattleServices& services, BattleUnit& target, Scene& scene)
+{
+    BattleRole& role = this->role;
+    BattleState& battle = services.state;
+    ScenePainter painter(services, scene);
+    ActState& magic = role.slotActs[BattleUnit::UnkSlot8];
+    ActState& rise = role.slotActs[BattleUnit::UnkSlot9];
+    role.unk2AAC = 1;
+    magic.id = role.actId + BattleRole::MagicActs;
+    magic.action = role.unk2A8A;
+
+    if (services.acts.Run(magic) == 0)
+    {
+        return 0;
+    }
+
+    role.picture = services.archive.GetPicture(magic.frame, magic.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (role.picture == nullptr)
+    {
+        return 0;
+    }
+
+    painter.SetSource(role.picture->data.data());
+    auto offsetX = static_cast<i16>(magic.x);
+    u32 flags = magic.flags;
+    role.actAnchorX = magic.anchorX;
+
+    if (role.facing == 1)
+    {
+        flags ^= Painter::Mirror;
+        offsetX = static_cast<i16>(role.picture->width - static_cast<u16>(magic.x));
+
+        if (magic.anchorX != 0)
+        {
+            role.actAnchorX = static_cast<u16>(role.picture->width - magic.anchorX);
+        }
+    }
+
+    const int x = role.placement.x - offsetX;
+    const int magicY = role.placement.y - magic.y;
+
+    auto tint = [&painter](int level)
+    {
+        DrawOptions& options = painter.Options();
+        options.tintRed = level;
+        options.tintGreen = level;
+        options.tintBlue = level;
+    };
+
+    if ((magic.target & ActState::FollowsUp) != 0)
+    {
+        role.slotTint = kBeamRiseStart;
+        role.unk267C |= kBeamGlow | kBeamRise;
+        magic.target = 0;
+        role.glowLevel = 0;
+    }
+
+    if (role.unk267C == 0)
+    {
+        services.audio.PlaySound(magic.view, services.config.soundVolume);
+        services.audio.SetSoundPan(magic.view, x >= kPanCentre ? kTargetPan : -kTargetPan);
+        magic.view = 0;
+        const int shadowHeight = role.picture->height / kShadowShare;
+        DrawOptions& options = painter.Options();
+        options.scaleHeight = shadowHeight;
+        options.tintRed = kShadowTint;
+        options.tintGreen = kShadowTint;
+        options.tintBlue = kShadowTint;
+        options.shear = role.picture->height >> kShadowShearShift;
+        role.unk26A4 = (flags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+        painter.DrawPicture(
+            x - kShadowLeft,
+            role.placement.y - shadowHeight,
+            role.picture->width,
+            role.picture->height,
+            role.unk26A4
+        );
+        painter.DrawPicture(x, magicY, role.picture->width, role.picture->height, flags);
+    }
+
+    if ((role.unk267C & kBeamGlow) != 0)
+    {
+        if (role.glowLevel > kBeamGlowEnd)
+        {
+            tint(role.glowLevel);
+            painter.DrawPicture(x, magicY, role.picture->width, role.picture->height, flags | Painter::Additive);
+            --role.glowLevel;
+        }
+        else
+        {
+            role.unk267C &= ~kBeamGlow;
+        }
+    }
+
+    if ((role.unk267C & kBeamRise) != 0)
+    {
+        rise.action = 0;
+        rise.id = kRiseAct;
+
+        if (services.acts.Run(rise) == 0)
+        {
+            return 0;
+        }
+
+        role.picture = services.archive.GetPicture(rise.frame, rise.picture);
+
+        if (role.picture == nullptr)
+        {
+            return 0;
+        }
+
+        painter.SetSource(role.picture->data.data());
+        flags = rise.flags;
+        role.aimOffsetX = static_cast<u16>(rise.x);
+        role.aimAnchorX = rise.anchorX;
+
+        if (role.facing == 1)
+        {
+            flags ^= Painter::Mirror;
+            role.aimOffsetX = static_cast<u16>(role.picture->width - static_cast<u16>(rise.x));
+
+            if (rise.anchorX != 0)
+            {
+                role.aimAnchorX = static_cast<u16>(role.picture->width - rise.anchorX);
+            }
+        }
+
+        services.audio.PlaySound(rise.view, services.config.soundVolume);
+        services.audio.SetSoundPan(rise.view, x >= kPanCentre ? kTargetPan : -kTargetPan);
+        rise.view = 0;
+
+        if (role.slotTint > 0)
+        {
+            role.unk267C = kBeamFly;
+            role.glowLevel = 0;
+            role.slotTint = 0;
+        }
+        else
+        {
+            tint(role.slotTint);
+            const int riseX =
+                static_cast<i16>(role.actAnchorX) - static_cast<i16>(role.aimAnchorX) - offsetX + role.placement.x;
+            const int riseY =
+                role.placement.y - static_cast<i16>(rise.anchorY) + static_cast<i16>(magic.anchorY) - magic.y;
+            painter.DrawPicture(riseX, riseY, role.picture->width, role.picture->height, flags | Painter::Additive);
+            ++role.slotTint;
+        }
+    }
+
+    if (role.unk267C == kBeamFly)
+    {
+        const int fromX = role.placement.x - offsetX + static_cast<i16>(role.actAnchorX);
+        const int fromY = role.placement.y + static_cast<i16>(magic.anchorY) - magic.y;
+
+        if (UnitFrame(role)
+                .Fly(services, target, role.slotActs[0], 0, kRiseAct, fromX, fromY, kSpeedingFlight, 0, scene) == 1)
+        {
+            target.RaiseFlag26B8();
+            i16 spirit = 0;
+            i16 stamina = 0;
+            i32 damage = role.HitDamage(services, target, spirit, stamina);
+            battle.lastDamage = damage;
+
+            if (damage >= kMaxDamage)
+            {
+                damage = kMaxDamage;
+                battle.lastDamage = damage;
+            }
+
+            battle.hitDamage += damage;
+            target.SetDamageDigits(services, damage);
+            target.StepTargetCount(1);
+            role.unk267C = kBeamImpact;
+            role.glowLevel = kBeamRiseStart;
+        }
+    }
+
+    if ((role.unk267C & kBeamImpact) != 0)
+    {
+        ActState& impact = role.slotActs[1];
+        impact.id = kImpactAct;
+        impact.action = 0;
+
+        if (UnitFrame(role).DrawAimedAdvance(services, target, impact, 0, 0, scene) == 1)
+        {
+            role.unk267C = kBeamFadeIn;
+        }
+    }
+
+    if ((role.unk267C & kBeamFadeIn) == 0)
+    {
+        return 0;
+    }
+
+    if (role.glowLevel <= 0)
+    {
+        tint(role.glowLevel);
+
+        if (role.picture != nullptr)
+        {
+            painter.DrawPicture(x, magicY, role.picture->width, role.picture->height, flags | Painter::Additive);
+        }
+
+        role.glowLevel = static_cast<i16>(role.glowLevel + kBeamFadeStep);
+        return 0;
+    }
+
+    role.glowLevel = 0;
+    role.unk267C = 0;
+    magic = ActState{};
+    rise = ActState{};
+    role.slotActs[0] = ActState{};
+    role.slotActs[1] = ActState{};
+    return 1;
+}
+
+// What BattleRole::LeapSpellFrame decides of the frame; the draws into `scene`.
+int RoleFrame::LeapSpellFrameAdvance(BattleServices& services, BattleUnit& target, Scene& scene)
+{
+    BattleRole& role = this->role;
+    BattleState& battle = services.state;
+    ActState& magic = role.slotActs[BattleUnit::UnkSlot8];
+    magic.id = role.actId + BattleRole::MagicActs;
+    role.unk2AAC = 1;
+    magic.action = role.unk2A8A;
+
+    if (role.unk267C == kLeapCasting)
+    {
+        UnitFrame(role).Action(services, target, magic, scene);
+    }
+
+    if (role.unk267C == kLeapAtTarget)
+    {
+        u16 targetX = 0;
+        u16 targetY = 0;
+        ++magic.action;
+        target.GetDrawPosition(targetX, targetY);
+        UnitFrame(role)
+            .DrawActionAtAdvance(services, static_cast<i16>(targetX), static_cast<i16>(targetY), magic, scene);
+    }
+
+    if (role.unk267C == kLeapReturning)
+    {
+        role.command.flags = static_cast<u16>(role.command.flags | UnitCommand::UnkFlag8);
+        magic.action += kLeapReturnAction;
+
+        if (UnitFrame(role).Home(services, target, magic.id, magic.action, scene) == 1)
+        {
+            role.unk267C = kLeapHome;
+        }
+    }
+
+    if (magic.waiting == 1)
+    {
+        magic = ActState{};
+        ++role.unk267C;
+    }
+
+    if ((magic.target & ActState::FollowsUp) != 0)
+    {
+        if ((battle.spellStage & BattleState::SpellCast) == 0)
+        {
+            battle.spellStage = static_cast<u16>(battle.spellStage | BattleState::SpellCast);
+        }
+
+        magic.target = 0;
+    }
+
+    if ((battle.spellStage & BattleState::SpellOver) == 0 ||
+        static_cast<i32>(role.unk267C) < static_cast<i32>(kLeapHome))
+    {
+        return 0;
+    }
+
+    role.unk267C = 0;
     magic = ActState{};
     return 1;
 }

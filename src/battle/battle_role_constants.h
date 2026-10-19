@@ -41,4 +41,7 @@ constexpr u16 kSwarmSound = 0x3E;
 constexpr int kTargetPan = 0x10;
 constexpr i32 kTargetPose = 0x2B;
 constexpr i32 kThrownAct = 0x186B;
+constexpr i16 kBeamGlowEnd = -0x1E;
+constexpr i32 kImpactAct = 0x1F88;
+constexpr i32 kRiseAct = 0x17FE;
 }  // namespace swd3
