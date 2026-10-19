@@ -4,7 +4,7 @@ namespace swd3
 {
 
 // The game frame about to be painted for the effect elements (the camera and the roles move continuously, see
-// field_view_motion.cpp): the elements not drawn in the frame before are dropped.
+// field_view_motion.cpp): the moves of the elements neither drawn nor moved in the frame before are dropped.
 void FieldView::CapturePlaces()
 {
     Game& owner = this->game;
@@ -20,12 +20,12 @@ void FieldView::CapturePlaces()
 
     if (!continuous)
     {
-        this->effectGlides.clear();
+        this->effectMotions.clear();
     }
     else
     {
         std::erase_if(
-            this->effectGlides,
+            this->effectMotions,
             [frame](const auto& item)
             {
                 return item.second.seen + 1 < frame;
@@ -36,31 +36,22 @@ void FieldView::CapturePlaces()
     this->placesValid = true;
     this->placesFrame = frame;
     this->placesMap = owner.currentMap;
-    // The spotlight is drawn where it is now and moves after (0x00416B30).
-    this->FollowEffect(
-        EffectKey(EffectKind::Spotlight, u64{0}),
-        owner.scene.spotlightX,
-        owner.scene.spotlightY,
-        true,
-        0,
-        kEffectSnap
-    );
     this->cameraWidth = field.cameraRight - field.cameraLeft;
     this->cameraHeight = field.cameraBottom - field.cameraTop;
 }
 
-std::array<i32, 2> FieldView::FollowEffect(u64 key, i32 x, i32 y, bool screen, u32 pace, i32 snap)
+std::array<i32, 2> FieldView::EffectAt(u64 key, i32 x, i32 y, bool screen)
 {
     if (!this->game.smoothMotion)
     {
         return {x, y};
     }
 
+    const auto found = this->effectMotions.find(key);
+
     if (this->replaying)
     {
-        const auto found = this->effectGlides.find(key);
-
-        if (found == this->effectGlides.end() || found->second.seen != this->placesFrame)
+        if (found == this->effectMotions.end() || found->second.seen != this->placesFrame)
         {
             return {x, y};
         }
@@ -68,18 +59,74 @@ std::array<i32, 2> FieldView::FollowEffect(u64 key, i32 x, i32 y, bool screen, u
         return this->EffectPlace(found->second, this->paintColumn, this->paintRow);
     }
 
-    const u32 frame = this->placesFrame;
-    auto [entry, added] = this->effectGlides.try_emplace(key);
-    EffectGlide& effect = entry->second;
-    const bool continuous = !added && effect.seen + 1 == frame && effect.screen == screen &&
-                            std::abs(x - effect.glide.toX) <= snap && std::abs(y - effect.glide.toY) <= snap;
-    effect.glide.Follow(x, y, frame, continuous, pace);
-    effect.screen = screen;
-    effect.seen = frame;
-    return {x, y};
+    if (found == this->effectMotions.end() || found->second.toX != x || found->second.toY != y ||
+        found->second.screen != screen)
+    {
+        this->effectMotions[key] = EffectMotion{
+            static_cast<double>(x),
+            static_cast<double>(y),
+            x,
+            y,
+            this->motionClock,
+            1,
+            screen,
+            this->placesFrame,
+        };
+
+        return {x, y};
+    }
+
+    EffectMotion& effect = found->second;
+    effect.seen = this->placesFrame;
+    const std::array<double, 2> shown = this->EffectShown(effect);
+    return {static_cast<i32>(std::lround(shown[0])), static_cast<i32>(std::lround(shown[1]))};
 }
 
-std::array<i32, 2> FieldView::EffectPlace(const EffectGlide& effect, int column, int row) const
+void FieldView::MoveEffect(u64 key, i32 fromX, i32 fromY, i32 toX, i32 toY, i32 frames, bool screen, i32 snap)
+{
+    if (!this->game.smoothMotion || this->replaying)
+    {
+        return;
+    }
+
+    std::array<double, 2> from = {static_cast<double>(fromX), static_cast<double>(fromY)};
+    const auto found = this->effectMotions.find(key);
+
+    if (found != this->effectMotions.end() && found->second.toX == fromX && found->second.toY == fromY &&
+        found->second.screen == screen)
+    {
+        from = this->EffectShown(found->second);
+    }
+
+    if (std::abs(toX - from[0]) > snap || std::abs(toY - from[1]) > snap)
+    {
+        from = {static_cast<double>(toX), static_cast<double>(toY)};
+    }
+
+    const auto interval = std::max(static_cast<i32>(this->game.state.frameInterval), 1);
+    this->effectMotions[key] = EffectMotion{
+        from[0],
+        from[1],
+        toX,
+        toY,
+        this->motionClock,
+        std::max(frames, 1) * interval,
+        screen,
+        this->placesFrame,
+    };
+}
+
+std::array<double, 2> FieldView::EffectShown(const EffectMotion& effect) const
+{
+    const double progress =
+        std::clamp(static_cast<double>(static_cast<i32>(this->motionClock - effect.start)) / effect.length, 0.0, 1.0);
+    return {
+        effect.fromX + (effect.toX - effect.fromX) * progress,
+        effect.fromY + (effect.toY - effect.fromY) * progress,
+    };
+}
+
+std::array<i32, 2> FieldView::EffectPlace(const EffectMotion& effect, int column, int row) const
 {
     const int scale = this->paintScale;
 
@@ -104,7 +151,7 @@ void FieldView::CaptureLayer(std::vector<Pixel>& layer) const
     }
 }
 
-void FieldView::PaintBetween(double alpha, Surface& out)
+void FieldView::PaintBetween(Surface& out)
 {
     Game& owner = this->game;
     const int scale = std::max(1, out.Width() / Display::Width);
@@ -129,7 +176,6 @@ void FieldView::PaintBetween(double alpha, Surface& out)
     Field& field = owner.field;
     Scene& view = owner.scene;
     Painter& painter = owner.painter;
-    const double time = static_cast<double>(this->placesFrame) + alpha;
 
     // The places in 1/scale pixels where the continuous motion has the camera (shaken as the frame shown shook it)
     // and every role.
@@ -157,14 +203,14 @@ void FieldView::PaintBetween(double alpha, Surface& out)
     this->paintCameraX = fineCameraX;
     this->paintCameraY = fineCameraY;
 
-    for (auto& [key, effect] : this->effectGlides)
+    for (auto& [key, effect] : this->effectMotions)
     {
         if (effect.seen != this->placesFrame)
         {
             continue;
         }
 
-        const std::array<double, 2> place = effect.glide.Shown(time);
+        const std::array<double, 2> place = this->EffectShown(effect);
         effect.fineX = static_cast<i32>(std::lround(place[0] * scale));
         effect.fineY = static_cast<i32>(std::lround(place[1] * scale));
         this->placesKey.push_back(effect.fineX);
@@ -286,7 +332,7 @@ void FieldView::PaintBetween(double alpha, Surface& out)
             places[1 + index] = cameraPlace + CeilDivide(fine - fineCamera - offset, scale);
         }
 
-        for (const auto& [key, effect] : this->effectGlides)
+        for (const auto& [key, effect] : this->effectMotions)
         {
             if (effect.seen == this->placesFrame)
             {
@@ -322,11 +368,11 @@ void FieldView::PaintBetween(double alpha, Surface& out)
         this->parts.resize(blocks * blocks);
     }
 
-    auto spotlightGlide = this->effectGlides.find(EffectKey(EffectKind::Spotlight, u64{0}));
+    auto spotlightMotion = this->effectMotions.find(EffectKey(EffectKind::Spotlight, u64{0}));
 
-    if (spotlightGlide != this->effectGlides.end() && spotlightGlide->second.seen != this->placesFrame)
+    if (spotlightMotion != this->effectMotions.end() && spotlightMotion->second.seen != this->placesFrame)
     {
-        spotlightGlide = this->effectGlides.end();
+        spotlightMotion = this->effectMotions.end();
     }
 
     this->replaying = true;
@@ -360,10 +406,10 @@ void FieldView::PaintBetween(double alpha, Surface& out)
                 state.roles[index].y = rowPlaces[row][1 + index];
             }
 
-            if (spotlightGlide != this->effectGlides.end())
+            if (spotlightMotion != this->effectMotions.end())
             {
                 const std::array<i32, 2> light =
-                    this->EffectPlace(spotlightGlide->second, static_cast<int>(column), static_cast<int>(row));
+                    this->EffectPlace(spotlightMotion->second, static_cast<int>(column), static_cast<int>(row));
                 view.spotlightX = light[0];
                 view.spotlightY = light[1];
             }

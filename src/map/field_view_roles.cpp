@@ -409,14 +409,8 @@ void FieldView::DrawBubbles(int x, int y, u16 role)
             options.tintRed = (bubble.life >> 1) - kColdTint;
         }
 
-        const std::array<i32, 2> place = this->FollowEffect(
-            EffectKey(EffectKind::Bubbles, &bubble),
-            bubble.x / kSubpixels,
-            bubble.y,
-            false,
-            0,
-            kBubbleSnap
-        );
+        const std::array<i32, 2> place =
+            this->EffectAt(EffectKey(EffectKind::Bubbles, &bubble), bubble.x / kSubpixels, bubble.y, false);
         painter.SetSource(picture.data.data());
         painter.DrawPicture(
             place[0] - view.unk4ACAF8.x - field.cameraLeft,
@@ -502,8 +496,21 @@ void FieldView::DrawBubbles(int x, int y, u16 role)
         {
             RoleMarkNode& bubble = **link;
             const u32 roll = random.Below(kPerMille);
+            const i32 fromX = bubble.x / kSubpixels;
+            const i32 fromY = bubble.y;
             bubble.y = static_cast<i16>(bubble.y + bubble.stepY);
             bubble.x = static_cast<i16>(bubble.x + sway + bubble.stepX);
+            // The rebuild's continuous motion: the bubble takes its step over the next frame.
+            this->MoveEffect(
+                EffectKey(EffectKind::Bubbles, &bubble),
+                fromX,
+                fromY,
+                bubble.x / kSubpixels,
+                bubble.y,
+                1,
+                false,
+                kBubbleSnap
+            );
 
             if (roll > kBubbleAgeChance)
             {
@@ -549,8 +556,9 @@ void FieldView::DrawRoleHeads()
     while (*link != nullptr)
     {
         ScriptSprite& head = **link;
-        const std::array<i32, 2> place =
-            this->FollowEffect(EffectKey(EffectKind::RoleHeads, &head), head.headX, head.targetY, true, 0, kHeadSnap);
+        const u64 key = EffectKey(EffectKind::RoleHeads, &head);
+        const std::array<i32, 2> place = this->EffectAt(key, head.headX, head.targetY, true);
+        const i32 fromX = head.headX;
 
         if (this->replaying)
         {
@@ -610,6 +618,8 @@ void FieldView::DrawRoleHeads()
                 continue;
             }
 
+            // The rebuild's continuous motion: the head takes its slide over the next frame.
+            this->MoveEffect(key, fromX, head.targetY, head.headX, head.targetY, 1, true, kHeadSnap);
             link = &head.next;
             continue;
         }
@@ -622,6 +632,7 @@ void FieldView::DrawRoleHeads()
             head.headX = head.targetX;
         }
 
+        this->MoveEffect(key, fromX, head.targetY, head.headX, head.targetY, 1, true, kHeadSnap);
         link = &head.next;
     }
 }

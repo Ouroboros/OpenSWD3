@@ -94,14 +94,10 @@ void FieldView::DrawSprites()
     while (*link != nullptr)
     {
         ScriptSprite& sprite = **link;
-        const std::array<i32, 2> place = this->FollowEffect(
-            EffectKey(EffectKind::Sprites, &sprite),
-            static_cast<i32>(crt::Ftol(sprite.x)),
-            static_cast<i32>(crt::Ftol(sprite.y)),
-            false,
-            0,
-            kEffectSnap
-        );
+        const u64 key = EffectKey(EffectKind::Sprites, &sprite);
+        const auto fromX = static_cast<i32>(crt::Ftol(sprite.x));
+        const auto fromY = static_cast<i32>(crt::Ftol(sprite.y));
+        const std::array<i32, 2> place = this->EffectAt(key, fromX, fromY, false);
         const auto screenX = place[0] - field.cameraLeft;
         const auto screenY = place[1] - field.cameraTop;
 
@@ -171,6 +167,15 @@ void FieldView::DrawSprites()
         sprite.y = nextY;
         const auto movedX = static_cast<int>(crt::Ftol(nextX));
         const auto movedY = static_cast<int>(crt::Ftol(nextY));
+
+        // The rebuild's continuous motion: the sprite takes its step until it steps again, when its act's next delay
+        // runs out (a frame past FieldView::RoleStepMostFrames).
+        if (owner.smoothMotion)
+        {
+            const auto next = static_cast<i32>(owner.acts.Peek(sprite.act).delay) + 1;
+            const i32 frames = next > FieldView::RoleStepMostFrames ? 1 : next;
+            this->MoveEffect(key, fromX, fromY, movedX, movedY, frames, false, kEffectSnap);
+        }
 
         if (movedX <= sprite.targetX - kSpriteArrival || movedX >= sprite.targetX + kSpriteArrival ||
             movedY <= sprite.targetY - kSpriteArrival || movedY >= sprite.targetY + kSpriteArrival)

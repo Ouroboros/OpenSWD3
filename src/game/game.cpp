@@ -1406,7 +1406,7 @@ bool Game::PresentBetween()
         LogInfo(u8"render scale %d", scale);
     }
 
-    this->fieldView.PaintBetween(alpha, *this->smoothScreen);
+    this->fieldView.PaintBetween(*this->smoothScreen);
     const u64 painted = SDL_GetTicksNS() - paintStart;
     this->paintBetweenNs += painted;
     this->paintBetweenMostNs = std::max(this->paintBetweenMostNs, painted);

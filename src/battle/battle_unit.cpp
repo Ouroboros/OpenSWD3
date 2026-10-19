@@ -15,7 +15,6 @@
 #include "battle/battle_state.h"
 #include "config/config.h"
 #include "core/format.h"
-#include "core/glide.h"
 #include "core/words.h"
 #include "crt/msvc.h"
 #include "draw/paint_record.h"
@@ -42,6 +41,7 @@ constexpr u16 kDefeatedShadowAction = 0x33;
 constexpr u32 kRaiseBlocked = 0x2000000;
 constexpr u32 kFlag26B8 = 0x80000000u;
 constexpr int kSlotActsPerTurn = 8;
+constexpr int kSnapDistance = 0x80;  // smooth battle: a motion further in a frame jumps there
 
 constexpr int kGaugeBase = 0x12C;  // a random gauge: kGaugeBase + kGaugeSpread / (1..kGaugeDivisors)
 constexpr int kGaugeSpread = 0x96;
@@ -6617,7 +6617,7 @@ std::array<int, 2> BattleUnit::StrideMotion(
         motion[1] += nextAct.y - act.y;
     }
 
-    if (std::abs(motion[0]) > Glide::SnapDistance || std::abs(motion[1]) > Glide::SnapDistance)
+    if (std::abs(motion[0]) > kSnapDistance || std::abs(motion[1]) > kSnapDistance)
     {
         return {0, 0};
     }
@@ -6665,7 +6665,7 @@ std::array<int, 3> BattleUnit::IdleMotion(BattleServices& services, const ActSta
         motion[1] += next.y - act.y;
     }
 
-    if (std::abs(motion[0]) > Glide::SnapDistance || std::abs(motion[1]) > Glide::SnapDistance)
+    if (std::abs(motion[0]) > kSnapDistance || std::abs(motion[1]) > kSnapDistance)
     {
         return {0, 0, 0};
     }
@@ -7355,8 +7355,7 @@ int BattleUnit::HurtFrame(BattleServices& services)
     auto between = [](const std::array<int, 2>& from, const std::array<int, 2>& to) -> std::array<int, 2>
     {
         const std::array<int, 2> by = {to[0] - from[0], to[1] - from[1]};
-        return std::abs(by[0]) > Glide::SnapDistance || std::abs(by[1]) > Glide::SnapDistance ? std::array<int, 2>{0, 0}
-                                                                                              : by;
+        return std::abs(by[0]) > kSnapDistance || std::abs(by[1]) > kSnapDistance ? std::array<int, 2>{0, 0} : by;
     };
 
     const int nextPhase = this->glowPhase + (this->held == 0 ? 1 : 0);

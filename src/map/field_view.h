@@ -8,7 +8,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "core/glide.h"
 #include "core/types.h"
 #include "crt/msvc.h"
 #include "file/file.h"
@@ -174,11 +173,11 @@ public:
 
     void DrawDebug(int cameraLeft, int cameraTop);
 
-    // The rebuild's smooth motion (deviations.md): the map drawn between two game frames with the camera and the roles
-    // shown where they glide to at `alpha` (0..1) of the way to the next game frame, the interface of the last frame
+    // The rebuild's smooth motion (deviations.md): the map drawn between two game frames with the camera, the roles
+    // and the effect elements where their continuous motion has them now, the interface of the last frame
     // laid over it. `out` is the logical screen times a whole render scale N: the camera and the roles are placed to
     // 1/N of a pixel, every pixel of the game shown as an N x N block. Nothing the game frames read is changed.
-    void PaintBetween(double alpha, Surface& out);
+    void PaintBetween(Surface& out);
 
     // A run of pixels of the logical screen (a later step of the last game frame drew over them).
     struct Span
@@ -213,23 +212,36 @@ private:
     void CapturePlaces();
     void CaptureLayer(std::vector<Pixel>& layer) const;
 
-    // An element of a screen effect (a weather particle, a leaf, a bolt, a firefly, a bubble, a sprite) followed by
-    // smooth motion: its glide, whether its place is on the screen rather than the map, the game frame that last
-    // drew it, and where the painting under way shows it (in 1/scale pixels).
-    struct EffectGlide
+    // The move of an element of a screen effect (a weather particle, a leaf, a bolt, a firefly, a bubble, a sprite,
+    // a role head, the spotlight) under continuous motion: a game frame moves the element by a step, which it then
+    // takes over `length` milliseconds from `start` (the motion clock), from (fromX, fromY) to (toX, toY), its place
+    // as the frame left it; whether its place is on the screen rather than the map, the game frame that last drew or
+    // moved it, and where the painting under way shows it (in 1/scale pixels).
+    struct EffectMotion
     {
-        Glide glide;
+        double fromX = 0.0;
+        double fromY = 0.0;
+        i32 toX = 0;
+        i32 toY = 0;
+        u32 start = 0;
+        i32 length = 1;
         bool screen = false;
         u32 seen = 0;
         i32 fineX = 0;
         i32 fineY = 0;
     };
 
-    // Where an effect element is drawn: a game frame follows its place (a move further than `snap` jumps); a
-    // painting between game frames gets the place it glides to, for the block column and row being painted.
-    std::array<i32, 2> FollowEffect(u64 key, i32 x, i32 y, bool screen, u32 pace, i32 snap);
+    // Where an effect element at (x, y) is drawn: in a game frame where its move under way has it (where it is when
+    // none: a move that does not end there is over); in a painting between game frames the same, for the block column
+    // and row being painted.
+    std::array<i32, 2> EffectAt(u64 key, i32 x, i32 y, bool screen);
+    // A game frame moved the element from (fromX, fromY) to (toX, toY): it takes the step over `frames` game frames,
+    // from where it is shown now (a step further than `snap` jumps).
+    void MoveEffect(u64 key, i32 fromX, i32 fromY, i32 toX, i32 toY, i32 frames, bool screen, i32 snap);
+    // Its place now, in pixels.
+    std::array<double, 2> EffectShown(const EffectMotion& effect) const;
     // Its place for the block column and row of a render scale painted now.
-    std::array<i32, 2> EffectPlace(const EffectGlide& effect, int column, int row) const;
+    std::array<i32, 2> EffectPlace(const EffectMotion& effect, int column, int row) const;
 
     bool placesValid = false;
     u32 placesFrame = 0;  // Game::gameFrames of the last map frame
@@ -314,7 +326,7 @@ private:
     u32 motionClock = 0;
     bool motionClockSet = false;
     int motionMap = 0;  // the map the motions under way are on
-    std::unordered_map<u64, EffectGlide> effectGlides;
+    std::unordered_map<u64, EffectMotion> effectMotions;
     // The painting PaintBetween does: its render scale, its camera (in 1/scale pixels), the block column and row.
     int paintScale = 1;
     i32 paintCameraX = 0;

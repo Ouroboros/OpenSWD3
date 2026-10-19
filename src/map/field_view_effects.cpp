@@ -321,6 +321,8 @@ void FieldView::DrawWeather()
 
         if (++motion.counter > speed)
         {
+            const i32 fromX = drop.x;
+            const i32 fromY = drop.y;
             motion.counter = 0;
             drop.x += drop.stepX + ((owner.unk4B7518 * owner.state.walkSpeed) >> kWalkQuarter);
             drop.y += drop.stepY + ((owner.state.walkSpeed * owner.unk4B7920) >> kWalkQuarter);
@@ -344,6 +346,18 @@ void FieldView::DrawWeather()
             {
                 shade.tint += shade.tint <= shade.tintTarget ? 1 : -1;
             }
+
+            // The rebuild's continuous motion: the particle moves on until it moves again, speed plus one frames on.
+            this->MoveEffect(
+                EffectKey(EffectKind::Weather, particle),
+                fromX,
+                fromY,
+                drop.x,
+                drop.y,
+                std::max(motion.speed, 0) + 1,
+                false,
+                kEffectSnap
+            );
         }
 
         view.unk4ACAF8.id = Scene::EffectAct;
@@ -361,15 +375,8 @@ void FieldView::DrawWeather()
         options.tintGreen = shade.tint;
         options.tintRed = shade.tint;
         options.alpha = view.unk4ACAF8.signal;
-        // A particle moves once in speed + 1 frames.
-        const std::array<i32, 2> place = this->FollowEffect(
-            EffectKey(EffectKind::Weather, particle),
-            drop.x,
-            drop.y,
-            false,
-            static_cast<u32>(std::max(motion.speed, 0) + 1),
-            kEffectSnap
-        );
+        const std::array<i32, 2> place =
+            this->EffectAt(EffectKey(EffectKind::Weather, particle), drop.x, drop.y, false);
         painter.SetSource(picture->data.data());
         painter.DrawPicture(
             place[0] - view.unk4ACAF8.x - field.cameraLeft,
@@ -456,7 +463,7 @@ void FieldView::DrawLeaves()
         if (picture != nullptr)
         {
             const std::array<i32, 2> place =
-                this->FollowEffect(EffectKey(EffectKind::Leaves, index), leaf.x, leaf.y, false, 0, kEffectSnap);
+                this->EffectAt(EffectKey(EffectKind::Leaves, index), leaf.x, leaf.y, false);
             painter.SetSource(picture->data.data());
             painter.DrawPicture(
                 place[0] - act.x - field.cameraLeft,
@@ -467,6 +474,17 @@ void FieldView::DrawLeaves()
             );
         }
 
+        // The rebuild's continuous motion: the leaf takes its step over the next frame.
+        this->MoveEffect(
+            EffectKey(EffectKind::Leaves, index),
+            leaf.x,
+            leaf.y,
+            leaf.x + leaf.stepX,
+            leaf.y + leaf.stepY,
+            1,
+            false,
+            kEffectSnap
+        );
         leaf.x += leaf.stepX;
         leaf.y += leaf.stepY;
     }
@@ -641,14 +659,8 @@ void FieldView::DrawLightning()
         }
 
         int level = 0;
-        const std::array<i32, 2> place = this->FollowEffect(
-            EffectKey(EffectKind::Lightning, static_cast<u64>(&bolt - view.bolts.data())),
-            bolt.x / kSubpixels,
-            bolt.y,
-            true,
-            0,
-            kEffectSnap
-        );
+        const u64 key = EffectKey(EffectKind::Lightning, static_cast<u64>(&bolt - view.bolts.data()));
+        const std::array<i32, 2> place = this->EffectAt(key, bolt.x / kSubpixels, bolt.y, true);
         int x = bolt.x + (place[0] - bolt.x / kSubpixels) * kSubpixels;
         std::ptrdiff_t row = static_cast<std::ptrdiff_t>(pitch) * place[1];
 
@@ -690,8 +702,12 @@ void FieldView::DrawLightning()
             }
         }
 
+        const i32 fromX = bolt.x / kSubpixels;
+        const i32 fromY = bolt.y;
         bolt.x = static_cast<i16>(bolt.x + bolt.speed * bolt.slope);
         bolt.y = static_cast<i16>(bolt.y + bolt.speed);
+        // The rebuild's continuous motion: the bolt takes its step over the next frame.
+        this->MoveEffect(key, fromX, fromY, bolt.x / kSubpixels, bolt.y, 1, true, kEffectSnap);
 
         if (--bolt.life != 0)
         {
@@ -784,14 +800,8 @@ void FieldView::DrawFireflies()
             level = 0;
         }
 
-        const std::array<i32, 2> place = this->FollowEffect(
-            EffectKey(EffectKind::Fireflies, static_cast<u64>(&fly - view.fireflies.data())),
-            fly.x / kSubpixels,
-            fly.y,
-            true,
-            0,
-            kEffectSnap
-        );
+        const u64 key = EffectKey(EffectKind::Fireflies, static_cast<u64>(&fly - view.fireflies.data()));
+        const std::array<i32, 2> place = this->EffectAt(key, fly.x / kSubpixels, fly.y, true);
         int x = fly.x + (place[0] - fly.x / kSubpixels) * kSubpixels;
         const int sway = kFireflySway[static_cast<std::size_t>(fly.phase / kSwayFrames) % kFireflySway.size()];
         std::ptrdiff_t row = static_cast<std::ptrdiff_t>(pitch) * place[1];
@@ -841,8 +851,12 @@ void FieldView::DrawFireflies()
             }
         }
 
+        const i32 fromX = fly.x / kSubpixels;
+        const i32 fromY = fly.y;
         fly.x = static_cast<i16>(fly.x + fly.speed * fly.slope);
         fly.y = static_cast<i16>(fly.y + fly.speed);
+        // The rebuild's continuous motion: the firefly takes its step over the next frame.
+        this->MoveEffect(key, fromX, fromY, fly.x / kSubpixels, fly.y, 1, true, kEffectSnap);
 
         if (++fly.phase > kSwayFrames * (static_cast<int>(kFireflySway.size()) - 1))
         {
@@ -923,8 +937,21 @@ void FieldView::DrawSpotlight()
 
     if (view.spotlightX != view.spotlightTargetX || view.spotlightY != view.spotlightTargetY)
     {
+        const i32 fromX = view.spotlightX;
+        const i32 fromY = view.spotlightY;
         view.spotlightX += view.spotlightStepX;
         view.spotlightY += view.spotlightStepY;
+        // The rebuild's continuous motion: the spotlight takes its step over the next frame.
+        this->MoveEffect(
+            EffectKey(EffectKind::Spotlight, u64{0}),
+            fromX,
+            fromY,
+            view.spotlightX,
+            view.spotlightY,
+            1,
+            true,
+            kEffectSnap
+        );
 
         if (view.spotlightX == view.spotlightTargetX)
         {

@@ -48,7 +48,7 @@ inline i32 CeilDivide(i32 value, i32 divisor)
     return -FloorDivide(-value, divisor);
 }
 
-// The screen effects whose elements smooth motion follows (FieldView::FollowEffect), and the key of an element: its
+// The screen effects whose elements move continuously (FieldView::MoveEffect), and the key of an element: its
 // kind in the top byte, its index (or its node's address) below.
 enum class EffectKind : u64
 {
