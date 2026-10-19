@@ -186,6 +186,9 @@ struct UnitCommand
 
 class Database;
 class Random;
+class TswArchive;
+struct IdleView;
+struct WalkView;
 class ErrorReporter;
 struct CounterNode;
 using CounterList = CounterNode;
@@ -389,7 +392,7 @@ public:
     int DrawFadeIn(BattleServices& services, const BattleUnit& anchor);
     int SetHeld(int value);
     int SetAD4(int value);
-    int DrawFlash(BattleServices& services);
+    int FlashStep();
     int RollEvade(BattleServices& services, u16 chance);
     int Mirrored() const;
     bool IsDefeated() const;
@@ -447,7 +450,6 @@ public:
         i32 impact
     );
     void TrailLastQueuedAction(i32 tintRed, i32 tintGreen, i32 tintBlue);
-    void DrawOverlay(BattleServices& services, u16 frame, u16 picture, int x, int y, int offsetX, int offsetY);
     void DrawActionAt(BattleServices& services, i16 x, i16 y, ActState& act);
     int ReturnHome(BattleServices& services, const BattleUnit& target, i32 id, i32 action);
     int LoadEnemyCommand(Database& database, int choice, u32& act);
@@ -579,6 +581,14 @@ public:
 private:
     void MirrorRecoil(u32 actFlags, bool forced);
     void Announce(BattleServices& services, std::u8string_view format, int flags);
+
+    // The rebuild's smooth battle: the frame functions split into deciding and drawing (smooth/smooth_unit.cpp).
+    bool IdleAdvance(BattleServices& services, int paused, IdleView& view);
+    void IdleDraw(BattleServices& services, const IdleView& view) const;
+    bool WalkAdvance(BattleServices& services, const BattleUnit& target, WalkView& view);
+    int HomeAdvance(BattleServices& services, const BattleUnit& target, i32 id, i32 action, WalkView& view);
+    void ChooseOverlay(BattleServices& services, u16 frame, u16 picture, int offsetX, int offsetY, WalkView& view);
+    static void DrawWalk(BattleServices& services, const WalkView& view);
 
     // Where a walk (WalkToTarget, ReturnHome) or a flight (RunQueuedActions) is drawn in a frame, as the frame's acts
     // and steps make it: the line walked, the place, whether it arrived, the act's mirrored offset and draw flags, the
