@@ -9,9 +9,16 @@ namespace swd3
 
 struct Picture;
 class TswArchive;
+class BattleUnit;
+struct BattleServices;
 
-// The rebuild's smooth battle (deviations.md): what the battle frame functions split into a part deciding the frame
-// and a part drawing it hand over between them.
+}  // namespace swd3
+
+// The rebuild's smooth battle (deviations.md): the battle frame functions split into a part deciding the frame and a
+// part drawing it, and what they hand over between them. The original functions run both parts in the original's
+// order; the smooth battle draws again between frames.
+namespace swd3::smooth
+{
 
 // A picture a view draws: its archive id and frame, taken again when drawn (a cached picture goes when the cache
 // trims for another).
@@ -87,4 +94,27 @@ struct WalkView
     std::array<int, 2> motion = {};
 };
 
-}  // namespace swd3
+// The parts of the frame functions of `unit` (IdleFrame, WalkToTarget, ReturnHome): what a frame decides into a view,
+// and the view drawn.
+class UnitFrame
+{
+public:
+    explicit UnitFrame(BattleUnit& unit);
+
+    // IdleFrame: false when the unit is not drawn (hidden, staggering, busy, fading, its act or picture missing).
+    bool IdleAdvance(BattleServices& services, int paused, IdleView& view);
+    static void IdleDraw(BattleServices& services, const IdleView& view);
+    // WalkToTarget: false when it draws nothing.
+    bool WalkAdvance(BattleServices& services, const BattleUnit& target, WalkView& view);
+    // ReturnHome: its result; the view keeps no picture when it draws nothing.
+    int HomeAdvance(BattleServices& services, const BattleUnit& target, i32 id, i32 action, WalkView& view);
+    static void DrawWalk(BattleServices& services, const WalkView& view);
+
+private:
+    int FlashStep();
+    void ChooseOverlay(BattleServices& services, u16 frame, u16 picture, int offsetX, int offsetY, WalkView& view);
+
+    BattleUnit& unit;
+};
+
+}  // namespace swd3::smooth

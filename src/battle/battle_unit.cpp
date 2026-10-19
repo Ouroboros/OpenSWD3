@@ -4738,13 +4738,13 @@ void BattleUnit::DrawActionAt(BattleServices& services, i16 x, i16 y, ActState& 
 // the act's overlay. The rebuild's continuous motion splits it into HomeAdvance and the draw (DrawWalk).
 int BattleUnit::ReturnHome(BattleServices& services, const BattleUnit& target, i32 id, i32 action)
 {
-    WalkView view;
-    const int result = this->HomeAdvance(services, target, id, action, view);
+    smooth::WalkView view;
+    const int result = smooth::UnitFrame(*this).HomeAdvance(services, target, id, action, view);
 
     if (view.picture.shown)
     {
         const PaintRecord::Motion moving(view.motion);
-        BattleUnit::DrawWalk(services, view);
+        smooth::UnitFrame::DrawWalk(services, view);
     }
 
     return result;
@@ -6393,15 +6393,15 @@ std::array<int, 3> BattleUnit::IdleMotion(BattleServices& services, const ActSta
 // becomes command B. The rebuild's continuous motion splits it into WalkAdvance and the draw (DrawWalk).
 void BattleUnit::WalkToTarget(BattleServices& services, const BattleUnit& target)
 {
-    WalkView view;
+    smooth::WalkView view;
 
-    if (!this->WalkAdvance(services, target, view))
+    if (!smooth::UnitFrame(*this).WalkAdvance(services, target, view))
     {
         return;
     }
 
     const PaintRecord::Motion moving(view.motion);
-    BattleUnit::DrawWalk(services, view);
+    smooth::UnitFrame::DrawWalk(services, view);
 }
 
 // swd32.exe 0x00480AE0: the main act's effect while the unit idles: when the main act recoils (Recoils), its effectA
@@ -7122,15 +7122,16 @@ int BattleUnit::HurtFrame(BattleServices& services)
 // draws of the unit (IdleDraw), run here in the original's order.
 void BattleUnit::IdleFrame(BattleServices& services, int paused)
 {
-    IdleView view;
+    smooth::UnitFrame parts(*this);
+    smooth::IdleView view;
 
-    if (!this->IdleAdvance(services, paused, view))
+    if (!parts.IdleAdvance(services, paused, view))
     {
         return;
     }
 
     const PaintRecord::Motion moving({view.motion[0], view.motion[1]});
-    this->IdleDraw(services, view);
+    smooth::UnitFrame::IdleDraw(services, view);
 
     if (view.thrownLost)
     {
