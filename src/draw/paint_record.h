@@ -90,6 +90,8 @@ public:
     // The draws drawn again over the base into `out` (the pixels of the target, its pitch), each `share` (0..1) of its
     // motion along; the painter's and the fonts' state is left as it was.
     void Replay(Painter& painter, std::span<u16> out, int pitch, double share) const;
+    // The draws drawn again over what `out` holds (another base), each `share` of its motion along.
+    void DrawOver(Painter& painter, std::span<u16> out, int pitch, double share) const;
     // Whether drawing again unmoved gives `drawn` (every write to the target was kept); `scratch` takes the replay.
     bool Matches(Painter& painter, std::span<const u16> drawn, std::vector<u16>& scratch, int pitch) const;
 

@@ -10,6 +10,7 @@
 
 #include "core/types.h"
 #include "crt/msvc.h"
+#include "draw/paint_record.h"
 #include "file/file.h"
 #include "platform/surface.h"
 #include "text/big5.h"
@@ -341,6 +342,17 @@ private:
     bool paintedValid = false;
 
     void MarkChanges(const std::vector<Pixel>& before, std::vector<Span>& spans) const;
+    // A layer's draws recorded from now on the screen drawn to; at its end whether drawing them again unmoved gives it.
+    void StartRecord(PaintRecord& record);
+    bool FinishRecord(PaintRecord& record, const std::vector<Pixel>& layer);
+    // A layer over the map painted between game frames: its draws drawn again, or its spans copied.
+    void LayLayer(
+        const PaintRecord& record,
+        bool redrawn,
+        const std::vector<Span>& spans,
+        const std::vector<Pixel>& layer,
+        std::span<Pixel> screen
+    );
 
     std::vector<Pixel> worldLayer;      // the last game frame after the map, before the interface
     std::vector<Pixel> talkLayer;       // after the lines and the talk windows
@@ -351,7 +363,16 @@ private:
     std::vector<Span> talkSpans;        // where talkLayer differs from worldLayer
     std::vector<Span> interfaceSpans;   // where interfaceLayer differs from headsLayer
     std::vector<Span> finalSpans;       // where finalLayer differs from fadedLayer
-    std::vector<Surface> parts;         // the logical screens of a render scale above 1 (PaintBetween)
+    // The draws of the talk, interface and final layers, drawn again over the map painted between game frames (the
+    // translucent ones mixing with it) when drawing them again unmoved gave the layer; otherwise its spans are copied.
+    PaintRecord talkRecord;
+    PaintRecord interfaceRecord;
+    PaintRecord finalRecord;
+    bool talkRedrawn = false;
+    bool interfaceRedrawn = false;
+    bool finalRedrawn = false;
+    std::vector<u16> recordScratch;
+    std::vector<Surface> parts;  // the logical screens of a render scale above 1 (PaintBetween)
     bool fadeTinted = false;
 
     // The levels the fade tinted the last game frame by.

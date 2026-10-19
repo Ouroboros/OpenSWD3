@@ -141,6 +141,42 @@ std::array<i32, 2> FieldView::EffectPlace(const EffectMotion& effect, int column
     };
 }
 
+void FieldView::StartRecord(PaintRecord& record)
+{
+    if (this->game.drawSurface != nullptr && PaintRecord::Active() == nullptr)
+    {
+        record.Start(this->game.drawSurface, Display::Pixels);
+    }
+}
+
+bool FieldView::FinishRecord(PaintRecord& record, const std::vector<Pixel>& layer)
+{
+    if (PaintRecord::Active() != &record)
+    {
+        return false;
+    }
+
+    record.Stop();
+    return record.Matches(this->game.painter, layer, this->recordScratch, Display::Width);
+}
+
+void FieldView::LayLayer(
+    const PaintRecord& record,
+    bool redrawn,
+    const std::vector<Span>& spans,
+    const std::vector<Pixel>& layer,
+    std::span<Pixel> screen
+)
+{
+    if (redrawn)
+    {
+        record.DrawOver(this->game.painter, screen, Display::Width, 0.0);
+        return;
+    }
+
+    FieldView::CopySpans(spans, layer, 1, screen);
+}
+
 void FieldView::CaptureLayer(std::vector<Pixel>& layer) const
 {
     const Pixel* pixels = this->game.drawSurface;
@@ -429,18 +465,24 @@ void FieldView::PaintBetween(Surface& out)
             // The interface of the last game frame: the lines and talk windows it drew over its map, its role heads
             // drawn again where they glide, what it drew after them, its fade, then what it drew after the fade.
             const std::span<Pixel> screen(part.Pixels(), Display::Pixels);
-            FieldView::CopySpans(this->talkSpans, this->talkLayer, 1, screen);
+            this->LayLayer(this->talkRecord, this->talkRedrawn, this->talkSpans, this->talkLayer, screen);
             painter.SetClipClamped(0, 0, Display::Width, Display::Height);
             this->DrawRoleHeads();
             putBack();
-            FieldView::CopySpans(this->interfaceSpans, this->interfaceLayer, 1, screen);
+            this->LayLayer(
+                this->interfaceRecord,
+                this->interfaceRedrawn,
+                this->interfaceSpans,
+                this->interfaceLayer,
+                screen
+            );
 
             if (this->fadeTinted)
             {
                 painter.TintPixelsFast(screen, this->fadeLevels.red, this->fadeLevels.green, this->fadeLevels.blue);
             }
 
-            FieldView::CopySpans(this->finalSpans, this->finalLayer, 1, screen);
+            this->LayLayer(this->finalRecord, this->finalRedrawn, this->finalSpans, this->finalLayer, screen);
         }
     }
 

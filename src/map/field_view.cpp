@@ -224,6 +224,7 @@ void FieldView::Paint()
     if (capture)
     {
         this->CaptureLayer(this->worldLayer);
+        this->StartRecord(this->talkRecord);
     }
 
     painter.SetClipClamped(0, 0, Display::Width, Display::Height);
@@ -234,6 +235,7 @@ void FieldView::Paint()
     {
         this->CaptureLayer(this->talkLayer);
         this->MarkChanges(this->worldLayer, this->talkSpans);
+        this->talkRedrawn = this->FinishRecord(this->talkRecord, this->talkLayer);
     }
 
     this->DrawRoleHeads();
@@ -241,6 +243,7 @@ void FieldView::Paint()
     if (capture)
     {
         this->CaptureLayer(this->headsLayer);
+        this->StartRecord(this->interfaceRecord);
     }
 
     if ((state.leader.id == Role::NoId || state.leader.unk20 < kUnkLeader20Limit) &&
@@ -266,6 +269,7 @@ void FieldView::Paint()
         const ColorFade& fade = view.fade;
         this->CaptureLayer(this->interfaceLayer);
         this->MarkChanges(this->headsLayer, this->interfaceSpans);
+        this->interfaceRedrawn = this->FinishRecord(this->interfaceRecord, this->interfaceLayer);
         this->fadeTinted = fade.stepRed != 0.0F || fade.stepGreen != 0.0F || fade.stepBlue != 0.0F;
     }
 
@@ -281,6 +285,7 @@ void FieldView::Paint()
         };
 
         this->CaptureLayer(this->fadedLayer);
+        this->StartRecord(this->finalRecord);
     }
 
     owner.notices.Draw(owner.smallFont, painter, state, owner.textColors);
@@ -716,6 +721,7 @@ void FieldView::Render()
     {
         this->CaptureLayer(this->finalLayer);
         this->MarkChanges(this->fadedLayer, this->finalSpans);
+        this->finalRedrawn = this->FinishRecord(this->finalRecord, this->finalLayer);
     }
 
     owner.ShowMapFrame();

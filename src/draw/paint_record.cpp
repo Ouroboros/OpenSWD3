@@ -337,6 +337,11 @@ void PaintRecord::Call(const Painter& painter, Redraw redraw, std::span<const in
 void PaintRecord::Replay(Painter& painter, std::span<u16> out, int pitch, double share) const
 {
     std::copy_n(this->base.begin(), std::min(this->base.size(), out.size()), out.begin());
+    this->DrawOver(painter, out, pitch, share);
+}
+
+void PaintRecord::DrawOver(Painter& painter, std::span<u16> out, int pitch, double share) const
+{
     const Painter::DrawState kept = painter.SaveDrawState();
 
     for (const Command& command : this->commands)
