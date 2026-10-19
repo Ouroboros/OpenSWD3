@@ -140,6 +140,11 @@ void FieldView::MotionTick()
             return;
         }
 
+        if (onTile && this->EventWaiting())
+        {
+            return;
+        }
+
         this->BeginPlayerMotion();
 
         if (!motion.active)
@@ -174,10 +179,19 @@ void FieldView::MotionTick()
     this->PinGlides();
     this->SettlePlayer();
 
-    if (this->TryStep())
+    if (this->TryStep() && !this->EventWaiting())
     {
         this->BeginPlayerMotion();
     }
+}
+
+// An event set off and not begun yet (the leader's script not read) begins at a frame with the controlled role on a
+// tile (Talk::RunEvent, 0x00427920): a step on a tile waits for that frame, as the original takes the step and begins
+// the event in the same frame.
+bool FieldView::EventWaiting() const
+{
+    const Role& leader = this->game.state.leader;
+    return leader.id != Role::NoId && leader.unk14 == 0;
 }
 
 // A step from the keys (RoleControl::StepNow); one tried and refused (blocked, an event in the way) is not tried again
