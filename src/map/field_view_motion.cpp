@@ -137,10 +137,11 @@ void FieldView::MotionTick()
 
         if (!stepping && (!onTile || waiting || !this->TryStep()))
         {
+            this->BeginWaitingEvent();
             return;
         }
 
-        if (onTile && this->EventWaiting())
+        if (onTile && !this->BeginWaitingEvent())
         {
             return;
         }
@@ -179,19 +180,34 @@ void FieldView::MotionTick()
     this->PinGlides();
     this->SettlePlayer();
 
-    if (this->TryStep() && !this->EventWaiting())
+    const bool stepped = this->TryStep();
+
+    if (this->BeginWaitingEvent() && stepped)
     {
         this->BeginPlayerMotion();
     }
 }
 
-// An event set off and not begun yet (the leader's script not read) begins at a frame with the controlled role on a
-// tile (Talk::RunEvent, 0x00427920): a step on a tile waits for that frame, as the original takes the step and begins
-// the event in the same frame.
-bool FieldView::EventWaiting() const
+// An event set off and not begun yet (the leader's script not read) begins as soon as the controlled role stands on a
+// tile (Talk::BeginEvent, part of 0x00427920), after the step of the keys is decided, as the original's frame runs
+// ControlPlayer before the event; its commands run with the frames. Whether no event waits (a step may start).
+bool FieldView::BeginWaitingEvent()
 {
-    const Role& leader = this->game.state.leader;
-    return leader.id != Role::NoId && leader.unk14 == 0;
+    Game& owner = this->game;
+    Role& leader = owner.state.leader;
+    const Role& player = owner.state.roles[static_cast<std::size_t>(owner.state.playerRole)];
+
+    if (leader.id == Role::NoId || leader.unk14 != 0)
+    {
+        return true;
+    }
+
+    if (((player.x | player.y) & MapHeader::TileFraction) != 0)
+    {
+        return false;
+    }
+
+    return owner.talk.BeginEvent(leader) && leader.unk14 != 0;
 }
 
 // A step from the keys (RoleControl::StepNow); one tried and refused (blocked, an event in the way) is not tried again

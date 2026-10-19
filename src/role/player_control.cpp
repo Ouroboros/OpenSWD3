@@ -768,12 +768,8 @@ RoleControl::Stepped RoleControl::StepNow()
         return keyDown(button) && (polled.releasedAt != 0 || polled.heldFrames == 0);
     };
 
-    // An event set off and not begun yet begins once the controlled role stands on a tile at a frame (Talk::RunEvent):
-    // the role waits on the tile for the frame, which steps it as the original does.
-    const bool eventWaiting = state.leader.id != Role::NoId && state.leader.unk14 == 0;
-
     if (controls.mouseSuppressed != 0 || owner.menuState != Game::NoMenu || !state.clickRegions.regions.empty() ||
-        owner.scene.playerHold != 0 || eventWaiting || goesDown(Button::Space) || goesDown(Button::Enter))
+        owner.scene.playerHold != 0 || goesDown(Button::Space) || goesDown(Button::Enter))
     {
         return Stepped::No;
     }

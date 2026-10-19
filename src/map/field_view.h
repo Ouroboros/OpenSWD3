@@ -281,7 +281,7 @@ private:
     void BeginPlayerMotion();
     bool TryStep();
     void PinGlides();
-    bool EventWaiting() const;
+    bool BeginWaitingEvent();
     void EndPlayerMotion(bool atFrame);
     i32 MotionPixels(int scale) const;
     PlayerMotion playerMotion;
