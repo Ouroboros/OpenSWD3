@@ -434,7 +434,6 @@ public:
     int HasEffectKind(i16 kind) const;
     int HasEffectBits(u16 bits) const;
     bool ApplyPendingDamage(BattleServices& services);
-    void DrawEffects(BattleServices& services, int x, int y);
     void DrawEffectIcons(BattleServices& services, int x, int y);
     void ExpireEffects(BattleServices& services, int clearAll);
     SkillScript CommandSkill() const;
@@ -499,8 +498,6 @@ public:
     int DefeatProjected(BattleServices& services, const Picture& picture);
     int DefeatParticles(BattleServices& services, const Picture& picture, int x, int y);
     void WalkToTarget(BattleServices& services, const BattleUnit& target);
-    void PlayIdleEffect(BattleServices& services);
-    void PlayIdleFollowUp(BattleServices& services);
     void TickEffects(BattleServices& services);
     int CanUseAccessory(u16 kind);
     void StartDrainEffect(BattleServices& services, int slot, BattleUnit& source);

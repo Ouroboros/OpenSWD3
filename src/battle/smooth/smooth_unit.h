@@ -3,11 +3,14 @@
 #include <array>
 #include <vector>
 
+#include "battle/smooth/smooth_draw.h"
 #include "core/types.h"
 
 namespace swd3
 {
 
+struct ActState;
+struct AfterimageTrail;
 struct Picture;
 class TswArchive;
 class BattleUnit;
@@ -20,17 +23,6 @@ struct BattleServices;
 // order; the smooth battle draws again between frames.
 namespace swd3::smooth
 {
-
-// A picture a view draws: its archive id and frame, taken again when drawn (a cached picture goes when the cache
-// trims for another).
-struct PictureRef
-{
-    u32 id = 0;
-    u32 frame = 0;
-    bool shown = false;
-
-    const Picture* Get(TswArchive& archive) const;
-};
 
 // What IdleFrame draws of the unit, as its frame decides it (IdleAdvance) for IdleDraw: the body at (x, y) with its
 // flags (mirrored: the mirror bits alone), the shadow, outlines, smear, blend, wave, barrier flash, grey and red
@@ -134,7 +126,60 @@ struct GuardView
     std::array<std::array<int, 2>, 4> motion = {};
 };
 
-// The parts of the frame functions of `unit` (IdleFrame, WalkToTarget, ReturnHome, DrawDamageNumbers, DrawGuardText):
+// What HurtFrame draws: the red flash an enemy leaves, the shadow (its top at shadowY less a third of the picture), the
+// unit at (x, y), its red copy; after the unit's effects the overlay and the recoil effect. `bodyWidth`: the hurt
+// picture's width; `bodyMotion` and `flashMotion`: the rebuild's smooth battle reckoning.
+struct HurtView
+{
+    PictureRef picture;
+    int bodyWidth = 0;
+    int x = 0;
+    int y = 0;
+    u32 flags = 0;
+    bool flash = false;
+    int flashX = 0;
+    int flashY = 0;
+    u32 flashFlags = 0;
+    int shadowY = 0;
+    int shadowTint = 0;
+    u32 shadowFlags = 0;
+    bool red = false;
+    PictureRef overlay;
+    int overlayX = 0;
+    int overlayY = 0;
+    u32 overlayFlags = 0;
+    PictureRef recoil;
+    int recoilX = 0;
+    int recoilY = 0;
+    u32 recoilFlags = 0;
+    std::array<int, 2> bodyMotion = {};
+    std::array<int, 2> flashMotion = {};
+};
+
+// What DrawAction draws: the outline (at the unit's place), the shadow (its top at shadowY less a third of the
+// picture), the act at (x, y) (smeared when invisible; blended, waved), the overlay.
+struct ActionView
+{
+    PictureRef picture;
+    int x = 0;
+    int y = 0;
+    u32 flags = 0;
+    u32 mirrored = 0;
+    bool outline = false;
+    int shadowY = 0;
+    int shadowTint = 0;
+    bool smear = false;
+    bool signal = false;
+    int alpha = 0;
+    int wave = 0;
+    PictureRef overlay;
+    int overlayX = 0;
+    int overlayY = 0;
+    u32 overlayFlags = 0;
+};
+
+// The parts of the frame functions of `unit` (IdleFrame, WalkToTarget, ReturnHome, DrawDamageNumbers, DrawGuardText,
+// HurtFrame, DrawAction):
 // what a frame decides into a view, and the view drawn.
 class UnitFrame
 {
@@ -155,6 +200,46 @@ public:
     // DrawGuardText.
     void GuardAdvance(GuardView& view);
     static void DrawGuard(BattleServices& services, const GuardView& view);
+    // HurtFrame: before the draws (false when the frame ends with `result`), after the unit's effects (false when the
+    // frame ends with 0), and at the end (its result).
+    bool HurtAdvance(BattleServices& services, HurtView& view, int& result);
+    static void HurtDrawBody(BattleServices& services, const HurtView& view);
+    bool HurtAdvanceTail(BattleServices& services, HurtView& view);
+    static void HurtDrawTail(BattleServices& services, const HurtView& view);
+    int HurtStep(BattleServices& services);
+    // DrawEffects (the shadow picture the caller drew in `body`), PlayIdleEffect, PlayIdleFollowUp.
+    void EffectsAdvance(BattleServices& services, int x, int y, const PictureRef& body, PictureSteps& steps);
+    void IdleEffectAdvance(BattleServices& services, PictureSteps& steps);
+    void FollowUpAdvance(BattleServices& services, PictureSteps& steps);
+    // DrawRecoil: its result.
+    int RecoilAdvance(BattleServices& services, ActState& act, i16 y, PictureSteps& steps);
+    // DrawTrail, FlyAct (its result), RunQueuedActions (its result).
+    void TrailAdvance(
+        BattleServices& services,
+        AfterimageTrail& trail,
+        u16 frame,
+        u16 picture,
+        u32 mode,
+        i16 x,
+        i16 y,
+        PictureSteps& steps
+    );
+    int FlyAdvance(
+        BattleServices& services,
+        const BattleUnit& target,
+        ActState& act,
+        int slot,
+        i32 id,
+        int fromX,
+        int fromY,
+        int steps,
+        int backwards,
+        PictureSteps& draws
+    );
+    int QueuedAdvance(BattleServices& services, BattleUnit& target, i32 action, PictureSteps& steps);
+    // DrawAction: false when it draws nothing.
+    bool ActionAdvance(BattleServices& services, const BattleUnit& target, ActState& act, ActionView& view);
+    static void DrawActionView(BattleServices& services, const ActionView& view);
 
 private:
     int FlashStep();

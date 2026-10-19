@@ -76,6 +76,25 @@ constexpr i16 kGuardPhaseEnd = 9;       // the last phase of a guard text letter
 constexpr i16 kGuardTextRise = 0x18;    // pixels the guard text rises before it is gone
 constexpr i16 kGuardTextStep = 4;       // pixels the guard text rises a frame
 constexpr int kGuardTextHeight = 0x1A;
+constexpr i32 kGuardHurtAction = 0x27;
+constexpr i32 kHurtAction = 0x25;
+constexpr u16 kHurtFrames = 2;  // frames a stagger step lasts
+constexpr int kHurtRed = 0xF;   // the red flash an enemy leaves behind
+constexpr u16 kLastHurtStep = 5;
+constexpr u32 kNudgeChance = 2;    // a nudged unit shakes in one frame of two
+constexpr int kNudgeShift = 0x28;  // the shake moves the act by nudge - 0x28
+constexpr int kUnkStatus1000Tint = -12;
+constexpr i16 kRecoilFadeStep = 2;
+constexpr i16 kRecoilFadeEnd = -0x20;  // DrawRecoil: the tint at which a waiting recoil act is over
+constexpr i8 kAdditiveTrailFade = 3;   // an additive act's images fade by 3 a frame, the others by 1
+constexpr i16 kAdditiveTrailLevel = 0x18;
+constexpr i32 kQueuedMaxDamage = 0x270F;
+constexpr int kTrailBlue = -12;
+constexpr int kTrailCentre = 0xC;
+constexpr u8 kTrailDelay = 2;  // a new image every third frame
+constexpr i16 kTrailLevel = 0xC;
+constexpr int kTrailSpacing = 0x1E;
+constexpr int kTrailTintBase = 0x1F;
 }  // namespace
 
 UnitFrame::UnitFrame(BattleUnit& unit)
@@ -483,11 +502,6 @@ void UnitFrame::DrawWalk(BattleServices& services, const WalkView& view)
         painter.SetSource(overlay->data.data());
         painter.DrawPicture(view.overlayX, view.overlayY, overlay->width, overlay->height, view.overlayFlags);
     }
-}
-
-const Picture* PictureRef::Get(TswArchive& archive) const
-{
-    return this->shown ? archive.GetPicture(this->id, this->frame) : nullptr;
 }
 
 // What IdleFrame decides of the frame: the move, the pose, the act stepped, the barrier flash stepped, the sounds,
@@ -1367,6 +1381,1403 @@ void UnitFrame::DrawGuard(BattleServices& services, const GuardView& view)
 
         offset += hud.DrawDigit(0, letter, static_cast<u16>(offset) + view.left, view.y[at]);
     }
+}
+
+// What HurtFrame decides before its draws: the hurt act stepped, its sound, the places of the stagger step; false when
+// the frame ends with `result` before anything is drawn.
+bool UnitFrame::HurtAdvance(BattleServices& services, HurtView& view, int& result)
+{
+    BattleUnit& unit = this->unit;
+    ActState& act = unit.attackAct;
+    act.id = unit.actId;
+
+    if (unit.kind != 1 || unit.unk2B00 != 0 || unit.unk2B04 != 0)
+    {
+        act.action = kEnemyHomeAction;
+    }
+    else
+    {
+        act.action = kHurtAction;
+
+        if ((unit.GetGuard() == 1 || (unit.marks & BattleUnit::UnkMark1) != 0) && (unit.marks & BattleUnit::Held) == 0)
+        {
+            act.action = kGuardHurtAction;
+        }
+
+        if ((unit.status & BattleUnit::UnkStatus1000) != 0)
+        {
+            act.action = kHurtAction;
+        }
+    }
+
+    act.hold = 0;
+
+    if (unit.held == 1)
+    {
+        act.hold = 1;
+    }
+
+    if (services.acts.Run(act) == 0)
+    {
+        result = 1;
+        return false;
+    }
+
+    if (unit.unk2AF4 == 1 && unit.kind == 0)
+    {
+        act.picture = unit.mainAct.picture;
+    }
+
+    if (unit.guarding == 1)
+    {
+        result = 1;
+        return false;
+    }
+
+    const bool still = (unit.status & BattleUnit::UnkStatus4) != 0;
+
+    if (still)
+    {
+        act = unit.mainAct;
+    }
+
+    unit.shadowPicture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (unit.shadowPicture == nullptr)
+    {
+        result = 0;
+        return false;
+    }
+
+    const Picture& picture = *unit.shadowPicture;
+    services.painter.SetSource(picture.data.data());
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+
+    if (act.view != 0)
+    {
+        services.audio.SetSoundPan(act.view, unit.facing == 1 ? -kFadePan : kFadePan);
+    }
+
+    const std::size_t step = unit.hurtStep;
+    const int placeX = unit.placement.x;
+    unit.unk2670 = act.x;
+    act.view = 0;
+    int y = unit.placement.y - act.y;
+    const int shake = BattleUnit::StaggerShake[step];
+    int x = shake + placeX - act.x;
+
+    if (unit.unk2B00 == 1)
+    {
+        if (unit.facing != 0)
+        {
+            x = placeX - shake - act.x;
+        }
+        else
+        {
+            unit.unk2670 = picture.width - act.x;
+            x = placeX + BattleUnit::StaggerShake[step] - unit.unk2670;
+        }
+    }
+
+    if (unit.facing == 1 && unit.unk2B00 == 0)
+    {
+        unit.unk2670 = picture.width - act.x;
+        x = placeX - BattleUnit::StaggerShake[step] - unit.unk2670;
+    }
+
+    if (still)
+    {
+        x = placeX - unit.unk2670;
+    }
+
+    // The rebuild's smooth battle: the places of a stagger step (the unit, an enemy's red flash), and how far they move
+    // to the step of the next frame (none once the stagger ends).
+    auto bodyAt = [&](std::size_t at) -> std::array<int, 2>
+    {
+        const int shaken = BattleUnit::StaggerShake[at];
+        int bodyX = shaken + placeX - act.x;
+        int bodyY = unit.placement.y - act.y;
+
+        if (unit.unk2B00 == 1)
+        {
+            bodyX = unit.facing != 0 ? placeX - shaken - act.x : placeX + shaken - unit.unk2670;
+        }
+
+        if (unit.facing == 1 && unit.unk2B00 == 0)
+        {
+            bodyX = placeX - shaken - unit.unk2670;
+        }
+
+        if (still)
+        {
+            bodyX = placeX - unit.unk2670;
+        }
+
+        if (unit.kind == 0 && !still)
+        {
+            const int lift = BattleUnit::StaggerLift[at];
+            bodyX = placeX - unit.unk2670;
+
+            if (unit.unk2B10 != 0)
+            {
+                bodyY = unit.placement.y - lift - act.y;
+            }
+            else
+            {
+                bodyX += unit.facing != 0 ? lift : -lift;
+            }
+        }
+
+        return {bodyX, bodyY};
+    };
+
+    auto flashAt = [&](std::size_t at) -> std::array<int, 2>
+    {
+        const int rise = BattleUnit::StaggerRise[at];
+
+        if (unit.unk2B10 != 0)
+        {
+            return {placeX - unit.unk2670, unit.placement.y - rise - act.y};
+        }
+
+        return {placeX + (unit.facing != 0 ? rise : -rise) - unit.unk2670, unit.placement.y - act.y};
+    };
+
+    auto between = [](const std::array<int, 2>& from, const std::array<int, 2>& to) -> std::array<int, 2>
+    {
+        const std::array<int, 2> by = {to[0] - from[0], to[1] - from[1]};
+        return std::abs(by[0]) > kSnapDistance || std::abs(by[1]) > kSnapDistance ? std::array<int, 2>{0, 0} : by;
+    };
+
+    const int nextPhase = unit.glowPhase + (unit.held == 0 ? 1 : 0);
+    const std::size_t nextStep = step + (nextPhase == kHurtFrames ? 1 : 0);
+    const bool staggersNext = nextStep <= kLastHurtStep;
+    view.bodyMotion = staggersNext ? between(bodyAt(step), bodyAt(nextStep)) : std::array<int, 2>{0, 0};
+    view.flashMotion = staggersNext ? between(flashAt(step), flashAt(nextStep)) : std::array<int, 2>{0, 0};
+    view.picture = {act.frame, act.picture, true};
+    view.bodyWidth = picture.width;
+    const u32 mirrored = unit.drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip);
+
+    if (unit.kind == 0 && !still)
+    {
+        view.flash = true;
+        view.flashFlags = mirrored | Painter::TintUnder;
+
+        if (unit.unk2B10 != 0)
+        {
+            view.flashX = placeX - unit.unk2670;
+            view.flashY = unit.placement.y - BattleUnit::StaggerRise[step] - act.y;
+            x = placeX - unit.unk2670;
+            y = unit.placement.y - BattleUnit::StaggerLift[step] - act.y;
+        }
+        else if (unit.facing != 0)
+        {
+            view.flashX = placeX + BattleUnit::StaggerRise[step] - unit.unk2670;
+            view.flashY = unit.placement.y - act.y;
+            x = placeX + BattleUnit::StaggerLift[step] - unit.unk2670;
+        }
+        else
+        {
+            view.flashX = placeX - BattleUnit::StaggerRise[step] - unit.unk2670;
+            view.flashY = unit.placement.y - act.y;
+            x = placeX - BattleUnit::StaggerLift[step] - unit.unk2670;
+        }
+    }
+
+    view.x = x;
+    view.y = y;
+    view.shadowY = unit.placement.y;
+    view.shadowTint = unit.unk2B00 == 1 ? kInvisibleShadowTint : kShadowTint;
+    view.shadowFlags = mirrored | Painter::Shadow;
+    // What the draws leave in the unit: the last mode drawn with, the draw flags without the effects.
+    unit.unk26A4 = view.shadowFlags;
+    unit.drawFlags &= Painter::RleSource | Painter::Mirror | Painter::Flip;
+    view.flags = unit.drawFlags;
+    view.red = !still && act.action != kGuardHurtAction;
+    return true;
+}
+
+// What HurtFrame draws before the unit's effects: the red flash an enemy leaves, the shadow, the unit, its red copy.
+void UnitFrame::HurtDrawBody(BattleServices& services, const HurtView& view)
+{
+    Painter& painter = services.painter;
+    const Picture* body = view.picture.Get(services.archive);
+
+    if (body == nullptr)
+    {
+        return;
+    }
+
+    const Picture& picture = *body;
+    painter.SetSource(picture.data.data());
+    DrawOptions& options = painter.Options();
+
+    if (view.flash)
+    {
+        const PaintRecord::Motion flashMoving(view.flashMotion);
+        options.tintRed = kHurtRed;
+        options.tintGreen = 0;
+        options.tintBlue = 0;
+        painter.DrawPicture(view.flashX, view.flashY, picture.width, picture.height, view.flashFlags);
+    }
+
+    const int shadowHeight = picture.height / kShadowShare;
+    options.scaleHeight = shadowHeight;
+    options.shear = picture.height >> kShadowShearShift;
+    options.tintRed = view.shadowTint;
+    options.tintGreen = view.shadowTint;
+    options.tintBlue = view.shadowTint;
+
+    {
+        const PaintRecord::Motion shadowMoving({view.bodyMotion[0], 0});
+        painter.DrawPicture(view.x, view.shadowY - shadowHeight, picture.width, picture.height, view.shadowFlags);
+    }
+
+    const PaintRecord::Motion moving(view.bodyMotion);
+    painter.DrawPicture(view.x, view.y, picture.width, picture.height, view.flags);
+
+    if (view.red)
+    {
+        painter.Options().tintRed = kHurtFlash;
+        painter.DrawPicture(view.x, view.y, picture.width, picture.height, view.flags | Painter::TintUnder);
+    }
+}
+
+// What HurtFrame decides after the unit's effects: the overlay chosen, the recoil effect stepped with its sound;
+// false when the frame ends there (the recoil effect's act missing).
+bool UnitFrame::HurtAdvanceTail(BattleServices& services, HurtView& view)
+{
+    BattleUnit& unit = this->unit;
+    const ActState& act = unit.attackAct;
+    const bool still = (unit.status & BattleUnit::UnkStatus4) != 0;
+    const int placeX = unit.placement.x;
+
+    if (!still && act.rotation != 0 && act.actionCode != 0)
+    {
+        unit.unk2554 = services.archive.GetPicture(act.rotation, static_cast<u16>(act.actionCode - 1));
+
+        if (unit.unk2554 != nullptr)
+        {
+            view.overlay = {act.rotation, static_cast<u16>(act.actionCode - 1), true};
+            view.overlayX = placeX + static_cast<i16>(act.offsetX) - unit.unk2670;
+            view.overlayY = unit.placement.y + static_cast<i16>(act.offsetY) - act.y;
+            view.overlayFlags = unit.drawFlags | Painter::Additive;
+        }
+    }
+
+    if ((act.target & ActState::Recoils) == 0)
+    {
+        return true;
+    }
+
+    ActState& effect = unit.castAct;
+    effect.action = act.effectQ;
+    effect.id = act.effectA;
+
+    if (services.acts.Run(effect) == 0)
+    {
+        return false;
+    }
+
+    services.audio.PlaySound(effect.view, services.config.soundVolume);
+    effect.view = 0;
+    unit.picture = services.archive.GetPicture(effect.frame, effect.picture);
+
+    if (unit.picture == nullptr)
+    {
+        return true;
+    }
+
+    u32 flags = effect.flags;
+    int offsetX = effect.x;
+
+    if (act.anchorX != 0)
+    {
+        unit.actAnchorX = act.anchorX;
+    }
+
+    if (unit.facing == 1)
+    {
+        flags ^= Painter::Mirror;
+        offsetX = unit.picture->width - offsetX;
+        unit.actAnchorX = static_cast<u16>(view.bodyWidth - act.anchorX);
+    }
+
+    view.recoil = {effect.frame, effect.picture, true};
+    view.recoilX = view.x + static_cast<i16>(unit.actAnchorX) - offsetX;
+    view.recoilY = view.y + static_cast<i16>(act.anchorY) - effect.y;
+    view.recoilFlags = flags;
+    return true;
+}
+
+// What HurtFrame draws after the unit's effects: the overlay, the recoil effect.
+void UnitFrame::HurtDrawTail(BattleServices& services, const HurtView& view)
+{
+    Painter& painter = services.painter;
+    const PaintRecord::Motion moving(view.bodyMotion);
+
+    if (const Picture* overlay = view.overlay.Get(services.archive); overlay != nullptr)
+    {
+        painter.SetSource(overlay->data.data());
+        painter.DrawPicture(view.overlayX, view.overlayY, overlay->width, overlay->height, view.overlayFlags);
+    }
+
+    if (const Picture* recoil = view.recoil.Get(services.archive); recoil != nullptr)
+    {
+        painter.SetSource(recoil->data.data());
+        painter.DrawPicture(view.recoilX, view.recoilY, recoil->width, recoil->height, view.recoilFlags);
+    }
+}
+
+// What HurtFrame decides at the end of the frame: the stagger stepped (not held); 1 once it is over.
+int UnitFrame::HurtStep(BattleServices& services)
+{
+    BattleUnit& unit = this->unit;
+
+    if (unit.held == 0)
+    {
+        ++unit.glowPhase;
+
+        if (unit.glowPhase == kHurtFrames)
+        {
+            ++unit.hurtStep;
+            unit.glowPhase = 0;
+        }
+    }
+
+    unit.unk2AAC = 1;
+
+    if (unit.hurtStep <= kLastHurtStep)
+    {
+        return 0;
+    }
+
+    services.state.unk53BF46 = 0;
+    services.state.unk53BF48 = 0;
+    unit.hurtStep = 1;
+    services.painter.Options().shear = 0;
+    unit.unk2AAC = 0;
+    unit.charging = 1;
+    unit.unk2B10 = 0;
+    unit.attackAct = ActState{};
+    unit.targets.fill(BattleUnit::NoTarget);
+    return 1;
+}
+
+// What DrawAction decides of the frame: the act stepped, its place on the target or the unit (shaken by the nudge),
+// its sound, the overlay chosen and cleared once the act waits; false when it draws nothing.
+bool UnitFrame::ActionAdvance(BattleServices& services, const BattleUnit& target, ActState& act, ActionView& view)
+{
+    BattleUnit& unit = this->unit;
+    u16 targetX = 0;
+    u16 targetY = 0;
+
+    if (services.acts.Run(act) == 0)
+    {
+        return false;
+    }
+
+    unit.picture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (unit.picture == nullptr)
+    {
+        return false;
+    }
+
+    const Picture& picture = *unit.picture;
+    services.painter.SetSource(picture.data.data());
+    unit.frameFlags = act.flags;
+    unit.actOffsetX = static_cast<u16>(act.x);
+    unit.actAnchorX = act.anchorX;
+    unit.overlayX = act.offsetX;
+    const bool forced = unit.unk2B00 == 1 || unit.unk2B04 == 1;
+    const bool still = unit.unk2B00 == 0 && unit.unk2B04 == 0;
+
+    auto mirror = [&unit, &act, &picture]
+    {
+        unit.frameFlags ^= Painter::Mirror;
+        unit.actOffsetX = static_cast<u16>(picture.width - static_cast<u16>(act.x));
+
+        if (act.anchorX != 0)
+        {
+            unit.actAnchorX = static_cast<u16>(picture.width - act.anchorX);
+        }
+    };
+
+    if (forced)
+    {
+        if (unit.facing == 1)
+        {
+            mirror();
+        }
+
+        if (unit.unk2B00 == 1 && (unit.frameFlags & ActState::NoBlend) == 0)
+        {
+            unit.frameFlags |= Painter::Additive;
+        }
+    }
+
+    if (unit.facing == 1 && still)
+    {
+        mirror();
+    }
+
+    target.GetDrawPosition(targetX, targetY);
+    u16 x = targetX;
+
+    if (unit.nudge > 0 && services.random.Below(kNudgeChance) == 1)
+    {
+        x = static_cast<u16>(x + unit.nudge - kNudgeShift);
+        unit.nudge = static_cast<u16>(unit.nudge >> 1);
+
+        if (unit.nudge <= 1)
+        {
+            unit.nudge = 1;
+        }
+    }
+
+    const u32 mirrored = unit.frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip);
+
+    if ((unit.command.flags & UnitCommand::AtTarget) != 0)
+    {
+        unit.actX = static_cast<u16>(x - unit.actOffsetX);
+        unit.actY = static_cast<u16>(targetY - static_cast<u16>(act.y));
+    }
+    else
+    {
+        unit.actX = static_cast<u16>(unit.placement.x - unit.actOffsetX);
+        unit.actY = static_cast<u16>(unit.placement.y - static_cast<u16>(act.y));
+
+        if (unit.outline == 1)
+        {
+            unit.colorPair = BattleUnit::OutlineColorPair;
+            view.outline = true;
+        }
+    }
+
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+    const int centre = static_cast<i16>(unit.actX) + static_cast<i16>(unit.actOffsetX);
+    services.audio.SetSoundPan(act.view, centre >= kPanCentre ? kFadePan : -kFadePan);
+    act.view = 0;
+    const bool invisible = (unit.status & BattleUnit::Invisible) != 0;
+    view.picture = {act.frame, act.picture, true};
+    view.x = static_cast<i16>(unit.actX);
+    view.y = static_cast<i16>(unit.actY);
+    view.mirrored = mirrored;
+    view.flags = unit.frameFlags;
+    view.shadowY = act.y + static_cast<i16>(unit.actY);
+    view.shadowTint = invisible ? kInvisibleShadowTint : kShadowTint;
+    view.smear = invisible;
+    view.signal = (unit.frameFlags & ActState::Signal) != 0;
+    view.alpha = act.signal;
+    view.wave = unit.mainAct.wait;
+    // What the draws leave in the unit: the last mode drawn with.
+    unit.unk26A4 = invisible ? mirrored : mirrored | Painter::Shadow;
+
+    if (act.rotation == 0 || act.actionCode == 0)
+    {
+        return true;
+    }
+
+    unit.unk2554 = services.archive.GetPicture(act.rotation, static_cast<u16>(act.actionCode - 1));
+
+    if (unit.unk2554 == nullptr)
+    {
+        return true;
+    }
+
+    if (forced && unit.facing == 1 && act.offsetX != 0)
+    {
+        unit.overlayX = static_cast<u16>(picture.width - act.offsetX - unit.unk2554->width);
+    }
+
+    if (unit.facing == 1 && still && act.offsetX != 0)
+    {
+        unit.overlayX = static_cast<u16>(picture.width - act.offsetX - unit.unk2554->width);
+    }
+
+    view.overlay = {act.rotation, static_cast<u16>(act.actionCode - 1), true};
+    view.overlayX = static_cast<i16>(unit.actX) + static_cast<i16>(unit.overlayX);
+    view.overlayY = static_cast<i16>(unit.actY) + static_cast<i16>(act.offsetY);
+    view.overlayFlags = unit.frameFlags | Painter::Additive;
+
+    if (act.waiting == 1)
+    {
+        act.rotation = 0;
+        act.actionCode = 0;
+        act.offsetX = 0;
+        act.offsetY = 0;
+    }
+
+    return true;
+}
+
+// What DrawAction draws, as ActionAdvance decided it: the outline, the shadow, the act (smeared when invisible), the
+// overlay.
+void UnitFrame::DrawActionView(BattleServices& services, const ActionView& view)
+{
+    Painter& painter = services.painter;
+    const Picture* drawn = view.picture.Get(services.archive);
+
+    if (drawn == nullptr)
+    {
+        return;
+    }
+
+    const Picture& picture = *drawn;
+    painter.SetSource(picture.data.data());
+
+    if (view.outline)
+    {
+        painter.DrawOutline(
+            view.x,
+            view.y,
+            picture.width,
+            picture.height,
+            view.mirrored,
+            DrawArgument{.colorPair = BattleUnit::OutlineColorPair}
+        );
+    }
+
+    const int shadowHeight = picture.height / kShadowShare;
+    DrawOptions& options = painter.Options();
+    options.scaleHeight = shadowHeight;
+    options.shear = picture.height >> kShadowShearShift;
+    options.tintRed = view.shadowTint;
+    options.tintGreen = view.shadowTint;
+    options.tintBlue = view.shadowTint;
+    painter.SetSource(picture.data.data());
+    painter.DrawPicture(
+        view.x,
+        view.shadowY - shadowHeight,
+        picture.width,
+        picture.height,
+        view.mirrored | Painter::Shadow
+    );
+    painter.SetSource(picture.data.data());
+
+    if (view.smear)
+    {
+        painter.DrawPicture(view.x, view.y, picture.width, picture.height, view.mirrored | Painter::SmearUnder);
+    }
+    else
+    {
+        if (view.signal)
+        {
+            painter.Options().alpha = view.alpha;
+        }
+
+        if (view.wave != 0)
+        {
+            painter.SetWave(view.wave);
+        }
+
+        painter.DrawPicture(view.x, view.y, picture.width, picture.height, view.flags);
+        painter.SetWave(0);
+    }
+
+    if (const Picture* overlay = view.overlay.Get(services.archive); overlay != nullptr)
+    {
+        painter.SetSource(overlay->data.data());
+        painter.DrawPicture(view.overlayX, view.overlayY, overlay->width, overlay->height, view.overlayFlags);
+    }
+}
+
+// swd32.exe 0x0047E650: animates the first effect with an act (the head node itself when it has one) above the unit,
+// then the stone (status bit 2) or freeze (bit 12) overlay of the shadow picture (`body`, the one the caller just
+// drew) at (x, y). The rebuild's smooth battle: the decisions here, the draws into `steps`.
+void UnitFrame::EffectsAdvance(BattleServices& services, int x, int y, const PictureRef& body, PictureSteps& steps)
+{
+    BattleUnit& unit = this->unit;
+
+    if (unit.effects.next == nullptr)
+    {
+        return;
+    }
+
+    EffectNode* node = &unit.effects;
+
+    if (unit.effects.act.id <= 0)
+    {
+        do
+        {
+            node = node->next.get();
+        } while (node != nullptr && node->act.id <= 0);
+    }
+
+    if (node != nullptr)
+    {
+        node->act.hold = unit.held == 1 ? 1 : 0;
+
+        if (services.acts.Run(node->act) == 0)
+        {
+            return;
+        }
+
+        unit.picture = services.archive.GetPicture(node->act.frame, node->act.picture);
+
+        if (unit.picture != nullptr && static_cast<i32>(unit.unk26B8) >= 0)
+        {
+            steps.push_back(
+                PictureStep{
+                    .picture = {node->act.frame, node->act.picture, true},
+                    .x = unit.placement.x - node->act.x,
+                    .y = unit.placement.y - (unit.picture->height >> 1) - unit.mainAct.y,
+                    .mode = node->act.flags,
+                }
+            );
+        }
+    }
+
+    const u32 mirrored = unit.drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip);
+
+    if ((unit.status & BattleUnit::UnkStatus4) != 0)
+    {
+        unit.unk26A4 = mirrored | Painter::GrayUnder;
+
+        if (body.shown)
+        {
+            steps.push_back(PictureStep{.picture = body, .x = x, .y = y, .mode = unit.unk26A4});
+        }
+
+        return;
+    }
+
+    if ((unit.status & BattleUnit::UnkStatus1000) != 0)
+    {
+        unit.unk26A4 = mirrored;
+
+        if (body.shown)
+        {
+            steps.push_back(
+                PictureStep{
+                    .picture = body,
+                    .x = x,
+                    .y = y,
+                    .mode = unit.unk26A4 | Painter::TintUnder,
+                    .tinted = true,
+                    .tintRed = kUnkStatus1000Tint,
+                    .tintGreen = 0,
+                    .tintBlue = kUnkStatus1000Tint,
+                }
+            );
+        }
+    }
+}
+
+// swd32.exe 0x00480AE0: the main act's effect while the unit idles: when the main act recoils (Recoils), its effectA
+// plays in the cast act (holding the main act with Holds; the command's follow-up act waits for it) above the main
+// act's anchor, the sound panned to the unit's side; when it waits, the effect and the holds are cleared. The rebuild's
+// smooth battle: the decisions here, the draw into `steps`.
+void UnitFrame::IdleEffectAdvance(BattleServices& services, PictureSteps& steps)
+{
+    BattleUnit& unit = this->unit;
+    ActState& main = unit.mainAct;
+    ActState& effect = unit.castAct;
+    const u16 bits = main.target;
+
+    if ((bits & ActState::Recoils) != 0)
+    {
+        if (main.effectA != 0)
+        {
+            unit.unk267C |= BattleUnit::Recoiling;
+        }
+
+        if (unit.command.followAct != 0)
+        {
+            unit.unk267C |= BattleUnit::FollowingUp;
+        }
+
+        if ((bits & ActState::Holds) != 0)
+        {
+            main.hold = 1;
+        }
+
+        main.target = static_cast<u16>(bits & ~ActState::Recoils);
+        effect = ActState{};
+    }
+
+    if ((unit.unk267C & BattleUnit::Recoiling) == 0)
+    {
+        return;
+    }
+
+    effect.action = main.effectQ;
+    effect.id = main.effectA;
+
+    if (services.acts.Run(effect) == 0)
+    {
+        return;
+    }
+
+    services.audio.PlaySound(effect.view, services.config.soundVolume);
+
+    if (effect.view != 0)
+    {
+        services.audio.SetSoundPan(effect.view, unit.placement.x >= kPanCentre ? kFadePan : -kFadePan);
+    }
+
+    effect.view = 0;
+    unit.picture = services.archive.GetPicture(effect.frame, effect.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (unit.picture == nullptr)
+    {
+        return;
+    }
+
+    u32 flags = effect.flags;
+    int offsetX = effect.x;
+
+    if (unit.facing == 1)
+    {
+        flags ^= Painter::Mirror;
+
+        if (offsetX != 0)
+        {
+            offsetX = unit.picture->width - offsetX;
+        }
+    }
+
+    steps.push_back(
+        PictureStep{
+            .picture = {effect.frame, effect.picture, true},
+            .x = static_cast<i16>(unit.actAnchorX) + unit.placement.x - static_cast<i16>(unit.originX) - offsetX,
+            .y = static_cast<i16>(main.anchorY) + unit.placement.y - effect.y - main.y,
+            .mode = flags,
+        }
+    );
+
+    if (effect.waiting != 1)
+    {
+        return;
+    }
+
+    main.target = static_cast<u16>(main.target & ~ActState::Holds);
+    unit.unk267C &= ~BattleUnit::Recoiling;
+    unit.slotTint = 0;
+    unit.actAnchorX = 0;
+    unit.unk2ACC = 0;
+    main.hold = 0;
+    main.effectA = 0;
+    effect = ActState{};
+}
+
+// swd32.exe 0x00480D40: the command's follow-up act (in the attack act) while the unit idles and FollowingUp is set,
+// at the unit's place, the sound panned to its side; when it waits, every stage and the main act's effect are cleared.
+// The rebuild's smooth battle: the decisions here, the draw into `steps`.
+void UnitFrame::FollowUpAdvance(BattleServices& services, PictureSteps& steps)
+{
+    BattleUnit& unit = this->unit;
+
+    if ((unit.unk267C & BattleUnit::FollowingUp) == 0)
+    {
+        return;
+    }
+
+    ActState& act = unit.attackAct;
+    act.id = unit.command.followAct;
+    act.action = 0;
+
+    if (services.acts.Run(act) == 0)
+    {
+        return;
+    }
+
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+
+    if (act.view != 0)
+    {
+        services.audio.SetSoundPan(act.view, unit.placement.x >= kPanCentre ? kFadePan : -kFadePan);
+    }
+
+    act.view = 0;
+    unit.picture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (unit.picture == nullptr)
+    {
+        return;
+    }
+
+    u32 flags = act.flags;
+    int offsetX = act.x;
+
+    if (unit.facing == 1)
+    {
+        flags ^= Painter::Mirror;
+        offsetX = unit.picture->width - offsetX;
+    }
+
+    steps.push_back(
+        PictureStep{
+            .picture = {act.frame, act.picture, true},
+            .x = unit.placement.x - offsetX,
+            .y = unit.placement.y - act.y,
+            .mode = flags,
+        }
+    );
+
+    if (act.waiting != 1)
+    {
+        return;
+    }
+
+    unit.unk267C = 0;
+    unit.slotTint = 0;
+    unit.mainAct.target = 0;
+    unit.actAnchorX = 0;
+    unit.unk2ACC = 0;
+    unit.mainAct.hold = 0;
+    unit.mainAct.effectA = 0;
+    act = ActState{};
+}
+
+// What DrawRecoil decides of the frame: the recoil act stepped with its sound, its place, the fade once it waits; its
+// result (1 once the recoil is over), the draw into `steps`.
+int UnitFrame::RecoilAdvance(BattleServices& services, ActState& act, i16 y, PictureSteps& steps)
+{
+    BattleUnit& unit = this->unit;
+
+    if (services.acts.Run(act) == 0)
+    {
+        return 0;
+    }
+
+    unit.picture = services.archive.GetPicture(act.frame, act.picture);
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+    services.audio.SetSoundPan(act.view, static_cast<i16>(unit.actX) >= kPanCentre ? kFadePan : -kFadePan);
+    act.view = 0;
+
+    // A missing picture is read through a null pointer in the original.
+    if (unit.picture == nullptr)
+    {
+        return 0;
+    }
+
+    const Picture& picture = *unit.picture;
+    unit.unk26A4 = act.flags;
+    unit.aimOffsetX = static_cast<u16>(act.x);
+
+    auto mirror = [&unit, &act, &picture]
+    {
+        unit.unk26A4 ^= Painter::Mirror;
+
+        if (act.x != 0)
+        {
+            unit.aimOffsetX = static_cast<u16>(picture.width - static_cast<u16>(act.x));
+        }
+    };
+
+    if ((unit.unk2B00 == 1 || unit.unk2B04 == 1) && unit.facing == 1)
+    {
+        mirror();
+    }
+
+    if (unit.facing == 1 && unit.unk2B00 == 0 && unit.unk2B04 == 0)
+    {
+        mirror();
+    }
+
+    services.painter.SetSource(picture.data.data());
+    PictureStep step{
+        .picture = {act.frame, act.picture, true},
+        .x = static_cast<i16>(unit.actAnchorX) - static_cast<i16>(unit.aimOffsetX) + static_cast<i16>(unit.actX),
+        .y = static_cast<i16>(unit.actY) - act.y + y,
+        .mode = unit.unk26A4,
+    };
+
+    if (act.waiting != 1)
+    {
+        step.blended = (unit.unk26A4 & ActState::Signal) != 0;
+        step.alpha = act.signal;
+        steps.push_back(step);
+        return 0;
+    }
+
+    if (unit.recoilTint <= kRecoilFadeEnd)
+    {
+        unit.recoilTint = 0;
+        return 1;
+    }
+
+    step.tinted = true;
+    step.tintRed = unit.recoilTint;
+    step.tintGreen = unit.recoilTint;
+    step.tintBlue = unit.recoilTint;
+    steps.push_back(step);
+    unit.recoilTint = static_cast<i16>(unit.recoilTint - kRecoilFadeStep);
+
+    if (unit.held == 1)
+    {
+        unit.recoilTint = static_cast<i16>(unit.recoilTint + kRecoilFadeStep);
+    }
+
+    return 0;
+}
+
+// What DrawTrail decides of the frame: every third frame the images move back and the current picture comes in front,
+// each image fades; the draws into `steps`.
+void UnitFrame::TrailAdvance(
+    BattleServices& services,
+    AfterimageTrail& trail,
+    u16 frame,
+    u16 picture,
+    u32 mode,
+    i16 x,
+    i16 y,
+    PictureSteps& steps
+)
+{
+    BattleUnit& unit = this->unit;
+    int spacing = trail.direction == AfterimageTrail::Left ? -kTrailSpacing : kTrailSpacing;
+
+    if (trail.delay == 0)
+    {
+        for (int place = trail.count - 1; place > 0; --place)
+        {
+            trail.images[static_cast<std::size_t>(place)] = trail.images[static_cast<std::size_t>(place - 1)];
+        }
+
+        AfterimageTrail::Image& front = trail.images[0];
+        front.level = kTrailLevel;
+        front.picture = picture;
+
+        if ((mode & Painter::Additive) != 0)
+        {
+            front.level = kAdditiveTrailLevel;
+        }
+
+        front.mode = mode;
+        front.x = x;
+        front.y = y;
+        trail.delay = kTrailDelay;
+    }
+    else
+    {
+        --trail.delay;
+    }
+
+    for (int place = 0; place < trail.count; ++place)
+    {
+        AfterimageTrail::Image& image = trail.images[static_cast<std::size_t>(place)];
+
+        if (image.picture == AfterimageTrail::NoPicture)
+        {
+            continue;
+        }
+
+        int offset = kTrailCentre - image.x;
+
+        if (trail.direction == AfterimageTrail::Left)
+        {
+            offset = image.y - kTrailCentre;
+        }
+
+        if (trail.direction == AfterimageTrail::InPlace)
+        {
+            offset = 0;
+            spacing = 0;
+        }
+
+        unit.unk2550 = services.archive.GetPicture(frame, image.picture);
+        const PictureRef shown = {frame, image.picture, true};
+
+        if (image.level > 0)
+        {
+            image.level = static_cast<i16>(image.level - trail.fadeStep);
+
+            if (image.level <= 0)
+            {
+                image.picture = AfterimageTrail::NoPicture;
+                image.level = 0;
+            }
+        }
+
+        // A missing picture is read through a null pointer in the original.
+        if (unit.unk2550 == nullptr)
+        {
+            continue;
+        }
+
+        const int drawX = image.x + spacing * place + offset;
+
+        if ((mode & Painter::Additive) != 0)
+        {
+            steps.push_back(
+                PictureStep{
+                    .picture = shown,
+                    .x = drawX,
+                    .y = image.y,
+                    .mode = mode,
+                    .tinted = true,
+                    .tintRed = image.level - kTrailTintBase,
+                    .tintGreen = image.level - kTrailTintBase,
+                    .tintBlue = kTrailBlue,
+                }
+            );
+            continue;
+        }
+
+        steps.push_back(
+            PictureStep{
+                .picture = shown,
+                .x = drawX,
+                .y = image.y,
+                .mode = mode | Painter::Translucent,
+                .blended = true,
+                .alpha = image.level,
+            }
+        );
+
+        if (image.level > 1)
+        {
+            steps.push_back(
+                PictureStep{
+                    .picture = shown,
+                    .x = drawX,
+                    .y = image.y,
+                    .mode = mode | Painter::TintUnder,
+                    .tinted = true,
+                    .tintRed = trail.tintRed,
+                    .tintGreen = trail.tintGreen,
+                    .tintBlue = trail.tintBlue,
+                }
+            );
+        }
+    }
+}
+
+// What FlyAct decides of the frame: the act stepped with its sound, the line walked; its result (1 once the target's
+// x is reached), the draw into `steps`.
+int UnitFrame::FlyAdvance(
+    BattleServices& services,
+    const BattleUnit& target,
+    ActState& act,
+    int slot,
+    i32 id,
+    int fromX,
+    int fromY,
+    int steps,
+    int backwards,
+    PictureSteps& draws
+)
+{
+    BattleUnit& unit = this->unit;
+    u16 targetX = 0;
+    u16 targetY = 0;
+    act.id = id;
+    act.action = 0;
+    act.hold = 0;
+
+    if (unit.held == 1)
+    {
+        act.hold = 1;
+    }
+
+    if (services.acts.Run(act) == 0)
+    {
+        return 0;
+    }
+
+    unit.picture = services.archive.GetPicture(act.frame, act.picture);
+
+    // A missing picture is read through a null pointer in the original.
+    if (unit.picture == nullptr)
+    {
+        return 0;
+    }
+
+    const Picture& picture = *unit.picture;
+    services.painter.SetSource(picture.data.data());
+    const u16 anchorX = act.anchorX;
+    u32 flags = act.flags;
+    auto offsetX = static_cast<u16>(act.x);
+    i32 anchorShift = static_cast<i16>(anchorX);
+    const bool forced = unit.unk2B00 == 1 || unit.unk2B04 == 1;
+
+    if (forced && unit.facing == 1)
+    {
+        flags ^= Painter::Mirror;
+
+        if (act.x != 0)
+        {
+            offsetX = static_cast<u16>(picture.width - static_cast<u16>(act.x));
+        }
+
+        if (anchorX != 0)
+        {
+            anchorShift = picture.width - static_cast<i16>(act.anchorX);
+        }
+    }
+
+    if (unit.facing == 1 && unit.unk2B00 == 0 && unit.unk2B04 == 0)
+    {
+        flags ^= Painter::Mirror;
+        offsetX = static_cast<u16>(picture.width - static_cast<u16>(act.x));
+
+        if (act.anchorX != 0)
+        {
+            anchorShift = picture.width - static_cast<i16>(anchorX);
+        }
+    }
+
+    target.GetDrawPosition(targetX, targetY);
+    const auto toY = static_cast<i16>(targetY - static_cast<u16>(act.y));
+    const auto toX = static_cast<i16>(targetX - offsetX);
+    LineWalker& line = unit.flight;
+    line = LineWalker{};
+    const i32 startX = fromX - anchorShift;
+    line.fromX = startX;
+    line.fromY = fromY - static_cast<i16>(act.anchorY);
+    line.toX = toX;
+    line.toY = toY;
+
+    if (backwards == 1)
+    {
+        line.fromX = toX;
+        line.fromY = toY;
+        line.toX = startX;
+        line.toY = fromY - static_cast<i16>(act.anchorY);
+    }
+
+    if (fromY == 0)
+    {
+        line.fromY = 0;
+        line.toY = 0;
+    }
+
+    i32& count = unit.flightSteps[static_cast<std::size_t>(slot)];
+
+    if (steps == kSpeeding)
+    {
+        steps = 1;
+
+        if (count == 0)
+        {
+            count = 1;
+        }
+
+        count = count <= kFlightDoubling ? 2 * count : count + kFlightGrowth;
+    }
+    else
+    {
+        ++count;
+    }
+
+    int taken = 0;
+
+    if (count * steps > 0)
+    {
+        while (true)
+        {
+            LineStep(line);
+
+            if (line.fromX + line.x == line.toX)
+            {
+                taken = kArrived;
+                break;
+            }
+
+            ++taken;
+
+            if (taken >= count * steps)
+            {
+                break;
+            }
+        }
+    }
+
+    services.audio.PlaySound(act.view, services.config.soundVolume);
+    act.view = 0;
+    draws.push_back(
+        PictureStep{
+            .picture = {act.frame, act.picture, true},
+            .x = line.fromX + line.x,
+            .y = line.fromY + line.y,
+            .mode = flags,
+        }
+    );
+
+    if (taken != kArrived)
+    {
+        return 0;
+    }
+
+    count = 0;
+    line = LineWalker{};
+    return 1;
+}
+
+// What RunQueuedActions decides of the frame: each queued act stepped, shaken or flown with its trail, its impact
+// played to its end, the hits landed and the done nodes freed; its result (1 when there are none), the draws into
+// `steps`.
+int UnitFrame::QueuedAdvance(BattleServices& services, BattleUnit& target, i32 action, PictureSteps& steps)
+{
+    BattleUnit& unit = this->unit;
+    BattleState& battle = services.state;
+    LineWalker& line = unit.flight;
+    QueuedAction* node = unit.actions.get();
+    int taken = 0;
+
+    if (node == nullptr)
+    {
+        unit.queuedActions = 0;
+        return 1;
+    }
+
+    while (node != nullptr)
+    {
+        ActState& act = node->act;
+
+        if (action != 0)
+        {
+            act.action = action;
+        }
+
+        if (services.acts.Run(act) == 0)
+        {
+            return 0;
+        }
+
+        unit.picture = services.archive.GetPicture(act.frame, act.picture);
+
+        // A missing picture is read through a null pointer in the original.
+        if (unit.picture == nullptr)
+        {
+            return 0;
+        }
+
+        services.painter.SetSource(unit.picture->data.data());
+        const BattleUnit::Stride stride = unit.FlightStride(services, *node, act, taken);
+        const u32 flags = stride.flags;
+        line = stride.line;
+        node->shakeFrames = stride.shakeFrames;
+        node->flown = stride.flown;
+        taken = stride.taken;
+        std::array<int, 2> motion = {0, 0};
+
+        if (taken != kArrived && PaintRecord::Active() != nullptr)
+        {
+            const ActState nextAct = services.acts.Peek(act);
+            motion = BattleUnit::StrideMotion(stride, act, unit.FlightStride(services, *node, nextAct, 0), nextAct);
+        }
+
+        services.audio.PlaySound(act.view, services.config.soundVolume);
+        act.view = 0;
+        const int x = stride.x;
+        const int y = stride.y;
+
+        if (node->trailed == 1)
+        {
+            node->trail.fadeStep = (flags & Painter::Additive) != 0 ? kAdditiveTrailFade : 1;
+            this->TrailAdvance(
+                services,
+                node->trail,
+                act.frame,
+                act.picture,
+                flags,
+                static_cast<i16>(x),
+                static_cast<i16>(y),
+                steps
+            );
+        }
+
+        steps.push_back(
+            PictureStep{.picture = {act.frame, act.picture, true}, .x = x, .y = y, .mode = flags, .motion = motion}
+        );
+
+        if (taken != kArrived)
+        {
+            node = node->next.get();
+            continue;
+        }
+
+        ActState& impact = node->impact;
+
+        if (impact.id > 0)
+        {
+            if (services.acts.Run(impact) == 0)
+            {
+                return 0;
+            }
+
+            unit.picture = services.archive.GetPicture(impact.frame, impact.picture);
+
+            if (unit.picture == nullptr)
+            {
+                return 0;
+            }
+
+            services.painter.SetSource(unit.picture->data.data());
+            u32 impactFlags = impact.flags;
+
+            if (unit.facing == 1)
+            {
+                impactFlags ^= Painter::Mirror;
+            }
+
+            services.audio.PlaySound(impact.view, services.config.soundVolume);
+            services.audio.SetSoundPan(impact.view, line.toX >= kPanCentre ? kFadePan : -kFadePan);
+            impact.view = 0;
+            steps.push_back(
+                PictureStep{
+                    .picture = {impact.frame, impact.picture, true},
+                    .x = line.fromX + line.x,
+                    .y = line.fromY + line.y,
+                    .mode = impactFlags,
+                }
+            );
+
+            if (impact.waiting == 0)
+            {
+                continue;
+            }
+        }
+
+        node->done = 1;
+        ++unit.landedActions;
+        line = LineWalker{};
+
+        if ((unit.command.actionFlags & UnitCommand::UnkAction1) == 0 && impact.id >= 0)
+        {
+            target.RaiseFlag26B8();
+            i16 spirit = 0;
+            i16 stamina = 0;
+            i32 damage = unit.HitDamage(services, target, spirit, stamina);
+            battle.lastDamage = damage;
+
+            if (damage >= kQueuedMaxDamage)
+            {
+                damage = kQueuedMaxDamage;
+                battle.lastDamage = damage;
+            }
+
+            battle.hitDamage += damage;
+            target.SetDamageDigits(services, damage);
+            target.StepTargetCount(1);
+        }
+
+        node = node->next.get();
+    }
+
+    std::unique_ptr<QueuedAction>* link = &unit.actions;
+
+    while (*link != nullptr)
+    {
+        if ((*link)->done == 1)
+        {
+            *link = std::move((*link)->next);
+        }
+        else
+        {
+            link = &(*link)->next;
+        }
+    }
+
+    return 0;
 }
 
 }  // namespace swd3::smooth

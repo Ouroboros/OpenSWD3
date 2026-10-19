@@ -40,7 +40,6 @@ namespace
 constexpr double kGaugePixels = 62.0;
 constexpr u32 kRaiseBlocked = 0x2000000;
 constexpr int kSlotActsPerTurn = 8;
-constexpr int kSnapDistance = 0x80;  // smooth battle: a motion further in a frame jumps there
 
 constexpr int kGaugeBase = 0x12C;  // a random gauge: kGaugeBase + kGaugeSpread / (1..kGaugeDivisors)
 constexpr int kGaugeSpread = 0x96;
@@ -77,8 +76,7 @@ constexpr std::size_t kHundredsDigit = 1;
 constexpr std::size_t kTensDigit = 2;
 constexpr std::size_t kOnesDigit = 3;
 constexpr int kStatScalePercent = 10;  // StatsScaled moves the stats of a party role by this percent
-constexpr int kUnkStatus1000Tint = -12;
-constexpr int kAgilityShift = 2;  // the gauge step is agility / 4, agility / 8 when slowed
+constexpr int kAgilityShift = 2;       // the gauge step is agility / 4, agility / 8 when slowed
 constexpr int kSlowedAgilityShift = 3;
 constexpr int kBoostDivisor = 4;         // a boost adds a quarter of the step plus one
 constexpr u16 kHealBelowShare = 3;       // an enemy heals below a third of its hit points
@@ -1244,29 +1242,12 @@ constexpr u8 kStrongTurns = 3;
 constexpr u8 kStrongPose = 1;
 
 // FlyAct: the steps per frame of a speeding flight double up to kFlightDoubling, then grow by kFlightGrowth.
-constexpr int kSpeeding = -1;
-constexpr i32 kFlightDoubling = 0x20;
-constexpr i32 kFlightGrowth = 0x30;
-constexpr int kArrived = -1;
 
 // DrawAction.
-constexpr u32 kNudgeChance = 2;        // a nudged unit shakes in one frame of two
-constexpr int kNudgeShift = 0x28;      // the shake moves the act by nudge - 0x28
-constexpr i16 kRecoilFadeEnd = -0x20;  // DrawRecoil: the tint at which a waiting recoil act is over
-constexpr i16 kRecoilFadeStep = 2;
 
 // DrawTrail.
-constexpr u8 kTrailDelay = 2;  // a new image every third frame
-constexpr i16 kTrailLevel = 0xC;
-constexpr i16 kAdditiveTrailLevel = 0x18;
-constexpr int kTrailSpacing = 0x1E;
-constexpr int kTrailCentre = 0xC;
-constexpr int kTrailBlue = -12;
-constexpr int kTrailTintBase = 0x1F;
 
 // RunQueuedActions and TrailLastQueuedAction.
-constexpr i8 kAdditiveTrailFade = 3;  // an additive act's images fade by 3 a frame, the others by 1
-constexpr i32 kQueuedMaxDamage = 0x270F;
 constexpr i8 kQueuedTrailImages = 3;
 
 // ReturnHome.
@@ -1304,11 +1285,6 @@ constexpr u16 kFarCatch = 8;
 constexpr u16 kNearCatch = 5;
 
 // HurtFrame.
-constexpr i32 kHurtAction = 0x25;
-constexpr i32 kGuardHurtAction = 0x27;
-constexpr int kHurtRed = 0xF;   // the red flash an enemy leaves behind
-constexpr u16 kHurtFrames = 2;  // frames a stagger step lasts
-constexpr u16 kLastHurtStep = 5;
 
 // IdleFrame.
 constexpr u16 kShaking = 1;  // drawAtSaved: the unit shakes while nudge lasts
@@ -1975,82 +1951,6 @@ bool BattleUnit::ApplyPendingDamage(BattleServices& services)
     const int result = this->Damage(services, static_cast<i16>(this->pendingDamage), 0, 0);
     this->pendingDamage = 0;
     return result == 1;
-}
-
-// swd32.exe 0x0047E650: animates the first effect with an act (the head node itself when it has one) above the unit,
-// then the stone (status bit 2) or freeze (bit 12) overlay of the shadow picture at (x, y)
-void BattleUnit::DrawEffects(BattleServices& services, int x, int y)
-{
-    if (this->effects.next == nullptr)
-    {
-        return;
-    }
-
-    EffectNode* node = &this->effects;
-
-    if (this->effects.act.id <= 0)
-    {
-        do
-        {
-            node = node->next.get();
-        } while (node != nullptr && node->act.id <= 0);
-    }
-
-    if (node != nullptr)
-    {
-        node->act.hold = this->held == 1 ? 1 : 0;
-
-        if (services.acts.Run(node->act) == 0)
-        {
-            return;
-        }
-
-        this->picture = services.archive.GetPicture(node->act.frame, node->act.picture);
-
-        if (this->picture != nullptr && static_cast<i32>(this->unk26B8) >= 0)
-        {
-            services.painter.SetSource(this->picture->data.data());
-            services.painter.DrawPicture(
-                this->placement.x - node->act.x,
-                this->placement.y - (this->picture->height >> 1) - this->mainAct.y,
-                this->picture->width,
-                this->picture->height,
-                node->act.flags
-            );
-        }
-    }
-
-    const Picture* body = this->shadowPicture;
-
-    if ((this->status & BattleUnit::UnkStatus4) != 0)
-    {
-        const u32 flags =
-            (this->drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::GrayUnder;
-        this->unk26A4 = flags;
-
-        if (body != nullptr)
-        {
-            services.painter.SetSource(body->data.data());
-            services.painter.DrawPicture(x, y, body->width, body->height, flags);
-        }
-
-        return;
-    }
-
-    if ((this->status & BattleUnit::UnkStatus1000) != 0)
-    {
-        this->unk26A4 = this->drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip);
-        DrawOptions& options = services.painter.Options();
-        options.tintRed = kUnkStatus1000Tint;
-        options.tintGreen = 0;
-        options.tintBlue = kUnkStatus1000Tint;
-
-        if (body != nullptr)
-        {
-            services.painter.SetSource(body->data.data());
-            services.painter.DrawPicture(x, y, body->width, body->height, this->unk26A4 | Painter::TintUnder);
-        }
-    }
 }
 
 // swd32.exe 0x0047E7F0: the icons (picture 0x241D, frame icon - 1) of the effects in a row, the head node first
@@ -3551,142 +3451,11 @@ int BattleUnit::FlyAct(
     int backwards
 )
 {
-    u16 targetX = 0;
-    u16 targetY = 0;
-    act.id = id;
-    act.action = 0;
-    act.hold = 0;
-
-    if (this->held == 1)
-    {
-        act.hold = 1;
-    }
-
-    if (services.acts.Run(act) == 0)
-    {
-        return 0;
-    }
-
-    this->picture = services.archive.GetPicture(act.frame, act.picture);
-
-    // A missing picture is read through a null pointer in the original.
-    if (this->picture == nullptr)
-    {
-        return 0;
-    }
-
-    services.painter.SetSource(this->picture->data.data());
-    const u16 anchorX = act.anchorX;
-    u32 flags = act.flags;
-    auto offsetX = static_cast<u16>(act.x);
-    i32 anchorShift = static_cast<i16>(anchorX);
-    const bool forced = this->unk2B00 == 1 || this->unk2B04 == 1;
-
-    if (forced && this->facing == 1)
-    {
-        flags ^= Painter::Mirror;
-
-        if (act.x != 0)
-        {
-            offsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
-        }
-
-        if (anchorX != 0)
-        {
-            anchorShift = this->picture->width - static_cast<i16>(act.anchorX);
-        }
-    }
-
-    if (this->facing == 1 && this->unk2B00 == 0 && this->unk2B04 == 0)
-    {
-        flags ^= Painter::Mirror;
-        offsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
-
-        if (act.anchorX != 0)
-        {
-            anchorShift = this->picture->width - static_cast<i16>(anchorX);
-        }
-    }
-
-    target.GetDrawPosition(targetX, targetY);
-    const auto toY = static_cast<i16>(targetY - static_cast<u16>(act.y));
-    const auto toX = static_cast<i16>(targetX - offsetX);
-    LineWalker& line = this->flight;
-    line = LineWalker{};
-    const i32 startX = fromX - anchorShift;
-    line.fromX = startX;
-    line.fromY = fromY - static_cast<i16>(act.anchorY);
-    line.toX = toX;
-    line.toY = toY;
-
-    if (backwards == 1)
-    {
-        line.fromX = toX;
-        line.fromY = toY;
-        line.toX = startX;
-        line.toY = fromY - static_cast<i16>(act.anchorY);
-    }
-
-    if (fromY == 0)
-    {
-        line.fromY = 0;
-        line.toY = 0;
-    }
-
-    i32& count = this->flightSteps[static_cast<std::size_t>(slot)];
-
-    if (steps == kSpeeding)
-    {
-        steps = 1;
-
-        if (count == 0)
-        {
-            count = 1;
-        }
-
-        count = count <= kFlightDoubling ? 2 * count : count + kFlightGrowth;
-    }
-    else
-    {
-        ++count;
-    }
-
-    int taken = 0;
-
-    if (count * steps > 0)
-    {
-        while (true)
-        {
-            LineStep(line);
-
-            if (line.fromX + line.x == line.toX)
-            {
-                taken = kArrived;
-                break;
-            }
-
-            ++taken;
-
-            if (taken >= count * steps)
-            {
-                break;
-            }
-        }
-    }
-
-    services.audio.PlaySound(act.view, services.config.soundVolume);
-    act.view = 0;
-    services.painter
-        .DrawPicture(line.fromX + line.x, line.fromY + line.y, this->picture->width, this->picture->height, flags);
-
-    if (taken != kArrived)
-    {
-        return 0;
-    }
-
-    count = 0;
-    line = LineWalker{};
-    return 1;
+    smooth::PictureSteps draws;
+    const int result =
+        smooth::UnitFrame(*this).FlyAdvance(services, target, act, slot, id, fromX, fromY, steps, backwards, draws);
+    smooth::DrawSteps(services, draws);
+    return result;
 }
 
 // swd32.exe 0x004831C0: one frame of `act` drawn over its shadow, on the target (a command with AtTarget) or at the
@@ -3696,194 +3465,11 @@ int BattleUnit::FlyAct(
 // follows, cleared once the act waits.
 void BattleUnit::DrawAction(BattleServices& services, const BattleUnit& target, ActState& act)
 {
-    u16 targetX = 0;
-    u16 targetY = 0;
+    smooth::ActionView view;
 
-    if (services.acts.Run(act) == 0)
+    if (smooth::UnitFrame(*this).ActionAdvance(services, target, act, view))
     {
-        return;
-    }
-
-    this->picture = services.archive.GetPicture(act.frame, act.picture);
-
-    // A missing picture is read through a null pointer in the original.
-    if (this->picture == nullptr)
-    {
-        return;
-    }
-
-    Painter& painter = services.painter;
-    painter.SetSource(this->picture->data.data());
-    this->frameFlags = act.flags;
-    this->actOffsetX = static_cast<u16>(act.x);
-    this->actAnchorX = act.anchorX;
-    this->overlayX = act.offsetX;
-    const bool forced = this->unk2B00 == 1 || this->unk2B04 == 1;
-    const bool still = this->unk2B00 == 0 && this->unk2B04 == 0;
-
-    auto mirror = [this, &act]
-    {
-        this->frameFlags ^= Painter::Mirror;
-        this->actOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
-
-        if (act.anchorX != 0)
-        {
-            this->actAnchorX = static_cast<u16>(this->picture->width - act.anchorX);
-        }
-    };
-
-    if (forced)
-    {
-        if (this->facing == 1)
-        {
-            mirror();
-        }
-
-        if (this->unk2B00 == 1 && (this->frameFlags & ActState::NoBlend) == 0)
-        {
-            this->frameFlags |= Painter::Additive;
-        }
-    }
-
-    if (this->facing == 1 && still)
-    {
-        mirror();
-    }
-
-    target.GetDrawPosition(targetX, targetY);
-    u16 x = targetX;
-
-    if (this->nudge > 0 && services.random.Below(kNudgeChance) == 1)
-    {
-        x = static_cast<u16>(x + this->nudge - kNudgeShift);
-        this->nudge = static_cast<u16>(this->nudge >> 1);
-
-        if (this->nudge <= 1)
-        {
-            this->nudge = 1;
-        }
-    }
-
-    if ((this->command.flags & UnitCommand::AtTarget) != 0)
-    {
-        this->actX = static_cast<u16>(x - this->actOffsetX);
-        this->actY = static_cast<u16>(targetY - static_cast<u16>(act.y));
-    }
-    else
-    {
-        this->actX = static_cast<u16>(this->placement.x - this->actOffsetX);
-        this->actY = static_cast<u16>(this->placement.y - static_cast<u16>(act.y));
-
-        if (this->outline == 1)
-        {
-            this->colorPair = BattleUnit::OutlineColorPair;
-            painter.DrawOutline(
-                static_cast<i16>(this->actX),
-                static_cast<i16>(this->actY),
-                this->picture->width,
-                this->picture->height,
-                this->frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip),
-                DrawArgument{.colorPair = this->colorPair}
-            );
-            this->colorPair = BattleUnit::OutlineColorPair;
-        }
-    }
-
-    services.audio.PlaySound(act.view, services.config.soundVolume);
-    const int centre = static_cast<i16>(this->actX) + static_cast<i16>(this->actOffsetX);
-    services.audio.SetSoundPan(act.view, centre >= kPanCentre ? kFadePan : -kFadePan);
-    act.view = 0;
-    const int shadowHeight = this->picture->height / kShadowShare;
-    DrawOptions& options = painter.Options();
-    options.scaleHeight = shadowHeight;
-    options.shear = this->picture->height >> kShadowShearShift;
-    const bool invisible = (this->status & BattleUnit::Invisible) != 0;
-    const int tint = invisible ? kInvisibleShadowTint : kShadowTint;
-    options.tintRed = tint;
-    options.tintGreen = tint;
-    options.tintBlue = tint;
-    this->unk26A4 = (this->frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
-    painter.SetSource(this->picture->data.data());
-    painter.DrawPicture(
-        static_cast<i16>(this->actX),
-        act.y + static_cast<i16>(this->actY) - shadowHeight,
-        this->picture->width,
-        this->picture->height,
-        this->unk26A4
-    );
-    painter.SetSource(this->picture->data.data());
-
-    if (invisible)
-    {
-        this->unk26A4 = this->frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip);
-        painter.DrawPicture(
-            static_cast<i16>(this->actX),
-            static_cast<i16>(this->actY),
-            this->picture->width,
-            this->picture->height,
-            this->unk26A4 | Painter::SmearUnder
-        );
-    }
-    else
-    {
-        if ((this->frameFlags & ActState::Signal) != 0)
-        {
-            painter.Options().alpha = act.signal;
-        }
-
-        if (this->mainAct.wait != 0)
-        {
-            painter.SetWave(this->mainAct.wait);
-        }
-
-        painter.DrawPicture(
-            static_cast<i16>(this->actX),
-            static_cast<i16>(this->actY),
-            this->picture->width,
-            this->picture->height,
-            this->frameFlags
-        );
-        painter.SetWave(0);
-    }
-
-    if (act.rotation == 0 || act.actionCode == 0)
-    {
-        return;
-    }
-
-    this->unk2554 = services.archive.GetPicture(act.rotation, static_cast<u16>(act.actionCode - 1));
-
-    if (this->unk2554 == nullptr)
-    {
-        return;
-    }
-
-    painter.SetSource(this->unk2554->data.data());
-
-    if (forced && this->facing == 1 && act.offsetX != 0)
-    {
-        this->overlayX = static_cast<u16>(this->picture->width - act.offsetX - this->unk2554->width);
-    }
-
-    if (this->facing == 1 && still && act.offsetX != 0)
-    {
-        this->overlayX = static_cast<u16>(this->picture->width - act.offsetX - this->unk2554->width);
-    }
-
-    painter.DrawPicture(
-        static_cast<i16>(this->actX) + static_cast<i16>(this->overlayX),
-        static_cast<i16>(this->actY) + static_cast<i16>(act.offsetY),
-        this->unk2554->width,
-        this->unk2554->height,
-        this->frameFlags | Painter::Additive
-    );
-
-    if (act.waiting == 1)
-    {
-        act.rotation = 0;
-        act.actionCode = 0;
-        act.offsetX = 0;
-        act.offsetY = 0;
+        smooth::UnitFrame::DrawActionView(services, view);
     }
 }
 
@@ -3979,82 +3565,10 @@ void BattleUnit::AimAction(BattleServices& services, BattleUnit& target, ActStat
 // reaches kRecoilFadeEnd: then recoilTint is cleared and 1 tells that the recoil is over.
 int BattleUnit::DrawRecoil(BattleServices& services, ActState& act, i16 y)
 {
-    if (services.acts.Run(act) == 0)
-    {
-        return 0;
-    }
-
-    this->picture = services.archive.GetPicture(act.frame, act.picture);
-    services.audio.PlaySound(act.view, services.config.soundVolume);
-    services.audio.SetSoundPan(act.view, static_cast<i16>(this->actX) >= kPanCentre ? kFadePan : -kFadePan);
-    act.view = 0;
-
-    // A missing picture is read through a null pointer in the original.
-    if (this->picture == nullptr)
-    {
-        return 0;
-    }
-
-    this->unk26A4 = act.flags;
-    this->aimOffsetX = static_cast<u16>(act.x);
-
-    auto mirror = [this, &act]
-    {
-        this->unk26A4 ^= Painter::Mirror;
-
-        if (act.x != 0)
-        {
-            this->aimOffsetX = static_cast<u16>(this->picture->width - static_cast<u16>(act.x));
-        }
-    };
-
-    if ((this->unk2B00 == 1 || this->unk2B04 == 1) && this->facing == 1)
-    {
-        mirror();
-    }
-
-    if (this->facing == 1 && this->unk2B00 == 0 && this->unk2B04 == 0)
-    {
-        mirror();
-    }
-
-    Painter& painter = services.painter;
-    painter.SetSource(this->picture->data.data());
-    const int drawX =
-        static_cast<i16>(this->actAnchorX) - static_cast<i16>(this->aimOffsetX) + static_cast<i16>(this->actX);
-    const int drawY = static_cast<i16>(this->actY) - act.y + y;
-
-    if (act.waiting != 1)
-    {
-        if ((this->unk26A4 & ActState::Signal) != 0)
-        {
-            painter.Options().alpha = act.signal;
-        }
-
-        painter.DrawPicture(drawX, drawY, this->picture->width, this->picture->height, this->unk26A4);
-        painter.Options().alpha = 0;
-        return 0;
-    }
-
-    if (this->recoilTint <= kRecoilFadeEnd)
-    {
-        this->recoilTint = 0;
-        return 1;
-    }
-
-    DrawOptions& options = painter.Options();
-    options.tintRed = this->recoilTint;
-    options.tintGreen = this->recoilTint;
-    options.tintBlue = this->recoilTint;
-    painter.DrawPicture(drawX, drawY, this->picture->width, this->picture->height, this->unk26A4);
-    this->recoilTint = static_cast<i16>(this->recoilTint - kRecoilFadeStep);
-
-    if (this->held == 1)
-    {
-        this->recoilTint = static_cast<i16>(this->recoilTint + kRecoilFadeStep);
-    }
-
-    return 0;
+    smooth::PictureSteps steps;
+    const int result = smooth::UnitFrame(*this).RecoilAdvance(services, act, y, steps);
+    smooth::DrawSteps(services, steps);
+    return result;
 }
 
 // swd32.exe 0x00483DB0: AimAction for a facing unit only (its x always measured from the right edge), drawn at once
@@ -4156,103 +3670,9 @@ void BattleUnit::DrawTrail(
     i16 y
 )
 {
-    Painter& painter = services.painter;
-    int spacing = trail.direction == AfterimageTrail::Left ? -kTrailSpacing : kTrailSpacing;
-
-    if (trail.delay == 0)
-    {
-        for (int place = trail.count - 1; place > 0; --place)
-        {
-            trail.images[static_cast<std::size_t>(place)] = trail.images[static_cast<std::size_t>(place - 1)];
-        }
-
-        AfterimageTrail::Image& front = trail.images[0];
-        front.level = kTrailLevel;
-        front.picture = picture;
-
-        if ((mode & Painter::Additive) != 0)
-        {
-            front.level = kAdditiveTrailLevel;
-        }
-
-        front.mode = mode;
-        front.x = x;
-        front.y = y;
-        trail.delay = kTrailDelay;
-    }
-    else
-    {
-        --trail.delay;
-    }
-
-    for (int place = 0; place < trail.count; ++place)
-    {
-        AfterimageTrail::Image& image = trail.images[static_cast<std::size_t>(place)];
-
-        if (image.picture == AfterimageTrail::NoPicture)
-        {
-            continue;
-        }
-
-        int offset = kTrailCentre - image.x;
-
-        if (trail.direction == AfterimageTrail::Left)
-        {
-            offset = image.y - kTrailCentre;
-        }
-
-        if (trail.direction == AfterimageTrail::InPlace)
-        {
-            offset = 0;
-            spacing = 0;
-        }
-
-        this->unk2550 = services.archive.GetPicture(frame, image.picture);
-
-        if (image.level > 0)
-        {
-            image.level = static_cast<i16>(image.level - trail.fadeStep);
-
-            if (image.level <= 0)
-            {
-                image.picture = AfterimageTrail::NoPicture;
-                image.level = 0;
-            }
-        }
-
-        // A missing picture is read through a null pointer in the original.
-        if (this->unk2550 == nullptr)
-        {
-            continue;
-        }
-
-        painter.SetSource(this->unk2550->data.data());
-        const int drawX = image.x + spacing * place + offset;
-        const int width = this->unk2550->width;
-        const int height = this->unk2550->height;
-
-        if ((mode & Painter::Additive) != 0)
-        {
-            DrawOptions& options = painter.Options();
-            options.tintRed = image.level - kTrailTintBase;
-            options.tintBlue = kTrailBlue;
-            options.tintGreen = image.level - kTrailTintBase;
-            painter.DrawPicture(drawX, image.y, width, height, mode);
-            continue;
-        }
-
-        painter.Options().alpha = image.level;
-        painter.DrawPicture(drawX, image.y, width, height, mode | Painter::Translucent);
-
-        if (image.level > 1)
-        {
-            DrawOptions& options = painter.Options();
-            options.tintRed = trail.tintRed;
-            options.tintGreen = trail.tintGreen;
-            options.tintBlue = trail.tintBlue;
-            painter.DrawPicture(drawX, image.y, width, height, mode | Painter::TintUnder);
-        }
-    }
+    smooth::PictureSteps steps;
+    smooth::UnitFrame(*this).TrailAdvance(services, trail, frame, picture, mode, x, y, steps);
+    smooth::DrawSteps(services, steps);
 }
 
 // swd32.exe 0x0047FC40: one frame of the queued acts (`action`, when not 0, given to each first); 1 when there are none
@@ -4263,170 +3683,10 @@ void BattleUnit::DrawTrail(
 // are freed. A shaking node takes the arrival of the node before it (the original's first is uninitialised).
 int BattleUnit::RunQueuedActions(BattleServices& services, BattleUnit& target, i32 action)
 {
-    BattleState& battle = services.state;
-    Painter& painter = services.painter;
-    LineWalker& line = this->flight;
-    QueuedAction* node = this->actions.get();
-    int taken = 0;
-
-    if (node == nullptr)
-    {
-        this->queuedActions = 0;
-        return 1;
-    }
-
-    while (node != nullptr)
-    {
-        ActState& act = node->act;
-
-        if (action != 0)
-        {
-            act.action = action;
-        }
-
-        if (services.acts.Run(act) == 0)
-        {
-            return 0;
-        }
-
-        this->picture = services.archive.GetPicture(act.frame, act.picture);
-
-        // A missing picture is read through a null pointer in the original.
-        if (this->picture == nullptr)
-        {
-            return 0;
-        }
-
-        painter.SetSource(this->picture->data.data());
-        const Stride stride = this->FlightStride(services, *node, act, taken);
-        const u32 flags = stride.flags;
-        line = stride.line;
-        node->shakeFrames = stride.shakeFrames;
-        node->flown = stride.flown;
-        taken = stride.taken;
-        std::array<int, 2> motion = {0, 0};
-
-        if (taken != kArrived && PaintRecord::Active() != nullptr)
-        {
-            const ActState nextAct = services.acts.Peek(act);
-            motion = BattleUnit::StrideMotion(stride, act, this->FlightStride(services, *node, nextAct, 0), nextAct);
-        }
-
-        services.audio.PlaySound(act.view, services.config.soundVolume);
-        act.view = 0;
-        const int x = stride.x;
-        const int y = stride.y;
-
-        if (node->trailed == 1)
-        {
-            const PaintRecord::Motion still({0, 0});
-            node->trail.fadeStep = (flags & Painter::Additive) != 0 ? kAdditiveTrailFade : 1;
-            this->DrawTrail(
-                services,
-                node->trail,
-                act.frame,
-                act.picture,
-                flags,
-                static_cast<i16>(x),
-                static_cast<i16>(y)
-            );
-        }
-
-        painter.SetSource(this->picture->data.data());
-
-        {
-            const PaintRecord::Motion moving(motion);
-            painter.DrawPicture(x, y, this->picture->width, this->picture->height, flags);
-        }
-
-        if (taken != kArrived)
-        {
-            node = node->next.get();
-            continue;
-        }
-
-        ActState& impact = node->impact;
-
-        if (impact.id > 0)
-        {
-            if (services.acts.Run(impact) == 0)
-            {
-                return 0;
-            }
-
-            this->picture = services.archive.GetPicture(impact.frame, impact.picture);
-
-            if (this->picture == nullptr)
-            {
-                return 0;
-            }
-
-            painter.SetSource(this->picture->data.data());
-            u32 impactFlags = impact.flags;
-
-            if (this->facing == 1)
-            {
-                impactFlags ^= Painter::Mirror;
-            }
-
-            services.audio.PlaySound(impact.view, services.config.soundVolume);
-            services.audio.SetSoundPan(impact.view, line.toX >= kPanCentre ? kFadePan : -kFadePan);
-            impact.view = 0;
-            painter.DrawPicture(
-                line.fromX + line.x,
-                line.fromY + line.y,
-                this->picture->width,
-                this->picture->height,
-                impactFlags
-            );
-
-            if (impact.waiting == 0)
-            {
-                continue;
-            }
-        }
-
-        node->done = 1;
-        ++this->landedActions;
-        line = LineWalker{};
-
-        if ((this->command.actionFlags & UnitCommand::UnkAction1) == 0 && impact.id >= 0)
-        {
-            target.RaiseFlag26B8();
-            i16 spirit = 0;
-            i16 stamina = 0;
-            i32 damage = this->HitDamage(services, target, spirit, stamina);
-            battle.lastDamage = damage;
-
-            if (damage >= kQueuedMaxDamage)
-            {
-                damage = kQueuedMaxDamage;
-                battle.lastDamage = damage;
-            }
-
-            battle.hitDamage += damage;
-            target.SetDamageDigits(services, damage);
-            target.StepTargetCount(1);
-        }
-
-        node = node->next.get();
-    }
-
-    std::unique_ptr<QueuedAction>* link = &this->actions;
-
-    while (*link != nullptr)
-    {
-        if ((*link)->done == 1)
-        {
-            *link = std::move((*link)->next);
-        }
-        else
-        {
-            link = &(*link)->next;
-        }
-    }
-
-    return 0;
+    smooth::PictureSteps steps;
+    const int result = smooth::UnitFrame(*this).QueuedAdvance(services, target, action, steps);
+    smooth::DrawSteps(services, steps);
+    return result;
 }
 
 // swd32.exe 0x004800F0: appends an act (`id`, `action`) flying from (fromX, fromY) to (toX, toY) with `steps` line
@@ -6282,171 +5542,6 @@ void BattleUnit::WalkToTarget(BattleServices& services, const BattleUnit& target
     smooth::UnitFrame::DrawWalk(services, view);
 }
 
-// swd32.exe 0x00480AE0: the main act's effect while the unit idles: when the main act recoils (Recoils), its effectA
-// plays in the cast act (holding the main act with Holds; the command's follow-up act waits for it) above the main
-// act's anchor, the sound panned to the unit's side; when it waits, the effect and the holds are cleared.
-void BattleUnit::PlayIdleEffect(BattleServices& services)
-{
-    ActState& main = this->mainAct;
-    ActState& effect = this->castAct;
-    const u16 bits = main.target;
-
-    if ((bits & ActState::Recoils) != 0)
-    {
-        if (main.effectA != 0)
-        {
-            this->unk267C |= BattleUnit::Recoiling;
-        }
-
-        if (this->command.followAct != 0)
-        {
-            this->unk267C |= BattleUnit::FollowingUp;
-        }
-
-        if ((bits & ActState::Holds) != 0)
-        {
-            main.hold = 1;
-        }
-
-        main.target = static_cast<u16>(bits & ~ActState::Recoils);
-        effect = ActState{};
-    }
-
-    if ((this->unk267C & BattleUnit::Recoiling) == 0)
-    {
-        return;
-    }
-
-    effect.action = main.effectQ;
-    effect.id = main.effectA;
-
-    if (services.acts.Run(effect) == 0)
-    {
-        return;
-    }
-
-    services.audio.PlaySound(effect.view, services.config.soundVolume);
-
-    if (effect.view != 0)
-    {
-        services.audio.SetSoundPan(effect.view, this->placement.x >= kPanCentre ? kFadePan : -kFadePan);
-    }
-
-    effect.view = 0;
-    this->picture = services.archive.GetPicture(effect.frame, effect.picture);
-
-    // A missing picture is read through a null pointer in the original.
-    if (this->picture == nullptr)
-    {
-        return;
-    }
-
-    Painter& painter = services.painter;
-    painter.SetSource(this->picture->data.data());
-    u32 flags = effect.flags;
-    int offsetX = effect.x;
-
-    if (this->facing == 1)
-    {
-        flags ^= Painter::Mirror;
-
-        if (offsetX != 0)
-        {
-            offsetX = this->picture->width - offsetX;
-        }
-    }
-
-    painter.DrawPicture(
-        static_cast<i16>(this->actAnchorX) + this->placement.x - static_cast<i16>(this->originX) - offsetX,
-        static_cast<i16>(main.anchorY) + this->placement.y - effect.y - main.y,
-        this->picture->width,
-        this->picture->height,
-        flags
-    );
-
-    if (effect.waiting != 1)
-    {
-        return;
-    }
-
-    main.target = static_cast<u16>(main.target & ~ActState::Holds);
-    this->unk267C &= ~BattleUnit::Recoiling;
-    this->slotTint = 0;
-    this->actAnchorX = 0;
-    this->unk2ACC = 0;
-    main.hold = 0;
-    main.effectA = 0;
-    effect = ActState{};
-}
-
-// swd32.exe 0x00480D40: the command's follow-up act (in the attack act) while the unit idles and FollowingUp is set,
-// at the unit's place, the sound panned to its side; when it waits, every stage and the main act's effect are cleared.
-void BattleUnit::PlayIdleFollowUp(BattleServices& services)
-{
-    if ((this->unk267C & BattleUnit::FollowingUp) == 0)
-    {
-        return;
-    }
-
-    ActState& act = this->attackAct;
-    act.id = this->command.followAct;
-    act.action = 0;
-
-    if (services.acts.Run(act) == 0)
-    {
-        return;
-    }
-
-    services.audio.PlaySound(act.view, services.config.soundVolume);
-
-    if (act.view != 0)
-    {
-        services.audio.SetSoundPan(act.view, this->placement.x >= kPanCentre ? kFadePan : -kFadePan);
-    }
-
-    act.view = 0;
-    this->picture = services.archive.GetPicture(act.frame, act.picture);
-
-    // A missing picture is read through a null pointer in the original.
-    if (this->picture == nullptr)
-    {
-        return;
-    }
-
-    Painter& painter = services.painter;
-    painter.SetSource(this->picture->data.data());
-    u32 flags = act.flags;
-    int offsetX = act.x;
-
-    if (this->facing == 1)
-    {
-        flags ^= Painter::Mirror;
-        offsetX = this->picture->width - offsetX;
-    }
-
-    painter.DrawPicture(
-        this->placement.x - offsetX,
-        this->placement.y - act.y,
-        this->picture->width,
-        this->picture->height,
-        flags
-    );
-
-    if (act.waiting != 1)
-    {
-        return;
-    }
-
-    this->unk267C = 0;
-    this->slotTint = 0;
-    this->mainAct.target = 0;
-    this->actAnchorX = 0;
-    this->unk2ACC = 0;
-    this->mainAct.hold = 0;
-    this->mainAct.effectA = 0;
-    act = ActState{};
-}
-
 // swd32.exe 0x0047DAD0: one tick of the unit's effects (not while held): each timer rises by kEffectTick; a full one
 // (gaugeFull) restarts and takes a turn off. A poison (UnkStatus1000) sets the pending damage when none is pending,
 // scaled by the element 5 resistance of the battle record and halved by an effect of element 5; a stamina drain
@@ -6657,335 +5752,33 @@ int BattleUnit::CatchRoll(BattleServices& services, u8 level)
 // unk2B10, else to the side). Its effects, overlay and a recoil effect follow.
 int BattleUnit::HurtFrame(BattleServices& services)
 {
-    Painter& painter = services.painter;
-    ActState& act = this->attackAct;
-    act.id = this->actId;
+    smooth::UnitFrame parts(*this);
+    smooth::HurtView view;
+    int result = 0;
 
-    if (this->kind != 1 || this->unk2B00 != 0 || this->unk2B04 != 0)
+    if (!parts.HurtAdvance(services, view, result))
     {
-        act.action = kEnemyHomeAction;
-    }
-    else
-    {
-        act.action = kHurtAction;
-
-        if ((this->GetGuard() == 1 || (this->marks & BattleUnit::UnkMark1) != 0) &&
-            (this->marks & BattleUnit::Held) == 0)
-        {
-            act.action = kGuardHurtAction;
-        }
-
-        if ((this->status & BattleUnit::UnkStatus1000) != 0)
-        {
-            act.action = kHurtAction;
-        }
+        return result;
     }
 
-    act.hold = 0;
+    smooth::UnitFrame::HurtDrawBody(services, view);
 
-    if (this->held == 1)
     {
-        act.hold = 1;
+        const PaintRecord::Motion moving(view.bodyMotion);
+        smooth::PictureSteps steps;
+        parts.EffectsAdvance(services, view.x, view.y, view.picture, steps);
+        smooth::DrawSteps(services, steps);
     }
 
-    if (services.acts.Run(act) == 0)
-    {
-        return 1;
-    }
+    const bool finished = parts.HurtAdvanceTail(services, view);
+    smooth::UnitFrame::HurtDrawTail(services, view);
 
-    if (this->unk2AF4 == 1 && this->kind == 0)
-    {
-        act.picture = this->mainAct.picture;
-    }
-
-    if (this->guarding == 1)
-    {
-        return 1;
-    }
-
-    const bool still = (this->status & BattleUnit::UnkStatus4) != 0;
-
-    if (still)
-    {
-        act = this->mainAct;
-    }
-
-    this->shadowPicture = services.archive.GetPicture(act.frame, act.picture);
-
-    // A missing picture is read through a null pointer in the original.
-    if (this->shadowPicture == nullptr)
+    if (!finished)
     {
         return 0;
     }
 
-    const Picture& picture = *this->shadowPicture;
-    painter.SetSource(picture.data.data());
-    services.audio.PlaySound(act.view, services.config.soundVolume);
-
-    if (act.view != 0)
-    {
-        services.audio.SetSoundPan(act.view, this->facing == 1 ? -kFadePan : kFadePan);
-    }
-
-    const std::size_t step = this->hurtStep;
-    const int placeX = this->placement.x;
-    this->unk2670 = act.x;
-    act.view = 0;
-    int y = this->placement.y - act.y;
-    const int shake = BattleUnit::StaggerShake[step];
-    int x = shake + placeX - act.x;
-
-    if (this->unk2B00 == 1)
-    {
-        if (this->facing != 0)
-        {
-            x = placeX - shake - act.x;
-        }
-        else
-        {
-            this->unk2670 = picture.width - act.x;
-            x = placeX + BattleUnit::StaggerShake[step] - this->unk2670;
-        }
-    }
-
-    if (this->facing == 1 && this->unk2B00 == 0)
-    {
-        this->unk2670 = picture.width - act.x;
-        x = placeX - BattleUnit::StaggerShake[step] - this->unk2670;
-    }
-
-    if (still)
-    {
-        x = placeX - this->unk2670;
-    }
-
-    // The rebuild's smooth battle: the places of a stagger step (the unit, an enemy's red flash), and how far they move
-    // to the step of the next frame (none once the stagger ends).
-    auto bodyAt = [&](std::size_t at) -> std::array<int, 2>
-    {
-        const int shaken = BattleUnit::StaggerShake[at];
-        int bodyX = shaken + placeX - act.x;
-        int bodyY = this->placement.y - act.y;
-
-        if (this->unk2B00 == 1)
-        {
-            bodyX = this->facing != 0 ? placeX - shaken - act.x : placeX + shaken - this->unk2670;
-        }
-
-        if (this->facing == 1 && this->unk2B00 == 0)
-        {
-            bodyX = placeX - shaken - this->unk2670;
-        }
-
-        if (still)
-        {
-            bodyX = placeX - this->unk2670;
-        }
-
-        if (this->kind == 0 && !still)
-        {
-            const int lift = BattleUnit::StaggerLift[at];
-            bodyX = placeX - this->unk2670;
-
-            if (this->unk2B10 != 0)
-            {
-                bodyY = this->placement.y - lift - act.y;
-            }
-            else
-            {
-                bodyX += this->facing != 0 ? lift : -lift;
-            }
-        }
-
-        return {bodyX, bodyY};
-    };
-
-    auto flashAt = [&](std::size_t at) -> std::array<int, 2>
-    {
-        const int rise = BattleUnit::StaggerRise[at];
-
-        if (this->unk2B10 != 0)
-        {
-            return {placeX - this->unk2670, this->placement.y - rise - act.y};
-        }
-
-        return {placeX + (this->facing != 0 ? rise : -rise) - this->unk2670, this->placement.y - act.y};
-    };
-
-    auto between = [](const std::array<int, 2>& from, const std::array<int, 2>& to) -> std::array<int, 2>
-    {
-        const std::array<int, 2> by = {to[0] - from[0], to[1] - from[1]};
-        return std::abs(by[0]) > kSnapDistance || std::abs(by[1]) > kSnapDistance ? std::array<int, 2>{0, 0} : by;
-    };
-
-    const int nextPhase = this->glowPhase + (this->held == 0 ? 1 : 0);
-    const std::size_t nextStep = step + (nextPhase == kHurtFrames ? 1 : 0);
-    const bool staggersNext = nextStep <= kLastHurtStep;
-    const std::array<int, 2> bodyMotion =
-        staggersNext ? between(bodyAt(step), bodyAt(nextStep)) : std::array<int, 2>{0, 0};
-    const std::array<int, 2> flashMotion =
-        staggersNext ? between(flashAt(step), flashAt(nextStep)) : std::array<int, 2>{0, 0};
-    DrawOptions& options = painter.Options();
-
-    if (this->kind == 0 && !still)
-    {
-        const PaintRecord::Motion flashMoving(flashMotion);
-        options.tintRed = kHurtRed;
-        options.tintGreen = 0;
-        options.tintBlue = 0;
-        this->unk26A4 = this->drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip);
-        const u32 flash = this->unk26A4 | Painter::TintUnder;
-
-        if (this->unk2B10 != 0)
-        {
-            painter.DrawPicture(
-                placeX - this->unk2670,
-                this->placement.y - BattleUnit::StaggerRise[step] - act.y,
-                picture.width,
-                picture.height,
-                flash
-            );
-            x = placeX - this->unk2670;
-            y = this->placement.y - BattleUnit::StaggerLift[step] - act.y;
-        }
-        else if (this->facing != 0)
-        {
-            painter.DrawPicture(
-                placeX + BattleUnit::StaggerRise[step] - this->unk2670,
-                this->placement.y - act.y,
-                picture.width,
-                picture.height,
-                flash
-            );
-            x = placeX + BattleUnit::StaggerLift[step] - this->unk2670;
-        }
-        else
-        {
-            painter.DrawPicture(
-                placeX - BattleUnit::StaggerRise[step] - this->unk2670,
-                this->placement.y - act.y,
-                picture.width,
-                picture.height,
-                flash
-            );
-            x = placeX - BattleUnit::StaggerLift[step] - this->unk2670;
-        }
-    }
-
-    const int shadowHeight = picture.height / kShadowShare;
-    options.scaleHeight = shadowHeight;
-    options.shear = picture.height >> kShadowShearShift;
-    const int tint = this->unk2B00 == 1 ? kInvisibleShadowTint : kShadowTint;
-    options.tintRed = tint;
-    options.tintGreen = tint;
-    options.tintBlue = tint;
-    this->unk26A4 = (this->drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
-
-    {
-        const PaintRecord::Motion shadowMoving({bodyMotion[0], 0});
-        painter.DrawPicture(x, this->placement.y - shadowHeight, picture.width, picture.height, this->unk26A4);
-    }
-
-    const PaintRecord::Motion moving(bodyMotion);
-    this->drawFlags &= Painter::RleSource | Painter::Mirror | Painter::Flip;
-    painter.DrawPicture(x, y, picture.width, picture.height, this->drawFlags);
-
-    if (!still && act.action != kGuardHurtAction)
-    {
-        painter.Options().tintRed = kHurtFlash;
-        painter.DrawPicture(x, y, picture.width, picture.height, this->drawFlags | Painter::TintUnder);
-    }
-
-    this->DrawEffects(services, x, y);
-
-    if (!still && act.rotation != 0 && act.actionCode != 0)
-    {
-        this->unk2554 = services.archive.GetPicture(act.rotation, static_cast<u16>(act.actionCode - 1));
-
-        if (this->unk2554 != nullptr)
-        {
-            painter.SetSource(this->unk2554->data.data());
-            painter.DrawPicture(
-                placeX + static_cast<i16>(act.offsetX) - this->unk2670,
-                this->placement.y + static_cast<i16>(act.offsetY) - act.y,
-                this->unk2554->width,
-                this->unk2554->height,
-                this->drawFlags | Painter::Additive
-            );
-        }
-    }
-
-    if ((act.target & ActState::Recoils) != 0)
-    {
-        ActState& effect = this->castAct;
-        effect.action = act.effectQ;
-        effect.id = act.effectA;
-
-        if (services.acts.Run(effect) == 0)
-        {
-            return 0;
-        }
-
-        services.audio.PlaySound(effect.view, services.config.soundVolume);
-        effect.view = 0;
-        this->picture = services.archive.GetPicture(effect.frame, effect.picture);
-
-        if (this->picture != nullptr)
-        {
-            painter.SetSource(this->picture->data.data());
-            u32 flags = effect.flags;
-            int offsetX = effect.x;
-
-            if (act.anchorX != 0)
-            {
-                this->actAnchorX = act.anchorX;
-            }
-
-            if (this->facing == 1)
-            {
-                flags ^= Painter::Mirror;
-                offsetX = this->picture->width - offsetX;
-                this->actAnchorX = static_cast<u16>(picture.width - act.anchorX);
-            }
-
-            painter.DrawPicture(
-                x + static_cast<i16>(this->actAnchorX) - offsetX,
-                y + static_cast<i16>(act.anchorY) - effect.y,
-                this->picture->width,
-                this->picture->height,
-                flags
-            );
-        }
-    }
-
-    if (this->held == 0)
-    {
-        ++this->glowPhase;
-
-        if (this->glowPhase == kHurtFrames)
-        {
-            ++this->hurtStep;
-            this->glowPhase = 0;
-        }
-    }
-
-    this->unk2AAC = 1;
-
-    if (this->hurtStep <= kLastHurtStep)
-    {
-        return 0;
-    }
-
-    services.state.unk53BF46 = 0;
-    services.state.unk53BF48 = 0;
-    this->hurtStep = 1;
-    painter.Options().shear = 0;
-    this->unk2AAC = 0;
-    this->charging = 1;
-    this->unk2B10 = 0;
-    act = ActState{};
-    this->targets.fill(BattleUnit::NoTarget);
-    return 1;
+    return parts.HurtStep(services);
 }
 
 // swd32.exe 0x00478B60: one frame of the unit at rest (`paused`: its acts hold). drawAtSaved moves it first (1 shakes
@@ -7016,9 +5809,15 @@ void BattleUnit::IdleFrame(BattleServices& services, int paused)
         return;
     }
 
-    this->PlayIdleEffect(services);
-    this->PlayIdleFollowUp(services);
-    this->DrawEffects(services, view.x, view.y);
+    smooth::PictureSteps steps;
+    parts.IdleEffectAdvance(services, steps);
+    smooth::DrawSteps(services, steps);
+    steps.clear();
+    parts.FollowUpAdvance(services, steps);
+    smooth::DrawSteps(services, steps);
+    steps.clear();
+    parts.EffectsAdvance(services, view.x, view.y, view.picture, steps);
+    smooth::DrawSteps(services, steps);
 }
 
 // The movement of IdleFrame by drawAtSaved (inline in the original): 1 shakes the unit a pixel at random while nudge
