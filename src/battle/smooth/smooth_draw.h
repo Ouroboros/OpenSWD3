@@ -71,14 +71,14 @@ void DrawSteps(BattleServices& services, const PictureSteps& steps);
 // drawn by the part drawing it); the original's order draws them as they come.
 class Scene
 {
-    friend class BattlePlayer;
+    friend class Stage;
 
 public:
     using Draw = std::function<void(BattleServices& services)>;
     using Where = std::source_location;
 
     // Each draw is added with the place of the code adding it: the smooth battle takes the draws of a frame for those
-    // of the frame before by it (BattlePlayer).
+    // of the frame before by it (Stage).
     void Add(Draw draw, Where where = Where::current());
     void Add(PictureSteps steps, Where where = Where::current());
     void Add(const PictureStep& step, Where where = Where::current());

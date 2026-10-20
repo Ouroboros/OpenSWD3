@@ -1,4 +1,4 @@
-#include "battle/smooth/smooth_play.h"
+#include "battle/smooth/smooth_stage.h"
 
 #include <algorithm>
 #include <array>
@@ -56,12 +56,12 @@ struct HudKept
 
 }  // namespace
 
-BattlePlayer::BattlePlayer(BattleServices& services)
+Stage::Stage(BattleServices& services)
     : services(services)
 {
 }
 
-void BattlePlayer::Show(Scene&& decided)
+void Stage::Draw(Scene&& decided)
 {
     this->scene = std::move(decided);
     this->drawn.clear();
@@ -72,7 +72,7 @@ void BattlePlayer::Show(Scene&& decided)
     this->Match();
 }
 
-void BattlePlayer::PaintBetween(double alpha, Surface& out)
+void Stage::PaintBetween(double alpha, Surface& out)
 {
     this->share = std::clamp(alpha, 0.0, 1.0);
     this->scale = std::clamp(out.Width() / Display::Width, 1, MaxWeaveScale);
@@ -172,7 +172,7 @@ void BattlePlayer::PaintBetween(double alpha, Surface& out)
     this->scale = 1;
 }
 
-void BattlePlayer::Clear()
+void Stage::Clear()
 {
     this->scene = Scene{};
     this->before.clear();
@@ -181,7 +181,7 @@ void BattlePlayer::Clear()
     this->moves.clear();
 }
 
-void BattlePlayer::DrawInto(Surface& target)
+void Stage::DrawInto(Surface& target)
 {
     BattleServices& battle = this->services;
     Painter& painter = battle.painter;
@@ -204,7 +204,7 @@ void BattlePlayer::DrawInto(Surface& target)
     hud.Restore(battle.hud);
 }
 
-void BattlePlayer::Replay()
+void Stage::Replay()
 {
     const DrawPlacer::Scope placing(this);
     this->next = 0;
@@ -220,7 +220,7 @@ void BattlePlayer::Replay()
 
 // Each draw of this frame takes the way back to its place before: in each code with as many draws as before, the
 // pairs of a draw and a place before are taken nearest first (within kSnapDistance), each draw and place once.
-void BattlePlayer::Match()
+void Stage::Match()
 {
     this->before = std::move(this->places);
     this->places.clear();
@@ -293,7 +293,7 @@ void BattlePlayer::Match()
     }
 }
 
-void BattlePlayer::Place(int& x, int& y)
+void Stage::Place(int& x, int& y)
 {
     const Key key{this->stepFile, this->stepLine, this->stepDraws++};
 

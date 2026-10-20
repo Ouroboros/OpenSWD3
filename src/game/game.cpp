@@ -317,7 +317,7 @@ Game::Game(std::u8string installDirectory)
           this->crtRandom,
           this->drawSurface,
       },
-      battlePlayer(this->battleServices),
+      battleStage(this->battleServices),
       actDrawer(this->acts, this->archive, this->painter),
       menu(*this)
 {
@@ -1427,7 +1427,7 @@ bool Game::PresentBetween()
     // The battle and the map are drawn at the same render scale.
     if (this->battleFrameShown)
     {
-        this->battlePlayer.PaintBetween(alpha, *this->smoothScreen);
+        this->battleStage.PaintBetween(alpha, *this->smoothScreen);
     }
     else
     {

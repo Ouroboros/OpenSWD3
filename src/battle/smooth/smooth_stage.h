@@ -18,21 +18,21 @@ struct BattleServices;
 
 }  // namespace swd3
 
-// The rebuild's smooth battle (deviations.md): the battle frames drawn between game frames. A frame is decided into
-// its scene every game frame; the scene is drawn then and again at every refresh until the next, each picture and text
-// moving from where the frame before drew it to where this frame draws it.
+// The rebuild's smooth battle (deviations.md): the stage the scenes of the battle frames are shown on. A frame is
+// decided into its scene every game frame; the scene is drawn then and again at every refresh until the next, each
+// picture and text moving from where the frame before drew it to where this frame draws it.
 namespace swd3::smooth
 {
 
-class BattlePlayer : public DrawPlacer
+class Stage : public DrawPlacer
 {
 public:
-    explicit BattlePlayer(BattleServices& services);
+    explicit Stage(BattleServices& services);
 
     // The decided frame's scene drawn to the frame's screen where it draws (the frames between show it): the draws
     // of the same code (the same draw of the same step), as many as in the frame before, are each taken for the
     // nearest of those before, which the frames between move them from (others stay where they are).
-    void Show(Scene&& scene);
+    void Draw(Scene&& scene);
     // The frame drawn again `alpha` (0 to 1) of the way to its own places into `out`, N times the screen across and
     // down at the render scale N (the places in 1/N pixels, as the map's: N x N screens woven); the painter and the
     // HUD are left as they were.

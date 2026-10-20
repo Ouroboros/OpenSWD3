@@ -13,7 +13,7 @@
 #include "battle/battle_services.h"
 #include "battle/battle_state.h"
 #include "battle/fight_talk.h"
-#include "battle/smooth/smooth_play.h"
+#include "battle/smooth/smooth_stage.h"
 #include "config/config.h"
 #include "core/types.h"
 #include "crt/msvc.h"
@@ -562,7 +562,7 @@ private:
     BattleMessages battleMessages;
     FightTalk fightTalk;
     BattleServices battleServices;
-    smooth::BattlePlayer battlePlayer;           // the rebuild's smooth battle
+    smooth::Stage battleStage;                   // the rebuild's smooth battle
     std::unique_ptr<ScriptObject> battleRipple;  // 0x00520DA4 the ripple of the ripple battle (unk53C03C)
     std::array<BattleRole, BattleState::RoleUnits> battleRoles;   // 0x005029D0
     std::array<BattleEnemy, BattleState::Enemies> battleEnemies;  // 0x00525508
