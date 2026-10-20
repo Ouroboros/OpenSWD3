@@ -103,7 +103,7 @@ void Stage::PaintBetween(double alpha, Surface& out)
             continue;
         }
 
-        const std::array<int, 2>& place = this->drawn[at].second;
+        const std::array<int, 2>& place = this->drawn[at].second.at;
         const auto fineX = static_cast<i32>(std::lround((place[0] + move[0] * back) * this->scale));
         const auto fineY = static_cast<i32>(std::lround((place[1] + move[1] * back) * this->scale));
 
@@ -213,13 +213,16 @@ void Stage::Replay()
     {
         this->stepFile = step.file;
         this->stepLine = step.line;
-        this->stepDraws = 0;
+        this->stepStill = step.still;
+        this->stepDraws.clear();
         step.draw(this->services);
     }
 }
 
 // Each draw of this frame takes the way back to its place before: in each code with as many draws as before, the
-// pairs of a draw and a place before are taken nearest first (within kSnapDistance), each draw and place once.
+// pairs of a draw and a draw before are taken nearest first (within kSnapDistance), each draw once. Held draws (what
+// stands at a place) are measured and moved by the places they show; others by where they are drawn, and only when
+// the picture is the same (a new picture is a new pose, drawn where it is).
 void Stage::Match()
 {
     this->before = std::move(this->places);
@@ -228,33 +231,49 @@ void Stage::Match()
 
     for (std::size_t at = 0; at < this->drawn.size(); ++at)
     {
-        const auto& [key, place] = this->drawn[at];
-        this->places[key].push_back(place);
+        const auto& [key, draw] = this->drawn[at];
+        this->places[key].push_back(draw);
         groups[key].push_back(at);
     }
 
     this->moves.assign(this->drawn.size(), std::array<int, 2>{});
 
+    auto point = [](const Drawn& draw, bool held) -> const std::array<int, 2>&
+    {
+        return held ? draw.stand : draw.at;
+    };
+
     for (const auto& [key, draws] : groups)
     {
         const auto found = this->before.find(key);
 
-        if (found == this->before.end() || found->second.size() != draws.size())
+        if (found == this->before.end() || found->second.size() != draws.size() ||
+            this->drawn[draws.front()].second.still)
         {
             continue;
         }
 
-        const std::vector<std::array<int, 2>>& places = found->second;
-        // (distance, draw, place before)
+        const std::vector<Drawn>& earlier = found->second;
+        // (distance, draw, draw before)
         std::vector<std::array<int, 3>> pairs;
 
         for (std::size_t draw = 0; draw < draws.size(); ++draw)
         {
-            const std::array<int, 2>& place = this->drawn[draws[draw]].second;
+            const Drawn& now = this->drawn[draws[draw]].second;
 
-            for (std::size_t at = 0; at < places.size(); ++at)
+            for (std::size_t at = 0; at < earlier.size(); ++at)
             {
-                const int far = std::max(std::abs(places[at][0] - place[0]), std::abs(places[at][1] - place[1]));
+                const Drawn& then = earlier[at];
+                const bool held = now.held && then.held;
+
+                if (!held && now.source != then.source)
+                {
+                    continue;
+                }
+
+                const std::array<int, 2>& from = point(then, held);
+                const std::array<int, 2>& to = point(now, held);
+                const int far = std::max(std::abs(from[0] - to[0]), std::abs(from[1] - to[1]));
 
                 if (far <= kSnapDistance)
                 {
@@ -272,34 +291,57 @@ void Stage::Match()
             }
         );
         std::vector<bool> drawTaken(draws.size());
-        std::vector<bool> placeTaken(places.size());
+        std::vector<bool> beforeTaken(earlier.size());
 
         for (const auto& [far, draw, at] : pairs)
         {
-            if (drawTaken[static_cast<std::size_t>(draw)] || placeTaken[static_cast<std::size_t>(at)])
+            if (drawTaken[static_cast<std::size_t>(draw)] || beforeTaken[static_cast<std::size_t>(at)])
             {
                 continue;
             }
 
             drawTaken[static_cast<std::size_t>(draw)] = true;
-            placeTaken[static_cast<std::size_t>(at)] = true;
+            beforeTaken[static_cast<std::size_t>(at)] = true;
             const std::size_t index = draws[static_cast<std::size_t>(draw)];
-            const std::array<int, 2>& place = this->drawn[index].second;
-            this->moves[index] = {
-                places[static_cast<std::size_t>(at)][0] - place[0],
-                places[static_cast<std::size_t>(at)][1] - place[1]
-            };
+            const Drawn& now = this->drawn[index].second;
+            const Drawn& then = earlier[static_cast<std::size_t>(at)];
+            const bool held = now.held && then.held;
+            const std::array<int, 2>& from = point(then, held);
+            const std::array<int, 2>& to = point(now, held);
+            this->moves[index] = {from[0] - to[0], from[1] - to[1]};
         }
     }
 }
 
-void Stage::Place(int& x, int& y)
+void Stage::Hold(bool held, int x, int y, const void* who)
 {
-    const Key key{this->stepFile, this->stepLine, this->stepDraws++};
+    this->holding = held;
+    this->held = {x, y};
+    this->holdingWho = held ? who : nullptr;
+}
+
+void Stage::Place(int& x, int& y, const void* site, const void* source)
+{
+    const std::pair<const void*, const void*> code{site, this->holdingWho};
+    auto counted = std::find_if(
+        this->stepDraws.begin(),
+        this->stepDraws.end(),
+        [&code](const std::pair<std::pair<const void*, const void*>, u32>& entry)
+        {
+            return entry.first == code;
+        }
+    );
+
+    if (counted == this->stepDraws.end())
+    {
+        counted = this->stepDraws.insert(this->stepDraws.end(), {code, 0});
+    }
+
+    const Key key{this->stepFile, this->stepLine, site, this->holdingWho, counted->second++};
 
     if (this->measuring)
     {
-        this->drawn.emplace_back(key, std::array<int, 2>{x, y});
+        this->drawn.emplace_back(key, Drawn{{x, y}, this->held, this->holding, this->stepStill, source});
         return;
     }
 

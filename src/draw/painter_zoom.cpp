@@ -30,7 +30,7 @@ void Painter::DrawZoomed(int x, int y, int width, int height)
 {
     if (DrawPlacer* placer = DrawPlacer::Active(); placer != nullptr)
     {
-        placer->Place(x, y);
+        placer->Place(x, y, __builtin_return_address(0), this->source);
     }
 
     if (PaintRecord* record = PaintRecord::Active(); record != nullptr)
@@ -227,7 +227,7 @@ void Painter::DrawZoomedMirrored(int x, int y, int width, int height)
 {
     if (DrawPlacer* placer = DrawPlacer::Active(); placer != nullptr)
     {
-        placer->Place(x, y);
+        placer->Place(x, y, __builtin_return_address(0), this->source);
     }
 
     if (PaintRecord* record = PaintRecord::Active(); record != nullptr)

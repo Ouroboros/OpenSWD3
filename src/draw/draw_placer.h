@@ -10,7 +10,12 @@ class DrawPlacer
 {
 public:
     virtual ~DrawPlacer() = default;
-    virtual void Place(int& x, int& y) = 0;
+    // `site`: where the draw is called from (the same code draws the same thing frame after frame); `source`: the
+    // picture drawn (none for a text).
+    virtual void Place(int& x, int& y, const void* site, const void* source) = 0;
+    // The place of what the next draws show (a unit's stand, a flight's point), which stays where a new pose's
+    // picture is drawn elsewhere: those draws move with it; `who` tells it from the others (a unit, a flight).
+    virtual void Hold(bool held, int x, int y, const void* who) = 0;
 
     static DrawPlacer* Active();
 
@@ -25,6 +30,16 @@ public:
 
     private:
         DrawPlacer* outer = nullptr;
+    };
+
+    // The draws made while it lives show `who`, standing at (x, y).
+    class Holding
+    {
+    public:
+        Holding(int x, int y, const void* who = nullptr);
+        ~Holding();
+        Holding(const Holding&) = delete;
+        Holding& operator=(const Holding&) = delete;
     };
 
 private:

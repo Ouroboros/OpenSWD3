@@ -21,4 +21,20 @@ DrawPlacer::Scope::~Scope()
     DrawPlacer::active = this->outer;
 }
 
+DrawPlacer::Holding::Holding(int x, int y, const void* who)
+{
+    if (DrawPlacer::active != nullptr)
+    {
+        DrawPlacer::active->Hold(true, x, y, who);
+    }
+}
+
+DrawPlacer::Holding::~Holding()
+{
+    if (DrawPlacer::active != nullptr)
+    {
+        DrawPlacer::active->Hold(false, 0, 0, nullptr);
+    }
+}
+
 }  // namespace swd3

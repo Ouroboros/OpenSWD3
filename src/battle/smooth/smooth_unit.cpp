@@ -21,6 +21,7 @@
 #include "core/format.h"
 #include "core/words.h"
 #include "crt/msvc.h"
+#include "draw/draw_placer.h"
 #include "draw/paint_record.h"
 #include "draw/painter.h"
 #include "org/database.h"
@@ -354,6 +355,8 @@ int UnitFrame::HomeAdvance(BattleServices& services, const BattleUnit& target, i
     {
         view.x = line.toX;
         view.y = line.toY;
+        view.place = {view.x + static_cast<i16>(unit.actOffsetX), view.y + act.y};
+        view.who = &unit;
         unit.throwSteps = 0;
         line = LineWalker{};
         pose = ActState{};
@@ -364,6 +367,8 @@ int UnitFrame::HomeAdvance(BattleServices& services, const BattleUnit& target, i
 
     view.x = line.fromX + line.x;
     view.y = line.fromY + line.y;
+    view.place = {view.x + static_cast<i16>(unit.actOffsetX), view.y + act.y};
+    view.who = &unit;
 
     if (!invisible)
     {
@@ -477,6 +482,8 @@ bool UnitFrame::WalkAdvance(BattleServices& services, const BattleUnit& target, 
     {
         view.x = invisible ? line.toX - static_cast<i16>(unit.actOffsetX) : line.toX;
         view.y = line.toY;
+        view.place = {view.x + static_cast<i16>(unit.actOffsetX), view.y + act.y};
+        view.who = &unit;
 
         if (invisible)
         {
@@ -494,6 +501,8 @@ bool UnitFrame::WalkAdvance(BattleServices& services, const BattleUnit& target, 
 
     view.x = line.fromX + line.x;
     view.y = line.fromY + line.y;
+    view.place = {view.x + static_cast<i16>(unit.actOffsetX), view.y + act.y};
+    view.who = &unit;
 
     if (invisible)
     {
@@ -511,6 +520,7 @@ bool UnitFrame::WalkAdvance(BattleServices& services, const BattleUnit& target, 
 // A walk as WalkAdvance or HomeAdvance decided it: the shadow under the picture, the picture, the overlay.
 void UnitFrame::DrawWalk(BattleServices& services, const WalkView& view)
 {
+    const DrawPlacer::Holding holding(view.place[0], view.place[1], view.who);
     Painter& painter = services.painter;
     const Picture* walking = view.picture.Get(services.archive);
 
@@ -812,6 +822,8 @@ bool UnitFrame::IdleAdvance(BattleServices& services, int paused, IdleView& view
     view.picture = {act.frame, act.picture, true};
     view.x = unit.unk26A8 + unit.placement.x - static_cast<i16>(unit.originX);
     view.y = unit.placement.y - unit.unk26AC - act.y;
+    view.place = {unit.unk26A8 + unit.placement.x, unit.placement.y - unit.unk26AC};
+    view.who = &unit;
     view.mirrored = unit.drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip);
     view.flags = unit.drawFlags;
     view.body = unit.guarding == 0 && (marks & BattleUnit::GuardingMark) == 0;
@@ -930,6 +942,7 @@ bool UnitFrame::IdleAdvance(BattleServices& services, int paused, IdleView& view
 // copies, the gold, the thrown act and the overlay.
 void UnitFrame::IdleDraw(BattleServices& services, const IdleView& view)
 {
+    const DrawPlacer::Holding holding(view.place[0], view.place[1], view.who);
     Painter& painter = services.painter;
     const Picture* body = view.body ? view.picture.Get(services.archive) : nullptr;
 
@@ -2502,12 +2515,16 @@ int UnitFrame::FlyAdvance(
 
     services.audio.PlaySound(act.view, services.config.soundVolume);
     act.view = 0;
+    // The flown act stands at its line's point less the act's anchor: a new picture keeps the point.
     draws.push_back(
         PictureStep{
             .picture = {act.frame, act.picture, true},
             .x = line.fromX + line.x,
             .y = line.fromY + line.y,
             .mode = flags,
+            .held = true,
+            .stand = {line.fromX + line.x + offsetX, line.fromY + line.y + act.y},
+            .who = &count,
         }
     );
 
@@ -2575,6 +2592,7 @@ int UnitFrame::QueuedAdvance(BattleServices& services, BattleUnit& target, i32 a
         if (node->trailed == 1)
         {
             node->trail.fadeStep = (flags & Painter::Additive) != 0 ? kAdditiveTrailFade : 1;
+            const std::size_t trailFrom = steps.size();
             this->TrailAdvance(
                 services,
                 node->trail,
@@ -2585,9 +2603,27 @@ int UnitFrame::QueuedAdvance(BattleServices& services, BattleUnit& target, i32 a
                 static_cast<i16>(y),
                 steps
             );
+
+            // The afterimages are the node's: each moves by where it is drawn.
+            for (std::size_t at = trailFrom; at < steps.size(); ++at)
+            {
+                steps[at].held = true;
+                steps[at].stand = {steps[at].x, steps[at].y};
+                steps[at].who = node;
+            }
         }
 
-        steps.push_back(PictureStep{.picture = {act.frame, act.picture, true}, .x = x, .y = y, .mode = flags});
+        steps.push_back(
+            PictureStep{
+                .picture = {act.frame, act.picture, true},
+                .x = x,
+                .y = y,
+                .mode = flags,
+                .held = true,
+                .stand = {x + static_cast<i16>(stride.offsetX), y + act.y},
+                .who = node,
+            }
+        );
 
         if (taken != kArrived)
         {

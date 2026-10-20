@@ -889,6 +889,7 @@ void TalkFrame::DrawAdvance(Scene& scene)
 {
     Talk& talk = this->talk;
     Game& owner = talk.game;
+    const Scene::Still still(scene);
 
     if (owner.scene.talkWindows == nullptr)
     {

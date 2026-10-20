@@ -31,6 +31,8 @@ namespace swd3::smooth
 struct IdleView
 {
     PictureRef picture;
+    std::array<int, 2> place = {};  // where the unit stands: its draws move with it (a new pose keeps it)
+    const void* who = nullptr;      // the unit
     int x = 0;
     int y = 0;
     u32 flags = 0;
@@ -73,6 +75,8 @@ struct IdleView
 struct WalkView
 {
     PictureRef picture;
+    std::array<int, 2> place = {};  // the walk's point less the act's anchor: the draws move with it
+    const void* who = nullptr;      // the unit
     int x = 0;
     int y = 0;
     u32 flags = 0;

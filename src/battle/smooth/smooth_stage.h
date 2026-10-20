@@ -40,12 +40,25 @@ public:
     // No frame before (a battle starts).
     void Clear();
 
-    void Place(int& x, int& y) override;
+    void Place(int& x, int& y, const void* site, const void* source) override;
+    void Hold(bool held, int x, int y, const void* who) override;
 
 private:
-    // The code of a draw: the step (where it was added to the scene) and the draw within it.
-    using Key = std::tuple<const char*, u32, u32>;
-    using Places = std::map<Key, std::vector<std::array<int, 2>>>;
+    // The code of a draw: the step (where it was added to the scene), where the draw is called from, what it shows
+    // (DrawPlacer::Hold; none: anything) and its count among the draws of the step called from there for it.
+    using Key = std::tuple<const char*, u32, const void*, const void*, u32>;
+
+    // A draw of a frame: where it is drawn, the place it shows when held (DrawPlacer::Hold) and its picture.
+    struct Drawn
+    {
+        std::array<int, 2> at = {};
+        std::array<int, 2> stand = {};
+        bool held = false;
+        bool still = false;  // Scene::Still: it does not move
+        const void* source = nullptr;
+    };
+
+    using Places = std::map<Key, std::vector<Drawn>>;
 
     // The scene drawn into `target` with the painter and the HUD left as they were.
     void DrawInto(Surface& target);
@@ -54,11 +67,11 @@ private:
 
     BattleServices& services;
     Scene scene;
-    Places before;                                          // the places of the frame before
-    Places places;                                          // the places of this frame
-    std::vector<std::pair<Key, std::array<int, 2>>> drawn;  // the draws of this frame in their order
-    std::vector<std::array<int, 2>> moves;                  // each draw's way back to its place before
-    std::vector<Surface> parts;                             // the screens of a render scale above 1
+    Places before;                             // the places of the frame before
+    Places places;                             // the places of this frame
+    std::vector<std::pair<Key, Drawn>> drawn;  // the draws of this frame in their order
+    std::vector<std::array<int, 2>> moves;     // each draw's way back to its place before
+    std::vector<Surface> parts;                // the screens of a render scale above 1
     bool measuring = false;
     int scale = 1;
     int column = 0;  // the screen drawn of the render scale's blocks
@@ -67,7 +80,12 @@ private:
     std::size_t next = 0;
     const char* stepFile = nullptr;
     u32 stepLine = 0;
-    u32 stepDraws = 0;
+    bool stepStill = false;
+    // The draws of the step so far, by where they are called and what they show.
+    std::vector<std::pair<std::pair<const void*, const void*>, u32>> stepDraws;
+    bool holding = false;  // Hold
+    std::array<int, 2> held = {};
+    const void* holdingWho = nullptr;
 };
 
 }  // namespace swd3::smooth

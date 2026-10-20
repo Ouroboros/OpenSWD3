@@ -8,6 +8,7 @@
 
 #include "battle/battle_services.h"
 #include "core/log.h"
+#include "draw/draw_placer.h"
 #include "draw/paint_record.h"
 #include "draw/painter.h"
 #include "game/scene.h"
@@ -54,6 +55,13 @@ void DrawSteps(BattleServices& services, const PictureSteps& steps)
             continue;
         }
 
+        std::optional<DrawPlacer::Holding> holding;
+
+        if (step.held)
+        {
+            holding.emplace(step.stand[0], step.stand[1], step.who);
+        }
+
         painter.SetSource(picture->data.data());
 
         if (step.tinted)
@@ -82,7 +90,7 @@ void DrawSteps(BattleServices& services, const PictureSteps& steps)
 
 void Scene::Add(Draw draw, Where where)
 {
-    this->steps.push_back(Step{std::move(draw), where.file_name(), where.line()});
+    this->steps.push_back(Step{std::move(draw), where.file_name(), where.line(), this->stillDepth > 0});
 }
 
 void Scene::Add(PictureSteps steps, Where where)
@@ -147,6 +155,17 @@ void Scene::Show(BattleServices& services)
 bool Scene::Empty() const
 {
     return this->steps.empty();
+}
+
+Scene::Still::Still(Scene& scene)
+    : scene(scene)
+{
+    ++this->scene.stillDepth;
+}
+
+Scene::Still::~Still()
+{
+    --this->scene.stillDepth;
 }
 
 ScenePainter::ScenePainter(BattleServices& services, Scene& scene, Scene::Where where)

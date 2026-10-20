@@ -60,6 +60,9 @@ struct PictureStep
     bool palette = false;  // drawn with the picture's palette (PaletteArgument)
     bool blended = false;
     int alpha = 0;
+    bool held = false;  // what stands at `stand` (DrawPlacer::Holding): it moves with it
+    std::array<int, 2> stand = {};
+    const void* who = nullptr;  // what is held (a flight)
 };
 
 using PictureSteps = std::vector<PictureStep>;
@@ -88,15 +91,31 @@ public:
     void Show(BattleServices& services);
     bool Empty() const;
 
+    // The draws added while it lives stay where they are drawn between game frames (what does not move in the
+    // original, as the talk windows: one that opens where another closed is not taken for it).
+    class Still
+    {
+    public:
+        explicit Still(Scene& scene);
+        ~Still();
+        Still(const Still&) = delete;
+        Still& operator=(const Still&) = delete;
+
+    private:
+        Scene& scene;
+    };
+
 private:
     struct Step
     {
         Draw draw;
         const char* file = nullptr;
         u32 line = 0;
+        bool still = false;
     };
 
     std::vector<Step> steps;
+    int stillDepth = 0;
 };
 
 // What a part deciding a frame draws with in place of the painter: each call adds to the scene, in its order, what the

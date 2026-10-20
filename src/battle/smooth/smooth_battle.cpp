@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cstring>
+#include <optional>
 #include <span>
 #include <string_view>
 
@@ -357,6 +358,9 @@ void BattleFrame::DrawRolePanelsAdvance(Scene& scene)
 {
     Game& game = this->game;
     BattleState& battle = game.battleState;
+    // The panels stay where they are (a number that changes is not taken for another); the automatic battle's box
+    // slides in.
+    std::optional<Scene::Still> still(std::in_place, scene);
     SceneFont font(game.mediumFont, scene);
     font.SetShadow(0);
     font.SetBackground(TextFont::NoBackground);
@@ -629,6 +633,8 @@ void BattleFrame::DrawRolePanelsAdvance(Scene& scene)
                 scene
             );
     }
+
+    still.reset();
 
     if (battle.autoBattle == 1)
     {

@@ -556,7 +556,7 @@ int Painter::DrawPicture(int x, int y, int width, int height, u32 mode, const Dr
 {
     if (DrawPlacer* placer = DrawPlacer::Active(); placer != nullptr)
     {
-        placer->Place(x, y);
+        placer->Place(x, y, __builtin_return_address(0), this->source);
     }
 
     if (PaintRecord* record = PaintRecord::Active(); record != nullptr)

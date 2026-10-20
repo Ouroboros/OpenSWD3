@@ -668,7 +668,7 @@ void TextFont::DrawText(Pixel* target, int x, int y, std::string_view text, Pixe
 {
     if (DrawPlacer* placer = DrawPlacer::Active(); placer != nullptr)
     {
-        placer->Place(x, y);
+        placer->Place(x, y, __builtin_return_address(0), nullptr);
     }
 
     if (PaintRecord* record = PaintRecord::Active(); record != nullptr)
