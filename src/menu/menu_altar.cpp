@@ -569,7 +569,7 @@ bool Menu::AltarCombine()
     setResult(altar.resultEast, kDefaultResult);
     setResult(altar.resultWest, kDefaultResult);
     const std::vector<u8>& maps = owner.databases.mapsData;
-    const std::size_t table = owner.scene.unk4C97E4;
+    const std::size_t table = owner.scene.recipesTable;
 
     for (std::size_t recipe = table + kRecipesAt;; recipe += kRecipeWords * sizeof(u16))
     {

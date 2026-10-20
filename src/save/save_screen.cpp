@@ -28,10 +28,10 @@ namespace swd3
 namespace
 {
 
-constexpr i32 kKeyBlockLimit = 0x3E8;  // Game::unk4CB240 past this is reset
+constexpr i32 kKeyBlockLimit = 0x3E8;  // Game::slotMouseBlock past this is reset
 constexpr i32 kKeyBlockFrames = 0x78;  // a key or click blocks the mouse slot choice this long
 constexpr i32 kSaveSlotsShown = 1;     // Game::storyState once the save screen runs
-constexpr i32 kFlagView = 0;           // Game::unk4CAEBC: the flag view (F1)
+constexpr i32 kFlagView = 0;           // Game::saveScreenPage: the flag view (F1)
 constexpr i32 kSlotsPage = 1;          // the save slots (F2)
 constexpr u32 kKeyPause = 0x1F4;       // milliseconds after F1 or F2
 constexpr u32 kLeavePause = 0x96;
@@ -58,7 +58,7 @@ constexpr Pixel kCursorBackground = 0xFFFF;
 constexpr Pixel kNoBackground = 0xFFFE;
 constexpr int kPlainStyle = 1;
 
-// The slot prompt (Game::unk4CC298).
+// The slot prompt (Game::slotPrompt).
 constexpr i32 kBrowsing = 0;
 constexpr i32 kOverwriteYes = 5;
 constexpr i32 kOverwriteNo = 6;
@@ -128,7 +128,7 @@ constexpr std::size_t kShakeBytes = 0x84;
 constexpr std::size_t kShakeHoldAt = 0;
 constexpr std::size_t kShakeFramesAt = 2;
 constexpr std::size_t kShakeOffsetsAt = 4;
-constexpr std::size_t kFileNameBytes = 0x34;  // Scene::unk4B751C and unk4B74F4
+constexpr std::size_t kFileNameBytes = 0x34;  // Scene::noTownWarpText and noExitWarpText
 constexpr u32 kFileNamesBytes = 2 * kFileNameBytes;
 constexpr std::size_t kFileNamesBuffer = 0xA8;
 constexpr std::array<int, 6> kKeptFlags = {5, 6, 7, 8, 0x13, 0x16};  // keep their saved values across LoadCity
@@ -233,9 +233,9 @@ void PutDword(std::vector<u8>& bytes, std::size_t at, u32 value)
 // their keys, drawn while it stays open
 void Game::SaveScreenFrame()
 {
-    if (--this->unk4CB240 < 0 || this->unk4CB240 > kKeyBlockLimit)
+    if (--this->slotMouseBlock < 0 || this->slotMouseBlock > kKeyBlockLimit)
     {
-        this->unk4CB240 = 0;
+        this->slotMouseBlock = 0;
     }
 
     ++this->saveFrames;
@@ -248,11 +248,11 @@ void Game::SaveScreenFrame()
     this->scene.pointerRole.act.action = Scene::ChoicePointer;
     this->SaveScreenKeys();
 
-    if (this->unk4CAEBC == kFlagView)
+    if (this->saveScreenPage == kFlagView)
     {
         this->FlagViewKeys();
     }
-    else if (this->unk4CAEBC == kSlotsPage)
+    else if (this->saveScreenPage == kSlotsPage)
     {
         this->SaveSlotsFrame();
     }
@@ -277,13 +277,13 @@ void Game::SaveScreenKeys()
     if (this->input.IsKeyDown(Input::F1) != 0 && this->menuMode == Menu::NoSlotsMode)
     {
         SleepMilliseconds(kKeyPause);
-        this->unk4CAEBC = kFlagView;
+        this->saveScreenPage = kFlagView;
     }
 
     if (this->input.IsKeyDown(Input::F2) != 0 && this->menuMode == Menu::NoSlotsMode)
     {
         SleepMilliseconds(kKeyPause);
-        this->unk4CAEBC = kSlotsPage;
+        this->saveScreenPage = kSlotsPage;
     }
 
     if (this->input.IsKeyDown(Input::Escape) != 0 || this->input.IsKeyDown(Input::LeftControl) != 0 ||
@@ -435,12 +435,12 @@ void Game::DrawSaveScreen()
     this->painter.SetTarget(this->drawSurface);
     this->painter.UnlockSurface(*this->offscreen);
 
-    if (this->unk4CAEBC == kFlagView)
+    if (this->saveScreenPage == kFlagView)
     {
         std::fill_n(this->drawSurface, static_cast<std::size_t>(Display::Width) * Display::Height, u16{0});
         this->DrawFlagView();
     }
-    else if (this->unk4CAEBC == kSlotsPage)
+    else if (this->saveScreenPage == kSlotsPage)
     {
         this->DrawSlotsPage();
     }
@@ -500,7 +500,7 @@ void Game::DrawFlagView()
     }
 }
 
-// swd32.exe 0x004070A0: the save slots page (save or load by Game::unk4CAEC0): the mouse picks a slot (a double click
+// swd32.exe 0x004070A0: the save slots page (save or load by Game::slotsLoad): the mouse picks a slot (a double click
 // takes it) or answers the overwrite prompt and the arrows page; the keys move by one or a page of three, Space or
 // Enter takes the slot (a used slot asks first when saving), Escape or Right Ctrl leaves. A slot taken is saved or
 // loaded once the screen ran ten frames; until then the choice stays pending.
@@ -513,10 +513,10 @@ void Game::SaveSlotsFrame()
 
     if (mouse.press != 0 && mouse.heldFrames != 0)
     {
-        this->unk4CB240 = 0;
+        this->slotMouseBlock = 0;
         step = this->SlotsMouse();
     }
-    else if (this->unk4CB240 == 0)
+    else if (this->slotMouseBlock == 0)
     {
         step = this->SlotsMouse();
     }
@@ -559,13 +559,13 @@ void Game::SaveSlotsFrame()
         return;
     }
 
-    if (step == SlotsStep::Chosen && this->unk4CC298 == kSlotChosen && this->unk4CAEC0 == 0)
+    if (step == SlotsStep::Chosen && this->slotPrompt == kSlotChosen && this->slotsLoad == 0)
     {
         this->SaveGame();
         return;
     }
 
-    if (step == SlotsStep::Chosen && this->unk4CAEC0 == 1)
+    if (step == SlotsStep::Chosen && this->slotsLoad == 1)
     {
         this->LoadGame();
     }
@@ -581,7 +581,7 @@ Game::SlotsStep Game::SlotsMouse()
     const i32 click = mouse.press;
     const auto x = static_cast<u32>(this->state.pointerX);
     const auto y = static_cast<u32>(this->state.pointerY);
-    i32 prompt = this->unk4CC298;
+    i32 prompt = this->slotPrompt;
     const bool inSlots = x < kSlotsRight && x > kSlotsLeft && y < kSlotsBottom && y > kSlotsTop;
 
     if (prompt == kBrowsing && inSlots)
@@ -603,11 +603,11 @@ Game::SlotsStep Game::SlotsMouse()
         {
             const bool free = SaveGames::IsFree(this->config.SaveDirectory(), this->saveSlots.newest);
 
-            if (this->unk4CAEC0 == 0)
+            if (this->slotsLoad == 0)
             {
                 if (!free)
                 {
-                    this->unk4CC298 = kOverwriteYes;
+                    this->slotPrompt = kOverwriteYes;
                     this->controls.buttons.fill(ButtonState{});
                     return SlotsStep::Done;
                 }
@@ -620,7 +620,7 @@ Game::SlotsStep Game::SlotsMouse()
                 return this->TakeSlot();
             }
 
-            this->unk4CC298 = kBrowsing;
+            this->slotPrompt = kBrowsing;
             this->audio.PlaySound(kEmptySlotSound, this->config.soundVolume);
             prompt = kBrowsing;
         }
@@ -639,7 +639,7 @@ Game::SlotsStep Game::SlotsMouse()
         {
             const u32 answer = (x - kAnswersLeft) / kAnswerWidth;
             prompt = static_cast<i32>(answer) + kOverwriteYes;
-            this->unk4CC298 = prompt;
+            this->slotPrompt = prompt;
 
             if (click != 0 && mouse.heldFrames != 0)
             {
@@ -648,14 +648,14 @@ Game::SlotsStep Game::SlotsMouse()
                     return this->TakeSlot();
                 }
 
-                this->unk4CC298 = kBrowsing;
+                this->slotPrompt = kBrowsing;
                 this->controls.buttons.fill(ButtonState{});
                 return SlotsStep::Done;
             }
 
             if (right.press != 0 && right.heldFrames != 0)
             {
-                this->unk4CC298 = kBrowsing;
+                this->slotPrompt = kBrowsing;
                 this->controls.buttons.fill(ButtonState{});
                 return SlotsStep::Done;
             }
@@ -695,7 +695,7 @@ Game::SlotsStep Game::SlotsMouse()
 // A slot taken (inline in 0x004070A0): the prompt marks it.
 Game::SlotsStep Game::TakeSlot()
 {
-    this->unk4CC298 = kSlotChosen;
+    this->slotPrompt = kSlotChosen;
     return SlotsStep::Chosen;
 }
 
@@ -711,9 +711,9 @@ Game::SlotsStep Game::SlotsKeys()
 
     auto move = [this](i32 delta, u16 sound, bool reloadAlways, u8& flash)
     {
-        this->unk4CB240 = kKeyBlockFrames;
+        this->slotMouseBlock = kKeyBlockFrames;
 
-        if (this->unk4CC298 == kBrowsing)
+        if (this->slotPrompt == kBrowsing)
         {
             this->saveSlots.newest += delta;
 
@@ -743,33 +743,33 @@ Game::SlotsStep Game::SlotsKeys()
 
     auto answer = [this](i32 prompt)
     {
-        if (this->unk4CC298 >= kOverwriteYes && this->unk4CC298 != kSlotChosen)
+        if (this->slotPrompt >= kOverwriteYes && this->slotPrompt != kSlotChosen)
         {
-            this->unk4CC298 = prompt;
+            this->slotPrompt = prompt;
         }
     };
 
     if (repeating(Button::Left) || repeating(Button::Up))
     {
-        move(-1, kSlotSound, false, this->unk4CC160);
+        move(-1, kSlotSound, false, this->downArrowPress);
         answer(kOverwriteYes);
     }
 
     if (repeating(Button::Right) || repeating(Button::Down))
     {
-        move(1, kSlotSound, false, this->unk4CC161);
+        move(1, kSlotSound, false, this->upArrowPress);
         answer(kOverwriteNo);
     }
 
     if (repeating(Button::PageUp))
     {
-        move(-SaveSlots::Visible, kPageSound, true, this->unk4CC161);
+        move(-SaveSlots::Visible, kPageSound, true, this->upArrowPress);
         answer(kOverwriteYes);
     }
 
     if (repeating(Button::PageDown))
     {
-        move(SaveSlots::Visible, kPageSound, true, this->unk4CC160);
+        move(SaveSlots::Visible, kPageSound, true, this->downArrowPress);
         answer(kOverwriteNo);
     }
 
@@ -781,26 +781,26 @@ Game::SlotsStep Game::SlotsKeys()
         return SlotsStep::Keys;
     }
 
-    this->unk4CB240 = kKeyBlockFrames;
+    this->slotMouseBlock = kKeyBlockFrames;
 
-    if (this->unk4CAEC0 != 0)
+    if (this->slotsLoad != 0)
     {
         if (SaveGames::IsFree(this->config.SaveDirectory(), this->saveSlots.newest))
         {
             this->audio.PlaySound(kEmptySlotSound, this->config.soundVolume);
-            this->unk4CC298 = kBrowsing;
+            this->slotPrompt = kBrowsing;
             return SlotsStep::Keys;
         }
 
         return this->TakeSlot();
     }
 
-    switch (this->unk4CC298)
+    switch (this->slotPrompt)
     {
         case kBrowsing:
             if (!SaveGames::IsFree(this->config.SaveDirectory(), this->saveSlots.newest))
             {
-                this->unk4CC298 = kOverwriteYes;
+                this->slotPrompt = kOverwriteYes;
                 return SlotsStep::Done;
             }
 
@@ -810,7 +810,7 @@ Game::SlotsStep Game::SlotsKeys()
             return this->TakeSlot();
 
         case kOverwriteNo:
-            this->unk4CC298 = kBrowsing;
+            this->slotPrompt = kBrowsing;
             return SlotsStep::Done;
 
         default:
@@ -825,7 +825,7 @@ void Game::SaveGame()
 {
     this->SaveFameFile();
     this->menu.flags |= kGameSavedFlag;
-    this->unk4CC298 = kBrowsing;
+    this->slotPrompt = kBrowsing;
     const Role& leader = this->state.roles[static_cast<std::size_t>(this->state.playerRole)];
     this->SaveRoleStates(
         static_cast<i16>(static_cast<u32>(leader.x) >> kTileShift),
@@ -898,11 +898,11 @@ void Game::WriteSave(File& file)
     this->audioDevice.Serve();
     writeBlock(this->state.flags, GameState::FlagBytes);
     const std::vector<u8>& maps = this->databases.mapsData;
-    const std::size_t rolesAt = std::min<std::size_t>(this->scene.unk4ACE40, maps.size());
-    const std::size_t rolesBytes = std::min<std::size_t>(this->scene.unk4C8BD4, maps.size() - rolesAt);
-    writeBlock(std::span<const u8>(maps).subspan(rolesAt, rolesBytes), this->scene.unk4C8BD4);
+    const std::size_t rolesAt = std::min<std::size_t>(this->scene.rolesTable, maps.size());
+    const std::size_t rolesBytes = std::min<std::size_t>(this->scene.rolesTableBytes, maps.size() - rolesAt);
+    writeBlock(std::span<const u8>(maps).subspan(rolesAt, rolesBytes), this->scene.rolesTableBytes);
     const Role& leader = this->state.roles[static_cast<std::size_t>(this->state.playerRole)];
-    file.WriteDword(static_cast<u32>(this->unk4B7BC4));
+    file.WriteDword(static_cast<u32>(this->partyLeaderId));
     file.WriteDword(static_cast<u32>(this->currentMap));
     file.WriteDword(static_cast<u32>(leader.x) >> kTileShift);
     file.WriteDword(static_cast<u32>(leader.y) >> kTileShift);
@@ -913,16 +913,16 @@ void Game::WriteSave(File& file)
     this->audioDevice.Serve();
     writeBlock(party, static_cast<u32>(party.size()));
     write(this->party.names.data(), sizeof(this->party.names));
-    this->unk4ACEF4 += static_cast<i32>(crt::Ftol(crt::Difftime(crt::Time(), this->unk4AB990)));
-    file.WriteDword(static_cast<u32>(this->unk4ACEF4));
-    this->unk4AB990 = crt::Time();
+    this->playSeconds += static_cast<i32>(crt::Ftol(crt::Difftime(crt::Time(), this->playClockStart)));
+    file.WriteDword(static_cast<u32>(this->playSeconds));
+    this->playClockStart = crt::Time();
     std::vector<u8> back(kReturnBytes, 0);
     PutWord(back, kReturnColumnAt, static_cast<u16>(this->scene.returnColumn));
     PutWord(back, kReturnRowAt, static_cast<u16>(this->scene.returnRow));
     PutWord(back, kReturnMapAt, static_cast<u16>(this->scene.returnMap));
-    PutWord(back, kReturnUnkAt, static_cast<u16>(this->scene.unk4C8BE0));
-    PutDword(back, kReturnTimerAt, static_cast<u32>(this->scene.unk4CAD20));
-    PutDword(back, kReturnEventAt, static_cast<u32>(this->scene.unk4A93D4));
+    PutWord(back, kReturnUnkAt, static_cast<u16>(this->scene.warpLeaderAct));
+    PutDword(back, kReturnTimerAt, static_cast<u32>(this->scene.timerFrames));
+    PutDword(back, kReturnEventAt, static_cast<u32>(this->scene.timerEvent));
     write(back.data(), back.size());
     write(this->party.battleBlocks.data(), sizeof(this->party.battleBlocks));
     std::vector<u8> fame;
@@ -948,8 +948,8 @@ void Game::WriteSave(File& file)
         }
     };
 
-    putName(this->scene.unk4B751C, 0);
-    putName(this->scene.unk4B74F4, kFileNameBytes);
+    putName(this->scene.noTownWarpText, 0);
+    putName(this->scene.noExitWarpText, kFileNameBytes);
     writeBlock(names, kFileNamesBytes);
 }
 
@@ -1058,7 +1058,7 @@ void Game::LoadGame()
 
     view.ResetEffects();
     this->audio.StopMusic();
-    this->unk4CC298 = kBrowsing;
+    this->slotPrompt = kBrowsing;
     std::fill_n(this->drawSurface, static_cast<std::size_t>(Display::Width) * Display::Height, u16{0});
     this->ShowFrame();
     File& maps = this->databases.maps;
@@ -1067,7 +1067,7 @@ void Game::LoadGame()
     this->audioDevice.Serve();
     this->databases.mapsData.assign(mapsBytes, 0);
     maps.Read(this->databases.mapsData.data(), mapsBytes);
-    view.unk4ACE40 = MapsDword(this->databases.mapsData, sizeof(u32));
+    view.rolesTable = MapsDword(this->databases.mapsData, sizeof(u32));
     File file;
 
     if (file.Open(
@@ -1095,8 +1095,8 @@ void Game::LoadGame()
 void Game::ReadSave(File& file)
 {
     this->ResetBattle();
-    this->scene.unk4B751C.reset();
-    this->scene.unk4B74F4.reset();
+    this->scene.noTownWarpText.reset();
+    this->scene.noExitWarpText.reset();
     const u32 size = file.Size();
     file.CreateMapping();
     const u8* mapped = file.MapView(0, 0);
@@ -1163,7 +1163,7 @@ void Game::ReadSave(File& file)
     }
 
     Role& leader = this->state.roles[static_cast<std::size_t>(this->state.playerRole)];
-    this->unk4B7BC4 = static_cast<i32>(ReadDword(save, at));
+    this->partyLeaderId = static_cast<i32>(ReadDword(save, at));
     this->currentMap = static_cast<i32>(ReadDword(save, at + kPlaceMapAt));
     leader.x = static_cast<i32>(ReadDword(save, at + kPlaceXAt));
     leader.y = static_cast<i32>(ReadDword(save, at + kPlaceYAt));
@@ -1187,19 +1187,19 @@ void Game::ReadSave(File& file)
                 sizeof(this->party.names),
                 reinterpret_cast<u8*>(this->party.names.data())
             );
-            this->unk4ACEF4 = static_cast<i32>(ReadDword(save, at + sizeof(this->party.names)));
-            this->unk4AB990 = crt::Time();
+            this->playSeconds = static_cast<i32>(ReadDword(save, at + sizeof(this->party.names)));
+            this->playClockStart = crt::Time();
             const std::size_t back = at + sizeof(this->party.names) + sizeof(u32);
             this->scene.returnColumn = static_cast<i16>(ReadWord(save, back + kReturnColumnAt));
             this->scene.returnRow = static_cast<i16>(ReadWord(save, back + kReturnRowAt));
             this->scene.returnMap = static_cast<i16>(ReadWord(save, back + kReturnMapAt));
-            this->scene.unk4C8BE0 = static_cast<i16>(ReadWord(save, back + kReturnUnkAt));
-            this->scene.unk4CAD20 = static_cast<i32>(ReadDword(save, back + kReturnTimerAt));
-            this->scene.unk4A93D4 = static_cast<i32>(ReadDword(save, back + kReturnEventAt));
+            this->scene.warpLeaderAct = static_cast<i16>(ReadWord(save, back + kReturnUnkAt));
+            this->scene.timerFrames = static_cast<i32>(ReadDword(save, back + kReturnTimerAt));
+            this->scene.timerEvent = static_cast<i32>(ReadDword(save, back + kReturnEventAt));
 
             if (this->scene.returnMap == 0)
             {
-                this->scene.unk4C8BE0 = 0;
+                this->scene.warpLeaderAct = 0;
                 this->scene.returnMap = this->currentMap;
                 this->scene.returnColumn = static_cast<i32>(static_cast<u32>(leader.x) >> kTileShift);
                 this->scene.returnRow = static_cast<i32>(static_cast<u32>(leader.y) >> kTileShift);
@@ -1253,8 +1253,8 @@ void Game::ReadSave(File& file)
                 return std::string(text, strnlen(text, kFileNameBytes));
             };
 
-            this->scene.unk4B751C = name(0);
-            this->scene.unk4B74F4 = name(kFileNameBytes);
+            this->scene.noTownWarpText = name(0);
+            this->scene.noExitWarpText = name(kFileNameBytes);
         }
     }
 
@@ -1443,7 +1443,7 @@ void Game::DrawSlotsPage()
     this->menu.background.action = 0;
     this->actDrawer.Draw(this->menu.background, 0, 0);
     this->slotsTitle.id = kSlotsAct;
-    this->slotsTitle.action = this->unk4CAEC0 != 0 ? kLoadTitleAction : kSaveTitleAction;
+    this->slotsTitle.action = this->slotsLoad != 0 ? kLoadTitleAction : kSaveTitleAction;
     this->slotsTitle.direction = 0;
     this->actDrawer.Draw(this->slotsTitle, 0, kTitleY);
     const int first = SaveSlots::Visible * (this->saveSlots.newest / SaveSlots::Visible);
@@ -1592,7 +1592,7 @@ void Game::DrawSlotsPage()
         this->smallFont.DrawText(this->drawSurface, kThumbnailX, y + kThumbnailTop, number, color, kPanelStyle);
     }
 
-    if (this->unk4CAEC0 == 0 && (this->unk4CC298 == kOverwriteYes || this->unk4CC298 == kOverwriteNo))
+    if (this->slotsLoad == 0 && (this->slotPrompt == kOverwriteYes || this->slotPrompt == kOverwriteNo))
     {
         int y = kSlotStep * (this->saveSlots.newest % SaveSlots::Visible);
         DrawWindowFrame(
@@ -1610,7 +1610,7 @@ void Game::DrawSlotsPage()
         y += kAnswersTop;
         FillBox(
             this->painter,
-            static_cast<int>(kAnswerWidth) * this->unk4CC298 + kAnswerBase,
+            static_cast<int>(kAnswerWidth) * this->slotPrompt + kAnswerBase,
             y,
             static_cast<int>(kAnswerWidth),
             kAnswerHeight,
@@ -1629,7 +1629,7 @@ void Game::DrawSlotsPage()
         if (this->state.pointerY < static_cast<i32>(kDownArrowBottom) &&
             this->state.pointerY > static_cast<i32>(kDownArrowTop))
         {
-            this->actDrawer.DrawPicture(kDownArrowLit, 0, kArrowX, this->unk4CC160 + kDownArrowY);
+            this->actDrawer.DrawPicture(kDownArrowLit, 0, kArrowX, this->downArrowPress + kDownArrowY);
         }
     }
 
@@ -1639,18 +1639,18 @@ void Game::DrawSlotsPage()
 
         if (static_cast<u32>(this->state.pointerY) <= kUpArrowBottom)
         {
-            this->actDrawer.DrawPicture(kUpArrowLit, 0, kArrowX, kUpArrowY - this->unk4CC161);
+            this->actDrawer.DrawPicture(kUpArrowLit, 0, kArrowX, kUpArrowY - this->upArrowPress);
         }
     }
 
-    if (this->unk4CC160 != 0)
+    if (this->downArrowPress != 0)
     {
-        --this->unk4CC160;
+        --this->downArrowPress;
     }
 
-    if (this->unk4CC161 != 0)
+    if (this->upArrowPress != 0)
     {
-        --this->unk4CC161;
+        --this->upArrowPress;
     }
 
     ActState& pointer = this->scene.pointerRole.act;

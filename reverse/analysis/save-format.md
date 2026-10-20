@@ -16,16 +16,16 @@
 | 0x000C | 0x9600 | 缩略图 160×120，原始像素格式（Painter::ConvertPixelsBack 后的 0x4B00 个 u16） | 地图画到 drawSurface 后 ShrinkScreenQuarter | 只用于预览 |
 | 0x960C | 0x20 | 地点名（NUL 结尾，余下为 0） | GameState::map.name（0x004B7954，LoadCity 写入的地图名） | 只用于预览 |
 | 0x962C | 块 A | 剧情旗标 0x400 字节（GameState::flags 0x004AB384） | | 全部覆盖 |
-| | 块 B | maps.dat 表 1：角色记录，0x16 字节一条（Scene::unk4ACE40 起，长 Scene::unk4C8BD4） | | 重新读入 maps.dat 后逐条交给 Game::UpdateRoleRecord（字 0 地图、1 角色号、2 动作档、3 动作、4 方向、5 x、6 y、7 事件、8 对话、10 置位；字 9 不用） |
-| | 0x1C | 7 个 u32：unk4B7BC4、currentMap、主控角色的列（x>>4）、行（y>>4）、角色记录 +0x40、+0x48、+0x74 | | 回填主控角色 |
+| | 块 B | maps.dat 表 1：角色记录，0x16 字节一条（Scene::rolesTable 起，长 Scene::rolesTableBytes） | | 重新读入 maps.dat 后逐条交给 Game::UpdateRoleRecord（字 0 地图、1 角色号、2 动作档、3 动作、4 方向、5 x、6 y、7 事件、8 对话、10 置位；字 9 不用） |
+| | 0x1C | 7 个 u32：partyLeaderId、currentMap、主控角色的列（x>>4）、行（y>>4）、角色记录 +0x40、+0x48、+0x74 | | 回填主控角色 |
 | | 块 C | 队伍资料（见下） | | |
 | | 0x40 | 四个角色名（Party::names，各 0x10） | | |
-| | 4 | 游戏时间（秒），写入时加上自上次计时以来的 difftime | Game::unk4ACEF4 | 重新开始计时 |
-| | 0x40 | 返回点：u16 returnColumn、u16 returnRow、u16 returnMap、u16 unk4C8BE0、u32 计时器 0x004CAD20、u32 unk4A93D4，余下为 0 | | returnMap 为 0 时改用当前地图与主控角色位置 |
+| | 4 | 游戏时间（秒），写入时加上自上次计时以来的 difftime | Game::playSeconds | 重新开始计时 |
+| | 0x40 | 返回点：u16 returnColumn、u16 returnRow、u16 returnMap、u16 warpLeaderAct、u32 计时器 0x004CAD20、u32 timerEvent，余下为 0 | | returnMap 为 0 时改用当前地图与主控角色位置 |
 | | 0x180 | 四个角色的 0x60 字节战斗块（0x004ACF50） | | |
 | | 4 + n | Fame::Save 的长度与原始数据（不压缩） | 0x00477C90 | Fame::Free、Fame::Load |
 | | 0x84 | u16 shakeHold、u16 shakeFrames、0x80 字节震动偏移（Scene::shake） | | 缺失时 shake 填 0xCF |
-| | 块 D | 0x68 字节：两个 0x34 字节名字（Scene::unk4B751C、unk4B74F4，空时全 0） | | 首字节非 0 才建立 |
+| | 块 D | 0x68 字节：两个 0x34 字节名字（Scene::noTownWarpText、noExitWarpText，空时全 0） | | 首字节非 0 才建立 |
 
 块 A 之后的各段读取时逐段比较文件长度，文件到头即停止，旧版较短的存档也能读入（停在哪一段，后面的状态保持原值，
 shake 除外）。

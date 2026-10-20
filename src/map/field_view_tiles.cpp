@@ -72,7 +72,7 @@ void FieldView::DrawTileGrid(const TileSet& tiles)
 
     const int first = width * ((top + this->game.field.cameraTop) >> MapHeader::TileShift) +
                       ((left + this->game.field.cameraLeft) >> MapHeader::TileShift);
-    int tile = first + this->game.scene.unk4B873C;
+    int tile = first + this->game.scene.layerOffset;
     int block = first;
 
     for (int y = top; y < bottom; y += MapHeader::TileSize)
@@ -161,7 +161,7 @@ void FieldView::DrawTileGridScrolled(const TileSet& tiles)
     int right = lightX + Scene::SpotlightRadius;
     int top = lightY - Scene::SpotlightRadius;
     int bottom = lightY + Scene::SpotlightRadius;
-    const int layer = this->game.scene.unk4B873C;
+    const int layer = this->game.scene.layerOffset;
 
     auto drawEdge = [this, &painter, &tiles](int block, int tile, int x, int y)
     {
@@ -306,7 +306,7 @@ void FieldView::DrawTileCanvas(const TileSet& tiles)
     const int lastColumn = std::min(FloorDivide(field.cameraLeft + right - 1, MapHeader::TileSize), width - 1);
     const int firstRow = std::max(FloorDivide(field.cameraTop + top, MapHeader::TileSize), 0);
     const int lastRow = std::min(FloorDivide(field.cameraTop + bottom - 1, MapHeader::TileSize), state.map.height - 1);
-    const int layer = view.unk4B873C;
+    const int layer = view.layerOffset;
 
     for (int row = firstRow; row <= lastRow; ++row)
     {

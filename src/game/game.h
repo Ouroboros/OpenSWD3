@@ -585,34 +585,34 @@ private:
     std::array<BattleEnemy, BattleState::Enemies> battleEnemies;  // 0x00525508
     ActDrawer actDrawer;
     Notices notices;
-    i32 unk4B7518 = 0;          // the step of the camera and the controlled role across (-1, 0, 1)
-    i32 unk4B7920 = 0;          // and down
-    i32 unk4A9488 = 0;          // the step of the controlled role alone across
-    i32 unk4A948C = 0;          // and down
+    i32 scrollStepX = 0;        // 0x004B7518 the step of the camera and the controlled role across (-1, 0, 1)
+    i32 scrollStepY = 0;        // 0x004B7920 and down
+    i32 walkStepX = 0;          // 0x004A9488 the step of the controlled role alone across
+    i32 walkStepY = 0;          // 0x004A948C and down
     i32 lastPointerAction = 0;  // 0x004CC2E0
     Menu menu;
     SaveSlots saveSlots;
     std::unique_ptr<TextInput> textInput;  // 0x004CACD8 the text box the keyboard goes to (with flag 0x50)
     ActState unk4CC200;
-    i32 flagCursor = 0;   // 0x004CC29C the flag chosen in the flag view
-    u32 saveFrames = 0;   // 0x004CC2A4 frames since the save screen opened
-    u16 unk4CC2AA = 0;    // 0x004CC2AA
-    ActState slotsTitle;  // 0x004CC168 the title of the slots page (act 0x232A)
-    u8 unk4CC160 = 0;
-    u8 unk4CC161 = 0;
-    i32 unk4CC298 = 0;
-    i32 unk4CB240 = 0;
-    u32 systemFlags = 0;   // 0x004B7A9C SystemFlag bits
-    i32 counterAlpha = 0;  // 0x004C9A24
+    i32 flagCursor = 0;      // 0x004CC29C the flag chosen in the flag view
+    u32 saveFrames = 0;      // 0x004CC2A4 frames since the save screen opened
+    u16 unk4CC2AA = 0;       // 0x004CC2AA
+    ActState slotsTitle;     // 0x004CC168 the title of the slots page (act 0x232A)
+    u8 downArrowPress = 0;   // 0x004CC160 frames the lit down arrow of the slots stays pressed down
+    u8 upArrowPress = 0;     // 0x004CC161 and the up arrow up
+    i32 slotPrompt = 0;      // 0x004CC298 browsing, the overwrite answer or the slot chosen
+    i32 slotMouseBlock = 0;  // 0x004CB240 frames a key or click keeps the pointer from choosing a slot
+    u32 systemFlags = 0;     // 0x004B7A9C SystemFlag bits
+    i32 counterAlpha = 0;    // 0x004C9A24
     i32 unk4A9484 = 0;
     static constexpr u32 ScriptedBattle = 0x80000000;  // in `battleRequest`: started by a talk command
     i32 battleRequest = 0;                             // 0x004A94AC a battle to start (its number in the low word)
     i32 inBattle = 0;                                  // 0x004CAEB4 a battle from the map runs
-    std::vector<u16> unk4B7928;                        // the words of talk command 0x85 for menu 2, ended by 0
-    i32 currentMap = 0;                                // 0x004A9A10 the number of the map shown
-    i32 unk4AB990 = 0;
-    i32 unk4ACEF4 = 0;
-    i32 unk4B7BC4 = 0;
+    std::vector<u16> shopGoods;  // 0x004B7928 the items of talk command 0x85 for the shop, ended by 0
+    i32 currentMap = 0;          // 0x004A9A10 the number of the map shown
+    i32 playClockStart = 0;      // 0x004AB990 the time() the play time was last counted from
+    i32 playSeconds = 0;         // 0x004ACEF4 the play time saved, in seconds
+    i32 partyLeaderId = 0;  // 0x004B7BC4 the role id leading the party on the map (its cells marked as the leader's)
     TextEntryState textEntry;
     i32 running = 0;    // 0x004CC2AC frames run (F8 toggles)
     u32 lastFrame = 0;  // 0x004CC2B0
@@ -645,15 +645,15 @@ private:
     bool vsync = true;           // [display] vsync
     i64 frameRate = 0;           // [display] frame_rate (0: no limit)
     u32 frameStart = 0;          // 0x004AAECC
-    u32 unk4C844C = 0;
-    u32 unk4C8444 = 0;
-    u32 unk4C8448 = 0;   // the time the last frame took
-    i32 debugText = 0;   // 0x004CAE9C the debug lines (debug key F1)
-    i32 debugCells = 0;  // 0x004CAEA0 the debug cell marks (debug key F2)
-    i32 frameTime = 0;   // 0x0049E1C8
+    u32 mainFrameStart = 0;      // 0x004C844C frameStart when the main frame began
+    u32 lastFrameStart = 0;      // 0x004C8444 frameStart of the main frame before
+    u32 mainFrameTime = 0;       // 0x004C8448 the time the last main frame took (debug line)
+    i32 debugText = 0;           // 0x004CAE9C the debug lines (debug key F1)
+    i32 debugCells = 0;          // 0x004CAEA0 the debug cell marks (debug key F2)
+    i32 frameTime = 0;           // 0x0049E1C8
     i32 unk4A99FC = 0;
-    i32 unk4C9A14 = 0;  // 0x004C9A14 only cleared (MainFrame)
-    i32 unk4CAD24 = 0;
+    i32 unk4C9A14 = 0;       // 0x004C9A14 only cleared (MainFrame)
+    i32 counterWait = 0;     // 0x004CAD24 frames the controlled role stood still (the counter fades in after 0x64)
     i32 loadingPercent = 0;  // 0x004CC2B8
     i32 loadingUnk4CC2C0 = 0;
     i32 loadingRunner = 0;  // 0x004CC2D0 the act running along the bar (1 or 2)
@@ -675,8 +675,8 @@ private:
     u32 menuState = 0;                    // 0x004B8740 bit 31: entered, low bits the menu
     i32 menuMode = 0;                     // 0x004FBAB0
     i32 storyState = Game::StoryRunning;  // 0x004CAEB0
-    i32 unk4CAEBC = 0;
-    i32 unk4CAEC0 = 0;
+    i32 saveScreenPage = 0;  // 0x004CAEBC the page of the save screen: 0 the flag view (F1), 1 the slots (F2)
+    i32 slotsLoad = 0;       // 0x004CAEC0 the slots load (1) or save (0)
     bool quit = false;
     bool inLoopFrame = false;  // LoopFrame runs (the live-resize exposes come from inside it too)
 };

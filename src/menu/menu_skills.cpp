@@ -916,7 +916,7 @@ void Menu::SkillsSelect()
 
             if (chosen->id == kTownWarp)
             {
-                if (owner.state.GameFlag(kTownWarpBlocked) || owner.scene.unk4ACDB4 != 1)
+                if (owner.state.GameFlag(kTownWarpBlocked) || owner.scene.townWarpAllowed != 1)
                 {
                     page.stage = kNoTownWarp;
                     refuse();
@@ -1628,7 +1628,7 @@ void Menu::SkillsDraw()
     if (page.stage == kNoTownWarp || page.stage == kNoExitWarp)
     {
         const std::optional<std::string>& message =
-            page.stage == kNoTownWarp ? owner.scene.unk4B751C : owner.scene.unk4B74F4;
+            page.stage == kNoTownWarp ? owner.scene.noTownWarpText : owner.scene.noExitWarpText;
         std::string text = message.value_or(Big5(kCannotHere));
         text.resize(kMessageLines * kMessageLineBytes, '\0');
         this->DrawBox(kMessageX, kMessageY, kMessageWidth, kMessageHeight, kMessageBoxMode, 0, 0, 0);

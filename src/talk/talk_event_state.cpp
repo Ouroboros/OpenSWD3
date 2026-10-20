@@ -93,7 +93,7 @@ bool Talk::RunStateCommand(EventRun& run)
     GameState& state = owner.state;
     Scene& view = owner.scene;
     Party& party = owner.party;
-    const i32 leader = owner.unk4B7BC4;
+    const i32 leader = owner.partyLeaderId;
 
     switch (run.code)
     {
@@ -836,14 +836,14 @@ bool Talk::RunStateCommand(EventRun& run)
                 ++count;
             }
 
-            owner.unk4B7928.clear();
+            owner.shopGoods.clear();
 
             for (std::size_t index = 0; index < count && index < kMaxItems; ++index)
             {
-                owner.unk4B7928.push_back(this->Word(run, kItemsAt + index));
+                owner.shopGoods.push_back(this->Word(run, kItemsAt + index));
             }
 
-            owner.unk4B7928.push_back(0);
+            owner.shopGoods.push_back(0);
 
             owner.menuState = Game::MenuEntering | Game::ItemChoiceMenu;
             this->Advance(run, static_cast<int>(kWordBytes * (kItemsAt + count + 1)));
@@ -889,8 +889,8 @@ bool Talk::RunStateCommand(EventRun& run)
 
         case EventCommand::SaveMenu:
             owner.menuMode = Menu::ScriptSaveMode;
-            owner.unk4CAEBC = 1;
-            owner.unk4CAEC0 = 0;
+            owner.saveScreenPage = 1;
+            owner.slotsLoad = 0;
             owner.storyState = Game::SaveSlotsState;
             owner.ResetSaveSlots();
             this->Next(run);
@@ -977,7 +977,7 @@ bool Talk::RunStateCommand(EventRun& run)
         }
 
         case EventCommand::StopTimer:
-            view.unk4CAD20 = -1;
+            view.timerFrames = -1;
             state.ClearGameFlag(GameState::Timer);
             state.ClearGameFlag(GameState::HideTimer);
             state.ClearGameFlag(GameState::TimerEvent);
@@ -1008,8 +1008,8 @@ bool Talk::RunSystemCommand(EventRun& run)
                 Game::MenuEntering | (this->Byte(run, kOpcodeBytes) == 1 ? Game::SystemMenuB : Game::SystemMenuA);
             owner.storyState = Game::StoryRunning;
             owner.ResetSaveSlots();
-            owner.unk4CAEBC = 0;
-            owner.unk4CAEC0 = 0;
+            owner.saveScreenPage = 0;
+            owner.slotsLoad = 0;
             owner.menuMode = Menu::NoSlotsMode;
             this->Next(run);
             return false;
@@ -1297,7 +1297,7 @@ bool Talk::RunSystemCommand(EventRun& run)
 
             const bool second = run.code > EventCommand::SetFileNameA;
             run.valueA = second ? 1 : 0;
-            std::optional<std::string>& slot = second ? view.unk4B74F4 : view.unk4B751C;
+            std::optional<std::string>& slot = second ? view.noExitWarpText : view.noTownWarpText;
 
             if (SetsFileName(run.code))
             {
@@ -1369,7 +1369,7 @@ bool Talk::RunSystemCommand(EventRun& run)
                 run.valueA = state.roleCount;
             }
 
-            if (run.valueB + 1 == view.unk4BABA0)
+            if (run.valueB + 1 == view.followerCount)
             {
                 this->SetWord(run, kCodeWord, static_cast<u16>(command & ~kCommandStarted));
                 this->Next(run);

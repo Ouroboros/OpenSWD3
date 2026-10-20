@@ -25,7 +25,7 @@ void FieldView::SettlePlayer()
     Scene& view = owner.scene;
     Field& field = owner.field;
     Role& player = state.roles[static_cast<std::size_t>(state.playerRole)];
-    const i32 leaderId = owner.unk4B7BC4;
+    const i32 leaderId = owner.partyLeaderId;
     const int width = state.map.width;
     field.RemoveRole(
         player.id,
@@ -37,18 +37,18 @@ void FieldView::SettlePlayer()
 
     if (player.cell != nullptr)
     {
-        const std::ptrdiff_t at = player.cell - state.map.blocks.data() + owner.unk4B7518 + owner.unk4A9488 +
-                                  static_cast<std::ptrdiff_t>(width) * (owner.unk4B7920 + owner.unk4A948C);
+        const std::ptrdiff_t at = player.cell - state.map.blocks.data() + owner.scrollStepX + owner.walkStepX +
+                                  static_cast<std::ptrdiff_t>(width) * (owner.scrollStepY + owner.walkStepY);
         player.cell = at >= 0 && static_cast<std::size_t>(at) < state.map.blocks.size()
                           ? &state.map.blocks[static_cast<std::size_t>(at)]
                           : nullptr;
     }
 
     field.MarkRoleCells(player, leaderId);
-    owner.unk4B7920 = 0;
-    owner.unk4A948C = 0;
-    owner.unk4B7518 = 0;
-    owner.unk4A9488 = 0;
+    owner.scrollStepY = 0;
+    owner.walkStepY = 0;
+    owner.scrollStepX = 0;
+    owner.walkStepX = 0;
 
     if (view.trailX[0] != player.x || view.trailY[0] != player.y)
     {
@@ -138,15 +138,16 @@ void FieldView::MotionTick()
     Field& field = owner.field;
     Role& player = state.roles[static_cast<std::size_t>(state.playerRole)];
     PlayerMotion& motion = this->playerMotion;
-    const bool stepping = owner.unk4B7518 != 0 || owner.unk4B7920 != 0 || owner.unk4A9488 != 0 || owner.unk4A948C != 0;
+    const bool stepping =
+        owner.scrollStepX != 0 || owner.scrollStepY != 0 || owner.walkStepX != 0 || owner.walkStepY != 0;
 
     if (motion.active)
     {
         const bool moved = player.x != motion.leftX || player.y != motion.leftY ||
                            field.cameraLeft != motion.leftCameraX || field.cameraTop != motion.leftCameraY;
-        const bool same = motion.across == Sign(owner.unk4B7518 + owner.unk4A9488) &&
-                          motion.down == Sign(owner.unk4B7920 + owner.unk4A948C) &&
-                          motion.scrollAcross == owner.unk4B7518 && motion.scrollDown == owner.unk4B7920;
+        const bool same = motion.across == Sign(owner.scrollStepX + owner.walkStepX) &&
+                          motion.down == Sign(owner.scrollStepY + owner.walkStepY) &&
+                          motion.scrollAcross == owner.scrollStepX && motion.scrollDown == owner.scrollStepY;
 
         if (moved)
         {
@@ -206,10 +207,10 @@ void FieldView::BeginPlayerMotion()
     const Field& field = owner.field;
     const Role& player = owner.state.roles[static_cast<std::size_t>(owner.state.playerRole)];
     PlayerMotion& motion = this->playerMotion;
-    motion.across = Sign(owner.unk4B7518 + owner.unk4A9488);
-    motion.down = Sign(owner.unk4B7920 + owner.unk4A948C);
-    motion.scrollAcross = owner.unk4B7518;
-    motion.scrollDown = owner.unk4B7920;
+    motion.across = Sign(owner.scrollStepX + owner.walkStepX);
+    motion.down = Sign(owner.scrollStepY + owner.walkStepY);
+    motion.scrollAcross = owner.scrollStepX;
+    motion.scrollDown = owner.scrollStepY;
     motion.active = (motion.across != 0 || motion.down != 0) && owner.state.walkSpeed > 0;
     motion.startX = player.x;
     motion.startY = player.y;

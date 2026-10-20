@@ -280,7 +280,7 @@ void FieldView::DrawWeather()
             motion.speedTarget = roll / kWeatherSpeedStep + 1;
             motion.action = view.weatherAction + roll * view.weatherActions / kPerMille;
 
-            switch (view.unk4B7EB4)
+            switch (view.weatherKind)
             {
                 case kWeatherFromBelow:
                     drop.x = static_cast<i32>(random.Below(static_cast<u32>(MapHeader::TileSize * width)));
@@ -324,8 +324,8 @@ void FieldView::DrawWeather()
             const i32 fromX = drop.x;
             const i32 fromY = drop.y;
             motion.counter = 0;
-            drop.x += drop.stepX + ((owner.unk4B7518 * owner.state.walkSpeed) >> kWalkQuarter);
-            drop.y += drop.stepY + ((owner.state.walkSpeed * owner.unk4B7920) >> kWalkQuarter);
+            drop.x += drop.stepX + ((owner.scrollStepX * owner.state.walkSpeed) >> kWalkQuarter);
+            drop.y += drop.stepY + ((owner.state.walkSpeed * owner.scrollStepY) >> kWalkQuarter);
 
             if (roll < kWeatherSpeedChance)
             {
@@ -360,10 +360,10 @@ void FieldView::DrawWeather()
             );
         }
 
-        view.unk4ACAF8.id = Scene::EffectAct;
-        view.unk4ACAF8.action = motion.action;
-        owner.acts.Run(view.unk4ACAF8);
-        const Picture* picture = owner.archive.GetPicture(view.unk4ACAF8.frame, view.unk4ACAF8.picture);
+        view.effectAct.id = Scene::EffectAct;
+        view.effectAct.action = motion.action;
+        owner.acts.Run(view.effectAct);
+        const Picture* picture = owner.archive.GetPicture(view.effectAct.frame, view.effectAct.picture);
 
         if (picture == nullptr)
         {
@@ -374,13 +374,13 @@ void FieldView::DrawWeather()
         options.tintBlue = shade.tint;
         options.tintGreen = shade.tint;
         options.tintRed = shade.tint;
-        options.alpha = view.unk4ACAF8.signal;
+        options.alpha = view.effectAct.signal;
         const std::array<i32, 2> place =
             this->EffectAt(EffectKey(EffectKind::Weather, particle), drop.x, drop.y, false);
         painter.SetSource(picture->data.data());
         painter.DrawPicture(
-            place[0] - view.unk4ACAF8.x - field.cameraLeft,
-            place[1] - view.unk4ACAF8.y - field.cameraTop,
+            place[0] - view.effectAct.x - field.cameraLeft,
+            place[1] - view.effectAct.y - field.cameraTop,
             picture->width,
             picture->height,
             view.weatherActions == Scene::GlowWeatherActions ? Painter::Additive : Painter::Subtractive
@@ -410,7 +410,7 @@ void FieldView::DrawLeaves()
     for (std::size_t index = 0; index < view.leaves.size(); ++index)
     {
         MapParticle& leaf = view.leaves[index];
-        ActState& act = view.unk4AD0D8[index];
+        ActState& act = view.leafActs[index];
 
         if (leaf.x <= -kLeafMargin || leaf.x >= width + kLeafMargin || leaf.y <= -kLeafMargin ||
             leaf.y >= height + kLeafMargin)
@@ -951,7 +951,7 @@ void FieldView::DrawSpotlight()
     // The light lies on the 640x480 screen in the canvas.
     const int lightX = view.spotlightX + owner.field.screenX;
     const int lightY = view.spotlightY + owner.field.screenY;
-    ActState& act = view.unk4AD3F0;
+    ActState& act = view.spotlightAct;
     act.id = Scene::EffectAct;
     act.action = kSpotlightRimAction;
     owner.acts.Run(act);

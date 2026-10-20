@@ -72,7 +72,7 @@ constexpr int kRunnerY = 0x1CC;
 // Map settings (maps.dat table 3): the kind and speed bytes hold nibbles.
 constexpr int kNibbleBits = 4;
 constexpr u16 kNibbleMask = 0xF;
-constexpr u8 kNoUnk4ACDB4 = 0x10;    // in the kind: unk4ACDB4 is 0
+constexpr u8 kNoUnk4ACDB4 = 0x10;    // in the kind: townWarpAllowed is 0
 constexpr u32 kMaxWalkSpeed = 0x10;  // the walk speed is a power of two up to this
 constexpr i32 kDefaultWalkSpeed = 4;
 constexpr u32 kStartSpeeds = 3;  // a weather particle starts at speed 1..kStartSpeeds
@@ -82,7 +82,7 @@ constexpr int kStartDrift = 2;
 constexpr u16 kEveryMapRole = 10000;  // records of these roles (and of none) belong to every map
 constexpr u16 kEveryMapRole2 = 10001;
 constexpr u16 kLeaderFlags = Role::Visible | Role::Solid | Role::StepsAct | Role::CellEffects;
-constexpr u16 kStoryActMark = 0x8000;  // in unk4B88C0: the party leader takes a story act
+constexpr u16 kStoryActMark = 0x8000;  // in mapStory: the party leader takes a story act
 constexpr i32 kLeaderStoryAct = 0x60;
 constexpr i32 kLeaderSpecialAct = 0x5F;  // with kSpecialItem on the maps of the journey
 constexpr u32 kFollowUnlisted = 1;       // a flagged role not in the follower table follows
@@ -120,7 +120,7 @@ void Game::ShowLoading(int percent)
         this->loadingGreen = kBarGreen;
         this->loadingBlue = kBarBlue;
         this->loadingUnk4CC2C4 = 0;
-        ResetPlayback(view.unk4A93E8);
+        ResetPlayback(view.loadingPicture);
         ResetPlayback(this->loadingAct);
     }
 
@@ -160,12 +160,12 @@ void Game::ShowLoading(int percent)
         }
 
         this->loadingPercent = shown;
-        view.unk4A93E8.id = Scene::InterfaceAct;
-        view.unk4A93E8.action = kLoadingAction;
-        view.unk4A93E8.direction = 0;
-        view.unk4A93E8.x = 0;
-        view.unk4A93E8.y = 0;
-        this->actDrawer.Draw(view.unk4A93E8, kPictureX, kPictureY);
+        view.loadingPicture.id = Scene::InterfaceAct;
+        view.loadingPicture.action = kLoadingAction;
+        view.loadingPicture.direction = 0;
+        view.loadingPicture.x = 0;
+        view.loadingPicture.y = 0;
+        this->actDrawer.Draw(view.loadingPicture, kPictureX, kPictureY);
         this->loadingAct.id = this->loadingRunner;
         this->loadingAct.action = Role::RunAction;
         this->loadingAct.direction = ActState::Right;
@@ -330,7 +330,7 @@ void Game::InitRole(Role& role)
 
     if (role.act.id != 0 && (role.flags & (Role::Visible | Role::Hidden)) == Role::Visible)
     {
-        this->field.MarkRoleCells(role, this->unk4B7BC4);
+        this->field.MarkRoleCells(role, this->partyLeaderId);
     }
 }
 
@@ -395,7 +395,7 @@ bool Game::UpdateRoleRecord(
 {
     std::vector<u8>& data = this->databases.mapsData;
 
-    for (std::size_t at = this->scene.unk4ACE40;; at += static_cast<std::size_t>(sizeof(u16) * MapsRecord::RoleWords))
+    for (std::size_t at = this->scene.rolesTable;; at += static_cast<std::size_t>(sizeof(u16) * MapsRecord::RoleWords))
     {
         if (at + static_cast<std::size_t>(sizeof(u16) * MapsRecord::RoleWords) > data.size() ||
             MapsWord(data, at) == MapsRecord::TableEnd)
@@ -571,7 +571,7 @@ void Game::FollowLeader(int index)
 
             if ((role.x & MapHeader::TileFraction) != 0 || (role.y & MapHeader::TileFraction) != 0)
             {
-                this->field.ClearRoleCells(role, this->unk4B7BC4);
+                this->field.ClearRoleCells(role, this->partyLeaderId);
                 const u8 direction = move.CurrentDirection();
 
                 if (direction < RolePath::Directions)
@@ -607,17 +607,17 @@ void Game::FollowLeader(int index)
     }
 
     Scene& view = this->scene;
-    const auto follower = static_cast<std::size_t>(view.unk4BABA0);
+    const auto follower = static_cast<std::size_t>(view.followerCount);
 
-    if (follower < view.unk4B7C8C.size())
+    if (follower < view.followers.size())
     {
-        view.unk4B7C8C[follower] = index;
+        view.followers[follower] = index;
         view.followerMoves[follower].Clear();
     }
 
     role.event = 0;
     role.flags = (role.flags & ~Role::Solid) | Role::Follower;
-    ++view.unk4BABA0;
+    ++view.followerCount;
 }
 
 // swd32.exe 0x004118B0 (the CD check of the minimal installation, the videos and the map movies) and 0x00412050 (the
@@ -639,12 +639,12 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
 
     if (this->drawSurface != nullptr)
     {
-        view.unk4A93E8.id = Scene::InterfaceAct;
-        view.unk4A93E8.action = kLoadingAction;
-        view.unk4A93E8.direction = 0;
-        view.unk4A93E8.x = 0;
-        view.unk4A93E8.y = 0;
-        this->actDrawer.Draw(view.unk4A93E8, kPictureX, kStartPictureY);
+        view.loadingPicture.id = Scene::InterfaceAct;
+        view.loadingPicture.action = kLoadingAction;
+        view.loadingPicture.direction = 0;
+        view.loadingPicture.x = 0;
+        view.loadingPicture.y = 0;
+        this->actDrawer.Draw(view.loadingPicture, kPictureX, kStartPictureY);
         this->ShowLoading(kLoadingStart);
     }
 
@@ -655,7 +655,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
 
     view.weather.fill({MapParticle::Filled, MapParticle::Filled, MapParticle::Filled, MapParticle::Filled});
 
-    ResetPlayback(view.unk4ACAF8);
+    ResetPlayback(view.effectAct);
     view.ResetLeaves();
     game.ClearGameFlag(GameState::HeatHaze);
     game.ClearGameFlag(GameState::Lightning);
@@ -691,12 +691,12 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
         const u8 kind = data[at + MapsRecord::SettingsKindAt];
         const u8 effects = data[at + MapsRecord::SettingsEffectsAt];
         const u16 speeds = MapsWord(data, at + MapsRecord::SettingsSpeedsAt);
-        view.unk4B7EB4 = kind & kNibbleMask;
-        view.unk4C8BD8 = data[at + MapsRecord::SettingsSpeedsAt] & kNibbleMask;
-        view.unk49E0BC = MapsWord(data, at + MapsRecord::SettingsUnk49E0BCAt);
-        view.unk4B896C = MapsWord(data, at + MapsRecord::SettingsUnk4B896CAt);
-        view.unk4B88C0 = MapsWord(data, at + MapsRecord::SettingsUnk4B88C0At);
-        view.unk4ACDB4 = (kind & kNoUnk4ACDB4) == 0 ? 1 : 0;
+        view.weatherKind = kind & kNibbleMask;
+        view.mapWalkSpeed = data[at + MapsRecord::SettingsSpeedsAt] & kNibbleMask;
+        view.layerFrames = MapsWord(data, at + MapsRecord::SettingsUnk49E0BCAt);
+        view.encounterGroup = MapsWord(data, at + MapsRecord::SettingsUnk4B896CAt);
+        view.mapStory = MapsWord(data, at + MapsRecord::SettingsUnk4B88C0At);
+        view.townWarpAllowed = (kind & kNoUnk4ACDB4) == 0 ? 1 : 0;
         game.ClearGameFlag(GameState::OverlaysFirst);
 
         if ((effects & kOverlaysFirst) != 0)
@@ -738,24 +738,26 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
             }
         }
 
-        view.unk4AB97C = Game::SpeedNibbles[speeds >> (3 * kNibbleBits)];
-        view.unk4AB994 = Game::SpeedNibbles[(speeds >> (2 * kNibbleBits)) & kNibbleMask];
-        view.unk4ACB98 = Game::SpeedNibbles[data[at + MapsRecord::SettingsSpeedsAt] >> kNibbleBits];
+        view.cellTintRed = Game::SpeedNibbles[speeds >> (3 * kNibbleBits)];
+        view.cellTintGreen = Game::SpeedNibbles[(speeds >> (2 * kNibbleBits)) & kNibbleMask];
+        view.cellTintBlue = Game::SpeedNibbles[data[at + MapsRecord::SettingsSpeedsAt] >> kNibbleBits];
 
-        if (!std::has_single_bit(static_cast<u32>(view.unk4C8BD8)) || static_cast<u32>(view.unk4C8BD8) > kMaxWalkSpeed)
+        if (!std::has_single_bit(static_cast<u32>(view.mapWalkSpeed)) ||
+            static_cast<u32>(view.mapWalkSpeed) > kMaxWalkSpeed)
         {
-            view.unk4C8BD8 = kDefaultWalkSpeed;
+            view.mapWalkSpeed = kDefaultWalkSpeed;
         }
 
-        if (view.unk49E0BC < 1)
+        if (view.layerFrames < 1)
         {
-            view.unk49E0BC = 1;
+            view.layerFrames = 1;
         }
 
-        if (!view.unk4CAE78.empty() && static_cast<i16>(view.unk4B896C) > static_cast<i16>(view.unk4CAE78.front()))
+        if (!view.encounterGroups.empty() &&
+            static_cast<i16>(view.encounterGroup) > static_cast<i16>(view.encounterGroups.front()))
         {
-            DebugLog(u8"載入地圖 錯誤的戰鬥機率組[%d]", view.unk4B896C);
-            view.unk4B896C = 1;
+            DebugLog(u8"載入地圖 錯誤的戰鬥機率組[%d]", view.encounterGroup);
+            view.encounterGroup = 1;
         }
 
         break;
@@ -773,7 +775,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
     this->ShowLoading(kLoadingSettings);
     this->AudioPump();
     this->currentMap = map;
-    view.unk49E0C0 = 1;
+    view.layerDirection = 1;
     game.SetGameFlag(map + GameState::MapEntered);
 
     if ((options & Game::SaveRoles) != 0)
@@ -801,8 +803,8 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
         move.Clear();
     }
 
-    view.unk4BABA0 = 0;
-    view.unk4B7C8C.fill(-1);
+    view.followerCount = 0;
+    view.followers.fill(-1);
 
     for (MoveRecord& move : view.followerMoves)
     {
@@ -838,10 +840,10 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
         ErrorLog(u8"LoadCity ,gMap.Pixel==NULL");
     }
 
-    view.unk4CC2DC = 1;
-    view.unk4B7944 = 0;
-    view.unk4B873C = 0;
-    view.unk4B7A98 = header.width * header.height;
+    view.layerTick = 1;
+    view.layerIndex = 0;
+    view.layerOffset = 0;
+    view.layerTiles = header.width * header.height;
     std::string name;
 
     if (!this->MapName(this->currentMap, name))
@@ -872,12 +874,12 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
         }
     }
 
-    view.unk4ACE4C = 0;
-    view.unk4ACE48 = 0;
-    view.unk4ACE50 = MapHeader::TileSize * header.width;
-    view.unk4ACE54 = MapHeader::TileSize * header.height;
+    view.mapTop = 0;
+    view.mapLeft = 0;
+    view.mapRight = MapHeader::TileSize * header.width;
+    view.mapBottom = MapHeader::TileSize * header.height;
     this->BuildTriggers(view.triggers);
-    view.unk4BABA0 = 1;
+    view.followerCount = 1;
     this->PlaceRoles(map, x, y, act, action, direction, previous);
     this->ShowLoading(kLoadingPlaced);
     this->AudioPump();
@@ -913,7 +915,7 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
     GameState& game = this->state;
     Scene& view = this->scene;
     std::vector<u8>& data = this->databases.mapsData;
-    const std::size_t table = view.unk4ACE40;
+    const std::size_t table = view.rolesTable;
     const MapHeader& header = game.map;
 
     auto word = [&data, table](std::size_t index)
@@ -954,7 +956,7 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
             put(record + MapsRecord::RoleMap, static_cast<u16>(map));
         }
 
-        if (static_cast<i32>(id) == this->unk4B7BC4)
+        if (static_cast<i32>(id) == this->partyLeaderId)
         {
             this->AudioPump();
             put(record + MapsRecord::RoleMap, static_cast<u16>(map));
@@ -968,7 +970,7 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
             put(record + MapsRecord::RoleStep, 0);
             put(record + MapsRecord::RoleFlags, kLeaderFlags);
             game.playerRole = placed + game.roleCount;
-            view.unk4B7C8C[0] = placed + game.roleCount;
+            view.followers[0] = placed + game.roleCount;
             view.trailY.fill(MapHeader::TileSize * y);
             view.trailX.fill(MapHeader::TileSize * x);
         }
@@ -1025,12 +1027,12 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
         if (role.id == kPartyLeader)
         {
             if (previous == Field::DemonRefiningPot && this->currentMap != Field::DemonRefiningPot &&
-                view.unk4C8BE0 != 0)
+                view.warpLeaderAct != 0)
             {
-                role.act.id = view.unk4C8BE0;
+                role.act.id = view.warpLeaderAct;
             }
 
-            if ((view.unk4B88C0 & kStoryActMark) != 0)
+            if ((view.mapStory & kStoryActMark) != 0)
             {
                 role.act.id = kLeaderStoryAct;
 
@@ -1052,7 +1054,7 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
         if ((role.flags & Role::Follower) != 0)
         {
             u32 follow = kFollowUnlisted;
-            const u32 story = static_cast<u32>(view.unk4B88C0) & ~kStoryActMark;
+            const u32 story = static_cast<u32>(view.mapStory) & ~kStoryActMark;
 
             for (std::size_t list = MapsTable(data, MapsDataTable::Followers);
                  MapsWord(data, list) != MapsRecord::TableEnd;
@@ -1077,7 +1079,7 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
                 this->FollowLeader(slot);
                 role.flags |= Role::Visible;
 
-                if (this->currentMap == Field::DemonRefiningPot || (view.unk4B88C0 & kStoryActMark) != 0)
+                if (this->currentMap == Field::DemonRefiningPot || (view.mapStory & kStoryActMark) != 0)
                 {
                     role.flags &= ~Role::Visible;
                 }
@@ -1113,7 +1115,7 @@ void Game::StoreRole(const Role& role)
 {
     std::vector<u8>& data = this->databases.mapsData;
 
-    for (std::size_t at = this->scene.unk4ACE40;
+    for (std::size_t at = this->scene.rolesTable;
          at + static_cast<std::size_t>(sizeof(u16) * MapsRecord::RoleWords) <= data.size();
          at += static_cast<std::size_t>(sizeof(u16) * MapsRecord::RoleWords))
     {
@@ -1184,15 +1186,15 @@ u32 Game::RollEncounter(int steps, int force)
 {
     Scene& view = this->scene;
 
-    if (view.unk4B896C == 0)
+    if (view.encounterGroup == 0)
     {
         return 0;
     }
 
     const Role& player = this->state.roles[static_cast<std::size_t>(this->state.playerRole)];
     const auto roll = static_cast<int>(this->random.Below(kPercent));
-    const std::vector<u16>& sets = view.unk4CAE78;
-    std::size_t at = MapsRecord::GroupsAt + MapsRecord::GroupWords * static_cast<std::size_t>(view.unk4B896C - 1);
+    const std::vector<u16>& sets = view.encounterGroups;
+    std::size_t at = MapsRecord::GroupsAt + MapsRecord::GroupWords * static_cast<std::size_t>(view.encounterGroup - 1);
     int threshold = 0;
     int pair = kSetPairs;
 
@@ -1267,7 +1269,7 @@ void Game::ReleaseRole(int index)
 
         if ((role.x & kTileMask) != 0 || (role.y & kTileMask) != 0)
         {
-            this->field.ClearRoleCells(role, this->unk4B7BC4);
+            this->field.ClearRoleCells(role, this->partyLeaderId);
 
             if (index != this->state.playerRole)
             {

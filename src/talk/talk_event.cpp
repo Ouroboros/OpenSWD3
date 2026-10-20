@@ -419,7 +419,7 @@ void Talk::EndEvent(EventRun& run)
     owner.databases.script[0] = kNoCommandByte;
     owner.databases.script[1] = kNoCommandByte;
     state.leader.FillUnused();
-    owner.unk4CAD24 = 0;
+    owner.counterWait = 0;
     owner.counterAlpha = 0;
 }
 
@@ -799,7 +799,7 @@ bool Talk::RunRoleCommand(EventRun& run)
     GameState& state = owner.state;
     Role& context = run.context;
     const std::span<const u8> script(owner.databases.script);
-    const i32 leader = owner.unk4B7BC4;
+    const i32 leader = owner.partyLeaderId;
 
     switch (run.code)
     {

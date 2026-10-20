@@ -438,12 +438,12 @@ bool Talk::SetupDialog(
 
     std::size_t frame = 0;
 
-    while (frame < owner.scene.unk4CAA78.size() && owner.scene.unk4CAA78[frame].id != word(1))
+    while (frame < owner.scene.dialogFrameActs.size() && owner.scene.dialogFrameActs[frame].id != word(1))
     {
         ++frame;
     }
 
-    if (frame == owner.scene.unk4CAA78.size())
+    if (frame == owner.scene.dialogFrameActs.size())
     {
         DebugLog(u8"SetupDialog 設定錯誤的對話框(act:%d)", word(1));
         frame = 0;
@@ -457,14 +457,14 @@ bool Talk::SetupDialog(
         }
     };
 
-    window.frameAct = &owner.scene.unk4CAA78[frame];
-    runAct(owner.scene.unk4CAA78[frame], u8"Act Err(Dialog:Frame) 設定錯誤 \nact[%d] qq[%d] dir[%d]");
+    window.frameAct = &owner.scene.dialogFrameActs[frame];
+    runAct(owner.scene.dialogFrameActs[frame], u8"Act Err(Dialog:Frame) 設定錯誤 \nact[%d] qq[%d] dir[%d]");
 
     if (!name.empty())
     {
-        window.nameAct = &owner.scene.unk4A9120[frame];
+        window.nameAct = &owner.scene.captionActs[frame];
         window.name = std::string(name.substr(0, this->dialogName.size() - 1));
-        runAct(owner.scene.unk4A9120[frame], u8"Act Err(Dialog:Caption) 設定錯誤 \nact[%d] qq[%d] dir[%d]");
+        runAct(owner.scene.captionActs[frame], u8"Act Err(Dialog:Caption) 設定錯誤 \nact[%d] qq[%d] dir[%d]");
     }
 
     window.role = static_cast<u16>(speaker);

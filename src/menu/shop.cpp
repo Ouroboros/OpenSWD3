@@ -333,7 +333,7 @@ void Game::ResetShopActs()
 void Game::CloseShop()
 {
     BattleState& shop = this->battleState;
-    this->unk4B7928.clear();
+    this->shopGoods.clear();
     shop.shopScreen.clear();
     shop.shopScreenSaved.clear();
     FreeItemList(shop.itemsHead.next);
@@ -756,7 +756,7 @@ void Game::ShopOpenList()
         shop.listTop = 0;
         shop.itemCount = 0;
         ItemLink goods;
-        const std::vector<u16>& ids = this->unk4B7928;
+        const std::vector<u16>& ids = this->shopGoods;
 
         for (std::size_t at = 0; at < ids.size() && ids[at] != 0; ++at)
         {

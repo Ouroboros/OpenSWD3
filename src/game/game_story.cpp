@@ -36,7 +36,7 @@ u32 Game::LoadRoleRecord(Role& role, u16 id)
 {
     const std::vector<u8>& data = this->databases.mapsData;
 
-    for (std::size_t at = this->scene.unk4ACE40; MapsWord(data, at) != MapsRecord::TableEnd;
+    for (std::size_t at = this->scene.rolesTable; MapsWord(data, at) != MapsRecord::TableEnd;
          at += sizeof(u16) * MapsRecord::RoleWords)
     {
         if (MapsWord(data, at + sizeof(u16) * MapsRecord::RoleId) != id)
@@ -74,7 +74,7 @@ void Game::LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 dire
     {
         std::vector<u8>& data = this->databases.mapsData;
 
-        for (std::size_t at = view.unk4ACE40; MapsWord(data, at) != MapsRecord::TableEnd;
+        for (std::size_t at = view.rolesTable; MapsWord(data, at) != MapsRecord::TableEnd;
              at += sizeof(u16) * MapsRecord::RoleWords)
         {
             if (MapsWord(data, at + sizeof(u16) * MapsRecord::RoleId) == id)
@@ -94,12 +94,12 @@ void Game::LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 dire
 
     std::size_t follower = 0;
 
-    while (follower < view.unk4B7C8C.size() && view.unk4B7C8C[follower] != static_cast<i32>(index))
+    while (follower < view.followers.size() && view.followers[follower] != static_cast<i32>(index))
     {
         ++follower;
     }
 
-    if (follower == view.unk4B7C8C.size() || index >= GameState::Roles)
+    if (follower == view.followers.size() || index >= GameState::Roles)
     {
         DebugLog(u8"解除夥伴 角色(%d)不是夥伴", id);
         return;
@@ -107,7 +107,7 @@ void Game::LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 dire
 
     Role& role = game.roles[index];
     MoveRecord& move = view.followerMoves[follower];
-    const i32 leader = this->unk4B7BC4;
+    const i32 leader = this->partyLeaderId;
 
     if (move.step < MoveRecord::StepMask &&
         ((role.x & MapHeader::TileFraction) != 0 || (role.y & MapHeader::TileFraction) != 0))
@@ -152,16 +152,16 @@ void Game::LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 dire
     );
     this->field.MarkRoleCells(role, leader);
     std::move(
-        view.unk4B7C8C.begin() + static_cast<std::ptrdiff_t>(follower) + 1,
-        view.unk4B7C8C.end(),
-        view.unk4B7C8C.begin() + static_cast<std::ptrdiff_t>(follower)
+        view.followers.begin() + static_cast<std::ptrdiff_t>(follower) + 1,
+        view.followers.end(),
+        view.followers.begin() + static_cast<std::ptrdiff_t>(follower)
     );
     std::move(
         view.followerMoves.begin() + static_cast<std::ptrdiff_t>(follower) + 1,
         view.followerMoves.end(),
         view.followerMoves.begin() + static_cast<std::ptrdiff_t>(follower)
     );
-    --view.unk4BABA0;
+    --view.followerCount;
 }
 
 // swd32.exe 0x0042E790: a scripted change of map: the keys and steps stop, the map frame is hidden while LoadCity
@@ -169,11 +169,11 @@ void Game::LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 dire
 bool Game::ChangeMap(int map, int x, int y, int act, int action, int direction, int options)
 {
     const Role& player = this->state.roles[static_cast<std::size_t>(this->state.playerRole)];
-    this->unk4B7920 = 0;
+    this->scrollStepY = 0;
     this->controls.buttons = {};
-    this->unk4B7518 = 0;
-    this->unk4A948C = 0;
-    this->unk4A9488 = 0;
+    this->scrollStepX = 0;
+    this->walkStepY = 0;
+    this->walkStepX = 0;
     this->scene.screenFlags |= Scene::BlackScreen;
     const i32 newAct = act == Talk::Keep ? player.act.id : act;
     const i32 newAction = action == Talk::Keep ? player.act.action : action;
@@ -201,15 +201,15 @@ void Game::StartTimer(int minutes, int seconds, int event, int which)
     {
         view.unk4BAB78 = 0;
         view.unk4BAB7C = 0;
-        view.unk4A9918 = kTimerFrames * (seconds + kSecondsPerMinute * minutes);
+        view.secondTimerFrames = kTimerFrames * (seconds + kSecondsPerMinute * minutes);
         this->state.SetGameFlag(GameState::SecondTimer);
         return;
     }
 
     view.unk4C97E8 = 0;
     view.unk4C97EC = 0;
-    view.unk4CAD20 = kTimerFrames * (seconds + kSecondsPerMinute * minutes);
-    view.unk4A93D4 = event;
+    view.timerFrames = kTimerFrames * (seconds + kSecondsPerMinute * minutes);
+    view.timerEvent = event;
     this->state.SetGameFlag(GameState::Timer);
     this->state.SetGameFlag(GameState::TimerEvent);
 }

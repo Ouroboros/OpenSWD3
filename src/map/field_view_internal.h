@@ -178,7 +178,7 @@ constexpr std::array<char, 8> kLeafActions = {'4', '4', '4', '6', '8', '8', '8',
 // The sideways sway of a firefly by its phase / 4 (a table on the stack of 0x004167B0).
 constexpr std::array<i8, 8> kFireflySway = {0, 1, 1, 1, 0, -1, -1, -1};
 
-// Scene::unk4B7EB4 (the weather kind): kinds 0 and 1 send returning particles up from below the map, 2 and 3 down
+// Scene::weatherKind (the weather kind): kinds 0 and 1 send returning particles up from below the map, 2 and 3 down
 // from above it; roles cast shadows under the kinds below kShadowWeathers.
 constexpr int kWeatherKindMask = 7;
 constexpr int kShadowWeathers = 4;

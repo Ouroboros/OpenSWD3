@@ -150,8 +150,8 @@ void RoleControl::ControlPlayer()
             SleepMilliseconds(kDebugKeyPause);
             owner.storyState = Game::SaveSlotsState;
             owner.menuMode = Menu::KeySaveMode;
-            owner.unk4CAEBC = 0;
-            owner.unk4CAEC0 = 0;
+            owner.saveScreenPage = 0;
+            owner.slotsLoad = 0;
             owner.ResetSaveSlots();
             return;
         }
@@ -178,8 +178,8 @@ void RoleControl::ControlPlayer()
 
             if (input.IsKeyDown(Input::S) && idle)
             {
-                owner.unk4CAEBC = 1;
-                owner.unk4CAEC0 = 0;
+                owner.saveScreenPage = 1;
+                owner.slotsLoad = 0;
                 SleepMilliseconds(kDebugKeyPause);
                 owner.menuMode = Menu::KeySaveMode;
                 owner.storyState = Game::SaveSlotsState;
@@ -189,8 +189,8 @@ void RoleControl::ControlPlayer()
 
             if (input.IsKeyDown(Input::L) && idle)
             {
-                owner.unk4CAEBC = 1;
-                owner.unk4CAEC0 = 1;
+                owner.saveScreenPage = 1;
+                owner.slotsLoad = 1;
                 SleepMilliseconds(kDebugKeyPause);
                 owner.menuMode = Menu::KeyLoadMode;
                 owner.storyState = Game::SaveSlotsState;
@@ -219,9 +219,9 @@ void RoleControl::ControlPlayer()
 
             if (input.IsKeyDown(Input::Tab) && input.IsKeyDown(Input::NumpadPlus))
             {
-                if (++view.unk49E0BC > kMaxMapSpeed)
+                if (++view.layerFrames > kMaxMapSpeed)
                 {
-                    view.unk49E0BC = kMaxMapSpeed;
+                    view.layerFrames = kMaxMapSpeed;
                 }
 
                 this->unk4CB220 = 0;
@@ -229,9 +229,9 @@ void RoleControl::ControlPlayer()
 
             if (input.IsKeyDown(Input::Tab) && input.IsKeyDown(Input::NumpadMinus))
             {
-                if (--view.unk49E0BC < 1)
+                if (--view.layerFrames < 1)
                 {
-                    view.unk49E0BC = 1;
+                    view.layerFrames = 1;
                 }
 
                 this->unk4CB220 = 0;
@@ -292,10 +292,10 @@ void RoleControl::ControlPlayer()
         owner.config.StoreRunning(this->running != 0);
     }
 
-    const bool still = owner.unk4A9488 == 0 && owner.unk4A948C == 0 && owner.unk4B7518 == 0 && owner.unk4B7920 == 0;
+    const bool still = owner.walkStepX == 0 && owner.walkStepY == 0 && owner.scrollStepX == 0 && owner.scrollStepY == 0;
     owner.talk.advance = 0;
 
-    if (owner.unk4CAD24 == 0)
+    if (owner.counterWait == 0)
     {
         owner.counterAlpha -= kCounterFade;
 
@@ -554,28 +554,28 @@ void RoleControl::ControlPlayer()
 
     if (stepX != 0 || stepY != 0)
     {
-        owner.unk4CAD24 = 0;
+        owner.counterWait = 0;
 
         if (stepX == -1)
         {
             if (this->scrollLeft != 0)
             {
-                owner.unk4B7518 = -1;
+                owner.scrollStepX = -1;
             }
             else if (this->stepLeft != 0)
             {
-                owner.unk4A9488 = -1;
+                owner.walkStepX = -1;
             }
         }
         else if (stepX != 0)
         {
             if (this->scrollRight != 0)
             {
-                owner.unk4B7518 = 1;
+                owner.scrollStepX = 1;
             }
             else if (this->stepRight != 0)
             {
-                owner.unk4A9488 = 1;
+                owner.walkStepX = 1;
             }
         }
 
@@ -583,22 +583,22 @@ void RoleControl::ControlPlayer()
         {
             if (this->scrollUp != 0)
             {
-                owner.unk4B7920 = -1;
+                owner.scrollStepY = -1;
             }
             else if (this->stepUp != 0)
             {
-                owner.unk4A948C = -1;
+                owner.walkStepY = -1;
             }
         }
         else if (stepY != 0)
         {
             if (this->scrollDown != 0)
             {
-                owner.unk4B7920 = 1;
+                owner.scrollStepY = 1;
             }
             else if (this->stepDown != 0)
             {
-                owner.unk4A948C = 1;
+                owner.walkStepY = 1;
             }
         }
 
@@ -622,11 +622,11 @@ void RoleControl::ControlPlayer()
         if (player.act.action != player.act.lastAction)
         {
             player.act.delay = 0;
-            int speed = view.unk4C8BD8;
+            int speed = view.mapWalkSpeed;
 
             if (this->running != 0 || doubled != 0)
             {
-                speed = kRunSpeedFactor * view.unk4C8BD8;
+                speed = kRunSpeedFactor * view.mapWalkSpeed;
             }
 
             if (owner.talk.skipAll != 0)
@@ -654,10 +654,10 @@ void RoleControl::ControlPlayer()
                     owner.archive.CloseAll();
                     owner.StartBattle(static_cast<u16>(owner.battleRequest));
                     owner.inBattle = 1;
-                    owner.unk4B7920 = 0;
-                    owner.unk4B7518 = 0;
-                    owner.unk4A948C = 0;
-                    owner.unk4A9488 = 0;
+                    owner.scrollStepY = 0;
+                    owner.scrollStepX = 0;
+                    owner.walkStepY = 0;
+                    owner.walkStepX = 0;
 
                     if (owner.mapCache.unitFile.UnmapView(owner.mapCache.view))
                     {
@@ -694,7 +694,7 @@ void RoleControl::ControlPlayer()
             player.act.action = Role::IdleAction;
         }
 
-        if ((++owner.unk4CAD24 > kCounterDelay || (owner.counterAlpha & (kCounterOpaque - 1)) != 0) &&
+        if ((++owner.counterWait > kCounterDelay || (owner.counterAlpha & (kCounterOpaque - 1)) != 0) &&
             ++owner.counterAlpha > kCounterOpaque)
         {
             owner.counterAlpha = kCounterOpaque;

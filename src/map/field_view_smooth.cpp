@@ -332,9 +332,9 @@ void FieldView::PaintBetween(Surface& out)
     const auto weatherShades = view.weatherShades;
     const auto weatherMotion = view.weatherMotion;
     const auto leaves = view.leaves;
-    const auto leafActs = view.unk4AD0D8;
-    const ActState effectAct = view.unk4ACAF8;
-    const ActState spotlightAct = view.unk4AD3F0;
+    const auto leafActs = view.leafActs;
+    const ActState effectAct = view.effectAct;
+    const ActState spotlightAct = view.spotlightAct;
     const auto heatLengths = view.heatLengths;
     const auto heatCounts = view.heatCounts;
     const auto heatOffsets = view.heatOffsets;
@@ -365,9 +365,9 @@ void FieldView::PaintBetween(Surface& out)
         view.weatherShades = weatherShades;
         view.weatherMotion = weatherMotion;
         view.leaves = leaves;
-        view.unk4AD0D8 = leafActs;
-        view.unk4ACAF8 = effectAct;
-        view.unk4AD3F0 = spotlightAct;
+        view.leafActs = leafActs;
+        view.effectAct = effectAct;
+        view.spotlightAct = spotlightAct;
         view.heatLengths = heatLengths;
         view.heatCounts = heatCounts;
         view.heatOffsets = heatOffsets;

@@ -85,14 +85,14 @@ int FieldView::DrawRole(Role& role)
         return 1;
     }
 
-    if ((role.flags & Role::CellEffects) != 0 && (view.unk4B7EB4 & kWeatherKindMask) < kShadowWeathers)
+    if ((role.flags & Role::CellEffects) != 0 && (view.weatherKind & kWeatherKindMask) < kShadowWeathers)
     {
         this->DrawShadow(
             role,
             *picture,
             x - role.act.x - cameraLeft,
             y - role.act.y - cameraTop,
-            view.unk4B7EB4,
+            view.weatherKind,
             kShadowTint[(role.flags & Role::CellShades) >> Role::CellShadeShift]
         );
     }
@@ -113,9 +113,9 @@ int FieldView::DrawRole(Role& role)
 
     if ((role.flags & Role::CellEffects) != 0)
     {
-        red = view.unk4AB97C;
-        green = view.unk4AB994;
-        blue = view.unk4ACB98;
+        red = view.cellTintRed;
+        green = view.cellTintGreen;
+        blue = view.cellTintBlue;
     }
 
     if ((role.flags & Role::CellShades) != 0)
@@ -413,21 +413,21 @@ void FieldView::DrawBubbles(int x, int y, u16 role)
             this->EffectAt(EffectKey(EffectKind::Bubbles, &bubble), bubble.x / kSubpixels, bubble.y, false);
         painter.SetSource(picture.data.data());
         painter.DrawPicture(
-            place[0] - view.unk4ACAF8.x - field.cameraLeft,
-            place[1] - view.unk4ACAF8.y - field.cameraTop,
+            place[0] - view.effectAct.x - field.cameraLeft,
+            place[1] - view.effectAct.y - field.cameraTop,
             picture.width,
             picture.height,
-            view.unk4ACAF8.flags
+            view.effectAct.flags
         );
     };
 
     if (this->replaying)
     {
         // Smooth motion: the bubbles as they are (the effect act is put back by PaintBetween).
-        view.unk4ACAF8.id = Scene::EffectAct;
-        view.unk4ACAF8.action = kBubbleAction;
-        owner.acts.Run(view.unk4ACAF8);
-        const Picture* shown = owner.archive.GetPicture(view.unk4ACAF8.frame, view.unk4ACAF8.picture);
+        view.effectAct.id = Scene::EffectAct;
+        view.effectAct.action = kBubbleAction;
+        owner.acts.Run(view.effectAct);
+        const Picture* shown = owner.archive.GetPicture(view.effectAct.frame, view.effectAct.picture);
 
         for (const RoleMark& mark : view.marks)
         {
@@ -449,10 +449,10 @@ void FieldView::DrawBubbles(int x, int y, u16 role)
     }
 
     const int sway = static_cast<int>(random.Below(kSwayRange)) - kSwayShift;
-    view.unk4ACAF8.id = Scene::EffectAct;
-    view.unk4ACAF8.action = kBubbleAction;
-    owner.acts.Run(view.unk4ACAF8);
-    const Picture* picture = owner.archive.GetPicture(view.unk4ACAF8.frame, view.unk4ACAF8.picture);
+    view.effectAct.id = Scene::EffectAct;
+    view.effectAct.action = kBubbleAction;
+    owner.acts.Run(view.effectAct);
+    const Picture* picture = owner.archive.GetPicture(view.effectAct.frame, view.effectAct.picture);
 
     for (RoleMark& mark : view.marks)
     {

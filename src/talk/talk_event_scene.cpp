@@ -250,7 +250,7 @@ bool Talk::PlaceRole(EventRun& run)
         Role& role = state.roles[run.found];
         setBits = static_cast<i16>(role.flags);
         role.flags &= ~(Role::Visible | Role::Solid);
-        owner.field.ClearRoleCells(role, owner.unk4B7BC4);
+        owner.field.ClearRoleCells(role, owner.partyLeaderId);
         role.flags |= Role::Removed;
         event = static_cast<i16>(role.event);
     }
@@ -764,8 +764,8 @@ bool Talk::RunSceneCommand(EventRun& run)
             run.valueA = length;
             view.shakeHold = frames;
             view.shakeFrames = frames;
-            view.unk4A992C = field.cameraTop;
-            view.unk4A93E4 = field.cameraLeft;
+            view.quakeCameraTop = field.cameraTop;
+            view.quakeCameraLeft = field.cameraLeft;
             this->Advance(run, length);
             return true;
         }
@@ -885,7 +885,7 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             if (state.FindRoleOrPlayer(id, run.found))
             {
-                state.roles[run.found].attached = act < view.unk4B9F68.size() ? &view.unk4B9F68[act] : nullptr;
+                state.roles[run.found].attached = act < view.screenActs.size() ? &view.screenActs[act] : nullptr;
             }
 
             this->Next(run);

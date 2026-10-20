@@ -1206,8 +1206,8 @@ void Menu::ItemsUse(ItemNode& node)
         case kSaveItem:
             this->ItemsSave();
             owner.menuMode = Menu::ItemSaveMode;
-            owner.unk4CAEBC = 1;
-            owner.unk4CAEC0 = 0;
+            owner.saveScreenPage = 1;
+            owner.slotsLoad = 0;
             owner.storyState = Game::SaveSlotsState;
             owner.ResetSaveSlots();
             return;
@@ -1218,7 +1218,7 @@ void Menu::ItemsUse(ItemNode& node)
             return;
 
         case kTownWarpItem:
-            if (owner.state.GameFlag(kTownWarpBlocked) || owner.scene.unk4ACDB4 != 1)
+            if (owner.state.GameFlag(kTownWarpBlocked) || owner.scene.townWarpAllowed != 1)
             {
                 this->code = kNoTownWarpCode;
                 owner.audio.PlaySound(kRefusedSound, owner.config.soundVolume);
@@ -1295,7 +1295,7 @@ void Menu::ItemsUse(ItemNode& node)
             owner.scene.returnColumn = static_cast<i32>(static_cast<u32>(player.x) >> kTileShift);
             owner.scene.returnRow = static_cast<i32>(static_cast<u32>(player.y) >> kTileShift);
             owner.scene.returnMap = owner.currentMap;
-            owner.scene.unk4C8BE0 = player.act.id;
+            owner.scene.warpLeaderAct = player.act.id;
             leader.flags = player.flags;
             leader.y = player.y;
             std::fill_n(owner.drawSurface, static_cast<std::size_t>(Display::Width) * Display::Height, u16{0});
@@ -1568,7 +1568,7 @@ void Menu::ItemsDrawNotice(Pixel color)
 {
     Game& owner = this->game;
     const std::optional<std::string>& given =
-        this->code == kNoTownWarpCode ? owner.scene.unk4B751C : owner.scene.unk4B74F4;
+        this->code == kNoTownWarpCode ? owner.scene.noTownWarpText : owner.scene.noExitWarpText;
     const std::string text = given.value_or(Big5(kCannotUseHere));
     this->DrawBox(kNoticeX, kNoticeY, kNoticeWidth, kNoticeHeight, static_cast<int>(FillMode::Eighth), 0, 0, 0);
 
@@ -2377,7 +2377,7 @@ bool Menu::ItemsCallFollower()
             if (placed.id == role.id)
             {
                 placed.flags &= kFollowerFlagsKept;
-                owner.field.ClearRoleCells(placed, owner.unk4B7BC4);
+                owner.field.ClearRoleCells(placed, owner.partyLeaderId);
                 placed.flags |= Role::Removed;
                 owner.field.RemoveRole(placed.id, static_cast<int>(placed.flags & Role::LayerMask), 0, 1);
             }
@@ -2438,8 +2438,8 @@ void Menu::ItemsSave()
     this->savedItems = CopyItemList(this->itemObjects);
     this->ItemsReturn();
     owner.menuMode = Menu::ItemSaveMode;
-    owner.unk4CAEBC = 1;
-    owner.unk4CAEC0 = 0;
+    owner.saveScreenPage = 1;
+    owner.slotsLoad = 0;
     owner.storyState = Game::SaveSlotsState;
     owner.ResetSaveSlots();
 }

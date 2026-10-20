@@ -77,7 +77,7 @@ constexpr int kMediumFontAdvance = 18;
 constexpr int kMapLargeAdvance = 22;
 constexpr int kMapSmallAdvance = 16;
 constexpr i32 kTalkUnit = 0xB;
-constexpr i32 kTimerStopped = -1;  // Scene::unk4CAD20 and unk4A9918 once run out
+constexpr i32 kTimerStopped = -1;  // Scene::timerFrames and secondTimerFrames once run out
 constexpr int kBattleOver = 0;     // FightTalkFrame: the battle and its talk are over
 constexpr int kBattleLost = 2;
 constexpr int kBattleEscaped = 3;
@@ -564,8 +564,8 @@ void Game::Start()
             this->menuState = Game::NoMenu;
             this->menuMode = Menu::TitleLoadMode;
             this->storyState = Game::SaveSlotsState;
-            this->unk4CAEBC = 1;
-            this->unk4CAEC0 = 1;
+            this->saveScreenPage = 1;
+            this->slotsLoad = 1;
             this->ResetSaveSlots();
             LogInfo(u8"save slots reset");
             this->saveSlots.FindNewest(this->config.SaveDirectory(), this->painter);
@@ -978,11 +978,11 @@ void Game::NewGame()
     this->party.variables[Party::Gold] = kStartGold;
     scene.returnColumn = -1;
     scene.returnRow = -1;
-    scene.unk4CAD20 = -1;
-    scene.unk4A9918 = -1;
+    scene.timerFrames = -1;
+    scene.secondTimerFrames = -1;
     scene.returnMap = 0;
-    scene.unk4C8BE0 = 0;
-    scene.unk4A93D4 = 0;
+    scene.warpLeaderAct = 0;
+    scene.timerEvent = 0;
 
     for (std::vector<Role*>& layer : this->field.rows)
     {
@@ -1034,49 +1034,49 @@ void Game::NewGame()
         );
     }
 
-    scene.unk4A9A30 = ActState{};
-    ResetPlayback(scene.unk4A9A30);
-    scene.unk4B751C.reset();
-    scene.unk4B74F4.reset();
+    scene.timerDigits = ActState{};
+    ResetPlayback(scene.timerDigits);
+    scene.noTownWarpText.reset();
+    scene.noExitWarpText.reset();
 
-    for (std::size_t index = 0; index < scene.unk4B9F68.size(); ++index)
+    for (std::size_t index = 0; index < scene.screenActs.size(); ++index)
     {
-        scene.unk4B9F68[index] = ActState{};
-        ResetPlayback(scene.unk4B9F68[index]);
+        scene.screenActs[index] = ActState{};
+        ResetPlayback(scene.screenActs[index]);
     }
 
     for (int index = 0; index < kUnk232EActs; ++index)
     {
-        scene.unk4B9F68[static_cast<std::size_t>(index)].id = kUnk232EAct;
-        scene.unk4B9F68[static_cast<std::size_t>(index)].action = index;
+        scene.screenActs[static_cast<std::size_t>(index)].id = kUnk232EAct;
+        scene.screenActs[static_cast<std::size_t>(index)].action = index;
     }
 
-    ResetPlayback(scene.unk4C83A8);
-    scene.unk4C83A8.id = Scene::PointerAct;
-    scene.unk4C83A8.action = kUnk4C83A8Action;
+    ResetPlayback(scene.menuButtonAct);
+    scene.menuButtonAct.id = Scene::PointerAct;
+    scene.menuButtonAct.action = kUnk4C83A8Action;
     scene.viewWidth = Display::Width;
     scene.viewHeight = Display::Height;
-    scene.unk4ACBC8 = kStartUnk4ACBC8;
-    scene.unk4ACBCC = 0;
-    ResetPlayback(scene.unk4AD3F0);
-    ResetPlayback(scene.unk4A93E8);
+    scene.menuButtonSlide = kStartUnk4ACBC8;
+    scene.menuButtonWait = 0;
+    ResetPlayback(scene.spotlightAct);
+    ResetPlayback(scene.loadingPicture);
     constexpr std::array<int, 4> kScreenActs = {0x232D, 0x232F, 0x2330, 0x2331};
     constexpr std::array<int, 4> kPanelActs = {0x2337, 0x2339, 0x233A, 0x233B};
 
     for (std::size_t index = 0; index < kScreenActs.size(); ++index)
     {
-        ResetAct(scene.unk4CAA78[index], kScreenActs[index], 0);
-        ResetAct(scene.unk4A9120[index], kPanelActs[index], 0);
+        ResetAct(scene.dialogFrameActs[index], kScreenActs[index], 0);
+        ResetAct(scene.captionActs[index], kPanelActs[index], 0);
     }
 
-    ResetPlayback(scene.unk4ACAF8);
+    ResetPlayback(scene.effectAct);
 
     scene.weather.fill({MapParticle::Filled, MapParticle::Filled, MapParticle::Filled, MapParticle::Filled});
 
-    scene.unk4ACAF8.id = Scene::EffectAct;
-    scene.unk4ACAF8.action = kUnk4ACAF8Action;
+    scene.effectAct.id = Scene::EffectAct;
+    scene.effectAct.action = kUnk4ACAF8Action;
 
-    for (ActState& state : scene.unk4AD0D8)
+    for (ActState& state : scene.leafActs)
     {
         ResetPlayback(state);
         state.id = Scene::EffectAct;
@@ -1092,8 +1092,8 @@ void Game::NewGame()
         ++words;
     }
 
-    scene.unk4CAE78.assign((MapsRecord::GroupWords * words + kGroupSlackBytes) / MapsRecord::GroupWords, 0);
-    scene.unk4CAE78.front() = static_cast<u16>(words / MapsRecord::GroupWords);
+    scene.encounterGroups.assign((MapsRecord::GroupWords * words + kGroupSlackBytes) / MapsRecord::GroupWords, 0);
+    scene.encounterGroups.front() = static_cast<u16>(words / MapsRecord::GroupWords);
 
     if (words % MapsRecord::GroupWords != 0)
     {
@@ -1104,17 +1104,17 @@ void Game::NewGame()
     {
         for (u32 word = 0; word < words; ++word)
         {
-            scene.unk4CAE78[MapsRecord::GroupsAt + word] = MapsWord(data, records + sizeof(u16) * word);
+            scene.encounterGroups[MapsRecord::GroupsAt + word] = MapsWord(data, records + sizeof(u16) * word);
         }
     }
 
-    scene.unk4C8BD4 = 0;
-    scene.unk4ACE40 = MapsTable(data, MapsDataTable::Roles);
+    scene.rolesTableBytes = 0;
+    scene.rolesTable = MapsTable(data, MapsDataTable::Roles);
 
-    for (u32 at = scene.unk4ACE40; at + 1 < data.size() && MapsWord(data, at) != MapsRecord::TableEnd;
+    for (u32 at = scene.rolesTable; at + 1 < data.size() && MapsWord(data, at) != MapsRecord::TableEnd;
          at += sizeof(u16) * MapsRecord::RoleWords)
     {
-        scene.unk4C8BD4 = static_cast<u16>(scene.unk4C8BD4 + sizeof(u16) * MapsRecord::RoleWords);
+        scene.rolesTableBytes = static_cast<u16>(scene.rolesTableBytes + sizeof(u16) * MapsRecord::RoleWords);
     }
 
     const u32 roles = MapsTable(data, MapsDataTable::StartRoles);
@@ -1131,7 +1131,7 @@ void Game::NewGame()
 
     this->party.battleBlocks = {};
     FreeItemList(this->party.inventory);
-    scene.unk4C97E4 = MapsTable(data, MapsDataTable::Unk18);
+    scene.recipesTable = MapsTable(data, MapsDataTable::Unk18);
 
     for (u32 at = MapsTable(data, MapsDataTable::StartItems); at + 1 < data.size() && MapsWord(data, at) != 0;
          at += MapsRecord::StartItemBytes)
@@ -1210,18 +1210,18 @@ void Game::StepPointer()
     {
         bool button = true;
 
-        if ((this->unk4B7518 | this->unk4B7920) != 0)
+        if ((this->scrollStepX | this->scrollStepY) != 0)
         {
-            if (++view.unk4ACBC8 > 0)
+            if (++view.menuButtonSlide > 0)
             {
-                view.unk4ACBC8 = 0;
+                view.menuButtonSlide = 0;
             }
         }
-        else if (++view.unk4ACBCC > kButtonDelay)
+        else if (++view.menuButtonWait > kButtonDelay)
         {
-            if (--view.unk4ACBC8 < kButtonHidden)
+            if (--view.menuButtonSlide < kButtonHidden)
             {
-                view.unk4ACBC8 = kButtonHidden;
+                view.menuButtonSlide = kButtonHidden;
             }
 
             const ButtonState& click = this->controls.At(Button::MouseLeft);
@@ -1243,12 +1243,12 @@ void Game::StepPointer()
         if (button && this->field.screenX != 0)
         {
             this->painter.SetClipClamped(0, 0, Display::Width + this->field.screenX, Display::Height);
-            this->actDrawer.Draw(view.unk4C83A8, view.unk4ACBC8 + kButtonX + this->field.screenX, 0);
+            this->actDrawer.Draw(view.menuButtonAct, view.menuButtonSlide + kButtonX + this->field.screenX, 0);
             this->painter.SetClipClamped(0, 0, Display::Width, Display::Height);
         }
         else if (button)
         {
-            this->actDrawer.Draw(view.unk4C83A8, view.unk4ACBC8 + kButtonX, 0);
+            this->actDrawer.Draw(view.menuButtonAct, view.menuButtonSlide + kButtonX, 0);
         }
     }
 
@@ -1662,10 +1662,10 @@ void Game::PlayMusic(const std::u8string& path)
 void Game::ResetSaveSlots()
 {
     this->controls.buttons = {};
-    this->unk4CC160 = 0;
-    this->unk4CC161 = 1;
-    this->unk4CC298 = 0;
-    this->unk4CB240 = 0;
+    this->downArrowPress = 0;
+    this->upArrowPress = 1;
+    this->slotPrompt = 0;
+    this->slotMouseBlock = 0;
     ResetPlayback(this->unk4CC200);
     this->saveSlots.LoadPage(this->config.SaveDirectory(), this->painter);
 }
@@ -1683,7 +1683,7 @@ void Game::StartStory(int withMap)
     const u16 leader = MapsWord(data, start + MapsRecord::NewStoryLeaderAt);
     Role& lead = this->state.leader;
     lead.unk14 = 0;
-    this->unk4B7BC4 = leader;
+    this->partyLeaderId = leader;
     lead.id = leader;
     lead.unk20 = 0;
     lead.event = kOpeningEvent;
@@ -1930,16 +1930,16 @@ void Game::MainFrame()
         this->RunTimers();
     }
 
-    this->unk4C844C = this->frameStart;
-    this->frameTime = static_cast<i32>(this->frameStart - this->unk4C8444);
-    this->unk4C8444 = this->frameStart;
+    this->mainFrameStart = this->frameStart;
+    this->frameTime = static_cast<i32>(this->frameStart - this->lastFrameStart);
+    this->lastFrameStart = this->frameStart;
     this->input.PollKeyboard();
     this->controls.Poll(this->input, this->config, this->state, static_cast<i32>(this->frameStart));
     this->scene.pointerRole.act.action = Scene::ChoicePointer;
 
     if (this->storyState != Game::StoryRunning)
     {
-        this->unk4CAD24 = kCounterHidden;
+        this->counterWait = kCounterHidden;
         this->counterAlpha = kCounterOpaque;
         this->SaveScreenFrame();
         this->EndMainFrame();
@@ -1969,7 +1969,7 @@ void Game::MainFrame()
 
     if (this->menuState != Game::NoMenu)
     {
-        this->unk4CAD24 = kCounterHidden;
+        this->counterWait = kCounterHidden;
         this->counterAlpha = kCounterOpaque;
         this->AudioPump();
         this->largeFont.SetAdvance(kMapLargeAdvance);
@@ -2004,7 +2004,7 @@ void Game::MainFrame()
     if (this->running == 0 || this->inactive != 0 || this->menuState != Game::NoMenu || this->inBattle != 0 ||
         this->storyState != Game::StoryRunning)
     {
-        this->unk4C8448 = this->frameStart - this->unk4C844C;
+        this->mainFrameTime = this->frameStart - this->mainFrameStart;
         this->EndMainFrame();
         return;
     }
@@ -2034,7 +2034,7 @@ void Game::MainFrame()
         this->fieldView.Render();
     }
 
-    this->unk4C8448 = this->frameStart - this->unk4C844C;
+    this->mainFrameTime = this->frameStart - this->mainFrameStart;
     this->EndMainFrame();
 }
 
@@ -2057,10 +2057,10 @@ void Game::RunTimers()
     Scene& view = this->scene;
     GameState& game = this->state;
 
-    if (game.GameFlag(GameState::Timer) && --view.unk4CAD20 < 0 && game.leader.id == Role::NoId &&
+    if (game.GameFlag(GameState::Timer) && --view.timerFrames < 0 && game.leader.id == Role::NoId &&
         this->menuState == Game::NoMenu && this->storyState == Game::StoryRunning)
     {
-        view.unk4CAD20 = kTimerStopped;
+        view.timerFrames = kTimerStopped;
         game.ClearGameFlag(GameState::Timer);
         game.ClearGameFlag(GameState::TimerEvent);
         game.SetGameFlag(GameState::TimerExpired);
@@ -2079,16 +2079,16 @@ void Game::RunTimers()
 
         game.leader.unk14 = 0;
         game.leader.unk20 = 0;
-        game.leader.event = static_cast<u16>(view.unk4A93D4);
-        game.leader.id = static_cast<u16>(this->unk4B7BC4);
+        game.leader.event = static_cast<u16>(view.timerEvent);
+        game.leader.id = static_cast<u16>(this->partyLeaderId);
         game.leader.flags = 0;
         game.leader.x = 0;
         game.leader.y = 0;
     }
 
-    if (game.GameFlag(GameState::SecondTimer) && --view.unk4A9918 < 0)
+    if (game.GameFlag(GameState::SecondTimer) && --view.secondTimerFrames < 0)
     {
-        view.unk4A9918 = kTimerStopped;
+        view.secondTimerFrames = kTimerStopped;
         game.ClearGameFlag(GameState::SecondTimer);
         game.SetGameFlag(GameState::SecondTimerExpired);
     }
@@ -2163,8 +2163,8 @@ void Game::BattleMainFrame()
         this->menuState = Game::MenuEntering | Game::SystemMenuA;
         this->storyState = Game::StoryRunning;
         this->ResetSaveSlots();
-        this->unk4CAEBC = 0;
-        this->unk4CAEC0 = 0;
+        this->saveScreenPage = 0;
+        this->slotsLoad = 0;
         this->menuMode = Menu::NoSlotsMode;
         return;
     }

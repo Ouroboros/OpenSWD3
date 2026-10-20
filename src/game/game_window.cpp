@@ -182,7 +182,7 @@ void Game::ReleaseGame()
     this->archive.CloseAll();
     this->audio.StopMusic();
     this->audio.StopAllSounds();
-    this->scene.unk4CAE78.clear();
+    this->scene.encounterGroups.clear();
     this->offscreen.reset();
     this->graphics.ReleaseSurfaces();
     this->graphics.ReleaseDevice();

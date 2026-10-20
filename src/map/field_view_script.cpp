@@ -213,14 +213,14 @@ void FieldView::DrawTimer(int x, int y, int which)
 
     Scene& view = owner.scene;
     Painter& painter = owner.painter;
-    int seconds = (which != 0 ? view.unk4A9918 : view.unk4CAD20) / kFramesPerSecond;
+    int seconds = (which != 0 ? view.secondTimerFrames : view.timerFrames) / kFramesPerSecond;
 
     if (seconds < 0)
     {
         seconds = 0;
     }
 
-    ActState& digits = view.unk4A9A30;
+    ActState& digits = view.timerDigits;
     digits.id = Scene::TimerAct;
     digits.direction = 0;
     int at = x;

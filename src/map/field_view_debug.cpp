@@ -84,7 +84,7 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
         white,
         u8"FPS[%2d] FUsed(%d),kr.d[%1d] ,kr.p[%4d] _IPA[%4d]",
         owner.frameTime != 0 ? kMillisecondsPerSecond / static_cast<u32>(owner.frameTime) : 0u,
-        owner.unk4C8448,
+        owner.mainFrameTime,
         click.press,
         click.heldFrames,
         owner.controls.mouseSuppressed
@@ -95,7 +95,7 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
         white,
         u8"MapID[%d] MapCyc[%d] %d",
         owner.currentMap,
-        view.unk49E0BC,
+        view.layerFrames,
         owner.state.walkSpeed
     );
     this->DrawDebugText(
@@ -107,7 +107,7 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
         owner.talk.advance,
         owner.party.clock,
         view.encounterSteps & Scene::EncounterStepMask,
-        view.unk4B896C,
+        view.encounterGroup,
         owner.talk.choice
     );
     this->DrawDebugText(

@@ -1490,9 +1490,9 @@ void Menu::OptionsSelect()
                     return;
                 }
 
-                owner.unk4CAEC0 = 0;
+                owner.slotsLoad = 0;
                 owner.menuMode = Menu::KeySaveMode;
-                owner.unk4CAEBC = 1;
+                owner.saveScreenPage = 1;
                 owner.storyState = Game::SaveSlotsState;
                 owner.ResetSaveSlots();
                 --page.stage;
@@ -1502,8 +1502,8 @@ void Menu::OptionsSelect()
             if (page.entry == kLoadEntry)
             {
                 owner.menuMode = Menu::KeyLoadMode;
-                owner.unk4CAEC0 = 1;
-                owner.unk4CAEBC = 1;
+                owner.slotsLoad = 1;
+                owner.saveScreenPage = 1;
                 owner.storyState = Game::SaveSlotsState;
                 owner.ResetSaveSlots();
                 --page.stage;
@@ -2275,8 +2275,8 @@ void Menu::OptionsDraw()
                     {
                         owner.menuState = Game::TitleMenu;
                         owner.storyState = 0;
-                        owner.unk4CAEBC = 0;
-                        owner.unk4CAEC0 = 0;
+                        owner.saveScreenPage = 0;
+                        owner.slotsLoad = 0;
                     }
                 }
             }

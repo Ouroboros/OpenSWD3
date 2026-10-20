@@ -110,8 +110,8 @@ struct Menu::FrameState
     i32 storyState = 0;
     i32 inactive = 0;
     u32 systemFlags = 0;
-    i32 unk4CAEBC = 0;
-    i32 unk4CAEC0 = 0;
+    i32 saveScreenPage = 0;
+    i32 slotsLoad = 0;
     std::array<i16, Party::Roles> faceSlides = {};
     u16 shopScrollArrows = 0;
     bool actsRestarted = false;
@@ -259,8 +259,8 @@ void Menu::SaveFrame(FrameState& kept) const
     kept.storyState = owner.storyState;
     kept.inactive = owner.inactive;
     kept.systemFlags = owner.systemFlags;
-    kept.unk4CAEBC = owner.unk4CAEBC;
-    kept.unk4CAEC0 = owner.unk4CAEC0;
+    kept.saveScreenPage = owner.saveScreenPage;
+    kept.slotsLoad = owner.slotsLoad;
     kept.faceSlides = owner.battleState.faceSlides;
     kept.shopScrollArrows = owner.battleState.scrollArrows;
     kept.actsRestarted = owner.acts.ScriptRestarted();
@@ -397,8 +397,8 @@ void Menu::LoadFrame(const FrameState& kept)
     owner.storyState = kept.storyState;
     owner.inactive = kept.inactive;
     owner.systemFlags = kept.systemFlags;
-    owner.unk4CAEBC = kept.unk4CAEBC;
-    owner.unk4CAEC0 = kept.unk4CAEC0;
+    owner.saveScreenPage = kept.saveScreenPage;
+    owner.slotsLoad = kept.slotsLoad;
     owner.battleState.faceSlides = kept.faceSlides;
     owner.battleState.scrollArrows = kept.shopScrollArrows;
     owner.acts.SetScriptRestarted(kept.actsRestarted);

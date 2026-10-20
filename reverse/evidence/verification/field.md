@@ -3,7 +3,7 @@
 ## 第 1 轮
 
 - 0x0040AD10 Field::LoadUnitPicture：先清图片指针；单元号无符号大于单元数即假；读取 尺寸+0x10 字节（位置 = 基址 + 偏移表）；宽高 = 16·字 2／字 4；格式字 6；解压到 dword 8 长度；格式 0x10 走 0x00401B70（并取回宽高），否则 0x00401E50。AIL_serve 三处按 deviations.md 全局行省略。通过。
-- 0x0040AE20 Field::ClearRoleCells、0x0040AEC0 Field::MarkRoleCells：掩码 0xCF7FFFFF（领队再清 0x100）、标记位 0x10000000（旗标 0x4000 加 0x20000000，旗标 0x10 加 0x800000，领队加 0x100）；1×2、2×1 特例与一般遍历（行末加 地图宽−宽）一致。差异：领队判断为 (u16)角色号 与 dword 0x004B7BC4 比较，重建先把 0x004B7BC4 截为 u16，值超出 0xFFFF（如存档写入的任意 dword）时结果不同。已改为以 i32 传入并零扩展角色号比较，所有调用点直接传 Game::unk4B7BC4。
+- 0x0040AE20 Field::ClearRoleCells、0x0040AEC0 Field::MarkRoleCells：掩码 0xCF7FFFFF（领队再清 0x100）、标记位 0x10000000（旗标 0x4000 加 0x20000000，旗标 0x10 加 0x800000，领队加 0x100）；1×2、2×1 特例与一般遍历（行末加 地图宽−宽）一致。差异：领队判断为 (u16)角色号 与 dword 0x004B7BC4 比较，重建先把 0x004B7BC4 截为 u16，值超出 0xFFFF（如存档写入的任意 dword）时结果不同。已改为以 i32 传入并零扩展角色号比较，所有调用点直接传 Game::partyLeaderId。
 
 ## 第 2 轮：修正后复核
 

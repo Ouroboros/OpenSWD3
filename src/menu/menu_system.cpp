@@ -943,8 +943,8 @@ void Menu::SystemDraw()
 
     owner.menuState = Game::TitleMenu;
     owner.storyState = Game::StoryRunning;
-    owner.unk4CAEBC = 0;
-    owner.unk4CAEC0 = 0;
+    owner.saveScreenPage = 0;
+    owner.slotsLoad = 0;
     owner.menuMode = Menu::NoSlotsMode;
     owner.scene.playerHold = 0;
     this->savedScreen.clear();
@@ -1057,8 +1057,8 @@ void Menu::ActOnEntry()
         case kContinueEntry:
             owner.menuState = Game::NoMenu;
             owner.storyState = Game::SaveSlotsState;
-            owner.unk4CAEBC = 1;
-            owner.unk4CAEC0 = 1;
+            owner.saveScreenPage = 1;
+            owner.slotsLoad = 1;
             owner.menuMode = Menu::TitleLoadMode;
             owner.ResetSaveSlots();
             // The rebuild (deviations.md): the load starts on the newest save, as the launcher's continue does.
@@ -1066,15 +1066,15 @@ void Menu::ActOnEntry()
             break;
 
         case kNewGameEntry:
-            owner.unk4ACEF4 = 0;
-            owner.unk4AB990 = crt::Time();
+            owner.playSeconds = 0;
+            owner.playClockStart = crt::Time();
             this->systemState = kSettings;
             std::memset(owner.drawSurface, 0, kScreenBytes);
             owner.StartStory(kWithMap);
             owner.menuState = Game::NoMenu;
             owner.storyState = Game::StoryRunning;
-            owner.unk4CAEBC = 1;
-            owner.unk4CAEC0 = 1;
+            owner.saveScreenPage = 1;
+            owner.slotsLoad = 1;
             owner.ResetSaveSlots();
             owner.party.ApplyNameCheats();
             owner.LoadFameFile();

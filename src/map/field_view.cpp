@@ -186,9 +186,9 @@ void FieldView::ShakeCamera()
     }
 
     this->shakeShift = {dx, dy};
-    view.unk4A93E4 = field.cameraLeft;
+    view.quakeCameraLeft = field.cameraLeft;
     field.cameraLeft += dx;
-    view.unk4A992C = field.cameraTop;
+    view.quakeCameraTop = field.cameraTop;
     field.cameraTop += dy;
     field.cameraRight += dx;
     field.cameraBottom += dy;
@@ -516,7 +516,7 @@ void FieldView::ArriveMoving(std::size_t index, std::size_t slot, u8 direction)
     MoveRecord& move = state.moves[slot];
     Role& role = state.roles[index];
     const u16 id = role.id;
-    const i32 leaderId = owner.unk4B7BC4;
+    const i32 leaderId = owner.partyLeaderId;
     field.RemoveRole(
         id,
         static_cast<int>(role.flags & Role::LayerMask),
@@ -553,11 +553,11 @@ void FieldView::ArriveMoving(std::size_t index, std::size_t slot, u8 direction)
 
         if (role.id == 1)
         {
-            owner.unk4B7920 = 0;
+            owner.scrollStepY = 0;
             owner.controls.buttons = {};
-            owner.unk4B7518 = 0;
-            owner.unk4A948C = 0;
-            owner.unk4A9488 = 0;
+            owner.scrollStepX = 0;
+            owner.walkStepY = 0;
+            owner.walkStepX = 0;
 
             if ((view.screenFlags & Scene::CameraHeld) == 0)
             {
@@ -588,7 +588,7 @@ void FieldView::ArriveFollower(std::size_t index, std::size_t slot, u8 direction
     Field& field = owner.field;
     MoveRecord& move = owner.scene.followerMoves[slot];
     Role& role = state.roles[index];
-    const i32 leaderId = owner.unk4B7BC4;
+    const i32 leaderId = owner.partyLeaderId;
     field.RemoveRole(role.id, static_cast<int>(role.flags & Role::LayerMask), 0, 0);
     field.ClearRoleCells(role, leaderId);
     MoveCell(state, role, direction);
@@ -610,9 +610,9 @@ void FieldView::Render()
     Scene& view = owner.scene;
     Field& field = owner.field;
 
-    for (std::size_t act = view.unk4B9F68.size(); act-- > 0;)
+    for (std::size_t act = view.screenActs.size(); act-- > 0;)
     {
-        ActState& slot = view.unk4B9F68[act];
+        ActState& slot = view.screenActs[act];
 
         if (slot.id != 0 && owner.acts.Run(slot) == 0)
         {
@@ -631,12 +631,12 @@ void FieldView::Render()
     if (!owner.smoothMotion)
     {
         const int scroll = owner.state.walkSpeed;
-        player.x += scroll * (owner.unk4B7518 + owner.unk4A9488);
-        player.y += scroll * (owner.unk4B7920 + owner.unk4A948C);
-        field.cameraLeft += owner.unk4B7518 * scroll;
-        field.cameraTop += owner.unk4B7920 * scroll;
-        field.cameraRight += owner.unk4B7518 * scroll;
-        field.cameraBottom += owner.unk4B7920 * scroll;
+        player.x += scroll * (owner.scrollStepX + owner.walkStepX);
+        player.y += scroll * (owner.scrollStepY + owner.walkStepY);
+        field.cameraLeft += owner.scrollStepX * scroll;
+        field.cameraTop += owner.scrollStepY * scroll;
+        field.cameraRight += owner.scrollStepX * scroll;
+        field.cameraBottom += owner.scrollStepY * scroll;
     }
 
     for (MoveRecord& move : state.moves)
@@ -744,7 +744,7 @@ void FieldView::Render()
         }
     }
 
-    for (u32 follower = 1; follower < static_cast<u32>(view.unk4BABA0) && follower < view.followerMoves.size();
+    for (u32 follower = 1; follower < static_cast<u32>(view.followerCount) && follower < view.followerMoves.size();
          ++follower)
     {
         MoveRecord& move = view.followerMoves[follower];
@@ -827,7 +827,8 @@ void FieldView::Render()
     owner.ShowMapFrame();
 
     // The rebuild's continuous motion settles the controlled role when it reaches a tile; here only while it stands.
-    const bool stepping = owner.unk4B7518 != 0 || owner.unk4B7920 != 0 || owner.unk4A9488 != 0 || owner.unk4A948C != 0;
+    const bool stepping =
+        owner.scrollStepX != 0 || owner.scrollStepY != 0 || owner.walkStepX != 0 || owner.walkStepY != 0;
 
     if ((player.x & MapHeader::TileFraction) == 0 && (player.y & MapHeader::TileFraction) == 0 &&
         (!owner.smoothMotion || !stepping))
@@ -846,28 +847,28 @@ void FieldView::Render()
         );
     }
 
-    if (++view.unk4CC2DC >= view.unk49E0BC && state.map.layers != 1)
+    if (++view.layerTick >= view.layerFrames && state.map.layers != 1)
     {
-        int layer = view.unk49E0C0 + view.unk4B7944;
-        view.unk4CC2DC = 0;
-        view.unk4B7944 += view.unk49E0C0;
+        int layer = view.layerDirection + view.layerIndex;
+        view.layerTick = 0;
+        view.layerIndex += view.layerDirection;
 
-        if (static_cast<u32>(view.unk4B7944) >= static_cast<u32>(state.map.layers))
+        if (static_cast<u32>(view.layerIndex) >= static_cast<u32>(state.map.layers))
         {
-            view.unk49E0C0 = view.unk49E0C0 != 1 ? 1 : -1;
-            layer += kLayerSwing * view.unk49E0C0;
-            view.unk4B7944 = layer;
+            view.layerDirection = view.layerDirection != 1 ? 1 : -1;
+            layer += kLayerSwing * view.layerDirection;
+            view.layerIndex = layer;
         }
 
-        view.unk4B873C = layer * view.unk4B7A98;
+        view.layerOffset = layer * view.layerTiles;
     }
 
     if (view.shake[0] != Scene::ShakeEnd && owner.currentMap != Field::DemonRefiningPot)
     {
-        field.cameraLeft = view.unk4A93E4;
-        field.cameraTop = view.unk4A992C;
-        field.cameraRight = view.unk4A93E4 + Display::Width;
-        field.cameraBottom = view.unk4A992C + Display::Height;
+        field.cameraLeft = view.quakeCameraLeft;
+        field.cameraTop = view.quakeCameraTop;
+        field.cameraRight = view.quakeCameraLeft + Display::Width;
+        field.cameraBottom = view.quakeCameraTop + Display::Height;
     }
 }
 

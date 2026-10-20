@@ -93,7 +93,7 @@ i32 RolePath::TileStart(i32 place, i32 step)
 void RolePath::Update()
 {
     GameState& state = this->game.state;
-    const i32 leader = this->game.unk4B7BC4;
+    const i32 leader = this->game.partyLeaderId;
 
     for (u32 index = 1; index < static_cast<u32>(state.roleCount) && index < GameState::Roles; ++index)
     {
@@ -437,20 +437,20 @@ void RolePath::Follow(int index)
 
     u32 follower = 1;
 
-    while (follower < static_cast<u32>(view.unk4BABA0) && follower < view.unk4B7C8C.size() &&
-           view.unk4B7C8C[follower] != index)
+    while (follower < static_cast<u32>(view.followerCount) && follower < view.followers.size() &&
+           view.followers[follower] != index)
     {
         ++follower;
     }
 
-    if (follower == static_cast<u32>(view.unk4BABA0) || follower >= view.followerMoves.size())
+    if (follower == static_cast<u32>(view.followerCount) || follower >= view.followerMoves.size())
     {
         DebugLog(u8"CompanyWalk 夥伴紀錄中找不到角色(%d)", role.id);
         return;
     }
 
     MoveRecord& move = view.followerMoves[follower];
-    const i32 leaderId = owner.unk4B7BC4;
+    const i32 leaderId = owner.partyLeaderId;
 
     auto direction = [&move]()
     {
@@ -586,7 +586,7 @@ void RolePath::RunScript(int index)
     Role& role = state.roles[static_cast<std::size_t>(index)];
     const std::span<const u8> data = owner.databases.paths.View();
     auto& variables = owner.party.variables;
-    const i32 leaderId = owner.unk4B7BC4;
+    const i32 leaderId = owner.partyLeaderId;
 
     auto word = [&data](std::size_t at)
     {
@@ -1266,8 +1266,8 @@ bool RolePath::ResumeMove(int index)
 void RolePath::AlignPlayer(Role& role)
 {
     Game& owner = this->game;
-    const int stepX = owner.unk4A9488 + owner.unk4B7518;
-    const int stepY = owner.unk4A948C + owner.unk4B7920;
+    const int stepX = owner.walkStepX + owner.scrollStepX;
+    const int stepY = owner.walkStepY + owner.scrollStepY;
 
     if (((role.x & MapHeader::TileFraction) != 0 && stepX == 0) ||
         ((role.y & MapHeader::TileFraction) != 0 && stepY == 0))
@@ -1293,16 +1293,16 @@ int RolePath::HoldRole(int index)
     Game& owner = this->game;
     GameState& state = owner.state;
     Role& role = state.roles[static_cast<std::size_t>(index)];
-    const i32 leader = owner.unk4B7BC4;
+    const i32 leader = owner.partyLeaderId;
 
     if (index == state.playerRole)
     {
         const int row = static_cast<int>(static_cast<u32>(role.y) >> MapHeader::TileShift) - 1;
         this->AlignPlayer(role);
-        owner.unk4B7920 = 0;
-        owner.unk4B7518 = 0;
-        owner.unk4A948C = 0;
-        owner.unk4A9488 = 0;
+        owner.scrollStepY = 0;
+        owner.scrollStepX = 0;
+        owner.walkStepY = 0;
+        owner.walkStepX = 0;
         owner.field.RemoveRole(role.id, static_cast<int>(role.flags & Role::LayerMask), row, 0);
     }
 
@@ -1397,11 +1397,11 @@ int RolePath::ScriptStep(int index)
 
         if (index == state.playerRole)
         {
-            owner.unk4B7920 = 0;
+            owner.scrollStepY = 0;
             owner.controls.buttons = {};
-            owner.unk4B7518 = 0;
-            owner.unk4A948C = 0;
-            owner.unk4A9488 = 0;
+            owner.scrollStepX = 0;
+            owner.walkStepY = 0;
+            owner.walkStepX = 0;
 
             if ((owner.scene.screenFlags & Scene::CameraHeld) == 0)
             {
@@ -1447,7 +1447,7 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
     Game& owner = this->game;
     GameState& state = owner.state;
     Role& role = state.roles[static_cast<std::size_t>(index)];
-    const i32 leader = owner.unk4B7BC4;
+    const i32 leader = owner.partyLeaderId;
     const BlockingMap grid = this->Grid();
     PathFinder finder(owner.pathNodes, grid, owner.errors);
     role.flags &= ~Role::Arrived;
@@ -1462,11 +1462,11 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
 
     auto stopKeys = [&owner]()
     {
-        owner.unk4B7920 = 0;
+        owner.scrollStepY = 0;
         owner.controls.buttons = {};
-        owner.unk4B7518 = 0;
-        owner.unk4A948C = 0;
-        owner.unk4A9488 = 0;
+        owner.scrollStepX = 0;
+        owner.walkStepY = 0;
+        owner.walkStepX = 0;
     };
 
     if (index == state.playerRole)
