@@ -12,7 +12,7 @@
 0x004A135C	Talk::dialogOrigin	u32	src/talk/talk.h:164	the place of the next talk window (NoOriginX: by its speaker)
 0x004A1360	Talk::dialogOptions	u32	src/talk/talk.h:165	its options, a cleared bit turns one on
 0x004A1364	Talk::dialogTimeout	u32	src/talk/talk.h:166	
-0x004A6A00	InventoryPage::unk4A6A00	std::array<u16, 14>	src/menu/menu.h:241	the rows shown numbered from 100, ended by 0 (never read)
+0x004A6A00	InventoryPage::rowNumbers	std::array<u16, 14>	src/menu/menu.h:241	the rows shown numbered from 100, ended by 0 (never read)
 0x004A6A38	Menu::tabs	std::array<MenuTab, Tabs>	src/menu/menu.h:630	
 0x004A6AA8	Menu::unk4A6AA8	u16	src/menu/menu.h:618	
 0x004A6AAC	Menu::tabGlow	std::array<i8, Tabs>	src/menu/menu.h:629	
@@ -304,7 +304,7 @@
 0x004CB214	RoleControl::choiceMoved	i32	src/role/role_control.h:44	
 0x004CB218	RoleControl::scrollDown	i32	src/role/role_control.h:39	
 0x004CB21C	RoleControl::scrollUp	i32	src/role/role_control.h:38	
-0x004CB220	RoleControl::unk4CB220	i32	src/role/role_control.h:46	frames since a debug key
+0x004CB220	RoleControl::debugKeyFrames	i32	src/role/role_control.h:46	frames since a debug key (read nowhere)
 0x004CB224	Controls::now	i32	src/input/controls.h:68	the frame time of this poll
 0x004CB228	RoleControl::stepRight	i32	src/role/role_control.h:41	
 0x004CB22C	RoleControl::stepLeft	i32	src/role/role_control.h:40	the role alone can step left
@@ -361,21 +361,21 @@
 0x004FB8AC	Menu::clicks	u32	src/menu/menu.h:625	bits 0..1: a left click (single, double), bits 2..3: a right click
 0x004FB8D0	Menu::towns	std::vector<MenuTown>	src/menu/menu.h:669	(its count at 0x004FC834)
 0x004FB8D4	Menu::townShown	i32	src/menu/menu.h:672	
-0x004FB8D8	Menu::unk4FB8D8	ActState	src/menu/menu.h:634	
+0x004FB8D8	Menu::downArrowAct	ActState	src/menu/menu.h:634	the down arrow of the lists (the shop's minus button)
 0x004FB970	Menu::background	ActState	src/menu/menu.h:632	
 0x004FBA10	Menu::pageUp	Handler	src/menu/menu.h:599	
-0x004FBA18	Menu::unk4FBA18	ActState	src/menu/menu.h:635	
+0x004FBA18	Menu::upArrowAct	ActState	src/menu/menu.h:635	the up arrow of the lists (the shop's plus button)
 0x004FBAB0	Game::menuMode	i32	src/game/game.h:676	
 0x004FBAB4	Menu::unk4FBAB4	MenuScrollBar	src/menu/menu.h:674	a second bar of the equipment list (only drawn)
 0x004FBAB8	Menu::unk4FBAB8	u16	src/menu/menu.h:615	
 0x004FBAC0	Menu::left	Handler	src/menu/menu.h:600	
 0x004FBAC4	Menu::pointerX	i32	src/menu/menu.h:622	the pointer of the last frame
 0x004FBEC8	Menu::draw	Handler	src/menu/menu.h:606	
-0x004FBECC	Menu::unk4FBECC	u16	src/menu/menu.h:616	(low word)
+0x004FBECC	Menu::roleTab	u16	src/menu/menu.h:616	(low word) the role tab raised (the equipment page's role)
 0x004FBED0	Menu::pointerY	i32	src/menu/menu.h:623	
 0x004FBED4	Menu::townTop	i32	src/menu/menu.h:670	
 0x004FBED8	Menu::flags	u32	src/menu/menu.h:621	
-0x004FBEE0	Menu::unk4FBEE0	ActState	src/menu/menu.h:637	
+0x004FBEE0	Menu::titleAct	ActState	src/menu/menu.h:637	the title of the page, lit and glowing
 0x004FBF54	Menu::drawTable	std::array<Handler, Pages>	src/menu/menu.h:609	drawn
 0x004FBF78	Menu::pageDown	Handler	src/menu/menu.h:598	
 0x004FBF7C	Menu::end	Handler	src/menu/menu.h:604	
@@ -384,7 +384,7 @@
 0x004FC208	Menu::face	ActState	src/menu/menu.h:638	the face of the name entry
 0x004FC2A0	Menu::description	std::string	src/menu/menu.h:682	the description of the chosen object
 0x004FC320	Menu::tint	i32	src/menu/menu.h:619	a screen tint while non-zero
-0x004FC328	Menu::unk4FC328	ActState	src/menu/menu.h:639	
+0x004FC328	Menu::barTrackAct	ActState	src/menu/menu.h:639	the track of the scroll bars, repeated down
 0x004FC3C0	Menu::select	Handler	src/menu/menu.h:605	
 0x004FC3C4	Menu::page	u16	src/menu/menu.h:612	(low word) the page index
 0x004FC3C8	Menu::slide	i32	src/menu/menu.h:626	
@@ -401,20 +401,20 @@
 0x004FC648	Menu::descriptionSlide	i32	src/menu/menu.h:675	the description box slides (up while positive)
 0x004FC64C	Menu::frame	Handler	src/menu/menu.h:595	
 0x004FC650	Menu::gauge	ActState	src/menu/menu.h:642	a step of the settings bars
-0x004FC6E8	Menu::unk4FC6E8	ActState	src/menu/menu.h:643	
+0x004FC6E8	Menu::barThumbAct	ActState	src/menu/menu.h:643	their thumb
 0x004FC780	Menu::titleGlow	i32	src/menu/menu.h:628	
 0x004FC784	Menu::frames	i32	src/menu/menu.h:620	
 0x004FC788	Menu::right	Handler	src/menu/menu.h:601	
-0x004FC790	Menu::unk4FC790	ActState	src/menu/menu.h:644	
+0x004FC790	Menu::titleArrowAct	ActState	src/menu/menu.h:644	the arrow beside the title
 0x004FC828	Menu::down	Handler	src/menu/menu.h:596	
-0x004FC82C	Menu::unk4FC82C	u16	src/menu/menu.h:617	
+0x004FC82C	Menu::openedOnEquipment	u16	src/menu/menu.h:617	bit 0: the menu opened on the equipment, left back to the item choice
 0x004FC830	Menu::descriptionTop	i32	src/menu/menu.h:676	its top
 0x004FC838	Menu::cancel	Handler	src/menu/menu.h:602	
 0x004FC83C	Menu::shift	Handler	src/menu/menu.h:603	
-0x004FC840	Menu::unk4FC840	ActState	src/menu/menu.h:645	
+0x004FC840	Menu::tabsPanelAct	ActState	src/menu/menu.h:645	the panel of the tabs (the shop's frame)
 0x004FC8B0	Menu::enterTable	std::array<Handler, Pages>	src/menu/menu.h:607	the role pages opened (entries 0xB..0x11)
 0x004FC900	Menu::code	u16	src/menu/menu.h:611	the code the menu was opened with
-0x004FC904	Menu::unk4FC904	i32	src/menu/menu.h:677	-1 while the description button is pressed
+0x004FC904	Menu::buttonPress	i32	src/menu/menu.h:677	-1 while the description button is pressed
 0x004FC908	Menu::escapeDelay	i32	src/menu/menu.h:624	frames before RightControl acts as Escape again
 0x004FC90C	Bestiary::top	i32	src/menu/menu.h:63	
 0x004FC910	Bestiary::category	i32	src/menu/menu.h:64	the tab chosen
@@ -476,7 +476,7 @@
 0x004FCD64	EquipPage::firstShown	ItemNode*	src/menu/menu.h:142	
 0x004FCD68	EquipPage::scrollArrows	u16	src/menu/menu.h:143	
 0x004FCD70	EquipPage::objects	ItemLink	src/menu/menu.h:144	the objects that fit the slot
-0x004FCE20	EquipPage::unk4FCE20	ItemLink	src/menu/menu.h:127	where an object of another kind taken off goes
+0x004FCE20	EquipPage::takenOff	ItemLink	src/menu/menu.h:127	where an object of another kind taken off goes
 0x004FCED0	EquipPage::previousStage	i32	src/menu/menu.h:149	the stage a description returns to
 0x004FCED8	EquipPage::inventoryHead	ItemNode*	src/menu/menu.h:128	the inventory's first node when opened
 0x004FCF88	EquipPage::top	i32	src/menu/menu.h:145	
@@ -504,7 +504,7 @@
 0x004FD09C	InventoryPage::roles	i32	src/menu/menu.h:228	the party roles
 0x004FD0A0	InventoryPage::target	i32	src/menu/menu.h:229	the role an object is used on
 0x004FD0A4	InventoryPage::followerRow	i32	src/menu/menu.h:231	
-0x004FD0A8	Menu::unk4FD0A8	ActState	src/menu/menu.h:678	the description button
+0x004FD0A8	Menu::buttonAct	ActState	src/menu/menu.h:678	the description button (the skills page's button)
 0x004FD140	Menu::savedItems	ItemLink	src/menu/menu.h:681	`itemObjects` kept with it
 0x004FD144	InventoryPage::discardChoice	i32	src/menu/menu.h:233	0: yes, 1: no
 0x004FD148	InventoryPage::unk4FD148	i32	src/menu/menu.h:234	the top of the role box below its first row, the follower box's choice

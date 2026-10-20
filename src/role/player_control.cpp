@@ -202,7 +202,7 @@ void RoleControl::ControlPlayer()
             {
                 i32& shown = input.IsKeyDown(Input::F1) ? owner.debugText : owner.debugCells;
                 shown = shown == 0 ? 1 : 0;
-                this->unk4CB220 = 0;
+                this->debugKeyFrames = 0;
                 SleepMilliseconds(kToggleKeyPause);
                 return;
             }
@@ -210,7 +210,7 @@ void RoleControl::ControlPlayer()
             if (input.IsKeyDown(Input::F3))
             {
                 state.SetGameFlagTo(GameState::NoSlide, state.GameFlag(GameState::NoSlide) ? 0 : 1);
-                this->unk4CB220 = 0;
+                this->debugKeyFrames = 0;
                 // 0x004032B9
                 DebugLog(state.GameFlag(GameState::NoSlide) ? u8"阻擋可通過" : u8"阻擋不可通過");
                 SleepMilliseconds(kToggleKeyPause);
@@ -224,7 +224,7 @@ void RoleControl::ControlPlayer()
                     view.layerFrames = kMaxMapSpeed;
                 }
 
-                this->unk4CB220 = 0;
+                this->debugKeyFrames = 0;
             }
 
             if (input.IsKeyDown(Input::Tab) && input.IsKeyDown(Input::NumpadMinus))
@@ -234,7 +234,7 @@ void RoleControl::ControlPlayer()
                     view.layerFrames = 1;
                 }
 
-                this->unk4CB220 = 0;
+                this->debugKeyFrames = 0;
             }
         }
 
@@ -708,7 +708,7 @@ void RoleControl::ControlPlayer()
         this->idleFrames = 0;
     }
 
-    ++this->unk4CB220;
+    ++this->debugKeyFrames;
 }
 
 }  // namespace swd3

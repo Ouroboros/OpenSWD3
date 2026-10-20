@@ -111,7 +111,7 @@ constexpr i32 kItemsBackground = 0x43;
 constexpr i32 kBackgroundFrame = 4;  // the frame of the page that switches to it
 constexpr i32 kGrowFrames = 5;       // the boxes grow in over five frames
 constexpr i32 kBarFrame = 4;         // the scroll bar from this frame
-constexpr i32 kPressedOffset = -1;   // Menu::unk4FC904
+constexpr i32 kPressedOffset = -1;   // Menu::buttonPress
 
 // The mouse areas.
 constexpr int kFollowersLeft = 0x138;
@@ -396,11 +396,11 @@ void Menu::ItemsEnter()
 {
     Game& owner = this->game;
     InventoryPage& page = this->itemsPage;
-    this->unk4FBECC = Menu::NoTab;
+    this->roleTab = Menu::NoTab;
     page.openedAt = this->frames - 1;
-    ResetPlayback(this->unk4FD0A8);
-    this->unk4FD0A8.id = kInterfaceAct;
-    this->unk4FD0A8.action = kCategoryBarAction;
+    ResetPlayback(this->buttonAct);
+    this->buttonAct.id = kInterfaceAct;
+    this->buttonAct.action = kCategoryBarAction;
     this->mode = kUseMode;
     page.category = 0;
     page.unk4FD160 = 0;
@@ -463,7 +463,7 @@ void Menu::ItemsFrame()
     }
 
     u32 clicks = this->clicks;
-    this->unk4FC904 = 0;
+    this->buttonPress = 0;
 
     if ((code == kNoTownWarpCode || code == kNoExitWarpCode) && (clicks & kAnyClicks) != 0)
     {
@@ -556,7 +556,7 @@ void Menu::ItemsFrame()
         if (static_cast<u32>(y) < kButtonBottom && static_cast<u32>(y) > kButtonTop &&
             static_cast<u32>(x) < kButtonRight && static_cast<u32>(x) > kButtonLeft)
         {
-            this->unk4FC904 = kPressedOffset;
+            this->buttonPress = kPressedOffset;
 
             if ((clicks & kLeftClicks) != 0)
             {
@@ -1908,12 +1908,12 @@ void Menu::ItemsDraw()
     }
 
     owner.mediumFont.SetClip(0, 0, kScreenWidth, kScreenHeight);
-    this->unk4FD0A8.id = kInterfaceAct;
-    this->unk4FD0A8.action = kCategoryBarAction;
-    owner.actDrawer.Draw(this->unk4FD0A8, kCategoryBarX, kCategoryBarY);
-    this->unk4FD0A8.id = kInterfaceAct;
-    this->unk4FD0A8.action = page.category + kFirstCategoryAction;
-    owner.actDrawer.Draw(this->unk4FD0A8, kCategoryIconStep * page.category + kCategoryIconX, kCategoryIconY);
+    this->buttonAct.id = kInterfaceAct;
+    this->buttonAct.action = kCategoryBarAction;
+    owner.actDrawer.Draw(this->buttonAct, kCategoryBarX, kCategoryBarY);
+    this->buttonAct.id = kInterfaceAct;
+    this->buttonAct.action = page.category + kFirstCategoryAction;
+    owner.actDrawer.Draw(this->buttonAct, kCategoryIconStep * page.category + kCategoryIconX, kCategoryIconY);
     owner.largeFont
         .SetClip(0, 0, kScreenWidth, kListClipGrowth * std::min(grownParts, kGrowParts) / kGrowParts + kListClipTop);
     std::string line;  // the original's command line buffer, written by the rows and read by the followers
@@ -1940,9 +1940,9 @@ void Menu::ItemsDraw()
                 owner.mediumFont
                     .DrawText(owner.drawSurface, kHelpTextX, kHelpTextY, this->description, color, kPanelStyle);
                 owner.mediumFont.SetClip(0, 0, kScreenWidth, kScreenHeight);
-                this->unk4FD0A8.id = kInterfaceAct;
-                this->unk4FD0A8.action = kButtonAction;
-                owner.actDrawer.Draw(this->unk4FD0A8, this->unk4FC904 + kButtonX, this->unk4FC904 + kButtonY);
+                this->buttonAct.id = kInterfaceAct;
+                this->buttonAct.action = kButtonAction;
+                owner.actDrawer.Draw(this->buttonAct, this->buttonPress + kButtonX, this->buttonPress + kButtonY);
                 shift = -1;
             }
 
@@ -2183,7 +2183,7 @@ void Menu::ItemsCountShown()
 
     for (std::size_t row = 0; row < kItemRows; ++row)
     {
-        page.unk4A6A00[row] = static_cast<u16>(InventoryPage::FirstRowNumber + row);
+        page.rowNumbers[row] = static_cast<u16>(InventoryPage::FirstRowNumber + row);
     }
 
     this->itemList.shown = 0;
@@ -2194,7 +2194,7 @@ void Menu::ItemsCountShown()
         ++this->itemList.shown;
     }
 
-    page.unk4A6A00[static_cast<std::size_t>(this->itemList.shown)] = 0;
+    page.rowNumbers[static_cast<std::size_t>(this->itemList.shown)] = 0;
 }
 
 // swd32.exe 0x00448020: the objects of category `category` copied from the inventory into the page's list, sorted by

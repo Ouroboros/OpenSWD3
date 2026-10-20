@@ -124,7 +124,7 @@ using EquipStats = std::array<i32, 0x14>;
 // that fit the slot chosen, with the stats each would give.
 struct EquipPage
 {
-    ItemLink unk4FCE20;                          // 0x004FCE20 where an object of another kind taken off goes
+    ItemLink takenOff;                           // 0x004FCE20 where an object of another kind taken off goes
     ItemNode* inventoryHead = nullptr;           // 0x004FCED8 the inventory's first node when opened
     i32 openedAt = 0;                            // 0x004FCD28 Menu::frames when opened
     i32 slide = 0;                               // 0x004FCD2C the page slides in
@@ -238,7 +238,7 @@ struct InventoryPage
     i32 unk4FC3D0 = 0;        // 0x004FC3D0 (only set)
     i32 unk4FC3D4 = 0;        // 0x004FC3D4
     i32 unk4FC3DC = 0;        // 0x004FC3DC
-    std::array<u16, 14> unk4A6A00 = {};  // 0x004A6A00 the rows shown numbered from 100, ended by 0 (never read)
+    std::array<u16, 14> rowNumbers = {};  // 0x004A6A00 the rows shown numbered from 100, ended by 0 (never read)
 };
 
 // The edges of a list's scroll bar as last drawn (DrawScrollBar), read by the clicks.
@@ -278,7 +278,7 @@ public:
     static constexpr u16 MainCode = 1;          // the gold is shown and the title glows in
     static constexpr u16 PageCode = 2;          // a role page open
     static constexpr u16 SubpageCodes = 0x1F4;  // codes from here slide the tabs out on the first page
-    static constexpr u16 NoTab = 5;             // `unk4FBECC`: no tab raised
+    static constexpr u16 NoTab = 5;             // `roleTab`: no tab raised
     static constexpr u16 NoRole = 0xFFFF;       // MenuTab::role
     static constexpr u16 PlainTab = 1;          // MenuTab::state
     static constexpr u16 RaisedTab = 2;
@@ -613,8 +613,8 @@ public:
     u16 mode = 0;                  // 0x004FB8A8
     u16 unk4FC200 = 0;             // 0x004FC200
     u16 unk4FBAB8 = 0;             // 0x004FBAB8
-    u16 unk4FBECC = 0;             // 0x004FBECC (low word)
-    u16 unk4FC82C = 0;             // 0x004FC82C
+    u16 roleTab = 0;               // 0x004FBECC (low word) the role tab raised (the equipment page's role)
+    u16 openedOnEquipment = 0;     // 0x004FC82C bit 0: the menu opened on the equipment, left back to the item choice
     u16 unk4A6AA8 = 0;             // 0x004A6AA8
     i32 tint = 0;                  // 0x004FC320 a screen tint while non-zero
     i32 frames = 0;                // 0x004FC784
@@ -631,18 +631,18 @@ public:
 
     ActState background;               // 0x004FB970
     ActState hitPointBar;              // 0x004FB810 the bars of the role tabs
-    ActState unk4FB8D8;                // 0x004FB8D8
-    ActState unk4FBA18;                // 0x004FBA18
+    ActState downArrowAct;             // 0x004FB8D8 the down arrow of the lists (the shop's minus button)
+    ActState upArrowAct;               // 0x004FBA18 the up arrow of the lists (the shop's plus button)
     std::array<ActState, Tabs> items;  // 0x004FBFA0 the four entries of a page
-    ActState unk4FBEE0;                // 0x004FBEE0
+    ActState titleAct;                 // 0x004FBEE0 the title of the page, lit and glowing
     ActState face;                     // 0x004FC208 the face of the name entry
-    ActState unk4FC328;                // 0x004FC328
+    ActState barTrackAct;              // 0x004FC328 the track of the scroll bars, repeated down
     ActState spiritBar;                // 0x004FC450
     ActState staminaBar;               // 0x004FC518
     ActState gauge;                    // 0x004FC650 a step of the settings bars
-    ActState unk4FC6E8;                // 0x004FC6E8
-    ActState unk4FC790;                // 0x004FC790
-    ActState unk4FC840;                // 0x004FC840
+    ActState barThumbAct;              // 0x004FC6E8 their thumb
+    ActState titleArrowAct;            // 0x004FC790 the arrow beside the title
+    ActState tabsPanelAct;             // 0x004FC840 the panel of the tabs (the shop's frame)
 
     // The system page (0x004FD29C..0x004FD2D4).
     i32 systemClick = 0;           // 0x004FD29C 1: the confirm button clicked, 2: a right click
@@ -674,8 +674,8 @@ public:
     MenuScrollBar unk4FBAB4;      // 0x004FBAB4 a second bar of the equipment list (only drawn)
     i32 descriptionSlide = 0;     // 0x004FC648 the description box slides (up while positive)
     i32 descriptionTop = 0x1E0;   // 0x004FC830 its top
-    i32 unk4FC904 = 0;            // 0x004FC904 -1 while the description button is pressed
-    ActState unk4FD0A8;           // 0x004FD0A8 the description button
+    i32 buttonPress = 0;          // 0x004FC904 -1 while the description button is pressed
+    ActState buttonAct;           // 0x004FD0A8 the description button (the skills page's button)
     ItemLink itemObjects;         // 0x004FD1E8 the objects of the items page
     ItemLink savedInventory;      // 0x004FD15C the inventory kept while the items page saves
     ItemLink savedItems;          // 0x004FD140 `itemObjects` kept with it

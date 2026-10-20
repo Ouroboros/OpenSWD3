@@ -304,9 +304,9 @@ void Game::ResetShopActs()
     }
 
     ResetPlayback(menu.gauge);
-    ResetPlayback(menu.unk4FBA18);
-    ResetPlayback(menu.unk4FB8D8);
-    ResetPlayback(menu.unk4FC840);
+    ResetPlayback(menu.upArrowAct);
+    ResetPlayback(menu.downArrowAct);
+    ResetPlayback(menu.tabsPanelAct);
     ResetPlayback(this->battleState.shopTitle);
 
     for (std::size_t role = 0; role < menu.items.size(); ++role)
@@ -324,9 +324,9 @@ void Game::ResetShopActs()
     };
 
     set(this->battleState.shopTitle, kShopTitleAction);
-    set(menu.unk4FC840, kShopFrameAction);
-    set(menu.unk4FBA18, kPlusAction);
-    set(menu.unk4FB8D8, kMinusAction);
+    set(menu.tabsPanelAct, kShopFrameAction);
+    set(menu.upArrowAct, kPlusAction);
+    set(menu.downArrowAct, kMinusAction);
 }
 
 // swd32.exe 0x0044DA40: the shop closed: the goods of talk command ItemMenu, the screen copies and the list freed
@@ -1333,7 +1333,7 @@ void Game::DrawShop()
 
     if (shop.shopStage > kShopChoice)
     {
-        this->actDrawer.Draw(menu.unk4FC840, 0, 0);
+        this->actDrawer.Draw(menu.tabsPanelAct, 0, 0);
 
         for (int role = 0; role < Party::Roles; ++role)
         {
@@ -1609,12 +1609,12 @@ void Game::DrawShopList(Pixel color)
         );
         this->mediumFont
             .DrawText(this->drawSurface, kCarriedX, rowY, WinFormat(kCountFormat, {have}), color, kPanelStyle);
-        menu.unk4FBA18.id = kFaceAct;
-        menu.unk4FBA18.action = kPlusAction;
-        menu.unk4FBA18.direction = 0;
-        menu.unk4FB8D8.id = kFaceAct;
-        menu.unk4FB8D8.action = kMinusAction;
-        menu.unk4FB8D8.direction = 0;
+        menu.upArrowAct.id = kFaceAct;
+        menu.upArrowAct.action = kPlusAction;
+        menu.upArrowAct.direction = 0;
+        menu.downArrowAct.id = kFaceAct;
+        menu.downArrowAct.action = kMinusAction;
+        menu.downArrowAct.direction = 0;
 
         auto press = [chosen](i16& frames)
         {
@@ -1633,9 +1633,9 @@ void Game::DrawShopList(Pixel color)
         };
 
         const int plus = press(shop.morePressed);
-        this->actDrawer.Draw(menu.unk4FBA18, plus + kPlusX, rowY + plus - 2);
+        this->actDrawer.Draw(menu.upArrowAct, plus + kPlusX, rowY + plus - 2);
         const int minus = press(shop.lessPressed);
-        this->actDrawer.Draw(menu.unk4FB8D8, minus + kMinusX, rowY + minus - 2);
+        this->actDrawer.Draw(menu.downArrowAct, minus + kMinusX, rowY + minus - 2);
 
         if (chosen && item->id != ItemNode::Empty)
         {

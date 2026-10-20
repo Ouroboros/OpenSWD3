@@ -21,8 +21,8 @@ struct Menu::FrameState
     u16 mode = 0;
     u16 unk4FC200 = 0;
     u16 unk4FBAB8 = 0;
-    u16 unk4FBECC = 0;
-    u16 unk4FC82C = 0;
+    u16 roleTab = 0;
+    u16 openedOnEquipment = 0;
     u16 unk4A6AA8 = 0;
     i32 tint = 0;
     i32 frames = 0;
@@ -46,7 +46,7 @@ struct Menu::FrameState
     i32 townShown = 0;
     i32 descriptionSlide = 0;
     i32 descriptionTop = 0;
-    i32 unk4FC904 = 0;
+    i32 buttonPress = 0;
     std::string description;
     OptionsPage options;
     InventoryPage itemsPage;
@@ -136,8 +136,8 @@ void Menu::SaveFrame(FrameState& kept) const
     kept.mode = this->mode;
     kept.unk4FC200 = this->unk4FC200;
     kept.unk4FBAB8 = this->unk4FBAB8;
-    kept.unk4FBECC = this->unk4FBECC;
-    kept.unk4FC82C = this->unk4FC82C;
+    kept.roleTab = this->roleTab;
+    kept.openedOnEquipment = this->openedOnEquipment;
     kept.unk4A6AA8 = this->unk4A6AA8;
     kept.tint = this->tint;
     kept.frames = this->frames;
@@ -170,22 +170,22 @@ void Menu::SaveFrame(FrameState& kept) const
     kept.acts = {
         this->background,
         this->hitPointBar,
-        this->unk4FB8D8,
-        this->unk4FBA18,
+        this->downArrowAct,
+        this->upArrowAct,
         this->items[0],
         this->items[1],
         this->items[2],
         this->items[3],
-        this->unk4FBEE0,
+        this->titleAct,
         this->face,
-        this->unk4FC328,
+        this->barTrackAct,
         this->spiritBar,
         this->staminaBar,
         this->gauge,
-        this->unk4FC6E8,
-        this->unk4FC790,
-        this->unk4FC840,
-        this->unk4FD0A8,
+        this->barThumbAct,
+        this->titleArrowAct,
+        this->tabsPanelAct,
+        this->buttonAct,
     };
 
     kept.scrollBar = this->scrollBar;
@@ -196,7 +196,7 @@ void Menu::SaveFrame(FrameState& kept) const
     kept.townShown = this->townShown;
     kept.descriptionSlide = this->descriptionSlide;
     kept.descriptionTop = this->descriptionTop;
-    kept.unk4FC904 = this->unk4FC904;
+    kept.buttonPress = this->buttonPress;
     kept.description = this->description;
     kept.options = this->options;
     kept.itemsPage = this->itemsPage;
@@ -280,8 +280,8 @@ void Menu::LoadFrame(const FrameState& kept)
     this->mode = kept.mode;
     this->unk4FC200 = kept.unk4FC200;
     this->unk4FBAB8 = kept.unk4FBAB8;
-    this->unk4FBECC = kept.unk4FBECC;
-    this->unk4FC82C = kept.unk4FC82C;
+    this->roleTab = kept.roleTab;
+    this->openedOnEquipment = kept.openedOnEquipment;
     this->unk4A6AA8 = kept.unk4A6AA8;
     this->tint = kept.tint;
     this->frames = kept.frames;
@@ -310,22 +310,22 @@ void Menu::LoadFrame(const FrameState& kept)
     this->draw = kept.handlers[12];
     this->background = kept.acts[0];
     this->hitPointBar = kept.acts[1];
-    this->unk4FB8D8 = kept.acts[2];
-    this->unk4FBA18 = kept.acts[3];
+    this->downArrowAct = kept.acts[2];
+    this->upArrowAct = kept.acts[3];
     this->items[0] = kept.acts[4];
     this->items[1] = kept.acts[5];
     this->items[2] = kept.acts[6];
     this->items[3] = kept.acts[7];
-    this->unk4FBEE0 = kept.acts[8];
+    this->titleAct = kept.acts[8];
     this->face = kept.acts[9];
-    this->unk4FC328 = kept.acts[10];
+    this->barTrackAct = kept.acts[10];
     this->spiritBar = kept.acts[11];
     this->staminaBar = kept.acts[12];
     this->gauge = kept.acts[13];
-    this->unk4FC6E8 = kept.acts[14];
-    this->unk4FC790 = kept.acts[15];
-    this->unk4FC840 = kept.acts[16];
-    this->unk4FD0A8 = kept.acts[17];
+    this->barThumbAct = kept.acts[14];
+    this->titleArrowAct = kept.acts[15];
+    this->tabsPanelAct = kept.acts[16];
+    this->buttonAct = kept.acts[17];
     this->scrollBar = kept.scrollBar;
     this->townBar = kept.townBar;
     this->unk4FBAB4 = kept.unk4FBAB4;
@@ -334,7 +334,7 @@ void Menu::LoadFrame(const FrameState& kept)
     this->townShown = kept.townShown;
     this->descriptionSlide = kept.descriptionSlide;
     this->descriptionTop = kept.descriptionTop;
-    this->unk4FC904 = kept.unk4FC904;
+    this->buttonPress = kept.buttonPress;
     this->description = kept.description;
     this->options = kept.options;
     this->itemsPage = kept.itemsPage;

@@ -40,7 +40,7 @@ constexpr u16 kRoleMask = 3;
 constexpr int kWordShift = 16;
 constexpr u32 kWordMask = 0xFFFF;
 constexpr i32 kDescriptionSlide = 0x100;
-constexpr i32 kPressedOffset = -1;  // Menu::unk4FC904 while the description button is pressed
+constexpr i32 kPressedOffset = -1;  // Menu::buttonPress while the description button is pressed
 
 // EquipStats.
 constexpr std::size_t kStatsRead = 0x11;
@@ -263,12 +263,12 @@ void Menu::EquipEnter()
 {
     Game& owner = this->game;
     EquipPage& page = this->equip;
-    page.unk4FCE20 = ItemLink();
+    page.takenOff = ItemLink();
     page.inventoryHead = owner.party.inventory.get();
 
-    if (this->unk4FBECC == Menu::NoTab)
+    if (this->roleTab == Menu::NoTab)
     {
-        this->unk4FBECC = 0;
+        this->roleTab = 0;
     }
 
     page.openedAt = this->frames;
@@ -346,7 +346,7 @@ void Menu::EquipDescribeRow()
 // The object in the slot chosen of the role chosen (inline in the equipment page).
 ItemNode* Menu::EquipSlotNode()
 {
-    const auto at = static_cast<std::size_t>(Party::SlotsPerRole * this->unk4FBECC + this->equip.slot);
+    const auto at = static_cast<std::size_t>(Party::SlotsPerRole * this->roleTab + this->equip.slot);
     std::array<std::unique_ptr<ItemNode>, Party::Roles * Party::SlotsPerRole>& equipment = this->game.party.equipment;
     return at < equipment.size() ? equipment[at].get() : nullptr;
 }
@@ -358,7 +358,7 @@ void Menu::EquipTake(ItemLink& source, int slot)
     EquipPage& page = this->equip;
     page.objects.reset();
     const u32 kind = Party::SlotKinds[static_cast<std::size_t>(std::clamp(slot, 0, kLastSlot))];
-    const u16 role = static_cast<u16>(ObjectData::FirstRoleBit >> std::min<u16>(this->unk4FBECC, Party::Roles - 1));
+    const u16 role = static_cast<u16>(ObjectData::FirstRoleBit >> std::min<u16>(this->roleTab, Party::Roles - 1));
     ItemLink* link = &source;
 
     while (*link != nullptr)
@@ -449,7 +449,7 @@ void Menu::EquipComputeStats()
     }
 
     const ItemNode* tried = this->EquipTried();
-    this->EquipTryStats(this->unk4FBECC, page.slot, page.stats[kTriedStats], tried);
+    this->EquipTryStats(this->roleTab, page.slot, page.stats[kTriedStats], tried);
     this->EquipExtraStats(tried, page.stats[kTriedStats]);
 }
 
@@ -479,7 +479,7 @@ void Menu::EquipRoleStats(int role, EquipStats& stats)
 {
     Game& owner = this->game;
     EquipPage& page = this->equip;
-    page.worn = owner.party.roles[std::min<std::size_t>(this->unk4FBECC, Party::Roles - 1)];
+    page.worn = owner.party.roles[std::min<std::size_t>(this->roleTab, Party::Roles - 1)];
 
     for (int slot = 0; slot < Party::SlotsPerRole; ++slot)
     {
@@ -500,7 +500,7 @@ void Menu::EquipTryStats(int role, int slot, EquipStats& stats, const ItemNode* 
 {
     Game& owner = this->game;
     EquipPage& page = this->equip;
-    page.worn = owner.party.roles[std::min<std::size_t>(this->unk4FBECC, Party::Roles - 1)];
+    page.worn = owner.party.roles[std::min<std::size_t>(this->roleTab, Party::Roles - 1)];
     page.worn.attackBonus = 0;
     page.worn.defenseBonus = 0;
     stats.fill(0);
@@ -596,7 +596,7 @@ void Menu::EquipSwapVitals(const ItemNode& added, const ItemNode& removed)
 {
     Game& owner = this->game;
     EquipPage& page = this->equip;
-    RoleRecord& role = owner.party.roles[std::min<std::size_t>(this->unk4FBECC, Party::Roles - 1)];
+    RoleRecord& role = owner.party.roles[std::min<std::size_t>(this->roleTab, Party::Roles - 1)];
     page.worn = RoleRecord{};
 
     if (removed.id != ItemNode::Empty)
@@ -799,14 +799,14 @@ void Menu::EquipShift()
         return;
     }
 
-    u16 role = static_cast<u16>((this->unk4FBECC + 1) & kRoleMask);
+    u16 role = static_cast<u16>((this->roleTab + 1) & kRoleMask);
 
     while (this->tabs[role].role == Menu::NoRole)
     {
         role = static_cast<u16>((role + 1) & kRoleMask);
     }
 
-    this->unk4FBECC = role;
+    this->roleTab = role;
     this->EquipReturn();
     this->EquipFillList();
     FitListRow(page.count, page.top, page.row, page.shown);
@@ -920,7 +920,7 @@ void Menu::EquipPutOn()
     }
     else
     {
-        AddItem(page.unk4FCE20, removed.id, 1, ItemCountMode::Count, owner.database);
+        AddItem(page.takenOff, removed.id, 1, ItemCountMode::Count, owner.database);
         DebugLog(u8"裝備道具歸還 卸下了種類不符的裝備(%d)", removed.id);  // 0x004A6DEC + 0x004A6DFC
     }
 
@@ -949,7 +949,7 @@ void Menu::EquipCancel()
                 owner.menuState = Game::NoMenu;
             }
 
-            if ((this->unk4FC82C & 1) != 0)
+            if ((this->openedOnEquipment & 1) != 0)
             {
                 owner.menuState = Game::MenuActsReset | Game::ItemChoiceMenu;
             }
@@ -1124,11 +1124,11 @@ void Menu::EquipFrame()
         }
     }
 
-    this->unk4FC904 = 0;
+    this->buttonPress = 0;
 
     if (inside(y, kDescribeTop, kDescribeBottom) && inside(x, kDescribeLeft, kDescribeRight))
     {
-        this->unk4FC904 = kPressedOffset;
+        this->buttonPress = kPressedOffset;
 
         if ((clicks & kLeftClicks) == 0)
         {
@@ -1153,7 +1153,7 @@ void Menu::EquipFrame()
 
             if (owner.state.GameFlag(face + Party::FirstRoleFlag))
             {
-                this->unk4FBECC = static_cast<u16>(face - 1);
+                this->roleTab = static_cast<u16>(face - 1);
                 this->EquipShift();
             }
         }
@@ -1239,7 +1239,7 @@ void Menu::EquipDraw()
         0,
         kFrameBorder
     );
-    const Party::Name& name = owner.party.names[std::min<std::size_t>(this->unk4FBECC, Party::Roles - 1)];
+    const Party::Name& name = owner.party.names[std::min<std::size_t>(this->roleTab, Party::Roles - 1)];
     owner.mediumFont.DrawText(
         owner.drawSurface,
         kNameX - slide,
@@ -1328,9 +1328,9 @@ void Menu::EquipDraw()
                     }
 
                     shownObject = node;
-                    this->unk4FD0A8.id = kFaceAct;
-                    this->unk4FD0A8.action = kButtonAction;
-                    owner.actDrawer.Draw(this->unk4FD0A8, this->unk4FC904 + kButtonX, this->unk4FC904 + kButtonY);
+                    this->buttonAct.id = kFaceAct;
+                    this->buttonAct.action = kButtonAction;
+                    owner.actDrawer.Draw(this->buttonAct, this->buttonPress + kButtonX, this->buttonPress + kButtonY);
                 }
             }
 
@@ -1396,7 +1396,7 @@ void Menu::EquipDraw()
         );
     }
 
-    this->EquipDrawStats(page.slot, this->unk4FBECC);
+    this->EquipDrawStats(page.slot, this->roleTab);
 
     if (page.count > kRows)
     {
@@ -1495,7 +1495,7 @@ void Menu::EquipDrawSlots(int x, int y, int slide, int width, int chosen)
         int shift = 0;
         Pixel rowColor = color;
         const ItemNode* worn =
-            owner.party.equipment[static_cast<std::size_t>(Party::SlotsPerRole * this->unk4FBECC + slot)].get();
+            owner.party.equipment[static_cast<std::size_t>(Party::SlotsPerRole * this->roleTab + slot)].get();
         bool tint = page.stage > 0;
 
         if (chosen == slot)
@@ -1510,9 +1510,9 @@ void Menu::EquipDrawSlots(int x, int y, int slide, int width, int chosen)
                 }
                 else
                 {
-                    this->unk4FD0A8.id = kFaceAct;
-                    this->unk4FD0A8.action = kButtonAction;
-                    owner.actDrawer.Draw(this->unk4FD0A8, this->unk4FC904 + kButtonX, this->unk4FC904 + kButtonY);
+                    this->buttonAct.id = kFaceAct;
+                    this->buttonAct.action = kButtonAction;
+                    owner.actDrawer.Draw(this->buttonAct, this->buttonPress + kButtonX, this->buttonPress + kButtonY);
                 }
             }
         }

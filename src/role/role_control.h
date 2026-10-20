@@ -32,18 +32,18 @@ public:
     static constexpr std::array<i32, 8> AheadX = {0, 0, -1, 1, -1, 1, -1, 1};
     static constexpr std::array<i32, 8> AheadY = {-1, 1, 0, 0, -1, 1, 1, -1};
 
-    i32 running = 0;      // 0x004BA428 the run toggle (key slot 16)
-    i32 scrollLeft = 0;   // 0x004CB210 the camera can follow a step left
-    i32 scrollRight = 0;  // 0x004CB20C
-    i32 scrollUp = 0;     // 0x004CB21C
-    i32 scrollDown = 0;   // 0x004CB218
-    i32 stepLeft = 0;     // 0x004CB22C the role alone can step left
-    i32 stepRight = 0;    // 0x004CB228
-    i32 stepUp = 0;       // 0x004CB238
-    i32 stepDown = 0;     // 0x004CB230
-    i32 choiceMoved = 0;  // 0x004CB214
-    i32 idleFrames = 0;   // 0x004CB234 frames standing (idle action 0x34 after 0x80)
-    i32 unk4CB220 = 0;    // frames since a debug key
+    i32 running = 0;         // 0x004BA428 the run toggle (key slot 16)
+    i32 scrollLeft = 0;      // 0x004CB210 the camera can follow a step left
+    i32 scrollRight = 0;     // 0x004CB20C
+    i32 scrollUp = 0;        // 0x004CB21C
+    i32 scrollDown = 0;      // 0x004CB218
+    i32 stepLeft = 0;        // 0x004CB22C the role alone can step left
+    i32 stepRight = 0;       // 0x004CB228
+    i32 stepUp = 0;          // 0x004CB238
+    i32 stepDown = 0;        // 0x004CB230
+    i32 choiceMoved = 0;     // 0x004CB214
+    i32 idleFrames = 0;      // 0x004CB234 frames standing (idle action 0x34 after 0x80)
+    i32 debugKeyFrames = 0;  // 0x004CB220 frames since a debug key (read nowhere)
 
 private:
     u32 Cell(std::ptrdiff_t index) const;

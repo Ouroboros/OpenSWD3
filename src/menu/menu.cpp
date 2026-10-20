@@ -48,10 +48,10 @@ constexpr i32 kHitPointBarAction = 4;
 constexpr i32 kSpiritBarAction = 5;
 constexpr i32 kStaminaBarAction = 6;
 constexpr i32 kFirstTabAction = 8;  // the animations of the four tabs
-constexpr i32 kUnk4FC328Action = 0x18;
-constexpr i32 kUnk4FC6E8Action = 0x19;
-constexpr i32 kUnk4FBA18Action = 0x1A;
-constexpr i32 kUnk4FB8D8Action = 0x1B;
+constexpr i32 kBarTrackAction = 0x18;
+constexpr i32 kBarThumbAction = 0x19;
+constexpr i32 kListUpArrowAction = 0x1A;
+constexpr i32 kListDownArrowAction = 0x1B;
 constexpr i32 kRoleBackgroundAction = 0x34;
 constexpr i32 kSystemBackgroundAction = 0x4E;
 constexpr i32 kFirstSystemItemAction = 0x2C;  // of the effect act: the four title entries
@@ -152,7 +152,7 @@ void Menu::Run()
     {
         this->pointerX = 0;
         this->pointerY = 0;
-        this->unk4FC840.action = kTabsPanelAction;
+        this->tabsPanelAct.action = kTabsPanelAction;
         const u32 menu = state & Game::MenuNumberMask;
 
         if (menu <= Game::ItemChoiceMenu)
@@ -160,10 +160,10 @@ void Menu::Run()
             owner.menuMode = Menu::NoSlotsMode;
             this->background.id = Scene::InterfaceAct;
             this->background.action = kRoleBackgroundAction;
-            this->unk4FBA18.id = Scene::InterfaceAct;
-            this->unk4FB8D8.id = Scene::InterfaceAct;
-            this->unk4FBA18.action = kUnk4FBA18Action;
-            this->unk4FB8D8.action = kUnk4FB8D8Action;
+            this->upArrowAct.id = Scene::InterfaceAct;
+            this->downArrowAct.id = Scene::InterfaceAct;
+            this->upArrowAct.action = kListUpArrowAction;
+            this->downArrowAct.action = kListDownArrowAction;
 
             for (std::size_t item = 0; item < this->items.size(); ++item)
             {
@@ -171,12 +171,12 @@ void Menu::Run()
                 this->items[item].action = static_cast<i32>(kFirstTabAction + item);
             }
 
-            this->unk4FC82C = 0;
+            this->openedOnEquipment = 0;
             this->frames = kOpeningFrame;
 
             if ((state & Game::MenuOnEquipment) != 0)
             {
-                this->unk4FC82C = 1;
+                this->openedOnEquipment = 1;
                 this->frames = kItemsOpeningFrame;
                 this->Open(Menu::EquipmentMode, Menu::PageCode);
                 this->frames = kOpenedFrame;
@@ -251,13 +251,13 @@ void Menu::Open(int menuMode, u16 menuCode)
 {
     Game& owner = this->game;
     this->code = menuCode;
-    this->unk4FBECC = Menu::NoTab;
+    this->roleTab = Menu::NoTab;
     this->page = static_cast<u16>((menuMode - Menu::FirstPageMode) / Menu::PageModeStep + Menu::FirstRolePage);
     this->mode = static_cast<u16>(menuMode);
     this->unk4FC200 = static_cast<u16>(menuMode);
     this->unk4FBAB8 = static_cast<u16>(menuMode);
     this->SetPage(menuCode);
-    this->BuildTabs(this->unk4FBECC);
+    this->BuildTabs(this->roleTab);
     owner.controls.buttons = {};
     this->tint = 0;
     const auto shadow = static_cast<Pixel>(owner.painter.MakeColor(kShadowRed, kShadowGreen, kShadowBlue));
@@ -677,7 +677,7 @@ bool Menu::PaintPage(bool replay)
 
                 const i32 drawn = this->slide;
                 const i32 shown = this->Shown(SlideValue, drawn);
-                owner.actDrawer.Draw(this->unk4FC840, -shown, 0);
+                owner.actDrawer.Draw(this->tabsPanelAct, -shown, 0);
                 this->DrawRoleTabs(shown);
                 this->slide *= kSlideGrowth;
 
@@ -692,7 +692,7 @@ bool Menu::PaintPage(bool replay)
             {
                 const i32 shown = this->Shown(SlideValue, this->slide);
                 this->DrawPageTitle();
-                owner.actDrawer.Draw(this->unk4FC840, -shown, 0);
+                owner.actDrawer.Draw(this->tabsPanelAct, -shown, 0);
                 this->DrawRoleTabs(shown);
             }
         }
@@ -748,10 +748,10 @@ void Menu::DrawPageTitle()
     const i32 glow = static_cast<i32>(std::round(fineGlow));
     const auto arrowGlow = static_cast<i32>(std::floor(fineGlow));
     const int spacing = swapped ? kSwappedTitleSpacing : kTitleSpacing;
-    this->unk4FC790.direction = swapped ? ActState::Right : ActState::Left;
-    owner.actDrawer.DrawGhost(this->unk4FC790, 0, kTitleArrowY, arrowGlow, fineGlow - arrowGlow);
-    this->unk4FC790.flags &= Painter::RleSource | Painter::Mirror | Painter::Flip;
-    this->unk4FBEE0.id = Scene::InterfaceAct;
+    this->titleArrowAct.direction = swapped ? ActState::Right : ActState::Left;
+    owner.actDrawer.DrawGhost(this->titleArrowAct, 0, kTitleArrowY, arrowGlow, fineGlow - arrowGlow);
+    this->titleArrowAct.flags &= Painter::RleSource | Painter::Mirror | Painter::Flip;
+    this->titleAct.id = Scene::InterfaceAct;
     const int x = spacing * (this->page - Menu::FirstRolePage) + kTitleX;
 
     auto swap = [swapped](int action, int first)
@@ -766,19 +766,19 @@ void Menu::DrawPageTitle()
 
     if (this->titleGlow == kTitleLit)
     {
-        this->unk4FBEE0.action = swap(this->page + kLitTitleActions, kFirstLitTitleAction);
-        owner.actDrawer.Draw(this->unk4FBEE0, x, kTitleY);
+        this->titleAct.action = swap(this->page + kLitTitleActions, kFirstLitTitleAction);
+        owner.actDrawer.Draw(this->titleAct, x, kTitleY);
         return;
     }
 
-    this->unk4FBEE0.action = swap(this->page + kGlowTitleActions, kFirstGlowTitleAction);
+    this->titleAct.action = swap(this->page + kGlowTitleActions, kFirstGlowTitleAction);
 
-    if (owner.acts.Run(this->unk4FBEE0) == 0)
+    if (owner.acts.Run(this->titleAct) == 0)
     {
         return;
     }
 
-    const Picture* picture = owner.archive.GetPicture(this->unk4FBEE0.frame, this->unk4FBEE0.picture);
+    const Picture* picture = owner.archive.GetPicture(this->titleAct.frame, this->titleAct.picture);
 
     if (picture == nullptr)
     {
@@ -791,11 +791,11 @@ void Menu::DrawPageTitle()
     options.tintGreen = glow - kTitleLit;
     options.tintRed = glow - kTitleLit;
     owner.painter.DrawPicture(
-        x - this->unk4FBEE0.x,
-        kTitleY - this->unk4FBEE0.y,
+        x - this->titleAct.x,
+        kTitleY - this->titleAct.y,
         picture->width,
         picture->height,
-        this->unk4FBEE0.flags
+        this->titleAct.flags
     );
 }
 
@@ -812,7 +812,7 @@ void Menu::DrawRoleTabs(int offset)
         i8& glow = this->tabGlow[index];
         const i8 glowBefore = glow;
 
-        if (this->unk4FBECC == index)
+        if (this->roleTab == index)
         {
             glow = static_cast<i8>(glow + kTabGlowRise > kTabGlowMaximum ? kTabGlowMaximum : glow + kTabGlowRise);
         }
@@ -821,7 +821,7 @@ void Menu::DrawRoleTabs(int offset)
             glow = static_cast<i8>(glow - 1 < kTabGlowMinimum ? kTabGlowMinimum : glow - 1);
         }
 
-        if (this->unk4FBECC == Menu::NoTab || this->code == 1)
+        if (this->roleTab == Menu::NoTab || this->code == 1)
         {
             glow = kTabGlowMaximum;
         }
@@ -909,21 +909,21 @@ void Menu::InitActs()
 
     for (ActState* state :
          {&this->background,
-          &this->unk4FC790,
-          &this->unk4FC840,
+          &this->titleArrowAct,
+          &this->tabsPanelAct,
           &this->hitPointBar,
           &this->spiritBar,
           &this->staminaBar,
-          &this->unk4FC328,
-          &this->unk4FC6E8,
-          &this->unk4FBA18,
-          &this->unk4FB8D8,
+          &this->barTrackAct,
+          &this->barThumbAct,
+          &this->upArrowAct,
+          &this->downArrowAct,
           &this->gauge,
           &this->items[0],
           &this->items[1],
           &this->items[2],
           &this->items[3],
-          &this->unk4FBEE0,
+          &this->titleAct,
           &this->face,
           &panel})
     {
@@ -932,19 +932,19 @@ void Menu::InitActs()
 
     this->background.id = Scene::InterfaceAct;
     this->background.action = 0;
-    this->unk4FC840.id = Scene::InterfaceAct;
-    this->unk4FC840.action = kTabsPanelAction;
-    this->unk4FC790.id = Scene::InterfaceAct;
-    this->unk4FC790.direction = owner.state.GameFlag(kSwappedPagesFlag) ? ActState::Right : ActState::Left;
+    this->tabsPanelAct.id = Scene::InterfaceAct;
+    this->tabsPanelAct.action = kTabsPanelAction;
+    this->titleArrowAct.id = Scene::InterfaceAct;
+    this->titleArrowAct.direction = owner.state.GameFlag(kSwappedPagesFlag) ? ActState::Right : ActState::Left;
 
     for (ActState* state :
          {&this->hitPointBar,
           &this->spiritBar,
           &this->staminaBar,
-          &this->unk4FC328,
-          &this->unk4FC6E8,
-          &this->unk4FBA18,
-          &this->unk4FB8D8,
+          &this->barTrackAct,
+          &this->barThumbAct,
+          &this->upArrowAct,
+          &this->downArrowAct,
           &this->face})
     {
         state->id = Scene::InterfaceAct;
@@ -953,10 +953,10 @@ void Menu::InitActs()
     this->hitPointBar.action = kHitPointBarAction;
     this->spiritBar.action = kSpiritBarAction;
     this->staminaBar.action = kStaminaBarAction;
-    this->unk4FC328.action = kUnk4FC328Action;
-    this->unk4FC6E8.action = kUnk4FC6E8Action;
-    this->unk4FBA18.action = kUnk4FBA18Action;
-    this->unk4FB8D8.action = kUnk4FB8D8Action;
+    this->barTrackAct.action = kBarTrackAction;
+    this->barThumbAct.action = kBarThumbAction;
+    this->upArrowAct.action = kListUpArrowAction;
+    this->downArrowAct.action = kListDownArrowAction;
 
     for (std::size_t item = 0; item < this->items.size(); ++item)
     {

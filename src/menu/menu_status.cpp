@@ -139,9 +139,9 @@ constexpr int kDigitWidth = 0xB;
 // swd32.exe 0x00449FF0: the status page opened (on the first role when no tab is raised)
 void Menu::StatusEnter()
 {
-    if (this->unk4FBECC == Menu::NoTab)
+    if (this->roleTab == Menu::NoTab)
     {
-        this->unk4FBECC = 0;
+        this->roleTab = 0;
     }
 
     this->status = StatusPage{};
@@ -161,7 +161,7 @@ void Menu::StatusCompute()
 {
     Game& owner = this->game;
     StatusPage& page = this->status;
-    const std::size_t role = std::min<std::size_t>(this->unk4FBECC, Party::Roles - 1);
+    const std::size_t role = std::min<std::size_t>(this->roleTab, Party::Roles - 1);
     page.bonus = RoleRecord{};
     page.total = owner.party.roles[role];
     page.total.attackBonus = 0;
@@ -272,7 +272,7 @@ void Menu::StatusFrame()
         do
         {
             this->StatusNext();
-        } while (this->unk4FBECC != face);
+        } while (this->roleTab != face);
     }
 
     if ((this->clicks & kRightClick) != 0)
@@ -285,14 +285,14 @@ void Menu::StatusFrame()
 void Menu::StatusNext()
 {
     Game& owner = this->game;
-    u16 role = static_cast<u16>((this->unk4FBECC + 1) & kRoleMask);
+    u16 role = static_cast<u16>((this->roleTab + 1) & kRoleMask);
 
     while (this->tabs[role].role == Menu::NoRole)
     {
         role = static_cast<u16>((role + 1) & kRoleMask);
     }
 
-    this->unk4FBECC = role;
+    this->roleTab = role;
     this->StatusCompute();
     owner.audio.PlaySound(kRoleSound, owner.config.soundVolume);
 }
@@ -302,14 +302,14 @@ void Menu::StatusNext()
 void Menu::StatusPrevious()
 {
     Game& owner = this->game;
-    u16 role = this->unk4FBECC;
+    u16 role = this->roleTab;
 
     do
     {
         role = static_cast<u16>((role - 1) & kRoleMask);
     } while (this->tabs[role].role == Menu::NoRole);
 
-    this->unk4FBECC = role;
+    this->roleTab = role;
     this->StatusCompute();
     owner.audio.PlaySound(kRoleSound, owner.config.soundVolume);
 }
@@ -372,7 +372,7 @@ void Menu::StatusDraw()
 {
     Game& owner = this->game;
     const StatusPage& page = this->status;
-    const std::size_t role = std::min<std::size_t>(this->unk4FBECC, Party::Roles - 1);
+    const std::size_t role = std::min<std::size_t>(this->roleTab, Party::Roles - 1);
     const auto color = static_cast<Pixel>(owner.painter.MakeColor(kTextRed, kTextGreen, kTextBlue));
     const auto blue = static_cast<Pixel>(owner.painter.MakeColor(kBlueRed, kBlueGreen, kBlueBlue));
     const auto red = static_cast<Pixel>(owner.painter.MakeColor(kRedRed, kRedGreen, kRedBlue));

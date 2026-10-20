@@ -305,8 +305,8 @@ void Menu::StoreChangedSettings()
 }
 
 // swd32.exe 0x0043AE40: the scroll bar of a list from `y` down `height` pixels at `x`: its box, the bar picture (act
-// unk4FC328) repeated down it, the thumb (act unk4FC6E8) from `from` to `to` of the height, the arrows above and below
-// (pressed when bit 0 or bit 1 of `arrows` is set). `bar` keeps the edges for the clicks.
+// barTrackAct) repeated down it, the thumb (act barThumbAct) from `from` to `to` of the height, the arrows above and
+// below (pressed when bit 0 or bit 1 of `arrows` is set). `bar` keeps the edges for the clicks.
 void Menu::DrawScrollBar(int x, int y, int height, int arrows, float from, float to, MenuScrollBar& bar)
 {
     Game& owner = this->game;
@@ -338,30 +338,30 @@ void Menu::DrawScrollBar(int x, int y, int height, int arrows, float from, float
         }
     };
 
-    tile(this->unk4FC328, u8"Act Err(Menu:DrawBar)", x, y, bottom);
+    tile(this->barTrackAct, u8"Act Err(Menu:DrawBar)", x, y, bottom);
     const auto length = static_cast<double>(height);
     const int thumbTop = y + static_cast<i32>(crt::Ftol(length * static_cast<double>(from)));
     bar.thumbTop = thumbTop;
     const int thumbBottom = y + static_cast<i32>(crt::Ftol(length * static_cast<double>(to)));
     bar.thumbBottom = thumbBottom;
     owner.painter.SetClipClamped(x, y, x + kBarClipWidth, thumbBottom);
-    tile(this->unk4FC6E8, u8"Act Err(Menu:Prop:Render:bar)", x + kThumbLeft, thumbTop, thumbBottom);
+    tile(this->barThumbAct, u8"Act Err(Menu:Prop:Render:bar)", x + kThumbLeft, thumbTop, thumbBottom);
     owner.painter.SetClipClamped(0, 0, Display::Width, Display::Height);
-    this->unk4FBA18.action = kUpArrowAction;
-    owner.actDrawer.Draw(this->unk4FBA18, x, y - kArrowHeight);
-    this->unk4FB8D8.action = kDownArrowAction;
-    owner.actDrawer.Draw(this->unk4FB8D8, x, bottom);
+    this->upArrowAct.action = kUpArrowAction;
+    owner.actDrawer.Draw(this->upArrowAct, x, y - kArrowHeight);
+    this->downArrowAct.action = kDownArrowAction;
+    owner.actDrawer.Draw(this->downArrowAct, x, bottom);
 
     if ((arrows & kUpPressed) != 0)
     {
-        this->unk4FBA18.action = kUpPressedAction;
-        owner.actDrawer.Draw(this->unk4FBA18, x, y - kArrowHeight);
+        this->upArrowAct.action = kUpPressedAction;
+        owner.actDrawer.Draw(this->upArrowAct, x, y - kArrowHeight);
     }
 
     if ((arrows & kDownPressed) != 0)
     {
-        this->unk4FB8D8.action = kDownPressedAction;
-        owner.actDrawer.Draw(this->unk4FB8D8, x, bottom);
+        this->downArrowAct.action = kDownPressedAction;
+        owner.actDrawer.Draw(this->downArrowAct, x, bottom);
     }
 }
 }  // namespace swd3

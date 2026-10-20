@@ -477,7 +477,7 @@ void Menu::OptionsEnter()
 {
     Game& owner = this->game;
     OptionsPage& page = this->options;
-    this->unk4FBECC = Menu::NoTab;
+    this->roleTab = Menu::NoTab;
     page.entry = 0;
     page.stage = kOnTabs;
     page.locked = 0;

@@ -328,9 +328,9 @@ void Menu::SkillsEnter()
 {
     SkillsPage& page = this->skills;
 
-    if (this->unk4FBECC == Menu::NoTab)
+    if (this->roleTab == Menu::NoTab)
     {
-        this->unk4FBECC = 0;
+        this->roleTab = 0;
     }
 
     this->mode = static_cast<u16>(Menu::FirstPageMode + 2 * Menu::PageModeStep);
@@ -418,7 +418,7 @@ void Menu::SkillsFillList()
 {
     Game& owner = this->game;
     SkillsPage& page = this->skills;
-    std::unique_ptr<ItemNode>& head = owner.party.skills[std::min<std::size_t>(this->unk4FBECC, Party::Roles - 1)];
+    std::unique_ptr<ItemNode>& head = owner.party.skills[std::min<std::size_t>(this->roleTab, Party::Roles - 1)];
 
     if (head != nullptr)
     {
@@ -443,7 +443,7 @@ void Menu::SkillsReturn()
 {
     Game& owner = this->game;
     SkillsPage& page = this->skills;
-    std::unique_ptr<ItemNode>& head = owner.party.skills[std::min<std::size_t>(this->unk4FBECC, Party::Roles - 1)];
+    std::unique_ptr<ItemNode>& head = owner.party.skills[std::min<std::size_t>(this->roleTab, Party::Roles - 1)];
 
     while (page.list != nullptr)
     {
@@ -821,7 +821,7 @@ void Menu::SkillsShift()
     }
 
     this->SkillsReturn();
-    this->unk4FBECC = static_cast<u16>(this->SkillsNextRole(this->unk4FBECC, 1) & kRoleMask);
+    this->roleTab = static_cast<u16>(this->SkillsNextRole(this->roleTab, 1) & kRoleMask);
     this->SkillsCountTabs();
     this->SkillsFillList();
     FitListRow(page.count, page.top, page.row, page.shown);
@@ -863,7 +863,7 @@ void Menu::SkillsSelect()
 {
     Game& owner = this->game;
     SkillsPage& page = this->skills;
-    RoleRecord& role = owner.party.roles[std::min<std::size_t>(this->unk4FBECC, Party::Roles - 1)];
+    RoleRecord& role = owner.party.roles[std::min<std::size_t>(this->roleTab, Party::Roles - 1)];
 
     auto refuse = [&owner]
     {
@@ -1306,7 +1306,7 @@ void Menu::SkillsFrame()
             do
             {
                 this->SkillsShift();
-            } while (this->unk4FBECC != face);
+            } while (this->roleTab != face);
         }
 
         return;
@@ -1473,9 +1473,9 @@ void Menu::SkillsDraw()
                 }
             }
 
-            this->unk4FD0A8.id = kButtonAct;
-            this->unk4FD0A8.action = kButtonAction;
-            owner.actDrawer.Draw(this->unk4FD0A8, page.buttonOffset + kButtonX, page.buttonOffset + kButtonY);
+            this->buttonAct.id = kButtonAct;
+            this->buttonAct.action = kButtonAction;
+            owner.actDrawer.Draw(this->buttonAct, page.buttonOffset + kButtonX, page.buttonOffset + kButtonY);
 
             if (page.tab <= 1 && node->id != ItemNode::Empty)
             {
