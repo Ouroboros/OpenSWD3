@@ -10,6 +10,7 @@
 #include "font/text_font.h"
 #include "game/game.h"
 #include "menu/menu_list.h"
+#include "menu/shop_constants.h"
 #include "platform/display.h"
 #include "save/save_slots.h"
 #include "ui/ui_draw.h"
@@ -65,10 +66,6 @@ constexpr i32 kMinusAction = 0x1D;
 constexpr i32 kFaceAction = 5;
 constexpr i32 kFaceChosenAction = 0xD;
 constexpr i32 kFaceUnusableAction = 0x39;  // the first role cannot use the equipment
-
-constexpr int kTintRed = -4;  // the map under the shop
-constexpr int kTintGreen = -4;
-constexpr int kTintBlue = -8;
 
 // The menu clicks (Menu::clicks).
 constexpr u32 kLeftClicks = 3;
@@ -276,7 +273,7 @@ void Game::OpenShop()
     this->painter.UnlockSurface(*this->offscreen);
     const std::size_t pixels = static_cast<std::size_t>(Display::Width) * Display::Height;
     shop.shopScreen.assign(this->drawSurface, this->drawSurface + pixels);
-    this->painter.TintPixels(shop.shopScreen, kTintRed, kTintGreen, kTintBlue);
+    this->painter.TintPixels(shop.shopScreen, kShopTintRed, kShopTintGreen, kShopTintBlue);
     this->painter.GrayPixels(shop.shopScreen);
 
     shop.shopScreenSaved = shop.shopScreen;

@@ -13,6 +13,7 @@
 #include "core/debug_log.h"
 #include "crt/msvc.h"
 #include "game/screenshot.h"
+#include "menu/shop_constants.h"
 #include "platform/file_system.h"
 #include "platform/system_info.h"
 #include "save/save_games.h"
@@ -130,11 +131,6 @@ constexpr u32 kButtonLeft = 0x262;
 constexpr u32 kButtonBottom = 0x18;
 constexpr u16 kUnkLeader20Limit = 8;
 constexpr i32 kCounterHidden = 0x400;
-// The rebuild's map filling the window (deviations.md): the map around the menus is tinted as the shop tints the
-// map under it (shop.cpp), then made grey.
-constexpr int kBehindTintRed = -4;
-constexpr int kBehindTintGreen = -4;
-constexpr int kBehindTintBlue = -8;
 constexpr i32 kCounterOpaque = 0x10;
 
 constexpr int kStreamVolume = 0x80;
@@ -1447,7 +1443,7 @@ void Game::ShowLayout(bool map)
                 this->mapCanvas->Pixels(),
                 static_cast<std::size_t>(this->mapCanvas->Width()) * static_cast<std::size_t>(this->mapCanvas->Height())
             );
-            this->painter.TintPixels(canvas, kBehindTintRed, kBehindTintGreen, kBehindTintBlue);
+            this->painter.TintPixels(canvas, kShopTintRed, kShopTintGreen, kShopTintBlue);
             this->painter.GrayPixels(canvas);
         }
 
