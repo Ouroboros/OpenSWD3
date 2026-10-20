@@ -30,6 +30,12 @@ public:
         return this->mouse;
     }
 
+    void MoveMouse(int x, int y) override
+    {
+        this->mouse.x = x;
+        this->mouse.y = y;
+    }
+
     KeyState keys{};
     swd3::MouseState mouse;
 };
@@ -68,12 +74,13 @@ TEST_CASE("input: polled keys and the lowest pressed key")
     CHECK_EQ(input.FirstKeyDown(), Input::Escape);
 }
 
-TEST_CASE("input: mouse follows the pointer at the default sensitivity and drags the origin at the edges")
+TEST_CASE("input: the mouse is the pointer clamped to the screen at any sensitivity, set by moving the pointer")
 {
     using swd3::Input;
     FakeDevice device;
     Input input(device);
     input.Init();
+    input.SetSensitivity(static_cast<double>(kSensitivity) / Input::Tenths);
     int x = 0;
     int y = 0;
     device.mouse = {kInsideX, kInsideY, true, false};
@@ -84,16 +91,21 @@ TEST_CASE("input: mouse follows the pointer at the default sensitivity and drags
     CHECK_EQ(input.ReadMouse(x, y), Input::RightButton);
     CHECK_EQ(x, Input::ScreenRight);
     CHECK_EQ(y, Input::ScreenBottom);
-    device.mouse = {kPastRight - kBackX, kPastBottom - kBackY, false, false};
+    // Back from the edge the position is the pointer's again (no origin dragged along).
+    device.mouse = {kInsideX - kBackX, kInsideY - kBackY, false, false};
     input.ReadMouse(x, y);
-    CHECK_EQ(x, Input::ScreenRight - kBackX);
-    CHECK_EQ(y, Input::ScreenBottom - kBackY);
-    input.SetSensitivity(static_cast<double>(kSensitivity) / Input::Tenths);
+    CHECK_EQ(x, kInsideX - kBackX);
+    CHECK_EQ(y, kInsideY - kBackY);
     input.SetMousePosition(kTargetX, kTargetY);
+    CHECK_EQ(device.mouse.x, kTargetX);
+    CHECK_EQ(device.mouse.y, kTargetY);
     input.ReadMouse(x, y);
     CHECK_EQ(x, kTargetX);
-    // The target over the sensitivity truncates in SetMousePosition, as in the original.
-    CHECK_EQ(y, kTargetY / kSensitivity * kSensitivity);
+    CHECK_EQ(y, kTargetY);
+    input.SetMousePosition(kPastRight, -kTargetY);
+    input.ReadMouse(x, y);
+    CHECK_EQ(x, Input::ScreenRight);
+    CHECK_EQ(y, 0);
 }
 
 TEST_CASE("input: SDL scancodes map to DirectInput codes")

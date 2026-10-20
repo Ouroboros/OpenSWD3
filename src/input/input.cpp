@@ -1,7 +1,6 @@
 #include "input/input.h"
 
 #include <algorithm>
-#include <cstring>
 
 #include "crt/msvc.h"
 #include "platform/display.h"
@@ -22,15 +21,11 @@ Input::~Input()
     this->Release();
 }
 
-// swd32.exe 0x00436FB0: 0 on success. The original's last GetDeviceState asks for a size DirectInput rejects, so the
-// mouse origin comes from the first eight bytes of the key state instead of the mouse axes.
+// swd32.exe 0x00436FB0: 0 on success. The original's last GetDeviceState asks for a size DirectInput rejects, so its
+// mouse origin comes from the first eight bytes of the key state; the rebuild's position needs no origin.
 int Input::Init()
 {
     this->acquired = true;
-    i32 origin[2] = {};
-    std::memcpy(origin, this->keys.data(), sizeof(origin));
-    this->mouseOriginX = origin[0];
-    this->mouseOriginY = origin[1];
     return 0;
 }
 
@@ -76,13 +71,12 @@ int Input::PressKey(int scanCode)
     return scanCode;
 }
 
-// swd32.exe 0x00437310: the screen position (sensitivity * axis / 10 from the origin) clamped to 640x480, the origin
-// following the axes at the edges; bit 0 left, bit 1 right button
+// swd32.exe 0x00437310: the screen position clamped to 640x480; bit 0 left, bit 1 right button. The original takes
+// sensitivity * axis / 10 from an origin that follows the unbounded DirectInput axes at the edges; the rebuild's axes
+// are the pointer in the window, so the position is the pointer's (deviations.md).
 int Input::ReadMouse(int& x, int& y)
 {
     const MouseState state = this->device.Mouse();
-    int screenX = (state.x - this->mouseOriginX) * this->sensitivity / Input::Tenths;
-    int screenY = (state.y - this->mouseOriginY) * this->sensitivity / Input::Tenths;
     int buttons = 0;
 
     if (state.left)
@@ -95,42 +89,19 @@ int Input::ReadMouse(int& x, int& y)
         buttons |= Input::RightButton;
     }
 
-    if (screenX < 0)
-    {
-        screenX = 0;
-        this->mouseOriginX = state.x;
-    }
-    else if (screenX > Input::ScreenRight)
-    {
-        screenX = Input::ScreenRight;
-        this->mouseOriginX = state.x - Input::Tenths * Input::ScreenRight / this->sensitivity;
-    }
-
-    if (screenY < 0)
-    {
-        screenY = 0;
-        this->mouseOriginY = state.y;
-    }
-    else if (screenY > Input::ScreenBottom)
-    {
-        screenY = Input::ScreenBottom;
-        this->mouseOriginY = state.y - Input::Tenths * Input::ScreenBottom / this->sensitivity;
-    }
-
-    x = screenX;
-    y = screenY;
+    this->PeekMouse(x, y);
     return buttons;
 }
 
 void Input::PeekMouse(int& x, int& y) const
 {
     const MouseState state = this->device.Mouse();
-    x = std::clamp((state.x - this->mouseOriginX) * this->sensitivity / Input::Tenths, 0, Input::ScreenRight);
-    y = std::clamp((state.y - this->mouseOriginY) * this->sensitivity / Input::Tenths, 0, Input::ScreenBottom);
+    x = std::clamp(state.x, 0, Input::ScreenRight);
+    y = std::clamp(state.y, 0, Input::ScreenBottom);
 }
 
-// swd32.exe 0x00437430: moves the origin so that the current axes map to (x, y) clamped to the screen. The original
-// returns its last computed value, which no caller reads.
+// swd32.exe 0x00437430: (x, y) clamped to the screen becomes the position. The original moves the origin so that the
+// current axes map there (its last computed value returned, which no caller reads); the rebuild moves the pointer.
 void Input::SetMousePosition(int x, int y)
 {
     if (x >= Display::Width)
@@ -151,9 +122,7 @@ void Input::SetMousePosition(int x, int y)
         y = 0;
     }
 
-    const MouseState state = this->device.Mouse();
-    this->mouseOriginX = state.x - Input::Tenths * (x / this->sensitivity);
-    this->mouseOriginY = state.y - Input::Tenths * (y / this->sensitivity);
+    this->device.MoveMouse(x, y);
 }
 
 // swd32.exe 0x004374C0: tenths, truncated

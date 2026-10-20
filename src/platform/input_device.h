@@ -31,21 +31,24 @@ public:
     virtual ~InputDevice() = default;
     virtual void KeyboardState(KeyState& keys) = 0;
     virtual MouseState Mouse() = 0;
+    // The pointer moved to logical point (x, y).
+    virtual void MoveMouse(int x, int y) = 0;
 };
 
-// Keyboard and mouse of the game window. The mouse axes are the pointer position on the logical screen, so that at
-// the default sensitivity the game's cursor stays under the pointer (DirectInput reports accumulated motion).
+// Keyboard and mouse of the game window. The mouse axes are the pointer position on the logical screen, and moving
+// the mouse moves the system pointer.
 class WindowInputDevice : public InputDevice
 {
 public:
-    explicit WindowInputDevice(const Display& display);
+    explicit WindowInputDevice(Display& display);
 
     void HandleEvent(const SDL_Event& event);
     void KeyboardState(KeyState& keys) override;
     MouseState Mouse() override;
+    void MoveMouse(int x, int y) override;
 
 private:
-    const Display& display;
+    Display& display;
     KeyState keys{};
     MouseState mouse;
 };

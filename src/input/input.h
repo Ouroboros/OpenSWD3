@@ -9,7 +9,7 @@ namespace swd3
 {
 
 // Keyboard and mouse of the game (the DirectInput object at 0x004B8748): a polled key state by DirectInput scan code
-// and a mouse whose axes map to the 640x480 screen with a sensitivity in tenths.
+// and a mouse at the pointer's position on the 640x480 screen.
 class Input
 {
 public:
@@ -82,7 +82,7 @@ public:
     int FirstKeyDown() const;
     int PressKey(int scanCode);
     int ReadMouse(int& x, int& y);
-    // The rebuild's smooth motion: the screen position ReadMouse would give now, the origin left as it is.
+    // The rebuild's smooth motion: the screen position ReadMouse would give now.
     void PeekMouse(int& x, int& y) const;
     void SetMousePosition(int x, int y);
     void SetSensitivity(double sensitivity);
@@ -93,9 +93,7 @@ private:
     bool acquired = false;
     std::array<u8, KeyCount> keys{};  // KeyDown set while down
     std::array<u8, KeyCount> previousKeys{};
-    i32 mouseOriginX = 0;  // axis value at screen x 0
-    i32 mouseOriginY = 0;
-    i32 sensitivity = Tenths;
+    i32 sensitivity = Tenths;  // kept as the original sets it; the position does not use it
 };
 
 }  // namespace swd3

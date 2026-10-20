@@ -70,7 +70,7 @@ u8 ScanCodeOf(int sdlScancode)
     return 0;
 }
 
-WindowInputDevice::WindowInputDevice(const Display& display)
+WindowInputDevice::WindowInputDevice(Display& display)
     : display(display)
 {
 }
@@ -136,6 +136,13 @@ void WindowInputDevice::KeyboardState(KeyState& keys)
 MouseState WindowInputDevice::Mouse()
 {
     return this->mouse;
+}
+
+void WindowInputDevice::MoveMouse(int x, int y)
+{
+    this->display.WarpPointer(x, y);
+    this->mouse.x = x;
+    this->mouse.y = y;
 }
 
 }  // namespace swd3
