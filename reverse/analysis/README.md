@@ -40,4 +40,5 @@ TVHEADLESS=1 WSLENV=TVHEADLESS/w /mnt/d/Dev/Crack/IDA/idat.exe -A \
 | `scripts/func_refs.py <outdir>` | 每函数 API／字符串／全局读写引用 |
 | `scripts/dump.py <outfile> <s-e,...>` | 按地址范围导出带归属与交叉引用的反汇编 |
 | `scripts/classify_modules.js` | 由导出生成 `../functions.tsv` 初始模块（node 运行；会覆盖函数表，仅用于初始化） |
-| `scripts/fingerprints.py <asm 目录> <exe> <out.jsonl> <funclets.tsv>` | 由 `asm/` 清单计算函数指纹（WSL 中 `python3 -I` 运行，不需 IDAT），供与外传 swd3e.exe 配对函数：地址与跳转目标规范化后的函数／基本块 SHA-1、助记符序列、被调用者、字符串、导入与全局地址；EH funclet 并入父函数。产出在 `export/swd32_fingerprints.jsonl`、`export/swd32_funclets.tsv` |
+| `scripts/fingerprints.py <asm 目录> <exe> <out.jsonl> <funclets.tsv>` | 由 `asm/` 清单计算函数指纹，供与外传 swd3e.exe 配对（WSL 中 `python3 -I` 运行，不需 IDAT）：call 位移、本函数内跳转（标签序号）、尾调用、引用目标与落在本程序段内的其余 4 字节值规范化后的函数／基本块 SHA-1，形状（数字与名字一律为 N）的函数／基本块 SHA-1，被调用者（经导入桩解析到 DLL!名称）、字符串、导入、全局地址与 `.rdata` 常量；switch 按表内顺序加入 case 标签；EH funclet 并入父函数。环境变量 `FINGERPRINT_TOKENS=<目录>` 另写每函数的记号、形状与原文。产出 `export/swd32_fingerprints.jsonl`、`export/swd32_funclets.tsv` |
+| `scripts/match_functions.js <a.jsonl> <a 记号目录> <b.jsonl> <b 记号目录> <输出目录>` | 两个程序的函数配对（node 运行）：hash、形状、字符串／导入锚点、调用图传播、相似度互为最佳、邻接填空；由形状相同的配对得出全局地址与结构偏移对照。输出 functions.tsv（含可复用判定）、globals.tsv、offsets.tsv、summary.txt |
