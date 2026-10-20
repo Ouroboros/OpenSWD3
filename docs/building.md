@@ -88,6 +88,14 @@ cmake --build --preset linux
 
 32 位版本使用 `windows-x86`（产物在 `build/windows-x86/`）与 `linux-i386`（产物在 `build/linux-i386/`）预设。所有预设都是 `RelWithDebInfo`。
 
+在 Windows 上直接编译并打包：
+
+```bat
+scripts\package.bat
+```
+
+需要 LLVM（`clang-cl`、`lld-link`、`llvm-lib`、`llvm-rc`、`llvm-mt`，默认在 `D:\Dev\Compiler\LLVM\x64\bin`，可用环境变量 `SWD3_LLVM` 指定），以及装有 C++ 工具的 Visual Studio 2022（提供 Windows SDK、MSVC 库和自带的 CMake、Ninja）。第 2、3 步的依赖和资源文件要先准备好。脚本在 `build\windows-native` 编译 `swd3r.exe`，再把 `swd3r.exe`、`asset` 文件夹和设置模板 `swd3r.toml` 放进一个 `OpenSWD3` 文件夹，打成 `build\OpenSWD3-<日期>-<提交>.zip`。
+
 ## 5. 单元测试
 
 ```sh
