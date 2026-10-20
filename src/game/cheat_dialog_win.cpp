@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstring>
 #include <string>
+#include <vector>
 
 #include "core/debug_log.h"
 #include "core/format.h"
@@ -18,7 +19,7 @@
 #include "menu/menu_list.h"
 #include "org/object_record.h"
 #include "party/party.h"
-#include "platform/wide_win.h"
+#include "platform/exe_resources.h"
 #include "talk/talk.h"
 #include "text/big5.h"
 
@@ -150,24 +151,26 @@ HWND GameWindow(const CheatDialog& cheat)
 // The dialog `id` of swd32.exe's resources run with `procedure` and `context`; 0 when it cannot be.
 int RunDialog(CheatDialog& cheat, WORD id, DLGPROC procedure)
 {
-    const std::wstring wide = Utf16(cheat.installDirectory + std::u8string(Game::Executable));
-    HMODULE module = LoadLibraryExW(wide.c_str(), nullptr, LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE);
+    const std::vector<u8> stored = cheat.resources.ReadDialog(id);
 
-    if (module == nullptr)
+    if (stored.empty())
     {
-        LogWarning(
-            u8"dialog 0x%X: swd32.exe's resources not readable (%u)",
-            static_cast<i32>(id),
-            static_cast<u32>(GetLastError())
-        );
+        LogWarning(u8"dialog 0x%X: %d.dlg missing from the res directory", static_cast<i32>(id), static_cast<i32>(id));
         return 0;
     }
 
+    // A dialog template is read in DWORDs.
+    std::vector<DWORD> dialog((stored.size() + sizeof(DWORD) - 1) / sizeof(DWORD));
+    std::memcpy(dialog.data(), stored.data(), stored.size());
     INITCOMMONCONTROLSEX controls{sizeof(INITCOMMONCONTROLSEX), ICC_TAB_CLASSES | ICC_LISTVIEW_CLASSES};
     InitCommonControlsEx(&controls);
-    const INT_PTR result =
-        DialogBoxParamW(module, MAKEINTRESOURCEW(id), GameWindow(cheat), procedure, reinterpret_cast<LPARAM>(&cheat));
-    FreeLibrary(module);
+    const INT_PTR result = DialogBoxIndirectParamW(
+        GetModuleHandleW(nullptr),
+        reinterpret_cast<const DLGTEMPLATE*>(dialog.data()),
+        GameWindow(cheat),
+        procedure,
+        reinterpret_cast<LPARAM>(&cheat)
+    );
     LogInfo(u8"dialog 0x%X result=%d", static_cast<i32>(id), static_cast<i32>(result));
     return result < 0 ? 0 : static_cast<int>(result);
 }

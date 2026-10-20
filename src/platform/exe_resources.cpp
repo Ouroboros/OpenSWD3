@@ -1,9 +1,15 @@
 #include "platform/exe_resources.h"
 
+#include <SDL3/SDL.h>
+
 #include <climits>
 #include <cstring>
+#include <string>
+#include <string_view>
+#include <utility>
 
 #include "core/byte_reader.h"
+#include "core/format.h"
 #include "platform/file_system.h"
 #include "platform/surface.h"
 
@@ -13,30 +19,11 @@ namespace swd3
 namespace
 {
 
-constexpr u32 kResourceDirectory = 2;
-constexpr u32 kNamedEntry = 0x80000000u;
-constexpr int kMaxDepth = 3;
-constexpr int kTypeLevel = 0;  // the levels of the resource tree: type, id, language
-constexpr int kIdLevel = 1;
+constexpr std::u8string_view kDirectory = u8"res/";
 
-// The PE format.
-constexpr u16 kDosSignature = 0x5A4D;  // "MZ"
-constexpr std::size_t kNewHeaderAt = 0x3C;
-constexpr u32 kPeSignature = 0x4550;  // "PE"
-constexpr std::size_t kSectionCountAt = 6;
-constexpr std::size_t kOptionalSizeAt = 20;
-constexpr std::size_t kOptionalHeaderAt = 24;
-constexpr std::size_t kDataDirectoriesAt = 96;
-constexpr std::size_t kDataDirectoryBytes = 8;
-constexpr std::size_t kSectionBytes = 40;
-constexpr std::size_t kVirtualSizeAt = 8;
-constexpr std::size_t kVirtualAddressAt = 12;
-constexpr std::size_t kRawSizeAt = 16;
-constexpr std::size_t kRawAddressAt = 20;
-constexpr std::size_t kDirectoryBytes = 16;
-constexpr std::size_t kNamedEntriesAt = 12;
-constexpr std::size_t kIdEntriesAt = 14;
-constexpr std::size_t kDirectoryEntryBytes = 8;
+// A .bmp file: the file header ("BM" first), then the bitmap.
+constexpr u16 kBitmapSignature = 0x4D42;
+constexpr std::size_t kBitmapFileHeaderBytes = 14;
 
 // The BITMAPINFOHEADER of a bitmap resource.
 constexpr std::size_t kBitmapWidthAt = 4;
@@ -59,15 +46,16 @@ constexpr int kGreen565Shift = 5;
 constexpr std::size_t kGreenAt = 1;  // a pixel or palette entry: blue, green, red
 constexpr std::size_t kRedAt = 2;
 
-// Icon and cursor resources: a group lists its members, a member is a bitmap of twice its height (the colours, then
-// the 1-bit mask), a cursor member starts with its hotspot.
+// An .ico or .cur file: a header with the member count, then per member an entry (a cursor's hotspot in place of the
+// planes and bits) with its size and offset; a member is a bitmap of twice its height (the colours, then the 1-bit
+// mask).
 constexpr std::size_t kGroupCountAt = 4;
 constexpr std::size_t kGroupEntriesAt = 6;
-constexpr std::size_t kGroupEntryBytes = 14;
-constexpr std::size_t kGroupBitsAt = 6;
-constexpr std::size_t kGroupIdAt = 12;
-constexpr std::size_t kHotYAt = 2;
-constexpr std::size_t kCursorBitmapAt = 4;
+constexpr std::size_t kGroupEntryBytes = 16;
+constexpr std::size_t kHotXAt = 4;
+constexpr std::size_t kHotYAt = 6;
+constexpr std::size_t kMemberBytesAt = 8;
+constexpr std::size_t kMemberAt = 12;
 constexpr u16 kMaskBits = 1;
 constexpr u16 kHighColorBits = 32;
 constexpr std::size_t kHighColorBytes = 4;
@@ -101,13 +89,6 @@ public:
 
 private:
     std::span<const u8> bytes;
-};
-
-struct Section
-{
-    u32 address = 0;
-    u32 size = 0;
-    u32 raw = 0;
 };
 
 std::size_t BitmapStride(i32 width, u16 bits)
@@ -200,167 +181,73 @@ bool DecodeIconBitmap(std::span<const u8> bitmap, IconImage& out)
 
 }  // namespace
 
-bool ExeResources::Open(const std::u8string& path)
+std::u8string ResourceDirectory()
 {
-    if (!ReadSharedFile(ResolvePath(path), this->image))
+    std::u8string path;
+
+    if (const auto* base = SDL_GetBasePath(); base != nullptr)
+    {
+        path = Utf8Bytes(base);
+    }
+
+    return path + std::u8string(kDirectory);
+}
+
+void ExeResources::Open(std::u8string directory)
+{
+    this->directory = std::move(directory);
+}
+
+std::vector<u8> ExeResources::Read(u32 id, std::u8string_view extension) const
+{
+    std::vector<u8> bytes;
+
+    if (!ReadSharedFile(this->directory + Utf8Bytes(std::to_string(id)) + std::u8string(extension), bytes))
+    {
+        bytes.clear();
+    }
+
+    return bytes;
+}
+
+bool ExeResources::LoadBitmap(u32 id, Surface& out) const
+{
+    const std::vector<u8> file = this->Read(id, u8".bmp");
+    const Reader reader(file);
+
+    if (!reader.Has(0, kBitmapFileHeaderBytes) || reader.Word(0) != kBitmapSignature)
     {
         return false;
     }
 
-    this->entries.clear();
-    return this->Parse();
+    return DecodeBitmap(std::span<const u8>(file).subspan(kBitmapFileHeaderBytes), out);
 }
 
-bool ExeResources::Parse()
+bool ExeResources::LoadIcon(u32 id, IconImage& out) const
 {
-    const Reader reader(this->image);
-
-    if (reader.Word(0) != kDosSignature)
-    {
-        return false;
-    }
-
-    const u32 header = reader.Dword(kNewHeaderAt);
-
-    if (reader.Dword(header) != kPeSignature)
-    {
-        return false;
-    }
-
-    const u16 count = reader.Word(header + kSectionCountAt);
-    const u16 optionalSize = reader.Word(header + kOptionalSizeAt);
-    const std::size_t table = header + kOptionalHeaderAt + optionalSize;
-    std::vector<Section> sections;
-
-    for (u16 index = 0; index < count; ++index)
-    {
-        const std::size_t entry = table + kSectionBytes * static_cast<std::size_t>(index);
-        const u32 virtualSize = reader.Dword(entry + kVirtualSizeAt);
-        const u32 rawSize = reader.Dword(entry + kRawSizeAt);
-        sections.push_back(
-            {reader.Dword(entry + kVirtualAddressAt),
-             virtualSize > rawSize ? virtualSize : rawSize,
-             reader.Dword(entry + kRawAddressAt)}
-        );
-    }
-
-    auto toOffset = [&](u32 address) -> std::size_t
-    {
-        for (const Section& section : sections)
-        {
-            if (address >= section.address && address - section.address < section.size)
-            {
-                return section.raw + (address - section.address);
-            }
-        }
-
-        return this->image.size();
-    };
-
-    const u32 resourceAddress =
-        reader.Dword(header + kOptionalHeaderAt + kDataDirectoriesAt + kDataDirectoryBytes * kResourceDirectory);
-
-    if (resourceAddress == 0)
-    {
-        return false;
-    }
-
-    const std::size_t base = toOffset(resourceAddress);
-
-    auto nameOf = [&](u32 value) -> std::string
-    {
-        const std::size_t at = base + (value & ~kNamedEntry);
-        const u16 length = reader.Word(at);
-        std::string name;
-
-        for (u16 index = 0; index < length; ++index)
-        {
-            name.push_back(
-                static_cast<char>(reader.Word(at + sizeof(u16) + sizeof(u16) * static_cast<std::size_t>(index)))
-            );
-        }
-
-        return name;
-    };
-
-    Entry current;
-
-    auto walk = [&](auto& self, std::size_t directory, int depth) -> void
-    {
-        if (depth >= kMaxDepth || !reader.Has(directory, kDirectoryBytes))
-        {
-            return;
-        }
-
-        const int items = reader.Word(directory + kNamedEntriesAt) + reader.Word(directory + kIdEntriesAt);
-
-        for (int index = 0; index < items; ++index)
-        {
-            const std::size_t at = directory + kDirectoryBytes + kDirectoryEntryBytes * static_cast<std::size_t>(index);
-            const u32 name = reader.Dword(at);
-            const u32 target = reader.Dword(at + sizeof(u32));
-
-            if (depth == kTypeLevel)
-            {
-                current.typeName = (name & kNamedEntry) != 0 ? nameOf(name) : std::string();
-                current.type = (name & kNamedEntry) != 0 ? 0 : name;
-            }
-            else if (depth == kIdLevel)
-            {
-                current.id = (name & kNamedEntry) != 0 ? 0 : name;
-            }
-
-            if ((target & kNamedEntry) != 0)
-            {
-                self(self, base + (target & ~kNamedEntry), depth + 1);
-                continue;
-            }
-
-            Entry found = current;
-            found.offset = toOffset(reader.Dword(base + target));
-            found.size = reader.Dword(base + target + sizeof(u32));
-
-            if (reader.Has(found.offset, found.size))
-            {
-                this->entries.push_back(found);
-            }
-        }
-    };
-
-    walk(walk, base, 0);
-    return !this->entries.empty();
+    return this->LoadGroup(id, u8".ico", out);
 }
 
-std::span<const u8> ExeResources::Find(u32 type, u32 id) const
+bool ExeResources::LoadCursor(u32 id, IconImage& out) const
 {
-    for (const Entry& entry : this->entries)
-    {
-        if (entry.typeName.empty() && entry.type == type && entry.id == id)
-        {
-            return std::span<const u8>(this->image).subspan(entry.offset, entry.size);
-        }
-    }
-
-    return {};
+    return this->LoadGroup(id, u8".cur", out);
 }
 
-std::span<const u8> ExeResources::Find(std::string_view type, u32 id) const
+std::vector<u8> ExeResources::ReadSound(u32 id) const
 {
-    for (const Entry& entry : this->entries)
-    {
-        if (entry.typeName == type && entry.id == id)
-        {
-            return std::span<const u8>(this->image).subspan(entry.offset, entry.size);
-        }
-    }
-
-    return {};
+    return this->Read(id, u8".wav");
 }
 
-bool ExeResources::FindIcon(u32 groupType, u32 group, IconImage& out) const
+std::vector<u8> ExeResources::ReadDialog(u32 id) const
 {
-    const std::span<const u8> directory = this->Find(groupType, group);
-    const Reader reader(directory);
+    return this->Read(id, u8".dlg");
+}
+
+bool ExeResources::LoadGroup(u32 id, std::u8string_view extension, IconImage& out) const
+{
+    const std::vector<u8> file = this->Read(id, extension);
+    const std::span<const u8> bytes(file);
+    const Reader reader(bytes);
 
     if (!reader.Has(0, kGroupEntriesAt))
     {
@@ -369,7 +256,8 @@ bool ExeResources::FindIcon(u32 groupType, u32 group, IconImage& out) const
 
     const u16 count = reader.Word(kGroupCountAt);
     u16 bestBits = 0;
-    u32 best = 0;
+    std::size_t best = 0;
+    bool found = false;
 
     for (u16 index = 0; index < count; ++index)
     {
@@ -380,36 +268,32 @@ bool ExeResources::FindIcon(u32 groupType, u32 group, IconImage& out) const
             break;
         }
 
-        const u16 bits = reader.Word(entry + kGroupBitsAt);
+        const u32 at = reader.Dword(entry + kMemberAt);
 
-        if (best == 0 || bits > bestBits)
+        if (!reader.Has(at, kBitmapHeaderBytes) || !reader.Has(at, reader.Dword(entry + kMemberBytesAt)))
+        {
+            continue;
+        }
+
+        const u16 bits = reader.Word(at + kBitmapBitsAt);
+
+        if (!found || bits > bestBits)
         {
             bestBits = bits;
-            best = reader.Word(entry + kGroupIdAt);
+            best = entry;
+            found = true;
         }
     }
 
-    if (best == 0)
+    if (!found ||
+        !DecodeIconBitmap(bytes.subspan(reader.Dword(best + kMemberAt), reader.Dword(best + kMemberBytesAt)), out))
     {
         return false;
     }
 
-    const bool cursor = groupType == ExeResources::GroupCursor;
-    const std::span<const u8> member = this->Find(cursor ? ExeResources::Cursor : ExeResources::Icon, best);
-    const Reader memberReader(member);
-
-    if (cursor && !memberReader.Has(0, kCursorBitmapAt))
-    {
-        return false;
-    }
-
-    if (!DecodeIconBitmap(cursor ? member.subspan(kCursorBitmapAt) : member, out))
-    {
-        return false;
-    }
-
-    out.hotX = cursor ? memberReader.Word(0) : 0;
-    out.hotY = cursor ? memberReader.Word(kHotYAt) : 0;
+    const bool cursor = extension == u8".cur";
+    out.hotX = cursor ? reader.Word(best + kHotXAt) : 0;
+    out.hotY = cursor ? reader.Word(best + kHotYAt) : 0;
     return true;
 }
 

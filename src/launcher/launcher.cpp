@@ -42,17 +42,14 @@ Launcher::Launcher(
 
 bool Launcher::LoadPictures()
 {
-    bool loaded = DecodeBitmap(this->resources.Find(ExeResources::Bitmap, Launcher::Background), this->background);
+    bool loaded = this->resources.LoadBitmap(Launcher::Background, this->background);
 
     for (std::size_t item = 0; item < Launcher::Layout.size(); ++item)
     {
-        loaded = DecodeBitmap(
-                     this->resources.Find(ExeResources::Bitmap, Launcher::Layout[item].picture),
-                     this->pictures[item]
-                 ) &&
-                 loaded;
+        loaded = this->resources.LoadBitmap(Launcher::Layout[item].picture, this->pictures[item]) && loaded;
     }
 
+    this->hoverSound = this->resources.ReadSound(Launcher::HoverSound);
     return loaded;
 }
 
@@ -132,7 +129,7 @@ Launcher::Choice Launcher::OnMouse(u32 buttons, int x, int y)
 
     if (newlyLit)
     {
-        this->sound.Play(this->resources.Find("WAVE", Launcher::HoverSound));
+        this->sound.Play(this->hoverSound);
     }
 
     return choice;

@@ -2,6 +2,7 @@
 
 #include <array>
 #include <string>
+#include <vector>
 
 #include "core/types.h"
 #include "platform/surface.h"
@@ -62,6 +63,7 @@ public:
 
     Launcher(const ExeResources& resources, const GameState& state, SystemSound& sound, std::u8string installDirectory);
 
+    // The background, the highlights and the hover sound; false when a picture is missing.
     bool LoadPictures();
     void Init();
     Choice OnMouse(u32 buttons, int x, int y);
@@ -83,6 +85,7 @@ private:
     std::u8string installDirectory;
     Surface background;
     std::array<Surface, Items> pictures;
+    std::vector<u8> hoverSound;  // read with the pictures
 };
 
 }  // namespace swd3

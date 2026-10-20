@@ -53,7 +53,17 @@ python3 scripts/make_font_library.py /mnt/c/Windows/Fonts/mingliu.ttc third_part
 
 `third_party/fonts/swd3font.bin` 存在时，构建会把它复制到 exe 旁边；不存在时程序仍能编译，但运行时缺少文字。
 
-## 4. 编译
+## 4. 原版资源
+
+窗口图标、启动画面的图片与音效、开场音效和作弊对话框取自原版 `swd32.exe`。它们属于游戏，不放进仓库，需要从自己的原版游戏中提取：
+
+```sh
+python3 scripts/make_resources.py /mnt/e/Game/swd3/swd32.exe third_party/resources
+```
+
+提取出来的是普通的 `.bmp`、`.wav`、`.ico`、`.cur` 文件和对话框模板 `.dlg`，以原版的资源编号命名。`third_party/resources` 存在时，构建会把它复制到 exe 旁边的 `res` 文件夹，运行时不需要 `swd32.exe`；不存在时程序仍能编译，但没有图标、启动画面和这些音效。
+
+## 5. 编译
 
 ```sh
 cmake --preset windows
@@ -67,6 +77,7 @@ cmake --build --preset windows
 | `swd3r.exe` | 游戏程序 |
 | `swd3r.pdb` | 调试符号，放在 exe 旁边时崩溃记录能显示函数名与行号 |
 | `swd3font.bin` | 字库 |
+| `res/` | 从原版提取的图标、启动画面、音效与对话框 |
 | `swd3_tests.exe` | 单元测试 |
 
 Linux 版：
@@ -80,7 +91,7 @@ cmake --build --preset linux
 
 32 位版本使用 `windows-x86`（产物在 `build/windows-x86/`）与 `linux-i386`（产物在 `build/linux-i386/`）预设。所有预设都是 `RelWithDebInfo`。
 
-## 5. 单元测试
+## 6. 单元测试
 
 ```sh
 build/linux/swd3_tests

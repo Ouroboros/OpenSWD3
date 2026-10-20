@@ -22,40 +22,31 @@ struct IconImage
     std::vector<u32> pixels;
 };
 
-// The resources of swd32.exe (the dialogs, bitmaps and sounds of the launcher, the icon and cursor of the window),
-// read from the executable in the game directory: the Win32 resource calls of the original find them in its own image.
+// The res directory beside the program (made by scripts/make_resources.py from swd32.exe).
+std::u8string ResourceDirectory();
+
+// The resources of swd32.exe (the dialogs, bitmaps and sounds of the launcher, the icon and cursor of the window): the
+// Win32 resource calls of the original find them in its own image, the rebuild in the files extracted from it, one
+// standard file each named by its resource id.
 class ExeResources
 {
 public:
-    static constexpr u32 Cursor = 1;        // RT_CURSOR
-    static constexpr u32 Bitmap = 2;        // RT_BITMAP
-    static constexpr u32 Icon = 3;          // RT_ICON
-    static constexpr u32 Dialog = 5;        // RT_DIALOG
-    static constexpr u32 GroupCursor = 12;  // RT_GROUP_CURSOR
-    static constexpr u32 GroupIcon = 14;    // RT_GROUP_ICON
-
-    bool Open(const std::u8string& path);
-    // A resource of a numbered type, or of a named type such as "WAVE"; empty when missing.
-    std::span<const u8> Find(u32 type, u32 id) const;
-    std::span<const u8> Find(std::string_view type, u32 id) const;
-    // The member of icon group `group` (GroupIcon) or cursor group `group` (GroupCursor) with the most bits per
-    // pixel, decoded; false when it is missing or not a bitmap of 1, 4, 8, 24 or 32 bits.
-    bool FindIcon(u32 groupType, u32 group, IconImage& out) const;
+    void Open(std::u8string directory);
+    // <id>.bmp converted to the display format; false when it is missing or not a bitmap DecodeBitmap reads.
+    bool LoadBitmap(u32 id, Surface& out) const;
+    // The member of <id>.ico (<id>.cur) with the most bits per pixel, decoded; false when it is missing or not a
+    // bitmap of 1, 4, 8, 24 or 32 bits.
+    bool LoadIcon(u32 id, IconImage& out) const;
+    bool LoadCursor(u32 id, IconImage& out) const;
+    // <id>.wav and the dialog template <id>.dlg as stored; empty when missing.
+    std::vector<u8> ReadSound(u32 id) const;
+    std::vector<u8> ReadDialog(u32 id) const;
 
 private:
-    struct Entry
-    {
-        u32 type = 0;
-        std::string typeName;
-        u32 id = 0;
-        std::size_t offset = 0;
-        std::size_t size = 0;
-    };
+    std::vector<u8> Read(u32 id, std::u8string_view extension) const;
+    bool LoadGroup(u32 id, std::u8string_view extension, IconImage& out) const;
 
-    bool Parse();
-
-    std::vector<u8> image;
-    std::vector<Entry> entries;
+    std::u8string directory;
 };
 
 // A device-independent bitmap of 8 (with its palette) or 24 bits per pixel converted to the display format; false for

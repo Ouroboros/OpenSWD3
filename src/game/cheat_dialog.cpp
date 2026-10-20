@@ -31,7 +31,7 @@ CheatDialog::CheatDialog(Game& game)
       party(game.party),
       database(game.database),
       running(game.running),
-      installDirectory(game.config.installDirectory)
+      resources(game.resources)
 {
 }
 

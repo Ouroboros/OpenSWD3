@@ -505,22 +505,19 @@ void Game::Start()
 {
     LogInfo(u8"start install_directory=%s", this->config.installDirectory);
 
-    if (!this->resources.Open(Concat({this->config.installDirectory, Game::Executable})))
-    {
-        LogError(u8"swd32.exe not readable in %s", this->config.installDirectory);
-        this->errors.ShowError(u8"swd3r", u8"swd32.exe not found in the game directory");
-        this->quit = true;
-        return;
-    }
-
+    this->resources.Open(ResourceDirectory());
     IconImage picture;
 
-    if (this->resources.FindIcon(ExeResources::GroupIcon, Game::WindowIcon, picture))
+    if (this->resources.LoadIcon(Game::WindowIcon, picture))
     {
         this->display.SetIcon(picture);
     }
+    else
+    {
+        LogError(u8"the resources of swd32.exe are missing from %s (scripts/make_resources.py)", ResourceDirectory());
+    }
 
-    this->systemSound.Play(this->resources.Find("WAVE", Game::StartSound));
+    this->systemSound.Play(this->resources.ReadSound(Game::StartSound));
     this->config.SetDefaultKeys();
     this->InitInstall();
     this->state.ClearGameFlag(Launcher::SavedGameFlag);
@@ -543,7 +540,7 @@ void Game::Start()
 
     // The launcher is a dialog with the arrow pointer; over the game window the pointer is the window class's cursor
     // 0x67, which is blank.
-    if (this->resources.FindIcon(ExeResources::GroupCursor, Game::WindowCursor, picture))
+    if (this->resources.LoadCursor(Game::WindowCursor, picture))
     {
         this->display.SetCursor(picture);
     }

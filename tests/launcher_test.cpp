@@ -4,15 +4,17 @@
 #include <cstdio>
 #include <span>
 #include <string>
+#include <string_view>
+#include <vector>
 
 #include <SDL3/SDL.h>
 
 #include "game/game.h"
 #include "game/game_state.h"
-#include "game_data.h"
 #include "launcher/launcher.h"
 #include "platform/display.h"
 #include "platform/exe_resources.h"
+#include "platform/file_system.h"
 #include "platform/surface.h"
 #include "platform/system_sound.h"
 #include "test.h"
@@ -35,22 +37,22 @@ constexpr int kInsideY = 50;
 TEST_CASE("launcher: resources of swd32.exe and the hover hotspots")
 {
     swd3::ExeResources resources;
+    resources.Open(swd3::ResourceDirectory());
+    swd3::Surface picture;
 
-    if (!resources.Open(swd3test::GameDirectory() + u8"/swd32.exe"))
+    if (!resources.LoadBitmap(Launcher::Background, picture))
     {
-        std::printf("  (swd32.exe not found, skipped)\n");
+        std::printf("  (res not found, skipped)\n");
         return;
     }
 
     SDL_SetHint(SDL_HINT_AUDIO_DRIVER, "dummy");
-    CHECK_EQ(resources.Find(swd3::ExeResources::Dialog, Launcher::Dialog).size(), kDialogBytes);
-    CHECK_EQ(resources.Find("WAVE", Launcher::HoverSound).size(), kHoverSoundBytes);
-    CHECK(resources.Find("WAVE", kNoSuchWave).empty());
-    swd3::Surface picture;
-    CHECK(swd3::DecodeBitmap(resources.Find(swd3::ExeResources::Bitmap, Launcher::Background), picture));
+    CHECK_EQ(resources.ReadDialog(Launcher::Dialog).size(), kDialogBytes);
+    CHECK_EQ(resources.ReadSound(Launcher::HoverSound).size(), kHoverSoundBytes);
+    CHECK(resources.ReadSound(kNoSuchWave).empty());
     CHECK_EQ(picture.Width(), swd3::Display::Width);
     CHECK_EQ(picture.Height(), swd3::Display::Height);
-    CHECK(swd3::DecodeBitmap(resources.Find(swd3::ExeResources::Bitmap, Launcher::Layout.back().picture), picture));
+    CHECK(resources.LoadBitmap(Launcher::Layout.back().picture, picture));
     CHECK_EQ(picture.Width(), kHighlightWidth);
     CHECK_EQ(picture.Height(), kHighlightHeight);
 
@@ -81,27 +83,33 @@ TEST_CASE("launcher: resources of swd32.exe and the hover hotspots")
 TEST_CASE("launcher: the window icon and cursor of swd32.exe")
 {
     constexpr int kSide = 32;
-    constexpr swd3::u32 kTrueColorIcon = 4;  // the 24-bit member of icon group 0x65
+    constexpr std::u8string_view kIconFile = u8"101.ico";  // Game::WindowIcon; its last member has 24 bits
     constexpr std::size_t kHeaderBytes = 40;
+    constexpr std::size_t kBitsAt = 14;  // biBitCount
     constexpr std::size_t kPixelBytes = 3;
     constexpr std::size_t kMaskBytes = kSide * kSide / CHAR_BIT;
+    constexpr std::size_t kMemberBytes = kHeaderBytes + kPixelBytes * kSide * kSide + kMaskBytes;
     constexpr swd3::u32 kOpaque = 0xFF000000u;
     swd3::ExeResources resources;
+    resources.Open(swd3::ResourceDirectory());
+    swd3::IconImage icon;
+    std::vector<swd3::u8> file;
 
-    if (!resources.Open(swd3test::GameDirectory() + u8"/swd32.exe"))
+    if (!resources.LoadIcon(swd3::Game::WindowIcon, icon) ||
+        !swd3::ReadSharedFile(swd3::ResourceDirectory() + std::u8string(kIconFile), file))
     {
-        std::printf("  (swd32.exe not found, skipped)\n");
+        std::printf("  (res not found, skipped)\n");
         return;
     }
 
-    swd3::IconImage icon;
-    CHECK(resources.FindIcon(swd3::ExeResources::GroupIcon, swd3::Game::WindowIcon, icon));
     CHECK_EQ(icon.width, kSide);
     CHECK_EQ(icon.height, kSide);
     CHECK_EQ(icon.pixels.size(), static_cast<std::size_t>(kSide * kSide));
 
-    const std::span<const swd3::u8> member = resources.Find(swd3::ExeResources::Icon, kTrueColorIcon);
-    CHECK_EQ(member.size(), kHeaderBytes + kPixelBytes * kSide * kSide + kMaskBytes);
+    CHECK(file.size() > kMemberBytes);
+    const std::span<const swd3::u8> member = std::span<const swd3::u8>(file).last(kMemberBytes);
+    CHECK_EQ(member[0], kHeaderBytes);
+    CHECK_EQ(member[kBitsAt], kPixelBytes * CHAR_BIT);
     std::size_t clear = 0;
 
     for (std::size_t at = member.size() - kMaskBytes; at < member.size(); ++at)
@@ -125,7 +133,7 @@ TEST_CASE("launcher: the window icon and cursor of swd32.exe")
     CHECK_EQ(icon.pixels.front() & ~kOpaque, (icon.pixels.front() >= kOpaque ? color : 0));
 
     swd3::IconImage cursor;
-    CHECK(resources.FindIcon(swd3::ExeResources::GroupCursor, swd3::Game::WindowCursor, cursor));
+    CHECK(resources.LoadCursor(swd3::Game::WindowCursor, cursor));
     CHECK_EQ(cursor.width, kSide);
     CHECK_EQ(cursor.height, kSide);
     CHECK_EQ(cursor.hotX, 0);
@@ -140,5 +148,5 @@ TEST_CASE("launcher: the window icon and cursor of swd32.exe")
             }
         )
     );
-    CHECK(!resources.FindIcon(swd3::ExeResources::GroupIcon, kNoSuchWave, icon));
+    CHECK(!resources.LoadIcon(kNoSuchWave, icon));
 }

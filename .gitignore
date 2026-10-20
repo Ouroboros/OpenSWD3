@@ -18,3 +18,4 @@
 /third_party/fonts/
 __pycache__/
 *.pyc
+/third_party/resources/

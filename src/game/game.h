@@ -94,7 +94,6 @@ public:
     static constexpr std::u8string_view WindowTitle = u8"軒轅劍參 DVD";                    // 0x0049FAC4
     static constexpr std::u8string_view Title = u8"軒轅劍三";                              // 0x004A0F78
     static constexpr std::u8string_view DirectInputFailed = u8"DirectInput 初始化錯誤%n";  // 0x004A0F5C
-    static constexpr std::u8string_view Executable = u8"swd32.exe";
     static constexpr u32 StartSound = 0x78;
     static constexpr u32 WindowIcon = 0x65;    // the icon group of the window class (swd32.exe 0x00409F49)
     static constexpr u32 WindowCursor = 0x67;  // the cursor group (swd32.exe 0x00409F52)
