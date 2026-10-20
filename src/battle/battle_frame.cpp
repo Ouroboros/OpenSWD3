@@ -212,7 +212,7 @@ int Game::BattleFrame()
 
             this->TakeSlotRecord(acting);
             battle.actingUnit = acting.unit;
-            battle.sweepTotal = acting.unk04;
+            battle.sweepTotal = acting.targetCount;
             battle.unk53AE78 = acting.kind;
             battle.slideBackPicture = static_cast<i16>(acting.unk0A);
             battle.unk53AE7C = acting.unk0C;

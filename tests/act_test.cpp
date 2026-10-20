@@ -137,7 +137,7 @@ public:
             f.push_back(light);
         }
 
-        const i32 tail[] = {s.wait, s.unknown89, s.signal, s.unknown8B, s.waiting, s.hold, s.mask};
+        const i32 tail[] = {s.wait, s.wavePhase, s.signal, s.unknown8B, s.waiting, s.hold, s.mask};
         f.insert(f.end(), std::begin(tail), std::end(tail));
         return snapshot;
     }

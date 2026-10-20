@@ -739,7 +739,7 @@ TEST_CASE("battle state: the slot records are wiped with 0xFF bytes")
     for (const swd3::BattleSlotRecord& record : state.slotRecords)
     {
         CHECK_EQ(record.unit, -1);
-        CHECK_EQ(record.unk04, -1);
+        CHECK_EQ(record.targetCount, -1);
         CHECK_EQ(record.kind, 0xFFFF);
         CHECK_EQ(record.unk0A, 0xFFFF);
         CHECK_EQ(record.unk18, -1);

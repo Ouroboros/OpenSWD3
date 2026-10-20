@@ -153,7 +153,7 @@ struct ActState
     u16 anchorY = 0;          // +0x78 'YA'
     u16 lights[Lights] = {};  // +0x7A 'LF'
     u8 wait = 0;              // +0x88 'WT'
-    u8 unknown89 = 0;         // +0x89
+    u8 wavePhase = 0;         // +0x89 the phase its wave was drawn at (Painter::WavePhase)
     u8 signal = 0;            // +0x8A 'SG'
     u8 unknown8B = 0;         // +0x8B
     i32 waiting = 0;          // +0x8C '2O' reached with no delay

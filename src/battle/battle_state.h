@@ -28,14 +28,14 @@ struct ClickRegion;
 // 2 (AddSlotRecord), the free records after the used ones.
 struct BattleSlotRecord
 {
-    i32 unit = -1;  // +0x00 -1: a free record
-    i32 unk04 = 0;  // +0x04
-    u16 kind = 0;   // +0x08
-    u16 unk0A = 0;  // +0x0A
-    i32 unk0C = 0;  // +0x0C
-    i32 unk10 = 0;  // +0x10
-    i32 unk14 = 0;  // +0x14
-    i32 unk18 = 0;  // +0x18
+    i32 unit = -1;        // +0x00 -1: a free record
+    i32 targetCount = 0;  // +0x04 the units its order hits (BattleState::sweepTotal)
+    u16 kind = 0;         // +0x08
+    u16 unk0A = 0;        // +0x0A
+    i32 unk0C = 0;        // +0x0C
+    i32 unk10 = 0;        // +0x10
+    i32 unk14 = 0;        // +0x14
+    i32 unk18 = 0;        // +0x18
 };
 
 // The order a party unit chose (0x14 bytes, ten at 0x00520E90), taken into its slot record by InsertSlotRecord.
@@ -46,7 +46,7 @@ struct PendingOrder
     i32 unk08 = 0;  // +0x08 to unk18
     u16 unk0C = 0;  // +0x0C to unk0A
     u16 unk0E = 0;
-    i32 unk10 = 0;  // +0x10 to unk04
+    i32 targetCount = 0;  // +0x10 the units it hits, counted as they are gathered (to targetCount)
 };
 
 // What an object bought in the shop changes for a party role (0x10 bytes, four of them at 0x004FD3C8): the attack,

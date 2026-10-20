@@ -434,7 +434,7 @@ void ActArchive::Restart(ActState& state, u32 keptFlags)
     state.anchorY = 0;
     state.signal = 0;
     state.wait = 0;
-    state.unknown89 = 0;
+    state.wavePhase = 0;
     state.drawLevel = 0;
     state.red = 0;
     state.green = 0;

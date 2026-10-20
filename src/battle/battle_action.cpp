@@ -1753,14 +1753,14 @@ void Game::RoleGatherSweep(BattleRole& unit, PendingOrder& order)
                 unit.GetValueAB4() == 0)
             {
                 other.SetAC0(0);
-                ++order.unk10;
+                ++order.targetCount;
             }
         }
 
         const auto standing =
             static_cast<i32>(battle.roleCount) - battle.defeatedRoles - battle.escortCount - battle.guestCount;
 
-        if (order.unk10 < standing)
+        if (order.targetCount < standing)
         {
             return;
         }
@@ -1790,10 +1790,10 @@ void Game::RoleGatherSweep(BattleRole& unit, PendingOrder& order)
 
             enemy.SetAC0(0);
             enemy.IncreaseCounter2A76();
-            ++order.unk10;
+            ++order.targetCount;
         }
 
-        if (order.unk10 < static_cast<i32>(battle.enemyCount) - skipped)
+        if (order.targetCount < static_cast<i32>(battle.enemyCount) - skipped)
         {
             return;
         }

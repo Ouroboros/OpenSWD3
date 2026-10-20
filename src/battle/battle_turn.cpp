@@ -3933,7 +3933,7 @@ void Game::ConfirmTarget()
         if (role != nullptr)
         {
             battle.pendingOrders[unit].unk04 = 1;
-            battle.pendingOrders[unit].unk10 = 0;
+            battle.pendingOrders[unit].targetCount = 0;
         }
 
         battle.turnTaken[static_cast<std::size_t>(battle.turnUnit)] = battle.turnCommand;

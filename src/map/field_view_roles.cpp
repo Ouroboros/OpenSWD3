@@ -99,7 +99,7 @@ int FieldView::DrawRole(Role& role)
 
     const u32 mode = role.act.flags;
     painter.SetWave(role.act.wait);
-    painter.SetWavePhase(role.act.unknown89);
+    painter.SetWavePhase(role.act.wavePhase);
     DrawOptions& options = painter.Options();
     options.unusedFlag = 0;
     options.alpha = role.act.signal;
@@ -163,7 +163,7 @@ int FieldView::DrawRole(Role& role)
 
     if (!this->replaying)
     {
-        role.act.unknown89 = static_cast<u8>(painter.WavePhase());
+        role.act.wavePhase = static_cast<u8>(painter.WavePhase());
     }
 
     if ((role.flags & Role::Bubbles) != 0 && !this->game.state.GameFlag(GameState::PlainScreen))

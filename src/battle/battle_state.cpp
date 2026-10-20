@@ -238,7 +238,7 @@ void BattleState::InsertSlotRecord(int kind, i32 unit, int at)
         record.unk0C = order.unk00;
         record.unk18 = order.unk08;
         record.unk0A = order.unk0C;
-        record.unk04 = order.unk10;
+        record.targetCount = order.targetCount;
         order = PendingOrder{};
     }
 

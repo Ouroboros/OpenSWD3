@@ -68,7 +68,7 @@ void FillUnused(ActState& state)
     ones(state.anchorX);
     ones(state.anchorY);
     ones(state.wait);
-    ones(state.unknown89);
+    ones(state.wavePhase);
     ones(state.signal);
     ones(state.unknown8B);
     ones(state.waiting);
