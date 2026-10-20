@@ -116,6 +116,14 @@ void Scene::Add(const PictureStep& step, Where where)
 
 void Scene::Add(Scene&& scene)
 {
+    if (this->pointerDepth > 0)
+    {
+        for (Step& step : scene.steps)
+        {
+            step.pointer = true;
+        }
+    }
+
     if (this->steps.empty())
     {
         this->steps = std::move(scene.steps);
@@ -166,6 +174,23 @@ Scene::Still::Still(Scene& scene)
 Scene::Still::~Still()
 {
     --this->scene.stillDepth;
+}
+
+Scene::Pointer::Pointer(BattleServices& services)
+    : scene(services.frame)
+{
+    if (this->scene != nullptr)
+    {
+        ++this->scene->pointerDepth;
+    }
+}
+
+Scene::Pointer::~Pointer()
+{
+    if (this->scene != nullptr)
+    {
+        --this->scene->pointerDepth;
+    }
 }
 
 Scene::Owner::Owner(Scene& scene, const void* who)

@@ -105,6 +105,20 @@ public:
         Scene& scene;
     };
 
+    // The draws handed to the battle frame's scene while it lives are drawn at the mouse pointer: between game frames
+    // they move with the mouse (nothing without a frame scene).
+    class Pointer
+    {
+    public:
+        explicit Pointer(BattleServices& services);
+        ~Pointer();
+        Pointer(const Pointer&) = delete;
+        Pointer& operator=(const Pointer&) = delete;
+
+    private:
+        Scene* scene;
+    };
+
     // The draws added while it lives are `who`'s (a unit): between game frames they are taken only for its own.
     class Owner
     {
@@ -127,10 +141,12 @@ private:
         u32 line = 0;
         bool still = false;
         const void* owner = nullptr;
+        bool pointer = false;
     };
 
     std::vector<Step> steps;
     int stillDepth = 0;
+    int pointerDepth = 0;
     const void* owner = nullptr;
 };
 

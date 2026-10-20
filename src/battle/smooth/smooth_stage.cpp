@@ -22,11 +22,11 @@ namespace
 
 constexpr int kSnapDistance = 0x80;  // a draw farther than this from its place before jumps
 
-// The place on the screen of column (row) `offset` of the render scale's blocks of a draw at `place` that is `back` of
-// its way `by` from its place before: ceil((N x the place - offset) / N), in 64 bits (a place may lie far off).
-int BlockPlace(int place, int by, double back, int scale, int offset)
+// The place on the screen of column (row) `offset` of the render scale's blocks of a draw at `place` shown `shift`
+// from it: ceil((N x the place - offset) / N), in 64 bits (a place may lie far off).
+int BlockPlace(int place, double shift, int scale, int offset)
 {
-    const i64 at = static_cast<i64>(std::round((place + by * back) * scale)) - offset;
+    const i64 at = static_cast<i64>(std::round((place + shift) * scale)) - offset;
     const i64 quotient = at / scale;
     return static_cast<int>(at % scale != 0 && at > 0 ? quotient + 1 : quotient);
 }
@@ -69,9 +69,10 @@ Stage::Stage(BattleServices& services)
 {
 }
 
-void Stage::Draw(Scene&& decided)
+void Stage::Draw(Scene&& decided, int pointerX, int pointerY)
 {
     this->scene = std::move(decided);
+    this->framePointer = {pointerX, pointerY};
     this->drawn.clear();
     this->moves.clear();
     this->measuring = true;
@@ -80,9 +81,10 @@ void Stage::Draw(Scene&& decided)
     this->Match();
 }
 
-void Stage::PaintBetween(double alpha, Surface& out)
+void Stage::PaintBetween(double alpha, Surface& out, int mouseX, int mouseY)
 {
     this->share = std::clamp(alpha, 0.0, 1.0);
+    this->mouse = {mouseX, mouseY};
     this->scale = std::clamp(out.Width() / Display::Width, 1, MaxWeaveScale);
     this->column = 0;
     this->row = 0;
@@ -96,7 +98,6 @@ void Stage::PaintBetween(double alpha, Surface& out)
     // Each screen of the blocks: column a and row b show a place p (in 1/N pixels) at ceil((p - a) / N). Columns that
     // place every moving draw alike (and rows alike) show the same screen, which is drawn once.
     const auto blocks = static_cast<std::size_t>(this->scale);
-    const double back = 1.0 - this->share;
     std::array<std::vector<i32>, MaxWeaveScale> columnPlaces;
     std::array<std::vector<i32>, MaxWeaveScale> rowPlaces;
     std::array<std::size_t, MaxWeaveScale> columnShown = {};
@@ -104,9 +105,9 @@ void Stage::PaintBetween(double alpha, Surface& out)
 
     for (std::size_t at = 0; at < this->moves.size(); ++at)
     {
-        const std::array<int, 2>& move = this->moves[at];
+        const std::array<double, 2> shift = this->Shift(at);
 
-        if (move[0] == 0 && move[1] == 0)
+        if (shift[0] == 0.0 && shift[1] == 0.0)
         {
             continue;
         }
@@ -115,9 +116,9 @@ void Stage::PaintBetween(double alpha, Surface& out)
 
         for (std::size_t offset = 0; offset < blocks; ++offset)
         {
-            const auto shift = static_cast<int>(offset);
-            columnPlaces[offset].push_back(BlockPlace(place[0], move[0], back, this->scale, shift));
-            rowPlaces[offset].push_back(BlockPlace(place[1], move[1], back, this->scale, shift));
+            const auto block = static_cast<int>(offset);
+            columnPlaces[offset].push_back(BlockPlace(place[0], shift[0], this->scale, block));
+            rowPlaces[offset].push_back(BlockPlace(place[1], shift[1], this->scale, block));
         }
     }
 
@@ -221,6 +222,7 @@ void Stage::Replay()
         this->stepFile = step.file;
         this->stepLine = step.line;
         this->stepStill = step.still;
+        this->stepPointer = step.pointer;
         this->stepOwner = step.owner;
         this->stepDraws.clear();
         step.draw(this->services);
@@ -350,7 +352,10 @@ void Stage::Place(int& x, int& y, const void* site, const void* source)
 
     if (this->measuring)
     {
-        this->drawn.emplace_back(key, Drawn{{x, y}, this->held, this->holding, this->stepStill, source});
+        this->drawn.emplace_back(
+            key,
+            Drawn{{x, y}, this->held, this->holding, this->stepStill, this->stepPointer, source}
+        );
         return;
     }
 
@@ -359,25 +364,38 @@ void Stage::Place(int& x, int& y, const void* site, const void* source)
         return;
     }
 
-    const std::array<int, 2>& move = this->moves[this->next++];
+    const std::array<double, 2> shift = this->Shift(this->next++);
 
     // A draw that does not move stays where it is drawn at any scale (its place may lie far off the screen).
-    if (move[0] == 0 && move[1] == 0)
+    if (shift[0] == 0.0 && shift[1] == 0.0)
     {
         return;
     }
-
-    const double back = 1.0 - this->share;
 
     if (this->scale == 1)
     {
-        x += static_cast<i32>(std::round(move[0] * back));
-        y += static_cast<i32>(std::round(move[1] * back));
+        x += static_cast<i32>(std::round(shift[0]));
+        y += static_cast<i32>(std::round(shift[1]));
         return;
     }
 
-    x = BlockPlace(x, move[0], back, this->scale, this->column);
-    y = BlockPlace(y, move[1], back, this->scale, this->row);
+    x = BlockPlace(x, shift[0], this->scale, this->column);
+    y = BlockPlace(y, shift[1], this->scale, this->row);
+}
+
+std::array<double, 2> Stage::Shift(std::size_t index) const
+{
+    if (this->drawn[index].second.pointer)
+    {
+        return {
+            static_cast<double>(this->mouse[0] - this->framePointer[0]),
+            static_cast<double>(this->mouse[1] - this->framePointer[1]),
+        };
+    }
+
+    const std::array<int, 2>& move = this->moves[index];
+    const double back = 1.0 - this->share;
+    return {move[0] * back, move[1] * back};
 }
 
 }  // namespace swd3::smooth

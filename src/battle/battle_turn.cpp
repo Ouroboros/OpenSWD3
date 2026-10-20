@@ -709,12 +709,16 @@ void Game::DrawBattlePrompt()
         case kWaitState8:
         case kWaitState1B:
         case kWaitState1E:
+        {
+            const smooth::Scene::Pointer following(this->battleServices);
             hud.DrawEffectAt(kWaitPointer, 0, x, y, 0);
             break;
+        }
 
         case kTurnState:
             if (battle.unk53BFBC == 1)
             {
+                const smooth::Scene::Pointer following(this->battleServices);
                 hud.DrawEffectAt(battle.unk4A7640 != 0 ? kTurnPointer : kNoTurnPointer, 0, x, y, 0);
             }
 
@@ -723,6 +727,7 @@ void Game::DrawBattlePrompt()
         default:
             if (battle.unk53BDAC >= 0)
             {
+                const smooth::Scene::Pointer following(this->battleServices);
                 hud.DrawEffectAt(battle.currentUnit != 0 ? kUnitPointer : kNoUnitPointer, 0, x, y, 0);
             }
             else if (

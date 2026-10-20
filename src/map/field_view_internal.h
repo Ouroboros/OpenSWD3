@@ -6,6 +6,7 @@
 #include <array>
 #include <climits>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <span>
 
@@ -51,12 +52,14 @@ enum class EffectKind : u64
     Sprites,
     RoleHeads,
     Spotlight,
+    Pointer,  // the offset of the mouse pointer's picture, which its act sways
 };
 
 constexpr i32 kEffectSnap = 0x80;  // an element moving further in a frame has been placed again: it jumps
 constexpr i32 kBubbleSnap = 6;     // a bubble moves 2 pixels at most; the original copies the next bubble into a
                                    // spent one, which then jumps
 constexpr i32 kHeadSnap = Display::Width;  // a head slides in by two thirds of the way in its first frame
+constexpr i32 kPointerSnap = 4;            // the pointer act sways a pixel at a time; a new action jumps
 
 inline u64 EffectKey(EffectKind kind, u64 which)
 {

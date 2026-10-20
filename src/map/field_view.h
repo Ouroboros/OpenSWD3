@@ -367,7 +367,8 @@ private:
     PaintRecord finalRecord;
     bool talkRedrawn = false;
     bool interfaceRedrawn = false;
-    bool pointerShown = false;  // the frame drew the pointer (after interfaceLayer was taken)
+    bool pointerShown = false;            // the frame drew the pointer (after interfaceLayer was taken)
+    std::array<i32, 2> pointerSway = {};  // the offset of the pointer's picture last drawn to (EffectKind::Pointer)
     bool finalRedrawn = false;
     std::vector<u16> recordScratch;
     std::vector<Surface> parts;  // the logical screens of a render scale above 1 (PaintBetween)

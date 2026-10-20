@@ -1437,7 +1437,10 @@ bool Game::PresentBetween()
     // The battle and the map are drawn at the same render scale.
     if (this->battleFrameShown)
     {
-        this->battleStage.PaintBetween(alpha, *this->smoothScreen);
+        int mouseX = 0;
+        int mouseY = 0;
+        this->input.PeekMouse(mouseX, mouseY);
+        this->battleStage.PaintBetween(alpha, *this->smoothScreen, mouseX, mouseY);
     }
     else
     {

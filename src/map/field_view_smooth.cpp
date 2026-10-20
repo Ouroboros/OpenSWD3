@@ -485,9 +485,16 @@ void FieldView::PaintBetween(Surface& out)
 
             if (this->pointerShown)
             {
+                const ActState& act = view.pointerRole.act;
+                const std::array<i32, 2> sway = this->EffectAt(
+                    EffectKey(EffectKind::Pointer, u64{0}),
+                    this->pointerSway[0],
+                    this->pointerSway[1],
+                    true
+                );
                 painter.SetTarget(screen.data());
                 painter.SetClipClamped(0, 0, Display::Width, Display::Height);
-                owner.DrawPointer(mouseX, mouseY);
+                owner.DrawPointer(mouseX + sway[0] + act.x, mouseY + sway[1] + act.y);
                 putBack();
             }
 

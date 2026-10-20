@@ -283,7 +283,20 @@ void FieldView::Paint()
 
         if (pointer)
         {
-            owner.DrawPointer(state.pointerX, state.pointerY);
+            // The rebuild's continuous motion: the picture sways (its act moves its anchor) over the next frame.
+            const ActState& act = view.pointerRole.act;
+            const std::array<i32, 2> sway = {-act.x, -act.y};
+            const u64 key = EffectKey(EffectKind::Pointer, u64{0});
+            std::array<i32, 2> shown = this->EffectAt(key, this->pointerSway[0], this->pointerSway[1], true);
+
+            if (std::abs(sway[0] - shown[0]) > kPointerSnap || std::abs(sway[1] - shown[1]) > kPointerSnap)
+            {
+                shown = sway;
+            }
+
+            owner.DrawPointer(state.pointerX + shown[0] + act.x, state.pointerY + shown[1] + act.y);
+            this->MoveEffect(key, this->pointerSway[0], this->pointerSway[1], sway[0], sway[1], 1, true, kPointerSnap);
+            this->pointerSway = sway;
         }
     }
 

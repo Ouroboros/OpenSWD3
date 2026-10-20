@@ -309,7 +309,7 @@ int Game::BattleFrame()
 
     if (this->smoothMotion)
     {
-        this->battleStage.Draw(std::move(frameScene));
+        this->battleStage.Draw(std::move(frameScene), this->state.pointerX, this->state.pointerY);
     }
     else
     {
