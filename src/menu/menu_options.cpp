@@ -97,7 +97,7 @@ constexpr i32 kVSyncRow = 1;
 constexpr i32 kFrameRateRow = 2;
 constexpr i32 kRenderScaleRow = 3;
 constexpr i32 kDisplayBackRow = 4;
-constexpr std::array<i64, 7> kFrameRates = {0, 30, 60, 120, 144, 165, 240};
+constexpr std::array<i64, 5> kFrameRates = {0, 30, 60, 144, 240};
 constexpr u32 kGameSavedFlag = 2;  // Menu::flags: saved since the menu opened, quitting needs no confirmation
 
 // The quit fade.
