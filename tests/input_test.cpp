@@ -108,6 +108,48 @@ TEST_CASE("input: the mouse is the pointer clamped to the screen at any sensitiv
     CHECK_EQ(y, 0);
 }
 
+TEST_CASE("input: a key parks the pointer off the screen until the mouse moves or a button goes down")
+{
+    using swd3::Input;
+    FakeDevice device;
+    Input input(device);
+    input.Init();
+    int x = 0;
+    int y = 0;
+    device.mouse = {kInsideX, kInsideY, false, false};
+    input.PollKeyboard();
+    input.ReadMouse(x, y);
+    CHECK_EQ(x, kInsideX);
+    device.keys[Input::Down] = Input::KeyDown;
+    input.PollKeyboard();
+    input.ReadMouse(x, y);
+    CHECK_EQ(x, Input::ParkedPointer);
+    CHECK_EQ(y, Input::ParkedPointer);
+    input.PeekMouse(x, y);
+    CHECK_EQ(x, Input::ParkedPointer);
+    // A key held on does not bring it back, nor a pointer the game moves or a nudge of a pixel.
+    input.PollKeyboard();
+    input.SetMousePosition(kTargetX, kTargetY);
+    device.mouse.x += Input::PointerNudge;
+    input.ReadMouse(x, y);
+    CHECK_EQ(x, Input::ParkedPointer);
+    device.mouse.y += Input::PointerNudge + 1;
+    input.PeekMouse(x, y);
+    CHECK_EQ(y, kTargetY + Input::PointerNudge + 1);
+    input.ReadMouse(x, y);
+    CHECK_EQ(x, kTargetX + Input::PointerNudge);
+    // Parked again by a key, a button brings it back where it is.
+    device.keys[Input::Down] = 0;
+    input.PollKeyboard();
+    device.keys[Input::Up] = Input::KeyDown;
+    input.PollKeyboard();
+    input.ReadMouse(x, y);
+    CHECK_EQ(x, Input::ParkedPointer);
+    device.mouse.right = true;
+    CHECK_EQ(input.ReadMouse(x, y), Input::RightButton);
+    CHECK_EQ(x, kTargetX + Input::PointerNudge);
+}
+
 TEST_CASE("input: keys and buttons held when spent read as up until let go and pressed again")
 {
     using swd3::Input;

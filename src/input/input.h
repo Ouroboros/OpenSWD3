@@ -69,6 +69,10 @@ public:
     static constexpr int Tenths = 10;     // the sensitivity is in tenths
     static constexpr int LeftButton = 1;  // ReadMouse
     static constexpr int RightButton = 2;
+    // The rebuild (deviations.md): while the keyboard is used the position lies off every screen, so that nothing is
+    // under the pointer and it is drawn out of sight; moving the mouse further than this or a button brings it back.
+    static constexpr int ParkedPointer = -0x400;
+    static constexpr int PointerNudge = 1;
 
     explicit Input(InputDevice& device);
     ~Input();
@@ -91,12 +95,17 @@ public:
     void Release();
 
 private:
+    bool MouseUsed(const MouseState& state) const;
+
     InputDevice& device;
     bool acquired = false;
     std::array<u8, KeyCount> keys{};  // KeyDown set while down
     std::array<u8, KeyCount> previousKeys{};
     std::array<bool, KeyCount> spent{};  // SpendHeld: read as up until let go
     int spentButtons = 0;
+    bool keyboardUsed = false;  // a key went down since the mouse was last moved or pressed
+    int anchorX = 0;            // the pointer when the keyboard was taken up (or the game moved it since)
+    int anchorY = 0;
     int rangeLeft = 0;  // SetRange
     int rangeTop = 0;
     int rangeRight = ScreenRight;

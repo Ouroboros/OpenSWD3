@@ -1,6 +1,7 @@
 #include "input/input.h"
 
 #include <algorithm>
+#include <cstdlib>
 
 #include "crt/msvc.h"
 #include "platform/display.h"
@@ -50,6 +51,23 @@ int Input::PollKeyboard()
         else
         {
             this->keys[code] = 0;
+        }
+    }
+
+    // The rebuild (deviations.md): a key going down takes the pointer out of play until the mouse is used again.
+    for (std::size_t code = 0; code < Input::KeyCount; ++code)
+    {
+        if ((this->keys[code] & Input::KeyDown) != 0 && (this->previousKeys[code] & Input::KeyDown) == 0)
+        {
+            if (!this->keyboardUsed)
+            {
+                const MouseState state = this->device.Mouse();
+                this->anchorX = state.x;
+                this->anchorY = state.y;
+            }
+
+            this->keyboardUsed = true;
+            break;
         }
     }
 
@@ -127,6 +145,12 @@ int Input::ReadMouse(int& x, int& y)
     // The rebuild: a spent button (SpendHeld) reads as up until it is let go.
     this->spentButtons &= buttons;
     buttons &= ~this->spentButtons;
+
+    if (this->keyboardUsed && this->MouseUsed(state))
+    {
+        this->keyboardUsed = false;
+    }
+
     this->PeekMouse(x, y);
     return buttons;
 }
@@ -134,8 +158,23 @@ int Input::ReadMouse(int& x, int& y)
 void Input::PeekMouse(int& x, int& y) const
 {
     const MouseState state = this->device.Mouse();
+
+    if (this->keyboardUsed && !this->MouseUsed(state))
+    {
+        x = Input::ParkedPointer;
+        y = Input::ParkedPointer;
+        return;
+    }
+
     x = std::clamp(state.x, this->rangeLeft, this->rangeRight);
     y = std::clamp(state.y, this->rangeTop, this->rangeBottom);
+}
+
+// The rebuild: the mouse moved away from where the keyboard was taken up, or a button of it down.
+bool Input::MouseUsed(const MouseState& state) const
+{
+    return state.left || state.right || std::abs(state.x - this->anchorX) > Input::PointerNudge ||
+           std::abs(state.y - this->anchorY) > Input::PointerNudge;
 }
 
 // The rebuild (deviations.md): where the position may lie, from (left, top) to (right, bottom) inclusive; the map
@@ -171,6 +210,8 @@ void Input::SetMousePosition(int x, int y)
     }
 
     this->device.MoveMouse(x, y);
+    this->anchorX = x;
+    this->anchorY = y;
 }
 
 // swd32.exe 0x004374C0: tenths, truncated
