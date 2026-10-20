@@ -3,6 +3,7 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 
 #include "core/log.h"
@@ -447,6 +448,14 @@ void Display::WarpPointer(int x, int y)
         return;
     }
 
+    float windowX = 0;
+    float windowY = 0;
+    this->LogicalToWindow(x, y, windowX, windowY);
+    SDL_WarpMouseInWindow(this->window, windowX, windowY);
+}
+
+void Display::LogicalToWindow(int x, int y, float& windowX, float& windowY) const
+{
     int windowWidth = 0;
     int windowHeight = 0;
     int outputWidth = 0;
@@ -460,7 +469,40 @@ void Display::WarpPointer(int x, int y)
                                            static_cast<float>(this->layout.width);
     const float outputY = viewport.y + static_cast<float>(y + this->layout.screenY) * viewport.height /
                                            static_cast<float>(this->layout.height);
-    SDL_WarpMouseInWindow(this->window, outputX * scaleX, outputY * scaleY);
+    windowX = outputX * scaleX;
+    windowY = outputY * scaleY;
+}
+
+// The rebuild: the area is given again only when it moved (the window resized or the box elsewhere).
+void Display::SetTextInputArea(int x, int y, int width, int height)
+{
+    if (!this->IsOpen())
+    {
+        return;
+    }
+
+    float left = 0;
+    float top = 0;
+    float right = 0;
+    float bottom = 0;
+    this->LogicalToWindow(x, y, left, top);
+    this->LogicalToWindow(x + width, y + height, right, bottom);
+    const SDL_Rect area{
+        static_cast<int>(std::round(left)),
+        static_cast<int>(std::round(top)),
+        static_cast<int>(std::round(right - left)),
+        static_cast<int>(std::round(bottom - top)),
+    };
+
+    const std::array<int, 4> given{area.x, area.y, area.w, area.h};
+
+    if (given == this->textInputArea)
+    {
+        return;
+    }
+
+    this->textInputArea = given;
+    SDL_SetTextInputArea(this->window, &area, 0);
 }
 
 void Display::SetIcon(const IconImage& icon)

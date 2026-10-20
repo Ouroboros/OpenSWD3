@@ -138,6 +138,11 @@ constexpr int kPlayOnce = 1;
 constexpr std::size_t kFameWords = 0x200;  // Fame.dat
 constexpr int kFameCounters = 500;
 
+// The text typed into the text box: the character it refuses (0x00438B50) and the first byte that is not a control
+// character.
+constexpr char kRefusedCharacter = '%';
+constexpr u8 kFirstTypedByte = 0x20;
+
 // The name box.
 constexpr u32 kNameBoxPicture = 0x2449;
 constexpr int kNameBoxLeft = 0x6C;
@@ -459,6 +464,15 @@ void Game::LoopFrame()
         {
             SDL_StopTextInput(this->display.Window());
         }
+    }
+
+    // The rebuild: an input method shows its candidates beside the box being typed in.
+    if (this->state.GameFlag(GameState::TextBox) && this->textInput != nullptr)
+    {
+        const int x = this->textInput->GetX() - kNameBoxLeft;
+        const int y = this->textInput->GetY() - kNameBoxUp;
+        const Picture* box = this->archive.GetPicture(kNameBoxPicture, 0);
+        this->display.SetTextInputArea(x, y, box != nullptr ? box->width : 0, box != nullptr ? box->height : 0);
     }
 
     if (this->running != 0 && (this->systemFlags & Game::VideoPlaying) != 0)
@@ -2189,7 +2203,7 @@ void Game::SendText(TextMessage message, u32 parameter)
 }
 
 // swd32.exe 0x0040A0D0 (the messages of the running game): F8 pauses the frames; with flag 0x50 the keys and the typed
-// text go to the text box (as WM_KEYDOWN and WM_CHAR in Big5)
+// text go to the text box (the keys as WM_KEYDOWN and WM_CHAR; the text typed straight into it, deviations.md)
 void Game::HandleEvent(const SDL_Event& event)
 {
     if (event.type == SDL_EVENT_QUIT)
@@ -2295,12 +2309,32 @@ void Game::HandleEvent(const SDL_Event& event)
             }
         }
     }
-    else if (event.type == SDL_EVENT_TEXT_INPUT)
+    else if (event.type == SDL_EVENT_TEXT_INPUT && this->textInput != nullptr)
     {
+        // The rebuild (deviations.md): the text the keyboard or an input method commits goes into the box whole, its
+        // characters as they fit; '%' is refused with the box's sound, control characters are left out (a Big5 trail
+        // byte is 0x40 or more, so neither splits a character).
+        std::string typed;
+        bool refused = false;
+
         for (const char byte : Big5FromUtf8(event.text.text))
         {
-            this->SendText(TextMessage::Char, static_cast<u8>(byte));
+            if (byte == kRefusedCharacter)
+            {
+                refused = true;
+            }
+            else if (static_cast<u8>(byte) >= kFirstTypedByte)
+            {
+                typed.push_back(byte);
+            }
         }
+
+        if (refused)
+        {
+            this->audio.PlaySound(TextInput::RejectedSound, this->config.soundVolume);
+        }
+
+        this->textInput->InsertText(typed);
     }
 }
 

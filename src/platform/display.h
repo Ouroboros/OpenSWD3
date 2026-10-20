@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <string>
 
 struct SDL_Window;
@@ -101,6 +102,8 @@ public:
     // A window position (as reported by mouse events) in logical screen coordinates.
     LogicalPoint WindowToLogical(float windowX, float windowY) const;
     void WarpPointer(int x, int y);
+    // Where a text being typed lies on the logical screen, so that an input method shows its candidates beside it.
+    void SetTextInputArea(int x, int y, int width, int height);
     // The icon of the window, and the pointer shown over it while the system cursor is visible (swd32.exe 0x00409EC0
     // registers its window class with icon 0x65 and the blank cursor 0x67).
     void SetIcon(const IconImage& icon);
@@ -126,11 +129,14 @@ public:
 private:
     Viewport CurrentViewport() const;
     void TrackWindow(const SDL_Event& event);
+    // A logical screen point in window coordinates (what SDL_WarpMouseInWindow and SDL_SetTextInputArea take).
+    void LogicalToWindow(int x, int y, float& windowX, float& windowY) const;
 
     int restoredWidth = DefaultWindowWidth;
     int restoredHeight = DefaultWindowHeight;
     bool maximized = false;
     ScreenLayout layout{Width, Height, 0, 0};
+    std::array<int, 4> textInputArea{};  // SetTextInputArea: the area last given to SDL (x, y, width, height)
 
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
