@@ -106,6 +106,8 @@ struct DisplaySettings
     // move by 1/scale of a pixel; "auto" (the default) takes the largest whole scale the window shows, at most
     // MaximumAutoScale.
     std::optional<ScaleChoice> renderScale;
+    // wide_map: the map fills the window, seeing more of it, instead of 640x480 between black bars (default true).
+    std::optional<bool> wideMap;
 
     static constexpr i64 MinimumFrameRate = 30;
     static constexpr i64 MaximumFrameRate = 1000;
@@ -122,6 +124,7 @@ struct DisplaySettings
             SettingField<DisplaySettings, std::optional<bool>>{"vsync", &DisplaySettings::vsync},
             SettingField<DisplaySettings, std::optional<i64>>{"frame_rate", &DisplaySettings::frameRate},
             SettingField<DisplaySettings, std::optional<ScaleChoice>>{"render_scale", &DisplaySettings::renderScale},
+            SettingField<DisplaySettings, std::optional<bool>>{"wide_map", &DisplaySettings::wideMap},
         };
     }
 

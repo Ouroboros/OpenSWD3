@@ -86,6 +86,7 @@ public:
     // The rebuild's smooth motion: the screen position ReadMouse would give now.
     void PeekMouse(int& x, int& y) const;
     void SetMousePosition(int x, int y);
+    void SetRange(int left, int top, int right, int bottom);
     void SetSensitivity(double sensitivity);
     void Release();
 
@@ -96,6 +97,10 @@ private:
     std::array<u8, KeyCount> previousKeys{};
     std::array<bool, KeyCount> spent{};  // SpendHeld: read as up until let go
     int spentButtons = 0;
+    int rangeLeft = 0;  // SetRange
+    int rangeTop = 0;
+    int rangeRight = ScreenRight;
+    int rangeBottom = ScreenBottom;
     i32 sensitivity = Tenths;  // kept as the original sets it; the position does not use it
 };
 

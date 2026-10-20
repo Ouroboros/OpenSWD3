@@ -203,14 +203,37 @@ void FieldView::Paint()
     GameState& state = owner.state;
     Painter& painter = owner.painter;
     Scene& view = owner.scene;
-    painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+    const Field& field = owner.field;
+    // The rebuild's map filling the window (deviations.md): the world over the whole canvas, the interface on the
+    // 640x480 screen in it, as is the movie (black around it).
+    painter.SetClipClamped(0, 0, field.viewWidth, field.viewHeight);
 
     if ((view.screenFlags & Scene::SpotlightClip) != 0)
     {
         this->ClipToSpotlight();
     }
 
-    if (this->movie.active != 0)
+    if (this->movie.active != 0 && this->FillsWindow())
+    {
+        // The movie's rows are placed for a 640-pixel pitch and it keeps the screen between its frames: it runs on
+        // the offscreen surface as before, which is then laid on the screen's place in the black canvas.
+        const std::span<Pixel> canvas = this->Canvas();
+        std::fill(canvas.begin(), canvas.end(), Pixel{0});
+        owner.DrawOnOffscreen();
+        this->UpdateMovie();
+
+        for (int row = 0; row < Display::Height; ++row)
+        {
+            std::copy_n(
+                owner.offscreen->Row(row),
+                Display::Width,
+                canvas.data() + this->ScreenAt() + static_cast<std::size_t>(field.viewWidth) * row
+            );
+        }
+
+        owner.DrawOnMapCanvas();
+    }
+    else if (this->movie.active != 0)
     {
         this->UpdateMovie();
     }
@@ -224,10 +247,15 @@ void FieldView::Paint()
     if (capture)
     {
         this->CaptureLayer(this->worldLayer);
+    }
+
+    owner.DrawOnMapScreen();
+
+    if (capture)
+    {
         this->StartRecord(this->talkRecord);
     }
 
-    painter.SetClipClamped(0, 0, Display::Width, Display::Height);
     this->DrawLines();
     owner.talk.Draw();
 
@@ -261,9 +289,31 @@ void FieldView::Paint()
                           !state.GameFlag(GameState::HideHud)) ||
                          owner.input.IsKeyDown(Input::C) != 0;
 
-    if (pointer && !capture)
+    // The pointer may lie beside the 640x480 screen when the map fills the window: it is drawn on the whole canvas.
+    const bool beside = field.screenX != 0 || field.screenY != 0;
+
+    auto drawPointer = [&owner, &field, beside](int x, int y)
+    {
+        if (!beside)
+        {
+            owner.DrawPointer(x, y);
+            return;
+        }
+
+        owner.painter.SetTarget(owner.mapCanvas->Pixels());
+        owner.painter.SetClipClamped(0, 0, field.viewWidth, field.viewHeight);
+        owner.DrawPointer(x + field.screenX, y + field.screenY);
+        owner.DrawOnMapScreen();
+    };
+
+    if (pointer && !capture && !beside)
     {
         owner.RefreshCursor();
+    }
+    else if (pointer && !capture)
+    {
+        owner.StepPointer();
+        drawPointer(state.pointerX, state.pointerY);
     }
 
     if (capture)
@@ -294,7 +344,7 @@ void FieldView::Paint()
                 shown = sway;
             }
 
-            owner.DrawPointer(state.pointerX + shown[0] + act.x, state.pointerY + shown[1] + act.y);
+            drawPointer(state.pointerX + shown[0] + act.x, state.pointerY + shown[1] + act.y);
             this->MoveEffect(key, this->pointerSway[0], this->pointerSway[1], sway[0], sway[1], 1, true, kPointerSnap);
             this->pointerSway = sway;
         }
@@ -322,11 +372,14 @@ void FieldView::Paint()
 void FieldView::ClipToSpotlight()
 {
     const Scene& view = this->game.scene;
+    const Field& field = this->game.field;
+    const int lightX = view.spotlightX + field.screenX;
+    const int lightY = view.spotlightY + field.screenY;
     this->game.painter.SetClipClamped(
-        view.spotlightX - Scene::SpotlightRadius,
-        view.spotlightY - Scene::SpotlightRadius,
-        view.spotlightX + Scene::SpotlightRadius,
-        view.spotlightY + Scene::SpotlightRadius
+        lightX - Scene::SpotlightRadius,
+        lightY - Scene::SpotlightRadius,
+        lightX + Scene::SpotlightRadius,
+        lightY + Scene::SpotlightRadius
     );
 }
 
@@ -340,15 +393,25 @@ void FieldView::PaintWorld()
     Scene& view = owner.scene;
     const Field& field = owner.field;
     bool later = true;
+    // The canvas being drawn (a screen of the render scale's blocks between game frames).
+    const std::span<Pixel> canvas(
+        owner.drawSurface,
+        static_cast<std::size_t>(field.viewWidth) * static_cast<std::size_t>(field.viewHeight)
+    );
+    // The rebuild's view larger than the map shows black past its edges (deviations.md).
+    const bool pastMap = field.cameraLeft < 0 || field.cameraTop < 0 ||
+                         field.cameraRight > MapHeader::TileSize * state.map.width ||
+                         field.cameraBottom > MapHeader::TileSize * state.map.height;
 
-    if (state.GameFlag(GameState::OverlaysFirst) || state.GameFlag(GameState::Spotlight))
+    if (state.GameFlag(GameState::OverlaysFirst) || state.GameFlag(GameState::Spotlight) ||
+        (pastMap && (field.viewWidth != Display::Width || field.viewHeight != Display::Height)))
     {
-        std::memset(owner.drawSurface, 0, sizeof(Pixel) * Display::Pixels);
+        std::fill(canvas.begin(), canvas.end(), Pixel{0});
     }
 
     if ((view.screenFlags & Scene::BlackScreen) != 0)
     {
-        std::memset(owner.drawSurface, 0, sizeof(Pixel) * Display::Pixels);
+        std::fill(canvas.begin(), canvas.end(), Pixel{0});
     }
     else
     {
@@ -730,9 +793,7 @@ void FieldView::Render()
     this->PanCamera();
     this->ShakeCamera();
     owner.audioDevice.Serve();
-    owner.drawSurface = owner.painter.LockSurface(*owner.offscreen);
-    owner.painter.SetTarget(owner.drawSurface);
-    owner.painter.UnlockSurface(*owner.offscreen);
+    owner.BeginMapCanvas();
     this->CapturePlaces();
     this->Paint();
     this->DrawTimer(kTimerX, kTimerY, 0);
@@ -751,6 +812,7 @@ void FieldView::Render()
         this->finalRedrawn = this->FinishRecord(this->finalRecord, this->finalLayer);
     }
 
+    owner.EndMapCanvas();
     owner.ShowMapFrame();
 
     // The rebuild's continuous motion settles the controlled role when it reaches a tile; here only while it stands.

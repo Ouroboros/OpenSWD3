@@ -283,7 +283,7 @@ TEST_CASE("field view: spans of a logical layer scaled into blocks")
     }
 
     std::vector<swd3::u16> screen(kBlocks * kBlocks * Display::Pixels, kUntouched);
-    FieldView::CopySpans({FieldView::Span{kStart, kLength}}, layer, kScale, screen);
+    FieldView::CopySpans({FieldView::Span{kStart, kLength}}, layer, kScale, Display::Width, screen);
     int wrong = 0;
 
     for (std::size_t y = 0; y < kBlocks * Display::Height; ++y)

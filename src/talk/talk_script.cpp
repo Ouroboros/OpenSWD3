@@ -493,8 +493,8 @@ bool Talk::SetupDialog(
 
     if (window.role == 0)
     {
-        state.roles[0].x = field.cameraLeft + kNarratorX;
-        state.roles[0].y = field.cameraTop + kNarratorY;
+        state.roles[0].x = field.ScreenLeft() + kNarratorX;
+        state.roles[0].y = field.ScreenTop() + kNarratorY;
     }
 
     window.x = word(kPlaceWord);
@@ -545,14 +545,14 @@ bool Talk::SetupDialog(
         {
             window.fromX = static_cast<u16>(state.leader.x);
             window.fromY = static_cast<u16>(state.leader.y);
-            window.x = static_cast<u16>(window.fromX - (window.width >> 1) - field.cameraLeft);
-            window.y = static_cast<u16>(window.fromY - (window.height >> 1) - field.cameraTop);
+            window.x = static_cast<u16>(window.fromX - (window.width >> 1) - field.ScreenLeft());
+            window.y = static_cast<u16>(window.fromY - (window.height >> 1) - field.ScreenTop());
         }
         else if (window.role != 0 && window.role < GameState::Roles)
         {
             const Role& role = state.roles[window.role];
-            window.x = static_cast<u16>(static_cast<u16>(role.x) - (window.width >> 1) - field.cameraLeft);
-            window.y = static_cast<u16>(static_cast<u16>(role.y) - (window.height >> 1) - field.cameraTop);
+            window.x = static_cast<u16>(static_cast<u16>(role.x) - (window.width >> 1) - field.ScreenLeft());
+            window.y = static_cast<u16>(static_cast<u16>(role.y) - (window.height >> 1) - field.ScreenTop());
         }
     }
 
@@ -605,14 +605,14 @@ bool Talk::SetupDialog(
         window.role != TalkWindow::NoRole && window.role < GameState::Roles)
     {
         const Role& role = state.roles[window.role];
-        const auto screenX = static_cast<u32>(role.x - field.cameraLeft);
+        const auto screenX = static_cast<u32>(role.x - field.ScreenLeft());
         const int left = window.x;
 
         if (screenX > static_cast<u32>(left - kSpeakerLeft) &&
             screenX < static_cast<u32>(left + window.width + kSpeakerRight))
         {
             const u16 top = window.y;
-            const auto screenY = static_cast<u32>(role.y - field.cameraTop);
+            const auto screenY = static_cast<u32>(role.y - field.ScreenTop());
 
             if (screenY > static_cast<u32>(top) - kSpeakerAbove &&
                 screenY < static_cast<u32>(top) + window.height + kSpeakerBelow)

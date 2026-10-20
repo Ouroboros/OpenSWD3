@@ -6,7 +6,6 @@
 #include <emmintrin.h>
 #endif
 
-#include "platform/display.h"
 #include "platform/surface.h"
 
 namespace swd3
@@ -15,12 +14,14 @@ namespace swd3
 void Weave(std::span<const Surface* const> parts, int scale, std::span<Pixel> to)
 {
     const auto blocks = static_cast<std::size_t>(scale);
-    const std::size_t pitch = static_cast<std::size_t>(Display::Width) * blocks;
+    // The parts are all the size of the first (the 640x480 screen, or the map's canvas filling the window).
+    const auto width = static_cast<std::size_t>(parts[0]->Width());
+    const int height = parts[0]->Height();
+    const std::size_t pitch = width * blocks;
 
-    constexpr auto kWidth = static_cast<std::size_t>(Display::Width);
     std::array<const Pixel*, MaxWeaveScale> sources = {};
 
-    for (int y = 0; y < Display::Height; ++y)
+    for (int y = 0; y < height; ++y)
     {
         for (std::size_t row = 0; row < blocks; ++row)
         {
@@ -41,7 +42,7 @@ void Weave(std::span<const Surface* const> parts, int scale, std::span<Pixel> to
 
             if (blocks == kPairBlocks)
             {
-                for (; x + kLanes <= kWidth; x += kLanes)
+                for (; x + kLanes <= width; x += kLanes)
                 {
                     const __m128i first = _mm_loadu_si128(reinterpret_cast<const __m128i*>(sources[0] + x));
                     const __m128i second = _mm_loadu_si128(reinterpret_cast<const __m128i*>(sources[1] + x));
@@ -52,7 +53,7 @@ void Weave(std::span<const Surface* const> parts, int scale, std::span<Pixel> to
             }
             else if (blocks == kQuadBlocks)
             {
-                for (; x + kLanes <= kWidth; x += kLanes)
+                for (; x + kLanes <= width; x += kLanes)
                 {
                     const __m128i first = _mm_loadu_si128(reinterpret_cast<const __m128i*>(sources[0] + x));
                     const __m128i second = _mm_loadu_si128(reinterpret_cast<const __m128i*>(sources[1] + x));
@@ -71,7 +72,7 @@ void Weave(std::span<const Surface* const> parts, int scale, std::span<Pixel> to
             }
 #endif
 
-            for (; x < kWidth; ++x)
+            for (; x < width; ++x)
             {
                 for (std::size_t column = 0; column < blocks; ++column)
                 {

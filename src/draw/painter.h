@@ -132,6 +132,9 @@ public:
 
     // Pixel format and screen geometry of the screen surface; without a surface the RGB555 defaults are used.
     bool Init(Surface& screen);
+    // The rebuild (deviations.md): the screen drawn to is `width` x `height` pixels from now on (the map filling
+    // the window draws to a larger one), the clip the whole of it; the pixel format stays.
+    void SetScreen(int width, int height);
     bool InitPixelFormat(const Surface* screen);
     void ColorMasks(u32& red, u32& green, u32& blue) const;
     u32 FillColorPair() const;

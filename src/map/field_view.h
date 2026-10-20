@@ -187,14 +187,16 @@ public:
         u32 length = 0;
     };
 
-    // The pixels of `spans` of a logical layer into a screen `scale` times as large, each as a scale x scale block.
+    // The pixels of `spans` of a logical layer `width` pixels across into a screen `scale` times as large, each as a
+    // scale x scale block.
     static void CopySpans(
         const std::vector<Span>& spans,
         const std::vector<Pixel>& from,
         int scale,
+        int width,
         std::span<Pixel> to
     );
-    static void ScaleLayer(const std::vector<Pixel>& from, int scale, std::span<Pixel> to);
+    static void ScaleLayer(const std::vector<Pixel>& from, int scale, int width, std::span<Pixel> to);
 
     i32 tileX = 0;  // 0x004CC2E4 the screen x of the first visible tile column
     i32 tileY = 0;  // 0x004CC2E8
@@ -338,6 +340,14 @@ private:
     const Pixel* paintedTarget = nullptr;
     bool paintedValid = false;
 
+    // The rebuild's map filling the window (deviations.md): the canvas of the map frame (Game::mapCanvas), and where
+    // the 640x480 screen the interface is drawn on starts in it.
+    std::span<Pixel> Canvas() const;
+    // The map is drawn larger than the 640x480 screen.
+    bool FillsWindow() const;
+    // The tile rows the canvas spans (15 on the 640x480 screen).
+    int ViewRows() const;
+    std::size_t ScreenAt() const;
     void MarkChanges(const std::vector<Pixel>& before, std::vector<Span>& spans) const;
     // A layer's draws recorded from now on the screen drawn to; at its end whether drawing them again unmoved gives it.
     void StartRecord(PaintRecord& record);
@@ -387,6 +397,8 @@ private:
     void DrawSmallText(int x, int y, u32 color, const std::string& text);
     void DrawTileGrid(const TileSet& tiles);
     void DrawTileGridScrolled(const TileSet& tiles);
+    void DrawTileCanvas(const TileSet& tiles);
+    void DrawHeatCanvas();
     u32 Block(int index) const;
     u16 Tile(int index) const;
     void SetTileSource(const TileSet& tiles, int index, bool wideRead = false);

@@ -20,42 +20,14 @@ constexpr std::u8string_view kBink = u8"bik";  // .avi and .mpg movies are playe
 
 }  // namespace
 
-// swd32.exe 0x0040D160: the camera around (x, y): 320 x 240 pixels before it, held inside the map
+// swd32.exe 0x0040D160: the camera around (x, y): half the view (320 x 240 pixels) before it, held inside the map
 void Field::CameraAround(int x, int y, CameraRect& rect) const
 {
-    constexpr i32 kHalfWidth = Display::Width / 2;
-    constexpr i32 kHalfHeight = Display::Height / 2;
-    constexpr i32 kColumns = Display::Width / MapHeader::TileSize;
-    constexpr i32 kRows = Display::Height / MapHeader::TileSize;
-    rect.left = x - kHalfWidth;
-
-    if (x - kHalfWidth < 0)
-    {
-        rect.left = 0;
-    }
-
-    rect.top = y - kHalfHeight;
-
-    if (y - kHalfHeight < 0)
-    {
-        rect.top = 0;
-    }
-
-    rect.right = rect.left + Display::Width;
-
-    if (rect.right >= MapHeader::TileSize * this->state.map.width)
-    {
-        rect.left = MapHeader::TileSize * (this->state.map.width - kColumns);
-        rect.right = MapHeader::TileSize * this->state.map.width;
-    }
-
-    rect.bottom = rect.top + Display::Height;
-
-    if (rect.bottom >= MapHeader::TileSize * this->state.map.height)
-    {
-        rect.top = MapHeader::TileSize * (this->state.map.height - kRows);
-        rect.bottom = MapHeader::TileSize * this->state.map.height;
-    }
+    const std::array<i32, 2> place = this->HoldCamera(x - this->viewWidth / 2, y - this->viewHeight / 2);
+    rect.left = place[0];
+    rect.top = place[1];
+    rect.right = rect.left + this->viewWidth;
+    rect.bottom = rect.top + this->viewHeight;
 }
 
 // swd32.exe 0x0040D560: role `id` loaded from its record of maps.dat's role table (act, place in tiles, event, path,

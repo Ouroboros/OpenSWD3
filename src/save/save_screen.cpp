@@ -883,10 +883,9 @@ void Game::WriteSave(File& file)
     const std::string date = WinFormat(kSaveDateFormat, {now.year, now.month, now.day, now.hour, now.minute})
                                  .substr(0, SaveSlots::HeaderBytes);
     write(date.data(), SaveSlots::HeaderBytes);
-    this->drawSurface = this->painter.LockSurface(*this->offscreen);
-    this->painter.SetTarget(this->drawSurface);
-    this->painter.UnlockSurface(*this->offscreen);
+    this->BeginMapCanvas();
     this->fieldView.Paint();
+    this->EndMapCanvas();
     this->audioDevice.Serve();
     ShrinkScreenQuarter(*this->offscreen);
     const std::span<u16> thumbnail(this->drawSurface, SaveSlots::ThumbnailPixels);

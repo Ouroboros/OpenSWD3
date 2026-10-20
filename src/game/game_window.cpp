@@ -151,6 +151,7 @@ void Game::ReleaseBattle()
 void Game::ReleaseGame()
 {
     LogInfo(u8"game released");
+    this->mapBehind = false;
     this->largeFont.Shutdown();
     this->mediumFont.Shutdown();
     this->smallFont.Shutdown();

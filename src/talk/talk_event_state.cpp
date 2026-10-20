@@ -1403,11 +1403,13 @@ bool Talk::RunSystemCommand(EventRun& run)
             run.valueA = x;
             run.valueB = y;
             constexpr int kSplashRadius = 0x18;
+            // On the map's canvas, the place counted from the 640x480 screen in it (deviations.md).
+            const Field& field = owner.field;
             auto ripple = std::make_unique<ScriptObject>(
-                Display::Width,
-                Display::Height,
-                x - radius,
-                y - radius,
+                field.viewWidth,
+                field.viewHeight,
+                x - radius + field.screenX,
+                y - radius + field.screenY,
                 2 * radius,
                 2 * radius
             );
@@ -1491,7 +1493,7 @@ bool Talk::RunSystemCommand(EventRun& run)
 
         case EventCommand::WaitCameraY:
             if ((view.panAcross == 0 && view.panDown == 0) ||
-                field.cameraTop == static_cast<i16>(this->OperandsOf(run).Word()))
+                field.cameraTop + field.screenY == static_cast<i16>(this->OperandsOf(run).Word()))
             {
                 this->Next(run);
                 return true;

@@ -115,10 +115,6 @@ constexpr int kProgressRoles = 75;
 constexpr int kProgressOverlays = 80;
 constexpr int kProgressDone = 85;
 
-constexpr i32 kCameraLeft = Display::Width / 2 - MapHeader::TileSize;  // the camera from the controlled role
-constexpr i32 kCameraUp = Display::Height / 2;
-constexpr i32 kScreenColumns = Display::Width / MapHeader::TileSize;
-constexpr i32 kScreenRows = Display::Height / MapHeader::TileSize;
 constexpr i32 kTwoTiles = 2;  // a role this wide or high has its second cell set directly
 
 u16 Word(std::span<const u8> bytes, std::size_t at)
@@ -361,50 +357,64 @@ bool Field::LoadMapPicture(int unit, Picture& picture)
     return this->LoadUnitPicture(static_cast<u32>(unit), picture);
 }
 
-// swd32.exe 0x0040D0C0: the camera centred on the controlled role (304 pixels left of it, 240 above), held inside the
-// map
+// swd32.exe 0x0040D0C0: the camera centred on the controlled role (304 pixels left of it, 240 above: half the view
+// less a tile across), held inside the map
 void Field::CenterCamera()
 {
     const Role& player = this->state.Player();
-    const i32 width = MapHeader::TileSize * this->state.map.width;
-    const i32 height = MapHeader::TileSize * this->state.map.height;
-    this->cameraLeft = std::max(player.x - kCameraLeft, 0);
-    this->cameraTop = std::max(player.y - kCameraUp, 0);
-    this->cameraRight = this->cameraLeft + Display::Width;
-
-    if (this->cameraRight >= width)
-    {
-        this->cameraRight = width;
-        this->cameraLeft = MapHeader::TileSize * (this->state.map.width - kScreenColumns);
-    }
-
-    this->cameraBottom = this->cameraTop + Display::Height;
-
-    if (this->cameraBottom >= height)
-    {
-        this->cameraBottom = height;
-        this->cameraTop = MapHeader::TileSize * (this->state.map.height - kScreenRows);
-    }
+    const std::array<i32, 2> place = this->CameraCentredOn(player.x, player.y);
+    this->cameraLeft = place[0];
+    this->cameraTop = place[1];
+    this->cameraRight = this->cameraLeft + this->viewWidth;
+    this->cameraBottom = this->cameraTop + this->viewHeight;
 }
 
 std::array<i32, 2> Field::CameraCentredOn(i32 x, i32 y, int scale) const
 {
-    const i32 width = MapHeader::TileSize * this->state.map.width * scale;
-    const i32 height = MapHeader::TileSize * this->state.map.height * scale;
-    i32 left = std::max(x - kCameraLeft * scale, 0);
-    i32 top = std::max(y - kCameraUp * scale, 0);
+    return this
+        ->HoldCamera(x - (this->viewWidth / 2 - MapHeader::TileSize) * scale, y - this->viewHeight / 2 * scale, scale);
+}
 
-    if (left + Display::Width * scale >= width)
+// The camera at (left, top) (in 1/scale pixels) held inside the map as the original holds it: not before its start,
+// and at its end where the view would pass it (before the start on a map smaller than the view). The rebuild's view
+// wider (higher) than 640x480 shows a map smaller than it in its middle instead (deviations.md).
+std::array<i32, 2> Field::HoldCamera(i32 left, i32 top, int scale) const
+{
+    auto hold = [](i32 place, i32 extent, i32 view, bool wide)
     {
-        left = MapHeader::TileSize * (this->state.map.width - kScreenColumns) * scale;
-    }
+        if (wide && extent < view)
+        {
+            return (extent - view) / 2;
+        }
 
-    if (top + Display::Height * scale >= height)
-    {
-        top = MapHeader::TileSize * (this->state.map.height - kScreenRows) * scale;
-    }
+        place = std::max(place, 0);
+        return place + view >= extent ? extent - view : place;
+    };
 
-    return {left, top};
+    return {
+        hold(
+            left,
+            MapHeader::TileSize * this->state.map.width * scale,
+            this->viewWidth * scale,
+            this->viewWidth > Display::Width
+        ),
+        hold(
+            top,
+            MapHeader::TileSize * this->state.map.height * scale,
+            this->viewHeight * scale,
+            this->viewHeight > Display::Height
+        ),
+    };
+}
+
+i32 Field::ScreenLeft() const
+{
+    return this->cameraLeft + this->screenX;
+}
+
+i32 Field::ScreenTop() const
+{
+    return this->cameraTop + this->screenY;
 }
 
 // swd32.exe 0x00425BE0: map `map` of HUGE.lmf (from the CD for the small installation): its header, the cached unit of

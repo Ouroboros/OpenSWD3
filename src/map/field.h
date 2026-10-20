@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "core/types.h"
+#include "platform/display.h"
 #include "res/tsw_archive.h"
 
 namespace swd3
@@ -94,6 +95,11 @@ public:
     void CenterCamera();
     // The camera CenterCamera gives a controlled role at (x, y): its left and top (in 1/scale pixels, as x and y).
     std::array<i32, 2> CameraCentredOn(i32 x, i32 y, int scale = 1) const;
+    std::array<i32, 2> HoldCamera(i32 left, i32 top, int scale = 1) const;
+    // Where the game's 640x480 screen starts on the map (the camera when the map does not fill the window): the
+    // interface places what it shows of the map from here.
+    i32 ScreenLeft() const;
+    i32 ScreenTop() const;
     void MarkRoleCells(const Role& role, i32 leader);
     void ClearRoleCells(const Role& role, i32 leader);
     MapRegion* FindRegion(int id);
@@ -112,7 +118,13 @@ public:
     i32 cameraTop = 0;                            // 0x004AB984
     i32 cameraRight = 0;                          // 0x004AB988
     i32 cameraBottom = 0;                         // 0x004AB98C
-    std::vector<u16> palette;                     // 0x004B7404 the colours of an 8-bit map
+    // The rebuild (deviations.md): the canvas the map is drawn to, which the camera spans (the 640x480 screen unless
+    // the map fills the window), and where the game's 640x480 screen lies on it (the interface is drawn there).
+    i32 viewWidth = Display::Width;
+    i32 viewHeight = Display::Height;
+    i32 screenX = 0;
+    i32 screenY = 0;
+    std::vector<u16> palette;  // 0x004B7404 the colours of an 8-bit map
 
 private:
     GameState& state;

@@ -458,9 +458,9 @@ bool Talk::OpenDialog(EventRun& run)
 
     if ((this->dialogOrigin & Talk::OriginXMask) != Talk::NoOriginX)
     {
-        window->fromX = static_cast<u16>(this->dialogOrigin + static_cast<u32>(field.cameraLeft));
+        window->fromX = static_cast<u16>(this->dialogOrigin + static_cast<u32>(field.ScreenLeft()));
         window->fromY =
-            static_cast<u16>((this->dialogOrigin >> Talk::OriginYShift) + static_cast<u32>(field.cameraTop));
+            static_cast<u16>((this->dialogOrigin >> Talk::OriginYShift) + static_cast<u32>(field.ScreenTop()));
     }
 
     u32 options = 0;

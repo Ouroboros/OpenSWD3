@@ -134,8 +134,18 @@ int Input::ReadMouse(int& x, int& y)
 void Input::PeekMouse(int& x, int& y) const
 {
     const MouseState state = this->device.Mouse();
-    x = std::clamp(state.x, 0, Input::ScreenRight);
-    y = std::clamp(state.y, 0, Input::ScreenBottom);
+    x = std::clamp(state.x, this->rangeLeft, this->rangeRight);
+    y = std::clamp(state.y, this->rangeTop, this->rangeBottom);
+}
+
+// The rebuild (deviations.md): where the position may lie, from (left, top) to (right, bottom) inclusive; the map
+// filling the window reaches past the 640x480 screen on its sides.
+void Input::SetRange(int left, int top, int right, int bottom)
+{
+    this->rangeLeft = left;
+    this->rangeTop = top;
+    this->rangeRight = right;
+    this->rangeBottom = bottom;
 }
 
 // swd32.exe 0x00437430: (x, y) clamped to the screen becomes the position. The original moves the origin so that the

@@ -106,8 +106,8 @@ void FieldView::DrawSprites()
             // Smooth motion: the frame the act showed last where the sprite glides, nothing stepped, moved or freed.
             const Picture* shown = owner.archive.GetPicture(sprite.act.frame, sprite.act.picture);
 
-            if (shown != nullptr && screenX > -kSpriteMargin && screenX < Display::Width + kSpriteMargin &&
-                screenY > -kSpriteMargin && screenY < Display::Height + kSpriteMargin)
+            if (shown != nullptr && screenX > -kSpriteMargin && screenX < field.viewWidth + kSpriteMargin &&
+                screenY > -kSpriteMargin && screenY < field.viewHeight + kSpriteMargin)
             {
                 painter.Options().alpha = sprite.act.signal;
                 painter.SetSource(shown->data.data());
@@ -135,8 +135,8 @@ void FieldView::DrawSprites()
             );
         }
 
-        if (screenX > -kSpriteMargin && screenX < Display::Width + kSpriteMargin && screenY > -kSpriteMargin &&
-            screenY < Display::Height + kSpriteMargin)
+        if (screenX > -kSpriteMargin && screenX < field.viewWidth + kSpriteMargin && screenY > -kSpriteMargin &&
+            screenY < field.viewHeight + kSpriteMargin)
         {
             const Picture* picture = owner.archive.GetPicture(sprite.act.frame, sprite.act.picture);
 

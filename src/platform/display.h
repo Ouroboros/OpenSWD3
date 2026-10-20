@@ -29,15 +29,29 @@ struct LogicalPoint
     int y;
 };
 
-// The largest rectangle with the logical aspect ratio that fits the output, centred; the rest stays black.
-Viewport FitViewport(int outputWidth, int outputHeight);
+// What the window shows: a canvas of width x height logical pixels, and where the game's 640x480 screen lies on it
+// (its left and top), which the pointer's coordinates count from. The map fills the window with a larger canvas
+// (deviations.md); everything else is the 640x480 screen alone.
+struct ScreenLayout
+{
+    int width = 0;
+    int height = 0;
+    int screenX = 0;
+    int screenY = 0;
+};
 
-// An output position mapped to logical screen coordinates; positions on the black bars clamp to the screen edge.
-LogicalPoint ToLogical(const Viewport& viewport, float outputX, float outputY);
+// The largest rectangle with the aspect ratio of `layout` (of the 640x480 screen without one) that fits the output,
+// centred; the rest stays black.
+Viewport FitViewport(int outputWidth, int outputHeight, const ScreenLayout& layout = {});
+
+// An output position mapped to the coordinates of the game's screen on `layout`; positions off the canvas clamp to
+// its edge.
+LogicalPoint ToLogical(const Viewport& viewport, float outputX, float outputY, const ScreenLayout& layout = {});
 
 // The game window. The original ran full screen at 640x480; here the logical screen keeps that size while the
 // window can be resized freely: the screen is scaled with nearest sampling at any ratio that keeps its aspect, with
-// black bars on the remaining sides. Alt+Enter toggles borderless full screen.
+// black bars on the remaining sides. Alt+Enter toggles borderless full screen. The map can fill it instead
+// (SetLayout).
 class Display
 {
 public:
@@ -68,7 +82,16 @@ public:
     // The screen shown scaled to the window; a screen larger than the logical one (the map drawn at a render scale)
     // goes through a texture of its own size.
     void Present(const Surface& screen);
-    // The largest whole multiple of the logical screen the window's output holds (at least 1).
+    // What the frames shown from now on are (the 640x480 screen alone by default).
+    void SetLayout(const ScreenLayout& layout);
+    // A picture of the whole canvas shown behind the 640x480 frames presented on a larger layout (nothing behind them
+    // without one: black); taken once here.
+    void SetBackdrop(const Surface* canvas);
+    const ScreenLayout& Layout() const;
+    // The canvas the map would fill the window with: as high as the screen and as wide as the window's shape asks
+    // (as wide and taller in a tall window), at least the 640x480 screen.
+    ScreenLayout FillLayout() const;
+    // The largest whole multiple of the canvas the window's output holds (at least 1).
     int FitScale() const;
     // Presenting waits for the display's refresh (`enabled`); false when the renderer cannot.
     bool SetVSync(bool enabled);
@@ -107,6 +130,7 @@ private:
     int restoredWidth = DefaultWindowWidth;
     int restoredHeight = DefaultWindowHeight;
     bool maximized = false;
+    ScreenLayout layout{Width, Height, 0, 0};
 
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
@@ -114,6 +138,10 @@ private:
     SDL_Texture* scaledTexture = nullptr;  // for screens larger than Width x Height
     int scaledWidth = 0;
     int scaledHeight = 0;
+    SDL_Texture* backdrop = nullptr;  // SetBackdrop
+    int backdropWidth = 0;
+    int backdropHeight = 0;
+    bool backdropShown = false;
     SDL_Cursor* cursor = nullptr;
 };
 

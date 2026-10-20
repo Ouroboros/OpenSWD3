@@ -15,7 +15,7 @@ void FieldView::DrawRoles()
         const std::vector<Role*>& rows = this->game.field.rows[static_cast<std::size_t>(layer)];
         auto row = static_cast<u32>(this->game.field.cameraTop / MapHeader::TileSize - Field::RowMargin);
 
-        for (int count = 0; count < kScreenRows + 2 * Field::RowMargin; ++count, ++row)
+        for (int count = 0; count < this->ViewRows() + 2 * Field::RowMargin; ++count, ++row)
         {
             const std::size_t index = row + Field::RowMargin;
 
@@ -55,7 +55,7 @@ int FieldView::DrawRole(Role& role)
     const int cameraLeft = field.cameraLeft;
     const int cameraTop = field.cameraTop;
 
-    if (x - cameraLeft < -kRoleMarginX || x - cameraLeft > Display::Width + kRoleMarginX)
+    if (x - cameraLeft < -kRoleMarginX || x - cameraLeft > field.viewWidth + kRoleMarginX)
     {
         return 1;
     }
@@ -312,7 +312,7 @@ void FieldView::DrawReflections()
     const std::vector<Role*>& rows = this->game.field.rows[0];
     int row = this->game.field.cameraTop / MapHeader::TileSize - kReflectionRowsAbove;
 
-    for (int count = -2 * kReflectionRowsAbove; count < kScreenRows; ++count, ++row)
+    for (int count = -2 * kReflectionRowsAbove; count < this->ViewRows(); ++count, ++row)
     {
         if (row >= this->game.state.map.height)
         {
@@ -347,7 +347,7 @@ int FieldView::DrawReflection(const Role& role)
     const Field& field = this->game.field;
     const int x = role.x;
 
-    if (x - field.cameraLeft <= -kRoleMarginX || x - field.cameraLeft >= Display::Width + kRoleMarginX)
+    if (x - field.cameraLeft <= -kRoleMarginX || x - field.cameraLeft >= field.viewWidth + kRoleMarginX)
     {
         return 1;
     }

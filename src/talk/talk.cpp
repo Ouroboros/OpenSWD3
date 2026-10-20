@@ -121,8 +121,9 @@ void Talk::HandlePointer()
     ButtonState& left = controls.At(Button::MouseLeft);
     i32& cursor = owner.scene.pointerRole.act.action;
     Role& player = state.roles[static_cast<std::size_t>(state.playerRole)];
-    const int cameraLeft = field.cameraLeft;
-    const int cameraTop = field.cameraTop;
+    // The pointer counts from the game's 640x480 screen (the map filling the window lies around it).
+    const int cameraLeft = field.ScreenLeft();
+    const int cameraTop = field.ScreenTop();
     u32 found = kNoIndex;
     bool regionsAllowed = true;
 
@@ -138,12 +139,13 @@ void Talk::HandlePointer()
             }
 
             const Picture* picture = owner.archive.FindPicture(role.act.frame, role.act.picture);
-            const auto x = static_cast<u32>(role.x - role.act.x - cameraLeft);
-            const auto y = static_cast<u32>(role.y - role.act.y - cameraTop);
+            const int x = role.x - role.act.x - cameraLeft;
+            const int y = role.y - role.act.y - cameraTop;
 
-            if (picture != nullptr && static_cast<u32>(state.pointerX) > x &&
-                static_cast<u32>(state.pointerX) < x + picture->width && static_cast<u32>(state.pointerY) > y &&
-                static_cast<u32>(state.pointerY) < y + picture->height)
+            // The rebuild compares signed (the original's unsigned places miss a role across the screen's left or
+            // top edge, which the map filling the window shows whole).
+            if (picture != nullptr && state.pointerX > x && state.pointerX < x + picture->width && state.pointerY > y &&
+                state.pointerY < y + picture->height)
             {
                 break;
             }

@@ -358,6 +358,7 @@ int Game::Run([[maybe_unused]] std::u8string_view commandLine)
     this->frameRate = shown.frameRate.value_or(0);
     const ScaleChoice renderScale = shown.renderScale.value_or(ScaleChoice{});
     this->renderScaleSetting = renderScale.automatic ? Game::AutoRenderScale : static_cast<int>(renderScale.factor);
+    this->wideMap = shown.wideMap.value_or(true);
     this->smoothScreen = std::make_unique<Surface>(Display::Width, Display::Height);
     this->menuScreen = std::make_unique<Surface>(Display::Width, Display::Height);
     this->ApplyDisplay();
@@ -1279,6 +1280,8 @@ void Game::DrawPointer(int x, int y)
 // The frame drawn on the frame surface shown: the original blits it to the primary surface (DDBLT_WAIT).
 void Game::ShowFrame()
 {
+    this->ShowLayout(false);
+
     if (this->CopyToPrimary())
     {
         this->graphics.Present();
@@ -1305,14 +1308,143 @@ bool Game::CopyToPrimary()
 
 void Game::ShowMapFrame()
 {
+    this->mapBehind = true;
+
     if (!this->smoothMotion)
     {
-        this->ShowFrame();
+        this->ShowLayout(true);
+        this->display.Present(*this->mapCanvas);
         return;
     }
 
     this->CopyToPrimary();
     this->mapFrameShown = true;
+}
+
+void Game::BeginMapCanvas()
+{
+    const ScreenLayout layout =
+        this->wideMap ? this->display.FillLayout() : ScreenLayout{Display::Width, Display::Height, 0, 0};
+    this->SetMapView(layout);
+
+    if (this->mapCanvas == nullptr || this->mapCanvas->Width() != layout.width ||
+        this->mapCanvas->Height() != layout.height)
+    {
+        this->mapCanvas = std::make_unique<Surface>(layout.width, layout.height);
+    }
+
+    this->DrawOnMapCanvas();
+}
+
+void Game::DrawOnMapCanvas()
+{
+    this->SetDrawSize(this->mapCanvas->Width(), this->mapCanvas->Height());
+    this->drawSurface = this->painter.LockSurface(*this->mapCanvas);
+    this->painter.SetTarget(this->drawSurface);
+    this->painter.UnlockSurface(*this->mapCanvas);
+}
+
+void Game::DrawOnOffscreen()
+{
+    this->SetDrawSize(Display::Width, Display::Height);
+    this->drawSurface = this->painter.LockSurface(*this->offscreen);
+    this->painter.SetTarget(this->drawSurface);
+    this->painter.UnlockSurface(*this->offscreen);
+}
+
+void Game::DrawOnMapScreen()
+{
+    const auto at = static_cast<std::ptrdiff_t>(this->field.screenY) * this->mapLayout.width + this->field.screenX;
+    this->drawSurface = this->mapCanvas->Pixels() + at;
+    this->painter.SetTarget(this->drawSurface);
+    this->painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+}
+
+void Game::EndMapCanvas()
+{
+    const Surface& canvas = *this->mapCanvas;
+
+    for (int row = 0; row < Display::Height; ++row)
+    {
+        const Pixel* from = canvas.Row(row + this->field.screenY) + this->field.screenX;
+        std::copy_n(from, Display::Width, this->offscreen->Row(row));
+    }
+
+    this->DrawOnOffscreen();
+}
+
+void Game::SetDrawSize(int width, int height)
+{
+    if (width == this->drawWidth && height == this->drawHeight)
+    {
+        return;
+    }
+
+    this->drawWidth = width;
+    this->drawHeight = height;
+    this->painter.SetScreen(width, height);
+
+    // The text is drawn on the 640x480 screen alone, its rows a canvas row apart.
+    for (TextFont* font : {&this->largeFont, &this->mediumFont, &this->smallFont})
+    {
+        font->SetTarget(width, Display::Height);
+    }
+}
+
+void Game::SetMapView(const ScreenLayout& layout)
+{
+    Field& field = this->field;
+    this->mapLayout = layout;
+
+    if (field.viewWidth == layout.width && field.viewHeight == layout.height)
+    {
+        return;
+    }
+
+    // The 640x480 screen stays where it was on the map; the view around it is held inside the map.
+    const i32 left = field.ScreenLeft();
+    const i32 top = field.ScreenTop();
+    field.viewWidth = layout.width;
+    field.viewHeight = layout.height;
+    field.screenX = layout.screenX;
+    field.screenY = layout.screenY;
+    const std::array<i32, 2> place = field.HoldCamera(left - layout.screenX, top - layout.screenY);
+    field.cameraLeft = place[0];
+    field.cameraTop = place[1];
+    field.cameraRight = field.cameraLeft + field.viewWidth;
+    field.cameraBottom = field.cameraTop + field.viewHeight;
+    LogInfo(u8"map view %dx%d (the screen at %d,%d)", layout.width, layout.height, layout.screenX, layout.screenY);
+}
+
+void Game::ShowLayout(bool map)
+{
+    const u32 menu = this->menuState & Game::MenuNumberMask;
+    const bool overMap = !map && this->mapBehind && this->inBattle == 0 && this->mapCanvas != nullptr &&
+                         menu != Game::NoMenu && menu != Game::TitleScreenMenu;
+    const ScreenLayout screen{Display::Width, Display::Height, 0, 0};
+    const ScreenLayout& layout = map || overMap ? this->mapLayout : screen;
+    this->display.SetLayout(layout);
+
+    if (overMap != this->backdropTaken)
+    {
+        this->display.SetBackdrop(overMap ? this->mapCanvas.get() : nullptr);
+        this->backdropTaken = overMap;
+    }
+
+    // On the map the pointer reaches over the whole canvas, elsewhere the 640x480 screen.
+    if (map)
+    {
+        this->input.SetRange(
+            -layout.screenX,
+            -layout.screenY,
+            layout.width - layout.screenX - 1,
+            layout.height - layout.screenY - 1
+        );
+    }
+    else
+    {
+        this->input.SetRange(0, 0, Input::ScreenRight, Input::ScreenBottom);
+    }
 }
 
 void Game::ShowMenuFrame()
@@ -1340,11 +1472,12 @@ void Game::ApplyDisplay()
     this->frameRatePeriodNs = this->frameRate > 0 ? kNanosecondsPerSecond / static_cast<u64>(this->frameRate) : 0;
     this->nextDrawNs = 0;
     LogInfo(
-        u8"smooth_motion=%d vsync=%d frame_rate=%d render_scale=%d (0: auto)",
+        u8"smooth_motion=%d vsync=%d frame_rate=%d render_scale=%d (0: auto) wide_map=%d",
         this->smoothMotion ? 1 : 0,
         this->vsync ? 1 : 0,
         static_cast<i32>(this->frameRate),
-        this->renderScaleSetting
+        this->renderScaleSetting,
+        this->wideMap ? 1 : 0
     );
 }
 
@@ -1360,6 +1493,7 @@ void Game::StoreDisplay() const
                 stored.smoothMotion = this->smoothMotion;
                 stored.vsync = this->vsync;
                 stored.frameRate = this->frameRate;
+                stored.wideMap = this->wideMap;
                 stored.renderScale = this->renderScaleSetting == Game::AutoRenderScale
                                          ? ScaleChoice{}
                                          : ScaleChoice{false, this->renderScaleSetting};
@@ -1416,11 +1550,17 @@ bool Game::PresentBetween()
         const u64 took = SDL_GetTicksNS() - paintStart;
         this->paintBetweenNs += took;
         this->paintBetweenMostNs = std::max(this->paintBetweenMostNs, took);
+        this->ShowLayout(false);
         this->display.Present(painted ? screen : *this->offscreen);
         ++this->framesBetween;
         return true;
     }
 
+    // The map fills its canvas, the battle the 640x480 screen.
+    const bool map = !this->battleFrameShown;
+    this->ShowLayout(map);
+    const int width = map ? this->mapLayout.width : Display::Width;
+    const int height = map ? this->mapLayout.height : Display::Height;
     int scale = this->renderScaleSetting;
 
     if (scale == Game::AutoRenderScale)
@@ -1428,10 +1568,10 @@ bool Game::PresentBetween()
         scale = std::min(this->display.FitScale(), static_cast<int>(DisplaySettings::MaximumAutoScale));
     }
 
-    if (this->smoothScreen->Width() != Display::Width * scale)
+    if (this->smoothScreen->Width() != width * scale || this->smoothScreen->Height() != height * scale)
     {
-        this->smoothScreen = std::make_unique<Surface>(Display::Width * scale, Display::Height * scale);
-        LogInfo(u8"render scale %d", scale);
+        this->smoothScreen = std::make_unique<Surface>(width * scale, height * scale);
+        LogInfo(u8"render scale %d (%dx%d)", scale, width, height);
     }
 
     // The battle and the map are drawn at the same render scale.

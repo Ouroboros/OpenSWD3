@@ -170,9 +170,9 @@ void TalkFrame::DrawWindowAdvance(TalkWindow& window, Surface& surface, u16* pix
 
             const Role& speaker = state.roles[std::min<std::size_t>(window.role, GameState::Roles - 1)];
             step = window.openStep;
-            x0 = speaker.x + step * (field.cameraLeft + window.x - speaker.x) / kOpenSteps - field.cameraLeft;
+            x0 = speaker.x + step * (field.ScreenLeft() + window.x - speaker.x) / kOpenSteps - field.ScreenLeft();
             y0 = speaker.y;
-            offsetY = step * (field.cameraTop + window.y - speaker.y) / kOpenSteps - field.cameraTop;
+            offsetY = step * (field.ScreenTop() + window.y - speaker.y) / kOpenSteps - field.ScreenTop();
         }
         else
         {
@@ -183,9 +183,9 @@ void TalkFrame::DrawWindowAdvance(TalkWindow& window, Surface& surface, u16* pix
             }
 
             step = window.openStep;
-            x0 = window.fromX + step * (field.cameraLeft + window.x - window.fromX) / kOpenSteps - field.cameraLeft;
+            x0 = window.fromX + step * (field.ScreenLeft() + window.x - window.fromX) / kOpenSteps - field.ScreenLeft();
             y0 = window.fromY;
-            offsetY = step * (field.cameraTop + window.y - window.fromY) / kOpenSteps - field.cameraTop;
+            offsetY = step * (field.ScreenTop() + window.y - window.fromY) / kOpenSteps - field.ScreenTop();
         }
 
         left = x0;

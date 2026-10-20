@@ -63,8 +63,6 @@ constexpr int kHalfShift = 1;
 constexpr int kQuarterShift = 2;
 constexpr int kEighthShift = 3;
 constexpr int kSixteenthShift = 4;
-// The smear effect steps a fixed 640-pixel row up and down, whatever the pitch.
-constexpr std::ptrdiff_t kSmearRow = Display::Width;
 
 }  // namespace
 
@@ -363,12 +361,12 @@ void Painter::Smear(u16* at)
     else if (step <= kSmearDownSteps)
     {
         this->smearCounter = step;
-        *at = at[kSmearRow];
+        *at = at[this->screenPitch];
     }
     else if (step <= kSmearUpSteps)
     {
         this->smearCounter = step;
-        *at = at[-kSmearRow];
+        *at = at[-this->screenPitch];
     }
     else if (step <= kSmearSteps)
     {

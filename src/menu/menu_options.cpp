@@ -96,7 +96,8 @@ constexpr i32 kSmoothRow = 0;
 constexpr i32 kVSyncRow = 1;
 constexpr i32 kFrameRateRow = 2;
 constexpr i32 kRenderScaleRow = 3;
-constexpr i32 kDisplayBackRow = 4;
+constexpr i32 kWideMapRow = 4;
+constexpr i32 kDisplayBackRow = 5;
 constexpr std::array<i64, 4> kFrameRates = {0, 60, 144, 240};
 constexpr u32 kGameSavedFlag = 2;  // Menu::flags: saved since the menu opened, quitting needs no confirmation
 
@@ -193,11 +194,12 @@ constexpr std::u8string_view kKeyButtons = u8" 設定 放棄 恢復預設值 "; 
 constexpr std::u8string_view kPressKey = u8"請按一個鍵";                // swd32.exe 0x004A72F0
 // The texts of the display setup.
 constexpr std::u8string_view kDisplaySetup = u8"顯示設定";
-constexpr std::array<std::u8string_view, 5> kDisplayLabels = {
+constexpr std::array<std::u8string_view, 6> kDisplayLabels = {
     u8"平滑畫面",
     u8"垂直同步",
     u8"幀率上限",
     u8"繪製倍率",
+    u8"地圖填滿",
     u8"返回",
 };
 
@@ -229,8 +231,8 @@ constexpr int kListBoxWidth = 0x190;
 constexpr int kNotesBoxHeight = 0x15E;
 constexpr int kSettingsBoxHeight = 0xF8;
 constexpr int kDisplayRowHeight = 0x20;  // the settings box grown by the display setup's row
-constexpr int kDisplayBoxHeight = 0xB8;  // the display setup: its five rows
-constexpr int kDisplayFrameBottom = 0x128;
+constexpr int kDisplayBoxHeight = 0xD8;  // the display setup: its six rows
+constexpr int kDisplayFrameBottom = 0x148;
 constexpr int kListFrameLeft = 0xD8;
 constexpr int kListFrameTop = 0x78;
 constexpr int kListFrameRight = 0x25C;
@@ -363,8 +365,9 @@ std::vector<std::string> Menu::OptionsDisplayChoices(i32 row, i32& chosen) const
     {
         case kSmoothRow:
         case kVSyncRow:
+        case kWideMapRow:
         {
-            const bool on = row == kSmoothRow ? owner.smoothMotion : owner.vsync;
+            const bool on = row == kSmoothRow ? owner.smoothMotion : row == kVSyncRow ? owner.vsync : owner.wideMap;
             choices = {text(menu_text::kOn), text(menu_text::kOff)};
             chosen = on ? 0 : 1;
             break;
@@ -423,6 +426,10 @@ void Menu::OptionsChooseDisplay(i32 row, i32 choice)
 
         case kRenderScaleRow:
             owner.renderScaleSetting = choice == 0 ? Game::AutoRenderScale : choice;
+            break;
+
+        case kWideMapRow:
+            owner.wideMap = choice == 0;
             break;
 
         default:
@@ -1792,7 +1799,7 @@ void Menu::OptionsDrawDisplay(Pixel color)
     for (i32 row = kSmoothRow; row < kDisplayBackRow; ++row)
     {
         // The frame rate and the render scale only count with smooth motion.
-        const bool counts = owner.smoothMotion || row == kSmoothRow || row == kVSyncRow;
+        const bool counts = owner.smoothMotion || (row != kFrameRateRow && row != kRenderScaleRow);
         i32 chosen = -1;
         const std::vector<std::string> choices = this->OptionsDisplayChoices(row, chosen);
         const std::vector<int> lefts = ChoiceLefts(choices, large);

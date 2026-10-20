@@ -267,10 +267,107 @@ void FieldView::DrawTileGridScrolled(const TileSet& tiles)
     }
 }
 
+// The rebuild's map filling the window (deviations.md): the tiles under the camera on a canvas of any size and a
+// camera anywhere (off the tile grid, past the map's edges, where nothing is drawn); with the spotlight only those
+// around it. A tile wholly inside is drawn as the grid draws it, one cut by an edge clipped as the scrolled grid draws
+// its edge tiles.
+void FieldView::DrawTileCanvas(const TileSet& tiles)
+{
+    Painter& painter = this->game.painter;
+    const GameState& state = this->game.state;
+    const Field& field = this->game.field;
+    const Scene& view = this->game.scene;
+    int left = 0;
+    int top = 0;
+    int right = field.viewWidth;
+    int bottom = field.viewHeight;
+    const auto [clipX, clipY, clipWidth, clipHeight] = painter.ClipRect();
+    const bool spotlight = !state.GameFlag(GameState::PlainScreen) && state.GameFlag(GameState::Spotlight);
+
+    if (spotlight)
+    {
+        const int lightX = view.spotlightX + field.screenX;
+        const int lightY = view.spotlightY + field.screenY;
+        left = std::max(lightX - Scene::SpotlightRadius, 0);
+        top = std::max(lightY - Scene::SpotlightRadius, 0);
+        right = std::min(lightX + Scene::SpotlightRadius, right);
+        bottom = std::min(lightY + Scene::SpotlightRadius, bottom);
+
+        if (left >= right || top >= bottom)
+        {
+            return;
+        }
+
+        painter.SetClip(left, top, right, bottom);
+    }
+
+    const int width = state.map.width;
+    const int firstColumn = std::max(FloorDivide(field.cameraLeft + left, MapHeader::TileSize), 0);
+    const int lastColumn = std::min(FloorDivide(field.cameraLeft + right - 1, MapHeader::TileSize), width - 1);
+    const int firstRow = std::max(FloorDivide(field.cameraTop + top, MapHeader::TileSize), 0);
+    const int lastRow = std::min(FloorDivide(field.cameraTop + bottom - 1, MapHeader::TileSize), state.map.height - 1);
+    const int layer = view.unk4B873C;
+
+    for (int row = firstRow; row <= lastRow; ++row)
+    {
+        const int y = MapHeader::TileSize * row - field.cameraTop;
+
+        for (int column = firstColumn; column <= lastColumn; ++column)
+        {
+            const int x = MapHeader::TileSize * column - field.cameraLeft;
+            const int block = width * row + column;
+            const u32 cell = this->Block(block);
+
+            if ((cell & MapHeader::HiddenTile) != 0)
+            {
+                continue;
+            }
+
+            const bool keyed = (cell & MapHeader::KeyedTile) != 0;
+
+            if (x >= left && y >= top && x + MapHeader::TileSize <= right && y + MapHeader::TileSize <= bottom)
+            {
+                this->SetTileSource(tiles, block + layer);
+
+                if (tiles.indexed)
+                {
+                    keyed ? painter.DrawTile8Keyed(x, y) : painter.DrawTile8(x, y);
+                }
+                else
+                {
+                    keyed ? painter.DrawTile16Keyed(x, y) : painter.DrawTile16(x, y);
+                }
+
+                continue;
+            }
+
+            this->SetTileSource(tiles, block + layer, true);
+            painter.DrawPicture(
+                x,
+                y,
+                MapHeader::TileSize,
+                MapHeader::TileSize,
+                keyed ? Painter::RawKeyed : Painter::RawCopy
+            );
+        }
+    }
+
+    if (spotlight)
+    {
+        painter.SetClip(clipX, clipY, clipX + clipWidth, clipY + clipHeight);
+    }
+}
+
 // swd32.exe 0x00412BE0: the 16-bit tiles of the map at a camera on the tile grid (with the spotlight only the 24 x 24
 // tiles around it, the rows then advancing as if 40 columns were drawn when its left edge is at 0)
 void FieldView::DrawTiles16(int)
 {
+    if (this->FillsWindow())
+    {
+        this->DrawTileCanvas(TileSet{false});
+        return;
+    }
+
     this->DrawTileGrid(TileSet{false});
 }
 
@@ -278,6 +375,12 @@ void FieldView::DrawTiles16(int)
 void FieldView::DrawTiles16Scrolled(int)
 {
     const Field& field = this->game.field;
+
+    if (this->FillsWindow())
+    {
+        this->DrawTileCanvas(TileSet{false});
+        return;
+    }
 
     if ((field.cameraLeft & MapHeader::TileFraction) == 0 && (field.cameraTop & MapHeader::TileFraction) == 0)
     {
@@ -291,6 +394,12 @@ void FieldView::DrawTiles16Scrolled(int)
 // swd32.exe 0x00413220: 0x00412BE0 for the 8-bit tiles of the map's palette
 void FieldView::DrawTiles8(int)
 {
+    if (this->FillsWindow())
+    {
+        this->DrawTileCanvas(TileSet{true});
+        return;
+    }
+
     this->DrawTileGrid(TileSet{true});
 }
 
@@ -298,6 +407,12 @@ void FieldView::DrawTiles8(int)
 void FieldView::DrawTiles8Scrolled(int)
 {
     const Field& field = this->game.field;
+
+    if (this->FillsWindow())
+    {
+        this->DrawTileCanvas(TileSet{true});
+        return;
+    }
 
     if ((field.cameraLeft & MapHeader::TileFraction) == 0 && (field.cameraTop & MapHeader::TileFraction) == 0)
     {
@@ -376,7 +491,7 @@ void FieldView::DrawOverlays()
 
             painter.SetSource(overlay->picture.data());
             painter.DrawPicture(clipLeft - offsetX, clipTop - offsetY, overlay->width, overlay->height, Painter::Copy);
-            painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+            painter.SetClipClamped(0, 0, field.viewWidth, field.viewHeight);
             break;
         }
     }

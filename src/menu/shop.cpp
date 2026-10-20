@@ -267,7 +267,9 @@ void Game::OpenShop()
 {
     BattleState& shop = this->battleState;
     this->state.SetGameFlag(GameState::NoPointer);
+    this->BeginMapCanvas();
     this->fieldView.Paint();
+    this->EndMapCanvas();
     this->state.ClearGameFlag(GameState::NoPointer);
     this->drawSurface = this->painter.LockSurface(*this->offscreen);
     this->painter.SetTarget(this->drawSurface);

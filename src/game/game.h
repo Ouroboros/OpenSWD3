@@ -176,6 +176,22 @@ private:
     // The rebuild's continuous motion (deviations.md) up to now, at most to the due time of the next game frame.
     void AdvanceMotion();
     bool CopyToPrimary();
+    // The rebuild's map filling the window (deviations.md): the map frame is drawn to mapCanvas, the size the
+    // window asks for (the 640x480 screen with wide_map off): its world over the whole of it (BeginMapCanvas), its
+    // interface on the 640x480 screen in its middle (DrawOnMapScreen); EndMapCanvas copies that screen to the
+    // offscreen surface (what reads the frame after it sees the screen as before) and draws there again.
+    void BeginMapCanvas();
+    void DrawOnMapCanvas();
+    void DrawOnMapScreen();
+    void DrawOnOffscreen();
+    void EndMapCanvas();
+    // The canvas and font targets of `width` x `height` (changed only when they differ).
+    void SetDrawSize(int width, int height);
+    // The camera's view the size of `layout`, keeping where the 640x480 screen lies on the map.
+    void SetMapView(const ScreenLayout& layout);
+    // The window shows the frames presented next: the map canvas, a 640x480 frame over the last map canvas (the
+    // menus and the shop over the map), or the 640x480 screen alone.
+    void ShowLayout(bool map);
     // The display setup of the system tab (deviations.md): smoothMotion, vsync, frameRate and renderScaleSetting put
     // to use, and written to [display] of the program's settings file.
     void ApplyDisplay();
@@ -618,10 +634,17 @@ private:
     u64 nextDrawNs = 0;
     std::unique_ptr<Surface> smoothScreen;  // the frames between, at the render scale
     std::unique_ptr<Surface> menuScreen;    // the menu frames between
-    int renderScaleSetting = 0;             // [display] render_scale (AutoRenderScale: by the window)
-    bool vsync = true;                      // [display] vsync
-    i64 frameRate = 0;                      // [display] frame_rate (0: no limit)
-    u32 frameStart = 0;                     // 0x004AAECC
+    std::unique_ptr<Surface> mapCanvas;     // the map filling the window (BeginMapCanvas)
+    ScreenLayout mapLayout;                 // its size and where the 640x480 screen lies on it
+    bool mapBehind = false;                 // the last map canvas lies behind the menus
+    bool backdropTaken = false;             // the display shows the last map canvas behind the frames (ShowLayout)
+    int drawWidth = Display::Width;         // SetDrawSize
+    int drawHeight = Display::Height;
+    int renderScaleSetting = 0;  // [display] render_scale (AutoRenderScale: by the window)
+    bool wideMap = true;         // [display] wide_map: the map fills the window
+    bool vsync = true;           // [display] vsync
+    i64 frameRate = 0;           // [display] frame_rate (0: no limit)
+    u32 frameStart = 0;          // 0x004AAECC
     u32 unk4C844C = 0;
     u32 unk4C8444 = 0;
     u32 unk4C8448 = 0;   // the time the last frame took

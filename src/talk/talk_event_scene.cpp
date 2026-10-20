@@ -81,10 +81,11 @@ bool Talk::PanCamera(EventRun& run)
     }
     else if (run.code == EventCommand::PanCameraTo)
     {
+        // The tiles are those of the 640x480 screen's corner (the rebuild's wider view keeps it in the middle).
         run.valueA = static_cast<i16>(operands.Word());
-        across = run.valueA - (field.cameraLeft >> MapHeader::TileShift);
+        across = run.valueA - ((field.cameraLeft + field.screenX) >> MapHeader::TileShift);
         view.panAcross = across;
-        down = static_cast<i16>(operands.Word()) - (field.cameraTop >> MapHeader::TileShift);
+        down = static_cast<i16>(operands.Word()) - ((field.cameraTop + field.screenY) >> MapHeader::TileShift);
         view.panDown = down;
     }
     else

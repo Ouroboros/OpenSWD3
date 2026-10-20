@@ -6,6 +6,7 @@
 #include <cstring>
 
 #include "core/log.h"
+#include "core/types.h"
 #include "platform/exe_resources.h"
 #include "platform/surface.h"
 
@@ -15,7 +16,9 @@ namespace swd3
 namespace
 {
 
-constexpr float kHalf = 0.5F;  // the picture is centred in the window
+constexpr float kHalf = 0.5F;            // the picture is centred in the window
+constexpr int kMostCanvasWidth = 2048;   // the widest canvas the map fills a window with
+constexpr int kMostCanvasHeight = 1024;  // the painter's row table holds this many rows
 
 // A copy of `icon` as an SDL surface; null when it is empty.
 SDL_Surface* MakeIconSurface(const IconImage& icon)
@@ -47,26 +50,38 @@ SDL_Surface* MakeIconSurface(const IconImage& icon)
 
 }  // namespace
 
-Viewport FitViewport(int outputWidth, int outputHeight)
+Viewport FitViewport(int outputWidth, int outputHeight, const ScreenLayout& layout)
 {
-    const float scaleX = static_cast<float>(outputWidth) / Display::Width;
-    const float scaleY = static_cast<float>(outputHeight) / Display::Height;
+    const int logicalWidth = layout.width > 0 ? layout.width : Display::Width;
+    const int logicalHeight = layout.height > 0 ? layout.height : Display::Height;
+    const float scaleX = static_cast<float>(outputWidth) / static_cast<float>(logicalWidth);
+    const float scaleY = static_cast<float>(outputHeight) / static_cast<float>(logicalHeight);
     const float scale = std::min(scaleX, scaleY);
-    const float width = Display::Width * scale;
-    const float height = Display::Height * scale;
-    return {(outputWidth - width) * kHalf, (outputHeight - height) * kHalf, width, height};
+    const float width = static_cast<float>(logicalWidth) * scale;
+    const float height = static_cast<float>(logicalHeight) * scale;
+    return {
+        (static_cast<float>(outputWidth) - width) * kHalf,
+        (static_cast<float>(outputHeight) - height) * kHalf,
+        width,
+        height
+    };
 }
 
-LogicalPoint ToLogical(const Viewport& viewport, float outputX, float outputY)
+LogicalPoint ToLogical(const Viewport& viewport, float outputX, float outputY, const ScreenLayout& layout)
 {
     if (viewport.width <= 0 || viewport.height <= 0)
     {
         return {0, 0};
     }
 
-    const auto x = static_cast<int>((outputX - viewport.x) * Display::Width / viewport.width);
-    const auto y = static_cast<int>((outputY - viewport.y) * Display::Height / viewport.height);
-    return {std::clamp(x, 0, Display::Width - 1), std::clamp(y, 0, Display::Height - 1)};
+    const int logicalWidth = layout.width > 0 ? layout.width : Display::Width;
+    const int logicalHeight = layout.height > 0 ? layout.height : Display::Height;
+    const auto x = static_cast<int>((outputX - viewport.x) * static_cast<float>(logicalWidth) / viewport.width);
+    const auto y = static_cast<int>((outputY - viewport.y) * static_cast<float>(logicalHeight) / viewport.height);
+    return {
+        std::clamp(x, 0, logicalWidth - 1) - layout.screenX,
+        std::clamp(y, 0, logicalHeight - 1) - layout.screenY,
+    };
 }
 
 Display::~Display()
@@ -84,6 +99,11 @@ Display::~Display()
     if (this->scaledTexture != nullptr)
     {
         SDL_DestroyTexture(this->scaledTexture);
+    }
+
+    if (this->backdrop != nullptr)
+    {
+        SDL_DestroyTexture(this->backdrop);
     }
 
     if (this->renderer != nullptr)
@@ -151,7 +171,47 @@ Viewport Display::CurrentViewport() const
     int width = 0;
     int height = 0;
     SDL_GetRenderOutputSize(this->renderer, &width, &height);
-    return FitViewport(width, height);
+    return FitViewport(width, height, this->layout);
+}
+
+void Display::SetLayout(const ScreenLayout& layout)
+{
+    this->layout = layout;
+}
+
+const ScreenLayout& Display::Layout() const
+{
+    return this->layout;
+}
+
+ScreenLayout Display::FillLayout() const
+{
+    ScreenLayout fill{Display::Width, Display::Height, 0, 0};
+    int width = 0;
+    int height = 0;
+
+    if (!this->IsOpen() || !SDL_GetRenderOutputSize(this->renderer, &width, &height) || width <= 0 || height <= 0)
+    {
+        return fill;
+    }
+
+    // Even margins keep the screen on whole pixels in the middle.
+    if (static_cast<i64>(width) * Display::Height > static_cast<i64>(height) * Display::Width)
+    {
+        const auto wide = static_cast<int>(static_cast<i64>(Display::Height) * width / height);
+        fill.width = std::min(wide & ~1, kMostCanvasWidth);
+    }
+    else
+    {
+        const auto tall = static_cast<int>(static_cast<i64>(Display::Width) * height / width);
+        fill.height = std::min(tall & ~1, kMostCanvasHeight);
+    }
+
+    fill.width = std::max(fill.width, Display::Width);
+    fill.height = std::max(fill.height, Display::Height);
+    fill.screenX = (fill.width - Display::Width) / 2;
+    fill.screenY = (fill.height - Display::Height) / 2;
+    return fill;
 }
 
 void Display::Present(const Surface& screen)
@@ -200,9 +260,68 @@ void Display::Present(const Surface& screen)
     SDL_SetRenderDrawColor(this->renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(this->renderer);
     const Viewport viewport = this->CurrentViewport();
-    const SDL_FRect target{viewport.x, viewport.y, viewport.width, viewport.height};
+    SDL_FRect target{viewport.x, viewport.y, viewport.width, viewport.height};
+
+    // A frame of the 640x480 screen on a larger layout lies on the screen's place, the backdrop around it.
+    if (static_cast<i64>(screen.Width()) * this->layout.height !=
+        static_cast<i64>(screen.Height()) * this->layout.width)
+    {
+        if (this->backdropShown && this->backdrop != nullptr)
+        {
+            SDL_RenderTexture(this->renderer, this->backdrop, nullptr, &target);
+        }
+
+        const float scaleX = viewport.width / static_cast<float>(this->layout.width);
+        const float scaleY = viewport.height / static_cast<float>(this->layout.height);
+        target = {
+            viewport.x + static_cast<float>(this->layout.screenX) * scaleX,
+            viewport.y + static_cast<float>(this->layout.screenY) * scaleY,
+            static_cast<float>(Display::Width) * scaleX,
+            static_cast<float>(Display::Height) * scaleY,
+        };
+    }
+
     SDL_RenderTexture(this->renderer, shown, nullptr, &target);
     SDL_RenderPresent(this->renderer);
+}
+
+void Display::SetBackdrop(const Surface* canvas)
+{
+    this->backdropShown = false;
+
+    if (canvas == nullptr || !this->IsOpen())
+    {
+        return;
+    }
+
+    if (this->backdrop == nullptr || this->backdropWidth != canvas->Width() || this->backdropHeight != canvas->Height())
+    {
+        if (this->backdrop != nullptr)
+        {
+            SDL_DestroyTexture(this->backdrop);
+        }
+
+        this->backdrop = SDL_CreateTexture(
+            this->renderer,
+            SDL_PIXELFORMAT_RGB565,
+            SDL_TEXTUREACCESS_STREAMING,
+            canvas->Width(),
+            canvas->Height()
+        );
+        this->backdropWidth = canvas->Width();
+        this->backdropHeight = canvas->Height();
+
+        if (this->backdrop == nullptr)
+        {
+            LogError(u8"backdrop texture creation failed: %s", AsUtf8(SDL_GetError()));
+            return;
+        }
+
+        SDL_SetTextureScaleMode(this->backdrop, SDL_SCALEMODE_NEAREST);
+    }
+
+    SDL_UpdateTexture(this->backdrop, nullptr, canvas->Pixels(), canvas->Width() * static_cast<int>(sizeof(Pixel)));
+    this->backdropShown = true;
 }
 
 int Display::FitScale() const
@@ -215,7 +334,7 @@ int Display::FitScale() const
     int width = 0;
     int height = 0;
     SDL_GetRenderOutputSize(this->renderer, &width, &height);
-    return std::max(1, std::min(width / Display::Width, height / Display::Height));
+    return std::max(1, std::min(width / this->layout.width, height / this->layout.height));
 }
 
 bool Display::SetVSync(bool enabled)
@@ -316,7 +435,7 @@ LogicalPoint Display::WindowToLogical(float windowX, float windowY) const
     SDL_GetRenderOutputSize(this->renderer, &outputWidth, &outputHeight);
     const float scaleX = windowWidth > 0 ? static_cast<float>(outputWidth) / windowWidth : 1.0f;
     const float scaleY = windowHeight > 0 ? static_cast<float>(outputHeight) / windowHeight : 1.0f;
-    return ToLogical(this->CurrentViewport(), windowX * scaleX, windowY * scaleY);
+    return ToLogical(this->CurrentViewport(), windowX * scaleX, windowY * scaleY, this->layout);
 }
 
 // SetCursorPos(x, y): the system pointer moved to logical point (x, y) of the window (the original runs full screen,
@@ -337,8 +456,10 @@ void Display::WarpPointer(int x, int y)
     const float scaleX = outputWidth > 0 ? static_cast<float>(windowWidth) / outputWidth : 1.0f;
     const float scaleY = outputHeight > 0 ? static_cast<float>(windowHeight) / outputHeight : 1.0f;
     const Viewport viewport = this->CurrentViewport();
-    const float outputX = viewport.x + static_cast<float>(x) * viewport.width / Display::Width;
-    const float outputY = viewport.y + static_cast<float>(y) * viewport.height / Display::Height;
+    const float outputX = viewport.x + static_cast<float>(x + this->layout.screenX) * viewport.width /
+                                           static_cast<float>(this->layout.width);
+    const float outputY = viewport.y + static_cast<float>(y + this->layout.screenY) * viewport.height /
+                                           static_cast<float>(this->layout.height);
     SDL_WarpMouseInWindow(this->window, outputX * scaleX, outputY * scaleY);
 }
 

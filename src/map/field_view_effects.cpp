@@ -50,7 +50,7 @@ void FieldView::FadeColors(int step)
 
 void FieldView::DrawScreenTint(int red, int green, int blue)
 {
-    this->game.painter.TintPixels(std::span<u16>(this->game.drawSurface, Display::Pixels), red, green, blue);
+    this->game.painter.TintPixels(this->Canvas(), red, green, blue);
 }
 
 // swd32.exe 0x00414E50: the lines of the screen blended with their colour: still ones whole, the others growing or
@@ -573,6 +573,13 @@ void FieldView::DrawHeat()
     }
 
     ++view.heatFrame;
+
+    if (this->FillsWindow())
+    {
+        this->DrawHeatCanvas();
+        return;
+    }
+
     auto* bytes = reinterpret_cast<u8*>(owner.drawSurface);
     constexpr std::size_t kScreenBytes = sizeof(Pixel) * Display::Pixels;
     constexpr int kLineBytes = static_cast<int>(sizeof(Pixel)) * Display::Width;
@@ -591,6 +598,46 @@ void FieldView::DrawHeat()
             }
 
             std::memmove(bytes + at, bytes + at + kLineBytes, length);
+        }
+    }
+}
+
+// The rebuild's map filling the window (deviations.md): the strips of the 640x480 screen's haze laid on it again
+// and again across the canvas, from the screen's place.
+void FieldView::DrawHeatCanvas()
+{
+    Game& owner = this->game;
+    const Scene& view = owner.scene;
+    const Field& field = owner.field;
+    const int width = field.viewWidth;
+    const int height = field.viewHeight;
+    Pixel* canvas = owner.drawSurface;
+    const int firstX = field.screenX - Display::Width * CeilDivide(field.screenX, Display::Width);
+    const int firstY = field.screenY - Display::Height * CeilDivide(field.screenY, Display::Height);
+
+    for (int originY = firstY; originY < height; originY += Display::Height)
+    {
+        for (int originX = firstX; originX < width; originX += Display::Width)
+        {
+            for (std::size_t index = 0; index < view.heatOffsets.size(); ++index)
+            {
+                const int offset = view.heatOffsets[index];
+                const int pixels = static_cast<u16>(view.heatLengths[index]) / static_cast<int>(sizeof(Pixel));
+                const int x = originX + offset % Display::Width;
+
+                for (int line = 0; line < view.heatCounts[index]; ++line)
+                {
+                    const int y = originY + offset / Display::Width + line;
+
+                    if (x < 0 || y < 0 || y + 1 >= height || x + pixels > width)
+                    {
+                        continue;
+                    }
+
+                    Pixel* at = canvas + static_cast<std::ptrdiff_t>(width) * y + x;
+                    std::memmove(at, at + width, sizeof(Pixel) * static_cast<std::size_t>(pixels));
+                }
+            }
         }
     }
 }
@@ -632,8 +679,14 @@ void FieldView::DrawLightning()
     }
 
     const int pitch = owner.painter.ScreenPitch();
-    // 0x00416610: the end of the screen is fixed at 0x96000 bytes, whatever the pitch.
-    constexpr auto pixels = static_cast<std::ptrdiff_t>(Display::Pixels);
+    const Field& field = owner.field;
+    // 0x00416610: the end of the screen is fixed at 0x96000 bytes, whatever the pitch. The rebuild's map filling the
+    // window has the bolts over the whole canvas, as many to its width (deviations.md).
+    const bool canvas = this->FillsWindow();
+    const int across = canvas ? field.viewWidth : Display::Width;
+    const auto pixels = canvas ? static_cast<std::ptrdiff_t>(field.viewWidth) * field.viewHeight
+                               : static_cast<std::ptrdiff_t>(Display::Pixels);
+    const int wanted = view.lightningCount * across / Display::Width;
     view.lightningShown = 0;
     int started = 0;
 
@@ -641,12 +694,12 @@ void FieldView::DrawLightning()
     {
         if ((bolt.active & 1) == 0)
         {
-            if (started < view.lightningCount)
+            if (started < wanted)
             {
-                bolt.x = static_cast<i16>(kSubpixels * random.Below(Display::Width));
+                bolt.x = static_cast<i16>(kSubpixels * random.Below(static_cast<u32>(across)));
                 bolt.y = 0;
                 const auto slope = static_cast<i16>(random.Below(kSlopes));
-                bolt.slope = bolt.x <= Display::Width / 2 * kSubpixels ? slope : static_cast<i16>(-slope);
+                bolt.slope = bolt.x <= across / 2 * kSubpixels ? slope : static_cast<i16>(-slope);
                 bolt.speed = static_cast<i16>(random.Below(kBoltSpeedJitter) + kBoltSpeedMin);
                 bolt.length = static_cast<i16>(random.Below(kBoltLengthJitter) + kBoltLengthMin);
                 bolt.life = bolt.speed < kBoltSpeedMin ? kShortLife : kBrightLife;
@@ -758,9 +811,15 @@ void FieldView::DrawFireflies()
 
     Painter& painter = owner.painter;
     const int pitch = painter.ScreenPitch();
-    const auto pixels = static_cast<std::ptrdiff_t>(pitch) * Display::Height;
-    const std::ptrdiff_t firstLine = Display::Width;
-    const std::ptrdiff_t lastLine = Display::Pixels - Display::Width;
+    const Field& field = owner.field;
+    // The rebuild's map filling the window has the fireflies over the whole canvas, as many to its width
+    // (deviations.md).
+    const bool canvas = this->FillsWindow();
+    const int across = canvas ? field.viewWidth : Display::Width;
+    const auto pixels = static_cast<std::ptrdiff_t>(pitch) * (canvas ? field.viewHeight : Display::Height);
+    const std::ptrdiff_t firstLine = canvas ? pitch : Display::Width;
+    const std::ptrdiff_t lastLine = canvas ? pixels - pitch : Display::Pixels - Display::Width;
+    const int wanted = view.fireflyCount * across / Display::Width;
     view.firefliesShown = 0;
     int started = 0;
 
@@ -776,12 +835,12 @@ void FieldView::DrawFireflies()
     {
         if ((fly.active & 1) == 0)
         {
-            if (started < view.fireflyCount)
+            if (started < wanted)
             {
-                fly.x = static_cast<i16>(kSubpixels * random.Below(Display::Width));
+                fly.x = static_cast<i16>(kSubpixels * random.Below(static_cast<u32>(across)));
                 fly.y = 0;
                 const auto slope = static_cast<i16>(random.Below(kSlopes));
-                fly.slope = fly.x <= Display::Width / 2 * kSubpixels ? slope : static_cast<i16>(-slope);
+                fly.slope = fly.x <= across / 2 * kSubpixels ? slope : static_cast<i16>(-slope);
                 fly.speed = static_cast<i16>(random.Below(kFireflySpeeds) + 1);
                 fly.length = 1;
                 fly.life = static_cast<i16>(kFireflyLife * fly.speed - static_cast<int>(random.Below(kFireflyLife)));
@@ -889,6 +948,9 @@ void FieldView::DrawSpotlight()
 
     Scene& view = owner.scene;
     Painter& painter = owner.painter;
+    // The light lies on the 640x480 screen in the canvas.
+    const int lightX = view.spotlightX + owner.field.screenX;
+    const int lightY = view.spotlightY + owner.field.screenY;
     ActState& act = view.unk4AD3F0;
     act.id = Scene::EffectAct;
     act.action = kSpotlightRimAction;
@@ -898,37 +960,31 @@ void FieldView::DrawSpotlight()
     if (rim != nullptr)
     {
         painter.SetClipClamped(
-            view.spotlightX - (rim->width >> 1),
-            view.spotlightY - (rim->width >> 1),
-            view.spotlightX + (rim->height >> 1),
-            (rim->height >> 1) + view.spotlightY
+            lightX - (rim->width >> 1),
+            lightY - (rim->width >> 1),
+            lightX + (rim->height >> 1),
+            (rim->height >> 1) + lightY
         );
         painter.SetSource(rim->data.data());
-        painter.DrawPicture(
-            view.spotlightX - (rim->width >> 1),
-            view.spotlightY - (rim->height >> 1),
-            rim->width,
-            rim->height,
-            0
-        );
+        painter.DrawPicture(lightX - (rim->width >> 1), lightY - (rim->height >> 1), rim->width, rim->height, 0);
     }
 
     act.action = kSpotlightDarkAction;
     owner.acts.Run(act);
     const Picture* dark = owner.archive.GetPicture(act.frame, act.picture);
     painter.SetClipClamped(
-        view.spotlightX - Scene::SpotlightRadius,
-        view.spotlightY - Scene::SpotlightRadius,
-        view.spotlightX + Scene::SpotlightRadius,
-        view.spotlightY + Scene::SpotlightRadius
+        lightX - Scene::SpotlightRadius,
+        lightY - Scene::SpotlightRadius,
+        lightX + Scene::SpotlightRadius,
+        lightY + Scene::SpotlightRadius
     );
 
     if (dark != nullptr)
     {
         painter.SetSource(dark->data.data());
         painter.DrawPicture(
-            view.spotlightX - (dark->width >> 1),
-            view.spotlightY - (dark->height >> 1),
+            lightX - (dark->width >> 1),
+            lightY - (dark->height >> 1),
             dark->width,
             dark->height,
             Painter::Subtractive
@@ -971,15 +1027,20 @@ void FieldView::DrawRipples()
     Game& owner = this->game;
     const std::span<u16> screen(
         owner.drawSurface,
-        static_cast<std::size_t>(owner.painter.ScreenPitch()) * Display::Height
+        static_cast<std::size_t>(owner.painter.ScreenPitch()) * static_cast<std::size_t>(owner.field.viewHeight)
     );
     std::unique_ptr<ScriptObject>* link = &owner.scene.objects;
 
     while (*link != nullptr)
     {
         ScriptObject& ripple = **link;
-        ripple.CopyScreen(screen);
-        ripple.Refract(screen);
+
+        // A ripple made on a canvas of another size (the window resized meanwhile) is not drawn.
+        if (ripple.pitch == owner.painter.ScreenPitch())
+        {
+            ripple.CopyScreen(screen);
+            ripple.Refract(screen);
+        }
 
         if (this->replaying)
         {

@@ -141,11 +141,44 @@ std::array<i32, 2> FieldView::EffectPlace(const EffectMotion& effect, int column
     };
 }
 
+std::span<Pixel> FieldView::Canvas() const
+{
+    Surface* canvas = this->game.mapCanvas.get();
+
+    if (canvas == nullptr)
+    {
+        return {};
+    }
+
+    return {canvas->Pixels(), static_cast<std::size_t>(canvas->Width()) * static_cast<std::size_t>(canvas->Height())};
+}
+
+bool FieldView::FillsWindow() const
+{
+    const Field& field = this->game.field;
+    return field.viewWidth != Display::Width || field.viewHeight != Display::Height;
+}
+
+int FieldView::ViewRows() const
+{
+    return (this->game.field.viewHeight + MapHeader::TileSize - 1) / MapHeader::TileSize;
+}
+
+std::size_t FieldView::ScreenAt() const
+{
+    const Field& field = this->game.field;
+    return static_cast<std::size_t>(field.screenY) * static_cast<std::size_t>(field.viewWidth) +
+           static_cast<std::size_t>(field.screenX);
+}
+
+// The interface layers are drawn on the 640x480 screen in the canvas: their draws are recorded from its corner.
 void FieldView::StartRecord(PaintRecord& record)
 {
-    if (this->game.drawSurface != nullptr && PaintRecord::Active() == nullptr)
+    const std::span<Pixel> canvas = this->Canvas();
+
+    if (!canvas.empty() && PaintRecord::Active() == nullptr)
     {
-        record.Start(this->game.drawSurface, Display::Pixels);
+        record.Start(canvas.data() + this->ScreenAt(), canvas.size() - this->ScreenAt());
     }
 }
 
@@ -157,7 +190,12 @@ bool FieldView::FinishRecord(PaintRecord& record, const std::vector<Pixel>& laye
     }
 
     record.Stop();
-    return record.Matches(this->game.painter, layer, this->recordScratch, Display::Width);
+    return record.Matches(
+        this->game.painter,
+        std::span<const Pixel>(layer).subspan(this->ScreenAt()),
+        this->recordScratch,
+        this->game.field.viewWidth
+    );
 }
 
 void FieldView::LayLayer(
@@ -170,31 +208,32 @@ void FieldView::LayLayer(
 {
     if (redrawn)
     {
-        record.DrawOver(this->game.painter, screen, Display::Width);
+        record.DrawOver(this->game.painter, screen.subspan(this->ScreenAt()), this->game.field.viewWidth);
         return;
     }
 
-    FieldView::CopySpans(spans, layer, 1, screen);
+    FieldView::CopySpans(spans, layer, 1, this->game.field.viewWidth, screen);
 }
 
 void FieldView::CaptureLayer(std::vector<Pixel>& layer) const
 {
-    const Pixel* pixels = this->game.drawSurface;
-
-    if (pixels != nullptr)
-    {
-        layer.assign(pixels, pixels + Display::Pixels);
-    }
+    const std::span<Pixel> canvas = this->Canvas();
+    layer.assign(canvas.begin(), canvas.end());
 }
 
 void FieldView::PaintBetween(Surface& out)
 {
     Game& owner = this->game;
-    const int scale = std::max(1, out.Width() / Display::Width);
+    // The map's canvas (the 640x480 screen unless the map fills the window).
+    const int width = owner.field.viewWidth;
+    const int height = owner.field.viewHeight;
+    const auto canvasPixels = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
+    const int scale = std::max(1, out.Width() / width);
     const std::span<Pixel> pixels(out.Pixels(), static_cast<std::size_t>(out.Width()) * out.Height());
-    const bool layered = this->finalLayer.size() == Display::Pixels && this->worldLayer.size() == Display::Pixels &&
-                         this->talkLayer.size() == Display::Pixels && this->headsLayer.size() == Display::Pixels &&
-                         this->interfaceLayer.size() == Display::Pixels && this->fadedLayer.size() == Display::Pixels;
+    const bool layered = this->finalLayer.size() == canvasPixels && this->worldLayer.size() == canvasPixels &&
+                         this->talkLayer.size() == canvasPixels && this->headsLayer.size() == canvasPixels &&
+                         this->interfaceLayer.size() == canvasPixels && this->fadedLayer.size() == canvasPixels &&
+                         out.Width() == width * scale && out.Height() == height * scale;
 
     if (!layered)
     {
@@ -203,7 +242,7 @@ void FieldView::PaintBetween(Surface& out)
 
     if (this->movie.active != 0 || !this->placesValid)
     {
-        FieldView::ScaleLayer(this->finalLayer, scale, pixels);
+        FieldView::ScaleLayer(this->finalLayer, scale, width, pixels);
         this->paintedValid = false;
         return;
     }
@@ -311,6 +350,8 @@ void FieldView::PaintBetween(Surface& out)
     const i32 spotlightStepX = view.spotlightStepX;
     const i32 spotlightStepY = view.spotlightStepY;
     const std::array<i32, 2> tileOrigin = {this->tileX, this->tileY};
+    // The painter draws on screens the canvas's size meanwhile (the 640x480 screen again after).
+    owner.SetDrawSize(width, height);
     const DrawOptions options = painter.Options();
     const int wavePhase = painter.WavePhase();
     const auto [clipX, clipY, clipWidth, clipHeight] = painter.ClipRect();
@@ -432,9 +473,9 @@ void FieldView::PaintBetween(Surface& out)
             this->paintColumn = static_cast<int>(column);
             this->paintRow = static_cast<int>(row);
 
-            if (part.Width() != Display::Width || part.Height() != Display::Height)
+            if (part.Width() != width || part.Height() != height)
             {
-                part.Resize(Display::Width, Display::Height);
+                part.Resize(width, height);
             }
 
             field.cameraLeft = columnPlaces[column][0];
@@ -459,7 +500,7 @@ void FieldView::PaintBetween(Surface& out)
             owner.drawSurface = painter.LockSurface(part);
             painter.SetTarget(owner.drawSurface);
             painter.UnlockSurface(part);
-            painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+            painter.SetClipClamped(0, 0, width, height);
 
             if ((view.screenFlags & Scene::SpotlightClip) != 0)
             {
@@ -469,9 +510,12 @@ void FieldView::PaintBetween(Surface& out)
             this->PaintWorld();
 
             // The interface of the last game frame: the lines and talk windows it drew over its map, its role heads
-            // drawn again where they glide, what it drew after them, its fade, then what it drew after the fade.
-            const std::span<Pixel> screen(part.Pixels(), Display::Pixels);
+            // drawn again where they glide, what it drew after them, its fade, then what it drew after the fade. It
+            // lies on the 640x480 screen in the canvas.
+            const std::span<Pixel> screen(part.Pixels(), canvasPixels);
             this->LayLayer(this->talkRecord, this->talkRedrawn, this->talkSpans, this->talkLayer, screen);
+            owner.drawSurface = screen.data() + this->ScreenAt();
+            painter.SetTarget(owner.drawSurface);
             painter.SetClipClamped(0, 0, Display::Width, Display::Height);
             this->DrawRoleHeads();
             putBack();
@@ -493,8 +537,8 @@ void FieldView::PaintBetween(Surface& out)
                     true
                 );
                 painter.SetTarget(screen.data());
-                painter.SetClipClamped(0, 0, Display::Width, Display::Height);
-                owner.DrawPointer(mouseX + sway[0] + act.x, mouseY + sway[1] + act.y);
+                painter.SetClipClamped(0, 0, width, height);
+                owner.DrawPointer(mouseX + field.screenX + sway[0] + act.x, mouseY + field.screenY + sway[1] + act.y);
                 putBack();
             }
 
@@ -519,6 +563,8 @@ void FieldView::PaintBetween(Surface& out)
         state.roles[index].y = roleY[index];
     }
 
+    owner.SetDrawSize(Display::Width, Display::Height);
+
     if (scale > 1)
     {
         std::array<const Surface*, Game::MaxRenderScale * Game::MaxRenderScale> shown = {};
@@ -539,25 +585,27 @@ void FieldView::PaintBetween(Surface& out)
 void FieldView::MarkChanges(const std::vector<Pixel>& before, std::vector<Span>& spans) const
 {
     spans.clear();
-    const Pixel* now = this->game.drawSurface;
+    const std::span<Pixel> canvas = this->Canvas();
+    const Pixel* now = canvas.data();
+    const auto pixels = static_cast<u32>(canvas.size());
 
-    if (now == nullptr || before.size() != Display::Pixels)
+    if (now == nullptr || before.size() != pixels)
     {
         return;
     }
 
     u32 index = 0;
 
-    while (index < Display::Pixels)
+    while (index < pixels)
     {
-        while (index < Display::Pixels && now[index] == before[index])
+        while (index < pixels && now[index] == before[index])
         {
             ++index;
         }
 
         const u32 start = index;
 
-        while (index < Display::Pixels && now[index] != before[index])
+        while (index < pixels && now[index] != before[index])
         {
             ++index;
         }
@@ -573,6 +621,7 @@ void FieldView::CopySpans(
     const std::vector<Span>& spans,
     const std::vector<Pixel>& from,
     int scale,
+    int width,
     std::span<Pixel> to
 )
 {
@@ -586,9 +635,9 @@ void FieldView::CopySpans(
         return;
     }
 
-    constexpr auto kWidth = static_cast<u32>(Display::Width);
+    const auto columns = static_cast<u32>(width);
     const auto blocks = static_cast<std::size_t>(scale);
-    const std::size_t pitch = kWidth * blocks;
+    const std::size_t pitch = columns * blocks;
 
     for (const Span& run : spans)
     {
@@ -596,9 +645,9 @@ void FieldView::CopySpans(
 
         for (u32 at = run.start; at < end;)
         {
-            const u32 y = at / kWidth;
-            const u32 piece = std::min(end, (y + 1) * kWidth) - at;
-            Pixel* first = to.data() + y * blocks * pitch + (at % kWidth) * blocks;
+            const u32 y = at / columns;
+            const u32 piece = std::min(end, (y + 1) * columns) - at;
+            Pixel* first = to.data() + y * blocks * pitch + (at % columns) * blocks;
 
             for (u32 pixel = 0; pixel < piece; ++pixel)
             {
@@ -615,9 +664,9 @@ void FieldView::CopySpans(
     }
 }
 
-void FieldView::ScaleLayer(const std::vector<Pixel>& from, int scale, std::span<Pixel> to)
+void FieldView::ScaleLayer(const std::vector<Pixel>& from, int scale, int width, std::span<Pixel> to)
 {
-    FieldView::CopySpans({Span{0, Display::Pixels}}, from, scale, to);
+    FieldView::CopySpans({Span{0, static_cast<u32>(from.size())}}, from, scale, width, to);
 }
 
 }  // namespace swd3

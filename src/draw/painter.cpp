@@ -145,6 +145,23 @@ bool Painter::Init(Surface& screen)
     return true;
 }
 
+void Painter::SetScreen(int width, int height)
+{
+    this->screenWidth = width;
+    this->screenPitch = width;
+    this->screenHeight = height;
+    this->clipX = 0;
+    this->clipY = 0;
+    this->clipWidth = width;
+    this->clipHeight = height;
+    this->rowOffsets.fill(0);
+
+    for (int y = 0; y < height && static_cast<std::size_t>(y) < this->rowOffsets.size(); ++y)
+    {
+        this->rowOffsets[static_cast<std::size_t>(y)] = y * width;
+    }
+}
+
 // swd32.exe 0x00416D90: DrawTableInit. Modes without an entry stay empty; the original calls through the empty slot.
 void Painter::BuildBlitTables()
 {
