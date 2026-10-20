@@ -1492,7 +1492,7 @@ int Game::RoleFrame(int role)
         (unit.GetWord2A74() != 0 && (battle.unk53BF94 == 1 || battle.unk53BF98 == 1)) || battle.paused == 1;
     unit.IdleFrame(services, holding ? 1 : 0);
 
-    if (this->fightTalk.unk4A7B58 == 1 && battle.unk53BFC0 == 0 && battle.unk53BFC4 == 0)
+    if (this->fightTalk.battleRuns == 1 && battle.unk53BFC0 == 0 && battle.unk53BFC4 == 0)
     {
         unit.TickEffects(services);
 

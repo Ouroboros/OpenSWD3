@@ -1686,7 +1686,7 @@ int Game::CallEnemies(BattleEnemy& unit)
     return 1;
 }
 
-// swd32.exe 0x004576A0: one frame of enemy `enemy`. While the fight talk lets the battle run (unk4A7B58): its effects
+// swd32.exe 0x004576A0: one frame of enemy `enemy`. While the fight talk lets the battle run (battleRuns): its effects
 // tick and its gauge fills (a full gauge queues its slot record), and unless the battle waits (unk53BF64, unk53BF1C)
 // the acting enemy (actingUnit) takes its turn: a held or defeated one ends it; a sweep (gatheringSweep) gathers its
 // targets; otherwise it picks a target (EnemyPickTarget) and a command (EnemyChooseCommand), then acts
@@ -1699,7 +1699,7 @@ int Game::EnemyFrame(int enemy)
     BattleServices& services = this->battleServices;
     BattleEnemy& unit = this->battleEnemies[static_cast<std::size_t>(enemy)];
 
-    if (this->fightTalk.unk4A7B58 == 1)
+    if (this->fightTalk.battleRuns == 1)
     {
         if (!unit.IsDefeated() && battle.unk53BFC0 == 0 && battle.unk53BFC4 == 0)
         {

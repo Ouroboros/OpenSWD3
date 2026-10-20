@@ -190,7 +190,7 @@ int Game::BattleFrame()
         battle.unk53BFC0 = 0;
     }
 
-    if (battle.unk524788[0].unit != -1 && battle.unk53BF74 == 0 && this->fightTalk.unk4A7B58 == 1 &&
+    if (battle.unk524788[0].unit != -1 && battle.unk53BF74 == 0 && this->fightTalk.battleRuns == 1 &&
         battle.unk53BFC0 == 0)
     {
         if (battle.slotRecordFrames < kSlotRecordWait)
@@ -224,7 +224,7 @@ int Game::BattleFrame()
             {
                 battle.slotRecordFrames = 0;
                 battle.unk53BF74 = 1;
-                this->fightTalk.unk53CE70 = battle.actingUnit;
+                this->fightTalk.battleActingUnit = battle.actingUnit;
             }
         }
     }
@@ -578,7 +578,7 @@ void Game::EndBattle()
     battle.autoBattle = 0;
     battle.unk53C028 = 0;
     battle.darkenByTint = 0;
-    this->fightTalk.unk53CEAC = 0;
+    this->fightTalk.wonByTalk = 0;
     battle.unk53C038 = 0;
     battle.orderSorted = 0;
     battle.unk53C048 = 0;

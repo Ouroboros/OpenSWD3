@@ -2004,7 +2004,7 @@ void TurnFrame::DrawBattleDebugAdvance(Scene& scene)
             kDebugFlagsY,
             WinFormat(
                 kFlagsDebugLine,
-                {battle.unk53AF68, static_cast<i32>(battle.darkenUnit), game.fightTalk.unk4A7B58}
+                {battle.unk53AF68, static_cast<i32>(battle.darkenUnit), game.fightTalk.battleRuns}
             )
         );
         text(kDebugStateX, kDebugMenuY, WinFormat(kMenuDebugLine, {battle.result, battle.unk53BFBC}));

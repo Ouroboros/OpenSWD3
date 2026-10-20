@@ -644,7 +644,7 @@ void Game::ReturnBattleItems()
 
 // swd32.exe 0x0045E580: with every party role down (unk53BF5C set) the field fades out (unk53BFE4), then the music
 // stops, the objects return and unk53BDC8 becomes 2 (0 for a battle state of 0x68 or UnkPanel8); with every enemy
-// down or unk53CEAC set it fades out too, the objects return and unk53BDC8 becomes 0.
+// down or wonByTalk set it fades out too, the objects return and unk53BDC8 becomes 0.
 void Game::CheckBattleEnd()
 {
     BattleState& battle = this->battleState;
@@ -671,7 +671,7 @@ void Game::CheckBattleEnd()
         }
     }
 
-    if (battle.enemiesGone - battle.unk53BF02 >= static_cast<i32>(battle.enemyCount) || this->fightTalk.unk53CEAC == 1)
+    if (battle.enemiesGone - battle.unk53BF02 >= static_cast<i32>(battle.enemyCount) || this->fightTalk.wonByTalk == 1)
     {
         battle.unk53BF5C = 1;
 
@@ -5750,7 +5750,7 @@ void Game::EndCheckFrame()
     battle.autoBattle = 0;
     battle.unk53C4C0 = 1;
 
-    if (this->fightTalk.unk53CEAC == 0 && battle.unk53C048 == 0)
+    if (this->fightTalk.wonByTalk == 0 && battle.unk53C048 == 0)
     {
         u32 defeated = 0;
 

@@ -25,7 +25,7 @@ constexpr u16 kTalkHitPoints = 8;
 constexpr u16 kTalkOrder = 9;
 constexpr u16 kCountdown = 0x8000;  // FightTalk::unk53CCDC and unk53CCD4: counting
 constexpr u16 kCountMask = 0x7FFF;
-constexpr u16 kWindowShown = 0x8000;  // the high word of FightTalk::unk53CE8C
+constexpr u16 kWindowShown = 0x8000;  // the high word of FightTalk::windowFlags
 constexpr int kTextEndSearch = 0xFF;
 constexpr char kTextEscape = '%';
 constexpr char kTextEnd = 'Q';
@@ -177,14 +177,14 @@ int Game::FightTalkFrame()
             return this->FightTalkWindow();
 
         case kTalkStep:
-            talk.unk4A7B58 = 0;
+            talk.battleRuns = 0;
             this->BattleFrame();
             talk.cursor += sizeof(u16);
-            talk.unk4A7B58 = 1;
+            talk.battleRuns = 1;
             return 1;
 
         case kTalkSetUnk4A7B54:
-            talk.unk4A7B54 = talk.Word(1);
+            talk.windowTimeout = talk.Word(1);
             this->BattleFrame();
             talk.cursor += 2 * sizeof(u16);
             return 1;
@@ -307,16 +307,16 @@ int Game::FightTalkWait()
         talk.cursor += 2 * sizeof(u16);
         talk.enabled = 1;
 
-        if (talk.unk53CE6C != 0)
+        if (talk.savedUnit != 0)
         {
-            this->battleState.currentUnit = talk.unk53CE6C;
+            this->battleState.currentUnit = talk.savedUnit;
         }
 
-        talk.unk53CE6C = 0;
+        talk.savedUnit = 0;
         return 1;
     }
 
-    talk.unk4A7B58 = 1;
+    talk.battleRuns = 1;
     talk.unk53CCE8 = this->BattleFrame();
 
     if (talk.unk53CCE8 == 1)
@@ -334,7 +334,7 @@ int Game::FightTalkWait()
 
 // Command 2 of FightTalkFrame (inline in the original): a talk window of the unit in the command's second word (the
 // text after it, ended by %Q) opens at the unit's place (FixedPlace, no timeout, speed 2, the flags left in the low
-// word of unk53CE8C) and the battle waits; every unit unmarked (a role speaker takes action 0x24). Once the window is
+// word of windowFlags) and the battle waits; every unit unmarked (a role speaker takes action 0x24). Once the window is
 // closed the roles take action 0 again and the talk goes on after the text.
 int Game::FightTalkWindow()
 {
@@ -343,13 +343,13 @@ int Game::FightTalkWindow()
 
     auto high = [&talk]
     {
-        return static_cast<u16>(static_cast<u32>(talk.unk53CE8C) >> (sizeof(u16) * 8));
+        return static_cast<u16>(static_cast<u32>(talk.windowFlags) >> (sizeof(u16) * 8));
     };
 
     auto setHigh = [&talk](u16 value)
     {
-        talk.unk53CE8C = static_cast<i32>(
-            (static_cast<u32>(talk.unk53CE8C) & kLowWordMask) | (static_cast<u32>(value) << (sizeof(u16) * 8))
+        talk.windowFlags = static_cast<i32>(
+            (static_cast<u32>(talk.windowFlags) & kLowWordMask) | (static_cast<u32>(value) << (sizeof(u16) * 8))
         );
     };
 
@@ -394,8 +394,8 @@ int Game::FightTalkWindow()
         this->talk.AppendWindow(std::move(window));
         talk.window->timeout |= kNoTimeout;
         talk.window->speed = kWindowSpeed;
-        talk.window->flags |= static_cast<u16>(talk.unk53CE8C);
-        talk.unk53CE8C = static_cast<i32>(static_cast<u32>(talk.unk53CE8C) & ~kLowWordMask);
+        talk.window->flags |= static_cast<u16>(talk.windowFlags);
+        talk.windowFlags = static_cast<i32>(static_cast<u32>(talk.windowFlags) & ~kLowWordMask);
         talk.window->fromX = x;
         talk.window->fromY = y;
         setHigh(static_cast<u16>(high() | kWindowShown));
@@ -405,7 +405,7 @@ int Game::FightTalkWindow()
 
     if (this->scene.talkWindows != nullptr)
     {
-        talk.unk4A7B58 = 0;
+        talk.battleRuns = 0;
         this->BattleFrame();
         return 1;
     }
@@ -439,7 +439,7 @@ int Game::FightTalkWindow()
     talk.textAt += static_cast<std::size_t>(length) + 2;
     talk.cursor = talk.textAt;
     talk.speaker = {};
-    talk.unk4A7B58 = 1;
+    talk.battleRuns = 1;
     battle.unk53BFC0 = 0;
     talk.unk53CE78 = 0;
     setHigh(0);
@@ -447,12 +447,12 @@ int Game::FightTalkWindow()
 }
 
 // Command 5 of FightTalkFrame (inline in the original): the unit of the second word moves by the third and fourth
-// (a role from 8); the units are measured and sorted again (drawn at once with unk53CEB0).
+// (a role from 8); the units are measured and sorted again (drawn at once with drawMovedAtOnce).
 int Game::FightTalkMove()
 {
     BattleState& battle = this->battleState;
     FightTalk& talk = this->fightTalk;
-    talk.unk4A7B58 = 0;
+    talk.battleRuns = 0;
     const i16 unit = talk.Word(1);
     talk.unk53CE74 = talk.UnsignedWord(2);
     talk.unk53CE76 = talk.UnsignedWord(3);
@@ -475,12 +475,12 @@ int Game::FightTalkMove()
     battle.SortDrawOrder();
     battle.ListEnemyOrder();
 
-    if (talk.unk53CEB0 == 1)
+    if (talk.drawMovedAtOnce == 1)
     {
         this->BattleFrame();
     }
 
-    talk.unk4A7B58 = 1;
+    talk.battleRuns = 1;
     return 1;
 }
 
@@ -489,7 +489,7 @@ int Game::FightTalkMove()
 int Game::FightTalkPause()
 {
     FightTalk& talk = this->fightTalk;
-    talk.unk4A7B58 = 0;
+    talk.battleRuns = 0;
 
     if ((talk.unk53CCD4 & kCountdown) == 0)
     {
@@ -506,7 +506,7 @@ int Game::FightTalkPause()
     {
         talk.unk53CCD4 = 0;
         talk.cursor += 2 * sizeof(u16);
-        talk.unk4A7B58 = 1;
+        talk.battleRuns = 1;
     }
 
     this->BattleFrame();
@@ -520,7 +520,7 @@ int Game::FightTalkHitPoints()
 {
     FightTalk& talk = this->fightTalk;
     talk.cursor += sizeof(u16);
-    talk.unk4A7B58 = 1;
+    talk.battleRuns = 1;
     this->BattleFrame();
     const i16 unit = talk.Word(0);
 
@@ -560,7 +560,7 @@ int Game::FightTalkOrder()
 
     if (unit > kLastEnemy)
     {
-        talk.unk53CE6C = battle.currentUnit;
+        talk.savedUnit = battle.currentUnit;
         battle.turnUnit = unit;
         battle.aimTarget = target + 1;
 
@@ -605,9 +605,9 @@ int Game::FightTalkOrder()
         battle.InsertSlotRecord(kEnemySlot, unit, 0);
     }
 
-    talk.unk4A7B58 = 0;
+    talk.battleRuns = 0;
     this->BattleFrame();
-    talk.unk4A7B58 = 1;
+    talk.battleRuns = 1;
     talk.cursor += 3 * sizeof(u16);
     return 1;
 }
@@ -623,18 +623,18 @@ BattleUnit& Game::TalkUnit(i32 unit)
     return this->battleEnemies[static_cast<std::size_t>(unit)];
 }
 
-// The unit of a talk command kept in the high word of unk53CE8C (inline in 0x00469D20).
+// The unit of a talk command kept in the high word of windowFlags (inline in 0x00469D20).
 u16 Game::TalkCommandUnit() const
 {
-    return static_cast<u16>(static_cast<u32>(this->fightTalk.unk53CE8C) >> kHighWordShift);
+    return static_cast<u16>(static_cast<u32>(this->fightTalk.windowFlags) >> kHighWordShift);
 }
 
-// The unit kept in the high word of unk53CE8C set (inline in 0x00469D20).
+// The unit kept in the high word of windowFlags set (inline in 0x00469D20).
 void Game::SetTalkCommandUnit(u16 unit)
 {
     FightTalk& talk = this->fightTalk;
-    talk.unk53CE8C = static_cast<i32>(
-        (static_cast<u32>(talk.unk53CE8C) & kLowWordMask) | (static_cast<u32>(unit) << kHighWordShift)
+    talk.windowFlags = static_cast<i32>(
+        (static_cast<u32>(talk.windowFlags) & kLowWordMask) | (static_cast<u32>(unit) << kHighWordShift)
     );
 }
 
@@ -644,7 +644,7 @@ int Game::TalkCommandStarted()
 {
     this->SetTalkCommandUnit(static_cast<u16>(this->TalkCommandUnit() | kWindowShown));
     this->battleState.enemyFaded = 0;
-    this->fightTalk.unk4A7B58 = 1;
+    this->fightTalk.battleRuns = 1;
     this->BattleFrame();
     return 1;
 }
@@ -669,7 +669,7 @@ int Game::FightTalkDefeat()
             battle.unk502984[unit] = unit;
             battle.flashing = 1;
             battle.enemyFaded = 0;
-            talk.unk4A7B58 = 0;
+            talk.battleRuns = 0;
         }
         else
         {
@@ -686,7 +686,7 @@ int Game::FightTalkDefeat()
     talk.cursor += 2 * sizeof(u16);
     this->SetTalkCommandUnit(0);
     battle.unk53BFC0 = 0;
-    talk.unk4A7B58 = 1;
+    talk.battleRuns = 1;
     return 1;
 }
 
@@ -705,7 +705,7 @@ int Game::FightTalkCommand(int command)
         {
             if (command == kEscapeCommand)
             {
-                talk.unk4A7B58 = 1;
+                talk.battleRuns = 1;
             }
 
             this->BattleFrame();
@@ -718,12 +718,12 @@ int Game::FightTalkCommand(int command)
 
         if (command == kAimSelfCommand)
         {
-            talk.unk4A7B58 = 0;
+            talk.battleRuns = 0;
             this->BattleFrame();
         }
         else if (command == kHoldCommand)
         {
-            talk.unk4A7B58 = 0;
+            talk.battleRuns = 0;
         }
 
         return 1;
@@ -790,7 +790,7 @@ int Game::FightTalkWin()
         }
     }
 
-    if (talk.unk53CEAC == 0)
+    if (talk.wonByTalk == 0)
     {
         battle.enemiesGone = static_cast<u8>(battle.enemyCount);
         battle.unk53BF02 = 0;
@@ -803,8 +803,8 @@ int Game::FightTalkWin()
     }
 
     talk.cursor += sizeof(u16);
-    talk.unk53CEAC = 1;
-    talk.unk4A7B58 = 1;
+    talk.wonByTalk = 1;
+    talk.battleRuns = 1;
     return 1;
 }
 
@@ -836,7 +836,7 @@ int Game::FightTalkLift()
 int Game::FightTalkAllDone()
 {
     FightTalk& talk = this->fightTalk;
-    talk.unk4A7B58 = 1;
+    talk.battleRuns = 1;
     u16 listed = 0;
 
     while (talk.UnsignedWord(static_cast<std::size_t>(listed) + 1) != kListEnd)
@@ -850,7 +850,7 @@ int Game::FightTalkAllDone()
     for (u16 index = 0; index < listed; ++index)
     {
         const u16 unit = talk.UnsignedWord(static_cast<std::size_t>(index) + 1);
-        talk.unk4A7B58 = 0;
+        talk.battleRuns = 0;
         this->SetTalkCommandUnit(unit);
 
         if (this->TalkUnit(unit).IsAB8() && ++done == listed)
@@ -884,7 +884,7 @@ int Game::FightTalkMarks(bool set)
 
     if (set)
     {
-        talk.unk4A7B58 = 0;
+        talk.battleRuns = 0;
     }
 
     const i16 unit = talk.Word(1);
@@ -916,13 +916,13 @@ int Game::FightTalkMarks(bool set)
 
     if (set)
     {
-        talk.unk4A7B58 = 1;
+        talk.battleRuns = 1;
         return 1;
     }
 
-    talk.unk4A7B58 = 0;
+    talk.battleRuns = 0;
     this->BattleFrame();
-    talk.unk4A7B58 = 1;
+    talk.battleRuns = 1;
     return 1;
 }
 
@@ -931,7 +931,7 @@ int Game::FightTalkMarks(bool set)
 int Game::FightTalkRepeat()
 {
     FightTalk& talk = this->fightTalk;
-    talk.unk4A7B58 = 0;
+    talk.battleRuns = 0;
 
     auto low = [&talk]
     {
@@ -961,7 +961,7 @@ int Game::FightTalkRepeat()
     }
 
     this->BattleFrame();
-    talk.unk4A7B58 = 1;
+    talk.battleRuns = 1;
     return 1;
 }
 
@@ -1004,7 +1004,7 @@ int Game::FightTalkRandomJump()
 
     talk.unk53CE74 = 0;
     talk.unk53CE94 = 0;
-    talk.unk4A7B58 = 1;
+    talk.battleRuns = 1;
     return 1;
 }
 
@@ -1088,7 +1088,7 @@ int Game::FightTalkSkill()
     }
     else
     {
-        talk.unk53CE6C = battle.currentUnit;
+        talk.savedUnit = battle.currentUnit;
         battle.turnUnit = talk.Word(2);
         i32 target = talk.Word(3);
         const auto role = static_cast<std::size_t>(battle.turnUnit - BattleState::FirstRoleUnit);
@@ -1124,9 +1124,9 @@ int Game::FightTalkSkill()
         battle.turnTaken[static_cast<std::size_t>(battle.turnUnit)] = kSpellOrder;
     }
 
-    talk.unk4A7B58 = 0;
+    talk.battleRuns = 0;
     this->BattleFrame();
-    talk.unk4A7B58 = 1;
+    talk.battleRuns = 1;
     talk.cursor += 4 * sizeof(u16);
     return 1;
 }
@@ -1195,17 +1195,17 @@ int Game::FightTalkLoot()
         battle.result = kEndLootState;
     }
 
-    talk.unk53CEAC = 1;
+    talk.wonByTalk = 1;
     battle.enemiesGone = static_cast<u8>(battle.enemyCount);
     battle.unk53BF02 = 0;
-    talk.unk4A7B58 = 0;
+    talk.battleRuns = 0;
 
     if (this->BattleFrame() != 0)
     {
         return 1;
     }
 
-    talk.unk53CEAC = 0;
+    talk.wonByTalk = 0;
     talk.cursor += sizeof(u16);
     return 1;
 }
@@ -1262,11 +1262,11 @@ int Game::FightTalkUnits(u16 command)
         }
 
         case kTalkSound:
-            talk.unk4A7B58 = 0;
+            talk.battleRuns = 0;
             this->audio.PlaySound(talk.UnsignedWord(1), this->config.soundVolume);
             this->BattleFrame();
             talk.cursor += 2 * sizeof(u16);
-            talk.unk4A7B58 = 1;
+            talk.battleRuns = 1;
             return 1;
 
         case kTalkChoice:
@@ -1319,7 +1319,7 @@ int Game::FightTalkUnits(u16 command)
         }
 
         case kTalkFlagsA0:
-            talk.unk53CE8C = static_cast<i32>(static_cast<u32>(talk.unk53CE8C) | kWindowFlagsA0);
+            talk.windowFlags = static_cast<i32>(static_cast<u32>(talk.windowFlags) | kWindowFlagsA0);
             talk.cursor += sizeof(u16);
             return 1;
 
@@ -1655,7 +1655,7 @@ int Game::FightTalkSlide()
     }
 
     battle.shake = slide;
-    talk.unk4A7B58 = 0;
+    talk.battleRuns = 0;
 
     if (slide == 0)
     {
@@ -1665,7 +1665,7 @@ int Game::FightTalkSlide()
         talk.unk53CE90 = static_cast<i32>(static_cast<u32>(talk.unk53CE90) & kLowWordMask);
         talk.unk53CE98 = 0;
         talk.unk53CE76 = 0;
-        talk.unk4A7B58 = 1;
+        talk.battleRuns = 1;
         return 1;
     }
 
@@ -1732,17 +1732,17 @@ int Game::FightTalkSpeaker()
         std::copy_n(text.begin(), std::min(text.size(), talk.speaker.size()), talk.speaker.begin());
     }
 
-    talk.unk4A7B58 = 0;
+    talk.battleRuns = 0;
     this->BattleFrame();
     talk.unk53CE90 = static_cast<i32>(static_cast<u32>(talk.unk53CE90) & kLowWordMask);
     talk.textAt += length;
     talk.cursor = talk.textAt;
-    talk.unk4A7B58 = 1;
+    talk.battleRuns = 1;
     return 1;
 }
 
 // Command 0x2C of FightTalkFrame (inline in the original): a timed window of the unit of the second word that the
-// keys do not advance (timeout unk4A7B54, which goes back to 0xFFFF), and the talk goes on at once after its text.
+// keys do not advance (timeout windowTimeout, which goes back to 0xFFFF), and the talk goes on at once after its text.
 int Game::FightTalkTimedWindow()
 {
     BattleState& battle = this->battleState;
@@ -1758,13 +1758,13 @@ int Game::FightTalkTimedWindow()
     this->talk.SetupDialog(*window, text, name, Talk::SizedLayout, 0, 0);
     talk.window = window.get();
     this->talk.AppendWindow(std::move(window));
-    talk.window->timeout |= static_cast<u32>(talk.unk4A7B54);
+    talk.window->timeout |= static_cast<u32>(talk.windowTimeout);
     talk.window->flags |= TalkWindow::Timed;
     talk.window->flags |= TalkWindow::NoAdvance;
     talk.window->speed = kWindowSpeed;
-    talk.window->flags |= static_cast<u16>(talk.unk53CE8C);
-    talk.unk53CE8C = static_cast<i32>(static_cast<u32>(talk.unk53CE8C) & ~kLowWordMask);
-    talk.unk4A7B54 = kNoTalkTimeout;
+    talk.window->flags |= static_cast<u16>(talk.windowFlags);
+    talk.windowFlags = static_cast<i32>(static_cast<u32>(talk.windowFlags) & ~kLowWordMask);
+    talk.windowTimeout = kNoTalkTimeout;
     u16 x = 0;
     u16 y = 0;
 
@@ -1843,7 +1843,7 @@ void Game::SkipTalkText()
 
     talk.textAt += static_cast<std::size_t>(length) + 2;
     talk.cursor = talk.textAt;
-    talk.unk4A7B58 = 1;
+    talk.battleRuns = 1;
     battle.unk53BFC0 = 0;
     talk.speaker = {};
     talk.unk53CE78 = 0;
@@ -1942,12 +1942,12 @@ int Game::FightTalkEnemyCommand()
     battle.enemyHitAct = static_cast<i32>(act);
     order = static_cast<u16>(order | (loaded == 1 ? kOrderForced : kOrderSpell));
     battle.InsertSlotRecord(kEnemySlot, talk.unk53CCEC, 0);
-    talk.unk4A7B58 = 0;
+    talk.battleRuns = 0;
     this->BattleFrame();
     talk.unk53CCE8 = 0;
     talk.unk53CCEC = 0;
     talk.unk53CCF0 = 0;
-    talk.unk4A7B58 = 1;
+    talk.battleRuns = 1;
     talk.cursor += 4 * sizeof(u16);
     return 1;
 }
@@ -2000,8 +2000,8 @@ int Game::FightTalkLineWindow()
         this->talk.AppendWindow(std::move(window));
         talk.window->timeout |= kNoTimeout;
         talk.window->speed = kWindowSpeed;
-        talk.window->flags |= static_cast<u16>(talk.unk53CE8C);
-        talk.unk53CE8C = static_cast<i32>(static_cast<u32>(talk.unk53CE8C) & ~kLowWordMask);
+        talk.window->flags |= static_cast<u16>(talk.windowFlags);
+        talk.windowFlags = static_cast<i32>(static_cast<u32>(talk.windowFlags) & ~kLowWordMask);
         talk.window->fromX = x;
         talk.window->fromY = y;
         this->SetTalkCommandUnit(static_cast<u16>(this->TalkCommandUnit() | kWindowShown));
@@ -2011,7 +2011,7 @@ int Game::FightTalkLineWindow()
 
     if (this->scene.talkWindows != nullptr)
     {
-        talk.unk4A7B58 = 0;
+        talk.battleRuns = 0;
         this->BattleFrame();
         return 1;
     }
@@ -2137,7 +2137,7 @@ int Game::FightTalkSlideTo()
 
     const i32 slide =
         (static_cast<i16>(talk.unk53CE78) - static_cast<i16>(talk.unk53CE74)) / static_cast<i16>(talk.unk53CE98);
-    talk.unk4A7B58 = 0;
+    talk.battleRuns = 0;
     battle.shake = slide;
     talk.unk53CE74 = static_cast<u16>(talk.unk53CE74 + slide);
 
@@ -2149,7 +2149,7 @@ int Game::FightTalkSlideTo()
         talk.unk53CE90 = static_cast<i32>(static_cast<u32>(talk.unk53CE90) & kLowWordMask);
         talk.unk53CE98 = 0;
         talk.unk53CE76 = 0;
-        talk.unk4A7B58 = 1;
+        talk.battleRuns = 1;
         return 1;
     }
 
@@ -2199,7 +2199,7 @@ int Game::FightTalkCatch()
         talk.unk53CE98 = 1;
     }
 
-    talk.unk4A7B58 = 1;
+    talk.battleRuns = 1;
     this->BattleFrame();
 
     if (battle.unk53C02C != 0)
@@ -2266,9 +2266,9 @@ int Game::FightTalkMisc(u16 command)
     switch (command)
     {
         case kTalkIntro:
-            talk.unk53CEB0 = 0;
+            talk.drawMovedAtOnce = 0;
             this->BattleIntro(talk.UnsignedWord(1));
-            talk.unk53CEB0 = 1;
+            talk.drawMovedAtOnce = 1;
             talk.cursor += 2 * sizeof(u16);
             return 1;
 
@@ -2278,8 +2278,8 @@ int Game::FightTalkMisc(u16 command)
             battle.victoryWithoutPanel = 1;
             battle.result = kEndCheckState;
             battle.autoBattle = 0;
-            talk.unk53CEAC = 1;
-            talk.unk4A7B58 = 0;
+            talk.wonByTalk = 1;
+            talk.battleRuns = 0;
             this->BattleFrame();
             talk.cursor += sizeof(u16);
             return 1;
@@ -2448,12 +2448,12 @@ int Game::FightTalkMisc(u16 command)
             {
                 // The original tests the addresses of BattleUnit::Unk2B04 and Unk2B00 (never zero): an enemy is
                 // not ordered.
-                talk.unk53CCE8 = talk.unk53CE70;
+                talk.unk53CCE8 = talk.battleActingUnit;
                 talk.cursor += 2 * sizeof(u16);
                 return 1;
             }
 
-            talk.unk53CE6C = battle.currentUnit;
+            talk.savedUnit = battle.currentUnit;
             battle.turnUnit = talk.Word(1);
             battle.aimTarget = talk.Word(2) + 1;
 
@@ -2479,9 +2479,9 @@ int Game::FightTalkMisc(u16 command)
                 talk.cursor += sizeof(u16);
             }
 
-            talk.unk4A7B58 = 0;
+            talk.battleRuns = 0;
             this->BattleFrame();
-            talk.unk4A7B58 = 1;
+            talk.battleRuns = 1;
             return 1;
 
         case kTalkPictureWait:
@@ -2518,9 +2518,9 @@ int Game::FightTalkMisc(u16 command)
             talk.unk53CCE8 = 0;
             talk.unk53CE98 = 0;
             talk.unk53CE9A = 0;
-            talk.unk4A7B58 = 0;
+            talk.battleRuns = 0;
             this->BattleFrame();
-            talk.unk4A7B58 = 1;
+            talk.battleRuns = 1;
             talk.cursor += 4 * sizeof(u16);
             return 1;
 
@@ -2739,7 +2739,7 @@ int Game::FightTalkCounters()
     FightTalk& talk = this->fightTalk;
     u16 count = 0;
     talk.unk53CE9E = 0;
-    talk.unk4A7B58 = 0;
+    talk.battleRuns = 0;
 
     while (talk.UnsignedWord(static_cast<std::size_t>(count) + 1) != kListEnd)
     {
@@ -2754,7 +2754,7 @@ int Game::FightTalkCounters()
         for (u16 index = 0; index < count; ++index)
         {
             const u16 unit = talk.UnsignedWord(static_cast<std::size_t>(index) + 1);
-            talk.unk4A7B58 = 0;
+            talk.battleRuns = 0;
             this->SetTalkCommandUnit(unit);
 
             if (this->TalkUnit(unit).Counter2A76() == 0 && ++cleared == count)

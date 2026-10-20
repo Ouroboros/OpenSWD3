@@ -50,10 +50,10 @@ void FightTalk::Load(const std::u8string& installDirectory, u16 battle)
     this->file.Read(this->script.data(), bytes);
 }
 
-// swd32.exe 0x0046E390: the talk state cleared (unk4A7B54 0xFFFF, unk4A7B58 and `enabled` 1) and the script freed
+// swd32.exe 0x0046E390: the talk state cleared (windowTimeout 0xFFFF, battleRuns and `enabled` 1) and the script freed
 void FightTalk::Reset()
 {
-    this->unk4A7B58 = 1;
+    this->battleRuns = 1;
     this->enabled = 1;
     this->unk53CE5C = 0;
     this->unk53CE60 = 0;
@@ -61,12 +61,12 @@ void FightTalk::Reset()
     this->unk53CE68 = 0;
     this->unk53CCEC = 0;
     this->unk53CCF0 = 0;
-    this->unk53CE6C = 0;
-    this->unk53CE70 = 0;
+    this->savedUnit = 0;
+    this->battleActingUnit = 0;
     this->unk53CE74 = 0;
     this->unk53CE76 = 0;
     this->unk53CE78 = 0;
-    this->unk53CE8C = 0;
+    this->windowFlags = 0;
     this->unk53CCE4 = 0;
     this->unk53CCDC = 0;
     this->unk53CE90 = 0;
@@ -75,12 +75,12 @@ void FightTalk::Reset()
     this->unk53CE9A = 0;
     this->unk53CE9C = 0;
     this->unk53CE9E = 0;
-    this->unk4A7B54 = kNoTalk;
+    this->windowTimeout = kNoTalk;
     this->unk53CEA0 = 0;
     this->unk53CCD4 = 0;
     this->offset = 0;
     this->open = false;
-    this->unk53CEAC = 0;
+    this->wonByTalk = 0;
     this->script.clear();
     this->cursor = 0;
 }

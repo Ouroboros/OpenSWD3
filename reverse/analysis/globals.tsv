@@ -64,8 +64,8 @@
 0x004A7960	BattleState::PanelUnits	static constexpr std::array<i32, 4>	src/battle/battle_state.h:88	the role units by panel
 0x004A796C	BattleState::RoleCycle	static constexpr std::array<i32, 5>	src/battle/battle_state.h:87	the party roles by turn, from 1
 0x004A79A0	BattleState::SpiritPactName	static constexpr std::u8string_view	src/battle/battle_state.h:93	the command of battle role 0
-0x004A7B54	FightTalk::unk4A7B54	i32	src/battle/fight_talk.h:36	
-0x004A7B58	FightTalk::unk4A7B58	i32	src/battle/fight_talk.h:37	
+0x004A7B54	FightTalk::windowTimeout	i32	src/battle/fight_talk.h:36	
+0x004A7B58	FightTalk::battleRuns	i32	src/battle/fight_talk.h:37	
 0x004A7B5C	FightTalk::enabled	i32	src/battle/fight_talk.h:30	
 0x004A7CB0	BattleRole::NotEnoughStamina	static constexpr std::u8string_view	src/battle/battle_role.h:54	
 0x004A7CC0	BattleRole::NotEnoughSpirit	static constexpr std::u8string_view	src/battle/battle_role.h:53	
@@ -902,15 +902,15 @@
 0x0053CE60	FightTalk::unk53CE60	i32	src/battle/fight_talk.h:44	
 0x0053CE64	FightTalk::unk53CE64	i32	src/battle/fight_talk.h:45	
 0x0053CE68	FightTalk::unk53CE68	i32	src/battle/fight_talk.h:46	
-0x0053CE6C	FightTalk::unk53CE6C	i32	src/battle/fight_talk.h:47	
-0x0053CE70	FightTalk::unk53CE70	i32	src/battle/fight_talk.h:48	
+0x0053CE6C	FightTalk::savedUnit	i32	src/battle/fight_talk.h:47	
+0x0053CE70	FightTalk::battleActingUnit	i32	src/battle/fight_talk.h:48	
 0x0053CE74	FightTalk::unk53CE74	u16	src/battle/fight_talk.h:49	
 0x0053CE76	FightTalk::unk53CE76	u16	src/battle/fight_talk.h:50	
 0x0053CE78	FightTalk::unk53CE78	i32	src/battle/fight_talk.h:51	
 0x0053CE80	FightTalk::textAt	std::size_t	src/battle/fight_talk.h:64	the text of a talk window in the script (a pointer in the original)
 0x0053CE84	FightTalk::cursor	std::size_t	src/battle/fight_talk.h:34	the command read next (a pointer in the original)
 0x0053CE88	FightTalk::script	std::vector<u8>	src/battle/fight_talk.h:33	(the allocation)
-0x0053CE8C	FightTalk::unk53CE8C	i32	src/battle/fight_talk.h:52	
+0x0053CE8C	FightTalk::windowFlags	i32	src/battle/fight_talk.h:52	
 0x0053CE90	FightTalk::unk53CE90	i32	src/battle/fight_talk.h:53	
 0x0053CE94	FightTalk::unk53CE94	i32	src/battle/fight_talk.h:54	
 0x0053CE98	FightTalk::unk53CE98	u16	src/battle/fight_talk.h:55	
@@ -920,8 +920,8 @@
 0x0053CEA0	FightTalk::unk53CEA0	i32	src/battle/fight_talk.h:59	
 0x0053CEA4	FightTalk::offset	i32	src/battle/fight_talk.h:60	the place of the script read last (Seek)
 0x0053CEA8	FightTalk::open	bool	src/battle/fight_talk.h:32	
-0x0053CEAC	FightTalk::unk53CEAC	i32	src/battle/fight_talk.h:61	1: the battle ends as won (Game::CheckBattleEnd)
-0x0053CEB0	FightTalk::unk53CEB0	i32	src/battle/fight_talk.h:65	1: a moved unit is drawn at once
+0x0053CEAC	FightTalk::wonByTalk	i32	src/battle/fight_talk.h:61	1: the battle ends as won (Game::CheckBattleEnd)
+0x0053CEB0	FightTalk::drawMovedAtOnce	i32	src/battle/fight_talk.h:65	1: a moved unit is drawn at once
 0x0053CEB4	BattleState::attacksSinceCritical	u8	src/battle/battle_state.h:163	(low byte) the attacks since the last critical one
 0x0053CEB8	BattleState::criticalAttack	i32	src/battle/battle_state.h:162	1: a role's critical attack is under way (not evaded)
 0x0053CEBC	BattleState::lastCriticalRole	i32	src/battle/battle_state.h:164	the act of the role with the last rolled critical attack

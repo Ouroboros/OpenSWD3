@@ -53,13 +53,13 @@ TEST_CASE("fight talk: load, seek and close")
     CHECK_EQ(talk.script[0], kSeekMark);
     CHECK_EQ(talk.cursor, 0);
     CHECK_EQ(talk.offset, kSeekAt);
-    talk.unk53CEAC = 1;
+    talk.wonByTalk = 1;
     talk.enabled = 0;
     talk.Close();
     CHECK(!talk.open);
     CHECK(!talk.file.IsOpen());
     CHECK(talk.script.empty());
-    CHECK_EQ(talk.unk53CEAC, 0);
+    CHECK_EQ(talk.wonByTalk, 0);
     CHECK_EQ(talk.enabled, 1);
     CHECK_EQ(talk.offset, 0);
     std::filesystem::remove_all(directory);
@@ -77,5 +77,7 @@ TEST_CASE("fight talk: the initial state matches swd32.exe")
     }
 
     const swd3::FightTalk talk;
-    CHECK(swd3test::SameTable(exe, kTalkAt, std::array<swd3::i32, 3>{talk.unk4A7B54, talk.unk4A7B58, talk.enabled}));
+    CHECK(
+        swd3test::SameTable(exe, kTalkAt, std::array<swd3::i32, 3>{talk.windowTimeout, talk.battleRuns, talk.enabled})
+    );
 }
