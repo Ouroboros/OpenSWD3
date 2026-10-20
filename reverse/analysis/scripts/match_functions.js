@@ -1,8 +1,10 @@
 // Matches the functions of one build (a) with those of another (b) from their fingerprints (fingerprints.py), and
 // derives the maps of global addresses and of structure offsets from the matched functions.
 //
-// Usage: node match_functions.js <a.jsonl> <a tokens> <b.jsonl> <b tokens> <out dir>
-//   (the token dirs are the FINGERPRINT_TOKENS output of fingerprints.py; "-" leaves out the offset map)
+// Usage: node match_functions.js <a.jsonl> <a tokens> <b.jsonl> <b tokens> <out dir> [--a-crt=start-end]
+//                                [--b-crt=start-end]
+//   (the token dirs are the FINGERPRINT_TOKENS output of fingerprints.py; "-" leaves out the offset map; a CRT
+//   range keeps the runtime library and the game code apart: a pair must lie in the same of the two)
 //
 // The matching, each step only between functions still unmatched:
 //   1. hash: the same normalised code, unique on both sides;
@@ -12,6 +14,8 @@
 //      matched pair that are each other's best;
 //   5. similarity: each other's best by similarity, above a threshold;
 //   6. neighbours: the unmatched functions between two matched neighbours, in order, as many on both sides.
+// Small functions (up to SMALL instructions) look alike: matched other than by hash, they are kept only when the
+// pair lies in address order with the rest (the longest run of pairs in the order of both builds); before step 6.
 // The similarity: the share of shape blocks in common, the ratio of instruction counts, the strings and imports in
 // common. A pair is reusable when its code is the same (hash) and every callee and global it uses maps to the
 // counterpart the other matches give.
@@ -23,9 +27,27 @@
 const fs = require('fs');
 const path = require('path');
 
-const [aPath, aTokens, bPath, bTokens, outDir] = process.argv.slice(2);
+const [aPath, aTokens, bPath, bTokens, outDir, ...options] = process.argv.slice(2);
 const SIMILAR = { anchor: 0.3, calls: 0.35, callers: 0.5, best: 0.6, gap: 0.3 };
 const CONFIDENCE = { hash: 1, shape: 0.97 };
+const SMALL = 4;
+
+function range(name) {
+    const option = options.find((text) => text.startsWith('--' + name + '='));
+    if (!option) {
+        return null;
+    }
+    const [start, end] = option.split('=')[1].split('-').map((text) => parseInt(text, 16));
+    return [start, end || Infinity];
+}
+
+const crt = { a: range('a-crt'), b: range('b-crt') };
+
+function inCrt(side, record) {
+    const bounds = crt[side];
+    const address = parseInt(record.address, 16);
+    return bounds !== null && address >= bounds[0] && address < bounds[1];
+}
 
 function load(file) {
     return fs.readFileSync(file, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
@@ -88,7 +110,7 @@ const bToA = new Map();
 const pairs = [];
 
 function pair(x, y, method, confidence) {
-    if (aToB.has(x.address) || bToA.has(y.address)) {
+    if (aToB.has(x.address) || bToA.has(y.address) || inCrt('a', x) !== inCrt('b', y)) {
         return false;
     }
     aToB.set(x.address, y.address);
@@ -202,6 +224,47 @@ for (let changed = true; changed;) {
             if (back && back.y === x) {
                 pair(x, best.y, 'similarity', best.score);
             }
+        }
+    }
+}
+
+// The pairs in address order: the longest run of pairs whose addresses rise on both sides.
+function orderedPairs() {
+    const sorted = [...pairs].sort((p, q) => parseInt(p.a.address, 16) - parseInt(q.a.address, 16));
+    const tails = [];
+    const previous = new Array(sorted.length).fill(-1);
+    sorted.forEach((p, i) => {
+        const at = parseInt(p.b.address, 16);
+        let low = 0;
+        let high = tails.length;
+        while (low < high) {
+            const middle = (low + high) >> 1;
+            if (parseInt(sorted[tails[middle]].b.address, 16) < at) {
+                low = middle + 1;
+            } else {
+                high = middle;
+            }
+        }
+        if (low > 0) {
+            previous[i] = tails[low - 1];
+        }
+        tails[low] = i;
+    });
+    const kept = new Set();
+    for (let i = tails.length ? tails[tails.length - 1] : -1; i >= 0; i = previous[i]) {
+        kept.add(sorted[i]);
+    }
+    return kept;
+}
+
+// Small functions matched other than by hash, out of address order, are taken back.
+{
+    const ordered = orderedPairs();
+    for (const p of [...pairs]) {
+        if (p.method !== 'hash' && p.a.instructions <= SMALL && !ordered.has(p)) {
+            pairs.splice(pairs.indexOf(p), 1);
+            aToB.delete(p.a.address);
+            bToA.delete(p.b.address);
         }
     }
 }
@@ -328,14 +391,25 @@ function reusable(x, y, method) {
     return 'yes';
 }
 
+function blockOverlap(x, y) {
+    let common = 0;
+    for (const [hash, count] of x.blockCounts) {
+        common += Math.min(count, y.blockCounts.get(hash) || 0);
+    }
+    return common / Math.max(x.shape_blocks.length, y.shape_blocks.length, 1);
+}
+
 fs.mkdirSync(outDir, { recursive: true });
-const functionLines = ['a_address\ta_name\tb_address\tb_name\tmethod\tconfidence\treusable\ta_instructions\tb_instructions'];
-for (const { a: x, b: y, method, confidence } of pairs.sort((p, q) => p.a.address.localeCompare(q.a.address))) {
+const ordered = orderedPairs();
+const functionLines = ['a_address\ta_name\tb_address\tb_name\tmethod\tconfidence\treusable\ta_instructions\t' +
+    'b_instructions\torder_consistent\tblock_overlap'];
+for (const p of [...pairs].sort((left, right) => left.a.address.localeCompare(right.a.address))) {
+    const { a: x, b: y, method, confidence } = p;
     functionLines.push([x.address, x.name, y.address, y.name, method, confidence.toFixed(3), reusable(x, y, method),
-        x.instructions, y.instructions].join('\t'));
+        x.instructions, y.instructions, ordered.has(p) ? 'yes' : 'no', blockOverlap(x, y).toFixed(3)].join('\t'));
 }
 for (const x of a.filter((record) => !aToB.has(record.address))) {
-    functionLines.push([x.address, x.name, '', '', 'unmatched', '', 'no: unmatched', x.instructions, ''].join('\t'));
+    functionLines.push([x.address, x.name, '', '', 'unmatched', '', 'no: unmatched', x.instructions, '', '', ''].join('\t'));
 }
 fs.writeFileSync(path.join(outDir, 'functions.tsv'), functionLines.join('\n') + '\n');
 
@@ -361,6 +435,7 @@ const summary = [
     `matched ${pairs.length} (${(100 * matchedInstructions / aInstructions).toFixed(1)}% of a's instructions), unmatched ${a.length - pairs.length}`,
     'by method: ' + [...methods.entries()].map(([method, count]) => `${method} ${count}`).join(', '),
     `reusable ${reusableCount}`,
+    `in address order ${ordered.size} of ${pairs.length}`,
     `globals mapped ${globalMap.size}, consistent ${[...globalMap.values()].filter((entry) => entry.to.size === 1).length}`,
     `offset pairs ${offsetEvidence.size}`,
 ];
