@@ -277,12 +277,23 @@ void FieldView::Paint()
     if ((state.leader.id == Role::NoId || state.leader.unk20 < kUnkLeader20Limit) &&
         !state.GameFlag(GameState::HideHud))
     {
+        // The rebuild's map filling the window keeps the gold at the bottom right of the canvas (deviations.md).
+        if (field.screenX != 0 || field.screenY != 0)
+        {
+            painter.SetClipClamped(0, 0, Display::Width + field.screenX, Display::Height + field.screenY);
+        }
+
         owner.actDrawer.DrawCounter(
-            ActDrawer::GoldX,
-            ActDrawer::GoldY,
+            ActDrawer::GoldX + field.screenX,
+            ActDrawer::GoldY + field.screenY,
             static_cast<u32>(owner.party.variables[Party::Gold]),
             owner.counterAlpha
         );
+
+        if (field.screenX != 0 || field.screenY != 0)
+        {
+            painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+        }
     }
 
     const bool pointer = (!state.GameFlag(GameState::NoPointer) && !state.GameFlag(GameState::NoChoicePointer) &&

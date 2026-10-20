@@ -1217,7 +1217,9 @@ void Game::StepPointer()
 
             const ButtonState& click = this->controls.At(Button::MouseLeft);
 
-            if (click.press != 0 && static_cast<u32>(this->state.pointerX) > kButtonLeft &&
+            // The rebuild's map filling the window keeps the button at the right of the canvas (deviations.md); the
+            // pointer beside the screen is compared signed.
+            if (click.press != 0 && this->state.pointerX > static_cast<i32>(kButtonLeft) + this->field.screenX &&
                 static_cast<u32>(this->state.pointerY) < kButtonBottom && this->state.leader.id == Role::NoId)
             {
                 this->menuState = Game::MenuEntering | Game::MainMenu;
@@ -1229,7 +1231,13 @@ void Game::StepPointer()
             button = false;
         }
 
-        if (button)
+        if (button && this->field.screenX != 0)
+        {
+            this->painter.SetClipClamped(0, 0, Display::Width + this->field.screenX, Display::Height);
+            this->actDrawer.Draw(view.unk4C83A8, view.unk4ACBC8 + kButtonX + this->field.screenX, 0);
+            this->painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+        }
+        else if (button)
         {
             this->actDrawer.Draw(view.unk4C83A8, view.unk4ACBC8 + kButtonX, 0);
         }
