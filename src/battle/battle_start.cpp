@@ -146,30 +146,30 @@ void Game::StartBattle(u16 number)
     this->battleMessages.messages.reset();
     battle.unk524268.fill(0);
     std::fill_n(battle.commandEnabled.begin(), kCommandClearBytes, u8{0});
-    battle.unk52544C[0] = 0;
+    battle.roleListScrolls[0] = 0;
     battle.pendingOrders.fill(PendingOrder{});
     battle.unk4FF0BC.fill(0);
-    battle.unk52544C[1] = 0;
+    battle.roleListScrolls[1] = 0;
     battle.background = Picture{};
-    battle.unk52544C[2] = 0;
+    battle.roleListScrolls[2] = 0;
     battle.unk502944 = 0;
-    battle.unk52544C[3] = 0;
+    battle.roleListScrolls[3] = 0;
     battle.unk502948 = 0;
     battle.unk5244D8 = 0;
     battle.unk50294C = 0;
     battle.unk502950 = 0;
     battle.unk5244DC = 0;
-    battle.unk5242B0.fill(0);
+    battle.slotDamage.fill(0);
     std::fill_n(battle.commandEnabled.begin() + kCommandClearBytes, kCommandClearBytes, u8{0});
     battle.unk502984.fill(-1);
-    battle.unk524420.fill(-1);
+    battle.slotTargets.fill(-1);
     battle.unk53AE90.fill(-1);
     battle.unk5244E8.fill(-1);
     battle.inParty.fill(0);
     battle.guestUsed.fill(0);
     battle.unk53C048 = 0;
-    battle.unk53AE70 = -1;
-    battle.unk53BF22 = 0;
+    battle.actingUnit = -1;
+    battle.listedCommands = 0;
     battle.unk53C4B0 = 0;
 
     for (BattleSlotRecord& record : battle.unk524788)
@@ -181,7 +181,7 @@ void Game::StartBattle(u16 number)
         record.unk0A = 0;
     }
 
-    battle.unk4FF578.fill(1);
+    battle.roleListRows.fill(1);
     ResetPlayback(this->talk.EndAct());
     this->talk.EndAct().id = Scene::PointerAct;
     this->talk.EndAct().action = Scene::ButtonPointer;
@@ -473,7 +473,7 @@ void Game::StartBattle(u16 number)
         this->battleRoles[role].RandomizeGauge(this->battleServices);
     }
 
-    const u32 fighting = battle.roleCount - battle.unk53BF26 - battle.guestCount;
+    const u32 fighting = battle.roleCount - battle.escortCount - battle.guestCount;
 
     if (battle.defeatedRoles >= fighting)
     {

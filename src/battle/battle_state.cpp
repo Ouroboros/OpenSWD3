@@ -450,7 +450,7 @@ void BattleState::TakeSlotRecordAt(std::size_t at, BattleSlotRecord& taken)
 // The seven dwords from 0x0053AE70 cleared (a memset in the original: the acting unit and its hit)
 void BattleState::ClearActing()
 {
-    this->unk53AE70 = 0;
+    this->actingUnit = 0;
     this->unk53AE74 = 0;
     this->unk53AE78 = 0;
     this->slideBackPicture = 0;

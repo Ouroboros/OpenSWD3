@@ -273,7 +273,7 @@ void BattleFrame::DrawBattleBackgroundAdvance(int shake, Scene& scene)
     painter.SetClipClamped(0, 0, Display::Width, Display::Height);
     i16 level = battle.darkLevel;
 
-    if (battle.darkenUnit == battle.unk53AE70 && (battle.unk53BF94 == 1 || battle.unk53BF98 == 1))
+    if (battle.darkenUnit == battle.actingUnit && (battle.unk53BF94 == 1 || battle.unk53BF98 == 1))
     {
         if (battle.darkenByTint != 0)
         {

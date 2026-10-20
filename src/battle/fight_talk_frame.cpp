@@ -561,7 +561,7 @@ int Game::FightTalkOrder()
     if (unit > kLastEnemy)
     {
         talk.unk53CE6C = battle.currentUnit;
-        battle.unk53BD50 = unit;
+        battle.turnUnit = unit;
         battle.aimTarget = target + 1;
 
         if (battle.aimTarget > kLastEnemy)
@@ -572,8 +572,8 @@ int Game::FightTalkOrder()
         }
 
         this->battleRoles[static_cast<std::size_t>(unit - BattleState::FirstRoleUnit)].SetTarget(1);
-        battle.unk53BCE8 = 1;
-        battle.turnTaken[static_cast<std::size_t>(battle.unk53BD50)] = 1;
+        battle.turnCommand = 1;
+        battle.turnTaken[static_cast<std::size_t>(battle.turnUnit)] = 1;
     }
     else
     {
@@ -735,7 +735,7 @@ int Game::FightTalkCommand(int command)
 
     if (unit > kLastEnemy)
     {
-        battle.unk53BD50 = unit;
+        battle.turnUnit = unit;
         battle.aimTarget = unit - (BattleState::FirstRoleUnit - 1);
     }
 
@@ -792,7 +792,7 @@ int Game::FightTalkWin()
 
     if (talk.unk53CEAC == 0)
     {
-        battle.unk53BF00 = static_cast<u8>(battle.enemyCount);
+        battle.enemiesGone = static_cast<u8>(battle.enemyCount);
         battle.unk53BF02 = 0;
 
         if (battle.result <= kLastPlayState)
@@ -1089,9 +1089,9 @@ int Game::FightTalkSkill()
     else
     {
         talk.unk53CE6C = battle.currentUnit;
-        battle.unk53BD50 = talk.Word(2);
+        battle.turnUnit = talk.Word(2);
         i32 target = talk.Word(3);
-        const auto role = static_cast<std::size_t>(battle.unk53BD50 - BattleState::FirstRoleUnit);
+        const auto role = static_cast<std::size_t>(battle.turnUnit - BattleState::FirstRoleUnit);
 
         if (target > kLastEnemy)
         {
@@ -1120,8 +1120,8 @@ int Game::FightTalkSkill()
             battle.unk53BF88 = 1;
         }
 
-        battle.unk53BCE8 = kSpellOrder;
-        battle.turnTaken[static_cast<std::size_t>(battle.unk53BD50)] = kSpellOrder;
+        battle.turnCommand = kSpellOrder;
+        battle.turnTaken[static_cast<std::size_t>(battle.turnUnit)] = kSpellOrder;
     }
 
     talk.unk4A7B58 = 0;
@@ -1196,7 +1196,7 @@ int Game::FightTalkLoot()
     }
 
     talk.unk53CEAC = 1;
-    battle.unk53BF00 = static_cast<u8>(battle.enemyCount);
+    battle.enemiesGone = static_cast<u8>(battle.enemyCount);
     battle.unk53BF02 = 0;
     talk.unk4A7B58 = 0;
 
@@ -2185,15 +2185,15 @@ int Game::FightTalkCatch()
         battle.currentUnit = 0;
         role.Retarget(static_cast<i16>(battle.aimTarget - 1));
         role.SetCommand(kCatchCommand);
-        battle.unk53BCE8 = kCatchCommand;
+        battle.turnCommand = kCatchCommand;
         battle.roleOrder.fill(0);
         battle.unk524788.fill(BattleSlotRecord{});
         battle.turnTaken[unit] = kCatchCommand;
         battle.unk53BF74 = 1;
         battle.unk53BFC0 = 1;
         battle.retargeted = 1;
-        battle.unk53BF68 = 0;
-        battle.unk53AE70 = unit;
+        battle.hitsAllRoles = 0;
+        battle.actingUnit = unit;
         this->battleEnemies[static_cast<std::size_t>(battle.aimTarget - 1)].IncreaseHits();
         battle.unk53C02C = 1;
         talk.unk53CE98 = 1;
@@ -2273,7 +2273,7 @@ int Game::FightTalkMisc(u16 command)
             return 1;
 
         case kTalkQuietWin:
-            battle.unk53BF00 = static_cast<u8>(battle.enemyCount);
+            battle.enemiesGone = static_cast<u8>(battle.enemyCount);
             battle.unk53BF02 = 0;
             battle.victoryWithoutPanel = 1;
             battle.result = kEndCheckState;
@@ -2454,19 +2454,19 @@ int Game::FightTalkMisc(u16 command)
             }
 
             talk.unk53CE6C = battle.currentUnit;
-            battle.unk53BD50 = talk.Word(1);
+            battle.turnUnit = talk.Word(1);
             battle.aimTarget = talk.Word(2) + 1;
 
             if (battle.aimTarget > kLastEnemy)
             {
                 battle.unk53BFD0 = 1;
                 battle.aimTarget -= BattleState::FirstRoleUnit;
-                battle.pendingOrders[static_cast<std::size_t>(battle.unk53BD50 - BattleState::FirstRoleUnit)].unk00 = 1;
+                battle.pendingOrders[static_cast<std::size_t>(battle.turnUnit - BattleState::FirstRoleUnit)].unk00 = 1;
             }
 
-            this->battleRoles[static_cast<std::size_t>(battle.unk53BD50 - BattleState::FirstRoleUnit)].SetTarget(1);
-            battle.unk53BCE8 = 1;
-            battle.turnTaken[static_cast<std::size_t>(battle.unk53BD50)] = 1;
+            this->battleRoles[static_cast<std::size_t>(battle.turnUnit - BattleState::FirstRoleUnit)].SetTarget(1);
+            battle.turnCommand = 1;
+            battle.turnTaken[static_cast<std::size_t>(battle.turnUnit)] = 1;
             talk.cursor += 2 * sizeof(u16);
             return 1;
 

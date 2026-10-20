@@ -200,8 +200,8 @@ public:
     std::array<UnitPlacement, Enemies> enemyPlaces;   // 0x005213A0
     std::array<UnitPlacement, RoleUnits> rolePlaces;  // 0x0053AF70
     std::array<i32, 2 * Party::Roles> panelPlaces = {};  // 0x004FF558 the x and y of the four role panels
-    std::array<i32, Party::Roles> unk4FF578 = {};
-    std::array<i32, RoleUnits> hitPointBars = {};  // 0x00520200 and its copy 0x00502914
+    std::array<i32, Party::Roles> roleListRows = {};     // 0x004FF578 by role: its roleListRow
+    std::array<i32, RoleUnits> hitPointBars = {};        // 0x00520200 and its copy 0x00502914
     std::array<i32, RoleUnits> hitPointBarsShown = {};
     std::array<i32, RoleUnits> hitPoints = {};   // 0x0052027C
     std::array<i32, RoleUnits> spiritBars = {};  // 0x005240C8 and its copy 0x00524288
@@ -225,7 +225,7 @@ public:
     std::array<u16, 3> commandKinds = {};            // 0x004FE5CC their accessory kinds
     std::array<i32, 8> unk524268 = {};
     std::array<u8, 8> commandEnabled = {};  // 0x00524414 the five commands of the menu and the three accessory ones
-    std::array<i32, Party::Roles> unk52544C =
+    std::array<i32, Party::Roles> roleListScrolls =  // 0x0052544C by role: its roleListScroll
         {};  // 0x0052544C..0x00525458 per party role: the scroll of its list (ScrollListBack)
     std::array<PendingOrder, RoleUnits> pendingOrders = {};  // 0x00520E90
     i32 unk53BF80 = 0;  // cleared when a party unit's order is taken (InsertSlotRecord)
@@ -240,17 +240,17 @@ public:
     i32 unk502950 = 0;
     i32 unk5244D8 = 0;
     i32 unk5244DC = 0;
-    std::array<i32, 0x12> unk5242B0 = {};
+    std::array<i32, 0x12> slotDamage = {};  // 0x005242B0 per slot: the damage of the hit so far
     std::array<i32, 0x12> unk502984 = {};
-    std::array<i32, 0x12> unk524420 = {};
+    std::array<i32, 0x12> slotTargets = {};  // 0x00524420 per slot: the unit it hits (-1: none)
     std::array<i32, 0x12> unk53AE90 = {};
     std::array<i32, 0x7E> unk5244E8 = {};
     i32 unk53C048 = 0;
-    i32 unk53AE70 = 0;
-    u16 unk53BF22 = 0;
+    i32 actingUnit = 0;      // 0x0053AE70 the unit acting now (-1: none)
+    u16 listedCommands = 0;  // 0x0053BF22 the commands the menu lists beyond its fixed ones
     i32 unk53C4B0 = 0;
     std::array<BattleSlotRecord, Units> unk524788;
-    u16 unk53BF26 = 0;  // the high word of 0x0053BF24
+    u16 escortCount = 0;  // 0x0053BF26 the high word of 0x0053BF24
 
     // The background drawn each frame (0x00453580): a quake shift, the grey band of the battle start, a flash of the
     // field, and the field darkened (by darkened copies in `surfaces` or by tint steps) while unit darkenUnit acts.
@@ -259,12 +259,12 @@ public:
     i32 quakePhase = 0;  // 0x0053BD60 the step of the quake in its offset table (0x004A75EC)
     i32 unk53BF94 = 0;   // with unk53BF98: the field is darkened while unit darkenUnit acts
     i32 unk53BF98 = 0;
-    i16 darkenUnit = -1;  // 0x004A7630 compared with unk53AE70
+    i16 darkenUnit = -1;  // 0x004A7630 compared with actingUnit
     u16 unk53BF2C = 0;
-    u16 grayBand = 0;       // 0x0053BF2E the half height of the grey band around BandRow
-    i32 grayBandShown = 0;  // 0x0053BF30
-    i32 flashing = 0;       // 0x0053BFCC the field flashes, flashLevel falling by FlashStep a frame
-    u16 unk4A75FC = 1;
+    u16 grayBand = 0;            // 0x0053BF2E the half height of the grey band around BandRow
+    i32 grayBandShown = 0;       // 0x0053BF30
+    i32 flashing = 0;            // 0x0053BFCC the field flashes, flashLevel falling by FlashStep a frame
+    u16 sweptUnits = 1;          // 0x004A75FC the units a sweep has reached
     i8 flashLevel = FlashStart;  // 0x004A75FE tint steps of the flash
     u8 panelGlow = 1;            // 0x004A75FF the highlight of the current role's panel; bit 7: falling
     i32 darkenByTint = 0;        // 0x0053C4A0 the field is darkened by tint steps instead of the darkened copies
@@ -308,14 +308,14 @@ public:
     i32 unk53BFC0 = 0;
     i32 unk53BFC4 = 0;
     i32 unk53BF5C = 0;
-    i32 unk53BD50 = 0;
+    i32 turnUnit = 0;  // 0x0053BD50 the role unit taking the turn
     i32 unk53BFE4 = 0;
-    u8 unk53BF00 = 0;  // set to enemyCount by a retreat
+    u8 enemiesGone = 0;  // 0x0053BF00 set to enemyCount by a retreat
     u8 unk53BF01 = 0;
     u8 unk53BF02 = 0;
     u8 unk53BF03 = 0;
     // The turns (0x00464CC0, 0x0045ADF0, 0x0045AA00).
-    i32 unk53BCE8 = 0;
+    i32 turnCommand = 0;  // 0x0053BCE8 the order of the turn under way
     i32 unk53BF60 = 0;
     i32 unk53BF64 = 0;
     i32 unk53BF74 = 0;
@@ -354,28 +354,28 @@ public:
     i32 unk53BFB8 = 0;
     i32 damageShown = 0;  // 0x0053BFD8 set when a unit's damage numbers are done (ApplyHits)
     i32 unk53BD9C = 0;
-    i32 unk4A7558 = 1;
-    i32 unk4A755C = 1;
-    i32 listScroll = 0;  // 0x0053BD04 the scroll of a list
-    i32 unk53BD08 = 0;
-    i32 unk4A7570 = 2;                        // a party role
-    u8 unk53BDF2 = 0;                         // the entries of the list of state 2
-    u16 unk53BDF4 = 0;                        // the entries of the lists of states 4 and 0x1B
+    i32 pageListRow = 1;                      // 0x004A7558 the row marked in the list of state 2 (1-based)
+    i32 roleListRow = 1;                      // 0x004A755C the row marked in the lists of states 4 and 0x1B (1-based)
+    i32 listScroll = 0;                       // 0x0053BD04 the scroll of a list
+    i32 roleListScroll = 0;                   // 0x0053BD08 the scroll of the lists of states 4 and 0x1B
+    i32 listRole = 2;                         // 0x004A7570 a party role
+    u8 listEntries = 0;                       // 0x0053BDF2 the entries of the list of state 2
+    u16 roleListEntries = 0;                  // 0x0053BDF4 the entries of the lists of states 4 and 0x1B
     i32 listCursor = 0;                       // 0x0053BD14 the list entry under the cursor
     i32 specialCursor = 0;                    // 0x0053BD10 the skill under the cursor of the 絕招 list
     u8 specialCount = 0;                      // 0x0053BDF3 the skills of the 絕招 list
     i32 guardCursor = 0;                      // 0x0053BCF8 the row under the cursor of the 佈置護駕 panel
     std::array<u16, LootSlots> lootIds = {};  // 0x004FF2F0 the objects of the loot list
     i32 accessoryGained = 0;                  // 0x0053C4C4 set when an accessory gains proficiency at the victory
-    i32 unk53BD20 = 0;
-    RoleRecord levelUpBefore;  // 0x004FF108 the record of the role before its level-up
+    i32 endFrames = 0;                        // 0x0053BD20 frames the end messages have waited
+    RoleRecord levelUpBefore;                 // 0x004FF108 the record of the role before its level-up
     i32 unk53C4C8 = 0;
     std::array<i16, 9> statRolls = {};  // 0x005214A4..0x00525466 the rises of a level-up still to count
     u16 levelUpFrames = 0;              // 0x0053BDEA the frames of the level-up stats (the high word of 0x0053BDE8)
     // The debug keys (Game::BattleDebugKeys) and the acting unit.
     i32 unk5244E0 = 0;
     i32 unk53AF68 = 0;
-    i32 unk53BF68 = 0;
+    i32 hitsAllRoles = 0;  // 0x0053BF68 1: the hit falls on all roles at once
     i32 unk53BD88 = 0;
     i32 unk53BD80 = 0;
     i32 snapNext = 0;           // 0x0053BFE8 1: the next frame is saved as c:\snap\<n>.bmp
@@ -503,7 +503,7 @@ public:
     // The rebuild (deviations.md): the unit the keys went to last frame; a new one spends the keys held.
     i32 keysUnit = 0;
     i32 unk53BD90 = 0;
-    i32 unk53BD94 = 0;
+    i32 menuGrow = 0;  // 0x0053BD94 how far the command menu has opened
     i32 unk53BD98 = 0;
     std::array<char, 0x14> listName = {};  // 0x0053C184 a name shown by the lists
     i32 unk53C49C = 0;
@@ -523,7 +523,7 @@ public:
     ObjectRecord unk53BC28;
     LearnedSkill lastLearned;  // 0x0053C154 the name of the accessory or of the skill learned, for the messages
     i32 unk53BFFC = 0;
-    u8 unk4A7646 = 0xFF;  // the role
+    u8 levelUpRole = 0xFF;  // 0x004A7646 the role
     // The end of the battle (Game::CheckBattleEnd, Game::DrawBattlePrompt).
     i32 blackFade = 0;  // 0x0053C4A8 the fade of the field to black, 2 darker a frame
     i32 unk53BDC8 = 0;

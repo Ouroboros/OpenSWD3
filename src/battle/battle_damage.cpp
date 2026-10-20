@@ -117,11 +117,11 @@ void Game::TryRetreat(int role)
     battle.unk53BFC4 = 1;
     battle.unk53BF5C = 0;
     battle.undarkening = 0;
-    battle.unk53BD50 = 0;
+    battle.turnUnit = 0;
     battle.currentUnit = 0;
-    battle.unk53AE70 = -1;
+    battle.actingUnit = -1;
     battle.result = 0;
-    battle.unk53BF00 = static_cast<u8>(battle.enemyCount);
+    battle.enemiesGone = static_cast<u8>(battle.enemyCount);
     battle.unk53BFE4 = 1;
 }
 

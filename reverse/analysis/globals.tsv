@@ -23,13 +23,13 @@
 0x004A754C	BattleState::aimTarget	i32	src/battle/battle_state.h:325	the enemy a role turn aims at, 1-based
 0x004A7550	BattleState::orderStep	i32	src/battle/battle_state.h:353	1-based step through enemyOrder or RoleCycle
 0x004A7554	BattleState::aiTarget	i32	src/battle/battle_state.h:456	the enemy (1-based) an AI role aims at
-0x004A7558	BattleState::unk4A7558	i32	src/battle/battle_state.h:357	
-0x004A755C	BattleState::unk4A755C	i32	src/battle/battle_state.h:358	
+0x004A7558	BattleState::pageListRow	i32	src/battle/battle_state.h:357	
+0x004A755C	BattleState::roleListRow	i32	src/battle/battle_state.h:358	
 0x004A7560	BattleState::unk4A7560	i32	src/battle/battle_state.h:519	
 0x004A7564	BattleState::autoTarget	i32	src/battle/battle_state.h:494	the enemy the auto battle aims at (1-based), -1: none
 0x004A7568	BattleState::unk4A7568	i32	src/battle/battle_state.h:520	
 0x004A756C	BattleState::unk4A756C	i32	src/battle/battle_state.h:521	
-0x004A7570	BattleState::unk4A7570	i32	src/battle/battle_state.h:361	a party role
+0x004A7570	BattleState::listRole	i32	src/battle/battle_state.h:361	a party role
 0x004A7574	BattleState::darkenedAt	i32	src/battle/battle_state.h:278	unk53BD0C when the darkened copies were made
 0x004A7578	BattleState::hoverPageTab	i32	src/battle/battle_state.h:397	the page tab under the pointer (list of state 2)
 0x004A757C	BattleState::hoverRoleTab	i32	src/battle/battle_state.h:398	the role tab under the pointer (list of state 4)
@@ -43,7 +43,7 @@
 0x004A75C8	BattleState::partyRoles	std::array<i32, Party::Roles>	src/battle/battle_state.h:188	the party role of each battle role
 0x004A75E8	BattleState::frameMilliseconds	i32	src/battle/battle_state.h:392	the milliseconds of a frame (the debug overlay shows 1000 / it)
 0x004A75EC	BattleState::QuakeSteps	static constexpr std::array<u8, 10>	src/battle/battle_state.h:86	by quakePhase
-0x004A75FC	BattleState::unk4A75FC	u16	src/battle/battle_state.h:267	
+0x004A75FC	BattleState::sweptUnits	u16	src/battle/battle_state.h:267	
 0x004A75FE	BattleState::flashLevel	i8	src/battle/battle_state.h:268	tint steps of the flash
 0x004A75FF	BattleState::panelGlow	u8	src/battle/battle_state.h:269	the highlight of the current role's panel; bit 7: falling
 0x004A7620	BattleState::lastRoleHit	u16	src/battle/battle_state.h:429	the last role hit
@@ -54,13 +54,13 @@
 0x004A762A	BattleState::timingWindow	u16	src/battle/battle_state.h:195	
 0x004A762C	BattleState::unk4A762C	u16	src/battle/battle_state.h:511	
 0x004A762E	BattleState::talkRole	u16	src/battle/battle_state.h:512	the role with a battle talk (0xFFFF: none)
-0x004A7630	BattleState::darkenUnit	i16	src/battle/battle_state.h:262	compared with unk53AE70
+0x004A7630	BattleState::darkenUnit	i16	src/battle/battle_state.h:262	compared with actingUnit
 0x004A7632	BattleState::darkCopyTint	std::array<i16, 3>	src/battle/battle_state.h:161	the darkRed, darkGreen, darkBlue of the copies
 0x004A7638	BattleState::hitPush	i16	src/battle/battle_state.h:344	the push, halved each frame
 0x004A763C	BattleState::unk4A763C	i32	src/battle/battle_state.h:492	
 0x004A7640	BattleState::unk4A7640	i32	src/battle/battle_state.h:534	
 0x004A7644	BattleState::anyStateRole	u16	src/battle/battle_state.h:495	a role unit that may take the panel in any battle state (SelectRoleUnit)
-0x004A7646	BattleState::unk4A7646	u8	src/battle/battle_state.h:526	the role
+0x004A7646	BattleState::levelUpRole	u8	src/battle/battle_state.h:526	the role
 0x004A7960	BattleState::PanelUnits	static constexpr std::array<i32, 4>	src/battle/battle_state.h:88	the role units by panel
 0x004A796C	BattleState::RoleCycle	static constexpr std::array<i32, 5>	src/battle/battle_state.h:87	the party roles by turn, from 1
 0x004A79A0	BattleState::SpiritPactName	static constexpr std::u8string_view	src/battle/battle_state.h:93	the command of battle role 0
@@ -612,7 +612,7 @@
 0x004FF2F0	BattleState::lootIds	std::array<u16, LootSlots>	src/battle/battle_state.h:368	the objects of the loot list
 0x004FF318	BattleState::unk4FF318	std::array<i32, 0x90>	src/battle/battle_state.h:464	
 0x004FF558	BattleState::panelPlaces	std::array<i32, 2 * Party::Roles>	src/battle/battle_state.h:202	the x and y of the four role panels
-0x004FF578	BattleState::unk4FF578	std::array<i32, Party::Roles>	src/battle/battle_state.h:203	
+0x004FF578	BattleState::roleListRows	std::array<i32, Party::Roles>	src/battle/battle_state.h:203	
 0x004FF588	BattleState::unk4FF588	std::array<i32, 0xA>	src/battle/battle_state.h:465	
 0x004FF5B8	BattleState::file	BattleFile	src/battle/battle_state.h:179	battle.ffd
 0x005028A0	BattleState::pointerX	i32	src/battle/battle_state.h:198	
@@ -667,13 +667,13 @@
 0x00524200	BattleState::unk524200	std::array<i32, 8>	src/battle/battle_state.h:462	
 0x00524220	BattleState::lastStaminaDamage	std::array<i32, Units>	src/battle/battle_state.h:421	per slot: the stamina damage of the last hit
 0x00524268	BattleState::unk524268	std::array<i32, 8>	src/battle/battle_state.h:226	
-0x005242B0	BattleState::unk5242B0	std::array<i32, 0x12>	src/battle/battle_state.h:243	
+0x005242B0	BattleState::slotDamage	std::array<i32, 0x12>	src/battle/battle_state.h:243	
 0x005242F8	BattleState::unk5242F8	u16	src/battle/battle_state.h:481	
 0x005242FC	BattleState::blockValues	std::array<i32, RoleUnits>	src/battle/battle_state.h:213	and its copy 0x0052418C
 0x00524324	BattleState::unk524324	std::array<i32, 0x3C>	src/battle/battle_state.h:222	
 0x00524414	BattleState::commandEnabled	std::array<u8, 8>	src/battle/battle_state.h:227	the five commands of the menu and the three accessory ones
 0x0052441C	BattleState::hitDamage	i32	src/battle/battle_state.h:300	
-0x00524420	BattleState::unk524420	std::array<i32, 0x12>	src/battle/battle_state.h:245	
+0x00524420	BattleState::slotTargets	std::array<i32, 0x12>	src/battle/battle_state.h:245	
 0x00524468	BattleMessages::lootNames	std::array<std::string_view, LootSlots>	src/battle/battle_message.h:158	
 0x005244C4	BattleState::surfaces	std::array<std::unique_ptr<Surface>, 2>	src/battle/battle_state.h:168	screen sized off-screen surfaces
 0x005244CC	BattleState::hoverRegion	ClickRegion*	src/battle/battle_state.h:394	the click region under the pointer
@@ -688,7 +688,7 @@
 0x00525470	BattleState::unk525470	ActState	src/battle/battle_state.h:219	
 0x00525508	Game::battleEnemies	std::array<BattleEnemy, BattleState::Enemies>	src/game/game.h:585	
 0x0053AE48	BattleState::spiritSteps	std::array<i32, RoleUnits>	src/battle/battle_state.h:289	
-0x0053AE70	BattleState::unk53AE70	i32	src/battle/battle_state.h:249	
+0x0053AE70	BattleState::actingUnit	i32	src/battle/battle_state.h:249	
 0x0053AE74	BattleState::unk53AE74	i32	src/battle/battle_state.h:385	
 0x0053AE78	BattleState::unk53AE78	u16	src/battle/battle_state.h:386	
 0x0053AE7A	BattleState::slideBackPicture	i16	src/battle/battle_state.h:346	the hit act picture after which the units slide back
@@ -715,26 +715,26 @@
 0x0053BCDC	BattleState::unk53BCDC	i32	src/battle/battle_state.h:407	
 0x0053BCE0	BattleState::enemyCount	u32	src/battle/battle_state.h:184	
 0x0053BCE4	BattleState::roleCount	u32	src/battle/battle_state.h:185	the party and the guests in battle
-0x0053BCE8	BattleState::unk53BCE8	i32	src/battle/battle_state.h:318	
+0x0053BCE8	BattleState::turnCommand	i32	src/battle/battle_state.h:318	
 0x0053BCEC	BattleState::result	i32	src/battle/battle_state.h:193	0x67: the battle is lost before it starts
 0x0053BCF0	BattleState::listReturnCommand	i32	src/battle/battle_state.h:518	the menu command a list returns to
 0x0053BCF4	BattleState::actingEnemy	i32	src/battle/battle_state.h:352	the enemy taking the turn
 0x0053BCF8	BattleState::guardCursor	i32	src/battle/battle_state.h:367	the row under the cursor of the 佈置護駕 panel
 0x0053BCFC	BattleState::enemyTarget	i32	src/battle/battle_state.h:444	the target of the acting enemy
 0x0053BD04	BattleState::listScroll	i32	src/battle/battle_state.h:359	the scroll of a list
-0x0053BD08	BattleState::unk53BD08	i32	src/battle/battle_state.h:360	
+0x0053BD08	BattleState::roleListScroll	i32	src/battle/battle_state.h:360	
 0x0053BD0C	BattleState::unk53BD0C	i32	src/battle/battle_state.h:279	
 0x0053BD10	BattleState::specialCursor	i32	src/battle/battle_state.h:365	the skill under the cursor of the 絕招 list
 0x0053BD14	BattleState::listCursor	i32	src/battle/battle_state.h:364	the list entry under the cursor
 0x0053BD18	BattleState::listPage	i32	src/battle/battle_state.h:497	the page of the list of state 2 (0..2)
-0x0053BD20	BattleState::unk53BD20	i32	src/battle/battle_state.h:370	
+0x0053BD20	BattleState::endFrames	i32	src/battle/battle_state.h:370	
 0x0053BD24	BattleState::menuX	i32	src/battle/battle_state.h:395	the place of the command menu
 0x0053BD28	BattleState::menuY	i32	src/battle/battle_state.h:396	
 0x0053BD40	BattleState::enemyHitAct	i32	src/battle/battle_state.h:434	the hit act of the acting enemy
 0x0053BD44	BattleState::unk53BD44	i32	src/battle/battle_state.h:513	
 0x0053BD48	BattleState::unk53BD48	i32	src/battle/battle_state.h:514	
 0x0053BD4C	BattleState::unk53BD4C	i32	src/battle/battle_state.h:473	
-0x0053BD50	BattleState::unk53BD50	i32	src/battle/battle_state.h:311	
+0x0053BD50	BattleState::turnUnit	i32	src/battle/battle_state.h:311	
 0x0053BD54	BattleState::currentUnit	i32	src/battle/battle_state.h:282	the unit whose panel is highlighted
 0x0053BD58	BattleState::heldEnemy	i32	src/battle/battle_state.h:441	the enemy (1-based) whose turn ended held
 0x0053BD5C	BattleState::shake	i32	src/battle/battle_state.h:257	the shift of the background this frame, cleared once drawn
@@ -750,7 +750,7 @@
 0x0053BD84	BattleState::sweepDefeated	i32	src/battle/battle_state.h:436	the units an enemy's sweep defeated
 0x0053BD88	BattleState::unk53BD88	i32	src/battle/battle_state.h:379	
 0x0053BD90	BattleState::unk53BD90	i32	src/battle/battle_state.h:505	
-0x0053BD94	BattleState::unk53BD94	i32	src/battle/battle_state.h:506	
+0x0053BD94	BattleState::menuGrow	i32	src/battle/battle_state.h:506	
 0x0053BD98	BattleState::unk53BD98	i32	src/battle/battle_state.h:507	
 0x0053BD9C	BattleState::unk53BD9C	i32	src/battle/battle_state.h:356	
 0x0053BDA0	BattleState::unk53BDA0	i32	src/battle/battle_state.h:391	
@@ -771,11 +771,11 @@
 0x0053BDEC	BattleState::sweepGap	u16	src/battle/battle_state.h:427	frames between the units a sweep reaches
 0x0053BDEE	BattleState::unk53BDEE	u8	src/battle/battle_state.h:483	
 0x0053BDF1	BattleState::listGlow	i8	src/battle/battle_state.h:284	the glow of the last listed unit; bit 7: on
-0x0053BDF2	BattleState::unk53BDF2	u8	src/battle/battle_state.h:362	the entries of the list of state 2
+0x0053BDF2	BattleState::listEntries	u8	src/battle/battle_state.h:362	the entries of the list of state 2
 0x0053BDF3	BattleState::specialCount	u8	src/battle/battle_state.h:366	the skills of the 絕招 list
-0x0053BDF4	BattleState::unk53BDF4	u16	src/battle/battle_state.h:363	the entries of the lists of states 4 and 0x1B
+0x0053BDF4	BattleState::roleListEntries	u16	src/battle/battle_state.h:363	the entries of the lists of states 4 and 0x1B
 0x0053BEFF	BattleState::defeatedRoles	u8	src/battle/battle_state.h:192	the party roles entering defeated
-0x0053BF00	BattleState::unk53BF00	u8	src/battle/battle_state.h:313	set to enemyCount by a retreat
+0x0053BF00	BattleState::enemiesGone	u8	src/battle/battle_state.h:313	set to enemyCount by a retreat
 0x0053BF01	BattleState::unk53BF01	u8	src/battle/battle_state.h:314	
 0x0053BF02	BattleState::unk53BF02	u8	src/battle/battle_state.h:315	
 0x0053BF03	BattleState::unk53BF03	u8	src/battle/battle_state.h:316	
@@ -790,9 +790,9 @@
 0x0053BF1C	BattleState::unk53BF1C	u16	src/battle/battle_state.h:412	
 0x0053BF1E	BattleState::pendingActionRow	i16	src/battle/battle_state.h:171	
 0x0053BF20	BattleState::pendingAction	i16	src/battle/battle_state.h:172	
-0x0053BF22	BattleState::unk53BF22	u16	src/battle/battle_state.h:250	
+0x0053BF22	BattleState::listedCommands	u16	src/battle/battle_state.h:250	
 0x0053BF24	BattleState::callingEscort	u16	src/battle/battle_state.h:410	the escort being called (the low word of 0x0053BF24)
-0x0053BF26	BattleState::unk53BF26	u16	src/battle/battle_state.h:253	the high word of 0x0053BF24
+0x0053BF26	BattleState::escortCount	u16	src/battle/battle_state.h:253	the high word of 0x0053BF24
 0x0053BF28	BattleState::unk53BF28	u16	src/battle/battle_state.h:235	non-zero: an enemy does not choose a command with UnkAction1000 (ChooseCommand)
 0x0053BF2A	BattleState::unk53BF2A	u16	src/battle/battle_state.h:403	
 0x0053BF2C	BattleState::unk53BF2C	u16	src/battle/battle_state.h:263	
@@ -813,7 +813,7 @@
 0x0053BF5C	BattleState::unk53BF5C	i32	src/battle/battle_state.h:310	
 0x0053BF60	BattleState::unk53BF60	i32	src/battle/battle_state.h:319	
 0x0053BF64	BattleState::unk53BF64	i32	src/battle/battle_state.h:320	
-0x0053BF68	BattleState::unk53BF68	i32	src/battle/battle_state.h:378	
+0x0053BF68	BattleState::hitsAllRoles	i32	src/battle/battle_state.h:378	
 0x0053BF6C	BattleState::unk53BF6C	i32	src/battle/battle_state.h:484	
 0x0053BF70	BattleState::unk53BF70	i32	src/battle/battle_state.h:485	
 0x0053BF74	BattleState::unk53BF74	i32	src/battle/battle_state.h:321	

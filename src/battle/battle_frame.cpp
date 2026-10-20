@@ -185,7 +185,7 @@ int Game::BattleFrame()
         return battle.unk53BDC8;
     }
 
-    if (battle.unk53BFC0 == 1 && battle.unk53AE70 == -1)
+    if (battle.unk53BFC0 == 1 && battle.actingUnit == -1)
     {
         battle.unk53BFC0 = 0;
     }
@@ -200,7 +200,7 @@ int Game::BattleFrame()
         else
         {
             BattleSlotRecord acting{
-                battle.unk53AE70,
+                battle.actingUnit,
                 battle.unk53AE74,
                 battle.unk53AE78,
                 static_cast<u16>(battle.slideBackPicture),
@@ -211,7 +211,7 @@ int Game::BattleFrame()
             };
 
             this->TakeSlotRecord(acting);
-            battle.unk53AE70 = acting.unit;
+            battle.actingUnit = acting.unit;
             battle.unk53AE74 = acting.unk04;
             battle.unk53AE78 = acting.kind;
             battle.slideBackPicture = static_cast<i16>(acting.unk0A);
@@ -220,21 +220,21 @@ int Game::BattleFrame()
             battle.unk53AE84 = acting.unk14;
             battle.unk53AE88 = acting.unk18;
 
-            if (battle.unk53AE70 != -1)
+            if (battle.actingUnit != -1)
             {
                 battle.slotRecordFrames = 0;
                 battle.unk53BF74 = 1;
-                this->fightTalk.unk53CE70 = battle.unk53AE70;
+                this->fightTalk.unk53CE70 = battle.actingUnit;
             }
         }
     }
 
-    battle.enemyGaugeBoost = battle.unk53AE70 == -1 && battle.currentUnit == 0 ? 1 : 0;
+    battle.enemyGaugeBoost = battle.actingUnit == -1 && battle.currentUnit == 0 ? 1 : 0;
     smooth::Scene frameScene;
     this->battleServices.frame = this->smoothMotion || this->battleDeferred ? &frameScene : nullptr;
     this->DrawBattleBackground(battle.shake);
 
-    if (battle.unk53BF64 == 1 || battle.unk53BF68 == 1)
+    if (battle.unk53BF64 == 1 || battle.hitsAllRoles == 1)
     {
         this->SortActingDrawOrder();
     }
@@ -404,7 +404,7 @@ void Game::EndBattle()
     battle.pointerY = 0;
     battle.formation = BattleFormation{};
     battle.unk4FF168.fill(0);
-    battle.unk52544C.fill(0);
+    battle.roleListScrolls.fill(0);
     battle.unk524324.fill(0);
     battle.unk4FE5D4.fill(0);
     battle.actionQueue.fill(0);
@@ -425,27 +425,27 @@ void Game::EndBattle()
     battle.spiritRolling.fill(0);
     battle.spirit.fill(0);
     battle.unk53AEE4 = 0;
-    battle.unk4FF578.fill(1);
+    battle.roleListRows.fill(1);
     battle.unk4A7568 = kAnswersStart;
-    battle.unk4A7570 = kHealPage;
+    battle.listRole = kHealPage;
     this->talk.choice = 0;
     battle.panelFlags = 0;
     battle.unk53BCDC = 0;
     battle.enemyCount = 0;
     battle.roleCount = 0;
     battle.guestCount = 0;
-    battle.unk53BCE8 = 0;
+    battle.turnCommand = 0;
     battle.result = 0;
     battle.menuCommand = 1;
     battle.aimTarget = 1;
     battle.actingEnemy = 0;
     battle.orderStep = 1;
-    battle.unk4A7558 = 1;
-    battle.unk4A755C = 1;
+    battle.pageListRow = 1;
+    battle.roleListRow = 1;
     battle.unk4A756C = 1;
     battle.darkenedAt = -1;
     battle.listScroll = 0;
-    battle.unk53BD08 = 0;
+    battle.roleListScroll = 0;
     battle.unk53BD0C = 0;
     battle.specialCursor = 0;
     battle.listCursor = 0;
@@ -454,7 +454,7 @@ void Game::EndBattle()
     battle.enemyHitAct = 0;
     battle.unk4A7580 = kOpeningPlaces[0];
     battle.unk53BD4C = 0;
-    battle.unk53BD50 = 0;
+    battle.turnUnit = 0;
     battle.currentUnit = 0;
     battle.heldEnemy = 0;
     battle.unk4A7584 = kOpeningPlaces[1];
@@ -497,7 +497,7 @@ void Game::EndBattle()
     battle.pendingAction = 0;
     battle.flashLevel = BattleState::FlashStart;
     battle.defeatedRoles = 0;
-    battle.unk53BF00 = 0;
+    battle.enemiesGone = 0;
     battle.unk53BF02 = 0;
     battle.unk53BF04 = 0;
     battle.unk53BF08 = 0;
@@ -515,12 +515,12 @@ void Game::EndBattle()
     battle.darkBlue = 0;
     battle.proficiencyBonus = 0;
     battle.unk53BD90 = 0;
-    battle.unk53BD94 = 0;
+    battle.menuGrow = 0;
     battle.unk53BD98 = 0;
-    battle.unk53BF22 = 0;
+    battle.listedCommands = 0;
     battle.callingEscort = 0;
-    battle.unk53BF26 = 0;
-    battle.unk53BD20 = 0;
+    battle.escortCount = 0;
+    battle.endFrames = 0;
     battle.unk53BDEE = 0;
     battle.fieldFade = ColorFade{};
     battle.unk53BF28 = 0;
@@ -538,7 +538,7 @@ void Game::EndBattle()
     battle.drawTaken.fill(0);
     battle.unk524268.fill(0);
     battle.hitFading.fill(0);
-    battle.unk53BF68 = 0;
+    battle.hitsAllRoles = 0;
     battle.unk53BF6C = 0;
     battle.unk53BF70 = 0;
     battle.unk53BF74 = 0;

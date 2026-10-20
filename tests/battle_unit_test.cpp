@@ -873,12 +873,12 @@ TEST_CASE("battle state: the initial turn and push values match swd32.exe")
     CHECK(swd3test::SameTable(exe, kPushAt, std::array<swd3::i16, 1>{state.hitPush}));
     CHECK(swd3test::SameTable(exe, kTurnPointerAt, std::array<swd3::i32, 1>{state.unk4A7640}));
     CHECK(swd3test::SameTable(exe, kTurnStepAt, std::array<swd3::i32, 1>{state.orderStep}));
-    CHECK(swd3test::SameTable(exe, kListMarksAt, std::array<swd3::i32, 2>{state.unk4A7558, state.unk4A755C}));
-    CHECK(swd3test::SameTable(exe, kListRoleAt, std::array<swd3::i32, 1>{state.unk4A7570}));
+    CHECK(swd3test::SameTable(exe, kListMarksAt, std::array<swd3::i32, 2>{state.pageListRow, state.roleListRow}));
+    CHECK(swd3test::SameTable(exe, kListRoleAt, std::array<swd3::i32, 1>{state.listRole}));
     CHECK(swd3test::SameTable(exe, kRoleCycleAt, swd3::BattleState::RoleCycle));
     CHECK(swd3test::SameTable(exe, kAutoEnemyAt, std::array<swd3::i32, 1>{state.autoTarget}));
     CHECK(swd3test::SameTable(exe, kMenuCommandAt, std::array<swd3::i32, 1>{state.menuCommand}));
-    CHECK(swd3test::SameTable(exe, kMasteryRoleAt, std::array<swd3::u8, 1>{state.unk4A7646}));
+    CHECK(swd3test::SameTable(exe, kMasteryRoleAt, std::array<swd3::u8, 1>{state.levelUpRole}));
     CHECK(
         swd3test::SameTable(
             exe,
@@ -888,7 +888,7 @@ TEST_CASE("battle state: the initial turn and push values match swd32.exe")
                 state.autoTarget,
                 state.unk4A7568,
                 state.unk4A756C,
-                state.unk4A7570
+                state.listRole
             }
         )
     );

@@ -379,7 +379,7 @@ void TurnFrame::DrawListTabsAdvance(int x, int y, Scene& scene)
         kListFrameBorder,
         scene
     );
-    battle.unk53BD94 = std::min(battle.unk53BD94 + kListGrowStep, kListGrowMost);
+    battle.menuGrow = std::min(battle.menuGrow + kListGrowStep, kListGrowMost);
 }
 
 // What Game::DrawCommandMenu decides of the frame; the draws into `scene`.
@@ -516,8 +516,8 @@ void TurnFrame::DrawThrowListAdvance(int x, int y, int cursor, int top, Scene& s
     font.SetShadow(0);
     font.SetBackground(TextFont::NoBackground);
     font.SetAdvance(kListAdvance);
-    battle.unk53BDF4 = 0;
-    role.CountObjects(kThrowCategory, battle.unk53BDF4);
+    battle.roleListEntries = 0;
+    role.CountObjects(kThrowCategory, battle.roleListEntries);
     role.ShowAllItems();
     int entry = top;
     int row = 0;
@@ -647,7 +647,7 @@ void TurnFrame::DrawRefineListAdvance(int x, int y, int cursor, Scene& scene)
     int object = 1;
     int piece = 0;
     role.ThrowableObject(0, 1, name, count);
-    battle.unk53BDF4 = count;
+    battle.roleListEntries = count;
     role.ShowAllItems();
     u16 pieces = 0;
     role.CountUsableObjects(pieces);
@@ -663,9 +663,9 @@ void TurnFrame::DrawRefineListAdvance(int x, int y, int cursor, Scene& scene)
 
         for (int row = 0; row < kRefineRows; ++row)
         {
-            if (cell > battle.unk53BDF4)
+            if (cell > battle.roleListEntries)
             {
-                if (cell <= battle.unk53BDF4 + pieces)
+                if (cell <= battle.roleListEntries + pieces)
                 {
                     role.ThrowableObject(1, object, name, count);
 
@@ -698,7 +698,7 @@ void TurnFrame::DrawRefineListAdvance(int x, int y, int cursor, Scene& scene)
                 battle.unk53BFB8 = 1;
                 battle.listCursor = piece == 1 ? object + 1 : object;
 
-                if (battle.unk53BDF4 == 0)
+                if (battle.roleListEntries == 0)
                 {
                     --battle.listCursor;
                 }
@@ -714,7 +714,7 @@ void TurnFrame::DrawRefineListAdvance(int x, int y, int cursor, Scene& scene)
     }
 
     font.SetBackground(TextFont::NoBackground);
-    battle.unk53BDF4 = static_cast<u16>(battle.unk53BDF4 + pieces);
+    battle.roleListEntries = static_cast<u16>(battle.roleListEntries + pieces);
 }
 
 // What Game::DrawSpecialList decides of the frame; the draws into `scene`.
@@ -901,11 +901,11 @@ void TurnFrame::DrawEscortListAdvance(int x, int y, Scene& scene)
         FillMode::Gradient,
         scene);
 
-    for (int left = battle.unk53BF26; left > 0; --left)
+    for (int left = battle.escortCount; left > 0; --left)
     {
         font.SetAdvance(kEscortAdvance);
         const BattleRole& escort = game.battleRoles[battle.roleCount - static_cast<u32>(left)];
-        const int rowY = y + kSpecialRowHeight * (battle.unk53BF26 - left) + kEscortRowTop;
+        const int rowY = y + kSpecialRowHeight * (battle.escortCount - left) + kEscortRowTop;
         font.DrawText(
             game.drawSurface,
             x + kEscortNameX,
@@ -916,7 +916,7 @@ void TurnFrame::DrawEscortListAdvance(int x, int y, Scene& scene)
         );
     }
 
-    if (battle.unk53BF26 == 1)
+    if (battle.escortCount == 1)
     {
         font.DrawText(
             game.drawSurface,
@@ -1142,8 +1142,8 @@ void TurnFrame::DrawSpellListAdvance(int x, int y, int cursor, int top, Scene& s
     font.SetShadow(0);
     font.SetBackground(TextFont::NoBackground);
     font.SetAdvance(kListAdvance);
-    battle.unk53BDF2 = 0;
-    role.CountSkills(battle.listPage, 0, battle.unk53BDF2);
+    battle.listEntries = 0;
+    role.CountSkills(battle.listPage, 0, battle.listEntries);
     role.ShowAllSkills();
     int row = 0;
 
@@ -1265,8 +1265,8 @@ void TurnFrame::DrawItemListAdvance(int x, int y, int cursor, int top, Scene& sc
     HudFrame(game.battleHud)
         .DrawEffectAtAdvance(
             kTabEffect,
-            battle.unk4A7570 + kOpenTabFrame,
-            x + kTabWidth * battle.unk4A7570,
+            battle.listRole + kOpenTabFrame,
+            x + kTabWidth * battle.listRole,
             tabsY,
             0,
             scene
@@ -1302,8 +1302,8 @@ void TurnFrame::DrawItemListAdvance(int x, int y, int cursor, int top, Scene& sc
     font.SetShadow(0);
     font.SetBackground(TextFont::NoBackground);
     font.SetAdvance(kListAdvance);
-    battle.unk53BDF4 = 0;
-    role.CountObjects(battle.unk4A7570, battle.unk53BDF4);
+    battle.roleListEntries = 0;
+    role.CountObjects(battle.listRole, battle.roleListEntries);
     role.ShowAllItems();
     int row = 0;
 
@@ -1313,7 +1313,7 @@ void TurnFrame::DrawItemListAdvance(int x, int y, int cursor, int top, Scene& sc
         u16 flags = 0;
         u16 count = 0;
 
-        if (role.ListObject(battle.unk4A7570, index, name, flags, count) == 0)
+        if (role.ListObject(battle.listRole, index, name, flags, count) == 0)
         {
             break;
         }
@@ -1519,7 +1519,7 @@ void TurnFrame::DrawVictoryPanelAdvance(Scene& scene)
             role.RestartMainAct(1, 1);
         }
 
-        battle.unk53BD20 = 0;
+        battle.endFrames = 0;
         battle.unk53BF12 = static_cast<u16>(battle.unk53BF12 | kGoldGiven);
         game.party.variables[kGoldVariable] += battle.unk53BF12 & kGoldMask;
     }
@@ -1565,7 +1565,7 @@ void TurnFrame::DrawLevelUpPanelAdvance(Scene& scene)
     BattleMessages& messages = game.battleMessages;
     SceneFont font(game.mediumFont, scene);
 
-    if (battle.unk4A7646 != kNoLevelUp || battle.unk53BFFC == 1)
+    if (battle.levelUpRole != kNoLevelUp || battle.unk53BFFC == 1)
     {
         messages.panelAct.id = BattleMessages::PanelAct;
         messages.panelAct.action = 0;
@@ -1615,12 +1615,12 @@ void TurnFrame::DrawLevelUpPanelAdvance(Scene& scene)
     }
 
     if (messages.GrowPanel(kEscortBodyTop, kLevelUpBodyBottom, kLevelUpGrowDivisor) != 1 ||
-        battle.unk4A7646 == kNoLevelUp)
+        battle.levelUpRole == kNoLevelUp)
     {
         return;
     }
 
-    const auto role = static_cast<std::size_t>(battle.partyRoles[battle.unk4A7646]);
+    const auto role = static_cast<std::size_t>(battle.partyRoles[battle.levelUpRole]);
     const Party::Name& name = game.party.names[role];
     const std::string roleName(name.data(), std::find(name.begin(), name.end(), '\0') - name.begin());
     const std::string text = WinFormat(kLevelUpLine, {roleName, static_cast<i32>(game.party.roles[role].level)});
@@ -1647,7 +1647,7 @@ void TurnFrame::DrawLearnedBoxAdvance(std::u8string_view line, bool sound, Scene
         game.audio.PlaySound(kLearnedSound, game.config.soundVolume);
     }
 
-    const auto role = static_cast<std::size_t>(battle.partyRoles[battle.unk4A7646]);
+    const auto role = static_cast<std::size_t>(battle.partyRoles[battle.levelUpRole]);
     const Party::Name& roleName = game.party.names[role];
     const std::string name(roleName.data(), std::find(roleName.begin(), roleName.end(), '\0') - roleName.begin());
     const std::string text = WinFormat(line, {name});
@@ -1700,12 +1700,12 @@ void TurnFrame::DrawLevelUpStatsAdvance(Scene& scene)
     BattleMessages& messages = game.battleMessages;
     SceneFont font(game.mediumFont, scene);
 
-    if (battle.unk4A7646 == kNoLevelUp)
+    if (battle.levelUpRole == kNoLevelUp)
     {
         return;
     }
 
-    const auto partyRole = static_cast<std::size_t>(battle.partyRoles[battle.unk4A7646]);
+    const auto partyRole = static_cast<std::size_t>(battle.partyRoles[battle.levelUpRole]);
     const RoleRecord& now = game.party.roles[partyRole];
     const RoleRecord& before = battle.levelUpBefore;
     std::array<i16, kStatRolls>& rolls = battle.statRolls;
@@ -1975,7 +1975,7 @@ void TurnFrame::DrawBattleDebugAdvance(Scene& scene)
             );
         }
 
-        text(kDebugStateX, kDebugUnitsY, WinFormat(kUnitsDebugLine, {battle.unk53AE70, battle.currentUnit}));
+        text(kDebugStateX, kDebugUnitsY, WinFormat(kUnitsDebugLine, {battle.actingUnit, battle.currentUnit}));
 
         for (u32 index = 0; index < battle.enemyCount; ++index)
         {
@@ -2013,9 +2013,9 @@ void TurnFrame::DrawBattleDebugAdvance(Scene& scene)
             kDebugCountsY,
             WinFormat(
                 kCountsDebugLine,
-                {static_cast<i32>(battle.unk53BF00),
+                {static_cast<i32>(battle.enemiesGone),
                  static_cast<i32>(battle.unk4A7626),
-                 static_cast<i32>(battle.unk4A75FC)}
+                 static_cast<i32>(battle.sweptUnits)}
             )
         );
         text(
@@ -2030,7 +2030,7 @@ void TurnFrame::DrawBattleDebugAdvance(Scene& scene)
             kDebugUnitsY,
             WinFormat(
                 kLevelUpDebugLine,
-                {static_cast<i32>(static_cast<i8>(battle.unk4A7646)),
+                {static_cast<i32>(static_cast<i8>(battle.levelUpRole)),
                  static_cast<i32>(static_cast<i16>(battle.anyStateRole))}
             )
         );
@@ -2047,7 +2047,7 @@ void TurnFrame::DrawCommandPanelAdvance(i32 nameIndex, Scene& scene)
 {
     Game& game = this->game;
     BattleState& battle = game.battleState;
-    i32 grown = battle.unk53BD94;
+    i32 grown = battle.menuGrow;
 
     if (grown != kMenuOpened)
     {
@@ -2071,14 +2071,14 @@ void TurnFrame::DrawCommandPanelAdvance(i32 nameIndex, Scene& scene)
             battle.menuX = kMenuHomeX;
             battle.menuY = kMenuHomeY;
             game.input.SetMousePosition(kMenuHomeX, kMenuHomeY);
-            grown = battle.unk53BD94;
+            grown = battle.menuGrow;
         }
     }
 
     if (grown >= kMenuOpened)
     {
         grown = kMenuOpened;
-        battle.unk53BD94 = kMenuOpened;
+        battle.menuGrow = kMenuOpened;
     }
 
     if (battle.unk53BD98 < 0)
@@ -2088,9 +2088,9 @@ void TurnFrame::DrawCommandPanelAdvance(i32 nameIndex, Scene& scene)
 
     HudFrame(game.battleHud).DrawTallGaugeAdvance(battle.menuX, battle.menuY, grown, scene);
 
-    if (battle.unk53BD94 < kMenuOpened)
+    if (battle.menuGrow < kMenuOpened)
     {
-        ++battle.unk53BD94;
+        ++battle.menuGrow;
         --battle.unk53BD98;
         return;
     }

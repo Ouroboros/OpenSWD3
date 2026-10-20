@@ -298,19 +298,19 @@ std::u8string_view AccessoryCommandName(u16 kind)
 
 }  // namespace
 
-// swd32.exe 0x00464CC0: role unit `unit` takes the turn (unk53BD50, its unit turn and SetTarget 1); while an enemy
+// swd32.exe 0x00464CC0: role unit `unit` takes the turn (turnUnit, its unit turn and SetTarget 1); while an enemy
 // stands, aimTarget picks one at random (1-based), going on past defeated ones for at most enemyCount tries.
 void Game::StartRoleTurn(int unit)
 {
     BattleState& battle = this->battleState;
-    battle.unk53BD50 = unit;
-    battle.unk53BCE8 = 1;
+    battle.turnUnit = unit;
+    battle.turnCommand = 1;
     battle.unk53BF60 = 1;
     battle.turnTaken[static_cast<std::size_t>(unit)] = 1;
     this->battleRoles[static_cast<std::size_t>(unit - BattleState::FirstRoleUnit)].SetTarget(1);
     const auto count = static_cast<i32>(battle.enemyCount);
 
-    if (battle.unk53BF00 >= count)
+    if (battle.enemiesGone >= count)
     {
         return;
     }
@@ -380,7 +380,7 @@ void Game::RetargetRoles(int role, int enemy)
             }
         }
 
-        if (turned || battle.unk53BF00 + 1 != count)
+        if (turned || battle.enemiesGone + 1 != count)
         {
             continue;
         }
@@ -392,9 +392,9 @@ void Game::RetargetRoles(int role, int enemy)
         unit.ResetTurn(services);
         battle.unk53BF64 = 0;
         battle.roleOrder = {};
-        battle.unk53BD50 = 0;
+        battle.turnUnit = 0;
         battle.currentUnit = 0;
-        battle.unk53AE70 = -1;
+        battle.actingUnit = -1;
         battle.WipeSlotRecords();
     }
 }
@@ -438,10 +438,10 @@ int Game::RemoveDefeated(int index, int role)
 
         if (index >= 0 && index <= count)
         {
-            ++battle.unk53BF00;
+            ++battle.enemiesGone;
         }
 
-        if (battle.unk53BF00 - battle.unk53BF02 >= count)
+        if (battle.enemiesGone - battle.unk53BF02 >= count)
         {
             battle.result = kBattleWon;
             battle.autoBattle = 0;
@@ -450,10 +450,10 @@ int Game::RemoveDefeated(int index, int role)
         }
 
         if (battle.unk53BF28 != 0 && !this->battleEnemies[0].IsDefeated() &&
-            static_cast<i32>(battle.enemyCount) - battle.unk53BF00 == 1)
+            static_cast<i32>(battle.enemyCount) - battle.enemiesGone == 1)
         {
             battle.enemyCount = 1;
-            battle.unk53BF00 = 0;
+            battle.enemiesGone = 0;
             battle.unk53BF28 = 0;
             this->MeasureUnits();
             battle.SortDrawOrder();
@@ -474,9 +474,9 @@ int Game::RemoveDefeated(int index, int role)
     {
         ++battle.unk53BF01;
 
-        if (battle.unk53BF01 >= battle.unk53BF26)
+        if (battle.unk53BF01 >= battle.escortCount)
         {
-            const u16 guests = battle.unk53BF26;
+            const u16 guests = battle.escortCount;
 
             // The original clears the places from the end of the list down, before it when there are fewer.
             for (u16 cleared = 0; cleared < guests && cleared < battle.roleCount; ++cleared)
@@ -484,7 +484,7 @@ int Game::RemoveDefeated(int index, int role)
                 battle.rolePlaces[battle.roleCount - 1 - cleared] = UnitPlacement{};
             }
 
-            battle.unk53BF26 = 0;
+            battle.escortCount = 0;
             battle.roleCount -= guests;
         }
 
@@ -515,7 +515,7 @@ int Game::RemoveDefeated(int index, int role)
         }
 
         battle.currentUnit = 0;
-        battle.unk53BCE8 = 0;
+        battle.turnCommand = 0;
         battle.aimTarget = 1;
         battle.result = kTurnsRunning;
         battle.unk53BFC4 = 0;
@@ -523,9 +523,9 @@ int Game::RemoveDefeated(int index, int role)
         battle.unk53BF74 = 0;
     }
 
-    if (battle.unk53AE70 == unitId)
+    if (battle.actingUnit == unitId)
     {
-        battle.unk53AE70 = -1;
+        battle.actingUnit = -1;
         battle.unk53BF74 = 0;
     }
 
@@ -545,10 +545,10 @@ int Game::RemoveDefeated(int index, int role)
         break;
     }
 
-    if (battle.defeatedRoles >= battle.roleCount - battle.guestCount - battle.unk53BF26)
+    if (battle.defeatedRoles >= battle.roleCount - battle.guestCount - battle.escortCount)
     {
         battle.WipeSlotRecords();
-        battle.unk53AE70 = -1;
+        battle.actingUnit = -1;
         battle.unk53BFC0 = 1;
         battle.unk53BFC4 = 1;
         battle.result = kBattleLost;
@@ -557,30 +557,30 @@ int Game::RemoveDefeated(int index, int role)
 
     if (unit.EffectFlag2() == 1)
     {
-        battle.aimTarget = battle.unk53AE70 + 1;
-        battle.unk53BD50 = unitId;
+        battle.aimTarget = battle.actingUnit + 1;
+        battle.turnUnit = unitId;
         unit.SetTarget(1);
-        battle.unk53BCE8 = 1;
+        battle.turnCommand = 1;
         battle.turnTaken[static_cast<std::size_t>(unitId)] = 1;
         battle.unk53BF60 = 1;
-        battle.pendingOrders[static_cast<std::size_t>(battle.unk53BD50 - BattleState::FirstRoleUnit)] = PendingOrder{};
+        battle.pendingOrders[static_cast<std::size_t>(battle.turnUnit - BattleState::FirstRoleUnit)] = PendingOrder{};
     }
 
     return 1;
 }
 
-// swd32.exe 0x0045B280: the draw order with the acting unit (unk53AE70) drawn right after the unit it aims at (none
+// swd32.exe 0x0045B280: the draw order with the acting unit (actingUnit) drawn right after the unit it aims at (none
 // while unk53C4C0, unk53AE7C or unk53AE80 is set or no unit acts): a role aims at an enemy, an enemy at a role.
 void Game::SortActingDrawOrder()
 {
     BattleState& battle = this->battleState;
 
-    if (battle.unk53C4C0 == 1 || battle.unk53AE7C == 1 || battle.unk53AE80 == 1 || battle.unk53AE70 == -1)
+    if (battle.unk53C4C0 == 1 || battle.unk53AE7C == 1 || battle.unk53AE80 == 1 || battle.actingUnit == -1)
     {
         return;
     }
 
-    const i32 acting = battle.unk53AE70;
+    const i32 acting = battle.actingUnit;
     i32 target = 0;
 
     if (acting >= BattleState::FirstRoleUnit)
@@ -618,7 +618,7 @@ int Game::FadeFieldOut()
 }
 
 // swd32.exe 0x0045E9C0: the objects held back in the battle given to the inventory: givenBack[1] and [2], and one
-// kThrownObject for each still thrown (unk53C4B0); the counts and unk53BF26 are cleared.
+// kThrownObject for each still thrown (unk53C4B0); the counts and escortCount are cleared.
 void Game::ReturnBattleItems()
 {
     BattleState& battle = this->battleState;
@@ -636,7 +636,7 @@ void Game::ReturnBattleItems()
         AddOneItem(this->party.inventory, kThrownObject, 0, this->database);
     }
 
-    battle.unk53BF26 = 0;
+    battle.escortCount = 0;
     battle.unk53C4B0 = 0;
     battle.givenBack[1] = 0;
     battle.givenBack[2] = 0;
@@ -649,7 +649,7 @@ void Game::CheckBattleEnd()
 {
     BattleState& battle = this->battleState;
 
-    if (battle.defeatedRoles >= battle.roleCount - battle.unk53BF26 - battle.guestCount)
+    if (battle.defeatedRoles >= battle.roleCount - battle.escortCount - battle.guestCount)
     {
         battle.unk53BF5C = 1;
 
@@ -671,7 +671,7 @@ void Game::CheckBattleEnd()
         }
     }
 
-    if (battle.unk53BF00 - battle.unk53BF02 >= static_cast<i32>(battle.enemyCount) || this->fightTalk.unk53CEAC == 1)
+    if (battle.enemiesGone - battle.unk53BF02 >= static_cast<i32>(battle.enemyCount) || this->fightTalk.unk53CEAC == 1)
     {
         battle.unk53BF5C = 1;
 
@@ -765,7 +765,7 @@ int Game::CheckStoneSides()
 {
     BattleState& battle = this->battleState;
 
-    if (battle.unk53AE70 != -1)
+    if (battle.actingUnit != -1)
     {
         return 0;
     }
@@ -783,7 +783,7 @@ int Game::CheckStoneSides()
     }
 
     const auto partyRoles = static_cast<u8>(
-        static_cast<u8>(battle.roleCount) - static_cast<u8>(battle.unk53BF26) - static_cast<u8>(battle.guestCount)
+        static_cast<u8>(battle.roleCount) - static_cast<u8>(battle.escortCount) - static_cast<u8>(battle.guestCount)
     );
 
     if (stoneRoles != 0 && battle.defeatedRoles + stoneRoles >= partyRoles && battle.unk53BFE4 == 0)
@@ -808,13 +808,13 @@ int Game::CheckStoneSides()
         }
     }
 
-    if (stoneEnemies == 0 || battle.unk53BF00 + stoneEnemies < static_cast<i32>(battle.enemyCount) ||
+    if (stoneEnemies == 0 || battle.enemiesGone + stoneEnemies < static_cast<i32>(battle.enemyCount) ||
         battle.unk53BFE4 != 0)
     {
         return 0;
     }
 
-    battle.unk53BF00 = static_cast<u8>(battle.unk53BF00 + stoneEnemies);
+    battle.enemiesGone = static_cast<u8>(battle.enemiesGone + stoneEnemies);
     battle.unk53C048 = 1;
     battle.autoBattle = 0;
     battle.result = kBattleWon;
@@ -858,7 +858,7 @@ int Game::DamageNumbersFrame(int index, int role)
 }
 
 // swd32.exe 0x0045EB40: the units in draw order show their guard text and their damage numbers (once done damageShown
-// is set and their unk524420 entry cleared: a role by its role index, so a role and the enemy of the same index share
+// is set and their slotTargets entry cleared: a role by its role index, so a role and the enemy of the same index share
 // it), then take their pending damage: a unit that does has its unk502984 entry set to its index and the slot record
 // of that index removed (a role's index, as in the original).
 void Game::ApplyHits()
@@ -880,7 +880,7 @@ void Game::ApplyHits()
         if (this->DamageNumbersFrame(index, isRole ? 1 : 0) == 1)
         {
             battle.damageShown = 1;
-            battle.unk524420[at] = -1;
+            battle.slotTargets[at] = -1;
         }
 
         if (!unit.ApplyPendingDamage(services))
@@ -943,7 +943,7 @@ void Game::NextEnemyTurn()
 void Game::NextRoleTurn()
 {
     BattleState& battle = this->battleState;
-    const auto roles = static_cast<i32>(battle.roleCount - battle.unk53BF26 - battle.guestCount);
+    const auto roles = static_cast<i32>(battle.roleCount - battle.escortCount - battle.guestCount);
     i32 at = battle.orderStep;
     i32 role = 0;
     int steps = 0;
@@ -971,8 +971,8 @@ void Game::NextRoleTurn()
 }
 
 // swd32.exe 0x00461900: the back key in a list (kBackSound): battle state 2 scrolls listScroll up by kListPage, states
-// 4 and 0x1B unk53BD08 (state 4 also keeps unk4A755C and the scroll for role unk4A7570); each first only marks its
-// list (unk4A7558, unk4A755C) unless unk53BD9C.
+// 4 and 0x1B roleListScroll (state 4 also keeps roleListRow and the scroll for role listRole); each first only marks
+// its list (pageListRow, roleListRow) unless unk53BD9C.
 void Game::ScrollListBack()
 {
     BattleState& battle = this->battleState;
@@ -992,9 +992,9 @@ void Game::ScrollListBack()
     {
         this->audio.PlaySound(kBackSound, this->config.soundVolume);
 
-        if (battle.unk53BD9C == 0 && battle.unk4A7558 != 1)
+        if (battle.unk53BD9C == 0 && battle.pageListRow != 1)
         {
-            battle.unk4A7558 = 1;
+            battle.pageListRow = 1;
             return;
         }
 
@@ -1012,37 +1012,37 @@ void Game::ScrollListBack()
 
         this->audio.PlaySound(kBackSound, this->config.soundVolume);
 
-        if (battle.unk53BD9C == 0 && battle.unk4A755C != 1)
+        if (battle.unk53BD9C == 0 && battle.roleListRow != 1)
         {
-            battle.unk4A755C = 1;
+            battle.roleListRow = 1;
             return;
         }
 
-        scroll(battle.unk53BD08);
+        scroll(battle.roleListScroll);
         battle.unk53BFB8 = 1;
         return;
     }
 
     this->audio.PlaySound(kBackSound, this->config.soundVolume);
 
-    if (battle.unk53BD9C == 0 && battle.unk4A755C != 1)
+    if (battle.unk53BD9C == 0 && battle.roleListRow != 1)
     {
-        battle.unk4A755C = 1;
+        battle.roleListRow = 1;
         return;
     }
 
-    scroll(battle.unk53BD08);
+    scroll(battle.roleListScroll);
     battle.unk53BFB8 = 1;
-    const auto role = static_cast<std::size_t>(battle.unk4A7570);
-    battle.unk4FF578[role] = battle.unk4A755C;
-    battle.unk52544C[role] = battle.unk53BD08;
+    const auto role = static_cast<std::size_t>(battle.listRole);
+    battle.roleListRows[role] = battle.roleListRow;
+    battle.roleListScrolls[role] = battle.roleListScroll;
 }
 
 // swd32.exe 0x00461A30: the forward key in a list (kBackSound): battle state 2 scrolls listScroll down by kListPage
-// within unk53BDF2 entries (nothing below a page), states 4 and 0x1B unk53BD08 within unk53BDF4; each first only
-// marks the last row of its page (unk4A7558, unk4A755C, at most the entries) unless unk53BD9C. A list shorter than a
-// page goes back to 0 with the mark on its end. State 4, and the first mark of state 0x1B (the original shares that
-// code), keep the mark and the scroll for role unk4A7570.
+// within listEntries entries (nothing below a page), states 4 and 0x1B roleListScroll within roleListEntries; each
+// first only marks the last row of its page (pageListRow, roleListRow, at most the entries) unless unk53BD9C. A list
+// shorter than a page goes back to 0 with the mark on its end. State 4, and the first mark of state 0x1B (the original
+// shares that code), keep the mark and the scroll for role listRole.
 void Game::ScrollListForward()
 {
     BattleState& battle = this->battleState;
@@ -1050,44 +1050,44 @@ void Game::ScrollListForward()
 
     auto keepForRole = [&battle](i32 mark)
     {
-        const auto role = static_cast<std::size_t>(battle.unk4A7570);
+        const auto role = static_cast<std::size_t>(battle.listRole);
         battle.unk53BFB8 = 1;
-        battle.unk4FF578[role] = mark;
-        battle.unk52544C[role] = battle.unk53BD08;
+        battle.roleListRows[role] = mark;
+        battle.roleListScrolls[role] = battle.roleListScroll;
     };
 
     auto markPageEnd = [&battle, &keepForRole]
     {
-        battle.unk4A755C = std::min<i32>(kListPage, battle.unk53BDF4);
-        keepForRole(battle.unk4A755C);
+        battle.roleListRow = std::min<i32>(kListPage, battle.roleListEntries);
+        keepForRole(battle.roleListRow);
     };
 
     if (battle.result == kListState2)
     {
         this->audio.PlaySound(kBackSound, this->config.soundVolume);
 
-        if (static_cast<i8>(battle.unk53BDF2) < kListPage)
+        if (static_cast<i8>(battle.listEntries) < kListPage)
         {
             return;
         }
 
-        if (battle.unk53BD9C == 0 && battle.unk4A7558 != kListPage)
+        if (battle.unk53BD9C == 0 && battle.pageListRow != kListPage)
         {
-            battle.unk4A7558 = kListPage;
+            battle.pageListRow = kListPage;
             return;
         }
 
         battle.listScroll += kListPage;
 
-        if (battle.listScroll + kListPage > static_cast<i8>(battle.unk53BDF2))
+        if (battle.listScroll + kListPage > static_cast<i8>(battle.listEntries))
         {
-            battle.listScroll = static_cast<i8>(battle.unk53BDF2) - kListPage;
+            battle.listScroll = static_cast<i8>(battle.listEntries) - kListPage;
         }
 
         if (battle.listScroll < 0)
         {
             battle.listScroll = 0;
-            battle.unk4A7558 = static_cast<i8>(battle.unk53BDF2);
+            battle.pageListRow = static_cast<i8>(battle.listEntries);
         }
 
         battle.unk53BFB8 = 1;
@@ -1101,23 +1101,23 @@ void Game::ScrollListForward()
 
     this->audio.PlaySound(kBackSound, this->config.soundVolume);
 
-    if (battle.unk53BD9C == 0 && battle.unk4A755C != kListPage)
+    if (battle.unk53BD9C == 0 && battle.roleListRow != kListPage)
     {
         markPageEnd();
         return;
     }
 
-    battle.unk53BD08 += kListPage;
+    battle.roleListScroll += kListPage;
 
-    if (battle.unk53BD08 + kListPage > battle.unk53BDF4)
+    if (battle.roleListScroll + kListPage > battle.roleListEntries)
     {
-        battle.unk53BD08 = battle.unk53BDF4 - kListPage;
+        battle.roleListScroll = battle.roleListEntries - kListPage;
     }
 
-    if (battle.unk53BD08 < 0)
+    if (battle.roleListScroll < 0)
     {
-        battle.unk53BD08 = 0;
-        battle.unk4A755C = battle.unk53BDF4;
+        battle.roleListScroll = 0;
+        battle.roleListRow = battle.roleListEntries;
     }
 
     if (battle.result == kListState1B)
@@ -1126,7 +1126,7 @@ void Game::ScrollListForward()
         return;
     }
 
-    keepForRole(battle.unk4A755C);
+    keepForRole(battle.roleListRow);
 }
 
 // swd32.exe 0x0045D490: the auto battle takes the current role's turn (unless in battle state 3): with no remembered
@@ -1141,7 +1141,7 @@ void Game::AutoBattleTurn()
         return;
     }
 
-    battle.unk53BCE8 = 1;
+    battle.turnCommand = 1;
     battle.turnTaken[static_cast<std::size_t>(battle.currentUnit)] = 1;
 
     if (battle.autoTarget == -1)
@@ -1151,10 +1151,10 @@ void Game::AutoBattleTurn()
         return;
     }
 
-    battle.unk53BD50 = battle.currentUnit;
+    battle.turnUnit = battle.currentUnit;
     battle.currentUnit = 0;
     battle.unk53BF60 = 1;
-    BattleRole& role = this->battleRoles[static_cast<std::size_t>(battle.unk53BD50 - BattleState::FirstRoleUnit)];
+    BattleRole& role = this->battleRoles[static_cast<std::size_t>(battle.turnUnit - BattleState::FirstRoleUnit)];
     role.SetTarget(1);
     battle.aimTarget = battle.autoTarget;
     battle.result = 0;
@@ -1163,11 +1163,11 @@ void Game::AutoBattleTurn()
 
     if (role.MarkBit1() == 1)
     {
-        battle.unk53BCE8 = kGuardOrder;
-        battle.turnTaken[static_cast<std::size_t>(battle.unk53BD50)] = kGuardOrder;
+        battle.turnCommand = kGuardOrder;
+        battle.turnTaken[static_cast<std::size_t>(battle.turnUnit)] = kGuardOrder;
         role.ResetAfterGuard();
         role.SetTarget(1);
-        battle.pendingOrders[static_cast<std::size_t>(battle.unk53BD50 - BattleState::FirstRoleUnit)].unk00 = 1;
+        battle.pendingOrders[static_cast<std::size_t>(battle.turnUnit - BattleState::FirstRoleUnit)].unk00 = 1;
         return;
     }
 
@@ -1186,10 +1186,10 @@ void Game::AutoBattleTurn()
     }
 
     role.SetTarget(0);
-    battle.unk53BCE8 = 0;
+    battle.turnCommand = 0;
     battle.aimTarget = 1;
     battle.autoTarget = -1;
-    battle.turnTaken[static_cast<std::size_t>(battle.unk53BD50)] = 0;
+    battle.turnTaken[static_cast<std::size_t>(battle.turnUnit)] = 0;
     battle.autoBattle = 0;
 }
 
@@ -1296,7 +1296,7 @@ int Game::PreviousSelectableRole(int unit)
 
 // swd32.exe 0x00462420: role unit `unit` takes the current panel (in battle state 0, or with anyStateRole set): when it
 // is among the first roleCount - 1 of roleOrder and not held, it trades places with the current unit; the inputs of
-// the panel (commandNames, unk53BF22) are cleared either way.
+// the panel (commandNames, listedCommands) are cleared either way.
 void Game::SelectRoleUnit(int unit)
 {
     BattleState& battle = this->battleState;
@@ -1323,7 +1323,7 @@ void Game::SelectRoleUnit(int unit)
     }
 
     battle.commandNames = {};
-    battle.unk53BF22 = 0;
+    battle.listedCommands = 0;
 }
 
 // swd32.exe 0x00462320: the panel goes from the current role unit (8..11) to the one numbered before it (11 before 8)
@@ -1359,9 +1359,9 @@ void Game::SelectNextRole()
 }
 
 // swd32.exe 0x00462510: the right key in the command menu (kBackSound): state 1 moves the command (menuCommand,
-// 1-based) a column on within unk53BF22 + 5 entries, back when that one is not enabled; state 2 turns the page of the
-// list (listPage, 0..2) to its top; state 4 goes to the next party role's list (unk4A7570, its kept mark and
-// scroll); state 0x1E raises unk4A755C by 5 up to 10.
+// 1-based) a column on within listedCommands + 5 entries, back when that one is not enabled; state 2 turns the page of
+// the list (listPage, 0..2) to its top; state 4 goes to the next party role's list (listRole, its kept mark and
+// scroll); state 0x1E raises roleListRow by 5 up to 10.
 void Game::MenuRight()
 {
     BattleState& battle = this->battleState;
@@ -1371,7 +1371,7 @@ void Game::MenuRight()
     {
         i32 command = battle.menuCommand;
 
-        if (command + kMenuColumn <= battle.unk53BF22 + kMenuFixedCommands)
+        if (command + kMenuColumn <= battle.listedCommands + kMenuFixedCommands)
         {
             command += kMenuColumn;
             battle.menuCommand = command;
@@ -1392,34 +1392,34 @@ void Game::MenuRight()
             battle.listPage = 0;
         }
 
-        battle.unk4A7558 = 1;
+        battle.pageListRow = 1;
         battle.listScroll = 0;
         this->audio.PlaySound(kBackSound, this->config.soundVolume);
     }
 
     if (battle.result == kListState4)
     {
-        if (++battle.unk4A7570 >= static_cast<i32>(Party::Roles))
+        if (++battle.listRole >= static_cast<i32>(Party::Roles))
         {
-            battle.unk4A7570 = 0;
+            battle.listRole = 0;
         }
 
-        const auto role = static_cast<std::size_t>(battle.unk4A7570);
-        battle.unk4A755C = battle.unk4FF578[role];
-        battle.unk53BD08 = battle.unk52544C[role];
+        const auto role = static_cast<std::size_t>(battle.listRole);
+        battle.roleListRow = battle.roleListRows[role];
+        battle.roleListScroll = battle.roleListScrolls[role];
         this->audio.PlaySound(kBackSound, this->config.soundVolume);
     }
 
     if (battle.result == kWaitState1E)
     {
-        battle.unk4A755C = std::min(battle.unk4A755C + kMenuStep, kMenuStepMost);
+        battle.roleListRow = std::min(battle.roleListRow + kMenuStep, kMenuStepMost);
         this->audio.PlaySound(kBackSound, this->config.soundVolume);
     }
 }
 
 // swd32.exe 0x00462630: the left key in the command menu: state 1 moves the command a column back down to 1 (on again
 // when that one is not enabled); state 2 turns the page back (wrapping to 2, the scroll kept); state 4 goes to the
-// previous party role's list; state 0x1E lowers unk4A755C by 5 down to 1.
+// previous party role's list; state 0x1E lowers roleListRow by 5 down to 1.
 void Game::MenuLeft()
 {
     BattleState& battle = this->battleState;
@@ -1450,26 +1450,26 @@ void Game::MenuLeft()
             battle.listPage = kListPages - 1;
         }
 
-        battle.unk4A7558 = 1;
+        battle.pageListRow = 1;
         this->audio.PlaySound(kBackSound, this->config.soundVolume);
     }
 
     if (battle.result == kListState4)
     {
-        if (--battle.unk4A7570 < 0)
+        if (--battle.listRole < 0)
         {
-            battle.unk4A7570 = static_cast<i32>(Party::Roles) - 1;
+            battle.listRole = static_cast<i32>(Party::Roles) - 1;
         }
 
-        const auto role = static_cast<std::size_t>(battle.unk4A7570);
-        battle.unk4A755C = battle.unk4FF578[role];
-        battle.unk53BD08 = battle.unk52544C[role];
+        const auto role = static_cast<std::size_t>(battle.listRole);
+        battle.roleListRow = battle.roleListRows[role];
+        battle.roleListScroll = battle.roleListScrolls[role];
         this->audio.PlaySound(kBackSound, this->config.soundVolume);
     }
 
     if (battle.result == kWaitState1E)
     {
-        battle.unk4A755C = std::max(battle.unk4A755C - kMenuStep, 1);
+        battle.roleListRow = std::max(battle.roleListRow - kMenuStep, 1);
         this->audio.PlaySound(kBackSound, this->config.soundVolume);
     }
 }
@@ -1485,7 +1485,7 @@ void Game::BuildCommandMenu()
     BattleState& battle = this->battleState;
     battle.commandEnabled = {1, 1, 1, 1, 1, 0, 0, 0};
     battle.commandNames = {};
-    battle.unk53BF22 = 0;
+    battle.listedCommands = 0;
     const int index = battle.currentUnit - BattleState::FirstRoleUnit;
     std::size_t listed = 0;
 
@@ -1495,7 +1495,7 @@ void Game::BuildCommandMenu()
         battle.commandKinds[listed] = kind;
         battle.commandNames[listed] = name;
         ++listed;
-        battle.unk53BF22 = static_cast<u16>(listed);
+        battle.listedCommands = static_cast<u16>(listed);
     };
 
     auto addAccessories = [this, &add](std::size_t role)
@@ -1565,7 +1565,7 @@ void Game::DrawCommandMenu(int x, int y, int cursor)
 
 // swd32.exe 0x00468FF0: the first party role (not forced, standing) whose accessory proficiency has just filled
 // (FinishProficiency): its object read into unk53BC28 (the description freed), its name kept in lastLearned for the
-// message, unk53BFFC set and unk4A7646 the role
+// message, unk53BFFC set and levelUpRole the role
 void Game::AnnounceMastery()
 {
     BattleState& battle = this->battleState;
@@ -1590,7 +1590,7 @@ void Game::AnnounceMastery()
         Database::FreeDescription(battle.unk53BC28);
         battle.unk53BFFC = 1;
         battle.lastLearned.name = ObjectName(battle.unk53BC28);
-        battle.unk4A7646 = static_cast<u8>(index);
+        battle.levelUpRole = static_cast<u8>(index);
         return;
     }
 }
@@ -1615,7 +1615,7 @@ void Game::MenuCancel()
     auto closePanels = [&battle]
     {
         battle.unk53BD90 = 0;
-        battle.unk53BD94 = 0;
+        battle.menuGrow = 0;
     };
 
     auto clearList = [&battle]
@@ -1639,7 +1639,7 @@ void Game::MenuCancel()
         battle.unk53BFC0 = 0;
         battle.commandNames[1] = {};
         battle.autoBattle = 0;
-        battle.unk53BF22 = 0;
+        battle.listedCommands = 0;
         battle.autoTarget = -1;
         battle.commandNames[2] = {};
         return;
@@ -1652,7 +1652,7 @@ void Game::MenuCancel()
             battle.commandNames[0] = {};
             battle.unk53BFB0 = 0;
             battle.commandNames[1] = {};
-            battle.unk53BF22 = 0;
+            battle.listedCommands = 0;
             battle.unk53BFB8 = 0;
             closePanels();
             battle.unk53BD98 = kListRows;
@@ -1661,7 +1661,7 @@ void Game::MenuCancel()
 
         case kListState2:
             battle.result = kMenuState;
-            battle.unk4A7558 = 1;
+            battle.pageListRow = 1;
             clearList();
             role().CancelCommand();
             closePanels();
@@ -1742,7 +1742,7 @@ void Game::MenuCancel()
 
         case kListState4:
             battle.result = kMenuState;
-            battle.unk53BD08 = 0;
+            battle.roleListScroll = 0;
             battle.unk53BD98 = kListRows;
             battle.unk53BFC4 = 0;
             battle.unk53BFC0 = 0;
@@ -1770,7 +1770,7 @@ void Game::MenuCancel()
 
         case kSkillListState:
             battle.result = kMenuState;
-            battle.unk4A755C = 1;
+            battle.roleListRow = 1;
             battle.unk4A7560 = 1;
             clearList();
             role().CancelCommand();
@@ -1779,9 +1779,9 @@ void Game::MenuCancel()
 
         case kListState1B:
             battle.result = kMenuState;
-            battle.unk4A755C = 1;
+            battle.roleListRow = 1;
             battle.menuCommand = battle.listReturnCommand;
-            battle.unk53BD08 = 0;
+            battle.roleListScroll = 0;
             clearList();
             role().CancelCommand();
             closePanels();
@@ -1790,7 +1790,7 @@ void Game::MenuCancel()
         case kWaitState1E:
             battle.result = kMenuState;
             battle.menuCommand = battle.listReturnCommand;
-            battle.unk4A755C = 1;
+            battle.roleListRow = 1;
             clearList();
             role().CancelCommand();
             closePanels();
@@ -1804,7 +1804,7 @@ void Game::MenuCancel()
 
 // swd32.exe 0x00465480: the list of battle state 2 at (x, y): its three page tabs (kTabEffect, frames 2..0 right to
 // left) and the open page's tab over them (frame 4 + page), the panel act restarted (unk53BD90 10), a quarter-dark
-// box with the panel frame below the tabs; unk53BD94 grows by 2 a call up to 7.
+// box with the panel frame below the tabs; menuGrow grows by 2 a call up to 7.
 void Game::DrawListTabs(int x, int y)
 {
     smooth::Scene scene;
@@ -1813,8 +1813,8 @@ void Game::DrawListTabs(int x, int y)
 }
 
 // swd32.exe 0x00465E50: the 投擲 list of the current role at (x, y): a darkened box with a title frame (投擲) and a
-// body frame, then up to 7 listed objects from entry `top` + 1 with their counts ("%2d"); unk53BDF4 counts them. Row
-// `cursor` (from 1) is drawn again a pixel up and left under a gradient bar, and its entry becomes listCursor.
+// body frame, then up to 7 listed objects from entry `top` + 1 with their counts ("%2d"); roleListEntries counts them.
+// Row `cursor` (from 1) is drawn again a pixel up and left under a gradient bar, and its entry becomes listCursor.
 void Game::DrawThrowList(int x, int y, int cursor, int top)
 {
     smooth::Scene scene;
@@ -1823,9 +1823,9 @@ void Game::DrawThrowList(int x, int y, int cursor, int top)
 }
 
 // swd32.exe 0x00466190: the 煉符 grid of the current role at (x, y): two columns of five cells. The first cells, one
-// per talisman paper (kThrownObject, their count kept in unk53BDF4), show its name; then each throwable object once
-// per piece; the rest 無. Cell `cursor` (from 1) gets a gradient bar and sets listCursor to the object under it (less 1
-// without paper). unk53BDF4 then adds the throwable pieces.
+// per talisman paper (kThrownObject, their count kept in roleListEntries), show its name; then each throwable object
+// once per piece; the rest 無. Cell `cursor` (from 1) gets a gradient bar and sets listCursor to the object under it
+// (less 1 without paper). roleListEntries then adds the throwable pieces.
 void Game::DrawRefineList(int x, int y, int cursor)
 {
     smooth::Scene scene;
@@ -1845,8 +1845,8 @@ void Game::DrawSpecialList(int x, int y, int cursor)
 }
 
 // swd32.exe 0x004667B0: the 佈置護駕 panel: the panel act run on, a shade with a title frame (佈置護駕) and a body
-// frame, a gradient bar on row guardCursor at (x, y), and the names of the escorts (the last unk53BF26 battle roles) in
-// white at an 18-pixel advance, with 無 below a lone escort.
+// frame, a gradient bar on row guardCursor at (x, y), and the names of the escorts (the last escortCount battle roles)
+// in white at an 18-pixel advance, with 無 below a lone escort.
 void Game::DrawEscortList(int x, int y)
 {
     smooth::Scene scene;
@@ -1877,7 +1877,7 @@ void Game::DrawControlMenu(int x, int y, int cursor)
 }
 
 // swd32.exe 0x004655B0: the spells of the current role's open page (listPage) from entry `top` + 1 at (x, y), up to
-// 7 rows (unk53BDF2 counts them): each with its element icon, its name (kept in listName) and its cost ("%3d"; with
+// 7 rows (listEntries counts them): each with its element icon, its name (kept in listName) and its cost ("%3d"; with
 // bit 15 a stamina cost), dark when the role has less than it. Row `cursor` (from 1) is drawn again a pixel up and
 // left under a gradient bar, with the spell's description centred in a bar at the bottom; its index becomes
 // specialCursor.
@@ -1888,9 +1888,9 @@ void Game::DrawSpellList(int x, int y, int cursor, int top)
     scene.Show(this->battleServices);
 }
 
-// swd32.exe 0x004659C0: the object list of category unk4A7570 at (x, y): its four page tabs (frames 3..0 right to
+// swd32.exe 0x004659C0: the object list of category listRole at (x, y): its four page tabs (frames 3..0 right to
 // left, the open one frame 4 + category), the panel act restarted, a quarter-dark box and a frame; then from entry
-// `top` + 1 up to 7 shown objects (unk53BDF4 counts them) with their counts ("%2d"), dark when too costly. Row
+// `top` + 1 up to 7 shown objects (roleListEntries counts them) with their counts ("%2d"), dark when too costly. Row
 // `cursor` (from 1) is drawn again a pixel up and left under a gradient bar, its entry becomes listCursor, and the
 // object's description is centred in a bar at the bottom.
 void Game::DrawItemList(int x, int y, int cursor, int top)
@@ -1913,7 +1913,7 @@ void Game::DrawVictoryPanel()
     scene.Show(this->battleServices);
 }
 
-// swd32.exe 0x00467AC0: the 升級 panel while a role levels up (unk4A7646) or a skill was learned (unk53BFFC): a shade
+// swd32.exe 0x00467AC0: the 升級 panel while a role levels up (levelUpRole) or a skill was learned (unk53BFFC): a shade
 // with a title and a body frame; once the panel has grown, "<name>升第<level>級" of the role that levelled up.
 void Game::DrawLevelUpPanel()
 {
@@ -1925,7 +1925,7 @@ void Game::DrawLevelUpPanel()
 // swd32.exe 0x00467C50: the first party role standing (not forced) with the experience of its next level (below the
 // level cap) levels up: the record is kept in levelUpBefore, the next level's maxima and attributes (LevelUp of both
 // levels; a skill learned sets unk53BFFC) are added to it as the difference, hit points, spirit and stamina refilled,
-// its level and experience mark taken; unk4A7646 becomes the role and the level-up sound plays. Otherwise unk4A7646
+// its level and experience mark taken; levelUpRole becomes the role and the level-up sound plays. Otherwise levelUpRole
 // is kNoLevelUp. unk53C4C8 is set either way.
 void Game::CheckLevelUps()
 {
@@ -1948,7 +1948,7 @@ void Game::CheckLevelUps()
         if (record.level >= battle.timingWindow ||
             (this->database.LoadLevelEntry(role + 1, next, needed), record.totalExperience < static_cast<i32>(needed)))
         {
-            battle.unk4A7646 = kNoLevelUp;
+            battle.levelUpRole = kNoLevelUp;
             continue;
         }
 
@@ -1982,7 +1982,7 @@ void Game::CheckLevelUps()
         record.reaction = static_cast<i16>(record.reaction + after.reaction - before.reaction);
         record.ailmentChance = static_cast<i16>(record.ailmentChance + after.ailmentChance - before.ailmentChance);
         record.evasion = static_cast<i16>(record.evasion + after.evasion - before.evasion);
-        battle.unk4A7646 = static_cast<u8>(index);
+        battle.levelUpRole = static_cast<u8>(index);
         this->audio.StopSound(kVictorySound);
         this->audio.PlaySound(kLevelUpSound, this->config.soundVolume);
         break;
@@ -2017,7 +2017,7 @@ void Game::DrawLearnedBox(std::u8string_view line, bool sound)
 // block [3] not -1) learns it once it has fought enough battles: its type 1 skills (from Party::skills by battle role
 // index, as in the original) set the battle block's needed battles ([2], the skill's unk44) and next special ([3],
 // its unk42 with bit 31). With [1] battles at least [2] and a next special (not 0x665 or 0x669 while game flag
-// kSpecialsFlag is set), the special is appended to the list, its name kept for the message (unk53BFFC, unk4A7646 the
+// kSpecialsFlag is set), the special is appended to the list, its name kept for the message (unk53BFFC, levelUpRole the
 // role) and the block restarted from it (-1 without a further one).
 void Game::LearnSpecials()
 {
@@ -2079,7 +2079,7 @@ void Game::LearnSpecials()
         this->database.LoadObject(learned.record, id);
         battle.unk53BFFC = 1;
         battle.lastLearned.name = ObjectName(learned.record);
-        battle.unk4A7646 = static_cast<u8>(index);
+        battle.levelUpRole = static_cast<u8>(index);
         block.unk00[kBattlesFought] = 0;
         block.unk00[kNeededBattles] = battle.unk53BC28.data.counterMax;
         block.unk00[kNextSpecial] = static_cast<i32>(battle.unk53BC28.data.unk42 | kSpecialMark);
@@ -2091,7 +2091,7 @@ void Game::LearnSpecials()
     }
 }
 
-// swd32.exe 0x00467F00: the stats of the role that levelled up (unk4A7646): its name over a frame of the seven values
+// swd32.exe 0x00467F00: the stats of the role that levelled up (levelUpRole): its name over a frame of the seven values
 // before the level-up (levelUpBefore); once grown, after kRollStart frames (levelUpFrames, kShowNow shows at once) each
 // value that rose shows " ==> " and the new value less a roll that counts down a point a frame (kRollSound each point),
 // one after another: the maxima first, then the attributes (strength does not wait for the maxima, as in the original).
@@ -2104,7 +2104,7 @@ void Game::DrawLevelUpStats()
 
 // swd32.exe 0x00460C40: the up key of the battle menu, by battle state: 1 moves the command up (skipping disabled
 // ones, wrapping to the last accessory command; past 8 it restarts at 1); 2 and 0x1B move the list cursor up, then
-// scroll; 4 too, keeping the list for role unk4A7570; 5 cycles 2..1; 7 and 8 cycle their entries; 0x1E cycles 10..1.
+// scroll; 4 too, keeping the list for role listRole; 5 cycles 2..1; 7 and 8 cycle their entries; 0x1E cycles 10..1.
 // 3 (choosing a target, unless unk53BF88) moves the aim: an order on the party goes back through RoleCycle (four
 // party roles or more) or the 1-based roles (fewer), skipping forced and guarding roles; otherwise back through the
 // standing enemies. The aimed unit is marked, the others unmarked.
@@ -2142,7 +2142,7 @@ void Game::MenuUp()
             {
                 if (--command < 1)
                 {
-                    command = battle.unk53BF22 + kMenuFixedCommands;
+                    command = battle.listedCommands + kMenuFixedCommands;
                 }
             } while (!this->CommandEnabled(command));
 
@@ -2152,14 +2152,14 @@ void Game::MenuUp()
         }
 
         case kListState2:
-            if (--battle.unk4A7558 >= 1)
+            if (--battle.pageListRow >= 1)
             {
                 tick();
                 battle.unk53BFB8 = 1;
                 return;
             }
 
-            battle.unk4A7558 = 1;
+            battle.pageListRow = 1;
 
             if (battle.listScroll > 0)
             {
@@ -2186,20 +2186,20 @@ void Game::MenuUp()
             return;
 
         case kListState4:
-            if (--battle.unk4A755C < 1)
+            if (--battle.roleListRow < 1)
             {
-                battle.unk4A755C = battle.unk53BDF4 != 0 ? 1 : 0;
+                battle.roleListRow = battle.roleListEntries != 0 ? 1 : 0;
 
-                if (--battle.unk53BD08 < 0)
+                if (--battle.roleListScroll < 0)
                 {
-                    battle.unk53BD08 = 0;
+                    battle.roleListScroll = 0;
                 }
             }
 
             tick();
             battle.unk53BFB8 = 1;
-            battle.unk4FF578[static_cast<std::size_t>(battle.unk4A7570)] = battle.unk4A755C;
-            battle.unk52544C[static_cast<std::size_t>(battle.unk4A7570)] = battle.unk53BD08;
+            battle.roleListRows[static_cast<std::size_t>(battle.listRole)] = battle.roleListRow;
+            battle.roleListScrolls[static_cast<std::size_t>(battle.listRole)] = battle.roleListScroll;
             return;
 
         case kWaitState5:
@@ -2240,27 +2240,27 @@ void Game::MenuUp()
             return;
 
         case kListState1B:
-            if (--battle.unk4A755C >= 1)
+            if (--battle.roleListRow >= 1)
             {
                 tick();
                 battle.unk53BFB8 = 1;
                 return;
             }
 
-            battle.unk4A755C = battle.unk53BDF4 != 0 ? 1 : 0;
+            battle.roleListRow = battle.roleListEntries != 0 ? 1 : 0;
             battle.unk53BFB8 = 1;
 
-            if (--battle.unk53BD08 < 0)
+            if (--battle.roleListScroll < 0)
             {
-                battle.unk53BD08 = 0;
+                battle.roleListScroll = 0;
             }
 
             return;
 
         case kWaitState1E:
-            if (--battle.unk4A755C < 1)
+            if (--battle.roleListRow < 1)
             {
-                battle.unk4A755C = kMenuStepMost;
+                battle.roleListRow = kMenuStepMost;
             }
 
             tick();
@@ -2331,7 +2331,7 @@ void Game::AimStep(int step)
 
     if (battle.pendingOrders[unit].unk00 != 0)
     {
-        const auto partyRoles = static_cast<i32>(battle.roleCount - battle.unk53BF26 - battle.guestCount);
+        const auto partyRoles = static_cast<i32>(battle.roleCount - battle.escortCount - battle.guestCount);
 
         if (partyRoles >= static_cast<i32>(Party::Roles))
         {
@@ -2410,7 +2410,7 @@ void Game::AimStep(int step)
 
 // swd32.exe 0x00461240: the down key of the battle menu, as MenuUp the other way: 1 moves the command down (past the
 // last accessory command to 1); 2, 4 and 0x1B move the list cursor down to the seventh row, then scroll, stopping at
-// the end of the list (state 4 keeps the list for role unk4A7570); 5 cycles 1..2; 7, 8 and 0x1E cycle forward;
+// the end of the list (state 4 keeps the list for role listRole); 5 cycles 1..2; 7, 8 and 0x1E cycle forward;
 // 3 moves the aim forward.
 void Game::MenuDown()
 {
@@ -2470,7 +2470,7 @@ void Game::MenuDown()
 
             do
             {
-                if (++command > battle.unk53BF22 + kMenuFixedCommands)
+                if (++command > battle.listedCommands + kMenuFixedCommands)
                 {
                     command = 1;
                 }
@@ -2482,7 +2482,7 @@ void Game::MenuDown()
         }
 
         case kListState2:
-            if (listDown(battle.unk4A7558, battle.listScroll, static_cast<i8>(battle.unk53BDF2)))
+            if (listDown(battle.pageListRow, battle.listScroll, static_cast<i8>(battle.listEntries)))
             {
                 tick();
             }
@@ -2501,13 +2501,13 @@ void Game::MenuDown()
             return;
 
         case kListState4:
-            if (listDown(battle.unk4A755C, battle.unk53BD08, battle.unk53BDF4))
+            if (listDown(battle.roleListRow, battle.roleListScroll, battle.roleListEntries))
             {
                 tick();
             }
 
-            battle.unk4FF578[static_cast<std::size_t>(battle.unk4A7570)] = battle.unk4A755C;
-            battle.unk52544C[static_cast<std::size_t>(battle.unk4A7570)] = battle.unk53BD08;
+            battle.roleListRows[static_cast<std::size_t>(battle.listRole)] = battle.roleListRow;
+            battle.roleListScrolls[static_cast<std::size_t>(battle.listRole)] = battle.roleListScroll;
             battle.unk53BFB8 = 1;
             return;
 
@@ -2549,7 +2549,7 @@ void Game::MenuDown()
             return;
 
         case kListState1B:
-            if (listDown(battle.unk4A755C, battle.unk53BD08, battle.unk53BDF4))
+            if (listDown(battle.roleListRow, battle.roleListScroll, battle.roleListEntries))
             {
                 tick();
             }
@@ -2558,9 +2558,9 @@ void Game::MenuDown()
             return;
 
         case kWaitState1E:
-            if (++battle.unk4A755C > kMenuStepMost)
+            if (++battle.roleListRow > kMenuStepMost)
             {
-                battle.unk4A755C = 1;
+                battle.roleListRow = 1;
             }
 
             tick();
@@ -2575,7 +2575,7 @@ void Game::MenuDown()
 // swd32.exe 0x0045D8F0: the debug keys of the battle (with the debug mode). With a Ctrl key: F3 stops the music, F1
 // and X toggle unk5244E0 and unk53AF68, K starts a strong attack (強攻擊), Z refills the roles (vitals, fury and
 // strong attributes), D and F hurt the roles, V the enemies, F9 toggles skipping the talk, E ends the frame (0), C
-// ends the spell and the acting unit (the original then resets the turn of role unk53AE70 - 8 with unk53AE70 just set
+// ends the spell and the acting unit (the original then resets the turn of role actingUnit - 8 with actingUnit just set
 // to -1: not done here), F5 restarts the battle music, F2 toggles the absolute spirit pact, W defeats the enemies.
 // Without Ctrl: H and J move every unit and the background 10 pixels. P toggles the snapshot in any mode. 1 otherwise.
 int Game::BattleDebugKeys()
@@ -2696,16 +2696,16 @@ int Game::BattleDebugKeys()
                 battle.ClearActing();
                 battle.unk53BFC0 = 0;
                 battle.unk53BFC4 = 0;
-                battle.unk53AE70 = -1;
+                battle.actingUnit = -1;
 
                 if (battle.unk53BF64 == 1)
                 {
                     battle.unk53BF64 = 0;
                 }
 
-                if (battle.unk53BF68 == 1)
+                if (battle.hitsAllRoles == 1)
                 {
-                    battle.unk53BF68 = 0;
+                    battle.hitsAllRoles = 0;
                 }
             }
 
@@ -2749,7 +2749,7 @@ int Game::BattleDebugKeys()
                     if (!enemy.IsDefeated())
                     {
                         battle.unk502984[index] = static_cast<i32>(index);
-                        battle.unk5242B0[index] = 0;
+                        battle.slotDamage[index] = 0;
                         enemy.Damage(services, kDefeatHurt, 0, 0);
                     }
                 }
@@ -2767,9 +2767,9 @@ int Game::BattleDebugKeys()
                 battle.unk53BD80 = 0;
                 battle.unk53BF64 = 0;
                 battle.unk53BF5C = 0;
-                battle.unk53BD50 = 0;
+                battle.turnUnit = 0;
                 battle.currentUnit = 0;
-                battle.unk53AE70 = -1;
+                battle.actingUnit = -1;
                 battle.result = 0;
             }
         }
@@ -2983,13 +2983,13 @@ int Game::MouseHover()
         battle.unk53BD6C = 0;
         battle.unk53BD70 = 0;
         battle.unk53BFF8 = 0;
-        return battle.unk53BDF4 > kListRowsShown;
+        return battle.roleListEntries > kListRowsShown;
     };
 
     switch (battle.result)
     {
         case 0:
-            if (battle.unk53BF00 >= static_cast<i32>(battle.enemyCount))
+            if (battle.enemiesGone >= static_cast<i32>(battle.enemyCount))
             {
                 return 0;
             }
@@ -3020,7 +3020,7 @@ int Game::MouseHover()
                     kMenuColumn * (static_cast<u32>(x - left - kMenuHitLeft) / kMenuHitColumn)
                 );
 
-                if (index < battle.unk53BF22 + kMenuFixedCommands)
+                if (index < battle.listedCommands + kMenuFixedCommands)
                 {
                     BattleRole& role =
                         this->battleRoles[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)];
@@ -3038,7 +3038,7 @@ int Game::MouseHover()
                         this->audio.PlaySound(kBackSound, this->config.soundVolume);
                     }
 
-                    battle.menuCommand = std::min(index + 1, battle.unk53BF22 + kMenuFixedCommands);
+                    battle.menuCommand = std::min(index + 1, battle.listedCommands + kMenuFixedCommands);
                     battle.unk53BFBC = 1;
                     battle.unk53BFB8 = 1;
                     return 1;
@@ -3070,9 +3070,9 @@ int Game::MouseHover()
             {
                 const int row = band(y, kListHitFirst, kListRowHeight, kListHitEnd);
 
-                if (row >= 0 && battle.listScroll + row + 1 <= static_cast<i8>(battle.unk53BDF2))
+                if (row >= 0 && battle.listScroll + row + 1 <= static_cast<i8>(battle.listEntries))
                 {
-                    return pickRow(battle.unk4A7558, row);
+                    return pickRow(battle.pageListRow, row);
                 }
             }
 
@@ -3092,7 +3092,7 @@ int Game::MouseHover()
 
                 if (tab >= 0)
                 {
-                    if (battle.unk4A7570 != tab)
+                    if (battle.listRole != tab)
                     {
                         battle.hoverRoleTab = tab;
                     }
@@ -3105,9 +3105,9 @@ int Game::MouseHover()
             {
                 const int row = band(y, kListHitFirst, kListRowHeight, kListHitEnd);
 
-                if (row >= 0 && battle.unk53BD08 + row + 1 <= battle.unk53BDF4)
+                if (row >= 0 && battle.roleListScroll + row + 1 <= battle.roleListEntries)
                 {
-                    return pickRow(battle.unk4A755C, row);
+                    return pickRow(battle.roleListRow, row);
                 }
             }
 
@@ -3179,9 +3179,9 @@ int Game::MouseHover()
             {
                 const int row = band(y, kListHitFirst, kListRowHeight, kListHitEnd);
 
-                if (row >= 0 && battle.unk53BD08 + row + 1 <= battle.unk53BDF4)
+                if (row >= 0 && battle.roleListScroll + row + 1 <= battle.roleListEntries)
                 {
-                    return pickRow(battle.unk4A755C, row);
+                    return pickRow(battle.roleListRow, row);
                 }
             }
 
@@ -3248,12 +3248,12 @@ int Game::HoverRefineCell()
 
         const int cell = kRefineRows * column + row + 1;
 
-        if (battle.unk4A755C != cell)
+        if (battle.roleListRow != cell)
         {
             this->audio.PlaySound(kBackSound, this->config.soundVolume);
         }
 
-        battle.unk4A755C = std::min(cell, kMenuStepMost);
+        battle.roleListRow = std::min(cell, kMenuStepMost);
         battle.unk53BFBC = 1;
         battle.unk53BFB8 = 1;
         return 1;
@@ -3366,7 +3366,7 @@ int Game::HoverTarget()
 
     this->battleRoles[static_cast<std::size_t>(battle.hoverUnit)].SetAC0(0);
     auto& portraits = this->battleHud.portraitHighlight;
-    const auto partyRoles = static_cast<i32>(battle.roleCount - battle.unk53BF26 - battle.guestCount);
+    const auto partyRoles = static_cast<i32>(battle.roleCount - battle.escortCount - battle.guestCount);
 
     auto chooses = [&battle](i32 role)
     {
@@ -3491,7 +3491,7 @@ int Game::HoverTarget()
 
 // swd32.exe 0x00462740: the confirm key of the battle menu (while unk53BF5C), by battle state: 1 takes the menu
 // command; 2, 4, 8, 0x1B and 0x1E take a list entry; 3 takes the aimed unit and ends the role's choice; 5 places an
-// escort; 7 answers the talk; 0x62..0x71 step the end of the battle (the messages wait out unk53BD20 frames);
+// escort; 7 answers the talk; 0x62..0x71 step the end of the battle (the messages wait out endFrames frames);
 // 0xC8 closes the menu.
 void Game::MenuConfirm()
 {
@@ -3575,7 +3575,7 @@ bool Game::PrepareOrder()
 void Game::AimAtParty()
 {
     BattleState& battle = this->battleState;
-    const auto partyRoles = static_cast<i32>(battle.roleCount - battle.unk53BF26 - battle.guestCount);
+    const auto partyRoles = static_cast<i32>(battle.roleCount - battle.escortCount - battle.guestCount);
 
     if (partyRoles >= static_cast<i32>(Party::Roles))
     {
@@ -3601,31 +3601,31 @@ void Game::OpenTargets()
     BattleState& battle = this->battleState;
     battle.result = kTargetState;
     battle.unk53BD90 = 0;
-    battle.unk53BD94 = 0;
+    battle.menuGrow = 0;
     battle.unk53BD98 = kOpenListRows;
     this->controls.PressConfirm();
 }
 
-// The end of a role's choice (inline in 0x00462740): the choosing role becomes unk53BD50 and the menu closes.
+// The end of a role's choice (inline in 0x00462740): the choosing role becomes turnUnit and the menu closes.
 void Game::EndChoice()
 {
     BattleState& battle = this->battleState;
-    battle.unk53BD50 = battle.currentUnit;
+    battle.turnUnit = battle.currentUnit;
     battle.commandNames = {};
     battle.currentUnit = 0;
     battle.unk53BF60 = 1;
     battle.result = 0;
     battle.unk53BFB8 = 0;
-    battle.unk53BF22 = 0;
+    battle.listedCommands = 0;
 }
 
-// Battle state 1 of MenuConfirm (once the menu has opened, unk53BD94 at least 6): the command (an accessory command
+// Battle state 1 of MenuConfirm (once the menu has opened, menuGrow at least 6): the command (an accessory command
 // its kind) opens its list, aims, or acts at once.
 void Game::ConfirmCommand()
 {
     BattleState& battle = this->battleState;
 
-    if (battle.unk53BFB8 == 0 || battle.unk53BD94 < kMenuOpened)
+    if (battle.unk53BFB8 == 0 || battle.menuGrow < kMenuOpened)
     {
         return;
     }
@@ -3667,7 +3667,7 @@ void Game::ConfirmCommand()
 
     auto actAtOnce = [this, &battle, &role, unit](i32 order)
     {
-        battle.unk53BCE8 = order;
+        battle.turnCommand = order;
         battle.turnTaken[static_cast<std::size_t>(battle.currentUnit)] = order;
         role.SetTarget(1);
         battle.aimTarget = battle.currentUnit - (BattleState::FirstRoleUnit - 1);
@@ -3684,15 +3684,15 @@ void Game::ConfirmCommand()
 
         case kSpellCommand:
             battle.unk53BD90 = 0;
-            battle.unk53BD94 = 0;
+            battle.menuGrow = 0;
             battle.unk53BD98 = kOpenListRows;
             battle.listScroll = 0;
             openList(kListState2);
             break;
 
         case kItemCommand:
-            battle.unk4A755C = 1;
-            battle.unk53BD08 = 0;
+            battle.roleListRow = 1;
+            battle.roleListScroll = 0;
             openList(kListState4);
             break;
 
@@ -3702,7 +3702,7 @@ void Game::ConfirmCommand()
             break;
 
         case kGuardCommand:
-            battle.unk53BCE8 = command;
+            battle.turnCommand = command;
             battle.turnTaken[static_cast<std::size_t>(battle.currentUnit)] = command;
             role.ResetAfterGuard();
             role.SetTarget(1);
@@ -3721,26 +3721,26 @@ void Game::ConfirmCommand()
             break;
 
         case kLeaveCommand:
-            battle.unk53BD50 = battle.currentUnit;
+            battle.turnUnit = battle.currentUnit;
             battle.currentUnit = 0;
             battle.result = kLeaveState;
             break;
 
         case kSelfCommand:
-            battle.unk53BCE8 = command;
+            battle.turnCommand = command;
             battle.result = 0;
             battle.unk53BFB8 = 1;
             battle.turnTaken[static_cast<std::size_t>(battle.currentUnit)] = command;
             role.SetTarget(1);
             battle.commandNames[0] = {};
-            battle.unk53BD50 = battle.currentUnit;
+            battle.turnUnit = battle.currentUnit;
             battle.commandNames[1] = {};
             battle.aimTarget = battle.currentUnit - (BattleState::FirstRoleUnit - 1);
             battle.currentUnit = 0;
             battle.unk53BF60 = 1;
             battle.unk53BFB8 = 0;
             battle.commandNames[2] = {};
-            battle.unk53BF22 = 0;
+            battle.listedCommands = 0;
             break;
 
         case kPartyAimCommand:
@@ -3761,8 +3761,8 @@ void Game::ConfirmCommand()
 
         case kListState1B:
             battle.result = kListState1B;
-            battle.unk4A755C = 1;
-            battle.unk53BD08 = 0;
+            battle.roleListRow = 1;
+            battle.roleListScroll = 0;
             this->input.SetMousePosition(kListMouseX, kListMouseY);
             break;
 
@@ -3776,7 +3776,7 @@ void Game::ConfirmCommand()
 
         case kWaitState1E:
             battle.result = kWaitState1E;
-            battle.unk4A755C = 1;
+            battle.roleListRow = 1;
             this->input.SetMousePosition(kListMouseX, kListMouseY);
             break;
 
@@ -3792,7 +3792,7 @@ void Game::ConfirmCommand()
     this->controls.PressConfirm();
     battle.unk53BD98 = kOpenListRows;
     battle.unk53BD90 = 0;
-    battle.unk53BD94 = 0;
+    battle.menuGrow = 0;
 }
 
 // Battle state 2 of MenuConfirm: a page tab under the pointer opens its page; otherwise the chosen spell (affordable)
@@ -3806,7 +3806,7 @@ void Game::ConfirmSpell()
     {
         battle.listPage = battle.hoverPageTab;
         battle.hoverPageTab = -1;
-        battle.unk4A7558 = 1;
+        battle.pageListRow = 1;
         battle.listScroll = 0;
         this->audio.PlaySound(kBackSound, this->config.soundVolume);
         return;
@@ -3898,16 +3898,16 @@ void Game::ConfirmTarget()
         return;
     }
 
-    battle.unk53BCE8 = battle.menuCommand;
+    battle.turnCommand = battle.menuCommand;
     battle.turnTaken[static_cast<std::size_t>(battle.currentUnit)] = battle.menuCommand;
-    battle.unk53BD50 = battle.currentUnit;
+    battle.turnUnit = battle.currentUnit;
     battle.currentUnit = 0;
     battle.unk53BF60 = 1;
 
     // In the auto battle without a current unit the original works on the role 8 before the first and its order
     // before the orders: those calls and writes are left out, the rest done.
-    const bool hasRole = battle.unk53BD50 >= BattleState::FirstRoleUnit;
-    const auto unit = hasRole ? static_cast<std::size_t>(battle.unk53BD50 - BattleState::FirstRoleUnit) : 0;
+    const bool hasRole = battle.turnUnit >= BattleState::FirstRoleUnit;
+    const auto unit = hasRole ? static_cast<std::size_t>(battle.turnUnit - BattleState::FirstRoleUnit) : 0;
     BattleRole* role = hasRole ? &this->battleRoles[unit] : nullptr;
 
     if (role != nullptr)
@@ -3927,13 +3927,13 @@ void Game::ConfirmTarget()
             battle.pendingOrders[unit].unk10 = 0;
         }
 
-        battle.turnTaken[static_cast<std::size_t>(battle.unk53BD50)] = battle.unk53BCE8;
+        battle.turnTaken[static_cast<std::size_t>(battle.turnUnit)] = battle.turnCommand;
     }
 
     if (battle.menuCommand == kWaitState1E)
     {
-        battle.unk53BCE8 = kItemCommand;
-        battle.turnTaken[static_cast<std::size_t>(battle.unk53BD50)] = kItemCommand;
+        battle.turnCommand = kItemCommand;
+        battle.turnTaken[static_cast<std::size_t>(battle.turnUnit)] = kItemCommand;
 
         if (role != nullptr)
         {
@@ -3942,9 +3942,9 @@ void Game::ConfirmTarget()
 
         if (role != nullptr && role->Word2A86Bit13() == 1)
         {
-            battle.unk53BCE8 = kThrowOrder;
+            battle.turnCommand = kThrowOrder;
             battle.unk53C01C = 1;
-            battle.turnTaken[static_cast<std::size_t>(battle.unk53BD50)] = kThrowOrder;
+            battle.turnTaken[static_cast<std::size_t>(battle.turnUnit)] = kThrowOrder;
             ++battle.unk53C4B0;
         }
         else
@@ -3952,15 +3952,15 @@ void Game::ConfirmTarget()
             AddOneItem(this->party.inventory, kThrownObject, 0, this->database);
         }
     }
-    else if (battle.unk53BCE8 == kSkillCommand && role != nullptr)
+    else if (battle.turnCommand == kSkillCommand && role != nullptr)
     {
         role->TakeCommand2F18();
     }
 
     if (battle.menuCommand == kListState1B)
     {
-        battle.unk4A755C = 1;
-        battle.unk53BD08 = 0;
+        battle.roleListRow = 1;
+        battle.roleListScroll = 0;
     }
 
     for (u32 index = 0; index < battle.enemyCount; ++index)
@@ -3975,9 +3975,9 @@ void Game::ConfirmTarget()
     }
 
     battle.unk53BD90 = 0;
-    battle.unk53BD94 = 0;
+    battle.menuGrow = 0;
     this->battleHud.scrollCount = 0;
-    battle.unk4A755C = 1;
+    battle.roleListRow = 1;
     battle.unk53BFC0 = 0;
     battle.unk53BFC4 = 0;
     battle.unk53BFC8 = 0;
@@ -3987,8 +3987,8 @@ void Game::ConfirmTarget()
     {
         if (role != nullptr && role->MarkBit1() == 1)
         {
-            battle.unk53BCE8 = kGuardCommand;
-            battle.turnTaken[static_cast<std::size_t>(battle.unk53BD50)] = kGuardCommand;
+            battle.turnCommand = kGuardCommand;
+            battle.turnTaken[static_cast<std::size_t>(battle.turnUnit)] = kGuardCommand;
             role->ResetAfterGuard();
             role->SetTarget(1);
             battle.pendingOrders[unit].unk00 = 1;
@@ -3998,7 +3998,7 @@ void Game::ConfirmTarget()
     }
 
     battle.commandNames = {};
-    battle.unk53BF22 = 0;
+    battle.listedCommands = 0;
 }
 
 // Battle state 4 of MenuConfirm: a role tab under the pointer opens its list; otherwise the chosen object becomes the
@@ -4011,10 +4011,10 @@ void Game::ConfirmItem()
 
     if (battle.hoverRoleTab != -1)
     {
-        battle.unk4A7570 = battle.hoverRoleTab;
+        battle.listRole = battle.hoverRoleTab;
         battle.hoverRoleTab = -1;
-        battle.unk4A755C = 1;
-        battle.unk53BD08 = 0;
+        battle.roleListRow = 1;
+        battle.roleListScroll = 0;
         this->audio.PlaySound(kBackSound, this->config.soundVolume);
         return;
     }
@@ -4035,12 +4035,12 @@ void Game::ConfirmItem()
     BattleRole& role = this->battleRoles[unit];
     u16 kind = kNoObjectKind;
     u32 act = static_cast<u32>(battle.unk4FE5D4[unit]);
-    const int chosen = role.SelectObject(this->database, this->errors, battle.unk4A7570, battle.listCursor, act, kind);
+    const int chosen = role.SelectObject(this->database, this->errors, battle.listRole, battle.listCursor, act, kind);
     battle.unk4FE5D4[unit] = static_cast<i32>(act);
 
     if (chosen == 0)
     {
-        const i32 category = battle.unk4A7570;
+        const i32 category = battle.listRole;
 
         if (category == kItemCategory3 || category == 0 || category == kHealPage)
         {
@@ -4072,7 +4072,7 @@ void Game::ConfirmItem()
         battle.unk53BFB8 = 1;
         order.unk00 = 0;
 
-        if (battle.unk4A7570 == kHealPage)
+        if (battle.listRole == kHealPage)
         {
             order.unk00 = 1;
             battle.unk53BFD0 = 1;
@@ -4088,13 +4088,13 @@ void Game::ConfirmItem()
         return;
     }
 
-    if (battle.unk4A7570 != 0)
+    if (battle.listRole != 0)
     {
         order.unk00 = kind == 0 ? 1 : 0;
 
         if (order.unk00 == 1)
         {
-            const auto partyRoles = static_cast<i32>(battle.roleCount - battle.unk53BF26 - battle.guestCount);
+            const auto partyRoles = static_cast<i32>(battle.roleCount - battle.escortCount - battle.guestCount);
 
             if (partyRoles >= static_cast<i32>(Party::Roles))
             {
@@ -4142,26 +4142,26 @@ void Game::CallEscort(BattleRole& role)
         return;
     }
 
-    if (battle.unk53BF26 != 0)
+    if (battle.escortCount != 0)
     {
         battle.result = kWaitState5;
-        battle.guardCursor = battle.unk53BF26 == kEscortRows ? 1 : kEscortRows;
+        battle.guardCursor = battle.escortCount == kEscortRows ? 1 : kEscortRows;
         return;
     }
 
-    battle.unk53BCE8 = kEscortOrder;
-    battle.unk53BD50 = battle.currentUnit;
+    battle.turnCommand = kEscortOrder;
+    battle.turnUnit = battle.currentUnit;
     battle.turnTaken[static_cast<std::size_t>(battle.currentUnit)] = kEscortOrder;
     battle.currentUnit = 0;
     battle.unk53BF60 = 1;
-    this->battleRoles[static_cast<std::size_t>(battle.unk53BD50 - BattleState::FirstRoleUnit)].SetTarget(1);
+    this->battleRoles[static_cast<std::size_t>(battle.turnUnit - BattleState::FirstRoleUnit)].SetTarget(1);
     battle.result = 0;
     battle.unk53BFBC = 0;
     battle.unk53BFB8 = 0;
     battle.unk53BD90 = 0;
-    battle.unk53BD94 = 0;
+    battle.menuGrow = 0;
     battle.unk53BFC0 = 0;
-    battle.pendingOrders[static_cast<std::size_t>(battle.unk53BD50 - BattleState::FirstRoleUnit)].unk00 = 1;
+    battle.pendingOrders[static_cast<std::size_t>(battle.turnUnit - BattleState::FirstRoleUnit)].unk00 = 1;
     battle.unk53BFC4 = 0;
     this->controls.PressConfirm();
 
@@ -4171,7 +4171,7 @@ void Game::CallEscort(BattleRole& role)
     }
 
     battle.commandNames = {};
-    battle.unk53BF22 = 0;
+    battle.listedCommands = 0;
     battle.callingEscort = role.UseSelectedItem();
     battle.SetReturnedItem(1, battle.callingEscort);
 
@@ -4179,7 +4179,7 @@ void Game::CallEscort(BattleRole& role)
     if (battle.roleCount >= battle.rolePlaces.size())
     {
         battle.callingEscort = static_cast<u16>(battle.roleCount);
-        battle.escortCalled[static_cast<std::size_t>(battle.unk53BD50)] = static_cast<u16>(battle.roleCount);
+        battle.escortCalled[static_cast<std::size_t>(battle.turnUnit)] = static_cast<u16>(battle.roleCount);
         return;
     }
 
@@ -4195,7 +4195,7 @@ void Game::CallEscort(BattleRole& role)
     }
 
     battle.callingEscort = static_cast<u16>(battle.roleCount);
-    battle.escortCalled[static_cast<std::size_t>(battle.unk53BD50)] = static_cast<u16>(battle.roleCount);
+    battle.escortCalled[static_cast<std::size_t>(battle.turnUnit)] = static_cast<u16>(battle.roleCount);
 }
 
 // Battle state 5 of MenuConfirm: the escort object used takes the place of escort row guardCursor (an escort there
@@ -4212,8 +4212,8 @@ void Game::ConfirmEscort()
 
     BattleRole& role = this->battleRoles[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)];
     battle.callingEscort = role.UseSelectedItem();
-    battle.unk53BD50 = battle.currentUnit;
-    battle.unk53BCE8 = kEscortOrder;
+    battle.turnUnit = battle.currentUnit;
+    battle.turnCommand = kEscortOrder;
     battle.turnTaken[static_cast<std::size_t>(battle.currentUnit)] = kEscortOrder;
     battle.currentUnit = 0;
     battle.unk53BF60 = 1;
@@ -4222,13 +4222,13 @@ void Game::ConfirmEscort()
     battle.unk53BFBC = 0;
     battle.unk53BFB8 = 0;
     battle.unk53BD90 = 0;
-    battle.unk53BD94 = 0;
+    battle.menuGrow = 0;
     battle.unk53BFC0 = 0;
-    battle.pendingOrders[static_cast<std::size_t>(battle.unk53BD50 - BattleState::FirstRoleUnit)].unk00 = 1;
+    battle.pendingOrders[static_cast<std::size_t>(battle.turnUnit - BattleState::FirstRoleUnit)].unk00 = 1;
     battle.unk53BFC4 = 0;
     this->controls.PressConfirm();
     const auto row =
-        static_cast<std::size_t>(battle.guardCursor - battle.unk53BF26 + static_cast<i32>(battle.roleCount) - 1);
+        static_cast<std::size_t>(battle.guardCursor - battle.escortCount + static_cast<i32>(battle.roleCount) - 1);
     UnitPlacement& place = battle.rolePlaces[row];
     u16 placed = battle.callingEscort;
 
@@ -4268,8 +4268,8 @@ void Game::ConfirmEscort()
 
     battle.commandNames = {};
     battle.callingEscort = 0;
-    battle.escortCalled[static_cast<std::size_t>(battle.unk53BD50)] = placed;
-    battle.unk53BF22 = 0;
+    battle.escortCalled[static_cast<std::size_t>(battle.turnUnit)] = placed;
+    battle.listedCommands = 0;
     this->MeasureUnits();
 }
 
@@ -4281,20 +4281,20 @@ void Game::ConfirmTalk()
 
     if (battle.unk4A756C == battle.unk4A7568)
     {
-        battle.unk53BCE8 = kTalkOrder;
+        battle.turnCommand = kTalkOrder;
         this->controls.PressConfirm();
         this->battleRoles[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)].SetTarget(1);
         battle.commandNames[0] = {};
         battle.unk53BF60 = 1;
         battle.aimTarget = battle.currentUnit - (BattleState::FirstRoleUnit - 1);
         battle.commandNames[1] = {};
-        battle.unk53BD50 = battle.currentUnit;
+        battle.turnUnit = battle.currentUnit;
         battle.currentUnit = 0;
         battle.unk53BFB8 = 0;
         battle.result = 0;
         battle.unk53BD90 = 0;
-        battle.unk53BD94 = 0;
-        battle.unk53BF22 = 0;
+        battle.menuGrow = 0;
+        battle.listedCommands = 0;
         battle.unk53BD98 = kOpenListRows;
         battle.commandNames[2] = {};
         return;
@@ -4421,7 +4421,7 @@ void Game::ConfirmRefine()
 
     battle.unk53BFB8 = 0;
 
-    if (battle.unk4A755C > battle.unk53BDF4)
+    if (battle.roleListRow > battle.roleListEntries)
     {
         this->audio.PlaySound(kRefusedSound, this->config.soundVolume);
         return;
@@ -4459,7 +4459,7 @@ void Game::ConfirmRefine()
     this->controls.PressConfirm();
 }
 
-// The end states of MenuConfirm (0x62..0x71, 0xC8): the messages of the end wait out unk53BD20 frames, the level-up
+// The end states of MenuConfirm (0x62..0x71, 0xC8): the messages of the end wait out endFrames frames, the level-up
 // steps (0x65: a level-up shows 0x6E, a learned skill 0x6F; none ends), 0xC8 closes the menu and unmarks every unit.
 void Game::ConfirmEnd()
 {
@@ -4472,16 +4472,16 @@ void Game::ConfirmEnd()
             battle.pendingActionRow = 0;
             battle.pendingAction = 0;
             messages.panelHeight = 0;
-            battle.unk53BD20 = 0;
+            battle.endFrames = 0;
             messages.craftSucceeded = 0;
             battle.result = kBattleWon;
-            battle.unk4A7646 = kNoLevelUp;
+            battle.levelUpRole = kNoLevelUp;
             return;
 
         case kEndVictory:
-            if (battle.unk53BD20 >= kEndMessageFrames)
+            if (battle.endFrames >= kEndMessageFrames)
             {
-                battle.unk53BD20 = 0;
+                battle.endFrames = 0;
                 messages.panelHeight = 0;
                 battle.result = kEndLevelUps;
             }
@@ -4491,18 +4491,18 @@ void Game::ConfirmEnd()
         case kEndLevelUps:
             battle.levelUpFrames = 0;
 
-            if (battle.unk53C038 != 0 && battle.unk53BD20 >= kEndLevelUpFrames)
+            if (battle.unk53C038 != 0 && battle.endFrames >= kEndLevelUpFrames)
             {
                 messages.panelHeight = 0;
 
-                if (battle.unk4A7646 == kNoLevelUp)
+                if (battle.levelUpRole == kNoLevelUp)
                 {
                     if (messages.lootCount != 0)
                     {
                         this->audio.PlaySound(kLearnedSound, this->config.soundVolume);
                     }
 
-                    battle.unk53BD20 = 0;
+                    battle.endFrames = 0;
                     battle.unk53BF5C = 0;
                     battle.unk53C038 = 0;
                     battle.result = kEndLoot;
@@ -4511,7 +4511,7 @@ void Game::ConfirmEnd()
                 {
                     this->audio.PlaySound(kLevelUpPanelSound, this->config.soundVolume);
                     battle.unk53C038 = 0;
-                    battle.unk53BD20 = 0;
+                    battle.endFrames = 0;
                     battle.result = kEndStats;
                 }
             }
@@ -4519,11 +4519,11 @@ void Game::ConfirmEnd()
             return;
 
         case kEndLoot:
-            if (battle.unk53BD20 >= kEndMessageFrames)
+            if (battle.endFrames >= kEndMessageFrames)
             {
                 battle.unk53BFE4 = 1;
                 battle.result = 0;
-                battle.unk53BD20 = 0;
+                battle.endFrames = 0;
                 battle.unk53BF5C = 0;
                 messages.panelHeight = 0;
             }
@@ -4531,12 +4531,12 @@ void Game::ConfirmEnd()
             return;
 
         case kBattleLost:
-            if (battle.unk53BD20 >= kEndMessageFrames)
+            if (battle.endFrames >= kEndMessageFrames)
             {
                 battle.unk53BFE4 = 1;
                 messages.panelHeight = 0;
                 battle.result = 0;
-                battle.unk53BD20 = 0;
+                battle.endFrames = 0;
             }
 
             return;
@@ -4551,36 +4551,36 @@ void Game::ConfirmEnd()
 
             if (battle.unk53BFFC == 1)
             {
-                if (!this->battleRoles[static_cast<std::size_t>(static_cast<i8>(battle.unk4A7646))].IsDefeated())
+                if (!this->battleRoles[static_cast<std::size_t>(static_cast<i8>(battle.levelUpRole))].IsDefeated())
                 {
-                    this->battleRoles[static_cast<std::size_t>(static_cast<i8>(battle.unk4A7646))].RestartMainAct(
+                    this->battleRoles[static_cast<std::size_t>(static_cast<i8>(battle.levelUpRole))].RestartMainAct(
                         kLearnedPose,
                         1
                     );
                 }
 
                 this->audio.PlaySound(kLearnedSound, this->config.soundVolume);
-                battle.unk53BD20 = 0;
+                battle.endFrames = 0;
                 battle.result = kEndNewSpell;
             }
             else
             {
                 battle.unk53C038 = 0;
-                battle.unk53BD20 = 0;
-                battle.unk4A7646 = kNoLevelUp;
+                battle.endFrames = 0;
+                battle.levelUpRole = kNoLevelUp;
                 battle.result = kEndLevelUps;
             }
 
             return;
 
         case kEndNewSpell:
-            if (battle.unk53BD20 > kEndMessageFrames)
+            if (battle.endFrames > kEndMessageFrames)
             {
                 messages.panelHeight = 0;
                 battle.unk53C038 = 0;
                 battle.unk53BFFC = 0;
-                battle.unk53BD20 = 0;
-                battle.unk4A7646 = kNoLevelUp;
+                battle.endFrames = 0;
+                battle.levelUpRole = kNoLevelUp;
                 battle.result = kEndLevelUps;
             }
 
@@ -4588,22 +4588,22 @@ void Game::ConfirmEnd()
 
         case kEndSpecials:
         case kEndMastery:
-            if (battle.unk53BD20 > kEndMessageFrames)
+            if (battle.endFrames > kEndMessageFrames)
             {
                 messages.panelHeight = 0;
                 battle.unk53BFFC = 0;
-                battle.unk53BD20 = 0;
-                battle.unk4A7646 = kNoLevelUp;
+                battle.endFrames = 0;
+                battle.levelUpRole = kNoLevelUp;
             }
 
             return;
 
         case kCloseMenuState:
         {
-            battle.unk53BCE8 = 0;
+            battle.turnCommand = 0;
             battle.menuCommand = 1;
             battle.currentUnit = 0;
-            battle.unk53BD50 = 0;
+            battle.turnUnit = 0;
             battle.result = 0;
             battle.unk53BFBC = 0;
             battle.unk53BFB8 = 0;
@@ -4619,7 +4619,7 @@ void Game::ConfirmEnd()
             }
 
             battle.unk53BD90 = 0;
-            battle.unk53BD94 = 0;
+            battle.menuGrow = 0;
             battle.unk53BFC0 = 0;
             battle.unk53BFC4 = 0;
             battle.unk53BF5C = 0;
@@ -4631,7 +4631,7 @@ void Game::ConfirmEnd()
             }
 
             battle.commandNames = {};
-            battle.unk53BF22 = 0;
+            battle.listedCommands = 0;
             return;
         }
 
@@ -4654,7 +4654,7 @@ void Game::ConfirmKey()
         return;
     }
 
-    if (battle.unk53C4C0 == 0 && static_cast<i32>(battle.enemyCount) - battle.unk53BF00 <= 1 &&
+    if (battle.unk53C4C0 == 0 && static_cast<i32>(battle.enemyCount) - battle.enemiesGone <= 1 &&
         battle.unk4A7626 != kNoTalkRole && battle.result != kBattleWon)
     {
         battle.result = 0;
@@ -4791,7 +4791,7 @@ void Game::BattleKeys()
 
             if (battle.commandEnabled[static_cast<std::size_t>(command - 1)] == 1)
             {
-                battle.unk53BD94 = kMenuOpened;
+                battle.menuGrow = kMenuOpened;
                 battle.unk53BFB8 = 1;
                 battle.menuCommand = command;
                 this->ConfirmKey();
@@ -4818,7 +4818,7 @@ void Game::BattleKeys()
                     battle.result = kMenuState;
                 }
 
-                battle.unk53BD94 = kMenuOpened;
+                battle.menuGrow = kMenuOpened;
                 battle.unk53BFB8 = 1;
                 battle.menuCommand = kGuardCommand;
                 this->ConfirmKey();
@@ -4874,7 +4874,7 @@ void Game::BattleKeys()
 
     if (controls.At(Button::KeyG).press != 0 && Game::KeyRepeats(controls.At(Button::KeyG)))
     {
-        if (battle.unk53BF1C != 0 || battle.unk53BF68 == 1 || battle.unk53BF64 == 1 || battle.result == kTalkOrder ||
+        if (battle.unk53BF1C != 0 || battle.hitsAllRoles == 1 || battle.unk53BF64 == 1 || battle.result == kTalkOrder ||
             battle.result == kEndVictory || this->scene.talkWindows != nullptr)
         {
             return;
@@ -4885,7 +4885,7 @@ void Game::BattleKeys()
             unit >= BattleState::FirstRoleUnit &&
             this->battleRoles[static_cast<std::size_t>(unit - BattleState::FirstRoleUnit)].IsHeldOrHolding() == 1;
 
-        if (held || (static_cast<i32>(battle.enemyCount) - battle.unk53BF00 == 1 && battle.unk4A7626 != kNoTalkRole))
+        if (held || (static_cast<i32>(battle.enemyCount) - battle.enemiesGone == 1 && battle.unk4A7626 != kNoTalkRole))
         {
             return;
         }
@@ -4912,13 +4912,13 @@ void Game::BattleKeys()
             }
 
             SleepMilliseconds(kRetreatPause);
-            battle.unk53BCE8 = kLeaveCommand;
+            battle.turnCommand = kLeaveCommand;
             battle.turnTaken[static_cast<std::size_t>(battle.currentUnit)] = kLeaveCommand;
             role.SetTarget(1);
             battle.unk53BF60 = 1;
-            battle.unk53BD50 = battle.currentUnit;
+            battle.turnUnit = battle.currentUnit;
             battle.result = 0;
-            battle.unk4A75FC = 0;
+            battle.sweptUnits = 0;
             battle.aimTarget = battle.currentUnit - (BattleState::FirstRoleUnit - 1);
             unit = 0;
             battle.unk53BF1C |= kRetreatMark;
@@ -4927,7 +4927,7 @@ void Game::BattleKeys()
             battle.unk53BFC0 = 1;
             battle.unk53BFC4 = 1;
             battle.unk53BD90 = 0;
-            battle.unk53BD94 = 0;
+            battle.menuGrow = 0;
             battle.unk53BD98 = kOpenListRows;
         }
     }
@@ -4938,7 +4938,7 @@ void Game::BattleKeys()
         {
             battle.unk53BFBC = 0;
             battle.autoBattle = 1;
-            battle.unk53BCE8 = 1;
+            battle.turnCommand = 1;
             battle.turnTaken[static_cast<std::size_t>(unit)] = 1;
             battle.unk53BFB8 = 1;
             battle.menuCommand = 1;
@@ -5252,10 +5252,10 @@ void Game::DrawBattleMenu()
             battle.unk53BFC8 = 1;
             this->DrawListTabs(kListX, kListY);
 
-            if (battle.unk53BD94 == kListGrown && battle.unk53BD90 == kListOpened)
+            if (battle.menuGrow == kListGrown && battle.unk53BD90 == kListOpened)
             {
-                this->DrawSpellList(kSpellListX, kSpellListY, battle.unk4A7558, battle.listScroll);
-                scrollBar(static_cast<i8>(battle.unk53BDF2), battle.listScroll, kSpellScrollX);
+                this->DrawSpellList(kSpellListX, kSpellListY, battle.pageListRow, battle.listScroll);
+                scrollBar(static_cast<i8>(battle.listEntries), battle.listScroll, kSpellScrollX);
             }
 
             listDrawn();
@@ -5267,8 +5267,8 @@ void Game::DrawBattleMenu()
 
         case kListState4:
             battle.unk53BFC8 = 1;
-            this->DrawItemList(kListX, kListY, battle.unk4A755C, battle.unk53BD08);
-            scrollBar(battle.unk53BDF4, battle.unk53BD08, kItemScrollX);
+            this->DrawItemList(kListX, kListY, battle.roleListRow, battle.roleListScroll);
+            scrollBar(battle.roleListEntries, battle.roleListScroll, kItemScrollX);
             listDrawn();
             return;
 
@@ -5277,7 +5277,7 @@ void Game::DrawBattleMenu()
             return;
 
         case kLeaveState:
-            if (battle.unk53BF64 == 0 && battle.unk53BF68 == 0)
+            if (battle.unk53BF64 == 0 && battle.hitsAllRoles == 0)
             {
                 battle.unk53BF1C |= kRetreatMark;
                 battle.unk53BFC0 = 1;
@@ -5301,14 +5301,14 @@ void Game::DrawBattleMenu()
 
         case kListState1B:
             battle.unk53BFC8 = 1;
-            this->DrawThrowList(kListX, kListY, battle.unk4A755C, battle.unk53BD08);
-            scrollBar(battle.unk53BDF4, battle.unk53BD08, kThrowScrollX);
+            this->DrawThrowList(kListX, kListY, battle.roleListRow, battle.roleListScroll);
+            scrollBar(battle.roleListEntries, battle.roleListScroll, kThrowScrollX);
             listDrawn();
             return;
 
         case kWaitState1E:
             battle.unk53BFC8 = 1;
-            this->DrawRefineList(kListX, kListY, battle.unk4A755C);
+            this->DrawRefineList(kListX, kListY, battle.roleListRow);
             listDrawn();
             return;
 
@@ -5317,7 +5317,7 @@ void Game::DrawBattleMenu()
     }
 }
 
-// Battle state 1 of DrawBattleMenu (inline in the original): the tall gauge grows for six frames (unk53BD94) from
+// Battle state 1 of DrawBattleMenu (inline in the original): the tall gauge grows for six frames (menuGrow) from
 // the pointer, then the name of party role nameIndex (the role whose panel it is, or the step of the panel handed
 // on) and the command menu.
 void Game::DrawCommandPanel(i32 nameIndex)
@@ -5502,12 +5502,12 @@ void Game::BattleEndFrame()
 
     auto levelRole = [this, &battle]() -> BattleRole&
     {
-        return this->battleRoles[static_cast<std::size_t>(static_cast<i8>(battle.unk4A7646))];
+        return this->battleRoles[static_cast<std::size_t>(static_cast<i8>(battle.levelUpRole))];
     };
 
     auto noLevelRole = [&battle]
     {
-        return battle.unk4A7646 == kNoLevelUp;
+        return battle.levelUpRole == kNoLevelUp;
     };
 
     switch (battle.result)
@@ -5530,7 +5530,7 @@ void Game::BattleEndFrame()
 
             if (this->battleRoles[battle.roleCount].GlowAct(this->battleServices, place.x, place.y) == 1)
             {
-                battle.unk4A7646 = 1;
+                battle.levelUpRole = 1;
             }
 
             return;
@@ -5559,7 +5559,7 @@ void Game::BattleEndFrame()
             battle.unk53BF74 = 1;
             battle.currentUnit = 0;
 
-            if (++battle.unk53BD20 >= kEndPanelFrames)
+            if (++battle.endFrames >= kEndPanelFrames)
             {
                 this->ConfirmKey();
             }
@@ -5573,7 +5573,7 @@ void Game::BattleEndFrame()
 
                 if (noLevelRole())
                 {
-                    battle.unk53BD20 = 0;
+                    battle.endFrames = 0;
                     battle.result = kEndSpecials;
                     return;
                 }
@@ -5594,13 +5594,13 @@ void Game::BattleEndFrame()
 
             if (noLevelRole())
             {
-                battle.unk53BD20 = 0;
+                battle.endFrames = 0;
                 battle.result = kEndSpecials;
             }
             else
             {
                 this->DrawLevelUpPanel();
-                ++battle.unk53BD20;
+                ++battle.endFrames;
             }
 
             return;
@@ -5612,7 +5612,7 @@ void Game::BattleEndFrame()
                 return;
             }
 
-            if (++battle.unk53BD20 >= kEndPanelFrames)
+            if (++battle.endFrames >= kEndPanelFrames)
             {
                 this->ConfirmKey();
             }
@@ -5626,9 +5626,9 @@ void Game::BattleEndFrame()
 
             if ((battle.panelFlags & BattleState::UnkPanel8) != 0)
             {
-                if (++battle.unk53BD20 >= kEndQuietFrames)
+                if (++battle.endFrames >= kEndQuietFrames)
                 {
-                    battle.unk53BD20 = 0;
+                    battle.endFrames = 0;
                     battle.unk53BFE4 = 1;
                 }
 
@@ -5637,7 +5637,7 @@ void Game::BattleEndFrame()
 
             messages.DrawDefeatPanel();
 
-            if (++battle.unk53BD20 >= kEndPanelFrames)
+            if (++battle.endFrames >= kEndPanelFrames)
             {
                 this->ConfirmKey();
             }
@@ -5648,7 +5648,7 @@ void Game::BattleEndFrame()
             battle.unk53BFC0 = 1;
             battle.unk53BFC4 = 1;
 
-            if (++battle.unk53BD20 > kEndMessageFrames)
+            if (++battle.endFrames > kEndMessageFrames)
             {
                 this->ConfirmKey();
             }
@@ -5670,7 +5670,7 @@ void Game::BattleEndFrame()
 
         case kEndNewSpell:
             this->DrawNewSpell();
-            ++battle.unk53BD20;
+            ++battle.endFrames;
             return;
 
         case kEndSpecials:
@@ -5690,14 +5690,14 @@ void Game::BattleEndFrame()
 
                 if (noLevelRole())
                 {
-                    battle.unk53BD20 = 0;
+                    battle.endFrames = 0;
                     battle.result = kEndMastery;
                     return;
                 }
             }
 
             this->DrawNewSpecial();
-            ++battle.unk53BD20;
+            ++battle.endFrames;
             return;
 
         case kEndMastery:
@@ -5718,7 +5718,7 @@ void Game::BattleEndFrame()
                 if (noLevelRole())
                 {
                     battle.result = kEndLoot;
-                    battle.unk53BD20 = 0;
+                    battle.endFrames = 0;
 
                     if (messages.lootCount != 0)
                     {
@@ -5730,7 +5730,7 @@ void Game::BattleEndFrame()
             }
 
             messages.DrawMastery();
-            ++battle.unk53BD20;
+            ++battle.endFrames;
             return;
 
         default:
@@ -5811,17 +5811,17 @@ void Game::EndCheckFrame()
 
     battle.unk524788.fill(BattleSlotRecord{});
     battle.ClearActing();
-    battle.unk53BCE8 = kRefineOrder;
-    battle.unk53AE70 = -1;
+    battle.turnCommand = kRefineOrder;
+    battle.actingUnit = -1;
     battle.turnTaken[row + static_cast<std::size_t>(BattleState::FirstRoleUnit)] = kRefineOrder;
     role.Retarget(0);
-    role.SetCommand(battle.unk53BCE8);
+    role.SetCommand(battle.turnCommand);
     battle.unk53BFD0 = 1;
     battle.unk53BF60 = 0;
     battle.unk53BF5C = 0;
     battle.unk53BF74 = 0;
-    battle.unk53AE70 = static_cast<i32>(row) + BattleState::FirstRoleUnit;
-    battle.unk53BD50 = static_cast<i32>(row) + BattleState::FirstRoleUnit;
+    battle.actingUnit = static_cast<i32>(row) + BattleState::FirstRoleUnit;
+    battle.turnUnit = static_cast<i32>(row) + BattleState::FirstRoleUnit;
     battle.pendingOrders[row].unk00 = 1;
     battle.unk53BFB8 = 0;
     battle.aimTarget = static_cast<u16>(battle.pendingAction);

@@ -300,7 +300,7 @@ bool Game::DrawHitPicture(BattleUnit& target, BattleUnit& attacker, u32 act, int
 }
 
 // The target bits of HitTargetFrame (inline in the original); see there. A strike's damage (capped at kMaxHitDamage,
-// none for -1) adds to unk5242B0 of the slot and becomes hitDamage; resisted (ActFlag14) it shows the target's
+// none for -1) adds to slotDamage of the slot and becomes hitDamage; resisted (ActFlag14) it shows the target's
 // resistance panel and ends the menu.
 void Game::TakeHitBits(BattleUnit& target, BattleUnit& attacker, int index)
 {
@@ -412,9 +412,9 @@ void Game::TakeHitBits(BattleUnit& target, BattleUnit& attacker, int index)
     }
 
     battle.lastSpiritDamage[at] = battle.spiritDamage;
-    battle.unk5242B0[at] += battle.lastDamage;
+    battle.slotDamage[at] += battle.lastDamage;
     battle.lastStaminaDamage[at] = battle.staminaDamage;
-    battle.hitDamage = battle.unk5242B0[at];
+    battle.hitDamage = battle.slotDamage[at];
     battle.hitFading[at] = 0;
     hit.target = 0;
 }
@@ -425,7 +425,7 @@ void Game::TakeHitBits(BattleUnit& target, BattleUnit& attacker, int index)
 // less the act's anchor, or on a fixed place by the side (kAllHitLeftX, kAllHitRightX, kAllHitY: an enemy attacker
 // unmirrored keeps y 0), walking along y 0 for a moving attack. The follow act clears the hit act's sound instead of
 // its own (kept). The target bits work as in HitTargetFrame, on every unit of the side with `all`: the roles hit by
-// a role while unk53BF64 and unk53AE7C take the damage at once (Damage), as do all roles while unk53BF68; the spirit
+// a role while unk53BF64 and unk53AE7C take the damage at once (Damage), as do all roles while hitsAllRoles; the spirit
 // and stamina of a hit are cleared after their digits (so the slots record 0 for them), and the digit delay of the
 // enemies runs on from the walk speed without a reset (kept).
 int Game::HitAllFrame(BattleUnit& target, BattleUnit& attacker, u32 act, int index, int all)
@@ -583,7 +583,7 @@ void Game::NudgeAllHit(BattleUnit& target, BattleUnit& attacker, int all)
 }
 
 // The flag 26B8 of HitAllFrame (inline in the original): with `all` every role in battle standing (while
-// unk53BF68) or every enemy standing, otherwise the target.
+// hitsAllRoles) or every enemy standing, otherwise the target.
 void Game::RaiseAllHit(BattleUnit& target, int all)
 {
     BattleState& battle = this->battleState;
@@ -594,7 +594,7 @@ void Game::RaiseAllHit(BattleUnit& target, int all)
         return;
     }
 
-    if (battle.unk53BF68 == 1)
+    if (battle.hitsAllRoles == 1)
     {
         for (u32 index = 0; index < battle.roleCount; ++index)
         {
@@ -693,7 +693,7 @@ void Game::StrikeAllHit(BattleUnit& target, BattleUnit& attacker, int index, int
         return;
     }
 
-    if ((battle.unk53BF64 == 1 && battle.unk53AE7C == 1) || battle.unk53BF68 == 1)
+    if ((battle.unk53BF64 == 1 && battle.unk53AE7C == 1) || battle.hitsAllRoles == 1)
     {
         for (u32 slot = 0; slot < battle.roleCount; ++slot)
         {
@@ -706,7 +706,7 @@ void Game::StrikeAllHit(BattleUnit& target, BattleUnit& attacker, int index, int
 
             i16 damage = 0;
 
-            if (battle.unk53BF68 != 1)
+            if (battle.hitsAllRoles != 1)
             {
                 damage = attacker.HitDamage(this->battleServices, role, battle.spiritDamage, battle.staminaDamage);
             }
@@ -727,16 +727,16 @@ void Game::StrikeAllHit(BattleUnit& target, BattleUnit& attacker, int index, int
 
             delay = 0;
             this->ShowAllHitDigits(role, damage, delay, spirit, stamina);
-            battle.unk5242B0[slot] += battle.lastDamage;
+            battle.slotDamage[slot] += battle.lastDamage;
             battle.lastSpiritDamage[slot] = spirit;
-            battle.hitDamage = battle.unk5242B0[slot];
+            battle.hitDamage = battle.slotDamage[slot];
             battle.lastStaminaDamage[slot] = stamina;
 
             if (battle.unk53BF64 == 1 && battle.unk53AE7C == 1)
             {
                 role.Damage(
                     this->battleServices,
-                    battle.unk5242B0[slot],
+                    battle.slotDamage[slot],
                     static_cast<i16>(spirit),
                     static_cast<i16>(stamina)
                 );
@@ -762,14 +762,14 @@ void Game::StrikeAllHit(BattleUnit& target, BattleUnit& attacker, int index, int
 
         const i16 damage = attacker.HitDamage(this->battleServices, enemy, battle.spiritDamage, battle.staminaDamage);
         this->ShowAllHitDigits(enemy, damage, delay, spirit, stamina);
-        battle.unk5242B0[slot] += battle.lastDamage;
+        battle.slotDamage[slot] += battle.lastDamage;
         battle.lastSpiritDamage[slot] = spirit;
         battle.lastStaminaDamage[slot] = stamina;
-        battle.hitDamage = battle.unk5242B0[slot];
+        battle.hitDamage = battle.slotDamage[slot];
     }
 }
 
-// swd32.exe 0x0045C010: the hits of the acting unit unk53AE70 once its spell took effect (SpellCast, not SpellOver);
+// swd32.exe 0x0045C010: the hits of the acting unit actingUnit once its spell took effect (SpellCast, not SpellOver);
 // 1 once they are over (the hit acts and, after a sweep, the slot totals cleared). The target is the attacker's
 // word 29A2. A defeated target (Damage 1) flashes the frame white and is recorded. See RoleHitFrame and
 // EnemyHitFrame.
@@ -782,12 +782,12 @@ int Game::HitFrame()
         return 0;
     }
 
-    if (battle.unk53AE70 >= BattleState::FirstRoleUnit)
+    if (battle.actingUnit >= BattleState::FirstRoleUnit)
     {
-        return this->RoleHitFrame(battle.unk53AE70 - BattleState::FirstRoleUnit);
+        return this->RoleHitFrame(battle.actingUnit - BattleState::FirstRoleUnit);
     }
 
-    return this->EnemyHitFrame(battle.unk53AE70);
+    return this->EnemyHitFrame(battle.actingUnit);
 }
 
 // The white frame of a defeat in HitFrame (inline in the original): the frame filled with 0xFFFF, as many pixels as
@@ -812,24 +812,24 @@ void Game::ClearHitDamage()
 void Game::ClearHitTotals()
 {
     BattleState& battle = this->battleState;
-    battle.unk5242B0.fill(0);
+    battle.slotDamage.fill(0);
     battle.lastSpiritDamage.fill(0);
     battle.lastStaminaDamage.fill(0);
 }
 
-// One step of a sweep (inline in 0x0045C010): while fewer than `units` are swept (unk4A75FC), every
+// One step of a sweep (inline in 0x0045C010): while fewer than `units` are swept (sweptUnits), every
 // sweepGap frames one more is.
 void Game::StepSweep(u32 units)
 {
     BattleState& battle = this->battleState;
 
-    if (battle.unk4A75FC < units)
+    if (battle.sweptUnits < units)
     {
         ++battle.pushFrames;
 
         if (battle.pushFrames >= battle.sweepGap)
         {
-            ++battle.unk4A75FC;
+            ++battle.sweptUnits;
             battle.pushFrames = 0;
         }
     }
@@ -882,13 +882,13 @@ int Game::RoleHitFrame(int role)
                         continue;
                     }
 
-                    battle.unk524420[index] = static_cast<i32>(index);
+                    battle.slotTargets[index] = static_cast<i32>(index);
                     battle.hitLanded = 1;
                     battle.sweepHit = 1;
 
                     if (battle.unk53AF68 == 0 && enemy.Damage(
                                                      this->battleServices,
-                                                     battle.unk5242B0[index],
+                                                     battle.slotDamage[index],
                                                      static_cast<i16>(battle.lastSpiritDamage[index]),
                                                      static_cast<i16>(battle.lastStaminaDamage[index])
                                                  ) == 1)
@@ -902,7 +902,7 @@ int Game::RoleHitFrame(int role)
 
                     this->ClearHitDamage();
                     ++battle.unk53BD80;
-                    battle.unk5242B0[index] = 0;
+                    battle.slotDamage[index] = 0;
                     battle.lastSpiritDamage[index] = 0;
                     battle.lastStaminaDamage[index] = 0;
                 }
@@ -921,7 +921,7 @@ int Game::RoleHitFrame(int role)
         }
 
         battle.unk53BD80 = 0;
-        battle.unk4A75FC = 1;
+        battle.sweptUnits = 1;
         battle.hitActs.fill(ActState{});
         this->ClearHitTotals();
         return 1;
@@ -941,7 +941,7 @@ int Game::RoleHitFrame(int role)
             battle.unk4FDF7C = attacker.GetWord29A2();
             battle.lastEnemyHit = static_cast<u16>(target);
             battle.hitLanded = 1;
-            battle.unk524420[at] = target;
+            battle.slotTargets[at] = target;
 
             if (battle.unk53AF68 == 0 &&
                 enemy.Damage(this->battleServices, battle.hitDamage, battle.spiritDamage, battle.staminaDamage) == 1)
@@ -962,7 +962,7 @@ int Game::RoleHitFrame(int role)
             }
 
             aimed.Damage(this->battleServices, battle.hitDamage, battle.spiritDamage, battle.staminaDamage);
-            battle.unk524420[at] = target;
+            battle.slotTargets[at] = target;
         }
 
         this->ClearHitDamage();
@@ -982,7 +982,7 @@ int Game::RoleHitFrame(int role)
         battle.unk4FDF7C = attacker.GetWord29A2();
         battle.lastEnemyHit = static_cast<u16>(target);
         battle.hitLanded = 1;
-        battle.unk524420[at] = target;
+        battle.slotTargets[at] = target;
         this->ApplyDrain(attacker, enemy);
 
         if (battle.unk53AF68 == 0 &&
@@ -1010,13 +1010,13 @@ int Game::RoleHitFrame(int role)
     battle.lastRoleHit = static_cast<u16>(target);
 
     if (battle.unk53AF68 == 0 &&
-        aimed.Damage(this->battleServices, battle.unk5242B0[0], battle.spiritDamage, battle.staminaDamage) == 1)
+        aimed.Damage(this->battleServices, battle.slotDamage[0], battle.spiritDamage, battle.staminaDamage) == 1)
     {
         battle.lastRoleDefeated = static_cast<u16>(target);
         this->FlashFrameWhite();
     }
 
-    battle.unk5242B0[0] = 0;
+    battle.slotDamage[0] = 0;
     battle.hitActs.fill(ActState{});
     this->ClearHitDamage();
     return 1;
@@ -1024,20 +1024,20 @@ int Game::RoleHitFrame(int role)
 
 // The sweep of a role's hit in RoleHitFrame (inline in the original): over the enemies (a defeated one widens the
 // sweep at once, lowering unk53AE74) or the roles in battle (unk53AE7C) the sweep has reached, each hit once
-// (unk524420) takes its slot totals; true once unk53AE74 are hit.
+// (slotTargets) takes its slot totals; true once unk53AE74 are hit.
 bool Game::SweepFromRole(BattleRole& attacker, i16 target, u32 act)
 {
     BattleState& battle = this->battleState;
 
     auto hitOne = [this, &battle](BattleUnit& unit, std::size_t slot, bool enemy, i16 aimed)
     {
-        battle.unk524420[slot] = static_cast<i32>(slot);
+        battle.slotTargets[slot] = static_cast<i32>(slot);
         battle.hitLanded = 1;
         battle.sweepHit = 1;
 
         if (battle.unk53AF68 == 0 && unit.Damage(
                                          this->battleServices,
-                                         battle.unk5242B0[slot],
+                                         battle.slotDamage[slot],
                                          static_cast<i16>(battle.lastSpiritDamage[slot]),
                                          static_cast<i16>(battle.lastStaminaDamage[slot])
                                      ) == 1)
@@ -1060,15 +1060,15 @@ bool Game::SweepFromRole(BattleRole& attacker, i16 target, u32 act)
 
     if (battle.unk53AE7C == 0)
     {
-        for (u32 slot = 0; slot < battle.unk4A75FC; ++slot)
+        for (u32 slot = 0; slot < battle.sweptUnits; ++slot)
         {
             BattleEnemy& enemy = this->battleEnemies[slot];
 
             if (enemy.IsDefeated())
             {
-                if (battle.unk4A75FC < battle.enemyCount)
+                if (battle.sweptUnits < battle.enemyCount)
                 {
-                    ++battle.unk4A75FC;
+                    ++battle.sweptUnits;
 
                     if (battle.unk53AE74 > 1)
                     {
@@ -1083,7 +1083,7 @@ bool Game::SweepFromRole(BattleRole& attacker, i16 target, u32 act)
             this->StepSweep(battle.enemyCount);
 
             if (this->HitTargetFrame(enemy, attacker, act, static_cast<int>(slot)) == 1 &&
-                battle.unk524420[slot] == -1 && hitOne(enemy, slot, true, target))
+                battle.slotTargets[slot] == -1 && hitOne(enemy, slot, true, target))
             {
                 return true;
             }
@@ -1092,13 +1092,13 @@ bool Game::SweepFromRole(BattleRole& attacker, i16 target, u32 act)
         return false;
     }
 
-    for (u32 slot = 0; slot < battle.unk4A75FC; ++slot)
+    for (u32 slot = 0; slot < battle.sweptUnits; ++slot)
     {
         this->StepSweep(battle.roleCount);
         BattleRole& role = this->battleRoles[slot];
 
         if (role.unk2B00 != 1 && role.unk2B04 != 1 &&
-            this->HitTargetFrame(role, attacker, act, static_cast<int>(slot)) == 1 && battle.unk524420[slot] == -1 &&
+            this->HitTargetFrame(role, attacker, act, static_cast<int>(slot)) == 1 && battle.slotTargets[slot] == -1 &&
             hitOne(role, slot, false, target))
         {
             return true;
@@ -1170,14 +1170,14 @@ int Game::EnemyHitFrame(int enemy)
             battle.lastEnemyHit = static_cast<u16>(target);
             battle.hitLanded = 1;
 
-            if (battle.unk53AF68 == 0 && aimed.Damage(this->battleServices, battle.unk5242B0[0], 0, 0) == 1)
+            if (battle.unk53AF68 == 0 && aimed.Damage(this->battleServices, battle.slotDamage[0], 0, 0) == 1)
             {
                 battle.unk4A7626 = static_cast<u16>(target);
                 this->FlashFrameWhite();
             }
 
             this->ClearHitDamage();
-            battle.unk5242B0[0] = 0;
+            battle.slotDamage[0] = 0;
             battle.hitActs.fill(ActState{});
             return 1;
         }
@@ -1195,7 +1195,7 @@ int Game::EnemyHitFrame(int enemy)
         battle.hitLanded = 1;
 
         if (battle.unk53AF68 == 0 &&
-            role.Damage(this->battleServices, battle.unk5242B0[0], battle.spiritDamage, battle.staminaDamage) == 1)
+            role.Damage(this->battleServices, battle.slotDamage[0], battle.spiritDamage, battle.staminaDamage) == 1)
         {
             battle.flashing = 1;
             battle.lastRoleDefeated = static_cast<u16>(target);
@@ -1209,9 +1209,9 @@ int Game::EnemyHitFrame(int enemy)
             battle.result = 0;
         }
 
-        this->DrainToSpirit(role, battle.unk5242B0[0]);
+        this->DrainToSpirit(role, battle.slotDamage[0]);
         this->ClearHitDamage();
-        battle.unk5242B0[0] = 0;
+        battle.slotDamage[0] = 0;
         battle.hitActs.fill(ActState{});
         return 1;
     }
@@ -1225,11 +1225,11 @@ int Game::EnemyHitFrame(int enemy)
 
     if (battle.enemyHitsAll != 1)
     {
-        battle.unk4A75FC = 1;
+        battle.sweptUnits = 1;
     }
 
     battle.hitActs.fill(ActState{});
-    battle.unk5242B0.fill(0);
+    battle.slotDamage.fill(0);
     return 1;
 }
 
@@ -1262,26 +1262,26 @@ bool Game::SweepFromEnemy(BattleEnemy& attacker, i16 target, u32 act)
 
             role.StepOrbCounters(proficiency, attacker.command);
 
-            if (battle.unk5242B0[slot] > 0)
+            if (battle.slotDamage[slot] > 0)
             {
-                battle.hitDamage = battle.unk5242B0[slot];
+                battle.hitDamage = battle.slotDamage[slot];
             }
 
             this->ApplyDrain(attacker, role);
-            battle.unk524420[slot] = static_cast<i32>(slot);
+            battle.slotTargets[slot] = static_cast<i32>(slot);
             battle.hitLanded = 1;
             battle.sweepHit = 1;
 
-            if (battle.unk53AF68 == 0 && role.Damage(this->battleServices, battle.unk5242B0[slot], 0, 0) == 1)
+            if (battle.unk53AF68 == 0 && role.Damage(this->battleServices, battle.slotDamage[slot], 0, 0) == 1)
             {
                 ++battle.unk53BD88;
                 battle.flashing = 1;
                 this->FlashFrameWhite();
             }
 
-            this->DrainToSpirit(role, battle.unk5242B0[slot]);
+            this->DrainToSpirit(role, battle.slotDamage[slot]);
             this->ClearHitDamage();
-            battle.unk5242B0[slot] = 0;
+            battle.slotDamage[slot] = 0;
 
             if (++battle.unk53BD80 == battle.sweepTargets)
             {
@@ -1294,11 +1294,11 @@ bool Game::SweepFromEnemy(BattleEnemy& attacker, i16 target, u32 act)
 
     auto counted = [this, &battle](BattleUnit& unit, std::size_t slot)
     {
-        battle.unk524420[slot] = static_cast<i32>(slot);
+        battle.slotTargets[slot] = static_cast<i32>(slot);
         battle.hitLanded = 1;
         battle.sweepHit = 1;
 
-        if (battle.unk53AF68 == 0 && unit.Damage(this->battleServices, battle.unk5242B0[slot], 0, 0) == 1)
+        if (battle.unk53AF68 == 0 && unit.Damage(this->battleServices, battle.slotDamage[slot], 0, 0) == 1)
         {
             ++battle.sweepDefeated;
             battle.flashing = 1;
@@ -1308,20 +1308,20 @@ bool Game::SweepFromEnemy(BattleEnemy& attacker, i16 target, u32 act)
 
     if (battle.unk53AE80 != 0)
     {
-        for (u32 slot = 0; slot < battle.unk4A75FC; ++slot)
+        for (u32 slot = 0; slot < battle.sweptUnits; ++slot)
         {
             this->StepSweep(battle.enemyCount);
             BattleEnemy& enemy = this->battleEnemies[slot];
 
             if (enemy.IsDefeated() || this->HitTargetFrame(enemy, attacker, act, static_cast<int>(slot)) != 1 ||
-                battle.unk524420[slot] != -1)
+                battle.slotTargets[slot] != -1)
             {
                 continue;
             }
 
             counted(enemy, slot);
             this->ClearHitDamage();
-            battle.unk5242B0[slot] = 0;
+            battle.slotDamage[slot] = 0;
 
             if (++battle.unk53BD80 == battle.sweepTargets)
             {
@@ -1332,22 +1332,22 @@ bool Game::SweepFromEnemy(BattleEnemy& attacker, i16 target, u32 act)
         return false;
     }
 
-    for (u32 slot = 0; slot < battle.unk4A75FC; ++slot)
+    for (u32 slot = 0; slot < battle.sweptUnits; ++slot)
     {
         this->StepSweep(battle.roleCount);
         BattleRole& role = this->battleRoles[slot];
 
         if (!standing(role) || this->HitTargetFrame(role, attacker, act, static_cast<int>(slot)) != 1 ||
-            battle.unk524420[slot] != -1)
+            battle.slotTargets[slot] != -1)
         {
             continue;
         }
 
         role.StepOrbCounters(proficiency, attacker.command);
         counted(role, slot);
-        this->DrainToSpirit(role, battle.unk5242B0[slot]);
+        this->DrainToSpirit(role, battle.slotDamage[slot]);
         this->ClearHitDamage();
-        battle.unk5242B0[slot] = 0;
+        battle.slotDamage[slot] = 0;
 
         if (++battle.unk53BD80 == battle.sweepTargets)
         {
@@ -1385,9 +1385,9 @@ int Game::EnemyActionFrame(int enemy, int target)
             {
                 battle.spellStage = static_cast<u16>(battle.spellStage | BattleState::SpellCast);
                 battle.sweepGap = unit.GetWordDA6();
-                battle.unk524420.fill(-1);
-                battle.unk4A75FC = 1;
-                battle.unk5242B0.fill(0);
+                battle.slotTargets.fill(-1);
+                battle.sweptUnits = 1;
+                battle.slotDamage.fill(0);
 
                 if (unit.ActFlag13() == 1)
                 {
@@ -1429,7 +1429,7 @@ int Game::EnemyActionFrame(int enemy, int target)
                 battle.unk53BF94 = 1;
                 this->PrepareDarkenedCopies();
                 battle.pushFrames = 1;
-                battle.unk4A75FC = 1;
+                battle.sweptUnits = 1;
             }
 
             if (unit.DrainEffectFrame(services, target) != 1)
@@ -1437,7 +1437,7 @@ int Game::EnemyActionFrame(int enemy, int target)
                 return 0;
             }
 
-            battle.unk4A75FC = 1;
+            battle.sweptUnits = 1;
             battle.pushFrames = 0;
             battle.unk53BF94 = 0;
             battle.darkenUnit = -1;
@@ -1468,9 +1468,9 @@ int Game::EnemyActionFrame(int enemy, int target)
                 battle.currentUnit = 0;
             }
 
-            if (battle.unk53AE70 == removed)
+            if (battle.actingUnit == removed)
             {
-                battle.unk53AE70 = -1;
+                battle.actingUnit = -1;
                 battle.unk53BF74 = 0;
             }
 
@@ -1504,7 +1504,7 @@ int Game::EnemyActionFrame(int enemy, int target)
             unit.SetWord2A0A(kFadedWord);
             battle.enemyFaded = 1;
 
-            if (battle.unk53BF00 >= battle.enemyCount)
+            if (battle.enemiesGone >= battle.enemyCount)
             {
                 battle.autoBattle = 0;
                 battle.result = kEndCheckState;
@@ -1525,9 +1525,9 @@ int Game::EnemyActionFrame(int enemy, int target)
             unit.SetWord2A0A(kFadedWord);
             unit.StartDefeat(1);
             battle.enemyFaded = 1;
-            ++battle.unk53BF00;
+            ++battle.enemiesGone;
 
-            if (battle.unk53BF00 >= battle.enemyCount)
+            if (battle.enemiesGone >= battle.enemyCount)
             {
                 battle.unk524788.fill(BattleSlotRecord{});
                 battle.unk53BFC0 = 1;
@@ -1536,10 +1536,10 @@ int Game::EnemyActionFrame(int enemy, int target)
             }
 
             if (battle.unk53BF28 != 0 && !this->battleEnemies[0].IsDefeated() &&
-                static_cast<i32>(battle.enemyCount) - battle.unk53BF00 == 1)
+                static_cast<i32>(battle.enemyCount) - battle.enemiesGone == 1)
             {
                 battle.enemyCount = 1;
-                battle.unk53BF00 = 0;
+                battle.enemiesGone = 0;
                 battle.unk53BF28 = 0;
                 battle.orderSorted = 0;
                 this->MeasureUnits();
@@ -1688,7 +1688,7 @@ int Game::CallEnemies(BattleEnemy& unit)
 
 // swd32.exe 0x004576A0: one frame of enemy `enemy`. While the fight talk lets the battle run (unk4A7B58): its effects
 // tick and its gauge fills (a full gauge queues its slot record), and unless the battle waits (unk53BF64, unk53BF1C)
-// the acting enemy (unk53AE70) takes its turn: a held or defeated one ends it; a sweep (gatheringSweep) gathers its
+// the acting enemy (actingUnit) takes its turn: a held or defeated one ends it; a sweep (gatheringSweep) gathers its
 // targets; otherwise it picks a target (EnemyPickTarget) and a command (EnemyChooseCommand), then acts
 // (EnemyActionFrame) until the action is over (EnemyAfterAction). Every frame it is drawn at rest (its acts holding
 // while the field is darkened with word 2A74, or while paused), its hit act plays and a defeat is taken out; the
@@ -1714,7 +1714,7 @@ int Game::EnemyFrame(int enemy)
 
         if (battle.unk53BF64 == 0 && battle.unk53BF1C == 0)
         {
-            if (battle.unk53AE70 == enemy)
+            if (battle.actingUnit == enemy)
             {
                 if (unit.IsHeldOrHolding() == 1 || unit.IsDefeated())
                 {
@@ -1725,9 +1725,9 @@ int Game::EnemyFrame(int enemy)
 
                     battle.unk53BF5C = 0;
                     battle.unk53BF74 = 0;
-                    battle.unk53BF68 = 0;
+                    battle.hitsAllRoles = 0;
                     battle.unk53BFC0 = 0;
-                    battle.unk53AE70 = -1;
+                    battle.actingUnit = -1;
                     return unit.ResetTurn(services);
                 }
 
@@ -1752,9 +1752,9 @@ int Game::EnemyFrame(int enemy)
 
             if (unit.GetValueAB4() == 1)
             {
-                if (battle.unk53AE70 == enemy)
+                if (battle.actingUnit == enemy)
                 {
-                    battle.unk53BF68 = 1;
+                    battle.hitsAllRoles = 1;
                     battle.unk53BFC0 = 1;
                     unit.MarkAC8();
                 }
@@ -1767,7 +1767,7 @@ int Game::EnemyFrame(int enemy)
                 }
                 else
                 {
-                    battle.unk53BF68 = 1;
+                    battle.hitsAllRoles = 1;
                 }
             }
         }
@@ -1788,8 +1788,8 @@ int Game::EnemyFrame(int enemy)
     if (removed == 1)
     {
         battle.unk502984[at] = -1;
-        battle.unk5242B0[at] = 0;
-        battle.unk524420[at] = -1;
+        battle.slotDamage[at] = 0;
+        battle.slotTargets[at] = -1;
         battle.unk4A7626 = kNoAimedEnemy;
         battle.enemyFaded = 1;
         battle.unk53BFDC = 0;
@@ -1806,7 +1806,7 @@ void Game::EnemyGatherSweep(BattleEnemy& unit)
 {
     BattleState& battle = this->battleState;
 
-    if (battle.unk53BF64 != 0 || battle.unk53BF68 != 0)
+    if (battle.unk53BF64 != 0 || battle.hitsAllRoles != 0)
     {
         return;
     }
@@ -1815,7 +1815,7 @@ void Game::EnemyGatherSweep(BattleEnemy& unit)
     {
         battle.enemySweeps = 1;
         unit.Retarget(0);
-        battle.sweepTargets = static_cast<i32>(battle.enemyCount) - battle.unk53BF00;
+        battle.sweepTargets = static_cast<i32>(battle.enemyCount) - battle.enemiesGone;
         return;
     }
 
@@ -1833,7 +1833,7 @@ void Game::EnemyGatherSweep(BattleEnemy& unit)
     }
 
     const auto standing =
-        static_cast<i32>(battle.roleCount) - battle.unk53BF26 - battle.guestCount - battle.defeatedRoles;
+        static_cast<i32>(battle.roleCount) - battle.escortCount - battle.guestCount - battle.defeatedRoles;
 
     if (battle.sweepTargets < standing)
     {
@@ -1894,7 +1894,7 @@ void Game::EnemyPickTarget(BattleEnemy& unit, int enemy)
         return;
     }
 
-    if (static_cast<i32>(battle.enemyCount) - battle.unk53BF00 == 1)
+    if (static_cast<i32>(battle.enemyCount) - battle.enemiesGone == 1)
     {
         randomRole();
         return;
@@ -2098,7 +2098,7 @@ void Game::ReturnHeldEscort(BattleRole& role, std::size_t index, bool dropComman
 
     role.ResetTurn(this->battleServices);
     role.ResetGauge(this->battleServices);
-    const auto place = static_cast<std::size_t>(battle.roleCount - battle.unk53BF26);
+    const auto place = static_cast<std::size_t>(battle.roleCount - battle.escortCount);
     AddOneItem(this->party.inventory, battle.rolePlaces[place].actId, 0, this->database);
 }
 
@@ -2152,14 +2152,14 @@ void Game::EnemyAfterAction(BattleEnemy& unit, int enemy)
     }
 
     battle.enemyTargetPicked = 0;
-    battle.unk53BF68 = 0;
+    battle.hitsAllRoles = 0;
     battle.unk53BF74 = 0;
     battle.unk53BFC0 = 0;
 
-    if (battle.unk53AE70 < BattleState::FirstRoleUnit)
+    if (battle.actingUnit < BattleState::FirstRoleUnit)
     {
         battle.ClearActing();
-        battle.unk53AE70 = -1;
+        battle.actingUnit = -1;
         battle.unk53AE78 = 0;
     }
 
