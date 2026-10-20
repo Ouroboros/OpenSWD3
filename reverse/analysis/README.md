@@ -40,3 +40,4 @@ TVHEADLESS=1 WSLENV=TVHEADLESS/w /mnt/d/Dev/Crack/IDA/idat.exe -A \
 | `scripts/func_refs.py <outdir>` | 每函数 API／字符串／全局读写引用 |
 | `scripts/dump.py <outfile> <s-e,...>` | 按地址范围导出带归属与交叉引用的反汇编 |
 | `scripts/classify_modules.js` | 由导出生成 `../functions.tsv` 初始模块（node 运行；会覆盖函数表，仅用于初始化） |
+| `scripts/fingerprints.py <asm 目录> <exe> <out.jsonl> <funclets.tsv>` | 由 `asm/` 清单计算函数指纹（WSL 中 `python3 -I` 运行，不需 IDAT），供与外传 swd3e.exe 配对函数：地址与跳转目标规范化后的函数／基本块 SHA-1、助记符序列、被调用者、字符串、导入与全局地址；EH funclet 并入父函数。产出在 `export/swd32_fingerprints.jsonl`、`export/swd32_funclets.tsv` |
