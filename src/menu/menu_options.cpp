@@ -10,6 +10,7 @@
 #include "game/game.h"
 #include "menu/menu.h"
 #include "menu/menu_text.h"
+#include "menu/settings_constants.h"
 #include "ui/ui_draw.h"
 
 namespace swd3
@@ -91,14 +92,7 @@ constexpr i32 kEffectsOffFlag = GameState::PlainScreen;
 constexpr i32 kSaveBlockedFlag = GameState::TimerEvent;
 constexpr i32 kNoSaveMap = 0x16;
 
-// The rows of the display setup (OptionsPage::displayRow), and the frame rates it offers (0: automatic, no limit
-// besides the refresh with vertical sync).
-constexpr i32 kSmoothRow = 0;
-constexpr i32 kVSyncRow = 1;
-constexpr i32 kFrameRateRow = 2;
-constexpr i32 kRenderScaleRow = 3;
-constexpr i32 kWideMapRow = 4;
-constexpr i32 kDisplayBackRow = 5;
+// The frame rates the display setup offers (0: automatic, no limit besides the refresh with vertical sync).
 constexpr std::array<i64, 4> kFrameRates = {0, 60, 144, 240};
 constexpr u32 kGameSavedFlag = 2;  // Menu::flags: saved since the menu opened, quitting needs no confirmation
 
@@ -194,22 +188,8 @@ constexpr std::u8string_view kConfirm = u8"確定";                       // swd
 constexpr std::u8string_view kGiveUp = u8"放棄";                        // swd32.exe 0x004A7314
 constexpr std::u8string_view kKeyButtons = u8" 設定 放棄 恢復預設值 ";  // swd32.exe 0x004A72FC
 constexpr std::u8string_view kPressKey = u8"請按一個鍵";                // swd32.exe 0x004A72F0
-// The rebuild's launcher switch (deviations.md).
-constexpr std::u8string_view kLauncherSetup = u8"啟動畫面";
-// The texts of the display setup.
-constexpr std::u8string_view kDisplaySetup = u8"顯示設定";
-constexpr std::array<std::u8string_view, 6> kDisplayLabels = {
-    u8"平滑畫面",
-    u8"垂直同步",
-    u8"幀率上限",
-    u8"繪製倍率",
-    u8"地圖填滿",
-    u8"返回",
-};
 
 constexpr std::u8string_view kAutomatic = u8"自動";
-constexpr int kChoiceGap = 12;     // between the choices of a display row
-constexpr int kUnchosenTint = -6;  // the choices not in use, and all of a row without effect
 constexpr int kTabsBoxX = 0xD0;
 constexpr int kTabsBoxY = 0x36;
 constexpr int kTabsBoxWidth = 0x13C;
@@ -335,17 +315,17 @@ std::u8string_view KeyName(i32 code)
     return menu_text::kKeyNames[static_cast<std::size_t>(code)];
 }
 
-// The choices of an on/off row (Big5).
-std::vector<std::string> OnOffChoices()
+}  // namespace
+
+std::vector<std::string> Menu::OnOffChoices()
 {
     return {WinFormat(menu_text::kOn, {}), WinFormat(menu_text::kOff, {})};
 }
 
-// The left of each of `choices` drawn with `font` from kBarStepsLeft, kChoiceGap apart, and the right of the last.
-std::vector<int> ChoiceLefts(const std::vector<std::string>& choices, const TextFont& font)
+std::vector<int> Menu::ChoiceLefts(const std::vector<std::string>& choices, const TextFont& font, int left)
 {
     std::vector<int> lefts;
-    int x = kBarStepsLeft;
+    int x = left;
 
     for (const std::string& choice : choices)
     {
@@ -356,8 +336,6 @@ std::vector<int> ChoiceLefts(const std::vector<std::string>& choices, const Text
     lefts.push_back(x - kChoiceGap);
     return lefts;
 }
-
-}  // namespace
 
 // The rebuild's launcher switch (deviations.md): the launcher shown at the start or not, written at once.
 void Menu::OptionsSetLauncher(bool shown)
@@ -698,7 +676,7 @@ void Menu::OptionsFrame()
                 // A click on a choice takes it.
                 i32 chosen = -1;
                 const std::vector<std::string> choices = this->OptionsDisplayChoices(row, chosen);
-                const std::vector<int> lefts = ChoiceLefts(choices, owner.largeFont);
+                const std::vector<int> lefts = ChoiceLefts(choices, owner.largeFont, kBarStepsLeft);
 
                 for (std::size_t at = 0; at < choices.size(); ++at)
                 {
@@ -768,7 +746,7 @@ void Menu::OptionsFrame()
     if (x > kStepsFrom && Inside(y, kSettingsRows[kLauncherRow]))
     {
         page.row = kLauncherRow;
-        const std::vector<int> lefts = ChoiceLefts(OnOffChoices(), owner.largeFont);
+        const std::vector<int> lefts = ChoiceLefts(OnOffChoices(), owner.largeFont, kBarStepsLeft);
 
         for (std::size_t at = 0; at + 1 < lefts.size(); ++at)
         {
@@ -1723,7 +1701,7 @@ void Menu::OptionsDrawSettings(Pixel color)
     Pixel unchosen = color;
     painter.TintPixels(std::span<u16>(&unchosen, 1), kUnchosenTint, kUnchosenTint, kUnchosenTint);
     const std::vector<std::string> launcher = OnOffChoices();
-    const std::vector<int> launcherLefts = ChoiceLefts(launcher, large);
+    const std::vector<int> launcherLefts = ChoiceLefts(launcher, large, kBarStepsLeft);
     const std::size_t launcherChosen = settings.showLauncher ? 0 : 1;
 
     for (std::size_t at = 0; at < launcher.size(); ++at)
@@ -1880,11 +1858,10 @@ void Menu::OptionsDrawDisplay(Pixel color)
 
     for (i32 row = kSmoothRow; row < kDisplayBackRow; ++row)
     {
-        // The frame rate and the render scale only count with smooth motion.
-        const bool counts = owner.smoothMotion || (row != kFrameRateRow && row != kRenderScaleRow);
+        const bool counts = DisplayRowCounts(row, owner.smoothMotion);
         i32 chosen = -1;
         const std::vector<std::string> choices = this->OptionsDisplayChoices(row, chosen);
-        const std::vector<int> lefts = ChoiceLefts(choices, large);
+        const std::vector<int> lefts = ChoiceLefts(choices, large, kBarStepsLeft);
 
         for (std::size_t at = 0; at < choices.size(); ++at)
         {

@@ -18,6 +18,7 @@ namespace swd3
 
 class Game;
 class Menu;
+class TextFont;
 class TextInput;
 
 // A role tab of the menus (0x1C bytes, four of them at 0x004A6A38): the role shown (0xFFFF: none), the box and the
@@ -510,6 +511,10 @@ public:
     void OptionsDrawSettings(Pixel color);
     void OptionsDrawKeys(Pixel color);
     void OptionsDrawDisplay(Pixel color);
+    // The rebuild's settings rows of choices (deviations.md): an on/off row's choices (Big5), and the left of
+    // each of `choices` drawn with `font` from `left`, kChoiceGap apart, with the right of the last.
+    static std::vector<std::string> OnOffChoices();
+    static std::vector<int> ChoiceLefts(const std::vector<std::string>& choices, const TextFont& font, int left);
     void OptionsSetLauncher(bool shown);
     std::vector<std::string> OptionsDisplayChoices(i32 row, i32& chosen) const;
     void OptionsChooseDisplay(i32 row, i32 choice);
@@ -560,6 +565,10 @@ public:
     bool DrawNameEntry();
     void ActOnEntry();
     void DrawSettings();
+    // The rebuild's display setup on the title page (deviations.md).
+    void DrawDisplaySettings();
+    void DrawSystemChoices(i32 row, const std::vector<std::string>& choices, i32 chosen, bool counts);
+    void DisplaySettingsMouse();
 
     // The system page (the title in mode 0, the settings).
     void SystemEnter();
