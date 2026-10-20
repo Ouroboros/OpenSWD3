@@ -1,13 +1,17 @@
 #include "battle/smooth/smooth_play.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdlib>
+#include <span>
 #include <utility>
 
 #include "battle/battle_hud.h"
 #include "battle/battle_services.h"
+#include "core/divide.h"
 #include "draw/painter.h"
+#include "draw/weave.h"
 #include "platform/display.h"
 #include "platform/surface.h"
 
@@ -60,32 +64,112 @@ BattlePlayer::BattlePlayer(BattleServices& services)
 void BattlePlayer::Show(Scene&& decided)
 {
     this->scene = std::move(decided);
-
-    if (this->screen == nullptr)
-    {
-        this->screen = std::make_unique<Surface>(Display::Width, Display::Height);
-    }
-
     this->drawn.clear();
     this->moves.clear();
     this->measuring = true;
-    this->DrawInto(*this->screen);
+    this->Replay();
     this->measuring = false;
     this->Match();
-    this->share = 0.0;
-    this->Replay();
 }
 
-Surface& BattlePlayer::PaintBetween(double alpha)
+void BattlePlayer::PaintBetween(double alpha, Surface& out)
 {
-    if (this->screen == nullptr)
+    this->share = std::clamp(alpha, 0.0, 1.0);
+    this->scale = std::clamp(out.Width() / Display::Width, 1, MaxWeaveScale);
+    this->column = 0;
+    this->row = 0;
+
+    if (this->scale == 1)
     {
-        this->screen = std::make_unique<Surface>(Display::Width, Display::Height);
+        this->DrawInto(out);
+        return;
     }
 
-    this->share = std::clamp(alpha, 0.0, 1.0);
-    this->DrawInto(*this->screen);
-    return *this->screen;
+    // Each screen of the blocks: column a and row b show a place p (in 1/N pixels) at ceil((p - a) / N). Columns that
+    // place every moving draw alike (and rows alike) show the same screen, which is drawn once.
+    const auto blocks = static_cast<std::size_t>(this->scale);
+    const double back = 1.0 - this->share;
+    std::array<std::vector<i32>, MaxWeaveScale> columnPlaces;
+    std::array<std::vector<i32>, MaxWeaveScale> rowPlaces;
+    std::array<std::size_t, MaxWeaveScale> columnShown = {};
+    std::array<std::size_t, MaxWeaveScale> rowShown = {};
+
+    for (std::size_t at = 0; at < this->moves.size(); ++at)
+    {
+        const std::array<int, 2>& move = this->moves[at];
+
+        if (move[0] == 0 && move[1] == 0)
+        {
+            continue;
+        }
+
+        const std::array<int, 2>& place = this->drawn[at].second;
+        const auto fineX = static_cast<i32>(std::lround((place[0] + move[0] * back) * this->scale));
+        const auto fineY = static_cast<i32>(std::lround((place[1] + move[1] * back) * this->scale));
+
+        for (std::size_t offset = 0; offset < blocks; ++offset)
+        {
+            columnPlaces[offset].push_back(CeilDivide(fineX - static_cast<i32>(offset), this->scale));
+            rowPlaces[offset].push_back(CeilDivide(fineY - static_cast<i32>(offset), this->scale));
+        }
+    }
+
+    for (std::size_t offset = 0; offset < blocks; ++offset)
+    {
+        columnShown[offset] = offset;
+        rowShown[offset] = offset;
+
+        for (std::size_t earlier = 0; earlier < offset; ++earlier)
+        {
+            if (columnShown[offset] == offset && columnPlaces[earlier] == columnPlaces[offset])
+            {
+                columnShown[offset] = earlier;
+            }
+
+            if (rowShown[offset] == offset && rowPlaces[earlier] == rowPlaces[offset])
+            {
+                rowShown[offset] = earlier;
+            }
+        }
+    }
+
+    this->parts.resize(blocks * blocks);
+
+    for (std::size_t block = 0; block < blocks * blocks; ++block)
+    {
+        const std::size_t partRow = block / blocks;
+        const std::size_t partColumn = block % blocks;
+
+        if (rowShown[partRow] != partRow || columnShown[partColumn] != partColumn)
+        {
+            continue;
+        }
+
+        Surface& part = this->parts[block];
+
+        if (part.Width() != Display::Width || part.Height() != Display::Height)
+        {
+            part.Resize(Display::Width, Display::Height);
+        }
+
+        this->column = static_cast<int>(partColumn);
+        this->row = static_cast<int>(partRow);
+        this->DrawInto(part);
+    }
+
+    std::array<const Surface*, MaxWeaveScale * MaxWeaveScale> shown = {};
+
+    for (std::size_t block = 0; block < blocks * blocks; ++block)
+    {
+        shown[block] = &this->parts[rowShown[block / blocks] * blocks + columnShown[block % blocks]];
+    }
+
+    Weave(
+        std::span<const Surface* const>(shown.data(), blocks * blocks),
+        this->scale,
+        std::span<Pixel>(out.Pixels(), static_cast<std::size_t>(out.Width()) * static_cast<std::size_t>(out.Height()))
+    );
+    this->scale = 1;
 }
 
 void BattlePlayer::Clear()
@@ -226,8 +310,18 @@ void BattlePlayer::Place(int& x, int& y)
 
     const std::array<int, 2>& move = this->moves[this->next++];
     const double back = 1.0 - this->share;
-    x += static_cast<int>(std::lround(move[0] * back));
-    y += static_cast<int>(std::lround(move[1] * back));
+
+    if (this->scale == 1)
+    {
+        x += static_cast<int>(std::lround(move[0] * back));
+        y += static_cast<int>(std::lround(move[1] * back));
+        return;
+    }
+
+    const auto fineX = static_cast<i32>(std::lround((x + move[0] * back) * this->scale));
+    const auto fineY = static_cast<i32>(std::lround((y + move[1] * back) * this->scale));
+    x = CeilDivide(fineX - this->column, this->scale);
+    y = CeilDivide(fineY - this->row, this->scale);
 }
 
 }  // namespace swd3::smooth

@@ -195,9 +195,6 @@ public:
         std::span<Pixel> to
     );
     static void ScaleLayer(const std::vector<Pixel>& from, int scale, std::span<Pixel> to);
-    // The N x N logical screens of a render scale N woven into one: screen b * N + a gives the pixels of column a
-    // and row b of every block.
-    static void Weave(std::span<const Surface* const> parts, int scale, std::span<Pixel> to);
 
     i32 tileX = 0;  // 0x004CC2E4 the screen x of the first visible tile column
     i32 tileY = 0;  // 0x004CC2E8

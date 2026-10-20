@@ -6,6 +6,7 @@
 #include "config/config.h"
 #include "core/format.h"
 #include "draw/painter.h"
+#include "draw/weave.h"
 #include "game/databases.h"
 #include "game/game.h"
 #include "game/game_state.h"
@@ -247,7 +248,7 @@ TEST_CASE("field view: the parts of a render scale are woven into its blocks")
         }
 
         std::vector<swd3::u16> woven(blocks * blocks * Display::Pixels);
-        FieldView::Weave(pointers, scale, woven);
+        swd3::Weave(pointers, scale, woven);
         const std::size_t pitch = blocks * kWidth;
 
         for (std::size_t y = 0; y < blocks * kHeight; ++y)

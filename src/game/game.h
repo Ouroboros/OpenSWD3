@@ -18,6 +18,7 @@
 #include "core/types.h"
 #include "crt/msvc.h"
 #include "draw/painter.h"
+#include "draw/weave.h"
 #include "font/text_font.h"
 #include "game/databases.h"
 #include "game/game_state.h"
@@ -99,7 +100,7 @@ public:
     static constexpr u32 WindowCursor = 0x67;  // the cursor group (swd32.exe 0x00409F52)
     static constexpr int FrameInterval = 0x23;
     static constexpr int AutoRenderScale = 0;  // renderScaleSetting: the largest whole scale the window shows
-    static constexpr int MaxRenderScale = 8;   // DisplaySettings::MaximumRenderScale
+    static constexpr int MaxRenderScale = MaxWeaveScale;  // DisplaySettings::MaximumRenderScale
     // swd32.exe 0x0049FBA8: the signed speeds of the nibbles of a map setting (8 and above count down from -7).
     static constexpr std::array<i32, 16> SpeedNibbles = {0, 1, 2, 3, 4, 5, 6, 7, 8, -7, -6, -5, -4, -3, -2, -1};
 

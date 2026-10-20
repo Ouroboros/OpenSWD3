@@ -29,13 +29,14 @@ class BattlePlayer : public DrawPlacer
 public:
     explicit BattlePlayer(BattleServices& services);
 
-    // The decided frame's scene drawn to the frame's screen at the places of the frame before: the draws of the same
-    // code (the same draw of the same step), as many as in the frame before, are each taken for the nearest of those
-    // before (others are drawn where they are).
+    // The decided frame's scene drawn to the frame's screen where it draws (the frames between show it): the draws
+    // of the same code (the same draw of the same step), as many as in the frame before, are each taken for the
+    // nearest of those before, which the frames between move them from (others stay where they are).
     void Show(Scene&& scene);
-    // The frame drawn again `alpha` (0 to 1) of the way to its own places, into a screen of its own; the painter and
-    // the HUD are left as they were.
-    Surface& PaintBetween(double alpha);
+    // The frame drawn again `alpha` (0 to 1) of the way to its own places into `out`, N times the screen across and
+    // down at the render scale N (the places in 1/N pixels, as the map's: N x N screens woven); the painter and the
+    // HUD are left as they were.
+    void PaintBetween(double alpha, Surface& out);
     // No frame before (a battle starts).
     void Clear();
 
@@ -57,8 +58,11 @@ private:
     Places places;                                          // the places of this frame
     std::vector<std::pair<Key, std::array<int, 2>>> drawn;  // the draws of this frame in their order
     std::vector<std::array<int, 2>> moves;                  // each draw's way back to its place before
-    std::unique_ptr<Surface> screen;
+    std::vector<Surface> parts;                             // the screens of a render scale above 1
     bool measuring = false;
+    int scale = 1;
+    int column = 0;  // the screen drawn of the render scale's blocks
+    int row = 0;
     double share = 1.0;
     std::size_t next = 0;
     const char* stepFile = nullptr;

@@ -1399,18 +1399,7 @@ bool Game::PresentBetween()
 
     const u64 paintStart = SDL_GetTicksNS();
 
-    if (this->battleFrameShown)
-    {
-        const Surface& shown = this->battlePlayer.PaintBetween(alpha);
-        const u64 painted = SDL_GetTicksNS() - paintStart;
-        this->paintBetweenNs += painted;
-        this->paintBetweenMostNs = std::max(this->paintBetweenMostNs, painted);
-        this->display.Present(shown);
-        ++this->framesBetween;
-        return true;
-    }
-
-    if (this->menuFrameShown)
+    if (this->menuFrameShown && !this->battleFrameShown)
     {
         Surface& screen = *this->menuScreen;
         const bool painted = this->menu.PaintBetween(screen.Pixels());
@@ -1435,7 +1424,16 @@ bool Game::PresentBetween()
         LogInfo(u8"render scale %d", scale);
     }
 
-    this->fieldView.PaintBetween(*this->smoothScreen);
+    // The battle and the map are drawn at the same render scale.
+    if (this->battleFrameShown)
+    {
+        this->battlePlayer.PaintBetween(alpha, *this->smoothScreen);
+    }
+    else
+    {
+        this->fieldView.PaintBetween(*this->smoothScreen);
+    }
+
     const u64 painted = SDL_GetTicksNS() - paintStart;
     this->paintBetweenNs += painted;
     this->paintBetweenMostNs = std::max(this->paintBetweenMostNs, painted);

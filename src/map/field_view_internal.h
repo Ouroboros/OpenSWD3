@@ -15,8 +15,10 @@
 
 #include "core/byte_reader.h"
 #include "core/debug_log.h"
+#include "core/divide.h"
 #include "core/words.h"
 #include "crt/msvc.h"
+#include "draw/weave.h"
 #include "game/game.h"
 #include "platform/display.h"
 
@@ -36,17 +38,6 @@ constexpr u32 kNoFrame = 0xFFFF;                  // the frame of a role without
 constexpr int kPerMille = 1000;                   // random.Below(kPerMille): the chances are in thousandths
 constexpr int kSoundRange = 0x200;                // the distance (pixels) a role is heard from
 constexpr int kSoundScale = 0x80;                 // the volume and the distance kept for the sounds
-
-inline i32 FloorDivide(i32 value, i32 divisor)
-{
-    const i32 quotient = value / divisor;
-    return value % divisor != 0 && (value < 0) != (divisor < 0) ? quotient - 1 : quotient;
-}
-
-inline i32 CeilDivide(i32 value, i32 divisor)
-{
-    return -FloorDivide(-value, divisor);
-}
 
 // The screen effects whose elements move continuously (FieldView::MoveEffect), and the key of an element: its
 // kind in the top byte, its index (or its node's address) below.
