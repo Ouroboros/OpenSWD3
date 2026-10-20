@@ -1974,8 +1974,8 @@ void Game::CheckLevelUps()
         record.spirit = record.maxSpirit;
         record.maxStamina = static_cast<i16>(record.maxStamina + after.maxStamina - before.maxStamina);
         record.stamina = record.maxStamina;
-        record.attack = static_cast<i16>(record.attack + after.attack - before.attack);
-        record.defense = static_cast<i16>(record.defense + after.defense - before.defense);
+        record.strength = static_cast<i16>(record.strength + after.strength - before.strength);
+        record.endurance = static_cast<i16>(record.endurance + after.endurance - before.endurance);
         record.wisdom = static_cast<i16>(record.wisdom + after.wisdom - before.wisdom);
         record.agility = static_cast<i16>(record.agility + after.agility - before.agility);
         record.rapport = static_cast<i16>(record.rapport + after.rapport - before.rapport);

@@ -3072,7 +3072,7 @@ i16 BattleUnit::HitDamage(BattleServices& services, BattleUnit& target, i16& spi
     {
         const i32 scale = kSkillScaleShare * this->proficiency / kPercent + 1;
         attack = static_cast<i16>(
-            attack * scale + static_cast<u16>(this->battleRecord->attack * scale) + this->battleRecord->level
+            attack * scale + static_cast<u16>(this->battleRecord->strength * scale) + this->battleRecord->level
         );
     }
 

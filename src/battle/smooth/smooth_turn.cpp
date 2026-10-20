@@ -1759,8 +1759,8 @@ void TurnFrame::DrawLevelUpStatsAdvance(Scene& scene)
         before.maxHitPoints,
         before.maxSpirit,
         before.maxStamina,
-        static_cast<u16>(before.attack),
-        static_cast<u16>(before.defense),
+        static_cast<u16>(before.strength),
+        static_cast<u16>(before.endurance),
         static_cast<u16>(before.wisdom),
         static_cast<u16>(before.agility),
     };
@@ -1791,8 +1791,8 @@ void TurnFrame::DrawLevelUpStatsAdvance(Scene& scene)
             rolls[0] = static_cast<i16>(now.maxHitPoints - before.maxHitPoints);
             rolls[1] = static_cast<i16>(now.maxSpirit - before.maxSpirit);
             rolls[2] = static_cast<i16>(now.maxStamina - before.maxStamina);
-            rolls[3] = static_cast<i16>(now.attack - before.attack);
-            rolls[4] = static_cast<i16>(now.defense - before.defense);
+            rolls[3] = static_cast<i16>(now.strength - before.strength);
+            rolls[4] = static_cast<i16>(now.endurance - before.endurance);
             rolls[5] = static_cast<i16>(now.wisdom - before.wisdom);
             rolls[6] = static_cast<i16>(now.agility - before.agility);
             rolls[7] = static_cast<i16>(now.rapport - before.rapport);
@@ -1878,8 +1878,8 @@ void TurnFrame::DrawLevelUpStatsAdvance(Scene& scene)
         }
     };
 
-    attribute(3, now.attack, before.attack, 3, true);
-    attribute(4, now.defense, before.defense, 4, rolls[3] == 0);
+    attribute(3, now.strength, before.strength, 3, true);
+    attribute(4, now.endurance, before.endurance, 4, rolls[3] == 0);
     attribute(5, now.wisdom, before.wisdom, 5, rolls[4] == 0);
     attribute(6, now.agility, before.agility, 6, rolls[5] == 0);
 }

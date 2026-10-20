@@ -29,8 +29,8 @@ struct RoleRecord
     i16 maxHitPoints = 0;                // +0x0A
     i16 maxSpirit = 0;                   // +0x0C
     i16 maxStamina = 0;                  // +0x0E
-    i16 attack = 0;                      // +0x10 (inferred)
-    i16 defense = 0;                     // +0x12 (inferred)
+    i16 strength = 0;                    // +0x10 力量
+    i16 endurance = 0;                   // +0x12 耐力
     i16 wisdom = 0;                      // +0x14 智慧
     i16 agility = 0;                     // +0x16 (inferred)
     i16 rapport = 0;                     // +0x18 默契

@@ -93,15 +93,15 @@ TEST_CASE("menu: texts, names and tabs match swd32.exe")
 TEST_CASE("menu: name cheats")
 {
     swd3::Party party;
-    party.roles[0].attack = kAttack;
+    party.roles[0].strength = kAttack;
     party.names[0] = swd3::Party::MakeName(swd3::Big5(u8"何然"));
     party.ApplyNameCheats();
-    CHECK_EQ(party.roles[0].attack, kHeRanAttributes);
+    CHECK_EQ(party.roles[0].strength, kHeRanAttributes);
     CHECK_EQ(party.roles[0].agility, kHeRanAttributes);
     party.names[0] = swd3::Party::MakeName(swd3::Big5(u8"寧采臣"));
     party.ApplyNameCheats();
     CHECK_EQ(party.variables[swd3::Party::Gold], kNingCaiChenGold);
-    CHECK_EQ(party.roles[0].attack, kHeRanAttributes - kNingCaiChenAttackLoss);
+    CHECK_EQ(party.roles[0].strength, kHeRanAttributes - kNingCaiChenAttackLoss);
     party.names[1] = swd3::Party::MakeName(swd3::Big5(u8"小倩"));
     party.ApplyNameCheats();
     CHECK_EQ(party.roles[1].maxSpirit, kXiaoQianValue);

@@ -1214,9 +1214,9 @@ void Game::CompareEquipment(const ItemNode* item)
         }
 
         comparison.attack =
-            static_cast<i16>(trying.attack - worn.attack) + static_cast<i16>(trying.attackBonus - worn.attackBonus);
-        comparison.defense =
-            static_cast<i16>(trying.defense - worn.defense) + static_cast<i16>(trying.defenseBonus - worn.defenseBonus);
+            static_cast<i16>(trying.strength - worn.strength) + static_cast<i16>(trying.attackBonus - worn.attackBonus);
+        comparison.defense = static_cast<i16>(trying.endurance - worn.endurance) +
+                             static_cast<i16>(trying.defenseBonus - worn.defenseBonus);
         comparison.agility = static_cast<i16>(trying.agility - worn.agility);
     }
 }

@@ -23,8 +23,8 @@ void RoleRecord::Load(std::span<const u8> record)
     this->hitPoints = static_cast<i16>(reader.Word16());
     this->spirit = static_cast<i16>(reader.Word16());
     this->stamina = static_cast<i16>(reader.Word16());
-    this->attack = static_cast<i16>(reader.Word16());
-    this->defense = static_cast<i16>(reader.Word16());
+    this->strength = static_cast<i16>(reader.Word16());
+    this->endurance = static_cast<i16>(reader.Word16());
     this->wisdom = static_cast<i16>(reader.Word16());
     this->agility = static_cast<i16>(reader.Word16());
     this->rapport = static_cast<i16>(reader.Word16());
@@ -111,8 +111,8 @@ void Party::ApplyNameCheats()
 
     auto attributes = [](RoleRecord& role, i16 value)
     {
-        role.attack = value;
-        role.defense = value;
+        role.strength = value;
+        role.endurance = value;
         role.wisdom = value;
         role.agility = value;
     };
@@ -131,7 +131,7 @@ void Party::ApplyNameCheats()
 
     if (Named(firstName, kYangKunShuo))
     {
-        first.attack = kYangKunShuoAttack;
+        first.strength = kYangKunShuoAttack;
         first.hitPoints = kYangKunShuoHitPoints;
         first.maxHitPoints = kYangKunShuoHitPoints;
     }
@@ -153,7 +153,7 @@ void Party::ApplyNameCheats()
 
     if (Named(firstName, kZhuShiZi))
     {
-        first.defense = kZhuShiZiDefense;
+        first.endurance = kZhuShiZiDefense;
         first.stamina = kZhuShiZiStamina;
         first.maxStamina = kZhuShiZiStamina;
     }
@@ -173,30 +173,30 @@ void Party::ApplyNameCheats()
 
     if (Named(secondName, kZhenMeng))
     {
-        second.defense = kZhenMengDefense;
+        second.endurance = kZhenMengDefense;
         second.stamina = kZhenMengStamina;
         second.maxStamina = kZhenMengStamina;
     }
 
     if (Named(secondName, kHongShanHu))
     {
-        second.attack = kHongShanHuAttack;
+        second.strength = kHongShanHuAttack;
         second.hitPoints = kHongShanHuHitPoints;
         second.maxHitPoints = kHongShanHuHitPoints;
     }
 
     if (Named(firstName, kNingCaiChen))
     {
-        first.defense = static_cast<i16>(first.defense - kNingCaiChenLoss);
+        first.endurance = static_cast<i16>(first.endurance - kNingCaiChenLoss);
         first.wisdom = static_cast<i16>(first.wisdom - kNingCaiChenLoss);
         first.agility = static_cast<i16>(first.agility - kNingCaiChenLoss);
         this->variables[Party::Gold] = kNingCaiChenGold;
-        first.attack = static_cast<i16>(first.attack - kNingCaiChenAttackLoss);
+        first.strength = static_cast<i16>(first.strength - kNingCaiChenAttackLoss);
     }
 
     if (Named(firstName, kYanChiXia))
     {
-        first.defense = 0;
+        first.endurance = 0;
         first.stamina = 0;
         first.maxStamina = 0;
     }
@@ -240,8 +240,8 @@ void Party::SetRoleStat(int field, int value, int role, Database& database)
         &record.maxHitPoints,
         &record.maxSpirit,
         &record.maxStamina,
-        &record.attack,
-        &record.defense,
+        &record.strength,
+        &record.endurance,
         &record.wisdom,
         &record.agility,
         &record.rapport,
@@ -285,8 +285,8 @@ int Party::RoleStat(int field, int role) const
         record.maxHitPoints,
         record.maxSpirit,
         record.maxStamina,
-        record.attack,
-        record.defense,
+        record.strength,
+        record.endurance,
         record.wisdom,
         record.agility,
         record.rapport,
@@ -374,8 +374,8 @@ void ApplyObject(RoleRecord& record, const ObjectData& object, Database& databas
         add(record.spirit, object.spiritUp);
         add(record.stamina, object.staminaUp);
         clampVitals();
-        add(record.attack, object.attackUp);
-        add(record.defense, object.defenseUp);
+        add(record.strength, object.strengthUp);
+        add(record.endurance, object.enduranceUp);
         add(record.wisdom, object.wisdomUp);
         add(record.agility, object.agilityUp);
         add(record.rapport, object.rapportUp);
@@ -389,8 +389,8 @@ void ApplyObject(RoleRecord& record, const ObjectData& object, Database& databas
         add(record.maxHitPoints, object.hitPointsUp);
         add(record.maxSpirit, object.spiritUp);
         add(record.maxStamina, object.staminaUp);
-        add(record.attack, object.attackUp);
-        add(record.defense, object.defenseUp);
+        add(record.strength, object.strengthUp);
+        add(record.endurance, object.enduranceUp);
         add(record.wisdom, object.wisdomUp);
         add(record.rapport, object.rapportUp);
         add(record.agility, object.agilityUp);

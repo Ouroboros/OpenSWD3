@@ -191,8 +191,8 @@ void Menu::StatusCompute()
     add(page.total.maxHitPoints, page.bonus.maxHitPoints);
     add(page.total.maxSpirit, page.bonus.maxSpirit);
     add(page.total.maxStamina, page.bonus.maxStamina);
-    add(page.total.attack, page.bonus.attack);
-    add(page.total.defense, page.bonus.defense);
+    add(page.total.strength, page.bonus.strength);
+    add(page.total.endurance, page.bonus.endurance);
     add(page.total.wisdom, page.bonus.wisdom);
     add(page.total.agility, page.bonus.agility);
     add(page.total.rapport, page.bonus.rapport);
@@ -432,8 +432,8 @@ void Menu::StatusDraw()
 
     const RoleRecord& total = page.total;
     const std::array<int, 3> top = {
-        static_cast<u16>(total.attack) + static_cast<int>(total.attackBonus),
-        static_cast<u16>(total.defense) + static_cast<int>(total.defenseBonus),
+        static_cast<u16>(total.strength) + static_cast<int>(total.attackBonus),
+        static_cast<u16>(total.endurance) + static_cast<int>(total.defenseBonus),
         static_cast<u16>(total.agility),
     };
 
@@ -481,16 +481,17 @@ void Menu::StatusDraw()
     const std::array<std::u8string_view, 4> formats =
         {kStrengthFormat, kEnduranceFormat, kWisdomFormat, kAgilityFormat};
     const std::array<int, 4> values = {
-        static_cast<u16>(record.attack),
-        static_cast<u16>(record.defense),
+        static_cast<u16>(record.strength),
+        static_cast<u16>(record.endurance),
         static_cast<u16>(record.wisdom),
         static_cast<u16>(record.agility)
     };
 
-    const std::array<int, 4> bonuses = {page.bonus.attack, page.bonus.defense, page.bonus.wisdom, page.bonus.agility};
+    const std::array<int, 4> bonuses =
+        {page.bonus.strength, page.bonus.endurance, page.bonus.wisdom, page.bonus.agility};
     const std::array<int, 4> totals = {
-        static_cast<u16>(total.attack),
-        static_cast<u16>(total.defense),
+        static_cast<u16>(total.strength),
+        static_cast<u16>(total.endurance),
         static_cast<u16>(total.wisdom),
         static_cast<u16>(total.agility)
     };

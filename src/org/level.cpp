@@ -117,8 +117,8 @@ bool LevelUp(
             role.maxHitPoints = static_cast<i16>(stats.Word16());
             role.maxSpirit = static_cast<i16>(stats.Word16());
             role.maxStamina = static_cast<i16>(stats.Word16());
-            role.attack = static_cast<i16>(stats.Word16());
-            role.defense = static_cast<i16>(stats.Word16());
+            role.strength = static_cast<i16>(stats.Word16());
+            role.endurance = static_cast<i16>(stats.Word16());
             role.wisdom = static_cast<i16>(stats.Word16());
             role.agility = static_cast<i16>(stats.Word16());
             role.rapport = static_cast<i16>(stats.Word16());

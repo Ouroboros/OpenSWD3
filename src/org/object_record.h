@@ -25,8 +25,8 @@ struct ObjectData
     u32 kind = 0;                      // +0x20 tag 0x19
     u16 attackBonusUp = 0;             // +0x24 tag 7 added to the attack bonus (a guest role: its growth in tenths)
     u16 defenseBonusUp = 0;            // +0x26 tag 8 added to the defence bonus
-    u16 attackUp = 0;                  // +0x28 tag 0xF added to the attack (worn: to its bonus too)
-    u16 defenseUp = 0;                 // +0x2A tag 0x10 added to the defence (worn: to its bonus too)
+    u16 strengthUp = 0;                // +0x28 tag 0xF added to the strength (worn: to the attack bonus too)
+    u16 enduranceUp = 0;               // +0x2A tag 0x10 added to the endurance (worn: to the defence bonus too)
     u16 agilityUp = 0;                 // +0x2C tag 9 added to the agility (a guest role: its growth in tenths)
     u16 wisdomUp = 0;                  // +0x2E tag 0x11 added to the wisdom
     u16 rapportUp = 0;                 // +0x30 tag 0x12 added to the rapport
@@ -247,8 +247,8 @@ enum class ObjectTag : u16
     Unk42 = 0xC,
     CounterMax = 0xD,
     Act = 0xE,
-    AttackUp = 0xF,
-    DefenseUp = 0x10,
+    StrengthUp = 0xF,
+    EnduranceUp = 0x10,
     WisdomUp = 0x11,
     RapportUp = 0x12,
     HitPointsUp = 0x13,

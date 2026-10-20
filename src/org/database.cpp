@@ -399,12 +399,12 @@ bool Database::LoadObject(ObjectRecord& record, u16 id)
                 word(data.act);
                 break;
 
-            case ObjectTag::AttackUp:
-                word(data.attackUp);
+            case ObjectTag::StrengthUp:
+                word(data.strengthUp);
                 break;
 
-            case ObjectTag::DefenseUp:
-                word(data.defenseUp);
+            case ObjectTag::EnduranceUp:
+                word(data.enduranceUp);
                 break;
 
             case ObjectTag::WisdomUp:

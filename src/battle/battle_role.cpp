@@ -283,8 +283,8 @@ void BattleRole::Setup(RoleRecord& record, RoleBattleBlock& block, const UnitPla
         MaintenanceAssert(reporter, kNoAct, 0, kManroleFile, kNoActLine);
     }
 
-    this->battleRecord->attackBonus = static_cast<u16>(this->battleRecord->attack);
-    this->battleRecord->defenseBonus = static_cast<u16>(this->battleRecord->defense);
+    this->battleRecord->attackBonus = static_cast<u16>(this->battleRecord->strength);
+    this->battleRecord->defenseBonus = static_cast<u16>(this->battleRecord->endurance);
 
     for (i16* value :
          {&record.maxHitPoints,
@@ -419,16 +419,16 @@ void BattleRole::ApplyEquipment(
         record.rapport = static_cast<i16>(record.rapport + stats.rapportUp);
         record.evasion = static_cast<i16>(record.evasion + stats.evasionUp);
 
-        if (stats.attackUp != 0)
+        if (stats.strengthUp != 0)
         {
-            record.attack = static_cast<i16>(record.attack + stats.attackUp);
-            record.attackBonus = static_cast<u16>(record.attackBonus + stats.attackUp);
+            record.strength = static_cast<i16>(record.strength + stats.strengthUp);
+            record.attackBonus = static_cast<u16>(record.attackBonus + stats.strengthUp);
         }
 
-        if (stats.defenseUp != 0)
+        if (stats.enduranceUp != 0)
         {
-            record.defense = static_cast<i16>(record.defense + stats.defenseUp);
-            record.defenseBonus = static_cast<u16>(record.defenseBonus + stats.defenseUp);
+            record.endurance = static_cast<i16>(record.endurance + stats.enduranceUp);
+            record.defenseBonus = static_cast<u16>(record.defenseBonus + stats.enduranceUp);
         }
 
         if (slot == BattleRole::FirstAccessorySlot || slot == BattleRole::SecondAccessorySlot)
