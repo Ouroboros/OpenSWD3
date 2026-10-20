@@ -485,7 +485,10 @@ void FieldView::PaintBetween(Surface& out)
 
             if (this->pointerShown)
             {
+                painter.SetTarget(screen.data());
+                painter.SetClipClamped(0, 0, Display::Width, Display::Height);
                 owner.DrawPointer(mouseX, mouseY);
+                putBack();
             }
 
             if (this->fadeTinted)
