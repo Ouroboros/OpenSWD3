@@ -196,7 +196,7 @@ constexpr std::u8string_view kDisplaySetup = u8"顯示設定";
 constexpr std::array<std::u8string_view, 5> kDisplayLabels = {
     u8"平滑畫面",
     u8"垂直同步",
-    u8"畫格上限",
+    u8"幀率上限",
     u8"繪製倍率",
     u8"返回",
 };
