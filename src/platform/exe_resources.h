@@ -28,6 +28,8 @@ struct IconImage
 class ExeResources
 {
 public:
+    static constexpr std::u8string_view Subdirectory = u8"launcher/";  // of the asset directory
+
     void Open(std::u8string directory);
     // <id>.bmp converted to the display format; false when it is missing or not a bitmap DecodeBitmap reads.
     bool LoadBitmap(u32 id, Surface& out) const;

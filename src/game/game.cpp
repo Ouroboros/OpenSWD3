@@ -505,7 +505,8 @@ void Game::Start()
 {
     LogInfo(u8"start install_directory=%s", this->config.installDirectory);
 
-    this->resources.Open(AssetDirectory());
+    const std::u8string assets = AssetDirectory() + std::u8string(ExeResources::Subdirectory);
+    this->resources.Open(assets);
     IconImage picture;
 
     if (this->resources.LoadIcon(Game::WindowIcon, picture))
@@ -514,7 +515,7 @@ void Game::Start()
     }
     else
     {
-        LogError(u8"the resources of swd32.exe are missing from %s (scripts/make_resources.py)", AssetDirectory());
+        LogError(u8"the resources of swd32.exe are missing from %s (scripts/make_resources.py)", assets);
     }
 
     this->systemSound.Play(this->resources.ReadSound(Game::StartSound));
