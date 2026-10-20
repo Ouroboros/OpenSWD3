@@ -108,6 +108,35 @@ TEST_CASE("input: the mouse is the pointer clamped to the screen at any sensitiv
     CHECK_EQ(y, 0);
 }
 
+TEST_CASE("input: keys and buttons held when spent read as up until let go and pressed again")
+{
+    using swd3::Input;
+    FakeDevice device;
+    Input input(device);
+    input.Init();
+    int x = 0;
+    int y = 0;
+    device.keys[Input::Enter] = Input::KeyDown;
+    device.mouse = {kInsideX, kInsideY, true, false};
+    input.PollKeyboard();
+    CHECK_EQ(input.ReadMouse(x, y), Input::LeftButton);
+    input.SpendHeld();
+    CHECK_EQ(input.IsKeyDown(Input::Enter), 0);
+    input.PollKeyboard();
+    CHECK_EQ(input.IsKeyDown(Input::Enter), 0);
+    CHECK_EQ(input.ReadMouse(x, y), 0);
+    device.keys[Input::Enter] = 0;
+    device.mouse.left = false;
+    input.PollKeyboard();
+    CHECK_EQ(input.ReadMouse(x, y), 0);
+    device.keys[Input::Enter] = Input::KeyDown;
+    device.mouse.left = true;
+    input.PollKeyboard();
+    CHECK_EQ(input.IsKeyDown(Input::Enter), Input::KeyDown);
+    CHECK(input.IsKeyPressed(Input::Enter));
+    CHECK_EQ(input.ReadMouse(x, y), Input::LeftButton);
+}
+
 TEST_CASE("input: SDL scancodes map to DirectInput codes")
 {
     using swd3::Input;

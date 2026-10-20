@@ -34,7 +34,42 @@ int Input::PollKeyboard()
 {
     this->previousKeys = this->keys;
     this->device.KeyboardState(this->keys);
+
+    // The rebuild: a key spent (SpendHeld) reads as up until it is let go.
+    for (std::size_t code = 0; code < Input::KeyCount; ++code)
+    {
+        if (!this->spent[code])
+        {
+            continue;
+        }
+
+        if ((this->keys[code] & Input::KeyDown) == 0)
+        {
+            this->spent[code] = false;
+        }
+        else
+        {
+            this->keys[code] = 0;
+        }
+    }
+
     return 1;
+}
+
+// The rebuild (deviations.md): the keys and mouse buttons down now read as up from now until they are let go.
+void Input::SpendHeld()
+{
+    for (std::size_t code = 0; code < Input::KeyCount; ++code)
+    {
+        if ((this->keys[code] & Input::KeyDown) != 0)
+        {
+            this->spent[code] = true;
+            this->keys[code] = 0;
+        }
+    }
+
+    const MouseState state = this->device.Mouse();
+    this->spentButtons = (state.left ? Input::LeftButton : 0) | (state.right ? Input::RightButton : 0);
 }
 
 // swd32.exe 0x004372D0
@@ -89,6 +124,9 @@ int Input::ReadMouse(int& x, int& y)
         buttons |= Input::RightButton;
     }
 
+    // The rebuild: a spent button (SpendHeld) reads as up until it is let go.
+    this->spentButtons &= buttons;
+    buttons &= ~this->spentButtons;
     this->PeekMouse(x, y);
     return buttons;
 }

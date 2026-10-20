@@ -77,6 +77,7 @@ public:
 
     int Init();
     int PollKeyboard();
+    void SpendHeld();
     int IsKeyDown(int scanCode) const;
     bool IsKeyPressed(int scanCode) const;
     int FirstKeyDown() const;
@@ -93,6 +94,8 @@ private:
     bool acquired = false;
     std::array<u8, KeyCount> keys{};  // KeyDown set while down
     std::array<u8, KeyCount> previousKeys{};
+    std::array<bool, KeyCount> spent{};  // SpendHeld: read as up until let go
+    int spentButtons = 0;
     i32 sensitivity = Tenths;  // kept as the original sets it; the position does not use it
 };
 

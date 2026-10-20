@@ -151,6 +151,19 @@ int Game::BattleFrame()
         this->audio.SetMusicVolume(this->config.musicVolume);
     }
 
+    // The rebuild (deviations.md): a press is a role's own; when another role (or the same one's next turn) is to be
+    // given a command, what is held from before counts only once let go and pressed again.
+    if (battle.currentUnit != battle.keysUnit)
+    {
+        if (battle.currentUnit != 0)
+        {
+            this->input.SpendHeld();
+            this->controls.SpendHeld();
+        }
+
+        battle.keysUnit = battle.currentUnit;
+    }
+
     this->MouseHover();
     this->BattleKeys();
     this->AutoBattleTurn();

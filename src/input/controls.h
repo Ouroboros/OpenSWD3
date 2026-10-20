@@ -60,6 +60,8 @@ public:
     ButtonState& At(Button button);
     const ButtonState& At(Button button) const;
     int PressConfirm();
+    // The rebuild (deviations.md): every button down now counts as let go (Input::SpendHeld keeps it up).
+    void SpendHeld();
     bool Repeating(Button button) const;
 
     std::array<ButtonState, Buttons> buttons = {};

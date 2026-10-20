@@ -500,6 +500,8 @@ public:
     // The rebuild (deviations.md): the last button pressed was the mouse's (a key: false); the menu opens at the
     // pointer only after the mouse.
     bool menuByMouse = false;
+    // The rebuild (deviations.md): the unit the keys went to last frame; a new one spends the keys held.
+    i32 keysUnit = 0;
     i32 unk53BD90 = 0;
     i32 unk53BD94 = 0;
     i32 unk53BD98 = 0;

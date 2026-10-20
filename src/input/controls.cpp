@@ -110,6 +110,20 @@ void Controls::Poll(Input& input, const Config& config, GameState& state, i32 fr
     this->lastPointerY = state.pointerY;
 }
 
+void Controls::SpendHeld()
+{
+    for (ButtonState& button : this->buttons)
+    {
+        button.press = 0;
+
+        if (button.heldFrames > 0)
+        {
+            button.heldFrames = 0;
+            button.releasedAt = this->now != 0 ? this->now : 1;
+        }
+    }
+}
+
 ButtonState& Controls::At(Button button)
 {
     return this->buttons[static_cast<std::size_t>(button)];
