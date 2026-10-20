@@ -328,6 +328,8 @@ void TurnFrame::FieldFadeFrameAdvance(int counting, Scene& scene)
 void TurnFrame::DrawListTabsAdvance(int x, int y, Scene& scene)
 {
     Game& game = this->game;
+    // The menus and lists stay where they are: a highlight jumps to its entry, as in the original.
+    const Scene::Still still(scene);
     BattleState& battle = game.battleState;
     BattleMessages& messages = game.battleMessages;
     const int tabsY = y + kTabsDrop;
@@ -384,6 +386,8 @@ void TurnFrame::DrawListTabsAdvance(int x, int y, Scene& scene)
 void TurnFrame::DrawCommandMenuAdvance(int x, int y, int cursor, Scene& scene)
 {
     Game& game = this->game;
+    // The menus and lists stay where they are: a highlight jumps to its entry, as in the original.
+    const Scene::Still still(scene);
     BattleState& battle = game.battleState;
     SceneFont font(game.largeFont, scene);
 
@@ -460,6 +464,8 @@ void TurnFrame::DrawCommandMenuAdvance(int x, int y, int cursor, Scene& scene)
 void TurnFrame::DrawThrowListAdvance(int x, int y, int cursor, int top, Scene& scene)
 {
     Game& game = this->game;
+    // The menus and lists stay where they are: a highlight jumps to its entry, as in the original.
+    const Scene::Still still(scene);
     BattleState& battle = game.battleState;
     BattleMessages& messages = game.battleMessages;
     SceneFont font(game.mediumFont, scene);
@@ -590,6 +596,8 @@ void TurnFrame::DrawThrowListAdvance(int x, int y, int cursor, int top, Scene& s
 void TurnFrame::DrawRefineListAdvance(int x, int y, int cursor, Scene& scene)
 {
     Game& game = this->game;
+    // The menus and lists stay where they are: a highlight jumps to its entry, as in the original.
+    const Scene::Still still(scene);
     BattleState& battle = game.battleState;
     BattleMessages& messages = game.battleMessages;
     SceneFont font(game.mediumFont, scene);
@@ -713,6 +721,8 @@ void TurnFrame::DrawRefineListAdvance(int x, int y, int cursor, Scene& scene)
 void TurnFrame::DrawSpecialListAdvance(int x, int y, int cursor, Scene& scene)
 {
     Game& game = this->game;
+    // The menus and lists stay where they are: a highlight jumps to its entry, as in the original.
+    const Scene::Still still(scene);
     BattleState& battle = game.battleState;
     BattleMessages& messages = game.battleMessages;
     SceneFont font(game.mediumFont, scene);
@@ -830,6 +840,8 @@ void TurnFrame::DrawSpecialListAdvance(int x, int y, int cursor, Scene& scene)
 void TurnFrame::DrawEscortListAdvance(int x, int y, Scene& scene)
 {
     Game& game = this->game;
+    // The menus and lists stay where they are: a highlight jumps to its entry, as in the original.
+    const Scene::Still still(scene);
     BattleState& battle = game.battleState;
     BattleMessages& messages = game.battleMessages;
     SceneFont font(game.mediumFont, scene);
@@ -923,6 +935,8 @@ void TurnFrame::DrawEscortListAdvance(int x, int y, Scene& scene)
 void TurnFrame::DrawTargetTagAdvance(int x, int y, Scene& scene)
 {
     Game& game = this->game;
+    // The menus and lists stay where they are: a highlight jumps to its entry, as in the original.
+    const Scene::Still still(scene);
     BattleServices& services = game.battleServices;
     ScenePainter painter(services, scene);
     BattleState& battle = game.battleState;
@@ -1007,6 +1021,8 @@ void TurnFrame::DrawTargetTagAdvance(int x, int y, Scene& scene)
 void TurnFrame::DrawControlMenuAdvance(int x, int y, int cursor, Scene& scene)
 {
     Game& game = this->game;
+    // The menus and lists stay where they are: a highlight jumps to its entry, as in the original.
+    const Scene::Still still(scene);
     BattleState& battle = game.battleState;
     SceneFont font(game.mediumFont, scene);
     BattleEnemy& enemy = game.battleEnemies[static_cast<std::size_t>(static_cast<i16>(battle.unk4A762C))];
@@ -1112,6 +1128,8 @@ void TurnFrame::DrawControlMenuAdvance(int x, int y, int cursor, Scene& scene)
 void TurnFrame::DrawSpellListAdvance(int x, int y, int cursor, int top, Scene& scene)
 {
     Game& game = this->game;
+    // The menus and lists stay where they are: a highlight jumps to its entry, as in the original.
+    const Scene::Still still(scene);
     BattleState& battle = game.battleState;
     SceneFont font(game.mediumFont, scene);
 
@@ -1223,6 +1241,8 @@ void TurnFrame::DrawSpellListAdvance(int x, int y, int cursor, int top, Scene& s
 void TurnFrame::DrawItemListAdvance(int x, int y, int cursor, int top, Scene& scene)
 {
     Game& game = this->game;
+    // The menus and lists stay where they are: a highlight jumps to its entry, as in the original.
+    const Scene::Still still(scene);
     BattleState& battle = game.battleState;
     BattleMessages& messages = game.battleMessages;
     SceneFont font(game.mediumFont, scene);
@@ -1372,6 +1392,8 @@ void TurnFrame::DrawItemListAdvance(int x, int y, int cursor, int top, Scene& sc
 void TurnFrame::DrawVictoryPanelAdvance(Scene& scene)
 {
     Game& game = this->game;
+    // The menus and lists stay where they are: a highlight jumps to its entry, as in the original.
+    const Scene::Still still(scene);
     BattleServices& services = game.battleServices;
     BattleState& battle = game.battleState;
     BattleMessages& messages = game.battleMessages;
@@ -1537,6 +1559,8 @@ void TurnFrame::DrawVictoryPanelAdvance(Scene& scene)
 void TurnFrame::DrawLevelUpPanelAdvance(Scene& scene)
 {
     Game& game = this->game;
+    // The menus and lists stay where they are: a highlight jumps to its entry, as in the original.
+    const Scene::Still still(scene);
     BattleState& battle = game.battleState;
     BattleMessages& messages = game.battleMessages;
     SceneFont font(game.mediumFont, scene);
@@ -1607,6 +1631,8 @@ void TurnFrame::DrawLevelUpPanelAdvance(Scene& scene)
 void TurnFrame::DrawLearnedBoxAdvance(std::u8string_view line, bool sound, Scene& scene)
 {
     Game& game = this->game;
+    // The menus and lists stay where they are: a highlight jumps to its entry, as in the original.
+    const Scene::Still still(scene);
     BattleState& battle = game.battleState;
     BattleMessages& messages = game.battleMessages;
     SceneFont font(game.mediumFont, scene);
@@ -1668,6 +1694,8 @@ void TurnFrame::DrawLearnedBoxAdvance(std::u8string_view line, bool sound, Scene
 void TurnFrame::DrawLevelUpStatsAdvance(Scene& scene)
 {
     Game& game = this->game;
+    // The menus and lists stay where they are: a highlight jumps to its entry, as in the original.
+    const Scene::Still still(scene);
     BattleState& battle = game.battleState;
     BattleMessages& messages = game.battleMessages;
     SceneFont font(game.mediumFont, scene);
@@ -1860,6 +1888,8 @@ void TurnFrame::DrawLevelUpStatsAdvance(Scene& scene)
 void TurnFrame::DrawBattleDebugAdvance(Scene& scene)
 {
     Game& game = this->game;
+    // The menus and lists stay where they are: a highlight jumps to its entry, as in the original.
+    const Scene::Still still(scene);
     BattleServices& services = game.battleServices;
     BattleState& battle = game.battleState;
     SceneFont font(game.mediumFont, scene);
@@ -2025,7 +2055,8 @@ void TurnFrame::DrawCommandPanelAdvance(i32 nameIndex, Scene& scene)
             battle.unk53BFB0 = 1;
         }
 
-        if (battle.unk53BDA8 >= kMenuIdleFrames)
+        // The rebuild (deviations.md): after a key the menu opens at its place, whatever the pointer did.
+        if (battle.unk53BDA8 >= kMenuIdleFrames || !battle.menuByMouse)
         {
             battle.unk53BD24 = kMenuHomeX;
             battle.unk53BD28 = kMenuHomeY;

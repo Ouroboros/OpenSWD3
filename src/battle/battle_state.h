@@ -497,6 +497,9 @@ public:
     i32 unk53BD18 = 0;       // the page of the list of state 2 (0..2)
     // The menu (MenuCancel).
     i32 unk53BFB0 = 0;
+    // The rebuild (deviations.md): the last button pressed was the mouse's (a key: false); the menu opens at the
+    // pointer only after the mouse.
+    bool menuByMouse = false;
     i32 unk53BD90 = 0;
     i32 unk53BD94 = 0;
     i32 unk53BD98 = 0;

@@ -179,6 +179,19 @@ constexpr int kListPointerX = 0x108;
 constexpr int kListPointerY = 0xB0;
 constexpr int kListMouseX = 0xF0;
 constexpr int kListMouseY = 0xC6;
+// The rebuild: the keys after which the menu opens at its place (BattleKeys).
+constexpr std::array<Button, 9> kMenuKeys = {
+    Button::Escape,
+    Button::Space,
+    Button::Left,
+    Button::Up,
+    Button::Right,
+    Button::Down,
+    Button::PageUp,
+    Button::PageDown,
+    Button::Enter,
+};
+
 constexpr i32 kOpenListRows = 4;
 constexpr i32 kAttackCommand = 1;
 constexpr i32 kGuardCommand = 5;
@@ -4737,6 +4750,21 @@ void Game::BattleKeys()
     BattleState& battle = this->battleState;
     Controls& controls = this->controls;
     battle.unk53BD9C = 0;
+
+    // The rebuild (deviations.md): whether the mouse or a key was pressed last (the right button is taken for Escape
+    // below).
+    for (const Button key : kMenuKeys)
+    {
+        if (controls.At(key).press != 0)
+        {
+            battle.menuByMouse = false;
+        }
+    }
+
+    if (controls.At(Button::MouseLeft).press != 0 || controls.At(Button::MouseRight).press != 0)
+    {
+        battle.menuByMouse = true;
+    }
 
     if (battle.paused == 1)
     {
