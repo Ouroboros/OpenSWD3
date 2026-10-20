@@ -1085,7 +1085,7 @@ constexpr int kWalkShare = 16;
 
 // TickEffects, CanUseAccessory, the drain effects and CatchRoll.
 constexpr u16 kEffectTick = 0xF;
-constexpr std::size_t kPoisonResistance = 4;  // RoleRecord::unk2D: the resistance of element 5
+constexpr std::size_t kPoisonResistance = 4;  // RoleRecord::resistances: the resistance of element 5
 constexpr i16 kPoisonElement = 5;
 constexpr u32 kStaminaDrainBits = 0x2000000;
 constexpr i16 kStaminaDrain = 10;
@@ -1234,7 +1234,7 @@ void ScaleRoleStats(RoleRecord& stats, int sign)
     ScaleStat(stats.attackBonus, sign);
     ScaleStat(stats.defenseBonus, sign);
     ScaleStat(stats.agility, sign);
-    ScaleStat(stats.unk14, sign);
+    ScaleStat(stats.wisdom, sign);
 }
 
 }  // namespace
@@ -1732,7 +1732,7 @@ void BattleUnit::CureEffects(BattleServices& services, u16 bits)
 {
     if (bits == BattleUnit::ReviveBit && this->kind == BattleUnit::PartyRole && this->defeated == 1)
     {
-        this->roleRecord->unk24 = static_cast<u16>(this->roleRecord->unk24 & ~RoleRecord::Defeated);
+        this->roleRecord->condition = static_cast<u16>(this->roleRecord->condition & ~RoleRecord::Defeated);
         this->ResetTurn(services);
         this->defeated = 0;
         --services.state.defeatedRoles;
@@ -2850,7 +2850,7 @@ i16 BattleUnit::HitDamage(BattleServices& services, BattleUnit& target, i16& spi
     {
         targetRecord = static_cast<const RoleRecord*>(target.SelectEntry(0));
         defense = targetRecord->defenseBonus;
-        std::copy_n(targetRecord->unk2D.begin(), resistances.size(), resistances.begin());
+        std::copy_n(targetRecord->resistances.begin(), resistances.size(), resistances.begin());
 
         if (static_cast<u16>(services.random.Below(kAilmentRoll)) > static_cast<u16>(targetRecord->ailmentChance))
         {
@@ -3094,7 +3094,7 @@ i16 BattleUnit::HitDamage(BattleServices& services, BattleUnit& target, i16& spi
         if ((this->unk2A86 & BattleUnit::UnkCommandFlag4000) == 0)
         {
             const auto divisor = static_cast<u16>(services.random.Below(kSkillRollDivisors) + kSkillRollBase);
-            const i32 spread = this->battleRecord->level + static_cast<u16>(this->battleRecord->unk14);
+            const i32 spread = this->battleRecord->level + static_cast<u16>(this->battleRecord->wisdom);
             const auto limit = static_cast<u16>(spread / divisor);
             const i32 roll = static_cast<i32>(services.random.Below(limit)) + 1;
 
@@ -3158,7 +3158,7 @@ i16 BattleUnit::HitDamage(BattleServices& services, BattleUnit& target, i16& spi
         attack = static_cast<i16>(attack - attack / kGuardShare);
     }
 
-    if (target.kind == BattleUnit::PartyRole && (targetRecord->unk24 & RoleRecord::Defeated) != 0)
+    if (target.kind == BattleUnit::PartyRole && (targetRecord->condition & RoleRecord::Defeated) != 0)
     {
         spiritDamage = 0;
         attack = 0;
@@ -3705,7 +3705,7 @@ int BattleUnit::DefeatFrame(BattleServices& services)
 
         if (this->kind == 1)
         {
-            this->roleRecord->unk24 = static_cast<u16>(this->roleRecord->unk24 | RoleRecord::Defeated);
+            this->roleRecord->condition = static_cast<u16>(this->roleRecord->condition | RoleRecord::Defeated);
         }
 
         this->mainAct.effectA = 0;
@@ -4315,7 +4315,7 @@ void BattleUnit::TickEffects(BattleServices& services)
         if ((node->bits & BattleUnit::UnkStatus1000) != 0 && this->pendingDamage == 0)
         {
             auto damage = static_cast<i16>(node->value);
-            ScaleByTenths(static_cast<i8>(this->battleRecord->unk2D[kPoisonResistance]), damage);
+            ScaleByTenths(static_cast<i8>(this->battleRecord->resistances[kPoisonResistance]), damage);
 
             // 0x0047DB51 calls sub_47E4C0 (HasEffectElement)
             if (this->HasEffectElement(kPoisonElement) == 1)
@@ -4925,7 +4925,7 @@ i16 BattleUnit::EnemyHitDamage(BattleServices& services, BattleUnit& target)
     {
         const auto* record = static_cast<const RoleRecord*>(target.SelectEntry(1));
         defense = target.Defense();
-        std::copy_n(record->unk2D.begin(), resistances.size(), resistances.begin());
+        std::copy_n(record->resistances.begin(), resistances.size(), resistances.begin());
         const u16 ailment = this->command.ailment;
 
         if (ailment != 0 && !target.FanGuards(services, ailment))

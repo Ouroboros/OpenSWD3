@@ -108,7 +108,7 @@ constexpr int kRatioX = 0x6C;
 constexpr int kHitPointsUp = 0x34;
 constexpr int kSpiritUp = 0x1E;
 constexpr int kStaminaUp = 8;
-constexpr u16 kDefeatedRole = 0x8000;  // RoleRecord::unk24 bit 15: the tab is greyed
+constexpr u16 kDefeatedRole = 0x8000;  // RoleRecord::condition bit 15: the tab is greyed
 
 constexpr int kBoxMargin = 8;
 constexpr int kBoxFrameThickness = 8;
@@ -858,7 +858,7 @@ void Menu::DrawRoleTabs(int offset)
         u32 needed = 0;
         owner.database.LoadLevelEntry(static_cast<int>(index) + 1, role.level + 1, needed);
         const std::string level =
-            WinFormat(kLevelFormat, {static_cast<i32>(role.level), static_cast<i32>(needed) - role.unk00});
+            WinFormat(kLevelFormat, {static_cast<i32>(role.level), static_cast<i32>(needed) - role.totalExperience});
         owner.mediumFont.DrawText(painter.Target(), kLevelX - offset, tab.y - kLevelUp, level, color, kTabTextStyle);
         const std::string hitPoints = WinFormat(kRatioFormat, {role.hitPoints, role.maxHitPoints});
         owner.smallFont
@@ -869,7 +869,7 @@ void Menu::DrawRoleTabs(int offset)
         owner.smallFont.DrawText(painter.Target(), kRatioX - offset, tab.y - kStaminaUp, stamina, color, kTabTextStyle);
         painter.SetClipClamped(0, 0, Display::Width, Display::Height);
 
-        if ((role.unk24 & kDefeatedRole) != 0)
+        if ((role.condition & kDefeatedRole) != 0)
         {
             owner.actDrawer.DrawWithMode(this->items[index], x, tab.y, Painter::GrayUnder);
         }

@@ -1499,7 +1499,7 @@ void TurnFrame::DrawVictoryPanelAdvance(Scene& scene)
 
             if (record.level < battle.timingWindow)
             {
-                record.unk00 += battle.unk53BF14;
+                record.totalExperience += battle.unk53BF14;
             }
 
             if (role.StepWornCounters(game.party.fame.lists[Fame::ProficiencyList], battle.unk53BF16) == 1)
@@ -1761,7 +1761,7 @@ void TurnFrame::DrawLevelUpStatsAdvance(Scene& scene)
         before.maxStamina,
         static_cast<u16>(before.attack),
         static_cast<u16>(before.defense),
-        static_cast<u16>(before.unk14),
+        static_cast<u16>(before.wisdom),
         static_cast<u16>(before.agility),
     };
 
@@ -1793,10 +1793,10 @@ void TurnFrame::DrawLevelUpStatsAdvance(Scene& scene)
             rolls[2] = static_cast<i16>(now.maxStamina - before.maxStamina);
             rolls[3] = static_cast<i16>(now.attack - before.attack);
             rolls[4] = static_cast<i16>(now.defense - before.defense);
-            rolls[5] = static_cast<i16>(now.unk14 - before.unk14);
+            rolls[5] = static_cast<i16>(now.wisdom - before.wisdom);
             rolls[6] = static_cast<i16>(now.agility - before.agility);
-            rolls[7] = static_cast<i16>(now.unk18 - before.unk18);
-            rolls[8] = static_cast<i16>(now.unk1A - before.unk1A);
+            rolls[7] = static_cast<i16>(now.rapport - before.rapport);
+            rolls[8] = static_cast<i16>(now.reaction - before.reaction);
         }
 
         if (battle.unk53BDEA < kRollStart && ++battle.unk53BDEA < kRollStart)
@@ -1880,7 +1880,7 @@ void TurnFrame::DrawLevelUpStatsAdvance(Scene& scene)
 
     attribute(3, now.attack, before.attack, 3, true);
     attribute(4, now.defense, before.defense, 4, rolls[3] == 0);
-    attribute(5, now.unk14, before.unk14, 5, rolls[4] == 0);
+    attribute(5, now.wisdom, before.wisdom, 5, rolls[4] == 0);
     attribute(6, now.agility, before.agility, 6, rolls[5] == 0);
 }
 

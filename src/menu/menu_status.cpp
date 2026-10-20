@@ -193,12 +193,12 @@ void Menu::StatusCompute()
     add(page.total.maxStamina, page.bonus.maxStamina);
     add(page.total.attack, page.bonus.attack);
     add(page.total.defense, page.bonus.defense);
-    add(page.total.unk14, page.bonus.unk14);
+    add(page.total.wisdom, page.bonus.wisdom);
     add(page.total.agility, page.bonus.agility);
-    add(page.total.unk18, page.bonus.unk18);
-    add(page.total.unk1A, page.bonus.unk1A);
+    add(page.total.rapport, page.bonus.rapport);
+    add(page.total.reaction, page.bonus.reaction);
     add(page.total.ailmentChance, page.bonus.ailmentChance);
-    add(page.total.unk1E, page.bonus.unk1E);
+    add(page.total.evasion, page.bonus.evasion);
     add(page.total.attackBonus, page.bonus.attackBonus);
     add(page.total.defenseBonus, page.bonus.defenseBonus);
 
@@ -206,10 +206,10 @@ void Menu::StatusCompute()
     {
         if (const ItemNode* worn = slotOf(slot); worn != nullptr)
         {
-            for (std::size_t element = 0; element < page.total.unk2D.size(); ++element)
+            for (std::size_t element = 0; element < page.total.resistances.size(); ++element)
             {
-                page.total.unk2D[element] =
-                    static_cast<u8>(page.total.unk2D[element] + worn->record.data.resistances[element]);
+                page.total.resistances[element] =
+                    static_cast<u8>(page.total.resistances[element] + worn->record.data.resistances[element]);
             }
         }
     }
@@ -227,7 +227,7 @@ void Menu::StatusCompute()
         u16 value = 0;
         GetProficiency(owner.party.fame.lists[Fame::ProficiencyList], worn->id, maximum, value, owner.database);
 
-        for (std::size_t element = 0; element < page.total.unk2D.size(); ++element)
+        for (std::size_t element = 0; element < page.total.resistances.size(); ++element)
         {
             int resistance = static_cast<i8>(worn->record.data.resistances[element]);
 
@@ -246,8 +246,8 @@ void Menu::StatusCompute()
 
             resistance = static_cast<i8>(std::abs(resistance));  // 0x0044ADE7 neg bl: -128 stays -128
             const auto scaled = static_cast<i32>(static_cast<u32>(kMagicScale) * value);
-            page.total.unk2D[element] =
-                static_cast<u8>(page.total.unk2D[element] + resistance * (scaled / maximum / kPercent) / kTenth);
+            page.total.resistances[element] =
+                static_cast<u8>(page.total.resistances[element] + resistance * (scaled / maximum / kPercent) / kTenth);
         }
     }
 }
@@ -464,7 +464,7 @@ void Menu::StatusDraw()
         owner.drawSurface,
         kValuesX,
         kExperienceValueY,
-        WinFormat(kWideNumberFormat, {owner.party.roles[role].unk00}),
+        WinFormat(kWideNumberFormat, {owner.party.roles[role].totalExperience}),
         color,
         kPanelStyle
     );
@@ -483,15 +483,15 @@ void Menu::StatusDraw()
     const std::array<int, 4> values = {
         static_cast<u16>(record.attack),
         static_cast<u16>(record.defense),
-        static_cast<u16>(record.unk14),
+        static_cast<u16>(record.wisdom),
         static_cast<u16>(record.agility)
     };
 
-    const std::array<int, 4> bonuses = {page.bonus.attack, page.bonus.defense, page.bonus.unk14, page.bonus.agility};
+    const std::array<int, 4> bonuses = {page.bonus.attack, page.bonus.defense, page.bonus.wisdom, page.bonus.agility};
     const std::array<int, 4> totals = {
         static_cast<u16>(total.attack),
         static_cast<u16>(total.defense),
-        static_cast<u16>(total.unk14),
+        static_cast<u16>(total.wisdom),
         static_cast<u16>(total.agility)
     };
 
@@ -539,9 +539,9 @@ void Menu::StatusDraw()
 
     Pixel shade = green;
 
-    for (std::size_t element = 0; element < total.unk2D.size(); ++element)
+    for (std::size_t element = 0; element < total.resistances.size(); ++element)
     {
-        const auto value = static_cast<i8>(total.unk2D[element]);
+        const auto value = static_cast<i8>(total.resistances[element]);
         std::string text;
 
         if (value == 0)

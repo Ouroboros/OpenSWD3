@@ -882,7 +882,7 @@ bool Talk::RunStateCommand(EventRun& run)
 
             record.spirit = std::max<i16>(record.spirit, 0);
             record.stamina = std::max<i16>(record.stamina, 0);
-            record.unk24 = 0;
+            record.condition = 0;
             this->Next(run);
             return true;
         }

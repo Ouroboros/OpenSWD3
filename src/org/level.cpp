@@ -119,12 +119,12 @@ bool LevelUp(
             role.maxStamina = static_cast<i16>(stats.Word16());
             role.attack = static_cast<i16>(stats.Word16());
             role.defense = static_cast<i16>(stats.Word16());
-            role.unk14 = static_cast<i16>(stats.Word16());
+            role.wisdom = static_cast<i16>(stats.Word16());
             role.agility = static_cast<i16>(stats.Word16());
-            role.unk18 = static_cast<i16>(stats.Word16());
-            role.unk1A = static_cast<i16>(stats.Word16());
+            role.rapport = static_cast<i16>(stats.Word16());
+            role.reaction = static_cast<i16>(stats.Word16());
             role.ailmentChance = static_cast<i16>(stats.Word16());
-            role.unk1E = static_cast<i16>(stats.Word16());
+            role.evasion = static_cast<i16>(stats.Word16());
             role.experience = static_cast<i32>(stats.Word32());
             at += sizeof(u16) * kStatWords;
             role.level = static_cast<u8>(level);

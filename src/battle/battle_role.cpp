@@ -275,7 +275,7 @@ void BattleRole::Setup(RoleRecord& record, RoleBattleBlock& block, const UnitPla
     *this->battleRecord = record;
     this->roleRecord = &record;
     this->roleBlock = block.unk00.data();
-    this->unk2A93 = static_cast<u8>(this->battleRecord->unk1E);
+    this->unk2A93 = static_cast<u8>(this->battleRecord->evasion);
     this->actId = at.actId;
 
     if (this->actId == 0)
@@ -300,7 +300,7 @@ void BattleRole::Setup(RoleRecord& record, RoleBattleBlock& block, const UnitPla
         }
     }
 
-    this->defeated = (this->battleRecord->unk24 & RoleRecord::Defeated) != 0 ? 1 : 0;
+    this->defeated = (this->battleRecord->condition & RoleRecord::Defeated) != 0 ? 1 : 0;
 }
 
 // swd32.exe 0x0046E890: a summoned escort: its mon.dat object (by the act of its placement, asserted non-zero) gives
@@ -327,10 +327,10 @@ void BattleRole::SetupEscort(const UnitPlacement& at, Database& database, ErrorR
     record.attackBonus = object.attack;
     record.defenseBonus = object.defense;
     record.agility = static_cast<i16>(object.agility);
-    record.unk14 = static_cast<i16>(object.unk5C);
-    record.unk1E = object.battleLevel;
-    std::copy_n(object.resistances.begin(), record.unk2D.size(), record.unk2D.begin());
-    this->unk2A93 = static_cast<u8>(record.unk1E);
+    record.wisdom = static_cast<i16>(object.unk5C);
+    record.evasion = object.battleLevel;
+    std::copy_n(object.resistances.begin(), record.resistances.size(), record.resistances.begin());
+    this->unk2A93 = static_cast<u8>(record.evasion);
     record.hitPoints = object.hitPoints;
     record.maxHitPoints = record.hitPoints;
     this->roleRecord = this->battleRecord;
@@ -367,12 +367,12 @@ void BattleRole::SetupGuest(
     record.maxHitPoints = Grown(base.maxHitPoints, scale);
     record.attackBonus = static_cast<u16>(Grown(static_cast<i16>(base.attackBonus), scale));
     record.defenseBonus = static_cast<u16>(Grown(static_cast<i16>(base.defenseBonus), scale));
-    record.unk14 = Grown(base.unk14, scale);
+    record.wisdom = Grown(base.wisdom, scale);
     record.level = static_cast<u8>(base.level + static_cast<i8>(scale * base.level) / kTenths);
-    record.unk1E = object.battleLevel;
+    record.evasion = object.battleLevel;
     record.agility = static_cast<i16>(base.agility + static_cast<i16>(base.agility * object.unk2C) / kTenths);
-    std::copy_n(object.resistances.begin(), record.unk2D.size(), record.unk2D.begin());
-    this->unk2A93 = static_cast<u8>(record.unk1E);
+    std::copy_n(object.resistances.begin(), record.resistances.size(), record.resistances.begin());
+    this->unk2A93 = static_cast<u8>(record.evasion);
     record.hitPoints = record.maxHitPoints;
     this->weapon.data.unk3E = object.skill;
     this->roleRecord = this->battleRecord;
@@ -415,9 +415,9 @@ void BattleRole::ApplyEquipment(
         record.attackBonus = static_cast<u16>(record.attackBonus + stats.unk24);
         record.defenseBonus = static_cast<u16>(record.defenseBonus + stats.unk26);
         record.agility = static_cast<i16>(record.agility + stats.unk2C);
-        record.unk14 = static_cast<i16>(record.unk14 + stats.unk2E);
-        record.unk18 = static_cast<i16>(record.unk18 + stats.unk30);
-        record.unk1E = static_cast<i16>(record.unk1E + stats.unk32);
+        record.wisdom = static_cast<i16>(record.wisdom + stats.unk2E);
+        record.rapport = static_cast<i16>(record.rapport + stats.unk30);
+        record.evasion = static_cast<i16>(record.evasion + stats.unk32);
 
         if (stats.unk28 != 0)
         {
@@ -445,9 +445,9 @@ void BattleRole::ApplyEquipment(
         }
         else if (slot != BattleRole::NoResistanceSlotA && slot != BattleRole::NoResistanceSlotB)
         {
-            for (std::size_t element = 0; element < record.unk2D.size(); ++element)
+            for (std::size_t element = 0; element < record.resistances.size(); ++element)
             {
-                record.unk2D[element] = static_cast<u8>(record.unk2D[element] + stats.resistances[element]);
+                record.resistances[element] = static_cast<u8>(record.resistances[element] + stats.resistances[element]);
             }
 
             if (slot < BattleRole::ArmourSlots && stats.unk3C == 0)
@@ -496,7 +496,8 @@ void BattleRole::ApplyAccessory(const ObjectRecord& accessory, CounterList& prof
             const auto scaled = static_cast<i8>(static_cast<u8>(-kTenths * accessory.data.resistances[element]));
             const auto product = static_cast<i16>(percent * scaled);
             const auto share = static_cast<u16>(product / kPercent);
-            record.unk2D[element] = static_cast<u8>(record.unk2D[element] + static_cast<int>(share) / -kTenths);
+            record.resistances[element] =
+                static_cast<u8>(record.resistances[element] + static_cast<int>(share) / -kTenths);
             break;
         }
 
@@ -1252,7 +1253,7 @@ void BattleRole::Regenerate(BattleServices& services)
 {
     const RoleRecord& record = *this->roleRecord;
 
-    if ((record.unk24 & RoleRecord::Defeated) != 0)
+    if ((record.condition & RoleRecord::Defeated) != 0)
     {
         return;
     }

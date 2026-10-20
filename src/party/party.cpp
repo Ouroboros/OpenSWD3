@@ -16,7 +16,7 @@ namespace swd3
 void RoleRecord::Load(std::span<const u8> record)
 {
     ByteReader reader(record);
-    this->unk00 = static_cast<i32>(reader.Word32());
+    this->totalExperience = static_cast<i32>(reader.Word32());
     this->maxHitPoints = static_cast<i16>(reader.Word16());
     this->maxSpirit = static_cast<i16>(reader.Word16());
     this->maxStamina = static_cast<i16>(reader.Word16());
@@ -25,20 +25,20 @@ void RoleRecord::Load(std::span<const u8> record)
     this->stamina = static_cast<i16>(reader.Word16());
     this->attack = static_cast<i16>(reader.Word16());
     this->defense = static_cast<i16>(reader.Word16());
-    this->unk14 = static_cast<i16>(reader.Word16());
+    this->wisdom = static_cast<i16>(reader.Word16());
     this->agility = static_cast<i16>(reader.Word16());
-    this->unk18 = static_cast<i16>(reader.Word16());
-    this->unk1A = static_cast<i16>(reader.Word16());
+    this->rapport = static_cast<i16>(reader.Word16());
+    this->reaction = static_cast<i16>(reader.Word16());
     this->ailmentChance = static_cast<i16>(reader.Word16());
-    this->unk1E = static_cast<i16>(reader.Word16());
+    this->evasion = static_cast<i16>(reader.Word16());
     this->unk2A = reader.Word16();
     this->experience = static_cast<i32>(reader.Word16());
-    this->unk24 = reader.Word16();
+    this->condition = reader.Word16();
     this->attackBonus = reader.Word16();
     this->defenseBonus = reader.Word16();
     this->level = reader.Byte();
 
-    for (u8& value : this->unk2D)
+    for (u8& value : this->resistances)
     {
         value = reader.Byte();
     }
@@ -70,19 +70,19 @@ constexpr std::u8string_view kXiaoQian = u8"小倩";       // 0x004A70F4
 
 // The values the name codes set.
 constexpr i16 kHeRanAttributes = 0x19;
-constexpr i16 kJiangRuHongUnk14 = 0x64;
+constexpr i16 kJiangRuHongWisdom = 0x64;
 constexpr i16 kJiangRuHongSpirit = 0x12C;
 constexpr i16 kYangKunShuoAttack = 0x32;
 constexpr i16 kYangKunShuoHitPoints = 0xC8;
-constexpr u8 kGuYueShengUnk2D = 0xFB;
+constexpr u8 kGuYueShengResistance = 0xFB;
 constexpr i16 kFuZiCheAttributes = 0x1E;
-constexpr u8 kWenJinUnk2D = 0xF9;
+constexpr u8 kWenJinResistance = 0xF9;
 constexpr i16 kZhuShiZiDefense = 0x64;
 constexpr i16 kZhuShiZiStamina = 0x12C;
-constexpr i16 kLeLeUnk14 = 0x46;
+constexpr i16 kLeLeWisdom = 0x46;
 constexpr i16 kLeLeSpirit = 0xFA;
-constexpr i16 kDaMiUnk14 = 0x64;
-constexpr u8 kDaMiUnk2D = 2;
+constexpr i16 kDaMiWisdom = 0x64;
+constexpr u8 kDaMiResistance = 2;
 constexpr i16 kZhenMengDefense = 0x64;
 constexpr i16 kZhenMengStamina = 0x12C;
 constexpr i16 kHongShanHuAttack = 0x32;
@@ -113,7 +113,7 @@ void Party::ApplyNameCheats()
     {
         role.attack = value;
         role.defense = value;
-        role.unk14 = value;
+        role.wisdom = value;
         role.agility = value;
     };
 
@@ -124,7 +124,7 @@ void Party::ApplyNameCheats()
 
     if (Named(secondName, kJiangRuHong))
     {
-        second.unk14 = kJiangRuHongUnk14;
+        second.wisdom = kJiangRuHongWisdom;
         second.spirit = kJiangRuHongSpirit;
         second.maxSpirit = kJiangRuHongSpirit;
     }
@@ -138,7 +138,7 @@ void Party::ApplyNameCheats()
 
     if (Named(firstName, kGuYueSheng))
     {
-        first.unk2D.fill(kGuYueShengUnk2D);
+        first.resistances.fill(kGuYueShengResistance);
     }
 
     if (Named(firstName, kFuZiChe))
@@ -148,7 +148,7 @@ void Party::ApplyNameCheats()
 
     if (Named(secondName, kWenJin))
     {
-        second.unk2D.fill(kWenJinUnk2D);
+        second.resistances.fill(kWenJinResistance);
     }
 
     if (Named(firstName, kZhuShiZi))
@@ -160,15 +160,15 @@ void Party::ApplyNameCheats()
 
     if (Named(firstName, kLeLe))
     {
-        first.unk14 = kLeLeUnk14;
+        first.wisdom = kLeLeWisdom;
         first.spirit = kLeLeSpirit;
         first.maxSpirit = kLeLeSpirit;
     }
 
     if (Named(firstName, kDaMi))
     {
-        first.unk14 = kDaMiUnk14;
-        first.unk2D.fill(kDaMiUnk2D);
+        first.wisdom = kDaMiWisdom;
+        first.resistances.fill(kDaMiResistance);
     }
 
     if (Named(secondName, kZhenMeng))
@@ -188,7 +188,7 @@ void Party::ApplyNameCheats()
     if (Named(firstName, kNingCaiChen))
     {
         first.defense = static_cast<i16>(first.defense - kNingCaiChenLoss);
-        first.unk14 = static_cast<i16>(first.unk14 - kNingCaiChenLoss);
+        first.wisdom = static_cast<i16>(first.wisdom - kNingCaiChenLoss);
         first.agility = static_cast<i16>(first.agility - kNingCaiChenLoss);
         this->variables[Party::Gold] = kNingCaiChenGold;
         first.attack = static_cast<i16>(first.attack - kNingCaiChenAttackLoss);
@@ -203,7 +203,7 @@ void Party::ApplyNameCheats()
 
     if (Named(secondName, kXiaoQian))
     {
-        second.unk14 = kXiaoQianValue;
+        second.wisdom = kXiaoQianValue;
         second.spirit = kXiaoQianValue;
         second.maxSpirit = kXiaoQianValue;
     }
@@ -242,12 +242,12 @@ void Party::SetRoleStat(int field, int value, int role, Database& database)
         &record.maxStamina,
         &record.attack,
         &record.defense,
-        &record.unk14,
+        &record.wisdom,
         &record.agility,
-        &record.unk18,
-        &record.unk1A,
+        &record.rapport,
+        &record.reaction,
         &record.ailmentChance,
-        &record.unk1E,
+        &record.evasion,
     };
 
     if (field >= 0 && field < Party::WordStats)
@@ -258,9 +258,9 @@ void Party::SetRoleStat(int field, int value, int role, Database& database)
     {
         record.experience = value;
     }
-    else if (field == Party::Unk00Stat)
+    else if (field == Party::TotalExperienceStat)
     {
-        record.unk00 = value;
+        record.totalExperience = value;
     }
     else if (field == Party::LevelStat)
     {
@@ -287,12 +287,12 @@ int Party::RoleStat(int field, int role) const
         record.maxStamina,
         record.attack,
         record.defense,
-        record.unk14,
+        record.wisdom,
         record.agility,
-        record.unk18,
-        record.unk1A,
+        record.rapport,
+        record.reaction,
         record.ailmentChance,
-        record.unk1E,
+        record.evasion,
     };
 
     if (field >= 0 && field < Party::SignedStats)
@@ -310,9 +310,9 @@ int Party::RoleStat(int field, int role) const
         return record.experience;
     }
 
-    if (field == Party::Unk00Stat)
+    if (field == Party::TotalExperienceStat)
     {
-        return record.unk00;
+        return record.totalExperience;
     }
 
     if (field == Party::LevelStat)
@@ -334,7 +334,7 @@ void ApplyObject(RoleRecord& record, const ObjectData& object, Database& databas
 
     if (static_cast<i16>(skill.ailment) < 0)
     {
-        record.unk24 &= static_cast<u16>(~RoleRecord::Defeated);
+        record.condition &= static_cast<u16>(~RoleRecord::Defeated);
     }
 
     auto add = [](i16& field, u16 amount)
@@ -354,7 +354,7 @@ void ApplyObject(RoleRecord& record, const ObjectData& object, Database& databas
         record.stamina = std::min(record.stamina, record.maxStamina);
     };
 
-    if (object.unk52 > kPlainObjectLimit && (record.unk24 & RoleRecord::Defeated) == 0)
+    if (object.unk52 > kPlainObjectLimit && (record.condition & RoleRecord::Defeated) == 0)
     {
         add(record.hitPoints, object.unk34);
         add(record.spirit, object.unk36);
@@ -363,7 +363,7 @@ void ApplyObject(RoleRecord& record, const ObjectData& object, Database& databas
         return;
     }
 
-    if ((record.unk24 & RoleRecord::Defeated) != 0)
+    if ((record.condition & RoleRecord::Defeated) != 0)
     {
         return;
     }
@@ -376,10 +376,10 @@ void ApplyObject(RoleRecord& record, const ObjectData& object, Database& databas
         clampVitals();
         add(record.attack, object.unk28);
         add(record.defense, object.unk2A);
-        add(record.unk14, object.unk2E);
+        add(record.wisdom, object.unk2E);
         add(record.agility, object.unk2C);
-        add(record.unk18, object.unk30);
-        add(record.unk1E, object.unk32);
+        add(record.rapport, object.unk30);
+        add(record.evasion, object.unk32);
         addBonus(record.attackBonus, object.unk24);
         addBonus(record.defenseBonus, object.unk26);
     }
@@ -391,10 +391,10 @@ void ApplyObject(RoleRecord& record, const ObjectData& object, Database& databas
         add(record.maxStamina, object.unk38);
         add(record.attack, object.unk28);
         add(record.defense, object.unk2A);
-        add(record.unk14, object.unk2E);
-        add(record.unk18, object.unk30);
+        add(record.wisdom, object.unk2E);
+        add(record.rapport, object.unk30);
         add(record.agility, object.unk2C);
-        add(record.unk1E, object.unk32);
+        add(record.evasion, object.unk32);
         addBonus(record.attackBonus, object.unk24);
         addBonus(record.defenseBonus, object.unk26);
     }

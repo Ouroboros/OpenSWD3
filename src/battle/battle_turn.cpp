@@ -1946,7 +1946,7 @@ void Game::CheckLevelUps()
         u32 needed = 0;
 
         if (record.level >= battle.timingWindow ||
-            (this->database.LoadLevelEntry(role + 1, next, needed), record.unk00 < static_cast<i32>(needed)))
+            (this->database.LoadLevelEntry(role + 1, next, needed), record.totalExperience < static_cast<i32>(needed)))
         {
             battle.unk4A7646 = kNoLevelUp;
             continue;
@@ -1976,12 +1976,12 @@ void Game::CheckLevelUps()
         record.stamina = record.maxStamina;
         record.attack = static_cast<i16>(record.attack + after.attack - before.attack);
         record.defense = static_cast<i16>(record.defense + after.defense - before.defense);
-        record.unk14 = static_cast<i16>(record.unk14 + after.unk14 - before.unk14);
+        record.wisdom = static_cast<i16>(record.wisdom + after.wisdom - before.wisdom);
         record.agility = static_cast<i16>(record.agility + after.agility - before.agility);
-        record.unk18 = static_cast<i16>(record.unk18 + after.unk18 - before.unk18);
-        record.unk1A = static_cast<i16>(record.unk1A + after.unk1A - before.unk1A);
+        record.rapport = static_cast<i16>(record.rapport + after.rapport - before.rapport);
+        record.reaction = static_cast<i16>(record.reaction + after.reaction - before.reaction);
         record.ailmentChance = static_cast<i16>(record.ailmentChance + after.ailmentChance - before.ailmentChance);
-        record.unk1E = static_cast<i16>(record.unk1E + after.unk1E - before.unk1E);
+        record.evasion = static_cast<i16>(record.evasion + after.evasion - before.evasion);
         battle.unk4A7646 = static_cast<u8>(index);
         this->audio.StopSound(kVictorySound);
         this->audio.PlaySound(kLevelUpSound, this->config.soundVolume);

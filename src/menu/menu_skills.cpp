@@ -883,7 +883,8 @@ void Menu::SkillsSelect()
 
             const ObjectData& data = chosen->record.data;
 
-            if (static_cast<i16>(role.unk24) < 0 || (data.usableBy & kUseMask) < kFieldUse || !CanPay(role, data.unk40))
+            if (static_cast<i16>(role.condition) < 0 || (data.usableBy & kUseMask) < kFieldUse ||
+                !CanPay(role, data.unk40))
             {
                 refuse();
                 return;
