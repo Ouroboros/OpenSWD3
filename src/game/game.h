@@ -272,6 +272,7 @@ private:
     void TakeScreenshot();
     std::u8string ScreenshotPath();
     void SendText(TextMessage message, u32 parameter);
+    void TypeText(std::string_view utf8);
     void ShowLoading(int percent);
     void MusicZone(int map);
     bool LoadRoleSound(Role& role);

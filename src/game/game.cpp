@@ -2308,34 +2308,52 @@ void Game::HandleEvent(const SDL_Event& event)
                 }
             }
         }
+
+        // The rebuild (deviations.md): Ctrl+V pastes the clipboard's text.
+        if (event.key.key == SDLK_V && (event.key.mod & SDL_KMOD_CTRL) != 0 && SDL_HasClipboardText())
+        {
+            char* text = SDL_GetClipboardText();
+            this->TypeText(text);
+            SDL_free(text);
+        }
     }
-    else if (event.type == SDL_EVENT_TEXT_INPUT && this->textInput != nullptr)
+    else if (event.type == SDL_EVENT_TEXT_INPUT)
     {
-        // The rebuild (deviations.md): the text the keyboard or an input method commits goes into the box whole, its
-        // characters as they fit; '%' is refused with the box's sound, control characters are left out (a Big5 trail
-        // byte is 0x40 or more, so neither splits a character).
-        std::string typed;
-        bool refused = false;
-
-        for (const char byte : Big5FromUtf8(event.text.text))
-        {
-            if (byte == kRefusedCharacter)
-            {
-                refused = true;
-            }
-            else if (static_cast<u8>(byte) >= kFirstTypedByte)
-            {
-                typed.push_back(byte);
-            }
-        }
-
-        if (refused)
-        {
-            this->audio.PlaySound(TextInput::RejectedSound, this->config.soundVolume);
-        }
-
-        this->textInput->InsertText(typed);
+        this->TypeText(event.text.text);
     }
+}
+
+// The rebuild (deviations.md): text the keyboard or an input method commits, or Ctrl+V pastes, goes into the box
+// whole, its characters as they fit; '%' is refused with the box's sound, control characters are left out (a Big5
+// trail byte is 0x40 or more, so neither splits a character).
+void Game::TypeText(std::string_view utf8)
+{
+    if (this->textInput == nullptr)
+    {
+        return;
+    }
+
+    std::string typed;
+    bool refused = false;
+
+    for (const char byte : Big5FromUtf8(utf8))
+    {
+        if (byte == kRefusedCharacter)
+        {
+            refused = true;
+        }
+        else if (static_cast<u8>(byte) >= kFirstTypedByte)
+        {
+            typed.push_back(byte);
+        }
+    }
+
+    if (refused)
+    {
+        this->audio.PlaySound(TextInput::RejectedSound, this->config.soundVolume);
+    }
+
+    this->textInput->InsertText(typed);
 }
 
 // The first free name of ScrnShot\00000.bmp..ScrnShot\99997.bmp (AIL_serve before each try; with every name taken
