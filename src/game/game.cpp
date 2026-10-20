@@ -575,15 +575,6 @@ void Game::Start()
         case Launcher::Choice::Start:
             this->StartGraphics();
             LogInfo(u8"graphics started");
-
-            // The rebuild (deviations.md): with the launcher skipped the title's load starts on the newest save, as
-            // the launcher's continue does.
-            if (!this->config.showLauncher)
-            {
-                this->saveSlots.FindNewest(this->config.SaveDirectory(), this->painter);
-                LogInfo(u8"newest save slot=%d", this->saveSlots.newest);
-            }
-
             break;
 
         case Launcher::Choice::Exit:

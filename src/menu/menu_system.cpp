@@ -1061,6 +1061,8 @@ void Menu::ActOnEntry()
             owner.unk4CAEC0 = 1;
             owner.menuMode = Menu::TitleLoadMode;
             owner.ResetSaveSlots();
+            // The rebuild (deviations.md): the load starts on the newest save, as the launcher's continue does.
+            owner.saveSlots.FindNewest(owner.config.SaveDirectory(), owner.painter);
             break;
 
         case kNewGameEntry:
