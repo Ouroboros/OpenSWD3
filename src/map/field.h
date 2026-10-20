@@ -18,6 +18,15 @@ class RleCodec;
 struct Picture;
 struct Role;
 
+// A place on the map in pixels, or the distance between two places.
+struct MapPoint
+{
+    i32 x = 0;
+    i32 y = 0;
+
+    bool operator==(const MapPoint&) const = default;
+};
+
 // A named region of the map (0x34 bytes; the list at 0x004ACAC0 starts with a node of its own).
 struct MapRegion
 {
@@ -99,6 +108,16 @@ public:
     // Whether the rebuild's wider (higher) view holds the camera in its middle across (down): the map is narrower
     // (lower) than the view, so the camera does not move on that axis (HoldCamera).
     std::array<bool, 2> MapInsideView() const;
+    // Whether the rebuild's view is other than the 640x480 screen (the map fills the window).
+    bool WiderView() const;
+    // The original's camera at (left, top), held inside the map as it holds it (HoldCamera on a 640x480 view).
+    MapPoint HoldScreen(MapPoint place) const;
+    // The original's camera moved by `by` and held.
+    void MoveOriginal(MapPoint by);
+    // A pan of the original's camera to `to` (held) by `step` pixels a frame on each axis; a frame of it.
+    void PanOriginal(MapPoint to, MapPoint step);
+    void StepOriginalPan();
+    bool OriginalPanning() const;
     // Where the game's 640x480 screen starts on the map (the camera when the map does not fill the window): the
     // interface places what it shows of the map from here.
     i32 ScreenLeft() const;
@@ -127,6 +146,12 @@ public:
     i32 viewHeight = Display::Height;
     i32 screenX = 0;
     i32 screenY = 0;
+    // The rebuild (deviations.md): where the original's 640x480 camera would be (its left and top) for what the story
+    // places on that screen (its animations, the spotlight, the pans to a tile): set and moved as the camera is, held
+    // inside the map as the original holds its camera; a pan takes it to `originalPan` by `originalPanStep` a frame.
+    MapPoint original;
+    MapPoint originalPan;
+    MapPoint originalPanStep;
     std::vector<u16> palette;  // 0x004B7404 the colours of an 8-bit map
 
 private:

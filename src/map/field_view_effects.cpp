@@ -948,9 +948,9 @@ void FieldView::DrawSpotlight()
 
     Scene& view = owner.scene;
     Painter& painter = owner.painter;
-    // The light lies on the 640x480 screen in the canvas.
-    const int lightX = view.spotlightX + owner.field.screenX;
-    const int lightY = view.spotlightY + owner.field.screenY;
+    // The light lies on the original's 640x480 screen (originalShift).
+    const int lightX = view.spotlightX + this->originalShift.x;
+    const int lightY = view.spotlightY + this->originalShift.y;
     ActState& act = view.spotlightAct;
     act.id = Scene::EffectAct;
     act.action = kSpotlightRimAction;

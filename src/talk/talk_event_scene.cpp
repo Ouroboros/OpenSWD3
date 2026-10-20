@@ -62,11 +62,13 @@ bool Talk::PanCamera(EventRun& run)
     Game& owner = this->game;
     GameState& state = owner.state;
     Scene& view = owner.scene;
-    const Field& field = owner.field;
+    Field& field = owner.field;
     constexpr i32 kDefaultPanStep = 4;  // a step that does not divide the distance becomes this
     i32 across = view.panAcross;
     i32 down = view.panDown;
     Operands operands = this->OperandsOf(run);
+    // The rebuild (deviations.md): the tiles the original's camera pans by, from where it is (Field::original).
+    MapPoint originalBy;
 
     if ((across | down) != 0)
     {
@@ -79,15 +81,21 @@ bool Talk::PanCamera(EventRun& run)
         view.panAcross = across;
         down = static_cast<i16>(operands.Word());
         view.panDown = down;
+        originalBy = {across, down};
     }
     else if (run.code == EventCommand::PanCameraTo)
     {
         // The tiles are those of the 640x480 screen's corner (the rebuild's wider view keeps it in the middle).
         run.valueA = static_cast<i16>(operands.Word());
+        const auto row = static_cast<i16>(operands.Word());
         across = run.valueA - ((field.cameraLeft + field.screenX) >> MapHeader::TileShift);
         view.panAcross = across;
-        down = static_cast<i16>(operands.Word()) - ((field.cameraTop + field.screenY) >> MapHeader::TileShift);
+        down = row - ((field.cameraTop + field.screenY) >> MapHeader::TileShift);
         view.panDown = down;
+        originalBy = {
+            run.valueA - (field.original.x >> MapHeader::TileShift),
+            row - (field.original.y >> MapHeader::TileShift),
+        };
     }
     else
     {
@@ -99,6 +107,15 @@ bool Talk::PanCamera(EventRun& run)
         down = (rect.top - field.cameraTop) >> MapHeader::TileShift;
         view.panAcross = across;
         view.panDown = down;
+        const MapPoint place = field.HoldScreen({
+            (role != nullptr ? role->x : 0) - Display::Width / 2,
+            (role != nullptr ? role->y : 0) - Display::Height / 2,
+        });
+
+        originalBy = {
+            (place.x - field.original.x) >> MapHeader::TileShift,
+            (place.y - field.original.y) >> MapHeader::TileShift,
+        };
     }
 
     run.valueB = static_cast<i32>(operands.Index());  // the operand the steps start at
@@ -106,6 +123,10 @@ bool Talk::PanCamera(EventRun& run)
     i32 stepY = operands.Word();
     view.panStepX = stepX;
     view.panStepY = stepY;
+    field.PanOriginal(
+        {field.original.x + MapHeader::TileSize * originalBy.x, field.original.y + MapHeader::TileSize * originalBy.y},
+        {stepX != 0 ? stepX : kDefaultPanStep, stepY != 0 ? stepY : kDefaultPanStep}
+    );
 
     if (across == 0)
     {
@@ -589,7 +610,9 @@ bool Talk::RunSceneCommand(EventRun& run)
             return this->PanCamera(run);
 
         case EventCommand::WaitPan:
-            if (view.panAcross == 0 && view.panDown == 0 && view.panStepX == 0 && view.panStepY == 0)
+            // The rebuild (deviations.md): with the wider view, also until the original's camera got there.
+            if (view.panAcross == 0 && view.panDown == 0 && view.panStepX == 0 && view.panStepY == 0 &&
+                !(field.WiderView() && field.OriginalPanning()))
             {
                 this->Next(run);
                 return true;

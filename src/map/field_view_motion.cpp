@@ -179,6 +179,7 @@ void FieldView::MotionTick()
     const i32 pixels = motion.speed * motion.elapsed / interval;
     const i32 cameraX = motion.cameraX + motion.scrollAcross * pixels;
     const i32 cameraY = motion.cameraY + motion.scrollDown * pixels;
+    field.MoveOriginal({cameraX - field.cameraLeft, cameraY - field.cameraTop});
     field.cameraRight += cameraX - field.cameraLeft;
     field.cameraBottom += cameraY - field.cameraTop;
     field.cameraLeft = cameraX;
@@ -242,6 +243,7 @@ void FieldView::EndPlayerMotion(bool atFrame)
     const i32 pixels = motion.speed * (motion.elapsed / static_cast<i32>(owner.state.frameInterval));
     const i32 cameraX = motion.cameraX + motion.scrollAcross * pixels;
     const i32 cameraY = motion.cameraY + motion.scrollDown * pixels;
+    field.MoveOriginal({cameraX - field.cameraLeft, cameraY - field.cameraTop});
     field.cameraRight += cameraX - field.cameraLeft;
     field.cameraBottom += cameraY - field.cameraTop;
     field.cameraLeft = cameraX;

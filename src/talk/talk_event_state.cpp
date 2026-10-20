@@ -1492,8 +1492,10 @@ bool Talk::RunSystemCommand(EventRun& run)
         }
 
         case EventCommand::WaitCameraY:
+            // The rebuild (deviations.md): the top of the original's camera with the wider view.
             if ((view.panAcross == 0 && view.panDown == 0) ||
-                field.cameraTop + field.screenY == static_cast<i16>(this->OperandsOf(run).Word()))
+                (field.WiderView() ? field.original.y : field.cameraTop) ==
+                    static_cast<i16>(this->OperandsOf(run).Word()))
             {
                 this->Next(run);
                 return true;

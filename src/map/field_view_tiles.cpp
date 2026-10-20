@@ -286,8 +286,8 @@ void FieldView::DrawTileCanvas(const TileSet& tiles)
 
     if (spotlight)
     {
-        const int lightX = view.spotlightX + field.screenX;
-        const int lightY = view.spotlightY + field.screenY;
+        const int lightX = view.spotlightX + this->originalShift.x;
+        const int lightY = view.spotlightY + this->originalShift.y;
         left = std::max(lightX - Scene::SpotlightRadius, 0);
         top = std::max(lightY - Scene::SpotlightRadius, 0);
         right = std::min(lightX + Scene::SpotlightRadius, right);
