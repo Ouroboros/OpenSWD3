@@ -491,15 +491,16 @@ void Game::SaveRoleStates(i16 x, i16 y)
 
         if ((copy.flags & Role::Follower) == 0)
         {
-            if (copy.unk1C != 0)
+            if (copy.pathNumber != 0)
             {
                 const u8* paths = this->databases.pathData;
                 const std::span<const u8> pathBytes =
                     paths != nullptr ? std::span<const u8>(paths, this->databases.paths.Size()) : std::span<const u8>();
-                const u32 path = PathScript::PathStart(pathBytes, static_cast<std::size_t>(copy.unk1C));
+                const u32 path = PathScript::PathStart(pathBytes, static_cast<std::size_t>(copy.pathNumber));
                 copy.x &= ~MapHeader::TileFraction;
                 copy.y &= ~MapHeader::TileFraction;
-                const std::size_t step = PathScript::WordBytes * static_cast<std::size_t>(static_cast<u32>(copy.unk18));
+                const std::size_t step =
+                    PathScript::WordBytes * static_cast<std::size_t>(static_cast<u32>(copy.pathStep));
 
                 if (PathScript::Word(pathBytes, PathScript::DataAt + path + step) ==
                     static_cast<u16>(PathCommand::Step))
@@ -529,7 +530,7 @@ void Game::SaveRoleStates(i16 x, i16 y)
                         }
                     }
 
-                    ++copy.unk18;
+                    ++copy.pathStep;
                 }
             }
 
@@ -545,7 +546,7 @@ void Game::SaveRoleStates(i16 x, i16 y)
                 x,
                 y,
                 static_cast<i16>(copy.event),
-                static_cast<i16>(copy.unk1C),
+                static_cast<i16>(copy.pathNumber),
                 static_cast<i16>(copy.flags),
                 0,
                 static_cast<i16>(this->currentMap)
@@ -560,7 +561,7 @@ void Game::FollowLeader(int index)
 {
     Role& role = this->state.roles[static_cast<std::size_t>(index)];
 
-    if (role.unk1C != 0)
+    if (role.pathNumber != 0)
     {
         for (MoveRecord& move : this->state.moves)
         {
@@ -1015,12 +1016,12 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
         role.x = MapHeader::TileSize * column;
         role.y = MapHeader::TileSize * row;
         role.event = word(record + MapsRecord::RoleEvent);
-        role.unk1C = word(record + MapsRecord::RolePath);
-        role.unk18 = static_cast<i16>(word(record + MapsRecord::RoleStep));
+        role.pathNumber = word(record + MapsRecord::RolePath);
+        role.pathStep = static_cast<i16>(word(record + MapsRecord::RoleStep));
         role.flags = word(record + MapsRecord::RoleFlags);
         role.talkState = Role::NoTalk;
-        role.unk14 = 0;
-        role.unk20 = 0;
+        role.eventOffset = 0;
+        role.eventCursor = 0;
         this->LoadRoleSound(role);
         this->field.InsertRole(role, static_cast<int>(role.flags & Role::LayerMask));
 
@@ -1150,8 +1151,8 @@ void Game::StoreRole(const Role& role)
         put(MapsRecord::RoleColumn, static_cast<u16>(role.x) >> MapHeader::TileShift);
         put(MapsRecord::RoleRow, static_cast<u16>(role.y) >> MapHeader::TileShift);
         put(MapsRecord::RoleEvent, role.event);
-        put(MapsRecord::RolePath, role.unk1C);
-        put(MapsRecord::RoleStep, static_cast<u32>(role.unk18));
+        put(MapsRecord::RolePath, role.pathNumber);
+        put(MapsRecord::RoleStep, static_cast<u32>(role.pathStep));
         put(MapsRecord::RoleFlags, role.flags);
         return;
     }

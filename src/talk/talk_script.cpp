@@ -650,8 +650,8 @@ bool Talk::SetupDialog(
 bool Talk::SeekScript(Role& context, u32 offset)
 {
     this->game.audioDevice.Serve();
-    context.unk14 = static_cast<i32>(offset);
-    context.unk20 = 0;
+    context.eventOffset = static_cast<i32>(offset);
+    context.eventCursor = 0;
     this->game.databases.story.SeekBegin(static_cast<i32>(offset + Talk::FileHeaderBytes));
     u32 bytes = static_cast<u32>(this->game.databases.script.size());
     this->game.databases.story.Read(this->game.databases.script.data(), bytes);
@@ -683,8 +683,8 @@ bool Talk::OpenScript(Role& context, u32 index)
     );
     u32 offset = 0;
     this->game.databases.story.ReadDword(offset);
-    context.unk14 = static_cast<i32>(offset);
-    context.unk20 = 0;
+    context.eventOffset = static_cast<i32>(offset);
+    context.eventCursor = 0;
     owner.audioDevice.Serve();
     this->game.databases.story.SeekBegin(static_cast<i32>(offset + Talk::FileHeaderBytes));
     u32 bytes = static_cast<u32>(this->game.databases.script.size());

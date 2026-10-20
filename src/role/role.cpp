@@ -19,17 +19,17 @@ void Role::FillUnused()
     ones(this->y);
     this->cell = nullptr;
     ones(this->flags);
-    ones(this->unk14);
-    ones(this->unk18);
-    ones(this->unk1C);
+    ones(this->eventOffset);
+    ones(this->pathStep);
+    ones(this->pathNumber);
     ones(this->event);
-    ones(this->unk20);
-    ones(this->unk22);
+    ones(this->eventCursor);
+    ones(this->pathWait);
     ones(this->id);
     ones(this->talkState);
 
-    ones(this->unk28);
-    ones(this->unk2A);
+    ones(this->drawOffsetX);
+    ones(this->drawOffsetY);
     ones(this->sound);
     ones(this->unk2E);
     ones(this->soundTimer);

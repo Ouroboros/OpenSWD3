@@ -129,7 +129,7 @@ constexpr u16 kOpeningEvent = 100;      // the leader's event of a new story
 constexpr i32 kButtonDelay = 0x10;
 constexpr u32 kButtonLeft = 0x262;
 constexpr u32 kButtonBottom = 0x18;
-constexpr u16 kUnkLeader20Limit = 8;
+constexpr u16 kLeaderCursorLimit = 8;  // the leader's event this far along hides the system button and pointer
 constexpr i32 kCounterHidden = 0x400;
 constexpr i32 kCounterOpaque = 0x10;
 
@@ -1235,7 +1235,7 @@ void Game::StepPointer()
             }
         }
 
-        if (this->state.leader.id != Role::NoId && this->state.leader.unk20 >= kUnkLeader20Limit)
+        if (this->state.leader.id != Role::NoId && this->state.leader.eventCursor >= kLeaderCursorLimit)
         {
             button = false;
         }
@@ -1682,10 +1682,10 @@ void Game::StartStory(int withMap)
     const u32 start = MapsTable(data, MapsDataTable::NewStory);
     const u16 leader = MapsWord(data, start + MapsRecord::NewStoryLeaderAt);
     Role& lead = this->state.leader;
-    lead.unk14 = 0;
+    lead.eventOffset = 0;
     this->partyLeaderId = leader;
     lead.id = leader;
-    lead.unk20 = 0;
+    lead.eventCursor = 0;
     lead.event = kOpeningEvent;
     lead.flags = 0;
     this->scene.musicTunes = {};
@@ -2077,8 +2077,8 @@ void Game::RunTimers()
             game.roles[static_cast<std::size_t>(index)].talkState = Role::NoTalk;
         }
 
-        game.leader.unk14 = 0;
-        game.leader.unk20 = 0;
+        game.leader.eventOffset = 0;
+        game.leader.eventCursor = 0;
         game.leader.event = static_cast<u16>(view.timerEvent);
         game.leader.id = static_cast<u16>(this->partyLeaderId);
         game.leader.flags = 0;

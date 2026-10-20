@@ -120,7 +120,7 @@ void RolePath::Update()
             continue;
         }
 
-        if (role.unk1C == 0)
+        if (role.pathNumber == 0)
         {
             if ((role.flags & Role::StepsAct) == 0 || index == static_cast<u32>(state.playerRole))
             {
@@ -261,7 +261,7 @@ int RolePath::Step(int index)
             this->RoleId(static_cast<u32>(index)),
             role.act.id,
             role.act.action,
-            role.unk1C
+            role.pathNumber
         );
         return RolePath::PathEnded;
     }
@@ -307,7 +307,7 @@ std::size_t RolePath::JumpTo(int index, u32 offset)
 {
     Role& role = this->game.state.roles[static_cast<std::size_t>(index)];
     const std::span<const u8> data = this->game.databases.paths.View();
-    const std::size_t table = PathScript::TargetBytes * static_cast<std::size_t>(role.unk1C);
+    const std::size_t table = PathScript::TargetBytes * static_cast<std::size_t>(role.pathNumber);
     u32 start = 0;
 
     if (PathScript::DataAt + table + PathScript::TargetBytes <= data.size())
@@ -315,8 +315,8 @@ std::size_t RolePath::JumpTo(int index, u32 offset)
         start = PathScript::Dword(data, PathScript::DataAt + table);
     }
 
-    role.unk18 = static_cast<i32>(static_cast<std::ptrdiff_t>(offset) - static_cast<std::ptrdiff_t>(start)) >>
-                 PathScript::StepShift;
+    role.pathStep = static_cast<i32>(static_cast<std::ptrdiff_t>(offset) - static_cast<std::ptrdiff_t>(start)) >>
+                    PathScript::StepShift;
     return PathScript::DataAt + static_cast<std::size_t>(offset);
 }
 
@@ -599,8 +599,8 @@ void RolePath::RunScript(int index)
     };
 
     std::size_t at = PathScript::DataAt +
-                     dword(PathScript::DataAt + PathScript::TargetBytes * static_cast<std::size_t>(role.unk1C)) +
-                     PathScript::WordBytes * static_cast<std::size_t>(role.unk18);
+                     dword(PathScript::DataAt + PathScript::TargetBytes * static_cast<std::size_t>(role.pathNumber)) +
+                     PathScript::WordBytes * static_cast<std::size_t>(role.pathStep);
 
     auto operand = [&data, &at](std::size_t index)
     {
@@ -617,7 +617,7 @@ void RolePath::RunScript(int index)
     auto advance = [&role, &at](int words)
     {
         at += PathScript::WordBytes * static_cast<std::size_t>(words);
-        role.unk18 += words;
+        role.pathStep += words;
     };
 
     auto jump = [this, index, &at](u32 offset)
@@ -641,51 +641,51 @@ void RolePath::RunScript(int index)
         switch (command)
         {
             case PathCommand::Restart:
-                role.unk18 = 0;
+                role.pathStep = 0;
                 return;
 
             case PathCommand::Stop:
-                role.unk1C = 0;
-                role.unk18 = 0;
+                role.pathNumber = 0;
+                role.pathStep = 0;
                 return;
 
             case PathCommand::SetAction:
                 role.act.action = operand(1);
-                role.unk18 += PathScript::CommandWords(1);
+                role.pathStep += PathScript::CommandWords(1);
                 runAct(u8"Act Err(Path:ChangQQ) 設定錯誤 GUID[%d]\nact[%d] qq[%d] dir[%d]");
                 return;
 
             case PathCommand::SetDirection:
                 role.act.direction = operand(1);
-                role.unk18 += PathScript::CommandWords(1);
+                role.pathStep += PathScript::CommandWords(1);
                 runAct(u8"Act Err(Path:chang_dir) 設定錯誤 GUID[%d]\nact[%d] qq[%d] dir[%d]");
                 return;
 
             case PathCommand::SetCount:
-                role.unk22 = operand(1);
+                role.pathWait = operand(1);
                 advance(PathScript::CommandWords(1));
                 continue;
 
             case PathCommand::WaitCount:
-                if (role.unk22 != 0)
+                if (role.pathWait != 0)
                 {
-                    --role.unk22;
+                    --role.pathWait;
                 }
                 else
                 {
-                    ++role.unk18;
+                    ++role.pathStep;
                 }
 
                 return;
 
             case PathCommand::WaitCountAnimated:
-                if (role.unk22 != 0)
+                if (role.pathWait != 0)
                 {
-                    --role.unk22;
+                    --role.pathWait;
                 }
                 else
                 {
-                    ++role.unk18;
+                    ++role.pathStep;
                 }
 
                 runAct(u8"Act Err(Path:Active) 設定錯誤 GUID[%d]\nact[%d] qq[%d] dir[%d]");
@@ -935,15 +935,15 @@ void RolePath::RunScript(int index)
                     }
                 }
 
-                role.unk18 += PathScript::CommandWords(2);
+                role.pathStep += PathScript::CommandWords(2);
                 at += PathScript::WordBytes * PathScript::CommandWords(2);
                 const u16 path = word(at - PathScript::WordBytes);
 
                 if (target < GameState::Roles)
                 {
                     Role& other = state.roles[target];
-                    other.unk1C = path;
-                    other.unk18 = 0;
+                    other.pathNumber = path;
+                    other.pathStep = 0;
 
                     if (target == static_cast<u32>(index))
                     {
@@ -1011,7 +1011,7 @@ void RolePath::RunScript(int index)
                 role.cell = cell < state.map.blocks.size() ? &state.map.blocks[cell] : nullptr;
                 runAct(u8"Act Err(Path:MoveRole) 設定錯誤 GUID[%d]\nact[%d] qq[%d] dir[%d]");
                 owner.field.MarkRoleCells(role, leaderId);
-                role.unk18 += PathScript::CommandWords(2);
+                role.pathStep += PathScript::CommandWords(2);
                 owner.field.RemoveRole(role.id, static_cast<int>(role.flags & Role::LayerMask), 0, 0);
                 return;
             }
@@ -1040,13 +1040,13 @@ void RolePath::RunScript(int index)
                     role.act.direction = operand(3);
                 }
 
-                role.unk18 += PathScript::CommandWords(3);
+                role.pathStep += PathScript::CommandWords(3);
                 runAct(u8"Act Err(Path:TakeActdata) 設定錯誤 GUID[%d]\nact[%d] qq[%d] dir[%d]");
                 return;
 
             case PathCommand::PlaySound:
                 owner.PlaySoundAt(operand(1), role.x, role.y);
-                role.unk18 += PathScript::CommandWords(1);
+                role.pathStep += PathScript::CommandWords(1);
                 return;
 
             case PathCommand::FollowRole:
@@ -1057,7 +1057,7 @@ void RolePath::RunScript(int index)
                 if (!state.FindRoleOrPlayer(operand(1), target) || target >= GameState::Roles)
                 {
                     DebugLog(u8"Path(Follow) 角色不在地圖上 GUID[%d]", operand(1));
-                    role.unk18 += PathScript::CommandWords(1);
+                    role.pathStep += PathScript::CommandWords(1);
                     return;
                 }
 
@@ -1176,7 +1176,7 @@ void RolePath::RunScript(int index)
                     ++end;
                 }
 
-                role.unk18 += static_cast<u16>((end - at + PathScript::WordBytes) / PathScript::WordBytes);
+                role.pathStep += static_cast<u16>((end - at + PathScript::WordBytes) / PathScript::WordBytes);
                 role.label.emplace(
                     data.begin() +
                         static_cast<std::ptrdiff_t>(at + PathScript::WordBytes * PathScript::CommandWords(1)),

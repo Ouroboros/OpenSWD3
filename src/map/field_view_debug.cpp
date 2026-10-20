@@ -225,7 +225,7 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
                 u8"[GUID %d] [Talk %d] [Path %d] [Argu %4x] [ArrIdx %d]",
                 static_cast<u32>(role.id),
                 static_cast<u32>(role.event),
-                static_cast<u32>(role.unk1C),
+                static_cast<u32>(role.pathNumber),
                 role.flags,
                 index
             );

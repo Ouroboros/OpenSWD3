@@ -221,8 +221,8 @@ void Talk::HandlePointer()
             }
 
             Role& leader = state.leader;
-            leader.unk14 = 0;
-            leader.unk20 = 0;
+            leader.eventOffset = 0;
+            leader.eventCursor = 0;
             leader.flags = 0;
             leader.event = static_cast<u16>(region->event & MapRegion::EventMask);
             leader.x = cameraLeft + (state.pointerX & ~MapHeader::TileFraction);
@@ -330,8 +330,8 @@ void Talk::HandlePointer()
     }
 
     Role& leader = state.leader;
-    leader.unk14 = target.unk14;
-    leader.unk20 = target.unk20;
+    leader.eventOffset = target.eventOffset;
+    leader.eventCursor = target.eventCursor;
     leader.event = target.event;
     leader.id = target.id;
     leader.flags = target.flags;

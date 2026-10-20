@@ -1287,8 +1287,8 @@ void Menu::ItemsUse(ItemNode& node)
 
             const Role& player = owner.state.roles[static_cast<std::size_t>(owner.state.playerRole)];
             Role& leader = owner.state.leader;
-            leader.unk14 = 0;
-            leader.unk20 = 0;
+            leader.eventOffset = 0;
+            leader.eventCursor = 0;
             leader.event = kHomeEvent;
             leader.id = kWarpLeader;
             leader.x = player.x;

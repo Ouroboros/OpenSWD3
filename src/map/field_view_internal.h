@@ -219,9 +219,9 @@ constexpr int kHeatNewLengths = 0;
 constexpr int kHeatNewOffsets = 1;
 constexpr int kHeatNewCounts = 2;
 
-constexpr int kMarkBorder = 2;  // the debug marks leave out the first and last row and column
-constexpr i32 kShakeEntry = 2;  // the shake table holds x, y pairs
-constexpr u16 kUnkLeader20Limit = 8;
+constexpr int kMarkBorder = 2;          // the debug marks leave out the first and last row and column
+constexpr i32 kShakeEntry = 2;          // the shake table holds x, y pairs
+constexpr u16 kLeaderCursorLimit = 8;   // the leader's event this far along hides the system button and pointer
 constexpr std::size_t kWhiteColor = 0;  // TextColors::primary
 constexpr std::size_t kRoleLineColor = 3;
 constexpr int kOverlapColumns = 3;  // roles this near the pointer are counted as overlapping it

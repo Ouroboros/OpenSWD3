@@ -29,7 +29,7 @@ struct TalkWindow;
 
 // One pass of the event script (0x00427920): the event role and the locals that last from one command to the next.
 // The original reads the commands through a pointer of its own (`cursor`) beside the offset kept in the role
-// (context.unk20); a few commands move only one of them.
+// (context.eventCursor); a few commands move only one of them.
 struct EventRun
 {
     Role& context;

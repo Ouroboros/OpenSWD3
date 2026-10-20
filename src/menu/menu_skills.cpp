@@ -1878,8 +1878,8 @@ void Menu::Warp(u16 map, u16 x, u16 y, i16 event)
     owner.scene.shake.fill(Scene::ShakeEnd);
     Role& leader = owner.state.leader;
     leader.event = static_cast<u16>(event);
-    leader.unk14 = 0;
-    leader.unk20 = 0;
+    leader.eventOffset = 0;
+    leader.eventCursor = 0;
     leader.id = kWarpLeader;
     leader.flags = player.flags;
     leader.x = player.x;

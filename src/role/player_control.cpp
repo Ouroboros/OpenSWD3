@@ -98,8 +98,8 @@ void RoleControl::Approach(Role& player, Role& other, u32 index, bool walking)
     }
 
     Role& leader = game.state.leader;
-    leader.unk14 = other.unk14;
-    leader.unk20 = other.unk20;
+    leader.eventOffset = other.eventOffset;
+    leader.eventCursor = other.eventCursor;
     leader.event = other.event;
     leader.id = other.id;
     leader.flags = other.flags;
@@ -534,8 +534,8 @@ void RoleControl::ControlPlayer()
                 if (region != nullptr)
                 {
                     const auto facing = static_cast<std::size_t>(player.act.direction) & kDirectionMask;
-                    leader.unk14 = 0;
-                    leader.unk20 = 0;
+                    leader.eventOffset = 0;
+                    leader.eventCursor = 0;
                     leader.event = static_cast<u16>(region->event);
                     leader.id = TalkWindow::NoRole;
                     leader.flags = 0;

@@ -84,9 +84,9 @@ constexpr std::size_t kExtraPlacementAt = 8;
 constexpr std::size_t kExtraNameAt = 0xA;
 
 // The placement word of a role: the layer (Role::LayerMask), bits 8..11 and bits 12..15.
-constexpr int kPlacementUnk2AShift = 8;
-constexpr u16 kPlacementUnk2AMask = 0xF;
-constexpr int kPlacementUnk28Shift = 0xC;
+constexpr int kPlacementOffsetYShift = 8;
+constexpr u16 kPlacementOffsetYMask = 0xF;
+constexpr int kPlacementOffsetXShift = 0xC;
 
 // An overlay: its size in tiles, its rectangle in tiles, its kind and parallax, the unpacked and packed sizes, then
 // the data.
@@ -648,8 +648,8 @@ bool Field::LoadMap(u32 map, u32& systemFlags)
         const u32 flags = (placement & Role::LayerMask) | Role::Visible | Role::StepsAct;
         role.id = Role::NoId;
         role.flags = flags;
-        role.unk28 = static_cast<u16>(placement >> kPlacementUnk28Shift);
-        role.unk2A = static_cast<u16>((placement >> kPlacementUnk2AShift) & kPlacementUnk2AMask);
+        role.drawOffsetX = static_cast<u16>(placement >> kPlacementOffsetXShift);
+        role.drawOffsetY = static_cast<u16>((placement >> kPlacementOffsetYShift) & kPlacementOffsetYMask);
         role.x = MapHeader::TileSize * static_cast<i16>(Word(block, at + kRoleXAt));
         role.y = MapHeader::TileSize * static_cast<i16>(Word(block, at + kRoleYAt));
         role.act.id = 0;
@@ -752,8 +752,8 @@ bool Field::LoadMap(u32 map, u32& systemFlags)
         role.x = Word(block, at + kExtraXAt);
         role.y = Word(block, at + kExtraYAt);
         role.flags = placement & Role::LayerMask;
-        role.unk28 = static_cast<u16>(placement >> kPlacementUnk28Shift);
-        role.unk2A = static_cast<u16>((placement >> kPlacementUnk2AShift) & kPlacementUnk2AMask);
+        role.drawOffsetX = static_cast<u16>(placement >> kPlacementOffsetXShift);
+        role.drawOffsetY = static_cast<u16>((placement >> kPlacementOffsetYShift) & kPlacementOffsetYMask);
         at += kExtraNameAt + StringLength(block, at + kExtraNameAt) + 1;
         role.id = Role::NoId;
         role.x *= MapHeader::TileSize;

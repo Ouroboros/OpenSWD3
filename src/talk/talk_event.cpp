@@ -44,7 +44,7 @@ void Talk::RunEvent(Role& context)
         return;
     }
 
-    if (context.unk14 == 0)
+    if (context.eventOffset == 0)
     {
         Role& player = state.roles[static_cast<std::size_t>(state.playerRole)];
 
@@ -80,8 +80,8 @@ void Talk::RunEvent(Role& context)
         story.SeekBegin(static_cast<i32>(sizeof(u32) * (context.event % Talk::EventsPerFile) + Talk::FileHeaderBytes));
         u32 offset = 0;
         story.ReadDword(offset);
-        context.unk14 = static_cast<i32>(offset);
-        context.unk20 = 0;
+        context.eventOffset = static_cast<i32>(offset);
+        context.eventCursor = 0;
         story.SeekBegin(static_cast<i32>(offset + Talk::FileHeaderBytes));
         std::fill(owner.databases.script.begin(), owner.databases.script.end(), Talk::ScriptFill);
         u32 bytes = static_cast<u32>(owner.databases.script.size());
@@ -96,7 +96,7 @@ void Talk::RunEvent(Role& context)
         owner.audioDevice.Serve();
     }
 
-    EventRun run{context, context.unk20};
+    EventRun run{context, context.eventCursor};
 
     for (;;)
     {
@@ -208,7 +208,7 @@ void Talk::SetWord(EventRun& run, std::size_t index, u16 value)
 void Talk::Advance(EventRun& run, int bytes)
 {
     run.cursor = static_cast<std::size_t>(static_cast<std::ptrdiff_t>(run.cursor) + bytes);
-    run.context.unk20 = static_cast<u16>(run.context.unk20 + bytes);
+    run.context.eventCursor = static_cast<u16>(run.context.eventCursor + bytes);
 }
 
 // Past a command of fixed length (CommandBytes).
@@ -220,7 +220,7 @@ void Talk::Next(EventRun& run)
 // The offset of the role set to where the cursor is.
 void Talk::SyncOffset(EventRun& run)
 {
-    run.context.unk20 = static_cast<u16>(run.cursor);
+    run.context.eventCursor = static_cast<u16>(run.cursor);
 }
 
 // A jump of the leader's script to `offset`, read again from the start.
@@ -407,8 +407,8 @@ void Talk::EndEvent(EventRun& run)
 
             if (run.found < GameState::Roles)
             {
-                state.roles[run.found].unk1C = 0;
-                state.roles[run.found].unk18 = 0;
+                state.roles[run.found].pathNumber = 0;
+                state.roles[run.found].pathStep = 0;
             }
         }
     }
@@ -1239,8 +1239,8 @@ bool Talk::RunRoleCommand(EventRun& run)
             }
 
             role.flags |= Role::StepsAct;
-            role.unk1C = talk;
-            role.unk18 = 0;
+            role.pathNumber = talk;
+            role.pathStep = 0;
             this->Next(run);
             return false;
         }

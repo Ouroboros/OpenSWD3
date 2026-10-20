@@ -104,8 +104,8 @@ int FieldView::DrawRole(Role& role)
     options.unusedFlag = 0;
     options.alpha = role.act.signal;
     painter.SetSource(picture->data.data());
-    const int drawX = x + role.unk28 - role.act.x - cameraLeft;
-    const int drawY = y + role.unk2A - role.act.y - cameraTop;
+    const int drawX = x + role.drawOffsetX - role.act.x - cameraLeft;
+    const int drawY = y + role.drawOffsetY - role.act.y - cameraTop;
     painter.DrawPicture(drawX, drawY, picture->width, picture->height, mode, PictureArgument(*picture));
     int red = 0;
     int green = 0;
@@ -152,8 +152,8 @@ int FieldView::DrawRole(Role& role)
         {
             painter.SetSource(extra->data.data());
             painter.DrawPicture(
-                x + role.unk28 - attached.x - cameraLeft,
-                role.unk2A - attached.y - role.act.y - cameraTop + y + kAttachedDrop,
+                x + role.drawOffsetX - attached.x - cameraLeft,
+                role.drawOffsetY - attached.y - role.act.y - cameraTop + y + kAttachedDrop,
                 extra->width,
                 extra->height,
                 attached.flags
@@ -364,8 +364,8 @@ int FieldView::DrawReflection(const Role& role)
     painter.Options().alpha = kReflectionAlpha;
     painter.SetSource(picture->data.data());
     painter.DrawPicture(
-        x + role.unk28 - role.act.x - field.cameraLeft,
-        role.unk2A - field.cameraTop + role.y + kReflectionDrop,
+        x + role.drawOffsetX - role.act.x - field.cameraLeft,
+        role.drawOffsetY - field.cameraTop + role.y + kReflectionDrop,
         picture->width,
         picture->height,
         (role.act.flags & (Painter::RleSource | Painter::Mirror)) | Painter::Translucent | Painter::Flip

@@ -274,7 +274,7 @@ void FieldView::Paint()
         this->StartRecord(this->interfaceRecord);
     }
 
-    if ((state.leader.id == Role::NoId || state.leader.unk20 < kUnkLeader20Limit) &&
+    if ((state.leader.id == Role::NoId || state.leader.eventCursor < kLeaderCursorLimit) &&
         !state.GameFlag(GameState::HideHud))
     {
         // The rebuild's map filling the window keeps the gold at the bottom right of the canvas (deviations.md).
@@ -716,8 +716,8 @@ void FieldView::Render()
                 if (static_cast<u8>(field.ProbeCells(cell, role.act.width, role.act.height, MapHeader::LeaderCell)) !=
                     0)
                 {
-                    state.leader.unk14 = role.unk14;
-                    state.leader.unk20 = role.unk20;
+                    state.leader.eventOffset = role.eventOffset;
+                    state.leader.eventCursor = role.eventCursor;
                     state.leader.event = role.event;
                     state.leader.id = role.id;
                     state.leader.flags = role.flags;

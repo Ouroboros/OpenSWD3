@@ -51,8 +51,8 @@ u32 Game::LoadRoleRecord(Role& role, u16 id)
         role.x = MapHeader::TileSize * MapsWord(data, at + sizeof(u16) * MapsRecord::RoleColumn);
         role.y = MapHeader::TileSize * MapsWord(data, at + sizeof(u16) * MapsRecord::RoleRow);
         role.event = MapsWord(data, at + sizeof(u16) * MapsRecord::RoleEvent);
-        role.unk1C = MapsWord(data, at + sizeof(u16) * MapsRecord::RolePath);
-        role.unk18 = 0;
+        role.pathNumber = MapsWord(data, at + sizeof(u16) * MapsRecord::RolePath);
+        role.pathStep = 0;
         role.flags = MapsWord(data, at + sizeof(u16) * MapsRecord::RoleFlags);
         return MapsWord(data, at);
     }
@@ -134,8 +134,8 @@ void Game::LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 dire
     role.act.action = action;
     role.act.direction = direction;
     role.event = event;
-    role.unk1C = path;
-    role.unk18 = 0;
+    role.pathNumber = path;
+    role.pathStep = 0;
     role.flags = flags;
     this->UpdateRoleRecord(
         role.id,

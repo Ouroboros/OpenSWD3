@@ -421,14 +421,14 @@ bool Talk::OpenMapMovie(EventRun& run)
     {
         ++run.cursor;
         film.options |= MapMovie::NoFadeIn;
-        ++run.context.unk20;
+        ++run.context.eventCursor;
     }
 
     if (this->Byte(run, 0) == '*')
     {
         ++run.cursor;
         film.options |= MapMovie::DarkenOut;
-        ++run.context.unk20;
+        ++run.context.eventCursor;
     }
 
     constexpr std::size_t kNameBytes = 0x20;  // copied from the script; the copy is 0x400 bytes
@@ -444,13 +444,13 @@ bool Talk::OpenMapMovie(EventRun& run)
 
     while (end + 1 < copy.size() && TextWord(copy, end) != kTextEnd)
     {
-        ++run.context.unk20;
+        ++run.context.eventCursor;
         ++end;
         ++run.cursor;
     }
 
     run.cursor += kWordBytes;
-    run.context.unk20 = static_cast<u16>(run.context.unk20 + kWordBytes);
+    run.context.eventCursor = static_cast<u16>(run.context.eventCursor + kWordBytes);
     copy[end] = 0;
     const std::string name(reinterpret_cast<const char*>(copy.data()), end);
     ErrorLog(u8"Talk:ani_open:cd:%s:%s", std::string(), name);
@@ -1289,7 +1289,7 @@ bool Talk::RunSceneCommand(EventRun& run)
 
             owner.ShowFrame();
             owner.audioDevice.Serve();
-            owner.PlayVideo(run.cursor, run.context.unk20);
+            owner.PlayVideo(run.cursor, run.context.eventCursor);
             return false;
 
         case EventCommand::ChangeHead:
