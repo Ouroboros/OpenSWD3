@@ -101,6 +101,7 @@ RoleFrame::RoleFrame(BattleRole& role)
 // the field fade and the strikes; its result (1 once the attack is over), the draws into `scene`.
 int RoleFrame::AttackAdvance(BattleServices& services, BattleUnit& target, int slot, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->role);
     BattleRole& role = this->role;
     BattleState& battle = services.state;
 
@@ -414,6 +415,7 @@ int RoleFrame::AttackAdvance(BattleServices& services, BattleUnit& target, int s
 // What BattleRole::CastAt decides of the frame; the draws into `scene`.
 int RoleFrame::CastAtAdvance(BattleServices& services, const BattleUnit& target, i32 spell, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->role);
     BattleRole& role = this->role;
     ActState& act = role.standAct;
     act.id = role.actId;
@@ -527,6 +529,7 @@ int RoleFrame::CastAtAdvance(BattleServices& services, const BattleUnit& target,
 // What BattleRole::ThrowAct decides of the frame; the draws into `scene`.
 int RoleFrame::ThrowActAdvance(BattleServices& services, const BattleUnit& target, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->role);
     BattleRole& role = this->role;
     u16 anchorX = 0;
     u16 anchorY = 0;
@@ -631,6 +634,7 @@ int RoleFrame::ThrowActAdvance(BattleServices& services, const BattleUnit& targe
 // What BattleRole::StepBack decides of the frame; the draws into `scene`.
 int RoleFrame::StepBackAdvance(BattleServices& services, int mode, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->role);
     BattleRole& role = this->role;
 
     if (role.defeated == 1)
@@ -735,6 +739,7 @@ int RoleFrame::StepBackAdvance(BattleServices& services, int mode, Scene& scene)
 // What BattleRole::GlowAct decides of the frame; the draws into `scene`.
 int RoleFrame::GlowActAdvance(BattleServices& services, int x, int y, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->role);
     BattleRole& role = this->role;
     ScenePainter painter(services, scene);
     ActState& act = role.attackAct;
@@ -832,6 +837,7 @@ int RoleFrame::GlowActAdvance(BattleServices& services, int x, int y, Scene& sce
 // What BattleRole::CatchAct decides of the frame; the draws into `scene`.
 int RoleFrame::CatchActAdvance(BattleServices& services, const BattleUnit& target, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->role);
     BattleRole& role = this->role;
     u16 anchorX = 0;
     u16 anchorY = 0;
@@ -920,6 +926,7 @@ int RoleFrame::CatchActAdvance(BattleServices& services, const BattleUnit& targe
 // What BattleRole::AttackPose decides of the frame; the draws into `scene`.
 u16 RoleFrame::AttackPoseAdvance(BattleServices& services, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->role);
     BattleRole& role = this->role;
     ActState& act = role.standAct;
     act.id = role.actId;
@@ -996,6 +1003,7 @@ u16 RoleFrame::AttackPoseAdvance(BattleServices& services, Scene& scene)
 // What BattleRole::PoseAtTarget decides of the frame; the draws into `scene`.
 int RoleFrame::PoseAtTargetAdvance(BattleServices& services, const BattleUnit& target, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->role);
     BattleRole& role = this->role;
     u16 targetX = 0;
     u16 targetY = 0;
@@ -1076,6 +1084,7 @@ void RoleFrame::FlyExtraActAdvance(
     Scene& scene
 )
 {
+    const Scene::Owner owner(scene, &this->role);
     BattleRole& role = this->role;
     ActState& act = role.extraActs[static_cast<std::size_t>(slot)];
     i32& count = role.extraSteps[static_cast<std::size_t>(slot)];
@@ -1135,6 +1144,7 @@ void RoleFrame::FlyExtraActAdvance(
 // What BattleRole::DirectAttack decides of the frame; the draws into `scene`.
 int RoleFrame::DirectAttackAdvance(BattleServices& services, BattleUnit& target, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->role);
     BattleRole& role = this->role;
     BattleState& battle = services.state;
     u16 targetX = 0;
@@ -1255,6 +1265,7 @@ int RoleFrame::DirectAttackAdvance(BattleServices& services, BattleUnit& target,
 // What BattleRole::ChargeOnTarget decides of the frame; the draws into `scene`.
 int RoleFrame::ChargeOnTargetAdvance(BattleServices& services, BattleUnit& target, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->role);
     BattleRole& role = this->role;
     ScenePainter painter(services, scene);
     ActState& charge = role.attackAct;
@@ -1403,6 +1414,7 @@ int RoleFrame::ChargeOnTargetAdvance(BattleServices& services, BattleUnit& targe
 // What BattleRole::MagicFrame decides of the frame; the draws into `scene`.
 int RoleFrame::MagicFrameAdvance(BattleServices& services, const BattleUnit& target, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->role);
     BattleRole& role = this->role;
     BattleState& battle = services.state;
     ActState& act = role.slotActs[BattleUnit::UnkSlot8];
@@ -1475,6 +1487,7 @@ int RoleFrame::MagicFrameAdvance(BattleServices& services, const BattleUnit& tar
 // What BattleRole::ChargeAttackFrame decides of the frame; the draws into `scene`.
 int RoleFrame::ChargeAttackFrameAdvance(BattleServices& services, BattleUnit& target, int slot, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->role);
     BattleRole& role = this->role;
     BattleState& battle = services.state;
     ScenePainter painter(services, scene);
@@ -1671,6 +1684,7 @@ int RoleFrame::ChargeAttackFrameAdvance(BattleServices& services, BattleUnit& ta
 // What BattleRole::BoomerangFrame decides of the frame; the draws into `scene`.
 int RoleFrame::BoomerangFrameAdvance(BattleServices& services, BattleUnit& target, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->role);
     BattleRole& role = this->role;
     ScenePainter painter(services, scene);
     ActState& act = role.standAct;
@@ -1803,6 +1817,7 @@ int RoleFrame::BoomerangFrameAdvance(BattleServices& services, BattleUnit& targe
 // What BattleRole::SwarmSpellFrame decides of the frame; the draws into `scene`.
 int RoleFrame::SwarmSpellFrameAdvance(BattleServices& services, BattleUnit& target, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->role);
     BattleRole& role = this->role;
     ActState& magic = role.slotActs[BattleUnit::UnkSlot8];
     u16 targetX = 0;
@@ -1910,6 +1925,7 @@ int RoleFrame::SwarmSpellFrameAdvance(BattleServices& services, BattleUnit& targ
 // What BattleRole::BeamSpellFrame decides of the frame; the draws into `scene`.
 int RoleFrame::BeamSpellFrameAdvance(BattleServices& services, BattleUnit& target, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->role);
     BattleRole& role = this->role;
     BattleState& battle = services.state;
     ScenePainter painter(services, scene);
@@ -2129,6 +2145,7 @@ int RoleFrame::BeamSpellFrameAdvance(BattleServices& services, BattleUnit& targe
 // What BattleRole::LeapSpellFrame decides of the frame; the draws into `scene`.
 int RoleFrame::LeapSpellFrameAdvance(BattleServices& services, BattleUnit& target, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->role);
     BattleRole& role = this->role;
     BattleState& battle = services.state;
     ActState& magic = role.slotActs[BattleUnit::UnkSlot8];
@@ -2192,6 +2209,7 @@ int RoleFrame::LeapSpellFrameAdvance(BattleServices& services, BattleUnit& targe
 // What BattleRole::AbsorbFrame decides of the frame; the draws into `scene`.
 int RoleFrame::AbsorbFrameAdvance(BattleServices& services, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->role);
     BattleRole& role = this->role;
     ParticleEffect& effect = role.absorb;
     ++role.absorbFrames;

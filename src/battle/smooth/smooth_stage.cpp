@@ -9,7 +9,6 @@
 
 #include "battle/battle_hud.h"
 #include "battle/battle_services.h"
-#include "core/divide.h"
 #include "draw/painter.h"
 #include "draw/weave.h"
 #include "platform/display.h"
@@ -22,6 +21,15 @@ namespace
 {
 
 constexpr int kSnapDistance = 0x80;  // a draw farther than this from its place before jumps
+
+// The place on the screen of column (row) `offset` of the render scale's blocks of a draw at `place` that is `back` of
+// its way `by` from its place before: ceil((N x the place - offset) / N), in 64 bits (a place may lie far off).
+int BlockPlace(int place, int by, double back, int scale, int offset)
+{
+    const i64 at = static_cast<i64>(std::llround((place + by * back) * scale)) - offset;
+    const i64 quotient = at / scale;
+    return static_cast<int>(at % scale != 0 && at > 0 ? quotient + 1 : quotient);
+}
 
 // The HUD's number and digit state, which the draws of a frame drawn again set as they draw.
 struct HudKept
@@ -104,13 +112,12 @@ void Stage::PaintBetween(double alpha, Surface& out)
         }
 
         const std::array<int, 2>& place = this->drawn[at].second.at;
-        const auto fineX = static_cast<i32>(std::lround((place[0] + move[0] * back) * this->scale));
-        const auto fineY = static_cast<i32>(std::lround((place[1] + move[1] * back) * this->scale));
 
         for (std::size_t offset = 0; offset < blocks; ++offset)
         {
-            columnPlaces[offset].push_back(CeilDivide(fineX - static_cast<i32>(offset), this->scale));
-            rowPlaces[offset].push_back(CeilDivide(fineY - static_cast<i32>(offset), this->scale));
+            const auto shift = static_cast<int>(offset);
+            columnPlaces[offset].push_back(BlockPlace(place[0], move[0], back, this->scale, shift));
+            rowPlaces[offset].push_back(BlockPlace(place[1], move[1], back, this->scale, shift));
         }
     }
 
@@ -214,6 +221,7 @@ void Stage::Replay()
         this->stepFile = step.file;
         this->stepLine = step.line;
         this->stepStill = step.still;
+        this->stepOwner = step.owner;
         this->stepDraws.clear();
         step.draw(this->services);
     }
@@ -322,7 +330,8 @@ void Stage::Hold(bool held, int x, int y, const void* who)
 
 void Stage::Place(int& x, int& y, const void* site, const void* source)
 {
-    const std::pair<const void*, const void*> code{site, this->holdingWho};
+    const void* who = this->holding ? this->holdingWho : this->stepOwner;
+    const std::pair<const void*, const void*> code{site, who};
     auto counted = std::find_if(
         this->stepDraws.begin(),
         this->stepDraws.end(),
@@ -337,7 +346,7 @@ void Stage::Place(int& x, int& y, const void* site, const void* source)
         counted = this->stepDraws.insert(this->stepDraws.end(), {code, 0});
     }
 
-    const Key key{this->stepFile, this->stepLine, site, this->holdingWho, counted->second++};
+    const Key key{this->stepFile, this->stepLine, site, who, counted->second++};
 
     if (this->measuring)
     {
@@ -351,6 +360,13 @@ void Stage::Place(int& x, int& y, const void* site, const void* source)
     }
 
     const std::array<int, 2>& move = this->moves[this->next++];
+
+    // A draw that does not move stays where it is drawn at any scale (its place may lie far off the screen).
+    if (move[0] == 0 && move[1] == 0)
+    {
+        return;
+    }
+
     const double back = 1.0 - this->share;
 
     if (this->scale == 1)
@@ -360,10 +376,8 @@ void Stage::Place(int& x, int& y, const void* site, const void* source)
         return;
     }
 
-    const auto fineX = static_cast<i32>(std::lround((x + move[0] * back) * this->scale));
-    const auto fineY = static_cast<i32>(std::lround((y + move[1] * back) * this->scale));
-    x = CeilDivide(fineX - this->column, this->scale);
-    y = CeilDivide(fineY - this->row, this->scale);
+    x = BlockPlace(x, move[0], back, this->scale, this->column);
+    y = BlockPlace(y, move[1], back, this->scale, this->row);
 }
 
 }  // namespace swd3::smooth

@@ -2718,6 +2718,7 @@ int UnitFrame::QueuedAdvance(BattleServices& services, BattleUnit& target, i32 a
 
 void UnitFrame::Action(BattleServices& services, const BattleUnit& target, ActState& act, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     ActionView view;
 
     if (this->ActionAdvance(services, target, act, view))
@@ -2733,6 +2734,7 @@ void UnitFrame::Action(BattleServices& services, const BattleUnit& target, ActSt
 
 int UnitFrame::Recoil(BattleServices& services, ActState& act, i16 y, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     PictureSteps steps;
     const int result = this->RecoilAdvance(services, act, y, steps);
     scene.Add(std::move(steps));
@@ -2752,6 +2754,7 @@ int UnitFrame::Fly(
     Scene& scene
 )
 {
+    const Scene::Owner owner(scene, &this->unit);
     PictureSteps draws;
     const int result = this->FlyAdvance(services, target, act, slot, id, fromX, fromY, steps, backwards, draws);
     scene.Add(std::move(draws));
@@ -2769,6 +2772,7 @@ void UnitFrame::Trail(
     Scene& scene
 )
 {
+    const Scene::Owner owner(scene, &this->unit);
     PictureSteps steps;
     this->TrailAdvance(services, trail, frame, picture, mode, x, y, steps);
     scene.Add(std::move(steps));
@@ -2776,6 +2780,7 @@ void UnitFrame::Trail(
 
 int UnitFrame::Queued(BattleServices& services, BattleUnit& target, i32 action, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     PictureSteps steps;
     const int result = this->QueuedAdvance(services, target, action, steps);
     scene.Add(std::move(steps));
@@ -2784,6 +2789,7 @@ int UnitFrame::Queued(BattleServices& services, BattleUnit& target, i32 action, 
 
 int UnitFrame::Home(BattleServices& services, const BattleUnit& target, i32 id, i32 action, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     WalkView view;
     const int result = this->HomeAdvance(services, target, id, action, view);
 
@@ -2802,6 +2808,7 @@ int UnitFrame::Home(BattleServices& services, const BattleUnit& target, i32 id, 
 
 void UnitFrame::Idle(BattleServices& services, int paused, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     IdleView view;
 
     if (!this->IdleAdvance(services, paused, view))
@@ -2834,6 +2841,7 @@ void UnitFrame::Idle(BattleServices& services, int paused, Scene& scene)
 
 void UnitFrame::Walk(BattleServices& services, const BattleUnit& target, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     WalkView view;
 
     if (!this->WalkAdvance(services, target, view))
@@ -2851,6 +2859,7 @@ void UnitFrame::Walk(BattleServices& services, const BattleUnit& target, Scene& 
 
 int UnitFrame::Hurt(BattleServices& services, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     HurtView view;
     int result = 0;
 
@@ -2888,6 +2897,7 @@ int UnitFrame::Hurt(BattleServices& services, Scene& scene)
 
 int UnitFrame::Numbers(BattleServices& services, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     NumbersView view;
     const int result = this->NumbersAdvance(services, view);
     scene.Add(
@@ -2901,6 +2911,7 @@ int UnitFrame::Numbers(BattleServices& services, Scene& scene)
 
 void UnitFrame::Guard(Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     GuardView view;
     this->GuardAdvance(view);
     scene.Add(
@@ -2914,6 +2925,7 @@ void UnitFrame::Guard(Scene& scene)
 // What BattleUnit::DrawActionAt decides of the frame; the draws into `scene`.
 void UnitFrame::DrawActionAtAdvance(BattleServices& services, i16 x, i16 y, ActState& act, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
 
     if (services.acts.Run(act) == 0)
@@ -3025,6 +3037,7 @@ int UnitFrame::DrawAimedAdvance(
     Scene& scene
 )
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
     ScenePainter painter(services, scene);
     u16 targetX = 0;
@@ -3109,6 +3122,7 @@ int UnitFrame::DrawAimedAdvance(
 // What BattleUnit::DrawMainFaded decides of the frame; the draws into `scene`.
 void UnitFrame::DrawMainFadedAdvance(BattleServices& services, int tint, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
     ScenePainter painter(services, scene);
     ActState& act = unit.mainAct;
@@ -3166,6 +3180,7 @@ void UnitFrame::DrawMainFadedAdvance(BattleServices& services, int tint, Scene& 
 // What BattleUnit::FadeMainIn decides of the frame; the draws into `scene`.
 int UnitFrame::FadeMainInAdvance(BattleServices& services, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
     this->DrawMainFadedAdvance(services, unit.brightLevel, scene);
 
@@ -3187,6 +3202,7 @@ int UnitFrame::FadeMainInAdvance(BattleServices& services, Scene& scene)
 // What BattleUnit::FadeMainOut decides of the frame; the draws into `scene`.
 int UnitFrame::FadeMainOutAdvance(BattleServices& services, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
     this->DrawMainFadedAdvance(services, unit.glowLevel, scene);
 
@@ -3208,6 +3224,7 @@ int UnitFrame::FadeMainOutAdvance(BattleServices& services, Scene& scene)
 // What BattleUnit::FadeInvisible decides of the frame; the draws into `scene`.
 int UnitFrame::FadeInvisibleAdvance(BattleServices& services, int mode, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
     ScenePainter painter(services, scene);
     unit.mainAct.hold = 0;
@@ -3287,6 +3304,7 @@ int UnitFrame::FadeInvisibleAdvance(BattleServices& services, int mode, Scene& s
 // What BattleUnit::DrawFadeIn decides of the frame; the draws into `scene`.
 int UnitFrame::DrawFadeInAdvance(BattleServices& services, const BattleUnit& anchor, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
     ScenePainter painter(services, scene);
 
@@ -3389,6 +3407,7 @@ int UnitFrame::DrawFadeInAdvance(BattleServices& services, const BattleUnit& anc
 // What BattleUnit::DrawFadeOut decides of the frame; the draws into `scene`.
 int UnitFrame::DrawFadeOutAdvance(BattleServices& services, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
     ScenePainter painter(services, scene);
 
@@ -3482,6 +3501,7 @@ int UnitFrame::DrawFadeOutAdvance(BattleServices& services, Scene& scene)
 // What BattleUnit::DrawEffectIcons decides of the frame; the draws into `scene`.
 void UnitFrame::DrawEffectIconsAdvance(BattleServices& services, int x, int y, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
     ScenePainter painter(services, scene);
 
@@ -3512,6 +3532,7 @@ void UnitFrame::DrawEffectIconsAdvance(BattleServices& services, int x, int y, S
 // What BattleUnit::RunAway decides of the frame; the draws into `scene`.
 int UnitFrame::RunAwayAdvance(BattleServices& services, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
     ScenePainter painter(services, scene);
     ActState& run = unit.recoilAct;
@@ -3604,6 +3625,7 @@ void UnitFrame::DrawDefeatPieceAdvance(
     Scene& scene
 )
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
     ScenePainter painter(services, scene);
     painter.SetClipClamped(left, top, right, bottom);
@@ -3617,6 +3639,7 @@ void UnitFrame::DrawDefeatPieceAdvance(
 // What BattleUnit::DefeatFadeOut decides of the frame; the draws into `scene`.
 int UnitFrame::DefeatFadeOutAdvance(BattleServices& services, const Picture& picture, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
 
     if (unit.glowLevel <= kFadedOut)
@@ -3646,6 +3669,7 @@ int UnitFrame::DefeatFadeOutAdvance(BattleServices& services, const Picture& pic
 // What BattleUnit::DefeatFill decides of the frame; the draws into `scene`.
 int UnitFrame::DefeatFillAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
 
     if (unit.glowLevel >= picture.height)
@@ -3684,6 +3708,7 @@ int UnitFrame::DefeatFillAdvance(BattleServices& services, const Picture& pictur
 // What BattleUnit::DefeatHalves decides of the frame; the draws into `scene`.
 int UnitFrame::DefeatHalvesAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
     ScenePainter painter(services, scene);
 
@@ -3747,6 +3772,7 @@ int UnitFrame::DefeatHalvesAdvance(BattleServices& services, const Picture& pict
 // What BattleUnit::DefeatHop decides of the frame; the draws into `scene`.
 int UnitFrame::DefeatHopAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
 
     if (unit.glowLevel >= static_cast<i16>(BattleUnit::HopHeights.size()))
@@ -3779,6 +3805,7 @@ int UnitFrame::DefeatHopAdvance(BattleServices& services, const Picture& picture
 // What BattleUnit::DefeatQuarters decides of the frame; the draws into `scene`.
 int UnitFrame::DefeatQuartersAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
     ScenePainter painter(services, scene);
 
@@ -3848,6 +3875,7 @@ int UnitFrame::DefeatQuartersAdvance(BattleServices& services, const Picture& pi
 // What BattleUnit::DefeatRising decides of the frame; the draws into `scene`.
 int UnitFrame::DefeatRisingAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
 
     if (unit.glowLevel > kRisingEnd)
@@ -3873,6 +3901,7 @@ int UnitFrame::DefeatRisingAdvance(BattleServices& services, const Picture& pict
 // What BattleUnit::DefeatSink decides of the frame; the draws into `scene`.
 int UnitFrame::DefeatSinkAdvance(BattleServices& services, const Picture& picture, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
 
     if (unit.glowLevel <= kFadedOut)
@@ -3913,6 +3942,7 @@ int UnitFrame::DefeatSinkAdvance(BattleServices& services, const Picture& pictur
 // What BattleUnit::DefeatSlide decides of the frame; the draws into `scene`.
 int UnitFrame::DefeatSlideAdvance(BattleServices& services, const Picture& picture, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
 
     if (unit.glowLevel <= kFadedOut)
@@ -3947,6 +3977,7 @@ int UnitFrame::DefeatSlideAdvance(BattleServices& services, const Picture& pictu
 // What BattleUnit::DefeatSplitColumns decides of the frame; the draws into `scene`.
 int UnitFrame::DefeatSplitColumnsAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
     ScenePainter painter(services, scene);
 
@@ -3991,6 +4022,7 @@ int UnitFrame::DefeatSplitColumnsAdvance(BattleServices& services, const Picture
 // What BattleUnit::DefeatSplitRows decides of the frame; the draws into `scene`.
 int UnitFrame::DefeatSplitRowsAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
     ScenePainter painter(services, scene);
 
@@ -4035,6 +4067,7 @@ int UnitFrame::DefeatSplitRowsAdvance(BattleServices& services, const Picture& p
 // What BattleUnit::DefeatStrips decides of the frame; the draws into `scene`.
 int UnitFrame::DefeatStripsAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
     ScenePainter painter(services, scene);
 
@@ -4104,6 +4137,7 @@ int UnitFrame::DefeatStripsAdvance(BattleServices& services, const Picture& pict
 // What BattleUnit::DefeatWave decides of the frame; the draws into `scene`.
 int UnitFrame::DefeatWaveAdvance(BattleServices& services, const Picture& picture, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
 
     if (unit.glowLevel >= kWaveEnd)
@@ -4134,6 +4168,7 @@ int UnitFrame::DefeatWaveAdvance(BattleServices& services, const Picture& pictur
 // What BattleUnit::DefeatZoom decides of the frame; the draws into `scene`.
 int UnitFrame::DefeatZoomAdvance(BattleServices& services, const Picture& picture, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
 
     if (unit.glowLevel >= kZoomEnd)
@@ -4176,6 +4211,7 @@ int UnitFrame::DefeatZoomAdvance(BattleServices& services, const Picture& pictur
 // What BattleUnit::RunDefeatParticles decides of the frame; the draws into `scene`.
 int UnitFrame::RunDefeatParticlesAdvance(BattleServices& services, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
 
     if (ExplosionFrame(services.state.projector)
@@ -4190,6 +4226,7 @@ int UnitFrame::RunDefeatParticlesAdvance(BattleServices& services, Scene& scene)
 // What BattleUnit::DefeatBurst decides of the frame; the draws into `scene`.
 int UnitFrame::DefeatBurstAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
 
     if (unit.glowLevel == kParticlesDone)
@@ -4251,6 +4288,7 @@ int UnitFrame::DefeatBurstAdvance(BattleServices& services, const Picture& pictu
 // What BattleUnit::DefeatParticles decides of the frame; the draws into `scene`.
 int UnitFrame::DefeatParticlesAdvance(BattleServices& services, const Picture& picture, int x, int y, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
 
     if (unit.glowLevel == kParticlesDone)
@@ -4345,6 +4383,7 @@ int UnitFrame::DefeatParticlesAdvance(BattleServices& services, const Picture& p
 // What BattleUnit::DefeatProjected decides of the frame; the draws into `scene`.
 int UnitFrame::DefeatProjectedAdvance(BattleServices& services, const Picture& picture, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
 
     if (unit.glowLevel >= kParticlesDone)
@@ -4401,6 +4440,7 @@ int UnitFrame::DefeatProjectedAdvance(BattleServices& services, const Picture& p
 // What BattleUnit::DrainEffectFrame decides of the frame; the draws into `scene`.
 int UnitFrame::DrainEffectFrameAdvance(BattleServices& services, int slot, Scene& scene)
 {
+    const Scene::Owner owner(scene, &this->unit);
     BattleUnit& unit = this->unit;
     ParticleEffect& effect = unit.drains[static_cast<std::size_t>(slot)];
     effect.tintRed = kDrainTint;

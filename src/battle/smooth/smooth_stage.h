@@ -81,6 +81,7 @@ private:
     const char* stepFile = nullptr;
     u32 stepLine = 0;
     bool stepStill = false;
+    const void* stepOwner = nullptr;
     // The draws of the step so far, by where they are called and what they show.
     std::vector<std::pair<std::pair<const void*, const void*>, u32>> stepDraws;
     bool holding = false;  // Hold

@@ -105,6 +105,20 @@ public:
         Scene& scene;
     };
 
+    // The draws added while it lives are `who`'s (a unit): between game frames they are taken only for its own.
+    class Owner
+    {
+    public:
+        Owner(Scene& scene, const void* who);
+        ~Owner();
+        Owner(const Owner&) = delete;
+        Owner& operator=(const Owner&) = delete;
+
+    private:
+        Scene& scene;
+        const void* outer = nullptr;
+    };
+
 private:
     struct Step
     {
@@ -112,10 +126,12 @@ private:
         const char* file = nullptr;
         u32 line = 0;
         bool still = false;
+        const void* owner = nullptr;
     };
 
     std::vector<Step> steps;
     int stillDepth = 0;
+    const void* owner = nullptr;
 };
 
 // What a part deciding a frame draws with in place of the painter: each call adds to the scene, in its order, what the

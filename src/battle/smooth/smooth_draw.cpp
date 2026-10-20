@@ -90,7 +90,7 @@ void DrawSteps(BattleServices& services, const PictureSteps& steps)
 
 void Scene::Add(Draw draw, Where where)
 {
-    this->steps.push_back(Step{std::move(draw), where.file_name(), where.line(), this->stillDepth > 0});
+    this->steps.push_back(Step{std::move(draw), where.file_name(), where.line(), this->stillDepth > 0, this->owner});
 }
 
 void Scene::Add(PictureSteps steps, Where where)
@@ -166,6 +166,18 @@ Scene::Still::Still(Scene& scene)
 Scene::Still::~Still()
 {
     --this->scene.stillDepth;
+}
+
+Scene::Owner::Owner(Scene& scene, const void* who)
+    : scene(scene),
+      outer(scene.owner)
+{
+    this->scene.owner = who;
+}
+
+Scene::Owner::~Owner()
+{
+    this->scene.owner = this->outer;
 }
 
 ScenePainter::ScenePainter(BattleServices& services, Scene& scene, Scene::Where where)
