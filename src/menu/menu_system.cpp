@@ -390,7 +390,7 @@ void Menu::SystemFrame()
     }
 }
 
-// swd32.exe 0x00448BB0: on the settings a step past the last row falls back to row 4
+// swd32.exe 0x00448BB0: on the settings a step past the last row falls back to row 4 (the rebuild stops at the last)
 void Menu::SystemDown()
 {
     if (this->systemState == kEntries)
@@ -402,10 +402,11 @@ void Menu::SystemDown()
     }
     else if (this->systemState == kSettings)
     {
-        // The original falls back to the row before its last (the rebuild's display setup is the last now).
+        // The original falls back to the row before its last, so a held key swings between the last two; the rebuild
+        // stops at the last, as the settings of the system tab do (deviations.md).
         if (++this->systemRow > kDisplayRow)
         {
-            this->systemRow = kDisplayRow - 1;
+            this->systemRow = kDisplayRow;
         }
     }
     else if (this->systemState == kDisplaySettings && ++this->systemRow > kDisplayBackRow)
