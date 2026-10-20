@@ -127,6 +127,21 @@ void FieldView::PanCamera()
         return;
     }
 
+    // The rebuild (deviations.md): the wider view's edges are not on whole tiles, so the pan the story command held
+    // inside the map may be no multiple of its step, or against it, and would never end. Each step goes toward what is
+    // left of the pan, at most all of it.
+    if (field.WiderView())
+    {
+        auto toward = [](i32 left, i32 step)
+        {
+            const i32 most = std::min(std::max(std::abs(step), 1), std::abs(left));
+            return left < 0 ? -most : most;
+        };
+
+        view.panStepX = toward(view.panAcross, view.panStepX);
+        view.panStepY = toward(view.panDown, view.panStepY);
+    }
+
     // The rebuild's continuous motion moves the camera by the step over the frame instead (StartPan).
     if (this->game.smoothMotion)
     {
