@@ -420,7 +420,7 @@ bool Field::WiderView() const
     return this->viewWidth != Display::Width || this->viewHeight != Display::Height;
 }
 
-MapPoint Field::HoldScreen(MapPoint place) const
+Point Field::HoldScreen(Point place) const
 {
     return {
         HoldPlace(place.x, MapHeader::TileSize * this->state.map.width, Display::Width, false),
@@ -428,13 +428,13 @@ MapPoint Field::HoldScreen(MapPoint place) const
     };
 }
 
-void Field::MoveOriginal(MapPoint by)
+void Field::MoveOriginal(Point by)
 {
     this->original = this->HoldScreen({this->original.x + by.x, this->original.y + by.y});
     this->originalPan = this->HoldScreen({this->originalPan.x + by.x, this->originalPan.y + by.y});
 }
 
-void Field::PanOriginal(MapPoint to, MapPoint step)
+void Field::PanOriginal(Point to, Point step)
 {
     this->originalPan = this->HoldScreen(to);
     this->originalPanStep = {std::abs(step.x), std::abs(step.y)};

@@ -205,7 +205,7 @@ public:
     std::array<i32, 2> shakeShift{};  // the quake's offset of the camera in the frame shown
     // Where the original's 640x480 screen lies on the canvas in the frame shown (Field::original less the camera): the
     // story's screen places (its animations, the spotlight) are drawn from there.
-    MapPoint originalShift;
+    Point originalShift;
 
 private:
     struct TileSet;

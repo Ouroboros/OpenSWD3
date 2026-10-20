@@ -68,7 +68,7 @@ bool Talk::PanCamera(EventRun& run)
     i32 down = view.panDown;
     Operands operands = this->OperandsOf(run);
     // The rebuild (deviations.md): the tiles the original's camera pans by, from where it is (Field::original).
-    MapPoint originalBy;
+    Point originalBy;
 
     if ((across | down) != 0)
     {
@@ -107,7 +107,7 @@ bool Talk::PanCamera(EventRun& run)
         down = (rect.top - field.cameraTop) >> MapHeader::TileShift;
         view.panAcross = across;
         view.panDown = down;
-        const MapPoint place = field.HoldScreen({
+        const Point place = field.HoldScreen({
             (role != nullptr ? role->x : 0) - Display::Width / 2,
             (role != nullptr ? role->y : 0) - Display::Height / 2,
         });
