@@ -14,9 +14,10 @@ void FieldView::DrawAnimations(std::unique_ptr<ScriptAnimation>& list)
     while (*link != nullptr)
     {
         ScriptAnimation& animation = **link;
-        // 0x0041486B, 0x00414898: the place words are zero-extended (xor, mov cx, [esi]).
-        const int x = static_cast<u16>(animation.x);
-        const int y = static_cast<u16>(animation.y);
+        // 0x0041486B, 0x00414898: the place words are zero-extended (xor, mov cx, [esi]). They are places on the
+        // 640x480 screen, which lies in the middle of the rebuild's wider map canvas (deviations.md).
+        const int x = static_cast<u16>(animation.x) + owner.field.screenX;
+        const int y = static_cast<u16>(animation.y) + owner.field.screenY;
 
         if (this->replaying)
         {
