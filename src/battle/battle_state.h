@@ -407,7 +407,7 @@ public:
     i32 unk53BCDC = 0;
     i32 unk53C01C = 0;
     std::array<u16, Units> escortCalled = {};  // 0x0052137C per unit: the escort place it called
-    u16 callingEscort = 0;                     // the escort being called (the low word of 0x0053BF24)
+    u16 callingEscort = 0;                     // 0x0053BF24 the escort being called (its low word)
     i32 levelUpPending = 0;                    // 0x0053C038 a level-up to show at the end
     u16 unk53BF1C = 0;
     i32 unk53C024 = 0;
@@ -527,9 +527,8 @@ public:
     // The end of the battle (Game::CheckBattleEnd, Game::DrawBattlePrompt).
     i32 blackFade = 0;    // 0x0053C4A8 the fade of the field to black, 2 darker a frame
     i32 frameResult = 0;  // 0x0053BDC8 the result of the battle frame (1 runs on; the end CheckBattleEnd set)
-    std::array<u16, 3> givenBack =
-        {};                // 0x004FF2EA [1], [2]: objects given back when the battle ends (set by 0x0045EC60)
-    i32 promptFrames = 0;  // 0x0053BDA8 frames of the prompt
+    std::array<u16, 3> givenBack = {};  // 0x004FF2EA [1], [2]: objects given back at the end (set by 0x0045EC60)
+    i32 promptFrames = 0;               // 0x0053BDA8 frames of the prompt
     i32 unk53BDAC = 0;
     i32 unk53BFBC = 0;
     i32 turnPointer = 1;  // 0x004A7640 1: the pointer shows the turn mark
