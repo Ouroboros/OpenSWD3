@@ -1131,7 +1131,7 @@ int Game::FightTalkSkill()
     return 1;
 }
 
-// A defeated role target of a talk order passes to a random standing role that is not unk2B00 or a guest (inline in
+// A defeated role target of a talk order passes to a random standing role that is not autoControl or a guest (inline in
 // 0x00469D20, commands 9 and 0x17; the original draws for ever when none qualifies).
 void Game::TalkStandingRole(i32& unit)
 {
@@ -1151,9 +1151,9 @@ void Game::TalkStandingRole(i32& unit)
             {
                 unit = static_cast<i32>(this->random.Below(battle.roleCount)) + BattleState::FirstRoleUnit;
             }
-        } while (this->battleRoles[static_cast<std::size_t>(unit - BattleState::FirstRoleUnit)].unk2B00 == 1 ||
+        } while (this->battleRoles[static_cast<std::size_t>(unit - BattleState::FirstRoleUnit)].autoControl == 1 ||
 
-                 this->battleRoles[static_cast<std::size_t>(unit - BattleState::FirstRoleUnit)].unk2B04 == 1);
+                 this->battleRoles[static_cast<std::size_t>(unit - BattleState::FirstRoleUnit)].guestControl == 1);
     }
 }
 
@@ -1886,7 +1886,7 @@ int Game::FightTalkMirror()
     for (u32 index = 0; index < battle.roleCount; ++index)
     {
         BattleRole& role = this->battleRoles[index];
-        role.SetFacing(role.unk2B04 == 1 ? 0 : 1);
+        role.SetFacing(role.guestControl == 1 ? 0 : 1);
         mirror(role);
         i32& panelX = battle.panelPlaces[2 * index];
         panelX = kMirroredPanelSpan - panelX;

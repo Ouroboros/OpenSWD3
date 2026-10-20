@@ -1489,7 +1489,7 @@ void TurnFrame::DrawVictoryPanelAdvance(Scene& scene)
         {
             BattleRole& role = game.battleRoles[index];
 
-            if (role.unk2B00 == 1 || role.unk2B04 == 1 || role.IsDefeated())
+            if (role.autoControl == 1 || role.guestControl == 1 || role.IsDefeated())
             {
                 continue;
             }

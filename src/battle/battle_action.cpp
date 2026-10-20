@@ -1477,11 +1477,11 @@ int Game::SelfHitFrame(BattleRole& unit, int command)
 
 // swd32.exe 0x00456680: one frame of battle role `role`; 1 always. It is drawn at rest (its acts holding while the
 // field is darkened with word 2A74, or while paused). While the fight talk lets the battle run its effects tick and
-// its gauge steps; a full gauge regenerates it and, for an AI role (unk2B00, a guest unk2B04), chooses its command at
-// a random standing enemy (none: the turn resets), for a party role queues it (roleOrder; one kept from acting takes
-// its turn at once). The first queued role not held takes the panel. A role waiting with its order (RoleTakeOrder)
-// is slotted; its order runs (RoleOrderFrame) and the acting role acts (RoleActFrame). Unless it waits, a retreat
-// (unk53BF1C) steps the roles back (RoleRetreatFrame). A defeat is taken out.
+// its gauge steps; a full gauge regenerates it and, for an AI role (autoControl, a guest guestControl), chooses its
+// command at a random standing enemy (none: the turn resets), for a party role queues it (roleOrder; one kept from
+// acting takes its turn at once). The first queued role not held takes the panel. A role waiting with its order
+// (RoleTakeOrder) is slotted; its order runs (RoleOrderFrame) and the acting role acts (RoleActFrame). Unless it waits,
+// a retreat (unk53BF1C) steps the roles back (RoleRetreatFrame). A defeat is taken out.
 int Game::RoleFrame(int role)
 {
     BattleState& battle = this->battleState;
@@ -1500,7 +1500,7 @@ int Game::RoleFrame(int role)
         {
             unit.Regenerate(services);
 
-            if (unit.unk2B00 == 1 || unit.unk2B04 == 1)
+            if (unit.autoControl == 1 || unit.guestControl == 1)
             {
                 this->RoleAutoCommand(unit, role);
             }
@@ -1578,7 +1578,7 @@ int Game::RoleFrame(int role)
         }
     }
 
-    if (battle.hitsAllRoles == 0 && !unit.IsDefeated() && unit.unk2B04 == 0 && unit.unk2B00 == 0)
+    if (battle.hitsAllRoles == 0 && !unit.IsDefeated() && unit.guestControl == 0 && unit.autoControl == 0)
     {
         this->RoleRetreatFrame(unit, role);
     }
@@ -1649,16 +1649,16 @@ void Game::RoleAutoCommand(BattleRole& unit, int role)
 }
 
 // The order of a role whose target is set in RoleFrame (inline in the original). A sweep order (unk04) gathers its
-// targets: the roles in battle standing not unk2B00/unk2B04 or StatusBit13 (unk53BFD0), or the enemies standing without
-// a pending removal (the count in unk10), and with every one gathered aims at the last role or the first enemy
-// standing (unk53BF80); the order then takes its command (RoleTakeOrder). A single order takes its command at its aim:
-// a role (unk00: aimTarget, 1-based), an AI role's random enemy (aiTarget) or the menu's enemy (aimTarget).
+// targets: the roles in battle standing not autoControl/guestControl or StatusBit13 (unk53BFD0), or the enemies
+// standing without a pending removal (the count in unk10), and with every one gathered aims at the last role or the
+// first enemy standing (unk53BF80); the order then takes its command (RoleTakeOrder). A single order takes its command
+// at its aim: a role (unk00: aimTarget, 1-based), an AI role's random enemy (aiTarget) or the menu's enemy (aimTarget).
 void Game::RoleOrderFrame(BattleRole& unit, int role)
 {
     BattleState& battle = this->battleState;
     const auto at = static_cast<std::size_t>(role);
     PendingOrder& order = battle.pendingOrders[at];
-    const bool automatic = unit.unk2B00 != 0 || unit.unk2B04 != 0;
+    const bool automatic = unit.autoControl != 0 || unit.guestControl != 0;
 
     auto taken = [&battle]
     {
@@ -1748,7 +1748,8 @@ void Game::RoleGatherSweep(BattleRole& unit, PendingOrder& order)
         {
             BattleRole& other = this->battleRoles[index];
 
-            if (other.unk2B00 != 1 && other.unk2B04 != 1 && other.StatusBit13() != 1 && unit.GetValueAB4() == 0)
+            if (other.autoControl != 1 && other.guestControl != 1 && other.StatusBit13() != 1 &&
+                unit.GetValueAB4() == 0)
             {
                 other.SetAC0(0);
                 ++order.unk10;
@@ -1827,7 +1828,7 @@ void Game::RoleTakeOrder(BattleRole& unit, int role)
         return;
     }
 
-    if (unit.unk2B00 != 0 || unit.unk2B04 != 0)
+    if (unit.autoControl != 0 || unit.guestControl != 0)
     {
         battle.unk53BF60 = 0;
         unit.SetTarget(0);

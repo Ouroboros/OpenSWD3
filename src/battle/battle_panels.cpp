@@ -12,7 +12,7 @@
 namespace swd3
 {
 
-// swd32.exe 0x00459D10: the battle panels. The units with unk2B00 set are listed in boxes (name, hit points, gauge;
+// swd32.exe 0x00459D10: the battle panels. The units with autoControl set are listed in boxes (name, hit points, gauge;
 // the last one glows while listGlow is on). Every other role in battle that is not guarding gets its panel: the
 // highlight of the current role, the name or its gauge, the portrait and effect icons, the block gauge (with the
 // arrow), and the hit point, spirit and stamina gauges and numbers moving towards their values. With the automatic

@@ -371,7 +371,7 @@ void BattleFrame::DrawRolePanelsAdvance(Scene& scene)
         BattleRole& unit = game.battleRoles[static_cast<std::size_t>(index)];
         const int x = battle.mirrored == 1 ? kMirroredListX : kListX;
 
-        if (unit.unk2B00 != 1)
+        if (unit.autoControl != 1)
         {
             continue;
         }
@@ -424,7 +424,7 @@ void BattleFrame::DrawRolePanelsAdvance(Scene& scene)
         const auto slot = static_cast<std::size_t>(index);
         BattleRole& unit = game.battleRoles[slot];
 
-        if (unit.unk2B00 == 1 || unit.unk2B04 == 1 || unit.IsGuarding())
+        if (unit.autoControl == 1 || unit.guestControl == 1 || unit.IsGuarding())
         {
             continue;
         }

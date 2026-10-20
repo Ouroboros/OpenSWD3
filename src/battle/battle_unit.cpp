@@ -138,7 +138,7 @@ void BattleUnit::GetOffset(u16& x, u16& y) const
     x = this->mainAct.anchorX;
     y = this->mainAct.anchorY;
 
-    if ((this->unk2A86 & BattleUnit::UnkCommandFlag200) != 0)
+    if ((this->commandFlags & BattleUnit::UnkCommandFlag200) != 0)
     {
         x = this->slotActs[BattleUnit::UnkSlot8].anchorX;
         y = this->slotActs[BattleUnit::UnkSlot8].anchorY;
@@ -311,11 +311,11 @@ int BattleUnit::SetCommand(int command)
 {
     if (command == BattleUnit::UnkCommand14 || command == BattleUnit::UnkCommand15)
     {
-        this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag4000);
+        this->commandFlags = static_cast<u16>(this->commandFlags | BattleUnit::UnkCommandFlag4000);
     }
     else if (command == BattleUnit::UnkCommand6)
     {
-        this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag800);
+        this->commandFlags = static_cast<u16>(this->commandFlags | BattleUnit::UnkCommandFlag800);
     }
     else if (
         command != BattleUnit::UnkCommand2 && command != BattleUnit::UnkCommand13 && command != BattleUnit::UnkCommand3
@@ -408,7 +408,7 @@ int BattleUnit::ResetTurn(BattleServices& services)
     this->unk2AE0 = 0;
     this->unk2B14 = 0;
     this->unk2A8C = 0;
-    this->unk2A86 = 0;
+    this->commandFlags = 0;
     this->unk2AC8 = 0;
     this->unk2AD4 = 0;
     this->unk2ACC = 0;
@@ -428,10 +428,10 @@ int BattleUnit::ResetTurn(BattleServices& services)
     this->action = 0;
     this->unk2690 = 0;
     this->unk2670 = 0;
-    this->unk2A8A = 0;
-    this->unk29A6 = 0;
-    this->unk29A8 = 0;
-    this->unk29AA = 0;
+    this->magicAction = 0;
+    this->restoreHitPoints = 0;
+    this->restoreSpirit = 0;
+    this->restoreStamina = 0;
     this->mainAct.anchorX = 0;
     this->mainAct.anchorY = 0;
     this->unk26CC = 0;
@@ -448,12 +448,12 @@ int BattleUnit::ResetTurn(BattleServices& services)
         this->marks = static_cast<u16>((this->marks & ~BattleUnit::UnkMark8) | BattleUnit::UnkMark200);
     }
 
-    if (this->unk2B00 == 1)
+    if (this->autoControl == 1)
     {
         this->guarding = 1;
     }
 
-    if (this->unk2B04 == 1)
+    if (this->guestControl == 1)
     {
         this->placement = this->savedPlacement;
     }
@@ -576,7 +576,7 @@ u16 BattleUnit::GetWordDA6() const
 // swd32.exe 0x0047C690: unless flag 2 of +0x2A87 is set
 void BattleUnit::MarkAC8()
 {
-    if ((this->unk2A86 & BattleUnit::UnkCommandFlag200) == 0)
+    if ((this->commandFlags & BattleUnit::UnkCommandFlag200) == 0)
     {
         this->unk2AC8 = 1;
     }
@@ -1011,14 +1011,14 @@ void BattleUnit::SetLevel(i16 level)
 // swd32.exe 0x0047DAB0
 int BattleUnit::SetB00(int value)
 {
-    this->unk2B00 = value;
+    this->autoControl = value;
     return value;
 }
 
 // swd32.exe 0x0047DAC0
 int BattleUnit::SetB04(int value)
 {
-    this->unk2B04 = value;
+    this->guestControl = value;
     return value;
 }
 
@@ -1042,7 +1042,7 @@ constexpr u32 kAttackDownIgnored = 0x100;  // unk26CC bit: AttackDown does not c
 constexpr u32 kLevelShare = 3;             // the attack roll is 1..level / kLevelShare + kLevelRollBase
 constexpr u32 kLevelRollBase = 3;
 constexpr int kAttackBuffPercent = 30;
-constexpr int kEnragedPercent = 60;  // an enraged attack: 60% plus unk26DC percent of 40%
+constexpr int kEnragedPercent = 60;  // an enraged attack: 60% plus proficiency percent of 40%
 constexpr int kEnragedSharePercent = 40;
 constexpr double kBladeScale = 2.5;  // swd32.exe 0x00499D38
 constexpr int kSkillScaleShare = 3;
@@ -1133,7 +1133,7 @@ constexpr u32 kSecondItemRoll = 7;  // the second
 constexpr u32 kFirstSkillRoll = 6;
 constexpr u8 kItemWaitTurns = 7;
 constexpr u8 kSkillWaitTurns = 5;
-constexpr u32 kNoForcedStatus = 0x10000000;  // in UnitCommand::unk08: a forced unit (unk2B00) does not choose it
+constexpr u32 kNoForcedStatus = 0x10000000;  // in UnitCommand::unk08: a forced unit (autoControl) does not choose it
 constexpr i32 kFirstItemAction = 0x2C;       // the ready poses of an act kReadyAct by the object used
 constexpr i32 kSecondItemAction = 0x2D;
 constexpr i32 kThirdItemAction = 0x2E;
@@ -2074,7 +2074,7 @@ int BattleUnit::Damage(BattleServices& services, int hitPoints, i16 spirit, i16 
     record.hitPoints = 0;
     this->dying = 1;
 
-    if (this->unk2B00 == 1)
+    if (this->autoControl == 1)
     {
         this->defeatPose = kFallbackDefeatPose;
     }
@@ -2178,7 +2178,7 @@ void BattleUnit::Reset(BattleServices& services)
     this->unk2A93 = 0;
     this->defeatPose = 0;
     this->fixedPose = 0;
-    this->unk2A86 = 0;
+    this->commandFlags = 0;
     this->idleTurns = 0;
     this->itemWait = 0;
     this->skillWait = 0;
@@ -2196,7 +2196,7 @@ void BattleUnit::Reset(BattleServices& services)
     this->outline = 0;
     this->charging = 0;
     this->unk2AC8 = 0;
-    this->unk267C = 0;
+    this->stage = 0;
     this->held = 0;
     this->unk2AD4 = 0;
     this->unk2AD8 = 0;
@@ -2212,8 +2212,8 @@ void BattleUnit::Reset(BattleServices& services)
     this->unk2ACC = 0;
     this->unk2AF8 = 0;
     this->absorbing = 0;
-    this->unk2B00 = 0;
-    this->unk2B04 = 0;
+    this->autoControl = 0;
+    this->guestControl = 0;
     this->facing = 0;
     this->unk2B0C = 0;
     this->unk2B20 = 0;
@@ -2500,13 +2500,13 @@ bool BattleUnit::HasBlock38() const
 // swd32.exe 0x004717D0
 int BattleUnit::Word2A86Bit13() const
 {
-    return (this->unk2A86 & BattleUnit::UnkCommandFlag2000) != 0 ? 1 : 0;
+    return (this->commandFlags & BattleUnit::UnkCommandFlag2000) != 0 ? 1 : 0;
 }
 
 // swd32.exe 0x004717E0
 int BattleUnit::Word2A86Bit12() const
 {
-    return (this->unk2A86 & BattleUnit::UnkCommandFlag1000) != 0 ? 1 : 0;
+    return (this->commandFlags & BattleUnit::UnkCommandFlag1000) != 0 ? 1 : 0;
 }
 
 // swd32.exe 0x00482030: the main act started over (cleared, the cast act marked done and +0x26D2 set) when it waits or
@@ -2589,12 +2589,12 @@ i16 BattleUnit::AccessoryProficiency(u16 kind, CounterList& proficiency)
     {
         if (accessory.data.unk48 == kind)
         {
-            this->unk26DC = static_cast<u16>(FindCounterPercent(proficiency, static_cast<i16>(accessory.data.act)));
-            return static_cast<i16>(this->unk26DC);
+            this->proficiency = static_cast<u16>(FindCounterPercent(proficiency, static_cast<i16>(accessory.data.act)));
+            return static_cast<i16>(this->proficiency);
         }
     }
 
-    return static_cast<i16>(this->unk26DC);
+    return static_cast<i16>(this->proficiency);
 }
 
 // swd32.exe 0x00476A10: the object's words +0x72..+0x76 set where non-zero (the fourth value goes to +0x74 as well)
@@ -2684,7 +2684,7 @@ void BattleUnit::LoadSkillAction(Database& database, u16 id, u16& act)
     this->LoadCommand(database, this->object.data.skillScript);
     this->unk29A4 = static_cast<u16>(this->unk29A4 + static_cast<u16>(this->command.value));
     this->SetCommand(BattleUnit::UnkCommand2);
-    this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
+    this->commandFlags = static_cast<u16>(this->commandFlags | BattleUnit::UnkCommandFlag8000);
 }
 
 // swd32.exe 0x004761D0: an enemy's command: with +0x2A8C a command of flag 2 runs (command 2, its cast act returned);
@@ -2698,7 +2698,7 @@ u16 BattleUnit::PrepareCommand(Database& database)
             return 0;
         }
 
-        this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
+        this->commandFlags = static_cast<u16>(this->commandFlags | BattleUnit::UnkCommandFlag8000);
         this->SetCommand(BattleUnit::UnkCommand2);
         return this->command.castAct;
     }
@@ -2824,9 +2824,9 @@ i16 BattleUnit::HitDamage(BattleServices& services, BattleUnit& target, i16& spi
         return 0;
     }
 
-    const bool anyHeal = this->unk29A6 != 0 || this->unk29A8 != 0 || this->unk29AA != 0;
+    const bool anyHeal = this->restoreHitPoints != 0 || this->restoreSpirit != 0 || this->restoreStamina != 0;
 
-    if (target.AddBuff(services, this->CommandSkill()) == 1 && this->unk29A6 == 0 && !anyHeal)
+    if (target.AddBuff(services, this->CommandSkill()) == 1 && this->restoreHitPoints == 0 && !anyHeal)
     {
         return -1;
     }
@@ -2894,16 +2894,16 @@ i16 BattleUnit::HitDamage(BattleServices& services, BattleUnit& target, i16& spi
     {
         if (targetRecord != nullptr)
         {
-            healHitPoints = static_cast<i16>(this->unk29A6) * targetRecord->maxHitPoints / kPercent;
-            healSpirit = targetRecord->maxSpirit * static_cast<i16>(this->unk29A8) / kPercent;
-            healStamina = targetRecord->maxStamina * static_cast<i16>(this->unk29AA) / kPercent;
+            healHitPoints = static_cast<i16>(this->restoreHitPoints) * targetRecord->maxHitPoints / kPercent;
+            healSpirit = targetRecord->maxSpirit * static_cast<i16>(this->restoreSpirit) / kPercent;
+            healStamina = targetRecord->maxStamina * static_cast<i16>(this->restoreStamina) / kPercent;
         }
     }
     else
     {
-        healHitPoints = this->unk29A6;
-        healSpirit = this->unk29A8;
-        healStamina = this->unk29AA;
+        healHitPoints = this->restoreHitPoints;
+        healSpirit = this->restoreSpirit;
+        healStamina = this->restoreStamina;
     }
 
     if (restores)
@@ -2930,7 +2930,7 @@ i16 BattleUnit::HitDamage(BattleServices& services, BattleUnit& target, i16& spi
             attack = static_cast<i16>(this->battleRecord->attackBonus);
         }
 
-        if ((this->unk2B00 == 1 || this->unk2B04 == 1) && this->command.value == 0)
+        if ((this->autoControl == 1 || this->guestControl == 1) && this->command.value == 0)
         {
             attack = static_cast<i16>(this->battleRecord->attackBonus);
         }
@@ -2960,7 +2960,7 @@ i16 BattleUnit::HitDamage(BattleServices& services, BattleUnit& target, i16& spi
 
         attack = static_cast<i16>(attack + (raise - cut));
 
-        if (services.state.criticalAttack == 1 && this->unk2B00 == 0 && this->unk2B04 == 0)
+        if (services.state.criticalAttack == 1 && this->autoControl == 0 && this->guestControl == 0)
         {
             attack = static_cast<i16>(static_cast<i16>(this->battleRecord->attackBonus) + levelRoll());
             u8 pose = 0;
@@ -3045,7 +3045,7 @@ i16 BattleUnit::HitDamage(BattleServices& services, BattleUnit& target, i16& spi
         {
             const i32 value = attack;
             const auto share = static_cast<u16>(kEnragedSharePercent * value / kPercent);
-            attack = static_cast<i16>(kEnragedPercent * value / kPercent + share * this->unk26DC / kPercent);
+            attack = static_cast<i16>(kEnragedPercent * value / kPercent + share * this->proficiency / kPercent);
         }
 
         if ((this->equipmentFlags & BattleUnit::BladeReturn) != 0)
@@ -3059,7 +3059,7 @@ i16 BattleUnit::HitDamage(BattleServices& services, BattleUnit& target, i16& spi
             {
                 resisted = ScaleByTenths(resistanceOf(this->command.resistance), attack) == 1;
             }
-            else if (this->unk2B00 == 0)
+            else if (this->autoControl == 0)
             {
                 ScaleByTenths(resistanceOf(this->command.resistance), this->command.value);
                 attack = static_cast<i16>(attack + static_cast<u16>(this->command.value));
@@ -3070,7 +3070,7 @@ i16 BattleUnit::HitDamage(BattleServices& services, BattleUnit& target, i16& spi
 
     if (kind == BattleUnit::UnkCommand1B)
     {
-        const i32 scale = kSkillScaleShare * this->unk26DC / kPercent + 1;
+        const i32 scale = kSkillScaleShare * this->proficiency / kPercent + 1;
         attack = static_cast<i16>(
             attack * scale + static_cast<u16>(this->battleRecord->attack * scale) + this->battleRecord->level
         );
@@ -3081,7 +3081,7 @@ i16 BattleUnit::HitDamage(BattleServices& services, BattleUnit& target, i16& spi
         return (target.marks & BattleUnit::UnkMark8000) != 0 ? i16{0} : attack;
     }
 
-    if (kind == BattleUnit::UnkCommand2 || (this->unk2A86 & BattleUnit::UnkCommandFlag200) != 0 ||
+    if (kind == BattleUnit::UnkCommand2 || (this->commandFlags & BattleUnit::UnkCommandFlag200) != 0 ||
         kind == BattleUnit::UnkCommand16 || kind == BattleUnit::UnkCommand3)
     {
         attack = this->command.value;
@@ -3091,7 +3091,7 @@ i16 BattleUnit::HitDamage(BattleServices& services, BattleUnit& target, i16& spi
             attack = static_cast<i16>(attack + kAttackBuffPercent * attack / kPercent);
         }
 
-        if ((this->unk2A86 & BattleUnit::UnkCommandFlag4000) == 0)
+        if ((this->commandFlags & BattleUnit::UnkCommandFlag4000) == 0)
         {
             const auto divisor = static_cast<u16>(services.random.Below(kSkillRollDivisors) + kSkillRollBase);
             const i32 spread = this->battleRecord->level + static_cast<u16>(this->battleRecord->wisdom);
@@ -3243,13 +3243,13 @@ void BattleUnit::AimAction(BattleServices& services, BattleUnit& target, ActStat
     }
 
     services.painter.SetSource(this->picture->data.data());
-    this->unk26A4 = act.flags;
+    this->shadowMode = act.flags;
     this->aimOffsetX = static_cast<u16>(act.x);
     this->aimAnchorX = act.anchorX;
 
     auto mirror = [this, &act]
     {
-        this->unk26A4 ^= Painter::Mirror;
+        this->shadowMode ^= Painter::Mirror;
 
         if (act.x != 0)
         {
@@ -3262,12 +3262,12 @@ void BattleUnit::AimAction(BattleServices& services, BattleUnit& target, ActStat
         }
     };
 
-    if ((this->unk2B00 == 1 || this->unk2B04 == 1) && this->facing == 1)
+    if ((this->autoControl == 1 || this->guestControl == 1) && this->facing == 1)
     {
         mirror();
     }
 
-    if (this->facing == 1 && this->unk2B00 == 0 && this->unk2B04 == 0)
+    if (this->facing == 1 && this->autoControl == 0 && this->guestControl == 0)
     {
         mirror();
     }
@@ -3469,7 +3469,7 @@ int BattleUnit::LoadEnemyCommand(Database& database, int choice, u32& act)
     if ((this->command.flags & UnitCommand::UnkFlag2) != 0)
     {
         act = this->command.castAct;
-        this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
+        this->commandFlags = static_cast<u16>(this->commandFlags | BattleUnit::UnkCommandFlag8000);
         this->SetCommand(BattleUnit::UnkCommand2);
         return 0;
     }
@@ -3550,7 +3550,7 @@ int BattleUnit::StepAccessoryCounters(CounterList& list, u16 amount)
 
 // swd32.exe 0x0046E520: one tick of the action gauge: nothing while held, stopped (Unk4000), defeated or full
 // (unk2AB0). Below gaugeFull it fills by a quarter of the agility (an eighth while Slowed; a quarter more and 1 with
-// `boost`), 30% more with SpeedUp, 30% less with SpeedDown, and less by half the unk26DC percent of it and 4 while
+// `boost`), 30% more with SpeedUp, 30% less with SpeedDown, and less by half the proficiency percent of it and 4 while
 // Invisible (0). Full, it is marked full, the main act's effect cleared, the cast act marked waiting and the facing
 // of a unit with unk2B20 turned back (1).
 int BattleUnit::StepGauge(BattleServices& services, int boost)
@@ -3576,7 +3576,7 @@ int BattleUnit::StepGauge(BattleServices& services, int boost)
         {
             this->unk2B20 = 0;
 
-            if (this->unk2B04 == 0)
+            if (this->guestControl == 0)
             {
                 this->facing = 0;
             }
@@ -3616,7 +3616,7 @@ int BattleUnit::StepGauge(BattleServices& services, int boost)
 
     if ((status & BattleUnit::Invisible) != 0)
     {
-        cut += this->unk26DC * speed / kPercent / 2 + kInvisibleSlowdown;
+        cut += this->proficiency * speed / kPercent / 2 + kInvisibleSlowdown;
     }
 
     this->unk2AB0 = 0;
@@ -3698,7 +3698,7 @@ int BattleUnit::DefeatFrame(BattleServices& services)
     act.id = this->actId;
     act.action = kDefeatAction;
 
-    if ((this->kind == 1 || this->unk2AF8 == 1) && this->unk2B00 == 0 && this->unk2B04 == 0)
+    if ((this->kind == 1 || this->unk2AF8 == 1) && this->autoControl == 0 && this->guestControl == 0)
     {
         this->glowLevel = kDefeatedAtOnce;
         this->defeatPose = 0;
@@ -4437,7 +4437,7 @@ void BattleUnit::StartDrainEffect(BattleServices& services, int slot, BattleUnit
         effect.flags = static_cast<u16>(effect.flags | ParticleEffect::Mirrored);
     }
 
-    this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag800);
+    this->commandFlags = static_cast<u16>(this->commandFlags | BattleUnit::UnkCommandFlag800);
     services.state.projector.SetScreen(Display::Width, Display::Height);
 }
 
@@ -4579,7 +4579,7 @@ int BattleUnit::ChooseCommand(BattleServices& services, Database& database, u32&
     int choice = kNoChoice;
     int chosen = 0;
 
-    if ((this->unk2A86 & BattleUnit::UnkCommandFlag8000) != 0)
+    if ((this->commandFlags & BattleUnit::UnkCommandFlag8000) != 0)
     {
         return 1;
     }
@@ -4636,7 +4636,7 @@ int BattleUnit::ChooseCommand(BattleServices& services, Database& database, u32&
     // unk53BF28 is set.
     auto barred = [this, &services]
     {
-        return (this->unk2B00 == 1 && (static_cast<u32>(this->command.unk08) & kNoForcedStatus) != 0) ||
+        return (this->autoControl == 1 && (static_cast<u32>(this->command.unk08) & kNoForcedStatus) != 0) ||
                ((this->command.actionFlags & UnitCommand::UnkAction1000) != 0 && services.state.unk53BF28 != 0);
     };
 
@@ -4734,7 +4734,7 @@ int BattleUnit::ChooseCommand(BattleServices& services, Database& database, u32&
         const std::size_t length = std::min<std::size_t>(strnlen(name.data(), name.size()), this->skillName.size() - 1);
         std::copy_n(name.begin(), length, this->skillName.begin());
         this->skillName[length] = '\0';
-        this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
+        this->commandFlags = static_cast<u16>(this->commandFlags | BattleUnit::UnkCommandFlag8000);
         this->unk29A4 = static_cast<u16>(this->unk29A4 + static_cast<u16>(this->command.value));
         const bool special = (this->command.actionFlags & UnitCommand::UnkAction1000) != 0;
         this->SetCommand(special ? BattleUnit::UnkCommand15 : BattleUnit::UnkCommand2);
@@ -4807,7 +4807,7 @@ int BattleUnit::ChooseCommand(BattleServices& services, Database& database, u32&
 
         if ((this->command.actionFlags & UnitCommand::UnkAction1000) != 0)
         {
-            this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
+            this->commandFlags = static_cast<u16>(this->commandFlags | BattleUnit::UnkCommandFlag8000);
             this->SetCommand(BattleUnit::UnkCommand15);
             return 1;
         }
@@ -4815,7 +4815,7 @@ int BattleUnit::ChooseCommand(BattleServices& services, Database& database, u32&
         if ((this->command.flags & UnitCommand::UnkFlag2) != 0)
         {
             act = this->command.castAct;
-            this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
+            this->commandFlags = static_cast<u16>(this->commandFlags | BattleUnit::UnkCommandFlag8000);
             this->SetCommand(BattleUnit::UnkCommand2);
             return 1;
         }
@@ -4834,10 +4834,10 @@ int BattleUnit::ChooseCommand(BattleServices& services, Database& database, u32&
         Database::FreeDescription(this->object);
         act = this->object.data.act;
         this->LoadCommand(database, this->object.data.skillScript);
-        this->unk29A6 = this->object.data.hitPointsUp;
+        this->restoreHitPoints = this->object.data.hitPointsUp;
         this->healChoice = 0;
         --(first ? data.healCountA : data.healCountB);
-        this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
+        this->commandFlags = static_cast<u16>(this->commandFlags | BattleUnit::UnkCommandFlag8000);
         this->SetCommand(BattleUnit::UnkCommand2);
 
         if (this->actId == kReadyAct)
@@ -4892,8 +4892,8 @@ void BattleUnit::MarkDelayedAttack()
 // hit points), then its defence and record resistances count; an enemy target its object's. Command 1 rolls on the
 // level, raised and cut by the attack buffs, less the defence (else the bare value, at least 1, rolled again unless
 // unk2A8C); other commands add a roll to a positive value. The resistance of the command's element scales it, an
-// effect of its element halves it, unk29A6 heals instead, a guard cuts it by 10..39%, and a party role gains fury. The
-// original computes in 16 bits.
+// effect of its element halves it, restoreHitPoints heals instead, a guard cuts it by 10..39%, and a party role gains
+// fury. The original computes in 16 bits.
 i16 BattleUnit::EnemyHitDamage(BattleServices& services, BattleUnit& target)
 {
     Random& random = services.random;
@@ -4911,7 +4911,7 @@ i16 BattleUnit::EnemyHitDamage(BattleServices& services, BattleUnit& target)
         return 0;
     }
 
-    if (this->unk29A6 == 0 && target.IsHeldOrHolding() == 1)
+    if (this->restoreHitPoints == 0 && target.IsHeldOrHolding() == 1)
     {
         target.CureEffects(services, BattleUnit::UnkStatus8);
     }
@@ -5054,10 +5054,10 @@ i16 BattleUnit::EnemyHitDamage(BattleServices& services, BattleUnit& target)
         damage = static_cast<i16>(damage / 2);
     }
 
-    if (this->unk29A6 != 0)
+    if (this->restoreHitPoints != 0)
     {
         target.PushTarget(BattleUnit::HealTarget);
-        damage = static_cast<i16>(-static_cast<i16>(this->unk29A6));
+        damage = static_cast<i16>(-static_cast<i16>(this->restoreHitPoints));
     }
 
     if (resisted)
@@ -5342,16 +5342,16 @@ u16 BattleUnit::RefineTalisman(BattleServices& services, Database& database, u16
     return this->object.data.unk48;
 }
 
-// swd32.exe 0x0046E090: unk2B00 (only its address is used: battle talk command 0x3A tests it)
+// swd32.exe 0x0046E090: autoControl (only its address is used: battle talk command 0x3A tests it)
 i32 BattleUnit::Unk2B00() const
 {
-    return this->unk2B00;
+    return this->autoControl;
 }
 
-// swd32.exe 0x0046E0A0: unk2B04 (only its address is used: battle talk command 0x3A tests it)
+// swd32.exe 0x0046E0A0: guestControl (only its address is used: battle talk command 0x3A tests it)
 i32 BattleUnit::Unk2B04() const
 {
-    return this->unk2B04;
+    return this->guestControl;
 }
 
 }  // namespace swd3

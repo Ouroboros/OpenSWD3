@@ -600,7 +600,7 @@ void Game::RaiseAllHit(BattleUnit& target, int all)
         {
             BattleRole& role = this->battleRoles[index];
 
-            if (role.unk2B00 != 1 && role.unk2B04 != 1 && !role.IsDefeated())
+            if (role.autoControl != 1 && role.guestControl != 1 && !role.IsDefeated())
             {
                 role.RaiseFlag26B8();
             }
@@ -699,7 +699,7 @@ void Game::StrikeAllHit(BattleUnit& target, BattleUnit& attacker, int index, int
         {
             BattleRole& role = this->battleRoles[slot];
 
-            if (role.unk2B00 == 1 || role.unk2B04 == 1 || role.StatusBit13() == 1)
+            if (role.autoControl == 1 || role.guestControl == 1 || role.StatusBit13() == 1)
             {
                 continue;
             }
@@ -1097,7 +1097,7 @@ bool Game::SweepFromRole(BattleRole& attacker, i16 target, u32 act)
         this->StepSweep(battle.roleCount);
         BattleRole& role = this->battleRoles[slot];
 
-        if (role.unk2B00 != 1 && role.unk2B04 != 1 &&
+        if (role.autoControl != 1 && role.guestControl != 1 &&
             this->HitTargetFrame(role, attacker, act, static_cast<int>(slot)) == 1 && battle.slotTargets[slot] == -1 &&
             hitOne(role, slot, false, target))
         {
@@ -1241,7 +1241,7 @@ bool Game::SweepFromEnemy(BattleEnemy& attacker, i16 target, u32 act)
 
     auto standing = [](const BattleRole& role)
     {
-        return !role.IsDefeated() && role.unk2B04 != 1 && role.unk2B00 != 1;
+        return !role.IsDefeated() && role.guestControl != 1 && role.autoControl != 1;
     };
 
     if (battle.enemyHitsAll == 1)
@@ -1799,8 +1799,8 @@ int Game::EnemyFrame(int enemy)
 }
 
 // A sweeping enemy gathers its targets in EnemyFrame (inline in the original): an enemy aiming at the enemies sweeps
-// them all; otherwise each role standing, not a guest (unk2B04), not guarding, not unk2AE0 and with unkAAC clear is
-// marked (unmarked AC0, one more hit) while the enemy's unkAB4 is clear; with every role marked the sweep starts at
+// them all; otherwise each role standing, not a guest (guestControl), not guarding, not unk2AE0 and with unkAAC clear
+// is marked (unmarked AC0, one more hit) while the enemy's unkAB4 is clear; with every role marked the sweep starts at
 // the first role standing (none: the panels just close).
 void Game::EnemyGatherSweep(BattleEnemy& unit)
 {
@@ -1823,7 +1823,7 @@ void Game::EnemyGatherSweep(BattleEnemy& unit)
     {
         BattleRole& role = this->battleRoles[index];
 
-        if (!role.IsDefeated() && role.unk2B04 != 1 && !role.IsGuarding() && role.GetAE0() != 1 &&
+        if (!role.IsDefeated() && role.guestControl != 1 && !role.IsGuarding() && role.GetAE0() != 1 &&
             role.GetValueAAC() == 0 && unit.GetValueAB4() == 0)
         {
             role.SetAC0(0);
@@ -1854,7 +1854,7 @@ void Game::EnemyGatherSweep(BattleEnemy& unit)
     battle.unk53BFC0 = 1;
 }
 
-// The target of an acting enemy in EnemyFrame (inline in the original): a role at random (not unk2B00, not a guest,
+// The target of an acting enemy in EnemyFrame (inline in the original): a role at random (not autoControl, not a guest,
 // standing), then ChooseHeal may aim it at itself; an enemy kept from acting (StatusBit5Or8) with other enemies
 // standing aims at another enemy at random instead. The original draws for ever when nothing qualifies.
 void Game::EnemyPickTarget(BattleEnemy& unit, int enemy)
@@ -1872,7 +1872,7 @@ void Game::EnemyPickTarget(BattleEnemy& unit, int enemy)
 
             const BattleRole& role = this->battleRoles[static_cast<std::size_t>(battle.enemyTarget)];
 
-            if (role.unk2B00 != 1 && role.unk2B04 != 1 && !role.IsDefeated())
+            if (role.autoControl != 1 && role.guestControl != 1 && !role.IsDefeated())
             {
                 return;
             }
@@ -2142,7 +2142,7 @@ void Game::EnemyAfterAction(BattleEnemy& unit, int enemy)
         {
             BattleRole& role = this->battleRoles[index];
 
-            if (role.unk2B04 == 0 && !role.IsDefeated())
+            if (role.guestControl == 0 && !role.IsDefeated())
             {
                 role.SetFacingIfAble(0);
             }

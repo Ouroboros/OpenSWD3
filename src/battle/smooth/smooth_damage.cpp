@@ -48,7 +48,7 @@ int DamageFrame::DrainSpellFrameAdvance(BattleRole& role, BattleUnit& target, Sc
     ActState& act = role.slotActs[BattleUnit::UnkSlot8];
     role.unk2AAC = 1;
     act.id = role.actId + BattleRole::MagicActs;
-    act.action = role.unk2A8A;
+    act.action = role.magicAction;
 
     if (game.acts.Run(act) == 0)
     {
@@ -84,7 +84,7 @@ int DamageFrame::DrainSpellFrameAdvance(BattleRole& role, BattleUnit& target, Sc
     DrawOptions& options = painter.Options();
     options.scaleHeight = shadowHeight;
     options.shear = picture.height >> kSpellShadowShearShift;
-    const int tint = role.unk2B00 == 1 ? kFaintSpellShadowTint : kSpellShadowTint;
+    const int tint = role.autoControl == 1 ? kFaintSpellShadowTint : kSpellShadowTint;
     options.tintRed = tint;
     options.tintGreen = tint;
     options.tintBlue = tint;
@@ -92,13 +92,13 @@ int DamageFrame::DrainSpellFrameAdvance(BattleRole& role, BattleUnit& target, Sc
     const int x = role.placement.x - static_cast<i16>(role.actOffsetX);
     game.audio.SetSoundPan(act.view, x >= kSpellPanCentre ? kSpellPan : -kSpellPan);
     act.view = 0;
-    role.unk26A4 = (flags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+    role.shadowMode = (flags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
     painter.DrawPicture(
         x - kSpellShadowLeft,
         role.placement.y - shadowHeight,
         picture.width,
         picture.height,
-        role.unk26A4
+        role.shadowMode
     );
     painter.DrawPicture(x, role.placement.y - act.y, picture.width, picture.height, flags);
     battle.darkRed = static_cast<i16>(act.red);
@@ -193,14 +193,14 @@ int DamageFrame::MagicAttackFrameAdvance(BattleRole& role, BattleUnit& target, S
     }
 
     magic.id = role.actId + BattleRole::MagicActs;
-    magic.action = role.unk2A8A;
+    magic.action = role.magicAction;
     UnitFrame(role).Action(services, target, magic, scene);
 
     if ((magic.target & ActState::Recoils) != 0)
     {
         if (magic.effectA != 0)
         {
-            role.unk267C |= BattleUnit::Recoiling;
+            role.stage |= BattleUnit::Recoiling;
             role.recoilAct.id = magic.effectA;
             role.recoilAct.action = magic.effectQ;
         }
@@ -215,12 +215,12 @@ int DamageFrame::MagicAttackFrameAdvance(BattleRole& role, BattleUnit& target, S
         magic.effectQ = 0;
     }
 
-    if ((role.unk267C & BattleUnit::Recoiling) != 0 &&
+    if ((role.stage & BattleUnit::Recoiling) != 0 &&
         UnitFrame(role).Recoil(services, role.recoilAct, static_cast<i16>(magic.anchorY), scene) == 1)
     {
         magic.target = 0;
         magic.hold = 0;
-        role.unk267C &= ~BattleUnit::Recoiling;
+        role.stage &= ~BattleUnit::Recoiling;
     }
 
     if ((magic.target & ActState::Quakes) != 0)
@@ -232,7 +232,7 @@ int DamageFrame::MagicAttackFrameAdvance(BattleRole& role, BattleUnit& target, S
     if ((magic.target & ActState::UnkTarget4) != 0)
     {
         magic.target = 0;
-        role.unk267C |= BattleUnit::FollowingUp;
+        role.stage |= BattleUnit::FollowingUp;
         target.RaiseFlag26B8();
     }
 
@@ -256,7 +256,7 @@ int DamageFrame::MagicAttackFrameAdvance(BattleRole& role, BattleUnit& target, S
         }
 
         magic.target = static_cast<u16>(magic.target & ~ActState::FollowsUp);
-        role.unk267C |= BattleUnit::FollowingUp;
+        role.stage |= BattleUnit::FollowingUp;
         role.slotTint = 0;
         magic.target = 0;
         follow = ActState{};
@@ -264,7 +264,7 @@ int DamageFrame::MagicAttackFrameAdvance(BattleRole& role, BattleUnit& target, S
 
     if ((magic.target & ActState::Strikes) != 0)
     {
-        role.unk267C |= BattleUnit::FollowingUp;
+        role.stage |= BattleUnit::FollowingUp;
         role.slotTint = 0;
         magic.target = 0;
         role.Strike(services, target, 0);
@@ -281,7 +281,7 @@ int DamageFrame::MagicAttackFrameAdvance(BattleRole& role, BattleUnit& target, S
         battle.unk53BF94 = 1;
     }
 
-    if ((role.unk267C & BattleUnit::FollowingUp) == 0)
+    if ((role.stage & BattleUnit::FollowingUp) == 0)
     {
         return 0;
     }
@@ -354,7 +354,7 @@ int DamageFrame::MagicAttackFrameAdvance(BattleRole& role, BattleUnit& target, S
 
     if (follow.waiting != 1)
     {
-        if ((role.unk267C & BattleUnit::Recoiling) == 0 && role.picture != nullptr)
+        if ((role.stage & BattleUnit::Recoiling) == 0 && role.picture != nullptr)
         {
             const DrawArgument argument =
                 role.shadowPicture != nullptr ? PaletteArgument(*role.shadowPicture) : DrawArgument{};
@@ -363,7 +363,7 @@ int DamageFrame::MagicAttackFrameAdvance(BattleRole& role, BattleUnit& target, S
                 static_cast<i16>(role.aimY),
                 role.picture->width,
                 role.picture->height,
-                role.unk26A4,
+                role.shadowMode,
                 argument
             );
         }
@@ -371,7 +371,7 @@ int DamageFrame::MagicAttackFrameAdvance(BattleRole& role, BattleUnit& target, S
         return 0;
     }
 
-    if ((role.unk267C & BattleUnit::Recoiling) != 0)
+    if ((role.stage & BattleUnit::Recoiling) != 0)
     {
         return 0;
     }
@@ -395,7 +395,7 @@ int DamageFrame::MagicAttackFrameAdvance(BattleRole& role, BattleUnit& target, S
                     static_cast<i16>(role.aimY),
                     role.picture->width,
                     role.picture->height,
-                    role.unk26A4,
+                    role.shadowMode,
                     PaletteArgument(*role.picture)
                 );
             }
@@ -426,7 +426,7 @@ int DamageFrame::MagicAttackFrameAdvance(BattleRole& role, BattleUnit& target, S
     role.targets.fill(BattleUnit::NoTarget);
     role.slotTint = 0;
     role.unk2AB0 = 0;
-    role.unk267C = 0;
+    role.stage = 0;
     role.unk26D4 = 0;
     battle.criticalAttack = 0;
     ++battle.attacksSinceCritical;
@@ -497,7 +497,7 @@ int DamageFrame::EnemyAttackFrameAdvance(BattleUnit& enemy, BattleUnit& target, 
         if (attack.effectA != 0)
         {
             enemy.recoilAct = ActState{};
-            enemy.unk267C |= BattleUnit::Recoiling;
+            enemy.stage |= BattleUnit::Recoiling;
             enemy.recoilAct.id = attack.effectA;
             enemy.recoilAct.action = attack.effectQ;
         }
@@ -512,12 +512,12 @@ int DamageFrame::EnemyAttackFrameAdvance(BattleUnit& enemy, BattleUnit& target, 
         attack.effectQ = 0;
     }
 
-    if ((enemy.unk267C & BattleUnit::Recoiling) != 0 &&
+    if ((enemy.stage & BattleUnit::Recoiling) != 0 &&
         UnitFrame(enemy).Recoil(services, enemy.recoilAct, static_cast<i16>(attack.anchorY), scene) == 1)
     {
         attack.target = 0;
         attack.hold = 0;
-        enemy.unk267C &= ~BattleUnit::Recoiling;
+        enemy.stage &= ~BattleUnit::Recoiling;
     }
 
     ActState& follow = enemy.castAct;
@@ -540,7 +540,7 @@ int DamageFrame::EnemyAttackFrameAdvance(BattleUnit& enemy, BattleUnit& target, 
         }
 
         attack.target = static_cast<u16>(attack.target & ~ActState::FollowsUp);
-        enemy.unk267C |= BattleUnit::FollowingUp;
+        enemy.stage |= BattleUnit::FollowingUp;
         follow = ActState{};
     }
 
@@ -552,7 +552,7 @@ int DamageFrame::EnemyAttackFrameAdvance(BattleUnit& enemy, BattleUnit& target, 
 
     if ((attack.target & ActState::UnkTarget4) != 0)
     {
-        enemy.unk267C |= BattleUnit::FollowingUp;
+        enemy.stage |= BattleUnit::FollowingUp;
         attack.target = 0;
         target.RaiseFlag26B8();
     }
@@ -560,7 +560,7 @@ int DamageFrame::EnemyAttackFrameAdvance(BattleUnit& enemy, BattleUnit& target, 
     if ((attack.target & kEnemyStrikeBits) != 0)
     {
         enemy.slotTint = 0;
-        enemy.unk267C |= BattleUnit::FollowingUp;
+        enemy.stage |= BattleUnit::FollowingUp;
         follow = ActState{};
         evadeChance = (enemy.status & BattleUnit::UnkStatus80) != 0 ? kStatusEvade : 0;
         game.EnemyStrike(enemy, target, attack.target, evadeChance, true);
@@ -578,7 +578,7 @@ int DamageFrame::EnemyAttackFrameAdvance(BattleUnit& enemy, BattleUnit& target, 
         battle.unk53BF98 = 1;
     }
 
-    if ((enemy.unk267C & BattleUnit::FollowingUp) == 0)
+    if ((enemy.stage & BattleUnit::FollowingUp) == 0)
     {
         return 0;
     }
@@ -661,7 +661,7 @@ int DamageFrame::EnemyAttackFrameAdvance(BattleUnit& enemy, BattleUnit& target, 
                 static_cast<i16>(enemy.aimY),
                 picture->width,
                 picture->height,
-                enemy.unk26A4,
+                enemy.shadowMode,
                 PaletteArgument(*picture)
             );
         }
@@ -676,7 +676,7 @@ int DamageFrame::EnemyAttackFrameAdvance(BattleUnit& enemy, BattleUnit& target, 
         options.tintGreen = enemy.slotTint;
         options.tintBlue = enemy.slotTint;
 
-        if ((enemy.unk26A4 & ActState::NoBlend) != 0)
+        if ((enemy.shadowMode & ActState::NoBlend) != 0)
         {
             options.tintRed = 0;
             options.tintGreen = 0;
@@ -691,7 +691,7 @@ int DamageFrame::EnemyAttackFrameAdvance(BattleUnit& enemy, BattleUnit& target, 
                 static_cast<i16>(enemy.aimY),
                 picture->width,
                 picture->height,
-                enemy.unk26A4,
+                enemy.shadowMode,
                 PaletteArgument(*enemy.shadowPicture)
             );
         }
@@ -718,7 +718,7 @@ int DamageFrame::EnemyAttackFrameAdvance(BattleUnit& enemy, BattleUnit& target, 
     enemy.slotActs[kEnemyFlightAct] = ActState{};
     enemy.trails = {};
     enemy.targets.fill(BattleUnit::NoTarget);
-    enemy.unk267C = 0;
+    enemy.stage = 0;
     enemy.unk2AB0 = 0;
     enemy.fadedIn = 0;
     enemy.nudge = 0;

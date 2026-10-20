@@ -192,12 +192,12 @@ TEST_CASE("battle unit: construction, commands, turns and hits")
     CHECK_EQ(unit.colorPair, BattleUnit::DefaultColorPair);
     CHECK_EQ(unit.SetCommand(BattleUnit::UnkCommand14), 1);
     CHECK_EQ(unit.commandB, BattleUnit::UnkCommand14);
-    CHECK_EQ(unit.unk2A86, BattleUnit::UnkCommandFlag4000);
+    CHECK_EQ(unit.commandFlags, BattleUnit::UnkCommandFlag4000);
     unit.SetCommand(kOtherCommand);
     CHECK_EQ(unit.commandA, kOtherCommand);
     unit.SetCommand(BattleUnit::UnkCommand6);
     CHECK_EQ(unit.commandA, 0);
-    CHECK_EQ(unit.unk2A86, BattleUnit::UnkCommandFlag4000 | BattleUnit::UnkCommandFlag800);
+    CHECK_EQ(unit.commandFlags, BattleUnit::UnkCommandFlag4000 | BattleUnit::UnkCommandFlag800);
     unit.gauge = static_cast<swd3::u16>(all.state.gaugeFull / kHalf);
     CHECK_EQ(unit.GaugeLength(all.services), kGaugePixels / kHalf);
     CHECK_EQ(unit.ResetGauge(all.services), all.state.gaugeFull);
@@ -632,10 +632,10 @@ TEST_CASE("battle unit: an enemy with nothing to use attacks")
     BattleUnit enemy;
     enemy.data = &object;
     swd3::u32 act = 0;
-    enemy.unk2A86 = BattleUnit::UnkCommandFlag8000;
+    enemy.commandFlags = BattleUnit::UnkCommandFlag8000;
     CHECK_EQ(enemy.ChooseCommand(all.services, database, act), 1);
     CHECK_EQ(enemy.commandA, 0);
-    enemy.unk2A86 = 0;
+    enemy.commandFlags = 0;
     all.random.Seed(kSeed);
     swd3::Random reference;
     reference.Seed(kSeed);
@@ -727,7 +727,7 @@ TEST_CASE("battle unit: the damage of an enemy's hit")
     attacker.unk2A8C = 1;
     CHECK_EQ(attacker.EnemyHitDamage(all.services, target), 1);
 
-    attacker.unk29A6 = kHeal;
+    attacker.restoreHitPoints = kHeal;
     CHECK_EQ(attacker.EnemyHitDamage(all.services, target), -kHeal);
 }
 
@@ -951,9 +951,9 @@ TEST_CASE("battle role: the share of a spirit drain")
     CHECK_EQ(role.DrainShare(all.services, amount), 0);
     CHECK_EQ(amount, kDrained);
     role.equipmentFlags = swd3::BattleUnit::SpiritDrain;
-    role.unk26DC = kProficiency;
+    role.proficiency = kProficiency;
     CHECK_EQ(role.DrainShare(all.services, amount), 1);
-    CHECK_EQ(role.unk26DC, kProficiency / 2);
+    CHECK_EQ(role.proficiency, kProficiency / 2);
     CHECK_EQ(amount, kDrained * (kProficiency / 2) / kPercent + 1);
 }
 
@@ -1208,7 +1208,7 @@ TEST_CASE("battle role: counting and listing the inventory")
     CHECK(name == "ABC");
     CHECK_EQ(count, kCount);
     CHECK_EQ(role.ListedObject(2, name, count), 0);
-    role.unk26DC = kProficiency;
+    role.proficiency = kProficiency;
     CHECK_EQ(role.Unk1EProficiency(all.services), kProficiency);
 }
 
@@ -1429,8 +1429,8 @@ TEST_CASE("battle role: choosing a skill and paying for it")
     CHECK_EQ(role.SelectSkill(database, 0, 0, 0, act), kNoSkill);
     CHECK_EQ(role.SelectSkill(database, 0, 0, 1, act), 1);
     CHECK_EQ(act, kAct);
-    CHECK_EQ(role.unk29A6, kHeal);
-    CHECK_EQ(role.unk2A86 & swd3::BattleUnit::UnkCommandFlag8000, swd3::BattleUnit::UnkCommandFlag8000);
+    CHECK_EQ(role.restoreHitPoints, kHeal);
+    CHECK_EQ(role.commandFlags & swd3::BattleUnit::UnkCommandFlag8000, swd3::BattleUnit::UnkCommandFlag8000);
 
     CHECK_EQ(role.CanPaySkill(all.services, 0, 1), 0);
     CHECK(all.messages.messages != nullptr);
@@ -1502,7 +1502,7 @@ TEST_CASE("battle role: choosing an object in battle")
     CHECK_EQ(role.SelectObject(database, all.errors, 0, 1, act, kind), 0);
     CHECK_EQ(role.SelectObject(database, all.errors, kThrowCategory, 1, act, kind), 1);
     CHECK_EQ(kind, kThrownChoice);
-    CHECK_EQ(role.unk2A86 & swd3::BattleUnit::UnkCommandFlag2000, swd3::BattleUnit::UnkCommandFlag2000);
+    CHECK_EQ(role.commandFlags & swd3::BattleUnit::UnkCommandFlag2000, swd3::BattleUnit::UnkCommandFlag2000);
 }
 
 TEST_CASE("battle state: the menu kind words after the command kinds")

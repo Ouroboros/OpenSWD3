@@ -470,7 +470,7 @@ int Game::RemoveDefeated(int index, int role)
         return 0;
     }
 
-    if (unit.unk2B00 == 1)
+    if (unit.autoControl == 1)
     {
         ++battle.unk53BF01;
 
@@ -776,7 +776,7 @@ int Game::CheckStoneSides()
     {
         BattleRole& role = this->battleRoles[index];
 
-        if (role.unk2B00 != 1 && role.unk2B04 != 1 && role.HasEffectBits(BattleUnit::UnkStatus4) == 1)
+        if (role.autoControl != 1 && role.guestControl != 1 && role.HasEffectBits(BattleUnit::UnkStatus4) == 1)
         {
             ++stoneRoles;
         }
@@ -1574,7 +1574,7 @@ void Game::AnnounceMastery()
     {
         BattleRole& role = this->battleRoles[index];
 
-        if (role.unk2B00 == 1 || role.unk2B04 == 1 || role.IsDefeated())
+        if (role.autoControl == 1 || role.guestControl == 1 || role.IsDefeated())
         {
             continue;
         }
@@ -1935,7 +1935,7 @@ void Game::CheckLevelUps()
     {
         const BattleRole& unit = this->battleRoles[index];
 
-        if (unit.unk2B00 == 1 || unit.unk2B04 == 1)
+        if (unit.autoControl == 1 || unit.guestControl == 1)
         {
             continue;
         }
@@ -2029,8 +2029,8 @@ void Game::LearnSpecials()
         RoleBattleBlock& block = this->party.battleBlocks[static_cast<std::size_t>(battle.partyRoles[index])];
         std::unique_ptr<ItemNode>& list = this->party.skills[index];
 
-        if (role.unk2B00 == 1 || role.unk2B04 == 1 || role.IsDefeated() || block.unk00[kNextSpecial] == kNoSpecial ||
-            list == nullptr)
+        if (role.autoControl == 1 || role.guestControl == 1 || role.IsDefeated() ||
+            block.unk00[kNextSpecial] == kNoSpecial || list == nullptr)
         {
             continue;
         }
@@ -2326,7 +2326,7 @@ void Game::AimStep(int step)
         }
 
         const BattleRole& checked = this->battleRoles[static_cast<std::size_t>(role - 1)];
-        return checked.unk2B00 != 1 && checked.unk2B04 != 1 && !checked.IsGuarding();
+        return checked.autoControl != 1 && checked.guestControl != 1 && !checked.IsGuarding();
     };
 
     if (battle.pendingOrders[unit].unk00 != 0)
@@ -2649,7 +2649,7 @@ int Game::BattleDebugKeys()
                 {
                     BattleRole& role = this->battleRoles[index];
 
-                    if (role.unk2B00 != 1 && role.unk2B04 != 1)
+                    if (role.autoControl != 1 && role.guestControl != 1)
                     {
                         role.Damage(services, hitPoints, drain, drain);
                     }
@@ -3408,7 +3408,7 @@ int Game::HoverTarget()
             const i32 role = BattleState::RoleCycle[static_cast<std::size_t>(place + 1)];
             BattleRole& checked = this->battleRoles[static_cast<std::size_t>(role)];
 
-            if (checked.unk2B00 == 1 || checked.unk2B04 == 1 || checked.IsGuarding())
+            if (checked.autoControl == 1 || checked.guestControl == 1 || checked.IsGuarding())
             {
                 continue;
             }
@@ -3444,7 +3444,7 @@ int Game::HoverTarget()
     {
         BattleRole& checked = this->battleRoles[static_cast<std::size_t>(role)];
 
-        if (checked.unk2B00 == 1 || checked.unk2B04 == 1 || checked.IsGuarding())
+        if (checked.autoControl == 1 || checked.guestControl == 1 || checked.IsGuarding())
         {
             continue;
         }
@@ -3469,7 +3469,7 @@ int Game::HoverTarget()
     {
         BattleRole& checked = this->battleRoles[index];
 
-        if (checked.unk2B00 == 1 || checked.unk2B04 == 1 || checked.IsGuarding())
+        if (checked.autoControl == 1 || checked.guestControl == 1 || checked.IsGuarding())
         {
             continue;
         }
@@ -5353,7 +5353,7 @@ void Game::DrawAimPointers()
             {
                 BattleRole& role = this->battleRoles[index];
 
-                if (role.unk2B00 != 1 && role.unk2B04 != 1 && role.StatusBit13() == 0)
+                if (role.autoControl != 1 && role.guestControl != 1 && role.StatusBit13() == 0)
                 {
                     role.GetShadowRect(this->battleServices, rect);
                     role.SetAC0(1);

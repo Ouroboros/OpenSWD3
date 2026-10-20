@@ -29,7 +29,7 @@ namespace
 
 constexpr i32 kCriticalAction = 0x29;
 constexpr i32 kForcedAttackAction2 = 0x31;  // unk2A8C 2
-constexpr i16 kForcedX = 0x140;             // a unit with unk2B04 attacks from the middle of the field
+constexpr i16 kForcedX = 0x140;             // a unit with guestControl attacks from the middle of the field
 constexpr i16 kForcedY = 0x136;
 constexpr u16 kSecondForcedAttack = 2;
 constexpr u32 kBoomerangBackHome = 2;
@@ -110,14 +110,14 @@ int RoleFrame::AttackAdvance(BattleServices& services, BattleUnit& target, int s
         return 0;
     }
 
-    if (role.unk2B00 == 1 && (role.command.flags & UnitCommand::FadesIn) != 0 && role.fadedIn == 0 &&
+    if (role.autoControl == 1 && (role.command.flags & UnitCommand::FadesIn) != 0 && role.fadedIn == 0 &&
         UnitFrame(role).DrawFadeInAdvance(services, target, scene) == 0)
     {
         role.fadedIn = 1;
         return 0;
     }
 
-    if (role.unk2B04 == 1)
+    if (role.guestControl == 1)
     {
         role.placement.x = kForcedX;
         role.placement.y = kForcedY;
@@ -137,7 +137,7 @@ int RoleFrame::AttackAdvance(BattleServices& services, BattleUnit& target, int s
         attack.hold = 1;
     }
 
-    const bool forced = role.unk2B00 == 1 || role.unk2B04 == 1;
+    const bool forced = role.autoControl == 1 || role.guestControl == 1;
 
     if (role.critical == 1)
     {
@@ -172,7 +172,7 @@ int RoleFrame::AttackAdvance(BattleServices& services, BattleUnit& target, int s
         if (attack.effectA != 0)
         {
             role.recoilAct.id = attack.effectA;
-            role.unk267C |= BattleUnit::Recoiling;
+            role.stage |= BattleUnit::Recoiling;
             role.recoilAct.action = attack.effectQ;
         }
 
@@ -186,7 +186,7 @@ int RoleFrame::AttackAdvance(BattleServices& services, BattleUnit& target, int s
         attack.effectQ = 0;
     }
 
-    if ((role.unk267C & BattleUnit::Recoiling) != 0 &&
+    if ((role.stage & BattleUnit::Recoiling) != 0 &&
         UnitFrame(role).Recoil(services, role.recoilAct, static_cast<i16>(attack.anchorY), scene) == 1)
     {
         if ((attack.target & ActState::Holds) != 0)
@@ -195,7 +195,7 @@ int RoleFrame::AttackAdvance(BattleServices& services, BattleUnit& target, int s
         }
 
         attack.hold = 0;
-        role.unk267C &= ~BattleUnit::Recoiling;
+        role.stage &= ~BattleUnit::Recoiling;
     }
 
     if ((attack.target & ActState::Quakes) != 0)
@@ -224,7 +224,7 @@ int RoleFrame::AttackAdvance(BattleServices& services, BattleUnit& target, int s
         }
 
         attack.target = static_cast<u16>(attack.target & ~ActState::FollowsUp);
-        role.unk267C |= BattleUnit::FollowingUp;
+        role.stage |= BattleUnit::FollowingUp;
         follow = ActState{};
     }
 
@@ -232,12 +232,12 @@ int RoleFrame::AttackAdvance(BattleServices& services, BattleUnit& target, int s
     {
         target.RaiseFlag26B8();
         attack.target = 0;
-        role.unk267C |= BattleUnit::FollowingUp;
+        role.stage |= BattleUnit::FollowingUp;
     }
 
     if ((attack.target & ActState::Strikes) != 0)
     {
-        role.unk267C |= BattleUnit::FollowingUp;
+        role.stage |= BattleUnit::FollowingUp;
         role.slotTint = 0;
         battle.proficiencyBonus = 0;
         follow = ActState{};
@@ -245,7 +245,7 @@ int RoleFrame::AttackAdvance(BattleServices& services, BattleUnit& target, int s
         attack.target = 0;
     }
 
-    if ((role.unk267C & BattleUnit::FollowingUp) == 0)
+    if ((role.stage & BattleUnit::FollowingUp) == 0)
     {
         return 0;
     }
@@ -317,7 +317,7 @@ int RoleFrame::AttackAdvance(BattleServices& services, BattleUnit& target, int s
                     .picture = RefOf(services.archive, role.picture),
                     .x = static_cast<i16>(role.aimX),
                     .y = static_cast<i16>(role.aimY),
-                    .mode = role.unk26A4,
+                    .mode = role.shadowMode,
                 }
             );
         }
@@ -329,7 +329,7 @@ int RoleFrame::AttackAdvance(BattleServices& services, BattleUnit& target, int s
     {
         int tint = role.slotTint;
 
-        if ((role.unk26A4 & ActState::NoBlend) != 0)
+        if ((role.shadowMode & ActState::NoBlend) != 0)
         {
             tint = 0;
             role.slotTint = kSlotFadeEnd;
@@ -342,7 +342,7 @@ int RoleFrame::AttackAdvance(BattleServices& services, BattleUnit& target, int s
                     .picture = RefOf(services.archive, role.picture),
                     .x = static_cast<i16>(role.aimX),
                     .y = static_cast<i16>(role.aimY),
-                    .mode = role.unk26A4,
+                    .mode = role.shadowMode,
                     .tinted = true,
                     .tintRed = tint,
                     .tintGreen = tint,
@@ -390,7 +390,7 @@ int RoleFrame::AttackAdvance(BattleServices& services, BattleUnit& target, int s
     role.recoilTint = 1;
     role.unk2AB0 = 0;
     role.fadedIn = 0;
-    role.unk267C = 0;
+    role.stage = 0;
 
     if (battle.criticalAttack == 0)
     {
@@ -456,16 +456,16 @@ int RoleFrame::CastAtAdvance(BattleServices& services, const BattleUnit& target,
     DrawOptions& options = painter.Options();
     options.scaleHeight = shadowHeight;
     options.shear = role.picture->height >> kShadowShearShift;
-    const int tint = role.unk2B00 == 1 ? kFaintShadowTint : kShadowTint;
+    const int tint = role.autoControl == 1 ? kFaintShadowTint : kShadowTint;
     options.tintRed = tint;
     options.tintGreen = tint;
     options.tintBlue = tint;
     services.audio.PlaySound(act.view, services.config.soundVolume);
     const int x = role.placement.x - offsetX;
     services.audio.SetSoundPan(act.view, x >= kPanCentre ? kTargetPan : -kTargetPan);
-    role.unk26A4 = (flags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+    role.shadowMode = (flags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
     act.view = 0;
-    painter.DrawPicture(x, role.placement.y - shadowHeight, role.picture->width, role.picture->height, role.unk26A4);
+    painter.DrawPicture(x, role.placement.y - shadowHeight, role.picture->width, role.picture->height, role.shadowMode);
     painter.DrawPicture(x, role.placement.y - act.y, role.picture->width, role.picture->height, flags);
 
     if ((act.target & (ActState::Strikes | ActState::FollowsUp)) == 0)
@@ -979,9 +979,9 @@ u16 RoleFrame::AttackPoseAdvance(BattleServices& services, Scene& scene)
     services.audio.PlaySound(act.view, services.config.soundVolume);
     services.audio.SetSoundPan(act.view, -kTargetPan);
     act.view = 0;
-    role.unk26A4 = (act.flags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+    role.shadowMode = (act.flags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
     const int x = role.placement.x - act.x;
-    painter.DrawPicture(x, role.placement.y - shadowHeight, role.picture->width, role.picture->height, role.unk26A4);
+    painter.DrawPicture(x, role.placement.y - shadowHeight, role.picture->width, role.picture->height, role.shadowMode);
     painter.DrawPicture(x, role.placement.y - act.y, role.picture->width, role.picture->height, act.flags);
 
     if ((act.target & (ActState::Strikes | ActState::FollowsUp)) != 0)
@@ -1053,20 +1053,20 @@ int RoleFrame::PoseAtTargetAdvance(BattleServices& services, const BattleUnit& t
     DrawOptions& options = painter.Options();
     options.scaleHeight = shadowHeight;
     options.shear = role.picture->height >> kShadowShearShift;
-    const int tint = role.unk2B00 == 1 ? kFaintShadowTint : kShadowTint;
+    const int tint = role.autoControl == 1 ? kFaintShadowTint : kShadowTint;
     options.tintRed = tint;
     options.tintGreen = tint;
     options.tintBlue = tint;
     services.audio.PlaySound(act.view, services.config.soundVolume);
     services.audio.SetSoundPan(act.view, x > kPanCentre ? kTargetPan : -kTargetPan);
-    role.unk26A4 = (act.flags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+    role.shadowMode = (act.flags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
     act.view = 0;
     painter.DrawPicture(
         x - kShadowLeft,
         act.y + y - shadowHeight,
         role.picture->width,
         role.picture->height,
-        role.unk26A4
+        role.shadowMode
     );
     painter.DrawPicture(x, y, role.picture->width, role.picture->height, act.flags);
     return 0;
@@ -1196,22 +1196,22 @@ int RoleFrame::DirectAttackAdvance(BattleServices& services, BattleUnit& target,
     DrawOptions& options = painter.Options();
     options.scaleHeight = shadowHeight;
     options.shear = role.picture->height >> kShadowShearShift;
-    const int tint = role.unk2B00 == 1 ? kFaintShadowTint : kShadowTint;
+    const int tint = role.autoControl == 1 ? kFaintShadowTint : kShadowTint;
     options.tintRed = tint;
     options.tintGreen = tint;
     options.tintBlue = tint;
     services.audio.PlaySound(act.view, services.config.soundVolume);
     const int x = role.placement.x - static_cast<i16>(role.actOffsetX);
     services.audio.SetSoundPan(act.view, x >= kPanCentre ? kTargetPan : -kTargetPan);
-    role.unk26A4 = (role.frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+    role.shadowMode = (role.frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
     act.view = 0;
-    painter.DrawPicture(x, act.y + shadowY - shadowHeight, role.picture->width, role.picture->height, role.unk26A4);
+    painter.DrawPicture(x, act.y + shadowY - shadowHeight, role.picture->width, role.picture->height, role.shadowMode);
     painter.DrawPicture(x, role.placement.y - act.y, role.picture->width, role.picture->height, role.frameFlags);
 
     if ((act.target & (ActState::Strikes | ActState::FollowsUp)) != 0)
     {
         act.target = 0;
-        role.unk267C = BattleUnit::FollowingUp;
+        role.stage = BattleUnit::FollowingUp;
         target.RaiseFlag26B8();
         i16 spirit = 0;
         i16 stamina = 0;
@@ -1229,7 +1229,7 @@ int RoleFrame::DirectAttackAdvance(BattleServices& services, BattleUnit& target,
         target.StepTargetCount(1);
     }
 
-    if (role.unk267C != BattleUnit::FollowingUp)
+    if (role.stage != BattleUnit::FollowingUp)
     {
         return 0;
     }
@@ -1247,7 +1247,7 @@ int RoleFrame::DirectAttackAdvance(BattleServices& services, BattleUnit& target,
             static_cast<i16>(role.aimY),
             role.picture->width,
             role.picture->height,
-            role.unk26A4
+            role.shadowMode
         );
     }
 
@@ -1256,7 +1256,7 @@ int RoleFrame::DirectAttackAdvance(BattleServices& services, BattleUnit& target,
         return 0;
     }
 
-    role.unk267C = 0;
+    role.stage = 0;
     follow = ActState{};
     act = ActState{};
     return 1;
@@ -1270,7 +1270,7 @@ int RoleFrame::ChargeOnTargetAdvance(BattleServices& services, BattleUnit& targe
     ScenePainter painter(services, scene);
     ActState& charge = role.attackAct;
     charge.id = role.actId + BattleRole::MagicActs;
-    charge.action = role.unk2A8A + kChargeAction;
+    charge.action = role.magicAction + kChargeAction;
 
     if (services.acts.Run(charge) == 0)
     {
@@ -1280,7 +1280,7 @@ int RoleFrame::ChargeOnTargetAdvance(BattleServices& services, BattleUnit& targe
     role.picture = services.archive.GetPicture(charge.frame, charge.picture);
     services.audio.PlaySound(charge.view, services.config.soundVolume);
     charge.view = 0;
-    role.unk26A4 = charge.flags;
+    role.shadowMode = charge.flags;
     role.actOffsetX = static_cast<u16>(charge.x);
     const u16 chargeAnchorX = charge.anchorX;
 
@@ -1292,7 +1292,7 @@ int RoleFrame::ChargeOnTargetAdvance(BattleServices& services, BattleUnit& targe
 
     if (role.facing == 1)
     {
-        role.unk26A4 ^= Painter::Mirror;
+        role.shadowMode ^= Painter::Mirror;
         role.actOffsetX = static_cast<u16>(role.picture->width - static_cast<u16>(charge.x));
     }
 
@@ -1319,7 +1319,7 @@ int RoleFrame::ChargeOnTargetAdvance(BattleServices& services, BattleUnit& targe
     trail.direction = AfterimageTrail::InPlace;
     trail.count = kChargeTrailImages;
     trail.fadeStep = 1;
-    UnitFrame(role).Trail(services, trail, charge.frame, charge.picture, role.unk26A4, dashX, dashY, scene);
+    UnitFrame(role).Trail(services, trail, charge.frame, charge.picture, role.shadowMode, dashX, dashY, scene);
     role.picture = services.archive.GetPicture(charge.frame, charge.picture);
 
     if (role.picture == nullptr)
@@ -1328,16 +1328,16 @@ int RoleFrame::ChargeOnTargetAdvance(BattleServices& services, BattleUnit& targe
     }
 
     painter.SetSource(role.picture->data.data());
-    painter.DrawPicture(dashX, dashY, role.picture->width, role.picture->height, role.unk26A4);
+    painter.DrawPicture(dashX, dashY, role.picture->width, role.picture->height, role.shadowMode);
 
     if ((charge.target & ActState::FollowsUp) != 0)
     {
-        role.unk267C |= BattleUnit::ChargeFollowing;
+        role.stage |= BattleUnit::ChargeFollowing;
         charge.target = 0;
         role.slotActs[1] = ActState{};
     }
 
-    if ((role.unk267C & BattleUnit::ChargeFollowing) == 0)
+    if ((role.stage & BattleUnit::ChargeFollowing) == 0)
     {
         return 1;
     }
@@ -1369,12 +1369,12 @@ int RoleFrame::ChargeOnTargetAdvance(BattleServices& services, BattleUnit& targe
     }
 
     u16 followAnchorX = follow.anchorX;
-    role.unk26A4 = follow.flags;
+    role.shadowMode = follow.flags;
     role.aimOffsetX = static_cast<u16>(follow.x);
 
     if (role.facing == 1)
     {
-        role.unk26A4 ^= Painter::Mirror;
+        role.shadowMode ^= Painter::Mirror;
         role.aimOffsetX = static_cast<u16>(role.picture->width - static_cast<u16>(follow.x));
     }
 
@@ -1382,7 +1382,7 @@ int RoleFrame::ChargeOnTargetAdvance(BattleServices& services, BattleUnit& targe
     services.audio.SetSoundPan(follow.view, role.facing == 1 ? kTargetPan : -kTargetPan);
     follow.view = 0;
     painter.SetSource(role.picture->data.data());
-    role.unk26A4 ^= Painter::Mirror;
+    role.shadowMode ^= Painter::Mirror;
     role.aimOffsetX = static_cast<u16>(role.picture->width - role.aimOffsetX);
 
     if (followAnchorX != 0)
@@ -1399,7 +1399,7 @@ int RoleFrame::ChargeOnTargetAdvance(BattleServices& services, BattleUnit& targe
         y = static_cast<i16>(charge.anchorY - follow.anchorY + dashY);
     }
 
-    painter.DrawPicture(x, y, role.picture->width, role.picture->height, role.unk26A4);
+    painter.DrawPicture(x, y, role.picture->width, role.picture->height, role.shadowMode);
 
     if ((follow.target & ActState::Strikes) != 0)
     {
@@ -1418,7 +1418,7 @@ int RoleFrame::MagicFrameAdvance(BattleServices& services, const BattleUnit& tar
     BattleRole& role = this->role;
     BattleState& battle = services.state;
     ActState& act = role.slotActs[BattleUnit::UnkSlot8];
-    act.action = role.unk2A8A;
+    act.action = role.magicAction;
     role.unk2AAC = 1;
     act.id = role.actId + BattleRole::MagicActs;
     UnitFrame(role).Action(services, target, act, scene);
@@ -1427,7 +1427,7 @@ int RoleFrame::MagicFrameAdvance(BattleServices& services, const BattleUnit& tar
     {
         if (act.effectA != 0)
         {
-            role.unk267C |= BattleUnit::Recoiling;
+            role.stage |= BattleUnit::Recoiling;
             role.recoilAct.id = act.effectA;
             role.recoilAct.action = act.effectQ;
         }
@@ -1442,10 +1442,10 @@ int RoleFrame::MagicFrameAdvance(BattleServices& services, const BattleUnit& tar
         act.effectQ = 0;
     }
 
-    if ((role.unk267C & BattleUnit::Recoiling) != 0 &&
+    if ((role.stage & BattleUnit::Recoiling) != 0 &&
         UnitFrame(role).Recoil(services, role.recoilAct, static_cast<i16>(act.anchorY), scene) == 1)
     {
-        role.unk267C &= ~BattleUnit::Recoiling;
+        role.stage &= ~BattleUnit::Recoiling;
         act.target = 0;
         act.hold = 0;
         role.recoilAct = ActState{};
@@ -1479,7 +1479,7 @@ int RoleFrame::MagicFrameAdvance(BattleServices& services, const BattleUnit& tar
         return 0;
     }
 
-    role.unk267C = 0;
+    role.stage = 0;
     act = ActState{};
     return 1;
 }
@@ -1501,7 +1501,7 @@ int RoleFrame::ChargeAttackFrameAdvance(BattleServices& services, BattleUnit& ta
     ActState& magic = role.slotActs[BattleUnit::UnkSlot8 + static_cast<std::size_t>(slot)];
     ActState& charge = role.attackAct;
     magic.id = role.actId + BattleRole::MagicActs;
-    magic.action = role.unk2A8A;
+    magic.action = role.magicAction;
     UnitFrame(role).Action(services, target, magic, scene);
 
     auto slide = [&role, &painter]
@@ -1549,7 +1549,7 @@ int RoleFrame::ChargeAttackFrameAdvance(BattleServices& services, BattleUnit& ta
 
         magic.hold = 1;
         charge.id = role.actId + BattleRole::MagicActs;
-        charge.action = role.unk2A8A + kChargeAction;
+        charge.action = role.magicAction + kChargeAction;
 
         while (charge.picture < kChargePicture)
         {
@@ -1601,7 +1601,7 @@ int RoleFrame::ChargeAttackFrameAdvance(BattleServices& services, BattleUnit& ta
 
     if ((magic.target & ActState::FollowsUp) != 0)
     {
-        role.unk267C |= BattleUnit::FollowingUp;
+        role.stage |= BattleUnit::FollowingUp;
         magic.target = 0;
     }
 
@@ -1609,13 +1609,13 @@ int RoleFrame::ChargeAttackFrameAdvance(BattleServices& services, BattleUnit& ta
     {
         role.Strike(services, target, 0);
         magic.target = 0;
-        role.unk267C |= BattleUnit::FollowingUp;
+        role.stage |= BattleUnit::FollowingUp;
         role.slotTint = 0;
         battle.proficiencyBonus = 0;
         role.slotActs[0] = ActState{};
     }
 
-    if ((role.unk267C & BattleUnit::FollowingUp) == 0)
+    if ((role.stage & BattleUnit::FollowingUp) == 0)
     {
         return 0;
     }
@@ -1656,7 +1656,7 @@ int RoleFrame::ChargeAttackFrameAdvance(BattleServices& services, BattleUnit& ta
         role.targets.fill(BattleUnit::NoTarget);
         role.slotTint = 0;
         role.unk2AB0 = 0;
-        role.unk267C = 0;
+        role.stage = 0;
         role.unk26D4 = 0;
         battle.criticalAttack = 0;
         ++battle.attacksSinceCritical;
@@ -1664,7 +1664,7 @@ int RoleFrame::ChargeAttackFrameAdvance(BattleServices& services, BattleUnit& ta
         return 1;
     }
 
-    if ((role.unk267C & BattleUnit::Recoiling) == 0 && role.picture != nullptr)
+    if ((role.stage & BattleUnit::Recoiling) == 0 && role.picture != nullptr)
     {
         const DrawArgument argument =
             role.shadowPicture != nullptr ? PaletteArgument(*role.shadowPicture) : DrawArgument{};
@@ -1673,7 +1673,7 @@ int RoleFrame::ChargeAttackFrameAdvance(BattleServices& services, BattleUnit& ta
             static_cast<i16>(role.aimY),
             role.picture->width,
             role.picture->height,
-            role.unk26A4,
+            role.shadowMode,
             argument
         );
     }
@@ -1725,16 +1725,16 @@ int RoleFrame::BoomerangFrameAdvance(BattleServices& services, BattleUnit& targe
     DrawOptions& options = painter.Options();
     options.scaleHeight = shadowHeight;
     options.shear = role.picture->height >> kShadowShearShift;
-    const int tint = role.unk2B00 == 1 ? kFaintShadowTint : kShadowTint;
+    const int tint = role.autoControl == 1 ? kFaintShadowTint : kShadowTint;
     options.tintRed = tint;
     options.tintGreen = tint;
     options.tintBlue = tint;
     services.audio.PlaySound(act.view, services.config.soundVolume);
     const int x = role.placement.x - static_cast<i16>(role.actOffsetX);
     services.audio.SetSoundPan(act.view, x >= kPanCentre ? kTargetPan : -kTargetPan);
-    role.unk26A4 = (role.frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+    role.shadowMode = (role.frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
     act.view = 0;
-    painter.DrawPicture(x, role.placement.y - shadowHeight, role.picture->width, role.picture->height, role.unk26A4);
+    painter.DrawPicture(x, role.placement.y - shadowHeight, role.picture->width, role.picture->height, role.shadowMode);
     painter.DrawPicture(x, role.placement.y - act.y, role.picture->width, role.picture->height, role.frameFlags);
 
     if ((act.target & (ActState::Strikes | ActState::FollowsUp)) == 0)
@@ -1749,7 +1749,7 @@ int RoleFrame::BoomerangFrameAdvance(BattleServices& services, BattleUnit& targe
     u16 targetY = 0;
     target.GetDrawPosition(targetX, targetY);
 
-    if (role.unk267C == kBoomerangGoing)
+    if (role.stage == kBoomerangGoing)
     {
         if (role.unk2F0C == 0)
         {
@@ -1771,12 +1771,12 @@ int RoleFrame::BoomerangFrameAdvance(BattleServices& services, BattleUnit& targe
         if (UnitFrame(role).Queued(services, target, 0, scene) == 1)
         {
             role.unk2F0C = 0;
-            role.unk267C = kBoomerangReturning;
+            role.stage = kBoomerangReturning;
             target.RaiseFlag26B8();
         }
     }
 
-    if (role.unk267C == kBoomerangReturning)
+    if (role.stage == kBoomerangReturning)
     {
         if (role.unk2F0C == 0)
         {
@@ -1798,17 +1798,17 @@ int RoleFrame::BoomerangFrameAdvance(BattleServices& services, BattleUnit& targe
         if (UnitFrame(role).Queued(services, target, 0, scene) == 1)
         {
             role.unk2F0C = 0;
-            role.unk267C = kBoomerangBackHome;
+            role.stage = kBoomerangBackHome;
             services.audio.PlaySound(kBoomerangSound, services.config.soundVolume);
         }
     }
 
-    if (role.unk267C != kBoomerangBackHome)
+    if (role.stage != kBoomerangBackHome)
     {
         return 0;
     }
 
-    role.unk267C = 0;
+    role.stage = 0;
     thrown = ActState{};
     act = ActState{};
     return 1;
@@ -1822,7 +1822,7 @@ int RoleFrame::SwarmSpellFrameAdvance(BattleServices& services, BattleUnit& targ
     ActState& magic = role.slotActs[BattleUnit::UnkSlot8];
     u16 targetX = 0;
     u16 targetY = 0;
-    magic.action = role.unk2A8A;
+    magic.action = role.magicAction;
     role.unk2AAC = 1;
     magic.id = role.actId + BattleRole::MagicActs;
     UnitFrame(role).Action(services, target, magic, scene);
@@ -1831,7 +1831,7 @@ int RoleFrame::SwarmSpellFrameAdvance(BattleServices& services, BattleUnit& targ
     {
         if (magic.effectA != 0)
         {
-            role.unk267C |= BattleUnit::Recoiling;
+            role.stage |= BattleUnit::Recoiling;
             role.recoilAct.id = magic.effectA;
             role.recoilAct.action = magic.effectQ;
         }
@@ -1846,11 +1846,11 @@ int RoleFrame::SwarmSpellFrameAdvance(BattleServices& services, BattleUnit& targ
         magic.effectQ = 0;
     }
 
-    if ((role.unk267C & BattleUnit::Recoiling) != 0 &&
+    if ((role.stage & BattleUnit::Recoiling) != 0 &&
         UnitFrame(role).Recoil(services, role.recoilAct, static_cast<i16>(magic.anchorY), scene) == 1)
     {
         magic.target = 0;
-        role.unk267C &= ~BattleUnit::Recoiling;
+        role.stage &= ~BattleUnit::Recoiling;
         magic.hold = 0;
     }
 
@@ -1869,14 +1869,14 @@ int RoleFrame::SwarmSpellFrameAdvance(BattleServices& services, BattleUnit& targ
 
     if ((magic.target & (ActState::Strikes | ActState::FollowsUp)) != 0)
     {
-        role.unk267C |= BattleUnit::FollowingUp;
+        role.stage |= BattleUnit::FollowingUp;
         magic.target = 0;
         aim();
         role.unk2F0C = role.unk2F24;
         ++role.unk2F24;
     }
 
-    if ((role.unk267C & BattleUnit::FollowingUp) == 0)
+    if ((role.stage & BattleUnit::FollowingUp) == 0)
     {
         return 0;
     }
@@ -1907,7 +1907,7 @@ int RoleFrame::SwarmSpellFrameAdvance(BattleServices& services, BattleUnit& targ
         return 0;
     }
 
-    role.unk267C = 0;
+    role.stage = 0;
 
     if (magic.waiting != 1)
     {
@@ -1933,7 +1933,7 @@ int RoleFrame::BeamSpellFrameAdvance(BattleServices& services, BattleUnit& targe
     ActState& rise = role.slotActs[BattleUnit::UnkSlot9];
     role.unk2AAC = 1;
     magic.id = role.actId + BattleRole::MagicActs;
-    magic.action = role.unk2A8A;
+    magic.action = role.magicAction;
 
     if (services.acts.Run(magic) == 0)
     {
@@ -1978,12 +1978,12 @@ int RoleFrame::BeamSpellFrameAdvance(BattleServices& services, BattleUnit& targe
     if ((magic.target & ActState::FollowsUp) != 0)
     {
         role.slotTint = kBeamRiseStart;
-        role.unk267C |= kBeamGlow | kBeamRise;
+        role.stage |= kBeamGlow | kBeamRise;
         magic.target = 0;
         role.glowLevel = 0;
     }
 
-    if (role.unk267C == 0)
+    if (role.stage == 0)
     {
         services.audio.PlaySound(magic.view, services.config.soundVolume);
         services.audio.SetSoundPan(magic.view, x >= kPanCentre ? kTargetPan : -kTargetPan);
@@ -1995,18 +1995,18 @@ int RoleFrame::BeamSpellFrameAdvance(BattleServices& services, BattleUnit& targe
         options.tintGreen = kShadowTint;
         options.tintBlue = kShadowTint;
         options.shear = role.picture->height >> kShadowShearShift;
-        role.unk26A4 = (flags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+        role.shadowMode = (flags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
         painter.DrawPicture(
             x - kShadowLeft,
             role.placement.y - shadowHeight,
             role.picture->width,
             role.picture->height,
-            role.unk26A4
+            role.shadowMode
         );
         painter.DrawPicture(x, magicY, role.picture->width, role.picture->height, flags);
     }
 
-    if ((role.unk267C & kBeamGlow) != 0)
+    if ((role.stage & kBeamGlow) != 0)
     {
         if (role.glowLevel > kBeamGlowEnd)
         {
@@ -2016,11 +2016,11 @@ int RoleFrame::BeamSpellFrameAdvance(BattleServices& services, BattleUnit& targe
         }
         else
         {
-            role.unk267C &= ~kBeamGlow;
+            role.stage &= ~kBeamGlow;
         }
     }
 
-    if ((role.unk267C & kBeamRise) != 0)
+    if ((role.stage & kBeamRise) != 0)
     {
         rise.action = 0;
         rise.id = kRiseAct;
@@ -2059,7 +2059,7 @@ int RoleFrame::BeamSpellFrameAdvance(BattleServices& services, BattleUnit& targe
 
         if (role.slotTint > 0)
         {
-            role.unk267C = kBeamFly;
+            role.stage = kBeamFly;
             role.glowLevel = 0;
             role.slotTint = 0;
         }
@@ -2075,7 +2075,7 @@ int RoleFrame::BeamSpellFrameAdvance(BattleServices& services, BattleUnit& targe
         }
     }
 
-    if (role.unk267C == kBeamFly)
+    if (role.stage == kBeamFly)
     {
         const int fromX = role.placement.x - offsetX + static_cast<i16>(role.actAnchorX);
         const int fromY = role.placement.y + static_cast<i16>(magic.anchorY) - magic.y;
@@ -2098,12 +2098,12 @@ int RoleFrame::BeamSpellFrameAdvance(BattleServices& services, BattleUnit& targe
             battle.hitDamage += damage;
             target.SetDamageDigits(services, damage);
             target.StepTargetCount(1);
-            role.unk267C = kBeamImpact;
+            role.stage = kBeamImpact;
             role.glowLevel = kBeamRiseStart;
         }
     }
 
-    if ((role.unk267C & kBeamImpact) != 0)
+    if ((role.stage & kBeamImpact) != 0)
     {
         ActState& impact = role.slotActs[1];
         impact.id = kImpactAct;
@@ -2111,11 +2111,11 @@ int RoleFrame::BeamSpellFrameAdvance(BattleServices& services, BattleUnit& targe
 
         if (UnitFrame(role).DrawAimedAdvance(services, target, impact, 0, 0, scene) == 1)
         {
-            role.unk267C = kBeamFadeIn;
+            role.stage = kBeamFadeIn;
         }
     }
 
-    if ((role.unk267C & kBeamFadeIn) == 0)
+    if ((role.stage & kBeamFadeIn) == 0)
     {
         return 0;
     }
@@ -2134,7 +2134,7 @@ int RoleFrame::BeamSpellFrameAdvance(BattleServices& services, BattleUnit& targe
     }
 
     role.glowLevel = 0;
-    role.unk267C = 0;
+    role.stage = 0;
     magic = ActState{};
     rise = ActState{};
     role.slotActs[0] = ActState{};
@@ -2151,14 +2151,14 @@ int RoleFrame::LeapSpellFrameAdvance(BattleServices& services, BattleUnit& targe
     ActState& magic = role.slotActs[BattleUnit::UnkSlot8];
     magic.id = role.actId + BattleRole::MagicActs;
     role.unk2AAC = 1;
-    magic.action = role.unk2A8A;
+    magic.action = role.magicAction;
 
-    if (role.unk267C == kLeapCasting)
+    if (role.stage == kLeapCasting)
     {
         UnitFrame(role).Action(services, target, magic, scene);
     }
 
-    if (role.unk267C == kLeapAtTarget)
+    if (role.stage == kLeapAtTarget)
     {
         u16 targetX = 0;
         u16 targetY = 0;
@@ -2168,21 +2168,21 @@ int RoleFrame::LeapSpellFrameAdvance(BattleServices& services, BattleUnit& targe
             .DrawActionAtAdvance(services, static_cast<i16>(targetX), static_cast<i16>(targetY), magic, scene);
     }
 
-    if (role.unk267C == kLeapReturning)
+    if (role.stage == kLeapReturning)
     {
         role.command.flags = static_cast<u16>(role.command.flags | UnitCommand::UnkFlag8);
         magic.action += kLeapReturnAction;
 
         if (UnitFrame(role).Home(services, target, magic.id, magic.action, scene) == 1)
         {
-            role.unk267C = kLeapHome;
+            role.stage = kLeapHome;
         }
     }
 
     if (magic.waiting == 1)
     {
         magic = ActState{};
-        ++role.unk267C;
+        ++role.stage;
     }
 
     if ((magic.target & ActState::FollowsUp) != 0)
@@ -2195,13 +2195,12 @@ int RoleFrame::LeapSpellFrameAdvance(BattleServices& services, BattleUnit& targe
         magic.target = 0;
     }
 
-    if ((battle.spellStage & BattleState::SpellOver) == 0 ||
-        static_cast<i32>(role.unk267C) < static_cast<i32>(kLeapHome))
+    if ((battle.spellStage & BattleState::SpellOver) == 0 || static_cast<i32>(role.stage) < static_cast<i32>(kLeapHome))
     {
         return 0;
     }
 
-    role.unk267C = 0;
+    role.stage = 0;
     magic = ActState{};
     return 1;
 }

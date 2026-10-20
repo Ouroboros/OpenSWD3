@@ -219,21 +219,21 @@ void UnitFrame::ChooseOverlay(
     }
 
     unit.overlayX = static_cast<u16>(offsetX);
-    unit.unk2554 = services.archive.GetPicture(frame, static_cast<u16>(picture - 1));
+    unit.overlayPicture = services.archive.GetPicture(frame, static_cast<u16>(picture - 1));
 
     // A missing picture is read through a null pointer in the original.
-    if (unit.unk2554 == nullptr)
+    if (unit.overlayPicture == nullptr)
     {
         return;
     }
 
-    const bool forced = unit.unk2B00 == 1 || unit.unk2B04 == 1;
+    const bool forced = unit.autoControl == 1 || unit.guestControl == 1;
 
     auto mirror = [&unit, offsetX]
     {
         if (offsetX != 0 && unit.picture != nullptr)
         {
-            unit.overlayX = static_cast<u16>(unit.picture->width - offsetX - unit.unk2554->width);
+            unit.overlayX = static_cast<u16>(unit.picture->width - offsetX - unit.overlayPicture->width);
         }
     };
 
@@ -242,7 +242,7 @@ void UnitFrame::ChooseOverlay(
         mirror();
     }
 
-    if (unit.facing == 1 && unit.unk2B00 == 0 && unit.unk2B04 == 0)
+    if (unit.facing == 1 && unit.autoControl == 0 && unit.guestControl == 0)
     {
         mirror();
     }
@@ -272,7 +272,7 @@ int UnitFrame::HomeAdvance(BattleServices& services, const BattleUnit& target, i
         return 1;
     }
 
-    if (unit.unk2B00 == 1 || unit.unk2B04 == 1)
+    if (unit.autoControl == 1 || unit.guestControl == 1)
     {
         return 1;
     }
@@ -374,8 +374,8 @@ int UnitFrame::HomeAdvance(BattleServices& services, const BattleUnit& target, i
     {
         view.shadow = true;
         view.shadowY = view.y + act.y;
-        view.shadowTint = unit.unk2B00 == 1 ? kInvisibleShadowTint : kShadowTint;
-        unit.unk26A4 = (unit.frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+        view.shadowTint = unit.autoControl == 1 ? kInvisibleShadowTint : kShadowTint;
+        unit.shadowMode = (unit.frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
     }
 
     this->ChooseOverlay(
@@ -400,7 +400,7 @@ bool UnitFrame::WalkAdvance(BattleServices& services, const BattleUnit& target, 
         return false;
     }
 
-    if (unit.unk2B00 == 1 && (unit.command.flags & UnitCommand::FadesIn) != 0)
+    if (unit.autoControl == 1 && (unit.command.flags & UnitCommand::FadesIn) != 0)
     {
         unit.commandA = unit.commandB;
         return false;
@@ -512,8 +512,8 @@ bool UnitFrame::WalkAdvance(BattleServices& services, const BattleUnit& target, 
 
     view.shadow = true;
     view.shadowY = view.y + act.y;
-    view.shadowTint = unit.unk2B00 == 1 ? kInvisibleShadowTint : kShadowTint;
-    unit.unk26A4 = (unit.frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+    view.shadowTint = unit.autoControl == 1 ? kInvisibleShadowTint : kShadowTint;
+    unit.shadowMode = (unit.frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
     return true;
 }
 
@@ -580,7 +580,7 @@ bool UnitFrame::IdleAdvance(BattleServices& services, int paused, IdleView& view
         act.hold = 1;
     }
 
-    const bool forced = unit.unk2B00 == 1 || unit.unk2B04 == 1;
+    const bool forced = unit.autoControl == 1 || unit.guestControl == 1;
     const bool shown = unit.defeated != 1 || (unit.kind != 0 && !forced) || unit.unk2AF8 != 0;
 
     if (!shown)
@@ -616,20 +616,20 @@ bool UnitFrame::IdleAdvance(BattleServices& services, int paused, IdleView& view
 
     const RoleRecord* record = unit.roleRecord;
 
-    if (unit.kind == 1 && unit.unk2B00 == 0 && unit.unk2B04 == 0 &&
+    if (unit.kind == 1 && unit.autoControl == 0 && unit.guestControl == 0 &&
         record->hitPoints <= record->maxHitPoints / kWeakShare)
     {
         act.action = kWeakAction;
     }
 
-    if (unit.unk2A86 != 0 && unit.unk2AB4 == 1 && unit.unk2AC8 == 1)
+    if (unit.commandFlags != 0 && unit.unk2AB4 == 1 && unit.unk2AC8 == 1)
     {
-        if (unit.unk2B00 == 1)
+        if (unit.autoControl == 1)
         {
             unit.guarding = 0;
         }
 
-        if (unit.unk2B04 == 1)
+        if (unit.guestControl == 1)
         {
             unit.placement.x = kForcedPlaceX;
             unit.placement.y = kForcedPlaceY;
@@ -651,35 +651,35 @@ bool UnitFrame::IdleAdvance(BattleServices& services, int paused, IdleView& view
 
         unit.unk2A88 = static_cast<u16>(act.action);
 
-        if ((unit.unk2A86 & BattleUnit::UnkCommandFlag4000) != 0 ||
-            (unit.unk2A86 & BattleUnit::UnkCommandFlag2000) != 0)
+        if ((unit.commandFlags & BattleUnit::UnkCommandFlag4000) != 0 ||
+            (unit.commandFlags & BattleUnit::UnkCommandFlag2000) != 0)
         {
             act.action = kItemReadyAction;
         }
 
-        if ((unit.unk2A86 & BattleUnit::UnkCommandFlag8000) != 0 && act.waiting == 1 && unit.kind == 1)
+        if ((unit.commandFlags & BattleUnit::UnkCommandFlag8000) != 0 && act.waiting == 1 && unit.kind == 1)
         {
             act.waiting = 0;
             act.position = static_cast<u16>(act.position - kReadyRewind);
         }
 
-        if ((unit.unk2A86 & BattleUnit::UnkCommandFlag400) != 0)
+        if ((unit.commandFlags & BattleUnit::UnkCommandFlag400) != 0)
         {
             act.action = kItemReadyAction;
         }
 
-        if ((unit.unk2A86 & BattleUnit::UnkCommandFlag800) != 0)
+        if ((unit.commandFlags & BattleUnit::UnkCommandFlag800) != 0)
         {
             act.action = kAbsorbReadyAction;
         }
 
-        if ((unit.unk2A86 & BattleUnit::UnkCommandFlag200) != 0)
+        if ((unit.commandFlags & BattleUnit::UnkCommandFlag200) != 0)
         {
             return false;
         }
     }
 
-    if (unit.unk2B00 == 0 && unit.unk2B04 == 0)
+    if (unit.autoControl == 0 && unit.guestControl == 0)
     {
         if (unit.unk26D2 == kGuardPose1)
         {
@@ -710,7 +710,7 @@ bool UnitFrame::IdleAdvance(BattleServices& services, int paused, IdleView& view
         }
     }
 
-    if (unit.kind == 1 && unit.defeated == 1 && unit.unk2B00 == 0 && unit.unk2B04 == 0)
+    if (unit.kind == 1 && unit.defeated == 1 && unit.autoControl == 0 && unit.guestControl == 0)
     {
         act.action = kDefeatedShadowAction;
     }
@@ -725,8 +725,8 @@ bool UnitFrame::IdleAdvance(BattleServices& services, int paused, IdleView& view
         unit.commandA = unit.commandB;
         act.target = 0;
 
-        if ((unit.unk2A86 & BattleUnit::UnkCommandFlag8000) == 0 ||
-            (unit.unk2A86 & BattleUnit::UnkCommandFlag4000) != 0)
+        if ((unit.commandFlags & BattleUnit::UnkCommandFlag8000) == 0 ||
+            (unit.commandFlags & BattleUnit::UnkCommandFlag4000) != 0)
         {
             act.hold = 0;
         }
@@ -785,7 +785,7 @@ bool UnitFrame::IdleAdvance(BattleServices& services, int paused, IdleView& view
         }
     }
 
-    if (unit.facing == 1 && unit.unk2B00 == 0 && unit.unk2B04 == 0)
+    if (unit.facing == 1 && unit.autoControl == 0 && unit.guestControl == 0)
     {
         mirror();
     }
@@ -834,7 +834,7 @@ bool UnitFrame::IdleAdvance(BattleServices& services, int paused, IdleView& view
         view.shadow = unit.drawAtSaved != kRising && unit.drawAtSaved != kDropping && !invisible;
         view.shadowX = unit.placement.x - static_cast<i16>(unit.originX);
         view.shadowY = unit.placement.y;
-        view.shadowTint = unit.unk2B00 == 1 ? kInvisibleShadowTint : kShadowTint;
+        view.shadowTint = unit.autoControl == 1 ? kInvisibleShadowTint : kShadowTint;
         view.whiteOutline = (unit.status & kOutlinedStatus) != 0;
         view.outline = unit.outline == 1;
         view.smear = invisible;
@@ -870,12 +870,12 @@ bool UnitFrame::IdleAdvance(BattleServices& services, int paused, IdleView& view
 
         if (view.shadow)
         {
-            unit.unk26A4 = view.mirrored | Painter::Shadow;
+            unit.shadowMode = view.mirrored | Painter::Shadow;
         }
 
         if (view.smear || view.flash || view.gray || view.red)
         {
-            unit.unk26A4 = view.mirrored;
+            unit.shadowMode = view.mirrored;
         }
 
         if (act.view != 0)
@@ -923,9 +923,9 @@ bool UnitFrame::IdleAdvance(BattleServices& services, int paused, IdleView& view
     if (unit.guarding == 0 && (unit.marks & BattleUnit::GuardingMark) == 0 &&
         (unit.status & BattleUnit::UnkStatus4) == 0 && act.rotation != 0 && act.actionCode != 0)
     {
-        unit.unk2554 = services.archive.GetPicture(act.rotation, static_cast<u16>(act.actionCode - 1));
+        unit.overlayPicture = services.archive.GetPicture(act.rotation, static_cast<u16>(act.actionCode - 1));
 
-        if (unit.unk2554 != nullptr)
+        if (unit.overlayPicture != nullptr)
         {
             unit.unk2698 = static_cast<i16>(act.offsetX);
             view.overlay = {act.rotation, static_cast<u16>(act.actionCode - 1), true};
@@ -1382,7 +1382,7 @@ bool UnitFrame::HurtAdvance(BattleServices& services, HurtView& view, int& resul
     ActState& act = unit.attackAct;
     act.id = unit.actId;
 
-    if (unit.kind != 1 || unit.unk2B00 != 0 || unit.unk2B04 != 0)
+    if (unit.kind != 1 || unit.autoControl != 0 || unit.guestControl != 0)
     {
         act.action = kEnemyHomeAction;
     }
@@ -1458,7 +1458,7 @@ bool UnitFrame::HurtAdvance(BattleServices& services, HurtView& view, int& resul
     const int shake = BattleUnit::StaggerShake[step];
     int x = shake + placeX - act.x;
 
-    if (unit.unk2B00 == 1)
+    if (unit.autoControl == 1)
     {
         if (unit.facing != 0)
         {
@@ -1471,7 +1471,7 @@ bool UnitFrame::HurtAdvance(BattleServices& services, HurtView& view, int& resul
         }
     }
 
-    if (unit.facing == 1 && unit.unk2B00 == 0)
+    if (unit.facing == 1 && unit.autoControl == 0)
     {
         unit.unk2670 = picture.width - act.x;
         x = placeX - BattleUnit::StaggerShake[step] - unit.unk2670;
@@ -1515,10 +1515,10 @@ bool UnitFrame::HurtAdvance(BattleServices& services, HurtView& view, int& resul
     view.x = x;
     view.y = y;
     view.shadowY = unit.placement.y;
-    view.shadowTint = unit.unk2B00 == 1 ? kInvisibleShadowTint : kShadowTint;
+    view.shadowTint = unit.autoControl == 1 ? kInvisibleShadowTint : kShadowTint;
     view.shadowFlags = mirrored | Painter::Shadow;
     // What the draws leave in the unit: the last mode drawn with, the draw flags without the effects.
-    unit.unk26A4 = view.shadowFlags;
+    unit.shadowMode = view.shadowFlags;
     unit.drawFlags &= Painter::RleSource | Painter::Mirror | Painter::Flip;
     view.flags = unit.drawFlags;
     view.red = !still && act.action != kGuardHurtAction;
@@ -1579,9 +1579,9 @@ bool UnitFrame::HurtAdvanceTail(BattleServices& services, HurtView& view)
 
     if (!still && act.rotation != 0 && act.actionCode != 0)
     {
-        unit.unk2554 = services.archive.GetPicture(act.rotation, static_cast<u16>(act.actionCode - 1));
+        unit.overlayPicture = services.archive.GetPicture(act.rotation, static_cast<u16>(act.actionCode - 1));
 
-        if (unit.unk2554 != nullptr)
+        if (unit.overlayPicture != nullptr)
         {
             view.overlay = {act.rotation, static_cast<u16>(act.actionCode - 1), true};
             view.overlayX = placeX + static_cast<i16>(act.offsetX) - unit.unk2670;
@@ -1715,8 +1715,8 @@ bool UnitFrame::ActionAdvance(BattleServices& services, const BattleUnit& target
     unit.actOffsetX = static_cast<u16>(act.x);
     unit.actAnchorX = act.anchorX;
     unit.overlayX = act.offsetX;
-    const bool forced = unit.unk2B00 == 1 || unit.unk2B04 == 1;
-    const bool still = unit.unk2B00 == 0 && unit.unk2B04 == 0;
+    const bool forced = unit.autoControl == 1 || unit.guestControl == 1;
+    const bool still = unit.autoControl == 0 && unit.guestControl == 0;
 
     auto mirror = [&unit, &act, &picture]
     {
@@ -1736,7 +1736,7 @@ bool UnitFrame::ActionAdvance(BattleServices& services, const BattleUnit& target
             mirror();
         }
 
-        if (unit.unk2B00 == 1 && (unit.frameFlags & ActState::NoBlend) == 0)
+        if (unit.autoControl == 1 && (unit.frameFlags & ActState::NoBlend) == 0)
         {
             unit.frameFlags |= Painter::Additive;
         }
@@ -1797,28 +1797,28 @@ bool UnitFrame::ActionAdvance(BattleServices& services, const BattleUnit& target
     view.alpha = act.signal;
     view.wave = unit.mainAct.wait;
     // What the draws leave in the unit: the last mode drawn with.
-    unit.unk26A4 = invisible ? mirrored : mirrored | Painter::Shadow;
+    unit.shadowMode = invisible ? mirrored : mirrored | Painter::Shadow;
 
     if (act.rotation == 0 || act.actionCode == 0)
     {
         return true;
     }
 
-    unit.unk2554 = services.archive.GetPicture(act.rotation, static_cast<u16>(act.actionCode - 1));
+    unit.overlayPicture = services.archive.GetPicture(act.rotation, static_cast<u16>(act.actionCode - 1));
 
-    if (unit.unk2554 == nullptr)
+    if (unit.overlayPicture == nullptr)
     {
         return true;
     }
 
     if (forced && unit.facing == 1 && act.offsetX != 0)
     {
-        unit.overlayX = static_cast<u16>(picture.width - act.offsetX - unit.unk2554->width);
+        unit.overlayX = static_cast<u16>(picture.width - act.offsetX - unit.overlayPicture->width);
     }
 
     if (unit.facing == 1 && still && act.offsetX != 0)
     {
-        unit.overlayX = static_cast<u16>(picture.width - act.offsetX - unit.unk2554->width);
+        unit.overlayX = static_cast<u16>(picture.width - act.offsetX - unit.overlayPicture->width);
     }
 
     view.overlay = {act.rotation, static_cast<u16>(act.actionCode - 1), true};
@@ -1958,11 +1958,11 @@ void UnitFrame::EffectsAdvance(BattleServices& services, int x, int y, const Pic
 
     if ((unit.status & BattleUnit::UnkStatus4) != 0)
     {
-        unit.unk26A4 = mirrored | Painter::GrayUnder;
+        unit.shadowMode = mirrored | Painter::GrayUnder;
 
         if (body.shown)
         {
-            steps.push_back(PictureStep{.picture = body, .x = x, .y = y, .mode = unit.unk26A4});
+            steps.push_back(PictureStep{.picture = body, .x = x, .y = y, .mode = unit.shadowMode});
         }
 
         return;
@@ -1970,7 +1970,7 @@ void UnitFrame::EffectsAdvance(BattleServices& services, int x, int y, const Pic
 
     if ((unit.status & BattleUnit::UnkStatus1000) != 0)
     {
-        unit.unk26A4 = mirrored;
+        unit.shadowMode = mirrored;
 
         if (body.shown)
         {
@@ -1979,7 +1979,7 @@ void UnitFrame::EffectsAdvance(BattleServices& services, int x, int y, const Pic
                     .picture = body,
                     .x = x,
                     .y = y,
-                    .mode = unit.unk26A4 | Painter::TintUnder,
+                    .mode = unit.shadowMode | Painter::TintUnder,
                     .tinted = true,
                     .tintRed = kUnkStatus1000Tint,
                     .tintGreen = 0,
@@ -2005,12 +2005,12 @@ void UnitFrame::IdleEffectAdvance(BattleServices& services, PictureSteps& steps)
     {
         if (main.effectA != 0)
         {
-            unit.unk267C |= BattleUnit::Recoiling;
+            unit.stage |= BattleUnit::Recoiling;
         }
 
         if (unit.command.followAct != 0)
         {
-            unit.unk267C |= BattleUnit::FollowingUp;
+            unit.stage |= BattleUnit::FollowingUp;
         }
 
         if ((bits & ActState::Holds) != 0)
@@ -2022,7 +2022,7 @@ void UnitFrame::IdleEffectAdvance(BattleServices& services, PictureSteps& steps)
         effect = ActState{};
     }
 
-    if ((unit.unk267C & BattleUnit::Recoiling) == 0)
+    if ((unit.stage & BattleUnit::Recoiling) == 0)
     {
         return;
     }
@@ -2079,7 +2079,7 @@ void UnitFrame::IdleEffectAdvance(BattleServices& services, PictureSteps& steps)
     }
 
     main.target = static_cast<u16>(main.target & ~ActState::Holds);
-    unit.unk267C &= ~BattleUnit::Recoiling;
+    unit.stage &= ~BattleUnit::Recoiling;
     unit.slotTint = 0;
     unit.actAnchorX = 0;
     unit.unk2ACC = 0;
@@ -2095,7 +2095,7 @@ void UnitFrame::FollowUpAdvance(BattleServices& services, PictureSteps& steps)
 {
     BattleUnit& unit = this->unit;
 
-    if ((unit.unk267C & BattleUnit::FollowingUp) == 0)
+    if ((unit.stage & BattleUnit::FollowingUp) == 0)
     {
         return;
     }
@@ -2148,7 +2148,7 @@ void UnitFrame::FollowUpAdvance(BattleServices& services, PictureSteps& steps)
         return;
     }
 
-    unit.unk267C = 0;
+    unit.stage = 0;
     unit.slotTint = 0;
     unit.mainAct.target = 0;
     unit.actAnchorX = 0;
@@ -2181,12 +2181,12 @@ int UnitFrame::RecoilAdvance(BattleServices& services, ActState& act, i16 y, Pic
     }
 
     const Picture& picture = *unit.picture;
-    unit.unk26A4 = act.flags;
+    unit.shadowMode = act.flags;
     unit.aimOffsetX = static_cast<u16>(act.x);
 
     auto mirror = [&unit, &act, &picture]
     {
-        unit.unk26A4 ^= Painter::Mirror;
+        unit.shadowMode ^= Painter::Mirror;
 
         if (act.x != 0)
         {
@@ -2194,12 +2194,12 @@ int UnitFrame::RecoilAdvance(BattleServices& services, ActState& act, i16 y, Pic
         }
     };
 
-    if ((unit.unk2B00 == 1 || unit.unk2B04 == 1) && unit.facing == 1)
+    if ((unit.autoControl == 1 || unit.guestControl == 1) && unit.facing == 1)
     {
         mirror();
     }
 
-    if (unit.facing == 1 && unit.unk2B00 == 0 && unit.unk2B04 == 0)
+    if (unit.facing == 1 && unit.autoControl == 0 && unit.guestControl == 0)
     {
         mirror();
     }
@@ -2209,12 +2209,12 @@ int UnitFrame::RecoilAdvance(BattleServices& services, ActState& act, i16 y, Pic
         .picture = {act.frame, act.picture, true},
         .x = static_cast<i16>(unit.actAnchorX) - static_cast<i16>(unit.aimOffsetX) + static_cast<i16>(unit.actX),
         .y = static_cast<i16>(unit.actY) - act.y + y,
-        .mode = unit.unk26A4,
+        .mode = unit.shadowMode,
     };
 
     if (act.waiting != 1)
     {
-        step.blended = (unit.unk26A4 & ActState::Signal) != 0;
+        step.blended = (unit.shadowMode & ActState::Signal) != 0;
         step.alpha = act.signal;
         steps.push_back(step);
         return 0;
@@ -2419,7 +2419,7 @@ int UnitFrame::FlyAdvance(
     u32 flags = act.flags;
     auto offsetX = static_cast<u16>(act.x);
     i32 anchorShift = static_cast<i16>(anchorX);
-    const bool forced = unit.unk2B00 == 1 || unit.unk2B04 == 1;
+    const bool forced = unit.autoControl == 1 || unit.guestControl == 1;
 
     if (forced && unit.facing == 1)
     {
@@ -2436,7 +2436,7 @@ int UnitFrame::FlyAdvance(
         }
     }
 
-    if (unit.facing == 1 && unit.unk2B00 == 0 && unit.unk2B04 == 0)
+    if (unit.facing == 1 && unit.autoControl == 0 && unit.guestControl == 0)
     {
         flags ^= Painter::Mirror;
         offsetX = static_cast<u16>(picture.width - static_cast<u16>(act.x));
@@ -2957,20 +2957,20 @@ void UnitFrame::DrawActionAtAdvance(BattleServices& services, i16 x, i16 y, ActS
         }
     };
 
-    if (unit.unk2B00 == 1 || unit.unk2B04 == 1)
+    if (unit.autoControl == 1 || unit.guestControl == 1)
     {
         if (unit.facing == 1)
         {
             mirror();
         }
 
-        if (unit.unk2B00 == 1)
+        if (unit.autoControl == 1)
         {
             unit.frameFlags |= Painter::Additive;
         }
     }
 
-    if (unit.facing == 1 && unit.unk2B00 == 0 && unit.unk2B04 == 0)
+    if (unit.facing == 1 && unit.autoControl == 0 && unit.guestControl == 0)
     {
         mirror();
     }
@@ -2990,14 +2990,14 @@ void UnitFrame::DrawActionAtAdvance(BattleServices& services, i16 x, i16 y, ActS
     options.tintRed = tint;
     options.tintGreen = tint;
     options.tintBlue = tint;
-    unit.unk26A4 = (unit.frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+    unit.shadowMode = (unit.frameFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
     painter.SetSource(unit.picture->data.data());
     painter.DrawPicture(
         static_cast<i16>(unit.actX),
         act.y + static_cast<i16>(unit.actY) - shadowHeight,
         unit.picture->width,
         unit.picture->height,
-        unit.unk26A4
+        unit.shadowMode
     );
     painter.SetSource(unit.picture->data.data());
 
@@ -3062,13 +3062,13 @@ int UnitFrame::DrawAimedAdvance(
         return 0;
     }
 
-    unit.unk26A4 = act.flags;
+    unit.shadowMode = act.flags;
     unit.aimOffsetX = static_cast<u16>(act.x);
     unit.aimAnchorX = act.anchorX;
 
     if (unit.facing == 1)
     {
-        unit.unk26A4 ^= Painter::Mirror;
+        unit.shadowMode ^= Painter::Mirror;
         unit.aimOffsetX = static_cast<u16>(unit.picture->width - static_cast<u16>(act.x));
 
         if (act.anchorX != 0)
@@ -3113,7 +3113,7 @@ int UnitFrame::DrawAimedAdvance(
         static_cast<i16>(unit.aimY),
         unit.picture->width,
         unit.picture->height,
-        unit.unk26A4,
+        unit.shadowMode,
         argument
     );
     return act.waiting == 1 ? 1 : 0;
@@ -3160,19 +3160,19 @@ void UnitFrame::DrawMainFadedAdvance(BattleServices& services, int tint, Scene& 
     }
 
     tintAll();
-    unit.unk2554 = services.archive.GetPicture(act.rotation, static_cast<u16>(act.actionCode - 1));
+    unit.overlayPicture = services.archive.GetPicture(act.rotation, static_cast<u16>(act.actionCode - 1));
 
-    if (unit.unk2554 == nullptr)
+    if (unit.overlayPicture == nullptr)
     {
         return;
     }
 
-    painter.SetSource(unit.unk2554->data.data());
+    painter.SetSource(unit.overlayPicture->data.data());
     painter.DrawPicture(
         x + static_cast<i16>(act.offsetX),
         y + static_cast<i16>(act.offsetY),
-        unit.unk2554->width,
-        unit.unk2554->height,
+        unit.overlayPicture->width,
+        unit.overlayPicture->height,
         unit.drawFlags | Painter::Additive
     );
 }
@@ -3271,14 +3271,14 @@ int UnitFrame::FadeInvisibleAdvance(BattleServices& services, int mode, Scene& s
     options.tintRed = kInvisibleShadowTint;
     options.tintGreen = kInvisibleShadowTint;
     options.tintBlue = kInvisibleShadowTint;
-    unit.unk26A4 = (unit.drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
+    unit.shadowMode = (unit.drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip)) | Painter::Shadow;
     const int x = unit.placement.x - static_cast<i16>(unit.originX);
     painter.DrawPicture(
         x - kShadowLeftShift,
         unit.placement.y - shadowHeight,
         unit.shadowPicture->width,
         unit.shadowPicture->height,
-        unit.unk26A4
+        unit.shadowMode
     );
 
     if (mode == 0)
@@ -3290,13 +3290,13 @@ int UnitFrame::FadeInvisibleAdvance(BattleServices& services, int mode, Scene& s
         painter.Options().alpha = unit.glowLevel / 2;
     }
 
-    unit.unk26A4 = unit.drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip);
+    unit.shadowMode = unit.drawFlags & (Painter::RleSource | Painter::Mirror | Painter::Flip);
     painter.DrawPicture(
         x,
         unit.placement.y - unit.mainAct.y,
         unit.picture->width,
         unit.picture->height,
-        unit.unk26A4 | Painter::Translucent
+        unit.shadowMode | Painter::Translucent
     );
     return 1;
 }
@@ -3359,7 +3359,7 @@ int UnitFrame::DrawFadeInAdvance(BattleServices& services, const BattleUnit& anc
     painter.SetSource(unit.picture->data.data());
     const u32 actFlags = unit.recoilAct.flags;
     unit.originX = static_cast<u16>(unit.recoilAct.x);
-    const i32 blend = unit.unk2B00;
+    const i32 blend = unit.autoControl;
     unit.drawFlags = actFlags;
     unit.recoilAct.hold = 1;
     unit.MirrorRecoil(actFlags, blend == 1);
@@ -3370,7 +3370,7 @@ int UnitFrame::DrawFadeInAdvance(BattleServices& services, const BattleUnit& anc
     const int y = static_cast<i16>(anchorY) - unit.recoilAct.y;
     const i32 level = unit.brightLevel;
 
-    if (unit.unk2B00 == 1)
+    if (unit.autoControl == 1)
     {
         DrawOptions& options = painter.Options();
         options.tintRed = level - BattleUnit::FadedIn;
@@ -3449,7 +3449,7 @@ int UnitFrame::DrawFadeOutAdvance(BattleServices& services, Scene& scene)
     }
 
     painter.SetSource(unit.picture->data.data());
-    const i32 blend = unit.unk2B00;
+    const i32 blend = unit.autoControl;
     const u32 actFlags = unit.recoilAct.flags;
     unit.drawFlags = actFlags;
     unit.MirrorRecoil(actFlags, blend == 1);

@@ -111,15 +111,15 @@ constexpr u16 kStealRoll = 10;          // the roll is 0..9 less one per kStealS
 constexpr u16 kStealShare = 25;
 constexpr u16 kSureSteal = 100;  // a proficiency of 100 or more always steals
 
-// BeamSpellFrame: the stages in unk267C.
+// BeamSpellFrame: the stages in stage.
 
 // ChargeAttackFrame.
 
 // SwarmSpellFrame.
 
-// BoomerangFrame: the stages in unk267C.
+// BoomerangFrame: the stages in stage.
 
-// LeapSpellFrame: the stages in unk267C.
+// LeapSpellFrame: the stages in stage.
 
 // UseSelectedItem: bits of the item's object.
 constexpr u16 kMultiUse = 0x400;  // ObjectData::useKind: the item has uses in the low byte
@@ -573,7 +573,7 @@ void BattleRole::PayStamina()
 // swd32.exe 0x004708C0: flag 9 of +0x2A86 and +0x2B0C set, command A from +0x2F18 when set, slot acts 8 and 9 cleared
 void BattleRole::TakeCommand2F18()
 {
-    this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag200);
+    this->commandFlags = static_cast<u16>(this->commandFlags | BattleUnit::UnkCommandFlag200);
     this->unk2B0C = 1;
 
     if (this->unk2F18 != 0)
@@ -637,13 +637,13 @@ void BattleRole::Strike(BattleServices& services, BattleUnit& target, int evadab
     this->unk2B14 = 1;
 }
 
-// swd32.exe 0x0046F8C0: one frame of the role's attack on `target`; 1 once it is over. A unit with unk2B00 and a
-// FadesIn command fades in first; one with unk2B04 attacks from the middle of the field. The attack act (the critical
-// one, with the weapon's act, while critical) is drawn, and its target bits play the effect in the recoil act, quake
-// the screen, start the follow-up in slotActs[slot] (fading the field by the act's lights), or strike. The follow-up
-// flies to the target (TargetsUnit) or is placed on it and may strike again; once it waits it darkens by 4 a frame.
-// When the attack act waits too, the acts are cleared; without a critical attack an extra attack repeats it, and the
-// recoil tint is left at 1.
+// swd32.exe 0x0046F8C0: one frame of the role's attack on `target`; 1 once it is over. A unit with autoControl and a
+// FadesIn command fades in first; one with guestControl attacks from the middle of the field. The attack act (the
+// critical one, with the weapon's act, while critical) is drawn, and its target bits play the effect in the recoil act,
+// quake the screen, start the follow-up in slotActs[slot] (fading the field by the act's lights), or strike. The
+// follow-up flies to the target (TargetsUnit) or is placed on it and may strike again; once it waits it darkens by 4 a
+// frame. When the attack act waits too, the acts are cleared; without a critical attack an extra attack repeats it, and
+// the recoil tint is left at 1.
 int BattleRole::AttackFrame(BattleServices& services, BattleUnit& target, int slot)
 {
     smooth::Scene scene;
@@ -674,7 +674,7 @@ void BattleRole::LoadItemAction(Database& database, u16 id, u32& act)
         this->command.value = static_cast<i16>(item.data.hitPointsUp);
     }
 
-    this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
+    this->commandFlags = static_cast<u16>(this->commandFlags | BattleUnit::UnkCommandFlag8000);
 }
 
 // swd32.exe 0x004710D0: the source unit's idle picture breaks into particles flying into the role (a point 0x32 left
@@ -730,7 +730,7 @@ void BattleRole::StartAbsorb(BattleServices& services, BattleUnit& source)
         effect.flags = static_cast<u16>(effect.flags | ParticleEffect::Mirrored);
     }
 
-    this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag800);
+    this->commandFlags = static_cast<u16>(this->commandFlags | BattleUnit::UnkCommandFlag800);
     services.state.projector.SetScreen(Display::Width, Display::Height);
     this->throwSteps = 0;
     this->flight = LineWalker{};
@@ -799,7 +799,7 @@ int BattleRole::GlowAct(BattleServices& services, int x, int y)
 // swd32.exe 0x004721F0: one frame of the role's pose kTargetPose (in the stand act) at the target's draw position over
 // its shadow; 1 (the stand act cleared, nothing drawn) once the act waits. A facing role mirrors the act once: the
 // mirrored flags with kMirroredOnce go to unknown1C, which keeps the next frames from mirroring the x again. The
-// shadow is fainter with unk2B00; the sound pans right of the middle of the screen.
+// shadow is fainter with autoControl; the sound pans right of the middle of the screen.
 int BattleRole::PoseAtTarget(BattleServices& services, const BattleUnit& target)
 {
     smooth::Scene scene;
@@ -825,10 +825,10 @@ u16 BattleRole::Steal(BattleServices& services, const BattleUnit& target)
         services.party.fame.lists[Fame::ProficiencyList]
     );
 
-    if (this->unk26DC < kSureSteal)
+    if (this->proficiency < kSureSteal)
     {
         const auto roll = static_cast<u16>(services.random.Below(kStealRoll));
-        const int cut = this->unk26DC / kStealShare;
+        const int cut = this->proficiency / kStealShare;
         const u16 value = cut > roll ? u16{0} : static_cast<u16>(roll - cut);
 
         if (value >= data.stealDifficulty)
@@ -950,8 +950,8 @@ int BattleRole::CastAt(BattleServices& services, const BattleUnit& target, i32 s
     return result;
 }
 
-// swd32.exe 0x00473010: one frame of the role's magic act (its act + MagicActs, action unk2A8A, slot act 8) drawn by
-// DrawAction; its target bits play the effect in the recoil act (holding the act) and fade the field by its lights;
+// swd32.exe 0x00473010: one frame of the role's magic act (its act + MagicActs, action magicAction, slot act 8) drawn
+// by DrawAction; its target bits play the effect in the recoil act (holding the act) and fade the field by its lights;
 // a follow-up marks the spell cast in BattleState::spellStage. 1 (slot act 8 and the stages cleared) once the battle
 // marks the spell over.
 int BattleRole::MagicFrame(BattleServices& services, const BattleUnit& target)
@@ -979,10 +979,10 @@ int BattleRole::BeamSpellFrame(BattleServices& services, BattleUnit& target)
 // swd32.exe 0x00473C10: one frame of the role's charge attack (magic act in slot act 8 + `slot`, drawn by DrawAction);
 // 1 once it is over (the acts, the trails and the targets cleared, the critical attack ended). When the magic act
 // follows up with bit 8 the role dashes: its picture slides translucent (blue under it) by 10 a frame until the dash
-// is a multiple of kDashLength, the charge act (kChargeAction past unk2A8A) holding, and a charge hit raises flag 26B8
-// of the target. Charging, the charge act runs on the target with a trail (trail 1) and its follow-up (the cast act or
-// effectA, slot act 1) mirrored twice; once the charge act waits the role slides back to 0. A strike of the magic act
-// strikes; a follow-up runs the cast act (slot act 0) on the target, drawn with the shadow's palette.
+// is a multiple of kDashLength, the charge act (kChargeAction past magicAction) holding, and a charge hit raises flag
+// 26B8 of the target. Charging, the charge act runs on the target with a trail (trail 1) and its follow-up (the cast
+// act or effectA, slot act 1) mirrored twice; once the charge act waits the role slides back to 0. A strike of the
+// magic act strikes; a follow-up runs the cast act (slot act 0) on the target, drawn with the shadow's palette.
 int BattleRole::ChargeAttackFrame(BattleServices& services, BattleUnit& target, int slot)
 {
     smooth::Scene scene;
@@ -1027,7 +1027,7 @@ int BattleRole::BoomerangFrame(BattleServices& services, BattleUnit& target)
     return result;
 }
 
-// swd32.exe 0x00474E60: one frame of the role's leap spell (magic act in slot act 8, stages in unk267C); 1 once the
+// swd32.exe 0x00474E60: one frame of the role's leap spell (magic act in slot act 8, stages in stage); 1 once the
 // battle marks the spell over after stage 3 (the act cleared). Stage 0 draws the magic act; stage 1 the next action on
 // the target; stage 2 the action after that walking home (UnkFlag8 set), stage 3 once home. A waiting act moves on a
 // stage; a follow-up marks the spell cast.
@@ -1156,17 +1156,17 @@ u16 BattleRole::UseSelectedItem()
 // cursor, which the original reads in the list head when the cursor is there)
 void BattleRole::CancelCommand()
 {
-    this->unk2A86 = 0;
+    this->commandFlags = 0;
     this->command = UnitCommand{};
     std::fill_n(this->skillName.begin(), kCancelledNameBytes, '\0');
     this->unk2F10 = 0;
     this->unk2F12 = 0;
-    this->unk2A8A = 0;
+    this->magicAction = 0;
     this->unk2F16 = 0;
     this->unk2F18 = 0;
-    this->unk29A6 = 0;
-    this->unk29A8 = 0;
-    this->unk29AA = 0;
+    this->restoreHitPoints = 0;
+    this->restoreSpirit = 0;
+    this->restoreStamina = 0;
     this->unk29A4 = 0;
     this->usedItem = 0;
 
@@ -1189,7 +1189,7 @@ void BattleRole::CancelCommand()
 // forced unit.
 void BattleRole::AddFury(BattleServices& services, int damage)
 {
-    if (this->unk2B00 == 1 || this->unk2B04 == 1)
+    if (this->autoControl == 1 || this->guestControl == 1)
     {
         return;
     }
@@ -1268,43 +1268,43 @@ void BattleRole::Regenerate(BattleServices& services)
 
     if (this->bonusA != 0)
     {
-        this->unk29A6 = static_cast<u16>(-static_cast<i16>(share(this->bonusA, record.maxHitPoints)));
-        this->Damage(services, static_cast<i16>(this->unk29A6), 0, 0);
+        this->restoreHitPoints = static_cast<u16>(-static_cast<i16>(share(this->bonusA, record.maxHitPoints)));
+        this->Damage(services, static_cast<i16>(this->restoreHitPoints), 0, 0);
         this->PushTarget(BattleUnit::HealTarget);
-        this->SetDamageDigits(services, static_cast<i16>(this->unk29A6));
+        this->SetDamageDigits(services, static_cast<i16>(this->restoreHitPoints));
         this->PushTargetAlt(0);
         this->StepTargetCount(1);
         delay = kRegenerateDelay;
-        this->unk29A6 = 0;
+        this->restoreHitPoints = 0;
     }
 
     if (this->bonusB != 0)
     {
-        this->unk29A8 = share(this->bonusB, record.maxSpirit);
-        this->Damage(services, 0, static_cast<i16>(this->unk29A8), 0);
+        this->restoreSpirit = share(this->bonusB, record.maxSpirit);
+        this->Damage(services, 0, static_cast<i16>(this->restoreSpirit), 0);
         this->PushTarget(BattleUnit::SpiritGainTarget);
-        this->SetDamageDigits(services, static_cast<i16>(this->unk29A8));
+        this->SetDamageDigits(services, static_cast<i16>(this->restoreSpirit));
         this->PushTargetAlt(delay);
         this->StepTargetCount(1);
         delay = static_cast<u16>(delay + kRegenerateDelay);
-        this->unk29A8 = 0;
+        this->restoreSpirit = 0;
     }
 
     if (this->bonusC != 0)
     {
-        this->unk29AA = share(this->bonusC, record.maxStamina);
-        this->Damage(services, 0, 0, static_cast<i16>(this->unk29AA));
+        this->restoreStamina = share(this->bonusC, record.maxStamina);
+        this->Damage(services, 0, 0, static_cast<i16>(this->restoreStamina));
         this->PushTarget(BattleUnit::StaminaGainTarget);
-        this->SetDamageDigits(services, static_cast<i16>(this->unk29AA));
+        this->SetDamageDigits(services, static_cast<i16>(this->restoreStamina));
         this->PushTargetAlt(delay);
         this->StepTargetCount(1);
-        this->unk29AA = 0;
+        this->restoreStamina = 0;
     }
 }
 
 // swd32.exe 0x0046F1F0: the command of an accessory of `kind` (the stamina it costs taken first when none is owed):
 // the kind sets its unk26CC bit and becomes command A (some take command B with UnkCommandFlag400, command A 0) and
-// most read the accessory's proficiency into unk26DC; Unk1F scales unk29A4, Unk22 / Unk23 / Unk24 a heal of the
+// most read the accessory's proficiency into proficiency; Unk1F scales unk29A4, Unk22 / Unk23 / Unk24 a heal of the
 // hit points / spirit / stamina of the battle record. The proficiencies then step by kAccessoryStep.
 void BattleRole::UseAccessorySkill(BattleServices& services, u16 kind)
 {
@@ -1335,7 +1335,7 @@ void BattleRole::UseAccessorySkill(BattleServices& services, u16 kind)
         case AccessoryKind::Unk16:
             this->commandA = 0;
             this->unk26CC |= kAccessoryBit16;
-            this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag400);
+            this->commandFlags = static_cast<u16>(this->commandFlags | BattleUnit::UnkCommandFlag400);
             this->commandB = kind;
             break;
 
@@ -1353,7 +1353,7 @@ void BattleRole::UseAccessorySkill(BattleServices& services, u16 kind)
         case AccessoryKind::Unk19:
             this->commandA = 0;
             this->unk26CC |= kAccessoryBit19;
-            this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag400);
+            this->commandFlags = static_cast<u16>(this->commandFlags | BattleUnit::UnkCommandFlag400);
             this->commandB = kind;
             break;
 
@@ -1383,11 +1383,11 @@ void BattleRole::UseAccessorySkill(BattleServices& services, u16 kind)
             break;
 
         case AccessoryKind::Unk1F:
-            this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag400);
+            this->commandFlags = static_cast<u16>(this->commandFlags | BattleUnit::UnkCommandFlag400);
             this->commandA = 0;
             this->commandB = kind;
             this->AccessoryProficiency(kind, proficiency);
-            this->unk29A4 = static_cast<u16>(kUnk1FScale * this->unk26DC / kPercent + 1);
+            this->unk29A4 = static_cast<u16>(kUnk1FScale * this->proficiency / kPercent + 1);
             break;
 
         case AccessoryKind::Unk20:
@@ -1398,20 +1398,20 @@ void BattleRole::UseAccessorySkill(BattleServices& services, u16 kind)
 
         case AccessoryKind::Unk22:
             this->AccessoryProficiency(kind, proficiency);
-            this->unk26DC = static_cast<u16>((this->unk26DC >> 1) - (this->unk26DC >> 1) / kHalfShare);
-            this->unk29A6 = share(record.maxHitPoints, this->unk26DC);
+            this->proficiency = static_cast<u16>((this->proficiency >> 1) - (this->proficiency >> 1) / kHalfShare);
+            this->restoreHitPoints = share(record.maxHitPoints, this->proficiency);
             break;
 
         case AccessoryKind::Unk23:
             this->AccessoryProficiency(kind, proficiency);
-            this->unk26DC = static_cast<u16>(this->unk26DC / kSpiritShare);
-            this->unk29A8 = share(record.maxSpirit, this->unk26DC);
+            this->proficiency = static_cast<u16>(this->proficiency / kSpiritShare);
+            this->restoreSpirit = share(record.maxSpirit, this->proficiency);
             break;
 
         case AccessoryKind::Unk24:
             this->AccessoryProficiency(kind, proficiency);
-            this->unk26DC = static_cast<u16>((this->unk26DC >> 1) - (this->unk26DC >> 1) / kHalfShare);
-            this->unk29AA = share(record.stamina, this->unk26DC);
+            this->proficiency = static_cast<u16>((this->proficiency >> 1) - (this->proficiency >> 1) / kHalfShare);
+            this->restoreStamina = share(record.stamina, this->proficiency);
             break;
 
         default:
@@ -1428,7 +1428,7 @@ void BattleRole::RollCritical(BattleServices& services)
 {
     BattleState& battle = services.state;
 
-    if (this->unk2B00 == 1 || this->unk2B04 == 1 || this->unk26CC != 0 ||
+    if (this->autoControl == 1 || this->guestControl == 1 || this->unk26CC != 0 ||
         battle.lastCriticalRole == this->placement.actId)
     {
         return;
@@ -1476,12 +1476,12 @@ void BattleRole::PrepareCommand(BattleServices& services, Database& database)
         const u16 kind = this->commandA;
         const bool attack = kind == 1 || kind == static_cast<u16>(AccessoryKind::Steal) ||
                             kind == static_cast<u16>(AccessoryKind::Unk1A);
-        return attack && this->unk2B00 == 0 && this->unk2B04 == 0;
+        return attack && this->autoControl == 0 && this->guestControl == 0;
     };
 
     const u16 walking = UnitCommand::UnkFlag8 | UnitCommand::UnkFlag20;
 
-    if ((this->unk2A86 & BattleUnit::UnkCommandFlag200) != 0)
+    if ((this->commandFlags & BattleUnit::UnkCommandFlag200) != 0)
     {
         this->unk2B0C = 1;
 
@@ -1545,7 +1545,7 @@ void BattleRole::PrepareCommand(BattleServices& services, Database& database)
 // the spirit owed (unk2F10) taken (not below 0); then the stamina owed
 void BattleRole::FinishCommand()
 {
-    if ((this->unk2A86 & BattleUnit::UnkCommandFlag8000) != 0)
+    if ((this->commandFlags & BattleUnit::UnkCommandFlag8000) != 0)
     {
         if (this->selectedItem != nullptr)
         {
@@ -1623,19 +1623,19 @@ int BattleRole::DrainShare(BattleServices& services, i32& amount)
     CounterList& proficiency = services.party.fame.lists[Fame::ProficiencyList];
     this->AccessoryProficiency(static_cast<u16>(AccessoryKind::SpiritDrain), proficiency);
     this->StepAccessoryCounters(proficiency, kDrainStep);
-    this->unk26DC = static_cast<u16>(this->unk26DC >> 1);
-    amount = amount * this->unk26DC / kPercent + 1;
+    this->proficiency = static_cast<u16>(this->proficiency >> 1);
+    amount = amount * this->proficiency / kPercent + 1;
     return 1;
 }
 
-// swd32.exe 0x00475160: the proficiency in percent of the Unk1E accessory (硃砂神筆), kept in unk26DC
+// swd32.exe 0x00475160: the proficiency in percent of the Unk1E accessory (硃砂神筆), kept in proficiency
 u16 BattleRole::Unk1EProficiency(BattleServices& services)
 {
     this->AccessoryProficiency(
         static_cast<u16>(AccessoryKind::Unk1E),
         services.party.fame.lists[Fame::ProficiencyList]
     );
-    return this->unk26DC;
+    return this->proficiency;
 }
 
 // swd32.exe 0x00471080: `count` set to the objects (count and pending) in the inventory with kind bit kCountedKind,
@@ -2046,7 +2046,7 @@ int BattleRole::StepWornCounters(CounterList& list, u16 amount)
 // after the last counted skill is taken when it is reached) taken as the role's command: type 0 counts unk52
 // kFirstSkillType..kLastSkillType and sets UnkCommandFlag8000, type 1 counts kSkillType1 and sets
 // UnkCommandFlag200, other types count kSkillType1. `act` takes its unk50, the command its skill script (cleared
-// first), the skill name its name; with UnkCommandFlag200 unk2A8A, unk2F16 and unk2F18 take its unk48, unk50 and
+// first), the skill name its name; with UnkCommandFlag200 magicAction, unk2F16 and unk2F18 take its unk48, unk50 and
 // unk40. Its unk34..unk38 are the heals when unk3C is 0, and percentages with bit kHealPercentBit. The result is 1
 // for a skill of category 0 or a category with kind bit 8 the skill also has; 0xFFFF without one (or index 0).
 u16 BattleRole::SelectSkill(Database& database, int category, int type, int index, u32& act)
@@ -2062,12 +2062,12 @@ u16 BattleRole::SelectSkill(Database& database, int category, int type, int inde
 
     if (type == 0)
     {
-        this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
+        this->commandFlags = static_cast<u16>(this->commandFlags | BattleUnit::UnkCommandFlag8000);
         wanted = kSkillType0;
     }
     else if (type == 1)
     {
-        this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag200);
+        this->commandFlags = static_cast<u16>(this->commandFlags | BattleUnit::UnkCommandFlag200);
         wanted = kSkillType1;
     }
 
@@ -2102,18 +2102,18 @@ u16 BattleRole::SelectSkill(Database& database, int category, int type, int inde
         const std::string name = ObjectName(node->record);
         std::copy_n(name.begin(), std::min(name.size(), this->skillName.size() - 1), this->skillName.begin());
 
-        if ((this->unk2A86 & BattleUnit::UnkCommandFlag200) != 0)
+        if ((this->commandFlags & BattleUnit::UnkCommandFlag200) != 0)
         {
-            this->unk2A8A = data.unk48;
+            this->magicAction = data.unk48;
             this->unk2F16 = data.act;
             this->unk2F18 = data.costBits;
         }
 
         if (data.useKind == 0)
         {
-            this->unk29A6 = data.hitPointsUp;
-            this->unk29A8 = data.spiritUp;
-            this->unk29AA = data.staminaUp;
+            this->restoreHitPoints = data.hitPointsUp;
+            this->restoreSpirit = data.spiritUp;
+            this->restoreStamina = data.staminaUp;
         }
 
         this->healPercent = 0;
@@ -2121,9 +2121,9 @@ u16 BattleRole::SelectSkill(Database& database, int category, int type, int inde
         if ((data.useKind & kHealPercentBit) != 0)
         {
             this->healPercent = 1;
-            this->unk29A6 = data.hitPointsUp;
-            this->unk29A8 = data.spiritUp;
-            this->unk29AA = data.staminaUp;
+            this->restoreHitPoints = data.hitPointsUp;
+            this->restoreSpirit = data.spiritUp;
+            this->restoreStamina = data.staminaUp;
         }
 
         const bool offensive =
@@ -2296,7 +2296,7 @@ int BattleRole::SelectObject(Database& database, ErrorReporter& reporter, int ca
             continue;
         }
 
-        this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag4000);
+        this->commandFlags = static_cast<u16>(this->commandFlags | BattleUnit::UnkCommandFlag4000);
         this->selectedItem = node;
         kind = 0;
 
@@ -2331,9 +2331,9 @@ int BattleRole::SelectObject(Database& database, ErrorReporter& reporter, int ca
 
         if (data.useKind == 0)
         {
-            this->unk29A6 = data.hitPointsUp;
-            this->unk29A8 = data.spiritUp;
-            this->unk29AA = data.staminaUp;
+            this->restoreHitPoints = data.hitPointsUp;
+            this->restoreSpirit = data.spiritUp;
+            this->restoreStamina = data.staminaUp;
         }
 
         this->healPercent = 0;
@@ -2341,9 +2341,9 @@ int BattleRole::SelectObject(Database& database, ErrorReporter& reporter, int ca
         if ((data.useKind & kHealPercentBit) != 0)
         {
             this->healPercent = 1;
-            this->unk29A6 = data.hitPointsUp;
-            this->unk29A8 = data.spiritUp;
-            this->unk29AA = data.staminaUp;
+            this->restoreHitPoints = data.hitPointsUp;
+            this->restoreSpirit = data.spiritUp;
+            this->restoreStamina = data.staminaUp;
         }
 
         act = this->command.castAct;
@@ -2355,7 +2355,7 @@ int BattleRole::SelectObject(Database& database, ErrorReporter& reporter, int ca
 
         if ((data.kind & kSeparateKind) != 0)
         {
-            this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag1000);
+            this->commandFlags = static_cast<u16>(this->commandFlags | BattleUnit::UnkCommandFlag1000);
             this->usedItem = data.act;
         }
 
@@ -2371,13 +2371,13 @@ int BattleRole::SelectObject(Database& database, ErrorReporter& reporter, int ca
 
         if (kinds == kCategory5)
         {
-            this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag2000);
+            this->commandFlags = static_cast<u16>(this->commandFlags | BattleUnit::UnkCommandFlag2000);
             kind = kThrownChoice;
 
             if (node->id != kThrownObject)
             {
                 kind = kOtherThrowChoice;
-                this->unk2A86 = static_cast<u16>(this->unk2A86 & ~BattleUnit::UnkCommandFlag2000);
+                this->commandFlags = static_cast<u16>(this->commandFlags & ~BattleUnit::UnkCommandFlag2000);
             }
         }
 

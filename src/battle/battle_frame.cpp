@@ -815,7 +815,7 @@ void Game::FirstStrike()
         {
             BattleRole& role = this->battleRoles[index];
 
-            if (role.IsDefeated() || role.unk2B04 == 1)
+            if (role.IsDefeated() || role.guestControl == 1)
             {
                 continue;
             }
