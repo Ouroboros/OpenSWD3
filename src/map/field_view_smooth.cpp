@@ -220,10 +220,16 @@ void FieldView::PaintBetween(Surface& out)
     const i32 fineCameraY = cameraFine[1] + this->shakeShift[1] * scale;
     std::array<i32, GameState::Roles> fineX = {};
     std::array<i32, GameState::Roles> fineY = {};
+    // The pointer is drawn where the mouse is now (the frame read it where it was).
+    int mouseX = 0;
+    int mouseY = 0;
+    owner.input.PeekMouse(mouseX, mouseY);
     this->placesKey.clear();
     this->placesKey.push_back(scale);
     this->placesKey.push_back(fineCameraX);
     this->placesKey.push_back(fineCameraY);
+    this->placesKey.push_back(mouseX);
+    this->placesKey.push_back(mouseY);
 
     for (std::size_t index = 0; index < GameState::Roles; ++index)
     {
@@ -476,6 +482,11 @@ void FieldView::PaintBetween(Surface& out)
                 this->interfaceLayer,
                 screen
             );
+
+            if (this->pointerShown)
+            {
+                owner.DrawPointer(mouseX, mouseY);
+            }
 
             if (this->fadeTinted)
             {

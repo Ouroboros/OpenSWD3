@@ -1174,9 +1174,16 @@ void Game::NewGame()
     }
 }
 
-// swd32.exe 0x004149B0: the mouse pointer at the pointer position (action 0xF while key 0x2E is down); outside the
-// menus the system button slides in at the top right after 16 idle frames (a click on it with no leader opens menu 1)
+// swd32.exe 0x004149B0: the mouse pointer at the pointer position (StepPointer, DrawPointer).
 void Game::RefreshCursor()
+{
+    this->StepPointer();
+    this->DrawPointer(this->state.pointerX, this->state.pointerY);
+}
+
+// Part of 0x004149B0: the pointer's action (0xF while key 0x2E is down) stepped; outside the
+// menus the system button slides in at the top right after 16 idle frames (a click on it with no leader opens menu 1)
+void Game::StepPointer()
 {
     constexpr int kWaitKey = 0x2E;
     constexpr int kButtonX = 0x282;
@@ -1244,7 +1251,12 @@ void Game::RefreshCursor()
             pointer.act.direction
         );
     }
+}
 
+// Part of 0x004149B0: the pointer's picture as last stepped, at (x, y).
+void Game::DrawPointer(int x, int y)
+{
+    const Role& pointer = this->scene.pointerRole;
     const Picture* picture = this->archive.GetPicture(pointer.act.frame, pointer.act.picture);
 
     if (picture == nullptr)
@@ -1255,8 +1267,8 @@ void Game::RefreshCursor()
     this->painter.Options().alpha = pointer.act.signal;
     this->painter.SetSource(picture->data.data());
     this->painter.DrawPicture(
-        this->state.pointerX - pointer.act.x,
-        this->state.pointerY - pointer.act.y,
+        x - pointer.act.x,
+        y - pointer.act.y,
         picture->width,
         picture->height,
         pointer.act.flags,

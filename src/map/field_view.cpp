@@ -257,20 +257,34 @@ void FieldView::Paint()
         );
     }
 
-    if ((!state.GameFlag(GameState::NoPointer) && !state.GameFlag(GameState::NoChoicePointer) &&
-         !state.GameFlag(GameState::HideHud)) ||
-        owner.input.IsKeyDown(Input::C) != 0)
+    const bool pointer = (!state.GameFlag(GameState::NoPointer) && !state.GameFlag(GameState::NoChoicePointer) &&
+                          !state.GameFlag(GameState::HideHud)) ||
+                         owner.input.IsKeyDown(Input::C) != 0;
+
+    if (pointer && !capture)
     {
         owner.RefreshCursor();
     }
 
     if (capture)
     {
+        // The pointer itself stays out of the interface layer: between frames it is drawn where the mouse is now.
+        if (pointer)
+        {
+            owner.StepPointer();
+        }
+
         const ColorFade& fade = view.fade;
         this->CaptureLayer(this->interfaceLayer);
         this->MarkChanges(this->headsLayer, this->interfaceSpans);
         this->interfaceRedrawn = this->FinishRecord(this->interfaceRecord, this->interfaceLayer);
         this->fadeTinted = fade.stepRed != 0.0F || fade.stepGreen != 0.0F || fade.stepBlue != 0.0F;
+        this->pointerShown = pointer;
+
+        if (pointer)
+        {
+            owner.DrawPointer(state.pointerX, state.pointerY);
+        }
     }
 
     this->FadeColors(1);

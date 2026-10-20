@@ -164,6 +164,8 @@ private:
     void ResetBattle();
     void NewGame();
     void RefreshCursor();
+    void StepPointer();
+    void DrawPointer(int x, int y);
     void ShowFrame();
     // The rebuild's smooth motion (deviations.md): a map frame kept for the frames drawn until the next game frame
     // (shown at once without smooth motion), and one such frame drawn and shown when it is due.

@@ -4806,6 +4806,13 @@ void Game::BattleKeys()
                 return;
             }
 
+            // The rebuild (deviations.md): the guard key guards only on the frame it goes down; the original takes it
+            // every frame it is held, so one press guards each role ready meanwhile.
+            if (!this->input.IsKeyPressed(kDigitKey1 + command - 1))
+            {
+                return;
+            }
+
             if (battle.unk4A7548 != kGuardCommand)
             {
                 if (battle.result == 0)

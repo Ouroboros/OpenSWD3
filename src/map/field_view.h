@@ -354,7 +354,7 @@ private:
     std::vector<Pixel> worldLayer;      // the last game frame after the map, before the interface
     std::vector<Pixel> talkLayer;       // after the lines and the talk windows
     std::vector<Pixel> headsLayer;      // after the role heads
-    std::vector<Pixel> interfaceLayer;  // after the gold and the pointer, before the fade
+    std::vector<Pixel> interfaceLayer;  // after the gold, before the pointer and the fade
     std::vector<Pixel> fadedLayer;      // after the fade
     std::vector<Pixel> finalLayer;      // as shown (the notices, the timer and the debug display too)
     std::vector<Span> talkSpans;        // where talkLayer differs from worldLayer
@@ -367,6 +367,7 @@ private:
     PaintRecord finalRecord;
     bool talkRedrawn = false;
     bool interfaceRedrawn = false;
+    bool pointerShown = false;  // the frame drew the pointer (after interfaceLayer was taken)
     bool finalRedrawn = false;
     std::vector<u16> recordScratch;
     std::vector<Surface> parts;  // the logical screens of a render scale above 1 (PaintBetween)
