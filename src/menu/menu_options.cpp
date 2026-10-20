@@ -1,8 +1,8 @@
 #include <algorithm>
 #include <array>
-#include <limits>
 #include <span>
 #include <string>
+#include <vector>
 
 #include "core/format.h"
 #include "draw/painter.h"
@@ -90,14 +90,14 @@ constexpr i32 kEffectsOffFlag = GameState::PlainScreen;
 constexpr i32 kSaveBlockedFlag = GameState::TimerEvent;
 constexpr i32 kNoSaveMap = 0x16;
 
-// The rows of the display setup (OptionsPage::displayRow), and the frame rates it steps through (0: no limit, the
-// most of all).
+// The rows of the display setup (OptionsPage::displayRow), and the frame rates it offers (0: automatic, no limit
+// besides the refresh with vertical sync).
 constexpr i32 kSmoothRow = 0;
 constexpr i32 kVSyncRow = 1;
 constexpr i32 kFrameRateRow = 2;
 constexpr i32 kRenderScaleRow = 3;
 constexpr i32 kDisplayBackRow = 4;
-constexpr std::array<i64, 8> kFrameRates = {30, 60, 75, 120, 144, 165, 240, 0};
+constexpr std::array<i64, 7> kFrameRates = {0, 30, 60, 120, 144, 165, 240};
 constexpr u32 kGameSavedFlag = 2;  // Menu::flags: saved since the menu opened, quitting needs no confirmation
 
 // The quit fade.
@@ -201,19 +201,9 @@ constexpr std::array<std::u8string_view, 5> kDisplayLabels = {
     u8"返回",
 };
 
-constexpr std::u8string_view kNoLimit = u8"不限";
 constexpr std::u8string_view kAutomatic = u8"自動";
-constexpr std::u8string_view kTimes = u8"%d 倍";
-constexpr std::u8string_view kSmoothOn = u8"動態隨刷新連續繪製";
-constexpr std::u8string_view kSmoothOff = u8"原版每 35 毫秒一畫";
-constexpr std::u8string_view kVSyncOn = u8"跟隨顯示器刷新";
-constexpr std::u8string_view kVSyncOff = u8"可能出現撕裂";
-constexpr std::u8string_view kRateFollows = u8"跟隨顯示器刷新率";
-constexpr std::u8string_view kRateFree = u8"不限制";
-constexpr std::u8string_view kRateLine = u8"每秒最多 %d 幀";
-constexpr std::u8string_view kScaleNow = u8"目前 %d 倍";
-constexpr std::u8string_view kScaleCost = u8"越大越細、越耗 CPU";
-constexpr std::u8string_view kNeedsSmooth = u8"需開啟平滑畫面";
+constexpr int kChoiceGap = 12;     // between the choices of a display row
+constexpr int kUnchosenTint = -6;  // the choices not in use, and all of a row without effect
 constexpr int kTabsBoxX = 0xD0;
 constexpr int kTabsBoxY = 0x36;
 constexpr int kTabsBoxWidth = 0x13C;
@@ -269,6 +259,8 @@ constexpr int kHighlightX = 0xD3;
 constexpr int kHighlightTop = 0x7E;
 constexpr int kHighlightWidth = 0x18E;
 constexpr int kHighlightHeight = 0x20;
+// The display setup rows take clicks up to the end of the highlight.
+constexpr u32 kDisplayRight = kHighlightX + kHighlightWidth;
 constexpr int kQuitBoxX = 0x1DC;
 constexpr int kQuitBoxY = 0x60;
 constexpr int kQuitBoxWidth = 0x6C;
@@ -336,75 +328,102 @@ std::u8string_view KeyName(i32 code)
     return menu_text::kKeyNames[static_cast<std::size_t>(code)];
 }
 
-constexpr i64 FrameRateRank(i64 rate)
+// The left of each of `choices` drawn with `font` from kBarStepsLeft, kChoiceGap apart, and the right of the last.
+std::vector<int> ChoiceLefts(const std::vector<std::string>& choices, const TextFont& font)
 {
-    return rate == 0 ? std::numeric_limits<i64>::max() : rate;
+    std::vector<int> lefts;
+    int x = kBarStepsLeft;
+
+    for (const std::string& choice : choices)
+    {
+        lefts.push_back(x);
+        x += static_cast<int>(choice.size()) * font.Advance() / 2 + kChoiceGap;
+    }
+
+    lefts.push_back(x - kChoiceGap);
+    return lefts;
 }
 
 }  // namespace
 
-// The value of display setup row `row` stepped up (`up`) or down, past the last back to the first when `wrap`; put to
-// use and written when it changed.
-void Menu::OptionsStepDisplay(i32 row, bool up, bool wrap)
+// The choices of display setup row `row` (Big5), and the one in use in `chosen` (-1 for none).
+std::vector<std::string> Menu::OptionsDisplayChoices(i32 row, i32& chosen) const
+{
+    const Game& owner = this->game;
+
+    const auto text = [](std::u8string_view words)
+    {
+        return WinFormat(words, {});
+    };
+
+    std::vector<std::string> choices;
+    chosen = -1;
+
+    switch (row)
+    {
+        case kSmoothRow:
+        case kVSyncRow:
+        {
+            const bool on = row == kSmoothRow ? owner.smoothMotion : owner.vsync;
+            choices = {text(menu_text::kOn), text(menu_text::kOff)};
+            chosen = on ? 0 : 1;
+            break;
+        }
+
+        case kFrameRateRow:
+            for (std::size_t at = 0; at < kFrameRates.size(); ++at)
+            {
+                const auto rate = static_cast<i32>(kFrameRates[at]);
+                choices.push_back(rate == 0 ? text(kAutomatic) : WinFormat("%d", {rate}));
+
+                if (kFrameRates[at] == owner.frameRate)
+                {
+                    chosen = static_cast<i32>(at);
+                }
+            }
+
+            break;
+
+        case kRenderScaleRow:
+            choices.push_back(text(kAutomatic));
+
+            for (int scale = 1; scale <= static_cast<int>(DisplaySettings::MaximumRenderScale); ++scale)
+            {
+                choices.push_back(WinFormat("%d", {static_cast<i32>(scale)}));
+            }
+
+            chosen = owner.renderScaleSetting == Game::AutoRenderScale ? 0 : owner.renderScaleSetting;
+            break;
+
+        default:
+            break;
+    }
+
+    return choices;
+}
+
+// Choice `choice` of display setup row `row` taken, put to use and written.
+void Menu::OptionsChooseDisplay(i32 row, i32 choice)
 {
     Game& owner = this->game;
 
     switch (row)
     {
         case kSmoothRow:
-            owner.smoothMotion = wrap ? !owner.smoothMotion : up;
+            owner.smoothMotion = choice == 0;
             break;
 
         case kVSyncRow:
-            owner.vsync = wrap ? !owner.vsync : up;
+            owner.vsync = choice == 0;
             break;
 
         case kFrameRateRow:
-        {
-            const i64 rank = FrameRateRank(owner.frameRate);
-            i64 rate = owner.frameRate;
-
-            if (up)
-            {
-                const auto next = std::ranges::find_if(
-                    kFrameRates,
-                    [rank](i64 each)
-                    {
-                        return FrameRateRank(each) > rank;
-                    }
-                );
-                rate = next != kFrameRates.end() ? *next : wrap ? kFrameRates.front() : rate;
-            }
-            else
-            {
-                const auto before = std::find_if(
-                    kFrameRates.rbegin(),
-                    kFrameRates.rend(),
-                    [rank](i64 each)
-                    {
-                        return FrameRateRank(each) < rank;
-                    }
-                );
-                rate = before != kFrameRates.rend() ? *before : rate;
-            }
-
-            owner.frameRate = rate;
+            owner.frameRate = kFrameRates[static_cast<std::size_t>(choice)];
             break;
-        }
 
         case kRenderScaleRow:
-        {
-            const auto most = static_cast<int>(DisplaySettings::MaximumRenderScale);
-            int scale = owner.renderScaleSetting + (up ? 1 : -1);
-
-            if (scale > most)
-            {
-                scale = wrap ? Game::AutoRenderScale : most;
-            }
-
-            owner.renderScaleSetting = std::max(scale, Game::AutoRenderScale);
+            owner.renderScaleSetting = choice == 0 ? Game::AutoRenderScale : choice;
             break;
-        }
 
         default:
             return;
@@ -413,6 +432,32 @@ void Menu::OptionsStepDisplay(i32 row, bool up, bool wrap)
     owner.ApplyDisplay();
     owner.StoreDisplay();
     owner.audio.PlaySound(kMoveSound, owner.config.soundVolume);
+}
+
+// The choice of display setup row `row` moved right (`up`) or left, past the last back to the first when `wrap`.
+void Menu::OptionsStepDisplay(i32 row, bool up, bool wrap)
+{
+    i32 chosen = -1;
+    const auto count = static_cast<i32>(this->OptionsDisplayChoices(row, chosen).size());
+
+    if (count == 0)
+    {
+        return;
+    }
+
+    i32 next = chosen < 0 ? 0 : chosen + (up ? 1 : -1);
+
+    if (next >= count)
+    {
+        next = wrap ? 0 : count - 1;
+    }
+
+    next = std::max(next, 0);
+
+    if (next != chosen)
+    {
+        this->OptionsChooseDisplay(row, next);
+    }
 }
 
 // swd32.exe 0x0044AF30: the system tab opened: the notes are the flags 0xE75..0xF9F set (their numbers from 1), the
@@ -602,13 +647,35 @@ void Menu::OptionsFrame()
     {
         for (i32 row = kSmoothRow; row <= kDisplayBackRow; ++row)
         {
-            if (x > kStepsFrom && x < kSettingsRight && Inside(y, kSettingsRows[static_cast<std::size_t>(row)]))
+            if (x > kStepsFrom && x < kDisplayRight && Inside(y, kSettingsRows[static_cast<std::size_t>(row)]))
             {
                 page.displayRow = row;
 
-                if ((this->clicks & kSingleClick) != 0)
+                if ((this->clicks & kSingleClick) == 0)
+                {
+                    return;
+                }
+
+                if (row == kDisplayBackRow)
                 {
                     this->OptionsSelect();
+                    return;
+                }
+
+                // A click on a choice takes it.
+                i32 chosen = -1;
+                const std::vector<std::string> choices = this->OptionsDisplayChoices(row, chosen);
+                const std::vector<int> lefts = ChoiceLefts(choices, owner.largeFont);
+
+                for (std::size_t at = 0; at < choices.size(); ++at)
+                {
+                    const auto left = static_cast<u32>(lefts[at]);
+                    const auto right = static_cast<u32>(lefts[at + 1]);
+
+                    if (x >= left && x < right && static_cast<i32>(at) != chosen)
+                    {
+                        this->OptionsChooseDisplay(row, static_cast<i32>(at));
+                    }
                 }
 
                 return;
@@ -1694,14 +1761,13 @@ void Menu::OptionsDrawSettings(Pixel color)
     );
 }
 
-// The rebuild's display setup of the system tab (deviations.md), in the box of the settings: the labels, each value
-// with a line about it, and the row highlight.
+// The rebuild's display setup of the system tab (deviations.md), in the box of the settings: the labels, the choices
+// of each row (the one in use bright), and the row highlight.
 void Menu::OptionsDrawDisplay(Pixel color)
 {
     Game& owner = this->game;
     Painter& painter = owner.painter;
     TextFont& large = owner.largeFont;
-    TextFont& medium = owner.mediumFont;
     FillBox(painter, kListBoxX, kListBoxY, kListBoxWidth, kDisplayBoxHeight, 0, 0, 0, FillMode::Quarter);
     DrawWindowFrame(
         painter,
@@ -1720,55 +1786,31 @@ void Menu::OptionsDrawDisplay(Pixel color)
         large.DrawText(owner.drawSurface, kLabelX, kRowY[row], kDisplayLabels[row], color, kPanelStyle);
     }
 
-    auto show = [&](i32 row, const std::string& value, const std::string& line)
-    {
-        const int y = kRowY[static_cast<std::size_t>(row)];
-        large.DrawText(owner.drawSurface, kBarStepsLeft, y, value, color, kPanelStyle);
-        medium.DrawText(owner.drawSurface, kLineX, y + kLineDrop, line, color, kPanelStyle);
-    };
+    Pixel unchosen = color;
+    painter.TintPixels(std::span<u16>(&unchosen, 1), kUnchosenTint, kUnchosenTint, kUnchosenTint);
 
-    const auto text = [](std::u8string_view words)
+    for (i32 row = kSmoothRow; row < kDisplayBackRow; ++row)
     {
-        return WinFormat(words, {});
-    };
+        // The frame rate and the render scale only count with smooth motion.
+        const bool counts = owner.smoothMotion || row == kSmoothRow || row == kVSyncRow;
+        i32 chosen = -1;
+        const std::vector<std::string> choices = this->OptionsDisplayChoices(row, chosen);
+        const std::vector<int> lefts = ChoiceLefts(choices, large);
 
-    show(
-        kSmoothRow,
-        text(owner.smoothMotion ? menu_text::kOn : menu_text::kOff),
-        text(owner.smoothMotion ? kSmoothOn : kSmoothOff)
-    );
-    show(kVSyncRow, text(owner.vsync ? menu_text::kOn : menu_text::kOff), text(owner.vsync ? kVSyncOn : kVSyncOff));
-    const auto rate = static_cast<i32>(owner.frameRate);
-    std::string rateLine = text(owner.vsync ? kRateFollows : kRateFree);
-
-    if (!owner.smoothMotion)
-    {
-        rateLine = text(kNeedsSmooth);
-    }
-    else if (rate != 0)
-    {
-        rateLine = WinFormat(kRateLine, {rate});
+        for (std::size_t at = 0; at < choices.size(); ++at)
+        {
+            const bool shown = counts && static_cast<i32>(at) == chosen;
+            large.DrawText(
+                owner.drawSurface,
+                lefts[at],
+                kRowY[static_cast<std::size_t>(row)],
+                choices[at],
+                shown ? color : unchosen,
+                kPanelStyle
+            );
+        }
     }
 
-    show(kFrameRateRow, rate == 0 ? text(kNoLimit) : WinFormat("%d", {rate}), rateLine);
-    const int scale = owner.renderScaleSetting;
-    std::string scaleLine = text(kScaleCost);
-
-    if (!owner.smoothMotion)
-    {
-        scaleLine = text(kNeedsSmooth);
-    }
-    else if (scale == Game::AutoRenderScale)
-    {
-        const int fit = std::min(owner.display.FitScale(), static_cast<int>(DisplaySettings::MaximumAutoScale));
-        scaleLine = WinFormat(kScaleNow, {static_cast<i32>(fit)});
-    }
-
-    show(
-        kRenderScaleRow,
-        scale == Game::AutoRenderScale ? text(kAutomatic) : WinFormat(kTimes, {static_cast<i32>(scale)}),
-        scaleLine
-    );
     FillBox(
         painter,
         kHighlightX,

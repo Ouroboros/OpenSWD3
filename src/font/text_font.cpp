@@ -234,6 +234,11 @@ void TextFont::SetClip(int x, int y, int width, int height)
 }
 
 // swd32.exe 0x00435650
+int TextFont::Advance() const
+{
+    return this->advance;
+}
+
 void TextFont::SetAdvance(int advance)
 {
     this->advance = advance;

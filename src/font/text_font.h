@@ -91,6 +91,8 @@ public:
     int GlyphCount() const;
     int GlyphWidth() const;
     int GlyphHeight() const;
+    // The advance of a double-byte character (a single byte takes half).
+    int Advance() const;
     u8* GlyphBits(int glyph);
     u16 GlyphCode(int glyph) const;
 
