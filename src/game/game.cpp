@@ -130,6 +130,11 @@ constexpr u32 kButtonLeft = 0x262;
 constexpr u32 kButtonBottom = 0x18;
 constexpr u16 kUnkLeader20Limit = 8;
 constexpr i32 kCounterHidden = 0x400;
+// The rebuild's map filling the window (deviations.md): the map around the menus is tinted as the shop tints the
+// map under it (shop.cpp), then made grey.
+constexpr int kBehindTintRed = -4;
+constexpr int kBehindTintGreen = -4;
+constexpr int kBehindTintBlue = -8;
 constexpr i32 kCounterOpaque = 0x10;
 
 constexpr int kStreamVolume = 0x80;
@@ -1435,6 +1440,17 @@ void Game::ShowLayout(bool map)
 
     if (overMap != this->backdropTaken)
     {
+        // The map around the menus and the shop is darkened and grey, as the shop's own background is.
+        if (overMap)
+        {
+            const std::span<Pixel> canvas(
+                this->mapCanvas->Pixels(),
+                static_cast<std::size_t>(this->mapCanvas->Width()) * static_cast<std::size_t>(this->mapCanvas->Height())
+            );
+            this->painter.TintPixels(canvas, kBehindTintRed, kBehindTintGreen, kBehindTintBlue);
+            this->painter.GrayPixels(canvas);
+        }
+
         this->display.SetBackdrop(overMap ? this->mapCanvas.get() : nullptr);
         this->backdropTaken = overMap;
     }

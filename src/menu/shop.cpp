@@ -279,17 +279,6 @@ void Game::OpenShop()
     this->painter.TintPixels(shop.shopScreen, kTintRed, kTintGreen, kTintBlue);
     this->painter.GrayPixels(shop.shopScreen);
 
-    // The rebuild's map filling the window (deviations.md): the canvas shown around the shop is darkened alike.
-    if (this->field.screenX != 0 || this->field.screenY != 0)
-    {
-        const std::span<Pixel> canvas(
-            this->mapCanvas->Pixels(),
-            static_cast<std::size_t>(this->mapCanvas->Width()) * static_cast<std::size_t>(this->mapCanvas->Height())
-        );
-        this->painter.TintPixels(canvas, kTintRed, kTintGreen, kTintBlue);
-        this->painter.GrayPixels(canvas);
-    }
-
     shop.shopScreenSaved = shop.shopScreen;
     shop.itemsHead = ItemNode{};
     shop.listB = &shop.itemsHead;
