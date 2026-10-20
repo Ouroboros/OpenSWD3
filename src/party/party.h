@@ -54,7 +54,7 @@ static_assert(sizeof(RoleRecord) == 0x38);
 // The 0x60-byte battle block of a party role (four of them at 0x004ACF50).
 struct RoleBattleBlock
 {
-    std::array<i32, 0x18> unk00 = {};
+    std::array<i32, 0x18> values = {};  // by the battle's constants (the special points, the next special, ...)
 };
 
 // The data of the party saved with the game.

@@ -199,7 +199,7 @@ int Game::RoleActionFrame(int role, int target)
 void Game::AddSpecialPoints(int role, i32 points)
 {
     const auto partyRole = static_cast<std::size_t>(this->battleState.partyRoles[static_cast<std::size_t>(role)]);
-    this->party.battleBlocks[partyRole].unk00[kSpecialPoints] += points;
+    this->party.battleBlocks[partyRole].values[kSpecialPoints] += points;
 }
 
 // A hit of a role landed on enemy `target` (inline in 0x004539B0).

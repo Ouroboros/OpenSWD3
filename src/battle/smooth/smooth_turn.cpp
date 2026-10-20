@@ -1507,7 +1507,7 @@ void TurnFrame::DrawVictoryPanelAdvance(Scene& scene)
                 battle.accessoryGained = 1;
             }
 
-            i32& battles = game.party.battleBlocks[partyRole].unk00[kBattlesFought];
+            i32& battles = game.party.battleBlocks[partyRole].values[kBattlesFought];
             ++battles;
 
             if (battle.enemyCount >= kManyEnemies)

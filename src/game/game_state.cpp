@@ -129,7 +129,7 @@ void MoveRecord::Clear()
     this->direction = -1;
     this->stepX = -1;
     this->stepY = -1;
-    this->unk1A = MoveRecord::UnusedByte;
+    this->blockedTries = MoveRecord::UnusedByte;
     this->mode = MoveRecord::UnusedByte;
     this->directions.fill(MoveRecord::EndOfPath);
 }

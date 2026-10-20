@@ -1547,7 +1547,7 @@ void Game::DrawSlotsPage()
                 );
             }
 
-            this->actDrawer.DrawCounter(kGoldRight, y + kGoldTop, static_cast<u32>(preview.unk28), this->counterAlpha);
+            this->actDrawer.DrawCounter(kGoldRight, y + kGoldTop, static_cast<u32>(preview.gold), this->counterAlpha);
             this->mediumFont.DrawText(
                 this->drawSurface,
                 kPlayTimeRight - kPlayTimeCharWidth * static_cast<int>(preview.playTime.size()),

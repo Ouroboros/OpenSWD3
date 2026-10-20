@@ -2030,7 +2030,7 @@ void Game::LearnSpecials()
         std::unique_ptr<ItemNode>& list = this->party.skills[index];
 
         if (role.autoControl == 1 || role.guestControl == 1 || role.IsDefeated() ||
-            block.unk00[kNextSpecial] == kNoSpecial || list == nullptr)
+            block.values[kNextSpecial] == kNoSpecial || list == nullptr)
         {
             continue;
         }
@@ -2039,8 +2039,8 @@ void Game::LearnSpecials()
         {
             this->database.LoadObject(battle.unk53BC28, id);
             Database::FreeDescription(battle.unk53BC28);
-            block.unk00[kNeededBattles] = battle.unk53BC28.data.counterMax;
-            block.unk00[kNextSpecial] = static_cast<i32>(battle.unk53BC28.data.unk42 | kSpecialMark);
+            block.values[kNeededBattles] = battle.unk53BC28.data.counterMax;
+            block.values[kNextSpecial] = static_cast<i32>(battle.unk53BC28.data.unk42 | kSpecialMark);
         };
 
         for (ItemNode* node = list->next.get(); node != nullptr; node = node->next.get())
@@ -2051,9 +2051,9 @@ void Game::LearnSpecials()
             }
         }
 
-        const auto next = static_cast<u32>(block.unk00[kNextSpecial]) & kSpecialIdMask;
+        const auto next = static_cast<u32>(block.values[kNextSpecial]) & kSpecialIdMask;
 
-        if (block.unk00[kBattlesFought] < block.unk00[kNeededBattles] || next == 0)
+        if (block.values[kBattlesFought] < block.values[kNeededBattles] || next == 0)
         {
             continue;
         }
@@ -2063,7 +2063,7 @@ void Game::LearnSpecials()
             continue;
         }
 
-        const auto id = static_cast<u16>(block.unk00[kNextSpecial]);
+        const auto id = static_cast<u16>(block.values[kNextSpecial]);
         this->database.LoadObject(battle.unk53BC28, id);
         Database::FreeDescription(battle.unk53BC28);
         ItemNode* last = list.get();
@@ -2080,13 +2080,13 @@ void Game::LearnSpecials()
         battle.unk53BFFC = 1;
         battle.lastLearned.name = ObjectName(learned.record);
         battle.levelUpRole = static_cast<u8>(index);
-        block.unk00[kBattlesFought] = 0;
-        block.unk00[kNeededBattles] = battle.unk53BC28.data.counterMax;
-        block.unk00[kNextSpecial] = static_cast<i32>(battle.unk53BC28.data.unk42 | kSpecialMark);
+        block.values[kBattlesFought] = 0;
+        block.values[kNeededBattles] = battle.unk53BC28.data.counterMax;
+        block.values[kNextSpecial] = static_cast<i32>(battle.unk53BC28.data.unk42 | kSpecialMark);
 
         if (battle.unk53BC28.data.unk42 == 0)
         {
-            block.unk00[kNextSpecial] = kNoSpecial;
+            block.values[kNextSpecial] = kNoSpecial;
         }
     }
 }

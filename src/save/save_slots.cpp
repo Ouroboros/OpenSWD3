@@ -140,7 +140,7 @@ void SaveSlots::LoadPreview(SavePreview& preview, int slot, const std::u8string&
     preview.unk20 = static_cast<i32>(Dword(view, after + kUnk20At));
     const std::size_t block = after + kDataBlockAt;
     const std::vector<u8> data = Unpack(view, block);
-    preview.unk28 = static_cast<i32>(Dword(data, kUnk28At));
+    preview.gold = static_cast<i32>(Dword(data, kUnk28At));
 
     for (std::size_t role = 0; role < preview.roles.size(); ++role)
     {

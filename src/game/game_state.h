@@ -82,7 +82,7 @@ struct MoveRecord
     };
 
     static constexpr u8 EndOfPath = 0xFF;   // in `directions`
-    static constexpr u8 UnusedByte = 0xFF;  // `unk1A` and `mode` of a cleared record
+    static constexpr u8 UnusedByte = 0xFF;  // `blockedTries` and `mode` of a cleared record
 
     u16 role = 0;                           // +0x00 the role moving (NoRole: unused)
     u16 step = 0;                           // +0x02 bits 0..14: the step reached, Done once taken
@@ -97,7 +97,7 @@ struct MoveRecord
     i16 direction = 0;                      // +0x14
     i16 stepX = 0;                          // +0x16 pixels per frame
     i16 stepY = 0;                          // +0x18
-    u8 unk1A = 0;                           // +0x1A
+    u8 blockedTries = 0;                    // +0x1A the tries the next step was blocked
     u8 mode = 0;                            // +0x1B low nibble: the kind of move, bit 7: the event keeps running
     std::array<u8, 0x200> directions = {};  // +0x1C the direction of every step (0xFF ends)
 

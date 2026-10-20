@@ -250,7 +250,7 @@ void BattleRole::ClearExtras()
     this->bonusC = 0;
     this->unk2F0C = 0;
     this->unk2F10 = 0;
-    this->unk2F12 = 0;
+    this->staminaCost = 0;
     this->unk2F1C = 0;
     this->weaponId = 0;
     this->unk2F24 = 0;
@@ -274,7 +274,7 @@ void BattleRole::Setup(RoleRecord& record, RoleBattleBlock& block, const UnitPla
     this->kind = at.kind;
     *this->battleRecord = record;
     this->roleRecord = &record;
-    this->roleBlock = block.unk00.data();
+    this->roleBlock = block.values.data();
     this->unk2A93 = static_cast<u8>(this->battleRecord->evasion);
     this->actId = at.actId;
 
@@ -555,19 +555,19 @@ void BattleRole::ShowAllItems()
 // swd32.exe 0x00470890: the stamina owed (+0x2F12) taken from the party record, not below 0
 void BattleRole::PayStamina()
 {
-    if (this->unk2F12 == 0)
+    if (this->staminaCost == 0)
     {
         return;
     }
 
-    this->roleRecord->stamina = static_cast<i16>(this->roleRecord->stamina - this->unk2F12);
+    this->roleRecord->stamina = static_cast<i16>(this->roleRecord->stamina - this->staminaCost);
 
     if (this->roleRecord->stamina < 0)
     {
         this->roleRecord->stamina = 0;
     }
 
-    this->unk2F12 = 0;
+    this->staminaCost = 0;
 }
 
 // swd32.exe 0x004708C0: flag 9 of +0x2A86 and +0x2B0C set, command A from +0x2F18 when set, slot acts 8 and 9 cleared
@@ -1160,7 +1160,7 @@ void BattleRole::CancelCommand()
     this->command = UnitCommand{};
     std::fill_n(this->skillName.begin(), kCancelledNameBytes, '\0');
     this->unk2F10 = 0;
-    this->unk2F12 = 0;
+    this->staminaCost = 0;
     this->magicAction = 0;
     this->unk2F16 = 0;
     this->unk2F18 = 0;
@@ -1310,9 +1310,9 @@ void BattleRole::UseAccessorySkill(BattleServices& services, u16 kind)
 {
     CounterList& proficiency = services.party.fame.lists[Fame::ProficiencyList];
 
-    if (this->unk2F12 == 0)
+    if (this->staminaCost == 0)
     {
-        this->unk2F12 = this->AccessoryValue(kind);
+        this->staminaCost = this->AccessoryValue(kind);
     }
 
     const RoleRecord& record = *this->battleRecord;
@@ -2193,7 +2193,7 @@ int BattleRole::CanPaySkill(BattleServices& services, int category, int index)
     if ((cost & kCostsStamina) != 0)
     {
         this->selectedItem = nullptr;
-        this->unk2F12 = static_cast<u16>(cost & kCostMask);
+        this->staminaCost = static_cast<u16>(cost & kCostMask);
     }
 
     if ((cost & kItemCostBit) != 0)
@@ -2239,9 +2239,9 @@ int BattleRole::CanPaySkill(BattleServices& services, int category, int index)
         refuse(BattleRole::NotEnoughSpirit);
     }
 
-    if (this->unk2F12 != 0)
+    if (this->staminaCost != 0)
     {
-        if (this->roleRecord->stamina >= this->unk2F12)
+        if (this->roleRecord->stamina >= this->staminaCost)
         {
             return 1;
         }
@@ -2321,9 +2321,9 @@ int BattleRole::SelectObject(Database& database, ErrorReporter& reporter, int ca
 
         if ((data.costBits & kCostsStamina) != 0)
         {
-            this->unk2F12 = static_cast<u16>(data.costBits & kCostMask);
+            this->staminaCost = static_cast<u16>(data.costBits & kCostMask);
 
-            if (this->unk2F12 > this->roleRecord->stamina)
+            if (this->staminaCost > this->roleRecord->stamina)
             {
                 return 0;
             }

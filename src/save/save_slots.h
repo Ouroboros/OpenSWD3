@@ -32,7 +32,7 @@ struct SavePreview
     std::array<SavePreviewRole, Party::Roles> roles;  // +0x00
     i32 unk20 = 0;                                    // +0x20
     i32 unk24 = 0;                                    // +0x24 2, or 3 with story flag 0x53
-    i32 unk28 = 0;                                    // +0x28 the dword at +4 of the saved data
+    i32 gold = 0;                                     // +0x28 the dword at +4 of the saved data: the gold
     u16 state = 0;                                    // +0x30 Missing, Loaded
     std::vector<u16> thumbnail;                       // +0x294 160 x 120 pixels
     std::string date;                                 // +0x298 "yyyy/mm/dd hh:mm"

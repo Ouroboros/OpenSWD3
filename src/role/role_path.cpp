@@ -282,18 +282,18 @@ int RolePath::Step(int index)
         return RolePath::PathEnded;
     }
 
-    const u32 mask = move.unk1A > kBlockedTries ? MapHeader::Wall : MapHeader::Wall | MapHeader::SolidRole;
+    const u32 mask = move.blockedTries > kBlockedTries ? MapHeader::Wall : MapHeader::Wall | MapHeader::SolidRole;
     const std::ptrdiff_t cell = role.cell != nullptr ? role.cell - state.map.blocks.data() : 0;
     const u32 probe = this->game.field.ProbeCells(cell, role.act.width, role.act.height, mask);
     move.step |= MoveRecord::Done;
-    ++move.unk1A;
+    ++move.blockedTries;
     move.stepY = 0;
     move.stepX = 0;
 
     if (direction < RolePath::Directions && (probe & RolePath::BlockedBy[direction]) == 0)
     {
         move.step &= static_cast<u16>(~MoveRecord::Done);
-        move.unk1A = 0;
+        move.blockedTries = 0;
         move.stepX = static_cast<i16>(RolePath::StepX[direction]);
         move.stepY = static_cast<i16>(RolePath::StepY[direction]);
     }
@@ -399,10 +399,10 @@ int RolePath::Wander(int index)
         return 1;
     }
 
-    const u32 mask = move.unk1A > kBlockedTries ? MapHeader::Wall : MapHeader::Wall | MapHeader::SolidRole;
+    const u32 mask = move.blockedTries > kBlockedTries ? MapHeader::Wall : MapHeader::Wall | MapHeader::SolidRole;
     const std::ptrdiff_t cell = role.cell != nullptr ? role.cell - state.map.blocks.data() : 0;
     const u32 probe = this->game.field.ProbeCells(cell, role.act.width, role.act.height, mask);
-    ++move.unk1A;
+    ++move.blockedTries;
     move.step = MoveRecord::Done;
     move.stepY = 0;
     move.stepX = 0;
@@ -410,7 +410,7 @@ int RolePath::Wander(int index)
     if (direction < RolePath::Directions && (probe & RolePath::BlockedBy[direction]) == 0)
     {
         move.step = 0;
-        move.unk1A = 0;
+        move.blockedTries = 0;
         move.stepX = static_cast<i16>(RolePath::StepX[direction]);
         move.stepY = static_cast<i16>(RolePath::StepY[direction]);
     }
@@ -457,7 +457,7 @@ void RolePath::Follow(int index)
         return move.CurrentDirection();
     };
 
-    if (move.role == kFree || move.unk1A != 0 || direction() == kPathEnd)
+    if (move.role == kFree || move.blockedTries != 0 || direction() == kPathEnd)
     {
         const BlockingMap grid = this->Grid();
         PathFinder finder(owner.pathNodes, grid, owner.errors);
@@ -492,7 +492,7 @@ void RolePath::Follow(int index)
             move.step = 0;
             move.x = static_cast<u16>(targetX);
             move.y = static_cast<u16>(targetY);
-            move.unk1A = 0;
+            move.blockedTries = 0;
             owner.field.ClearRoleCells(role, leaderId);
             const Field& field = owner.field;
             const auto bottom = static_cast<u32>(field.cameraBottom + kFarMargin);
@@ -567,7 +567,7 @@ void RolePath::Follow(int index)
     else
     {
         move.step = static_cast<u16>(taken & MoveRecord::StepMask);
-        ++move.unk1A;
+        ++move.blockedTries;
         role.act.action = Role::WalkAction;
         move.stepX = static_cast<i16>(kFollowerSpeed * RolePath::StepX[step]);
         move.stepY = static_cast<i16>(kFollowerSpeed * RolePath::StepY[step]);
@@ -1421,14 +1421,14 @@ int RolePath::ScriptStep(int index)
     }
 
     move.step |= MoveRecord::Done;
-    ++move.unk1A;
+    ++move.blockedTries;
 
     if (direction < RolePath::Directions && (probe & RolePath::BlockedBy[direction]) == 0)
     {
         move.step &= static_cast<u16>(~MoveRecord::Done);
         move.stepX = static_cast<i16>(RolePath::StepX[direction]);
         move.stepY = static_cast<i16>(RolePath::StepY[direction]);
-        move.unk1A = 0;
+        move.blockedTries = 0;
     }
 
     role.flags |= Role::Stepping;
