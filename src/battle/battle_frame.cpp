@@ -37,9 +37,7 @@ constexpr int kSecondTimerX = 0xA;
 constexpr int kFadeLight = 0x18;
 constexpr int kFadeFrames = 8;
 constexpr int kQuakePanel = 0x100;
-constexpr u16 kSnapBase = 0x3E8;
-constexpr std::u8string_view kSnapName = u8"c:\\snap\\%d.bmp";  // swd32.exe 0x004A7788
-constexpr std::size_t kClearedTurnUnits = 8;                    // EndBattle: 0x0053AF30..0x0053AF57
+constexpr std::size_t kClearedTurnUnits = 8;  // EndBattle: 0x0053AF30..0x0053AF57
 constexpr std::size_t kSharedEscortWords = 5;
 constexpr std::array<i32, 6> kOpeningPlaces = {0x60, 0x60, 0xF0, 0xFA, 0xF2, 0x64};
 constexpr u16 kOpeningPanels = 6;
@@ -345,9 +343,12 @@ int Game::BattleFrame()
         this->ShowFrame();
     }
 
+    // The original saves the snapshot as c:\snap\<1000 + n>.bmp (0x004A7788); the rebuild saves it with the screenshots
+    // of the map, under their first free name (deviations.md).
     if (battle.snapNext == 1)
     {
-        const std::u8string name = Utf8Format(kSnapName, {static_cast<i32>(++battle.snapNumber + kSnapBase)});
+        ++battle.snapNumber;
+        const std::u8string name = this->ScreenshotPath();
         const std::span<const u16> pixels(
             this->drawSurface,
             static_cast<std::size_t>(this->painter.ScreenPitch()) * Display::Height

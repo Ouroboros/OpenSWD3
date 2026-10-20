@@ -378,7 +378,7 @@ public:
     i32 hitsAllRoles = 0;  // 0x0053BF68 1: the hit falls on all roles at once
     i32 unk53BD88 = 0;
     i32 unk53BD80 = 0;
-    i32 snapNext = 0;           // 0x0053BFE8 1: the next frame is saved as c:\snap\<n>.bmp
+    i32 snapNext = 0;           // 0x0053BFE8 1: the next frame is saved as a screenshot
     std::u8string battleMusic;  // 0x0053C198 the path of the battle music
     i32 unk53AF30 = 0;
     i32 unk53AF34 = 0;

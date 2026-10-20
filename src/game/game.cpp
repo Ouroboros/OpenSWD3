@@ -2338,17 +2338,10 @@ void Game::HandleEvent(const SDL_Event& event)
     }
 }
 
-// Key P on the map (inline in 0x0040A0D0): with more than 64 MB free, a beep and the screen saved under the first free
-// name of ScrnShot\00000.bmp..ScrnShot\99997.bmp (AIL_serve before each try; with every name taken the last one is
-// written over).
-void Game::TakeScreenshot()
+// The first free name of ScrnShot\00000.bmp..ScrnShot\99997.bmp (AIL_serve before each try; with every name taken
+// the last one, written over).
+std::u8string Game::ScreenshotPath()
 {
-    if (Game::DiskFreeMegabytes() <= kScreenshotDiskMegabytes)
-    {
-        return;
-    }
-
-    PlaySystemBeep();
     std::u8string path;
 
     for (int index = 0; index < kScreenshotNames; ++index)
@@ -2365,6 +2358,20 @@ void Game::TakeScreenshot()
         file.Close();
     }
 
+    return path;
+}
+
+// Key P on the map (inline in 0x0040A0D0): with more than 64 MB free, a beep and the screen saved under the first free
+// name of the screenshots (ScreenshotPath).
+void Game::TakeScreenshot()
+{
+    if (Game::DiskFreeMegabytes() <= kScreenshotDiskMegabytes)
+    {
+        return;
+    }
+
+    PlaySystemBeep();
+    const std::u8string path = this->ScreenshotPath();
     const std::span<const u16> pixels(this->drawSurface, static_cast<std::size_t>(Display::Width) * Display::Height);
     SaveScreenshot(
         this->painter,

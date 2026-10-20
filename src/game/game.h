@@ -270,6 +270,7 @@ private:
     void LoopFrame();
     static bool SDLCALL LiveResize(void* data, SDL_Event* event);
     void TakeScreenshot();
+    std::u8string ScreenshotPath();
     void SendText(TextMessage message, u32 parameter);
     void ShowLoading(int percent);
     void MusicZone(int map);
