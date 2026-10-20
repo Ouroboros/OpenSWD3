@@ -580,7 +580,7 @@ bool Field::LoadMap(u32 map, u32& systemFlags)
         at += kRegionNameAt;
         const std::size_t length = StringLength(block, at);
         std::copy_n(
-            block.begin() + static_cast<long>(at),
+            block.begin() + static_cast<std::ptrdiff_t>(at),
             std::min<std::size_t>(length, node->name.size() - 1),
             node->name.begin()
         );

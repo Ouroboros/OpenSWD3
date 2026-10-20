@@ -1,6 +1,7 @@
 #include "platform/log_file.h"
 
 #include <array>
+#include <cinttypes>
 #include <cstdio>
 #include <cstring>
 #include <exception>
@@ -10,6 +11,7 @@
 #include <SDL3/SDL.h>
 
 #include "core/log.h"
+#include "core/types.h"
 #include "platform/system_info.h"
 
 namespace swd3
@@ -168,7 +170,7 @@ void LogFile::Write(int category, SDL_LogPriority priority, const char* message)
     std::snprintf(
         prefix.data(),
         prefix.size(),
-        "%02d-%02dT%02d:%02d:%02d.%03d [%s] [thread=%llu] ",
+        "%02d-%02dT%02d:%02d:%02d.%03d [%s] [thread=%" PRIu64 "] ",
         now.month,
         now.day,
         now.hour,
@@ -176,7 +178,7 @@ void LogFile::Write(int category, SDL_LogPriority priority, const char* message)
         now.second,
         now.nanosecond / kNanosecondsPerMillisecond,
         LevelName(priority),
-        static_cast<unsigned long long>(SDL_GetCurrentThreadID())
+        static_cast<u64>(SDL_GetCurrentThreadID())
     );
 
     {

@@ -431,7 +431,7 @@ void Menu::Move(std::size_t which, i32 drawn, i32 from, i32 to)
 
 i32 Menu::Shown(std::size_t which, i32 value) const
 {
-    return static_cast<i32>(std::lround(this->ShownFine(which, value)));
+    return static_cast<i32>(std::round(this->ShownFine(which, value)));
 }
 
 double Menu::ShownFine(std::size_t which, i32 value) const

@@ -107,7 +107,7 @@ u16 Painter::BlendFine(u16 dest, u16 source, int level) const
     {
         const auto from = static_cast<double>((low & channel->mask) >> channel->shift);
         const auto to = static_cast<double>((high & channel->mask) >> channel->shift);
-        mixed |= (static_cast<u32>(std::lround(from + (to - from) * fraction)) << channel->shift) & channel->mask;
+        mixed |= (static_cast<u32>(std::round(from + (to - from) * fraction)) << channel->shift) & channel->mask;
     }
 
     return static_cast<u16>(mixed);

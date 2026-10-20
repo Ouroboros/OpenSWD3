@@ -137,7 +137,7 @@ bool File::Preload()
         return this->preloaded;
     }
 
-    const long at = std::ftell(this->file);
+    const i64 at = std::ftell(this->file);
     const u32 size = this->Size();
     std::vector<u8> bytes(size);
     std::fseek(this->file, 0, SEEK_SET);
@@ -222,11 +222,11 @@ const u8* File::MapView(u32 offset, u32 size)
         return this->view.data();
     }
 
-    const long position = std::ftell(this->file);
+    const i64 position = std::ftell(this->file);
     this->view.assign(length, 0);
     std::fseek(this->file, static_cast<long>(offset), SEEK_SET);
     const std::size_t done = std::fread(this->view.data(), 1, length, this->file);
-    std::fseek(this->file, position, SEEK_SET);
+    std::fseek(this->file, static_cast<long>(position), SEEK_SET);
 
     if (done != length)
     {
@@ -283,10 +283,10 @@ u32 File::Size()
         return static_cast<u32>(this->content.size());
     }
 
-    const long position = std::ftell(this->file);
+    const i64 position = std::ftell(this->file);
     std::fseek(this->file, 0, SEEK_END);
-    const long size = std::ftell(this->file);
-    std::fseek(this->file, position, SEEK_SET);
+    const i64 size = std::ftell(this->file);
+    std::fseek(this->file, static_cast<long>(position), SEEK_SET);
     return static_cast<u32>(size);
 }
 
@@ -299,7 +299,7 @@ bool File::Truncate()
     }
 
     std::fflush(this->file);
-    const long position = std::ftell(this->file);
+    const i64 position = std::ftell(this->file);
     return position >= 0 && TruncateFile(this->file, static_cast<u64>(position));
 }
 
@@ -420,7 +420,7 @@ bool File::Tell(u32& position)
 
     if (this->file != nullptr)
     {
-        const long current = std::ftell(this->file);
+        const i64 current = std::ftell(this->file);
 
         if (current >= 0)
         {

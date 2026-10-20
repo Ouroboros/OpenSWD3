@@ -26,7 +26,7 @@ constexpr int kSnapDistance = 0x80;  // a draw farther than this from its place 
 // its way `by` from its place before: ceil((N x the place - offset) / N), in 64 bits (a place may lie far off).
 int BlockPlace(int place, int by, double back, int scale, int offset)
 {
-    const i64 at = static_cast<i64>(std::llround((place + by * back) * scale)) - offset;
+    const i64 at = static_cast<i64>(std::round((place + by * back) * scale)) - offset;
     const i64 quotient = at / scale;
     return static_cast<int>(at % scale != 0 && at > 0 ? quotient + 1 : quotient);
 }
@@ -371,8 +371,8 @@ void Stage::Place(int& x, int& y, const void* site, const void* source)
 
     if (this->scale == 1)
     {
-        x += static_cast<int>(std::lround(move[0] * back));
-        y += static_cast<int>(std::lround(move[1] * back));
+        x += static_cast<i32>(std::round(move[0] * back));
+        y += static_cast<i32>(std::round(move[1] * back));
         return;
     }
 

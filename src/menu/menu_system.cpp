@@ -889,7 +889,7 @@ bool Menu::DrawNameEntry()
         std::copy_n(
             name.begin(),
             std::min<std::size_t>(name.size(), Party::NameBytes),
-            this->enteredNames.begin() + static_cast<long>(at)
+            this->enteredNames.begin() + static_cast<std::ptrdiff_t>(at)
         );
         owner.textInput.reset();
 

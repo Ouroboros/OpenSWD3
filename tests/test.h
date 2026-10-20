@@ -6,6 +6,8 @@
 #include <string_view>
 #include <vector>
 
+#include "core/types.h"
+
 namespace swd3test
 {
 
@@ -51,7 +53,7 @@ struct Registrar
             ::swd3test::fail(                                                                                          \
                 __FILE__,                                                                                              \
                 __LINE__,                                                                                              \
-                "CHECK_EQ(" #a ", " #b ") " + std::to_string(static_cast<long long>(swd3_a)) +                         \
-                    " != " + std::to_string(static_cast<long long>(swd3_b))                                            \
+                "CHECK_EQ(" #a ", " #b ") " + std::to_string(static_cast<swd3::i64>(swd3_a)) +                         \
+                    " != " + std::to_string(static_cast<swd3::i64>(swd3_b))                                            \
             );                                                                                                         \
     } while (0)

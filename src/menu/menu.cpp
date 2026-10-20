@@ -745,7 +745,7 @@ void Menu::DrawPageTitle()
 
     this->Move(TitleGlowValue, this->titleGlow, last, this->titleGlow);
     const double fineGlow = this->ShownFine(TitleGlowValue, this->titleGlow);
-    const i32 glow = static_cast<i32>(std::lround(fineGlow));
+    const i32 glow = static_cast<i32>(std::round(fineGlow));
     const auto arrowGlow = static_cast<i32>(std::floor(fineGlow));
     const int spacing = swapped ? kSwappedTitleSpacing : kTitleSpacing;
     this->unk4FC790.direction = swapped ? ActState::Right : ActState::Left;

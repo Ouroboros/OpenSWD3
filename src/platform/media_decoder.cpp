@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "core/format.h"
+#include "core/types.h"
 #include "platform/file_system.h"
 #include "platform/surface.h"
 
@@ -43,10 +44,10 @@ i64 SeekFile(void* opaque, i64 offset, int whence)
 
     if ((whence & ~AVSEEK_FORCE) == AVSEEK_SIZE)
     {
-        const long position = std::ftell(file);
+        const i64 position = std::ftell(file);
         std::fseek(file, 0, SEEK_END);
-        const long size = std::ftell(file);
-        std::fseek(file, position, SEEK_SET);
+        const i64 size = std::ftell(file);
+        std::fseek(file, static_cast<long>(position), SEEK_SET);
         return size;
     }
 

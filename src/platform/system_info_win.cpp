@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cinttypes>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -17,6 +18,7 @@
 #include <dbghelp.h>
 #include <mmsystem.h>
 
+#include "core/types.h"
 #include "platform/wide_win.h"
 
 namespace swd3
@@ -138,8 +140,8 @@ bool LoadSymbols(HANDLE process)
     return ::SymInitializeW(process, directory.c_str(), TRUE) != 0;
 }
 
-// A number in decimal ("%llu") or hexadecimal ("%llX").
-std::u8string Number(const char* format, unsigned long long value)
+// A number in decimal (PRIu64) or hexadecimal (PRIX64).
+std::u8string Number(const char* format, u64 value)
 {
     std::array<char, kNumberChars> text = {};
     const int length = std::snprintf(text.data(), text.size(), format, value);
@@ -168,7 +170,7 @@ std::u8string Describe(HANDLE process, DWORD64 address)
             &module
         ) != 0)
     {
-        where = ModuleName(module) + u8"+0x" + Number("%llX", address - reinterpret_cast<std::uintptr_t>(module));
+        where = ModuleName(module) + u8"+0x" + Number("%" PRIX64, address - reinterpret_cast<std::uintptr_t>(module));
     }
 
     alignas(SYMBOL_INFOW) std::array<std::byte, sizeof(SYMBOL_INFOW) + kNameChars * sizeof(wchar_t)> storage = {};
@@ -180,7 +182,7 @@ std::u8string Describe(HANDLE process, DWORD64 address)
     if (::SymFromAddrW(process, address, &symbolOffset, symbol) != 0)
     {
         where +=
-            u8" " + Utf8(std::wstring_view(symbol->Name, symbol->NameLen)) + u8"+0x" + Number("%llX", symbolOffset);
+            u8" " + Utf8(std::wstring_view(symbol->Name, symbol->NameLen)) + u8"+0x" + Number("%" PRIX64, symbolOffset);
     }
 
     IMAGEHLP_LINEW64 line{};
@@ -189,7 +191,7 @@ std::u8string Describe(HANDLE process, DWORD64 address)
 
     if (::SymGetLineFromAddrW64(process, address, &lineOffset, &line) != 0)
     {
-        where += u8" (" + Utf8(line.FileName) + u8":" + Number("%llu", line.LineNumber) + u8")";
+        where += u8" (" + Utf8(line.FileName) + u8":" + Number("%" PRIu64, line.LineNumber) + u8")";
     }
 
     return where;
@@ -310,7 +312,7 @@ void WriteDump(EXCEPTION_POINTERS* exception)
     std::swprintf(
         name.data(),
         name.size(),
-        L"%lsswd3r-crash-%04u-%02u-%02u_%02u-%02u-%02u-%lu.dmp",
+        L"%lsswd3r-crash-%04u-%02u-%02u_%02u-%02u-%02u-%u.dmp",
         directory.c_str(),
         year,
         month,
@@ -318,7 +320,7 @@ void WriteDump(EXCEPTION_POINTERS* exception)
         hour,
         minute,
         second,
-        static_cast<unsigned long>(::GetCurrentProcessId())
+        static_cast<u32>(::GetCurrentProcessId())
     );
     const std::u8string shown = Utf8(name.data());
     const HANDLE file = ::CreateFileW(
@@ -362,8 +364,8 @@ LONG WINAPI FaultFilter(EXCEPTION_POINTERS* exception)
     const bool symbolsReady = initialized || ::GetLastError() == ERROR_INVALID_PARAMETER;  // the hang watch has them
     SDL_LogCritical(
         SDL_LOG_CATEGORY_APPLICATION,
-        "unhandled exception 0x%08lX at %s",
-        static_cast<unsigned long>(record.ExceptionCode),
+        "unhandled exception 0x%08X at %s",
+        static_cast<u32>(record.ExceptionCode),
         Chars(Describe(process, reinterpret_cast<std::uintptr_t>(record.ExceptionAddress)))
     );
 
@@ -376,9 +378,9 @@ LONG WINAPI FaultFilter(EXCEPTION_POINTERS* exception)
     {
         SDL_LogCritical(
             SDL_LOG_CATEGORY_APPLICATION,
-            "access violation: %s address 0x%llX",
+            "access violation: %s address 0x%" PRIX64,
             record.ExceptionInformation[0] == 0 ? "read" : (record.ExceptionInformation[0] == 1 ? "write" : "execute"),
-            static_cast<unsigned long long>(record.ExceptionInformation[1])
+            static_cast<u64>(record.ExceptionInformation[1])
         );
     }
 
@@ -494,11 +496,7 @@ void HangWatch::Watch()
         {
             if (reported != 0)
             {
-                SDL_LogWarn(
-                    SDL_LOG_CATEGORY_APPLICATION,
-                    "main loop running again after %lu ms",
-                    static_cast<unsigned long>(now - since)
-                );
+                SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "main loop running again after %u ms", now - since);
             }
 
             seen = beats;
@@ -534,8 +532,8 @@ void HangWatch::Watch()
         const bool got = ::GetThreadContext(main, &context) != 0;
         SDL_LogWarn(
             SDL_LOG_CATEGORY_APPLICATION,
-            "main loop stalled for %lu s (a hang, or a modal dialog); its call stack%s:",
-            static_cast<unsigned long>(reported),
+            "main loop stalled for %u s (a hang, or a modal dialog); its call stack%s:",
+            reported,
             got ? "" : " cannot be read"
         );
 

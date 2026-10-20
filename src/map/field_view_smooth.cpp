@@ -79,7 +79,7 @@ std::array<i32, 2> FieldView::EffectAt(u64 key, i32 x, i32 y, bool screen)
     EffectMotion& effect = found->second;
     effect.seen = this->placesFrame;
     const std::array<double, 2> shown = this->EffectShown(effect);
-    return {static_cast<i32>(std::lround(shown[0])), static_cast<i32>(std::lround(shown[1]))};
+    return {static_cast<i32>(std::round(shown[0])), static_cast<i32>(std::round(shown[1]))};
 }
 
 void FieldView::MoveEffect(u64 key, i32 fromX, i32 fromY, i32 toX, i32 toY, i32 frames, bool screen, i32 snap)
@@ -247,8 +247,8 @@ void FieldView::PaintBetween(Surface& out)
         }
 
         const std::array<double, 2> place = this->EffectShown(effect);
-        effect.fineX = static_cast<i32>(std::lround(place[0] * scale));
-        effect.fineY = static_cast<i32>(std::lround(place[1] * scale));
+        effect.fineX = static_cast<i32>(std::round(place[0] * scale));
+        effect.fineY = static_cast<i32>(std::round(place[1] * scale));
         this->placesKey.push_back(effect.fineX);
         this->placesKey.push_back(effect.fineY);
     }
