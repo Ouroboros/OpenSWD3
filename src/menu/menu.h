@@ -510,6 +510,7 @@ public:
     void OptionsDrawSettings(Pixel color);
     void OptionsDrawKeys(Pixel color);
     void OptionsDrawDisplay(Pixel color);
+    void OptionsSetLauncher(bool shown);
     std::vector<std::string> OptionsDisplayChoices(i32 row, i32& chosen) const;
     void OptionsChooseDisplay(i32 row, i32 choice);
     void OptionsStepDisplay(i32 row, bool up, bool wrap);

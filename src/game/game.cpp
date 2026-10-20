@@ -538,8 +538,9 @@ void Game::Start()
         this->config.textSpeed,
         this->config.battleSpeed
     );
-    const Launcher::Choice choice = this->RunLauncher();
-    LogInfo(u8"launcher choice=%d", static_cast<i32>(choice));
+    // The rebuild (deviations.md): with [game] launcher off the start goes to the title as the launcher's start would.
+    const Launcher::Choice choice = this->config.showLauncher ? this->RunLauncher() : Launcher::Choice::Start;
+    LogInfo(u8"launcher choice=%d (shown=%d)", static_cast<i32>(choice), this->config.showLauncher ? 1 : 0);
 
     // The launcher is a dialog with the arrow pointer; over the game window the pointer is the window class's cursor
     // 0x67, which is blank.

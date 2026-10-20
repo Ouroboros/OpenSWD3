@@ -215,6 +215,16 @@ void Config::StoreRunning(bool running) const
     );
 }
 
+void Config::StoreLauncher(bool shown) const
+{
+    this->Store(
+        [shown](GameSettings& game)
+        {
+            game.launcher = shown;
+        }
+    );
+}
+
 // [game] of the program's settings file changed by `change` (a failure is logged).
 void Config::Store(const std::function<void(GameSettings&)>& change) const
 {
@@ -264,6 +274,8 @@ void Config::Apply(const GameSettings& game, i32& unknown14, u8& effectsOff)
     {
         effectsOff = *game.effectsOff ? 1 : 0;
     }
+
+    this->showLauncher = game.launcher.value_or(true);
 
     if (game.debug.has_value())
     {

@@ -84,6 +84,8 @@ public:
     void SetDefaultKeys();
     // The walk/run toggle kept in [game] running (the rebuild's, see deviations.md 0x00402F80).
     void StoreRunning(bool running) const;
+    // The rebuild's launcher shown at the start or not, kept in [game] launcher (deviations.md).
+    void StoreLauncher(bool shown) const;
 
 private:
     void StoreKeys(GameSettings& game) const;
@@ -97,6 +99,7 @@ public:
     i32 textSpeed = 0;               // 0x004A9ECC 0 (fastest) .. 4 (slow)
     i32 battleSpeed = 0;             // 0x004ACE60 0..11
     i32 debugMode = 0;               // 0x004CAE98 debug hot keys
+    bool showLauncher = true;        // the rebuild's [game] launcher: the launcher at the start (else the title)
     std::array<u16, Channels> channelMasks = Config::DefaultChannelMasks;
     std::array<i32, Keys> keys = {};  // 0x004B7384 DirectInput scan codes of the key slots
 

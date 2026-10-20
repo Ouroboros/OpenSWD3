@@ -36,14 +36,15 @@ constexpr i32 kSettingsEntry = 3;
 constexpr i32 kQuitEntry = 4;
 
 // The rows of the settings and of the quit box (OptionsPage::row).
-constexpr i32 kSoundRow = 0;
-constexpr i32 kMusicRow = 1;
-constexpr i32 kCacheRow = 2;
-constexpr i32 kEffectsRow = 3;
-constexpr i32 kTextSpeedRow = 4;
-constexpr i32 kBattleSpeedRow = 5;
-constexpr i32 kKeysRow = 6;
-constexpr i32 kDisplayRow = 7;  // the rebuild's display setup, below the key setup
+constexpr i32 kLauncherRow = 0;  // the rebuild's launcher switch, above the original rows (deviations.md)
+constexpr i32 kSoundRow = 1;
+constexpr i32 kMusicRow = 2;
+constexpr i32 kCacheRow = 3;
+constexpr i32 kEffectsRow = 4;
+constexpr i32 kTextSpeedRow = 5;
+constexpr i32 kBattleSpeedRow = 6;
+constexpr i32 kKeysRow = 7;
+constexpr i32 kDisplayRow = 8;  // the rebuild's display setup, below the key setup
 constexpr i32 kEndRow = 0;
 constexpr i32 kRestartRow = 1;
 constexpr i32 kQuitRows = 2;
@@ -156,8 +157,8 @@ constexpr u32 kStepsFrom = 0xD6;  // left of this only the key setup row is clic
 constexpr int kStepsLeft = 0x13D;
 constexpr int kStepWidth = 0x10;
 constexpr u32 kKeysRowFrom = 0x5E;
-// The rows of the settings between these y (the last one the display setup's).
-constexpr std::array<std::pair<u32, u32>, 8> kSettingsRows = {
+// The rows of the settings between these y (the first one the launcher switch's, the last one the display setup's).
+constexpr std::array<std::pair<u32, u32>, 9> kSettingsRows = {
     {{0x82, 0xA1},
      {0xA2, 0xC1},
      {0xC2, 0xE1},
@@ -165,7 +166,8 @@ constexpr std::array<std::pair<u32, u32>, 8> kSettingsRows = {
      {0x102, 0x121},
      {0x122, 0x141},
      {0x142, 0x161},
-     {0x162, 0x181}}
+     {0x162, 0x181},
+     {0x182, 0x1A1}}
 };
 
 // The drawing.
@@ -192,6 +194,8 @@ constexpr std::u8string_view kConfirm = u8"確定";                       // swd
 constexpr std::u8string_view kGiveUp = u8"放棄";                        // swd32.exe 0x004A7314
 constexpr std::u8string_view kKeyButtons = u8" 設定 放棄 恢復預設值 ";  // swd32.exe 0x004A72FC
 constexpr std::u8string_view kPressKey = u8"請按一個鍵";                // swd32.exe 0x004A72F0
+// The rebuild's launcher switch (deviations.md).
+constexpr std::u8string_view kLauncherSetup = u8"啟動畫面";
 // The texts of the display setup.
 constexpr std::u8string_view kDisplaySetup = u8"顯示設定";
 constexpr std::array<std::u8string_view, 6> kDisplayLabels = {
@@ -230,7 +234,8 @@ constexpr int kListBoxY = 0x74;
 constexpr int kListBoxWidth = 0x190;
 constexpr int kNotesBoxHeight = 0x15E;
 constexpr int kSettingsBoxHeight = 0xF8;
-constexpr int kDisplayRowHeight = 0x20;  // the settings box grown by the display setup's row
+constexpr int kDisplayRowHeight = 0x20;  // a row of the rebuild's, which grows the settings box
+constexpr int kAddedRows = 2;            // the launcher switch and the display setup
 constexpr int kDisplayBoxHeight = 0xD8;  // the display setup: its six rows
 constexpr int kDisplayFrameBottom = 0x148;
 constexpr int kListFrameLeft = 0xD8;
@@ -246,7 +251,7 @@ constexpr int kNotesTop = 0x84;
 constexpr int kNoteHeight = 0x41;
 constexpr int kVolumeLabelX = 0x108;
 constexpr int kLabelX = 0xDC;
-constexpr std::array<int, 8> kRowY = {0x82, 0xA2, 0xC2, 0xE2, 0x102, 0x122, 0x142, 0x162};
+constexpr std::array<int, 9> kRowY = {0x82, 0xA2, 0xC2, 0xE2, 0x102, 0x122, 0x142, 0x162, 0x182};
 constexpr int kVersionX = 0x20C;
 constexpr int kVersionY = 0x159;
 constexpr i32 kStepOff = 0x22;
@@ -330,6 +335,12 @@ std::u8string_view KeyName(i32 code)
     return menu_text::kKeyNames[static_cast<std::size_t>(code)];
 }
 
+// The choices of an on/off row (Big5).
+std::vector<std::string> OnOffChoices()
+{
+    return {WinFormat(menu_text::kOn, {}), WinFormat(menu_text::kOff, {})};
+}
+
 // The left of each of `choices` drawn with `font` from kBarStepsLeft, kChoiceGap apart, and the right of the last.
 std::vector<int> ChoiceLefts(const std::vector<std::string>& choices, const TextFont& font)
 {
@@ -347,6 +358,21 @@ std::vector<int> ChoiceLefts(const std::vector<std::string>& choices, const Text
 }
 
 }  // namespace
+
+// The rebuild's launcher switch (deviations.md): the launcher shown at the start or not, written at once.
+void Menu::OptionsSetLauncher(bool shown)
+{
+    Game& owner = this->game;
+
+    if (owner.config.showLauncher == shown)
+    {
+        return;
+    }
+
+    owner.config.showLauncher = shown;
+    owner.config.StoreLauncher(shown);
+    owner.audio.PlaySound(kMoveSound, owner.config.soundVolume);
+}
 
 // The choices of display setup row `row` (Big5), and the one in use in `chosen` (-1 for none).
 std::vector<std::string> Menu::OptionsDisplayChoices(i32 row, i32& chosen) const
@@ -368,7 +394,7 @@ std::vector<std::string> Menu::OptionsDisplayChoices(i32 row, i32& chosen) const
         case kWideMapRow:
         {
             const bool on = row == kSmoothRow ? owner.smoothMotion : row == kVSyncRow ? owner.vsync : owner.wideMap;
-            choices = {text(menu_text::kOn), text(menu_text::kOff)};
+            choices = OnOffChoices();
             chosen = on ? 0 : 1;
             break;
         }
@@ -735,6 +761,23 @@ void Menu::OptionsFrame()
 
     if (owner.controls.At(Button::MouseLeft).press == 0 || x >= kSettingsRight)
     {
+        return;
+    }
+
+    // The rebuild's launcher switch (deviations.md): the choice under the pointer taken.
+    if (x > kStepsFrom && Inside(y, kSettingsRows[kLauncherRow]))
+    {
+        page.row = kLauncherRow;
+        const std::vector<int> lefts = ChoiceLefts(OnOffChoices(), owner.largeFont);
+
+        for (std::size_t at = 0; at + 1 < lefts.size(); ++at)
+        {
+            if (x >= static_cast<u32>(lefts[at]) && x < static_cast<u32>(lefts[at + 1]))
+            {
+                this->OptionsSetLauncher(at == 0);
+            }
+        }
+
         return;
     }
 
@@ -1176,6 +1219,10 @@ void Menu::OptionsLeft()
 
             switch (page.row)
             {
+                case kLauncherRow:
+                    this->OptionsSetLauncher(true);
+                    return;
+
                 case kSoundRow:
                 {
                     int volume = --settings.soundVolume;
@@ -1320,6 +1367,10 @@ void Menu::OptionsRight()
 
             switch (page.row)
             {
+                case kLauncherRow:
+                    this->OptionsSetLauncher(false);
+                    return;
+
                 case kSoundRow:
                 {
                     int volume = ++settings.soundVolume;
@@ -1487,7 +1538,11 @@ void Menu::OptionsSelect()
         case kOpened:
             if (page.entry == kSettingsEntry)
             {
-                if (page.row == kKeysRow)
+                if (page.row == kLauncherRow)
+                {
+                    this->OptionsSetLauncher(!settings.showLauncher);
+                }
+                else if (page.row == kKeysRow)
                 {
                     page.keyRow = 0;
                     page.stage = kKeys;
@@ -1646,7 +1701,7 @@ void Menu::OptionsDrawSettings(Pixel color)
         kListBoxX,
         kListBoxY,
         kListBoxWidth,
-        kSettingsBoxHeight + kDisplayRowHeight,
+        kSettingsBoxHeight + kAddedRows * kDisplayRowHeight,
         0,
         0,
         0,
@@ -1659,10 +1714,30 @@ void Menu::OptionsDrawSettings(Pixel color)
         kListFrameLeft,
         kListFrameTop,
         kListFrameRight,
-        kSettingsFrameBottom + kDisplayRowHeight,
+        kSettingsFrameBottom + kAddedRows * kDisplayRowHeight,
         0,
         kFrameBorder
     );
+    // The rebuild's launcher switch (deviations.md): its choices, the one in use bright.
+    large.DrawText(owner.drawSurface, kLabelX, kRowY[kLauncherRow], kLauncherSetup, color, kPanelStyle);
+    Pixel unchosen = color;
+    painter.TintPixels(std::span<u16>(&unchosen, 1), kUnchosenTint, kUnchosenTint, kUnchosenTint);
+    const std::vector<std::string> launcher = OnOffChoices();
+    const std::vector<int> launcherLefts = ChoiceLefts(launcher, large);
+    const std::size_t launcherChosen = settings.showLauncher ? 0 : 1;
+
+    for (std::size_t at = 0; at < launcher.size(); ++at)
+    {
+        large.DrawText(
+            owner.drawSurface,
+            launcherLefts[at],
+            kRowY[kLauncherRow],
+            launcher[at],
+            at == launcherChosen ? color : unchosen,
+            kPanelStyle
+        );
+    }
+
     large.DrawText(owner.drawSurface, kVolumeLabelX, kRowY[kSoundRow], menu_text::kSoundVolume, color, kPanelStyle);
     large.DrawText(owner.drawSurface, kVolumeLabelX, kRowY[kMusicRow], menu_text::kMusicVolume, color, kPanelStyle);
     large.DrawText(owner.drawSurface, kLabelX, kRowY[kCacheRow], menu_text::kCacheSize, color, kPanelStyle);
@@ -1671,7 +1746,14 @@ void Menu::OptionsDrawSettings(Pixel color)
     large.DrawText(owner.drawSurface, kLabelX, kRowY[kBattleSpeedRow], menu_text::kBattleSpeed, color, kPanelStyle);
     large.DrawText(owner.drawSurface, kLabelX, kRowY[kKeysRow], kKeySetup, color, kPanelStyle);
     large.DrawText(owner.drawSurface, kLabelX, kRowY[kDisplayRow], kDisplaySetup, color, kPanelStyle);
-    medium.DrawText(owner.drawSurface, kVersionX, kVersionY + kDisplayRowHeight, kVersion, color, kPanelStyle);
+    medium.DrawText(
+        owner.drawSurface,
+        kVersionX,
+        kVersionY + kAddedRows * kDisplayRowHeight,
+        kVersion,
+        color,
+        kPanelStyle
+    );
 
     auto bar = [this, &owner](int y, i32 value)
     {
