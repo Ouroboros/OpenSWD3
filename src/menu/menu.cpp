@@ -126,6 +126,13 @@ bool Repeating(const ButtonState& button, i32 parity)
     return button.press != 0 && (button.heldFrames == 1 || ((parity & 1) == 0 && button.heldFrames > kRepeatAfter));
 }
 
+// The length of a role tab's bar of `value` out of `maximum`. The rebuild (deviations.md): a maximum of 0 (the name
+// code 燕赤霞 sets the stamina's) gives an empty bar; the original divides by it and fails.
+int BarLength(i32 value, i32 maximum)
+{
+    return maximum != 0 ? kBarLength * value / maximum : 0;
+}
+
 }  // namespace
 
 void Menu::Nothing()
@@ -841,11 +848,11 @@ void Menu::DrawRoleTabs(int offset)
         const RoleRecord& role = owner.party.roles[index];
         const int x = tab.x - offset;
         owner.actDrawer.DrawGhost(this->items[index], x, tab.y, shownGlow, glowFraction);
-        painter.SetClipClamped(0, 0, kBarLength * role.hitPoints / role.maxHitPoints + kBarX, Display::Height);
+        painter.SetClipClamped(0, 0, BarLength(role.hitPoints, role.maxHitPoints) + kBarX, Display::Height);
         owner.actDrawer.DrawGhost(this->hitPointBar, kBarX - offset, tab.y - kHitPointBarUp, shownGlow, glowFraction);
-        painter.SetClipClamped(0, 0, kBarLength * role.spirit / role.maxSpirit + kBarX, Display::Height);
+        painter.SetClipClamped(0, 0, BarLength(role.spirit, role.maxSpirit) + kBarX, Display::Height);
         owner.actDrawer.DrawGhost(this->spiritBar, kBarX - offset, tab.y - kSpiritBarUp, shownGlow, glowFraction);
-        painter.SetClipClamped(0, 0, kBarLength * role.stamina / role.maxStamina + kBarX, Display::Height);
+        painter.SetClipClamped(0, 0, BarLength(role.stamina, role.maxStamina) + kBarX, Display::Height);
         owner.actDrawer.DrawGhost(this->staminaBar, kBarX - offset, tab.y + kStaminaBarDown, shownGlow, glowFraction);
         owner.mediumFont.DrawText(
             painter.Target(),
