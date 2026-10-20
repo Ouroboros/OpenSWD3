@@ -37,12 +37,12 @@ constexpr int kInsideY = 50;
 TEST_CASE("launcher: resources of swd32.exe and the hover hotspots")
 {
     swd3::ExeResources resources;
-    resources.Open(swd3::ResourceDirectory());
+    resources.Open(swd3::AssetDirectory());
     swd3::Surface picture;
 
     if (!resources.LoadBitmap(Launcher::Background, picture))
     {
-        std::printf("  (res not found, skipped)\n");
+        std::printf("  (asset not found, skipped)\n");
         return;
     }
 
@@ -91,14 +91,14 @@ TEST_CASE("launcher: the window icon and cursor of swd32.exe")
     constexpr std::size_t kMemberBytes = kHeaderBytes + kPixelBytes * kSide * kSide + kMaskBytes;
     constexpr swd3::u32 kOpaque = 0xFF000000u;
     swd3::ExeResources resources;
-    resources.Open(swd3::ResourceDirectory());
+    resources.Open(swd3::AssetDirectory());
     swd3::IconImage icon;
     std::vector<swd3::u8> file;
 
     if (!resources.LoadIcon(swd3::Game::WindowIcon, icon) ||
-        !swd3::ReadSharedFile(swd3::ResourceDirectory() + std::u8string(kIconFile), file))
+        !swd3::ReadSharedFile(swd3::AssetDirectory() + std::u8string(kIconFile), file))
     {
-        std::printf("  (res not found, skipped)\n");
+        std::printf("  (asset not found, skipped)\n");
         return;
     }
 

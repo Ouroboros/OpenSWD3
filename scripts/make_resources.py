@@ -1,4 +1,4 @@
-"""Extracts the resources of swd32.exe into the res directory the program reads beside itself, one standard file each,
+"""Extracts the resources of swd32.exe into the asset directory the program reads beside itself, one standard file each,
 named by its resource id: the launcher's pictures (<id>.bmp), the sounds (<id>.wav), the window icon (<id>.ico) and
 cursor (<id>.cur), and the dialog templates (<id>.dlg, as stored in the executable).
 

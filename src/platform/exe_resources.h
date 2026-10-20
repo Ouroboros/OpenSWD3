@@ -22,9 +22,6 @@ struct IconImage
     std::vector<u32> pixels;
 };
 
-// The res directory beside the program (made by scripts/make_resources.py from swd32.exe).
-std::u8string ResourceDirectory();
-
 // The resources of swd32.exe (the dialogs, bitmaps and sounds of the launcher, the icon and cursor of the window): the
 // Win32 resource calls of the original find them in its own image, the rebuild in the files extracted from it, one
 // standard file each named by its resource id.

@@ -16,6 +16,6 @@
 *.$$$
 /reverse/analysis/casm/
 /third_party/fonts/
+/third_party/asset/
 __pycache__/
 *.pyc
-/third_party/resources/

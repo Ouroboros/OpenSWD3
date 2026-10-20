@@ -42,28 +42,26 @@ bash scripts/deps/build_ffmpeg.sh linux
 
 Windows 版的依赖与程序本身都使用静态 CRT（`/MT`），编出的 exe 不需要 VC 运行库。
 
-## 3. 字库
+## 3. 资源文件
 
-游戏的文字使用由細明體（`mingliu.ttc`）生成的点阵字库 `swd3font.bin`。字体属于微软，不放进仓库，需要从 Windows 的 `C:\Windows\Fonts\mingliu.ttc` 自行取得：
+字库和启动画面等资源放在 `third_party/asset`，不放进仓库，需要自行生成。构建时整个文件夹复制到 exe 旁边的 `asset`；不存在时程序仍能编译，但运行时缺少文字、图标、启动画面和这些音效。
 
-```sh
-mkdir -p third_party/fonts
-python3 scripts/make_font_library.py /mnt/c/Windows/Fonts/mingliu.ttc third_party/fonts/swd3font.bin
-```
-
-`third_party/fonts/swd3font.bin` 存在时，构建会把它复制到 exe 旁边；不存在时程序仍能编译，但运行时缺少文字。
-
-## 4. 原版资源
-
-窗口图标、启动画面的图片与音效、开场音效和作弊对话框取自原版 `swd32.exe`。它们属于游戏，不放进仓库，需要从自己的原版游戏中提取：
+字库 `font.bin` 由細明體（`mingliu.ttc`）生成。字体属于微软，需要从 Windows 的 `C:\Windows\Fonts\mingliu.ttc` 自行取得：
 
 ```sh
-python3 scripts/make_resources.py /mnt/e/Game/swd3/swd32.exe third_party/resources
+mkdir -p third_party/asset
+python3 scripts/make_font_library.py /mnt/c/Windows/Fonts/mingliu.ttc third_party/asset/font.bin
 ```
 
-提取出来的是普通的 `.bmp`、`.wav`、`.ico`、`.cur` 文件和对话框模板 `.dlg`，以原版的资源编号命名。`third_party/resources` 存在时，构建会把它复制到 exe 旁边的 `res` 文件夹，运行时不需要 `swd32.exe`；不存在时程序仍能编译，但没有图标、启动画面和这些音效。
+窗口图标、启动画面的图片与音效、开场音效和作弊对话框取自原版 `swd32.exe`，需要从自己的原版游戏中提取：
 
-## 5. 编译
+```sh
+python3 scripts/make_resources.py /mnt/e/Game/swd3/swd32.exe third_party/asset
+```
+
+提取出来的是普通的 `.bmp`、`.wav`、`.ico`、`.cur` 文件和对话框模板 `.dlg`，以原版的资源编号命名。运行时不需要 `swd32.exe`。
+
+## 4. 编译
 
 ```sh
 cmake --preset windows
@@ -76,8 +74,7 @@ cmake --build --preset windows
 | --- | --- |
 | `swd3r.exe` | 游戏程序 |
 | `swd3r.pdb` | 调试符号，放在 exe 旁边时崩溃记录能显示函数名与行号 |
-| `swd3font.bin` | 字库 |
-| `res/` | 从原版提取的图标、启动画面、音效与对话框 |
+| `asset/` | 字库，以及从原版提取的图标、启动画面、音效与对话框 |
 | `swd3_tests.exe` | 单元测试 |
 
 Linux 版：
@@ -91,7 +88,7 @@ cmake --build --preset linux
 
 32 位版本使用 `windows-x86`（产物在 `build/windows-x86/`）与 `linux-i386`（产物在 `build/linux-i386/`）预设。所有预设都是 `RelWithDebInfo`。
 
-## 6. 单元测试
+## 5. 单元测试
 
 ```sh
 build/linux/swd3_tests

@@ -32,6 +32,9 @@ std::FILE* OpenSharedFile(const std::u8string& path, std::string_view mode);
 bool ReadSharedFile(const std::u8string& path, std::vector<u8>& bytes);
 // SetEndOfFile of an open file at `size` bytes.
 bool TruncateFile(std::FILE* file, u64 size);
+// The asset directory beside the program (the font and the resources extracted from swd32.exe), ending in a
+// separator.
+std::u8string AssetDirectory();
 // GetFileTime of an open file: its last write time in 100 ns ticks since 1601.
 bool FileWriteTime(std::FILE* file, u64& fileTime);
 

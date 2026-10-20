@@ -76,19 +76,15 @@ if(WIN32)
     target_link_libraries(swd3_core PUBLIC user32 gdi32 advapi32 ole32 winmm imm32 comctl32 dbghelp)
 endif()
 
-# The glyph library made from MingLiU by scripts/make_font_library.py (not in git: it derives from a Microsoft font).
-set(SWD3_FONT_LIBRARY "${CMAKE_CURRENT_SOURCE_DIR}/third_party/fonts/swd3font.bin")
-# The resources of swd32.exe extracted by scripts/make_resources.py (not in git: they are the game's), copied to res
-# beside the programs.
-set(SWD3_RESOURCES "${CMAKE_CURRENT_SOURCE_DIR}/third_party/resources")
+# The assets copied to asset beside the programs (not in git): font.bin made from MingLiU by
+# scripts/make_font_library.py (it derives from a Microsoft font) and the resources of swd32.exe extracted by
+# scripts/make_resources.py (they are the game's).
+set(SWD3_ASSETS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/asset")
 
 if(EXISTS "${SWD3_MAIN_SOURCE}")
     add_executable(swd3r "${SWD3_MAIN_SOURCE}")
-    if(EXISTS "${SWD3_FONT_LIBRARY}")
-        add_custom_command(TARGET swd3r POST_BUILD COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${SWD3_FONT_LIBRARY}" "$<TARGET_FILE_DIR:swd3r>")
-    endif()
-    if(EXISTS "${SWD3_RESOURCES}")
-        add_custom_command(TARGET swd3r POST_BUILD COMMAND "${CMAKE_COMMAND}" -E copy_directory "${SWD3_RESOURCES}" "$<TARGET_FILE_DIR:swd3r>/res")
+    if(EXISTS "${SWD3_ASSETS}")
+        add_custom_command(TARGET swd3r POST_BUILD COMMAND "${CMAKE_COMMAND}" -E copy_directory "${SWD3_ASSETS}" "$<TARGET_FILE_DIR:swd3r>/asset")
     endif()
     target_link_libraries(swd3r PRIVATE swd3_core SDL3::SDL3-static swd3::ffmpeg)
     if(WIN32)
@@ -109,11 +105,8 @@ if(SWD3_TEST_SOURCES)
         string(REGEX REPLACE "^/mnt/([a-z])/" "\\1:/" SWD3_TEST_SOURCE_DIR "${SWD3_TEST_SOURCE_DIR}")
     endif()
     target_compile_definitions(swd3_tests PRIVATE SWD3_SOURCE_DIR="${SWD3_TEST_SOURCE_DIR}")
-    if(EXISTS "${SWD3_FONT_LIBRARY}")
-        add_custom_command(TARGET swd3_tests POST_BUILD COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${SWD3_FONT_LIBRARY}" "$<TARGET_FILE_DIR:swd3_tests>")
-    endif()
-    if(EXISTS "${SWD3_RESOURCES}")
-        add_custom_command(TARGET swd3_tests POST_BUILD COMMAND "${CMAKE_COMMAND}" -E copy_directory "${SWD3_RESOURCES}" "$<TARGET_FILE_DIR:swd3_tests>/res")
+    if(EXISTS "${SWD3_ASSETS}")
+        add_custom_command(TARGET swd3_tests POST_BUILD COMMAND "${CMAKE_COMMAND}" -E copy_directory "${SWD3_ASSETS}" "$<TARGET_FILE_DIR:swd3_tests>/asset")
     endif()
     add_test(NAME swd3_tests COMMAND swd3_tests WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 endif()

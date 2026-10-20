@@ -1,12 +1,9 @@
 #include "platform/glyph_rasterizer.h"
 
-#include <SDL3/SDL.h>
-
 #include <algorithm>
 #include <climits>
 #include <cstring>
 
-#include "core/format.h"
 #include "platform/file_system.h"
 #include "platform/surface.h"
 
@@ -151,14 +148,7 @@ void LibraryGlyphRasterizer::RenderText(Surface& surface, std::string_view, int 
 
 std::u8string GlyphLibraryPath()
 {
-    std::u8string path;
-
-    if (const auto* base = SDL_GetBasePath(); base != nullptr)
-    {
-        path = Utf8Bytes(base);
-    }
-
-    return path + u8"swd3font.bin";
+    return AssetDirectory() + u8"font.bin";
 }
 
 }  // namespace swd3

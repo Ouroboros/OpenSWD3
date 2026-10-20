@@ -1,7 +1,5 @@
 #include "platform/exe_resources.h"
 
-#include <SDL3/SDL.h>
-
 #include <climits>
 #include <cstring>
 #include <string>
@@ -18,8 +16,6 @@ namespace swd3
 
 namespace
 {
-
-constexpr std::u8string_view kDirectory = u8"res/";
 
 // A .bmp file: the file header ("BM" first), then the bitmap.
 constexpr u16 kBitmapSignature = 0x4D42;
@@ -180,18 +176,6 @@ bool DecodeIconBitmap(std::span<const u8> bitmap, IconImage& out)
 }
 
 }  // namespace
-
-std::u8string ResourceDirectory()
-{
-    std::u8string path;
-
-    if (const auto* base = SDL_GetBasePath(); base != nullptr)
-    {
-        path = Utf8Bytes(base);
-    }
-
-    return path + std::u8string(kDirectory);
-}
 
 void ExeResources::Open(std::u8string directory)
 {

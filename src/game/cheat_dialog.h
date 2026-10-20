@@ -19,7 +19,7 @@ class Party;
 
 // The cheat dialog of the debug keys (F4; dialog 0x6A of swd32.exe): ten tabs (the items, the skills of the four
 // roles, the attributes of the four roles, the variables) with a list and three fields to add, top up, delete or set
-// entries. On Windows it is the original's dialog from swd32.exe's resources (res/<id>.dlg); elsewhere it
+// entries. On Windows it is the original's dialog from swd32.exe's resources (asset/<id>.dlg); elsewhere it
 // cannot be shown. Also the name dialog (0x70) the launcher's start command would open.
 class CheatDialog
 {

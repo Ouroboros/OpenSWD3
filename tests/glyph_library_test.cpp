@@ -29,7 +29,7 @@ TEST_CASE("glyph library: MingLiU cells of the three sizes")
 
     if (!library.Load(swd3::GlyphLibraryPath()))
     {
-        std::printf("  (swd3font.bin not found, skipped)\n");
+        std::printf("  (asset/font.bin not found, skipped)\n");
         return;
     }
 

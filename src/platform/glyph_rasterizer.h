@@ -22,7 +22,7 @@ public:
     virtual void RenderText(Surface& surface, std::string_view face, int size, std::string_view text, u32 color) = 0;
 };
 
-// The game's glyph library (swd3font.bin, made by scripts/make_font_library.py from the embedded 1-bit bitmaps of
+// The game's glyph library (asset/font.bin, made by scripts/make_font_library.py from the embedded 1-bit bitmaps of
 // MingLiU): for each size the original uses (12, 16, 20 pixels) the cell GDI draws for every Big5 code and ASCII byte.
 // It replaces the system font, so text looks the same on every system.
 class GlyphLibrary
@@ -57,7 +57,7 @@ private:
     const GlyphLibrary& library;
 };
 
-// The location of the glyph library: next to the executable.
+// The location of the glyph library: font.bin of the asset directory.
 std::u8string GlyphLibraryPath();
 
 }  // namespace swd3
