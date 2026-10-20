@@ -74,16 +74,16 @@ void FieldView::FillCellMark(int x, int y, int width, int height, int color)
     }
 }
 
-// swd32.exe 0x00430230: the debug marks of the cells under the camera holding any bit of `mask` (38 x 28 cells from
-// one past the camera), inset by `inset` pixels
+// swd32.exe 0x00430230: the debug marks of the cells under the screen holding any bit of `mask` (38 x 28 cells from one
+// past its corner (offsetX, offsetY) on the map: the camera in the original, the 640x480 screen in the middle of the
+// rebuild's wider view), inset by `inset` pixels
 void FieldView::MarkCells(u32 mask, int color, int offsetX, int offsetY, int inset)
 {
-    const Field& field = this->game.field;
     const int width = this->game.state.map.width;
     const int shiftY = offsetY & MapHeader::TileFraction;
     const int shiftX = -(offsetX & MapHeader::TileFraction);
-    int cell = ((field.cameraLeft + MapHeader::TileSize) >> MapHeader::TileShift) +
-               width * ((field.cameraTop + MapHeader::TileSize) >> MapHeader::TileShift);
+    int cell = ((offsetX + MapHeader::TileSize) >> MapHeader::TileShift) +
+               width * ((offsetY + MapHeader::TileSize) >> MapHeader::TileShift);
     int y = inset - shiftY + MapHeader::TileSize;
 
     for (int row = 0; row < kScreenRows - kMarkBorder; ++row)
@@ -811,7 +811,7 @@ void FieldView::Render()
 
     if (owner.config.debugMode == 1)
     {
-        this->DrawDebug(field.cameraLeft, field.cameraTop);
+        this->DrawDebug(field.ScreenLeft(), field.ScreenTop());
     }
 
     owner.audioDevice.Serve();

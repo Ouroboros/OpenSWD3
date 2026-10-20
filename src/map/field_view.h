@@ -172,7 +172,7 @@ public:
         this->DrawSmallText(x, y, color, crt::Sprintf(Big5(format), GameArgument(args)...));
     }
 
-    void DrawDebug(int cameraLeft, int cameraTop);
+    void DrawDebug(int screenLeft, int screenTop);
 
     // The rebuild's smooth motion (deviations.md): the map drawn between two game frames with the camera, the roles
     // and the effect elements where their continuous motion has them now, the interface of the last frame

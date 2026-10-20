@@ -10,7 +10,7 @@ void FieldView::DrawSmallText(int x, int y, u32 color, const std::string& text)
 
 // swd32.exe 0x00413FE0: the debug display: the cell marks of the walls (F2) and the lines of the state, the region
 // and the roles under the pointer (F1)
-void FieldView::DrawDebug(int cameraLeft, int cameraTop)
+void FieldView::DrawDebug(int screenLeft, int screenTop)
 {
     constexpr std::u8string_view kMusicLine = u8"[%d/%d][%d/%d][playing/%d][mode/%s],場景%s,劇情%s";  // 0x004A04F0
     constexpr std::u8string_view kStory = u8"劇情";                                                   // 0x004A052C
@@ -25,7 +25,6 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
     constexpr std::u8string_view kRoleLine = u8"角色 [GUID %d] [act %d] [qq %d] [dir %d]";            // 0x004A0454
     Game& owner = this->game;
     GameState& state = owner.state;
-    const Field& field = owner.field;
     const Scene& view = owner.scene;
     owner.smallFont.SetBackground(TextFont::NoBackground);
     owner.smallFont.SetShadow(0);
@@ -36,11 +35,11 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
 
     if (owner.debugCells == 1)
     {
-        this->MarkCells(MapHeader::Wall, static_cast<int>(red + green + blue), cameraLeft, cameraTop, 0);
-        this->MarkCells(MapHeader::RoleCell, static_cast<int>(green + blue), cameraLeft, cameraTop, kRoleCellInset);
-        this->MarkCells(MapHeader::RegionMask, static_cast<int>(red + green), cameraLeft, cameraTop, kRegionInset);
-        this->MarkCells(MapHeader::SolidRole, static_cast<int>(red), cameraLeft, cameraTop, kSolidRoleInset);
-        this->MarkCells(MapHeader::Unk800000, static_cast<int>(red + blue), cameraLeft, cameraTop, kUnk800000Inset);
+        this->MarkCells(MapHeader::Wall, static_cast<int>(red + green + blue), screenLeft, screenTop, 0);
+        this->MarkCells(MapHeader::RoleCell, static_cast<int>(green + blue), screenLeft, screenTop, kRoleCellInset);
+        this->MarkCells(MapHeader::RegionMask, static_cast<int>(red + green), screenLeft, screenTop, kRegionInset);
+        this->MarkCells(MapHeader::SolidRole, static_cast<int>(red), screenLeft, screenTop, kSolidRoleInset);
+        this->MarkCells(MapHeader::Unk800000, static_cast<int>(red + blue), screenLeft, screenTop, kUnk800000Inset);
     }
 
     if (owner.debugText != 1)
@@ -50,9 +49,9 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
 
     const u32 white = owner.textColors.primary[kWhiteColor];
     const std::vector<u32>& blocks = state.map.blocks;
-    const std::size_t pointerCell = (static_cast<u32>(field.cameraLeft + state.pointerX) >> MapHeader::TileShift) +
+    const std::size_t pointerCell = (static_cast<u32>(screenLeft + state.pointerX) >> MapHeader::TileShift) +
                                     static_cast<std::size_t>(state.map.width) *
-                                        (static_cast<u32>(state.pointerY + field.cameraTop) >> MapHeader::TileShift);
+                                        (static_cast<u32>(state.pointerY + screenTop) >> MapHeader::TileShift);
     const u32 region = pointerCell < blocks.size() ? blocks[pointerCell] & MapHeader::RegionMask : 0;
     const Role& player = state.roles[static_cast<std::size_t>(state.playerRole)];
     this->DrawDebugText(
@@ -62,8 +61,8 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
         u8"MAct[%4.1f/%4.1f] LTCor[%4d/%4d]",
         static_cast<double>(static_cast<u32>(player.x)) / MapHeader::TileSize,
         static_cast<double>(static_cast<u32>(player.y)) / MapHeader::TileSize,
-        field.cameraLeft >> MapHeader::TileShift,
-        field.cameraTop >> MapHeader::TileShift
+        screenLeft >> MapHeader::TileShift,
+        screenTop >> MapHeader::TileShift
     );
     this->DrawDebugText(
         kDebugLeft,
@@ -71,9 +70,9 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
         white,
         u8"Mouse :OnMap[%4d/%4d] OnScr[%4d/%4d]",
         (static_cast<u32>(state.pointerX) >> MapHeader::TileShift) +
-            static_cast<u32>(field.cameraLeft >> MapHeader::TileShift),
+            static_cast<u32>(screenLeft >> MapHeader::TileShift),
         (static_cast<u32>(state.pointerY) >> MapHeader::TileShift) +
-            static_cast<u32>(field.cameraTop >> MapHeader::TileShift),
+            static_cast<u32>(screenTop >> MapHeader::TileShift),
         state.pointerX,
         state.pointerY
     );
@@ -183,8 +182,8 @@ void FieldView::DrawDebug(int cameraLeft, int cameraTop)
         }
     }
 
-    const auto mapX = static_cast<u32>(state.pointerX + field.cameraLeft);
-    const auto mapY = static_cast<u32>(state.pointerY + field.cameraTop);
+    const auto mapX = static_cast<u32>(state.pointerX + screenLeft);
+    const auto mapY = static_cast<u32>(state.pointerY + screenTop);
     int overlapping = 0;
 
     for (u32 index = 1; index < static_cast<u32>(state.roleCount) && index < GameState::Roles; ++index)
