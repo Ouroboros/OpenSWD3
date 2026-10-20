@@ -178,7 +178,7 @@ void Game::EnemyStrike(BattleUnit& enemy, BattleUnit& target, u16 bits, u16& cha
     battle.lastDamage = 0;
     int evaded = 0;
 
-    if (enemy.unk2B14 == 0)
+    if (enemy.evadeRolled == 0)
     {
         evaded = target.RollEvade(services, chance);
     }

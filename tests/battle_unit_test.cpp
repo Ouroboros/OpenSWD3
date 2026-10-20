@@ -178,7 +178,7 @@ TEST_CASE("battle unit: construction, commands, turns and hits")
     Services all;
     BattleUnit unit;
     CHECK_EQ(unit.fadeLevel, BattleUnit::Opaque);
-    CHECK_EQ(unit.unk2A6A, BattleUnit::FlashPeak);
+    CHECK_EQ(unit.flashFall, BattleUnit::FlashPeak);
     CHECK(
         std::all_of(
             unit.targets.begin(),
@@ -201,7 +201,7 @@ TEST_CASE("battle unit: construction, commands, turns and hits")
     unit.gauge = static_cast<swd3::u16>(all.state.gaugeFull / kHalf);
     CHECK_EQ(unit.GaugeLength(all.services), kGaugePixels / kHalf);
     CHECK_EQ(unit.ResetGauge(all.services), all.state.gaugeFull);
-    unit.unk2A6A = BattleUnit::FlashPeak;
+    unit.flashFall = BattleUnit::FlashPeak;
     unit.command.flags = kResetClearsGuard;
     unit.guarding = 1;
     unit.slotActs[BattleUnit::UnkSlot9].id = kSlotAct;
@@ -211,7 +211,7 @@ TEST_CASE("battle unit: construction, commands, turns and hits")
     const int gauge = unit.ResetTurn(all.services);
     CHECK(gauge >= kRoleGaugeBase && gauge < kRoleGaugeBase + kRoleGaugeSpread);
     CHECK_EQ(unit.gauge, gauge);
-    CHECK_EQ(unit.unk2A6A, kTurnFlashFall);
+    CHECK_EQ(unit.flashFall, kTurnFlashFall);
     CHECK_EQ(unit.guarding, 0);
     CHECK_EQ(unit.slotActs[kTurnSlot].id, 0);
     CHECK_EQ(unit.slotActs[BattleUnit::UnkSlot9].id, kSlotAct);
@@ -251,7 +251,7 @@ TEST_CASE("battle unit: evasion, vitals and scaling")
     Services all;
     BattleUnit unit;
     CHECK_EQ(unit.RollEvade(all.services, 0), 0);
-    unit.unk2A93 = kEvadeSkill;
+    unit.evadeSkill = kEvadeSkill;
     all.state.evadeStreak = kSureEvadeStreak;
     CHECK_EQ(unit.RollEvade(all.services, 0), 1);
     CHECK_EQ(all.state.evadeStreak, 0);

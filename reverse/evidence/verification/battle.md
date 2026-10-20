@@ -168,9 +168,9 @@
 - 0x0047C6B0 DrawFadeOut、0x0047C950 DrawFadeIn：差异（diff 轮）：原版 DrawFadeOut 的两次绘制与 DrawFadeIn 的非混合绘制以 `[picture+4]` 作第 6 参数（DrawFadeIn 的混合绘制为 0），重建未传；按原版补 PaletteArgument。0x0047CB32/0x0047CB45 锚点坐标 movsx 与重建一致。修正后通过（exact 轮）。
 - 重复成员（diff 轮）：BattleUnit 中三处原版同一字段被拆成两个成员，读写互不相通：
   1. +0x2A78：HurtFrame/GlowAct 用 hurtStep，RaiseFlag26B8（0x00478780 清 +0x2A78）与 Reset 清的是 attackStage，再次受击时受击步数不归零。
-  2. +0x2B20：SetFacingIfAble（0x00483FF0 写 `[this+0xAC8*4]`）与 AdvanceGauge、Reset 用 name，StepGauge（0x0046E520）与 DefeatFrame 读的 unk2B20 从未被写入。
+  2. +0x2B20：SetFacingIfAble（0x00483FF0 写 `[this+0xAC8*4]`）与 AdvanceGauge、Reset 用 name，StepGauge（0x0046E520）与 DefeatFrame 读的 facingTurnsBack 从未被写入。
   3. +0x2A80：Reset 清的是从不读取的 actionCount，AddQueuedAction 等用的 queuedActions 未清。
-  合并为 hurtStep、unk2B20、queuedActions 各一个成员；受影响的 0x00478780 RaiseFlag26B8、0x004755E0 AdvanceGauge、0x0047D350 Reset、0x00483FF0 SetFacingIfAble 修正后通过（exact 轮）。StepGauge、DefeatFrame、HurtFrame 代码不变，读写的字段现与原版同一。
+  合并为 hurtStep、facingTurnsBack、queuedActions 各一个成员；受影响的 0x00478780 RaiseFlag26B8、0x004755E0 AdvanceGauge、0x0047D350 Reset、0x00483FF0 SetFacingIfAble 修正后通过（exact 轮）。StepGauge、DefeatFrame、HurtFrame 代码不变，读写的字段现与原版同一。
 - 0x0047D350 Reset：清除的动作槽（0x2A0、0x338、0x3D0、0x468、0x500、0x598、槽 10 = 0xC20、槽 0..7）、数组（0x295A、0x29C4 各 0x46 字节、0xFCC、0x283C）、ExpireEffects(1)、角色释放 +0xC 与各字段逐项对上（0x2724、0x26DE、0x2A70、0x2A76 不清，与原版同）。
 
 ## 战斗单位状态、效果链与伤害 0x0047D7D0..0x0047F3A0

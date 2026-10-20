@@ -344,7 +344,7 @@ public:
     static constexpr u16 FlashStart = 2;
     static constexpr std::size_t DamageDigits = 4;  // the decimal digits of a damage number
     static constexpr std::size_t GuardLetters = 4;  // the letters of the guard text
-    static constexpr u16 DefaultFadeStep = 4;       // unk2A0A: the alpha step of a fade
+    static constexpr u16 DefaultFadeStep = 4;       // fadeStep: the alpha step of a fade
     static constexpr u32 DefaultColorPair = 0x062B062B;
     static constexpr u32 OutlineColorPair = 0x07E007E0;  // the outline of DrawAction
 
@@ -665,19 +665,19 @@ public:
     i32 unk2664 = 0;
     i32 fadeLevel = Opaque;  // +0x2668 (also the dash offset of ChargeAttackFrame)
     i32 brightLevel = 1;     // +0x266C
-    i32 unk2670 = 0;         // +0x2670 the x offset of the stand pose while walking home (ReturnHome)
+    i32 homePoseX = 0;       // +0x2670 the x offset of the stand pose while walking home (ReturnHome)
     i32 unk2674 = 0;
     i32 unk2678 = 0;
     u32 stage = 0;       // +0x267C BattleUnit::Stage bits
     i32 throwSteps = 0;  // +0x2680 the frames of the thrown act so far (ThrowAct)
     i32 unk2684 = 0;
-    u32 glowFlags = 0;    // +0x2688 the draw mode of the glow act
-    i32 glowOffsetX = 0;  // +0x268C
-    i32 unk2690 = 0;
-    u32 drawFlags = 0;   // +0x2694 bit 0: mirrored
-    i32 unk2698 = 0;     // +0x2698 the x offset of the overlay (IdleFrame)
-    u32 frameFlags = 0;  // +0x26A0 flag 1 toggled for mirrored frames
-    u32 shadowMode = 0;  // +0x26A4 the mode its shadow is drawn with
+    u32 glowFlags = 0;       // +0x2688 the draw mode of the glow act
+    i32 glowOffsetX = 0;     // +0x268C
+    i32 readyAction = 0;     // +0x2690 the action of its ready pose (kReadyAct)
+    u32 drawFlags = 0;       // +0x2694 bit 0: mirrored
+    i32 overlayOffsetX = 0;  // +0x2698 the x offset of the overlay (IdleFrame)
+    u32 frameFlags = 0;      // +0x26A0 flag 1 toggled for mirrored frames
+    u32 shadowMode = 0;      // +0x26A4 the mode its shadow is drawn with
     i32 unk26A8 = 0;
     i32 unk26AC = 0;
     i32 damageCarry = 0;               // +0x26B0
@@ -687,8 +687,8 @@ public:
     u32 status = 0;                    // +0x26C0 status bits (2: stone, 12: frozen, ...)
     u32 equipmentFlags = 0;            // +0x26C8 bits 0, 2..6 from the equipment
     u32 unk26CC = 0;
-    u16 marks = 0;  // +0x26D0 (bit 1, 0x20, 0x40: held, 0x100, bit 13)
-    i16 unk26D2 = 0;
+    u16 marks = 0;      // +0x26D0 (bit 1, 0x20, 0x40: held, 0x100, bit 13)
+    i16 guardPose = 0;  // +0x26D2 the guard pose (kGuardPose1..8)
     u16 unk26D4 = 0;
     u16 nudge = 0;                                  // +0x26D6
     u16 drawAtSaved = 0;                            // +0x26D8
@@ -718,16 +718,16 @@ public:
     u16 aimX = 0;              // +0x29BC where AimAction places the act
     u16 aimY = 0;              // +0x29BE
     std::array<u16, MaxTargets> pushedTargets = {};  // +0x29C4
-    u16 unk2A0A = DefaultFadeStep;
-    u16 actId = 0;   // +0x2A0C the unit's act
-    u16 action = 0;  // +0x2A0E
-    u16 gauge = 0;   // +0x2A12 the action gauge
+    u16 fadeStep = DefaultFadeStep;                  // +0x2A0A the alpha step of its fades
+    u16 actId = 0;                                   // +0x2A0C the unit's act
+    u16 action = 0;                                  // +0x2A0E
+    u16 gauge = 0;                                   // +0x2A12 the action gauge
     u16 unk2A14 = 0;
     std::array<u32, 4> targets = {NoTarget, NoTarget, NoTarget, NoTarget};  // +0x2A56
-    u16 glowPhase = 0;  // +0x2A66 0: brightening, 1: dimming, 2: over (GlowAct)
-    u16 unk2A68 = FlashStart;
-    u16 unk2A6A = FlashPeak;
-    u16 commandA = 0;  // +0x2A6C
+    u16 glowPhase = 0;            // +0x2A66 0: brightening, 1: dimming, 2: over (GlowAct)
+    u16 flashPhase = FlashStart;  // +0x2A68 the rise of its turn flash
+    u16 flashFall = FlashPeak;    // +0x2A6A and its fall
+    u16 commandA = 0;             // +0x2A6C
     u16 unk2A6E = 0;
     u16 commandB = 0;  // +0x2A70 commands 2, 3, 6, 13, 14 and 15
     u16 unk2A72 = 0;
@@ -741,13 +741,13 @@ public:
     u16 landedActions = 0;  // +0x2A82 the queued acts that reached their end
     u16 pendingDamage = 0;  // +0x2A84 bit 15: healing
     u16 commandFlags = 0;   // +0x2A86 CommandFlag bits (high byte at +0x2A87)
-    u16 unk2A88 = 0;        // +0x2A88 the rest action of the frame (IdleFrame)
+    u16 restAction = 0;     // +0x2A88 the rest action of the frame (IdleFrame)
     u16 magicAction = 0;    // +0x2A8A the action of its magic act
     u16 unk2A8C = 0;
     u16 unk2A8E = 0;
     u16 barrierTurns = 0;  // +0x2A90
     u8 unk2A92 = 0;
-    u8 unk2A93 = 0;
+    u8 evadeSkill = 0;    // +0x2A93 an evade roll of 0..kEvadeRoll below it evades
     u8 defeatPose = 0;    // +0x2A94 the pose of the defeat (a fixed pose overrides it)
     u8 fixedPose = 0;     // +0x2A95
     u8 idleTurns = 0;     // +0x2A97 the turns since the enemy chose an object or a skill (ChooseCommand)
@@ -786,10 +786,11 @@ public:
     i32 facing = 0;        // +0x2B08
     i32 unk2B0C = 0;
     i32 fadedIn = 0;  // +0x2B1C a forced unit has faded in for its attack (AttackFrame)
-    i32 unk2B20 = 0;  // +0x2B20 set with the facing (SetFacingIfAble); 1: the facing turns back when the gauge fills
+    i32 facingTurnsBack =
+        0;  // +0x2B20 set with the facing (SetFacingIfAble); 1: the facing turns back when the gauge fills
     i32 unk2B10 = 0;
-    i32 unk2B14 = 0;
-    i32 goldGuard = 0;  // +0x2B18
+    i32 evadeRolled = 0;  // +0x2B14 1: the evade roll of the attack was made
+    i32 goldGuard = 0;    // +0x2B18
 };
 
 int ScaleByTenths(i8 tenths, i16& value);

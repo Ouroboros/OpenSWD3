@@ -565,7 +565,7 @@ int DamageFrame::EnemyAttackFrameAdvance(BattleUnit& enemy, BattleUnit& target, 
         evadeChance = (enemy.status & BattleUnit::UnkStatus80) != 0 ? kStatusEvade : 0;
         game.EnemyStrike(enemy, target, attack.target, evadeChance, true);
         attack.target = 0;
-        enemy.unk2B14 = 1;
+        enemy.evadeRolled = 1;
     }
 
     battle.darkRed = static_cast<i16>(attack.red);
@@ -635,7 +635,7 @@ int DamageFrame::EnemyAttackFrameAdvance(BattleUnit& enemy, BattleUnit& target, 
             enemy.slotTint = 0;
             u16 chance = (enemy.status & BattleUnit::UnkStatus80) != 0 ? kStatusEvade : evadeChance;
             game.EnemyStrike(enemy, target, follow.target, chance, false);
-            enemy.unk2B14 = 1;
+            enemy.evadeRolled = 1;
             follow.target = 0;
         }
     }

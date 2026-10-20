@@ -48,7 +48,7 @@ void BattleEnemy::Setup(const UnitPlacement& at, u16 id, Database& database)
 
     this->kind = at.kind;
     object.maxHitPoints = object.hitPoints;
-    this->unk2A93 = object.battleLevel;
+    this->evadeSkill = object.battleLevel;
     this->actId = object.act;
 
     if (this->actId == 0)
@@ -79,7 +79,7 @@ void BattleEnemy::Reload(u16 id, Database& database)
     database.LoadObject(*this->data, id);
     ObjectData& object = this->data->data;
     object.maxHitPoints = object.hitPoints;
-    this->unk2A93 = object.battleLevel;
+    this->evadeSkill = object.battleLevel;
     this->LoadCommand(database, object.skill);
     Database::FreeDescription(*this->data);
 }

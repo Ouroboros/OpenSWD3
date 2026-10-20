@@ -406,7 +406,7 @@ int BattleUnit::ResetTurn(BattleServices& services)
     this->unk2AB4 = 0;
     this->unk2AA8 = 0;
     this->unk2AE0 = 0;
-    this->unk2B14 = 0;
+    this->evadeRolled = 0;
     this->unk2A8C = 0;
     this->commandFlags = 0;
     this->unk2AC8 = 0;
@@ -422,12 +422,12 @@ int BattleUnit::ResetTurn(BattleServices& services)
     this->fadeLevel = BattleUnit::Opaque;
     this->brightLevel = 1;
     this->slotTint = 0;
-    this->unk2A68 = BattleUnit::FlashStart;
-    this->unk2A6A = kTurnFlashFall;
+    this->flashPhase = BattleUnit::FlashStart;
+    this->flashFall = kTurnFlashFall;
     this->unk2674 = 0;
     this->action = 0;
-    this->unk2690 = 0;
-    this->unk2670 = 0;
+    this->readyAction = 0;
+    this->homePoseX = 0;
     this->magicAction = 0;
     this->restoreHitPoints = 0;
     this->restoreSpirit = 0;
@@ -666,7 +666,7 @@ int BattleUnit::RollEvade(BattleServices& services, u16 chance)
         return static_cast<u16>(services.random.Below(kEvadeRoll) + 1) <= kInvisibleEvades ? success() : 0;
     }
 
-    const u8 skill = this->unk2A93;
+    const u8 skill = this->evadeSkill;
 
     if (skill == 0)
     {
@@ -698,11 +698,11 @@ int BattleUnit::RollEvade(BattleServices& services, u16 chance)
     else if (skill <= kLowEvadeSkill)
     {
         hit = static_cast<u16>(services.random.Below(kEvadeRoll)) >= kLowEvadeGate &&
-              static_cast<u16>(services.random.Below(kEvadeRoll)) < this->unk2A93;
+              static_cast<u16>(services.random.Below(kEvadeRoll)) < this->evadeSkill;
     }
     else
     {
-        hit = static_cast<u16>(services.random.Below(kEvadeRoll)) < this->unk2A93;
+        hit = static_cast<u16>(services.random.Below(kEvadeRoll)) < this->evadeSkill;
     }
 
     if (hit)
@@ -786,7 +786,7 @@ int BattleUnit::ResetAfterGuard()
 {
     this->unk2AEC = 1;
     this->gauge = 0;
-    this->unk2670 = 0;
+    this->homePoseX = 0;
     return 0;
 }
 
@@ -829,7 +829,7 @@ int BattleUnit::ClearStatus(int bits)
 // swd32.exe 0x0047D860
 i16 BattleUnit::SetWord2A0A(i16 value)
 {
-    this->unk2A0A = static_cast<u16>(value);
+    this->fadeStep = static_cast<u16>(value);
     return value;
 }
 
@@ -2147,14 +2147,14 @@ void BattleUnit::Reset(BattleServices& services)
     this->unk29A2 = BattleUnit::NoUnk29A2;
     this->fadeLevel = BattleUnit::Opaque;
     this->brightLevel = 1;
-    this->unk2A68 = BattleUnit::FlashStart;
-    this->unk2A6A = BattleUnit::FlashPeak;
+    this->flashPhase = BattleUnit::FlashStart;
+    this->flashFall = BattleUnit::FlashPeak;
     this->slotTint = 0;
     this->unk2660 = 0;
     this->unk2664 = 0;
     this->marks = 0;
     this->status = 0;
-    this->unk26D2 = 0;
+    this->guardPose = 0;
     this->glowLevel = 0;
     this->action = 0;
     this->unk29A4 = 0;
@@ -2175,7 +2175,7 @@ void BattleUnit::Reset(BattleServices& services)
     this->unk26B8 = 0;
     this->healChoice = 0;
     this->unk2A92 = 0;
-    this->unk2A93 = 0;
+    this->evadeSkill = 0;
     this->defeatPose = 0;
     this->fixedPose = 0;
     this->commandFlags = 0;
@@ -2216,7 +2216,7 @@ void BattleUnit::Reset(BattleServices& services)
     this->guestControl = 0;
     this->facing = 0;
     this->unk2B0C = 0;
-    this->unk2B20 = 0;
+    this->facingTurnsBack = 0;
 }
 
 // swd32.exe 0x0047F900
@@ -2326,9 +2326,9 @@ int BattleUnit::AdvanceGauge(const BattleServices& services, int boost)
     this->unk2AB0 = 1;
     this->unk2AEC = 0;
 
-    if (this->unk2B20 == 1)
+    if (this->facingTurnsBack == 1)
     {
-        this->unk2B20 = 0;
+        this->facingTurnsBack = 0;
         this->facing = 0;
     }
 
@@ -2452,7 +2452,7 @@ int BattleUnit::SetFacingIfAble(int value)
 {
     if (this->kind != BattleUnit::PartyRole || this->defeated != 1)
     {
-        this->unk2B20 = value;
+        this->facingTurnsBack = value;
         this->facing = value;
         return value;
     }
@@ -2520,7 +2520,7 @@ bool BattleUnit::RestartMainAct(i16 value, int force)
 
     this->mainAct = ActState{};
     this->castAct.waiting = 1;
-    this->unk26D2 = value;
+    this->guardPose = value;
     return true;
 }
 
@@ -3552,7 +3552,7 @@ int BattleUnit::StepAccessoryCounters(CounterList& list, u16 amount)
 // (unk2AB0). Below gaugeFull it fills by a quarter of the agility (an eighth while Slowed; a quarter more and 1 with
 // `boost`), 30% more with SpeedUp, 30% less with SpeedDown, and less by half the proficiency percent of it and 4 while
 // Invisible (0). Full, it is marked full, the main act's effect cleared, the cast act marked waiting and the facing
-// of a unit with unk2B20 turned back (1).
+// of a unit with facingTurnsBack turned back (1).
 int BattleUnit::StepGauge(BattleServices& services, int boost)
 {
     if ((this->marks & BattleUnit::Held) != 0 || (this->marks & BattleUnit::Unk4000) != 0)
@@ -3572,9 +3572,9 @@ int BattleUnit::StepGauge(BattleServices& services, int boost)
         this->unk2AB0 = 1;
         this->unk2AEC = 0;
 
-        if (this->unk2B20 == 1)
+        if (this->facingTurnsBack == 1)
         {
-            this->unk2B20 = 0;
+            this->facingTurnsBack = 0;
 
             if (this->guestControl == 0)
             {
@@ -3729,7 +3729,7 @@ int BattleUnit::DefeatFrame(BattleServices& services)
     this->shadowPicture = services.archive.GetPicture(act.frame, 0);
     int offsetX = act.x;
 
-    if (this->unk2B20 == 1)
+    if (this->facingTurnsBack == 1)
     {
         this->facing = 0;
     }
@@ -4502,7 +4502,7 @@ int BattleUnit::HurtFrame(BattleServices& services)
 // it a pixel at random, 2 lifts it 10 a frame to the top, 3 drops it 0x1E a frame back to its saved place, marking
 // flag 26B8). A staggering unit (flag 26B8) runs HurtFrame. Otherwise, unless busy, the main act takes its pose: the
 // stand pose (an enemy's plus unk2684; a party role's weak pose at a quarter of its hit points or less), the pose of
-// a chosen command, a guard pose by unk26D2, the defeated pose of a role, or unk2A0E. It is drawn over its shadow
+// a chosen command, a guard pose by guardPose, the defeated pose of a role, or unk2A0E. It is drawn over its shadow
 // (mirrored by the facing; a forced draw adds Additive), with its outlines, its blend or wave, the barrier flash, a
 // grey copy (UnkMark4), a red copy for command 2, the gold over a gold guard, its sound; command 6 of a
 // role shows the thrown act; its overlay, idle effect, follow-up and effects follow. A fading or invisible unit runs
@@ -4699,7 +4699,7 @@ int BattleUnit::ChooseCommand(BattleServices& services, Database& database, u32&
 
             if (this->actId == kReadyAct)
             {
-                this->unk2690 = readyAction;
+                this->readyAction = readyAction;
             }
 
             return true;
@@ -4842,7 +4842,7 @@ int BattleUnit::ChooseCommand(BattleServices& services, Database& database, u32&
 
         if (this->actId == kReadyAct)
         {
-            this->unk2690 = kHealAction;
+            this->readyAction = kHealAction;
         }
 
         return 1;

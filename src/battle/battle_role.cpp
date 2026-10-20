@@ -275,7 +275,7 @@ void BattleRole::Setup(RoleRecord& record, RoleBattleBlock& block, const UnitPla
     *this->battleRecord = record;
     this->roleRecord = &record;
     this->roleBlock = block.values.data();
-    this->unk2A93 = static_cast<u8>(this->battleRecord->evasion);
+    this->evadeSkill = static_cast<u8>(this->battleRecord->evasion);
     this->actId = at.actId;
 
     if (this->actId == 0)
@@ -330,7 +330,7 @@ void BattleRole::SetupEscort(const UnitPlacement& at, Database& database, ErrorR
     record.wisdom = static_cast<i16>(object.unk5C);
     record.evasion = object.battleLevel;
     std::copy_n(object.resistances.begin(), record.resistances.size(), record.resistances.begin());
-    this->unk2A93 = static_cast<u8>(record.evasion);
+    this->evadeSkill = static_cast<u8>(record.evasion);
     record.hitPoints = object.hitPoints;
     record.maxHitPoints = record.hitPoints;
     this->roleRecord = this->battleRecord;
@@ -372,7 +372,7 @@ void BattleRole::SetupGuest(
     record.evasion = object.battleLevel;
     record.agility = static_cast<i16>(base.agility + static_cast<i16>(base.agility * object.agilityUp) / kTenths);
     std::copy_n(object.resistances.begin(), record.resistances.size(), record.resistances.begin());
-    this->unk2A93 = static_cast<u8>(record.evasion);
+    this->evadeSkill = static_cast<u8>(record.evasion);
     record.hitPoints = record.maxHitPoints;
     this->weapon.data.skillScript = object.skill;
     this->roleRecord = this->battleRecord;
@@ -601,9 +601,9 @@ void BattleRole::Strike(BattleServices& services, BattleUnit& target, int evadab
     ));
     const u16 evasion = (this->status & BattleUnit::UnkStatus80) != 0 ? kStruckEvasion : u16{0};
 
-    if (evadable == 1 && this->unk2B14 == 0 && target.RollEvade(services, evasion) != 0)
+    if (evadable == 1 && this->evadeRolled == 0 && target.RollEvade(services, evasion) != 0)
     {
-        this->unk2B14 = 1;
+        this->evadeRolled = 1;
         return;
     }
 
@@ -634,7 +634,7 @@ void BattleRole::Strike(BattleServices& services, BattleUnit& target, int evadab
         target.StepTargetCount(1);
     }
 
-    this->unk2B14 = 1;
+    this->evadeRolled = 1;
 }
 
 // swd32.exe 0x0046F8C0: one frame of the role's attack on `target`; 1 once it is over. A unit with autoControl and a

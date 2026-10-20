@@ -169,33 +169,33 @@ UnitFrame::UnitFrame(BattleUnit& unit)
 int UnitFrame::FlashStep()
 {
     BattleUnit& unit = this->unit;
-    const u16 phase = unit.unk2A68;
+    const u16 phase = unit.flashPhase;
 
     if (phase == BattleUnit::FlashPeak)
     {
-        const u16 fall = unit.unk2A6A;
+        const u16 fall = unit.flashFall;
 
         if (fall == 0)
         {
-            unit.unk2A68 = BattleUnit::FlashStart;
-            unit.unk2A6A = BattleUnit::FlashPeak;
+            unit.flashPhase = BattleUnit::FlashStart;
+            unit.flashFall = BattleUnit::FlashPeak;
             return 0;
         }
 
         if (unit.held == 0)
         {
-            unit.unk2A6A = static_cast<u16>(fall - 1);
+            unit.flashFall = static_cast<u16>(fall - 1);
         }
 
-        return unit.unk2A6A;
+        return unit.flashFall;
     }
 
     if (unit.held == 0)
     {
-        unit.unk2A68 = static_cast<u16>(phase + 1);
+        unit.flashPhase = static_cast<u16>(phase + 1);
     }
 
-    return unit.unk2A68;
+    return unit.flashPhase;
 }
 
 // swd32.exe 0x00483700: the overlay picture (`frame`, `picture` - 1; nothing when either is 0) drawn additively at
@@ -340,7 +340,7 @@ int UnitFrame::HomeAdvance(BattleServices& services, const BattleUnit& target, i
     const BattleUnit::Stride stride = unit.HomeStride(services, target, act, pose, unit.throwSteps + 1);
     unit.actOffsetX = stride.offsetX;
     unit.frameFlags = stride.flags;
-    unit.unk2670 = stride.poseX;
+    unit.homePoseX = stride.poseX;
     LineWalker& line = unit.flight;
     line = stride.line;
     unit.throwSteps = stride.steps;
@@ -461,7 +461,7 @@ bool UnitFrame::WalkAdvance(BattleServices& services, const BattleUnit& target, 
     const BattleUnit::Stride stride = unit.WalkStride(services, target, act, pose, unit.throwSteps + 1);
     unit.actOffsetX = stride.offsetX;
     unit.frameFlags = stride.flags;
-    unit.unk2670 = stride.poseX;
+    unit.homePoseX = stride.poseX;
 
     if (unit.kind == 1 && unit.unk2A8E != act.picture)
     {
@@ -606,7 +606,7 @@ bool UnitFrame::IdleAdvance(BattleServices& services, int paused, IdleView& view
 
     act.id = unit.actId;
     act.action = kShadowAction;
-    unit.unk2A88 = static_cast<u16>(act.action);
+    unit.restAction = static_cast<u16>(act.action);
 
     // 0x00478D13 calls nullsub_1 without arguments for a party role: nothing to log.
     if (unit.kind != 1)
@@ -635,7 +635,7 @@ bool UnitFrame::IdleAdvance(BattleServices& services, int paused, IdleView& view
             unit.placement.y = kForcedPlaceY;
         }
 
-        unit.unk2670 = 0;
+        unit.homePoseX = 0;
 
         if (unit.kind == 1)
         {
@@ -646,10 +646,10 @@ bool UnitFrame::IdleAdvance(BattleServices& services, int paused, IdleView& view
 
         if (unit.actId == kReadyAct)
         {
-            act.action = unit.unk2690;
+            act.action = unit.readyAction;
         }
 
-        unit.unk2A88 = static_cast<u16>(act.action);
+        unit.restAction = static_cast<u16>(act.action);
 
         if ((unit.commandFlags & BattleUnit::UnkCommandFlag4000) != 0 ||
             (unit.commandFlags & BattleUnit::UnkCommandFlag2000) != 0)
@@ -681,13 +681,13 @@ bool UnitFrame::IdleAdvance(BattleServices& services, int paused, IdleView& view
 
     if (unit.autoControl == 0 && unit.guestControl == 0)
     {
-        if (unit.unk26D2 == kGuardPose1)
+        if (unit.guardPose == kGuardPose1)
         {
             unit.unk2AD4 = 0;
             act.action = kGuardAction1;
         }
 
-        if (unit.unk26D2 == kGuardPose2)
+        if (unit.guardPose == kGuardPose2)
         {
             act.action = kGuardAction2;
 
@@ -699,12 +699,12 @@ bool UnitFrame::IdleAdvance(BattleServices& services, int paused, IdleView& view
             }
         }
 
-        if (unit.unk26D2 == kGuardPose4)
+        if (unit.guardPose == kGuardPose4)
         {
             act.action = kGuardAction4;
         }
 
-        if (unit.unk26D2 == kGuardPose8)
+        if (unit.guardPose == kGuardPose8)
         {
             act.action = kGuardAction8;
         }
@@ -845,7 +845,7 @@ bool UnitFrame::IdleAdvance(BattleServices& services, int paused, IdleView& view
         view.flash = !invisible && (unit.status & BattleUnit::Barrier) != 0;
         view.gray = (marks & BattleUnit::UnkMark4) != 0;
         view.red = unit.commandA == BattleUnit::UnkCommand2;
-        view.gold = unit.goldGuard == 1 && unit.unk26D2 == 0;
+        view.gold = unit.goldGuard == 1 && unit.guardPose == 0;
         view.goldValue = services.party.variables[kGoldVariable];
         view.goldX = unit.placement.x + kGoldLeft;
         view.goldY = unit.placement.y - act.y - kGoldAbove;
@@ -927,9 +927,9 @@ bool UnitFrame::IdleAdvance(BattleServices& services, int paused, IdleView& view
 
         if (unit.overlayPicture != nullptr)
         {
-            unit.unk2698 = static_cast<i16>(act.offsetX);
+            unit.overlayOffsetX = static_cast<i16>(act.offsetX);
             view.overlay = {act.rotation, static_cast<u16>(act.actionCode - 1), true};
-            view.overlayX = unit.unk2698 + unit.placement.x - static_cast<i16>(unit.originX);
+            view.overlayX = unit.overlayOffsetX + unit.placement.x - static_cast<i16>(unit.originX);
             view.overlayY = static_cast<i16>(act.offsetY) + unit.placement.y - unit.unk26AC - act.y;
             view.overlayFlags = unit.drawFlags | Painter::Additive;
         }
@@ -1452,7 +1452,7 @@ bool UnitFrame::HurtAdvance(BattleServices& services, HurtView& view, int& resul
 
     const std::size_t step = unit.hurtStep;
     const int placeX = unit.placement.x;
-    unit.unk2670 = act.x;
+    unit.homePoseX = act.x;
     act.view = 0;
     int y = unit.placement.y - act.y;
     const int shake = BattleUnit::StaggerShake[step];
@@ -1466,20 +1466,20 @@ bool UnitFrame::HurtAdvance(BattleServices& services, HurtView& view, int& resul
         }
         else
         {
-            unit.unk2670 = picture.width - act.x;
-            x = placeX + BattleUnit::StaggerShake[step] - unit.unk2670;
+            unit.homePoseX = picture.width - act.x;
+            x = placeX + BattleUnit::StaggerShake[step] - unit.homePoseX;
         }
     }
 
     if (unit.facing == 1 && unit.autoControl == 0)
     {
-        unit.unk2670 = picture.width - act.x;
-        x = placeX - BattleUnit::StaggerShake[step] - unit.unk2670;
+        unit.homePoseX = picture.width - act.x;
+        x = placeX - BattleUnit::StaggerShake[step] - unit.homePoseX;
     }
 
     if (still)
     {
-        x = placeX - unit.unk2670;
+        x = placeX - unit.homePoseX;
     }
 
     view.picture = {act.frame, act.picture, true};
@@ -1493,22 +1493,22 @@ bool UnitFrame::HurtAdvance(BattleServices& services, HurtView& view, int& resul
 
         if (unit.unk2B10 != 0)
         {
-            view.flashX = placeX - unit.unk2670;
+            view.flashX = placeX - unit.homePoseX;
             view.flashY = unit.placement.y - BattleUnit::StaggerRise[step] - act.y;
-            x = placeX - unit.unk2670;
+            x = placeX - unit.homePoseX;
             y = unit.placement.y - BattleUnit::StaggerLift[step] - act.y;
         }
         else if (unit.facing != 0)
         {
-            view.flashX = placeX + BattleUnit::StaggerRise[step] - unit.unk2670;
+            view.flashX = placeX + BattleUnit::StaggerRise[step] - unit.homePoseX;
             view.flashY = unit.placement.y - act.y;
-            x = placeX + BattleUnit::StaggerLift[step] - unit.unk2670;
+            x = placeX + BattleUnit::StaggerLift[step] - unit.homePoseX;
         }
         else
         {
-            view.flashX = placeX - BattleUnit::StaggerRise[step] - unit.unk2670;
+            view.flashX = placeX - BattleUnit::StaggerRise[step] - unit.homePoseX;
             view.flashY = unit.placement.y - act.y;
-            x = placeX - BattleUnit::StaggerLift[step] - unit.unk2670;
+            x = placeX - BattleUnit::StaggerLift[step] - unit.homePoseX;
         }
     }
 
@@ -1584,7 +1584,7 @@ bool UnitFrame::HurtAdvanceTail(BattleServices& services, HurtView& view)
         if (unit.overlayPicture != nullptr)
         {
             view.overlay = {act.rotation, static_cast<u16>(act.actionCode - 1), true};
-            view.overlayX = placeX + static_cast<i16>(act.offsetX) - unit.unk2670;
+            view.overlayX = placeX + static_cast<i16>(act.offsetX) - unit.homePoseX;
             view.overlayY = unit.placement.y + static_cast<i16>(act.offsetY) - act.y;
             view.overlayFlags = unit.drawFlags | Painter::Additive;
         }
@@ -3398,7 +3398,7 @@ int UnitFrame::DrawFadeInAdvance(BattleServices& services, const BattleUnit& anc
 
     if (unit.held == 0)
     {
-        unit.brightLevel += unit.unk2A0A;
+        unit.brightLevel += unit.fadeStep;
     }
 
     return 0;
@@ -3492,7 +3492,7 @@ int UnitFrame::DrawFadeOutAdvance(BattleServices& services, Scene& scene)
 
     if (unit.held == 0)
     {
-        unit.fadeLevel -= unit.unk2A0A;
+        unit.fadeLevel -= unit.fadeStep;
     }
 
     return 0;
