@@ -293,7 +293,7 @@ void Menu::BestiaryEnter()
 
         if (owner.database.LoadObject(record, static_cast<u16>(id)))
         {
-            book.categories[static_cast<std::size_t>(id)] = static_cast<i8>(record.data.unk52);
+            book.categories[static_cast<std::size_t>(id)] = static_cast<i8>(record.data.category);
         }
     }
 

@@ -2039,13 +2039,13 @@ void Game::LearnSpecials()
         {
             this->database.LoadObject(battle.unk53BC28, id);
             Database::FreeDescription(battle.unk53BC28);
-            block.unk00[kNeededBattles] = battle.unk53BC28.data.unk44;
+            block.unk00[kNeededBattles] = battle.unk53BC28.data.counterMax;
             block.unk00[kNextSpecial] = static_cast<i32>(battle.unk53BC28.data.unk42 | kSpecialMark);
         };
 
         for (ItemNode* node = list->next.get(); node != nullptr; node = node->next.get())
         {
-            if (node->record.data.unk52 == kSpecialType)
+            if (node->record.data.category == kSpecialType)
             {
                 takeNext(node->id);
             }
@@ -2081,7 +2081,7 @@ void Game::LearnSpecials()
         battle.lastLearned.name = ObjectName(learned.record);
         battle.unk4A7646 = static_cast<u8>(index);
         block.unk00[kBattlesFought] = 0;
-        block.unk00[kNeededBattles] = battle.unk53BC28.data.unk44;
+        block.unk00[kNeededBattles] = battle.unk53BC28.data.counterMax;
         block.unk00[kNextSpecial] = static_cast<i32>(battle.unk53BC28.data.unk42 | kSpecialMark);
 
         if (battle.unk53BC28.data.unk42 == 0)

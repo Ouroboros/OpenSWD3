@@ -49,7 +49,7 @@ void BattleEnemy::Setup(const UnitPlacement& at, u16 id, Database& database)
     this->kind = at.kind;
     object.maxHitPoints = object.hitPoints;
     this->unk2A93 = object.battleLevel;
-    this->actId = object.unk50;
+    this->actId = object.act;
 
     if (this->actId == 0)
     {

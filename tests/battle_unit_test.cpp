@@ -548,7 +548,7 @@ TEST_CASE("battle unit: the catch roll")
     CHECK_EQ(catches(kNearAbove, kSeed), 0);
     reference.Below(kUnusedCatchRoll);
     CHECK_EQ(all.random.Below(kCatchRoll), reference.Below(kCatchRoll));
-    object.data.unk91 = kCatchChance;
+    object.data.catchChance = kCatchChance;
     CHECK_EQ(catches(kNearAbove, kSeed), 1);
     CHECK_EQ(catches(kNearerAbove, kSeed), 0);
 
@@ -583,7 +583,7 @@ TEST_CASE("battle unit: accessory commands")
     role.equipmentFlags = BattleUnit::SpiritFan;
     CHECK_EQ(role.CanUseAccessory(kSpiritFan), 1);
     role.accessories[0].data.unk48 = kSpiritFan;
-    role.accessories[0].data.unk40 = kAccessoryCost;
+    role.accessories[0].data.costBits = kAccessoryCost;
     record.stamina = kLowStamina;
     CHECK_EQ(role.CanUseAccessory(kSpiritFan), 0);
 }
@@ -907,8 +907,8 @@ TEST_CASE("battle unit: element orbs gain proficiency from hits of an element")
     constexpr swd3::i16 kOtherCounter = 5;
     swd3::BattleUnit role;
     role.accessories[0].data.unk48 = kElementOrb;
-    role.accessories[0].data.unk50 = static_cast<swd3::u16>(kOrbCounter);
-    role.accessories[0].data.unk44 = kOrbMaximum;
+    role.accessories[0].data.act = static_cast<swd3::u16>(kOrbCounter);
+    role.accessories[0].data.counterMax = kOrbMaximum;
     swd3::CounterList list;
     swd3::UnitCommand command;
     CHECK_EQ(role.StepOrbCounters(list, command), 0);
@@ -934,7 +934,7 @@ TEST_CASE("battle unit: element orbs gain proficiency from hits of an element")
     counted.next = std::make_unique<swd3::CounterNode>();
     counted.next->id = kOtherCounter;
     counted.id = 1;
-    role.accessories[0].data.unk50 = 1;
+    role.accessories[0].data.act = 1;
     role.StepOrbCounters(counted, command);
     CHECK_EQ(counted.value, kOrbStep);
     CHECK(counted.next->next == nullptr);
@@ -1155,8 +1155,8 @@ TEST_CASE("battle unit: drops and finished proficiencies")
     CHECK_EQ(enemy.RollDrop(all.services), kDrop);
 
     swd3::BattleUnit role;
-    role.accessories[0].data.unk50 = kCounter;
-    role.accessories[0].data.unk44 = kMaximum;
+    role.accessories[0].data.act = kCounter;
+    role.accessories[0].data.counterMax = kMaximum;
     swd3::CounterList list;
     list.next = std::make_unique<swd3::CounterNode>();
     list.next->id = static_cast<swd3::i16>(kCounter);
@@ -1194,7 +1194,7 @@ TEST_CASE("battle role: counting and listing the inventory")
     thrown.count = kCount;
     thrown.next = std::make_unique<swd3::ItemNode>();
     swd3::ItemNode& listed = *thrown.next;
-    listed.record.data.unk40 = kListedBit;
+    listed.record.data.costBits = kListedBit;
     listed.count = kCount;
     std::copy(kListedName.begin(), kListedName.end(), listed.record.data.name.begin());
     swd3::BattleRole role;
@@ -1233,13 +1233,13 @@ TEST_CASE("battle role: the object and skill lists of the battle menu")
     swd3::ItemNode& herb = *head;
     herb.record.data.kind = kHerbKind;
     herb.record.data.usableBy = kUsable;
-    herb.record.data.unk40 = kCostly;
+    herb.record.data.costBits = kCostly;
     herb.count = kTwo;
     herb.next = std::make_unique<swd3::ItemNode>();
     swd3::ItemNode& spent = *herb.next;
     spent.record.data.kind = kHerbKind;
     spent.record.data.usableBy = kUsable;
-    spent.record.data.unk40 = kListedBit;
+    spent.record.data.costBits = kListedBit;
     spent.count = kTwo;
     spent.unk06 = kTwo;
     spent.next = std::make_unique<swd3::ItemNode>();
@@ -1284,11 +1284,11 @@ TEST_CASE("battle role: the object and skill lists of the battle menu")
     skillHead.next = std::make_unique<swd3::ItemNode>();
     skillHead.next->record.data.kind = kHerbKind;
     skillHead.next->record.data.usableBy = kUsable;
-    skillHead.next->record.data.unk52 = kSkillType0;
+    skillHead.next->record.data.category = kSkillType0;
     skillHead.next->next = std::make_unique<swd3::ItemNode>();
     skillHead.next->next->record.data.kind = kHerbKind;
     skillHead.next->next->record.data.usableBy = kUsable;
-    skillHead.next->next->record.data.unk52 = kSkillType1;
+    skillHead.next->next->record.data.category = kSkillType1;
     role.SetSkills(&skillHead);
     swd3::u8 skills = 0;
     role.CountSkills(0, 0, skills);
@@ -1315,15 +1315,15 @@ TEST_CASE("battle role: a skill of the battle menu and its cost")
     swd3::ObjectData& data = head.next->record.data;
     data.kind = kCategoryKind;
     data.usableBy = kUsable;
-    data.unk52 = kSkillType0;
-    data.unk40 = kStaminaCost;
+    data.category = kSkillType0;
+    data.costBits = kStaminaCost;
     swd3::BattleRole role;
     role.SetSkills(&head);
     std::string name;
     swd3::u16 cost = 0;
     CHECK_EQ(role.ListSkill(database, 0, 0, 1, name, cost), kElementZeroIcon);
     CHECK_EQ(cost, kShownCost);
-    data.unk40 = kFixed;
+    data.costBits = kFixed;
     role.ListSkill(database, 0, 0, 1, name, cost);
     CHECK_EQ(cost, kFixedCost);
     role.ListSkill(database, 0, 1, 0, name, cost);
@@ -1338,8 +1338,8 @@ TEST_CASE("battle role: the worn accessories gain proficiency")
     constexpr swd3::u16 kMaximum = 10;
     constexpr swd3::u16 kStep = 6;
     swd3::BattleRole role;
-    role.accessories[1].data.unk50 = kCounter;
-    role.accessories[1].data.unk44 = kMaximum;
+    role.accessories[1].data.act = kCounter;
+    role.accessories[1].data.counterMax = kMaximum;
     swd3::CounterList list;
     CHECK_EQ(role.StepWornCounters(list, kStep), 1);
     CHECK_EQ(list.id, 1);
@@ -1416,10 +1416,10 @@ TEST_CASE("battle role: choosing a skill and paying for it")
     swd3::ObjectData& data = head.next->record.data;
     data.kind = kCategoryKind;
     data.usableBy = kUsable;
-    data.unk52 = kSkillType0;
-    data.unk50 = kAct;
-    data.unk34 = kHeal;
-    data.unk40 = kSpiritCost;
+    data.category = kSkillType0;
+    data.act = kAct;
+    data.hitPointsUp = kHeal;
+    data.costBits = kSpiritCost;
     swd3::RoleRecord record;
     record.spirit = kLowSpirit;
     swd3::BattleRole role;
@@ -1437,7 +1437,7 @@ TEST_CASE("battle role: choosing a skill and paying for it")
     record.spirit = kHighSpirit;
     CHECK_EQ(role.CanPaySkill(all.services, 0, 1), 1);
 
-    data.unk40 = kItemCost;
+    data.costBits = kItemCost;
     swd3::ItemLink items = std::make_unique<swd3::ItemNode>();
     items->id = kCostItem;
     role.SetInventory(&items);

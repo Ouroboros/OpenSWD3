@@ -122,11 +122,11 @@ constexpr u16 kSureSteal = 100;  // a proficiency of 100 or more always steals
 // LeapSpellFrame: the stages in unk267C.
 
 // UseSelectedItem: bits of the item's object.
-constexpr u16 kMultiUse = 0x400;  // ObjectData::unk3C: the item has uses in the low byte
+constexpr u16 kMultiUse = 0x400;  // ObjectData::useKind: the item has uses in the low byte
 constexpr u16 kUsesMask = 0xFF;
 constexpr u32 kKeptKind = 0x80;  // ObjectData::kind: not spent by a use
 constexpr u32 kUnkKind8000000 = 0x8000000;
-constexpr u16 kNoUseAct = 0x2000;  // ObjectData::unk40: the use returns no item
+constexpr u16 kNoUseAct = 0x2000;  // ObjectData::costBits: the use returns no item
 
 // CancelCommand and AddFury.
 constexpr std::size_t kCancelledNameBytes = 0x10;  // only the start of the skill name is cleared
@@ -152,7 +152,7 @@ constexpr u16 kDrainStep = 0xC;          // the proficiency the life-drain acces
 constexpr u32 kCountedKind = 0x8000000;  // ObjectData::kind bit of the objects CountUsableObjects counts
 constexpr u16 kThrownObject = 0x300;
 constexpr u8 kCountedUsers = 5;        // usableBy (low byte) bits 0 and 2
-constexpr u16 kListedObject = 0x2000;  // ObjectData::unk40 bit of the objects ListedObject counts
+constexpr u16 kListedObject = 0x2000;  // ObjectData::costBits bit of the objects ListedObject counts
 constexpr u32 kCategory0 = 0x10;       // the kind bits of the list categories (BattleRole::CategoryKinds)
 constexpr u32 kCategory1 = 0xC;
 constexpr u32 kCategory2 = 0x1001;
@@ -162,24 +162,24 @@ constexpr u32 kCategory5 = 0x8000000;
 constexpr int kSkillCategories = 3;
 constexpr int kListCategories = 4;
 constexpr int kObjectCategories = 6;
-constexpr int kSkillType0 = 0x1C;  // ObjectData::unk52 of the skill types
+constexpr int kSkillType0 = 0x1C;  // ObjectData::category of the skill types
 constexpr int kSkillType1 = 0x1F;
 constexpr u16 kFirstSkillType = 0x1B;
 constexpr u16 kLastSkillType = 0x1E;
 constexpr u16 kShownObject = 0x8000;  // ListObject flags
 constexpr u16 kCostlyObject = 0x4000;
-constexpr u16 kCostsStamina = 0x4000;  // ObjectData::unk40: the low 14 bits are a stamina cost
+constexpr u16 kCostsStamina = 0x4000;  // ObjectData::costBits: the low 14 bits are a stamina cost
 constexpr u16 kCostMask = 0x3FFF;
 constexpr u16 kNoSkill = 0xFFFF;
-constexpr u16 kCostFlag = 0x8000;  // ObjectData::unk40: the low 15 bits are a cost
+constexpr u16 kCostFlag = 0x8000;  // ObjectData::costBits: the low 15 bits are a cost
 constexpr u16 kCostValueMask = 0x7FFF;
 constexpr u16 kFixedCostBit = 0x800;
 constexpr u16 kFixedCost = 1000;
 constexpr double kCounterPercent = 100.0;  // swd32.exe 0x00499D28
 constexpr u16 kNoSkillChosen = 0xFFFF;
-constexpr u16 kHealPercentBit = 0x200;  // ObjectData::unk3C: the heals are percentages
+constexpr u16 kHealPercentBit = 0x200;  // ObjectData::useKind: the heals are percentages
 constexpr u32 kOffensiveKind = 8;
-constexpr u16 kItemCostBit = 0x800;  // ObjectData::unk40: the low 11 bits name an object the skill takes
+constexpr u16 kItemCostBit = 0x800;  // ObjectData::costBits: the low 11 bits name an object the skill takes
 constexpr u16 kItemCostMask = 0x7FF;
 constexpr int kRefusalX = 0x118;
 constexpr int kRefusalY = 0xA;
@@ -215,7 +215,7 @@ constexpr int kSureBelow = 13;
 // StepBack.
 
 // CanAbsorb.
-constexpr u16 kMaxAbsorbClass = 0x15;   // ObjectData::unk52
+constexpr u16 kMaxAbsorbClass = 0x15;   // ObjectData::category
 constexpr int kAbsorbLevelsAbove = 12;  // a target this many levels above the role is never absorbed
 constexpr int kSureAbsorbBelow = 10;
 constexpr int kQuarterAbove = 7;
@@ -334,7 +334,7 @@ void BattleRole::SetupEscort(const UnitPlacement& at, Database& database, ErrorR
     record.hitPoints = object.hitPoints;
     record.maxHitPoints = record.hitPoints;
     this->roleRecord = this->battleRecord;
-    this->weapon.data.unk3E = object.skill;
+    this->weapon.data.skillScript = object.skill;
 }
 
 // swd32.exe 0x0046E9C0: a guest fighting with the party: its mon.dat object (by the act of its placement, asserted
@@ -363,18 +363,18 @@ void BattleRole::SetupGuest(
 
     RoleRecord& record = *this->battleRecord;
     const ObjectData& object = this->data->data;
-    const auto scale = static_cast<i16>(object.unk24);
+    const auto scale = static_cast<i16>(object.attackBonusUp);
     record.maxHitPoints = Grown(base.maxHitPoints, scale);
     record.attackBonus = static_cast<u16>(Grown(static_cast<i16>(base.attackBonus), scale));
     record.defenseBonus = static_cast<u16>(Grown(static_cast<i16>(base.defenseBonus), scale));
     record.wisdom = Grown(base.wisdom, scale);
     record.level = static_cast<u8>(base.level + static_cast<i8>(scale * base.level) / kTenths);
     record.evasion = object.battleLevel;
-    record.agility = static_cast<i16>(base.agility + static_cast<i16>(base.agility * object.unk2C) / kTenths);
+    record.agility = static_cast<i16>(base.agility + static_cast<i16>(base.agility * object.agilityUp) / kTenths);
     std::copy_n(object.resistances.begin(), record.resistances.size(), record.resistances.begin());
     this->unk2A93 = static_cast<u8>(record.evasion);
     record.hitPoints = record.maxHitPoints;
-    this->weapon.data.unk3E = object.skill;
+    this->weapon.data.skillScript = object.skill;
     this->roleRecord = this->battleRecord;
 }
 
@@ -412,23 +412,23 @@ void BattleRole::ApplyEquipment(
             }
         }
 
-        record.attackBonus = static_cast<u16>(record.attackBonus + stats.unk24);
-        record.defenseBonus = static_cast<u16>(record.defenseBonus + stats.unk26);
-        record.agility = static_cast<i16>(record.agility + stats.unk2C);
-        record.wisdom = static_cast<i16>(record.wisdom + stats.unk2E);
-        record.rapport = static_cast<i16>(record.rapport + stats.unk30);
-        record.evasion = static_cast<i16>(record.evasion + stats.unk32);
+        record.attackBonus = static_cast<u16>(record.attackBonus + stats.attackBonusUp);
+        record.defenseBonus = static_cast<u16>(record.defenseBonus + stats.defenseBonusUp);
+        record.agility = static_cast<i16>(record.agility + stats.agilityUp);
+        record.wisdom = static_cast<i16>(record.wisdom + stats.wisdomUp);
+        record.rapport = static_cast<i16>(record.rapport + stats.rapportUp);
+        record.evasion = static_cast<i16>(record.evasion + stats.evasionUp);
 
-        if (stats.unk28 != 0)
+        if (stats.attackUp != 0)
         {
-            record.attack = static_cast<i16>(record.attack + stats.unk28);
-            record.attackBonus = static_cast<u16>(record.attackBonus + stats.unk28);
+            record.attack = static_cast<i16>(record.attack + stats.attackUp);
+            record.attackBonus = static_cast<u16>(record.attackBonus + stats.attackUp);
         }
 
-        if (stats.unk2A != 0)
+        if (stats.defenseUp != 0)
         {
-            record.defense = static_cast<i16>(record.defense + stats.unk2A);
-            record.defenseBonus = static_cast<u16>(record.defenseBonus + stats.unk2A);
+            record.defense = static_cast<i16>(record.defense + stats.defenseUp);
+            record.defenseBonus = static_cast<u16>(record.defenseBonus + stats.defenseUp);
         }
 
         if (slot == BattleRole::FirstAccessorySlot || slot == BattleRole::SecondAccessorySlot)
@@ -438,7 +438,7 @@ void BattleRole::ApplyEquipment(
 
             if (item.id != ItemNode::Empty)
             {
-                accessory.data.unk50 = item.id;
+                accessory.data.act = item.id;
             }
 
             this->ApplyAccessory(accessory, proficiency);
@@ -450,11 +450,11 @@ void BattleRole::ApplyEquipment(
                 record.resistances[element] = static_cast<u8>(record.resistances[element] + stats.resistances[element]);
             }
 
-            if (slot < BattleRole::ArmourSlots && stats.unk3C == 0)
+            if (slot < BattleRole::ArmourSlots && stats.useKind == 0)
             {
-                this->bonusA = static_cast<u16>(this->bonusA + stats.unk34);
-                this->bonusB = static_cast<u16>(this->bonusB + stats.unk36);
-                this->bonusC = static_cast<u16>(this->bonusC + stats.unk38);
+                this->bonusA = static_cast<u16>(this->bonusA + stats.hitPointsUp);
+                this->bonusB = static_cast<u16>(this->bonusB + stats.spiritUp);
+                this->bonusC = static_cast<u16>(this->bonusC + stats.staminaUp);
             }
 
             if (item.id == kCoinArmour)
@@ -480,7 +480,7 @@ void BattleRole::ApplyAccessory(const ObjectRecord& accessory, CounterList& prof
 
         case AccessoryKind::ElementOrb:
         {
-            const i16 percent = FindCounterPercent(proficiency, static_cast<i16>(accessory.data.unk50));
+            const i16 percent = FindCounterPercent(proficiency, static_cast<i16>(accessory.data.act));
             std::size_t element = 0;
 
             while (element < accessory.data.resistances.size() && accessory.data.resistances[element] == 0)
@@ -504,7 +504,7 @@ void BattleRole::ApplyAccessory(const ObjectRecord& accessory, CounterList& prof
         case AccessoryKind::AttackRing:
         {
             const auto half = static_cast<u16>(
-                static_cast<u16>(FindCounterPercent(proficiency, static_cast<i16>(accessory.data.unk50))) >> 1
+                static_cast<u16>(FindCounterPercent(proficiency, static_cast<i16>(accessory.data.act))) >> 1
             );
             const u16 extra =
                 half != 0 ? static_cast<u16>(half * static_cast<u32>(record.attackBonus) / kPercent) : u16{0};
@@ -596,7 +596,7 @@ void BattleRole::Strike(BattleServices& services, BattleUnit& target, int evadab
     battle.proficiencyBonus = static_cast<i16>(StepCounterProgress(
         services.party.fame.lists[Fame::UnkList0],
         static_cast<i16>(this->weaponId),
-        this->weapon.data.unk44,
+        this->weapon.data.counterMax,
         this->weapon.data.unk42
     ));
     const u16 evasion = (this->status & BattleUnit::UnkStatus80) != 0 ? kStruckEvasion : u16{0};
@@ -666,12 +666,12 @@ void BattleRole::LoadItemAction(Database& database, u16 id, u32& act)
         Database::FreeDescription(*this->data);
     }
 
-    act = item.data.unk50;
-    this->LoadCommand(database, item.data.unk3E);
+    act = item.data.act;
+    this->LoadCommand(database, item.data.skillScript);
 
     if (this->command.resistance == 0)
     {
-        this->command.value = static_cast<i16>(item.data.unk34);
+        this->command.value = static_cast<i16>(item.data.hitPointsUp);
     }
 
     this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
@@ -873,7 +873,7 @@ int BattleRole::CanAbsorb(BattleServices& services, const BattleUnit& target) co
     target.GetHitPoints(hitPoints, maximum);
 
     if ((data.kind & ObjectData::UnkKind20) != 0 || (data.kind & ObjectData::Absorbable) == 0 ||
-        data.unk52 > kMaxAbsorbClass)
+        data.category > kMaxAbsorbClass)
     {
         return 0;
     }
@@ -1081,12 +1081,12 @@ u16 BattleRole::UseSelectedItem()
     this->inventoryNode = selected;
     this->usedItem = selected->id;
     ObjectData& data = selected->record.data;
-    const u16 uses = data.unk3C;
+    const u16 uses = data.useKind;
     bool spent = true;
 
     if ((uses & kMultiUse) != 0 && (uses & kUsesMask) != 0)
     {
-        data.unk3C = static_cast<u16>((uses & ~kUsesMask) | ((uses & kUsesMask) - 1));
+        data.useKind = static_cast<u16>((uses & ~kUsesMask) | ((uses & kUsesMask) - 1));
         spent = (uses & kUsesMask) == 1;
     }
 
@@ -1143,7 +1143,7 @@ u16 BattleRole::UseSelectedItem()
     }
 
     // The list head read as an item has no flag here.
-    if (flagged != nullptr && (flagged->record.data.unk40 & kNoUseAct) != 0)
+    if (flagged != nullptr && (flagged->record.data.costBits & kNoUseAct) != 0)
     {
         return 0;
     }
@@ -1516,7 +1516,7 @@ void BattleRole::PrepareCommand(BattleServices& services, Database& database)
         this->command.actionFlags |= UnitCommand::DrainsLife;
     }
 
-    const u16 skill = this->weapon.data.unk3E;
+    const u16 skill = this->weapon.data.skillScript;
 
     if (skill != 0)
     {
@@ -1674,7 +1674,7 @@ int BattleRole::ListedObject(int index, std::string& name, u16& count)
             return 0;
         }
 
-        if ((node->record.data.unk40 & kListedObject) != 0)
+        if ((node->record.data.costBits & kListedObject) != 0)
         {
             ++listed;
         }
@@ -1762,12 +1762,12 @@ void BattleRole::CountSkills(int category, int type, u8& count)
 
         if (wanted == kSkillType0)
         {
-            if (data.unk52 >= kFirstSkillType && data.unk52 <= kLastSkillType)
+            if (data.category >= kFirstSkillType && data.category <= kLastSkillType)
             {
                 ++count;
             }
         }
-        else if (data.unk52 == kSkillType1)
+        else if (data.category == kSkillType1)
         {
             ++count;
         }
@@ -1796,7 +1796,7 @@ void BattleRole::CountObjects(int category, u16& count)
             ++count;
         }
 
-        if (kinds == kCategory4 && (data.unk40 & kListedObject) != 0)
+        if (kinds == kCategory4 && (data.costBits & kListedObject) != 0)
         {
             ++count;
         }
@@ -1841,7 +1841,7 @@ int BattleRole::ListObject(int category, int index, std::string& name, u16& flag
         count = static_cast<u16>(ObjectsLeft(*node));
         flags = static_cast<u16>(flags | kShownObject);
 
-        if ((data.unk40 & kCostsStamina) != 0 && (data.unk40 & kCostMask) > this->roleRecord->stamina)
+        if ((data.costBits & kCostsStamina) != 0 && (data.costBits & kCostMask) > this->roleRecord->stamina)
         {
             flags = static_cast<u16>(flags | kCostlyObject);
         }
@@ -1937,8 +1937,8 @@ u16 BattleRole::ListSkill(Database& database, int category, int type, int index,
             continue;
         }
 
-        if (wanted == kSkillType0 ? data.unk52 >= kFirstSkillType && data.unk52 <= kLastSkillType
-                                  : data.unk52 == kSkillType1)
+        if (wanted == kSkillType0 ? data.category >= kFirstSkillType && data.category <= kLastSkillType
+                                  : data.category == kSkillType1)
         {
             ++listed;
         }
@@ -1950,9 +1950,9 @@ u16 BattleRole::ListSkill(Database& database, int category, int type, int index,
 
     if (wanted == kSkillType0 || wanted == kSkillType1)
     {
-        database.LoadSkill(script, node->record.data.unk3E);
+        database.LoadSkill(script, node->record.data.skillScript);
         name = ObjectName(node->record);
-        const u16 bits = node->record.data.unk40;
+        const u16 bits = node->record.data.costBits;
 
         if ((bits & kCostFlag) != 0)
         {
@@ -1995,7 +1995,7 @@ int BattleRole::StepWornCounters(CounterList& list, u16 amount)
     for (const ObjectRecord& accessory : this->accessories)
     {
         const ObjectData& data = accessory.data;
-        const auto id = static_cast<i16>(data.unk50);
+        const auto id = static_cast<i16>(data.act);
 
         if (id == 0)
         {
@@ -2016,13 +2016,13 @@ int BattleRole::StepWornCounters(CounterList& list, u16 amount)
             {
                 at->value = static_cast<u16>(at->value + amount);  // a u16 add (0x0046F60B), then held to unk44
 
-                if (at->value >= data.unk44)
+                if (at->value >= data.counterMax)
                 {
-                    at->value = data.unk44;
+                    at->value = data.counterMax;
                 }
 
                 at->percent = static_cast<u16>(
-                    crt::Ftol(static_cast<double>(at->value) / static_cast<double>(data.unk44) * kCounterPercent)
+                    crt::Ftol(static_cast<double>(at->value) / static_cast<double>(data.counterMax) * kCounterPercent)
                 );
             }
 
@@ -2034,7 +2034,7 @@ int BattleRole::StepWornCounters(CounterList& list, u16 amount)
         at->id = id;
         at->value = amount;
         at->percent = static_cast<u16>(
-            crt::Ftol(static_cast<double>(amount) / static_cast<double>(data.unk44) * kCounterPercent)
+            crt::Ftol(static_cast<double>(amount) / static_cast<double>(data.counterMax) * kCounterPercent)
         );
         ++list.id;
     }
@@ -2081,8 +2081,9 @@ u16 BattleRole::SelectSkill(Database& database, int category, int type, int inde
 
         if ((LowByte(data.usableBy) & kCountedUsers) != 0 && (kinds & data.kind) != 0)
         {
-            const bool counted = wanted == kSkillType0 ? data.unk52 >= kFirstSkillType && data.unk52 <= kLastSkillType
-                                                       : data.unk52 == kSkillType1;
+            const bool counted = wanted == kSkillType0
+                                     ? data.category >= kFirstSkillType && data.category <= kLastSkillType
+                                     : data.category == kSkillType1;
 
             if (counted)
             {
@@ -2095,8 +2096,8 @@ u16 BattleRole::SelectSkill(Database& database, int category, int type, int inde
             continue;
         }
 
-        act = data.unk50;
-        this->LoadCommand(database, data.unk3E);
+        act = data.act;
+        this->LoadCommand(database, data.skillScript);
         this->skillName = {};
         const std::string name = ObjectName(node->record);
         std::copy_n(name.begin(), std::min(name.size(), this->skillName.size() - 1), this->skillName.begin());
@@ -2104,25 +2105,25 @@ u16 BattleRole::SelectSkill(Database& database, int category, int type, int inde
         if ((this->unk2A86 & BattleUnit::UnkCommandFlag200) != 0)
         {
             this->unk2A8A = data.unk48;
-            this->unk2F16 = data.unk50;
-            this->unk2F18 = data.unk40;
+            this->unk2F16 = data.act;
+            this->unk2F18 = data.costBits;
         }
 
-        if (data.unk3C == 0)
+        if (data.useKind == 0)
         {
-            this->unk29A6 = data.unk34;
-            this->unk29A8 = data.unk36;
-            this->unk29AA = data.unk38;
+            this->unk29A6 = data.hitPointsUp;
+            this->unk29A8 = data.spiritUp;
+            this->unk29AA = data.staminaUp;
         }
 
         this->healPercent = 0;
 
-        if ((data.unk3C & kHealPercentBit) != 0)
+        if ((data.useKind & kHealPercentBit) != 0)
         {
             this->healPercent = 1;
-            this->unk29A6 = data.unk34;
-            this->unk29A8 = data.unk36;
-            this->unk29AA = data.unk38;
+            this->unk29A6 = data.hitPointsUp;
+            this->unk29A8 = data.spiritUp;
+            this->unk29AA = data.staminaUp;
         }
 
         const bool offensive =
@@ -2164,7 +2165,7 @@ int BattleRole::CanPaySkill(BattleServices& services, int category, int index)
         const ObjectData& data = node->record.data;
 
         if ((LowByte(data.usableBy) & kCountedUsers) != 0 && (kinds & data.kind) != 0 &&
-            data.unk52 >= kFirstSkillType && data.unk52 <= kLastSkillType)
+            data.category >= kFirstSkillType && data.category <= kLastSkillType)
         {
             ++listed;
         }
@@ -2181,7 +2182,7 @@ int BattleRole::CanPaySkill(BattleServices& services, int category, int index)
         services.audio.PlaySound(kRefusedSound, services.config.soundVolume);
     };
 
-    const u16 cost = node->record.data.unk40;
+    const u16 cost = node->record.data.costBits;
 
     if ((cost & kCostFlag) != 0)
     {
@@ -2285,7 +2286,7 @@ int BattleRole::SelectObject(Database& database, ErrorReporter& reporter, int ca
             ++listed;
         }
 
-        if (kinds == kCategory4 && (data.unk40 & kListedObject) != 0)
+        if (kinds == kCategory4 && (data.costBits & kListedObject) != 0)
         {
             ++listed;
         }
@@ -2299,18 +2300,18 @@ int BattleRole::SelectObject(Database& database, ErrorReporter& reporter, int ca
         this->selectedItem = node;
         kind = 0;
 
-        if (kinds == kCategory4 && (data.unk40 & kListedObject) != 0)
+        if (kinds == kCategory4 && (data.costBits & kListedObject) != 0)
         {
-            this->LoadCommand(database, data.unk3E);
-            this->unk29A4 = data.unk24;
+            this->LoadCommand(database, data.skillScript);
+            this->unk29A4 = data.attackBonusUp;
             return 1;
         }
 
-        this->LoadCommand(database, data.unk48 != 0 ? data.unk48 : data.unk3E);
+        this->LoadCommand(database, data.unk48 != 0 ? data.unk48 : data.skillScript);
 
-        if ((data.unk40 & kCostFlag) != 0)
+        if ((data.costBits & kCostFlag) != 0)
         {
-            this->unk2F10 = static_cast<u16>(data.unk40 & kCostValueMask);
+            this->unk2F10 = static_cast<u16>(data.costBits & kCostValueMask);
 
             if (this->unk2F10 > this->roleRecord->spirit)
             {
@@ -2318,9 +2319,9 @@ int BattleRole::SelectObject(Database& database, ErrorReporter& reporter, int ca
             }
         }
 
-        if ((data.unk40 & kCostsStamina) != 0)
+        if ((data.costBits & kCostsStamina) != 0)
         {
-            this->unk2F12 = static_cast<u16>(data.unk40 & kCostMask);
+            this->unk2F12 = static_cast<u16>(data.costBits & kCostMask);
 
             if (this->unk2F12 > this->roleRecord->stamina)
             {
@@ -2328,21 +2329,21 @@ int BattleRole::SelectObject(Database& database, ErrorReporter& reporter, int ca
             }
         }
 
-        if (data.unk3C == 0)
+        if (data.useKind == 0)
         {
-            this->unk29A6 = data.unk34;
-            this->unk29A8 = data.unk36;
-            this->unk29AA = data.unk38;
+            this->unk29A6 = data.hitPointsUp;
+            this->unk29A8 = data.spiritUp;
+            this->unk29AA = data.staminaUp;
         }
 
         this->healPercent = 0;
 
-        if ((data.unk3C & kHealPercentBit) != 0)
+        if ((data.useKind & kHealPercentBit) != 0)
         {
             this->healPercent = 1;
-            this->unk29A6 = data.unk34;
-            this->unk29A8 = data.unk36;
-            this->unk29AA = data.unk38;
+            this->unk29A6 = data.hitPointsUp;
+            this->unk29A8 = data.spiritUp;
+            this->unk29AA = data.staminaUp;
         }
 
         act = this->command.castAct;
@@ -2355,7 +2356,7 @@ int BattleRole::SelectObject(Database& database, ErrorReporter& reporter, int ca
         if ((data.kind & kSeparateKind) != 0)
         {
             this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag1000);
-            this->usedItem = data.unk50;
+            this->usedItem = data.act;
         }
 
         if ((kinds & kOffensiveKind) != 0 && (data.kind & kOffensiveKind) != 0)

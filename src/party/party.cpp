@@ -56,8 +56,8 @@ constexpr std::u8string_view kFuZiChe = u8"輔子徹";      // 0x004A713C
 constexpr std::u8string_view kWenJin = u8"紋錦";         // 0x004A7134
 constexpr std::u8string_view kZhuShiZi = u8"鑄石子";     // 0x004A712C
 constexpr std::u8string_view kLeLe = u8"樂樂";           // 0x004A7124
-constexpr u16 kPlainObjectLimit = 0x1B;                  // ApplyObject: ObjectData::unk52 up to it applies by unk3C
-constexpr u16 kVitalsObject = 0;                         // ObjectData::unk3C
+constexpr u16 kPlainObjectLimit = 0x1B;  // ApplyObject: ObjectData::category up to it applies by useKind
+constexpr u16 kVitalsObject = 0;         // ObjectData::useKind
 constexpr u16 kMaximaObject = 0x100;
 constexpr u16 kPercentObject = 0x200;
 constexpr int kPercent = 100;
@@ -330,7 +330,7 @@ int Party::RoleStat(int field, int role) const
 void ApplyObject(RoleRecord& record, const ObjectData& object, Database& database)
 {
     SkillScript skill;
-    database.LoadSkill(skill, object.unk3E);
+    database.LoadSkill(skill, object.skillScript);
 
     if (static_cast<i16>(skill.ailment) < 0)
     {
@@ -354,11 +354,11 @@ void ApplyObject(RoleRecord& record, const ObjectData& object, Database& databas
         record.stamina = std::min(record.stamina, record.maxStamina);
     };
 
-    if (object.unk52 > kPlainObjectLimit && (record.condition & RoleRecord::Defeated) == 0)
+    if (object.category > kPlainObjectLimit && (record.condition & RoleRecord::Defeated) == 0)
     {
-        add(record.hitPoints, object.unk34);
-        add(record.spirit, object.unk36);
-        add(record.stamina, object.unk38);
+        add(record.hitPoints, object.hitPointsUp);
+        add(record.spirit, object.spiritUp);
+        add(record.stamina, object.staminaUp);
         clampVitals();
         return;
     }
@@ -368,46 +368,46 @@ void ApplyObject(RoleRecord& record, const ObjectData& object, Database& databas
         return;
     }
 
-    if (object.unk3C == kVitalsObject)
+    if (object.useKind == kVitalsObject)
     {
-        add(record.hitPoints, object.unk34);
-        add(record.spirit, object.unk36);
-        add(record.stamina, object.unk38);
+        add(record.hitPoints, object.hitPointsUp);
+        add(record.spirit, object.spiritUp);
+        add(record.stamina, object.staminaUp);
         clampVitals();
-        add(record.attack, object.unk28);
-        add(record.defense, object.unk2A);
-        add(record.wisdom, object.unk2E);
-        add(record.agility, object.unk2C);
-        add(record.rapport, object.unk30);
-        add(record.evasion, object.unk32);
-        addBonus(record.attackBonus, object.unk24);
-        addBonus(record.defenseBonus, object.unk26);
+        add(record.attack, object.attackUp);
+        add(record.defense, object.defenseUp);
+        add(record.wisdom, object.wisdomUp);
+        add(record.agility, object.agilityUp);
+        add(record.rapport, object.rapportUp);
+        add(record.evasion, object.evasionUp);
+        addBonus(record.attackBonus, object.attackBonusUp);
+        addBonus(record.defenseBonus, object.defenseBonusUp);
     }
 
-    if (object.unk3C == kMaximaObject)
+    if (object.useKind == kMaximaObject)
     {
-        add(record.maxHitPoints, object.unk34);
-        add(record.maxSpirit, object.unk36);
-        add(record.maxStamina, object.unk38);
-        add(record.attack, object.unk28);
-        add(record.defense, object.unk2A);
-        add(record.wisdom, object.unk2E);
-        add(record.rapport, object.unk30);
-        add(record.agility, object.unk2C);
-        add(record.evasion, object.unk32);
-        addBonus(record.attackBonus, object.unk24);
-        addBonus(record.defenseBonus, object.unk26);
+        add(record.maxHitPoints, object.hitPointsUp);
+        add(record.maxSpirit, object.spiritUp);
+        add(record.maxStamina, object.staminaUp);
+        add(record.attack, object.attackUp);
+        add(record.defense, object.defenseUp);
+        add(record.wisdom, object.wisdomUp);
+        add(record.rapport, object.rapportUp);
+        add(record.agility, object.agilityUp);
+        add(record.evasion, object.evasionUp);
+        addBonus(record.attackBonus, object.attackBonusUp);
+        addBonus(record.defenseBonus, object.defenseBonusUp);
     }
 
-    if (object.unk3C == kPercentObject)
+    if (object.useKind == kPercentObject)
     {
         const i16 maxHitPoints = record.maxHitPoints;
         const i16 maxSpirit = record.maxSpirit;
         const i16 maxStamina = record.maxStamina;
         // 0x0044D887..0x0044D8E4: each a 32-bit product of the two signed words, then / 100
-        add(record.hitPoints, static_cast<u16>(maxHitPoints * static_cast<i16>(object.unk34) / kPercent));
-        add(record.spirit, static_cast<u16>(maxSpirit * static_cast<i16>(object.unk36) / kPercent));
-        add(record.stamina, static_cast<u16>(maxStamina * static_cast<i16>(object.unk38) / kPercent));
+        add(record.hitPoints, static_cast<u16>(maxHitPoints * static_cast<i16>(object.hitPointsUp) / kPercent));
+        add(record.spirit, static_cast<u16>(maxSpirit * static_cast<i16>(object.spiritUp) / kPercent));
+        add(record.stamina, static_cast<u16>(maxStamina * static_cast<i16>(object.staminaUp) / kPercent));
         clampVitals();
     }
 }

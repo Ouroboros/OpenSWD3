@@ -226,7 +226,7 @@ void SetProficiency(CounterList& list, u16 id, u16 value, Database& database)
     CounterNode* node = list.id != 0 ? list.next.get() : &list;
     database.LoadObject(database.scratch, id);
     Database::FreeDescription(database.scratch);
-    const u16 maximum = database.scratch.data.unk44;
+    const u16 maximum = database.scratch.data.counterMax;
 
     if (static_cast<u16>(node->id) != id)
     {
@@ -272,7 +272,7 @@ bool GetProficiency(CounterList& list, u16 id, u16& maximum, u16& value, Databas
 
     database.LoadObject(database.scratch, id);
     Database::FreeDescription(database.scratch);
-    maximum = database.scratch.data.unk44;
+    maximum = database.scratch.data.counterMax;
     value = node != nullptr ? node->value : u16{0};
     return node != nullptr;
 }

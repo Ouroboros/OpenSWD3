@@ -121,7 +121,7 @@ void CheatDialog::SetObjectCounter(const ItemNode& node, u16 id, i32 value)
         SetCounterProgress(
             lists[Fame::UnkList0],
             static_cast<i16>(id),
-            node.record.data.unk44,
+            node.record.data.counterMax,
             static_cast<u16>(value)
         );
     }

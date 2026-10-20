@@ -2554,7 +2554,7 @@ bool BattleUnit::IsSmallMachine() const
 
     if ((kind & BattleEnemy::MachineKind) != 0)
     {
-        return this->data->data.unk52 <= BattleEnemy::SmallMachineTypes;
+        return this->data->data.category <= BattleEnemy::SmallMachineTypes;
     }
 
     return false;
@@ -2574,7 +2574,7 @@ u16 BattleUnit::AccessoryValue(u16 kind) const
     {
         if (accessory.data.unk48 == kind)
         {
-            return static_cast<u16>(accessory.data.unk40 & kAccessoryValueMask);
+            return static_cast<u16>(accessory.data.costBits & kAccessoryValueMask);
         }
     }
 
@@ -2589,7 +2589,7 @@ i16 BattleUnit::AccessoryProficiency(u16 kind, CounterList& proficiency)
     {
         if (accessory.data.unk48 == kind)
         {
-            this->unk26DC = static_cast<u16>(FindCounterPercent(proficiency, static_cast<i16>(accessory.data.unk50)));
+            this->unk26DC = static_cast<u16>(FindCounterPercent(proficiency, static_cast<i16>(accessory.data.act)));
             return static_cast<i16>(this->unk26DC);
         }
     }
@@ -2676,12 +2676,12 @@ bool BattleUnit::ShowsPicture(i16 picture) const
 void BattleUnit::LoadSkillAction(Database& database, u16 id, u16& act)
 {
     database.LoadObject(this->object, id);
-    act = this->object.data.unk50;
+    act = this->object.data.act;
     const std::span<const char> name(this->object.data.name);
     const std::size_t length = std::min<std::size_t>(strnlen(name.data(), name.size()), this->skillName.size() - 1);
     std::copy_n(name.begin(), length, this->skillName.begin());
     this->skillName[length] = '\0';
-    this->LoadCommand(database, this->object.data.unk3E);
+    this->LoadCommand(database, this->object.data.skillScript);
     this->unk29A4 = static_cast<u16>(this->unk29A4 + static_cast<u16>(this->command.value));
     this->SetCommand(BattleUnit::UnkCommand2);
     this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
@@ -3501,7 +3501,7 @@ int BattleUnit::StepAccessoryCounters(CounterList& list, u16 amount)
     for (const ObjectRecord& accessory : this->accessories)
     {
         const ObjectData& data = accessory.data;
-        const auto id = static_cast<i16>(data.unk50);
+        const auto id = static_cast<i16>(data.act);
 
         if (id == 0)
         {
@@ -3524,13 +3524,13 @@ int BattleUnit::StepAccessoryCounters(CounterList& list, u16 amount)
 
             at->value = static_cast<u16>(at->value + amount);
 
-            if (at->value >= data.unk44)
+            if (at->value >= data.counterMax)
             {
-                at->value = data.unk44;
+                at->value = data.counterMax;
             }
 
             at->percent = static_cast<u16>(
-                crt::Ftol(static_cast<double>(at->value) / static_cast<double>(data.unk44) * kCounterPercent)
+                crt::Ftol(static_cast<double>(at->value) / static_cast<double>(data.counterMax) * kCounterPercent)
             );
             continue;
         }
@@ -3540,7 +3540,7 @@ int BattleUnit::StepAccessoryCounters(CounterList& list, u16 amount)
         at->id = id;
         at->value = amount;
         at->percent = static_cast<u16>(
-            crt::Ftol(static_cast<double>(amount) / static_cast<double>(data.unk44) * kCounterPercent)
+            crt::Ftol(static_cast<double>(amount) / static_cast<double>(data.counterMax) * kCounterPercent)
         );
         ++list.id;
     }
@@ -4464,7 +4464,7 @@ int BattleUnit::CatchRoll(BattleServices& services, u8 level)
     services.random.Below(kUnusedCatchRoll);
     const ObjectData& data = this->data->data;
 
-    if (data.unk91 == 0)
+    if (data.catchChance == 0)
     {
         return 0;
     }
@@ -4481,7 +4481,7 @@ int BattleUnit::CatchRoll(BattleServices& services, u8 level)
         return static_cast<u16>(services.random.Below(kCatchRoll)) < kNearCatch ? 1 : 0;
     }
 
-    return above >= kNearAbove && static_cast<u16>(services.random.Below(kCatchRoll)) < data.unk91 ? 1 : 0;
+    return above >= kNearAbove && static_cast<u16>(services.random.Below(kCatchRoll)) < data.catchChance ? 1 : 0;
 }
 
 // swd32.exe 0x0047BA80: one frame of the unit staggering from a hit (hurtStep 0..5, one step every second frame not
@@ -4687,14 +4687,14 @@ int BattleUnit::ChooseCommand(BattleServices& services, Database& database, u32&
             }
 
             database.LoadObject(this->object, id);
-            this->LoadCommand(database, this->object.data.unk3E);
+            this->LoadCommand(database, this->object.data.skillScript);
 
             if (barred())
             {
                 return false;
             }
 
-            act = this->object.data.unk50;
+            act = this->object.data.act;
             --count;
 
             if (this->actId == kReadyAct)
@@ -4832,9 +4832,9 @@ int BattleUnit::ChooseCommand(BattleServices& services, Database& database, u32&
         const bool first = this->healChoice == kFirstHeal;
         database.LoadObject(this->object, first ? data.healItemA : data.healItemB);
         Database::FreeDescription(this->object);
-        act = this->object.data.unk50;
-        this->LoadCommand(database, this->object.data.unk3E);
-        this->unk29A6 = this->object.data.unk34;
+        act = this->object.data.act;
+        this->LoadCommand(database, this->object.data.skillScript);
+        this->unk29A6 = this->object.data.hitPointsUp;
         this->healChoice = 0;
         --(first ? data.healCountA : data.healCountB);
         this->unk2A86 = static_cast<u16>(this->unk2A86 | BattleUnit::UnkCommandFlag8000);
@@ -5122,7 +5122,7 @@ int BattleUnit::StepOrbCounters(CounterList& list, const UnitCommand& command)
     for (const ObjectRecord& accessory : this->accessories)
     {
         const ObjectData& data = accessory.data;
-        const auto id = static_cast<i16>(data.unk50);
+        const auto id = static_cast<i16>(data.act);
 
         if (id == 0 || data.unk48 != static_cast<u16>(AccessoryKind::ElementOrb) || command.resistance < 1 ||
             command.resistance > kResistances)
@@ -5147,13 +5147,13 @@ int BattleUnit::StepOrbCounters(CounterList& list, const UnitCommand& command)
 
             at->value = static_cast<u16>(at->value + kOrbStep);
 
-            if (at->value >= data.unk44)
+            if (at->value >= data.counterMax)
             {
-                at->value = data.unk44;
+                at->value = data.counterMax;
             }
 
             at->percent = static_cast<u16>(
-                crt::Ftol(static_cast<double>(at->value) / static_cast<double>(data.unk44) * kCounterPercent)
+                crt::Ftol(static_cast<double>(at->value) / static_cast<double>(data.counterMax) * kCounterPercent)
             );
             continue;
         }
@@ -5163,7 +5163,7 @@ int BattleUnit::StepOrbCounters(CounterList& list, const UnitCommand& command)
         at->id = id;
         at->value = kOrbStep;
         at->percent = static_cast<u16>(
-            crt::Ftol(static_cast<double>(kOrbStep) / static_cast<double>(data.unk44) * kCounterPercent)
+            crt::Ftol(static_cast<double>(kOrbStep) / static_cast<double>(data.counterMax) * kCounterPercent)
         );
         ++list.id;
     }
@@ -5266,7 +5266,7 @@ u16 BattleUnit::FinishProficiency(CounterList& list)
     {
         const ObjectData& data = accessory.data;
 
-        if (data.unk50 == 0)
+        if (data.act == 0)
         {
             continue;
         }
@@ -5278,12 +5278,12 @@ u16 BattleUnit::FinishProficiency(CounterList& list)
 
         for (CounterNode* node = &list; node != nullptr; node = node->next.get())
         {
-            if (static_cast<u16>(node->id) == data.unk50 && node->done == 0 && node->value >= data.unk44)
+            if (static_cast<u16>(node->id) == data.act && node->done == 0 && node->value >= data.counterMax)
             {
                 found = true;
-                node->value = data.unk44;
+                node->value = data.counterMax;
                 node->done = 1;
-                finished = data.unk50;
+                finished = data.act;
                 break;
             }
         }

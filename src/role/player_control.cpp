@@ -267,7 +267,7 @@ void RoleControl::ControlPlayer()
 
                 if (owner.database.LoadObject(record, id))
                 {
-                    const u16 kind = record.data.unk52;
+                    const u16 kind = record.data.category;
 
                     if (kind < kFirstSkippedKind || std::ranges::find(kDebugKinds, kind) != kDebugKinds.end())
                     {

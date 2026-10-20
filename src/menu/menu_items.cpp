@@ -1312,7 +1312,7 @@ void Menu::ItemsUse(ItemNode& node)
     SkillScript& script = this->skills.skill;
     script = SkillScript{};
 
-    if (!owner.database.LoadSkill(script, node.record.data.unk3E) || (script.flags & kWholeParty) == 0)
+    if (!owner.database.LoadSkill(script, node.record.data.skillScript) || (script.flags & kWholeParty) == 0)
     {
         this->code = kRoleCode;
         owner.audio.PlaySound(kChosenSound, owner.config.soundVolume);
@@ -1929,9 +1929,9 @@ void Menu::ItemsDraw()
 
             if (row == this->itemList.row && node->id != ItemNode::Empty)
             {
-                if (node->record.data.unk50 != 0)
+                if (node->record.data.act != 0)
                 {
-                    this->gauge.id = node->record.data.unk50;
+                    this->gauge.id = node->record.data.act;
                     this->gauge.action = kPictureAction;
                     owner.actDrawer.Draw(this->gauge, kPictureX, kPictureY);
                 }

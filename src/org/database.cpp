@@ -21,7 +21,7 @@ constexpr u32 kLevelIndex = 0x70;
 constexpr int kLevelsPerGroup = 0x64;
 constexpr int kTextSearch = 0xFF;
 constexpr u16 kEnd = static_cast<u16>(ObjectTag::End);
-constexpr std::size_t kUnk50Bytes = 0x4D;
+constexpr std::size_t kActBlockBytes = 0x4D;
 constexpr std::size_t kTextEndBytes = 2;   // the "$$" after a text
 constexpr std::size_t kResistUnk9BAt = 9;  // tag 0x7D0: nine resistances, two bytes and two words
 constexpr std::size_t kResistUnk9CAt = 10;
@@ -358,29 +358,29 @@ bool Database::LoadObject(ObjectRecord& record, u16 id)
 
         switch (static_cast<ObjectTag>(tag))
         {
-            case ObjectTag::Unk50Block:
-                code.Copy(bytes + offsetof(ObjectData, unk50), kUnk50Bytes);
-                code.position += kUnk50Bytes;
+            case ObjectTag::ActBlock:
+                code.Copy(bytes + offsetof(ObjectData, act), kActBlockBytes);
+                code.position += kActBlockBytes;
                 break;
 
-            case ObjectTag::Unk40:
-                word(data.unk40);
+            case ObjectTag::CostBits:
+                word(data.costBits);
                 break;
 
-            case ObjectTag::Unk24:
-                word(data.unk24);
+            case ObjectTag::AttackBonusUp:
+                word(data.attackBonusUp);
                 break;
 
-            case ObjectTag::Unk26:
-                word(data.unk26);
+            case ObjectTag::DefenseBonusUp:
+                word(data.defenseBonusUp);
                 break;
 
-            case ObjectTag::Unk2C:
-                word(data.unk2C);
+            case ObjectTag::AgilityUp:
+                word(data.agilityUp);
                 break;
 
-            case ObjectTag::Unk32:
-                word(data.unk32);
+            case ObjectTag::EvasionUp:
+                word(data.evasionUp);
                 break;
 
             case ObjectTag::Price:
@@ -391,40 +391,40 @@ bool Database::LoadObject(ObjectRecord& record, u16 id)
                 word(data.unk42);
                 break;
 
-            case ObjectTag::Unk44:
-                word(data.unk44);
+            case ObjectTag::CounterMax:
+                word(data.counterMax);
                 break;
 
-            case ObjectTag::Unk50:
-                word(data.unk50);
+            case ObjectTag::Act:
+                word(data.act);
                 break;
 
-            case ObjectTag::Unk28:
-                word(data.unk28);
+            case ObjectTag::AttackUp:
+                word(data.attackUp);
                 break;
 
-            case ObjectTag::Unk2A:
-                word(data.unk2A);
+            case ObjectTag::DefenseUp:
+                word(data.defenseUp);
                 break;
 
-            case ObjectTag::Unk2E:
-                word(data.unk2E);
+            case ObjectTag::WisdomUp:
+                word(data.wisdomUp);
                 break;
 
-            case ObjectTag::Unk30:
-                word(data.unk30);
+            case ObjectTag::RapportUp:
+                word(data.rapportUp);
                 break;
 
-            case ObjectTag::Unk34:
-                word(data.unk34);
+            case ObjectTag::HitPointsUp:
+                word(data.hitPointsUp);
                 break;
 
-            case ObjectTag::Unk36:
-                word(data.unk36);
+            case ObjectTag::SpiritUp:
+                word(data.spiritUp);
                 break;
 
-            case ObjectTag::Unk38:
-                word(data.unk38);
+            case ObjectTag::StaminaUp:
+                word(data.staminaUp);
                 break;
 
             case ObjectTag::Unk48:
@@ -440,12 +440,12 @@ bool Database::LoadObject(ObjectRecord& record, u16 id)
                 word(data.usableBy);
                 break;
 
-            case ObjectTag::Unk3C:
-                word(data.unk3C);
+            case ObjectTag::UseKind:
+                word(data.useKind);
                 break;
 
-            case ObjectTag::Unk9B:
-                data.unk9B = code.ByteAt(at);
+            case ObjectTag::Altar:
+                data.altar = code.ByteAt(at);
                 code.position += sizeof(u8);
                 break;
 
@@ -472,8 +472,8 @@ bool Database::LoadObject(ObjectRecord& record, u16 id)
                 break;
             }
 
-            case ObjectTag::Unk3E:
-                word(data.unk3E);
+            case ObjectTag::SkillScript:
+                word(data.skillScript);
                 break;
 
             case ObjectTag::Name:
@@ -491,10 +491,10 @@ bool Database::LoadObject(ObjectRecord& record, u16 id)
 
             case ObjectTag::Resistances:
                 code.Copy(data.resistances.data(), data.resistances.size());
-                data.unk9B = code.ByteAt(at + kResistUnk9BAt);
+                data.altar = code.ByteAt(at + kResistUnk9BAt);
                 data.unk9C = code.ByteAt(at + kResistUnk9CAt);
                 data.level = code.WordAt(at + kResistLevelAt);
-                data.unk52 = code.WordAt(at + kResistUnk52At);
+                data.category = code.WordAt(at + kResistUnk52At);
                 code.position += kResistBytes;
                 break;
 

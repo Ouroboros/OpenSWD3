@@ -284,10 +284,10 @@ void Menu::AltarEnter()
         if (owner.database.LoadObject(record, static_cast<u16>(id)))
         {
             const auto at = static_cast<std::size_t>(id);
-            altar.categories[at] = record.data.unk52;
+            altar.categories[at] = record.data.category;
             altar.levels[at] = record.data.level;
             altar.kinds[at] = record.data.kind;
-            altar.altars[at] = static_cast<i8>(record.data.unk9B);
+            altar.altars[at] = static_cast<i8>(record.data.altar);
         }
     }
 
@@ -434,7 +434,7 @@ void Menu::AltarSortObjects()
 // 28..31 ignored): tab 0 kinds 1, 2, 4, 8, 0x10 and 0x1000, tab 1 kinds 0x100, 0x200 and 0x400, tab 2 kind 0x800
 bool AltarTabTakes(const ItemNode& node, int tab)
 {
-    const u16 category = node.record.data.unk52;
+    const u16 category = node.record.data.category;
 
     if (category > kLastObjectCategory && (category < kFirstSpecialCategory || category > kLastSpecialCategory))
     {
@@ -641,19 +641,19 @@ bool Menu::AltarCombine()
 
     const int average = (second.record.data.level + first.record.data.level) / 2;
     const u16 east = search(
-        first.record.data.unk52,
-        second.record.data.unk52,
+        first.record.data.category,
+        second.record.data.category,
         average + kLevelBonus,
-        static_cast<u8>(second.record.data.unk52) % 2 != 0,
+        static_cast<u8>(second.record.data.category) % 2 != 0,
         kEastOnly
     );
     setResult(altar.resultEast, east != 0 ? east : kDefaultResult);
     owner.database.LoadObject(altar.resultEast.record, altar.resultEast.id);
     const u16 west = search(
-        second.record.data.unk52,
-        first.record.data.unk52,
+        second.record.data.category,
+        first.record.data.category,
         average,
-        static_cast<u8>(first.record.data.unk52) % 2 != 0,
+        static_cast<u8>(first.record.data.category) % 2 != 0,
         kWestOnly
     );
     setResult(altar.resultWest, west != 0 ? west : kDefaultResult);
@@ -1388,7 +1388,7 @@ void Menu::AltarDraw()
     if (altar.stage == kMade)
     {
         const ItemNode& result = altar.chosen == 1 ? altar.resultWest : altar.resultEast;
-        this->gauge.id = result.record.data.unk50;
+        this->gauge.id = result.record.data.act;
         this->gauge.action = kPictureAction;
         this->gauge.direction = 0;
         owner.actDrawer.Draw(this->gauge, kMadeX, kMadeY);
@@ -1482,9 +1482,9 @@ void Menu::AltarDrawList(Pixel color)
             continue;
         }
 
-        if (slot.record.data.unk50 != 0)
+        if (slot.record.data.act != 0)
         {
-            this->gauge.id = slot.record.data.unk50;
+            this->gauge.id = slot.record.data.act;
             this->gauge.action = kPictureAction;
             this->gauge.direction = 0;
             owner.actDrawer.Draw(this->gauge, kSlotPictureStep * side + kSlotPictureX, kSlotPictureY);
@@ -1492,7 +1492,7 @@ void Menu::AltarDrawList(Pixel color)
 
         const int boxX = kSlotBoxStep * side + kSlotBoxX;
         this->DrawBox(boxX, kSlotBoxY, kSlotBoxWidth, kSlotBoxHeight, kAltarBoxMode, 0, 0, 0);
-        const std::u8string_view category = CategoryName(slot.record.data.unk52);
+        const std::u8string_view category = CategoryName(slot.record.data.category);
         owner.mediumFont.DrawText(
             owner.drawSurface,
             boxX,
@@ -1586,14 +1586,14 @@ void Menu::AltarDrawResult(const ItemNode& result, std::u8string_view title, int
     owner.actDrawer.Draw(this->face, x + kResultFaceX, y - kResultFaceUp);
     owner.mediumFont.DrawText(owner.drawSurface, x + kResultTitleX, y - kResultTitleUp, title, gold, kPanelStyle);
     const ObjectData& data = result.record.data;
-    this->gauge.id = data.unk50;
+    this->gauge.id = data.act;
     this->gauge.action = kPictureAction;
     this->gauge.direction = 0;
     owner.actDrawer.Draw(this->gauge, x + kResultPictureX, y + kResultPictureY);
     const int valuesX = x + kResultValuesX;
     const std::size_t side = x <= Display::Width / 2 ? 0 : 2;
     const std::array<std::string, 9> lines = {
-        Big5(CategoryName(data.unk52)),
+        Big5(CategoryName(data.category)),
         ObjectName(result.record),
         WinFormat(kResultLevelFormat, {static_cast<i32>(data.level)}),
         WinFormat(kHitPointsFormat, {static_cast<i32>(data.hitPoints)}),
@@ -1699,17 +1699,17 @@ void Menu::AltarPrepareMorph()
 
     const ItemNode& result = altar.chosen != 0 ? altar.resultWest : altar.resultEast;
 
-    if (!unpack(result.record.data.unk50, kPictureAction, altar.result, 2))
+    if (!unpack(result.record.data.act, kPictureAction, altar.result, 2))
     {
         return;
     }
 
-    if (!unpack(altar.slotA.record.data.unk50, kPictureAction, altar.pictureA, 3))
+    if (!unpack(altar.slotA.record.data.act, kPictureAction, altar.pictureA, 3))
     {
         return;
     }
 
-    unpack(altar.slotB.record.data.unk50, kPictureAction, altar.pictureB, 4);
+    unpack(altar.slotB.record.data.act, kPictureAction, altar.pictureB, 4);
 }
 
 // swd32.exe 0x004400A0: a frame of the morph. Up to 0x8C: before 0x78 the columns and rows wander (more as the counter

@@ -23,30 +23,30 @@ struct ObjectData
 
     std::array<char, 0x20> name = {};  // +0x00 tag 0x3E8 (a longer name runs into the next fields)
     u32 kind = 0;                      // +0x20 tag 0x19
-    u16 unk24 = 0;                     // +0x24 tag 7
-    u16 unk26 = 0;                     // +0x26 tag 8
-    u16 unk28 = 0;                     // +0x28 tag 0xF
-    u16 unk2A = 0;                     // +0x2A tag 0x10
-    u16 unk2C = 0;                     // +0x2C tag 9
-    u16 unk2E = 0;                     // +0x2E tag 0x11
-    u16 unk30 = 0;                     // +0x30 tag 0x12
-    u16 unk32 = 0;                     // +0x32 tag 0xA
-    u16 unk34 = 0;                     // +0x34 tag 0x13
-    u16 unk36 = 0;                     // +0x36 tag 0x14
-    u16 unk38 = 0;                     // +0x38 tag 0x15
+    u16 attackBonusUp = 0;             // +0x24 tag 7 added to the attack bonus (a guest role: its growth in tenths)
+    u16 defenseBonusUp = 0;            // +0x26 tag 8 added to the defence bonus
+    u16 attackUp = 0;                  // +0x28 tag 0xF added to the attack (worn: to its bonus too)
+    u16 defenseUp = 0;                 // +0x2A tag 0x10 added to the defence (worn: to its bonus too)
+    u16 agilityUp = 0;                 // +0x2C tag 9 added to the agility (a guest role: its growth in tenths)
+    u16 wisdomUp = 0;                  // +0x2E tag 0x11 added to the wisdom
+    u16 rapportUp = 0;                 // +0x30 tag 0x12 added to the rapport
+    u16 evasionUp = 0;                 // +0x32 tag 0xA added to the evasion
+    u16 hitPointsUp = 0;               // +0x34 tag 0x13 added to the hit points (or their maximum by useKind)
+    u16 spiritUp = 0;                  // +0x36 tag 0x14 the spirit
+    u16 staminaUp = 0;                 // +0x38 tag 0x15 the stamina
     u16 usableBy = 0;                  // +0x3A tag 0x1A the roles that can learn or use it (FirstRoleBit >> role)
-    u16 unk3C = 0;                     // +0x3C tag 0x1B
-    u16 unk3E = 0;                     // +0x3E tag 0x64
-    u16 unk40 = 0;                     // +0x40 tag 6
+    u16 useKind = 0;                   // +0x3C tag 0x1B how it is used: what it raises (vitals or maxima), its uses
+    u16 skillScript = 0;               // +0x3E tag 0x64 the skill script it runs (mon.dat)
+    u16 costBits = 0;                  // +0x40 tag 6 a skill's cost (bit 15 spirit, bit 14 stamina), an item's use bits
     u16 unk42 = 0;                     // +0x42 tag 0xC
-    u16 unk44 = 0;                     // +0x44 tag 0xD
+    u16 counterMax = 0;                // +0x44 tag 0xD the top of its counter (proficiency)
     u16 price = 0;                     // +0x46 tag 0xB (the shop value)
     u16 unk48 = 0;                     // +0x48 tag 0x16
     u16 unk4A = 0;                     // +0x4A
     i32 maxHitPoints = 0;              // +0x4C an enemy's maximum (set in battle)
     // +0x50..+0x9C: the 0x4D-byte block of tag 1; tags 0xE, 0x7D0, 0x1C and 0x1D set parts of it.
-    u16 unk50 = 0;          // +0x50 tag 0xE
-    u16 unk52 = 0;          // +0x52 tag 0x7D0
+    u16 act = 0;            // +0x50 tag 0xE its act (an accessory copy keeps its item id there)
+    u16 category = 0;       // +0x52 tag 0x7D0 the altar category, an enemy's type
     u16 level = 0;          // +0x54 tag 0x7D0 (shown by the bestiary)
     u16 attack = 0;         // +0x56
     u16 defense = 0;        // +0x58
@@ -80,9 +80,9 @@ struct ObjectData
     u8 itemChance = 0;   // +0x8E 0: the enemy uses no objects, else added to the turns without one for the roll
     u8 skillChance = 0;  // +0x8F the same for the skills
     u8 battleLevel = 0;  // +0x90 a unit's level byte in battle
-    u8 unk91 = 0;        // +0x91
+    u8 catchChance = 0;  // +0x91 near enough, a catch roll of 0..9 below it catches the enemy
     std::array<u8, 9> resistances = {};  // +0x92 tag 0x7D0: per element
-    u8 unk9B = 0;                        // +0x9B tag 0x1C, 0x7D0
+    u8 altar = 0;                        // +0x9B tag 0x1C, 0x7D0 the altar it belongs to
     u8 unk9C = 0;                        // +0x9C tag 0x1D, 0x7D0
     std::array<u8, 3> unk9D = {};        // +0x9D
 };
@@ -236,34 +236,34 @@ enum class SkillOpcode : u16
 // The tags of an object script of mon.dat (Database::LoadObject); 5 ends the script.
 enum class ObjectTag : u16
 {
-    Unk50Block = 1,  // 0x4D bytes from unk50
+    ActBlock = 1,  // 0x4D bytes from act
     End = 5,
-    Unk40 = 6,
-    Unk24 = 7,
-    Unk26 = 8,
-    Unk2C = 9,
-    Unk32 = 0xA,
+    CostBits = 6,
+    AttackBonusUp = 7,
+    DefenseBonusUp = 8,
+    AgilityUp = 9,
+    EvasionUp = 0xA,
     Price = 0xB,
     Unk42 = 0xC,
-    Unk44 = 0xD,
-    Unk50 = 0xE,
-    Unk28 = 0xF,
-    Unk2A = 0x10,
-    Unk2E = 0x11,
-    Unk30 = 0x12,
-    Unk34 = 0x13,
-    Unk36 = 0x14,
-    Unk38 = 0x15,
+    CounterMax = 0xD,
+    Act = 0xE,
+    AttackUp = 0xF,
+    DefenseUp = 0x10,
+    WisdomUp = 0x11,
+    RapportUp = 0x12,
+    HitPointsUp = 0x13,
+    SpiritUp = 0x14,
+    StaminaUp = 0x15,
     Unk48 = 0x16,
     Kind = 0x19,
     UsableBy = 0x1A,
-    Unk3C = 0x1B,
-    Unk9B = 0x1C,
+    UseKind = 0x1B,
+    Altar = 0x1C,
     Unk9C = 0x1D,
     Description = 0x1E,
-    Unk3E = 0x64,
+    SkillScript = 0x64,
     Name = 0x3E8,
-    Resistances = 0x7D0,  // the resistances, unk9B, unk9C, the level and unk52
+    Resistances = 0x7D0,  // the resistances, altar, unk9C, the level and category
 };
 
 }  // namespace swd3

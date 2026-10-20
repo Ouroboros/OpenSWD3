@@ -1320,10 +1320,10 @@ void Menu::EquipDraw()
 
                 if (node->id != ItemNode::Empty)
                 {
-                    if (node->record.data.unk50 != 0)
+                    if (node->record.data.act != 0)
                     {
                         this->gauge.action = kPictureAction;
-                        this->gauge.id = node->record.data.unk50;
+                        this->gauge.id = node->record.data.act;
                         this->gauge.direction = 0;
                     }
 

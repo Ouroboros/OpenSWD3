@@ -38,10 +38,10 @@ constexpr int kShownTabs = 3;
 constexpr int kBaseTabs = 3;
 constexpr int kFirstExtraTabFlag = 0x15;  // two flags a role add the fourth and fifth tab
 constexpr int kTabFlagsPerRole = 2;
-// swd32.exe 0x00499CDC: the skill kind (ObjectData::unk52) of each tab; kind 0 shows on every tab.
+// swd32.exe 0x00499CDC: the skill kind (ObjectData::category) of each tab; kind 0 shows on every tab.
 constexpr std::array<u16, 5> kTabKinds = {0x1C, 0x1B, 0x1F, 0x1D, 0x1E};
 constexpr u16 kRoleMask = 3;
-constexpr u16 kSpiritCost = 0x8000;  // ObjectData::unk40: the cost in spirit (bit 15) or stamina (bit 14)
+constexpr u16 kSpiritCost = 0x8000;  // ObjectData::costBits: the cost in spirit (bit 15) or stamina (bit 14)
 constexpr u16 kSpiritMask = 0x7FFF;
 constexpr u16 kStaminaCost = 0x4000;
 constexpr u16 kStaminaMask = 0x3FFF;
@@ -387,7 +387,7 @@ void Menu::SkillsTake(ItemLink& source, int tab)
 
     while (*link != nullptr)
     {
-        const u16 skillKind = (*link)->record.data.unk52;
+        const u16 skillKind = (*link)->record.data.category;
 
         if (skillKind != kind && skillKind != 0)
         {
@@ -884,7 +884,7 @@ void Menu::SkillsSelect()
             const ObjectData& data = chosen->record.data;
 
             if (static_cast<i16>(role.condition) < 0 || (data.usableBy & kUseMask) < kFieldUse ||
-                !CanPay(role, data.unk40))
+                !CanPay(role, data.costBits))
             {
                 refuse();
                 return;
@@ -903,7 +903,7 @@ void Menu::SkillsSelect()
                 }
 
                 const std::vector<u8>& maps = owner.databases.mapsData;
-                role.spirit = static_cast<i16>(role.spirit - (data.unk40 & kSpiritMask));
+                role.spirit = static_cast<i16>(role.spirit - (data.costBits & kSpiritMask));
                 this->Warp(
                     TableWord(maps, warp),
                     TableWord(maps, warp + sizeof(u16)),
@@ -934,7 +934,7 @@ void Menu::SkillsSelect()
 
             page.skill = SkillScript{};
 
-            if (!owner.database.LoadSkill(page.skill, data.unk3E))
+            if (!owner.database.LoadSkill(page.skill, data.skillScript))
             {
                 return;
             }
@@ -946,7 +946,7 @@ void Menu::SkillsSelect()
                 return;
             }
 
-            PayCost(role, data.unk40);
+            PayCost(role, data.costBits);
             owner.audio.PlaySound(kUsedSound, owner.config.soundVolume);
 
             for (int member = 0; member < Party::Roles; ++member)
@@ -969,7 +969,7 @@ void Menu::SkillsSelect()
                 return;
             }
 
-            if (!PayCost(role, chosen->record.data.unk40))
+            if (!PayCost(role, chosen->record.data.costBits))
             {
                 refuse();
                 return;
@@ -997,7 +997,7 @@ void Menu::SkillsSelect()
         {
             const ItemNode* chosen = ItemAfter(page.top + page.row, page.list);
             role.spirit =
-                static_cast<i16>(role.spirit - ((chosen != nullptr ? chosen->record.data.unk40 : 0) & kSpiritMask));
+                static_cast<i16>(role.spirit - ((chosen != nullptr ? chosen->record.data.costBits : 0) & kSpiritMask));
             const std::size_t index = static_cast<std::size_t>(this->townTop + this->townRow);
 
             if (index < this->towns.size())
@@ -1448,7 +1448,7 @@ void Menu::SkillsDraw()
 
             if (page.tab <= 1)
             {
-                const u16 cost = node->record.data.unk40;
+                const u16 cost = node->record.data.costBits;
                 std::string text;
 
                 if ((cost & kSpiritCost) != 0)
@@ -1481,7 +1481,7 @@ void Menu::SkillsDraw()
             if (page.tab <= 1 && node->id != ItemNode::Empty)
             {
                 SkillScript skill;
-                owner.database.LoadSkill(skill, node->record.data.unk3E);
+                owner.database.LoadSkill(skill, node->record.data.skillScript);
                 const auto element = static_cast<std::size_t>(static_cast<u16>(skill.unk10));
                 const int picture = element < kElementPictures.size() ? kElementPictures[element] - 1 : -1;
 

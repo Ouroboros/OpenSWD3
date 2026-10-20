@@ -1714,9 +1714,9 @@ void Game::DrawShopChosen(const ItemNode& item, Pixel color)
     {
         this->DrawEquipmentCompare();
 
-        if (item.record.data.unk50 != 0)
+        if (item.record.data.act != 0)
         {
-            menu.gauge.id = item.record.data.unk50;
+            menu.gauge.id = item.record.data.act;
             menu.gauge.action = kPictureAction;
             menu.gauge.direction = 0;
             this->actDrawer.Draw(menu.gauge, kPictureX, kPictureY);
