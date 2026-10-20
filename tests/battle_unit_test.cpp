@@ -780,7 +780,7 @@ TEST_CASE("battle state: the acting unit is drawn right after its target")
     CHECK_EQ(state.drawOrder[1], static_cast<swd3::i32>(kTargetEnemy));
     CHECK_EQ(state.drawOrder[2], static_cast<swd3::i32>(kActingRole));
     CHECK_EQ(state.drawOrder[3], static_cast<swd3::i32>(kOtherRole));
-    CHECK_EQ(state.unk53C040, 1);
+    CHECK_EQ(state.orderSorted, 1);
     CHECK(
         std::all_of(
             state.drawTaken.begin(),
@@ -844,16 +844,16 @@ TEST_CASE("battle state: the initial turn and push values match swd32.exe")
     }
 
     const swd3::BattleState state;
-    CHECK(swd3test::SameTable(exe, kTurnEnemyAt, std::array<swd3::i32, 1>{state.unk4A754C}));
+    CHECK(swd3test::SameTable(exe, kTurnEnemyAt, std::array<swd3::i32, 1>{state.aimTarget}));
     CHECK(swd3test::SameTable(exe, kAimedEnemyAt, std::array<swd3::u16, 1>{state.unk4A7626}));
     CHECK(
         swd3test::SameTable(
             exe,
             kLastHitsAt,
-            std::array<swd3::u16, 3>{state.unk4A7620, state.unk4A7622, state.unk4A7624}
+            std::array<swd3::u16, 3>{state.lastRoleHit, state.lastEnemyHit, state.lastRoleDefeated}
         )
     );
-    CHECK(swd3test::SameTable(exe, kAutoAimAt, std::array<swd3::i32, 1>{state.unk4A7554}));
+    CHECK(swd3test::SameTable(exe, kAutoAimAt, std::array<swd3::i32, 1>{state.aiTarget}));
     CHECK(
         swd3test::SameTable(
             exe,
@@ -870,14 +870,14 @@ TEST_CASE("battle state: the initial turn and push values match swd32.exe")
     );
     CHECK(swd3test::SameTable(exe, kPanelsArgumentAt, std::array<swd3::u16, 1>{state.unk4A7628}));
     CHECK(swd3test::SameTable(exe, kEndFlagAt, std::array<swd3::i32, 1>{state.unk4A763C}));
-    CHECK(swd3test::SameTable(exe, kPushAt, std::array<swd3::i16, 1>{state.unk4A7638}));
+    CHECK(swd3test::SameTable(exe, kPushAt, std::array<swd3::i16, 1>{state.hitPush}));
     CHECK(swd3test::SameTable(exe, kTurnPointerAt, std::array<swd3::i32, 1>{state.unk4A7640}));
-    CHECK(swd3test::SameTable(exe, kTurnStepAt, std::array<swd3::i32, 1>{state.unk4A7550}));
+    CHECK(swd3test::SameTable(exe, kTurnStepAt, std::array<swd3::i32, 1>{state.orderStep}));
     CHECK(swd3test::SameTable(exe, kListMarksAt, std::array<swd3::i32, 2>{state.unk4A7558, state.unk4A755C}));
     CHECK(swd3test::SameTable(exe, kListRoleAt, std::array<swd3::i32, 1>{state.unk4A7570}));
     CHECK(swd3test::SameTable(exe, kRoleCycleAt, swd3::BattleState::RoleCycle));
-    CHECK(swd3test::SameTable(exe, kAutoEnemyAt, std::array<swd3::i32, 1>{state.unk4A7564}));
-    CHECK(swd3test::SameTable(exe, kMenuCommandAt, std::array<swd3::i32, 1>{state.unk4A7548}));
+    CHECK(swd3test::SameTable(exe, kAutoEnemyAt, std::array<swd3::i32, 1>{state.autoTarget}));
+    CHECK(swd3test::SameTable(exe, kMenuCommandAt, std::array<swd3::i32, 1>{state.menuCommand}));
     CHECK(swd3test::SameTable(exe, kMasteryRoleAt, std::array<swd3::u8, 1>{state.unk4A7646}));
     CHECK(
         swd3test::SameTable(
@@ -885,16 +885,16 @@ TEST_CASE("battle state: the initial turn and push values match swd32.exe")
             kListMarkAt,
             std::array<swd3::i32, 5>{
                 state.unk4A7560,
-                state.unk4A7564,
+                state.autoTarget,
                 state.unk4A7568,
                 state.unk4A756C,
                 state.unk4A7570
             }
         )
     );
-    CHECK(swd3test::SameTable(exe, kTalkRolesAt, std::array<swd3::u16, 2>{state.unk4A762C, state.unk4A762E}));
-    CHECK(swd3test::SameTable(exe, kFrameMillisecondsAt, std::array<swd3::i32, 1>{state.unk4A75E8}));
-    CHECK(swd3test::SameTable(exe, kHoverTabsAt, std::array<swd3::i32, 2>{state.unk4A7578, state.unk4A757C}));
+    CHECK(swd3test::SameTable(exe, kTalkRolesAt, std::array<swd3::u16, 2>{state.unk4A762C, state.talkRole}));
+    CHECK(swd3test::SameTable(exe, kFrameMillisecondsAt, std::array<swd3::i32, 1>{state.frameMilliseconds}));
+    CHECK(swd3test::SameTable(exe, kHoverTabsAt, std::array<swd3::i32, 2>{state.hoverPageTab, state.hoverRoleTab}));
 }
 
 TEST_CASE("battle unit: element orbs gain proficiency from hits of an element")
@@ -1103,7 +1103,7 @@ TEST_CASE("battle state: the panel units match swd32.exe")
 
     const swd3::BattleState state;
     CHECK(swd3test::SameTable(exe, kPanelUnitsAt, swd3::BattleState::PanelUnits));
-    CHECK(swd3test::SameTable(exe, kPanelRoleAt, std::array<swd3::u16, 1>{state.unk4A7644}));
+    CHECK(swd3test::SameTable(exe, kPanelRoleAt, std::array<swd3::u16, 1>{state.anyStateRole}));
 }
 
 TEST_CASE("battle state: the names of the accessory commands match swd32.exe")

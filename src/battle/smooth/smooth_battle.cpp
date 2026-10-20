@@ -273,7 +273,7 @@ void BattleFrame::DrawBattleBackgroundAdvance(int shake, Scene& scene)
     painter.SetClipClamped(0, 0, Display::Width, Display::Height);
     i16 level = battle.darkLevel;
 
-    if (battle.unk4A7630 == battle.unk53AE70 && (battle.unk53BF94 == 1 || battle.unk53BF98 == 1))
+    if (battle.darkenUnit == battle.unk53AE70 && (battle.unk53BF94 == 1 || battle.unk53BF98 == 1))
     {
         if (battle.darkenByTint != 0)
         {
@@ -317,7 +317,7 @@ void BattleFrame::DrawBattleBackgroundAdvance(int shake, Scene& scene)
         battle.darkFrames = frames + 1;
     }
 
-    if (battle.unk53BFEC != 1 || battle.unk53C030 != 0)
+    if (battle.undarkening != 1 || battle.unk53C030 != 0)
     {
         return;
     }
@@ -328,18 +328,18 @@ void BattleFrame::DrawBattleBackgroundAdvance(int shake, Scene& scene)
         battle.darkGreen = 0;
         battle.darkBlue = 0;
         battle.darkLevel = 0;
-        battle.unk4A7630 = -1;
+        battle.darkenUnit = -1;
         battle.unk53BF98 = 0;
         battle.unk53BF94 = 0;
         battle.darkenByTint = 0;
-        battle.unk53BFEC = 0;
+        battle.undarkening = 0;
         return;
     }
 
     --level;
     battle.darkLevel = level;
 
-    if (battle.unk4A7574 != -1 && battle.darkenByTint == 0)
+    if (battle.darkenedAt != -1 && battle.darkenByTint == 0)
     {
         // Level 0 reads the null pointer before the copies (0x005244C0): the blit fails and nothing is drawn.
         if (level >= 1)

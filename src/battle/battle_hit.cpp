@@ -69,8 +69,8 @@ constexpr u16 kNoAimedEnemy = 0xFFFF;
 
 }  // namespace
 
-// swd32.exe 0x004599B0: one frame of act `act` on `unit` (unit `index`, its hit act unk5202A8); 1 once the act waits
-// (cleared) or ends (the follow act unk4FE600 cleared instead). A quaking act quakes the screen. The picture is read
+// swd32.exe 0x004599B0: one frame of act `act` on `unit` (unit `index`, its hit act hitActs); 1 once the act waits
+// (cleared) or ends (the follow act followActs cleared instead). A quaking act quakes the screen. The picture is read
 // straight from its file each frame, mirrored with the sides, at the unit's offset from its origin (or its draw
 // place), with the act's sound panned by the side.
 int Game::PlayHitAct(BattleUnit& unit, u32 act, int index)
@@ -82,7 +82,7 @@ int Game::PlayHitAct(BattleUnit& unit, u32 act, int index)
 }
 
 // swd32.exe 0x00459BF0: one frame of act `act` (action `action`) fading on `unit` (unit `index`, its act
-// unk524980): 1 at once without an act, or once the fade (unk521374, darker by kHitFadeStep a frame) is past
+// fadeActs): 1 at once without an act, or once the fade (fadeActLevels, darker by kHitFadeStep a frame) is past
 // kHitFadeEnd (reset to 0); 0 when the act ends.
 int Game::FadeHitAct(BattleUnit& unit, u32 act, i32 action, int index)
 {
@@ -93,11 +93,11 @@ int Game::FadeHitAct(BattleUnit& unit, u32 act, i32 action, int index)
 }
 
 // swd32.exe 0x0045D810: the point unit `index` reaches walking the line from (fromX, fromY) to (toX, toY), `speed`
-// steps more each call (unk4FDF94 counts the calls); 1 once it reaches toX (the count reset).
+// steps more each call (walkLineCalls counts the calls); 1 once it reaches toX (the count reset).
 int Game::WalkLine(i32& x, i32& y, int fromX, int fromY, int toX, int toY, int speed, int index)
 {
     BattleState& battle = this->battleState;
-    u16& calls = battle.unk4FDF94[static_cast<std::size_t>(index)];
+    u16& calls = battle.walkLineCalls[static_cast<std::size_t>(index)];
     LineWalker walker;
     walker.fromX = fromX;
     walker.fromY = fromY;
@@ -131,21 +131,21 @@ int Game::WalkLine(i32& x, i32& y, int fromX, int fromY, int toX, int toY, int s
 }
 
 // swd32.exe 0x0045BD90: the push of a hit across the field, every unit moved by `shake` (the background too): while
-// the push (unk4A7638) lasts it halves each call, the half added to the pushed distance (unk4FDF78) and moved away
+// the push (hitPush) lasts it halves each call, the half added to the pushed distance (unk4FDF78) and moved away
 // from the side (left unless mirrored); 0 while the units move. Once it is spent and the hit act is past picture
-// unk53AE7A, the units slide back by up to kSlideStep a call and the field darkens by tint steps; 1 then (`restart`
-// 1 sets the push again).
+// slideBackPicture, the units slide back by up to kSlideStep a call and the field darkens by tint steps; 1 then
+// (`restart` 1 sets the push again).
 int Game::PushUnits(u16 picture, int restart)
 {
     BattleState& battle = this->battleState;
-    ++battle.unk53BDE8;
+    ++battle.pushFrames;
 
-    if (battle.unk4A7638 > 0)
+    if (battle.hitPush > 0)
     {
-        battle.unk53BDE8 = 0;
-        const auto half = static_cast<i16>(battle.unk4A7638 / 2);
+        battle.pushFrames = 0;
+        const auto half = static_cast<i16>(battle.hitPush / 2);
         battle.unk4FDF78 = static_cast<u16>(battle.unk4FDF78 + half);
-        battle.unk4A7638 = half;
+        battle.hitPush = half;
         battle.shake = battle.mirrored != 0 ? half : -half;
     }
 
@@ -155,7 +155,7 @@ int Game::PushUnits(u16 picture, int restart)
         return 0;
     }
 
-    if (static_cast<int>(picture) > battle.unk53AE7A)
+    if (static_cast<int>(picture) > battle.slideBackPicture)
     {
         const auto pushed = static_cast<i16>(battle.unk4FDF78);
 
@@ -172,7 +172,7 @@ int Game::PushUnits(u16 picture, int restart)
 
     if (restart == 1)
     {
-        battle.unk4A7638 = kPushStart;
+        battle.hitPush = kPushStart;
     }
 
     return 1;
@@ -204,7 +204,7 @@ void Game::ShiftUnits(int shift)
 
 // swd32.exe 0x0045E7D0: the frame shown shaken by the quake step of quakePhase (QuakeSteps): odd steps move it down,
 // even ones up, the band left uncovered black (the frame's top rows are cleared for it); the original blits to the
-// primary surface instead of the plain copy. Every unk53BD68 frames (counted in glowFrames, shared with the panel
+// primary surface instead of the plain copy. Every quakeStepFrames frames (counted in glowFrames, shared with the panel
 // glow) the phase steps on (between 0 and 1 for UnkPanel100); after 10 the quake ends.
 void Game::QuakeFrame()
 {
@@ -240,7 +240,7 @@ void Game::QuakeFrame()
     copyRows(0, down ? 0 : Display::Height - step, step);
     this->graphics.Present();
 
-    if (++battle.glowFrames > battle.unk53BD68)
+    if (++battle.glowFrames > battle.quakeStepFrames)
     {
         battle.glowFrames = 0;
 
@@ -262,8 +262,8 @@ void Game::QuakeFrame()
 }
 
 // swd32.exe 0x004582B0: one frame of the hit act `act` of `attacker` on `target` (unit slot `index`, its hit act
-// unk5202A8 and follow act unk4FE600); 1 once the hit act waits with no fade or follow act left (the follow act and
-// the ripple frames cleared), 1 too when an act ends. In the ripple battle (unk53C03C) a ripple runs instead: walking
+// hitActs and follow act followActs); 1 once the hit act waits with no fade or follow act left (the follow act and
+// the ripple frames cleared), 1 too when an act ends. In the ripple battle (rippleHits) a ripple runs instead: walking
 // from the attacker to the target (then held for kRippleHold frames) for a moving attack, splashes over the target
 // otherwise. Else the picture is read straight from its file and drawn, walking from the attacker to the target for a
 // moving attack. The follow act plays its effects over it. The target bits: Recoils starts the follow act, Quakes
@@ -307,7 +307,7 @@ void Game::TakeHitBits(BattleUnit& target, BattleUnit& attacker, int index)
     BattleState& battle = this->battleState;
     BattleMessages& messages = this->battleMessages;
     const auto at = static_cast<std::size_t>(index);
-    ActState& hit = battle.unk5202A8[at];
+    ActState& hit = battle.hitActs[at];
 
     if ((hit.target & ActState::Recoils) != 0)
     {
@@ -411,18 +411,18 @@ void Game::TakeHitBits(BattleUnit& target, BattleUnit& attacker, int index)
         target.StepTargetCount(1);
     }
 
-    battle.unk5241B4[at] = battle.spiritDamage;
+    battle.lastSpiritDamage[at] = battle.spiritDamage;
     battle.unk5242B0[at] += battle.lastDamage;
-    battle.unk524220[at] = battle.staminaDamage;
+    battle.lastStaminaDamage[at] = battle.staminaDamage;
     battle.hitDamage = battle.unk5242B0[at];
-    battle.unk52411C[at] = 0;
+    battle.hitFading[at] = 0;
     hit.target = 0;
 }
 
 // swd32.exe 0x00458DE0: one frame of the hit act `act` of `attacker` on `target` or, with `all` 1, on its whole side
 // (unit slot `index`); 1 once the hit act waits with no follow act left (the follow act cleared), 0 when an act ends.
-// The picture is read straight from its file (counting unk4FE5C8), placed at the attacker's offset from its origin less
-// the act's anchor, or on a fixed place by the side (kAllHitLeftX, kAllHitRightX, kAllHitY: an enemy attacker
+// The picture is read straight from its file (counting hitAllFrames), placed at the attacker's offset from its origin
+// less the act's anchor, or on a fixed place by the side (kAllHitLeftX, kAllHitRightX, kAllHitY: an enemy attacker
 // unmirrored keeps y 0), walking along y 0 for a moving attack. The follow act clears the hit act's sound instead of
 // its own (kept). The target bits work as in HitTargetFrame, on every unit of the side with `all`: the roles hit by
 // a role while unk53BF64 and unk53AE7C take the damage at once (Damage), as do all roles while unk53BF68; the spirit
@@ -442,7 +442,7 @@ int Game::HitAllFrame(BattleUnit& target, BattleUnit& attacker, u32 act, int ind
 void Game::PlaceAllHit(BattleUnit& attacker, int width, int index, u16& delay)
 {
     BattleState& battle = this->battleState;
-    ActState& hit = battle.unk5202A8[static_cast<std::size_t>(index)];
+    ActState& hit = battle.hitActs[static_cast<std::size_t>(index)];
     u16 offsetX = 0;
     u16 offsetY = 0;
     u16 x = 0;
@@ -520,8 +520,8 @@ void Game::PlaceAllHit(BattleUnit& attacker, int width, int index, u16& delay)
         }
     }
 
-    battle.unk53BDE0 = static_cast<i16>(x);
-    battle.unk53BDE4 = static_cast<i16>(y);
+    battle.hitPictureX = static_cast<i16>(x);
+    battle.hitPictureY = static_cast<i16>(y);
 
     if (attacker.CommandTarget(delay) != 1)
     {
@@ -539,8 +539,8 @@ void Game::PlaceAllHit(BattleUnit& attacker, int width, int index, u16& delay)
     }
 
     if (this->WalkLine(
-            battle.unk53BDE0,
-            battle.unk53BDE4,
+            battle.hitPictureX,
+            battle.hitPictureY,
             static_cast<i16>(fromX),
             0,
             static_cast<i16>(x),
@@ -671,7 +671,7 @@ void Game::ShowAllHitDigits(BattleUnit& unit, i16 damage, u16& delay, i32& spiri
 void Game::StrikeAllHit(BattleUnit& target, BattleUnit& attacker, int index, int all, u16& delay)
 {
     BattleState& battle = this->battleState;
-    ActState& hit = battle.unk5202A8[static_cast<std::size_t>(index)];
+    ActState& hit = battle.hitActs[static_cast<std::size_t>(index)];
     i32 spirit = 0;
     i32 stamina = 0;
 
@@ -728,9 +728,9 @@ void Game::StrikeAllHit(BattleUnit& target, BattleUnit& attacker, int index, int
             delay = 0;
             this->ShowAllHitDigits(role, damage, delay, spirit, stamina);
             battle.unk5242B0[slot] += battle.lastDamage;
-            battle.unk5241B4[slot] = spirit;
+            battle.lastSpiritDamage[slot] = spirit;
             battle.hitDamage = battle.unk5242B0[slot];
-            battle.unk524220[slot] = stamina;
+            battle.lastStaminaDamage[slot] = stamina;
 
             if (battle.unk53BF64 == 1 && battle.unk53AE7C == 1)
             {
@@ -763,8 +763,8 @@ void Game::StrikeAllHit(BattleUnit& target, BattleUnit& attacker, int index, int
         const i16 damage = attacker.HitDamage(this->battleServices, enemy, battle.spiritDamage, battle.staminaDamage);
         this->ShowAllHitDigits(enemy, damage, delay, spirit, stamina);
         battle.unk5242B0[slot] += battle.lastDamage;
-        battle.unk5241B4[slot] = spirit;
-        battle.unk524220[slot] = stamina;
+        battle.lastSpiritDamage[slot] = spirit;
+        battle.lastStaminaDamage[slot] = stamina;
         battle.hitDamage = battle.unk5242B0[slot];
     }
 }
@@ -813,24 +813,24 @@ void Game::ClearHitTotals()
 {
     BattleState& battle = this->battleState;
     battle.unk5242B0.fill(0);
-    battle.unk5241B4.fill(0);
-    battle.unk524220.fill(0);
+    battle.lastSpiritDamage.fill(0);
+    battle.lastStaminaDamage.fill(0);
 }
 
 // One step of a sweep (inline in 0x0045C010): while fewer than `units` are swept (unk4A75FC), every
-// unk53BDEC frames one more is.
+// sweepGap frames one more is.
 void Game::StepSweep(u32 units)
 {
     BattleState& battle = this->battleState;
 
     if (battle.unk4A75FC < units)
     {
-        ++battle.unk53BDE8;
+        ++battle.pushFrames;
 
-        if (battle.unk53BDE8 >= battle.unk53BDEC)
+        if (battle.pushFrames >= battle.sweepGap)
         {
             ++battle.unk4A75FC;
-            battle.unk53BDE8 = 0;
+            battle.pushFrames = 0;
         }
     }
 }
@@ -883,14 +883,14 @@ int Game::RoleHitFrame(int role)
                     }
 
                     battle.unk524420[index] = static_cast<i32>(index);
-                    battle.unk53BFA8 = 1;
-                    battle.unk53BF7C = 1;
+                    battle.hitLanded = 1;
+                    battle.sweepHit = 1;
 
                     if (battle.unk53AF68 == 0 && enemy.Damage(
                                                      this->battleServices,
                                                      battle.unk5242B0[index],
-                                                     static_cast<i16>(battle.unk5241B4[index]),
-                                                     static_cast<i16>(battle.unk524220[index])
+                                                     static_cast<i16>(battle.lastSpiritDamage[index]),
+                                                     static_cast<i16>(battle.lastStaminaDamage[index])
                                                  ) == 1)
                     {
                         ++battle.unk53BD88;
@@ -903,14 +903,14 @@ int Game::RoleHitFrame(int role)
                     this->ClearHitDamage();
                     ++battle.unk53BD80;
                     battle.unk5242B0[index] = 0;
-                    battle.unk5241B4[index] = 0;
-                    battle.unk524220[index] = 0;
+                    battle.lastSpiritDamage[index] = 0;
+                    battle.lastStaminaDamage[index] = 0;
                 }
             }
 
             this->ClearHitDamage();
             battle.unk53BD80 = 0;
-            battle.unk5202A8.fill(ActState{});
+            battle.hitActs.fill(ActState{});
             this->ClearHitTotals();
             return 1;
         }
@@ -922,7 +922,7 @@ int Game::RoleHitFrame(int role)
 
         battle.unk53BD80 = 0;
         battle.unk4A75FC = 1;
-        battle.unk5202A8.fill(ActState{});
+        battle.hitActs.fill(ActState{});
         this->ClearHitTotals();
         return 1;
     }
@@ -939,8 +939,8 @@ int Game::RoleHitFrame(int role)
             }
 
             battle.unk4FDF7C = attacker.GetWord29A2();
-            battle.unk4A7622 = static_cast<u16>(target);
-            battle.unk53BFA8 = 1;
+            battle.lastEnemyHit = static_cast<u16>(target);
+            battle.hitLanded = 1;
             battle.unk524420[at] = target;
 
             if (battle.unk53AF68 == 0 &&
@@ -966,7 +966,7 @@ int Game::RoleHitFrame(int role)
         }
 
         this->ClearHitDamage();
-        battle.unk5202A8.fill(ActState{});
+        battle.hitActs.fill(ActState{});
         return 1;
     }
 
@@ -980,8 +980,8 @@ int Game::RoleHitFrame(int role)
         }
 
         battle.unk4FDF7C = attacker.GetWord29A2();
-        battle.unk4A7622 = static_cast<u16>(target);
-        battle.unk53BFA8 = 1;
+        battle.lastEnemyHit = static_cast<u16>(target);
+        battle.hitLanded = 1;
         battle.unk524420[at] = target;
         this->ApplyDrain(attacker, enemy);
 
@@ -995,7 +995,7 @@ int Game::RoleHitFrame(int role)
         }
 
         this->ClearHitDamage();
-        battle.unk5202A8.fill(ActState{});
+        battle.hitActs.fill(ActState{});
         return 1;
     }
 
@@ -1007,17 +1007,17 @@ int Game::RoleHitFrame(int role)
     }
 
     battle.unk4FDF7C = attacker.GetWord29A2();
-    battle.unk4A7620 = static_cast<u16>(target);
+    battle.lastRoleHit = static_cast<u16>(target);
 
     if (battle.unk53AF68 == 0 &&
         aimed.Damage(this->battleServices, battle.unk5242B0[0], battle.spiritDamage, battle.staminaDamage) == 1)
     {
-        battle.unk4A7624 = static_cast<u16>(target);
+        battle.lastRoleDefeated = static_cast<u16>(target);
         this->FlashFrameWhite();
     }
 
     battle.unk5242B0[0] = 0;
-    battle.unk5202A8.fill(ActState{});
+    battle.hitActs.fill(ActState{});
     this->ClearHitDamage();
     return 1;
 }
@@ -1032,14 +1032,14 @@ bool Game::SweepFromRole(BattleRole& attacker, i16 target, u32 act)
     auto hitOne = [this, &battle](BattleUnit& unit, std::size_t slot, bool enemy, i16 aimed)
     {
         battle.unk524420[slot] = static_cast<i32>(slot);
-        battle.unk53BFA8 = 1;
-        battle.unk53BF7C = 1;
+        battle.hitLanded = 1;
+        battle.sweepHit = 1;
 
         if (battle.unk53AF68 == 0 && unit.Damage(
                                          this->battleServices,
                                          battle.unk5242B0[slot],
-                                         static_cast<i16>(battle.unk5241B4[slot]),
-                                         static_cast<i16>(battle.unk524220[slot])
+                                         static_cast<i16>(battle.lastSpiritDamage[slot]),
+                                         static_cast<i16>(battle.lastStaminaDamage[slot])
                                      ) == 1)
         {
             ++battle.unk53BD88;
@@ -1076,7 +1076,7 @@ bool Game::SweepFromRole(BattleRole& attacker, i16 target, u32 act)
                     }
                 }
 
-                battle.unk53BDE8 = 0;
+                battle.pushFrames = 0;
                 continue;
             }
 
@@ -1108,11 +1108,11 @@ bool Game::SweepFromRole(BattleRole& attacker, i16 target, u32 act)
     return false;
 }
 
-// An enemy attacking in HitFrame (inline in the original): its act is unk53BD40. Without unk53BF84 one target is
-// hit: a role (unk53BFF4 1: HitAllFrame on it alone) steps its orb counters by the enemy's command, takes the drain
-// and its DrainShare as spirit, a held aimed role ends the menu; an enemy (unk53AE80) takes the hit. With unk53BF84
-// the hit sweeps: unk53BFF4 1 all roles at once, otherwise the enemies (unk53AE80) or the roles the sweep has reached,
-// until unk53BD7C are hit (counting the defeats in unk53BD84).
+// An enemy attacking in HitFrame (inline in the original): its act is enemyHitAct. Without enemySweeps one target is
+// hit: a role (enemyHitsAll 1: HitAllFrame on it alone) steps its orb counters by the enemy's command, takes the drain
+// and its DrainShare as spirit, a held aimed role ends the menu; an enemy (unk53AE80) takes the hit. With enemySweeps
+// the hit sweeps: enemyHitsAll 1 all roles at once, otherwise the enemies (unk53AE80) or the roles the sweep has
+// reached, until sweepTargets are hit (counting the defeats in sweepDefeated).
 int Game::EnemyHitFrame(int enemy)
 {
     BattleState& battle = this->battleState;
@@ -1120,11 +1120,11 @@ int Game::EnemyHitFrame(int enemy)
     CounterList& proficiency = this->party.fame.lists[Fame::ProficiencyList];
     const auto target = static_cast<i16>(attacker.GetWord29A2());
     const auto at = static_cast<std::size_t>(target);
-    const u32 act = static_cast<u32>(battle.unk53BD40);
+    const u32 act = static_cast<u32>(battle.enemyHitAct);
 
-    if (battle.unk53BF84 == 0)
+    if (battle.enemySweeps == 0)
     {
-        if (battle.unk53BFF4 == 1)
+        if (battle.enemyHitsAll == 1)
         {
             BattleRole& role = this->battleRoles[at];
 
@@ -1136,13 +1136,13 @@ int Game::EnemyHitFrame(int enemy)
 
             role.StepOrbCounters(proficiency, attacker.command);
             battle.unk4FDF7C = attacker.GetWord29A2();
-            battle.unk4A7620 = static_cast<u16>(target);
-            battle.unk53BFA8 = 1;
+            battle.lastRoleHit = static_cast<u16>(target);
+            battle.hitLanded = 1;
 
             if (battle.unk53AF68 == 0 && role.Damage(this->battleServices, battle.hitDamage, 0, 0) == 1)
             {
                 battle.hitDamage = -1;
-                battle.unk4A7624 = static_cast<u16>(target);
+                battle.lastRoleDefeated = static_cast<u16>(target);
                 battle.flashing = 1;
                 this->FlashFrameWhite();
             }
@@ -1153,7 +1153,7 @@ int Game::EnemyHitFrame(int enemy)
             }
 
             this->ClearHitDamage();
-            battle.unk5202A8.fill(ActState{});
+            battle.hitActs.fill(ActState{});
             return 1;
         }
 
@@ -1167,8 +1167,8 @@ int Game::EnemyHitFrame(int enemy)
             }
 
             battle.unk4FDF7C = attacker.GetWord29A2();
-            battle.unk4A7622 = static_cast<u16>(target);
-            battle.unk53BFA8 = 1;
+            battle.lastEnemyHit = static_cast<u16>(target);
+            battle.hitLanded = 1;
 
             if (battle.unk53AF68 == 0 && aimed.Damage(this->battleServices, battle.unk5242B0[0], 0, 0) == 1)
             {
@@ -1178,7 +1178,7 @@ int Game::EnemyHitFrame(int enemy)
 
             this->ClearHitDamage();
             battle.unk5242B0[0] = 0;
-            battle.unk5202A8.fill(ActState{});
+            battle.hitActs.fill(ActState{});
             return 1;
         }
 
@@ -1191,14 +1191,14 @@ int Game::EnemyHitFrame(int enemy)
 
         role.StepOrbCounters(proficiency, attacker.command);
         battle.unk4FDF7C = attacker.GetWord29A2();
-        battle.unk4A7620 = static_cast<u16>(target);
-        battle.unk53BFA8 = 1;
+        battle.lastRoleHit = static_cast<u16>(target);
+        battle.hitLanded = 1;
 
         if (battle.unk53AF68 == 0 &&
             role.Damage(this->battleServices, battle.unk5242B0[0], battle.spiritDamage, battle.staminaDamage) == 1)
         {
             battle.flashing = 1;
-            battle.unk4A7624 = static_cast<u16>(target);
+            battle.lastRoleDefeated = static_cast<u16>(target);
             this->FlashFrameWhite();
         }
 
@@ -1212,7 +1212,7 @@ int Game::EnemyHitFrame(int enemy)
         this->DrainToSpirit(role, battle.unk5242B0[0]);
         this->ClearHitDamage();
         battle.unk5242B0[0] = 0;
-        battle.unk5202A8.fill(ActState{});
+        battle.hitActs.fill(ActState{});
         return 1;
     }
 
@@ -1223,17 +1223,17 @@ int Game::EnemyHitFrame(int enemy)
 
     battle.unk53BD80 = 0;
 
-    if (battle.unk53BFF4 != 1)
+    if (battle.enemyHitsAll != 1)
     {
         battle.unk4A75FC = 1;
     }
 
-    battle.unk5202A8.fill(ActState{});
+    battle.hitActs.fill(ActState{});
     battle.unk5242B0.fill(0);
     return 1;
 }
 
-// The sweep of an enemy's hit in EnemyHitFrame (inline in the original); see there. True once unk53BD7C are hit.
+// The sweep of an enemy's hit in EnemyHitFrame (inline in the original); see there. True once sweepTargets are hit.
 bool Game::SweepFromEnemy(BattleEnemy& attacker, i16 target, u32 act)
 {
     BattleState& battle = this->battleState;
@@ -1244,7 +1244,7 @@ bool Game::SweepFromEnemy(BattleEnemy& attacker, i16 target, u32 act)
         return !role.IsDefeated() && role.unk2B04 != 1 && role.unk2B00 != 1;
     };
 
-    if (battle.unk53BFF4 == 1)
+    if (battle.enemyHitsAll == 1)
     {
         if (this->HitAllFrame(this->battleRoles[static_cast<std::size_t>(target)], attacker, act, 0, 1) != 1)
         {
@@ -1269,8 +1269,8 @@ bool Game::SweepFromEnemy(BattleEnemy& attacker, i16 target, u32 act)
 
             this->ApplyDrain(attacker, role);
             battle.unk524420[slot] = static_cast<i32>(slot);
-            battle.unk53BFA8 = 1;
-            battle.unk53BF7C = 1;
+            battle.hitLanded = 1;
+            battle.sweepHit = 1;
 
             if (battle.unk53AF68 == 0 && role.Damage(this->battleServices, battle.unk5242B0[slot], 0, 0) == 1)
             {
@@ -1283,7 +1283,7 @@ bool Game::SweepFromEnemy(BattleEnemy& attacker, i16 target, u32 act)
             this->ClearHitDamage();
             battle.unk5242B0[slot] = 0;
 
-            if (++battle.unk53BD80 == battle.unk53BD7C)
+            if (++battle.unk53BD80 == battle.sweepTargets)
             {
                 return true;
             }
@@ -1295,12 +1295,12 @@ bool Game::SweepFromEnemy(BattleEnemy& attacker, i16 target, u32 act)
     auto counted = [this, &battle](BattleUnit& unit, std::size_t slot)
     {
         battle.unk524420[slot] = static_cast<i32>(slot);
-        battle.unk53BFA8 = 1;
-        battle.unk53BF7C = 1;
+        battle.hitLanded = 1;
+        battle.sweepHit = 1;
 
         if (battle.unk53AF68 == 0 && unit.Damage(this->battleServices, battle.unk5242B0[slot], 0, 0) == 1)
         {
-            ++battle.unk53BD84;
+            ++battle.sweepDefeated;
             battle.flashing = 1;
             this->FlashFrameWhite();
         }
@@ -1323,7 +1323,7 @@ bool Game::SweepFromEnemy(BattleEnemy& attacker, i16 target, u32 act)
             this->ClearHitDamage();
             battle.unk5242B0[slot] = 0;
 
-            if (++battle.unk53BD80 == battle.unk53BD7C)
+            if (++battle.unk53BD80 == battle.sweepTargets)
             {
                 return true;
             }
@@ -1349,7 +1349,7 @@ bool Game::SweepFromEnemy(BattleEnemy& attacker, i16 target, u32 act)
         this->ClearHitDamage();
         battle.unk5242B0[slot] = 0;
 
-        if (++battle.unk53BD80 == battle.unk53BD7C)
+        if (++battle.unk53BD80 == battle.sweepTargets)
         {
             return true;
         }
@@ -1384,14 +1384,14 @@ int Game::EnemyActionFrame(int enemy, int target)
             if ((battle.spellStage & BattleState::SpellCast) == 0)
             {
                 battle.spellStage = static_cast<u16>(battle.spellStage | BattleState::SpellCast);
-                battle.unk53BDEC = unit.GetWordDA6();
+                battle.sweepGap = unit.GetWordDA6();
                 battle.unk524420.fill(-1);
                 battle.unk4A75FC = 1;
                 battle.unk5242B0.fill(0);
 
                 if (unit.ActFlag13() == 1)
                 {
-                    battle.unk53C03C = 1;
+                    battle.rippleHits = 1;
                     this->battleRipple =
                         std::make_unique<ScriptObject>(Display::Width, Display::Height, 0, 0, kRippleGrid, kRippleGrid);
                 }
@@ -1404,20 +1404,20 @@ int Game::EnemyActionFrame(int enemy, int target)
 
             this->ClearHitDamage();
 
-            if (battle.unk53C03C == 1)
+            if (battle.rippleHits == 1)
             {
                 this->battleRipple.reset();
             }
 
-            battle.unk53C03C = 0;
-            battle.unk53BFEC = 1;
+            battle.rippleHits = 0;
+            battle.undarkening = 1;
             return 1;
 
         case kEnemyDrain:
         {
             BattleRole& role = this->battleRoles[at];
 
-            if (battle.unk53BDE8 == 0)
+            if (battle.pushFrames == 0)
             {
                 unit.StartDrainEffect(services, target, role);
                 role.StartDefeat(1);
@@ -1428,7 +1428,7 @@ int Game::EnemyActionFrame(int enemy, int target)
                 battle.darkBlue = kDrainDark;
                 battle.unk53BF94 = 1;
                 this->PrepareDarkenedCopies();
-                battle.unk53BDE8 = 1;
+                battle.pushFrames = 1;
                 battle.unk4A75FC = 1;
             }
 
@@ -1438,10 +1438,10 @@ int Game::EnemyActionFrame(int enemy, int target)
             }
 
             battle.unk4A75FC = 1;
-            battle.unk53BDE8 = 0;
+            battle.pushFrames = 0;
             battle.unk53BF94 = 0;
-            battle.unk4A7630 = -1;
-            battle.unk53BFEC = 1;
+            battle.darkenUnit = -1;
+            battle.undarkening = 1;
             return 1;
         }
 
@@ -1490,7 +1490,7 @@ int Game::EnemyActionFrame(int enemy, int target)
             unit.ClearStatus(BattleUnit::GuardingMark);
             unit.SetGuarding(0);
             unit.SetWord2A0A(kFadedWord);
-            battle.unk53BFE0 = 1;
+            battle.enemyFaded = 1;
             return 1;
 
         case kEnemyHide:
@@ -1502,7 +1502,7 @@ int Game::EnemyActionFrame(int enemy, int target)
             unit.SetGuarding(1);
             unit.SetStatus(BattleUnit::GuardingMark);
             unit.SetWord2A0A(kFadedWord);
-            battle.unk53BFE0 = 1;
+            battle.enemyFaded = 1;
 
             if (battle.unk53BF00 >= battle.enemyCount)
             {
@@ -1524,7 +1524,7 @@ int Game::EnemyActionFrame(int enemy, int target)
             unit.SetGuarding(1);
             unit.SetWord2A0A(kFadedWord);
             unit.StartDefeat(1);
-            battle.unk53BFE0 = 1;
+            battle.enemyFaded = 1;
             ++battle.unk53BF00;
 
             if (battle.unk53BF00 >= battle.enemyCount)
@@ -1541,7 +1541,7 @@ int Game::EnemyActionFrame(int enemy, int target)
                 battle.enemyCount = 1;
                 battle.unk53BF00 = 0;
                 battle.unk53BF28 = 0;
-                battle.unk53C040 = 0;
+                battle.orderSorted = 0;
                 this->MeasureUnits();
                 battle.SortDrawOrder();
                 battle.ListEnemyOrder();
@@ -1559,7 +1559,7 @@ int Game::EnemyActionFrame(int enemy, int target)
         case kEnemyReturn:
             if (unit.ReturnHome(services, this->battleRoles[at], -1, 0) == 1)
             {
-                battle.unk4A7630 = -1;
+                battle.darkenUnit = -1;
                 return 1;
             }
 
@@ -1582,21 +1582,21 @@ int Game::EnemyAttackAction(BattleEnemy& unit, int target)
 
         if (this->EnemyAttackFrame(unit, role) == 1)
         {
-            battle.unk53BFA8 = 1;
+            battle.hitLanded = 1;
             battle.unk53BFC0 = 0;
-            battle.unk4A7620 = static_cast<u16>(target);
+            battle.lastRoleHit = static_cast<u16>(target);
             this->ApplyDrain(unit, role);
 
             if (battle.unk53AF68 == 0 &&
                 role.Damage(this->battleServices, battle.hitDamage, battle.spiritDamage, battle.staminaDamage) == 1)
             {
-                battle.unk4A7624 = static_cast<u16>(target);
+                battle.lastRoleDefeated = static_cast<u16>(target);
                 battle.flashing = 1;
                 this->FlashFrameWhite();
             }
 
             this->ClearHitDamage();
-            battle.unk4A7630 = -1;
+            battle.darkenUnit = -1;
             unit.SetCommand(kAfterAttackCommand);
         }
 
@@ -1610,20 +1610,20 @@ int Game::EnemyAttackAction(BattleEnemy& unit, int target)
         return 0;
     }
 
-    battle.unk53BFA8 = 1;
-    battle.unk4A7620 = static_cast<u16>(target);
+    battle.hitLanded = 1;
+    battle.lastRoleHit = static_cast<u16>(target);
     battle.unk53BFC0 = 0;
 
     if (battle.unk53AF68 == 0 && aimed.Damage(this->battleServices, battle.hitDamage, 0, 0) == 1)
     {
         battle.unk502984[at] = target;
-        battle.unk4A7624 = static_cast<u16>(target);
+        battle.lastRoleDefeated = static_cast<u16>(target);
         battle.flashing = 1;
         this->FlashFrameWhite();
     }
 
     battle.hitDamage = 0;
-    battle.unk4A7630 = -1;
+    battle.darkenUnit = -1;
     return 1;
 }
 
@@ -1634,9 +1634,9 @@ int Game::CallEnemies(BattleEnemy& unit)
 {
     BattleState& battle = this->battleState;
 
-    if ((battle.unk53BDE8 & kCallStarted) == 0)
+    if ((battle.pushFrames & kCallStarted) == 0)
     {
-        battle.unk53BDE8 = kCallStarted | kCallFrames;
+        battle.pushFrames = kCallStarted | kCallFrames;
         unit.CommandValues(battle.unk53BF28, battle.unk53BF2A);
 
         for (u16 called = 0; called < battle.unk53BF2A; ++called)
@@ -1673,22 +1673,22 @@ int Game::CallEnemies(BattleEnemy& unit)
         }
     }
 
-    --battle.unk53BDE8;
+    --battle.pushFrames;
 
-    if ((battle.unk53BDE8 & kCallCount) != 0)
+    if ((battle.pushFrames & kCallCount) != 0)
     {
         return 0;
     }
 
-    battle.unk4A7630 = -1;
-    battle.unk53BDE8 = 0;
+    battle.darkenUnit = -1;
+    battle.pushFrames = 0;
     battle.unk53BF2A = 0;
     return 1;
 }
 
 // swd32.exe 0x004576A0: one frame of enemy `enemy`. While the fight talk lets the battle run (unk4A7B58): its effects
 // tick and its gauge fills (a full gauge queues its slot record), and unless the battle waits (unk53BF64, unk53BF1C)
-// the acting enemy (unk53AE70) takes its turn: a held or defeated one ends it; a sweep (unk53BF8C) gathers its
+// the acting enemy (unk53AE70) takes its turn: a held or defeated one ends it; a sweep (gatheringSweep) gathers its
 // targets; otherwise it picks a target (EnemyPickTarget) and a command (EnemyChooseCommand), then acts
 // (EnemyActionFrame) until the action is over (EnemyAfterAction). Every frame it is drawn at rest (its acts holding
 // while the field is darkened with word 2A74, or while paused), its hit act plays and a defeat is taken out; the
@@ -1705,7 +1705,7 @@ int Game::EnemyFrame(int enemy)
         {
             unit.TickEffects(services);
 
-            if (unit.unk2AB0 == 0 && unit.AdvanceGauge(services, battle.unk53C044) == 1 &&
+            if (unit.unk2AB0 == 0 && unit.AdvanceGauge(services, battle.enemyGaugeBoost) == 1 &&
                 battle.result != kBattleLostState)
             {
                 battle.AddSlotRecord(kEnemySlotRecord, enemy);
@@ -1720,7 +1720,7 @@ int Game::EnemyFrame(int enemy)
                 {
                     if (unit.IsHeldOrHolding() == 1)
                     {
-                        battle.unk53BD58 = enemy + 1;
+                        battle.heldEnemy = enemy + 1;
                     }
 
                     battle.unk53BF5C = 0;
@@ -1731,16 +1731,16 @@ int Game::EnemyFrame(int enemy)
                     return unit.ResetTurn(services);
                 }
 
-                if (battle.unk53BF8C == 1)
+                if (battle.gatheringSweep == 1)
                 {
                     this->EnemyGatherSweep(unit);
                 }
                 else
                 {
-                    if (battle.unk53C014 == 0)
+                    if (battle.enemyTargetPicked == 0)
                     {
                         this->EnemyPickTarget(unit, enemy);
-                        battle.unk53C014 = 1;
+                        battle.enemyTargetPicked = 1;
                     }
 
                     if (unit.GetValueAB4() == 0)
@@ -1759,7 +1759,7 @@ int Game::EnemyFrame(int enemy)
                     unit.MarkAC8();
                 }
 
-                battle.unk4A7630 = static_cast<i16>(enemy);
+                battle.darkenUnit = static_cast<i16>(enemy);
 
                 if (this->EnemyActionFrame(enemy, static_cast<i16>(unit.GetWord29A2())) == 1)
                 {
@@ -1778,7 +1778,7 @@ int Game::EnemyFrame(int enemy)
     unit.IdleFrame(services, holding ? 1 : 0);
     const auto at = static_cast<std::size_t>(enemy);
 
-    if (battle.unk53AE90[at] != -1 && this->PlayHitAct(unit, static_cast<u32>(battle.unk53BDBC), enemy) == 1)
+    if (battle.unk53AE90[at] != -1 && this->PlayHitAct(unit, static_cast<u32>(battle.enemiesHitAct), enemy) == 1)
     {
         battle.unk53AE90[at] = -1;
     }
@@ -1791,7 +1791,7 @@ int Game::EnemyFrame(int enemy)
         battle.unk5242B0[at] = 0;
         battle.unk524420[at] = -1;
         battle.unk4A7626 = kNoAimedEnemy;
-        battle.unk53BFE0 = 1;
+        battle.enemyFaded = 1;
         battle.unk53BFDC = 0;
     }
 
@@ -1813,9 +1813,9 @@ void Game::EnemyGatherSweep(BattleEnemy& unit)
 
     if (battle.unk53AE80 != 0)
     {
-        battle.unk53BF84 = 1;
+        battle.enemySweeps = 1;
         unit.Retarget(0);
-        battle.unk53BD7C = static_cast<i32>(battle.enemyCount) - battle.unk53BF00;
+        battle.sweepTargets = static_cast<i32>(battle.enemyCount) - battle.unk53BF00;
         return;
     }
 
@@ -1828,14 +1828,14 @@ void Game::EnemyGatherSweep(BattleEnemy& unit)
         {
             role.SetAC0(0);
             role.IncreaseHits();
-            ++battle.unk53BD7C;
+            ++battle.sweepTargets;
         }
     }
 
     const auto standing =
         static_cast<i32>(battle.roleCount) - battle.unk53BF26 - battle.guestCount - battle.defeatedRoles;
 
-    if (battle.unk53BD7C < standing)
+    if (battle.sweepTargets < standing)
     {
         return;
     }
@@ -1844,7 +1844,7 @@ void Game::EnemyGatherSweep(BattleEnemy& unit)
     {
         if (!this->battleRoles[index].IsDefeated())
         {
-            battle.unk53BF84 = 1;
+            battle.enemySweeps = 1;
             unit.SetAA8();
             unit.Retarget(static_cast<i16>(index));
             break;
@@ -1867,10 +1867,10 @@ void Game::EnemyPickTarget(BattleEnemy& unit, int enemy)
         {
             if (battle.roleCount != 0)
             {
-                battle.unk53BCFC = static_cast<i32>(this->random.Below(battle.roleCount));
+                battle.enemyTarget = static_cast<i32>(this->random.Below(battle.roleCount));
             }
 
-            const BattleRole& role = this->battleRoles[static_cast<std::size_t>(battle.unk53BCFC)];
+            const BattleRole& role = this->battleRoles[static_cast<std::size_t>(battle.enemyTarget)];
 
             if (role.unk2B00 != 1 && role.unk2B04 != 1 && !role.IsDefeated())
             {
@@ -1888,7 +1888,7 @@ void Game::EnemyPickTarget(BattleEnemy& unit, int enemy)
         if (unit.ChooseHeal(this->battleServices))
         {
             battle.unk53AE80 = 1;
-            battle.unk53BCFC = enemy;
+            battle.enemyTarget = enemy;
         }
 
         return;
@@ -1909,10 +1909,11 @@ void Game::EnemyPickTarget(BattleEnemy& unit, int enemy)
 
         if (battle.enemyCount != 0)
         {
-            battle.unk53BCFC = static_cast<i32>(this->random.Below(battle.enemyCount));
+            battle.enemyTarget = static_cast<i32>(this->random.Below(battle.enemyCount));
         }
 
-        if (!this->battleEnemies[static_cast<std::size_t>(battle.unk53BCFC)].IsDefeated() && battle.unk53BCFC != enemy)
+        if (!this->battleEnemies[static_cast<std::size_t>(battle.enemyTarget)].IsDefeated() &&
+            battle.enemyTarget != enemy)
         {
             break;
         }
@@ -1944,11 +1945,11 @@ void Game::EnemyChooseCommand(BattleEnemy& unit, int enemy)
 {
     BattleState& battle = this->battleState;
     const u16 order = battle.enemyOrders[static_cast<std::size_t>(enemy)];
-    battle.unk53BF8C = 0;
+    battle.gatheringSweep = 0;
 
     if ((order >> kOrderTargetShift) != 0)
     {
-        battle.unk53BCFC = order & kOrderTarget;
+        battle.enemyTarget = order & kOrderTarget;
     }
 
     const u8 level = this->party.roles[static_cast<std::size_t>(battle.partyRoles[0])].level;
@@ -1973,35 +1974,35 @@ void Game::EnemyChooseCommand(BattleEnemy& unit, int enemy)
     {
         if (battle.unk53AE80 == 1)
         {
-            if (!this->AimedDown(battle.unk53BCFC))
+            if (!this->AimedDown(battle.enemyTarget))
             {
-                unit.Retarget(static_cast<i16>(battle.unk53BCFC));
+                unit.Retarget(static_cast<i16>(battle.enemyTarget));
             }
 
             return;
         }
 
-        if (!this->AimedDown(battle.unk53BCFC))
+        if (!this->AimedDown(battle.enemyTarget))
         {
-            unit.Retarget(static_cast<i16>(battle.unk53BCFC));
-            this->battleRoles[static_cast<std::size_t>(battle.unk53BCFC)].IncreaseHits();
+            unit.Retarget(static_cast<i16>(battle.enemyTarget));
+            this->battleRoles[static_cast<std::size_t>(battle.enemyTarget)].IncreaseHits();
         }
     };
 
     if ((order & kOrderPrepared) == 0 && (order & (kOrderSpell | kOrderDrain)) == 0)
     {
-        u32 act = static_cast<u32>(battle.unk53BD40);
+        u32 act = static_cast<u32>(battle.enemyHitAct);
         const int chosen = unit.ChooseCommand(this->battleServices, this->database, act);
-        battle.unk53BD40 = static_cast<i32>(act);
+        battle.enemyHitAct = static_cast<i32>(act);
 
         if (chosen == 1)
         {
-            battle.unk4A7630 = static_cast<i16>(enemy);
+            battle.darkenUnit = static_cast<i16>(enemy);
             battle.unk53BD0C = 0;
 
             if (unit.ActFlag1() == 1)
             {
-                battle.unk53BFF4 = 1;
+                battle.enemyHitsAll = 1;
             }
 
             showName();
@@ -2010,15 +2011,15 @@ void Game::EnemyChooseCommand(BattleEnemy& unit, int enemy)
         if (unit.CommandStatusBit() == 1)
         {
             battle.unk53AE80 = 1;
-            battle.unk53BCFC = enemy;
+            battle.enemyTarget = enemy;
         }
 
-        battle.unk4A7630 = static_cast<i16>(enemy);
+        battle.darkenUnit = static_cast<i16>(enemy);
 
         if (unit.ActFlag0() == 1)
         {
-            battle.unk53BF8C = 1;
-            battle.unk53BD7C = 0;
+            battle.gatheringSweep = 1;
+            battle.sweepTargets = 0;
             return;
         }
 
@@ -2026,47 +2027,47 @@ void Game::EnemyChooseCommand(BattleEnemy& unit, int enemy)
         return;
     }
 
-    if (battle.unk53BFD4 == 1)
+    if (battle.enemyAimsAtEnemies == 1)
     {
         battle.unk53AE80 = 1;
-        battle.unk53BFD4 = 0;
+        battle.enemyAimsAtEnemies = 0;
     }
 
     if ((order & kOrderPrepared) != 0)
     {
-        battle.unk53BD40 = unit.PrepareCommand(this->database);
-        battle.unk4A7630 = static_cast<i16>(enemy);
+        battle.enemyHitAct = unit.PrepareCommand(this->database);
+        battle.darkenUnit = static_cast<i16>(enemy);
     }
 
     if ((order & kOrderSpell) != 0)
     {
         unit.SetCommand(kEnemySpellCommand);
-        battle.unk4A7630 = static_cast<i16>(enemy);
+        battle.darkenUnit = static_cast<i16>(enemy);
         showName();
     }
 
     if ((order & kOrderDrain) != 0)
     {
         unit.SetCommand(kEnemyDrainCommand);
-        battle.unk4A7630 = static_cast<i16>(enemy);
+        battle.darkenUnit = static_cast<i16>(enemy);
     }
 
     if (unit.ActFlag1() == 1)
     {
-        battle.unk53BFF4 = 1;
+        battle.enemyHitsAll = 1;
     }
 
     if (unit.ActFlag0() == 1)
     {
-        battle.unk53BF8C = 1;
-        battle.unk53BD7C = 0;
+        battle.gatheringSweep = 1;
+        battle.sweepTargets = 0;
     }
 
     battle.unk53BD48 = 0;
 
-    if (this->AimedDown(battle.unk53BCFC))
+    if (this->AimedDown(battle.enemyTarget))
     {
-        while (++battle.unk53BCFC <= kLastAimedUnit && this->AimedDown(battle.unk53BCFC))
+        while (++battle.enemyTarget <= kLastAimedUnit && this->AimedDown(battle.enemyTarget))
         {
         }
     }
@@ -2079,7 +2080,7 @@ void Game::EnemyChooseCommand(BattleEnemy& unit, int enemy)
 void Game::ReturnHeldEscort(BattleRole& role, std::size_t index, bool dropCommand)
 {
     BattleState& battle = this->battleState;
-    u16& escort = battle.unk52137C[index + static_cast<std::size_t>(BattleState::FirstRoleUnit)];
+    u16& escort = battle.escortCalled[index + static_cast<std::size_t>(BattleState::FirstRoleUnit)];
 
     if (role.IsHeldOrHolding() != 1 || escort == 0)
     {
@@ -2087,7 +2088,7 @@ void Game::ReturnHeldEscort(BattleRole& role, std::size_t index, bool dropComman
     }
 
     escort = 0;
-    battle.unk53BF24 = 0;
+    battle.callingEscort = 0;
     battle.pendingOrders[index].unk00 = 0;
 
     if (dropCommand)
@@ -2150,7 +2151,7 @@ void Game::EnemyAfterAction(BattleEnemy& unit, int enemy)
         battle.panelFlags &= ~kFacingPanel;
     }
 
-    battle.unk53C014 = 0;
+    battle.enemyTargetPicked = 0;
     battle.unk53BF68 = 0;
     battle.unk53BF74 = 0;
     battle.unk53BFC0 = 0;
@@ -2164,17 +2165,17 @@ void Game::EnemyAfterAction(BattleEnemy& unit, int enemy)
 
     battle.unk53BF46 = 0;
     battle.unk53BF48 = 0;
-    battle.unk53BF84 = 0;
-    battle.unk53BFF4 = 0;
-    battle.unk53BF8C = 0;
-    battle.unk53BD7C = 0;
+    battle.enemySweeps = 0;
+    battle.enemyHitsAll = 0;
+    battle.gatheringSweep = 0;
+    battle.sweepTargets = 0;
     battle.spellStage = 0;
     battle.enemyOrders[static_cast<std::size_t>(enemy)] = 0;
-    battle.unk53C040 = 0;
+    battle.orderSorted = 0;
 
     if (battle.unk53BF98 == 1)
     {
-        battle.unk53BFEC = 1;
+        battle.undarkening = 1;
     }
 
     if ((this->fightTalk.unk53CCDC & kTalkCountdown) != 0)

@@ -32,7 +32,7 @@ void Game::ShakeBattleBackground(int shake)
 
 // swd32.exe 0x00453580: the battle background of the frame. Unless the field is darkened it is drawn (shifted by
 // `shake` with its animation, or animated in place with the grey band of the battle start growing from BandRow), the
-// quake is cleared and the flash applied. While unit unk4A7630 acts with the field darkened, the field is drawn darker
+// quake is cleared and the flash applied. While unit darkenUnit acts with the field darkened, the field is drawn darker
 // by a level a few frames (a darkened copy, or tint steps), and when the darkening ends it is undone a level a frame.
 void Game::DrawBattleBackground(int shake)
 {
@@ -73,7 +73,7 @@ void Game::PrepareDarkenedCopies()
 
     battle.darkCopyTint = tint;
     battle.darkLevel = 1;
-    battle.unk4A7574 = battle.unk53BD0C;
+    battle.darkenedAt = battle.unk53BD0C;
     this->drawSurface = this->painter.LockSurface(*this->offscreen);
     this->painter.SetTarget(this->drawSurface);
     this->painter.UnlockSurface(*this->offscreen);

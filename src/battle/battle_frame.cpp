@@ -134,9 +134,9 @@ void Game::UpdateUnits()
 // swd32.exe 0x00453200: one frame of the battle; it returns unk53BDC8 (1, or the end CheckBattleEnd set), 3 when game
 // flag 0x11 leaves it, or the debug keys' 0 (the frame not drawn). The battle music starts again when it stopped; the
 // pointer, the keys and the auto battle are handled and the units measured and sorted. Unless paused: an idle battle
-// takes the next slot record every kSlotRecordWait frames as the acting unit (unk53C044 lets the gauges run while none
-// acts and no panel is open), the background, the units (the acting ones sorted around it), the hits, the bottom bar,
-// the current role's panel frame and cursor, the role panels, the menu, the end frame, the messages, the field's
+// takes the next slot record every kSlotRecordWait frames as the acting unit (enemyGaugeBoost lets the gauges run while
+// none acts and no panel is open), the background, the units (the acting ones sorted around it), the hits, the bottom
+// bar, the current role's panel frame and cursor, the role panels, the menu, the end frame, the messages, the field's
 // lines and heads, the talk, the resistance panel and the timers are drawn; the end is checked, a finished fade of
 // the stone sides lights the field again, the frame is shown (shaken while quaking) and saved when asked.
 int Game::BattleFrame()
@@ -193,9 +193,9 @@ int Game::BattleFrame()
     if (battle.unk524788[0].unit != -1 && battle.unk53BF74 == 0 && this->fightTalk.unk4A7B58 == 1 &&
         battle.unk53BFC0 == 0)
     {
-        if (battle.unk53BF1A < kSlotRecordWait)
+        if (battle.slotRecordFrames < kSlotRecordWait)
         {
-            ++battle.unk53BF1A;
+            ++battle.slotRecordFrames;
         }
         else
         {
@@ -203,7 +203,7 @@ int Game::BattleFrame()
                 battle.unk53AE70,
                 battle.unk53AE74,
                 battle.unk53AE78,
-                static_cast<u16>(battle.unk53AE7A),
+                static_cast<u16>(battle.slideBackPicture),
                 battle.unk53AE7C,
                 battle.unk53AE80,
                 battle.unk53AE84,
@@ -214,7 +214,7 @@ int Game::BattleFrame()
             battle.unk53AE70 = acting.unit;
             battle.unk53AE74 = acting.unk04;
             battle.unk53AE78 = acting.kind;
-            battle.unk53AE7A = static_cast<i16>(acting.unk0A);
+            battle.slideBackPicture = static_cast<i16>(acting.unk0A);
             battle.unk53AE7C = acting.unk0C;
             battle.unk53AE80 = acting.unk10;
             battle.unk53AE84 = acting.unk14;
@@ -222,14 +222,14 @@ int Game::BattleFrame()
 
             if (battle.unk53AE70 != -1)
             {
-                battle.unk53BF1A = 0;
+                battle.slotRecordFrames = 0;
                 battle.unk53BF74 = 1;
                 this->fightTalk.unk53CE70 = battle.unk53AE70;
             }
         }
     }
 
-    battle.unk53C044 = battle.unk53AE70 == -1 && battle.currentUnit == 0 ? 1 : 0;
+    battle.enemyGaugeBoost = battle.unk53AE70 == -1 && battle.currentUnit == 0 ? 1 : 0;
     smooth::Scene frameScene;
     this->battleServices.frame = this->smoothMotion || this->battleDeferred ? &frameScene : nullptr;
     this->DrawBattleBackground(battle.shake);
@@ -345,9 +345,9 @@ int Game::BattleFrame()
         this->ShowFrame();
     }
 
-    if (battle.unk53BFE8 == 1)
+    if (battle.snapNext == 1)
     {
-        const std::u8string name = Utf8Format(kSnapName, {static_cast<i32>(++battle.unk53C49A + kSnapBase)});
+        const std::u8string name = Utf8Format(kSnapName, {static_cast<i32>(++battle.snapNumber + kSnapBase)});
         const std::span<const u16> pixels(
             this->drawSurface,
             static_cast<std::size_t>(this->painter.ScreenPitch()) * Display::Height
@@ -363,7 +363,7 @@ int Game::BattleFrame()
                 this->audioDevice.Serve();
             }
         );
-        battle.unk53BFE8 = 0;
+        battle.snapNext = 0;
     }
 
     return battle.unk53BDC8;
@@ -385,11 +385,11 @@ void Game::EndBattle()
     battle.unk502948 = 0;
     battle.unk5240C4 = 0;
     battle.unk50294C = 0;
-    battle.unk520DD0.fill(0);
+    battle.roleOrder.fill(0);
     battle.unk524200.fill(0);
     battle.unk53AF30 = 0;
     battle.unk53AF34 = 0;
-    std::fill_n(battle.unk53AF38.begin(), kClearedTurnUnits, 0);
+    std::fill_n(battle.turnTaken.begin(), kClearedTurnUnits, 0);
     battle.unk502950 = 0;
     battle.unk5244E8.fill(-1);
     battle.enemyOrders.fill(0);
@@ -397,8 +397,8 @@ void Game::EndBattle()
     battle.rolePlaces.fill(UnitPlacement{});
     battle.unk524788.fill(BattleSlotRecord{0, 0, 0, 0, 0, 0, 0, 0});
     battle.ClearActing();
-    battle.unk5202A8.fill(ActState{});
-    battle.unk524980.fill(ActState{});
+    battle.hitActs.fill(ActState{});
+    battle.fadeActs.fill(ActState{});
     battle.projector = Projector();
     battle.pointerX = 0;
     battle.pointerY = 0;
@@ -436,27 +436,27 @@ void Game::EndBattle()
     battle.guestCount = 0;
     battle.unk53BCE8 = 0;
     battle.result = 0;
-    battle.unk4A7548 = 1;
-    battle.unk4A754C = 1;
-    battle.unk53BCF4 = 0;
-    battle.unk4A7550 = 1;
+    battle.menuCommand = 1;
+    battle.aimTarget = 1;
+    battle.actingEnemy = 0;
+    battle.orderStep = 1;
     battle.unk4A7558 = 1;
     battle.unk4A755C = 1;
     battle.unk4A756C = 1;
-    battle.unk4A7574 = -1;
-    battle.unk53BD04 = 0;
+    battle.darkenedAt = -1;
+    battle.listScroll = 0;
     battle.unk53BD08 = 0;
     battle.unk53BD0C = 0;
-    battle.unk53BD10 = 0;
-    battle.unk53BD14 = 0;
-    battle.unk53BD24 = 0;
-    battle.unk53BD28 = 0;
-    battle.unk53BD40 = 0;
+    battle.specialCursor = 0;
+    battle.listCursor = 0;
+    battle.menuX = 0;
+    battle.menuY = 0;
+    battle.enemyHitAct = 0;
     battle.unk4A7580 = kOpeningPlaces[0];
     battle.unk53BD4C = 0;
     battle.unk53BD50 = 0;
     battle.currentUnit = 0;
-    battle.unk53BD58 = 0;
+    battle.heldEnemy = 0;
     battle.unk4A7584 = kOpeningPlaces[1];
     battle.shake = 0;
     battle.unk4A7588 = kOpeningPlaces[2];
@@ -468,23 +468,23 @@ void Game::EndBattle()
     battle.unk53BF48 = 0;
     battle.unk53BD74 = 0;
     battle.darkCopyTint.fill(-1);
-    battle.unk4A7630 = -1;
-    battle.unk4A7564 = -1;
+    battle.darkenUnit = -1;
+    battle.autoTarget = -1;
     battle.unk4A762C = kNoUnit;
-    battle.unk4A7644 = kNoUnit;
+    battle.anyStateRole = kNoUnit;
 
-    // 0x00521374..0x00521385 in the original: unk521374 whole and the first five words of unk52137C, which share
+    // 0x00521374..0x00521385 in the original: fadeActLevels whole and the first five words of escortCalled, which share
     // the bytes of its upper half.
-    battle.unk521374.fill(0);
-    std::fill_n(battle.unk52137C.begin(), kSharedEscortWords, u16{0});
+    battle.fadeActLevels.fill(0);
+    std::fill_n(battle.escortCalled.begin(), kSharedEscortWords, u16{0});
     battle.lootIds = {};
     battle.unk520FBC = 0;
     battle.unk520FC0 = 0;
     battle.unk520FC4 = 0;
     battle.unk53BD78 = 0;
-    battle.unk53BD7C = 0;
+    battle.sweepTargets = 0;
     battle.unk53BD80 = 0;
-    battle.unk53BD84 = 0;
+    battle.sweepDefeated = 0;
     battle.unk53BD88 = 0;
     battle.unk53BD9C = 0;
     battle.unk53BDA0 = 0;
@@ -501,9 +501,9 @@ void Game::EndBattle()
     battle.unk53BF02 = 0;
     battle.unk53BF04 = 0;
     battle.unk53BF08 = 0;
-    battle.unk4A7620 = kNoUnit;
-    battle.unk4A7622 = kNoUnit;
-    battle.unk4A7624 = kNoUnit;
+    battle.lastRoleHit = kNoUnit;
+    battle.lastEnemyHit = kNoUnit;
+    battle.lastRoleDefeated = kNoUnit;
     battle.unk4A7626 = kNoUnit;
     battle.unk4FDF7C = 0;
     battle.unk5242F8 = 0;
@@ -518,14 +518,14 @@ void Game::EndBattle()
     battle.unk53BD94 = 0;
     battle.unk53BD98 = 0;
     battle.unk53BF22 = 0;
-    battle.unk53BF24 = 0;
+    battle.callingEscort = 0;
     battle.unk53BF26 = 0;
     battle.unk53BD20 = 0;
     battle.unk53BDEE = 0;
     battle.fieldFade = ColorFade{};
     battle.unk53BF28 = 0;
     battle.unk53BF2A = 0;
-    battle.unk53BD68 = 0;
+    battle.quakeStepFrames = 0;
     battle.unk53C4C0 = 0;
     messages.lootCount = 0;
     messages.lootCounts = {};
@@ -537,23 +537,23 @@ void Game::EndBattle()
     battle.drawOrder.fill(0);
     battle.drawTaken.fill(0);
     battle.unk524268.fill(0);
-    battle.unk52411C.fill(0);
+    battle.hitFading.fill(0);
     battle.unk53BF68 = 0;
     battle.unk53BF6C = 0;
     battle.unk53BF70 = 0;
     battle.unk53BF74 = 0;
     battle.unk53BF78 = 0;
-    battle.unk53BF7C = 0;
+    battle.sweepHit = 0;
     battle.unk53BF80 = 0;
     battle.unk53BF88 = 0;
-    battle.unk53BF8C = 0;
+    battle.gatheringSweep = 0;
     battle.unk53BF90 = 0;
     battle.unk53BF94 = 0;
     battle.unk53BF98 = 0;
     battle.unk53BF9C = 0;
     battle.unk53BFA0 = 0;
     battle.unk53BFA4 = 0;
-    battle.unk53BFA8 = 0;
+    battle.hitLanded = 0;
     battle.unk53BFAC = 0;
     battle.unk53BFB0 = 0;
     battle.unk53BFB4 = 0;
@@ -563,24 +563,24 @@ void Game::EndBattle()
     battle.unk53BFC4 = 0;
     battle.flashing = 0;
     battle.unk53BFD0 = 0;
-    battle.unk53BFD4 = 0;
-    battle.unk53BFE0 = 0;
-    battle.unk53BFD8 = 0;
+    battle.enemyAimsAtEnemies = 0;
+    battle.enemyFaded = 0;
+    battle.damageShown = 0;
     battle.unk53BFDC = 0;
     battle.unk53BFE4 = 0;
     battle.unk53BFF0 = 0;
-    battle.unk53BFF4 = 0;
+    battle.enemyHitsAll = 0;
     battle.unk4A763C = 1;
     battle.unk53BFFC = 0;
     battle.mirrored = 0;
     battle.spellStage = 0;
-    battle.unk53C004 = 0;
+    battle.victoryWithoutPanel = 0;
     battle.autoBattle = 0;
     battle.unk53C028 = 0;
     battle.darkenByTint = 0;
     this->fightTalk.unk53CEAC = 0;
     battle.unk53C038 = 0;
-    battle.unk53C040 = 0;
+    battle.orderSorted = 0;
     battle.unk53C048 = 0;
     this->archive.CloseAll();
     this->acts.CloseAll();
@@ -822,9 +822,9 @@ void Game::FirstStrike()
 
             role.ResetGauge(services);
             role.StepGauge(services, 1);
-            auto free = std::find(battle.unk520DD0.begin(), battle.unk520DD0.end(), 0);
+            auto free = std::find(battle.roleOrder.begin(), battle.roleOrder.end(), 0);
 
-            if (free != battle.unk520DD0.end())
+            if (free != battle.roleOrder.end())
             {
                 *free = static_cast<i32>(index) + BattleState::FirstRoleUnit;
             }

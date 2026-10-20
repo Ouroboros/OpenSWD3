@@ -580,7 +580,7 @@ private:
     FightTalk fightTalk;
     BattleServices battleServices;
     smooth::Stage battleStage;                   // the rebuild's smooth battle
-    std::unique_ptr<ScriptObject> battleRipple;  // 0x00520DA4 the ripple of the ripple battle (unk53C03C)
+    std::unique_ptr<ScriptObject> battleRipple;  // 0x00520DA4 the ripple of the ripple battle (rippleHits)
     std::array<BattleRole, BattleState::RoleUnits> battleRoles;   // 0x005029D0
     std::array<BattleEnemy, BattleState::Enemies> battleEnemies;  // 0x00525508
     ActDrawer actDrawer;

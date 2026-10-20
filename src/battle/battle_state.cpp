@@ -391,7 +391,7 @@ void BattleState::SortDrawOrderAround(i32 acting, i32 target)
     }
 
     this->drawTaken.fill(0);
-    this->unk53C040 = 1;
+    this->orderSorted = 1;
 
     if (std::find(this->drawOrder.begin(), this->drawOrder.end(), Units) != this->drawOrder.end())
     {
@@ -402,7 +402,7 @@ void BattleState::SortDrawOrderAround(i32 acting, i32 target)
 // swd32.exe 0x0045EC60: object `id` held back as returned object `index` (1 or 2; given back by ReturnBattleItems)
 void BattleState::SetReturnedItem(int index, u16 id)
 {
-    this->unk4FF2EA[static_cast<std::size_t>(index)] = id;
+    this->givenBack[static_cast<std::size_t>(index)] = id;
 }
 
 // The removal of 0x0045F020 (inline in the original): record `at` copied into `taken`; a used one is removed, the
@@ -453,7 +453,7 @@ void BattleState::ClearActing()
     this->unk53AE70 = 0;
     this->unk53AE74 = 0;
     this->unk53AE78 = 0;
-    this->unk53AE7A = 0;
+    this->slideBackPicture = 0;
     this->unk53AE7C = 0;
     this->unk53AE80 = 0;
     this->unk53AE84 = 0;

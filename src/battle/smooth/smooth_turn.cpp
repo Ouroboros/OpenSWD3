@@ -259,21 +259,21 @@ int TurnFrame::FadeFieldOutAdvance(Scene& scene)
     ScenePainter painter(services, scene);
     BattleState& battle = game.battleState;
     DrawOptions& options = painter.Options();
-    options.tintRed = battle.unk53C4A8;
-    options.tintGreen = battle.unk53C4A8;
-    options.tintBlue = battle.unk53C4A8;
+    options.tintRed = battle.blackFade;
+    options.tintGreen = battle.blackFade;
+    options.tintBlue = battle.blackFade;
     const std::span<u16> frame(game.drawSurface, static_cast<std::size_t>(Display::Width * Display::Height));
-    painter.ShiftRed(frame, battle.unk53C4A8);
+    painter.ShiftRed(frame, battle.blackFade);
     painter.ShiftGreenPairs(frame, options.tintGreen);
     painter.ShiftBluePairs(frame, options.tintBlue);
-    battle.unk53C4A8 -= kFieldFadeStep;
+    battle.blackFade -= kFieldFadeStep;
 
-    if (battle.unk53C4A8 > kFieldFadeEnd)
+    if (battle.blackFade > kFieldFadeEnd)
     {
         return 0;
     }
 
-    battle.unk53C4A8 = 0;
+    battle.blackFade = 0;
     return 1;
 }
 
@@ -344,8 +344,8 @@ void TurnFrame::DrawListTabsAdvance(int x, int y, Scene& scene)
     HudFrame(game.battleHud)
         .DrawEffectAtAdvance(
             kTabEffect,
-            battle.unk53BD18 + kOpenTabFrame,
-            x + kTabWidth * battle.unk53BD18,
+            battle.listPage + kOpenTabFrame,
+            x + kTabWidth * battle.listPage,
             tabsY,
             0,
             scene
@@ -579,7 +579,7 @@ void TurnFrame::DrawThrowListAdvance(int x, int y, int cursor, int top, Scene& s
                 0,
                 FillMode::Gradient,
                 scene);
-            battle.unk53BD14 = next;
+            battle.listCursor = next;
             battle.unk53BFB8 = 1;
         }
 
@@ -653,7 +653,7 @@ void TurnFrame::DrawRefineListAdvance(int x, int y, int cursor, Scene& scene)
     role.CountUsableObjects(pieces);
     role.ShowAllItems();
     count = 0;
-    battle.unk53BD14 = 1;
+    battle.listCursor = 1;
     int cell = 1;
     int columnX = x + kListNameX;
 
@@ -696,11 +696,11 @@ void TurnFrame::DrawRefineListAdvance(int x, int y, int cursor, Scene& scene)
                 font.DrawText(game.drawSurface, columnX, rowY, name, battle.lightColor, TextFont::BoldOutline);
                 font.SetBackground(TextFont::NoBackground);
                 battle.unk53BFB8 = 1;
-                battle.unk53BD14 = piece == 1 ? object + 1 : object;
+                battle.listCursor = piece == 1 ? object + 1 : object;
 
                 if (battle.unk53BDF4 == 0)
                 {
-                    --battle.unk53BD14;
+                    --battle.listCursor;
                 }
             }
 
@@ -766,8 +766,8 @@ void TurnFrame::DrawSpecialListAdvance(int x, int y, int cursor, Scene& scene)
     font.SetShadow(0);
     font.SetBackground(TextFont::NoBackground);
     font.SetAdvance(kListAdvance);
-    battle.unk53BDF3 = 0;
-    role.CountSkills(0, 1, battle.unk53BDF3);
+    battle.specialCount = 0;
+    role.CountSkills(0, 1, battle.specialCount);
     role.ShowAllSkills();
     int row = 0;
 
@@ -784,9 +784,9 @@ void TurnFrame::DrawSpecialListAdvance(int x, int y, int cursor, Scene& scene)
 
         if (cost != 0)
         {
-            battle.unk53C184 = {};
-            std::copy_n(name.begin(), std::min(name.size(), battle.unk53C184.size() - 1), battle.unk53C184.begin());
-            const std::string_view shown(battle.unk53C184.data());
+            battle.listName = {};
+            std::copy_n(name.begin(), std::min(name.size(), battle.listName.size() - 1), battle.listName.begin());
+            const std::string_view shown(battle.listName.data());
             const int rowY = y + kSpecialRowHeight * row;
             font.DrawText(
                 game.drawSurface,
@@ -819,7 +819,7 @@ void TurnFrame::DrawSpecialListAdvance(int x, int y, int cursor, Scene& scene)
                     scene);
                 font.SetBackground(TextFont::NoBackground);
                 battle.unk53BFB8 = 1;
-                battle.unk53BD10 = index;
+                battle.specialCursor = index;
             }
 
             ++row;
@@ -892,7 +892,7 @@ void TurnFrame::DrawEscortListAdvance(int x, int y, Scene& scene)
     );
     Box(game.painter,
         x - kEscortBarLeft,
-        y + kSpecialRowHeight * battle.unk53BCF8 - kEscortBarUp,
+        y + kSpecialRowHeight * battle.guardCursor - kEscortBarUp,
         kEscortShadeWidth,
         kListBarHeight,
         kListBarRed,
@@ -947,13 +947,13 @@ void TurnFrame::DrawTargetTagAdvance(int x, int y, Scene& scene)
         battle.currentUnit >= BattleState::FirstRoleUnit &&
         battle.pendingOrders[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)].unk00 == 1;
 
-    if (partyOrder || battle.unk53BF88 == 1 || battle.unk4A754C <= 0 ||
-        battle.unk4A754C > static_cast<i32>(battle.enemyCount))
+    if (partyOrder || battle.unk53BF88 == 1 || battle.aimTarget <= 0 ||
+        battle.aimTarget > static_cast<i32>(battle.enemyCount))
     {
         return;
     }
 
-    BattleEnemy& enemy = game.battleEnemies[static_cast<std::size_t>(battle.unk4A754C - 1)];
+    BattleEnemy& enemy = game.battleEnemies[static_cast<std::size_t>(battle.aimTarget - 1)];
     const std::string name = ObjectName(*enemy.Data());
     const int halves = static_cast<int>(name.size()) / 2;
     const int left = battle.mirrored == 1 ? kTagMirrorRight - kTagCharWidth * halves - x : x;
@@ -1143,7 +1143,7 @@ void TurnFrame::DrawSpellListAdvance(int x, int y, int cursor, int top, Scene& s
     font.SetBackground(TextFont::NoBackground);
     font.SetAdvance(kListAdvance);
     battle.unk53BDF2 = 0;
-    role.CountSkills(battle.unk53BD18, 0, battle.unk53BDF2);
+    role.CountSkills(battle.listPage, 0, battle.unk53BDF2);
     role.ShowAllSkills();
     int row = 0;
 
@@ -1151,16 +1151,16 @@ void TurnFrame::DrawSpellListAdvance(int x, int y, int cursor, int top, Scene& s
     {
         std::string name;
         u16 cost = 0;
-        const u16 icon = role.ListSkill(game.database, battle.unk53BD18, 0, index, name, cost);
+        const u16 icon = role.ListSkill(game.database, battle.listPage, 0, index, name, cost);
 
         if (cost == kSkillListEnd)
         {
             break;
         }
 
-        battle.unk53C184 = {};
-        std::copy_n(name.begin(), std::min(name.size(), battle.unk53C184.size() - 1), battle.unk53C184.begin());
-        const std::string_view shown(battle.unk53C184.data());
+        battle.listName = {};
+        std::copy_n(name.begin(), std::min(name.size(), battle.listName.size() - 1), battle.listName.begin());
+        const std::string_view shown(battle.listName.data());
         u16 maximum = 0;
         u16 have = 0;
 
@@ -1223,7 +1223,7 @@ void TurnFrame::DrawSpellListAdvance(int x, int y, int cursor, int top, Scene& s
             );
             font.SetBackground(TextFont::NoBackground);
             battle.unk53BFB8 = 1;
-            battle.unk53BD10 = index;
+            battle.specialCursor = index;
         }
 
         if (++row >= kListRowsShown)
@@ -1347,7 +1347,7 @@ void TurnFrame::DrawItemListAdvance(int x, int y, int cursor, int top, Scene& sc
                     0,
                     FillMode::Gradient,
                     scene);
-                battle.unk53BD14 = index;
+                battle.listCursor = index;
                 battle.unk53BFB8 = 1;
                 Box(game.painter,
                     0,
@@ -1504,7 +1504,7 @@ void TurnFrame::DrawVictoryPanelAdvance(Scene& scene)
 
             if (role.StepWornCounters(game.party.fame.lists[Fame::ProficiencyList], battle.unk53BF16) == 1)
             {
-                battle.unk53C4C4 = 1;
+                battle.accessoryGained = 1;
             }
 
             i32& battles = game.party.battleBlocks[partyRole].unk00[kBattlesFought];
@@ -1707,7 +1707,7 @@ void TurnFrame::DrawLevelUpStatsAdvance(Scene& scene)
 
     const auto partyRole = static_cast<std::size_t>(battle.partyRoles[battle.unk4A7646]);
     const RoleRecord& now = game.party.roles[partyRole];
-    const RoleRecord& before = battle.unk4FF108;
+    const RoleRecord& before = battle.levelUpBefore;
     std::array<i16, kStatRolls>& rolls = battle.statRolls;
     messages.panelAct.id = BattleMessages::PanelAct;
     messages.panelAct.action = 0;
@@ -1778,7 +1778,7 @@ void TurnFrame::DrawLevelUpStatsAdvance(Scene& scene)
         );
     }
 
-    const bool showNow = battle.unk53BDEA == kShowNow;
+    const bool showNow = battle.levelUpFrames == kShowNow;
 
     if (showNow)
     {
@@ -1786,7 +1786,7 @@ void TurnFrame::DrawLevelUpStatsAdvance(Scene& scene)
     }
     else
     {
-        if (battle.unk53BDEA == kRollStart - 1)
+        if (battle.levelUpFrames == kRollStart - 1)
         {
             rolls[0] = static_cast<i16>(now.maxHitPoints - before.maxHitPoints);
             rolls[1] = static_cast<i16>(now.maxSpirit - before.maxSpirit);
@@ -1799,7 +1799,7 @@ void TurnFrame::DrawLevelUpStatsAdvance(Scene& scene)
             rolls[8] = static_cast<i16>(now.reaction - before.reaction);
         }
 
-        if (battle.unk53BDEA < kRollStart && ++battle.unk53BDEA < kRollStart)
+        if (battle.levelUpFrames < kRollStart && ++battle.levelUpFrames < kRollStart)
         {
             return;
         }
@@ -1908,11 +1908,11 @@ void TurnFrame::DrawBattleDebugAdvance(Scene& scene)
         for (u32 index = 0; index < battle.enemyCount; ++index)
         {
             BattleEnemy& enemy = game.battleEnemies[index];
-            battle.unk5028FC = enemy.Data();
+            battle.lastDefeatedObject = enemy.Data();
             i32 hitPoints = 0;
             i32 maximum = 0;
             enemy.GetHitPoints(hitPoints, maximum);
-            const i32 level = battle.unk5028FC->data.level;
+            const i32 level = battle.lastDefeatedObject->data.level;
             text(
                 kDebugTop,
                 y,
@@ -1959,7 +1959,7 @@ void TurnFrame::DrawBattleDebugAdvance(Scene& scene)
             text(
                 kDebugPartyX + kListRowHeight * static_cast<int>(at),
                 partyY,
-                WinFormat(kDebugNumber, {battle.unk520DD0[at]})
+                WinFormat(kDebugNumber, {battle.roleOrder[at]})
             );
         }
 
@@ -2002,7 +2002,10 @@ void TurnFrame::DrawBattleDebugAdvance(Scene& scene)
         text(
             kDebugStateX,
             kDebugFlagsY,
-            WinFormat(kFlagsDebugLine, {battle.unk53AF68, static_cast<i32>(battle.unk4A7630), game.fightTalk.unk4A7B58})
+            WinFormat(
+                kFlagsDebugLine,
+                {battle.unk53AF68, static_cast<i32>(battle.darkenUnit), game.fightTalk.unk4A7B58}
+            )
         );
         text(kDebugStateX, kDebugMenuY, WinFormat(kMenuDebugLine, {battle.result, battle.unk53BFBC}));
         text(
@@ -2018,7 +2021,7 @@ void TurnFrame::DrawBattleDebugAdvance(Scene& scene)
         text(
             kDebugStateX,
             kDebugAimY,
-            WinFormat(kAimDebugLine, {battle.unk4A754C, battle.unk53BFC0, battle.unk53BFC4})
+            WinFormat(kAimDebugLine, {battle.aimTarget, battle.unk53BFC0, battle.unk53BFC4})
         );
         text(kDebugRightX, kDebugFlagsY, WinFormat(kLockDebugLine, {battle.unk53AE74}));
         text(kDebugRightX, kDebugMenuY, WinFormat(kCacheDebugLine, {game.archive.CacheBytes() / kKilobyte}));
@@ -2028,11 +2031,11 @@ void TurnFrame::DrawBattleDebugAdvance(Scene& scene)
             WinFormat(
                 kLevelUpDebugLine,
                 {static_cast<i32>(static_cast<i8>(battle.unk4A7646)),
-                 static_cast<i32>(static_cast<i16>(battle.unk4A7644))}
+                 static_cast<i32>(static_cast<i16>(battle.anyStateRole))}
             )
         );
         text(kDebugFarX, kDebugCountsY, WinFormat(kBfDebugLine, {battle.unk53BDA0}));
-        text(kDebugStateX, kDebugTop, WinFormat(kFrameDebugLine, {kMillisecondsPerSecond / battle.unk4A75E8}));
+        text(kDebugStateX, kDebugTop, WinFormat(kFrameDebugLine, {kMillisecondsPerSecond / battle.frameMilliseconds}));
     }
 
     font.SetShadow(0);
@@ -2050,23 +2053,23 @@ void TurnFrame::DrawCommandPanelAdvance(i32 nameIndex, Scene& scene)
     {
         if (battle.unk53BFB0 == 0)
         {
-            battle.unk53BD24 = game.state.pointerX - kMenuPointerShiftX;
-            battle.unk53BD28 = game.state.pointerY - kMenuPointerShiftY;
+            battle.menuX = game.state.pointerX - kMenuPointerShiftX;
+            battle.menuY = game.state.pointerY - kMenuPointerShiftY;
             battle.unk53BFB0 = 1;
         }
 
         // The rebuild (deviations.md): after a key the menu opens at its place, whatever the pointer did.
-        if (battle.unk53BDA8 >= kMenuIdleFrames || !battle.menuByMouse)
+        if (battle.promptFrames >= kMenuIdleFrames || !battle.menuByMouse)
         {
-            battle.unk53BD24 = kMenuHomeX;
-            battle.unk53BD28 = kMenuHomeY;
+            battle.menuX = kMenuHomeX;
+            battle.menuY = kMenuHomeY;
         }
 
         if (battle.pointerX < kMenuPointerLeft || battle.pointerX > kMenuPointerRight ||
             battle.pointerY < kMenuPointerTop || battle.pointerY > kMenuPointerBottom)
         {
-            battle.unk53BD24 = kMenuHomeX;
-            battle.unk53BD28 = kMenuHomeY;
+            battle.menuX = kMenuHomeX;
+            battle.menuY = kMenuHomeY;
             game.input.SetMousePosition(kMenuHomeX, kMenuHomeY);
             grown = battle.unk53BD94;
         }
@@ -2083,7 +2086,7 @@ void TurnFrame::DrawCommandPanelAdvance(i32 nameIndex, Scene& scene)
         battle.unk53BD98 = 0;
     }
 
-    HudFrame(game.battleHud).DrawTallGaugeAdvance(battle.unk53BD24, battle.unk53BD28, grown, scene);
+    HudFrame(game.battleHud).DrawTallGaugeAdvance(battle.menuX, battle.menuY, grown, scene);
 
     if (battle.unk53BD94 < kMenuOpened)
     {
@@ -2099,14 +2102,9 @@ void TurnFrame::DrawCommandPanelAdvance(i32 nameIndex, Scene& scene)
         game.party.names[static_cast<std::size_t>(battle.partyRoles[static_cast<std::size_t>(nameIndex)])];
     const std::string text(name.data(), std::find(name.begin(), name.end(), '\0') - name.begin());
     const int halfLength = static_cast<int>(text.size()) >> 1;
-    const int x = battle.unk53BD24 + kMenuNameStep * (kMenuNameCenter - (halfLength - kMenuNameShift));
-    font.DrawText(game.drawSurface, x, battle.unk53BD28 + kMenuNameY, text, kTitleColor, TextFont::BoldOutline);
-    this->DrawCommandMenuAdvance(
-        battle.unk53BD24 + kCommandMenuX,
-        battle.unk53BD28 + kCommandMenuY,
-        battle.unk4A7548,
-        scene
-    );
+    const int x = battle.menuX + kMenuNameStep * (kMenuNameCenter - (halfLength - kMenuNameShift));
+    font.DrawText(game.drawSurface, x, battle.menuY + kMenuNameY, text, kTitleColor, TextFont::BoldOutline);
+    this->DrawCommandMenuAdvance(battle.menuX + kCommandMenuX, battle.menuY + kCommandMenuY, battle.menuCommand, scene);
 }
 
 }  // namespace swd3::smooth

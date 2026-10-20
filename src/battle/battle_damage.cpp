@@ -116,7 +116,7 @@ void Game::TryRetreat(int role)
     battle.unk53BFC0 = 1;
     battle.unk53BFC4 = 1;
     battle.unk53BF5C = 0;
-    battle.unk53BFEC = 0;
+    battle.undarkening = 0;
     battle.unk53BD50 = 0;
     battle.currentUnit = 0;
     battle.unk53AE70 = -1;

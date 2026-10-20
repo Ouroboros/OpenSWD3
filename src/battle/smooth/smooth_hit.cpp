@@ -47,7 +47,7 @@ int HitFrame::PlayHitActAdvance(BattleUnit& unit, u32 act, int index, Scene& sce
     BattleState& battle = game.battleState;
     ScenePainter painter(game.battleServices, scene);
     const auto at = static_cast<std::size_t>(index);
-    ActState& hit = battle.unk5202A8[at];
+    ActState& hit = battle.hitActs[at];
 
     if ((hit.target & ActState::Quakes) != 0)
     {
@@ -68,7 +68,7 @@ int HitFrame::PlayHitActAdvance(BattleUnit& unit, u32 act, int index, Scene& sce
 
         if (game.acts.Run(hit) == 0)
         {
-            battle.unk4FE600[at] = ActState{};
+            battle.followActs[at] = ActState{};
             battle.unk4FF0BC[at] = 0;
             return 1;
         }
@@ -147,7 +147,7 @@ int HitFrame::FadeHitActAdvance(BattleUnit& unit, u32 act, i32 action, int index
         return 1;
     }
 
-    i8& fade = battle.unk521374[at];
+    i8& fade = battle.fadeActLevels[at];
 
     if (fade <= kHitFadeEnd)
     {
@@ -158,7 +158,7 @@ int HitFrame::FadeHitActAdvance(BattleUnit& unit, u32 act, i32 action, int index
     u16 x = 0;
     u16 y = 0;
     unit.GetDrawPosition(x, y);
-    ActState& effect = battle.unk524980[at];
+    ActState& effect = battle.fadeActs[at];
     effect.id = act;
     effect.action = action;
     effect.hold = 0;
@@ -213,7 +213,7 @@ bool HitFrame::DrawHitPictureAdvance(
     BattleState& battle = game.battleState;
     ScenePainter painter(game.battleServices, scene);
     const auto at = static_cast<std::size_t>(index);
-    ActState& hit = battle.unk5202A8[at];
+    ActState& hit = battle.hitActs[at];
     hit.id = static_cast<i32>(act);
     hit.action = 0;
     hit.hold = 0;
@@ -225,7 +225,7 @@ bool HitFrame::DrawHitPictureAdvance(
 
     if (game.acts.Run(hit) == 0)
     {
-        battle.unk4FE600[at] = ActState{};
+        battle.followActs[at] = ActState{};
         battle.unk4FF0BC[at] = 0;
         return false;
     }
@@ -294,8 +294,8 @@ bool HitFrame::DrawHitPictureAdvance(
     game.audio.SetSoundPan(hit.view, originX + static_cast<i16>(x) >= kHitPanCentre ? kHitPan : -kHitPan);
     hit.view = 0;
     attacker.ClearMoveAxes(x, y);
-    battle.unk53BDE0 = static_cast<i16>(x);
-    battle.unk53BDE4 = static_cast<i16>(y);
+    battle.hitPictureX = static_cast<i16>(x);
+    battle.hitPictureY = static_cast<i16>(y);
     u16 speed = 0;
 
     if (attacker.CommandTarget(speed) == 1)
@@ -312,8 +312,8 @@ bool HitFrame::DrawHitPictureAdvance(
         }
 
         if (game.WalkLine(
-                battle.unk53BDE0,
-                battle.unk53BDE4,
+                battle.hitPictureX,
+                battle.hitPictureY,
                 static_cast<i16>(fromX),
                 static_cast<i16>(fromY),
                 static_cast<i16>(x),
@@ -330,8 +330,8 @@ bool HitFrame::DrawHitPictureAdvance(
     if (picture != nullptr)
     {
         painter.DrawPicture(
-            battle.unk53BDE0,
-            battle.unk53BDE4,
+            battle.hitPictureX,
+            battle.hitPictureY,
             picture->width,
             picture->height,
             flags,
@@ -348,8 +348,8 @@ void HitFrame::RippleHitFrameAdvance(BattleUnit& target, BattleUnit& attacker, i
     Game& game = this->game;
     BattleState& battle = game.battleState;
     const auto at = static_cast<std::size_t>(index);
-    ActState& hit = battle.unk5202A8[at];
-    i32& frames = battle.unk53AEE8[at];
+    ActState& hit = battle.hitActs[at];
+    i32& frames = battle.rippleFrames[at];
     u16 speed = 0;
     u16 targetY = 0;
     ScenePainter painter(game.battleServices, scene);
@@ -376,8 +376,8 @@ void HitFrame::RippleHitFrameAdvance(BattleUnit& target, BattleUnit& attacker, i
         attacker.GetDrawPosition(fromX, fromY);
 
         if (frames < kRippleWalked && game.WalkLine(
-                                          battle.unk53BDE0,
-                                          battle.unk53BDE4,
+                                          battle.hitPictureX,
+                                          battle.hitPictureY,
                                           static_cast<i16>(fromX),
                                           static_cast<i16>(fromY),
                                           static_cast<i16>(targetX),
@@ -393,17 +393,17 @@ void HitFrame::RippleHitFrameAdvance(BattleUnit& target, BattleUnit& attacker, i
 
         if (ripple != nullptr && frames == 0)
         {
-            ripple->MoveTo(battle.unk53BDE0 - kRippleShiftX, battle.unk53BDE4 - kRippleStartShiftY);
+            ripple->MoveTo(battle.hitPictureX - kRippleShiftX, battle.hitPictureY - kRippleStartShiftY);
             ripple->Splash(kRippleSplashX, kRippleSplashY, kRippleSplashRadius, kRippleSplashDepth, game.crtRandom);
         }
 
         if (++frames >= kRippleWalked)
         {
-            battle.unk53BDE0 = static_cast<i16>(targetX) - kRippleBackX;
-            battle.unk53BDE4 = static_cast<i16>(targetY);
+            battle.hitPictureX = static_cast<i16>(targetX) - kRippleBackX;
+            battle.hitPictureY = static_cast<i16>(targetY);
         }
 
-        refract(battle.unk53BDE0 - kRippleShiftX, battle.unk53BDE4 - kRippleShiftY);
+        refract(battle.hitPictureX - kRippleShiftX, battle.hitPictureY - kRippleShiftY);
 
         if (frames >= kRippleWalked + kRippleHold)
         {
@@ -457,15 +457,15 @@ int HitFrame::HitTargetFrameAdvance(BattleUnit& target, BattleUnit& attacker, u3
     BattleState& battle = game.battleState;
     ScenePainter painter(game.battleServices, scene);
     const auto at = static_cast<std::size_t>(index);
-    ActState& hit = battle.unk5202A8[at];
-    ActState& follow = battle.unk4FE600[at];
+    ActState& hit = battle.hitActs[at];
+    ActState& follow = battle.followActs[at];
     u16 targetX = 0;
     u16 targetY = 0;
     int originX = 0;
 
     if (hit.waiting == 0)
     {
-        if (battle.unk53C03C == 1)
+        if (battle.rippleHits == 1)
         {
             this->RippleHitFrameAdvance(target, attacker, index, targetX, scene);
         }
@@ -526,7 +526,7 @@ int HitFrame::HitTargetFrameAdvance(BattleUnit& target, BattleUnit& attacker, u3
         if (picture != nullptr)
         {
             painter.SetSource(picture->data.data());
-            painter.DrawPicture(battle.unk53BDE0, battle.unk53BDE4, picture->width, picture->height, flags);
+            painter.DrawPicture(battle.hitPictureX, battle.hitPictureY, picture->width, picture->height, flags);
         }
 
         if (follow.waiting == 1)
@@ -537,26 +537,26 @@ int HitFrame::HitTargetFrameAdvance(BattleUnit& target, BattleUnit& attacker, u3
 
     game.TakeHitBits(target, attacker, index);
 
-    if (battle.unk52411C[at] == 1 && this->FadeHitActAdvance(target, hit.effectA, hit.effectQ, index, scene) == 1)
+    if (battle.hitFading[at] == 1 && this->FadeHitActAdvance(target, hit.effectA, hit.effectQ, index, scene) == 1)
     {
         hit.target = 0;
-        battle.unk52411C[at] = 0;
+        battle.hitFading[at] = 0;
     }
 
-    if (battle.unk53AE7A > 0 && game.PushUnits(hit.picture, hit.waiting) == 0)
+    if (battle.slideBackPicture > 0 && game.PushUnits(hit.picture, hit.waiting) == 0)
     {
         return 0;
     }
 
-    if (hit.waiting != 1 || battle.unk52411C[at] != 0 || battle.unk4FF0BC[at] != 0)
+    if (hit.waiting != 1 || battle.hitFading[at] != 0 || battle.unk4FF0BC[at] != 0)
     {
         return 0;
     }
 
-    battle.unk53BDE4 = 0;
+    battle.hitPictureY = 0;
     follow = ActState{};
-    battle.unk53BDE0 = 0;
-    battle.unk53AEE8[at] = 0;
+    battle.hitPictureX = 0;
+    battle.rippleFrames[at] = 0;
     return 1;
 }
 
@@ -567,8 +567,8 @@ int HitFrame::HitAllFrameAdvance(BattleUnit& target, BattleUnit& attacker, u32 a
     BattleState& battle = game.battleState;
     ScenePainter painter(game.battleServices, scene);
     const auto at = static_cast<std::size_t>(index);
-    ActState& hit = battle.unk5202A8[at];
-    ActState& follow = battle.unk4FE600[at];
+    ActState& hit = battle.hitActs[at];
+    ActState& follow = battle.followActs[at];
     u16 delay = 0;
     battle.lastDamage = 0;
 
@@ -613,10 +613,10 @@ int HitFrame::HitAllFrameAdvance(BattleUnit& target, BattleUnit& attacker, u32 a
 
         if (picture != nullptr)
         {
-            painter.DrawPicture(battle.unk53BDE0, battle.unk53BDE4, picture->width, picture->height, flags);
+            painter.DrawPicture(battle.hitPictureX, battle.hitPictureY, picture->width, picture->height, flags);
         }
 
-        ++battle.unk4FE5C8;
+        ++battle.hitAllFrames;
         battle.darkBlue = static_cast<i16>(hit.blue);
         battle.darkRed = static_cast<i16>(hit.red);
         battle.darkGreen = static_cast<i16>(hit.green);
@@ -654,7 +654,7 @@ int HitFrame::HitAllFrameAdvance(BattleUnit& target, BattleUnit& attacker, u32 a
         if (picture != nullptr)
         {
             painter.SetSource(picture->data.data());
-            painter.DrawPicture(battle.unk53BDE0, battle.unk53BDE4, picture->width, picture->height, flags);
+            painter.DrawPicture(battle.hitPictureX, battle.hitPictureY, picture->width, picture->height, flags);
         }
 
         if (follow.waiting == 1)
@@ -711,7 +711,7 @@ int HitFrame::HitAllFrameAdvance(BattleUnit& target, BattleUnit& attacker, u32 a
         hit.target = 0;
     }
 
-    if (battle.unk53AE7A > 0)
+    if (battle.slideBackPicture > 0)
     {
         battle.darkenByTint = 1;
 
@@ -726,12 +726,12 @@ int HitFrame::HitAllFrameAdvance(BattleUnit& target, BattleUnit& attacker, u32 a
         return 0;
     }
 
-    if (battle.unk53AE7A > 0)
+    if (battle.slideBackPicture > 0)
     {
         game.PushUnits(hit.picture, 1);
     }
 
-    battle.unk4FE5C8 = 0;
+    battle.hitAllFrames = 0;
     follow = ActState{};
     battle.unk4FF0BC[at] = 0;
     return 1;
