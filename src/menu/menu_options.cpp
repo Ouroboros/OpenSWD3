@@ -554,6 +554,7 @@ void Menu::OptionsFrame()
     Game& owner = this->game;
     OptionsPage& page = this->options;
     Config& settings = owner.config;
+    this->StoreChangedSettings();
 
     if (page.locked != 0)
     {
@@ -885,9 +886,10 @@ void Menu::OptionsDown()
 
             if (page.entry == kSettingsEntry)
             {
+                // The rebuild goes round to the first row (the original stops at the last; deviations.md).
                 if (++page.row > kDisplayRow)
                 {
-                    page.row = kDisplayRow;
+                    page.row = kLauncherRow;
                 }
 
                 owner.audio.PlaySound(kMoveSound, owner.config.soundVolume);
@@ -986,7 +988,12 @@ void Menu::OptionsUp()
                 return;
             }
 
-            if (--page.row <= 0)
+            // The rebuild goes round from the first settings row to the last (the original stops; deviations.md).
+            if (page.entry == kSettingsEntry && page.row == kLauncherRow)
+            {
+                page.row = kDisplayRow;
+            }
+            else if (--page.row <= 0)
             {
                 page.row = 0;
             }

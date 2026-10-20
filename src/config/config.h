@@ -71,6 +71,8 @@ public:
         u8 effectsOff = 0;
         u8 textSpeed = 0;
         u8 battleSpeed = 0;
+
+        bool operator==(const Settings&) const = default;
     };
 
     // The settings of a current-format Env.dat as [game] (its keys, settings, masks, debug byte and session mark);

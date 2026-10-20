@@ -270,9 +270,16 @@ void Menu::ItemsAfterSave(int saved)
 // original)
 void Menu::OptionsLeave()
 {
-    Game& owner = this->game;
     this->options.notes.clear();
-    const Config::Settings settings{
+    this->game.config.Update(this->CurrentSettings());
+    this->storedSettings.reset();
+}
+
+// The settings the settings pages write (with unk14 as they write it).
+Config::Settings Menu::CurrentSettings() const
+{
+    const Game& owner = this->game;
+    return Config::Settings{
         static_cast<u8>(owner.config.soundVolume),
         static_cast<u8>(owner.config.musicVolume),
         static_cast<u8>(owner.config.cacheSize),
@@ -281,8 +288,20 @@ void Menu::OptionsLeave()
         static_cast<u8>(owner.config.textSpeed),
         static_cast<u8>(owner.config.battleSpeed),
     };
+}
 
-    owner.config.Update(settings);
+// The rebuild (deviations.md): a settings page writes a setting once it changed (the original only when the page is
+// left); the first call of a page notes what is set.
+void Menu::StoreChangedSettings()
+{
+    const Config::Settings settings = this->CurrentSettings();
+
+    if (this->storedSettings.has_value() && *this->storedSettings != settings)
+    {
+        this->game.config.Update(settings);
+    }
+
+    this->storedSettings = settings;
 }
 
 // swd32.exe 0x0043AE40: the scroll bar of a list from `y` down `height` pixels at `x`: its box, the bar picture (act

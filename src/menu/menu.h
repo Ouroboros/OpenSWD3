@@ -2,6 +2,7 @@
 
 #include <array>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -515,6 +516,8 @@ public:
     // each of `choices` drawn with `font` from `left`, kChoiceGap apart, with the right of the last.
     static std::vector<std::string> OnOffChoices();
     static std::vector<int> ChoiceLefts(const std::vector<std::string>& choices, const TextFont& font, int left);
+    Config::Settings CurrentSettings() const;
+    void StoreChangedSettings();
     void OptionsSetLauncher(bool shown);
     std::vector<std::string> OptionsDisplayChoices(i32 row, i32& chosen) const;
     void OptionsChooseDisplay(i32 row, i32 choice);
@@ -569,6 +572,7 @@ public:
     void DrawDisplaySettings();
     void DrawSystemChoices(i32 row, const std::vector<std::string>& choices, i32 chosen, bool counts);
     void DisplaySettingsMouse();
+    void SettingsMoveSound();
 
     // The system page (the title in mode 0, the settings).
     void SystemEnter();
@@ -649,9 +653,10 @@ public:
     i32 systemCursor = 0;          // 0x004FD2B4 the title entry
     std::array<i32, 4> glow = {};  // 0x004FD2B8 the glow of the four entries
     i32 systemRow = 0;             // 0x004FD2C8 the settings row, the fade and name entry steps otherwise
-    i32 sampleLength = 0;          // 0x004FD2CC characters of the text speed sample shown
-    std::vector<u8> enteredNames;  // 0x004FD2D0 the two names typed (0x20 bytes)
-    i32 sampleDelay = 0;           // 0x004FD2D4
+    std::optional<Config::Settings> storedSettings;  // StoreChangedSettings: what the settings page last wrote
+    i32 sampleLength = 0;                            // 0x004FD2CC characters of the text speed sample shown
+    std::vector<u8> enteredNames;                    // 0x004FD2D0 the two names typed (0x20 bytes)
+    i32 sampleDelay = 0;                             // 0x004FD2D4
 
     // The items page.
     MenuList itemList;        // 0x004FD08C (see MenuList)

@@ -91,7 +91,6 @@ constexpr u32 kCacheSteps = 2;
 constexpr i32 kMaxCache = kMinCache + static_cast<i32>(kCacheSteps) * kCacheStep;
 constexpr i32 kSlowestText = 4;                        // the text speed counts down to 0 from here
 constexpr i32 kMusicFallback = Config::MaxVolume - 1;  // past the maximum the music volume falls back here
-constexpr u8 kUnkSettings = 0x64;                      // written as unk14 by the settings
 constexpr int kVolumeLabelX = 0xC4;
 constexpr int kLabelX = 0x98;
 constexpr int kLineX = 0x168;  // the cache, effects and speed lines
@@ -208,6 +207,11 @@ void Menu::SystemFrame()
     const ButtonState& rightButton = owner.controls.At(Button::MouseRight);
     const auto x = static_cast<u32>(owner.state.pointerX);
     const auto y = static_cast<u32>(owner.state.pointerY);
+
+    if (this->systemState == kSettings || this->systemState == kDisplaySettings)
+    {
+        this->StoreChangedSettings();
+    }
 
     if (this->systemState == kChosen)
     {
@@ -414,6 +418,8 @@ void Menu::SystemDown()
     {
         this->systemRow = 0;
     }
+
+    this->SettingsMoveSound();
 }
 
 // swd32.exe 0x00448C00 (on the settings the rebuild goes round from the first row to the last)
@@ -436,6 +442,18 @@ void Menu::SystemUp()
     else if (this->systemState == kDisplaySettings && --this->systemRow < 0)
     {
         this->systemRow = kDisplayBackRow;
+    }
+
+    this->SettingsMoveSound();
+}
+
+// The rebuild (deviations.md): moving on the settings sounds as on the settings of the system tab (the original's
+// title page is silent).
+void Menu::SettingsMoveSound()
+{
+    if (this->systemState == kSettings || this->systemState == kDisplaySettings)
+    {
+        this->game.audio.PlaySound(kVolumeSound, this->game.config.soundVolume);
     }
 }
 
@@ -781,17 +799,8 @@ void Menu::SystemCancel()
     if (this->systemState == kSettings)
     {
         this->systemState = kEntries;
-        const Config::Settings settings{
-            static_cast<u8>(owner.config.soundVolume),
-            static_cast<u8>(owner.config.musicVolume),
-            static_cast<u8>(owner.config.cacheSize),
-            kUnkSettings,
-            static_cast<u8>(owner.state.GameFlag(kEffectsOffFlag) ? 1 : 0),
-            static_cast<u8>(owner.config.textSpeed),
-            static_cast<u8>(owner.config.battleSpeed),
-        };
-
-        owner.config.Update(settings);
+        owner.config.Update(this->CurrentSettings());
+        this->storedSettings.reset();
     }
 }
 
