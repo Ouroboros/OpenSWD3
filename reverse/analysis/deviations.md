@@ -69,7 +69,7 @@
 | 0x00424440 | 平台替换 | 启动器为 Win32 对话框 0x6B（静态位图控件，居中于游戏窗口所在屏幕） | 在游戏窗口内绘制同一组位图（资源从游戏目录的 swd32.exe 读取），热点、高亮与音效逻辑不变；WM_COMMAND 0x3FE 的姓名输入对话框不显示（无控件发送该命令） | 架构 v3 |
 | 0x00424930、0x00424A60 | 平台替换 | 从注册表 HKEY_CLASSES_ROOT 取浏览器或文本程序并 WinExec | 交给系统默认处理程序（SDL_OpenURL） | 架构 v3 |
 | 0x0040A0D0、0x00424440 | 平台替换 | PlaySoundA 播放 exe 内的 WAVE 资源 | 资源经独立 SDL 音频流播放，新声音停止旧声音 | 架构 v3 |
-| 0x0040A0D0 | 增强（用户要求 2026-10-20，battle-smooth 分支） | 启动时总是先显示启动器（DialogBoxParamA 0x6B），选「開始」进入标题画面 | [game] launcher（默认开；系统页「設定」第一行「啟動畫面」可切换）：关闭时不显示启动器，直接按「開始」进入标题画面（Config::showLauncher） | 架构 v3 |
+| 0x0040A0D0 | 增强（用户要求 2026-10-20，battle-smooth 分支） | 启动时总是先显示启动器（DialogBoxParamA 0x6B），选「開始」进入标题画面 | [game] launcher（默认开；系统页「設定」第一行「啟動畫面」可切换）：关闭时不显示启动器，直接按「開始」进入标题画面（Config::showLauncher），开场音效（WAVE 120）也不播放；开启时开场音效改在读取设置之后播放 | 架构 v3 |
 | 0x00425150 | 平台替换 | 目录已存在时 SetCurrentDirectoryA 把它设为当前目录（最后一个已存在的目录成为当前目录） | 只在缺失时创建，不改变当前目录（游戏所有路径都以安装目录开头） | 架构 v3 |
 | 0x00424330、0x00411D90 | 平台替换 | GlobalMemoryStatus 的物理内存；KERNEL32 的 GetDiskFreeSpaceExA | 内存取 SDL_GetSystemRAM（上限 0xFFFFFFFF，与 4 GB 以上时的 GlobalMemoryStatus 相同）；剩余空间取 std::filesystem::space | 架构 v3 |
 | 0x00424330 | 增强（用户要求 2026-10-20，battle-smooth 分支） | 图片缓存取物理内存的 1/6，限制在 4～16 MB | 上限提高到 256 MB（下限与 1/6 照旧），淘汰规则不变；战斗新框架两帧之间重画时只读缓存（TswArchive::Peek），不读文件也不调整缓存顺序 | 架构 v3 |

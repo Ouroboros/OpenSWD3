@@ -520,9 +520,16 @@ void Game::Start()
         LogError(u8"the resources of swd32.exe are missing from %s (scripts/make_resources.py)", assets);
     }
 
-    this->systemSound.Play(this->resources.ReadSound(Game::StartSound));
     this->config.SetDefaultKeys();
     this->InitInstall();
+
+    // The start sound goes with the launcher: the rebuild plays it after the settings are read, and not when
+    // [game] launcher skips the launcher (deviations.md).
+    if (this->config.showLauncher)
+    {
+        this->systemSound.Play(this->resources.ReadSound(Game::StartSound));
+    }
+
     this->state.ClearGameFlag(Launcher::SavedGameFlag);
 
     if (SaveGames::AnyExists(this->config.SaveDirectory()))
