@@ -96,6 +96,9 @@ public:
     // The camera CenterCamera gives a controlled role at (x, y): its left and top (in 1/scale pixels, as x and y).
     std::array<i32, 2> CameraCentredOn(i32 x, i32 y, int scale = 1) const;
     std::array<i32, 2> HoldCamera(i32 left, i32 top, int scale = 1) const;
+    // Whether the rebuild's wider (higher) view holds the camera in its middle across (down): the map is narrower
+    // (lower) than the view, so the camera does not move on that axis (HoldCamera).
+    std::array<bool, 2> MapInsideView() const;
     // Where the game's 640x480 screen starts on the map (the camera when the map does not fill the window): the
     // interface places what it shows of the map from here.
     i32 ScreenLeft() const;

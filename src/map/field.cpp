@@ -407,6 +407,15 @@ std::array<i32, 2> Field::HoldCamera(i32 left, i32 top, int scale) const
     };
 }
 
+std::array<bool, 2> Field::MapInsideView() const
+{
+    return {
+        this->viewWidth > Display::Width &&
+            MapHeader::TileSize * this->state.map.width<this->viewWidth, this->viewHeight> Display::Height &&
+            MapHeader::TileSize * this->state.map.height < this->viewHeight,
+    };
+}
+
 i32 Field::ScreenLeft() const
 {
     return this->cameraLeft + this->screenX;

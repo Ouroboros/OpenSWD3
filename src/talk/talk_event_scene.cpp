@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
 
@@ -188,6 +189,23 @@ bool Talk::PanCamera(EventRun& run)
     {
         view.panDown = MapHeader::TileSize * state.map.height - field.cameraBottom;
         clamped = true;
+    }
+
+    // The rebuild (deviations.md): the wide view holds a map smaller than it in its middle, the camera before the map's
+    // start and past its end; the limits above, made for a camera inside the map, would turn the pan against its step
+    // and it would never end. On such an axis the camera does not pan.
+    const std::array<bool, 2> inside = field.MapInsideView();
+
+    if (inside[0])
+    {
+        view.panAcross = 0;
+        view.panStepX = 0;
+    }
+
+    if (inside[1])
+    {
+        view.panDown = 0;
+        view.panStepY = 0;
     }
 
     if (clamped)
