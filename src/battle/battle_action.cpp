@@ -176,14 +176,15 @@ int Game::RoleActionFrame(int role, int target)
 
     if (command == kReleaseControl)
     {
-        BattleEnemy& controlled = this->battleEnemies[static_cast<std::size_t>(static_cast<i16>(battle.unk4A762C))];
+        BattleEnemy& controlled =
+            this->battleEnemies[static_cast<std::size_t>(static_cast<i16>(battle.controlledEnemy))];
         controlled.SetHeld(0);
         controlled.SetFacing(0);
-        battle.unk4A762C = kNoUnit;
+        battle.controlledEnemy = kNoUnit;
         battle.talkRole = kNoUnit;
         battle.darkenUnit = -1;
-        battle.unk4A756C = 1;
-        battle.unk4A7568 = kAnswersStart;
+        battle.controlCursor = 1;
+        battle.controlRows = kAnswersStart;
         return 1;
     }
 
@@ -727,7 +728,7 @@ int Game::RoleAttackFrame(BattleRole& unit, int target)
 }
 
 // Commands 2 and 3 of RoleActionFrame (inline in the original): the first frame sets SpellCast, the sweep reset
-// (unk53AE74 at most the units of the target side) and, for a spell with ActFlag13, the ripple battle; once the spell
+// (sweepTotal at most the units of the target side) and, for a spell with ActFlag13, the ripple battle; once the spell
 // is over (SpellOver, not while the resistance panel shows for a spell) the ripple goes, an item is used up
 // (usedUpItem), and the role goes on with 0x12C and retreats if it asked to.
 int Game::RoleSpellFrame(BattleRole& unit, int role, u16 command)
@@ -751,9 +752,9 @@ int Game::RoleSpellFrame(BattleRole& unit, int role, u16 command)
 
         const auto units = static_cast<i32>(battle.unk53AE7C != 0 ? battle.roleCount : battle.enemyCount);
 
-        if (battle.unk53AE74 > units)
+        if (battle.sweepTotal > units)
         {
-            battle.unk53AE74 = units;
+            battle.sweepTotal = units;
         }
     }
 
@@ -1033,7 +1034,7 @@ int Game::CoinTossFrame(BattleRole& unit, int role)
     battle.sweepGap = kCoinTossSweep;
     const bool party = (this->battleHud.coinState & kLowWord) != 0;
     this->battleEnemies[static_cast<std::size_t>(static_cast<i16>(this->battleRoles[0].GetWord29A2()))].DecreaseHits();
-    battle.unk53AE74 = 0;
+    battle.sweepTotal = 0;
 
     if (party)
     {
@@ -1051,7 +1052,7 @@ int Game::CoinTossFrame(BattleRole& unit, int role)
     {
         if (!down(index))
         {
-            ++battle.unk53AE74;
+            ++battle.sweepTotal;
         }
     }
 
@@ -1090,9 +1091,9 @@ int Game::StealFrame(BattleRole& unit, int target)
 
     if (stolen != 0 && stolen < kNothingStolen)
     {
-        this->database.LoadObject(battle.unk53BC28, stolen);
-        this->database.FreeDescription(battle.unk53BC28);
-        const std::string name = ObjectName(battle.unk53BC28);
+        this->database.LoadObject(battle.lastObject, stolen);
+        this->database.FreeDescription(battle.lastObject);
+        const std::string name = ObjectName(battle.lastObject);
         const std::string line = WinFormat(kStoleFormat, {std::string_view(name)});
         this->audio.PlaySound(kSucceededSound, this->config.soundVolume);
         this->battleMessages.Add(kNoticeX, kNoticeY, kStealFrames, std::span<const char>(line), kNoticeFlags);
@@ -1170,14 +1171,14 @@ int Game::PoseSweepFrame(BattleRole& unit)
 
 // Command 0x19 of RoleActionFrame (inline in the original): without a controlled enemy the role tries to control the
 // enemy (控制成功!!: it faces the party, its turn resets and it leaves the slot records; or 控制失敗!!). With one the
-// role orders it: its order (enemyOrders) is a prepared command, the chosen skill (unk53BD44) or the chosen object
+// role orders it: its order (enemyOrders) is a prepared command, the chosen skill (orderedSkill) or the chosen object
 // (unk53BD48), aimed at the enemy actingEnemy (1-based in aimTarget), and it is queued to act.
 int Game::ControlFrame(BattleRole& unit, int role, int target)
 {
     BattleState& battle = this->battleState;
     BattleServices& services = this->battleServices;
 
-    if (battle.unk4A762C == kNoUnit)
+    if (battle.controlledEnemy == kNoUnit)
     {
         BattleEnemy& enemy = this->battleEnemies[static_cast<std::size_t>(target)];
 
@@ -1189,7 +1190,7 @@ int Game::ControlFrame(BattleRole& unit, int role, int target)
 
         this->battleMessages.Add(kNoticeX, kNoticeY, kControlFrames, kControlled, kNoticeFlags);
         enemy.SetFacing(1);
-        battle.unk4A762C = static_cast<u16>(target);
+        battle.controlledEnemy = static_cast<u16>(target);
         battle.talkRole = static_cast<u16>(role);
         enemy.ResetTurn(services);
         battle.RemoveSlotRecord(target);
@@ -1197,20 +1198,20 @@ int Game::ControlFrame(BattleRole& unit, int role, int target)
         return 1;
     }
 
-    const auto controlled = static_cast<std::size_t>(static_cast<i16>(battle.unk4A762C));
+    const auto controlled = static_cast<std::size_t>(static_cast<i16>(battle.controlledEnemy));
     BattleEnemy& enemy = this->battleEnemies[controlled];
     u16& order = battle.enemyOrders[controlled];
     battle.aimTarget = battle.actingEnemy + 1;
     battle.enemyAimsAtEnemies = 1;
     order = kOrderPrepared;
 
-    if (battle.unk53BD44 != 0)
+    if (battle.orderedSkill != 0)
     {
         order = kOrderSpell;
         u16 act = static_cast<u16>(battle.enemyHitAct);
-        enemy.LoadSkillAction(this->database, static_cast<u16>(battle.unk53BD44), act);
+        enemy.LoadSkillAction(this->database, static_cast<u16>(battle.orderedSkill), act);
         battle.enemyHitAct = static_cast<i32>((static_cast<u32>(battle.enemyHitAct) & kHighWord) | act);
-        battle.unk53BD44 = 0;
+        battle.orderedSkill = 0;
     }
 
     if (battle.unk53BD48 != 0)
@@ -1222,7 +1223,7 @@ int Game::ControlFrame(BattleRole& unit, int role, int target)
     }
 
     order = static_cast<u16>(order | static_cast<u16>(battle.aimTarget - 1));
-    battle.AddSlotRecord(kSlotRecordEnemy, static_cast<i16>(battle.unk4A762C));
+    battle.AddSlotRecord(kSlotRecordEnemy, static_cast<i16>(battle.controlledEnemy));
     battle.darkenUnit = -1;
     return 1;
 }
@@ -1726,7 +1727,7 @@ void Game::RoleOrderFrame(BattleRole& unit, int role)
             unit.PrepareCommand(this->battleServices, this->database);
             taken();
             battle.pageListRow = 1;
-            battle.unk4A7560 = 1;
+            battle.specialRow = 1;
         }
 
         return;
@@ -1860,7 +1861,7 @@ void Game::RoleTakeOrder(BattleRole& unit, int role)
     battle.menuCommand = 1;
     battle.pageListRow = 1;
     battle.aimTarget = 1;
-    battle.unk4A7560 = 1;
+    battle.specialRow = 1;
     battle.unk53BFC4 = 0;
     battle.unk53BFC0 = 0;
     battle.turnUnit = 0;
@@ -2187,7 +2188,7 @@ void Game::RoleRetreatFrame(BattleRole& unit, int role)
         battle.result = kRetreatedState;
         battle.unk53BF1C = 0;
         battle.actingUnit = -1;
-        battle.unk524788.fill(BattleSlotRecord{0, 0, 0, 0, 0, 0, 0, 0});
+        battle.slotRecords.fill(BattleSlotRecord{0, 0, 0, 0, 0, 0, 0, 0});
     }
 }
 }  // namespace swd3

@@ -736,7 +736,7 @@ TEST_CASE("battle state: the slot records are wiped with 0xFF bytes")
     swd3::BattleState state;
     state.WipeSlotRecords();
 
-    for (const swd3::BattleSlotRecord& record : state.unk524788)
+    for (const swd3::BattleSlotRecord& record : state.slotRecords)
     {
         CHECK_EQ(record.unit, -1);
         CHECK_EQ(record.unk04, -1);
@@ -871,7 +871,7 @@ TEST_CASE("battle state: the initial turn and push values match swd32.exe")
     CHECK(swd3test::SameTable(exe, kPanelsArgumentAt, std::array<swd3::u16, 1>{state.unk4A7628}));
     CHECK(swd3test::SameTable(exe, kEndFlagAt, std::array<swd3::i32, 1>{state.unk4A763C}));
     CHECK(swd3test::SameTable(exe, kPushAt, std::array<swd3::i16, 1>{state.hitPush}));
-    CHECK(swd3test::SameTable(exe, kTurnPointerAt, std::array<swd3::i32, 1>{state.unk4A7640}));
+    CHECK(swd3test::SameTable(exe, kTurnPointerAt, std::array<swd3::i32, 1>{state.turnPointer}));
     CHECK(swd3test::SameTable(exe, kTurnStepAt, std::array<swd3::i32, 1>{state.orderStep}));
     CHECK(swd3test::SameTable(exe, kListMarksAt, std::array<swd3::i32, 2>{state.pageListRow, state.roleListRow}));
     CHECK(swd3test::SameTable(exe, kListRoleAt, std::array<swd3::i32, 1>{state.listRole}));
@@ -884,15 +884,15 @@ TEST_CASE("battle state: the initial turn and push values match swd32.exe")
             exe,
             kListMarkAt,
             std::array<swd3::i32, 5>{
-                state.unk4A7560,
+                state.specialRow,
                 state.autoTarget,
-                state.unk4A7568,
-                state.unk4A756C,
+                state.controlRows,
+                state.controlCursor,
                 state.listRole
             }
         )
     );
-    CHECK(swd3test::SameTable(exe, kTalkRolesAt, std::array<swd3::u16, 2>{state.unk4A762C, state.talkRole}));
+    CHECK(swd3test::SameTable(exe, kTalkRolesAt, std::array<swd3::u16, 2>{state.controlledEnemy, state.talkRole}));
     CHECK(swd3test::SameTable(exe, kFrameMillisecondsAt, std::array<swd3::i32, 1>{state.frameMilliseconds}));
     CHECK(swd3test::SameTable(exe, kHoverTabsAt, std::array<swd3::i32, 2>{state.hoverPageTab, state.hoverRoleTab}));
 }
@@ -977,7 +977,7 @@ TEST_CASE("battle state: taking a slot record")
     constexpr swd3::i32 kSecondUnit = 9;
     constexpr std::size_t kTakenAt = 2;
     swd3::BattleState state;
-    auto& records = state.unk524788;
+    auto& records = state.slotRecords;
     records[0].unit = kFirstUnit;
     records[1].unit = kSecondUnit;
     swd3::BattleSlotRecord taken;

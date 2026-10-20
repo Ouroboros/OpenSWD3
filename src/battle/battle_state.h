@@ -110,7 +110,7 @@ public:
     {
         UnkPanel2 = 2,        // set when game flag 0xC9 is on at the battle start
         UnkPanel4 = 4,        // an escort was sent back (ConfirmEscort)
-        UnkPanel8 = 8,        // the battle ends with unk53BDC8 0 even when lost (CheckBattleEnd)
+        UnkPanel8 = 8,        // the battle ends with frameResult 0 even when lost (CheckBattleEnd)
         UnkPanel100 = 0x100,  // the screen quakes all the time (QuakeFrame)
         ResistancePanel = 0x20,
         NoRetreat = 0x200,  // the party cannot retreat
@@ -249,8 +249,8 @@ public:
     i32 actingUnit = 0;      // 0x0053AE70 the unit acting now (-1: none)
     u16 listedCommands = 0;  // 0x0053BF22 the commands the menu lists beyond its fixed ones
     i32 unk53C4B0 = 0;
-    std::array<BattleSlotRecord, Units> unk524788;
-    u16 escortCount = 0;  // 0x0053BF26 the high word of 0x0053BF24
+    std::array<BattleSlotRecord, Units> slotRecords;  // 0x00524788 the BattleSlotRecord of each slot
+    u16 escortCount = 0;                              // 0x0053BF26 the high word of 0x0053BF24
 
     // The background drawn each frame (0x00453580): a quake shift, the grey band of the battle start, a flash of the
     // field, and the field darkened (by darkened copies in `surfaces` or by tint steps) while unit darkenUnit acts.
@@ -308,8 +308,8 @@ public:
     i32 unk53BFC0 = 0;
     i32 unk53BFC4 = 0;
     i32 unk53BF5C = 0;
-    i32 turnUnit = 0;  // 0x0053BD50 the role unit taking the turn
-    i32 unk53BFE4 = 0;
+    i32 turnUnit = 0;    // 0x0053BD50 the role unit taking the turn
+    i32 endFade = 0;     // 0x0053BFE4 1: the field fades out once the battle is decided (CheckBattleEnd)
     u8 enemiesGone = 0;  // 0x0053BF00 set to enemyCount by a retreat
     u8 unk53BF01 = 0;
     u8 unk53BF02 = 0;
@@ -382,13 +382,13 @@ public:
     std::u8string battleMusic;  // 0x0053C198 the path of the battle music
     i32 unk53AF30 = 0;
     i32 unk53AF34 = 0;
-    i32 unk53AE74 = 0;
+    i32 sweepTotal = 0;  // 0x0053AE74 the units a sweep is to hit
     u16 unk53AE78 = 0;
     i32 unk53AE84 = 0;
     i32 unk53AE88 = 0;
     u16 unk53BF4A = 0;  // a unit's place read for the debug gauge and the menu
     u16 unk53BF4E = 0;
-    i32 unk53BDA0 = 0;
+    i32 hoverScrollPart = 0;    // 0x0053BDA0 the part of the scroll bar under the pointer (1..4)
     i32 frameMilliseconds = 1;  // 0x004A75E8 the milliseconds of a frame (the debug overlay shows 1000 / it)
     // The pointer over the battle (Game::MouseHover).
     ClickRegion* hoverRegion = nullptr;  // 0x005244CC the click region under the pointer
@@ -408,7 +408,7 @@ public:
     i32 unk53C01C = 0;
     std::array<u16, Units> escortCalled = {};  // 0x0052137C per unit: the escort place it called
     u16 callingEscort = 0;                     // the escort being called (the low word of 0x0053BF24)
-    i32 unk53C038 = 0;
+    i32 levelUpPending = 0;                    // 0x0053C038 a level-up to show at the end
     u16 unk53BF1C = 0;
     i32 unk53C024 = 0;
     i32 victoryWithoutPanel = 0;  // 0x0053C004 1: the victory ends without its panel (BattleEndFrame; inferred)
@@ -502,37 +502,37 @@ public:
     bool menuByMouse = false;
     // The rebuild (deviations.md): the unit the keys went to last frame; a new one spends the keys held.
     i32 keysUnit = 0;
-    i32 unk53BD90 = 0;
-    i32 menuGrow = 0;  // 0x0053BD94 how far the command menu has opened
-    i32 unk53BD98 = 0;
+    i32 listPanelFrames = 0;               // 0x0053BD90 the frames of the list panel act
+    i32 menuGrow = 0;                      // 0x0053BD94 how far the command menu has opened
+    i32 listRows = 0;                      // 0x0053BD98 the rows of the list open
     std::array<char, 0x14> listName = {};  // 0x0053C184 a name shown by the lists
     i32 unk53C49C = 0;
     i32 unk53BFC8 = 0;
-    u16 unk4A762C = 0xFFFF;
-    u16 talkRole = 0xFFFF;  // 0x004A762E the role with a battle talk (0xFFFF: none)
-    i32 unk53BD44 = 0;
+    u16 controlledEnemy = 0xFFFF;  // 0x004A762C the enemy under control (0xFFFF: none)
+    u16 talkRole = 0xFFFF;         // 0x004A762E the role with a battle talk (0xFFFF: none)
+    i32 orderedSkill = 0;          // 0x0053BD44 the skill a controlled enemy is ordered to use
     i32 unk53BD48 = 0;
     i32 unk53C02C = 0;
     i32 unk53BF88 = 0;
     i32 unk53BFF0 = 0;
     i32 listReturnCommand = 0;  // 0x0053BCF0 the menu command a list returns to
-    i32 unk4A7560 = 1;
-    i32 unk4A7568 = 2;
-    i32 unk4A756C = 1;
+    i32 specialRow = 1;         // 0x004A7560 the row of the 絕招 list (1-based)
+    i32 controlRows = 2;        // 0x004A7568 the rows of the 控制 menu
+    i32 controlCursor = 1;      // 0x004A756C its row under the cursor (1-based)
     // The proficiency filled in the battle (AnnounceMastery).
-    ObjectRecord unk53BC28;
+    ObjectRecord lastObject;   // 0x0053BC28 the object read last (stolen, or its proficiency filled)
     LearnedSkill lastLearned;  // 0x0053C154 the name of the accessory or of the skill learned, for the messages
-    i32 unk53BFFC = 0;
-    u8 levelUpRole = 0xFF;  // 0x004A7646 the role
+    i32 learnedPending = 0;    // 0x0053BFFC 1: a proficiency filled or a special was learned, its message to show
+    u8 levelUpRole = 0xFF;     // 0x004A7646 the role
     // The end of the battle (Game::CheckBattleEnd, Game::DrawBattlePrompt).
-    i32 blackFade = 0;  // 0x0053C4A8 the fade of the field to black, 2 darker a frame
-    i32 unk53BDC8 = 0;
+    i32 blackFade = 0;    // 0x0053C4A8 the fade of the field to black, 2 darker a frame
+    i32 frameResult = 0;  // 0x0053BDC8 the result of the battle frame (1 runs on; the end CheckBattleEnd set)
     std::array<u16, 3> givenBack =
         {};                // 0x004FF2EA [1], [2]: objects given back when the battle ends (set by 0x0045EC60)
     i32 promptFrames = 0;  // 0x0053BDA8 frames of the prompt
     i32 unk53BDAC = 0;
     i32 unk53BFBC = 0;
-    i32 unk4A7640 = 1;
+    i32 turnPointer = 1;  // 0x004A7640 1: the pointer shows the turn mark
     i32 unk53BF58 = 0;
     i16 unk53BF50 = 0;
     i16 unk53BF52 = 0;

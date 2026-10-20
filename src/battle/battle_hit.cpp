@@ -852,7 +852,7 @@ void Game::DrainToSpirit(BattleRole& role, i32& damage)
 
 // A role attacking in HitFrame (inline in the original): with unk53AE84 its hit sweeps a side (unk53AE88 1: the
 // whole side at once, the hits taken by the enemies; otherwise one unit after another as the sweep reaches them,
-// until unk53AE74 are hit), else one target is hit (unk53AE88 1: HitAllFrame on the target alone). unk53AE7C makes
+// until sweepTotal are hit), else one target is hit (unk53AE88 1: HitAllFrame on the target alone). unk53AE7C makes
 // the party the target side.
 int Game::RoleHitFrame(int role)
 {
@@ -1023,8 +1023,8 @@ int Game::RoleHitFrame(int role)
 }
 
 // The sweep of a role's hit in RoleHitFrame (inline in the original): over the enemies (a defeated one widens the
-// sweep at once, lowering unk53AE74) or the roles in battle (unk53AE7C) the sweep has reached, each hit once
-// (slotTargets) takes its slot totals; true once unk53AE74 are hit.
+// sweep at once, lowering sweepTotal) or the roles in battle (unk53AE7C) the sweep has reached, each hit once
+// (slotTargets) takes its slot totals; true once sweepTotal are hit.
 bool Game::SweepFromRole(BattleRole& attacker, i16 target, u32 act)
 {
     BattleState& battle = this->battleState;
@@ -1055,7 +1055,7 @@ bool Game::SweepFromRole(BattleRole& attacker, i16 target, u32 act)
         }
 
         this->ClearHitDamage();
-        return ++battle.unk53BD80 >= battle.unk53AE74;
+        return ++battle.unk53BD80 >= battle.sweepTotal;
     };
 
     if (battle.unk53AE7C == 0)
@@ -1070,9 +1070,9 @@ bool Game::SweepFromRole(BattleRole& attacker, i16 target, u32 act)
                 {
                     ++battle.sweptUnits;
 
-                    if (battle.unk53AE74 > 1)
+                    if (battle.sweepTotal > 1)
                     {
-                        --battle.unk53AE74;
+                        --battle.sweepTotal;
                     }
                 }
 
@@ -1529,7 +1529,7 @@ int Game::EnemyActionFrame(int enemy, int target)
 
             if (battle.enemiesGone >= battle.enemyCount)
             {
-                battle.unk524788.fill(BattleSlotRecord{});
+                battle.slotRecords.fill(BattleSlotRecord{});
                 battle.unk53BFC0 = 1;
                 battle.autoBattle = 0;
                 battle.result = kEndCheckState;

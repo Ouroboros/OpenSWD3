@@ -671,7 +671,7 @@ void MessagesFrame::DrawMasteryAdvance(Scene& scene)
 {
     BattleMessages& messages = this->messages;
 
-    if (messages.state.unk53BFFC != 1)
+    if (messages.state.learnedPending != 1)
     {
         return;
     }

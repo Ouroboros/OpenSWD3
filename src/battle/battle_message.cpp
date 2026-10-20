@@ -203,7 +203,7 @@ void BattleMessages::Draw()
     smooth::MessagesFrame(*this).Draw(view);
 }
 
-// swd32.exe 0x00468ED0: while a proficiency has just filled (unk53BFFC), the box "法寶%s已完全成長!!" with the
+// swd32.exe 0x00468ED0: while a proficiency has just filled (learnedPending), the box "法寶%s已完全成長!!" with the
 // accessory's name: a shade and a frame as wide as the text (17 pixels per two bytes), grown open (GrowPanel), then
 // the text at a 17-pixel advance.
 void BattleMessages::DrawMastery()

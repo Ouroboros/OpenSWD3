@@ -122,7 +122,7 @@ void Game::TryRetreat(int role)
     battle.actingUnit = -1;
     battle.result = 0;
     battle.enemiesGone = static_cast<u8>(battle.enemyCount);
-    battle.unk53BFE4 = 1;
+    battle.endFade = 1;
 }
 
 // swd32.exe 0x004731A0: one frame of `role`'s drain spell (its magic act, slot act 8) at its place over its shadow;

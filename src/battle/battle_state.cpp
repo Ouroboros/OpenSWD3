@@ -120,7 +120,7 @@ void BattleState::AddSlotRecord(int kind, i32 unit)
         return;
     }
 
-    for (BattleSlotRecord& record : this->unk524788)
+    for (BattleSlotRecord& record : this->slotRecords)
     {
         if (record.unit == -1)
         {
@@ -135,7 +135,7 @@ void BattleState::AddSlotRecord(int kind, i32 unit)
 // 0xFF (the original first copies the bytes after the records into the last one)
 void BattleState::RemoveSlotRecord(i32 unit)
 {
-    auto& records = this->unk524788;
+    auto& records = this->slotRecords;
     auto found = std::find_if(
         records.begin(),
         records.end(),
@@ -178,7 +178,7 @@ void BattleState::StartFieldFade(int red, int green, int blue, int toRed, int to
 // first free record at place 0, and moves the last record past the array when only it was free.
 void BattleState::InsertSlotRecord(int kind, i32 unit, int at)
 {
-    auto& records = this->unk524788;
+    auto& records = this->slotRecords;
     int count = 0;
 
     for (std::size_t place = 0; place < records.size(); ++place)
@@ -249,7 +249,7 @@ void BattleState::InsertSlotRecord(int kind, i32 unit, int at)
 // The slot records filled with 0xFF bytes (inline in the original, by 0x0045ADF0, 0x0045AA00 and others).
 void BattleState::WipeSlotRecords()
 {
-    for (BattleSlotRecord& record : this->unk524788)
+    for (BattleSlotRecord& record : this->slotRecords)
     {
         record = BattleSlotRecord{-1, -1, 0xFFFF, 0xFFFF, -1, -1, -1, -1};
     }
@@ -410,7 +410,7 @@ void BattleState::SetReturnedItem(int index, u16 id)
 // The original reads the table after the records for `at` 18; a free record is taken then.
 void BattleState::TakeSlotRecordAt(std::size_t at, BattleSlotRecord& taken)
 {
-    auto& records = this->unk524788;
+    auto& records = this->slotRecords;
 
     if (at >= records.size())
     {
@@ -451,7 +451,7 @@ void BattleState::TakeSlotRecordAt(std::size_t at, BattleSlotRecord& taken)
 void BattleState::ClearActing()
 {
     this->actingUnit = 0;
-    this->unk53AE74 = 0;
+    this->sweepTotal = 0;
     this->unk53AE78 = 0;
     this->slideBackPicture = 0;
     this->unk53AE7C = 0;

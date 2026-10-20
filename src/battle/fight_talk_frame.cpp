@@ -1186,9 +1186,9 @@ int Game::FightTalkLoot()
     BattleState& battle = this->battleState;
     FightTalk& talk = this->fightTalk;
 
-    if (this->battleMessages.lootCount == 0 || battle.unk53BFE4 != 0)
+    if (this->battleMessages.lootCount == 0 || battle.endFade != 0)
     {
-        battle.unk53BFE4 = 1;
+        battle.endFade = 1;
     }
     else
     {
@@ -2187,7 +2187,7 @@ int Game::FightTalkCatch()
         role.SetCommand(kCatchCommand);
         battle.turnCommand = kCatchCommand;
         battle.roleOrder.fill(0);
-        battle.unk524788.fill(BattleSlotRecord{});
+        battle.slotRecords.fill(BattleSlotRecord{});
         battle.turnTaken[unit] = kCatchCommand;
         battle.unk53BF74 = 1;
         battle.unk53BFC0 = 1;
@@ -2410,7 +2410,7 @@ int Game::FightTalkMisc(u16 command)
                     this->errors
                 ) == 1)
             {
-                battle.unk53BFFC = 1;
+                battle.learnedPending = 1;
             }
 
             talk.unk53CCE8 = 0;

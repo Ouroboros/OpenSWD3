@@ -353,7 +353,7 @@ void TurnFrame::DrawListTabsAdvance(int x, int y, Scene& scene)
     game.mediumFont.SetBackground(kHighlightBackground);
     game.mediumFont.SetBackground(TextFont::NoBackground);
     messages.panelAct = ActState{};
-    battle.unk53BD90 = kListPanelFrames;
+    battle.listPanelFrames = kListPanelFrames;
     messages.panelAct.id = BattleMessages::PanelAct;
     messages.panelAct.action = 0;
     game.acts.Run(messages.panelAct);
@@ -1025,7 +1025,7 @@ void TurnFrame::DrawControlMenuAdvance(int x, int y, int cursor, Scene& scene)
     const Scene::Still still(scene);
     BattleState& battle = game.battleState;
     SceneFont font(game.mediumFont, scene);
-    BattleEnemy& enemy = game.battleEnemies[static_cast<std::size_t>(static_cast<i16>(battle.unk4A762C))];
+    BattleEnemy& enemy = game.battleEnemies[static_cast<std::size_t>(static_cast<i16>(battle.controlledEnemy))];
 
     auto entry = [&game, &font, x](int top, const std::string& text, bool chosen)
     {
@@ -1063,7 +1063,7 @@ void TurnFrame::DrawControlMenuAdvance(int x, int y, int cursor, Scene& scene)
             x - kControlBoxLeft,
             y - kControlBoxLeft,
             kControlColumns,
-            battle.unk4A7568,
+            battle.controlRows,
             kControlFill,
             scene
         );
@@ -1091,7 +1091,7 @@ void TurnFrame::DrawControlMenuAdvance(int x, int y, int cursor, Scene& scene)
         if (cursor == number)
         {
             battle.unk53BD48 = 0;
-            battle.unk53BD44 = static_cast<i32>(id);
+            battle.orderedSkill = static_cast<i32>(id);
         }
     }
 
@@ -1114,7 +1114,7 @@ void TurnFrame::DrawControlMenuAdvance(int x, int y, int cursor, Scene& scene)
 
         if (cursor == number)
         {
-            battle.unk53BD44 = 0;
+            battle.orderedSkill = 0;
             battle.unk53BD48 = choice + 1;
         }
     }
@@ -1565,7 +1565,7 @@ void TurnFrame::DrawLevelUpPanelAdvance(Scene& scene)
     BattleMessages& messages = game.battleMessages;
     SceneFont font(game.mediumFont, scene);
 
-    if (battle.levelUpRole != kNoLevelUp || battle.unk53BFFC == 1)
+    if (battle.levelUpRole != kNoLevelUp || battle.learnedPending == 1)
     {
         messages.panelAct.id = BattleMessages::PanelAct;
         messages.panelAct.action = 0;
@@ -1637,7 +1637,7 @@ void TurnFrame::DrawLearnedBoxAdvance(std::u8string_view line, bool sound, Scene
     BattleMessages& messages = game.battleMessages;
     SceneFont font(game.mediumFont, scene);
 
-    if (battle.unk53BFFC != 1)
+    if (battle.learnedPending != 1)
     {
         return;
     }
@@ -1947,7 +1947,7 @@ void TurnFrame::DrawBattleDebugAdvance(Scene& scene)
             text(
                 kDebugListX + kListRowHeight * at,
                 recordsY,
-                WinFormat(kDebugNumber, {battle.unk524788[static_cast<std::size_t>(at)].unit})
+                WinFormat(kDebugNumber, {battle.slotRecords[static_cast<std::size_t>(at)].unit})
             );
         }
 
@@ -2023,7 +2023,7 @@ void TurnFrame::DrawBattleDebugAdvance(Scene& scene)
             kDebugAimY,
             WinFormat(kAimDebugLine, {battle.aimTarget, battle.unk53BFC0, battle.unk53BFC4})
         );
-        text(kDebugRightX, kDebugFlagsY, WinFormat(kLockDebugLine, {battle.unk53AE74}));
+        text(kDebugRightX, kDebugFlagsY, WinFormat(kLockDebugLine, {battle.sweepTotal}));
         text(kDebugRightX, kDebugMenuY, WinFormat(kCacheDebugLine, {game.archive.CacheBytes() / kKilobyte}));
         text(
             kDebugRightX,
@@ -2034,7 +2034,7 @@ void TurnFrame::DrawBattleDebugAdvance(Scene& scene)
                  static_cast<i32>(static_cast<i16>(battle.anyStateRole))}
             )
         );
-        text(kDebugFarX, kDebugCountsY, WinFormat(kBfDebugLine, {battle.unk53BDA0}));
+        text(kDebugFarX, kDebugCountsY, WinFormat(kBfDebugLine, {battle.hoverScrollPart}));
         text(kDebugStateX, kDebugTop, WinFormat(kFrameDebugLine, {kMillisecondsPerSecond / battle.frameMilliseconds}));
     }
 
@@ -2081,9 +2081,9 @@ void TurnFrame::DrawCommandPanelAdvance(i32 nameIndex, Scene& scene)
         battle.menuGrow = kMenuOpened;
     }
 
-    if (battle.unk53BD98 < 0)
+    if (battle.listRows < 0)
     {
-        battle.unk53BD98 = 0;
+        battle.listRows = 0;
     }
 
     HudFrame(game.battleHud).DrawTallGaugeAdvance(battle.menuX, battle.menuY, grown, scene);
@@ -2091,7 +2091,7 @@ void TurnFrame::DrawCommandPanelAdvance(i32 nameIndex, Scene& scene)
     if (battle.menuGrow < kMenuOpened)
     {
         ++battle.menuGrow;
-        --battle.unk53BD98;
+        --battle.listRows;
         return;
     }
 

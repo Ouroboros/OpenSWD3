@@ -172,7 +172,7 @@ void Game::StartBattle(u16 number)
     battle.listedCommands = 0;
     battle.unk53C4B0 = 0;
 
-    for (BattleSlotRecord& record : battle.unk524788)
+    for (BattleSlotRecord& record : battle.slotRecords)
     {
         record.unit = -1;
         record.unk18 = 0;

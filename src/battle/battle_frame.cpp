@@ -131,7 +131,7 @@ void Game::UpdateUnits()
     }
 }
 
-// swd32.exe 0x00453200: one frame of the battle; it returns unk53BDC8 (1, or the end CheckBattleEnd set), 3 when game
+// swd32.exe 0x00453200: one frame of the battle; it returns frameResult (1, or the end CheckBattleEnd set), 3 when game
 // flag 0x11 leaves it, or the debug keys' 0 (the frame not drawn). The battle music starts again when it stopped; the
 // pointer, the keys and the auto battle are handled and the units measured and sorted. Unless paused: an idle battle
 // takes the next slot record every kSlotRecordWait frames as the acting unit (enemyGaugeBoost lets the gauges run while
@@ -143,7 +143,7 @@ int Game::BattleFrame()
 {
     BattleState& battle = this->battleState;
     BattleHud& hud = this->battleHud;
-    battle.unk53BDC8 = 1;
+    battle.frameResult = 1;
 
     if (this->audio.IsMusicStopped() && battle.unk53C4C0 == 0)
     {
@@ -182,7 +182,7 @@ int Game::BattleFrame()
 
     if (battle.paused == 1)
     {
-        return battle.unk53BDC8;
+        return battle.frameResult;
     }
 
     if (battle.unk53BFC0 == 1 && battle.actingUnit == -1)
@@ -190,7 +190,7 @@ int Game::BattleFrame()
         battle.unk53BFC0 = 0;
     }
 
-    if (battle.unk524788[0].unit != -1 && battle.unk53BF74 == 0 && this->fightTalk.battleRuns == 1 &&
+    if (battle.slotRecords[0].unit != -1 && battle.unk53BF74 == 0 && this->fightTalk.battleRuns == 1 &&
         battle.unk53BFC0 == 0)
     {
         if (battle.slotRecordFrames < kSlotRecordWait)
@@ -201,7 +201,7 @@ int Game::BattleFrame()
         {
             BattleSlotRecord acting{
                 battle.actingUnit,
-                battle.unk53AE74,
+                battle.sweepTotal,
                 battle.unk53AE78,
                 static_cast<u16>(battle.slideBackPicture),
                 battle.unk53AE7C,
@@ -212,7 +212,7 @@ int Game::BattleFrame()
 
             this->TakeSlotRecord(acting);
             battle.actingUnit = acting.unit;
-            battle.unk53AE74 = acting.unk04;
+            battle.sweepTotal = acting.unk04;
             battle.unk53AE78 = acting.kind;
             battle.slideBackPicture = static_cast<i16>(acting.unk0A);
             battle.unk53AE7C = acting.unk0C;
@@ -366,7 +366,7 @@ int Game::BattleFrame()
         battle.snapNext = 0;
     }
 
-    return battle.unk53BDC8;
+    return battle.frameResult;
 }
 
 // swd32.exe 0x0045B630: the battle is over: its surfaces, the background animation, the projector and the background
@@ -395,7 +395,7 @@ void Game::EndBattle()
     battle.enemyOrders.fill(0);
     battle.enemyPlaces.fill(UnitPlacement{});
     battle.rolePlaces.fill(UnitPlacement{});
-    battle.unk524788.fill(BattleSlotRecord{0, 0, 0, 0, 0, 0, 0, 0});
+    battle.slotRecords.fill(BattleSlotRecord{0, 0, 0, 0, 0, 0, 0, 0});
     battle.ClearActing();
     battle.hitActs.fill(ActState{});
     battle.fadeActs.fill(ActState{});
@@ -426,7 +426,7 @@ void Game::EndBattle()
     battle.spirit.fill(0);
     battle.unk53AEE4 = 0;
     battle.roleListRows.fill(1);
-    battle.unk4A7568 = kAnswersStart;
+    battle.controlRows = kAnswersStart;
     battle.listRole = kHealPage;
     this->talk.choice = 0;
     battle.panelFlags = 0;
@@ -442,7 +442,7 @@ void Game::EndBattle()
     battle.orderStep = 1;
     battle.pageListRow = 1;
     battle.roleListRow = 1;
-    battle.unk4A756C = 1;
+    battle.controlCursor = 1;
     battle.darkenedAt = -1;
     battle.listScroll = 0;
     battle.roleListScroll = 0;
@@ -470,7 +470,7 @@ void Game::EndBattle()
     battle.darkCopyTint.fill(-1);
     battle.darkenUnit = -1;
     battle.autoTarget = -1;
-    battle.unk4A762C = kNoUnit;
+    battle.controlledEnemy = kNoUnit;
     battle.anyStateRole = kNoUnit;
 
     // 0x00521374..0x00521385 in the original: fadeActLevels whole and the first five words of escortCalled, which share
@@ -487,7 +487,7 @@ void Game::EndBattle()
     battle.sweepDefeated = 0;
     battle.unk53BD88 = 0;
     battle.unk53BD9C = 0;
-    battle.unk53BDA0 = 0;
+    battle.hoverScrollPart = 0;
     battle.unk53BF12 = 0;
     battle.unk53BF14 = 0;
     battle.unk53BF16 = 0;
@@ -514,9 +514,9 @@ void Game::EndBattle()
     battle.darkGreen = 0;
     battle.darkBlue = 0;
     battle.proficiencyBonus = 0;
-    battle.unk53BD90 = 0;
+    battle.listPanelFrames = 0;
     battle.menuGrow = 0;
-    battle.unk53BD98 = 0;
+    battle.listRows = 0;
     battle.listedCommands = 0;
     battle.callingEscort = 0;
     battle.escortCount = 0;
@@ -567,11 +567,11 @@ void Game::EndBattle()
     battle.enemyFaded = 0;
     battle.damageShown = 0;
     battle.unk53BFDC = 0;
-    battle.unk53BFE4 = 0;
+    battle.endFade = 0;
     battle.unk53BFF0 = 0;
     battle.enemyHitsAll = 0;
     battle.unk4A763C = 1;
-    battle.unk53BFFC = 0;
+    battle.learnedPending = 0;
     battle.mirrored = 0;
     battle.spellStage = 0;
     battle.victoryWithoutPanel = 0;
@@ -579,7 +579,7 @@ void Game::EndBattle()
     battle.unk53C028 = 0;
     battle.darkenByTint = 0;
     this->fightTalk.wonByTalk = 0;
-    battle.unk53C038 = 0;
+    battle.levelUpPending = 0;
     battle.orderSorted = 0;
     battle.unk53C048 = 0;
     this->archive.CloseAll();
@@ -587,7 +587,7 @@ void Game::EndBattle()
     this->audio.StopAllSounds();
     this->audio.StopMusic();
     this->database.CloseFiles();
-    battle.unk53BFFC = 0;
+    battle.learnedPending = 0;
     battle.lastLearned = LearnedSkill{};
 }
 
