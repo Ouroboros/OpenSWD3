@@ -5,6 +5,8 @@
 #include "text/big5.h"
 
 #include <algorithm>
+#include <array>
+#include <span>
 #include <string>
 #include <string_view>
 
@@ -92,121 +94,156 @@ constexpr i16 kNingCaiChenAttackLoss = 0xA;
 constexpr i32 kNingCaiChenGold = 0x1F4;
 constexpr i16 kXiaoQianValue = 5;
 
-bool Named(const Party::Name& name, std::u8string_view text)
+using Variables = std::array<i32, Party::Variables>;
+
+// A name code: the name typed and what it does to the role so named (and to the party's variables).
+struct NameCode
+{
+    std::u8string_view name;
+    void (*apply)(RoleRecord& role, Variables& variables);
+};
+
+void SetAttributes(RoleRecord& role, i16 value)
+{
+    role.strength = value;
+    role.endurance = value;
+    role.wisdom = value;
+    role.agility = value;
+}
+
+void SetHitPoints(RoleRecord& role, i16 value)
+{
+    role.hitPoints = value;
+    role.maxHitPoints = value;
+}
+
+void SetSpirit(RoleRecord& role, i16 value)
+{
+    role.spirit = value;
+    role.maxSpirit = value;
+}
+
+void SetStamina(RoleRecord& role, i16 value)
+{
+    role.stamina = value;
+    role.maxStamina = value;
+}
+
+// The codes of the first role, then of the second; a name is one of them at most.
+constexpr std::array<NameCode, 10> kFirstRoleCodes = {{
+    {kHeRan,
+     [](RoleRecord& role, Variables&)
+     {
+         SetAttributes(role, kHeRanAttributes);
+     }},
+    {kYangKunShuo,
+     [](RoleRecord& role, Variables&)
+     {
+         role.strength = kYangKunShuoAttack;
+         SetHitPoints(role, kYangKunShuoHitPoints);
+     }},
+    {kGuYueSheng,
+     [](RoleRecord& role, Variables&)
+     {
+         role.resistances.fill(kGuYueShengResistance);
+     }},
+    {kFuZiChe,
+     [](RoleRecord& role, Variables&)
+     {
+         SetAttributes(role, kFuZiCheAttributes);
+     }},
+    {kZhuShiZi,
+     [](RoleRecord& role, Variables&)
+     {
+         role.endurance = kZhuShiZiDefense;
+         SetStamina(role, kZhuShiZiStamina);
+     }},
+    {kLeLe,
+     [](RoleRecord& role, Variables&)
+     {
+         role.wisdom = kLeLeWisdom;
+         SetSpirit(role, kLeLeSpirit);
+     }},
+    {kDaMi,
+     [](RoleRecord& role, Variables&)
+     {
+         role.wisdom = kDaMiWisdom;
+         role.resistances.fill(kDaMiResistance);
+     }},
+    {kNingCaiChen,
+     [](RoleRecord& role, Variables& variables)
+     {
+         role.endurance = static_cast<i16>(role.endurance - kNingCaiChenLoss);
+         role.wisdom = static_cast<i16>(role.wisdom - kNingCaiChenLoss);
+         role.agility = static_cast<i16>(role.agility - kNingCaiChenLoss);
+         variables[Party::Gold] = kNingCaiChenGold;
+         role.strength = static_cast<i16>(role.strength - kNingCaiChenAttackLoss);
+     }},
+    {kYanChiXia,
+     [](RoleRecord& role, Variables&)
+     {
+         role.endurance = 0;
+         SetStamina(role, 0);
+     }},
+}};
+
+constexpr std::array<NameCode, 5> kSecondRoleCodes = {{
+    {kJiangRuHong,
+     [](RoleRecord& role, Variables&)
+     {
+         role.wisdom = kJiangRuHongWisdom;
+         SetSpirit(role, kJiangRuHongSpirit);
+     }},
+    {kWenJin,
+     [](RoleRecord& role, Variables&)
+     {
+         role.resistances.fill(kWenJinResistance);
+     }},
+    {kZhenMeng,
+     [](RoleRecord& role, Variables&)
+     {
+         role.endurance = kZhenMengDefense;
+         SetStamina(role, kZhenMengStamina);
+     }},
+    {kHongShanHu,
+     [](RoleRecord& role, Variables&)
+     {
+         role.strength = kHongShanHuAttack;
+         SetHitPoints(role, kHongShanHuHitPoints);
+     }},
+    {kXiaoQian,
+     [](RoleRecord& role, Variables&)
+     {
+         role.wisdom = kXiaoQianValue;
+         SetSpirit(role, kXiaoQianValue);
+     }},
+}};
+
+// The code `name` is, applied to `role`.
+void ApplyNameCode(std::span<const NameCode> codes, const Party::Name& name, RoleRecord& role, Variables& variables)
 {
     const std::string_view all(name.data(), name.size());
-    return all.substr(0, all.find('\0')) == Big5(text);
+    const std::string_view typed = all.substr(0, all.find('\0'));
+
+    for (const NameCode& code : codes)
+    {
+        if (typed == Big5(code.name))
+        {
+            code.apply(role, variables);
+            return;
+        }
+    }
 }
 
 }  // namespace
 
 // swd32.exe 0x00449D80: the codes typed as the names of the first two roles: each sets attributes or hit points,
-// spirit and stamina of that role, one the gold
+// spirit and stamina of that role, one the gold. The rebuild looks each name up in its role's table (the original
+// compares it with every code in turn; the names differ, so at most one applies either way).
 void Party::ApplyNameCheats()
 {
-    RoleRecord& first = this->roles[0];
-    RoleRecord& second = this->roles[1];
-    const Name& firstName = this->names[0];
-    const Name& secondName = this->names[1];
-
-    auto attributes = [](RoleRecord& role, i16 value)
-    {
-        role.strength = value;
-        role.endurance = value;
-        role.wisdom = value;
-        role.agility = value;
-    };
-
-    if (Named(firstName, kHeRan))
-    {
-        attributes(first, kHeRanAttributes);
-    }
-
-    if (Named(secondName, kJiangRuHong))
-    {
-        second.wisdom = kJiangRuHongWisdom;
-        second.spirit = kJiangRuHongSpirit;
-        second.maxSpirit = kJiangRuHongSpirit;
-    }
-
-    if (Named(firstName, kYangKunShuo))
-    {
-        first.strength = kYangKunShuoAttack;
-        first.hitPoints = kYangKunShuoHitPoints;
-        first.maxHitPoints = kYangKunShuoHitPoints;
-    }
-
-    if (Named(firstName, kGuYueSheng))
-    {
-        first.resistances.fill(kGuYueShengResistance);
-    }
-
-    if (Named(firstName, kFuZiChe))
-    {
-        attributes(first, kFuZiCheAttributes);
-    }
-
-    if (Named(secondName, kWenJin))
-    {
-        second.resistances.fill(kWenJinResistance);
-    }
-
-    if (Named(firstName, kZhuShiZi))
-    {
-        first.endurance = kZhuShiZiDefense;
-        first.stamina = kZhuShiZiStamina;
-        first.maxStamina = kZhuShiZiStamina;
-    }
-
-    if (Named(firstName, kLeLe))
-    {
-        first.wisdom = kLeLeWisdom;
-        first.spirit = kLeLeSpirit;
-        first.maxSpirit = kLeLeSpirit;
-    }
-
-    if (Named(firstName, kDaMi))
-    {
-        first.wisdom = kDaMiWisdom;
-        first.resistances.fill(kDaMiResistance);
-    }
-
-    if (Named(secondName, kZhenMeng))
-    {
-        second.endurance = kZhenMengDefense;
-        second.stamina = kZhenMengStamina;
-        second.maxStamina = kZhenMengStamina;
-    }
-
-    if (Named(secondName, kHongShanHu))
-    {
-        second.strength = kHongShanHuAttack;
-        second.hitPoints = kHongShanHuHitPoints;
-        second.maxHitPoints = kHongShanHuHitPoints;
-    }
-
-    if (Named(firstName, kNingCaiChen))
-    {
-        first.endurance = static_cast<i16>(first.endurance - kNingCaiChenLoss);
-        first.wisdom = static_cast<i16>(first.wisdom - kNingCaiChenLoss);
-        first.agility = static_cast<i16>(first.agility - kNingCaiChenLoss);
-        this->variables[Party::Gold] = kNingCaiChenGold;
-        first.strength = static_cast<i16>(first.strength - kNingCaiChenAttackLoss);
-    }
-
-    if (Named(firstName, kYanChiXia))
-    {
-        first.endurance = 0;
-        first.stamina = 0;
-        first.maxStamina = 0;
-    }
-
-    if (Named(secondName, kXiaoQian))
-    {
-        second.wisdom = kXiaoQianValue;
-        second.spirit = kXiaoQianValue;
-        second.maxSpirit = kXiaoQianValue;
-    }
+    ApplyNameCode(kFirstRoleCodes, this->names[0], this->roles[0], this->variables);
+    ApplyNameCode(kSecondRoleCodes, this->names[1], this->roles[1], this->variables);
 }
 
 Party::Name Party::MakeName(std::string_view text)
