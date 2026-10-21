@@ -469,6 +469,7 @@ void FieldView::PaintWorld()
         }
 
         this->DrawRoles();
+        this->DrawItemHints();
         this->DrawAnimations(view.animationsA);
         this->DrawSprites();
 

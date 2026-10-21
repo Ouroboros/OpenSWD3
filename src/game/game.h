@@ -644,6 +644,7 @@ private:
     int drawHeight = Display::Height;
     int renderScaleSetting = 0;  // [display] render_scale (AutoRenderScale: by the window)
     bool wideMap = true;         // [display] wide_map: the map fills the window
+    bool itemHints = false;      // [display] item_hints: arrows over the hidden items (FieldView::DrawItemHints)
     bool vsync = true;           // [display] vsync
     i64 frameRate = 0;           // [display] frame_rate (0: no limit)
     u32 frameStart = 0;          // 0x004AAECC

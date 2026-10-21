@@ -216,8 +216,8 @@ constexpr int kNotesBoxHeight = 0x15E;
 constexpr int kSettingsBoxHeight = 0xF8;
 constexpr int kDisplayRowHeight = 0x20;  // a row of the rebuild's, which grows the settings box
 constexpr int kAddedRows = 2;            // the launcher switch and the display setup
-constexpr int kDisplayBoxHeight = 0xD8;  // the display setup: its six rows
-constexpr int kDisplayFrameBottom = 0x148;
+constexpr int kDisplayBoxHeight = 0xF8;  // the display setup: its seven rows
+constexpr int kDisplayFrameBottom = 0x168;
 constexpr int kListFrameLeft = 0xD8;
 constexpr int kListFrameTop = 0x78;
 constexpr int kListFrameRight = 0x25C;
@@ -370,8 +370,12 @@ std::vector<std::string> Menu::OptionsDisplayChoices(i32 row, i32& chosen) const
         case kSmoothRow:
         case kVSyncRow:
         case kWideMapRow:
+        case kItemHintsRow:
         {
-            const bool on = row == kSmoothRow ? owner.smoothMotion : row == kVSyncRow ? owner.vsync : owner.wideMap;
+            const bool on = row == kSmoothRow    ? owner.smoothMotion
+                            : row == kVSyncRow   ? owner.vsync
+                            : row == kWideMapRow ? owner.wideMap
+                                                 : owner.itemHints;
             choices = OnOffChoices();
             chosen = on ? 0 : 1;
             break;
@@ -434,6 +438,10 @@ void Menu::OptionsChooseDisplay(i32 row, i32 choice)
 
         case kWideMapRow:
             owner.wideMap = choice == 0;
+            break;
+
+        case kItemHintsRow:
+            owner.itemHints = choice == 0;
             break;
 
         default:

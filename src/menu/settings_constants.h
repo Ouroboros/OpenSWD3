@@ -19,13 +19,15 @@ constexpr i32 kVSyncRow = 1;
 constexpr i32 kFrameRateRow = 2;
 constexpr i32 kRenderScaleRow = 3;
 constexpr i32 kWideMapRow = 4;
-constexpr i32 kDisplayBackRow = 5;
-constexpr std::array<std::u8string_view, 6> kDisplayLabels = {
+constexpr i32 kItemHintsRow = 5;
+constexpr i32 kDisplayBackRow = 6;
+constexpr std::array<std::u8string_view, 7> kDisplayLabels = {
     u8"平滑畫面",
     u8"垂直同步",
     u8"幀率上限",
     u8"繪製倍率",
     u8"地圖填滿",
+    u8"道具提示",
     u8"返回",
 };
 

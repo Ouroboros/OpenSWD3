@@ -53,13 +53,15 @@
 # 倍数越大越耗 CPU（2 倍约为 1 倍的 3～4 倍）。只在 smooth_motion 开启时有效。
 # wide_map：地图画面填满窗口，看到的地图范围随窗口变大；对话框等界面仍在中间。菜单、战斗、存档等画面仍是
 # 640×480，两边留黑边。
-# 这五项也可以在游戏中按 Esc →「設定」→「顯示設定」调整，调整后写入 swd3r.default.toml；这里写了的值启动时优先。
+# item_hints：地图上看不见、但调查后能拿到道具的地方，头上显示一个跳动的箭头（能调查时才显示，拿走后消失）。
+# 这六项也可以在游戏中按 Esc →「設定」→「顯示設定」调整，调整后写入 swd3r.default.toml；这里写了的值启动时优先。
 
 # smooth_motion = true
 # vsync = true
 # frame_rate = 0
 # render_scale = "auto"
 # wide_map = true
+# item_hints = false
 
 [game]
 

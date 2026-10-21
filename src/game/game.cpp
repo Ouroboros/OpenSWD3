@@ -365,6 +365,7 @@ int Game::Run([[maybe_unused]] std::u8string_view commandLine)
     const ScaleChoice renderScale = shown.renderScale.value_or(ScaleChoice{});
     this->renderScaleSetting = renderScale.automatic ? Game::AutoRenderScale : static_cast<int>(renderScale.factor);
     this->wideMap = shown.wideMap.value_or(true);
+    this->itemHints = shown.itemHints.value_or(false);
     this->smoothScreen = std::make_unique<Surface>(Display::Width, Display::Height);
     this->menuScreen = std::make_unique<Surface>(Display::Width, Display::Height);
     this->ApplyDisplay();
@@ -1536,6 +1537,7 @@ void Game::StoreDisplay() const
                 stored.vsync = this->vsync;
                 stored.frameRate = this->frameRate;
                 stored.wideMap = this->wideMap;
+                stored.itemHints = this->itemHints;
                 stored.renderScale = this->renderScaleSetting == Game::AutoRenderScale
                                          ? ScaleChoice{}
                                          : ScaleChoice{false, this->renderScaleSetting};

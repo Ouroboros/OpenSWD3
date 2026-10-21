@@ -13,6 +13,8 @@
 #include "draw/paint_record.h"
 #include "file/file.h"
 #include "platform/surface.h"
+#include "res/act_state.h"
+#include "talk/item_events.h"
 #include "text/big5.h"
 
 namespace swd3
@@ -127,6 +129,7 @@ public:
     void DrawTiles8Scrolled(int unused);
     void DrawRoles();
     int DrawRole(Role& role);
+    void DrawItemHints();
     void UpdateRoleSound(Role& role);
     void DrawShadow(const Role& role, const Picture& picture, int x, int y, int kind, int tint);
     void DrawReflections();
@@ -323,6 +326,8 @@ private:
     void StartPan(i32 byX, i32 byY);
     void PanTick();
     std::array<i32, 2> RoleFine(std::size_t index, int scale) const;
+    ActState itemHint;      // DrawItemHints: the arrow, stepped once a game frame
+    ItemEvents itemEvents;  // DrawItemHints: the events that give items
     PlayerMotion playerMotion;
     std::vector<RoleMotion> roleMotions;  // per role
     PanMotion panMotion;
