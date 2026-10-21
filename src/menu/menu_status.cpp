@@ -56,8 +56,8 @@ constexpr std::u8string_view kEvasionFormat = u8"   閃躲  %-4d";
 constexpr std::u8string_view kAilmentFormat = u8"   異常  %-4d";
 constexpr std::u8string_view kRapportFormat = u8"   默契  %-4d";
 constexpr std::u8string_view kReactionFormat = u8"   反應  %-4d";
-constexpr std::u8string_view kSpecialFormat = u8"   絕技  %d";
-constexpr std::u8string_view kSpecialNeededFormat = u8"   絕技  %d/%d";
+constexpr std::u8string_view kSpecialFormat = u8"   絕技  %d/%s";  // the points and those needed (kNoNeeded: none left)
+constexpr std::string_view kNoNeeded = "--";
 // The special points of a role's battle block (Game::LearnSpecials): the points, the points the next special needs,
 // the next special (kNoSpecial: none left).
 constexpr std::size_t kSpecialPoints = 1;
@@ -454,9 +454,8 @@ void Menu::StatusDraw()
     {
         const int y = kLinesY + kLineHeight * line++;
         font.DrawText(owner.drawSurface, kLinesX, y, text, color, kPanelStyle);
-        // The gain follows the value (the formats pad it with spaces).
-        const std::size_t used = text.find_last_not_of(' ') + 1;
-        const auto width = static_cast<int>(used) * font.Advance() / 2;
+        // The gains line up after the values (the formats pad them to four digits).
+        const auto width = static_cast<int>(text.size()) * font.Advance() / 2;
         this->StatusDrawBonus(bonus, kLinesX + width, y + kBonusDown);
     };
 
@@ -503,18 +502,11 @@ void Menu::StatusDraw()
         drawLine(WinFormat(formats[index], {values[index]}), bonuses[index]);
     }
 
-    // The special points toward the next special skill (none left: the points alone).
+    // The special points toward the next special skill.
     const RoleBattleBlock& block = owner.party.battleBlocks[role];
-    const i32 points = block.values[kSpecialPoints];
-
-    if (block.values[kNextSpecial] == kNoSpecial || block.values[kNeededPoints] <= 0)
-    {
-        drawLine(WinFormat(kSpecialFormat, {points}), 0);
-    }
-    else
-    {
-        drawLine(WinFormat(kSpecialNeededFormat, {points, block.values[kNeededPoints]}), 0);
-    }
+    const bool learnt = block.values[kNextSpecial] == kNoSpecial || block.values[kNeededPoints] <= 0;
+    const std::string needed = learnt ? std::string(kNoNeeded) : std::to_string(block.values[kNeededPoints]);
+    drawLine(WinFormat(kSpecialFormat, {block.values[kSpecialPoints], needed}), 0);
 
     std::string element = Big5(kElement);
     element += Big5(kRoleElements[role]);
