@@ -503,7 +503,9 @@ void Game::DrawFlagView()
 // swd32.exe 0x004070A0: the save slots page (save or load by Game::slotsLoad): the mouse picks a slot (a double click
 // takes it) or answers the overwrite prompt and the arrows page; the keys move by one or a page of three, Space or
 // Enter takes the slot (a used slot asks first when saving), Escape or Right Ctrl leaves. A slot taken is saved or
-// loaded once the screen ran ten frames; until then the choice stays pending.
+// loaded once the screen ran ten frames; until then the choice stays pending. (The original keeps it only for the frame
+// it was taken: taken within the first ten frames, the slot is never saved or loaded and the screen answers nothing but
+// Escape; here it stays taken until then.)
 // swd32.exe 0x00498010 (EH unwind: the cFile, closed by its destructor)
 // swd32.exe 0x00498018 (EH handler of 0x004070A0)
 void Game::SaveSlotsFrame()
@@ -511,7 +513,11 @@ void Game::SaveSlotsFrame()
     const ButtonState& mouse = this->controls.At(Button::MouseLeft);
     SlotsStep step = SlotsStep::Keys;
 
-    if (mouse.press != 0 && mouse.heldFrames != 0)
+    if (this->slotPrompt == kSlotChosen)
+    {
+        step = SlotsStep::Chosen;
+    }
+    else if (mouse.press != 0 && mouse.heldFrames != 0)
     {
         this->slotMouseBlock = 0;
         step = this->SlotsMouse();
