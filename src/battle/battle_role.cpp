@@ -597,7 +597,7 @@ void BattleRole::Strike(BattleServices& services, BattleUnit& target, int evadab
         services.party.fame.lists[Fame::UnkList0],
         static_cast<i16>(this->weaponId),
         this->weapon.data.counterMax,
-        this->weapon.data.unk42
+        this->weapon.data.masteryValue
     ));
     const u16 evasion = (this->status & BattleUnit::UnkStatus80) != 0 ? kStruckEvasion : u16{0};
 

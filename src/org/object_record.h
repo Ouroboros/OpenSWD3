@@ -38,7 +38,8 @@ struct ObjectData
     u16 useKind = 0;                   // +0x3C tag 0x1B how it is used: what it raises (vitals or maxima), its uses
     u16 skillScript = 0;               // +0x3E tag 0x64 the skill script it runs (mon.dat)
     u16 costBits = 0;                  // +0x40 tag 6 a skill's cost (bit 15 spirit, bit 14 stamina), an item's use bits
-    u16 unk42 = 0;                     // +0x42 tag 0xC
+    u16 masteryValue = 0;              // +0x42 tag 0xC what its counter (counterMax) leads to: a weapon's damage
+                                       // bonus once fully grown, a special skill's next special (0: the last)
     u16 counterMax = 0;                // +0x44 tag 0xD the top of its counter (proficiency)
     u16 price = 0;                     // +0x46 tag 0xB (the shop value)
     u16 unk48 = 0;                     // +0x48 tag 0x16
@@ -244,7 +245,7 @@ enum class ObjectTag : u16
     AgilityUp = 9,
     EvasionUp = 0xA,
     Price = 0xB,
-    Unk42 = 0xC,
+    MasteryValue = 0xC,
     CounterMax = 0xD,
     Act = 0xE,
     StrengthUp = 0xF,

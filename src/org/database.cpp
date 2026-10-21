@@ -387,8 +387,8 @@ bool Database::LoadObject(ObjectRecord& record, u16 id)
                 word(data.price);
                 break;
 
-            case ObjectTag::Unk42:
-                word(data.unk42);
+            case ObjectTag::MasteryValue:
+                word(data.masteryValue);
                 break;
 
             case ObjectTag::CounterMax:

@@ -2024,9 +2024,9 @@ void Game::DrawLearnedBox(std::u8string_view line, bool sound)
 
 // swd32.exe 0x00468C80: each battle role standing (not forced) whose next special skill is not exhausted (battle
 // block [3] not -1) learns it once it has fought enough battles: its type 1 skills (from Party::skills by battle role
-// index, as in the original) set the battle block's needed battles ([2], the skill's unk44) and next special ([3],
-// its unk42 with bit 31). With [1] battles at least [2] and a next special (not 0x665 or 0x669 while game flag
-// kSpecialsFlag is set), the special is appended to the list, its name kept for the message (learnedPending,
+// index, as in the original) set the battle block's needed battles ([2], the skill's counterMax) and next special
+// ([3], its masteryValue with bit 31). With [1] battles at least [2] and a next special (not 0x665 or 0x669 while game
+// flag kSpecialsFlag is set), the special is appended to the list, its name kept for the message (learnedPending,
 // levelUpRole the role) and the block restarted from it (-1 without a further one).
 void Game::LearnSpecials()
 {
@@ -2049,7 +2049,7 @@ void Game::LearnSpecials()
             this->database.LoadObject(battle.lastObject, id);
             Database::FreeDescription(battle.lastObject);
             block.values[kNeededBattles] = battle.lastObject.data.counterMax;
-            block.values[kNextSpecial] = static_cast<i32>(battle.lastObject.data.unk42 | kSpecialMark);
+            block.values[kNextSpecial] = static_cast<i32>(battle.lastObject.data.masteryValue | kSpecialMark);
         };
 
         for (ItemNode* node = list->next.get(); node != nullptr; node = node->next.get())
@@ -2091,9 +2091,9 @@ void Game::LearnSpecials()
         battle.levelUpRole = static_cast<u8>(index);
         block.values[kBattlesFought] = 0;
         block.values[kNeededBattles] = battle.lastObject.data.counterMax;
-        block.values[kNextSpecial] = static_cast<i32>(battle.lastObject.data.unk42 | kSpecialMark);
+        block.values[kNextSpecial] = static_cast<i32>(battle.lastObject.data.masteryValue | kSpecialMark);
 
-        if (battle.lastObject.data.unk42 == 0)
+        if (battle.lastObject.data.masteryValue == 0)
         {
             block.values[kNextSpecial] = kNoSpecial;
         }
