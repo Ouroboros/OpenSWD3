@@ -279,6 +279,52 @@ void Game::DrawWrappedText(std::string_view text, int x, int y, int lines, int w
     );
 }
 
+// The rebuild: the lines DrawWrappedText takes for `text` in `width` pixels, without its limit.
+int Game::WrappedLines(std::string_view text, int width) const
+{
+    int lines = 1;
+    int before = 0;
+    int length = 0;
+    std::size_t at = 0;
+
+    while (at < text.size() && text[at] != '\0' && TextWord(text, at) != kEndCode)
+    {
+        if (TextWord(text, at) == kBreakCode || this->talk.unit * (before + length) > width)
+        {
+            ++lines;
+            before = 0;
+            length = 0;
+
+            if (TextWord(text, at) == kBreakCode)
+            {
+                at += sizeof(u16);
+            }
+
+            continue;
+        }
+
+        if (TextWord(text, at) == kColorCode)
+        {
+            at += kColorCodeBytes;
+            before += length;
+            length = 0;
+            continue;
+        }
+
+        const auto lead = static_cast<signed char>(text[at]);
+        ++at;
+        ++length;
+
+        if (lead < 0 && at < text.size())
+        {
+            ++at;
+            ++length;
+        }
+    }
+
+    return lines;
+}
+
 // swd32.exe 0x0043C0D0: the bestiary opened: the category of every monster of mon.dat 1..500 and how many of each the
 // party defeated (the first fame list), the first category listed and its first monster chosen
 void Menu::BestiaryEnter()

@@ -43,14 +43,28 @@ constexpr u32 kFacesRight = 0xBC;
 constexpr u32 kFaceHeight = 0x6E;
 
 // The texts.
-constexpr std::u8string_view kLevelFormat = u8"   等級  %-3d";      // swd32.exe 0x004A71F4
-constexpr std::u8string_view kExperience = u8"   經驗";             // swd32.exe 0x004A71EC
-constexpr std::u8string_view kNextLevel = u8"   升級";              // swd32.exe 0x004A71DC
+constexpr std::u8string_view kLevelFormat = u8"   等級  %-3d";  // swd32.exe 0x004A71F4
+// swd32.exe 0x004A71EC: the experience; the rebuild puts that of the next level (0x004A71DC "升級") after it.
+constexpr std::u8string_view kExperienceFormat = u8"   經驗  %d/%d";
 constexpr std::u8string_view kStrengthFormat = u8"   力量  %-4d";   // swd32.exe 0x004A71CC
 constexpr std::u8string_view kEnduranceFormat = u8"   耐力  %-4d";  // swd32.exe 0x004A71BC
 constexpr std::u8string_view kWisdomFormat = u8"   智慧  %-4d";     // swd32.exe 0x004A71AC
 constexpr std::u8string_view kAgilityFormat = u8"   敏捷  %-4d";    // swd32.exe 0x004A719C
-constexpr std::u8string_view kElement = u8"   屬性  ";              // swd32.exe 0x004A7190
+// The rebuild's hidden values (deviations.md): the evasion, the ailment chance, the rapport and the reaction (the last
+// two never read), and the special points toward the next special skill.
+constexpr std::u8string_view kEvasionFormat = u8"   閃躲  %-4d";
+constexpr std::u8string_view kAilmentFormat = u8"   異常  %-4d";
+constexpr std::u8string_view kRapportFormat = u8"   默契  %-4d";
+constexpr std::u8string_view kReactionFormat = u8"   反應  %-4d";
+constexpr std::u8string_view kSpecialFormat = u8"   絕技  %d";
+constexpr std::u8string_view kSpecialNeededFormat = u8"   絕技  %d/%d";
+// The special points of a role's battle block (Game::LearnSpecials): the points, the points the next special needs,
+// the next special (kNoSpecial: none left).
+constexpr std::size_t kSpecialPoints = 1;
+constexpr std::size_t kNeededPoints = 2;
+constexpr std::size_t kNextSpecial = 3;
+constexpr i32 kNoSpecial = -1;
+constexpr std::u8string_view kElement = u8"   屬性  ";  // swd32.exe 0x004A7190
 // swd32.exe 0x004A718C, 0x004A7188, 0x004A7184, 0x004A7180: the element of each role.
 constexpr std::array<std::u8string_view, Party::Roles> kRoleElements = {u8"火", u8"暗", u8"風", u8"光"};
 constexpr std::u8string_view kResistances = u8"抗力";  // swd32.exe 0x004A7178
@@ -58,7 +72,6 @@ constexpr std::u8string_view kResistances = u8"抗力";  // swd32.exe 0x004A7178
 constexpr std::array<std::u8string_view, 5> kFirstColumn = {u8"火", u8"冰", u8"風", u8"土", u8"毒"};
 constexpr std::array<std::u8string_view, 4> kSecondColumn = {u8"光", u8"暗", u8"電", u8"物"};
 constexpr std::string_view kNumberFormat = "%-d";
-constexpr std::string_view kWideNumberFormat = "%-10d";
 constexpr std::string_view kBonusFormat = "%c%-3d";
 constexpr std::u8string_view kWeakFormat = u8"損%2d0%%";    // swd32.exe 0x004A6E40
 constexpr std::u8string_view kResistFormat = u8"抗%2d0%%";  // swd32.exe 0x004A6E34
@@ -109,15 +122,9 @@ constexpr std::array<int, 3> kFaceX = {0x14A, 0x1AE, 0x212};
 constexpr int kTopY = 0x3E;
 constexpr std::array<int, 3> kTopX = {0x17C, 0x1E0, 0x244};
 constexpr int kLinesX = 0xB4;
-constexpr int kValuesX = 0x117;
-constexpr int kLevelY = 0x6A;
-constexpr int kExperienceY = 0x83;
-constexpr int kExperienceValueY = 0x88;
-constexpr int kNextLevelY = 0x9C;
-constexpr int kNextLevelValueY = 0xA1;
-constexpr std::array<int, 4> kAttributeY = {0xB5, 0xCE, 0xE7, 0x100};
-constexpr int kBonusDown = 7;
-constexpr int kElementY = 0x132;
+constexpr int kLinesY = 0x6A;      // the first line (the level)
+constexpr int kLineHeight = 0x11;  // the rebuild's lines in the medium font, down to the element above the table
+constexpr int kBonusDown = 2;      // the small font of a gain beside the medium font
 constexpr int kTableX = 0xD2;
 constexpr int kSecondTableX = 0x127;
 constexpr int kTableTop = 0x150;
@@ -131,8 +138,6 @@ constexpr int kSlotsY = 0x66;
 constexpr int kSlotsWidth = 0xA4;
 constexpr int kNoSlot = 0x14;  // none chosen
 constexpr int kBonusPad = 4;
-constexpr std::array<int, 4> kBonusDigits = {1, 0xA, 0x64, 0x3E8};
-constexpr int kDigitWidth = 0xB;
 
 }  // namespace
 
@@ -327,9 +332,9 @@ void Menu::StatusCancel()
     this->SetPage(this->code);
 }
 
-// swd32.exe 0x0044AE70: a gain from the equipment beside a value: "+n" in white or "-n" in red, further right the
-// more digits the value has
-void Menu::StatusDrawBonus(int bonus, int x, int y, int value)
+// swd32.exe 0x0044AE70: a gain from the equipment beside a value: "+n" in white or "-n" in red. The original moves it
+// right by the digits of the value; the rebuild's lines put it after the line at `x`.
+void Menu::StatusDrawBonus(int bonus, int x, int y)
 {
     Game& owner = this->game;
 
@@ -345,19 +350,9 @@ void Menu::StatusDrawBonus(int bonus, int x, int y, int value)
         color = static_cast<Pixel>(owner.painter.MakeColor(kLossRed, 0, 0));
     }
 
-    int shift = 0;
-
-    for (std::size_t digits = 0; digits < kBonusDigits.size(); ++digits)
-    {
-        if (value >= kBonusDigits[digits])
-        {
-            shift = kDigitWidth * static_cast<int>(digits + 1);
-        }
-    }
-
     owner.smallFont.DrawText(
         owner.drawSurface,
-        shift + x + kBonusPad,
+        x + kBonusPad,
         y,
         WinFormat(kBonusFormat, {static_cast<i32>(bonus <= 0 ? '-' : '+'), std::abs(bonus)}),
         color,
@@ -367,7 +362,9 @@ void Menu::StatusDrawBonus(int bonus, int x, int y, int value)
 
 // swd32.exe 0x0044A280: the status page: the role's name and faces, its attack, defence and agility over them, its
 // level, experience and the experience of the next level, its four attributes with the equipment's gains, its element,
-// the resistance table and its slots
+// the resistance table and its slots. The rebuild draws the lines smaller, the experience and that of the next level on
+// one line, and adds the evasion, the ailment chance, the rapport, the reaction and the special points under the
+// attributes.
 void Menu::StatusDraw()
 {
     Game& owner = this->game;
@@ -449,69 +446,79 @@ void Menu::StatusDraw()
         );
     }
 
-    owner.largeFont.DrawText(
-        owner.drawSurface,
-        kLinesX,
-        kLevelY,
-        WinFormat(kLevelFormat, {static_cast<i32>(total.level)}),
-        color,
-        kPanelStyle
-    );
+    // The rebuild (deviations.md): the lines in the medium font, with the hidden values under the attributes.
+    TextFont& font = owner.mediumFont;
+    int line = 0;
+
+    auto drawLine = [&](std::string_view text, int bonus)
+    {
+        const int y = kLinesY + kLineHeight * line++;
+        font.DrawText(owner.drawSurface, kLinesX, y, text, color, kPanelStyle);
+        // The gain follows the value (the formats pad it with spaces).
+        const std::size_t used = text.find_last_not_of(' ') + 1;
+        const auto width = static_cast<int>(used) * font.Advance() / 2;
+        this->StatusDrawBonus(bonus, kLinesX + width, y + kBonusDown);
+    };
+
+    const RoleRecord& record = owner.party.roles[role];
     u32 next = 0;
     owner.database.LoadLevelEntry(static_cast<int>(role) + 1, total.level + 1, next);
-    owner.largeFont.DrawText(owner.drawSurface, kLinesX, kExperienceY, kExperience, color, kPanelStyle);
-    owner.mediumFont.DrawText(
-        owner.drawSurface,
-        kValuesX,
-        kExperienceValueY,
-        WinFormat(kWideNumberFormat, {owner.party.roles[role].totalExperience}),
-        color,
-        kPanelStyle
-    );
-    owner.largeFont.DrawText(owner.drawSurface, kLinesX, kNextLevelY, kNextLevel, color, kPanelStyle);
-    owner.mediumFont.DrawText(
-        owner.drawSurface,
-        kValuesX,
-        kNextLevelValueY,
-        WinFormat(kWideNumberFormat, {next}),
-        color,
-        kPanelStyle
-    );
-    const RoleRecord& record = owner.party.roles[role];
-    const std::array<std::u8string_view, 4> formats =
-        {kStrengthFormat, kEnduranceFormat, kWisdomFormat, kAgilityFormat};
-    const std::array<int, 4> values = {
+    drawLine(WinFormat(kLevelFormat, {static_cast<i32>(total.level)}), 0);
+    drawLine(WinFormat(kExperienceFormat, {record.totalExperience, next}), 0);
+    const std::array<std::u8string_view, 8> formats = {
+        kStrengthFormat,
+        kEnduranceFormat,
+        kWisdomFormat,
+        kAgilityFormat,
+        kEvasionFormat,
+        kAilmentFormat,
+        kRapportFormat,
+        kReactionFormat,
+    };
+
+    const std::array<int, 8> values = {
         static_cast<u16>(record.strength),
         static_cast<u16>(record.endurance),
         static_cast<u16>(record.wisdom),
-        static_cast<u16>(record.agility)
+        static_cast<u16>(record.agility),
+        record.evasion,
+        record.ailmentChance,
+        record.rapport,
+        record.reaction,
     };
 
-    const std::array<int, 4> bonuses =
-        {page.bonus.strength, page.bonus.endurance, page.bonus.wisdom, page.bonus.agility};
-    const std::array<int, 4> totals = {
-        static_cast<u16>(total.strength),
-        static_cast<u16>(total.endurance),
-        static_cast<u16>(total.wisdom),
-        static_cast<u16>(total.agility)
+    const std::array<int, 8> bonuses = {
+        page.bonus.strength,
+        page.bonus.endurance,
+        page.bonus.wisdom,
+        page.bonus.agility,
+        page.bonus.evasion,
+        page.bonus.ailmentChance,
+        page.bonus.rapport,
+        page.bonus.reaction,
     };
 
     for (std::size_t index = 0; index < formats.size(); ++index)
     {
-        owner.largeFont.DrawText(
-            owner.drawSurface,
-            kLinesX,
-            kAttributeY[index],
-            WinFormat(formats[index], {values[index]}),
-            color,
-            kPanelStyle
-        );
-        this->StatusDrawBonus(bonuses[index], kValuesX, kAttributeY[index] + kBonusDown, totals[index]);
+        drawLine(WinFormat(formats[index], {values[index]}), bonuses[index]);
+    }
+
+    // The special points toward the next special skill (none left: the points alone).
+    const RoleBattleBlock& block = owner.party.battleBlocks[role];
+    const i32 points = block.values[kSpecialPoints];
+
+    if (block.values[kNextSpecial] == kNoSpecial || block.values[kNeededPoints] <= 0)
+    {
+        drawLine(WinFormat(kSpecialFormat, {points}), 0);
+    }
+    else
+    {
+        drawLine(WinFormat(kSpecialNeededFormat, {points, block.values[kNeededPoints]}), 0);
     }
 
     std::string element = Big5(kElement);
     element += Big5(kRoleElements[role]);
-    owner.largeFont.DrawText(owner.drawSurface, kLinesX, kElementY, element, color, kPanelStyle);
+    drawLine(element, 0);
     owner.mediumFont.DrawText(owner.drawSurface, kTableX, kTableTop, kResistances, color, kPanelStyle);
 
     for (std::size_t line = 0; line < kFirstColumn.size(); ++line)

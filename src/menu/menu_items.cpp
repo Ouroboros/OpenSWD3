@@ -2151,7 +2151,9 @@ void Menu::ItemsDraw()
     if (const ItemNode* chosen = ItemAfter(this->itemList.top + this->itemList.row, this->itemObjects);
         chosen != nullptr && chosen->id != ItemNode::Empty)
     {
-        this->DrawDescriptionBox(chosen->record.description.value_or(std::string()));
+        int lines = 0;
+        const std::string text = this->DescriptionText(*chosen, lines);
+        this->DrawDescriptionBox(text, lines);
     }
 
     if (this->code == kFollowersCode || this->code == kFollowerCode)

@@ -450,7 +450,8 @@ public:
     void EquipDrawSlots(int x, int y, int slide, int width, int chosen);
     void EquipDrawPicture(u16 file, u16 picture, int x, int y);
     void EquipDrawStats(int slot, int role);
-    void DrawDescriptionBox(std::string_view text);
+    void DrawDescriptionBox(std::string_view text, int lines);
+    std::string DescriptionText(const ItemNode& node, int& lines);
 
     // The skills page (role page 0xD).
     void SkillsEnter();
@@ -490,7 +491,7 @@ public:
     void StatusNext();
     void StatusPrevious();
     void StatusCancel();
-    void StatusDrawBonus(int bonus, int x, int y, int value);
+    void StatusDrawBonus(int bonus, int x, int y);
     void StatusDraw();
 
     // The system tab (role page 0xF).

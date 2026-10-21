@@ -258,6 +258,7 @@ private:
     void DrawShopList(Pixel color);
     void DrawShopChosen(const ItemNode& item, Pixel color);
     void DrawWrappedText(std::string_view text, int x, int y, int lines, int width);
+    int WrappedLines(std::string_view text, int width) const;
     void DrawTextInput(const TextInput& box);
     void MainFrame();
     void EndMainFrame();

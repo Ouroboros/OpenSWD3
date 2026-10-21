@@ -6,6 +6,7 @@
 
 #include "core/debug_log.h"
 #include "core/format.h"
+#include "crt/msvc.h"
 #include "draw/painter.h"
 #include "font/text_font.h"
 #include "game/databases.h"
@@ -52,7 +53,6 @@ constexpr std::size_t kDefenseBonusStat = 0x10;
 constexpr std::size_t kPercentStat = 0x11;
 constexpr std::size_t kProficiencyStat = 0x12;
 constexpr std::size_t kFameStat = 0x13;
-constexpr i32 kFamePercent = 5;
 
 constexpr u16 kMoveSound = 0x2E;
 constexpr u16 kRoleSound = 0x107;
@@ -129,11 +129,17 @@ constexpr std::array<std::u8string_view, kLastSlot + 1> kSlotNames = {
 constexpr std::string_view kSlotFormat = "%-7s%-12s";
 constexpr std::string_view kRowFormat = "%-12s %2d";
 constexpr std::string_view kEmptyFormat = "%-12s";
-constexpr std::string_view kStatFormat = "%-6s%5d";
+// swd32.exe: "%-6s%5d", "%-5d" and "%-6s%5d/%-5d"; the rebuild puts every value of the box to the left, from where
+// the original's three digits start.
+constexpr std::string_view kStatFormat = "%-8s%d";
 constexpr std::string_view kNumberFormat = "%d";
-constexpr std::string_view kNewValueFormat = "%-5d";
-constexpr std::string_view kPercentFormat = "%-6s%5d%%";
-constexpr std::string_view kGrowthFormat = "%-6s%5d/%-5d";
+constexpr std::string_view kNewValueFormat = "%d";
+constexpr std::string_view kGrowthFormat = "%-8s%d/%d";
+// The rebuild: a weapon's skill as its strikes counted and the strikes to its top; a weapon that does not grow (no top)
+// shows kNoSkill.
+constexpr std::string_view kSkillCountFormat = "%-8s%d/%d";
+constexpr std::string_view kNoSkillFormat = "%-8s%s";
+constexpr std::string_view kNoSkill = "--";
 
 // The layout.
 constexpr u32 kTextRed = 0x19;
@@ -165,6 +171,10 @@ constexpr int kDescriptionFrameRight = 0x254;
 constexpr int kDescriptionFrameBottom = 0x1D6;
 constexpr int kDescriptionLines = 5;
 constexpr int kDescriptionWidth = 0x168;
+constexpr int kDescriptionLineHeight = 0x19;  // Game::DrawWrappedText
+// The rebuild's last line of a weapon's description: its growth bonus a strike now, and once fully grown.
+constexpr std::u8string_view kGrowthBonusFormat = u8"%%N成長加成：每擊 +%d（全滿 +%d）";  // "%N" starts the line
+constexpr std::string_view kDescriptionEnd = "%Q";
 constexpr i32 kSlideStart = 0x190;
 constexpr i32 kListStartX = 0x1E8;
 constexpr i32 kListStartY = 0x78;
@@ -566,10 +576,14 @@ void Menu::EquipExtraStats(const ItemNode* tried, EquipStats& stats)
     const bool present = tried != nullptr && tried->id != ItemNode::Empty;
     stats[kPercentStat] = -1;
 
+    // The rebuild (deviations.md): a weapon's strikes counted and its top (as the magic's below) instead of its
+    // percent.
     if (page.slot == kWeaponSlot && present)
     {
-        stats[kPercentStat] =
-            static_cast<u16>(FindCounterPercent(owner.party.fame.lists[Fame::UnkList0], static_cast<i16>(tried->id)));
+        const u16 most = tried->record.data.counterMax;
+        const auto struck =
+            static_cast<u16>(FindCounterValue(owner.party.fame.lists[Fame::UnkList0], static_cast<i16>(tried->id)));
+        stats[kPercentStat] = static_cast<i32>(std::min(struck, most) | static_cast<u32>(most) << kWordShift);
     }
 
     stats[kProficiencyStat] = -1;
@@ -1471,7 +1485,9 @@ void Menu::EquipDraw()
 
     if (page.described != nullptr)
     {
-        this->DrawDescriptionBox(page.described->record.description.value_or(std::string()));
+        int lines = 0;
+        const std::string text = this->DescriptionText(*page.described, lines);
+        this->DrawDescriptionBox(text, lines);
     }
 
     if (page.stage == kRefusedStage)
@@ -1637,11 +1653,14 @@ void Menu::EquipDrawStats(int slot, int role)
     {
         if (tried[kPercentStat] != -1)
         {
+            const auto value = static_cast<u32>(tried[kPercentStat]);
+            const auto most = static_cast<i32>(value >> kWordShift);
             owner.mediumFont.DrawText(
                 owner.drawSurface,
                 slide + kStatsX,
                 kExtraY,
-                WinFormat(kPercentFormat, {kSkillLabel, tried[kPercentStat]}),
+                most == 0 ? WinFormat(kNoSkillFormat, {kSkillLabel, kNoSkill})
+                          : WinFormat(kSkillCountFormat, {kSkillLabel, static_cast<i32>(value & kWordMask), most}),
                 color,
                 kPanelStyle
             );
@@ -1672,16 +1691,41 @@ void Menu::EquipDrawStats(int slot, int role)
             owner.drawSurface,
             slide + kStatsX,
             kExtraY,
-            WinFormat(kPercentFormat, {kKnownLabel, kFamePercent * tried[kFameStat]}),
+            // The rebuild (deviations.md): the defeats counted and the top instead of the percent (5 a defeat).
+            WinFormat(kSkillCountFormat, {kKnownLabel, tried[kFameStat], static_cast<i32>(CounterNode::Cap)}),
             color,
             kPanelStyle
         );
     }
 }
 
+// The rebuild (deviations.md): the description of `node` with a weapon's growth bonus as its last line, and the lines
+// its box shows (more than the original's when that line needs them).
+std::string Menu::DescriptionText(const ItemNode& node, int& lines)
+{
+    Game& owner = this->game;
+    const ObjectData& data = node.record.data;
+    std::string text = node.record.description.value_or(std::string());
+    lines = kDescriptionLines;
+
+    if ((data.kind & Party::SlotKinds[kWeaponSlot]) == 0 || data.counterMax == 0 || data.masteryValue == 0)
+    {
+        return text;
+    }
+
+    const auto grown =
+        static_cast<u16>(FindCounterValue(owner.party.fame.lists[Fame::UnkList0], static_cast<i16>(node.id)));
+    const double share = static_cast<double>(std::min(grown, data.counterMax)) / static_cast<double>(data.counterMax);
+    const i32 bonus = crt::Ftol(share * static_cast<double>(data.masteryValue));
+    const std::string line = WinFormat(kGrowthBonusFormat, {bonus, static_cast<i32>(data.masteryValue)});
+    text.insert(std::min(text.find(kDescriptionEnd), text.size()), line);
+    lines = std::max(kDescriptionLines, owner.WrappedLines(text, kDescriptionWidth));
+    return text;
+}
+
 // swd32.exe 0x0043BD70: the description box sliding up (Menu::descriptionSlide positive) or down from under the screen
 // to its place and the text in it, while it moves or stays up
-void Menu::DrawDescriptionBox(std::string_view text)
+void Menu::DrawDescriptionBox(std::string_view text, int lines)
 {
     Game& owner = this->game;
 
@@ -1714,6 +1758,8 @@ void Menu::DrawDescriptionBox(std::string_view text)
 
     this->Move(DescriptionTopValue, this->descriptionTop, topBefore, this->descriptionTop);
     top = this->Shown(DescriptionTopValue, this->descriptionTop);
+    // The rebuild: a box with more lines than the original's grows up by them.
+    top -= (lines - kDescriptionLines) * kDescriptionLineHeight;
     FillBox(
         owner.painter,
         kDescriptionBoxX,
@@ -1736,7 +1782,7 @@ void Menu::DrawDescriptionBox(std::string_view text)
         0,
         kFrameBorder
     );
-    owner.DrawWrappedText(text, kDescriptionTextX, top, kDescriptionLines, kDescriptionWidth);
+    owner.DrawWrappedText(text, kDescriptionTextX, top, lines, kDescriptionWidth);
 }
 
 // swd32.exe 0x00442960: picture `picture` of `file` at (x, y), opaque, as ActDrawer::DrawPicture (the original also
