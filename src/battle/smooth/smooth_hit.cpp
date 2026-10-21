@@ -33,6 +33,8 @@ constexpr i32 kSplashLast = 0x1E;
 constexpr int kSplashShiftX = 0x64;
 constexpr u32 kSplashSpreadX = 80;
 constexpr u32 kSplashSpreadY = 100;
+// 烈火術's hit act: its script strikes on its first step, so the damage shows before the fire is drawn.
+constexpr i32 kFirstStepStrikeAct = 6001;
 }  // namespace
 
 HitFrame::HitFrame(Game& game)
@@ -228,6 +230,13 @@ bool HitFrame::DrawHitPictureAdvance(
         battle.followActs[at] = ActState{};
         battle.unk4FF0BC[at] = 0;
         return false;
+    }
+
+    // The rebuild moves the strike of kFirstStepStrikeAct (its only one) to the step that ends the act.
+    if (hit.id == kFirstStepStrikeAct)
+    {
+        hit.target = hit.waiting == 1 ? static_cast<u16>(hit.target | ActState::Strikes)
+                                      : static_cast<u16>(hit.target & ~ActState::Strikes);
     }
 
     const Picture* picture = game.archive.LoadPictureKept(hit.frame, hit.picture);
