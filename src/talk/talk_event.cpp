@@ -1052,7 +1052,7 @@ bool Talk::RunRoleCommand(EventRun& run)
             const u16 id = operands.Word();
             state.FindRoleOrPlayer(id, run.found);
 
-            if (run.found < GameState::Roles && owner.rolePath.ResumeMove(static_cast<int>(run.found)))
+            if (run.found == GameState::NotFound || owner.rolePath.ResumeMove(static_cast<int>(run.found)))
             {
                 this->Next(run);
             }
