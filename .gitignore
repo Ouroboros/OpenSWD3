@@ -19,3 +19,4 @@
 /third_party/asset/
 __pycache__/
 *.pyc
+.clangd
