@@ -570,7 +570,13 @@ void Game::FollowLeader(int index)
                 continue;
             }
 
-            if ((role.x & MapHeader::TileFraction) != 0 || (role.y & MapHeader::TileFraction) != 0)
+            i32 aheadX = 0;
+            i32 aheadY = 0;
+
+            // The rebuild's smooth motion: a role between tiles walks on to its tile ahead instead.
+            if (!this->fieldView
+                     .FinishToTile(static_cast<std::size_t>(index), move.CurrentDirection(), aheadX, aheadY) &&
+                ((role.x & MapHeader::TileFraction) != 0 || (role.y & MapHeader::TileFraction) != 0))
             {
                 this->field.ClearRoleCells(role, this->partyLeaderId);
                 const u8 direction = move.CurrentDirection();
@@ -913,6 +919,7 @@ void Game::LoadCity(int map, int x, int y, i16 act, i16 action, i16 direction, i
 // its act from the story; flagged roles follow the leader unless the story lists them; roles with flag 9 get a mark.
 void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction, int previous)
 {
+    this->fieldView.ResetRoleMotions();
     GameState& game = this->state;
     Scene& view = this->scene;
     std::vector<u8>& data = this->databases.mapsData;
@@ -1268,7 +1275,9 @@ void Game::ReleaseRole(int index)
             continue;
         }
 
-        if ((role.x & kTileMask) != 0 || (role.y & kTileMask) != 0)
+        // The rebuild's smooth motion: a role between tiles is not put back (let go, its step goes on to its tile).
+        if (((role.x & kTileMask) != 0 || (role.y & kTileMask) != 0) &&
+            (!this->smoothMotion || index == this->state.playerRole))
         {
             this->field.ClearRoleCells(role, this->partyLeaderId);
 

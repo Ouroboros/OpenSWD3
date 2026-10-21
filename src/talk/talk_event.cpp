@@ -1217,7 +1217,12 @@ bool Talk::RunRoleCommand(EventRun& run)
 
                 if (move.Kind() == MoveKind::Path)
                 {
-                    if ((role.x & MapHeader::TileFraction) != 0 || (role.y & MapHeader::TileFraction) != 0)
+                    i32 aheadX = 0;
+                    i32 aheadY = 0;
+
+                    // The rebuild's smooth motion: a role between tiles walks on to its tile ahead instead.
+                    if (!owner.fieldView.FinishToTile(run.found, move.CurrentDirection(), aheadX, aheadY) &&
+                        ((role.x & MapHeader::TileFraction) != 0 || (role.y & MapHeader::TileFraction) != 0))
                     {
                         const int row = static_cast<int>(static_cast<u32>(role.y) >> MapHeader::TileShift) - 1;
 

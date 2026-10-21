@@ -109,7 +109,12 @@ void Game::LeaveParty(u16 id, u16 path, u16 event, i32 act, i32 action, i32 dire
     MoveRecord& move = view.followerMoves[follower];
     const i32 leader = this->partyLeaderId;
 
+    i32 aheadX = 0;
+    i32 aheadY = 0;
+
+    // The rebuild's smooth motion: a follower between tiles walks on to its tile ahead itself.
     if (move.step < MoveRecord::StepMask &&
+        !this->fieldView.FinishToTile(index, move.CurrentDirection(), aheadX, aheadY) &&
         ((role.x & MapHeader::TileFraction) != 0 || (role.y & MapHeader::TileFraction) != 0))
     {
         this->field.ClearRoleCells(role, leader);

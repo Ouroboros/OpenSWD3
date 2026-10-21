@@ -130,6 +130,15 @@ public:
     void DrawRoles();
     int DrawRole(Role& role);
     void DrawItemHints();
+    // The rebuild's smooth motion: whether role `index` is walking (a step or its walk on to its tile under way).
+    bool RoleStepping(std::size_t index) const;
+    bool RoleFinishing(std::size_t index) const;
+    // The rebuild's smooth motion: a role an event sends elsewhere while between tiles walks on from where it is to the
+    // tile ahead (in path direction `direction`, or its step's) instead of being put back on the tile behind; that
+    // tile, where its new move starts, in (x, y). False with smooth motion off or the role on its tile.
+    bool FinishToTile(std::size_t index, u8 direction, i32& x, i32& y);
+    // The roles' smooth steps and held tiles dropped (the roles of a map placed again).
+    void ResetRoleMotions();
     void UpdateRoleSound(Role& role);
     void DrawShadow(const Role& role, const Picture& picture, int x, int y, int kind, int tint);
     void DrawReflections();
@@ -296,6 +305,19 @@ private:
         std::size_t move = 0;  // the move record (GameState::moves or Scene::followerMoves)
         bool timed = false;    // its length taken from the act run after the step
         u8 direction = 0;
+        // Walking on to the tile ahead by itself (its step stopped between tiles, or an event sent it elsewhere):
+        // the frames take no steps for it meanwhile.
+        bool finishing = false;
+        bool detached = false;  // its move record was replaced: arriving only moves its cells
+    };
+
+    // The tile ahead a role steps into, its cells held taken for it from the step that leaves its tile to its arrival.
+    struct RoleReservation
+    {
+        bool held = false;
+        std::ptrdiff_t cell = 0;
+        i32 width = 0;
+        i32 height = 0;
     };
 
     // The pan of the camera under way: the step a frame took, the milliseconds gone and the camera it left.
@@ -321,6 +343,13 @@ private:
     void TimeRoleStep(std::size_t index);
     bool FinishRoleStep(std::size_t index);
     void RoleTick(std::size_t index);
+    void PlaceRoleStep(std::size_t index);
+    bool StartFinish(std::size_t index, i32 signX, i32 signY, bool detached);
+    void ArriveFinish(std::size_t index);
+    void ReserveAhead(std::size_t index, i32 signX, i32 signY);
+    void ReleaseReservation(std::size_t index);
+    void DropReservation(std::size_t index);
+    void CheckReservation(std::size_t index);
     void ArriveMoving(std::size_t index, std::size_t move, u8 direction);
     void ArriveFollower(std::size_t index, std::size_t move, u8 direction);
     void StartPan(i32 byX, i32 byY);
@@ -329,7 +358,8 @@ private:
     ActState itemHint;      // DrawItemHints: the arrow, stepped once a game frame
     ItemEvents itemEvents;  // DrawItemHints: the events that give items
     PlayerMotion playerMotion;
-    std::vector<RoleMotion> roleMotions;  // per role
+    std::vector<RoleMotion> roleMotions;        // per role
+    std::vector<RoleReservation> reservations;  // per role
     PanMotion panMotion;
     u32 motionClock = 0;
     bool motionClockSet = false;

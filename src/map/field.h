@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <memory>
 #include <vector>
 
@@ -116,6 +117,8 @@ public:
     i32 ScreenTop() const;
     void MarkRoleCells(const Role& role, i32 leader);
     void ClearRoleCells(const Role& role, i32 leader);
+    void MarkCells(std::ptrdiff_t cell, i32 width, i32 height, u32 bits);
+    void ClearCells(std::ptrdiff_t cell, i32 width, i32 height, u32 bits);
     MapRegion* FindRegion(int id);
     u32 ProbeCells(std::ptrdiff_t cell, int width, int height, u32 mask) const;
     void CameraAround(int x, int y, CameraRect& rect) const;

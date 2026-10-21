@@ -592,6 +592,7 @@ void FieldView::ArriveMoving(std::size_t index, std::size_t slot, u8 direction)
     }
 
     field.MarkRoleCells(role, leaderId);
+    this->ReleaseReservation(index);
     move.step = static_cast<u16>((move.step + 1) | MoveRecord::Done);
     this->UpdateRoleCellFlags(role);
 }
@@ -609,6 +610,7 @@ void FieldView::ArriveFollower(std::size_t index, std::size_t slot, u8 direction
     field.ClearRoleCells(role, leaderId);
     MoveCell(state, role, direction);
     field.MarkRoleCells(role, leaderId);
+    this->ReleaseReservation(index);
     move.step = static_cast<u16>((move.step + 1) | MoveRecord::Done);
     this->UpdateRoleCellFlags(role);
 }
@@ -672,7 +674,8 @@ void FieldView::Render()
 
         Role& role = state.roles[index];
 
-        if ((role.flags & Role::Visible) == 0)
+        // The rebuild's smooth motion: a role walking on by itself to its tile takes no steps meanwhile.
+        if ((role.flags & Role::Visible) == 0 || this->RoleFinishing(index))
         {
             continue;
         }
@@ -773,6 +776,11 @@ void FieldView::Render()
 
         Role& role = state.roles[move.role];
 
+        if (this->RoleFinishing(move.role))
+        {
+            continue;
+        }
+
         if (move.step >= MoveRecord::StepMask)
         {
             owner.acts.Run(role.act);
@@ -816,6 +824,21 @@ void FieldView::Render()
         }
 
         this->TimeRoleStep(move.role);
+    }
+
+    // The rebuild's smooth motion: the act of a role walking on by itself to its tile runs as its steps' would.
+    for (std::size_t index = 0; index < this->roleMotions.size(); ++index)
+    {
+        if (this->RoleFinishing(index) && owner.acts.Run(state.roles[index].act) == 0)
+        {
+            DebugLog(
+                u8"Act Err(picPaint:PathMove) 設定錯誤 GUID[%d]\nact[%d] qq[%d] dir[%d]",
+                state.roles[index].id,
+                state.roles[index].act.id,
+                state.roles[index].act.action,
+                state.roles[index].act.direction
+            );
+        }
     }
 
     this->PanCamera();
