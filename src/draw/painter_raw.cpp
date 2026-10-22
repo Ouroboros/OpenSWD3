@@ -1,6 +1,5 @@
 #include <cstring>
 
-#include "draw/paint_record.h"
 #include "draw/painter.h"
 
 namespace swd3
@@ -190,19 +189,6 @@ int Painter::BlitRawGradient(int, int, int, int height, const DrawArgument&)
 // swd32.exe 0x00417DE0: pair = pair / 2 + color / 4 + pair / 8 + pair / 16 per channel, two pixels at a time
 void Painter::BlendPairsWithColor(std::span<u32> pairs, u32 colorPair) const
 {
-    if (PaintRecord* record = PaintRecord::Active(); record != nullptr)
-    {
-        record->Pixels(
-            reinterpret_cast<const u16*>(pairs.data()),
-            pairs.size() * 2,
-            PaintRecord::PixelOp::BlendPairs,
-            0,
-            0,
-            0,
-            colorPair
-        );
-    }
-
     for (u32& pair : pairs)
     {
         const u32 value = pair;

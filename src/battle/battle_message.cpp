@@ -11,7 +11,6 @@
 #include "battle/smooth/smooth_messages.h"
 #include "core/format.h"
 #include "crt/msvc.h"
-#include "draw/paint_record.h"
 #include "draw/painter.h"
 #include "font/text_font.h"
 #include "org/object_record.h"

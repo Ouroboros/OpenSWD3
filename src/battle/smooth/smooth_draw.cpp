@@ -9,7 +9,6 @@
 #include "battle/battle_services.h"
 #include "core/log.h"
 #include "draw/draw_placer.h"
-#include "draw/paint_record.h"
 #include "draw/painter.h"
 #include "game/scene.h"
 #include "platform/display.h"

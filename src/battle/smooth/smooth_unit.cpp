@@ -22,7 +22,6 @@
 #include "core/words.h"
 #include "crt/msvc.h"
 #include "draw/draw_placer.h"
-#include "draw/paint_record.h"
 #include "draw/painter.h"
 #include "org/database.h"
 #include "org/fame.h"

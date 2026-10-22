@@ -13,7 +13,6 @@
 #include "battle/smooth/smooth_unit.h"
 #include "crt/msvc.h"
 #include "draw/draw_placer.h"
-#include "draw/paint_record.h"
 #include "game/game.h"
 #include "pic/picture_ops.h"
 #include "platform/surface.h"

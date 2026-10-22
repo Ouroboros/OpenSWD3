@@ -8,7 +8,6 @@
 #include "battle/smooth/smooth_hud.h"
 #include "core/format.h"
 #include "crt/msvc.h"
-#include "draw/paint_record.h"
 #include "draw/painter.h"
 #include "platform/display.h"
 #include "res/act_archive.h"

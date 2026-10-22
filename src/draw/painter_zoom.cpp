@@ -1,7 +1,6 @@
 #include <cstring>
 
 #include "draw/draw_placer.h"
-#include "draw/paint_record.h"
 #include "draw/painter.h"
 #include "pic/rle.h"
 
@@ -31,11 +30,6 @@ void Painter::DrawZoomed(int x, int y, int width, int height)
     if (DrawPlacer* placer = DrawPlacer::Active(); placer != nullptr)
     {
         placer->Place(x, y, __builtin_return_address(0), this->source);
-    }
-
-    if (PaintRecord* record = PaintRecord::Active(); record != nullptr)
-    {
-        record->Zoomed(*this, x, y, width, height, false);
     }
 
     const int scaleX = this->zoomX;
@@ -228,11 +222,6 @@ void Painter::DrawZoomedMirrored(int x, int y, int width, int height)
     if (DrawPlacer* placer = DrawPlacer::Active(); placer != nullptr)
     {
         placer->Place(x, y, __builtin_return_address(0), this->source);
-    }
-
-    if (PaintRecord* record = PaintRecord::Active(); record != nullptr)
-    {
-        record->Zoomed(*this, x, y, width, height, true);
     }
 
     const int scaleX = this->zoomX;

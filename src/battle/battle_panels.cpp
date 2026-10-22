@@ -5,7 +5,6 @@
 #include "battle/battle_frame_constants.h"
 #include "battle/smooth/smooth_battle.h"
 #include "crt/msvc.h"
-#include "draw/paint_record.h"
 #include "game/game.h"
 #include "ui/ui_draw.h"
 

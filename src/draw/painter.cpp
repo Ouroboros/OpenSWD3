@@ -5,7 +5,6 @@
 
 #include "core/words.h"
 #include "draw/draw_placer.h"
-#include "draw/paint_record.h"
 #include "pic/picture.h"
 #include "platform/display.h"
 #include "platform/surface.h"
@@ -574,11 +573,6 @@ int Painter::DrawPicture(int x, int y, int width, int height, u32 mode, const Dr
     if (DrawPlacer* placer = DrawPlacer::Active(); placer != nullptr)
     {
         placer->Place(x, y, __builtin_return_address(0), this->source);
-    }
-
-    if (PaintRecord* record = PaintRecord::Active(); record != nullptr)
-    {
-        record->Picture(*this, x, y, width, height, mode, argument);
     }
 
     if (this->source == nullptr)
