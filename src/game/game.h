@@ -491,6 +491,7 @@ private:
     void StartBattleMusic();
     void FirstStrike();
     int FightTalkFrame();
+    bool FightTalkPasses() const;
     void FightTalkEnd();
     int FightTalkWait();
     int FightTalkWindow();

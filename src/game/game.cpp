@@ -2142,7 +2142,19 @@ void Game::EnterBattle()
 void Game::BattleMainFrame()
 {
     MapCache& cache = this->mapCache;
-    const int result = this->FightTalkFrame();
+    // The rebuild (deviations.md): the talk's commands that only steer it run on in the same frame, so the battle
+    // does not stand still for them (as after each action of a battle with a talk: the wait's end, 0xE, 0x13 and
+    // the next wait's start, four frames in the original).
+    constexpr int kMostPassing = 8;
+    bool passes = this->FightTalkPasses();
+    int result = this->FightTalkFrame();
+
+    for (int passed = 0; result == 1 && passes && passed < kMostPassing; ++passed)
+    {
+        passes = this->FightTalkPasses();
+        result = this->FightTalkFrame();
+    }
+
     this->AudioPump();
 
     auto remap = [&cache]

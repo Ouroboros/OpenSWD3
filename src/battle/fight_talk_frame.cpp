@@ -155,6 +155,27 @@ constexpr std::size_t kCountedSkipWords = 4;
 
 }  // namespace
 
+// The rebuild (deviations.md): whether the next command of the talk only steers it and runs no battle frame (the
+// wait's start and end, 0xE, 0x13, 0x11), which the battle frame does not wait for (Game::BattleMainFrame).
+bool Game::FightTalkPasses() const
+{
+    const FightTalk& talk = this->fightTalk;
+
+    switch (talk.UnsignedWord(0))
+    {
+        case kTalkWait:
+            return (talk.unk53CCDC & kCountdown) == 0 || (talk.unk53CCDC & kCountMask) == 0;
+
+        case kTalkAllDone:
+        case kTalkRandomJump:
+        case kTalkSkip:
+            return true;
+
+        default:
+            return false;
+    }
+}
+
 // swd32.exe 0x00469D20: one step of the battle talk (figtalk.dat): the command at the cursor runs, most of them
 // with a battle frame. 0 once the talk and the battle are over (command 0xFFFF); otherwise 1, or the end a frame
 // returned (command 1). Unknown commands return 1 without moving (the original stays on them).
