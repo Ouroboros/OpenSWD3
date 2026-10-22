@@ -434,6 +434,41 @@ void Field::MoveOriginal(Point by)
     this->originalPan = this->HoldScreen({this->originalPan.x + by.x, this->originalPan.y + by.y});
 }
 
+Field::ScrollSides Field::ScrollSidesOf(const CameraRect& camera, i32 width, i32 height, i32 x, i32 y) const
+{
+    const auto screenX = static_cast<u32>(x - camera.left);
+    const auto screenY = static_cast<u32>(y - camera.top);
+    const auto scrollX = static_cast<u32>(width / 2 - MapHeader::TileSize);
+    const auto scrollY = static_cast<u32>(height / 2);
+    return ScrollSides{
+        camera.left > 0 && screenX <= scrollX,
+        screenX >= scrollX && camera.right < MapHeader::TileSize * this->state.map.width,
+        camera.top > 0 && screenY <= scrollY,
+        screenY >= scrollY && camera.bottom < MapHeader::TileSize * this->state.map.height,
+    };
+}
+
+void Field::DecideOriginalScroll(i32 x, i32 y, int stepX, int stepY)
+{
+    const CameraRect screen{
+        this->original.x,
+        this->original.y,
+        this->original.x + Display::Width,
+        this->original.y + Display::Height,
+    };
+
+    const ScrollSides sides = this->ScrollSidesOf(screen, Display::Width, Display::Height, x, y);
+    this->originalScrolls = {
+        (stepX < 0 && sides.left) || (stepX > 0 && sides.right),
+        (stepY < 0 && sides.up) || (stepY > 0 && sides.down),
+    };
+}
+
+void Field::FollowOriginal(Point by)
+{
+    this->MoveOriginal({this->originalScrolls[0] ? by.x : 0, this->originalScrolls[1] ? by.y : 0});
+}
+
 void Field::PanOriginal(Point to, Point step)
 {
     this->originalPan = this->HoldScreen(to);

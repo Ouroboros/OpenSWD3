@@ -107,6 +107,25 @@ public:
     Point HoldScreen(Point place) const;
     // The original's camera moved by `by` and held.
     void MoveOriginal(Point by);
+
+    // The sides a camera `camera` showing `width` x `height` can follow a step of the controlled role at (x, y) to: the
+    // role at the middle of the view or past it that way (its place on the view taken unsigned, as the original does)
+    // and the camera not at the map's edge (part of RoleControl::ControlPlayer, 0x00402F80).
+    struct ScrollSides
+    {
+        bool left = false;
+        bool right = false;
+        bool up = false;
+        bool down = false;
+    };
+
+    ScrollSides ScrollSidesOf(const CameraRect& camera, i32 width, i32 height, i32 x, i32 y) const;
+    // A step of the controlled role at (x, y) starting by (stepX, stepY) (-1, 0 or 1 on each axis): whether the
+    // original's camera scrolls with it on each axis, as the original decides it for its 640x480 camera
+    // (ScrollSidesOf).
+    void DecideOriginalScroll(i32 x, i32 y, int stepX, int stepY);
+    // The controlled role moved by `by`: the original's camera follows it on the axes it scrolls on.
+    void FollowOriginal(Point by);
     // A pan of the original's camera to `to` (held) by `step` pixels a frame on each axis; a frame of it.
     void PanOriginal(Point to, Point step);
     void StepOriginalPan();
@@ -147,7 +166,8 @@ public:
     Point original;
     Point originalPan;
     Point originalPanStep;
-    std::vector<u16> palette;  // 0x004B7404 the colours of an 8-bit map
+    std::array<bool, 2> originalScrolls = {};  // DecideOriginalScroll: across and down
+    std::vector<u16> palette;                  // 0x004B7404 the colours of an 8-bit map
 
 private:
     GameState& state;

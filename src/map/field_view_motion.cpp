@@ -190,13 +190,14 @@ void FieldView::MotionTick()
     const i32 pixels = motion.speed * motion.elapsed / interval;
     const i32 cameraX = motion.cameraX + motion.scrollAcross * pixels;
     const i32 cameraY = motion.cameraY + motion.scrollDown * pixels;
-    field.MoveOriginal({cameraX - field.cameraLeft, cameraY - field.cameraTop});
     field.cameraRight += cameraX - field.cameraLeft;
     field.cameraBottom += cameraY - field.cameraTop;
     field.cameraLeft = cameraX;
     field.cameraTop = cameraY;
+    const Point from{player.x, player.y};
     player.x = motion.startX + motion.across * pixels;
     player.y = motion.startY + motion.down * pixels;
+    field.FollowOriginal({player.x - from.x, player.y - from.y});
     motion.leftX = player.x;
     motion.leftY = player.y;
     motion.leftCameraX = field.cameraLeft;
@@ -254,13 +255,14 @@ void FieldView::EndPlayerMotion(bool atFrame)
     const i32 pixels = motion.speed * (motion.elapsed / static_cast<i32>(owner.state.frameInterval));
     const i32 cameraX = motion.cameraX + motion.scrollAcross * pixels;
     const i32 cameraY = motion.cameraY + motion.scrollDown * pixels;
-    field.MoveOriginal({cameraX - field.cameraLeft, cameraY - field.cameraTop});
     field.cameraRight += cameraX - field.cameraLeft;
     field.cameraBottom += cameraY - field.cameraTop;
     field.cameraLeft = cameraX;
     field.cameraTop = cameraY;
+    const Point from{player.x, player.y};
     player.x = motion.startX + motion.across * pixels;
     player.y = motion.startY + motion.down * pixels;
+    field.FollowOriginal({player.x - from.x, player.y - from.y});
 }
 
 // The distance of the step under way in 1/scale pixels.

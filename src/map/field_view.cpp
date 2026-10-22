@@ -653,7 +653,10 @@ void FieldView::Render()
         field.cameraTop += owner.scrollStepY * scroll;
         field.cameraRight += owner.scrollStepX * scroll;
         field.cameraBottom += owner.scrollStepY * scroll;
-        field.MoveOriginal({owner.scrollStepX * scroll, owner.scrollStepY * scroll});
+        field.FollowOriginal({
+            scroll * (owner.scrollStepX + owner.walkStepX),
+            scroll * (owner.scrollStepY + owner.walkStepY),
+        });
     }
 
     for (MoveRecord& move : state.moves)

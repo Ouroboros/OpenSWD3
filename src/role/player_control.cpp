@@ -127,7 +127,7 @@ void RoleControl::ControlPlayer()
     GameState& state = owner.state;
     const Input& input = owner.input;
     Scene& view = owner.scene;
-    const Field& field = owner.field;
+    Field& field = owner.field;
     Controls& controls = owner.controls;
     Role& player = state.roles[static_cast<std::size_t>(state.playerRole)];
     Role& leader = state.leader;
@@ -312,12 +312,17 @@ void RoleControl::ControlPlayer()
 
     const auto screenX = static_cast<u32>(player.x - field.cameraLeft);
     const auto screenY = static_cast<u32>(player.y - field.cameraTop);
-    const auto scrollX = static_cast<u32>(field.viewWidth / 2 - MapHeader::TileSize);
-    const auto scrollY = static_cast<u32>(field.viewHeight / 2);
-    this->scrollLeft = field.cameraLeft > 0 && screenX <= scrollX ? 1 : 0;
-    this->scrollRight = screenX >= scrollX && field.cameraRight < MapHeader::TileSize * state.map.width ? 1 : 0;
-    this->scrollUp = field.cameraTop > 0 && screenY <= scrollY ? 1 : 0;
-    this->scrollDown = screenY >= scrollY && field.cameraBottom < MapHeader::TileSize * state.map.height ? 1 : 0;
+    const Field::ScrollSides sides = field.ScrollSidesOf(
+        CameraRect{field.cameraLeft, field.cameraTop, field.cameraRight, field.cameraBottom},
+        field.viewWidth,
+        field.viewHeight,
+        player.x,
+        player.y
+    );
+    this->scrollLeft = sides.left ? 1 : 0;
+    this->scrollRight = sides.right ? 1 : 0;
+    this->scrollUp = sides.up ? 1 : 0;
+    this->scrollDown = sides.down ? 1 : 0;
     this->stepLeft = player.x != 0 ? 1 : 0;
     this->stepRight = screenX < static_cast<u32>(field.viewWidth - kStepRightMargin) ? 1 : 0;
     this->stepUp = player.y != 0 ? 1 : 0;
@@ -555,6 +560,7 @@ void RoleControl::ControlPlayer()
     if (stepX != 0 || stepY != 0)
     {
         owner.counterWait = 0;
+        field.DecideOriginalScroll(player.x, player.y, stepX, stepY);
 
         if (stepX == -1)
         {
