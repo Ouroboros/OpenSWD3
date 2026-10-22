@@ -129,6 +129,7 @@ constexpr u16 kOpeningEvent = 100;      // the leader's event of a new story
 constexpr i32 kButtonDelay = 0x10;
 constexpr u32 kButtonLeft = 0x262;
 constexpr u32 kButtonBottom = 0x18;
+constexpr int kButtonX = 0x282;        // StepPointer: where the system button lies in
 constexpr u16 kLeaderCursorLimit = 8;  // the leader's event this far along hides the system button and pointer
 constexpr i32 kCounterHidden = 0x400;
 constexpr i32 kCounterOpaque = 0x10;
@@ -1211,7 +1212,6 @@ void Game::RefreshCursor()
 void Game::StepPointer()
 {
     constexpr int kWaitKey = 0x2E;
-    constexpr int kButtonX = 0x282;
     constexpr int kButtonHidden = -0x20;
     Role& pointer = this->scene.pointerRole;
     Scene& view = this->scene;
@@ -1255,15 +1255,11 @@ void Game::StepPointer()
             button = false;
         }
 
-        if (button && this->field.screenX != 0)
+        if (button)
         {
-            this->painter.SetClipClamped(0, 0, Display::Width + this->field.screenX, Display::Height);
-            this->actDrawer.Draw(view.menuButtonAct, view.menuButtonSlide + kButtonX + this->field.screenX, 0);
-            this->painter.SetClipClamped(0, 0, Display::Width, Display::Height);
-        }
-        else if (button)
-        {
-            this->actDrawer.Draw(view.menuButtonAct, view.menuButtonSlide + kButtonX, 0);
+            this->menuButtonX = view.menuButtonSlide + kButtonX;
+            this->menuButtonShown = true;
+            this->DrawMenuButton(false);
         }
     }
 
@@ -1283,6 +1279,34 @@ void Game::StepPointer()
             pointer.act.action,
             pointer.act.direction
         );
+    }
+}
+
+// Part of 0x004149B0: the system button at the top right where the pointer's step slid it (StepPointer); `again`: the
+// rebuild's frames between game frames draw the picture it was last stepped to (deviations.md).
+void Game::DrawMenuButton(bool again)
+{
+    ActState& act = this->scene.menuButtonAct;
+    const int x = this->menuButtonX + this->field.screenX;
+
+    // The rebuild's map filling the window keeps the button at the right of the canvas (deviations.md).
+    if (this->field.screenX != 0)
+    {
+        this->painter.SetClipClamped(0, 0, Display::Width + this->field.screenX, Display::Height);
+    }
+
+    if (again)
+    {
+        this->actDrawer.DrawShown(act, x, 0);
+    }
+    else
+    {
+        this->actDrawer.Draw(act, x, 0);
+    }
+
+    if (this->field.screenX != 0)
+    {
+        this->painter.SetClipClamped(0, 0, Display::Width, Display::Height);
     }
 }
 

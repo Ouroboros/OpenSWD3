@@ -171,50 +171,6 @@ std::size_t FieldView::ScreenAt() const
            static_cast<std::size_t>(field.screenX);
 }
 
-// The interface layers are drawn on the 640x480 screen in the canvas: their draws are recorded from its corner.
-void FieldView::StartRecord(PaintRecord& record)
-{
-    const std::span<Pixel> canvas = this->Canvas();
-
-    if (!canvas.empty() && PaintRecord::Active() == nullptr)
-    {
-        record.Start(canvas.data() + this->ScreenAt(), canvas.size() - this->ScreenAt());
-    }
-}
-
-bool FieldView::FinishRecord(PaintRecord& record, const std::vector<Pixel>& layer)
-{
-    if (PaintRecord::Active() != &record)
-    {
-        return false;
-    }
-
-    record.Stop();
-    return record.Matches(
-        this->game.painter,
-        std::span<const Pixel>(layer).subspan(this->ScreenAt()),
-        this->recordScratch,
-        this->game.field.viewWidth
-    );
-}
-
-void FieldView::LayLayer(
-    const PaintRecord& record,
-    bool redrawn,
-    const std::vector<Span>& spans,
-    const std::vector<Pixel>& layer,
-    std::span<Pixel> screen
-)
-{
-    if (redrawn)
-    {
-        record.DrawOver(this->game.painter, screen.subspan(this->ScreenAt()), this->game.field.viewWidth);
-        return;
-    }
-
-    FieldView::CopySpans(spans, layer, 1, this->game.field.viewWidth, screen);
-}
-
 void FieldView::CaptureLayer(std::vector<Pixel>& layer) const
 {
     const std::span<Pixel> canvas = this->Canvas();
@@ -230,10 +186,8 @@ void FieldView::PaintBetween(Surface& out)
     const auto canvasPixels = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
     const int scale = std::max(1, out.Width() / width);
     const std::span<Pixel> pixels(out.Pixels(), static_cast<std::size_t>(out.Width()) * out.Height());
-    const bool layered = this->finalLayer.size() == canvasPixels && this->worldLayer.size() == canvasPixels &&
-                         this->talkLayer.size() == canvasPixels && this->headsLayer.size() == canvasPixels &&
-                         this->interfaceLayer.size() == canvasPixels && this->fadedLayer.size() == canvasPixels &&
-                         out.Width() == width * scale && out.Height() == height * scale;
+    const bool layered =
+        this->finalLayer.size() == canvasPixels && out.Width() == width * scale && out.Height() == height * scale;
 
     if (!layered)
     {
@@ -509,23 +463,33 @@ void FieldView::PaintBetween(Surface& out)
 
             this->PaintWorld();
 
-            // The interface of the last game frame: the lines and talk windows it drew over its map, its role heads
-            // drawn again where they glide, what it drew after them, its fade, then what it drew after the fade. It
-            // lies on the 640x480 screen in the canvas.
+            // The interface of the last game frame drawn again over this map, as the frame drew it: the lines and talk
+            // windows, the role heads where they glide, the gold, the pointer, the fade, then what it drew after the
+            // fade. It lies on the 640x480 screen in the canvas.
             const std::span<Pixel> screen(part.Pixels(), canvasPixels);
-            this->LayLayer(this->talkRecord, this->talkRedrawn, this->talkSpans, this->talkLayer, screen);
-            owner.drawSurface = screen.data() + this->ScreenAt();
-            painter.SetTarget(owner.drawSurface);
-            painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+
+            auto onScreen = [&]()
+            {
+                owner.drawSurface = screen.data() + this->ScreenAt();
+                painter.SetTarget(owner.drawSurface);
+                painter.SetClipClamped(0, 0, Display::Width, Display::Height);
+            };
+
+            onScreen();
+            this->BlendLines(screen.subspan(this->ScreenAt()));
+            owner.talk.DrawAgain();
+            onScreen();
             this->DrawRoleHeads();
             putBack();
-            this->LayLayer(
-                this->interfaceRecord,
-                this->interfaceRedrawn,
-                this->interfaceSpans,
-                this->interfaceLayer,
-                screen
-            );
+            onScreen();
+            this->DrawGold();
+
+            if (owner.menuButtonShown)
+            {
+                owner.DrawMenuButton(true);
+            }
+
+            putBack();
 
             if (this->pointerShown)
             {
@@ -547,7 +511,9 @@ void FieldView::PaintBetween(Surface& out)
                 painter.TintPixelsFast(screen, this->fadeLevels.red, this->fadeLevels.green, this->fadeLevels.blue);
             }
 
-            this->LayLayer(this->finalRecord, this->finalRedrawn, this->finalSpans, this->finalLayer, screen);
+            onScreen();
+            this->DrawFinalAgain();
+            putBack();
         }
     }
 
@@ -578,42 +544,6 @@ void FieldView::PaintBetween(Surface& out)
         }
 
         Weave(std::span<const Surface* const>(shown.data(), blocks * blocks), scale, pixels);
-    }
-}
-
-// The runs where the frame being drawn now differs from `before` (once a game frame).
-void FieldView::MarkChanges(const std::vector<Pixel>& before, std::vector<Span>& spans) const
-{
-    spans.clear();
-    const std::span<Pixel> canvas = this->Canvas();
-    const Pixel* now = canvas.data();
-    const auto pixels = static_cast<u32>(canvas.size());
-
-    if (now == nullptr || before.size() != pixels)
-    {
-        return;
-    }
-
-    u32 index = 0;
-
-    while (index < pixels)
-    {
-        while (index < pixels && now[index] == before[index])
-        {
-            ++index;
-        }
-
-        const u32 start = index;
-
-        while (index < pixels && now[index] != before[index])
-        {
-            ++index;
-        }
-
-        if (index != start)
-        {
-            spans.push_back(Span{start, index - start});
-        }
     }
 }
 

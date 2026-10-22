@@ -10,7 +10,6 @@
 
 #include "core/types.h"
 #include "crt/msvc.h"
-#include "draw/paint_record.h"
 #include "file/file.h"
 #include "platform/surface.h"
 #include "res/act_state.h"
@@ -139,6 +138,7 @@ public:
     bool FinishToTile(std::size_t index, u8 direction, i32& x, i32& y);
     // The roles' smooth steps and held tiles dropped (the roles of a map placed again).
     void ResetRoleMotions();
+
     void UpdateRoleSound(Role& role);
     void DrawShadow(const Role& role, const Picture& picture, int x, int y, int kind, int tint);
     void DrawReflections();
@@ -149,6 +149,9 @@ public:
     void DrawSprites();
     void DrawRoleHeads();
     void DrawLines();
+    void BlendLines(std::span<Pixel> screen) const;
+    void DrawGold();
+    void DrawFinalAgain();
     void DrawOverlays();
     void DrawWeather();
     void DrawLeaves();
@@ -386,40 +389,22 @@ private:
     // The tile rows the canvas spans (15 on the 640x480 screen).
     int ViewRows() const;
     std::size_t ScreenAt() const;
-    void MarkChanges(const std::vector<Pixel>& before, std::vector<Span>& spans) const;
-    // A layer's draws recorded from now on the screen drawn to; at its end whether drawing them again unmoved gives it.
-    void StartRecord(PaintRecord& record);
-    bool FinishRecord(PaintRecord& record, const std::vector<Pixel>& layer);
-    // A layer over the map painted between game frames: its draws drawn again, or its spans copied.
-    void LayLayer(
-        const PaintRecord& record,
-        bool redrawn,
-        const std::vector<Span>& spans,
-        const std::vector<Pixel>& layer,
-        std::span<Pixel> screen
-    );
 
-    std::vector<Pixel> worldLayer;      // the last game frame after the map, before the interface
-    std::vector<Pixel> talkLayer;       // after the lines and the talk windows
-    std::vector<Pixel> headsLayer;      // after the role heads
-    std::vector<Pixel> interfaceLayer;  // after the gold, before the pointer and the fade
-    std::vector<Pixel> fadedLayer;      // after the fade
-    std::vector<Pixel> finalLayer;      // as shown (the notices, the timer and the debug display too)
-    std::vector<Span> talkSpans;        // where talkLayer differs from worldLayer
-    std::vector<Span> interfaceSpans;   // where interfaceLayer differs from headsLayer
-    std::vector<Span> finalSpans;       // where finalLayer differs from fadedLayer
-    // The draws of the talk, interface and final layers, drawn again over the map painted between game frames (the
-    // translucent ones mixing with it) when drawing them again unmoved gave the layer; otherwise its spans are copied.
-    PaintRecord talkRecord;
-    PaintRecord interfaceRecord;
-    PaintRecord finalRecord;
-    bool talkRedrawn = false;
-    bool interfaceRedrawn = false;
-    bool pointerShown = false;            // the frame drew the pointer (after interfaceLayer was taken)
+    std::vector<Pixel> finalLayer;  // the last game frame as shown (scaled up between game frames while a movie plays)
+
+    // The rebuild's smooth motion: the blends of the screen lines the game frame drew (DrawLines), drawn again over the
+    // map painted between game frames (BlendLines) before its talk windows (Talk::DrawAgain).
+    struct LineBlend
+    {
+        i64 at = 0;
+        u32 color = 0;
+        int pixels = 0;
+    };
+
+    std::vector<LineBlend> lineBlends;
+    bool pointerShown = false;            // the frame drew the pointer
     std::array<i32, 2> pointerSway = {};  // the offset of the pointer's picture last drawn to (EffectKind::Pointer)
-    bool finalRedrawn = false;
-    std::vector<u16> recordScratch;
-    std::vector<Surface> parts;  // the logical screens of a render scale above 1 (PaintBetween)
+    std::vector<Surface> parts;           // the logical screens of a render scale above 1 (PaintBetween)
     bool fadeTinted = false;
 
     // The levels the fade tinted the last game frame by.

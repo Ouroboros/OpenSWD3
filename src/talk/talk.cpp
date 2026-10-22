@@ -101,9 +101,27 @@ bool Talk::ParseNumber(std::string_view text, int& value)
 // (their speakers released), then the end and next page marks step
 void Talk::Draw()
 {
-    smooth::Scene scene;
-    smooth::TalkFrame(*this).DrawAdvance(scene);
-    scene.Show(this->game.battleServices);
+    auto scene = std::make_shared<smooth::Scene>();
+    smooth::TalkFrame(*this).DrawAdvance(*scene);
+    BattleServices& services = this->game.battleServices;
+
+    if (services.frame != nullptr)
+    {
+        scene->Show(services);
+        return;
+    }
+
+    scene->DrawAll(services);
+    this->shown = std::move(scene);
+}
+
+// The rebuild's smooth motion: the talk windows of the map's last game frame drawn again, as they were drawn.
+void Talk::DrawAgain()
+{
+    if (this->shown != nullptr)
+    {
+        this->shown->DrawAll(this->game.battleServices);
+    }
 }
 
 // swd32.exe 0x00427300: the pointer over the map. With no event running and the controlled role standing, a visible

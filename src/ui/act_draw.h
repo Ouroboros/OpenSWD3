@@ -23,6 +23,7 @@ public:
     ActDrawer(ActArchive& acts, TswArchive& archive, Painter& painter);
 
     void Draw(ActState& state, int x, int y);
+    void DrawShown(const ActState& state, int x, int y);
     void DrawGlow(ActState& state, int x, int y, int level);
     void DrawCounter(int right, int y, u32 value, int alpha);
     // `alphaFraction`: the rebuild's smooth motion, that far towards the next level (DrawOptions::alphaFraction).

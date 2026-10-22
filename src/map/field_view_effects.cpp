@@ -48,6 +48,52 @@ void FieldView::FadeColors(int step)
     );
 }
 
+namespace
+{
+
+// 0x00417DE0 is given the pixels of the run and blends half as many pairs (none below one pair, deviations.md).
+void BlendLine(const Painter& painter, std::span<u16> screen, i64 at, u32 color, int pixels)
+{
+    const u32 pairs = static_cast<u32>(pixels) >> 1;
+
+    for (u32 pair = 0; pair < pairs; ++pair)
+    {
+        const i64 place = at + static_cast<i64>(kPixelsPerPair) * pair;
+        const auto first = static_cast<std::size_t>(place);
+
+        if (place < 0)
+        {
+            continue;
+        }
+
+        if (first + 1 >= screen.size())
+        {
+            break;
+        }
+
+        u32 value = MakeWords(screen[first + 1], screen[first]);
+        painter.BlendPairsWithColor(std::span<u32>(&value, 1), color);
+        screen[first] = LowWord(value);
+        screen[first + 1] = HighWord(value);
+    }
+}
+
+}  // namespace
+
+// The rebuild's smooth motion: the screen lines of the game frame blended again over `screen` (the 640x480 screen in
+// the map painted between game frames), as the frame blended them.
+void FieldView::BlendLines(std::span<Pixel> screen) const
+{
+    const Painter& painter = this->game.painter;
+    const auto shown = static_cast<std::size_t>(painter.ScreenPitch()) * Display::Height;
+    const std::span<Pixel> lines = screen.first(std::min(screen.size(), shown));
+
+    for (const LineBlend& line : this->lineBlends)
+    {
+        BlendLine(painter, lines, line.at, line.color, line.pixels);
+    }
+}
+
 void FieldView::DrawScreenTint(int red, int green, int blue)
 {
     this->game.painter.TintPixels(this->Canvas(), red, green, blue);
@@ -62,32 +108,12 @@ void FieldView::DrawLines()
     Random& random = owner.random;
     const int pitch = painter.ScreenPitch();
     const std::span<u16> screen(owner.drawSurface, static_cast<std::size_t>(pitch) * Display::Height);
+    this->lineBlends.clear();
 
-    // 0x00417DE0 is given the pixels of the run and blends half as many pairs (none below one pair, deviations.md).
-    auto blend = [&painter, screen](int at, u32 color, int pixels)
+    auto blend = [this, &painter, screen](int at, u32 color, int pixels)
     {
-        const u32 pairs = static_cast<u32>(pixels) >> 1;
-
-        for (u32 pair = 0; pair < pairs; ++pair)
-        {
-            const i64 place = at + static_cast<i64>(kPixelsPerPair) * pair;
-            const auto first = static_cast<std::size_t>(place);
-
-            if (place < 0)
-            {
-                continue;
-            }
-
-            if (first + 1 >= screen.size())
-            {
-                break;
-            }
-
-            u32 value = MakeWords(screen[first + 1], screen[first]);
-            painter.BlendPairsWithColor(std::span<u32>(&value, 1), color);
-            screen[first] = LowWord(value);
-            screen[first + 1] = HighWord(value);
-        }
+        this->lineBlends.push_back({at, color, pixels});
+        BlendLine(painter, screen, at, color, pixels);
     };
 
     std::unique_ptr<ScriptEffect>* link = &owner.scene.effects;

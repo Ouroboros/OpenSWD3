@@ -45,6 +45,12 @@ void ActDrawer::Draw(ActState& state, int x, int y)
         return;
     }
 
+    this->DrawShown(state, x, y);
+}
+
+// The rebuild's smooth motion: the picture `state` last ran to drawn at (x, y) as Draw draws it, the act not stepped.
+void ActDrawer::DrawShown(const ActState& state, int x, int y)
+{
     const Picture* picture = this->archive.GetPicture(state.frame, state.picture);
 
     if (picture == nullptr)
