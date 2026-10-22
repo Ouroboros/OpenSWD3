@@ -21,6 +21,16 @@ namespace
 {
 
 constexpr int kSnapDistance = 0x80;  // a draw farther than this from its place before jumps
+// Match: a move is come over in the time since the draw's last move, at most this long (a move after a longer stand: in
+// the time since the frame before).
+constexpr u64 kMostSpanNs = 140000000;
+
+// What is left of `lag` coming nearer by `speed` a nanosecond for `gone` nanoseconds (none once it is there).
+double LagAt(double lag, double speed, double gone)
+{
+    const double left = lag - speed * gone;
+    return lag == 0.0 || (left > 0.0) != (lag > 0.0) ? 0.0 : left;
+}
 
 // The place on the screen of column (row) `offset` of the render scale's blocks of a draw at `place` shown `shift`
 // from it: ceil((N x the place - offset) / N), in 64 bits (a place may lie far off).
@@ -69,8 +79,10 @@ Stage::Stage(BattleServices& services)
 {
 }
 
-void Stage::Draw(Scene&& decided, int pointerX, int pointerY)
+void Stage::Draw(Scene&& decided, int pointerX, int pointerY, u64 now)
 {
+    this->lastDrawNs = this->drawNs;
+    this->drawNs = now;
     this->scene = std::move(decided);
     this->framePointer = {pointerX, pointerY};
     this->drawn.clear();
@@ -81,9 +93,9 @@ void Stage::Draw(Scene&& decided, int pointerX, int pointerY)
     this->Match();
 }
 
-void Stage::PaintBetween(double alpha, Surface& out, int mouseX, int mouseY)
+void Stage::PaintBetween(u64 now, Surface& out, int mouseX, int mouseY)
 {
-    this->share = std::clamp(alpha, 0.0, 1.0);
+    this->paintNs = now;
     this->mouse = {mouseX, mouseY};
     this->scale = std::clamp(out.Width() / Display::Width, 1, MaxWeaveScale);
     this->column = 0;
@@ -187,6 +199,8 @@ void Stage::Clear()
     this->places.clear();
     this->drawn.clear();
     this->moves.clear();
+    this->drawNs = 0;
+    this->lastDrawNs = 0;
 }
 
 void Stage::DrawInto(Surface& target)
@@ -319,8 +333,44 @@ void Stage::Match()
             const std::array<int, 2>& from = point(then, held);
             const std::array<int, 2>& to = point(now, held);
             this->moves[index] = {from[0] - to[0], from[1] - to[1]};
+            this->Follow(
+                this->drawn[index].second,
+                then,
+                this->moves[index],
+                this->places[key][static_cast<std::size_t>(draw)]
+            );
         }
     }
+}
+
+// How `now` is shown after `then`, the same draw a frame before: what `then` had left to come at this frame, and its
+// way back to the place before (`way`), which it comes over in the time since its last move (a move after a stand
+// longer than kMostSpanNs, or its first, in the time since the frame before); with no move it goes on as it went.
+// `kept` (its place for the next frame) takes the same.
+void Stage::Follow(Drawn& now, const Drawn& then, const std::array<int, 2>& way, Drawn& kept)
+{
+    const bool moved = way[0] != 0 || way[1] != 0;
+    const double gone = this->drawNs > then.since ? static_cast<double>(this->drawNs - then.since) : 0.0;
+    u64 span = this->drawNs > this->lastDrawNs ? this->drawNs - this->lastDrawNs : 1;
+
+    if (moved && then.moved != 0 && this->drawNs > then.moved && this->drawNs - then.moved <= kMostSpanNs)
+    {
+        span = this->drawNs - then.moved;
+    }
+
+    for (std::size_t axis = 0; axis < way.size(); ++axis)
+    {
+        const double lag = LagAt(then.lag[axis], then.speed[axis], gone) + way[axis];
+        now.lag[axis] = lag;
+        now.speed[axis] = moved ? lag / static_cast<double>(span) : then.speed[axis];
+    }
+
+    now.since = this->drawNs;
+    now.moved = moved ? this->drawNs : then.moved;
+    kept.lag = now.lag;
+    kept.speed = now.speed;
+    kept.since = now.since;
+    kept.moved = now.moved;
 }
 
 void Stage::Hold(bool held, int x, int y, const void* who)
@@ -393,9 +443,9 @@ std::array<double, 2> Stage::Shift(std::size_t index) const
         };
     }
 
-    const std::array<int, 2>& move = this->moves[index];
-    const double back = 1.0 - this->share;
-    return {move[0] * back, move[1] * back};
+    const Drawn& draw = this->drawn[index].second;
+    const double gone = this->paintNs > draw.since ? static_cast<double>(this->paintNs - draw.since) : 0.0;
+    return {LagAt(draw.lag[0], draw.speed[0], gone), LagAt(draw.lag[1], draw.speed[1], gone)};
 }
 
 }  // namespace swd3::smooth

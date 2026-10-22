@@ -1575,16 +1575,6 @@ bool Game::PresentBetween()
         }
     }
 
-    const u64 interval = static_cast<u64>(std::max(this->state.frameInterval, 0)) * kNanosecondsPerMillisecond;
-    double alpha = 1.0;
-
-    if (interval != 0)
-    {
-        alpha = now <= this->frameDueNs
-                    ? 0.0
-                    : std::min(1.0, static_cast<double>(now - this->frameDueNs) / static_cast<double>(interval));
-    }
-
     const u64 paintStart = SDL_GetTicksNS();
 
     if (this->menuFrameShown && !this->battleFrameShown)
@@ -1624,7 +1614,7 @@ bool Game::PresentBetween()
         int mouseX = 0;
         int mouseY = 0;
         this->input.PeekMouse(mouseX, mouseY);
-        this->battleStage.PaintBetween(alpha, *this->smoothScreen, mouseX, mouseY);
+        this->battleStage.PaintBetween(now, *this->smoothScreen, mouseX, mouseY);
     }
     else
     {
@@ -1931,6 +1921,7 @@ void Game::MainFrame()
     this->frameDueNs = SDL_GetTicksNS() - static_cast<u64>(now - this->lastFrame) * kNanosecondsPerMillisecond;
     this->fieldView.AdvanceMotion(this->lastFrame);
     this->mapFrameShown = false;
+    this->battleFrameKept = this->battleFrameShown;
     this->battleFrameShown = false;
     this->menuFrameShown = false;
     ++this->gameFrames;
@@ -2146,6 +2137,7 @@ void Game::BattleMainFrame()
     // does not stand still for them (as after each action of a battle with a talk: the wait's end, 0xE, 0x13 and
     // the next wait's start, four frames in the original).
     constexpr int kMostPassing = 8;
+    const u32 framesRun = this->battleFramesRun;
     bool passes = this->FightTalkPasses();
     int result = this->FightTalkFrame();
 
@@ -2153,6 +2145,11 @@ void Game::BattleMainFrame()
     {
         passes = this->FightTalkPasses();
         result = this->FightTalkFrame();
+    }
+
+    if (result == 1 && this->battleFramesRun == framesRun)
+    {
+        this->battleFrameShown = this->battleFrameKept;
     }
 
     this->AudioPump();

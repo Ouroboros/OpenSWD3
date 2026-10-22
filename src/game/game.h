@@ -625,6 +625,10 @@ private:
     bool smoothMotion = false;
     bool mapFrameShown = false;
     bool battleFrameShown = false;  // the last game frame showed a battle frame that can be drawn again
+    // battleFrameShown of the game frame before: a frame whose battle talk runs no battle frame (BattleMainFrame)
+    // shows that one on, as the original's screen stays.
+    bool battleFrameKept = false;
+    u32 battleFramesRun = 0;  // BattleFrame: the battle frames run so far
     // The rebuild's smooth battle checked: with smooth motion off, the battle frame's draws gathered into one scene
     // and drawn once the frame is decided, where they are (off: each drawn at once, in the original's order).
     bool battleDeferred = false;
@@ -633,6 +637,7 @@ private:
     u32 framesBetween = 0;
     u64 paintBetweenNs = 0;  // the time the frames between took to paint, in all and the longest
     u64 paintBetweenMostNs = 0;
+    i32 backgroundShifted = 0;  // the rebuild's smooth battle: the background's shifts so far (where it stands)
     u64 frameDueNs = 0;
     u64 frameRatePeriodNs = 0;
     u64 nextDrawNs = 0;

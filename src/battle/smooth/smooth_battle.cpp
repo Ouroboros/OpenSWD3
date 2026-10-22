@@ -12,6 +12,7 @@
 #include "battle/smooth/smooth_messages.h"
 #include "battle/smooth/smooth_unit.h"
 #include "crt/msvc.h"
+#include "draw/draw_placer.h"
 #include "draw/paint_record.h"
 #include "game/game.h"
 #include "pic/picture_ops.h"
@@ -214,6 +215,31 @@ void BattleFrame::DrawBattleBackgroundAdvance(int shake, Scene& scene)
         painter.DrawPicture(0, 0, background.width, background.height, mode);
     };
 
+    // The rebuild's smooth battle: the background, shifted round by each shake (ShakeBattleBackground), stands at the
+    // shifts so far, so that between game frames it moves on from where it was (the same draw whether the frame shakes
+    // it or not); its copies a width either side (off the screen while it stands) fill what it leaves, as the shift
+    // round does.
+    auto standBackground = [&game, &battle, &background, &scene]()
+    {
+        const auto shifted = std::make_shared<const Picture>(background);
+        const int stand = game.backgroundShifted;
+        const void* who = &battle.background;
+        scene.Add(
+            [shifted, stand, who](BattleServices& drawing)
+            {
+                const DrawPlacer::Holding holding(stand, 0, who);
+                Painter& drawer = drawing.painter;
+
+                for (const int across : {0, -1, 1})
+                {
+                    drawer.Options() = DrawOptions{};
+                    drawer.SetSource(shifted->data.data());
+                    drawer.DrawPicture(across * shifted->width, 0, shifted->width, shifted->height, Painter::Copy);
+                }
+            }
+        );
+    };
+
     painter.SetSource(background);
     painter.SetClipClamped(0, 0, Display::Width, Display::Height);
 
@@ -222,12 +248,13 @@ void BattleFrame::DrawBattleBackgroundAdvance(int shake, Scene& scene)
         if (shake != 0)
         {
             game.ShakeBattleBackground(shake);
-            drawBackground(Painter::Copy);
+            game.backgroundShifted += shake;
+            standBackground();
             HudFrame(game.battleHud).PlayAnimationShiftedAdvance(battle.backgroundAnimation, 0, shake, scene);
         }
         else
         {
-            drawBackground(Painter::Copy);
+            standBackground();
             HudFrame(game.battleHud).DrawAnimationAdvance(battle.backgroundAnimation, scene);
 
             if (battle.grayBandShown == 1)
@@ -280,6 +307,7 @@ void BattleFrame::DrawBattleBackgroundAdvance(int shake, Scene& scene)
             if (shake != 0)
             {
                 game.ShakeBattleBackground(shake);
+                game.backgroundShifted += shake;
                 HudFrame(game.battleHud).PlayAnimationShiftedAdvance(battle.backgroundAnimation, 0, shake, scene);
                 battle.shake = 0;
             }

@@ -33,12 +33,13 @@ public:
     // of the same code (the same draw of the same step), as many as in the frame before, are each taken for the
     // nearest of those before, which the frames between move them from (others stay where they are).
     // (pointerX, pointerY): where the frame read the mouse pointer (Scene::Pointer).
-    void Draw(Scene&& scene, int pointerX, int pointerY);
-    // The frame drawn again `alpha` (0 to 1) of the way to its own places into `out`, N times the screen across and
-    // down at the render scale N (the places in 1/N pixels, as the map's: N x N screens woven); the painter and the
-    // HUD are left as they were.
+    // `now`: when it is drawn (SDL_GetTicksNS).
+    void Draw(Scene&& scene, int pointerX, int pointerY, u64 now);
+    // The frame drawn again at `now` (SDL_GetTicksNS) into `out`, each draw as far on its way to its place as the time
+    // since the frame takes it (Match), N times the screen across and down at the render scale N (the places in 1/N
+    // pixels, as the map's: N x N screens woven); the painter and the HUD are left as they were.
     // Draws at the pointer move by the mouse's way since the frame, to (mouseX, mouseY).
-    void PaintBetween(double alpha, Surface& out, int mouseX, int mouseY);
+    void PaintBetween(u64 now, Surface& out, int mouseX, int mouseY);
     // No frame before (a battle starts).
     void Clear();
 
@@ -59,6 +60,12 @@ private:
         bool still = false;    // Scene::Still: it does not move
         bool pointer = false;  // Scene::Pointer: it moves with the mouse
         const void* source = nullptr;
+        // How it is shown (Match): `lag` behind its place at `since`, coming nearer by `speed` a nanosecond until it
+        // is there; `moved`: when its place last changed.
+        std::array<double, 2> lag = {};
+        std::array<double, 2> speed = {};
+        u64 since = 0;
+        u64 moved = 0;
     };
 
     using Places = std::map<Key, std::vector<Drawn>>;
@@ -67,6 +74,7 @@ private:
     void DrawInto(Surface& target);
     void Replay();
     void Match();
+    void Follow(Drawn& now, const Drawn& then, const std::array<int, 2>& way, Drawn& kept);
     // Where draw `index` is shown from its place this frame, in pixels.
     std::array<double, 2> Shift(std::size_t index) const;
 
@@ -75,13 +83,15 @@ private:
     Places before;                             // the places of the frame before
     Places places;                             // the places of this frame
     std::vector<std::pair<Key, Drawn>> drawn;  // the draws of this frame in their order
-    std::vector<std::array<int, 2>> moves;     // each draw's way back to its place before
+    std::vector<std::array<int, 2>> moves;     // each draw's way back to its place before (this frame)
     std::vector<Surface> parts;                // the screens of a render scale above 1
     bool measuring = false;
     int scale = 1;
     int column = 0;  // the screen drawn of the render scale's blocks
     int row = 0;
-    double share = 1.0;
+    u64 drawNs = 0;                        // when the frame was drawn
+    u64 lastDrawNs = 0;                    // and the frame before
+    u64 paintNs = 0;                       // when it is drawn again
     std::array<int, 2> framePointer = {};  // Draw
     std::array<int, 2> mouse = {};         // PaintBetween
     std::size_t next = 0;

@@ -142,6 +142,7 @@ int Game::BattleFrame()
     BattleState& battle = this->battleState;
     BattleHud& hud = this->battleHud;
     battle.frameResult = 1;
+    ++this->battleFramesRun;
 
     if (this->audio.IsMusicStopped() && battle.unk53C4C0 == 0)
     {
@@ -320,7 +321,7 @@ int Game::BattleFrame()
 
     if (this->smoothMotion)
     {
-        this->battleStage.Draw(std::move(frameScene), this->state.pointerX, this->state.pointerY);
+        this->battleStage.Draw(std::move(frameScene), this->state.pointerX, this->state.pointerY, SDL_GetTicksNS());
     }
     else
     {
