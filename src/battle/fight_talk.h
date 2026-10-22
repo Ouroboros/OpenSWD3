@@ -46,7 +46,7 @@ public:
     i32 unk53CE68 = 0;
     i32 savedUnit = 0;         // 0x0053CE6C the unit to give the turn back to
     i32 battleActingUnit = 0;  // 0x0053CE70 BattleState::actingUnit as the battle frame copied it
-    u16 unk53CE74 = 0;
+    u16 commandValue = 0;      // 0x0053CE74 the running command's working value (slide, curve step, list entry)
     u16 unk53CE76 = 0;
     i32 unk53CE78 = 0;
     i32 windowFlags = 0;  // 0x0053CE8C the flags of the next window, kWindowShown in the high word

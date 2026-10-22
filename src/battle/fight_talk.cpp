@@ -63,7 +63,7 @@ void FightTalk::Reset()
     this->unk53CCF0 = 0;
     this->savedUnit = 0;
     this->battleActingUnit = 0;
-    this->unk53CE74 = 0;
+    this->commandValue = 0;
     this->unk53CE76 = 0;
     this->unk53CE78 = 0;
     this->windowFlags = 0;

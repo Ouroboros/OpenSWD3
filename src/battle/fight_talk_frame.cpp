@@ -454,7 +454,7 @@ int Game::FightTalkMove()
     FightTalk& talk = this->fightTalk;
     talk.battleRuns = 0;
     const i16 unit = talk.Word(1);
-    talk.unk53CE74 = talk.UnsignedWord(2);
+    talk.commandValue = talk.UnsignedWord(2);
     talk.unk53CE76 = talk.UnsignedWord(3);
     BattleUnit& moved =
         unit >= BattleState::FirstRoleUnit
@@ -463,14 +463,14 @@ int Game::FightTalkMove()
     u16 x = 0;
     u16 y = 0;
     moved.GetPosition(x, y);
-    talk.unk53CCE8 = x + static_cast<i16>(talk.unk53CE74);
+    talk.unk53CCE8 = x + static_cast<i16>(talk.commandValue);
     talk.unk53CCEC = y + static_cast<i16>(talk.unk53CE76);
     moved.SetPosition(static_cast<i16>(talk.unk53CCE8), static_cast<i16>(talk.unk53CCEC));
     talk.unk53CE78 = 0;
     talk.cursor += 4 * sizeof(u16);
     talk.unk53CCE8 = 0;
     talk.unk53CCEC = 0;
-    talk.unk53CE74 = 1;
+    talk.commandValue = 1;
     this->MeasureUnits();
     battle.SortDrawOrder();
     battle.ListEnemyOrder();
@@ -812,19 +812,19 @@ int Game::FightTalkWin()
 int Game::FightTalkLift()
 {
     FightTalk& talk = this->fightTalk;
-    talk.unk53CE74 = talk.UnsignedWord(2);
+    talk.commandValue = talk.UnsignedWord(2);
     BattleUnit& moved = this->TalkUnit(talk.Word(1));
     u16 x = 0;
     u16 y = 0;
     moved.GetPosition(x, y);
     talk.unk53CCE8 = x;
-    talk.unk53CCEC = y + static_cast<i16>(talk.unk53CE74);
+    talk.unk53CCEC = y + static_cast<i16>(talk.commandValue);
     moved.SetPosition(static_cast<i16>(talk.unk53CCE8), static_cast<i16>(talk.unk53CCEC));
     talk.cursor += 3 * sizeof(u16);
     talk.unk53CE78 = 0;
     talk.unk53CCE8 = 0;
     talk.unk53CCEC = 0;
-    talk.unk53CE74 = 0;
+    talk.commandValue = 0;
     this->MeasureUnits();
     this->BattleFrame();
     return 1;
@@ -979,9 +979,9 @@ int Game::FightTalkRandomJump()
 
         while (true)
         {
-            talk.unk53CE74 = talk.UnsignedWord(at);
+            talk.commandValue = talk.UnsignedWord(at);
 
-            if (talk.unk53CE74 == kListEnd)
+            if (talk.commandValue == kListEnd)
             {
                 break;
             }
@@ -998,11 +998,11 @@ int Game::FightTalkRandomJump()
     }
     else
     {
-        talk.unk53CE74 = static_cast<u16>(2 * this->random.Below(static_cast<u16>(talk.unk53CE94)));
-        talk.Seek(talk.Word(talk.unk53CE74));
+        talk.commandValue = static_cast<u16>(2 * this->random.Below(static_cast<u16>(talk.unk53CE94)));
+        talk.Seek(talk.Word(talk.commandValue));
     }
 
-    talk.unk53CE74 = 0;
+    talk.commandValue = 0;
     talk.unk53CE94 = 0;
     talk.battleRuns = 1;
     return 1;
@@ -1014,8 +1014,8 @@ int Game::FightTalkShift()
 {
     BattleState& battle = this->battleState;
     FightTalk& talk = this->fightTalk;
-    talk.unk53CE74 = talk.UnsignedWord(1);
-    battle.shake = static_cast<i16>(talk.unk53CE74);
+    talk.commandValue = talk.UnsignedWord(1);
+    battle.shake = static_cast<i16>(talk.commandValue);
 
     auto shift = [&talk, &battle](BattleUnit& unit)
     {
@@ -1038,7 +1038,7 @@ int Game::FightTalkShift()
     }
 
     talk.cursor += 2 * sizeof(u16);
-    talk.unk53CE74 = 0;
+    talk.commandValue = 0;
     return 1;
 }
 
@@ -1344,9 +1344,9 @@ int Game::FightTalkChoice()
 
     while (true)
     {
-        talk.unk53CE74 = talk.UnsignedWord(at);
+        talk.commandValue = talk.UnsignedWord(at);
 
-        if (talk.unk53CE74 == kListEnd)
+        if (talk.commandValue == kListEnd)
         {
             break;
         }
@@ -1570,7 +1570,7 @@ int Game::FightTalkCurve()
         {
             talk.cursor += kCurveBytes;
             this->SetTalkCommandUnit(0);
-            talk.unk53CE74 = 0;
+            talk.commandValue = 0;
             talk.unk53CE76 = 0;
             talk.unk53CCE8 = 0;
             talk.unk53CCEC = 0;
@@ -1599,20 +1599,20 @@ int Game::FightTalkCurve()
         talk.curve[kCurveOffsets + 2] = talk.curve[kCurveOffsets + 1];
         talk.curve[kCurveOffsets + 3] = talk.curve[kCurveOffsets + 1];
         span = 0;
-        talk.unk53CE74 = 1;
+        talk.commandValue = 1;
         talk.unk53CE76 = 0;
     }
 
     const std::array<std::array<i16, 2>, 4> points =
         {talk.curve[span], talk.curve[span + 1u], talk.curve[span + 2u], talk.curve[span + 3u]};
-    TalkCurvePoint(static_cast<float>(static_cast<i16>(talk.unk53CE74)), talk.unk53CCE8, talk.unk53CCEC, points);
+    TalkCurvePoint(static_cast<float>(static_cast<i16>(talk.commandValue)), talk.unk53CCE8, talk.unk53CCEC, points);
     this->TalkUnit(this->TalkCommandUnit() & kCountMask)
         .SetPosition(static_cast<i16>(talk.unk53CCE8), static_cast<i16>(talk.unk53CCEC));
 
-    if (++talk.unk53CE74 > kCurveSteps)
+    if (++talk.commandValue > kCurveSteps)
     {
         ++talk.unk53CE76;
-        talk.unk53CE74 = 0;
+        talk.commandValue = 0;
     }
 
     this->MeasureUnits();
@@ -1627,14 +1627,14 @@ int Game::FightTalkSlide()
 {
     BattleState& battle = this->battleState;
     FightTalk& talk = this->fightTalk;
-    i16 left = static_cast<i16>(talk.unk53CE74);
+    i16 left = static_cast<i16>(talk.commandValue);
     const u16 value = talk.UnsignedWord(1);
     talk.unk53CE76 = value;
 
-    if (talk.unk53CE74 == 0)
+    if (talk.commandValue == 0)
     {
         left = static_cast<i16>(value);
-        talk.unk53CE74 = value;
+        talk.commandValue = value;
     }
 
     i32 slide = 0;
@@ -1642,7 +1642,7 @@ int Game::FightTalkSlide()
     if (value > kSlideByThirds)
     {
         slide = left / kSlideThirdNegative;
-        talk.unk53CE74 = static_cast<u16>(left / kSlideThird);
+        talk.commandValue = static_cast<u16>(left / kSlideThird);
     }
     else
     {
@@ -1650,8 +1650,8 @@ int Game::FightTalkSlide()
         u16 y = 0;
         this->TalkUnit(static_cast<i16>(value)).GetPosition(x, y);
         talk.unk53CE78 = static_cast<i32>(x | (static_cast<u32>(y) << kHighWordShift));
-        talk.unk53CE74 = static_cast<u16>((static_cast<i16>(x) + Display::Width / 2) / 2);
-        slide = Display::Width / 2 - static_cast<i16>(talk.unk53CE74);
+        talk.commandValue = static_cast<u16>((static_cast<i16>(x) + Display::Width / 2) / 2);
+        slide = Display::Width / 2 - static_cast<i16>(talk.commandValue);
     }
 
     battle.shake = slide;
@@ -1661,7 +1661,7 @@ int Game::FightTalkSlide()
     {
         talk.cursor += 2 * sizeof(u16);
         talk.unk53CE78 = 0;
-        talk.unk53CE74 = 0;
+        talk.commandValue = 0;
         talk.unk53CE90 = static_cast<i32>(static_cast<u32>(talk.unk53CE90) & kLowWordMask);
         talk.unk53CE98 = 0;
         talk.unk53CE76 = 0;
@@ -1971,7 +1971,7 @@ int Game::FightTalkLineWindow()
         speaker.GetDrawPosition(x, y);
         u16 originX = 0;
         speaker.GetOrigin(originX, y);
-        talk.unk53CE74 = originX;
+        talk.commandValue = originX;
 
         if (unit <= kLastEnemy)
         {
@@ -2122,7 +2122,7 @@ int Game::FightTalkObjects(bool take)
 }
 
 // Command 0x49 of FightTalkFrame (inline in the original): every unit slides across in the steps of the third word
-// until the slide (unk53CE74) reaches the second word; then the talk goes on.
+// until the slide (commandValue) reaches the second word; then the talk goes on.
 int Game::FightTalkSlideTo()
 {
     BattleState& battle = this->battleState;
@@ -2136,16 +2136,16 @@ int Game::FightTalkSlideTo()
     }
 
     const i32 slide =
-        (static_cast<i16>(talk.unk53CE78) - static_cast<i16>(talk.unk53CE74)) / static_cast<i16>(talk.unk53CE98);
+        (static_cast<i16>(talk.unk53CE78) - static_cast<i16>(talk.commandValue)) / static_cast<i16>(talk.unk53CE98);
     talk.battleRuns = 0;
     battle.shake = slide;
-    talk.unk53CE74 = static_cast<u16>(talk.unk53CE74 + slide);
+    talk.commandValue = static_cast<u16>(talk.commandValue + slide);
 
     if (slide == 0)
     {
         talk.cursor += 3 * sizeof(u16);
         talk.unk53CE78 = 0;
-        talk.unk53CE74 = 0;
+        talk.commandValue = 0;
         talk.unk53CE90 = static_cast<i32>(static_cast<u32>(talk.unk53CE90) & kLowWordMask);
         talk.unk53CE98 = 0;
         talk.unk53CE76 = 0;

@@ -904,7 +904,7 @@
 0x0053CE68	FightTalk::unk53CE68	i32	src/battle/fight_talk.h:46	
 0x0053CE6C	FightTalk::savedUnit	i32	src/battle/fight_talk.h:47	the unit to give the turn back to
 0x0053CE70	FightTalk::battleActingUnit	i32	src/battle/fight_talk.h:48	BattleState::actingUnit as the battle frame copied it
-0x0053CE74	FightTalk::unk53CE74	u16	src/battle/fight_talk.h:49	
+0x0053CE74	FightTalk::commandValue	u16	src/battle/fight_talk.h:49	
 0x0053CE76	FightTalk::unk53CE76	u16	src/battle/fight_talk.h:50	
 0x0053CE78	FightTalk::unk53CE78	i32	src/battle/fight_talk.h:51	
 0x0053CE80	FightTalk::textAt	std::size_t	src/battle/fight_talk.h:64	the text of a talk window in the script (a pointer in the original)
