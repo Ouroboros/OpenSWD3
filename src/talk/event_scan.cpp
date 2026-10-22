@@ -1,4 +1,4 @@
-#include "talk/item_events.h"
+#include "talk/event_scan.h"
 
 #include <algorithm>
 #include <span>
@@ -112,23 +112,61 @@ std::size_t ScannedBytes(std::span<const u8> bytes, std::size_t at, EventCommand
 
 }  // namespace
 
-bool ItemEvents::GivesItem(const std::u8string& directory, u32 event)
+bool EventScan::GivesItem(const std::u8string& directory, u32 event)
 {
-    if (const auto found = this->events.find(event); found != this->events.end())
+    if (const auto found = this->items.find(event); found != this->items.end())
     {
         return found->second;
     }
 
-    const bool gives = this->Scan(directory, event, 0);
-    this->events.emplace(event, gives);
+    const bool gives = this->Scan(
+        directory,
+        event,
+        0,
+        [](EventCommand code, std::span<const u8>)
+        {
+            return code == EventCommand::AddItem;
+        }
+    );
+    this->items.emplace(event, gives);
     return gives;
 }
 
-bool ItemEvents::Scan(const std::u8string& directory, u32 event, int depth)
+const std::vector<u16>& EventScan::EnteredMaps(const std::u8string& directory, u32 event)
+{
+    if (const auto found = this->maps.find(event); found != this->maps.end())
+    {
+        return found->second;
+    }
+
+    std::vector<u16> entered;
+    this->Scan(
+        directory,
+        event,
+        0,
+        [&entered](EventCommand code, std::span<const u8> command)
+        {
+            if (code == EventCommand::ChangeMap)
+            {
+                const u16 map = TextWord(command, kOpcodeBytes);
+
+                if (std::find(entered.begin(), entered.end(), map) == entered.end())
+                {
+                    entered.push_back(map);
+                }
+            }
+
+            return false;
+        }
+    );
+    return this->maps.emplace(event, std::move(entered)).first->second;
+}
+
+bool EventScan::Scan(const std::u8string& directory, u32 event, int depth, const Found& found)
 {
     const std::size_t file = event / Talk::EventsPerFile;
 
-    if (file >= ItemEvents::Files)
+    if (file >= EventScan::Files)
     {
         return false;
     }
@@ -154,19 +192,14 @@ bool ItemEvents::Scan(const std::u8string& directory, u32 event, int depth)
     {
         const auto code = static_cast<EventCommand>(TextWord(bytes, at) & kCommandMask);
 
-        if (code == EventCommand::AddItem)
-        {
-            return true;
-        }
-
         if (code == EventCommand::End)
         {
             at += kOpcodeBytes;
             continue;
         }
 
-        if (code == EventCommand::OpenScript && depth < ItemEvents::OpenDepth &&
-            this->Scan(directory, TextWord(bytes, at + kOpcodeBytes), depth + 1))
+        if (code == EventCommand::OpenScript && depth < EventScan::OpenDepth &&
+            this->Scan(directory, TextWord(bytes, at + kOpcodeBytes), depth + 1, found))
         {
             return true;
         }
@@ -178,13 +211,18 @@ bool ItemEvents::Scan(const std::u8string& directory, u32 event, int depth)
             return false;
         }
 
+        if (found(code, bytes.subspan(at, std::min(length, end - at))))
+        {
+            return true;
+        }
+
         at += length;
     }
 
     return false;
 }
 
-const std::vector<u8>& ItemEvents::Script(const std::u8string& directory, std::size_t file)
+const std::vector<u8>& EventScan::Script(const std::u8string& directory, std::size_t file)
 {
     std::vector<u8>& bytes = this->files[file];
 

@@ -26,6 +26,11 @@ void FieldView::DrawRoles()
 
             for (Role* role = rows[index]; role != nullptr; role = role->next)
             {
+                if (this->overview && role->id != Role::NoId)
+                {
+                    continue;
+                }
+
                 this->DrawRole(*role);
 
                 if (role->sound != 0 && !this->replaying)
@@ -670,7 +675,7 @@ void FieldView::DrawItemHints()
         if (role.act.id != kHiddenItemAct || (role.flags & Role::Visible) == 0 || role.event == 0 ||
             role.talkState != Role::NoTalk || (role.flags & Role::Examine) == 0 ||
             (role.flags & Role::NoTalkPointer) != 0 ||
-            !this->itemEvents.GivesItem(owner.config.installDirectory, role.event))
+            !this->eventScan.GivesItem(owner.config.installDirectory, role.event))
         {
             continue;
         }

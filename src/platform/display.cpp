@@ -92,6 +92,14 @@ Display::~Display()
         SDL_DestroyCursor(this->cursor);
     }
 
+    for (SDL_Cursor* system : this->systemCursors)
+    {
+        if (system != nullptr)
+        {
+            SDL_DestroyCursor(system);
+        }
+    }
+
     if (this->texture != nullptr)
     {
         SDL_DestroyTexture(this->texture);
@@ -323,6 +331,155 @@ void Display::SetBackdrop(const Surface* canvas)
 
     SDL_UpdateTexture(this->backdrop, nullptr, canvas->Pixels(), canvas->Width() * static_cast<int>(sizeof(Pixel)));
     this->backdropShown = true;
+}
+
+SDL_Texture* Display::CreateOverlay(const Surface& pixels, bool smooth, bool keyed, u16 key) const
+{
+    if (!this->IsOpen() || pixels.Width() <= 0 || pixels.Height() <= 0)
+    {
+        return nullptr;
+    }
+
+    // SDL makes a surface with a colour key into a texture with alpha, the key clear.
+    SDL_Surface* source = SDL_CreateSurfaceFrom(
+        pixels.Width(),
+        pixels.Height(),
+        SDL_PIXELFORMAT_RGB565,
+        const_cast<u16*>(pixels.Pixels()),
+        pixels.Width() * static_cast<int>(sizeof(u16))
+    );
+
+    if (source == nullptr)
+    {
+        LogError(u8"overlay surface creation failed: %s", AsUtf8(SDL_GetError()));
+        return nullptr;
+    }
+
+    if (keyed)
+    {
+        SDL_SetSurfaceColorKey(source, true, key);
+    }
+
+    SDL_Texture* overlay = SDL_CreateTextureFromSurface(this->renderer, source);
+    SDL_DestroySurface(source);
+
+    if (overlay == nullptr)
+    {
+        LogError(
+            u8"overlay texture %dx%d creation failed: %s",
+            pixels.Width(),
+            pixels.Height(),
+            AsUtf8(SDL_GetError())
+        );
+        return nullptr;
+    }
+
+    Display::SetOverlaySmooth(overlay, smooth);
+    return overlay;
+}
+
+void Display::DestroyOverlay(SDL_Texture*& overlay)
+{
+    if (overlay != nullptr)
+    {
+        SDL_DestroyTexture(overlay);
+        overlay = nullptr;
+    }
+}
+
+void Display::SetOverlaySmooth(SDL_Texture* overlay, bool smooth)
+{
+    if (overlay != nullptr)
+    {
+        SDL_SetTextureScaleMode(overlay, smooth ? SDL_SCALEMODE_LINEAR : SDL_SCALEMODE_NEAREST);
+    }
+}
+
+void Display::BeginOverlays() const
+{
+    if (this->IsOpen())
+    {
+        SDL_SetRenderDrawColor(this->renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
+        SDL_RenderClear(this->renderer);
+    }
+}
+
+void Display::DrawOverlay(SDL_Texture* overlay, const Viewport& to) const
+{
+    if (this->IsOpen() && overlay != nullptr)
+    {
+        const SDL_FRect target{to.x, to.y, to.width, to.height};
+        SDL_RenderTexture(this->renderer, overlay, nullptr, &target);
+    }
+}
+
+void Display::ShadeOverlay(const Viewport& to, u8 alpha) const
+{
+    if (this->IsOpen())
+    {
+        const SDL_FRect target{to.x, to.y, to.width, to.height};
+        SDL_SetRenderDrawBlendMode(this->renderer, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(this->renderer, 0, 0, 0, alpha);
+        SDL_RenderFillRect(this->renderer, &target);
+        SDL_SetRenderDrawBlendMode(this->renderer, SDL_BLENDMODE_NONE);
+    }
+}
+
+void Display::EndOverlays() const
+{
+    if (this->IsOpen())
+    {
+        SDL_RenderPresent(this->renderer);
+    }
+}
+
+Point Display::OutputSize() const
+{
+    Point size{Display::Width, Display::Height};
+
+    if (this->IsOpen())
+    {
+        SDL_GetRenderOutputSize(this->renderer, &size.x, &size.y);
+    }
+
+    return size;
+}
+
+void Display::ToOutput(SDL_Event& event) const
+{
+    if (this->IsOpen())
+    {
+        SDL_ConvertEventToRenderCoordinates(this->renderer, &event);
+    }
+}
+
+void Display::ShowSystemPointer(bool shown, bool moving)
+{
+    if (!shown)
+    {
+        if (this->cursor != nullptr)
+        {
+            SDL_SetCursor(this->cursor);
+        }
+
+        SDL_HideCursor();
+        return;
+    }
+
+    constexpr std::array<SDL_SystemCursor, 2> kKinds = {SDL_SYSTEM_CURSOR_DEFAULT, SDL_SYSTEM_CURSOR_MOVE};
+    const std::size_t kind = moving ? 1 : 0;
+
+    if (this->systemCursors[kind] == nullptr)
+    {
+        this->systemCursors[kind] = SDL_CreateSystemCursor(kKinds[kind]);
+    }
+
+    if (this->systemCursors[kind] != nullptr)
+    {
+        SDL_SetCursor(this->systemCursors[kind]);
+    }
+
+    SDL_ShowCursor();
 }
 
 int Display::FitScale() const

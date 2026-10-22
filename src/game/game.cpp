@@ -484,7 +484,15 @@ void Game::LoopFrame()
     }
     else if (this->running != 0 && (this->systemFlags & Game::UnkSystem1) == 0 && this->inactive == 0)
     {
-        this->MainFrame();
+        // The rebuild's map overview pauses the game frames while it is shown; the sound goes on.
+        if (this->mapOverview.IsOpen())
+        {
+            this->AudioPump();
+        }
+        else
+        {
+            this->MainFrame();
+        }
     }
     else if (this->running == 0 && this->active == 1)
     {
@@ -1528,6 +1536,11 @@ void Game::ShowMenuFrame()
 
 void Game::AdvanceMotion()
 {
+    if (this->mapOverview.IsOpen())
+    {
+        return;
+    }
+
     const u32 now = SystemUptime();
     const u32 due = this->lastFrame + static_cast<u32>(std::max(this->state.frameInterval, 0));
     this->fieldView.AdvanceMotion(static_cast<i32>(now - due) > 0 ? due : now);
@@ -1575,6 +1588,25 @@ void Game::StoreDisplay() const
 
 bool Game::PresentBetween()
 {
+    // The rebuild's map overview is drawn at every refresh in place of the game's screen.
+    if (this->mapOverview.IsOpen() && this->active != 0 && !this->quit)
+    {
+        const u64 now = SDL_GetTicksNS();
+
+        if (this->frameRatePeriodNs != 0)
+        {
+            if (now < this->nextDrawNs)
+            {
+                return false;
+            }
+
+            this->nextDrawNs = std::max(this->nextDrawNs + this->frameRatePeriodNs, now);
+        }
+
+        this->mapOverview.Present();
+        return true;
+    }
+
     if (!this->smoothMotion || !(this->mapFrameShown || this->battleFrameShown || this->menuFrameShown) ||
         this->smoothScreen == nullptr || this->menuScreen == nullptr || this->active == 0 || this->running == 0 ||
         this->quit || (this->systemFlags & Game::VideoPlaying) != 0)
@@ -2265,6 +2297,27 @@ void Game::HandleEvent(const SDL_Event& event)
     }
 
     if (this->display.HandleEvent(event))
+    {
+        return;
+    }
+
+    // The rebuild's map overview takes every event while shown; Tab on the map shows it (deviations.md). The keys and
+    // buttons let go meanwhile, the focus lost and the pointer's moves still reach the game's input, so that nothing
+    // held when it opened stays down after.
+    if (this->mapOverview.IsOpen())
+    {
+        if (event.type == SDL_EVENT_KEY_UP || event.type == SDL_EVENT_MOUSE_BUTTON_UP ||
+            event.type == SDL_EVENT_MOUSE_MOTION || event.type == SDL_EVENT_WINDOW_FOCUS_LOST)
+        {
+            this->inputDevice.HandleEvent(event);
+        }
+
+        this->mapOverview.HandleEvent(event);
+        return;
+    }
+
+    if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat && event.key.scancode == SDL_SCANCODE_TAB &&
+        this->mapOverview.TryOpen())
     {
         return;
     }

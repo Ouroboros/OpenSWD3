@@ -265,9 +265,8 @@ void FieldView::PaintBetween(Surface& out)
     this->paintedTarget = out.Pixels();
     this->paintedValid = true;
 
-    // What the map part changes is kept and put back after each painting: the camera, the roles' places, the random
-    // numbers, the particles and acts of the screen effects, the spotlight, the tile grid's origin, and the painter's
-    // options and target.
+    // What the map part changes is kept and put back after each painting: the camera, the roles' places and the rest
+    // (PaintKept).
     const i32 cameraLeft = field.cameraLeft;
     const i32 cameraTop = field.cameraTop;
     const i32 cameraRight = field.cameraRight;
@@ -281,68 +280,13 @@ void FieldView::PaintBetween(Surface& out)
         roleY[index] = state.roles[index].y;
     }
 
-    const Random random = owner.random;
-    const auto weather = view.weather;
-    const auto weatherShades = view.weatherShades;
-    const auto weatherMotion = view.weatherMotion;
-    const auto leaves = view.leaves;
-    const auto leafActs = view.leafActs;
-    const ActState effectAct = view.effectAct;
-    const ActState spotlightAct = view.spotlightAct;
-    const auto heatLengths = view.heatLengths;
-    const auto heatCounts = view.heatCounts;
-    const auto heatOffsets = view.heatOffsets;
-    const u16 heatFrame = view.heatFrame;
-    const i16 lightningCount = view.lightningCount;
-    const i16 lightningShown = view.lightningShown;
-    const auto bolts = view.bolts;
-    const i16 fireflyCount = view.fireflyCount;
-    const i16 firefliesShown = view.firefliesShown;
-    const auto fireflies = view.fireflies;
-    const i32 spotlightX = view.spotlightX;
-    const i32 spotlightY = view.spotlightY;
-    const i32 spotlightStepX = view.spotlightStepX;
-    const i32 spotlightStepY = view.spotlightStepY;
-    const std::array<i32, 2> tileOrigin = {this->tileX, this->tileY};
     // The painter draws on screens the canvas's size meanwhile (the 640x480 screen again after).
     owner.SetDrawSize(width, height);
-    const DrawOptions options = painter.Options();
-    const int wavePhase = painter.WavePhase();
-    const auto [clipX, clipY, clipWidth, clipHeight] = painter.ClipRect();
-    u16* const target = painter.Target();
-    Pixel* const drawSurface = owner.drawSurface;
+    const PaintKept kept(*this);
 
-    auto putBack = [&]()
+    auto putBack = [&kept]()
     {
-        owner.random = random;
-        view.weather = weather;
-        view.weatherShades = weatherShades;
-        view.weatherMotion = weatherMotion;
-        view.leaves = leaves;
-        view.leafActs = leafActs;
-        view.effectAct = effectAct;
-        view.spotlightAct = spotlightAct;
-        view.heatLengths = heatLengths;
-        view.heatCounts = heatCounts;
-        view.heatOffsets = heatOffsets;
-        view.heatFrame = heatFrame;
-        view.lightningCount = lightningCount;
-        view.lightningShown = lightningShown;
-        view.bolts = bolts;
-        view.fireflyCount = fireflyCount;
-        view.firefliesShown = firefliesShown;
-        view.fireflies = fireflies;
-        view.spotlightX = spotlightX;
-        view.spotlightY = spotlightY;
-        view.spotlightStepX = spotlightStepX;
-        view.spotlightStepY = spotlightStepY;
-        this->tileX = tileOrigin[0];
-        this->tileY = tileOrigin[1];
-        painter.Options() = options;
-        painter.SetWavePhase(wavePhase);
-        painter.SetClip(clipX, clipY, clipX + clipWidth, clipY + clipHeight);
-        painter.SetTarget(target);
-        owner.drawSurface = drawSurface;
+        kept.PutBack();
     };
 
     // At a render scale N the screen is N x N logical screens woven together: the one of column a and row b of the

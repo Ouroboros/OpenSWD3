@@ -8,12 +8,13 @@
 #include <unordered_map>
 #include <vector>
 
+#include "core/point.h"
 #include "core/types.h"
 #include "crt/msvc.h"
 #include "file/file.h"
 #include "platform/surface.h"
 #include "res/act_state.h"
-#include "talk/item_events.h"
+#include "talk/event_scan.h"
 #include "text/big5.h"
 
 namespace swd3
@@ -195,6 +196,21 @@ public:
     // 1/N of a pixel, every pixel of the game shown as an N x N block. Nothing the game frames read is changed.
     void PaintBetween(Surface& out);
 
+    // The rebuild's map overview (deviations.md): the whole map drawn into `out` (made its size) as a still picture,
+    // its overlays, tiles and the roles of the map file (none of the story's: the people). Nothing the game frames
+    // read is changed.
+    void PaintOverview(Surface& out);
+
+    // An exit of the map for the overview: a region whose event changes the map, at the middle of its cells (map
+    // pixels), and the maps it leads to.
+    struct MapExit
+    {
+        Point at;
+        std::vector<u16> maps;
+    };
+
+    std::vector<MapExit> MapExits();
+
     // A run of pixels of the logical screen (a later step of the last game frame drew over them).
     struct Span
     {
@@ -224,8 +240,10 @@ public:
 
 private:
     struct TileSet;
+    class PaintKept;
 
     void PaintWorld();
+    void PaintOverviewPart();
     void ClipToSpotlight();
     void CapturePlaces();
     void CaptureLayer(std::vector<Pixel>& layer) const;
@@ -358,8 +376,8 @@ private:
     void StartPan(i32 byX, i32 byY);
     void PanTick();
     std::array<i32, 2> RoleFine(std::size_t index, int scale) const;
-    ActState itemHint;      // DrawItemHints: the arrow, stepped once a game frame
-    ItemEvents itemEvents;  // DrawItemHints: the events that give items
+    ActState itemHint;    // DrawItemHints: the arrow, stepped once a game frame
+    EventScan eventScan;  // DrawItemHints: the events that give items; MapExits: the maps they change to
     PlayerMotion playerMotion;
     std::vector<RoleMotion> roleMotions;        // per role
     std::vector<RoleReservation> reservations;  // per role
@@ -380,6 +398,7 @@ private:
     u32 paintedFrame = 0;
     const Pixel* paintedTarget = nullptr;
     bool paintedValid = false;
+    bool overview = false;  // PaintOverview is drawing: the roles of the map file alone
 
     // The rebuild's map filling the window (deviations.md): the canvas of the map frame (Game::mapCanvas), and where
     // the 640x480 screen the interface is drawn on starts in it.

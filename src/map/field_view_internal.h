@@ -264,4 +264,112 @@ struct FieldView::TileSet
     bool indexed = false;
 };
 
+// What painting the map between game frames changes besides the camera and the roles' places, kept when made and put
+// back after each painting (PaintBetween, PaintOverview): the random numbers, the particles and acts of the screen
+// effects, the spotlight, the tile grid's origin, and the painter's options, clip and target.
+class FieldView::PaintKept
+{
+public:
+    explicit PaintKept(FieldView& kept)
+        : view(kept),
+          random(kept.game.random),
+          weather(kept.game.scene.weather),
+          weatherShades(kept.game.scene.weatherShades),
+          weatherMotion(kept.game.scene.weatherMotion),
+          leaves(kept.game.scene.leaves),
+          leafActs(kept.game.scene.leafActs),
+          effectAct(kept.game.scene.effectAct),
+          spotlightAct(kept.game.scene.spotlightAct),
+          heatLengths(kept.game.scene.heatLengths),
+          heatCounts(kept.game.scene.heatCounts),
+          heatOffsets(kept.game.scene.heatOffsets),
+          heatFrame(kept.game.scene.heatFrame),
+          lightningCount(kept.game.scene.lightningCount),
+          lightningShown(kept.game.scene.lightningShown),
+          bolts(kept.game.scene.bolts),
+          fireflyCount(kept.game.scene.fireflyCount),
+          firefliesShown(kept.game.scene.firefliesShown),
+          fireflies(kept.game.scene.fireflies),
+          spotlightX(kept.game.scene.spotlightX),
+          spotlightY(kept.game.scene.spotlightY),
+          spotlightStepX(kept.game.scene.spotlightStepX),
+          spotlightStepY(kept.game.scene.spotlightStepY),
+          tileOrigin{kept.tileX, kept.tileY},
+          options(kept.game.painter.Options()),
+          wavePhase(kept.game.painter.WavePhase()),
+          clip(kept.game.painter.ClipRect()),
+          target(kept.game.painter.Target()),
+          drawSurface(kept.game.drawSurface)
+    {
+    }
+
+    void PutBack() const
+    {
+        Game& owner = this->view.game;
+        Scene& scene = owner.scene;
+        Painter& painter = owner.painter;
+        owner.random = this->random;
+        scene.weather = this->weather;
+        scene.weatherShades = this->weatherShades;
+        scene.weatherMotion = this->weatherMotion;
+        scene.leaves = this->leaves;
+        scene.leafActs = this->leafActs;
+        scene.effectAct = this->effectAct;
+        scene.spotlightAct = this->spotlightAct;
+        scene.heatLengths = this->heatLengths;
+        scene.heatCounts = this->heatCounts;
+        scene.heatOffsets = this->heatOffsets;
+        scene.heatFrame = this->heatFrame;
+        scene.lightningCount = this->lightningCount;
+        scene.lightningShown = this->lightningShown;
+        scene.bolts = this->bolts;
+        scene.fireflyCount = this->fireflyCount;
+        scene.firefliesShown = this->firefliesShown;
+        scene.fireflies = this->fireflies;
+        scene.spotlightX = this->spotlightX;
+        scene.spotlightY = this->spotlightY;
+        scene.spotlightStepX = this->spotlightStepX;
+        scene.spotlightStepY = this->spotlightStepY;
+        this->view.tileX = this->tileOrigin[0];
+        this->view.tileY = this->tileOrigin[1];
+        painter.Options() = this->options;
+        painter.SetWavePhase(this->wavePhase);
+        const auto [clipX, clipY, clipWidth, clipHeight] = this->clip;
+        painter.SetClip(clipX, clipY, clipX + clipWidth, clipY + clipHeight);
+        painter.SetTarget(this->target);
+        owner.drawSurface = this->drawSurface;
+    }
+
+private:
+    FieldView& view;
+    Random random;
+    decltype(Scene::weather) weather;
+    decltype(Scene::weatherShades) weatherShades;
+    decltype(Scene::weatherMotion) weatherMotion;
+    decltype(Scene::leaves) leaves;
+    decltype(Scene::leafActs) leafActs;
+    ActState effectAct;
+    ActState spotlightAct;
+    decltype(Scene::heatLengths) heatLengths;
+    decltype(Scene::heatCounts) heatCounts;
+    decltype(Scene::heatOffsets) heatOffsets;
+    decltype(Scene::heatFrame) heatFrame;
+    decltype(Scene::lightningCount) lightningCount;
+    decltype(Scene::lightningShown) lightningShown;
+    decltype(Scene::bolts) bolts;
+    decltype(Scene::fireflyCount) fireflyCount;
+    decltype(Scene::firefliesShown) firefliesShown;
+    decltype(Scene::fireflies) fireflies;
+    i32 spotlightX;
+    i32 spotlightY;
+    i32 spotlightStepX;
+    i32 spotlightStepY;
+    std::array<i32, 2> tileOrigin;
+    DrawOptions options;
+    int wavePhase;
+    std::array<int, 4> clip;
+    u16* target;
+    Pixel* drawSurface;
+};
+
 }  // namespace swd3

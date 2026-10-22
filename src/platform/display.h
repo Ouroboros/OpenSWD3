@@ -3,6 +3,9 @@
 #include <array>
 #include <string>
 
+#include "core/point.h"
+#include "core/types.h"
+
 struct SDL_Window;
 struct SDL_Renderer;
 struct SDL_Texture;
@@ -109,6 +112,25 @@ public:
     void SetIcon(const IconImage& icon);
     void SetCursor(const IconImage& cursor);
 
+    // The rebuild's map overview (deviations.md): pictures of any size drawn on the window's output at any place and
+    // size, a frame of them begun cleared to black and shown at its end. A picture made `smooth` is scaled with linear
+    // filtering (nearest otherwise); with `keyed`, its pixels of colour `key` are left clear.
+    SDL_Texture* CreateOverlay(const Surface& pixels, bool smooth, bool keyed = false, u16 key = 0) const;
+    static void DestroyOverlay(SDL_Texture*& overlay);
+    static void SetOverlaySmooth(SDL_Texture* overlay, bool smooth);
+    void BeginOverlays() const;
+    void DrawOverlay(SDL_Texture* overlay, const Viewport& to) const;
+    // Black at `alpha` (0..255) over `to`.
+    void ShadeOverlay(const Viewport& to, u8 alpha) const;
+    void EndOverlays() const;
+    // The size of the render output in pixels, where the overlays are placed.
+    Point OutputSize() const;
+    // The positions of a mouse event in output pixels.
+    void ToOutput(SDL_Event& event) const;
+    // The system's pointer shown over the window (its arrow, or its move pointer while `moving`), instead of the
+    // game's own; `shown` false puts the window's cursor back, hidden as the game keeps it.
+    void ShowSystemPointer(bool shown, bool moving = false);
+
     SDL_Window* Window() const
     {
         return this->window;
@@ -149,6 +171,7 @@ private:
     int backdropHeight = 0;
     bool backdropShown = false;
     SDL_Cursor* cursor = nullptr;
+    std::array<SDL_Cursor*, 2> systemCursors{};  // ShowSystemPointer: the arrow and the move pointer
 };
 
 }  // namespace swd3
