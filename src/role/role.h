@@ -85,8 +85,7 @@ struct Role
     std::optional<std::string>
         label;                     // +0x38 a name drawn over the role while no event runs (freed when the map is left)
     ActState* attached = nullptr;  // +0x3C an act drawn with the role
-    ActState act;                  // +0x40
-    i32 unkD4 = 0;                 // +0xD4 0: the steps of a move count twice
+    ActState act;                  // +0x40 (its mask at +0xD4: 0 makes the steps of a move count twice)
 
     void FillUnused();
 };

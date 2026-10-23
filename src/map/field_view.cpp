@@ -681,7 +681,8 @@ void FieldView::Render()
             int stepX = move.stepX;
             int stepY = move.stepY;
 
-            if (role.unkD4 == 0)
+            // +0xD4 of the role: the mask ('MS') of its act, set by the act's script.
+            if (role.act.mask == 0)
             {
                 stepX *= kFastFactor;
                 stepY *= kFastFactor;
