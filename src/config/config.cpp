@@ -225,6 +225,16 @@ void Config::StoreLauncher(bool shown) const
     );
 }
 
+void Config::StoreAutoCombo(bool on) const
+{
+    this->Store(
+        [on](GameSettings& game)
+        {
+            game.autoCombo = on;
+        }
+    );
+}
+
 // [game] of the program's settings file changed by `change` (a failure is logged).
 void Config::Store(const std::function<void(GameSettings&)>& change) const
 {
@@ -276,6 +286,7 @@ void Config::Apply(const GameSettings& game, i32& unknown14, u8& effectsOff)
     }
 
     this->showLauncher = game.launcher.value_or(true);
+    this->autoCombo = game.autoCombo.value_or(false);
 
     if (game.debug.has_value())
     {

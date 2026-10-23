@@ -358,6 +358,7 @@ private:
     void ScrollListBack();
     void ScrollListForward();
     void AutoBattleTurn();
+    bool AutoCombo(i32 unit);
     bool CanSelectRole(int unit);
     static std::size_t PanelPlace(int unit);
     int NextSelectableRole(int unit);

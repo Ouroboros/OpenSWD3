@@ -10,6 +10,7 @@
 #include "core/types.h"
 #include "item/item_list.h"
 #include "menu/menu_list.h"
+#include "menu/settings_constants.h"
 #include "org/object_record.h"
 #include "party/party.h"
 #include "res/act_state.h"
@@ -192,7 +193,7 @@ struct StatusPage
 struct OptionsPage
 {
     i32 entry = 0;     // 0x004FD310 the tab: save, load, notes, settings, quit
-    i32 stage = 0;     // 0x004FD2F8 0: the tabs, 1: a tab opened, 2: confirming, 5..7: the key setup, 8: display
+    i32 stage = 0;     // 0x004FD2F8 0: the tabs, 1: a tab opened, 2: confirming, 5..7: the key setup, 8: a setup
     i32 row = 0;       // 0x004FD30C the row of the settings or of the quit box
     i32 locked = 0;    // 0x004FD3A8 the quit fade runs
     i32 choice = 0;    // 0x004FD3A4 the confirmation's choice, then the fade's frames from 0x1E
@@ -211,7 +212,9 @@ struct OptionsPage
     i32 sampleLength = 0;    // 0x004FD300 characters of the speed sample shown
     i32 textSpeedShown = 0;  // 0x004FD304
     i32 sampleDelay = 0;     // 0x004FD308
-    i32 displayRow = 0;      // the rebuild's display setup (stage 8): the row chosen
+    // The rebuild's setup opened from the settings (stage 8, deviations.md) and its row chosen.
+    Setup setup = Setup::Display;
+    i32 setupRow = 0;
 };
 
 // The items page (role page 0xB; 0x004FD088..0x004FD164): the inventory of one category with its counts, used, sorted
@@ -512,7 +515,7 @@ public:
     void OptionsCancel();
     void OptionsDrawSettings(Pixel color);
     void OptionsDrawKeys(Pixel color);
-    void OptionsDrawDisplay(Pixel color);
+    void OptionsDrawSetup(Pixel color);
     // The rebuild's settings rows of choices (deviations.md): an on/off row's choices (Big5), and the left of
     // each of `choices` drawn with `font` from `left`, kChoiceGap apart, with the right of the last.
     static std::vector<std::string> OnOffChoices();
@@ -520,9 +523,10 @@ public:
     Config::Settings CurrentSettings() const;
     void StoreChangedSettings();
     void OptionsSetLauncher(bool shown);
-    std::vector<std::string> OptionsDisplayChoices(i32 row, i32& chosen) const;
-    void OptionsChooseDisplay(i32 row, i32 choice);
-    void OptionsStepDisplay(i32 row, bool up, bool wrap);
+    void OptionsSetAutoCombo(bool on);
+    std::vector<std::string> SetupChoices(Setup setup, i32 row, i32& chosen) const;
+    void SetupChoose(Setup setup, i32 row, i32 choice);
+    void SetupStep(Setup setup, i32 row, bool up, bool wrap);
     void OptionsDraw();
 
     // The items page (role page 0xB).
@@ -569,10 +573,10 @@ public:
     bool DrawNameEntry();
     void ActOnEntry();
     void DrawSettings();
-    // The rebuild's display setup on the title page (deviations.md).
-    void DrawDisplaySettings();
+    // The rebuild's setups on the title page (deviations.md).
+    void DrawSetupSettings();
     void DrawSystemChoices(i32 row, const std::vector<std::string>& choices, i32 chosen, bool counts);
-    void DisplaySettingsMouse();
+    void SetupSettingsMouse();
     void SettingsMoveSound();
 
     // The system page (the title in mode 0, the settings).
@@ -646,14 +650,15 @@ public:
     ActState tabsPanelAct;             // 0x004FC840 the panel of the tabs (the shop's frame)
 
     // The system page (0x004FD29C..0x004FD2D4).
-    i32 systemClick = 0;           // 0x004FD29C 1: the confirm button clicked, 2: a right click
-    i32 nameReply = 0;             // 0x004FD2A0 frames of the face's reply to a name
-    i32 textSpeedShown = 0;        // 0x004FD2A4
-    i32 systemState = 0;           // 0x004FD2AC 1: the title entries, 2: chosen (5: the settings, 100: in game)
-    std::vector<u16> savedScreen;  // 0x004FD2B0 the frame under the page in game
-    i32 systemCursor = 0;          // 0x004FD2B4 the title entry
-    std::array<i32, 4> glow = {};  // 0x004FD2B8 the glow of the four entries
-    i32 systemRow = 0;             // 0x004FD2C8 the settings row, the fade and name entry steps otherwise
+    i32 systemClick = 0;                 // 0x004FD29C 1: the confirm button clicked, 2: a right click
+    i32 nameReply = 0;                   // 0x004FD2A0 frames of the face's reply to a name
+    i32 textSpeedShown = 0;              // 0x004FD2A4
+    i32 systemState = 0;                 // 0x004FD2AC 1: the title entries, 2: chosen (5: the settings, 100: in game)
+    std::vector<u16> savedScreen;        // 0x004FD2B0 the frame under the page in game
+    i32 systemCursor = 0;                // 0x004FD2B4 the title entry
+    std::array<i32, 4> glow = {};        // 0x004FD2B8 the glow of the four entries
+    i32 systemRow = 0;                   // 0x004FD2C8 the settings row, the fade and name entry steps otherwise
+    Setup systemSetup = Setup::Display;  // the rebuild's setup opened from the title page's settings
     std::optional<Config::Settings> storedSettings;  // StoreChangedSettings: what the settings page last wrote
     i32 sampleLength = 0;                            // 0x004FD2CC characters of the text speed sample shown
     std::vector<u8> enteredNames;                    // 0x004FD2D0 the two names typed (0x20 bytes)

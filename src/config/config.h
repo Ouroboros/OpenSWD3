@@ -88,6 +88,8 @@ public:
     void StoreRunning(bool running) const;
     // The rebuild's launcher shown at the start or not, kept in [game] launcher (deviations.md).
     void StoreLauncher(bool shown) const;
+    // The rebuild's auto combo kept in [game] auto_combo (deviations.md).
+    void StoreAutoCombo(bool on) const;
 
 private:
     void StoreKeys(GameSettings& game) const;
@@ -102,6 +104,7 @@ public:
     i32 battleSpeed = 0;             // 0x004ACE60 0..11
     i32 debugMode = 0;               // 0x004CAE98 debug hot keys
     bool showLauncher = true;        // the rebuild's [game] launcher: the launcher at the start (else the title)
+    bool autoCombo = false;          // the rebuild's [game] auto_combo: the auto battle attacks with 連擊 when it can
     std::array<u16, Channels> channelMasks = Config::DefaultChannelMasks;
     std::array<i32, Keys> keys = {};  // 0x004B7384 DirectInput scan codes of the key slots
 

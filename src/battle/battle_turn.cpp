@@ -1129,9 +1129,33 @@ void Game::ScrollListForward()
     keepForRole(battle.roleListRow);
 }
 
+// The rebuild's auto combo (deviations.md): whether role unit `unit` attacks with 連擊 in the auto battle (the setting
+// on, the role wearing its accessory with the stamina for it), as when it is chosen from the menu.
+bool Game::AutoCombo(i32 unit)
+{
+    const i32 index = unit - BattleState::FirstRoleUnit;
+
+    if (!this->config.autoCombo || index < 0 || static_cast<std::size_t>(index) >= this->battleRoles.size())
+    {
+        return false;
+    }
+
+    BattleRole& role = this->battleRoles[static_cast<std::size_t>(index)];
+    const bool wears = std::any_of(
+        role.accessories.begin(),
+        role.accessories.end(),
+        [](const ObjectRecord& accessory)
+        {
+            return accessory.data.actionKind == kAimedCommand15;
+        }
+    );
+    return wears && role.CanUseAccessory(kAimedCommand15) == 1;
+}
+
 // swd32.exe 0x0045D490: the auto battle takes the current role's turn (unless in battle state 3): with no remembered
 // enemy (autoTarget) the state becomes 3; otherwise the role acts on it (aimTarget), or guards with MarkBit1 (its
-// order taken as 1); a defeated enemy gives way to the first standing one, and with none the auto battle ends.
+// order taken as 1); a defeated enemy gives way to the first standing one, and with none the auto battle ends. The
+// rebuild's auto combo attacks with 連擊 instead when it can (deviations.md).
 void Game::AutoBattleTurn()
 {
     BattleState& battle = this->battleState;
@@ -1169,6 +1193,12 @@ void Game::AutoBattleTurn()
         role.SetTarget(1);
         battle.pendingOrders[static_cast<std::size_t>(battle.turnUnit - BattleState::FirstRoleUnit)].unk00 = 1;
         return;
+    }
+
+    if (this->AutoCombo(battle.turnUnit))
+    {
+        battle.turnCommand = kAimedCommand15;
+        battle.turnTaken[static_cast<std::size_t>(battle.turnUnit)] = kAimedCommand15;
     }
 
     if (!this->battleEnemies[static_cast<std::size_t>(battle.aimTarget - 1)].IsDefeated())
@@ -4945,12 +4975,14 @@ void Game::BattleKeys()
     {
         if (battle.result <= kMenuState && battle.roleCount != 0 && this->scene.talkWindows == nullptr)
         {
+            // The rebuild's auto combo (deviations.md): the first aimed attack with 連擊 when it can.
+            const i32 command = this->AutoCombo(unit) ? kAimedCommand15 : 1;
             battle.unk53BFBC = 0;
             battle.autoBattle = 1;
-            battle.turnCommand = 1;
-            battle.turnTaken[static_cast<std::size_t>(unit)] = 1;
+            battle.turnCommand = command;
+            battle.turnTaken[static_cast<std::size_t>(unit)] = command;
             battle.unk53BFB8 = 1;
-            battle.menuCommand = 1;
+            battle.menuCommand = command;
             battle.result = kTargetState;
             return;
         }

@@ -27,7 +27,7 @@ constexpr i32 kKeys = 5;
 constexpr i32 kKeyChosen = 6;
 constexpr i32 kKeyWaiting = 7;
 constexpr i32 kCannotSave = 0xA;
-constexpr i32 kDisplay = 8;  // the rebuild's display setup (deviations.md)
+constexpr i32 kSetup = 8;  // the rebuild's setups (OptionsPage::setup; deviations.md)
 
 // The tabs (OptionsPage::entry).
 constexpr i32 kSaveEntry = 0;
@@ -46,6 +46,7 @@ constexpr i32 kTextSpeedRow = 5;
 constexpr i32 kBattleSpeedRow = 6;
 constexpr i32 kKeysRow = 7;
 constexpr i32 kDisplayRow = 8;  // the rebuild's display setup, below the key setup
+constexpr i32 kBattleRow = 9;   // the rebuild's battle setup, below the display setup
 constexpr i32 kEndRow = 0;
 constexpr i32 kRestartRow = 1;
 constexpr i32 kQuitRows = 2;
@@ -152,7 +153,7 @@ constexpr int kStepsLeft = 0x13D;
 constexpr int kStepWidth = 0x10;
 constexpr u32 kKeysRowFrom = 0x5E;
 // The rows of the settings between these y (the first one the launcher switch's, the last one the display setup's).
-constexpr std::array<std::pair<u32, u32>, 9> kSettingsRows = {
+constexpr std::array<std::pair<u32, u32>, 10> kSettingsRows = {
     {{0x82, 0xA1},
      {0xA2, 0xC1},
      {0xC2, 0xE1},
@@ -161,7 +162,8 @@ constexpr std::array<std::pair<u32, u32>, 9> kSettingsRows = {
      {0x122, 0x141},
      {0x142, 0x161},
      {0x162, 0x181},
-     {0x182, 0x1A1}}
+     {0x182, 0x1A1},
+     {0x1A2, 0x1C1}}
 };
 
 // The drawing.
@@ -215,9 +217,10 @@ constexpr int kListBoxWidth = 0x190;
 constexpr int kNotesBoxHeight = 0x15E;
 constexpr int kSettingsBoxHeight = 0xF8;
 constexpr int kDisplayRowHeight = 0x20;  // a row of the rebuild's, which grows the settings box
-constexpr int kAddedRows = 2;            // the launcher switch and the display setup
-constexpr int kDisplayBoxHeight = 0xF8;  // the display setup: its seven rows
-constexpr int kDisplayFrameBottom = 0x168;
+constexpr int kAddedRows = 3;            // the launcher switch, the display setup and the battle setup
+// A setup's box: its rows and this much more (the frame this much below its rows).
+constexpr int kSetupBoxPad = 0x18;
+constexpr int kSetupFramePad = 0x10;
 constexpr int kListFrameLeft = 0xD8;
 constexpr int kListFrameTop = 0x78;
 constexpr int kListFrameRight = 0x25C;
@@ -231,7 +234,7 @@ constexpr int kNotesTop = 0x84;
 constexpr int kNoteHeight = 0x41;
 constexpr int kVolumeLabelX = 0x108;
 constexpr int kLabelX = 0xDC;
-constexpr std::array<int, 9> kRowY = {0x82, 0xA2, 0xC2, 0xE2, 0x102, 0x122, 0x142, 0x162, 0x182};
+constexpr std::array<int, 10> kRowY = {0x82, 0xA2, 0xC2, 0xE2, 0x102, 0x122, 0x142, 0x162, 0x182, 0x1A2};
 constexpr int kVersionX = 0x20C;
 constexpr int kVersionY = 0x159;
 constexpr i32 kStepOff = 0x22;
@@ -246,8 +249,8 @@ constexpr int kHighlightX = 0xD3;
 constexpr int kHighlightTop = 0x7E;
 constexpr int kHighlightWidth = 0x18E;
 constexpr int kHighlightHeight = 0x20;
-// The display setup rows take clicks up to the end of the highlight.
-constexpr u32 kDisplayRight = kHighlightX + kHighlightWidth;
+// The setup rows take clicks up to the end of the highlight.
+constexpr u32 kSetupRight = kHighlightX + kHighlightWidth;
 constexpr int kQuitBoxX = 0x1DC;
 constexpr int kQuitBoxY = 0x60;
 constexpr int kQuitBoxWidth = 0x6C;
@@ -352,8 +355,23 @@ void Menu::OptionsSetLauncher(bool shown)
     owner.audio.PlaySound(kMoveSound, owner.config.soundVolume);
 }
 
-// The choices of display setup row `row` (Big5), and the one in use in `chosen` (-1 for none).
-std::vector<std::string> Menu::OptionsDisplayChoices(i32 row, i32& chosen) const
+// The rebuild's auto combo (deviations.md): the auto battle attacks with 連擊 when it can, or not, written at once.
+void Menu::OptionsSetAutoCombo(bool on)
+{
+    Game& owner = this->game;
+
+    if (owner.config.autoCombo == on)
+    {
+        return;
+    }
+
+    owner.config.autoCombo = on;
+    owner.config.StoreAutoCombo(on);
+    owner.audio.PlaySound(kMoveSound, owner.config.soundVolume);
+}
+
+// The choices of row `row` of `setup` (Big5), and the one in use in `chosen` (-1 for none).
+std::vector<std::string> Menu::SetupChoices(Setup setup, i32 row, i32& chosen) const
 {
     const Game& owner = this->game;
 
@@ -364,6 +382,17 @@ std::vector<std::string> Menu::OptionsDisplayChoices(i32 row, i32& chosen) const
 
     std::vector<std::string> choices;
     chosen = -1;
+
+    if (setup == Setup::Battle)
+    {
+        if (row == kAutoComboRow)
+        {
+            choices = OnOffChoices();
+            chosen = owner.config.autoCombo ? 0 : 1;
+        }
+
+        return choices;
+    }
 
     switch (row)
     {
@@ -413,10 +442,20 @@ std::vector<std::string> Menu::OptionsDisplayChoices(i32 row, i32& chosen) const
     return choices;
 }
 
-// Choice `choice` of display setup row `row` taken, put to use and written.
-void Menu::OptionsChooseDisplay(i32 row, i32 choice)
+// Choice `choice` of row `row` of `setup` taken, put to use and written.
+void Menu::SetupChoose(Setup setup, i32 row, i32 choice)
 {
     Game& owner = this->game;
+
+    if (setup == Setup::Battle)
+    {
+        if (row == kAutoComboRow)
+        {
+            this->OptionsSetAutoCombo(choice == 0);
+        }
+
+        return;
+    }
 
     switch (row)
     {
@@ -453,11 +492,11 @@ void Menu::OptionsChooseDisplay(i32 row, i32 choice)
     owner.audio.PlaySound(kMoveSound, owner.config.soundVolume);
 }
 
-// The choice of display setup row `row` moved right (`up`) or left, past the last back to the first when `wrap`.
-void Menu::OptionsStepDisplay(i32 row, bool up, bool wrap)
+// The choice of row `row` of `setup` moved right (`up`) or left, past the last back to the first when `wrap`.
+void Menu::SetupStep(Setup setup, i32 row, bool up, bool wrap)
 {
     i32 chosen = -1;
-    const auto count = static_cast<i32>(this->OptionsDisplayChoices(row, chosen).size());
+    const auto count = static_cast<i32>(this->SetupChoices(setup, row, chosen).size());
 
     if (count == 0)
     {
@@ -475,7 +514,7 @@ void Menu::OptionsStepDisplay(i32 row, bool up, bool wrap)
 
     if (next != chosen)
     {
-        this->OptionsChooseDisplay(row, next);
+        this->SetupChoose(setup, row, next);
     }
 }
 
@@ -663,20 +702,22 @@ void Menu::OptionsFrame()
         return;
     }
 
-    if (page.stage == kDisplay)
+    if (page.stage == kSetup)
     {
-        for (i32 row = kSmoothRow; row <= kDisplayBackRow; ++row)
+        const i32 backRow = SetupBackRow(page.setup);
+
+        for (i32 row = 0; row <= backRow; ++row)
         {
-            if (x > kStepsFrom && x < kDisplayRight && Inside(y, kSettingsRows[static_cast<std::size_t>(row)]))
+            if (x > kStepsFrom && x < kSetupRight && Inside(y, kSettingsRows[static_cast<std::size_t>(row)]))
             {
-                page.displayRow = row;
+                page.setupRow = row;
 
                 if ((this->clicks & kSingleClick) == 0)
                 {
                     return;
                 }
 
-                if (row == kDisplayBackRow)
+                if (row == backRow)
                 {
                     this->OptionsSelect();
                     return;
@@ -684,7 +725,7 @@ void Menu::OptionsFrame()
 
                 // A click on a choice takes it.
                 i32 chosen = -1;
-                const std::vector<std::string> choices = this->OptionsDisplayChoices(row, chosen);
+                const std::vector<std::string> choices = this->SetupChoices(page.setup, row, chosen);
                 const std::vector<int> lefts = ChoiceLefts(choices, owner.largeFont, kBarStepsLeft);
 
                 for (std::size_t at = 0; at < choices.size(); ++at)
@@ -694,7 +735,7 @@ void Menu::OptionsFrame()
 
                     if (x >= left && x < right && static_cast<i32>(at) != chosen)
                     {
-                        this->OptionsChooseDisplay(row, static_cast<i32>(at));
+                        this->SetupChoose(page.setup, row, static_cast<i32>(at));
                     }
                 }
 
@@ -840,6 +881,11 @@ void Menu::OptionsFrame()
         page.row = kDisplayRow;
         this->OptionsSelect();
     }
+    else if (x > kKeysRowFrom && Inside(y, kSettingsRows[kBattleRow]))
+    {
+        page.row = kBattleRow;
+        this->OptionsSelect();
+    }
 }
 
 // swd32.exe 0x0044B560: on the tabs the next one; the next page of notes (the down arrow pressed for three frames);
@@ -895,7 +941,7 @@ void Menu::OptionsDown()
             if (page.entry == kSettingsEntry)
             {
                 // The rebuild goes round to the first row (the original stops at the last; deviations.md).
-                if (++page.row > kDisplayRow)
+                if (++page.row > kBattleRow)
                 {
                     page.row = kLauncherRow;
                 }
@@ -933,10 +979,10 @@ void Menu::OptionsDown()
             owner.audio.PlaySound(kMoveSound, owner.config.soundVolume);
             return;
 
-        case kDisplay:
-            if (++page.displayRow > kDisplayBackRow)
+        case kSetup:
+            if (++page.setupRow > SetupBackRow(page.setup))
             {
-                page.displayRow = 0;
+                page.setupRow = 0;
             }
 
             owner.audio.PlaySound(kMoveSound, owner.config.soundVolume);
@@ -999,7 +1045,7 @@ void Menu::OptionsUp()
             // The rebuild goes round from the first settings row to the last (the original stops; deviations.md).
             if (page.entry == kSettingsEntry && page.row == kLauncherRow)
             {
-                page.row = kDisplayRow;
+                page.row = kBattleRow;
             }
             else if (--page.row <= 0)
             {
@@ -1024,10 +1070,10 @@ void Menu::OptionsUp()
 
             break;
 
-        case kDisplay:
-            if (--page.displayRow < 0)
+        case kSetup:
+            if (--page.setupRow < 0)
             {
-                page.displayRow = kDisplayBackRow;
+                page.setupRow = SetupBackRow(page.setup);
             }
 
             break;
@@ -1069,7 +1115,7 @@ void Menu::OptionsPageDown()
             }
             else if (page.entry == kSettingsEntry)
             {
-                page.row = kDisplayRow;
+                page.row = kBattleRow;
                 owner.audio.PlaySound(kMoveSound, owner.config.soundVolume);
             }
             else if (page.entry == kQuitEntry)
@@ -1094,8 +1140,8 @@ void Menu::OptionsPageDown()
             owner.audio.PlaySound(kMoveSound, owner.config.soundVolume);
             return;
 
-        case kDisplay:
-            page.displayRow = kDisplayBackRow;
+        case kSetup:
+            page.setupRow = SetupBackRow(page.setup);
             owner.audio.PlaySound(kMoveSound, owner.config.soundVolume);
             return;
 
@@ -1153,8 +1199,8 @@ void Menu::OptionsPageUp()
             owner.audio.PlaySound(kMoveSound, owner.config.soundVolume);
             return;
 
-        case kDisplay:
-            page.displayRow = 0;
+        case kSetup:
+            page.setupRow = 0;
             owner.audio.PlaySound(kMoveSound, owner.config.soundVolume);
             return;
 
@@ -1300,8 +1346,8 @@ void Menu::OptionsLeft()
 
             break;
 
-        case kDisplay:
-            this->OptionsStepDisplay(page.displayRow, false, false);
+        case kSetup:
+            this->SetupStep(page.setup, page.setupRow, false, false);
             return;
 
         default:
@@ -1443,8 +1489,8 @@ void Menu::OptionsRight()
 
             break;
 
-        case kDisplay:
-            this->OptionsStepDisplay(page.displayRow, true, false);
+        case kSetup:
+            this->SetupStep(page.setup, page.setupRow, true, false);
             return;
 
         default:
@@ -1542,10 +1588,11 @@ void Menu::OptionsSelect()
                     page.keys = settings.keys;
                     owner.audio.PlaySound(kMoveSound, settings.soundVolume);
                 }
-                else if (page.row == kDisplayRow)
+                else if (page.row == kDisplayRow || page.row == kBattleRow)
                 {
-                    page.displayRow = 0;
-                    page.stage = kDisplay;
+                    page.setup = page.row == kBattleRow ? Setup::Battle : Setup::Display;
+                    page.setupRow = 0;
+                    page.stage = kSetup;
                     owner.audio.PlaySound(kMoveSound, settings.soundVolume);
                 }
 
@@ -1615,15 +1662,15 @@ void Menu::OptionsSelect()
             owner.audio.PlaySound(kMoveSound, settings.soundVolume);
             return;
 
-        case kDisplay:
-            if (page.displayRow == kDisplayBackRow)
+        case kSetup:
+            if (page.setupRow == SetupBackRow(page.setup))
             {
                 page.stage = kOpened;
                 owner.audio.PlaySound(kMoveSound, settings.soundVolume);
                 return;
             }
 
-            this->OptionsStepDisplay(page.displayRow, true, true);
+            this->SetupStep(page.setup, page.setupRow, true, true);
             return;
 
         case kCannotSave:
@@ -1667,7 +1714,7 @@ void Menu::OptionsCancel()
             page.stage = kOnTabs;
             return;
 
-        case kDisplay:
+        case kSetup:
             page.stage = kOpened;
             return;
 
@@ -1739,6 +1786,7 @@ void Menu::OptionsDrawSettings(Pixel color)
     large.DrawText(owner.drawSurface, kLabelX, kRowY[kBattleSpeedRow], menu_text::kBattleSpeed, color, kPanelStyle);
     large.DrawText(owner.drawSurface, kLabelX, kRowY[kKeysRow], kKeySetup, color, kPanelStyle);
     large.DrawText(owner.drawSurface, kLabelX, kRowY[kDisplayRow], kDisplaySetup, color, kPanelStyle);
+    large.DrawText(owner.drawSurface, kLabelX, kRowY[kBattleRow], kBattleSetup, color, kPanelStyle);
     medium.DrawText(
         owner.drawSurface,
         kVersionX,
@@ -1843,14 +1891,17 @@ void Menu::OptionsDrawSettings(Pixel color)
     );
 }
 
-// The rebuild's display setup of the system tab (deviations.md), in the box of the settings: the labels, the choices
-// of each row (the one in use bright), and the row highlight.
-void Menu::OptionsDrawDisplay(Pixel color)
+// The rebuild's setup of the system tab (deviations.md), in a box as high as its rows: the labels, the choices of each
+// row (the one in use bright), and the row highlight.
+void Menu::OptionsDrawSetup(Pixel color)
 {
     Game& owner = this->game;
     Painter& painter = owner.painter;
     TextFont& large = owner.largeFont;
-    FillBox(painter, kListBoxX, kListBoxY, kListBoxWidth, kDisplayBoxHeight, 0, 0, 0, FillMode::Quarter);
+    const Setup setup = this->options.setup;
+    const std::span<const std::u8string_view> labels = SetupLabels(setup);
+    const int rowsHeight = kDisplayRowHeight * static_cast<int>(labels.size());
+    FillBox(painter, kListBoxX, kListBoxY, kListBoxWidth, rowsHeight + kSetupBoxPad, 0, 0, 0, FillMode::Quarter);
     DrawWindowFrame(
         painter,
         owner.archive,
@@ -1858,24 +1909,24 @@ void Menu::OptionsDrawDisplay(Pixel color)
         kListFrameLeft,
         kListFrameTop,
         kListFrameRight,
-        kDisplayFrameBottom,
+        kListFrameTop + rowsHeight + kSetupFramePad,
         0,
         kFrameBorder
     );
 
-    for (std::size_t row = 0; row < kDisplayLabels.size(); ++row)
+    for (std::size_t row = 0; row < labels.size(); ++row)
     {
-        large.DrawText(owner.drawSurface, kLabelX, kRowY[row], kDisplayLabels[row], color, kPanelStyle);
+        large.DrawText(owner.drawSurface, kLabelX, kRowY[row], labels[row], color, kPanelStyle);
     }
 
     Pixel unchosen = color;
     painter.TintPixels(std::span<u16>(&unchosen, 1), kUnchosenTint, kUnchosenTint, kUnchosenTint);
 
-    for (i32 row = kSmoothRow; row < kDisplayBackRow; ++row)
+    for (i32 row = 0; row < SetupBackRow(setup); ++row)
     {
-        const bool counts = DisplayRowCounts(row, owner.smoothMotion);
+        const bool counts = SetupRowCounts(setup, row, owner.smoothMotion);
         i32 chosen = -1;
-        const std::vector<std::string> choices = this->OptionsDisplayChoices(row, chosen);
+        const std::vector<std::string> choices = this->SetupChoices(setup, row, chosen);
         const std::vector<int> lefts = ChoiceLefts(choices, large, kBarStepsLeft);
 
         for (std::size_t at = 0; at < choices.size(); ++at)
@@ -1895,7 +1946,7 @@ void Menu::OptionsDrawDisplay(Pixel color)
     FillBox(
         painter,
         kHighlightX,
-        kHighlightHeight * this->options.displayRow + kHighlightTop,
+        kHighlightHeight * this->options.setupRow + kHighlightTop,
         kHighlightWidth,
         kHighlightHeight,
         kHighlightRed,
@@ -2296,9 +2347,9 @@ void Menu::OptionsDraw()
         this->OptionsDrawKeys(color);
     }
 
-    if (page.stage == kDisplay)
+    if (page.stage == kSetup)
     {
-        this->OptionsDrawDisplay(color);
+        this->OptionsDrawSetup(color);
     }
 }
 
