@@ -745,8 +745,6 @@ void FieldView::Render()
             );
         }
 
-        this->TimeRoleStep(index);
-
         if (index == state.playerRole && (view.screenFlags & Scene::CameraHeld) == 0)
         {
             field.CenterCamera();
@@ -811,8 +809,6 @@ void FieldView::Render()
                 role.act.direction
             );
         }
-
-        this->TimeRoleStep(move.role);
     }
 
     // The rebuild's smooth motion: the act of a role walking on by itself to its tile runs as its steps' would.
@@ -827,6 +823,17 @@ void FieldView::Render()
                 state.roles[index].act.action,
                 state.roles[index].act.direction
             );
+        }
+    }
+
+    // The rebuild's smooth motion: the steps taken this frame are timed once every act of the frame has run (a role
+    // both moved and following runs its act in both loops, which brings its next step nearer). A role walking on by
+    // itself keeps the time StartFinish gave it.
+    for (std::size_t index = 0; index < this->roleMotions.size(); ++index)
+    {
+        if (!this->RoleFinishing(index))
+        {
+            this->TimeRoleStep(index);
         }
     }
 

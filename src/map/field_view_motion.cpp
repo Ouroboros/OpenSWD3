@@ -378,7 +378,8 @@ void FieldView::StartRoleStep(std::size_t index, i32 byX, i32 byY, std::size_t m
     step.direction = direction;
 }
 
-// The act run after the step sets the frames to the role's next step (its delay plus one): the step takes them, at
+// The acts the frame runs after the step set the frames to the role's next step (its delay plus one, read once they
+// have all run): the step takes them, at
 // most RoleStepMostFrames (a longer hold is the role stopping: the step takes a frame), so that it ends as the next
 // one starts.
 void FieldView::TimeRoleStep(std::size_t index)
