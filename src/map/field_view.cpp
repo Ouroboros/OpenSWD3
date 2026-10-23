@@ -229,28 +229,15 @@ void FieldView::Paint()
         this->ClipToSpotlight();
     }
 
-    if (this->movie.active != 0 && this->FillsWindow())
+    if (this->movie.active != 0)
     {
-        // The movie's rows are placed for a 640-pixel pitch and it keeps the screen between its frames: it runs on
-        // the offscreen surface as before, which is then laid on the screen's place in the black canvas.
-        const std::span<Pixel> canvas = this->Canvas();
-        std::fill(canvas.begin(), canvas.end(), Pixel{0});
-        owner.DrawOnOffscreen();
-        this->UpdateMovie();
-
-        for (int row = 0; row < Display::Height; ++row)
+        // The rebuild's map filling the window (deviations.md): the movie plays on the screen's rows across the
+        // canvas, black around the screen.
+        if (this->FillsWindow())
         {
-            std::copy_n(
-                owner.offscreen->Row(row),
-                Display::Width,
-                canvas.data() + this->ScreenAt() + static_cast<std::size_t>(field.viewWidth) * row
-            );
+            this->BlackenAroundScreen(true);
         }
 
-        owner.DrawOnMapCanvas();
-    }
-    else if (this->movie.active != 0)
-    {
         this->UpdateMovie();
     }
     else
@@ -856,6 +843,7 @@ void FieldView::Render()
     owner.audioDevice.Serve();
     owner.BeginMapCanvas();
     this->CapturePlaces();
+    this->movieFrame = this->movie.active != 0;
     this->Paint();
     this->DrawTimer(kTimerX, kTimerY, 0);
 

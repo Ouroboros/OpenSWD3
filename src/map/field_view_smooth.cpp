@@ -194,7 +194,8 @@ void FieldView::PaintBetween(Surface& out)
         return;
     }
 
-    if (this->movie.active != 0 || !this->placesValid)
+    // A game frame the movie played in (its last one ends it with the map still blackened) is shown as drawn.
+    if (this->movie.active != 0 || this->movieFrame || !this->placesValid)
     {
         FieldView::ScaleLayer(this->finalLayer, scale, width, pixels);
         this->paintedValid = false;

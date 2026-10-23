@@ -232,6 +232,7 @@ public:
     i32 tileX = 0;  // 0x004CC2E4 the screen x of the first visible tile column
     i32 tileY = 0;  // 0x004CC2E8
     MapMovie movie;
+    bool movieFrame = false;          // the movie played in the last game frame (shown as drawn between game frames)
     bool replaying = false;           // PaintBetween is drawing: the state of the game frames is left alone
     std::array<i32, 2> shakeShift{};  // the quake's offset of the camera in the frame shown
     // Where the original's 640x480 screen lies on the canvas in the frame shown (Field::original less the camera): the
@@ -408,6 +409,10 @@ private:
     // The tile rows the canvas spans (15 on the 640x480 screen).
     int ViewRows() const;
     std::size_t ScreenAt() const;
+    // The first row of the 640x480 screen on the surface drawn (the movie plays on its rows across the canvas).
+    u8* MovieScreen() const;
+    // Black on the canvas above and below the 640x480 screen, and beside it with `beside`.
+    void BlackenAroundScreen(bool beside);
 
     std::vector<Pixel> finalLayer;  // the last game frame as shown (scaled up between game frames while a movie plays)
 
