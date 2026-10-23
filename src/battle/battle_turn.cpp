@@ -1170,6 +1170,15 @@ void Game::AutoBattleTurn()
 
     if (battle.autoTarget == -1)
     {
+        // The rebuild's auto combo (deviations.md): the attack aimed now with 連擊 when it can (the aim taken
+        // in battle state 3 takes the menu's command).
+        if (this->AutoCombo(battle.currentUnit))
+        {
+            battle.turnCommand = kAimedCommand15;
+            battle.turnTaken[static_cast<std::size_t>(battle.currentUnit)] = kAimedCommand15;
+            battle.menuCommand = kAimedCommand15;
+        }
+
         battle.unk53BFB8 = 1;
         battle.result = kTurnState;
         return;
@@ -3935,6 +3944,13 @@ void Game::ConfirmTarget()
     {
         battle.unk53BFB8 = battle.unk53BFBC == 0 ? 1 : 0;
         return;
+    }
+
+    // The rebuild's auto combo (deviations.md): an attack aimed in the auto battle by a role that can use 連擊 (the
+    // aim may have been opened by the auto battle's key before the role's turn came).
+    if (battle.autoBattle == 1 && battle.menuCommand == 1 && this->AutoCombo(battle.currentUnit))
+    {
+        battle.menuCommand = kAimedCommand15;
     }
 
     battle.turnCommand = battle.menuCommand;
