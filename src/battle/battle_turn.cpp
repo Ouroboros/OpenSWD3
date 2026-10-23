@@ -5369,7 +5369,7 @@ void Game::DrawCommandPanel(i32 nameIndex)
 }
 
 // Battle state 3 of DrawBattleMenu (inline in the original). Aiming at every unit (unk53BF88), a pointer over each
-// role standing (for a command at the party) or each enemy standing (at its anchor when it has one). Otherwise a
+// role standing (for a command at the party) or each enemy standing (the rebuild: at its middle). Otherwise a
 // defeated aimed enemy passes the aim on through enemyOrder (state 1 when none stands), and the pointer marks the
 // aimed role or enemy (turnPointer 0: the refusing pointer; command 6 refuses an enemy not a small machine), with the
 // name tag while unk53BFB8.
@@ -5422,25 +5422,14 @@ void Game::DrawAimPointers()
             enemy.GetShadowRect(this->battleServices, rect);
             enemy.SetAC0(1);
             enemy.GetOffset(battle.unk53BF4A, battle.unk53BF4E);
-
-            if (battle.unk53BF4A != 0 || battle.unk53BF4E != 0)
-            {
-                hud.DrawSlotAnimation(
-                    kTurnPointer,
-                    static_cast<int>(index),
-                    rect.x + static_cast<i16>(battle.unk53BF4A),
-                    rect.y + static_cast<i16>(battle.unk53BF4E)
-                );
-            }
-            else
-            {
-                hud.DrawSlotAnimation(
-                    kTurnPointer,
-                    static_cast<int>(index),
-                    rect.x + (rect.width >> 1),
-                    rect.y + (rect.height >> 1)
-                );
-            }
+            // The original draws the pointer at the enemy's anchor when it has one, off the enemy for some (below a
+            // floating one); the rebuild draws it at the middle as for a single enemy (deviations.md).
+            hud.DrawSlotAnimation(
+                kTurnPointer,
+                static_cast<int>(index),
+                rect.x + (rect.width >> 1),
+                rect.y + (rect.height >> 1)
+            );
         }
 
         return;

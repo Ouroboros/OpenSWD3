@@ -401,8 +401,10 @@ int HudFrame::DrawSlotAnimationAdvance(int id, int slot, int x, int y, Scene& sc
 {
     BattleHud& hud = this->hud;
     BattleServices& services = *hud.services;
-    ScenePainter painter(services, scene);
     ActState& state = hud.slotActs[static_cast<std::size_t>(slot)];
+    // Each slot's animation is its own draw (the pointers over every enemy are not taken for one another).
+    const Scene::Owner owner(scene, &state);
+    ScenePainter painter(services, scene);
     state.id = id;
     state.action = 0;
 
