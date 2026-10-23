@@ -19,7 +19,8 @@ namespace swd3
 class EventScan
 {
 public:
-    // The hint of hidden items: whether the script gives an item (command 0x80).
+    // The hint of hidden items: whether the script gives an item (command 0x80) or gold (0x1E or 0xB6 adding to
+    // variable 0).
     bool GivesItem(const std::u8string& directory, u32 event);
     // The map overview: the maps the script changes to (command 0x1B), each once, in the order read.
     const std::vector<u16>& EnteredMaps(const std::u8string& directory, u32 event);

@@ -5,6 +5,7 @@
 
 #include "core/format.h"
 #include "file/file.h"
+#include "party/party.h"
 #include "talk/event_command.h"
 #include "talk/script_text.h"
 #include "talk/talk.h"
@@ -123,9 +124,13 @@ bool EventScan::GivesItem(const std::u8string& directory, u32 event)
         directory,
         event,
         0,
-        [](EventCommand code, std::span<const u8>)
+        [](EventCommand code, std::span<const u8> command)
         {
-            return code == EventCommand::AddItem;
+            constexpr std::size_t kAmountAt = kOpcodeBytes + kWordBytes;
+            const bool gold = (code == EventCommand::AddVariable || code == EventCommand::AddVariableWide) &&
+                              TextWord(command, kOpcodeBytes) == Party::Gold &&
+                              static_cast<i16>(TextWord(command, kAmountAt)) != 0;
+            return code == EventCommand::AddItem || gold;
         }
     );
     this->items.emplace(event, gives);
