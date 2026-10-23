@@ -249,6 +249,8 @@ private:
     ItemNode* ShopChosenItem();
     void ShopLess();
     void ShopMore();
+    void ShopFewest();
+    void ShopMost();
     void ShopConfirm();
     void ShopOpenList();
     void ShopSettle();

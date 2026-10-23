@@ -35,6 +35,7 @@ public:
         J = 0x24,
         K = 0x25,
         L = 0x26,
+        LeftShift = 0x2A,
         Z = 0x2C,
         X = 0x2D,
         V = 0x2F,
