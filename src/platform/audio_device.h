@@ -53,6 +53,8 @@ public:
 
     bool OpenOutput();
     void CloseOutput();
+    // The output held (`paused`) or let go on: every voice stays where it was meanwhile.
+    void Pause(bool paused);
     std::string Configuration() const;
     const std::string& LastError() const;
     // AIL_serve: the mixer runs on its own thread, there is nothing to serve.

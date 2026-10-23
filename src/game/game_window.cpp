@@ -60,7 +60,8 @@ int Game::CheckStart()
 // again, the three fonts made again, the battle surfaces again in battle, the frames at their interval) or inactive
 // (0: the music and the sounds stopped, the battle surfaces and the fonts released). The original also restores or
 // minimises its window and restores the lost DirectDraw surfaces, waiting for the primary's flip chain; the window
-// stays as it is here.
+// stays as it is here. The rebuild pauses the sound output instead of stopping the music and the sounds, and lets it go
+// on when active again (deviations.md).
 void Game::Activate(int state)
 {
     if (this->graphics.GetSurface(Graphics::SurfaceId::Primary) == nullptr)
@@ -91,12 +92,11 @@ void Game::Activate(int state)
         }
 
         this->state.SetFrameInterval(Game::FrameInterval);
+        this->audioDevice.Pause(false);
         return;
     }
 
-    this->audio.StopMusic();
-    this->audio.StopAllSounds();
-    this->AudioPump();
+    this->audioDevice.Pause(true);
 
     if (this->inBattle == kInBattle)
     {

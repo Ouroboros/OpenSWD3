@@ -129,6 +129,23 @@ bool AudioDevice::OpenOutput()
     return true;
 }
 
+void AudioDevice::Pause(bool paused)
+{
+    if (this->output == nullptr)
+    {
+        return;
+    }
+
+    if (paused)
+    {
+        SDL_PauseAudioStreamDevice(this->output);
+    }
+    else
+    {
+        SDL_ResumeAudioStreamDevice(this->output);
+    }
+}
+
 void AudioDevice::CloseOutput()
 {
     if (this->output != nullptr)
