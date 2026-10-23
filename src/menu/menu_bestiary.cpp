@@ -797,7 +797,7 @@ void Menu::BestiaryChoose(u32 id)
     book.monster.id = static_cast<u16>(id);
     book.monster.count = 1;
     book.monster.pending = 0;
-    book.monster.unk06 = 0;
+    book.monster.workCount = 0;
 
     if (!owner.database.LoadObject(book.monster.record, static_cast<u16>(id)))
     {

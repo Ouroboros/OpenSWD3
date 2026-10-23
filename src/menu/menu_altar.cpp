@@ -296,7 +296,7 @@ void Menu::AltarEnter()
 
     for (ItemNode* node = owner.party.inventory.get(); node != nullptr; node = node->next.get())
     {
-        node->unk06 = static_cast<i16>(node->count + node->pending);
+        node->workCount = static_cast<i16>(node->count + node->pending);
     }
 
     this->background.id = kFaceAct;
@@ -506,14 +506,14 @@ void Menu::AltarPut(ItemNode& slot, int index)
     const bool listed = AltarTabTakes(slot, altar.tab);
     const u16 previous = slot.id;
 
-    if (chosen != nullptr && chosen->unk06 != 0)
+    if (chosen != nullptr && chosen->workCount != 0)
     {
         slot.id = chosen->id;
         slot.record = chosen->record;
         slot.count = 0;
         slot.pending = 0;
-        slot.unk06 = 1;
-        --chosen->unk06;
+        slot.workCount = 1;
+        --chosen->workCount;
     }
     else
     {
@@ -521,7 +521,7 @@ void Menu::AltarPut(ItemNode& slot, int index)
         slot.id = ItemNode::Empty;
         slot.count = 0;
         slot.pending = 0;
-        slot.unk06 = 1;
+        slot.workCount = 1;
     }
 
     if (previous == ItemNode::Empty)
@@ -533,7 +533,7 @@ void Menu::AltarPut(ItemNode& slot, int index)
 
     if (back != nullptr)
     {
-        ++back->unk06;
+        ++back->workCount;
     }
 }
 
@@ -553,7 +553,7 @@ bool Menu::AltarCombine()
     altar.resultEast.id = ItemNode::Empty;
     altar.resultWest.id = ItemNode::Empty;
 
-    if (first.id == ItemNode::Empty || first.unk06 == 0 || second.id == ItemNode::Empty || second.unk06 == 0)
+    if (first.id == ItemNode::Empty || first.workCount == 0 || second.id == ItemNode::Empty || second.workCount == 0)
     {
         return false;
     }
@@ -563,7 +563,7 @@ bool Menu::AltarCombine()
         result.id = id;
         result.count = 0;
         result.pending = 0;
-        result.unk06 = 1;
+        result.workCount = 1;
     };
 
     setResult(altar.resultEast, kDefaultResult);
@@ -1051,7 +1051,7 @@ void Menu::AltarSpend()
 
         if (added != nullptr)
         {
-            ++added->unk06;
+            ++added->workCount;
         }
     }
 
@@ -1451,7 +1451,7 @@ void Menu::AltarDrawList(Pixel color)
          node = node->next.get(), ++row, rowY += static_cast<int>(kRowHeight))
     {
         const std::string text =
-            WinFormat(kRowFormat, {ObjectName(node->record), static_cast<i32>(static_cast<u16>(node->unk06))});
+            WinFormat(kRowFormat, {ObjectName(node->record), static_cast<i32>(static_cast<u16>(node->workCount))});
         owner.largeFont.DrawText(owner.drawSurface, kListX, rowY + 1, text, color, kPanelStyle);
 
         if (altar.row == row)

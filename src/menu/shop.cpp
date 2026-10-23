@@ -562,15 +562,15 @@ void Game::ShopLess()
         case kShopList:
             if (ItemNode* item = this->ShopChosenItem(); item != nullptr)
             {
-                --item->unk06;
+                --item->workCount;
 
-                if (item->unk06 > 0)
+                if (item->workCount > 0)
                 {
                     this->audio.PlaySound(kCountSound, this->config.soundVolume);
                 }
                 else
                 {
-                    item->unk06 = 0;
+                    item->workCount = 0;
                 }
             }
 
@@ -600,9 +600,9 @@ void Game::ShopFewest()
         return;
     }
 
-    if (item->unk06 > 0)
+    if (item->workCount > 0)
     {
-        item->unk06 = 0;
+        item->workCount = 0;
         this->audio.PlaySound(kCountSound, this->config.soundVolume);
     }
 
@@ -622,30 +622,30 @@ void Game::ShopMost()
         return;
     }
 
-    const i16 before = item->unk06;
+    const i16 before = item->workCount;
 
     if ((shop.mode & kSellChoice) != 0)
     {
         const int carried = static_cast<u16>(item->pending) + static_cast<u16>(item->count);
-        item->unk06 = static_cast<i16>(std::max<int>(carried, item->unk06));
+        item->workCount = static_cast<i16>(std::max<int>(carried, item->workCount));
     }
     else
     {
         const int have = CountItemTotal(shop, this->party, this->state, item->id);
 
-        while (item->unk06 < kMaxCount - have)
+        while (item->workCount < kMaxCount - have)
         {
-            ++item->unk06;
+            ++item->workCount;
 
             if (static_cast<u32>(TotalItemValue(shop)) > static_cast<u32>(this->party.variables[0]))
             {
-                --item->unk06;
+                --item->workCount;
                 break;
             }
         }
     }
 
-    if (item->unk06 == before)
+    if (item->workCount == before)
     {
         this->ShopMore();
         return;
@@ -677,19 +677,19 @@ void Game::ShopMore()
                 break;
             }
 
-            ++item->unk06;
+            ++item->workCount;
 
             if ((shop.mode & kSellChoice) != 0)
             {
                 const int carried = static_cast<u16>(item->pending) + static_cast<u16>(item->count);
 
-                if (static_cast<u16>(item->unk06) <= carried)
+                if (static_cast<u16>(item->workCount) <= carried)
                 {
                     this->audio.PlaySound(kCountSound, this->config.soundVolume);
                 }
                 else
                 {
-                    item->unk06 = static_cast<i16>(carried);
+                    item->workCount = static_cast<i16>(carried);
                 }
 
                 shop.morePressed = kPressFrames;
@@ -698,7 +698,7 @@ void Game::ShopMore()
 
             if (static_cast<u32>(TotalItemValue(shop)) > static_cast<u32>(this->party.variables[0]))
             {
-                --item->unk06;
+                --item->workCount;
                 shop.shopStage = kShopPoor;
                 this->audio.PlaySound(kPoorSound, this->config.soundVolume);
                 break;
@@ -706,9 +706,9 @@ void Game::ShopMore()
 
             const int have = CountItemTotal(shop, this->party, this->state, item->id);
 
-            if (static_cast<u16>(item->unk06) >= kMaxCount - have)
+            if (static_cast<u16>(item->workCount) >= kMaxCount - have)
             {
-                item->unk06 = static_cast<i16>(kMaxCount - have);
+                item->workCount = static_cast<i16>(kMaxCount - have);
             }
             else
             {
@@ -796,7 +796,7 @@ void Game::ShopOpenList()
 
         for (ItemNode* item = shop.itemsHead.next.get(); item != nullptr; item = item->next.get())
         {
-            item->unk06 = 0;
+            item->workCount = 0;
         }
 
         shop.shopFlags &= ~kUnkShopFlag1;
@@ -872,7 +872,7 @@ void Game::ShopSettle()
 
         for (ItemNode* item = shop.itemsHead.next.get(); item != nullptr; item = item->next.get())
         {
-            item->unk06 = 0;
+            item->workCount = 0;
         }
 
         this->ShopAnswered();
@@ -886,7 +886,7 @@ void Game::ShopSettle()
 
         for (ItemNode* item = shop.itemsHead.next.get(); item != nullptr; item = item->next.get())
         {
-            if (item->unk06 != 0)
+            if (item->workCount != 0)
             {
                 for (const u32 kind : Party::SlotKinds)
                 {
@@ -896,10 +896,10 @@ void Game::ShopSettle()
                     }
                 }
 
-                AddItem(this->party.inventory, item->id, item->unk06, ItemCountMode::Pending, this->database);
+                AddItem(this->party.inventory, item->id, item->workCount, ItemCountMode::Pending, this->database);
             }
 
-            item->unk06 = 0;
+            item->workCount = 0;
         }
 
         if ((shop.shopFlags & kEquipmentBought) == 0)
@@ -919,12 +919,12 @@ void Game::ShopSettle()
     {
         ItemNode& item = **link;
 
-        if (item.count + item.pending > 0 && item.unk06 != 0)
+        if (item.count + item.pending > 0 && item.workCount != 0)
         {
             AddItem(
                 this->party.inventory,
                 item.id,
-                static_cast<i16>(-item.unk06),
+                static_cast<i16>(-item.workCount),
                 ItemCountMode::Pending,
                 this->database
             );
@@ -935,7 +935,7 @@ void Game::ShopSettle()
                 continue;
             }
 
-            item.unk06 = 0;
+            item.workCount = 0;
         }
 
         link = &(*link)->next;
@@ -1681,7 +1681,7 @@ void Game::DrawShopList(Pixel color)
             this->drawSurface,
             kChosenX,
             rowY,
-            WinFormat(kCountFormat, {static_cast<i32>(static_cast<u16>(item->unk06))}),
+            WinFormat(kCountFormat, {static_cast<i32>(static_cast<u16>(item->workCount))}),
             color,
             kPanelStyle
         );

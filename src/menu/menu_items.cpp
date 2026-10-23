@@ -2213,7 +2213,7 @@ void Menu::ItemsTake(int category)
     {
         auto copy = std::make_unique<ItemNode>();
         copy->id = source->id;
-        copy->unk06 = source->unk06;
+        copy->workCount = source->workCount;
         copy->count = source->count;
         copy->pending = source->pending;
         copy->record.data = source->record.data;

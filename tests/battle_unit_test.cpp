@@ -1241,7 +1241,7 @@ TEST_CASE("battle role: the object and skill lists of the battle menu")
     spent.record.data.usableBy = kUsable;
     spent.record.data.costBits = kListedBit;
     spent.count = kTwo;
-    spent.unk06 = kTwo;
+    spent.workCount = kTwo;
     spent.next = std::make_unique<swd3::ItemNode>();
     swd3::ItemNode& thrown = *spent.next;
     thrown.id = kThrownObject;
@@ -1497,7 +1497,7 @@ TEST_CASE("battle role: choosing an object in battle")
     CHECK_EQ(role.SelectObject(database, all.errors, 0, 1, act, kind), 1);
     CHECK_EQ(kind, 1);
     CHECK(role.selectedItem == &herb);
-    CHECK_EQ(herb.unk06, 1);
+    CHECK_EQ(herb.workCount, 1);
     CHECK_EQ(all.errors.messages.size(), 1U);
     CHECK_EQ(role.SelectObject(database, all.errors, 0, 1, act, kind), 0);
     CHECK_EQ(role.SelectObject(database, all.errors, kThrowCategory, 1, act, kind), 1);

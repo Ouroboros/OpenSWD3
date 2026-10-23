@@ -105,7 +105,7 @@ ItemLink CopyItemList(const ItemLink& list)
     {
         auto duplicate = std::make_unique<ItemNode>();
         duplicate->id = node->id;
-        duplicate->unk06 = node->unk06;
+        duplicate->workCount = node->workCount;
         duplicate->count = node->count;
         duplicate->pending = node->pending;
         duplicate->record.data = node->record.data;
@@ -517,7 +517,7 @@ void SortItems(ItemLink& list)
     while ((*link)->next != nullptr)
     {
         ItemNode& node = **link;
-        node.unk06 = 0;
+        node.workCount = 0;
 
         if (node.id <= node.next->id)
         {

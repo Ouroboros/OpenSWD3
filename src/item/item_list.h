@@ -22,7 +22,8 @@ struct ItemNode
 
     std::unique_ptr<ItemNode> next;  // +0x00
     u16 id = 0;                      // +0x04
-    i16 unk06 = 0;                   // +0x06
+    i16 workCount = 0;               // +0x06 a count the menu or battle at work keeps aside: to buy or sell in the
+                                     // shop, already taken in battle, left to lay on the altar
     i16 count = 0;                   // +0x08
     i16 pending = 0;                 // +0x0A
     ObjectRecord record;             // +0x0C (the description at +0xAC)

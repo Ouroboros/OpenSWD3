@@ -18,7 +18,7 @@ namespace
 {
 
 constexpr u16 kDefaultPrice = 10;
-constexpr swd3::i16 kUnk06 = 7;  // the sort clears it
+constexpr swd3::i16 kWorkCount = 7;  // the sort clears it
 
 // ItemPriority: a kind moved up by default; kind bits that sort first, by the top byte or last.
 constexpr u32 kPlainKind = 3;
@@ -60,7 +60,7 @@ void Push(ItemLink& list, u16 id, u32 kind, u16 price = kDefaultPrice, swd3::i16
     node->record.data.kind = kind;
     node->record.data.price = price;
     node->count = count;
-    node->unk06 = kUnk06;
+    node->workCount = kWorkCount;
     node->next = std::move(list);
     list = std::move(node);
 }
@@ -103,8 +103,8 @@ TEST_CASE("battle items: the sort inserts before a node ranking not below whose 
     // 1: [1]; 2 (3 < 5, predecessor 0): [2 1]; 3 (4): 2 ranks 3 < 4, 1 ranks 5 >= 4 with 3 < 4: [2 3 1];
     // 4 (4): at 3 (4 >= 4, 3 < 4): [2 4 3 1]; 5 (1): at 2: [5 2 4 3 1].
     CHECK(Ids(battle.itemsHead.next) == (std::vector<u16>(kSortedIds.begin(), kSortedIds.end())));
-    CHECK_EQ(battle.itemsHead.next->unk06, 0);
-    battle.itemsHead.next->unk06 = kCount;
+    CHECK_EQ(battle.itemsHead.next->workCount, 0);
+    battle.itemsHead.next->workCount = kCount;
     battle.itemsHead.next->record.data.price = kPrice;
     CHECK_EQ(swd3::TotalItemValue(battle), kCount * kPrice);
     battle.mode = swd3::BattleState::SellMode;
@@ -124,7 +124,7 @@ TEST_CASE("battle items: the shop mode leaves items without a price or with kind
     swd3::SortBattleItems(battle, source);
     CHECK(Ids(battle.itemsHead.next) == (std::vector<u16>{kSoldId}));
     CHECK(Ids(source) == (std::vector<u16>{kFreeId, kNotSoldId}));
-    CHECK_EQ(source->unk06, 0);
+    CHECK_EQ(source->workCount, 0);
 }
 
 TEST_CASE("battle items: counts of the inventory and the equipment, the list limit, the gauge")

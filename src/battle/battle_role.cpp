@@ -1042,7 +1042,7 @@ int BattleRole::LeapSpellFrame(BattleServices& services, BattleUnit& target)
 // swd32.exe 0x00470E20: the selected item used up: 0 when none is selected or it is not in the list, otherwise its id
 // (usedItem; 0 for an item with kNoUseAct). A multi-use item (kMultiUse, uses in the low byte) loses a use and is spent
 // only with its last; a spent item that is not kept (kKeptKind without kUnkKind8000000) loses a count (else a pending
-// count) and unk06, and the selection is cleared; an item left with no count is freed from the list. The original
+// count) and workCount, and the selection is cleared; an item left with no count is freed from the list. The original
 // then reads the flag of the item before it (of the list head for the first item, past it).
 u16 BattleRole::UseSelectedItem()
 {
@@ -1101,9 +1101,9 @@ u16 BattleRole::UseSelectedItem()
             --selected->pending;
         }
 
-        if (selected->unk06 != 0)
+        if (selected->workCount != 0)
         {
-            --selected->unk06;
+            --selected->workCount;
         }
 
         this->selectedItem = nullptr;
@@ -1152,7 +1152,7 @@ u16 BattleRole::UseSelectedItem()
 }
 
 // swd32.exe 0x004750C0: the role's chosen command dropped: the command, the start of the skill name, the stamina
-// owed, the item and the heals cleared; a selected item gives back its reservation (unk06 of the item at the list
+// owed, the item and the heals cleared; a selected item gives back its reservation (workCount of the item at the list
 // cursor, which the original reads in the list head when the cursor is there)
 void BattleRole::CancelCommand()
 {
@@ -1175,9 +1175,9 @@ void BattleRole::CancelCommand()
         return;
     }
 
-    if (this->inventoryNode != nullptr && this->inventoryNode->unk06 != 0)
+    if (this->inventoryNode != nullptr && this->inventoryNode->workCount != 0)
     {
-        --this->inventoryNode->unk06;
+        --this->inventoryNode->workCount;
     }
 
     this->selectedItem = nullptr;
@@ -1774,10 +1774,10 @@ void BattleRole::CountSkills(int category, int type, u8& count)
     }
 }
 
-// The objects of a node left to use: its count and pending ones less those already taken (unk06).
+// The objects of a node left to use: its count and pending ones less those already taken (workCount).
 int BattleRole::ObjectsLeft(const ItemNode& node)
 {
-    return node.count + node.pending - static_cast<u16>(node.unk06);
+    return node.count + node.pending - static_cast<u16>(node.workCount);
 }
 
 // swd32.exe 0x00470A10: `count` raised by the objects of `category` usable by roles bit 0 or 2 with some left, and
@@ -2383,7 +2383,7 @@ int BattleRole::SelectObject(Database& database, ErrorReporter& reporter, int ca
 
         if (((data.kind & kReusableKind) == 0 || (data.kind & kCountedKind) != 0) && kinds != kCategory3)
         {
-            ++node->unk06;
+            ++node->workCount;
         }
 
         return 1;

@@ -817,7 +817,7 @@ bool Talk::RunStateCommand(EventRun& run)
             worn->record = item->record;
             worn->count = 1;
             worn->pending = 0;
-            worn->unk06 = 0;
+            worn->workCount = 0;
             AddItem(party.inventory, oldId, 1, ItemCountMode::Pending, owner.database);
             AddItem(party.inventory, newId, -1, ItemCountMode::Pending, owner.database);
             this->Next(run);

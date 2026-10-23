@@ -37,7 +37,7 @@ int TotalItemValue(const BattleState& battle)
 
     for (const ItemNode* item = battle.itemsHead.next.get(); item != nullptr; item = item->next.get())
     {
-        total += static_cast<int>(item->record.data.price * static_cast<u16>(item->unk06) * rate) / kFullRate;
+        total += static_cast<int>(item->record.data.price * static_cast<u16>(item->workCount) * rate) / kFullRate;
     }
 
     return total;
@@ -91,7 +91,7 @@ void SortBattleItems(BattleState& battle, ItemLink& source)
     while (*link != nullptr)
     {
         ItemNode& item = **link;
-        item.unk06 = 0;
+        item.workCount = 0;
 
         if ((battle.mode & BattleState::ListModes) == BattleState::SellMode &&
             (item.record.data.price == 0 || (item.record.data.kind & kNoPriceKind) != 0))
