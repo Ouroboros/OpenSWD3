@@ -1506,7 +1506,7 @@ void Game::BuildCommandMenu()
                 this->party.equipment[role * Party::SlotsPerRole + kFirstAccessorySlot + slot];
 
             // An empty slot holds the empty entry; a missing one is read through a null pointer in the original.
-            const u16 kind = node != nullptr ? node->record.data.unk48 : u16{0};
+            const u16 kind = node != nullptr ? node->record.data.actionKind : u16{0};
 
             if (kind >= kFirstAccessoryCommand && kind <= kLastAccessoryCommand)
             {

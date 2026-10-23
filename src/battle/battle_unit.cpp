@@ -2571,7 +2571,7 @@ u16 BattleUnit::AccessoryValue(u16 kind) const
 {
     for (const ObjectRecord& accessory : this->accessories)
     {
-        if (accessory.data.unk48 == kind)
+        if (accessory.data.actionKind == kind)
         {
             return static_cast<u16>(accessory.data.costBits & kAccessoryValueMask);
         }
@@ -2586,7 +2586,7 @@ i16 BattleUnit::AccessoryProficiency(u16 kind, CounterList& proficiency)
 {
     for (const ObjectRecord& accessory : this->accessories)
     {
-        if (accessory.data.unk48 == kind)
+        if (accessory.data.actionKind == kind)
         {
             this->proficiency = static_cast<u16>(FindCounterPercent(proficiency, static_cast<i16>(accessory.data.act)));
             return static_cast<i16>(this->proficiency);
@@ -5123,7 +5123,7 @@ int BattleUnit::StepOrbCounters(CounterList& list, const UnitCommand& command)
         const ObjectData& data = accessory.data;
         const auto id = static_cast<i16>(data.act);
 
-        if (id == 0 || data.unk48 != static_cast<u16>(AccessoryKind::ElementOrb) || command.resistance < 1 ||
+        if (id == 0 || data.actionKind != static_cast<u16>(AccessoryKind::ElementOrb) || command.resistance < 1 ||
             command.resistance > kResistances)
         {
             continue;
@@ -5294,7 +5294,7 @@ u16 BattleUnit::FinishProficiency(CounterList& list)
 // swd32.exe 0x00476600: a refinable enemy (MissedMark) turned into one of its objects by a role of `level` with the
 // talisman brush proficiency `proficiency`: below 50 its first object, 50..79 one of the first two, 80..100 one of
 // three at random; a roll of 0..99 below 60 (90 when `level` is at least the enemy's) loads it into `object` and ends
-// the mark. The object's unk48 when it is of kind bit kRefinedKind; 0 otherwise.
+// the mark. The object's actionKind when it is of kind bit kRefinedKind; 0 otherwise.
 u16 BattleUnit::RefineTalisman(BattleServices& services, Database& database, u16 proficiency, u8 level)
 {
     if ((this->marks & BattleUnit::MissedMark) == 0)
@@ -5338,7 +5338,7 @@ u16 BattleUnit::RefineTalisman(BattleServices& services, Database& database, u16
         return 0;
     }
 
-    return this->object.data.unk48;
+    return this->object.data.actionKind;
 }
 
 // swd32.exe 0x0046E090: autoControl (only its address is used: battle talk command 0x3A tests it)

@@ -406,7 +406,7 @@ void BattleRole::ApplyEquipment(
             this->weapon = item.record;
             this->weaponId = item.id;
 
-            if (this->weapon.data.unk48 == 0)
+            if (this->weapon.data.actionKind == 0)
             {
                 MaintenanceAssert(reporter, kNoWeaponAct, item.id, kManroleFile, kNoWeaponActLine);
             }
@@ -472,7 +472,7 @@ void BattleRole::ApplyAccessory(const ObjectRecord& accessory, CounterList& prof
 {
     RoleRecord& record = *this->battleRecord;
 
-    switch (static_cast<AccessoryKind>(accessory.data.unk48))
+    switch (static_cast<AccessoryKind>(accessory.data.actionKind))
     {
         case AccessoryKind::Unk32:
             this->equipmentFlags |= BattleUnit::Unk32;
@@ -2046,8 +2046,8 @@ int BattleRole::StepWornCounters(CounterList& list, u16 amount)
 // after the last counted skill is taken when it is reached) taken as the role's command: type 0 counts unk52
 // kFirstSkillType..kLastSkillType and sets UnkCommandFlag8000, type 1 counts kSkillType1 and sets
 // UnkCommandFlag200, other types count kSkillType1. `act` takes its unk50, the command its skill script (cleared
-// first), the skill name its name; with UnkCommandFlag200 magicAction, unk2F16 and unk2F18 take its unk48, unk50 and
-// unk40. Its unk34..unk38 are the heals when unk3C is 0, and percentages with bit kHealPercentBit. The result is 1
+// first), the skill name its name; with UnkCommandFlag200 magicAction, unk2F16 and unk2F18 take its actionKind, unk50
+// and unk40. Its unk34..unk38 are the heals when unk3C is 0, and percentages with bit kHealPercentBit. The result is 1
 // for a skill of category 0 or a category with kind bit 8 the skill also has; 0xFFFF without one (or index 0).
 u16 BattleRole::SelectSkill(Database& database, int category, int type, int index, u32& act)
 {
@@ -2104,7 +2104,7 @@ u16 BattleRole::SelectSkill(Database& database, int category, int type, int inde
 
         if ((this->commandFlags & BattleUnit::UnkCommandFlag200) != 0)
         {
-            this->magicAction = data.unk48;
+            this->magicAction = data.actionKind;
             this->unk2F16 = data.act;
             this->unk2F18 = data.costBits;
         }
@@ -2255,8 +2255,8 @@ int BattleRole::CanPaySkill(BattleServices& services, int category, int index)
 // swd32.exe 0x00470AC0: the `index`th object of `category` (0..5) usable by roles bit 0 or 2 with some left (category
 // 4 also counts every object with kListedObject) taken as the role's command: the command and the first bytes of the
 // skill name cleared, the used item 0; UnkCommandFlag4000 set and the object chosen. A listed object of category 4
-// loads its unk3E script, unk29A4 its unk24 (1). Otherwise its unk48 script (unk3E without one); a spirit or stamina
-// cost (unk2F10, unk2F12) above the role's gives 0. The heals as SelectSkill; `act` the cast act (a maintenance
+// loads its unk3E script, unk29A4 its unk24 (1). Otherwise its actionKind script (unk3E without one); a spirit or
+// stamina cost (unk2F10, unk2F12) above the role's gives 0. The heals as SelectSkill; `act` the cast act (a maintenance
 // assert "%d物品特效號碼沒設" with the object's id when it has none); an object of kind kSeparateKind sets
 // UnkCommandFlag1000 with its unk50 as the used item. `kind` 1 for category 0 or a shared kind bit 8; category 5
 // (throwing) 2 for kThrownObject with UnkCommandFlag2000, 3 for another object without it. The object's taken count
@@ -2307,7 +2307,7 @@ int BattleRole::SelectObject(Database& database, ErrorReporter& reporter, int ca
             return 1;
         }
 
-        this->LoadCommand(database, data.unk48 != 0 ? data.unk48 : data.skillScript);
+        this->LoadCommand(database, data.actionKind != 0 ? data.actionKind : data.skillScript);
 
         if ((data.costBits & kCostFlag) != 0)
         {

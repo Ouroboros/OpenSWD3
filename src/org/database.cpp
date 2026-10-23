@@ -427,8 +427,8 @@ bool Database::LoadObject(ObjectRecord& record, u16 id)
                 word(data.staminaUp);
                 break;
 
-            case ObjectTag::Unk48:
-                word(data.unk48);
+            case ObjectTag::ActionKind:
+                word(data.actionKind);
                 break;
 
             case ObjectTag::Kind:

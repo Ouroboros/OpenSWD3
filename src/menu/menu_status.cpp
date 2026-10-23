@@ -25,7 +25,7 @@ constexpr u16 kRoleMask = 3;
 constexpr std::size_t kResistanceSlots = 7;  // the slots whose resistances add up
 constexpr std::size_t kFirstMagicSlot = 7;
 constexpr std::size_t kLastMagicSlot = 8;
-constexpr u16 kElementMagic = 0x33;  // ObjectData::unk48 of a magic whose proficiency adds to the resistances
+constexpr u16 kElementMagic = 0x33;  // ObjectData::actionKind of a magic whose proficiency adds to the resistances
 constexpr i32 kMagicScale = -1000;
 constexpr i32 kPercent = 100;
 constexpr i32 kTenth = 10;
@@ -223,7 +223,7 @@ void Menu::StatusCompute()
     {
         const ItemNode* worn = slotOf(slot);
 
-        if (worn == nullptr || worn->record.data.unk48 != kElementMagic)
+        if (worn == nullptr || worn->record.data.actionKind != kElementMagic)
         {
             continue;
         }

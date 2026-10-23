@@ -42,7 +42,9 @@ struct ObjectData
                                        // bonus once fully grown, a special skill's next special (0: the last)
     u16 counterMax = 0;                // +0x44 tag 0xD the top of its counter (proficiency)
     u16 price = 0;                     // +0x46 tag 0xB (the shop value)
-    u16 unk48 = 0;                     // +0x48 tag 0x16
+    u16 actionKind = 0;                // +0x48 tag 0x16 the action it takes: a weapon's strong attack act, a
+                                       // magic's cast action, an item's script (0: skillScript), an accessory's
+                                       // kind (AccessoryKind)
     u16 unk4A = 0;                     // +0x4A
     i32 maxHitPoints = 0;              // +0x4C an enemy's maximum (set in battle)
     // +0x50..+0x9C: the 0x4D-byte block of tag 1; tags 0xE, 0x7D0, 0x1C and 0x1D set parts of it.
@@ -255,7 +257,7 @@ enum class ObjectTag : u16
     HitPointsUp = 0x13,
     SpiritUp = 0x14,
     StaminaUp = 0x15,
-    Unk48 = 0x16,
+    ActionKind = 0x16,
     Kind = 0x19,
     UsableBy = 0x1A,
     UseKind = 0x1B,

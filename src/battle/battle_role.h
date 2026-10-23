@@ -12,7 +12,7 @@
 namespace swd3
 {
 
-// The kinds of the accessories (ObjectData::unk48), named after the mon.dat items of each kind.
+// The kinds of the accessories (ObjectData::actionKind), named after the mon.dat items of each kind.
 enum class AccessoryKind : u16
 {
     RepeatAttack = 0x15,  // 武聖手鐲, 姜公膽: the attack repeats once
