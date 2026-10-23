@@ -282,6 +282,7 @@ private:
 
     bool placesValid = false;
     u32 placesFrame = 0;  // Game::gameFrames of the last map frame
+    i32 placesLayer = 0;  // its tile layer (Scene::layerOffset steps on for the next frame after it is drawn)
     int placesMap = 0;
     i32 cameraWidth = 0;
     i32 cameraHeight = 0;
