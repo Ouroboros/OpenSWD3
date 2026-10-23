@@ -126,10 +126,13 @@ bool EventScan::GivesItem(const std::u8string& directory, u32 event)
         0,
         [](EventCommand code, std::span<const u8> command)
         {
+            // Gold given: an amount above 0 added to variable 0 (a word, or a dword for the wide command); a payment
+            // adds a negative amount.
             constexpr std::size_t kAmountAt = kOpcodeBytes + kWordBytes;
-            const bool gold = (code == EventCommand::AddVariable || code == EventCommand::AddVariableWide) &&
-                              TextWord(command, kOpcodeBytes) == Party::Gold &&
-                              static_cast<i16>(TextWord(command, kAmountAt)) != 0;
+            const bool adds = code == EventCommand::AddVariable || code == EventCommand::AddVariableWide;
+            const i32 amount = code == EventCommand::AddVariableWide ? static_cast<i32>(ReadDword(command, kAmountAt))
+                                                                     : static_cast<i16>(TextWord(command, kAmountAt));
+            const bool gold = adds && TextWord(command, kOpcodeBytes) == Party::Gold && amount > 0;
             return code == EventCommand::AddItem || gold;
         }
     );
