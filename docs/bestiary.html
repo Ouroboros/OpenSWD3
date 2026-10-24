@@ -33,12 +33,19 @@ body {
     radial-gradient(ellipse at 60% 40%, rgba(90, 70, 40, 0.25), transparent 50%),
     repeating-linear-gradient(90deg, rgba(110, 60, 20, 0.08) 0 1px, transparent 1px 72px),
     linear-gradient(160deg, #e8dcc0 0%, #d6c39c 45%, #c4ab7d 100%);
-  display: flex;
-  justify-content: center;
-  padding: 12px 12px 8px;
 }
 
-.book { width: 1180px; max-width: 100%; height: 100%; display: flex; flex-direction: column; }
+.book {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1180px;
+  height: 870px;
+  padding: 12px 12px 8px;
+  display: flex;
+  flex-direction: column;
+  transform-origin: 0 0;
+}
 
 .top {
   display: flex;
@@ -63,8 +70,8 @@ h1 {
 
 .layout {
   display: grid;
-  grid-template-columns: auto 280px 1fr 230px;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-columns: 96px 280px 508px 230px;
+  grid-template-rows: 300px 64px 180px 1fr;
   gap: 10px 14px;
   margin-top: 8px;
   flex: 1;
@@ -91,7 +98,7 @@ h1 {
 
 .frame::before { left: -4px; top: -4px; border-right: none; border-bottom: none; }
 .frame::after { right: -4px; bottom: -4px; border-left: none; border-top: none; }
-.list::before, .list::after, .description::before, .description::after { display: none; }
+.list::before, .list::after, .loot::before, .loot::after, .description::before, .description::after { display: none; }
 
 .tabs {
   grid-column: 1;
@@ -126,7 +133,6 @@ h1 {
   background: linear-gradient(90deg, #d6b45e, #f6e3a6);
   border-color: var(--gold-dark);
   font-weight: bold;
-  margin-right: -3px;
 }
 
 .list {
@@ -135,6 +141,7 @@ h1 {
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   padding: 12px 6px 12px 10px;
   scrollbar-color: var(--gold-dark) #120e06;
 }
@@ -164,20 +171,37 @@ h1 {
 .stats {
   grid-column: 3;
   grid-row: 1;
-  display: flex;
-  gap: 40px;
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  column-gap: 32px;
   padding: 12px 24px;
   font-size: 20px;
   line-height: 31px;
+  overflow: hidden;
 }
 
 .stats .kind { font-family: var(--kai); font-size: 24px; }
-.stats .name { font-family: var(--kai); color: #fff2c8; font-size: 30px; margin-bottom: 4px; white-space: nowrap; }
-.stats .boss { font-size: 15px; color: var(--weak); border: 1px solid var(--weak); padding: 0 4px; margin-left: 6px; }
+.stats .main, .stats .side { min-width: 0; }
+.stats .name {
+  font-family: var(--kai);
+  color: #fff2c8;
+  font-size: 30px;
+  height: 40px;
+  line-height: 40px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.stats .boss { vertical-align: middle; line-height: 18px; font-size: 15px; color: var(--weak); border: 1px solid var(--weak); padding: 0 4px; margin-left: 6px; }
 
-.stats table { border-collapse: collapse; }
-.stats td { padding: 0 22px 0 0; white-space: nowrap; }
+.stats table { border-collapse: collapse; table-layout: fixed; }
+.stats td { padding: 0; white-space: nowrap; }
 .stats td.value { text-align: right; font-variant-numeric: tabular-nums; }
+.stats .main table { width: 140px; }
+.stats .main td:first-child { width: 60px; }
+.stats .side table { width: 210px; }
+.stats .side td:first-child { width: 130px; }
 .stats .side { padding-top: 70px; }
 .stats .side td:first-child { color: var(--dim); }
 
@@ -195,7 +219,7 @@ h1 {
 
 .portrait img {
   max-width: 100%;
-  max-height: max(160px, calc(100vh - 560px));
+  max-height: 270px;
   border: 2px solid #2c220a;
   background: #f2e7c9;
 }
@@ -204,7 +228,7 @@ h1 {
   grid-column: 3 / span 2;
   grid-row: 2;
   display: grid;
-  grid-template-columns: auto repeat(9, 1fr);
+  grid-template-columns: 104px repeat(9, minmax(0, 1fr));
   align-items: center;
   padding: 6px 24px;
   font-size: 19px;
@@ -213,7 +237,10 @@ h1 {
 
 .resist .label, .loot .label { font-family: var(--kai); color: var(--dim); text-align: left; padding-right: 14px; }
 .resist .element { font-family: var(--kai); font-size: 22px; }
-.resist .value { font-size: 16px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.resist > div { height: 50px; }
+.resist .label { line-height: 50px; }
+.resist .element { height: 28px; line-height: 28px; }
+.resist .value { height: 20px; line-height: 20px; white-space: nowrap; font-size: 15px; color: var(--dim); font-variant-numeric: tabular-nums; }
 .resist .weak .value { color: var(--weak); }
 .resist .strong .value { color: var(--resist); }
 .resist .absorb .value { color: var(--absorb); }
@@ -222,55 +249,37 @@ h1 {
   grid-column: 3 / span 2;
   grid-row: 3;
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 2px 0;
+  grid-template-columns: 104px minmax(0, 1fr);
+  align-content: start;
+  grid-auto-rows: 30px;
   padding: 8px 24px;
   font-size: 18px;
   line-height: 28px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  scrollbar-color: var(--gold-dark) #120e06;
 }
 
 .loot .note { color: var(--dim); font-size: 15px; }
+.loot > div { line-height: 30px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .description {
   grid-column: 3 / span 2;
   grid-row: 4;
-  padding: 16px 24px;
+  padding: 12px 24px;
   font-size: 23px;
   line-height: 38px;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   letter-spacing: 1px;
   scrollbar-color: var(--gold-dark) #120e06;
 }
 
 .hint { flex: none; margin-top: 6px; font-size: 13px; color: #5a4524; text-align: right; }
 
-@media (max-height: 820px) {
-  .top { height: 52px; }
-  h1 { font-size: 36px; }
-  .tab { font-size: 16px; padding: 3px 10px 3px 8px; }
-  .row { font-size: 21px; line-height: 32px; }
-  .stats { font-size: 17px; line-height: 25px; padding: 10px 20px; }
-  .stats .kind { font-size: 20px; }
-  .stats .name { font-size: 24px; }
-  .stats .side { padding-top: 56px; }
-  .resist { font-size: 16px; padding: 4px 20px; }
-  .resist .element { font-size: 18px; }
-  .resist .value { font-size: 14px; }
-  .loot { font-size: 16px; line-height: 23px; padding: 6px 20px; }
-  .loot .note { font-size: 13px; }
-  .description { font-size: 20px; line-height: 32px; padding: 10px 20px; }
-}
-
-@media (max-width: 960px) {
-  .layout { grid-template-columns: auto 1fr; }
-  .tabs { grid-row: 1; }
-  .list { grid-row: 1; min-height: 300px; max-height: 400px; }
-  .stats, .portrait, .resist, .loot, .description { grid-column: 1 / span 2; grid-row: auto; }
-  .resist { grid-template-columns: repeat(9, 1fr); }
-  .resist .label { grid-column: 1 / span 9; }
-}
 </style>
 </head>
 <body>
@@ -365,7 +374,7 @@ function show() {
   const table = rows => `<table>${rows.map(([label, value]) =>
     `<tr><td>${label}</td><td class="value">${value}</td></tr>`).join('')}</table>`;
   $('stats').innerHTML =
-    `<div><div class="kind">${names[m.category]}　${m.level}級</div>` +
+    `<div class="main"><div class="kind">${names[m.category]}　${m.level}級</div>` +
     `<div class="name">${escape(m.name)}${h.boss ? '<span class="boss">BOSS</span>' : ''}</div>${table(values)}</div>` +
     `<div class="side">${table(side)}</div>`;
   $('portrait').innerHTML = m.portrait ? `<img src="${m.portrait}" alt="${escape(m.name)}">` : '';
@@ -376,7 +385,7 @@ function show() {
   const moves = m.items.map((item, at) => item ? counted(item, h.itemCounts[at]) : '').filter(item => item);
   const heals = h.heals.map((item, at) => item ? counted(item, h.healCounts[at]) : '').filter(item => item);
   const steal = h.steal ?
-    `${escape(h.steal)}<span class="note">　基礎成功率 ${percent(h.stealDifficulty, 10)}%，偷竊熟練度每 25 加 10%，滿 100 必定成功</span>` :
+    `${escape(h.steal)}<span class="note">　成功率 ${percent(h.stealDifficulty, 10)}%，熟練度每 25 加 10%，滿 100 必成</span>` :
     '無';
   const drop = h.drop ? `${escape(h.drop)}<span class="note">　${percent(h.dropChance, 20)}%</span>` : '無';
   const lines = [['招式', moves.join('　') || '無'], ['回復物品', heals.join('　') || '無'], ['偷竊', steal],
@@ -428,6 +437,17 @@ document.addEventListener('keydown', event => {
   }
 });
 
+// The book keeps its size: scaled whole to fit the window, centred.
+function fit() {
+  const book = document.querySelector('.book');
+  const scale = Math.min(innerWidth / book.offsetWidth, innerHeight / book.offsetHeight);
+  const left = (innerWidth - book.offsetWidth * scale) / 2;
+  const top = (innerHeight - book.offsetHeight * scale) / 2;
+  book.style.transform = `translate(${left}px, ${top}px) scale(${scale})`;
+}
+
+addEventListener('resize', fit);
+fit();
 drawTabs();
 list();
 </script>
