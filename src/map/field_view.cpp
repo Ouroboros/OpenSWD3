@@ -409,13 +409,10 @@ void FieldView::PaintWorld()
         owner.drawSurface,
         static_cast<std::size_t>(field.viewWidth) * static_cast<std::size_t>(field.viewHeight)
     );
-    // The rebuild's view larger than the map shows black past its edges (deviations.md).
-    const bool pastMap = field.cameraLeft < 0 || field.cameraTop < 0 ||
-                         field.cameraRight > MapHeader::TileSize * state.map.width ||
-                         field.cameraBottom > MapHeader::TileSize * state.map.height;
-
+    // The rebuild's view larger than the original's screen shows black where nothing is drawn: past the map's edges,
+    // and past an overlay made for the original's screen behind see-through tiles (deviations.md).
     if (state.GameFlag(GameState::OverlaysFirst) || state.GameFlag(GameState::Spotlight) ||
-        (pastMap && (field.viewWidth != Display::Width || field.viewHeight != Display::Height)))
+        field.viewWidth != Display::Width || field.viewHeight != Display::Height)
     {
         std::fill(canvas.begin(), canvas.end(), Pixel{0});
     }
