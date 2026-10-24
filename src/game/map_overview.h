@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -88,6 +89,8 @@ private:
     Point playerAt;     // where its picture lies on the map (its top left)
     double zoom = 1.0;  // output pixels per map pixel
     double wantedZoom = 1.0;
+    // The zoom it was closed at, in parts of the game screen's scale, opened at again (kept while the game runs).
+    std::optional<double> keptZoom;
     // The map point kept at an output point while the zoom moves (the pointer at a turn of the wheel).
     double anchorMapX = 0.0;
     double anchorMapY = 0.0;

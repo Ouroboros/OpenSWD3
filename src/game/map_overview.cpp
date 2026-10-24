@@ -135,7 +135,14 @@ bool MapOverview::TryOpen()
     this->MakePlayer();
     this->title = this->MakeText(owner.largeFont, std::string(state.map.name.data()), kYellow);
     this->hint = this->MakeText(owner.mediumFont, Big5(kHint), kWhite);
-    this->zoom = std::max(this->FitZoom(), std::min(kOpenZoom * this->ScreenScale(), this->MostZoom()));
+    // Opened at the zoom it was closed at (within this map's least and most), the first time at kOpenZoom.
+    this->zoom = this->keptZoom.has_value()
+                     ? std::clamp(
+                           *this->keptZoom * this->ScreenScale(),
+                           std::min(this->FitZoom(), this->MostZoom()),
+                           this->MostZoom()
+                       )
+                     : std::max(this->FitZoom(), std::min(kOpenZoom * this->ScreenScale(), this->MostZoom()));
     this->wantedZoom = this->zoom;
     this->anchored = false;
     this->dragging = false;
@@ -165,6 +172,7 @@ void MapOverview::Close()
 
     this->open = false;
     this->dragging = false;
+    this->keptZoom = this->wantedZoom / this->ScreenScale();
     this->Release();
     this->game.display.ShowSystemPointer(false);
     this->game.controls.SpendHeld();
