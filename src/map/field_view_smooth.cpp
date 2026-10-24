@@ -234,6 +234,7 @@ void FieldView::PaintBetween(Surface& out)
         fineY[index] = place[1];
         this->placesKey.push_back(fineX[index]);
         this->placesKey.push_back(fineY[index]);
+        this->placesKey.push_back(this->RoleOnStep(index) ? 1 : 0);
     }
 
     // The effect elements the last game frame drew, placed like the roles (on the map) or on the screen.
@@ -279,10 +280,19 @@ void FieldView::PaintBetween(Surface& out)
     std::array<i32, GameState::Roles> roleX = {};
     std::array<i32, GameState::Roles> roleY = {};
 
+    // A role on its step is drawn with the act it had where the step started (CaptureRoleSteps).
+    std::vector<std::pair<std::size_t, ActState>> roleActs;
+
     for (std::size_t index = 0; index < GameState::Roles; ++index)
     {
         roleX[index] = state.roles[index].x;
         roleY[index] = state.roles[index].y;
+
+        if (this->RoleOnStep(index))
+        {
+            roleActs.emplace_back(index, state.roles[index].act);
+            state.roles[index].act = this->roleMotions[index].act;
+        }
     }
 
     // The painter draws on screens the canvas's size meanwhile (the 640x480 screen again after).
@@ -477,6 +487,11 @@ void FieldView::PaintBetween(Surface& out)
     {
         state.roles[index].x = roleX[index];
         state.roles[index].y = roleY[index];
+    }
+
+    for (const auto& [index, act] : roleActs)
+    {
+        state.roles[index].act = act;
     }
 
     owner.SetDrawSize(Display::Width, Display::Height);

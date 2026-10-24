@@ -302,18 +302,19 @@ private:
         i32 leftCameraY = 0;
     };
 
-    // A role where a game frame started (KeepRolePlaces).
+    // A role where a game frame started, and its act (KeepRolePlaces).
     struct RolePlace
     {
         u16 id = 0;
         bool shown = false;
         i32 x = 0;
         i32 y = 0;
+        ActState act;
     };
 
-    // The step a game frame moved a role by, as it is drawn (the frames move the roles as the original does): from
-    // where the frame started to where it left the role, over the frames to its next step (its act's delay plus one;
-    // one past RoleStepMostFrames) in milliseconds, and the milliseconds gone.
+    // The step a game frame moved a role by, as it is drawn (the frames move the roles as the original does, drawn a
+    // step late): from where the frame started to where it left the role, with the act it had there until it gets
+    // there, over the frames to its next step in milliseconds, and the milliseconds gone.
     struct RoleMotion
     {
         bool active = false;
@@ -323,6 +324,7 @@ private:
         i32 toY = 0;
         i32 length = 1;
         i32 elapsed = 0;
+        ActState act;
     };
 
     // The pan of the camera under way: the step a frame took, the milliseconds gone and the camera it left.
@@ -346,6 +348,7 @@ private:
     i32 MotionPixels(int scale) const;
     void CaptureRoleSteps(bool continuous);
     void RoleTick(std::size_t index);
+    bool RoleOnStep(std::size_t index) const;
     void ArriveMoving(std::size_t index, std::size_t move, u8 direction);
     void ArriveFollower(std::size_t index, std::size_t move, u8 direction);
     void StartPan(i32 byX, i32 byY);
