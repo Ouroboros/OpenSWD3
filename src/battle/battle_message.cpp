@@ -169,6 +169,15 @@ void BattleMessages::Add(int x, int y, i16 frames, std::u8string_view text, int 
     this->Append(std::move(message), x, y, frames, flags);
 }
 
+// A text formatted for the message alone (the original's buffer outlives the message): the message keeps it.
+void BattleMessages::AddFormatted(int x, int y, i16 frames, std::string text, int flags)
+{
+    auto message = std::make_unique<BattleMessage>();
+    message->constant = std::move(text);
+    message->source = message->constant;
+    this->Append(std::move(message), x, y, frames, flags);
+}
+
 void BattleMessages::Append(std::unique_ptr<BattleMessage> message, int x, int y, i16 frames, int flags)
 {
     message->x = x;

@@ -47,7 +47,7 @@ struct BattleMessage
     i32 flags = 0;                        // +0x18
     i16 frames = 0;                       // +0x1C frames left before leaving
     // +0x20 the text. The original keeps the pointer it is given, so a buffer rewritten while the message shows draws
-    // its new text; a constant text is kept in `constant`.
+    // its new text; a constant text, or one formatted for the message alone, is kept in `constant`.
     std::span<const char> source;
     std::string constant;
 
@@ -148,6 +148,7 @@ public:
     void DrawMastery();
     void Add(int x, int y, i16 frames, std::span<const char> text, int flags);
     void Add(int x, int y, i16 frames, std::u8string_view text, int flags);
+    void AddFormatted(int x, int y, i16 frames, std::string text, int flags);
     void Draw();
 
     std::unique_ptr<BattleMessage> messages;                 // 0x005214F8

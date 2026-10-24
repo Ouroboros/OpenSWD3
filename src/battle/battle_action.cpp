@@ -1094,9 +1094,14 @@ int Game::StealFrame(BattleRole& unit, int target)
         this->database.LoadObject(battle.lastObject, stolen);
         this->database.FreeDescription(battle.lastObject);
         const std::string name = ObjectName(battle.lastObject);
-        const std::string line = WinFormat(kStoleFormat, {std::string_view(name)});
         this->audio.PlaySound(kSucceededSound, this->config.soundVolume);
-        this->battleMessages.Add(kNoticeX, kNoticeY, kStealFrames, std::span<const char>(line), kNoticeFlags);
+        this->battleMessages.AddFormatted(
+            kNoticeX,
+            kNoticeY,
+            kStealFrames,
+            WinFormat(kStoleFormat, {std::string_view(name)}),
+            kNoticeFlags
+        );
         AddOneItem(this->party.inventory, stolen, 1, this->database);
     }
     else
