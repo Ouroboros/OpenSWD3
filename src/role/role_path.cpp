@@ -120,12 +120,6 @@ void RolePath::Update()
             continue;
         }
 
-        // The rebuild's smooth motion: a role walking on by itself to its tile waits for it (the frame runs its act).
-        if (this->game.fieldView.RoleFinishing(index))
-        {
-            continue;
-        }
-
         if (role.pathNumber == 0)
         {
             if ((role.flags & Role::StepsAct) == 0 || index == static_cast<u32>(state.playerRole))
@@ -436,9 +430,7 @@ void RolePath::Follow(int index)
     Scene& view = owner.scene;
     Role& role = state.roles[static_cast<std::size_t>(index)];
 
-    // The rebuild's smooth motion: a role whose step is under way is between tiles too.
-    if (((role.x | role.y) & MapHeader::TileFraction) != 0 ||
-        owner.fieldView.RoleStepping(static_cast<std::size_t>(index)))
+    if (((role.x | role.y) & MapHeader::TileFraction) != 0)
     {
         return;
     }
@@ -705,9 +697,7 @@ void RolePath::RunScript(int index)
                 continue;
 
             case PathCommand::Step:
-                if (((role.x | role.y) & MapHeader::TileFraction) != 0 ||
-                    owner.fieldView.RoleStepping(static_cast<std::size_t>(index)) ||
-                    this->Step(index) != RolePath::PathEnded)
+                if (((role.x | role.y) & MapHeader::TileFraction) != 0 || this->Step(index) != RolePath::PathEnded)
                 {
                     return;
                 }
@@ -920,18 +910,13 @@ void RolePath::RunScript(int index)
 
                         if (move.Kind() == MoveKind::Path)
                         {
-                            const u8 back = move.directions
-                                                [static_cast<std::size_t>(move.step & MoveRecord::StepMask) %
-                                                 move.directions.size()];
-                            i32 aheadX = 0;
-                            i32 aheadY = 0;
-
-                            // The rebuild's smooth motion: a role between tiles walks on to its tile ahead instead.
-                            if (!owner.fieldView.FinishToTile(target, back, aheadX, aheadY) &&
-                                ((other.x | other.y) & MapHeader::TileFraction) != 0)
+                            if (((other.x | other.y) & MapHeader::TileFraction) != 0)
                             {
                                 const int row = other.y >> MapHeader::TileShift;
                                 owner.field.ClearRoleCells(other, leaderId);
+                                const u8 back = move.directions
+                                                    [static_cast<std::size_t>(move.step & MoveRecord::StepMask) %
+                                                     move.directions.size()];
 
                                 if (back < RolePath::Directions)
                                 {
@@ -1032,8 +1017,7 @@ void RolePath::RunScript(int index)
             }
 
             case PathCommand::Wander:
-                if ((role.x & MapHeader::TileFraction) == 0 && (role.y & MapHeader::TileFraction) == 0 &&
-                    !owner.fieldView.RoleStepping(static_cast<std::size_t>(index)))
+                if ((role.x & MapHeader::TileFraction) == 0 && (role.y & MapHeader::TileFraction) == 0)
                 {
                     this->Wander(index);
                 }
@@ -1081,7 +1065,7 @@ void RolePath::RunScript(int index)
                 const i32 otherX = other.x;
                 const i32 otherY = other.y;
 
-                if (((otherX | otherY) & MapHeader::TileFraction) != 0 || owner.fieldView.RoleStepping(target))
+                if (((otherX | otherY) & MapHeader::TileFraction) != 0)
                 {
                     return;
                 }
@@ -1257,17 +1241,13 @@ bool RolePath::ResumeMove(int index)
 
     const BlockingMap grid = this->Grid();
     PathFinder finder(this->game.pathNodes, grid, this->game.errors);
-    // The rebuild's smooth motion: a role between tiles walks on to its tile ahead, where its path starts.
-    i32 startX = role.x;
-    i32 startY = role.y;
-    this->game.fieldView.FinishToTile(static_cast<std::size_t>(index), move.CurrentDirection(), startX, startY);
     move.role = move.nextRole;
     move.x = move.nextX;
     move.y = move.nextY;
     move.step = 0;
     move.SetKind(MoveKind::Path);
 
-    if (finder.FindPath(startX, startY, move.x, move.y, role.act.width, role.act.height, move.directions) != 1)
+    if (finder.FindPath(role.x, role.y, move.x, move.y, role.act.width, role.act.height, move.directions) != 1)
     {
         DebugLog(
             u8"對話系統(unlock) 路徑無法還原 >> RId(%d)\n Start(%d/%d) Dest(%d/%d)",  // 0x004A1C20 + 0x004A1C34
@@ -1347,9 +1327,7 @@ int RolePath::HoldRole(int index)
             move->nextY = move->y;
         }
 
-        // The rebuild's smooth motion: a role between tiles stops where it is (its step waits until it is let go).
-        if (((role.x & MapHeader::TileFraction) != 0 || (role.y & MapHeader::TileFraction) != 0) &&
-            (!owner.smoothMotion || index == state.playerRole))
+        if ((role.x & MapHeader::TileFraction) != 0 || (role.y & MapHeader::TileFraction) != 0)
         {
             owner.field.ClearRoleCells(role, leader);
 
@@ -1506,18 +1484,6 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
         ++slot;
     }
 
-    // The rebuild's smooth motion: a role between tiles walks on to its tile ahead, where its new move starts.
-    i32 startX = role.x;
-    i32 startY = role.y;
-    const bool walkingOn =
-        index != state.playerRole &&
-        owner.fieldView.FinishToTile(
-            static_cast<std::size_t>(index),
-            slot < RolePath::Moves ? state.moves[static_cast<std::size_t>(slot)].CurrentDirection() : kPathEnd,
-            startX,
-            startY
-        );
-
     if (slot < RolePath::Moves)
     {
         MoveRecord& move = state.moves[static_cast<std::size_t>(slot)];
@@ -1537,7 +1503,7 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
             }
         }
 
-        if (!walkingOn && ((role.x & MapHeader::TileFraction) != 0 || (role.y & MapHeader::TileFraction) != 0))
+        if ((role.x & MapHeader::TileFraction) != 0 || (role.y & MapHeader::TileFraction) != 0)
         {
             owner.field.ClearRoleCells(role, leader);
 
@@ -1651,7 +1617,7 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
         finder.SetMask(0);
     }
 
-    if (finder.FindPath(startX, startY, x, y, role.act.width, role.act.height, move.directions) != 1)
+    if (finder.FindPath(role.x, role.y, x, y, role.act.width, role.act.height, move.directions) != 1)
     {
         DebugLog(
             u8"對話系統(isetpos) 路徑無法產生 >> P(%d) crId(%d)\n Start(%d/%d) Dest(%d/%d)",  // 0x004A1C68 + 0x004A1C7C
@@ -1674,14 +1640,6 @@ int RolePath::MoveRoleTo(int index, u16 x, u16 y, u32 options, i16 act, i16 acti
     const u32 top = field.cameraTop - kNearMargin < 0 ? 0u : static_cast<u32>(field.cameraTop - kNearMargin);
     const u32 left = field.cameraLeft - kFarMargin < 0 ? 0u : static_cast<u32>(field.cameraLeft - kFarMargin);
     u8 step = kPathEnd;
-
-    // A role walking on off the screen is put on its tile at once (the steps off the screen are skipped from there).
-    if (walkingOn && !(static_cast<u32>(role.x) > left && static_cast<u32>(role.x) < right &&
-                       static_cast<u32>(role.y) > top && static_cast<u32>(role.y) < bottom))
-    {
-        role.x = startX;
-        role.y = startY;
-    }
 
     for (;;)
     {

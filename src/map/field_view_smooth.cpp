@@ -17,6 +17,7 @@ void FieldView::CapturePlaces()
     const Field& field = owner.field;
     const u32 frame = owner.gameFrames;
     const bool continuous = this->placesValid && frame == this->placesFrame + 1 && owner.currentMap == this->placesMap;
+    this->CaptureRoleSteps(continuous);
 
     if (!continuous)
     {

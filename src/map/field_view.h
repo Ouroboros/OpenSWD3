@@ -130,15 +130,8 @@ public:
     void DrawRoles();
     int DrawRole(Role& role);
     void DrawItemHints();
-    // The rebuild's smooth motion: whether role `index` is walking (a step or its walk on to its tile under way).
-    bool RoleStepping(std::size_t index) const;
-    bool RoleFinishing(std::size_t index) const;
-    // The rebuild's smooth motion: a role an event sends elsewhere while between tiles walks on from where it is to the
-    // tile ahead (in path direction `direction`, or its step's) instead of being put back on the tile behind; that
-    // tile, where its new move starts, in (x, y). False with smooth motion off or the role on its tile.
-    bool FinishToTile(std::size_t index, u8 direction, i32& x, i32& y);
-    // The roles' smooth steps and held tiles dropped (the roles of a map placed again).
-    void ResetRoleMotions();
+    // The rebuild's smooth motion: the roles' places as a game frame starts (the steps it takes are drawn from them).
+    void KeepRolePlaces();
 
     void UpdateRoleSound(Role& role);
     void DrawShadow(const Role& role, const Picture& picture, int x, int y, int kind, int tint);
@@ -309,38 +302,27 @@ private:
         i32 leftCameraY = 0;
     };
 
-    // A step of a role moved by its move record or as a follower (continuous motion): the step a frame took, from
-    // where, over how many milliseconds (its act's delay plus one frames; a frame past RoleStepMostFrames), the
-    // milliseconds gone and the place it left; reaching a tile it arrives as the original's frame does when the step
-    // lands there (ArriveMoving, ArriveFollower).
+    // A role where a game frame started (KeepRolePlaces).
+    struct RolePlace
+    {
+        u16 id = 0;
+        bool shown = false;
+        i32 x = 0;
+        i32 y = 0;
+    };
+
+    // The step a game frame moved a role by, as it is drawn (the frames move the roles as the original does): from
+    // where the frame started to where it left the role, over the frames to its next step (its act's delay plus one;
+    // one past RoleStepMostFrames) in milliseconds, and the milliseconds gone.
     struct RoleMotion
     {
         bool active = false;
-        bool follower = false;
         i32 fromX = 0;
         i32 fromY = 0;
-        i32 byX = 0;
-        i32 byY = 0;
+        i32 toX = 0;
+        i32 toY = 0;
         i32 length = 1;
         i32 elapsed = 0;
-        i32 leftX = 0;
-        i32 leftY = 0;
-        std::size_t move = 0;  // the move record (GameState::moves or Scene::followerMoves)
-        bool timed = false;    // its length taken from the act run after the step
-        u8 direction = 0;
-        // Walking on to the tile ahead by itself (its step stopped between tiles, or an event sent it elsewhere):
-        // the frames take no steps for it meanwhile.
-        bool finishing = false;
-        bool detached = false;  // its move record was replaced: arriving only moves its cells
-    };
-
-    // The tile ahead a role steps into, its cells held taken for it from the step that leaves its tile to its arrival.
-    struct RoleReservation
-    {
-        bool held = false;
-        std::ptrdiff_t cell = 0;
-        i32 width = 0;
-        i32 height = 0;
     };
 
     // The pan of the camera under way: the step a frame took, the milliseconds gone and the camera it left.
@@ -362,17 +344,8 @@ private:
     void BeginPlayerMotion();
     void EndPlayerMotion(bool atFrame);
     i32 MotionPixels(int scale) const;
-    void StartRoleStep(std::size_t index, i32 byX, i32 byY, std::size_t move, u8 direction, bool follower);
-    void TimeRoleStep(std::size_t index);
-    bool FinishRoleStep(std::size_t index);
+    void CaptureRoleSteps(bool continuous);
     void RoleTick(std::size_t index);
-    void PlaceRoleStep(std::size_t index);
-    bool StartFinish(std::size_t index, i32 signX, i32 signY, bool detached);
-    void ArriveFinish(std::size_t index);
-    void ReserveAhead(std::size_t index, i32 signX, i32 signY);
-    void ReleaseReservation(std::size_t index);
-    void DropReservation(std::size_t index);
-    void CheckReservation(std::size_t index);
     void ArriveMoving(std::size_t index, std::size_t move, u8 direction);
     void ArriveFollower(std::size_t index, std::size_t move, u8 direction);
     void StartPan(i32 byX, i32 byY);
@@ -381,8 +354,9 @@ private:
     ActState itemHint;    // DrawItemHints: the arrow, stepped once a game frame
     EventScan eventScan;  // DrawItemHints: the events that give items; MapExits: the maps they change to
     PlayerMotion playerMotion;
-    std::vector<RoleMotion> roleMotions;        // per role
-    std::vector<RoleReservation> reservations;  // per role
+    std::vector<RolePlace> framePlaces;   // per role
+    u32 framePlacesFrame = 0;             // the game frame they were kept for
+    std::vector<RoleMotion> roleMotions;  // per role
     PanMotion panMotion;
     u32 motionClock = 0;
     bool motionClockSet = false;

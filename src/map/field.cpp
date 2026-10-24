@@ -875,9 +875,6 @@ namespace
 // The cells a role covers from its own cell: its width and height in tiles (the act's 'HW'); the original walks them
 // through a pointer into the grid.
 template <typename Change>
-void ChangeCells(std::vector<u32>& blocks, i32 mapWidth, std::ptrdiff_t start, i32 width, i32 height, Change change);
-
-template <typename Change>
 void ChangeRoleCells(std::vector<u32>& blocks, i32 mapWidth, const Role& role, Change change)
 {
     if (role.cell == nullptr || blocks.empty())
@@ -885,16 +882,9 @@ void ChangeRoleCells(std::vector<u32>& blocks, i32 mapWidth, const Role& role, C
         return;
     }
 
-    ChangeCells(blocks, mapWidth, role.cell - blocks.data(), role.act.width, role.act.height, change);
-}
-
-template <typename Change>
-void ChangeCells(std::vector<u32>& blocks, i32 mapWidth, std::ptrdiff_t start, i32 width, i32 height, Change change)
-{
-    if (blocks.empty())
-    {
-        return;
-    }
+    const auto start = static_cast<std::ptrdiff_t>(role.cell - blocks.data());
+    const i32 width = role.act.width;
+    const i32 height = role.act.height;
 
     auto apply = [&](std::ptrdiff_t at)
     {
@@ -980,38 +970,6 @@ void Field::ClearRoleCells(const Role& role, i32 leader)
         [mask](u32& cell)
         {
             cell &= mask;
-        }
-    );
-}
-
-// The rebuild's smooth motion: bits of the cells of a footprint of width x height cells from `cell` set or cleared
-// (the tile a role steps into, held for it while it walks there).
-void Field::MarkCells(std::ptrdiff_t cell, i32 width, i32 height, u32 bits)
-{
-    ChangeCells(
-        this->state.map.blocks,
-        this->state.map.width,
-        cell,
-        width,
-        height,
-        [bits](u32& value)
-        {
-            value |= bits;
-        }
-    );
-}
-
-void Field::ClearCells(std::ptrdiff_t cell, i32 width, i32 height, u32 bits)
-{
-    ChangeCells(
-        this->state.map.blocks,
-        this->state.map.width,
-        cell,
-        width,
-        height,
-        [bits](u32& value)
-        {
-            value &= ~bits;
         }
     );
 }

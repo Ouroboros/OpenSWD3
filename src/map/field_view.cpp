@@ -577,7 +577,6 @@ void FieldView::ArriveMoving(std::size_t index, std::size_t slot, u8 direction)
     }
 
     field.MarkRoleCells(role, leaderId);
-    this->ReleaseReservation(index);
     move.step = static_cast<u16>((move.step + 1) | MoveRecord::Done);
     this->UpdateRoleCellFlags(role);
 }
@@ -595,7 +594,6 @@ void FieldView::ArriveFollower(std::size_t index, std::size_t slot, u8 direction
     field.ClearRoleCells(role, leaderId);
     MoveCell(state, role, direction);
     field.MarkRoleCells(role, leaderId);
-    this->ReleaseReservation(index);
     move.step = static_cast<u16>((move.step + 1) | MoveRecord::Done);
     this->UpdateRoleCellFlags(role);
 }
@@ -662,8 +660,7 @@ void FieldView::Render()
 
         Role& role = state.roles[index];
 
-        // The rebuild's smooth motion: a role walking on by itself to its tile takes no steps meanwhile.
-        if ((role.flags & Role::Visible) == 0 || this->RoleFinishing(index))
+        if ((role.flags & Role::Visible) == 0)
         {
             continue;
         }
@@ -701,21 +698,12 @@ void FieldView::Render()
                 role.act.direction = RolePath::Facing[direction];
             }
 
-            const auto slot = static_cast<std::size_t>(&move - state.moves.data());
+            role.x += stepX;
+            role.y += stepY;
 
-            if (owner.smoothMotion)
+            if (((role.x | role.y) & MapHeader::TileFraction) == 0)
             {
-                this->StartRoleStep(index, stepX, stepY, slot, direction, false);
-            }
-            else
-            {
-                role.x += stepX;
-                role.y += stepY;
-
-                if (((role.x | role.y) & MapHeader::TileFraction) == 0)
-                {
-                    this->ArriveMoving(index, slot, direction);
-                }
+                this->ArriveMoving(index, static_cast<std::size_t>(&move - state.moves.data()), direction);
             }
 
             if (state.leader.id == Role::NoId && (role.flags & Role::TouchEvent) != 0)
@@ -763,11 +751,6 @@ void FieldView::Render()
 
         Role& role = state.roles[move.role];
 
-        if (this->RoleFinishing(move.role))
-        {
-            continue;
-        }
-
         if (move.step >= MoveRecord::StepMask)
         {
             owner.acts.Run(role.act);
@@ -783,19 +766,12 @@ void FieldView::Render()
                 role.act.direction = RolePath::Facing[direction];
             }
 
-            if (owner.smoothMotion)
-            {
-                this->StartRoleStep(move.role, move.stepX, move.stepY, follower, direction, true);
-            }
-            else
-            {
-                role.x += move.stepX;
-                role.y += move.stepY;
+            role.x += move.stepX;
+            role.y += move.stepY;
 
-                if (((role.x | role.y) & MapHeader::TileFraction) == 0)
-                {
-                    this->ArriveFollower(move.role, follower, direction);
-                }
+            if (((role.x | role.y) & MapHeader::TileFraction) == 0)
+            {
+                this->ArriveFollower(move.role, follower, direction);
             }
         }
 
@@ -808,32 +784,6 @@ void FieldView::Render()
                 role.act.action,
                 role.act.direction
             );
-        }
-    }
-
-    // The rebuild's smooth motion: the act of a role walking on by itself to its tile runs as its steps' would.
-    for (std::size_t index = 0; index < this->roleMotions.size(); ++index)
-    {
-        if (this->RoleFinishing(index) && owner.acts.Run(state.roles[index].act) == 0)
-        {
-            DebugLog(
-                u8"Act Err(picPaint:PathMove) 設定錯誤 GUID[%d]\nact[%d] qq[%d] dir[%d]",
-                state.roles[index].id,
-                state.roles[index].act.id,
-                state.roles[index].act.action,
-                state.roles[index].act.direction
-            );
-        }
-    }
-
-    // The rebuild's smooth motion: the steps taken this frame are timed once every act of the frame has run (a role
-    // both moved and following runs its act in both loops, which brings its next step nearer). A role walking on by
-    // itself keeps the time StartFinish gave it.
-    for (std::size_t index = 0; index < this->roleMotions.size(); ++index)
-    {
-        if (!this->RoleFinishing(index))
-        {
-            this->TimeRoleStep(index);
         }
     }
 
