@@ -395,6 +395,9 @@ function show() {
   }
 
   const m = shown[chosen];
+  // While searching the tab of the monster chosen is lit.
+  const lit = query().length ? (m ? m.tab : -1) : category;
+  document.querySelectorAll('.tab').forEach((tab, at) => tab.classList.toggle('chosen', at === lit));
 
   if (!m) {
     ['stats', 'portrait', 'resist', 'loot', 'description'].forEach(id => { $(id).innerHTML = ''; });
@@ -449,7 +452,6 @@ function turn(by) {
 // While searching the list holds the monsters of every category that match all the words.
 $('search').addEventListener('input', () => {
   chosen = 0;
-  document.querySelectorAll('.tab').forEach((tab, at) => tab.classList.toggle('chosen', !query().length && at === category));
   list();
 });
 
