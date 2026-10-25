@@ -8,6 +8,8 @@ namespace
 
 // A gap longer than this many milliseconds (a pause, a slow frame) is skipped rather than run.
 constexpr u32 kMostTicks = 0x100;
+// A role drawn farther than this many tiles from where the frames left it was put there: it is shown there at once.
+constexpr i32 kFarSteps = 2;
 
 i32 Sign(i32 value)
 {
@@ -321,23 +323,30 @@ std::array<i32, 2> FieldView::RoleFine(std::size_t index, int scale) const
 
     if (this->RoleOnStep(index))
     {
-        const RoleMotion& step = this->roleMotions[index];
-        return {
-            step.fromX * scale + (step.toX - step.fromX) * step.elapsed * scale / step.length,
-            step.fromY * scale + (step.toY - step.fromY) * step.elapsed * scale / step.length,
-        };
+        const std::array<i32, 2> shown = this->MotionShown(this->roleMotions[index]);
+        return {FloorDivide(shown[0] * scale, MotionFine), FloorDivide(shown[1] * scale, MotionFine)};
     }
 
     return {role.x * scale, role.y * scale};
 }
 
+// Where a role is drawn by its motion now, in 1/MotionFine pixels.
+std::array<i32, 2> FieldView::MotionShown(const RoleMotion& step) const
+{
+    return {
+        step.fromX + static_cast<i32>(static_cast<i64>(step.toX - step.fromX) * step.elapsed / step.length),
+        step.fromY + static_cast<i32>(static_cast<i64>(step.toY - step.fromY) * step.elapsed / step.length),
+    };
+}
+
 // Whether role `index` is drawn on a step that stops it, with the act it had where the step started.
 bool FieldView::RoleStopping(std::size_t index) const
 {
-    return this->RoleOnStep(index) && this->roleMotions[index].stops;
+    return this->RoleOnStep(index) && this->roleMotions[index].stops &&
+           this->roleMotions[index].elapsed < this->roleMotions[index].length;
 }
 
-// Whether role `index` is drawn on the step the last game frame moved it by (still where the frame left it).
+// Whether role `index` is drawn by its motion (still where the frames last left it).
 bool FieldView::RoleOnStep(std::size_t index) const
 {
     if (index >= this->roleMotions.size() || !this->roleMotions[index].active)
@@ -347,7 +356,7 @@ bool FieldView::RoleOnStep(std::size_t index) const
 
     const RoleMotion& step = this->roleMotions[index];
     const Role& role = this->game.state.roles[index];
-    return role.x == step.toX && role.y == step.toY;
+    return role.x == step.targetX && role.y == step.targetY;
 }
 
 // The roles' places as a game frame starts (the controlled role moved by its keys up to it): the steps the frame takes
@@ -360,9 +369,14 @@ void FieldView::KeepRolePlaces()
     for (std::size_t index = 0; index < GameState::Roles; ++index)
     {
         const Role& role = owner.state.roles[index];
-        const bool walking =
-            index < this->roleMotions.size() &&
-            (this->roleMotions[index].active || this->roleMotions[index].frame + 1 == owner.gameFrames);
+        bool walking = false;
+
+        if (index < this->roleMotions.size())
+        {
+            const RoleMotion& step = this->roleMotions[index];
+            walking = step.active && !step.frozen && (step.elapsed < step.length || step.frame + 1 == owner.gameFrames);
+        }
+
         this->framePlaces[index] = RolePlace{
             .id = role.id,
             .shown = (role.flags & Role::Visible) != 0,
@@ -370,21 +384,24 @@ void FieldView::KeepRolePlaces()
             .y = role.y,
             .act = role.act,
             .walking = walking,
+            .held = (role.flags & Role::Held) != 0,
         };
     }
 
     this->framePlacesFrame = owner.gameFrames;
 }
 
-// The steps the game frame moved the roles by, drawn from where the frame started to where it left each role; a walking
-// role whose action the frame changed (it stopped) with the act it had where it started until it gets there (the
-// frame's picture is that of the place it stepped to: it stops, then stands); otherwise with the frame's act (a role
-// starting off or turning faces its way from the step's start). A step takes the frames to the role's next step: its
-// act's delay plus one, read once the frame's acts have all run, or the delay its act at the start takes after a run,
-// plus one, when fewer (a role that stopped steps at the pace it walked); one past RoleStepMostFrames. A role the frame
-// did not move goes on with the step under way, unless the frame turned it or changed its action (it stopped); one that
-// came, went or changed, or moved by more than a tile (put there), is shown where it is, as are all after a gap in the
-// frames or on another map.
+// The game frame's moves of the roles as they are drawn. A role the frame moved is drawn going from where it is drawn
+// now to where the frame left it; a walking role whose action the frame changed (it stopped) with the act it had where
+// it started until it gets there (the frame's picture is that of the place it stepped to: it stops, then stands);
+// otherwise with the frame's act (a role starting off or turning faces its way from the step's start). A step takes the
+// frames to the role's next step: its act's delay plus one, read once the frame's acts have all run; for a step that
+// stops it, the delay its act at the start takes after a run, plus one, when fewer (it steps at the pace it walked);
+// one past RoleStepMostFrames. A role the frame held for an event, or turned or changed the action of without moving
+// it, has stopped: it stays drawn where it is (where the frame moved it on too) until the frames move it again. A role
+// the frame did not move goes on as it is drawn; one that came, went or changed, or is drawn more than kFarSteps tiles
+// from where the frame left it (put there), is shown where it is, as are all after a gap in the frames or on another
+// map.
 void FieldView::CaptureRoleSteps(bool continuous)
 {
     Game& owner = this->game;
@@ -405,41 +422,80 @@ void FieldView::CaptureRoleSteps(bool continuous)
         }
 
         const RolePlace& from = this->framePlaces[index];
-        const i32 byX = role.x - from.x;
-        const i32 byY = role.y - from.y;
 
-        if (!from.shown || (role.flags & Role::Visible) == 0 || role.id != from.id ||
-            std::abs(byX) > MapHeader::TileSize || std::abs(byY) > MapHeader::TileSize)
+        if (!from.shown || (role.flags & Role::Visible) == 0 || role.id != from.id)
         {
             step.active = false;
             continue;
         }
 
-        // A role the frame left where it was goes on with its step, unless the frame turned it or changed its action:
-        // it has stopped, and is shown where it stands.
-        if (byX == 0 && byY == 0)
+        const bool tracked = step.active && step.targetX == from.x && step.targetY == from.y;
+        const std::array<i32, 2> shown =
+            tracked ? this->MotionShown(step) : std::array<i32, 2>{from.x * MotionFine, from.y * MotionFine};
+        const bool moved = role.x != from.x || role.y != from.y;
+        const bool held = (role.flags & Role::Held) != 0 && !from.held;
+        const bool turned = role.act.direction != from.act.direction || role.act.action != from.act.action;
+
+        if (held || (!moved && turned))
         {
-            if (role.act.direction != from.act.direction || role.act.action != from.act.action)
-            {
-                step.active = false;
-            }
+            step = RoleMotion{
+                .active = true,
+                .targetX = role.x,
+                .targetY = role.y,
+                .fromX = shown[0],
+                .fromY = shown[1],
+                .toX = shown[0],
+                .toY = shown[1],
+                .length = 1,
+                .elapsed = 1,
+                .frame = step.frame,
+                .stops = false,
+                .frozen = true,
+                .act = role.act,
+            };
 
             continue;
         }
 
-        const auto walking = static_cast<i32>(owner.acts.Peek(from.act).delay) + 1;
-        const i32 next = std::min(static_cast<i32>(role.act.delay) + 1, walking);
+        if (!moved)
+        {
+            continue;
+        }
+
+        const i32 toX = role.x * MotionFine;
+        const i32 toY = role.y * MotionFine;
+        constexpr i32 kFar = kFarSteps * MapHeader::TileSize * MotionFine;
+
+        if (std::abs(toX - shown[0]) > kFar || std::abs(toY - shown[1]) > kFar)
+        {
+            step.active = false;
+            continue;
+        }
+
+        // A step that stops a walking role takes the pace it walked at (its stand's delay would hold it long); any
+        // other the frames to the role's next step.
+        const bool stops = from.walking && role.act.action != from.act.action;
+        i32 next = static_cast<i32>(role.act.delay) + 1;
+
+        if (stops)
+        {
+            next = std::min(next, static_cast<i32>(owner.acts.Peek(from.act).delay) + 1);
+        }
+
         const i32 frames = next > RoleStepMostFrames ? 1 : next;
         step = RoleMotion{
             .active = true,
-            .fromX = from.x,
-            .fromY = from.y,
-            .toX = role.x,
-            .toY = role.y,
+            .targetX = role.x,
+            .targetY = role.y,
+            .fromX = shown[0],
+            .fromY = shown[1],
+            .toX = toX,
+            .toY = toY,
             .length = frames * interval,
             .elapsed = 0,
             .frame = owner.gameFrames,
-            .stops = from.walking && role.act.action != from.act.action,
+            .stops = stops,
+            .frozen = false,
             .act = from.act,
         };
     }
@@ -455,7 +511,6 @@ void FieldView::RoleTick(std::size_t index)
 
     RoleMotion& step = this->roleMotions[index];
     step.elapsed = std::min(step.elapsed + 1, step.length);
-    step.active = step.elapsed < step.length;
 }
 
 // The pan of a frame (0x00414570) moves the camera by its step over the frame.

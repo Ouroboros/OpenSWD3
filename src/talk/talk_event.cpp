@@ -1061,7 +1061,6 @@ bool Talk::RunRoleCommand(EventRun& run)
             {
                 role->flags &= ~Role::Held;
                 role->act.delay = 0;
-                owner.rolePath.WalkOn(static_cast<int>(run.found));
             }
 
             return true;
@@ -1077,7 +1076,6 @@ bool Talk::RunRoleCommand(EventRun& run)
                     owner.rolePath.ResumeMove(index);
                     role.flags &= ~Role::Held;
                     role.act.delay = 0;
-                    owner.rolePath.WalkOn(index);
                 }
             }
 

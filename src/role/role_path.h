@@ -85,7 +85,6 @@ public:
 
     int ScriptStep(int index);
     int HoldRole(int index);
-    void WalkOn(int index);
 
     i32 timeMark = 0;  // 0x004BA42C
 

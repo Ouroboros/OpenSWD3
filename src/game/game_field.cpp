@@ -1251,8 +1251,7 @@ u32 Game::RollEncounter(int steps, int force)
 // tiles leaves its cells and (unless controlled) steps back along the move until it stands on a tile, its stepping
 // and fast bits and its act's speed cleared; its path move resumes, its act returns to the action and direction it had
 // before turning to the talker, and it is no longer held. The original steps forever where the step cannot reach a
-// tile (or reads past the step tables at the end of the path); here that is Hang(). The rebuild (deviations.md): a role
-// between tiles on its path is not stepped back but walks on with its step (RolePath::WalkOn).
+// tile (or reads past the step tables at the end of the path); here that is Hang().
 void Game::ReleaseRole(int index)
 {
     Role& role = this->state.roles[static_cast<std::size_t>(index)];
@@ -1269,8 +1268,7 @@ void Game::ReleaseRole(int index)
             continue;
         }
 
-        // The rebuild (deviations.md): a role between tiles on its path walks on with its step (WalkOn).
-        if (((role.x & kTileMask) != 0 || (role.y & kTileMask) != 0) && move.Kind() != MoveKind::Path)
+        if ((role.x & kTileMask) != 0 || (role.y & kTileMask) != 0)
         {
             this->field.ClearRoleCells(role, this->partyLeaderId);
 
@@ -1324,6 +1322,5 @@ void Game::ReleaseRole(int index)
     role.act.savedDirection = ActState::NotSaved;
     role.flags &= ~Role::Held;
     role.act.delay = 0;
-    this->rolePath.WalkOn(index);
 }
 }  // namespace swd3

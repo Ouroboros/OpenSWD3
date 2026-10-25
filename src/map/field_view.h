@@ -132,6 +132,7 @@ public:
     void DrawItemHints();
     // The rebuild's smooth motion: the roles' places as a game frame starts (the steps it takes are drawn from them).
     void KeepRolePlaces();
+    void ArriveMoving(std::size_t index, std::size_t move, u8 direction);
 
     void UpdateRoleSound(Role& role);
     void DrawShadow(const Role& role, const Picture& picture, int x, int y, int kind, int tint);
@@ -302,8 +303,8 @@ private:
         i32 leftCameraY = 0;
     };
 
-    // A role where a game frame started, its act, and whether it was walking then (a step drawn or taken the frame
-    // before) (KeepRolePlaces).
+    // A role where a game frame started, its act, whether it was walking then (a step drawn or taken the frame before)
+    // and held for an event (KeepRolePlaces).
     struct RolePlace
     {
         u16 id = 0;
@@ -312,15 +313,20 @@ private:
         i32 y = 0;
         ActState act;
         bool walking = false;
+        bool held = false;
     };
 
-    // The step a game frame moved a role by, as it is drawn (the frames move the roles as the original does, drawn a
-    // step late): from where the frame started to where it left the role, over the frames to its next step in
-    // milliseconds, and the milliseconds gone; the game frame it was taken in; a step that stops a walking role (its
+    // A role as it is drawn (the frames move the roles as the original does; the drawing follows them): while the role
+    // stays where the frames last left it (target), it is drawn going from one place to another (in 1/MotionFine
+    // pixels) over `length` milliseconds, `elapsed` of them gone, then at the second. A step the frames took goes from
+    // where the role was drawn to where they left it; a role stopped (or turned, or held) is drawn where it was, even
+    // where the frames moved it on (`frozen`). The game frame of the last step; a step that stops a walking role (its
     // action changed) drawn with the act it had where the step started until it gets there.
     struct RoleMotion
     {
         bool active = false;
+        i32 targetX = 0;
+        i32 targetY = 0;
         i32 fromX = 0;
         i32 fromY = 0;
         i32 toX = 0;
@@ -329,8 +335,11 @@ private:
         i32 elapsed = 0;
         u32 frame = 0;
         bool stops = false;
+        bool frozen = false;
         ActState act;
     };
+
+    static constexpr i32 MotionFine = 0x100;  // RoleMotion places: parts of a pixel
 
     // The pan of the camera under way: the step a frame took, the milliseconds gone and the camera it left.
     struct PanMotion
@@ -355,7 +364,7 @@ private:
     void RoleTick(std::size_t index);
     bool RoleOnStep(std::size_t index) const;
     bool RoleStopping(std::size_t index) const;
-    void ArriveMoving(std::size_t index, std::size_t move, u8 direction);
+    std::array<i32, 2> MotionShown(const RoleMotion& step) const;
     void ArriveFollower(std::size_t index, std::size_t move, u8 direction);
     void StartPan(i32 byX, i32 byY);
     void PanTick();

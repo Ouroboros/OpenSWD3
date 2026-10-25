@@ -1262,28 +1262,6 @@ bool RolePath::ResumeMove(int index)
     return true;
 }
 
-// The rebuild (deviations.md): a role let go between tiles on its path walks on with the step it was taking when it was
-// held (HoldRole left it there), arriving on its tile as the step would have.
-void RolePath::WalkOn(int index)
-{
-    GameState& state = this->game.state;
-    const Role& role = state.roles[static_cast<std::size_t>(index)];
-
-    if (index == state.playerRole || ((role.x | role.y) & MapHeader::TileFraction) == 0)
-    {
-        return;
-    }
-
-    for (MoveRecord& move : state.moves)
-    {
-        if (move.role == index && move.Kind() == MoveKind::Path)
-        {
-            move.step &= static_cast<u16>(~MoveRecord::Done);
-            return;
-        }
-    }
-}
-
 // The controlled role brought back onto its tile against its step (without a step the original loops for ever).
 void RolePath::AlignPlayer(Role& role)
 {
@@ -1310,8 +1288,9 @@ void RolePath::AlignPlayer(Role& role)
 
 // swd32.exe 0x0042E5A0: role `index` held for an event (flag bit 31): the controlled role is put back on its tile and
 // stops; a path move is queued again from where it is (its target kept), a role between tiles goes back to its last
-// one. The rebuild (deviations.md): a role between tiles on its path stops where it is, its step taken up again when it
-// is let go (WalkOn).
+// one. The rebuild (deviations.md): a role between tiles on its path is put on the tile its step goes to, arriving
+// there as the step would (FieldView::ArriveMoving), and stops there (the smooth drawing shows it stopping where it is
+// drawn).
 int RolePath::HoldRole(int index)
 {
     Game& owner = this->game;
@@ -1343,6 +1322,20 @@ int RolePath::HoldRole(int index)
 
     if (move != nullptr)
     {
+        const u8 ahead = move->CurrentDirection();
+
+        if (index != state.playerRole && move->Kind() == MoveKind::Path && move->step < MoveRecord::StepMask &&
+            ahead < RolePath::Directions && ((role.x | role.y) & MapHeader::TileFraction) != 0)
+        {
+            role.x = RolePath::TileStart(role.x, -RolePath::StepX[ahead]);
+            role.y = RolePath::TileStart(role.y, -RolePath::StepY[ahead]);
+            owner.fieldView.ArriveMoving(
+                static_cast<std::size_t>(index),
+                static_cast<std::size_t>(move - state.moves.data()),
+                ahead
+            );
+        }
+
         if (move->Kind() == MoveKind::Path)
         {
             move->step |= MoveRecord::Done;
@@ -1360,7 +1353,7 @@ int RolePath::HoldRole(int index)
                 const int row = static_cast<int>(static_cast<u32>(role.y) >> MapHeader::TileShift) - 1;
                 const u8 back = move->CurrentDirection();
 
-                if (back < RolePath::Directions && move->Kind() != MoveKind::Path)
+                if (back < RolePath::Directions)
                 {
                     role.x = RolePath::TileStart(role.x, RolePath::StepX[back]);
                     role.y = RolePath::TileStart(role.y, RolePath::StepY[back]);
