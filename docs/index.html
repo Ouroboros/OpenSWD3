@@ -36,7 +36,7 @@ body {
 nav {
   position: fixed;
   top: 32px;
-  left: max(20px, calc(50% - 640px));
+  left: 20px;
   width: 160px;
   display: flex;
   flex-direction: column;
@@ -81,7 +81,11 @@ nav a.chosen {
   background: linear-gradient(90deg, transparent, rgba(255, 252, 238, 0.95) 25%, rgba(255, 252, 238, 0.95) 75%, transparent);
 }
 
-.page { max-width: 1040px; margin: 0 auto; padding: 32px 20px 64px 240px; box-sizing: content-box; }
+.page { max-width: 1040px; margin: 0 auto; padding: 32px 20px 64px; }
+
+@media (max-width: 1480px) {
+  .page { margin-left: 200px; margin-right: 0; }
+}
 
 header {
   border-top: 2px solid var(--line);
