@@ -94,7 +94,7 @@ cmake --build --preset linux
 scripts\package.bat
 ```
 
-需要 LLVM（`clang-cl`、`lld-link`、`llvm-lib`、`llvm-rc`、`llvm-mt`，默认在 `D:\Dev\Compiler\LLVM\x64\bin`，可用环境变量 `SWD3_LLVM` 指定），以及装有 C++ 工具的 Visual Studio 2022（提供 Windows SDK、MSVC 库和自带的 CMake、Ninja）。第 2、3 步的依赖和资源文件要先准备好。脚本在 `build\windows-native` 编译 `swd3r.exe`，再把 `swd3r.exe`、`asset` 文件夹和设置模板 `swd3r.toml` 放进一个 `OpenSWD3` 文件夹，打成 `build\OpenSWD3-<日期>-<提交>.zip`。
+需要 LLVM（`clang-cl`、`lld-link`、`llvm-lib`、`llvm-rc`、`llvm-mt`，默认在 `D:\Dev\Compiler\LLVM\x64\bin`，可用环境变量 `SWD3_LLVM` 指定），以及装有 C++ 工具的 Visual Studio 2022（提供 Windows SDK、MSVC 库和自带的 CMake、Ninja）。第 2、3 步的依赖和资源文件要先准备好。脚本在 `build\windows-native` 编译 `swd3r.exe`，再把 `swd3r.exe`、调试符号 `swd3r.pdb`（崩溃记录据此显示函数名与行号）、`asset` 文件夹和设置模板 `swd3r.toml` 放进一个 `OpenSWD3` 文件夹，打成 `build\OpenSWD3-<日期>-<提交>.zip`。
 
 编译、打包并更新 GitHub Release 的下载：
 
