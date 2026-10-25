@@ -24,6 +24,8 @@
 
 每一处和原版不同的行为都记录在 [deviations.md](reverse/analysis/deviations.md)。
 
+怪物资料可以用浏览器打开 [docs/bestiary.html](docs/bestiary.html) 查看：仿游戏的神魔異事錄，列出全部怪物的数值、各属性承受伤害、招式、可偷的物品、掉落物品和说明，也收录了游戏图鉴里没有的剧情对手，可以搜索。
+
 ## 安装与运行
 
 1. 准备好原版游戏目录，例如 `E:\Game\swd3`。
