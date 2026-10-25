@@ -414,6 +414,8 @@ function show() {
     return;
   }
 
+  keepPlace(`${m.name}@${m.id}`);
+
   const h = m.hidden;
   const values = [['生命', m.hp], ['靈力', m.spirit], ['體力', m.stamina], ['攻擊', m.attack], ['防禦', m.defense],
     ['敏捷', m.agility]];
@@ -513,10 +515,53 @@ function fit() {
   book.style.transform = `translate(${left}px, ${top}px) scale(${scale})`;
 }
 
+// The monster shown kept in the address (and in the home page's, which shows this page beside its menu) in place, so
+// that going back to it returns here.
+function keepPlace(detail) {
+  history.replaceState(null, '', `#${encodeURIComponent(detail)}`);
+
+  if (window.parent !== window) {
+    window.parent.postMessage({ shown: 'bestiary', detail }, '*');
+  }
+}
+
+function addressed() {
+  try {
+    return decodeURIComponent(location.hash.slice(1));
+  } catch {
+    return '';
+  }
+}
+
+// A monster named in the address (bestiary.html#庫塔@181, from the other pages; the record's number tells apart
+// those of one name) is chosen in its category.
+function chooseNamed(text = addressed()) {
+  const at = text.lastIndexOf('@');
+  const numbered = at > 0 && /^\d+$/.test(text.slice(at + 1));
+  const name = numbered ? text.slice(0, at) : text;
+  const id = numbered ? Number(text.slice(at + 1)) : null;
+  const monster = DATA.monsters.find(each => each.name === name && (id === null || each.id === id));
+
+  if (!monster) {
+    return;
+  }
+
+  category = monster.tab;
+  $('search').value = '';
+  drawTabs();
+  list();
+  chosen = shown.indexOf(monster);
+  show();
+}
+
 addEventListener('resize', fit);
+addEventListener('hashchange', () => chooseNamed());
+// The place read before the first list shows (and keeps) its first monster.
+const place = addressed();
 fit();
 drawTabs();
 list();
+chooseNamed(place);
 </script>
 </body>
 </html>

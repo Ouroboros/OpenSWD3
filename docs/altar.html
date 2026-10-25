@@ -477,8 +477,8 @@ function drawCard(item, kept) {
   const pairs = kept.reduce((sum, rule) => sum + rule.pairs.length, 0);
   $('card').innerHTML = `<div class="picture">${picture}</div>` +
     `<div class="main"><div>${escape(tabOf(item))}${item.id <= LAST_MONSTER ? '' : '　' + escape(categoryName(item))}` +
-    `</div><div class="name${item.id <= LAST_MONSTER ? '' : ' jump'}"` +
-    `${item.id <= LAST_MONSTER ? '' : ' title="在物品大全中打開"'}>${escape(item.name)}</div>` +
+    `</div><div class="name jump" title="在${item.id <= LAST_MONSTER ? '神魔異事錄' : '物品大全'}中打開">` +
+    `${escape(item.name)}</div>` +
     `<div>${item.level} 級</div>${values}</div>` +
     `<div class="side"><div class="label">可在</div><div>${altars}</div>` +
     `<div class="label">煉製條件</div><div class="${need > 1 ? 'warn' : ''}">` +
@@ -539,6 +539,8 @@ function show() {
     return;
   }
 
+  keepPlace(`${item.name}@${item.id}`);
+
   const kept = ruleList(item);
   drawCard(item, kept);
   drawRules(item, kept);
@@ -587,14 +589,19 @@ $('list').addEventListener('click', event => {
   }
 });
 
-// An object's name opens the items page on it: the home page shows it beside its menu, alone the page itself.
-function openItem(name) {
+// A result's name opens the bestiary (a monster) or the items page (an object) on it: the home page shows it beside
+// its menu, alone the page itself.
+function openItem(item) {
+  const view = item.id <= LAST_MONSTER ? 'bestiary' : 'items';
+  // A monster with its number: two records may share its name.
+  const detail = item.id <= LAST_MONSTER ? `${item.name}@${item.id}` : item.name;
+
   if (window.parent !== window) {
-    window.parent.postMessage({ open: 'items', detail: name }, '*');
+    window.parent.postMessage({ open: view, detail }, '*');
     return;
   }
 
-  location.href = `items.html#${encodeURIComponent(name)}`;
+  location.href = `${view}.html#${encodeURIComponent(detail)}`;
 }
 
 $('card').addEventListener('click', event => {
@@ -602,7 +609,7 @@ $('card').addEventListener('click', event => {
   const item = shown[chosen];
 
   if (name && item) {
-    openItem(item.name);
+    openItem(item);
   }
 });
 
@@ -649,10 +656,53 @@ function fit() {
   book.style.transform = `translate(${left}px, ${top}px) scale(${scale})`;
 }
 
+// The result shown kept in the address (and in the home page's, which shows this page beside its menu) in place, so
+// that going back to it returns here.
+function keepPlace(detail) {
+  history.replaceState(null, '', `#${encodeURIComponent(detail)}`);
+
+  if (window.parent !== window) {
+    window.parent.postMessage({ shown: 'altar', detail }, '*');
+  }
+}
+
+function addressed() {
+  try {
+    return decodeURIComponent(location.hash.slice(1));
+  } catch {
+    return '';
+  }
+}
+
+// A result named in the address (altar.html#庫塔@181; the number tells apart those of one name) is chosen in its tab.
+function chooseNamed(text = addressed()) {
+  const at = text.lastIndexOf('@');
+  const numbered = at > 0 && /^\d+$/.test(text.slice(at + 1));
+  const name = numbered ? text.slice(0, at) : text;
+  const id = numbered ? Number(text.slice(at + 1)) : null;
+  const item = made.find(each => each.name === name && (id === null || each.id === id));
+
+  if (!item) {
+    return;
+  }
+
+  category = TABS.indexOf(tabOf(item));
+  $('search').value = '';
+  drawTabs();
+  list();
+  chosen = shown.indexOf(item);
+  opened = null;
+  show();
+}
+
 addEventListener('resize', fit);
+addEventListener('hashchange', () => chooseNamed());
+// The place read before the first list shows (and keeps) its first result.
+const place = addressed();
 fit();
 drawTabs();
 list();
+chooseNamed(place);
 </script>
 </body>
 </html>

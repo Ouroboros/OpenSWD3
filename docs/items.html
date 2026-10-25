@@ -362,6 +362,8 @@ function show() {
     return;
   }
 
+  keepPlace(item.name);
+
   const kind = [...item.tabs.map(at => DATA.tabs[at]), ...item.slots].filter((name, at, all) =>
     all.indexOf(name) === at).join('・');
   // A shop sells at the price and buys at 60% of it (none without a price).
@@ -451,9 +453,26 @@ function fit() {
   book.style.transform = `translate(${left}px, ${top}px) scale(${scale})`;
 }
 
+// The item shown kept in the address (and in the home page's, which shows this page beside its menu) in place, so
+// that going back to it returns here.
+function keepPlace(detail) {
+  history.replaceState(null, '', `#${encodeURIComponent(detail)}`);
+
+  if (window.parent !== window) {
+    window.parent.postMessage({ shown: 'items', detail }, '*');
+  }
+}
+
+function addressed() {
+  try {
+    return decodeURIComponent(location.hash.slice(1));
+  } catch {
+    return '';
+  }
+}
+
 // An item named in the address (items.html#藥草, from the other pages) is chosen in its first tab.
-function chooseNamed() {
-  const name = decodeURIComponent(location.hash.slice(1));
+function chooseNamed(name = addressed()) {
   const item = DATA.items.find(each => each.name === name);
 
   if (!item) {
@@ -469,11 +488,13 @@ function chooseNamed() {
 }
 
 addEventListener('resize', fit);
-addEventListener('hashchange', chooseNamed);
+addEventListener('hashchange', () => chooseNamed());
+// The place read before the first list shows (and keeps) its first item.
+const place = addressed();
 fit();
 drawTabs();
 list();
-chooseNamed();
+chooseNamed(place);
 </script>
 </body>
 </html>
