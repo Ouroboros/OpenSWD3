@@ -382,8 +382,9 @@ void FieldView::KeepRolePlaces()
 // starting off or turning faces its way from the step's start). A step takes the frames to the role's next step: its
 // act's delay plus one, read once the frame's acts have all run, or the delay its act at the start takes after a run,
 // plus one, when fewer (a role that stopped steps at the pace it walked); one past RoleStepMostFrames. A role the frame
-// did not move goes on with the step under way; one that came, went or changed, or moved by more than a tile (put
-// there), is shown where it is, as are all after a gap in the frames or on another map.
+// did not move goes on with the step under way, unless the frame turned it or changed its action (it stopped); one that
+// came, went or changed, or moved by more than a tile (put there), is shown where it is, as are all after a gap in the
+// frames or on another map.
 void FieldView::CaptureRoleSteps(bool continuous)
 {
     Game& owner = this->game;
@@ -414,8 +415,15 @@ void FieldView::CaptureRoleSteps(bool continuous)
             continue;
         }
 
+        // A role the frame left where it was goes on with its step, unless the frame turned it or changed its action:
+        // it has stopped, and is shown where it stands.
         if (byX == 0 && byY == 0)
         {
+            if (role.act.direction != from.act.direction || role.act.action != from.act.action)
+            {
+                step.active = false;
+            }
+
             continue;
         }
 
