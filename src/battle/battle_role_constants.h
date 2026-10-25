@@ -11,7 +11,7 @@ namespace swd3
 constexpr i32 kAttackAction = 0x28;
 constexpr std::size_t kFlightAct = 1;      // the slot act a flying follow-up uses
 constexpr i32 kForcedAttackAction = 0x30;  // unk2A8C 1 of a forced unit
-constexpr u32 kRepeatAttack = 1;           // unk26CC bit 0: the attack repeats extraAttacks times (skill 0x15)
+constexpr u32 kRepeatAttack = 1;  // accessoryCommands bit 0: the attack repeats extraAttacks times (skill 0x15)
 constexpr i16 kSlotFadeEnd = -0x20;
 constexpr i16 kSlotFadeStep = 4;
 

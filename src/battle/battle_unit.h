@@ -686,9 +686,9 @@ public:
     u32 colorPair = DefaultColorPair;  // +0x26BC
     u32 status = 0;                    // +0x26C0 status bits (2: stone, 12: frozen, ...)
     u32 equipmentFlags = 0;            // +0x26C8 bits 0, 2..6 from the equipment
-    u32 unk26CC = 0;
-    u16 marks = 0;      // +0x26D0 (bit 1, 0x20, 0x40: held, 0x100, bit 13)
-    i16 guardPose = 0;  // +0x26D2 the guard pose (kGuardPose1..8)
+    u32 accessoryCommands = 0;         // +0x26CC the accessory commands of the turn: bit (kind - 0x15) of AccessoryKind
+    u16 marks = 0;                     // +0x26D0 (bit 1, 0x20, 0x40: held, 0x100, bit 13)
+    i16 guardPose = 0;                 // +0x26D2 the guard pose (kGuardPose1..8)
     u16 unk26D4 = 0;
     u16 nudge = 0;                                  // +0x26D6
     u16 drawAtSaved = 0;                            // +0x26D8

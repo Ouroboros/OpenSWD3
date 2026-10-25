@@ -491,7 +491,7 @@ constexpr swd3::u16 kAccessory1C = 0x1C;
 constexpr swd3::u16 kAccessory1D = 0x1D;
 constexpr swd3::u16 kAccessory20 = 0x20;
 constexpr swd3::u16 kSpiritFan = 0x39;
-constexpr swd3::u32 kAccessory19Bit = 0x10;  // unk26CC bit set by accessory 0x19
+constexpr swd3::u32 kAccessory19Bit = 0x10;  // accessoryCommands bit set by accessory 0x19
 constexpr swd3::u32 kAccessory1DBit = 0x100;
 constexpr swd3::u16 kAccessoryCost = 30;
 constexpr swd3::i16 kLowStamina = 20;
@@ -571,11 +571,11 @@ TEST_CASE("battle unit: accessory commands")
     record.stamina = kStamina;
     role.roleRecord = &record;
     CHECK_EQ(role.CanUseAccessory(kAccessory19), 1);
-    CHECK_EQ(role.unk26CC & kAccessory19Bit, kAccessory19Bit);
+    CHECK_EQ(role.accessoryCommands & kAccessory19Bit, kAccessory19Bit);
     CHECK_EQ(role.CanUseAccessory(kAccessory1C), 1);
     role.status = BattleUnit::Invisible;
     CHECK_EQ(role.CanUseAccessory(kAccessory1C), 0);
-    role.unk26CC |= kAccessory1DBit;
+    role.accessoryCommands |= kAccessory1DBit;
     CHECK_EQ(role.CanUseAccessory(kAccessory1D), 0);
     role.status = BattleUnit::Barrier;
     CHECK_EQ(role.CanUseAccessory(kAccessory20), 0);

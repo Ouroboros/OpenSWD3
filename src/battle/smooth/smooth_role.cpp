@@ -396,7 +396,7 @@ int RoleFrame::AttackAdvance(BattleServices& services, BattleUnit& target, int s
     {
         if (role.extraAttacks == 0)
         {
-            role.unk26CC &= ~kRepeatAttack;
+            role.accessoryCommands &= ~kRepeatAttack;
         }
 
         if (role.extraAttacks != 0)

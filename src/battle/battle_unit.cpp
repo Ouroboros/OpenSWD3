@@ -433,7 +433,7 @@ int BattleUnit::ResetTurn(BattleServices& services)
     this->restoreStamina = 0;
     this->mainAct.anchorX = 0;
     this->mainAct.anchorY = 0;
-    this->unk26CC = 0;
+    this->accessoryCommands = 0;
 
     if ((mode & kResetClearsGuard) != 0)
     {
@@ -1036,8 +1036,8 @@ constexpr i32 kEffectAct = 0x2AF8;
 
 // The damage of a hit (HitDamage).
 constexpr std::size_t kResistances = 9;
-constexpr u32 kAttackFromBonus = 9;        // unk26CC bits: the attack is the bonus of the battle record (enraged)
-constexpr u32 kAttackDownIgnored = 0x100;  // unk26CC bit: AttackDown does not cut the attack
+constexpr u32 kAttackFromBonus = 9;        // accessoryCommands bits: the attack is the battle record's bonus (enraged)
+constexpr u32 kAttackDownIgnored = 0x100;  // accessoryCommands bit: AttackDown does not cut the attack
 constexpr u32 kLevelShare = 3;             // the attack roll is 1..level / kLevelShare + kLevelRollBase
 constexpr u32 kLevelRollBase = 3;
 constexpr int kAttackBuffPercent = 30;
@@ -1873,7 +1873,7 @@ void BattleUnit::ExpireEffects(BattleServices& services, int clearAll)
                 case SkillScript::AttackDown:
                     this->Announce(services, BattleMessages::AttackDownEnd, kAnnounceFlags);
                     this->status &= ~BattleUnit::AttackDown;
-                    this->unk26CC &= ~kAttackDownIgnored;
+                    this->accessoryCommands &= ~kAttackDownIgnored;
                     break;
 
                 case SkillScript::Invisible:
@@ -2184,7 +2184,7 @@ void BattleUnit::Reset(BattleServices& services)
     this->choicePhase = 0;
     this->pendingDamage = 0;
     this->equipmentFlags = 0;
-    this->unk26CC = 0;
+    this->accessoryCommands = 0;
     this->kind = 0;
     this->unk2AA4 = 0;
     this->unk2AA8 = 0;
@@ -2924,7 +2924,7 @@ i16 BattleUnit::HitDamage(BattleServices& services, BattleUnit& target, i16& spi
 
     if (kind == BattleUnit::UnkCommand1 || kind == BattleUnit::UnkCommand1A || kind == BattleUnit::UnkCommand18)
     {
-        if ((this->unk26CC & kAttackFromBonus) != 0)
+        if ((this->accessoryCommands & kAttackFromBonus) != 0)
         {
             attack = static_cast<i16>(this->battleRecord->attackBonus);
         }
@@ -2952,7 +2952,7 @@ i16 BattleUnit::HitDamage(BattleServices& services, BattleUnit& target, i16& spi
             raise += kAttackBuffPercent * attack / kPercent;
         }
 
-        if ((this->status & BattleUnit::AttackDown) != 0 && (this->unk26CC & kAttackDownIgnored) == 0)
+        if ((this->status & BattleUnit::AttackDown) != 0 && (this->accessoryCommands & kAttackDownIgnored) == 0)
         {
             cut = kAttackBuffPercent * attack / kPercent;
         }
@@ -3040,7 +3040,7 @@ i16 BattleUnit::HitDamage(BattleServices& services, BattleUnit& target, i16& spi
 
         attack = attack > static_cast<i32>(defense) ? static_cast<i16>(attack - defense) : i16{1};
 
-        if ((this->unk26CC & kAttackFromBonus) != 0)
+        if ((this->accessoryCommands & kAttackFromBonus) != 0)
         {
             const i32 value = attack;
             const auto share = static_cast<u16>(kEnragedSharePercent * value / kPercent);
@@ -4354,7 +4354,7 @@ void BattleUnit::TickEffects(BattleServices& services)
 
 // swd32.exe 0x00482FC0: whether the accessory command of `kind` can be taken: not when it costs more stamina than the
 // role has; Unk1C not while Invisible, Unk1D not with its bit, Unk20 not under a Barrier, SpiritFan only with the
-// equipment; Unk19 sets its unk26CC bit.
+// equipment; Unk19 sets its accessoryCommands bit.
 int BattleUnit::CanUseAccessory(u16 kind)
 {
     if (static_cast<i32>(this->AccessoryValue(kind)) > this->roleRecord->stamina)
@@ -4365,14 +4365,14 @@ int BattleUnit::CanUseAccessory(u16 kind)
     switch (kind)
     {
         case kAccessory19:
-            this->unk26CC |= kAccessory19Bit;
+            this->accessoryCommands |= kAccessory19Bit;
             return 1;
 
         case kAccessory1C:
             return (this->status & BattleUnit::Invisible) != 0 ? 0 : 1;
 
         case kAccessory1D:
-            return (this->unk26CC & kAccessory1DBit) != 0 ? 0 : 1;
+            return (this->accessoryCommands & kAccessory1DBit) != 0 ? 0 : 1;
 
         case kAccessory20:
             return (this->status & BattleUnit::Barrier) != 0 ? 0 : 1;
