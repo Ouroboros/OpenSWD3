@@ -19,9 +19,13 @@ namespace swd3
 class EventScan
 {
 public:
-    // The hint of hidden items: whether the script gives an item (command 0x80) or gold (0x1E or 0xB6 adding to
-    // variable 0).
+    // The hint of hidden items: whether the script gives an item (command 0x80 with a count above 0) or gold (0x1E or
+    // 0xB6 adding to variable 0).
     bool GivesItem(const std::u8string& directory, u32 event);
+    // The hint of hidden items: whether the script takes role `role` away once found: removes it (0x26), turns off its
+    // pointer (0x67) or changes its action (0xA), the role named by its id or as Talk::Current. A role whose event
+    // gives an item without it is a talk standing for someone (the role of a character out of reach).
+    bool TakesItself(const std::u8string& directory, u32 event, u16 role);
     // The map overview: the maps the script changes to (command 0x1B), each once, in the order read.
     const std::vector<u16>& EnteredMaps(const std::u8string& directory, u32 event);
 
@@ -38,6 +42,7 @@ private:
     std::array<std::vector<u8>, Files> files;
     std::array<bool, Files> loaded = {};
     std::unordered_map<u32, bool> items;
+    std::unordered_map<u64, bool> taken;
     std::unordered_map<u32, std::vector<u16>> maps;
 };
 

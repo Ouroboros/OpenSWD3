@@ -646,8 +646,9 @@ void FieldView::DrawRoleHeads()
 // gives an item, the bobbing arrow of the battle's target cursor (act kItemHintAct): whether the pointer offers to
 // examine it (Talk::HandlePointer's hand) or it is found only by facing it and pressing the key (NoTalkPointer). The
 // thing is drawn in the map; the role is the box the pointer clicks (its picture), and the arrow's tip points at the
-// middle of that box. Taking the item removes the thing or its pointer, and so the arrow. Each closed jar or chest
-// (act kJarAct) whose event gives an item has the arrow too, until it is opened.
+// middle of that box. Taking the item removes the thing or its pointer, and so the arrow; an invisible thing its event
+// leaves as it is stands for a character out of reach (its talk may give an item) and has none. Each closed jar or
+// chest (act kJarAct) whose event gives an item has the arrow too, until it is opened.
 void FieldView::DrawItemHints()
 {
     constexpr i32 kHiddenItemAct = 622;
@@ -678,8 +679,11 @@ void FieldView::DrawItemHints()
         const bool hidden = role.act.id == kHiddenItemAct;
         const bool closedJar = role.act.id == kJarAct && role.act.action != kOpenedJar;
 
+        const std::u8string& directory = owner.config.installDirectory;
+
         if ((!hidden && !closedJar) || (role.flags & Role::Visible) == 0 || role.event == 0 ||
-            role.talkState != Role::NoTalk || !this->eventScan.GivesItem(owner.config.installDirectory, role.event))
+            role.talkState != Role::NoTalk || !this->eventScan.GivesItem(directory, role.event) ||
+            (hidden && !this->eventScan.TakesItself(directory, role.event, role.id)))
         {
             continue;
         }

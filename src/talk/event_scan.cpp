@@ -127,17 +127,44 @@ bool EventScan::GivesItem(const std::u8string& directory, u32 event)
         [](EventCommand code, std::span<const u8> command)
         {
             // Gold given: an amount above 0 added to variable 0 (a word, or a dword for the wide command); a payment
-            // adds a negative amount.
+            // adds a negative amount. An item given: a count above 0 (a negative count takes the item).
             constexpr std::size_t kAmountAt = kOpcodeBytes + kWordBytes;
+            constexpr std::size_t kCountAt = kOpcodeBytes + kWordBytes;
             const bool adds = code == EventCommand::AddVariable || code == EventCommand::AddVariableWide;
             const i32 amount = code == EventCommand::AddVariableWide ? static_cast<i32>(ReadDword(command, kAmountAt))
                                                                      : static_cast<i16>(TextWord(command, kAmountAt));
             const bool gold = adds && TextWord(command, kOpcodeBytes) == Party::Gold && amount > 0;
-            return code == EventCommand::AddItem || gold;
+            const bool item = code == EventCommand::AddItem && static_cast<i16>(TextWord(command, kCountAt)) > 0;
+            return item || gold;
         }
     );
     this->items.emplace(event, gives);
     return gives;
+}
+
+bool EventScan::TakesItself(const std::u8string& directory, u32 event, u16 role)
+{
+    const u64 key = static_cast<u64>(event) << 16 | role;
+
+    if (const auto found = this->taken.find(key); found != this->taken.end())
+    {
+        return found->second;
+    }
+
+    const bool takes = this->Scan(
+        directory,
+        event,
+        0,
+        [role](EventCommand code, std::span<const u8> command)
+        {
+            const bool acts = code == EventCommand::RemoveRole || code == EventCommand::RoleNoTalkPointer ||
+                              code == EventCommand::SetAction;
+            const u16 target = TextWord(command, kOpcodeBytes);
+            return acts && (target == Talk::Current || target == role);
+        }
+    );
+    this->taken.emplace(key, takes);
+    return takes;
 }
 
 const std::vector<u16>& EventScan::EnteredMaps(const std::u8string& directory, u32 event)
