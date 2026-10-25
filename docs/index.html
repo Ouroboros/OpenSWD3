@@ -190,6 +190,7 @@ footer { margin-top: 40px; text-align: center; font-size: 14px; color: var(--dim
   <a href="#secrets">隐藏秘籍</a>
   <a href="#bestiary">神魔異事錄</a>
   <a href="#items">物品大全</a>
+  <a href="#altar">煉妖大全</a>
   <a href="https://github.com/Ouroboros/OpenSWD3">GitHub</a>
 </nav>
 <div class="page" id="top">
@@ -297,7 +298,7 @@ data_dir = 'E:\Game\swd3'</code></pre>
 <div class="viewer" id="viewer"></div>
 <script>
 // The bestiary and the items open in place of the page, beside the menu; each is loaded the first time it is shown.
-const VIEWS = { bestiary: 'bestiary.html', items: 'items.html' };
+const VIEWS = { bestiary: 'bestiary.html', items: 'items.html', altar: 'altar.html' };
 const frames = {};
 // The section on screen is chosen in the menu, as the game marks the page shown.
 const links = [...document.querySelectorAll('nav a[href^="#"]')].filter(link => !VIEWS[link.hash.slice(1)]);
