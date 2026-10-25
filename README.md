@@ -26,9 +26,9 @@
 
 每一处和原版不同的行为都记录在 [deviations.md](reverse/analysis/deviations.md)。
 
-怪物资料见 [神魔異事錄](https://ouroboros.github.io/OpenSWD3/bestiary.html)：仿游戏的神魔異事錄，列出全部怪物的数值、各属性承受伤害、招式、可偷的物品、掉落物品和说明，也收录了游戏图鉴里没有的剧情对手，可以搜索。
+怪物资料见 [神魔異事錄](https://ouroboros.github.io/OpenSWD3/#bestiary)：仿游戏的神魔異事錄，列出全部怪物的数值、各属性承受伤害、招式、可偷的物品、掉落物品和说明，也收录了游戏图鉴里没有的剧情对手，可以搜索。
 
-物品资料见 [物品大全](https://ouroboros.github.io/OpenSWD3/items.html)：仿游戏的物品菜单，列出全部物品的图片、说明和买卖价格，装备的可装备角色、各项加成、每回合回复、抗力与武器成长加成，以及哪些怪物会掉落或可以偷到，可以搜索。
+物品资料见 [物品大全](https://ouroboros.github.io/OpenSWD3/#items)：仿游戏的物品菜单，列出全部物品的图片、说明和买卖价格，装备的可装备角色、各项加成、每回合回复、抗力与武器成长加成，以及哪些怪物会掉落或可以偷到，可以搜索。
 
 ## 安装与运行
 

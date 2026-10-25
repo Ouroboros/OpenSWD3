@@ -87,6 +87,12 @@ nav a.chosen {
   .page { margin-left: 200px; margin-right: 0; }
 }
 
+.viewer { display: none; position: fixed; left: 200px; top: 0; right: 0; bottom: 0; }
+.viewer iframe { display: none; width: 100%; height: 100%; border: 0; }
+.viewer iframe.shown { display: block; }
+body.viewing .page { display: none; }
+body.viewing .viewer { display: block; }
+
 header {
   border-top: 2px solid var(--line);
   border-bottom: 2px solid var(--line);
@@ -180,8 +186,8 @@ footer { margin-top: 40px; text-align: center; font-size: 14px; color: var(--dim
   <a href="#install">安装与运行</a>
   <a href="#settings">设置</a>
   <a href="#secrets">隐藏秘籍</a>
-  <a href="bestiary.html">神魔異事錄</a>
-  <a href="items.html">物品大全</a>
+  <a href="#bestiary">神魔異事錄</a>
+  <a href="#items">物品大全</a>
   <a href="https://github.com/Ouroboros/OpenSWD3">GitHub</a>
 </nav>
 <div class="page" id="top">
@@ -286,12 +292,51 @@ data_dir = 'E:\Game\swd3'</code></pre>
     <a href="https://github.com/Ouroboros/OpenSWD3/blob/master/reverse/analysis/deviations.md">和原版的全部差异</a>
   </footer>
 </div>
+<div class="viewer" id="viewer"></div>
 <script>
+// The bestiary and the items open in place of the page, beside the menu; each is loaded the first time it is shown.
+const VIEWS = { bestiary: 'bestiary.html', items: 'items.html' };
+const frames = {};
 // The section on screen is chosen in the menu, as the game marks the page shown.
-const links = [...document.querySelectorAll('nav a[href^="#"]')];
+const links = [...document.querySelectorAll('nav a[href^="#"]')].filter(link => !VIEWS[link.hash.slice(1)]);
 const targets = links.map(link => document.getElementById(link.getAttribute('href').slice(1)));
 
+function route() {
+  const name = location.hash.slice(1);
+  const view = VIEWS[name];
+  document.body.classList.toggle('viewing', view !== undefined);
+
+  if (view === undefined) {
+    document.querySelectorAll('nav a').forEach(link => link.classList.remove('chosen'));
+    const target = document.getElementById(name);
+
+    if (target) {
+      target.scrollIntoView();
+    }
+
+    choose();
+    return;
+  }
+
+  if (!frames[name]) {
+    const frame = document.createElement('iframe');
+    frame.src = view;
+    frame.title = document.querySelector(`nav a[href="#${name}"]`).textContent;
+    frame.addEventListener('load', () => frame.classList.contains('shown') && frame.focus());
+    document.getElementById('viewer').append(frame);
+    frames[name] = frame;
+  }
+
+  Object.entries(frames).forEach(([key, frame]) => frame.classList.toggle('shown', key === name));
+  frames[name].focus();
+  document.querySelectorAll('nav a').forEach(link => link.classList.toggle('chosen', link.hash === `#${name}`));
+}
+
 function choose() {
+  if (document.body.classList.contains('viewing')) {
+    return;
+  }
+
   let shown = 0;
 
   targets.forEach((target, at) => {
@@ -309,7 +354,8 @@ function choose() {
 
 addEventListener('scroll', choose);
 addEventListener('resize', choose);
-choose();
+addEventListener('hashchange', route);
+route();
 </script>
 </body>
 </html>
