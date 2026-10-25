@@ -153,6 +153,13 @@ h1 {
   font-weight: bold;
 }
 
+.tab.found {
+  color: #3a2a10;
+  background: linear-gradient(90deg, #cdb88a, #eadcb6);
+  border-color: var(--gold-dark);
+  box-shadow: inset 4px 0 0 var(--gold-dark);
+}
+
 .list {
   grid-column: 2;
   grid-row: 1 / span 4;
@@ -395,9 +402,12 @@ function show() {
   }
 
   const m = shown[chosen];
-  // While searching the tab of the monster chosen is lit.
-  const lit = query().length ? (m ? m.tab : -1) : category;
-  document.querySelectorAll('.tab').forEach((tab, at) => tab.classList.toggle('chosen', at === lit));
+  // While searching the tab of the monster chosen is marked (found), otherwise the category chosen.
+  const searching = query().length > 0;
+  document.querySelectorAll('.tab').forEach((tab, at) => {
+    tab.classList.toggle('chosen', !searching && at === category);
+    tab.classList.toggle('found', searching && m !== undefined && at === m.tab);
+  });
 
   if (!m) {
     ['stats', 'portrait', 'resist', 'loot', 'description'].forEach(id => { $(id).innerHTML = ''; });
