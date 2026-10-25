@@ -82,7 +82,6 @@ constexpr int kStartDrift = 2;
 constexpr u16 kEveryMapRole = 10000;  // records of these roles (and of none) belong to every map
 constexpr u16 kEveryMapRole2 = 10001;
 constexpr u16 kLeaderFlags = Role::Visible | Role::Solid | Role::StepsAct | Role::CellEffects;
-constexpr u16 kStoryActMark = 0x8000;  // in mapStory: the party leader takes a story act
 constexpr i32 kLeaderStoryAct = 0x60;
 constexpr i32 kLeaderSpecialAct = 0x5F;  // with kSpecialItem on the maps of the journey
 constexpr u32 kFollowUnlisted = 1;       // a flagged role not in the follower table follows
@@ -1033,7 +1032,7 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
                 role.act.id = view.warpLeaderAct;
             }
 
-            if ((view.mapStory & kStoryActMark) != 0)
+            if ((view.mapStory & Scene::StoryActMark) != 0)
             {
                 role.act.id = kLeaderStoryAct;
 
@@ -1055,7 +1054,7 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
         if ((role.flags & Role::Follower) != 0)
         {
             u32 follow = kFollowUnlisted;
-            const u32 story = static_cast<u32>(view.mapStory) & ~kStoryActMark;
+            const u32 story = static_cast<u32>(view.mapStory) & ~static_cast<u32>(Scene::StoryActMark);
 
             for (std::size_t list = MapsTable(data, MapsDataTable::Followers);
                  MapsWord(data, list) != MapsRecord::TableEnd;
@@ -1080,7 +1079,7 @@ void Game::PlaceRoles(int map, int x, int y, i16 act, i16 action, i16 direction,
                 this->FollowLeader(slot);
                 role.flags |= Role::Visible;
 
-                if (this->currentMap == Field::DemonRefiningPot || (view.mapStory & kStoryActMark) != 0)
+                if (this->currentMap == Field::DemonRefiningPot || (view.mapStory & Scene::StoryActMark) != 0)
                 {
                     role.flags &= ~Role::Visible;
                 }

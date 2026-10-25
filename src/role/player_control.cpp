@@ -45,6 +45,7 @@ constexpr i32 kStepDownMargin = 0x1E;
 constexpr i32 kRegionLeaderSteps = 0x10;  // a region event is placed this many steps behind the controlled role
 constexpr i32 kDoublePress = 2;           // ButtonState::press of a second click
 constexpr int kRunSpeedFactor = 2;
+constexpr int kJourneyRunSpeed = 8;  // the rebuild (deviations.md): a run on a map of the journey
 constexpr int kSkipSpeed = 0x10;
 constexpr i32 kIdlePoseFrames = 0x80;
 
@@ -633,6 +634,12 @@ void RoleControl::ControlPlayer()
             if (this->running != 0 || doubled != 0)
             {
                 speed = kRunSpeedFactor * view.mapWalkSpeed;
+
+                // The rebuild (deviations.md): the maps of the journey (their walk 2) run as fast as the towns do.
+                if ((view.mapStory & Scene::StoryActMark) != 0)
+                {
+                    speed = kJourneyRunSpeed;
+                }
             }
 
             if (owner.talk.skipAll != 0)

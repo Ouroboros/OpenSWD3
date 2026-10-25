@@ -249,6 +249,9 @@ struct Streak
 struct Scene
 {
     static constexpr i16 ShakeEnd = static_cast<i16>(0xCFCF);  // ends the pairs of `shake`
+    // In `mapStory`: the party leader takes a story act; set on the maps of the journey (兩河平原, 長安, 西域,
+    // 黃河流域, 義大利北部, 移動島 and 地中海東岸).
+    static constexpr i32 StoryActMark = 0x8000;
 
     // `musicCue`: the tune playing in the low byte (1, 2, MusicStopped) and how the two tunes of the scene and of the
     // story follow each other.
