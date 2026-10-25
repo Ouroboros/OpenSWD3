@@ -6,6 +6,8 @@
 
 本项目不含任何游戏资料，需要你已有原版游戏。
 
+主页：<https://ouroboros.github.io/OpenSWD3/>
+
 ## 和原版相比
 
 | 方面 | 原版 | 重制版 |
@@ -24,7 +26,7 @@
 
 每一处和原版不同的行为都记录在 [deviations.md](reverse/analysis/deviations.md)。
 
-怪物资料可以用浏览器打开 [docs/bestiary.html](docs/bestiary.html) 查看：仿游戏的神魔異事錄，列出全部怪物的数值、各属性承受伤害、招式、可偷的物品、掉落物品和说明，也收录了游戏图鉴里没有的剧情对手，可以搜索。
+怪物资料见 [神魔異事錄](https://ouroboros.github.io/OpenSWD3/bestiary.html)：仿游戏的神魔異事錄，列出全部怪物的数值、各属性承受伤害、招式、可偷的物品、掉落物品和说明，也收录了游戏图鉴里没有的剧情对手，可以搜索。
 
 ## 安装与运行
 

@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenSWD3 — 軒轅劍參 重制执行程序</title>
+<style>
+:root {
+  --ink: #7a1f12;
+  --text: #2e2214;
+  --dim: #6d5a3c;
+  --line: rgba(122, 60, 20, 0.35);
+  --panel: rgba(255, 250, 236, 0.72);
+  --gold: #c9a24a;
+  --gold-dark: #7a5a1c;
+  --kai: "BiauKai", "DFKai-SB", "標楷體", "KaiTi", "STKaiti", "Kaiti TC", serif;
+  --body: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Noto Sans SC", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.75;
+  color: var(--text);
+  background:
+    radial-gradient(ellipse at 20% 10%, rgba(255, 250, 230, 0.55), transparent 55%),
+    radial-gradient(ellipse at 80% 85%, rgba(120, 90, 50, 0.35), transparent 60%),
+    repeating-linear-gradient(90deg, rgba(110, 60, 20, 0.06) 0 1px, transparent 1px 72px),
+    linear-gradient(160deg, #e8dcc0 0%, #d6c39c 45%, #c4ab7d 100%);
+  background-attachment: fixed;
+}
+
+.page { max-width: 1040px; margin: 0 auto; padding: 32px 20px 64px; }
+
+header {
+  border-top: 2px solid var(--line);
+  border-bottom: 2px solid var(--line);
+  background: repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px 54px);
+  padding: 28px 24px 22px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+h1 {
+  margin: 0;
+  font-family: var(--kai);
+  font-size: 56px;
+  line-height: 1.1;
+  letter-spacing: 6px;
+  color: var(--ink);
+  text-shadow: 2px 2px 0 rgba(255, 240, 210, 0.6);
+}
+
+h1 small { display: block; margin-top: 8px; font-size: 22px; letter-spacing: 2px; color: var(--dim); }
+
+nav { display: flex; flex-wrap: wrap; gap: 10px; }
+
+nav a, .button {
+  font-family: var(--kai);
+  font-size: 19px;
+  color: #1e1406;
+  text-decoration: none;
+  padding: 6px 16px;
+  border: 1px solid var(--gold-dark);
+  border-radius: 4px;
+  background: linear-gradient(#f6e3a6, #d6b45e);
+  box-shadow: 1px 2px 4px rgba(40, 25, 5, 0.3);
+}
+
+nav a:hover, .button:hover { background: linear-gradient(#fff0c0, #e2c06a); }
+
+.intro { margin: 28px 0 8px; font-size: 18px; }
+
+.intro p { margin: 0 0 10px; }
+
+.note { color: var(--dim); }
+
+section {
+  margin-top: 36px;
+  padding: 22px 26px 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 1px 2px 8px rgba(40, 25, 5, 0.15);
+}
+
+h2 {
+  margin: 0 0 14px;
+  font-family: var(--kai);
+  font-size: 30px;
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 6px;
+}
+
+h3 { margin: 22px 0 8px; font-family: var(--kai); font-size: 22px; color: var(--ink); }
+
+table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; font-size: 15px; }
+
+th, td { text-align: left; vertical-align: top; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+
+th { font-family: var(--kai); font-size: 17px; color: var(--ink); background: rgba(201, 162, 74, 0.18); }
+
+td:first-child { white-space: nowrap; font-weight: bold; }
+
+code {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.92em;
+  padding: 1px 5px;
+  background: rgba(122, 60, 20, 0.1);
+  border-radius: 3px;
+}
+
+pre {
+  margin: 10px 0;
+  padding: 12px 16px;
+  background: #1e1710;
+  color: #f2e7c9;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+pre code { padding: 0; background: none; color: inherit; }
+
+ol, ul { padding-left: 24px; }
+
+li { margin-bottom: 6px; }
+
+a { color: var(--ink); }
+
+.feature {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.feature p { margin: 0; flex: 1 1 520px; }
+
+footer { margin-top: 40px; text-align: center; font-size: 14px; color: var(--dim); }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>OpenSWD3<small>軒轅劍參 雲和山的彼端 · 重制执行程序</small></h1>
+    <nav>
+      <a href="#compare">和原版相比</a>
+      <a href="#install">安装与运行</a>
+      <a href="#settings">设置</a>
+      <a href="#secrets">隐藏秘籍</a>
+      <a href="bestiary.html">神魔異事錄</a>
+      <a href="https://github.com/Ouroboros/OpenSWD3">GitHub</a>
+    </nav>
+  </header>
+
+  <div class="intro">
+    <p>《軒轅劍參 雲和山的彼端》（v1.02 DVD 版）的重制执行程序。它取代原版的 <code>swd32.exe</code>，读取你已安装的原版游戏资料，在现在的 Windows 上直接运行。</p>
+    <p>剧情、战斗、数值与各种规则都和原版一样，连原版的小 BUG 也保留；会让游戏崩溃的问题则已修正。</p>
+    <p class="note">本项目不含任何游戏资料，需要你已有原版游戏。</p>
+  </div>
+
+  <section>
+    <div class="feature">
+      <p><strong>神魔異事錄</strong>：仿游戏图鉴的网页，列出全部怪物的数值、各属性承受伤害、招式、可偷的物品、掉落物品和说明，也收录了游戏图鉴里没有的剧情对手，可以搜索。</p>
+      <a class="button" href="bestiary.html">打开神魔異事錄</a>
+    </div>
+  </section>
+
+  <section id="compare">
+    <h2>和原版相比</h2>
+    <table>
+      <tr><th>方面</th><th>原版</th><th>重制版</th></tr>
+      <tr><td>游戏目录</td><td>由安装程序写入的目录</td><td>游戏资料和存档可以放在任意目录，目录名可以有中文</td></tr>
+      <tr><td>字体</td><td>需要系统装有細明體</td><td>自带字体</td></tr>
+      <tr><td>窗口</td><td>640×480 独占全屏</td><td>窗口运行，任意缩放，<code>Alt+Enter</code> 切换全屏，记住窗口大小</td></tr>
+      <tr><td>切到其他程序</td><td>游戏暂停</td><td>继续运行</td></tr>
+      <tr><td>画面</td><td>每 35 毫秒画一帧，固定 640×480</td><td>可按显示器刷新率平滑显示，地图可填满宽屏（见「设置」）</td></tr>
+      <tr><td>启动画面</td><td>每次都显示</td><td>可以跳过，直接进入标题画面（见「设置」）</td></tr>
+      <tr><td>隐藏道具</td><td>没有提示</td><td>可显示提示箭头（见「设置」，默认关闭）</td></tr>
+      <tr><td>地图全景</td><td>没有</td><td>地图上按 Tab 打开当前地图的全景大地图，标出主角位置和各出入口通往的地方，可缩放、拖动，再次打开时保持上次的缩放</td></tr>
+      <tr><td>状态页</td><td>只显示等级、经验与四项属性</td><td>另显示閃躲、異常、默契、反應与绝技点（学下一个绝技的进度）</td></tr>
+      <tr><td>商店买卖数量</td><td>左右键每次加减 1</td><td>按住 Shift 再按左右键，数量直接减到 0 或加到最多（卖：全部；买：银币够、合计不超过 99）</td></tr>
+      <tr><td>武器说明</td><td>只有文字说明</td><td>末尾显示武器成长带来的伤害加成（当前与成长满时）</td></tr>
+    </table>
+  </section>
+
+  <section id="install">
+    <h2>安装与运行</h2>
+    <ol>
+      <li>准备好原版游戏目录，例如 <code>E:\Game\swd3</code>。</li>
+      <li>解压后得到 <code>OpenSWD3</code> 文件夹，里面有 <code>swd3r.exe</code>、<code>asset</code> 文件夹和设置文件 <code>swd3r.toml</code>。可以整个放在任意位置，也可以把里面的东西放进游戏目录。</li>
+      <li>如果没有放进游戏目录，用记事本打开 <code>swd3r.toml</code>，在 <code>[paths]</code> 里写上游戏目录：
+<pre><code>[paths]
+data_dir = 'E:\Game\swd3'</code></pre>
+      </li>
+      <li>运行 <code>swd3r.exe</code>。</li>
+    </ol>
+  </section>
+
+  <section id="settings">
+    <h2>设置</h2>
+    <p>下面这些是重制版新增的设置。在标题画面的「環境設定」或游戏中按 Esc →「設定」里都能调整，改了立即生效并保存。</p>
+    <table>
+      <tr><th>设置</th><th>默认</th><th>作用</th></tr>
+      <tr><td>啟動畫面</td><td>开</td><td>关闭后启动时跳过启动画面，直接进入标题画面</td></tr>
+      <tr><td>平滑畫面</td><td>开</td><td>按显示器刷新率画出移动、淡入淡出等动态，高刷新率显示器更流畅；关闭后和原版一样每 35 毫秒画一次</td></tr>
+      <tr><td>垂直同步</td><td>开</td><td>等显示器刷新再显示，消除画面撕裂</td></tr>
+      <tr><td>幀率上限</td><td>自動</td><td>每秒最多画几帧；只在平滑畫面开启时有效</td></tr>
+      <tr><td>繪製倍率</td><td>自動</td><td>平滑畫面按几倍精度绘制，倍数越高移动越细，也越耗 CPU；只在平滑畫面开启时有效</td></tr>
+      <tr><td>地圖填滿</td><td>开</td><td>地图填满宽屏窗口，能看到更大范围；菜单、战斗等画面仍是 640×480</td></tr>
+      <tr><td>自動連擊</td><td>关</td><td>自动战斗时，戴着「連擊」饰品（武聖手鐲、姜公膽）且体力足够的角色自动使用「連擊」，体力不够时照常普通攻击</td></tr>
+      <tr><td>道具提示</td><td>关</td><td>地图上看不见、但调查后能拿到道具或银币的地方显示一个跳动的箭头，还没打开的罐子、宝箱也显示；能调查时才显示，拿走后消失</td></tr>
+    </table>
+    <p>exe 旁边有两个设置文件：<code>swd3r.toml</code> 是你自己的设置，程序不会改动它；<code>swd3r.default.toml</code> 是游戏自动保存的设置。两个文件写了同一项时，以 <code>swd3r.toml</code> 为准。</p>
+  </section>
+
+  <section id="secrets">
+    <h2>隐藏秘籍</h2>
+    <p>以下都是原版就有的隐藏功能。</p>
+
+    <h3>特殊名字</h3>
+    <p>新游戏给前两位角色取名时，输入下面的名字，取名完成后对应角色的数值会改变。名字必须完全一致，只在取名时生效一次。</p>
+    <table>
+      <tr><th>第一位角色</th><th>效果</th></tr>
+      <tr><td>何然</td><td>力量、耐力、智慧、敏捷都变成 25</td></tr>
+      <tr><td>輔子徹</td><td>力量、耐力、智慧、敏捷都变成 30</td></tr>
+      <tr><td>楊坤碩</td><td>力量 50，生命和生命上限 200</td></tr>
+      <tr><td>鑄石子</td><td>耐力 100，体力和体力上限 300</td></tr>
+      <tr><td>樂樂</td><td>智慧 70，魔法和魔法上限 250</td></tr>
+      <tr><td>大米</td><td>智慧 100，所有属性「損20%」（属性伤害多受 20%）</td></tr>
+      <tr><td>古月聖</td><td>所有属性「抗50%」（属性伤害只受一半）</td></tr>
+      <tr><td>寧采臣</td><td>耐力、智慧、敏捷各减 5，力量减 10，金钱变成 500</td></tr>
+      <tr><td>燕赤霞</td><td>耐力、体力、体力上限都变成 0</td></tr>
+    </table>
+    <table>
+      <tr><th>第二位角色</th><th>效果</th></tr>
+      <tr><td>江如紅</td><td>智慧 100，魔法和魔法上限 300</td></tr>
+      <tr><td>真夢</td><td>耐力 100，体力和体力上限 300</td></tr>
+      <tr><td>紅珊瑚</td><td>力量 50，生命和生命上限 200</td></tr>
+      <tr><td>紋錦</td><td>所有属性「抗70%」（属性伤害只受约三成）</td></tr>
+      <tr><td>小倩</td><td>智慧、魔法、魔法上限都变成 5</td></tr>
+    </table>
+
+    <h3>随时可用的按键</h3>
+    <table>
+      <tr><th>按键</th><th>作用</th></tr>
+      <tr><td>F8</td><td>暂停／继续游戏</td></tr>
+      <tr><td>P</td><td>截图（地图上或战斗中），存到游戏目录的 <code>ScrnShot</code> 文件夹</td></tr>
+      <tr><td>Tab（地图上）</td><td>打开／关闭大地图；滚轮或 <code>+</code> <code>-</code> 缩放，拖动或方向键移动，Home 回到主角，Esc 也能关闭</td></tr>
+    </table>
+    <p class="note">调试模式和更多按键见 <a href="https://github.com/Ouroboros/OpenSWD3#调试模式">README</a>。</p>
+  </section>
+
+  <footer>
+    <a href="https://github.com/Ouroboros/OpenSWD3">GitHub</a> ·
+    <a href="https://github.com/Ouroboros/OpenSWD3/blob/master/docs/building.md">从源码编译</a> ·
+    <a href="https://github.com/Ouroboros/OpenSWD3/blob/master/reverse/analysis/deviations.md">和原版的全部差异</a>
+  </footer>
+</div>
+</body>
+</html>
