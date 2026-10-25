@@ -2938,8 +2938,11 @@ int Game::MouseHover()
         }
 
         bool found = false;
+        // The rebuild (deviations.md): the roles past the party roles have no panel (the original reads past
+        // partyRoles for them).
+        const u32 roles = std::min<u32>(battle.roleCount, Party::Roles);
 
-        for (u32 index = 0; index < battle.roleCount; ++index)
+        for (u32 index = 0; index < roles; ++index)
         {
             const int left = BattleState::PortraitX[static_cast<std::size_t>(battle.partyRoles[index])];
 
