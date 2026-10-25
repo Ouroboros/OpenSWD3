@@ -10,6 +10,8 @@ namespace
 constexpr u32 kMostTicks = 0x100;
 // A role drawn farther than this many tiles from where the frames left it was put there: it is shown there at once.
 constexpr i32 kFarSteps = 2;
+// A role drawn behind where the frames left it gains at most this part of its step on each step it takes.
+constexpr i32 kCatchUpShare = 4;
 
 i32 Sign(i32 value)
 {
@@ -397,11 +399,12 @@ void FieldView::KeepRolePlaces()
 // otherwise with the frame's act (a role starting off or turning faces its way from the step's start). A step takes the
 // frames to the role's next step: its act's delay plus one, read once the frame's acts have all run; for a step that
 // stops it, the delay its act at the start takes after a run, plus one, when fewer (it steps at the pace it walked);
-// one past RoleStepMostFrames. A role the frame held for an event, or turned or changed the action of without moving
-// it, has stopped: it stays drawn where it is (where the frame moved it on too) until the frames move it again. A role
-// the frame did not move goes on as it is drawn; one that came, went or changed, or is drawn more than kFarSteps tiles
-// from where the frame left it (put there), is shown where it is, as are all after a gap in the frames or on another
-// map.
+// one past RoleStepMostFrames. A role drawn behind (held while between tiles, the frames put it on the tile ahead)
+// gains at most 1/kCatchUpShare of its step on each step, so that it catches up over a few steps at a pace near its
+// own. A role the frame held for an event, or turned or changed the action of without moving it, has stopped: it stays
+// drawn where it is (where the frame moved it on too) until the frames move it again; one the frame did not move goes
+// on as it is drawn. One that came, went or changed, or is drawn more than kFarSteps tiles from where the frame left it
+// (put there), is shown where it is, as are all after a gap in the frames or on another map.
 void FieldView::CaptureRoleSteps(bool continuous)
 {
     Game& owner = this->game;
@@ -457,19 +460,35 @@ void FieldView::CaptureRoleSteps(bool continuous)
             continue;
         }
 
+        const i32 toX = role.x * MotionFine;
+        const i32 toY = role.y * MotionFine;
+        const i32 gapX = toX - shown[0];
+        const i32 gapY = toY - shown[1];
+        const i32 gap = std::max(std::abs(gapX), std::abs(gapY));
+
         if (!moved)
         {
             continue;
         }
 
-        const i32 toX = role.x * MotionFine;
-        const i32 toY = role.y * MotionFine;
         constexpr i32 kFar = kFarSteps * MapHeader::TileSize * MotionFine;
 
-        if (std::abs(toX - shown[0]) > kFar || std::abs(toY - shown[1]) > kFar)
+        if (std::abs(gapX) > kFar || std::abs(gapY) > kFar)
         {
             step.active = false;
             continue;
+        }
+
+        // The step drawn gains at most a part of the frame's step on a role drawn behind.
+        const i32 stepped = std::max(std::abs(role.x - from.x), std::abs(role.y - from.y)) * MotionFine;
+        const i32 most = stepped + stepped / kCatchUpShare;
+        i32 endX = toX;
+        i32 endY = toY;
+
+        if (gap > most)
+        {
+            endX = shown[0] + static_cast<i32>(static_cast<i64>(gapX) * most / gap);
+            endY = shown[1] + static_cast<i32>(static_cast<i64>(gapY) * most / gap);
         }
 
         // A step that stops a walking role takes the pace it walked at (its stand's delay would hold it long); any
@@ -489,8 +508,8 @@ void FieldView::CaptureRoleSteps(bool continuous)
             .targetY = role.y,
             .fromX = shown[0],
             .fromY = shown[1],
-            .toX = toX,
-            .toY = toY,
+            .toX = endX,
+            .toY = endY,
             .length = frames * interval,
             .elapsed = 0,
             .frame = owner.gameFrames,
