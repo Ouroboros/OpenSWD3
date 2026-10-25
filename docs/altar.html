@@ -593,8 +593,8 @@ $('list').addEventListener('click', event => {
 // its menu, alone the page itself.
 function openItem(item) {
   const view = item.id <= LAST_MONSTER ? 'bestiary' : 'items';
-  // A monster with its number: two records may share its name.
-  const detail = item.id <= LAST_MONSTER ? `${item.name}@${item.id}` : item.name;
+  // With its number: two monsters or two items may share a name.
+  const detail = `${item.name}@${item.id}`;
 
   if (window.parent !== window) {
     window.parent.postMessage({ open: view, detail }, '*');
