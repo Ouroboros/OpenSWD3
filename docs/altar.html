@@ -184,6 +184,8 @@ h1 {
 .card table { border-collapse: collapse; width: 160px; font-size: 19px; }
 .card td { padding: 0; height: 25px; line-height: 25px; }
 .card td.value { text-align: right; font-family: var(--ming); font-size: 18px; }
+.card .main .name.jump { cursor: pointer; }
+.card .main .name.jump:hover { color: var(--gold-light); text-decoration: underline; }
 .card .side { font-size: 17px; line-height: 30px; padding-top: 6px; }
 .card .side .label { font-family: var(--kai); color: var(--dim); }
 .card .side .warn { color: var(--warn); }
@@ -475,7 +477,9 @@ function drawCard(item, kept) {
   const pairs = kept.reduce((sum, rule) => sum + rule.pairs.length, 0);
   $('card').innerHTML = `<div class="picture">${picture}</div>` +
     `<div class="main"><div>${escape(tabOf(item))}${item.id <= LAST_MONSTER ? '' : '　' + escape(categoryName(item))}` +
-    `</div><div class="name">${escape(item.name)}</div><div>${item.level} 級</div>${values}</div>` +
+    `</div><div class="name${item.id <= LAST_MONSTER ? '' : ' jump'}"` +
+    `${item.id <= LAST_MONSTER ? '' : ' title="在物品大全中打開"'}>${escape(item.name)}</div>` +
+    `<div>${item.level} 級</div>${values}</div>` +
     `<div class="side"><div class="label">可在</div><div>${altars}</div>` +
     `<div class="label">煉製條件</div><div class="${need > 1 ? 'warn' : ''}">` +
     `${need > 1 ? `隊首角色 ${need} 級以上` : '無等級限制'}</div>` +
@@ -580,6 +584,25 @@ $('list').addEventListener('click', event => {
     opened = null;
     show();
     $('rules').scrollTop = 0;
+  }
+});
+
+// An object's name opens the items page on it: the home page shows it beside its menu, alone the page itself.
+function openItem(name) {
+  if (window.parent !== window) {
+    window.parent.postMessage({ open: 'items', detail: name }, '*');
+    return;
+  }
+
+  location.href = `items.html#${encodeURIComponent(name)}`;
+}
+
+$('card').addEventListener('click', event => {
+  const name = event.target.closest('.name.jump');
+  const item = shown[chosen];
+
+  if (name && item) {
+    openItem(item.name);
   }
 });
 

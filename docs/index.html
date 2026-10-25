@@ -304,8 +304,10 @@ const frames = {};
 const links = [...document.querySelectorAll('nav a[href^="#"]')].filter(link => !VIEWS[link.hash.slice(1)]);
 const targets = links.map(link => document.getElementById(link.getAttribute('href').slice(1)));
 
+// The address names a page and, after a slash, what it opens on (#items/藥草: that item in the items page).
 function route() {
-  const name = location.hash.slice(1);
+  const [name, ...rest] = location.hash.slice(1).split('/');
+  const detail = rest.join('/');
   const view = VIEWS[name];
   document.body.classList.toggle('viewing', view !== undefined);
 
@@ -321,13 +323,17 @@ function route() {
     return;
   }
 
+  const source = detail ? `${view}#${detail}` : view;
+
   if (!frames[name]) {
     const frame = document.createElement('iframe');
-    frame.src = view;
+    frame.src = source;
     frame.title = document.querySelector(`nav a[href="#${name}"]`).textContent;
     frame.addEventListener('load', () => frame.classList.contains('shown') && frame.focus());
     document.getElementById('viewer').append(frame);
     frames[name] = frame;
+  } else if (detail) {
+    frames[name].src = source;
   }
 
   Object.entries(frames).forEach(([key, frame]) => frame.classList.toggle('shown', key === name));
@@ -358,6 +364,14 @@ function choose() {
 addEventListener('scroll', choose);
 addEventListener('resize', choose);
 addEventListener('hashchange', route);
+// A page shown here asks for another (the altar's item opens the items page on it).
+addEventListener('message', event => {
+  const { open, detail } = event.data || {};
+
+  if (VIEWS[open] && typeof detail === 'string') {
+    location.hash = `${open}/${encodeURIComponent(detail)}`;
+  }
+});
 route();
 </script>
 </body>

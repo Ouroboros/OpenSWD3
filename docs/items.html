@@ -451,10 +451,29 @@ function fit() {
   book.style.transform = `translate(${left}px, ${top}px) scale(${scale})`;
 }
 
+// An item named in the address (items.html#藥草, from the other pages) is chosen in its first tab.
+function chooseNamed() {
+  const name = decodeURIComponent(location.hash.slice(1));
+  const item = DATA.items.find(each => each.name === name);
+
+  if (!item) {
+    return;
+  }
+
+  category = item.tabs[0];
+  $('search').value = '';
+  drawTabs();
+  list();
+  chosen = shown.indexOf(item);
+  show();
+}
+
 addEventListener('resize', fit);
+addEventListener('hashchange', chooseNamed);
 fit();
 drawTabs();
 list();
+chooseNamed();
 </script>
 </body>
 </html>
