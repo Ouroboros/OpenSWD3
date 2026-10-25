@@ -19,8 +19,6 @@
 
 * { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
-
 body {
   margin: 0;
   font-family: var(--body);
@@ -35,7 +33,55 @@ body {
   background-attachment: fixed;
 }
 
-.page { max-width: 1040px; margin: 0 auto; padding: 32px 20px 64px; }
+nav {
+  position: fixed;
+  top: 32px;
+  left: max(20px, calc(50% - 640px));
+  width: 160px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0;
+  background: linear-gradient(90deg, #b9a274 0%, #e9dcb4 18%, #f4ead0 50%, #e9dcb4 82%, #b9a274 100%);
+  border-left: 3px double #8a6a2a;
+  border-right: 3px double #8a6a2a;
+  box-shadow: inset 0 0 0 1px #d8bf7a, 0 0 0 1px #3a2a10, 2px 3px 8px rgba(40, 25, 5, 0.45);
+}
+
+nav::before, nav::after {
+  content: "";
+  position: absolute;
+  left: -6px;
+  right: -6px;
+  height: 5px;
+  background: linear-gradient(#f2d27a, #a07a2a);
+  border: 1px solid #5a4012;
+  border-radius: 2px;
+}
+
+nav::before { top: -4px; }
+nav::after { bottom: -4px; }
+
+nav a {
+  font-family: var(--kai);
+  font-size: 21px;
+  letter-spacing: 3px;
+  line-height: 1.6;
+  padding: 4px 0;
+  text-align: center;
+  text-decoration: none;
+  color: #8a7350;
+  text-shadow: 1px 1px 0 rgba(255, 248, 228, 0.7);
+}
+
+nav a:hover { color: #4a3618; }
+
+nav a.chosen {
+  color: #120c04;
+  font-weight: bold;
+  background: linear-gradient(90deg, transparent, rgba(255, 252, 238, 0.95) 25%, rgba(255, 252, 238, 0.95) 75%, transparent);
+}
+
+.page { max-width: 1040px; margin: 0 auto; padding: 32px 20px 64px 240px; box-sizing: content-box; }
 
 header {
   border-top: 2px solid var(--line);
@@ -61,9 +107,7 @@ h1 {
 
 h1 small { display: block; margin-top: 8px; font-size: 22px; letter-spacing: 2px; color: var(--dim); }
 
-nav { display: flex; flex-wrap: wrap; gap: 10px; }
-
-nav a, .button {
+.button {
   font-family: var(--kai);
   font-size: 19px;
   color: #1e1406;
@@ -73,9 +117,10 @@ nav a, .button {
   border-radius: 4px;
   background: linear-gradient(#f6e3a6, #d6b45e);
   box-shadow: 1px 2px 4px rgba(40, 25, 5, 0.3);
+  text-align: center;
 }
 
-nav a:hover, .button:hover { background: linear-gradient(#fff0c0, #e2c06a); }
+.button:hover { background: linear-gradient(#fff0c0, #e2c06a); }
 
 .intro { margin: 28px 0 8px; font-size: 18px; }
 
@@ -150,17 +195,18 @@ footer { margin-top: 40px; text-align: center; font-size: 14px; color: var(--dim
 </style>
 </head>
 <body>
-<div class="page">
+<nav>
+  <a href="#top">OpenSWD3</a>
+  <a href="#compare">和原版相比</a>
+  <a href="#install">安装与运行</a>
+  <a href="#settings">设置</a>
+  <a href="#secrets">隐藏秘籍</a>
+  <a href="bestiary.html">神魔異事錄</a>
+  <a href="https://github.com/Ouroboros/OpenSWD3">GitHub</a>
+</nav>
+<div class="page" id="top">
   <header>
     <h1>OpenSWD3<small>軒轅劍參 雲和山的彼端 · 重制执行程序</small></h1>
-    <nav>
-      <a href="#compare">和原版相比</a>
-      <a href="#install">安装与运行</a>
-      <a href="#settings">设置</a>
-      <a href="#secrets">隐藏秘籍</a>
-      <a href="bestiary.html">神魔異事錄</a>
-      <a href="https://github.com/Ouroboros/OpenSWD3">GitHub</a>
-    </nav>
   </header>
 
   <div class="intro">
@@ -267,5 +313,30 @@ data_dir = 'E:\Game\swd3'</code></pre>
     <a href="https://github.com/Ouroboros/OpenSWD3/blob/master/reverse/analysis/deviations.md">和原版的全部差异</a>
   </footer>
 </div>
+<script>
+// The section on screen is chosen in the menu, as the game marks the page shown.
+const links = [...document.querySelectorAll('nav a[href^="#"]')];
+const targets = links.map(link => document.getElementById(link.getAttribute('href').slice(1)));
+
+function choose() {
+  let shown = 0;
+
+  targets.forEach((target, at) => {
+    if (target.getBoundingClientRect().top <= 120) {
+      shown = at;
+    }
+  });
+
+  if (innerHeight + scrollY >= document.documentElement.scrollHeight - 2) {
+    shown = targets.length - 1;
+  }
+
+  links.forEach((link, at) => link.classList.toggle('chosen', at === shown));
+}
+
+addEventListener('scroll', choose);
+addEventListener('resize', choose);
+choose();
+</script>
 </body>
 </html>
