@@ -399,9 +399,11 @@ void FieldView::KeepRolePlaces()
 // otherwise with the frame's act (a role starting off or turning faces its way from the step's start). A step takes the
 // frames to the role's next step: its act's delay plus one, read once the frame's acts have all run; for a step that
 // stops it, the delay its act at the start takes after a run, plus one, when fewer (it steps at the pace it walked);
-// one past RoleStepMostFrames. A role drawn behind (held while between tiles, the frames put it on the tile ahead)
-// gains at most 1/kCatchUpShare of its step on each step, so that it catches up over a few steps at a pace near its
-// own. A role the frame held for an event, or turned or changed the action of without moving it, has stopped: it stays
+// one past RoleStepMostFrames. On the straight end of a move (StepsToEnd) each step is drawn an even share of the way
+// left to the move's end, so that the role gets there with the frame that stands it, at one pace along the straight
+// (a step drawn there already stands at once). Any other role drawn behind (held while between tiles, the frames put
+// it on the tile ahead) gains at most 1/kCatchUpShare of its step on each step, so that it catches up over a few steps
+// at a pace near its own. A role the frame held for an event, or turned or changed the action of without moving it, has stopped: it stays
 // drawn where it is (where the frame moved it on too) until the frames move it again; one the frame did not move goes
 // on as it is drawn. One that came, went or changed, or is drawn more than kFarSteps tiles from where the frame left it
 // (put there), is shown where it is, as are all after a gap in the frames or on another map.
@@ -479,21 +481,36 @@ void FieldView::CaptureRoleSteps(bool continuous)
             continue;
         }
 
-        // The step drawn gains at most a part of the frame's step on a role drawn behind.
-        const i32 stepped = std::max(std::abs(role.x - from.x), std::abs(role.y - from.y)) * MotionFine;
-        const i32 most = stepped + stepped / kCatchUpShare;
-        i32 endX = toX;
-        i32 endY = toY;
+        // On the straight end of a move the drawing covers an even share of the way left to the move's end on each of
+        // the steps left: it gets there with the frame that takes the last (and stands the role), at one pace all
+        // along the straight.
+        const i32 left = this->StepsToEnd(index, from);
+        const i32 aimX =
+            left >= 1 ? shown[0] + ((role.x + left * (role.x - from.x)) * MotionFine - shown[0]) / left : toX;
+        const i32 aimY =
+            left >= 1 ? shown[1] + ((role.y + left * (role.y - from.y)) * MotionFine - shown[1]) / left : toY;
+        const i32 aimGapX = aimX - shown[0];
+        const i32 aimGapY = aimY - shown[1];
+        const i32 aimGap = std::max(std::abs(aimGapX), std::abs(aimGapY));
 
-        if (gap > most)
+        // The step drawn gains at most a part of the frame's step on a role drawn behind (on a straight end, its even
+        // share, at most two steps).
+        const i32 stepped = std::max(std::abs(role.x - from.x), std::abs(role.y - from.y)) * MotionFine;
+        const i32 most = left >= 1 ? 2 * stepped : stepped + stepped / kCatchUpShare;
+        i32 endX = aimX;
+        i32 endY = aimY;
+
+        if (aimGap > most)
         {
-            endX = shown[0] + static_cast<i32>(static_cast<i64>(gapX) * most / gap);
-            endY = shown[1] + static_cast<i32>(static_cast<i64>(gapY) * most / gap);
+            endX = shown[0] + static_cast<i32>(static_cast<i64>(aimGapX) * most / aimGap);
+            endY = shown[1] + static_cast<i32>(static_cast<i64>(aimGapY) * most / aimGap);
         }
 
-        // A step that stops a walking role takes the pace it walked at (its stand's delay would hold it long); any
-        // other the frames to the role's next step.
-        const bool stops = from.walking && role.act.action != from.act.action;
+        // A step that stops a walking role drawn short of where the frame left it takes the pace it walked at (its
+        // stand's delay would hold it long); any other the frames to the role's next step. One drawn there already
+        // (the step before took it on) stands at once.
+        const bool stops = from.walking && role.act.action != from.act.action && gap != 0;
+
         i32 next = static_cast<i32>(role.act.delay) + 1;
 
         if (stops)
@@ -518,6 +535,37 @@ void FieldView::CaptureRoleSteps(bool continuous)
             .act = from.act,
         };
     }
+}
+
+// The steps like the one the game frame took (from `from`) that end role `index`'s move where it ends, in a straight
+// line; 0 when its move does not end so (or it has none, or is at its end).
+i32 FieldView::StepsToEnd(std::size_t index, const RolePlace& from) const
+{
+    const GameState& state = this->game.state;
+    const Role& role = state.roles[index];
+    const i32 byX = role.x - from.x;
+    const i32 byY = role.y - from.y;
+
+    if (byX == 0 && byY == 0)
+    {
+        return 0;
+    }
+
+    for (const MoveRecord& move : state.moves)
+    {
+        // A step on a tile marks the move Done until the next is taken: its end stands.
+        if (move.role != index)
+        {
+            continue;
+        }
+
+        const i32 leftX = move.x - role.x;
+        const i32 leftY = move.y - role.y;
+        const i32 steps = byX != 0 ? leftX / byX : leftY / byY;
+        return steps >= 1 && leftX == steps * byX && leftY == steps * byY ? steps : 0;
+    }
+
+    return 0;
 }
 
 // A millisecond of a role's step as it is drawn.

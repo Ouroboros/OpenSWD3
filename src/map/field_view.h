@@ -364,6 +364,7 @@ private:
     void RoleTick(std::size_t index);
     bool RoleOnStep(std::size_t index) const;
     bool RoleStopping(std::size_t index) const;
+    i32 StepsToEnd(std::size_t index, const RolePlace& from) const;
     std::array<i32, 2> MotionShown(const RoleMotion& step) const;
     void ArriveFollower(std::size_t index, std::size_t move, u8 direction);
     void StartPan(i32 byX, i32 byY);
