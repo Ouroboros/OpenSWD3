@@ -2182,6 +2182,8 @@ void BattleUnit::Reset(BattleServices& services)
     this->itemWait = 0;
     this->skillWait = 0;
     this->choicePhase = 0;
+    // The rebuild (deviations.md): a 連擊 taken in the battle before but not attacked with is not kept.
+    this->extraAttacks = 0;
     this->pendingDamage = 0;
     this->equipmentFlags = 0;
     this->accessoryCommands = 0;

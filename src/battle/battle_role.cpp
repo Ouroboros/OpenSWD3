@@ -257,6 +257,8 @@ void BattleRole::ClearExtras()
     this->usedItem = 0;
     this->unk2F18 = 0;
     this->unk2F16 = 0;
+    // The rebuild (deviations.md): a critical rolled in the battle before but not attacked with is not kept.
+    this->critical = 0;
     this->extraActs.fill(ActState{});
     this->slotActs[BattleUnit::UnkSlot8] = ActState{};
     this->slotActs[BattleUnit::UnkSlot9] = ActState{};
