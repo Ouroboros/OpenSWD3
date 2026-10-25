@@ -331,6 +331,12 @@ std::array<i32, 2> FieldView::RoleFine(std::size_t index, int scale) const
     return {role.x * scale, role.y * scale};
 }
 
+// Whether role `index` is drawn on a step that stops it, with the act it had where the step started.
+bool FieldView::RoleStopping(std::size_t index) const
+{
+    return this->RoleOnStep(index) && this->roleMotions[index].stops;
+}
+
 // Whether role `index` is drawn on the step the last game frame moved it by (still where the frame left it).
 bool FieldView::RoleOnStep(std::size_t index) const
 {
@@ -354,25 +360,30 @@ void FieldView::KeepRolePlaces()
     for (std::size_t index = 0; index < GameState::Roles; ++index)
     {
         const Role& role = owner.state.roles[index];
+        const bool walking =
+            index < this->roleMotions.size() &&
+            (this->roleMotions[index].active || this->roleMotions[index].frame + 1 == owner.gameFrames);
         this->framePlaces[index] = RolePlace{
             .id = role.id,
             .shown = (role.flags & Role::Visible) != 0,
             .x = role.x,
             .y = role.y,
             .act = role.act,
+            .walking = walking,
         };
     }
 
     this->framePlacesFrame = owner.gameFrames;
 }
 
-// The steps the game frame moved the roles by, drawn from where the frame started to where it left each role, with the
-// act it had where it started until it gets there (the frame's picture is that of the place it stepped to: a role
-// stops, then stands). A step takes the frames to the role's next step: its act's delay plus one, read once the frame's
-// acts have all run, or the delay its act at the start takes after a run, plus one, when fewer (a role that stopped
-// steps at the pace it walked); one past RoleStepMostFrames. A role the frame did not move goes on with the step under
-// way; one that came, went or changed, or moved by more than a tile (put there), is shown where it is, as are all
-// after a gap in the frames or on another map.
+// The steps the game frame moved the roles by, drawn from where the frame started to where it left each role; a walking
+// role whose action the frame changed (it stopped) with the act it had where it started until it gets there (the
+// frame's picture is that of the place it stepped to: it stops, then stands); otherwise with the frame's act (a role
+// starting off or turning faces its way from the step's start). A step takes the frames to the role's next step: its
+// act's delay plus one, read once the frame's acts have all run, or the delay its act at the start takes after a run,
+// plus one, when fewer (a role that stopped steps at the pace it walked); one past RoleStepMostFrames. A role the frame
+// did not move goes on with the step under way; one that came, went or changed, or moved by more than a tile (put
+// there), is shown where it is, as are all after a gap in the frames or on another map.
 void FieldView::CaptureRoleSteps(bool continuous)
 {
     Game& owner = this->game;
@@ -419,6 +430,8 @@ void FieldView::CaptureRoleSteps(bool continuous)
             .toY = role.y,
             .length = frames * interval,
             .elapsed = 0,
+            .frame = owner.gameFrames,
+            .stops = from.walking && role.act.action != from.act.action,
             .act = from.act,
         };
     }

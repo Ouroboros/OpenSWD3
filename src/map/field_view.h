@@ -302,7 +302,8 @@ private:
         i32 leftCameraY = 0;
     };
 
-    // A role where a game frame started, and its act (KeepRolePlaces).
+    // A role where a game frame started, its act, and whether it was walking then (a step drawn or taken the frame
+    // before) (KeepRolePlaces).
     struct RolePlace
     {
         u16 id = 0;
@@ -310,11 +311,13 @@ private:
         i32 x = 0;
         i32 y = 0;
         ActState act;
+        bool walking = false;
     };
 
     // The step a game frame moved a role by, as it is drawn (the frames move the roles as the original does, drawn a
-    // step late): from where the frame started to where it left the role, with the act it had there until it gets
-    // there, over the frames to its next step in milliseconds, and the milliseconds gone.
+    // step late): from where the frame started to where it left the role, over the frames to its next step in
+    // milliseconds, and the milliseconds gone; the game frame it was taken in; a step that stops a walking role (its
+    // action changed) drawn with the act it had where the step started until it gets there.
     struct RoleMotion
     {
         bool active = false;
@@ -324,6 +327,8 @@ private:
         i32 toY = 0;
         i32 length = 1;
         i32 elapsed = 0;
+        u32 frame = 0;
+        bool stops = false;
         ActState act;
     };
 
@@ -349,6 +354,7 @@ private:
     void CaptureRoleSteps(bool continuous);
     void RoleTick(std::size_t index);
     bool RoleOnStep(std::size_t index) const;
+    bool RoleStopping(std::size_t index) const;
     void ArriveMoving(std::size_t index, std::size_t move, u8 direction);
     void ArriveFollower(std::size_t index, std::size_t move, u8 direction);
     void StartPan(i32 byX, i32 byY);
