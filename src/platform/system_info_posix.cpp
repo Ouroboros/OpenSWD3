@@ -81,6 +81,10 @@ void InstallFaultLog()
     }
 }
 
+void LogCallStack()
+{
+}
+
 HangWatch::HangWatch() = default;
 
 HangWatch::~HangWatch() = default;

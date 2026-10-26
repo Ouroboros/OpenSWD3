@@ -32,6 +32,9 @@ u32 ProcessId();
 // The processor faults that end the process logged first (an unhandled structured exception on Windows, a fault
 // signal elsewhere).
 void InstallFaultLog();
+// The rebuild: the call stack of the calling thread logged (with the PDB's symbols on Windows), as an error dialog
+// shows where it was raised. Nothing on other platforms.
+void LogCallStack();
 // Sleep(): the calling thread waits.
 void SleepMilliseconds(u32 milliseconds);
 

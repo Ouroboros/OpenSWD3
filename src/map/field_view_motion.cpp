@@ -403,10 +403,10 @@ void FieldView::KeepRolePlaces()
 // left to the move's end, so that the role gets there with the frame that stands it, at one pace along the straight
 // (a step drawn there already stands at once). Any other role drawn behind (held while between tiles, the frames put
 // it on the tile ahead) gains at most 1/kCatchUpShare of its step on each step, so that it catches up over a few steps
-// at a pace near its own. A role the frame held for an event, or turned or changed the action of without moving it, has stopped: it stays
-// drawn where it is (where the frame moved it on too) until the frames move it again; one the frame did not move goes
-// on as it is drawn. One that came, went or changed, or is drawn more than kFarSteps tiles from where the frame left it
-// (put there), is shown where it is, as are all after a gap in the frames or on another map.
+// at a pace near its own. A role the frame held for an event, or turned or changed the action of without moving it, has
+// stopped: it stays drawn where it is (where the frame moved it on too) until the frames move it again; one the frame
+// did not move goes on as it is drawn. One that came, went or changed, or is drawn more than kFarSteps tiles from where
+// the frame left it (put there), is shown where it is, as are all after a gap in the frames or on another map.
 void FieldView::CaptureRoleSteps(bool continuous)
 {
     Game& owner = this->game;

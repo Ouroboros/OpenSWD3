@@ -9,6 +9,7 @@
 #include <cwchar>
 #include <exception>
 #include <limits>
+#include <mutex>
 #include <string>
 #include <string_view>
 
@@ -138,6 +139,22 @@ bool LoadSymbols(HANDLE process)
 
     ::SymSetOptions(SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES | SYMOPT_FAIL_CRITICAL_ERRORS);
     return ::SymInitializeW(process, directory.c_str(), TRUE) != 0;
+}
+
+// The lock of the symbols kept for the stacks logged while the game runs (the hang watch, the error dialogs): DbgHelp
+// is single threaded.
+std::mutex& SymbolLock()
+{
+    static std::mutex lock;
+    return lock;
+}
+
+// The symbols loaded the first time a running stack is logged and kept to the end (under SymbolLock); false when
+// they cannot be.
+bool KeptSymbols(HANDLE process)
+{
+    static const bool loaded = LoadSymbols(process);
+    return loaded;
 }
 
 // A number in decimal (PRIu64) or hexadecimal (PRIX64).
@@ -361,7 +378,7 @@ LONG WINAPI FaultFilter(EXCEPTION_POINTERS* exception)
     const EXCEPTION_RECORD& record = *exception->ExceptionRecord;
     const HANDLE process = ::GetCurrentProcess();
     const bool initialized = LoadSymbols(process);
-    const bool symbolsReady = initialized || ::GetLastError() == ERROR_INVALID_PARAMETER;  // the hang watch has them
+    const bool symbolsReady = initialized || ::GetLastError() == ERROR_INVALID_PARAMETER;  // kept (KeptSymbols)
     SDL_LogCritical(
         SDL_LOG_CATEGORY_APPLICATION,
         "unhandled exception 0x%08X at %s",
@@ -439,6 +456,22 @@ void InstallFaultLog()
     ::SetUnhandledExceptionFilter(&FaultFilter);
 }
 
+void LogCallStack()
+{
+    const std::lock_guard guard(SymbolLock());
+    const HANDLE process = ::GetCurrentProcess();
+    const bool symbolsReady = KeptSymbols(process);
+    CONTEXT context{};
+    ::RtlCaptureContext(&context);
+    SDL_LogError(
+        SDL_LOG_CATEGORY_APPLICATION,
+        "call stack (symbols %s from %s):",
+        symbolsReady ? "loaded" : "unavailable",
+        Chars(Utf8(ExecutableDirectory()))
+    );
+    LogStack(process, ::GetCurrentThread(), context, SDL_LOG_PRIORITY_ERROR);
+}
+
 HangWatch::HangWatch()
 {
     HANDLE self = nullptr;
@@ -483,7 +516,6 @@ void HangWatch::Watch()
     u32 seen = this->beats.load(std::memory_order_relaxed);
     u32 since = ::timeGetTime();
     u32 reported = 0;
-    bool symbolsReady = false;
     const HANDLE process = ::GetCurrentProcess();
 
     while (!this->stopping)
@@ -514,12 +546,9 @@ void HangWatch::Watch()
         }
 
         reported = stalled / kMillisecondsPerSecond;
-
-        if (!symbolsReady)
-        {
-            symbolsReady = LoadSymbols(process);
-        }
-
+        // Taken before the main loop is suspended: it may hold it, logging a stack itself.
+        const std::lock_guard guard(SymbolLock());
+        KeptSymbols(process);
         const auto main = static_cast<HANDLE>(this->watched);
 
         if (::SuspendThread(main) == static_cast<DWORD>(-1))
@@ -543,11 +572,6 @@ void HangWatch::Watch()
         }
 
         ::ResumeThread(main);
-    }
-
-    if (symbolsReady)
-    {
-        ::SymCleanup(process);
     }
 }
 
