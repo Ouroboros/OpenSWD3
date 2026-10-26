@@ -1655,10 +1655,11 @@ void Game::RoleAutoCommand(BattleRole& unit, int role)
 }
 
 // The order of a role whose target is set in RoleFrame (inline in the original). A sweep order (unk04) gathers its
-// targets: the roles in battle standing not autoControl/guestControl or StatusBit13 (unk53BFD0), or the enemies
-// standing without a pending removal (the count in unk10), and with every one gathered aims at the last role or the
-// first enemy standing (unk53BF80); the order then takes its command (RoleTakeOrder). A single order takes its command
-// at its aim: a role (unk00: aimTarget, 1-based), an AI role's random enemy (aiTarget) or the menu's enemy (aimTarget).
+// targets: the roles in battle standing not autoControl/guestControl or StatusBit13 (an order at the party, unk00), or
+// the enemies standing without a pending removal (the count in unk10), and with every one gathered aims at the last
+// role or the first enemy standing (unk53BF80); the order then takes its command (RoleTakeOrder). A single order takes
+// its command at its aim: a role (unk00: aimTarget, 1-based), an AI role's random enemy (aiTarget) or the menu's
+// enemy (aimTarget).
 void Game::RoleOrderFrame(BattleRole& unit, int role)
 {
     BattleState& battle = this->battleState;
@@ -1748,7 +1749,9 @@ void Game::RoleGatherSweep(BattleRole& unit, PendingOrder& order)
     BattleState& battle = this->battleState;
     i32 aim = -1;
 
-    if (battle.unk53BFD0 != 0)
+    // The rebuild (deviations.md): the side is the order's own, as it hits; the original reads unk53BFD0, cleared when
+    // another role's action ends or its order is queued while this one aims.
+    if (order.unk00 != 0)
     {
         for (u32 index = 0; index < battle.roleCount; ++index)
         {
