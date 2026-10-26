@@ -157,17 +157,21 @@ int Input::ReadMouse(int& x, int& y)
 
 void Input::PeekMouse(int& x, int& y) const
 {
-    const MouseState state = this->device.Mouse();
-
-    if (this->keyboardUsed && !this->MouseUsed(state))
+    if (this->KeyboardInUse())
     {
         x = Input::ParkedPointer;
         y = Input::ParkedPointer;
         return;
     }
 
+    const MouseState state = this->device.Mouse();
     x = std::clamp(state.x, this->rangeLeft, this->rangeRight);
     y = std::clamp(state.y, this->rangeTop, this->rangeBottom);
+}
+
+bool Input::KeyboardInUse() const
+{
+    return this->keyboardUsed && !this->MouseUsed(this->device.Mouse());
 }
 
 // The rebuild: the mouse moved away from where the keyboard was taken up, or a button of it down.

@@ -179,19 +179,6 @@ constexpr int kListPointerX = 0x108;
 constexpr int kListPointerY = 0xB0;
 constexpr int kListMouseX = 0xF0;
 constexpr int kListMouseY = 0xC6;
-// The rebuild: the keys after which the menu opens at its place (BattleKeys).
-constexpr std::array<Button, 9> kMenuKeys = {
-    Button::Escape,
-    Button::Space,
-    Button::Left,
-    Button::Up,
-    Button::Right,
-    Button::Down,
-    Button::PageUp,
-    Button::PageDown,
-    Button::Enter,
-};
-
 constexpr i32 kOpenListRows = 4;
 constexpr i32 kAttackCommand = 1;
 constexpr i32 kGuardCommand = 5;
@@ -2872,14 +2859,24 @@ void Game::DrawBattleDebug()
 // (anyStateRole); 1 picks the menu command under it (an accessory command checked with the kind words after
 // commandKinds, as in the original); 2, 4 and 0x1B pick a page tab and a list row, or the scroll arrows, track and
 // thumb (hoverScrollPart 1..4); 3 aims at the unit whose picture is under it (or the party portrait); 5, 8 and 0x1E
-// pick a row or a cell. 1 when something is under the pointer.
+// pick a row or a cell. 1 when something is under the pointer. The rebuild (deviations.md): the keyboard taken up
+// (Input::KeyboardInUse) leaves the mouse mode, the pointer out of play letting go once of what was under it.
 int Game::MouseHover()
 {
     BattleState& battle = this->battleState;
     const int x = this->state.pointerX;
     const int y = this->state.pointerY;
 
-    if (battle.pointerX == x && battle.pointerY == y)
+    if (this->input.KeyboardInUse())
+    {
+        if (battle.unk53BFBC == 0)
+        {
+            return 0;
+        }
+
+        battle.unk53BFBC = 0;
+    }
+    else if (battle.pointerX == x && battle.pointerY == y)
     {
         if (battle.unk53BFBC == 0)
         {
@@ -4813,21 +4810,6 @@ void Game::BattleKeys()
     BattleState& battle = this->battleState;
     Controls& controls = this->controls;
     battle.unk53BD9C = 0;
-
-    // The rebuild (deviations.md): whether the mouse or a key was pressed last (the right button is taken for Escape
-    // below).
-    for (const Button key : kMenuKeys)
-    {
-        if (controls.At(key).press != 0)
-        {
-            battle.menuByMouse = false;
-        }
-    }
-
-    if (controls.At(Button::MouseLeft).press != 0 || controls.At(Button::MouseRight).press != 0)
-    {
-        battle.menuByMouse = true;
-    }
 
     if (battle.paused == 1)
     {

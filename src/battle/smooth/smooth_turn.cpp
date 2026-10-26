@@ -2058,8 +2058,8 @@ void TurnFrame::DrawCommandPanelAdvance(i32 nameIndex, Scene& scene)
             battle.unk53BFB0 = 1;
         }
 
-        // The rebuild (deviations.md): after a key the menu opens at its place, whatever the pointer did.
-        if (battle.promptFrames >= kMenuIdleFrames || !battle.menuByMouse)
+        // The rebuild (deviations.md): with the keyboard in use the menu opens at its place, whatever the pointer did.
+        if (battle.promptFrames >= kMenuIdleFrames || game.input.KeyboardInUse())
         {
             battle.menuX = kMenuHomeX;
             battle.menuY = kMenuHomeY;

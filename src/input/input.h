@@ -90,6 +90,8 @@ public:
     int ReadMouse(int& x, int& y);
     // The rebuild's smooth motion: the screen position ReadMouse would give now.
     void PeekMouse(int& x, int& y) const;
+    // The rebuild (deviations.md): a key went down since the mouse was last used; the pointer is out of play.
+    bool KeyboardInUse() const;
     void SetMousePosition(int x, int y);
     void SetRange(int left, int top, int right, int bottom);
     void SetSensitivity(double sensitivity);
