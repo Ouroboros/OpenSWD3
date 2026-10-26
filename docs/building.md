@@ -86,6 +86,16 @@ cmake --build --preset linux
 
 产物在 `build/linux/`：`swd3r`、`swd3_tests`。
 
+也可以用一个脚本完成 Linux 版的全部步骤：
+
+```sh
+bash scripts/build_linux.sh            # x64
+bash scripts/build_linux.sh --i386     # 32 位
+bash scripts/build_linux.sh --test     # 编完运行单元测试
+```
+
+脚本先检查工具与系统库（cmake 3.25 以上、ninja、git、python3、curl、xz、nasm、libc6-dev、libstdc++-13-dev），缺少时列出来并询问是否用 `apt-get` 安装；再检查 LLVM，缺少时询问装到 `/opt/llvm`、`third_party/llvm` 还是其他文件夹，然后下载官方的 LLVM 22.1.8。32 位还会询问是否建立 i386 sysroot（第 1 步）。回答不是 `y` 或不在终端中运行时都不安装，直接退出。第三方源码与库缺少时自动下载并编译（第 2 步），最后按预设编译。
+
 32 位版本使用 `windows-x86`（产物在 `build/windows-x86/`）与 `linux-i386`（产物在 `build/linux-i386/`）预设。所有预设都是 `RelWithDebInfo`。
 
 在 Windows 上直接编译并打包：

@@ -14,6 +14,7 @@ args=(
     -S "${src}" -B "${build}" -G Ninja
     -DCMAKE_BUILD_TYPE=Release
     -DCMAKE_INSTALL_PREFIX="${prefix}"
+    -DSWD3_LLVM_ROOT="${SWD3_LLVM_ROOT}"
     -DSDL_STATIC=ON -DSDL_SHARED=OFF
     -DSDL_TEST_LIBRARY=OFF -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF
 )

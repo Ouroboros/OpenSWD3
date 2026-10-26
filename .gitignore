@@ -4,6 +4,7 @@
 /third_party/build/
 /third_party/install/
 /third_party/winsdk/
+/third_party/llvm/
 /reverse/analysis/work/
 /reverse/analysis/asm/
 /reverse/analysis/decomp/
