@@ -130,7 +130,8 @@ int BattleHud::DrawGaugeWide(int id, int x, int y, u16 fill)
     return result;
 }
 
-// swd32.exe 0x004506B0: up to four decimal digits right aligned at x (frames of picture `font`)
+// swd32.exe 0x004506B0: decimal digits right aligned at x (frames of picture `font`); the original splits four digits
+// and asks a frame past 9 for values above 9999, here every digit is drawn
 int BattleHud::DrawSmallNumber(int font, int value, int x, int y)
 {
     smooth::Scene scene;

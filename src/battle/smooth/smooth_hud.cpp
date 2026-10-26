@@ -68,8 +68,6 @@ constexpr int kScrollTop = 0x1A;
 constexpr int kShineAlpha = 8;
 constexpr int kShineX = 0xB;
 constexpr int kShineY = 0x1F;
-constexpr int kSmallDigits = 4;
-constexpr int kSmallTopDivisor = 1000;
 constexpr u32 kTallGauge = 0x241A;
 constexpr int kThumbInset = 5;
 constexpr int kTileBottom = 7;
@@ -303,38 +301,16 @@ int HudFrame::DrawSmallNumberAdvance(int font, int value, int x, int y, Scene& s
     BattleHud& hud = this->hud;
     BattleServices& services = *hud.services;
     ScenePainter painter(services, scene);
-    std::array<int, kSmallDigits> digits = {};
-    int count = 0;
-    int divisor = kSmallTopDivisor;
     hud.numberX = x;
     hud.numberY = y;
-    hud.numberStarted = 0;
-
-    for (int& digit : digits)
-    {
-        hud.numberValue = value;
-        digit = value / divisor;
-        value %= divisor;
-
-        if (digit != 0 || hud.numberStarted == 1)
-        {
-            hud.numberStarted = 1;
-            ++count;
-        }
-
-        divisor /= kDecimal;
-    }
-
-    if (count == 0)
-    {
-        count = 1;
-    }
-
+    hud.numberStarted = value != 0 ? 1 : 0;
+    hud.numberValue = value % kDecimal;
     int result = 0;
 
-    for (int i = 0; i < count; ++i)
+    do
     {
-        const Picture* picture = hud.Select(font, digits[static_cast<std::size_t>(kSmallDigits - 1 - i)]);
+        const Picture* picture = hud.Select(font, value % kDecimal);
+        value /= kDecimal;
 
         if (picture == nullptr)
         {
@@ -343,7 +319,7 @@ int HudFrame::DrawSmallNumberAdvance(int font, int value, int x, int y, Scene& s
 
         result = painter.DrawPicture(x, y, picture->width, picture->height, 0);
         x -= hud.lastPicture->width;
-    }
+    } while (value != 0);
 
     return result;
 }
