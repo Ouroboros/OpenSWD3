@@ -53,13 +53,13 @@ mkdir -p third_party/asset
 python3 scripts/make_font_library.py /mnt/c/Windows/Fonts/mingliu.ttc third_party/asset/font.bin
 ```
 
-窗口图标、启动画面的图片与音效、开场音效和作弊对话框取自原版 `swd32.exe`，需要从自己的原版游戏中提取：
+窗口图标、启动画面的图片与音效、开场音效和作弊对话框取自原版 `swd3.exe`，需要从自己的原版游戏中提取：
 
 ```sh
-python3 scripts/make_resources.py /mnt/e/Game/swd3/swd32.exe third_party/asset/launcher
+python3 scripts/make_resources.py /mnt/e/Game/swd3/swd3.exe third_party/asset/launcher
 ```
 
-提取到 `launcher` 子文件夹，是普通的 `.bmp`、`.wav`、`.ico`、`.cur` 文件和对话框模板 `.dlg`，以原版的资源编号命名。运行时不需要 `swd32.exe`。
+提取到 `launcher` 子文件夹，是普通的 `.bmp`、`.wav`、`.ico`、`.cur` 文件和对话框模板 `.dlg`，以原版的资源编号命名。运行时不需要 `swd3.exe`。
 
 ## 4. 编译
 
