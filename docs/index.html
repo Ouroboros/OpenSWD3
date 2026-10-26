@@ -174,6 +174,10 @@ pre {
 
 pre code { padding: 0; background: none; color: inherit; }
 
+pre .c { color: #a8977a; }
+
+pre .c a { color: #e2c27a; }
+
 ol, ul { padding-left: 24px; }
 
 li { margin-bottom: 6px; }
@@ -241,19 +245,70 @@ data_dir = 'E:\Game\swd3'</code></pre>
 
   <section id="settings">
     <h2>设置</h2>
-    <p>下面这些是重制版新增的设置。在标题画面的「環境設定」或游戏中按 Esc →「設定」里都能调整，改了立即生效并保存。</p>
-    <table>
-      <tr><th>设置</th><th>默认</th><th>作用</th></tr>
-      <tr><td>啟動畫面</td><td>开</td><td>关闭后启动时跳过启动画面，直接进入标题画面</td></tr>
-      <tr><td>平滑畫面</td><td>开</td><td>按显示器刷新率画出移动、淡入淡出等动态，高刷新率显示器更流畅；关闭后和原版一样每 35 毫秒画一次</td></tr>
-      <tr><td>垂直同步</td><td>开</td><td>等显示器刷新再显示，消除画面撕裂</td></tr>
-      <tr><td>幀率上限</td><td>自動</td><td>每秒最多画几帧；只在平滑畫面开启时有效</td></tr>
-      <tr><td>繪製倍率</td><td>自動</td><td>平滑畫面按几倍精度绘制，倍数越高移动越细，也越耗 CPU；只在平滑畫面开启时有效</td></tr>
-      <tr><td>地圖填滿</td><td>开</td><td>地图填满宽屏窗口，能看到更大范围；菜单、战斗等画面仍是 640×480</td></tr>
-      <tr><td>自動連擊</td><td>关</td><td>自动战斗时，戴着「連擊」饰品（武聖手鐲、姜公膽）且体力足够的角色自动使用「連擊」，体力不够时照常普通攻击</td></tr>
-      <tr><td>道具提示</td><td>关</td><td>地图上看不见、但调查后能拿到道具或银币的地方显示一个跳动的箭头，还没打开的罐子、宝箱也显示；能调查时才显示，拿走后消失</td></tr>
-    </table>
-    <p>exe 旁边有两个设置文件：<code>swd3r.toml</code> 是你自己的设置，程序不会改动它；<code>swd3r.default.toml</code> 是游戏自动保存的设置。两个文件写了同一项时，以 <code>swd3r.toml</code> 为准。</p>
+    <p>exe 旁边有两个设置文件：</p>
+    <ul>
+      <li><code>swd3r.toml</code>：你自己的设置。程序只读不改，注释和顺序都保留。</li>
+      <li><code>swd3r.default.toml</code>：程序自动保存的设置，包括游戏里改的设置、按键和退出时的窗口大小。</li>
+    </ul>
+    <p>同一项两个文件都写了时，以 <code>swd3r.toml</code> 为准，这时在游戏里再改只在当次有效。<code>swd3r.toml</code> 里每一项都带着说明，默认被 <code>#</code> 注释掉，删掉行首的 <code>#</code> 就会生效。值写错或没写时取默认值，写错的会在日志里记一条警告。</p>
+    <p>下面是 <code>swd3r.toml</code> 的例子，除了游戏目录，写的都是默认值：</p>
+<pre class="toml"><code>[paths]
+<span class="c"># 原版游戏目录。不写时用当前目录，所以把 exe 放进游戏目录就不用写。</span>
+<span class="c"># 相对路径以 exe 所在的目录为准。路径用单引号时反斜杠照写，用双引号时要写成 \\。</span>
+data_dir = &#x27;E:\Game\swd3&#x27;
+<span class="c"># 存档目录。不写时和原版一样存在游戏目录的 save 里。</span>
+save_dir = &#x27;E:\Game\swd3\save&#x27;
+
+[window]
+<span class="c"># 窗口的宽和高，至少 640×480。画面保持原来的比例尽量填满窗口，比例不同时留黑边。</span>
+<span class="c"># 这三项不写时，用上次退出时的窗口大小。游戏里按 Alt+Enter 切换全屏。</span>
+width = 1280
+height = 960
+<span class="c"># 启动时是否最大化。</span>
+maximized = false
+
+[display]
+<span class="c"># 以下六项也能在游戏里改：标题画面的「環境設定」，或游戏中按 Esc →「設定」→「顯示設定」。</span>
+
+<span class="c"># 平滑畫面。游戏逻辑仍和原版一样每 35 毫秒走一步，移动、淡入淡出等动态在两步之间</span>
+<span class="c"># 按显示器刷新率连续画出，高刷新率显示器更流畅。false 时和原版一样每 35 毫秒画一次。</span>
+smooth_motion = true
+<span class="c"># 垂直同步。等显示器刷新再显示，消除画面撕裂。</span>
+vsync = true
+<span class="c"># 每秒最多画几帧，可写 30～1000；0 表示不限，开着垂直同步时就跟随显示器刷新率。</span>
+<span class="c"># 只在平滑畫面开启时有效。</span>
+frame_rate = 0
+<span class="c"># 平滑畫面按几倍精度绘制，可写 1～8。倍数越高，镜头和人物移动越细，也越耗 CPU</span>
+<span class="c"># （2 倍约为 1 倍的 3～4 倍）。&quot;auto&quot; 按窗口大小取能完整显示的最大倍数，最多 4 倍。</span>
+<span class="c"># 只在平滑畫面开启时有效。</span>
+render_scale = &quot;auto&quot;
+<span class="c"># 地图填满宽屏窗口，能看到更大范围，对话框仍在中间。</span>
+<span class="c"># 菜单、战斗、存档等画面仍是 640×480，两边留黑边。</span>
+wide_map = true
+<span class="c"># 道具提示。地图上看不见、但调查后能拿到道具或银币的地方，显示一个跳动的箭头</span>
+<span class="c"># （包括鼠标移上去不变手形、只能面对它按键调查的地方），还没打开的罐子、宝箱也显示。</span>
+<span class="c"># 能调查时才显示，拿走后消失。</span>
+item_hints = false
+
+[game]
+<span class="c"># 启动时先显示启动画面；false 时直接进入标题画面。游戏里在「設定」第一行切换。</span>
+launcher = true
+<span class="c"># 自動連擊。自动战斗时，戴着「連擊」饰品（武聖手鐲、姜公膽）且体力足够的角色自动使用「連擊」，</span>
+<span class="c"># 体力不够时照常普通攻击。游戏里在「設定」→「戰鬥設定」切换。</span>
+auto_combo = false
+<span class="c"># 地图上默认跑步，false 是走路。游戏里按 R 切换时会记下来，下次启动照旧。</span>
+running = true
+<span class="c"># 调试模式，见 README 的<a href="https://github.com/Ouroboros/OpenSWD3#调试模式">「调试模式」</a>。</span>
+debug = false
+<span class="c"># [game] 里还有音量、文字速度、战斗速度和按键（[game.keys]），和原版「環境設定」里的一样，</span>
+<span class="c"># 在游戏里改就行。第一次启动时，这些设置会从游戏目录的 Env.dat 导入一次。</span>
+
+[logging]
+<span class="c"># 日志的位置和文件名。每次启动写一个新文件，文件名后面加上启动时间和进程号，</span>
+<span class="c"># 例如 logs/swd3r-2026-10-26_14-32-05-127840.log。相对路径以 exe 所在的目录为准。</span>
+path = &quot;logs/swd3r.log&quot;
+<span class="c"># 记录多详细，从多到少是 trace、debug、info、warning、error、critical。</span>
+level = &quot;debug&quot;</code></pre>
   </section>
 
   <section id="secrets">
