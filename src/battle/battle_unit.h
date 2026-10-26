@@ -138,8 +138,8 @@ struct UnitCommand
     // The bits of `actionFlags` (flag n is bit n).
     enum ActionFlag : u32
     {
-        UnkAction1 = 1,
-        UnkAction2 = 2,      // the swarm acts aim at 0, 0 (BattleRole::SwarmSpellFrame)
+        TargetsAll = 1,      // every unit of the side (skill opcode 3)
+        AllAtOnce = 2,       // all hit at once; the swarm acts aim at 0, 0 (BattleRole::SwarmSpellFrame)
         DelaysFadeIn = 4,    // the unit fades in later (BattleUnit::DelayedFadeIn)
         StaysAcross = 0x10,  // the move starts at an edge across
         StaysDown = 0x20,    // the move starts at the top
@@ -367,7 +367,7 @@ public:
     const Picture* StepIdleAction(BattleServices& services);
     const void* SelectEntry(int second) const;
     int GetValueAAC() const;
-    int GetValueAB4() const;
+    int IsAimed() const;
     u16 GetCommandA() const;
     u16 GetCommandB() const;
     u16 GetWord2A74() const;
@@ -413,10 +413,10 @@ public:
     int ClearStatus(int bits);
     i16 SetWord2A0A(i16 value);
     int SetGuarding(int value);
-    int ActFlag1() const;
+    int AllAtOnce() const;
     int ActFlag11() const;
     i16 ActSpeed() const;
-    int ActFlag0() const;
+    int TargetsAll() const;
     int ActFlag13() const;
     int ActFlag14() const;
     int SetAction(i16 value);
@@ -762,7 +762,7 @@ public:
     i32 unk2AA8 = 0;
     i32 unk2AAC = 0;
     i32 unk2AB0 = 0;
-    i32 unk2AB4 = 0;
+    i32 aimed = 0;     // +0x2AB4 1: its target is set (Retarget), until its turn is reset
     i32 defeated = 0;  // +0x2AB8
     i32 dying = 0;     // +0x2ABC 1 while the defeat runs (DefeatFrame)
     i32 outline = 0;   // +0x2AC0

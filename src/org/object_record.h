@@ -140,8 +140,8 @@ struct SkillScript
     // The bits of `flags`, each set by an opcode of the skill script.
     enum Flag : u32
     {
-        UnkFlag1 = 1,      // opcode 3
-        UnkFlag2 = 2,      // opcode 9
+        TargetsAll = 1,    // opcode 3: every unit of the side
+        AllAtOnce = 2,     // opcode 9: all hit at once
         UnkFlag4 = 4,      // opcode 0xB
         ElementBuff = 8,   // opcode 0xE: the buff raises the resistance to `element`
         UnkFlag10 = 0x10,  // opcodes 0xF..0x15 set 0x10..0x800 in turn (0x80 excepted)

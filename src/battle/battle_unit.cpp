@@ -268,9 +268,9 @@ int BattleUnit::GetValueAAC() const
 }
 
 // swd32.exe 0x004786A0
-int BattleUnit::GetValueAB4() const
+int BattleUnit::IsAimed() const
 {
-    return this->unk2AB4;
+    return this->aimed;
 }
 
 // swd32.exe 0x004786B0
@@ -402,7 +402,7 @@ int BattleUnit::ResetTurn(BattleServices& services)
     this->unk2AAC = 0;
     const u16 mode = this->command.flags;
     this->unk2AB0 = 0;
-    this->unk2AB4 = 0;
+    this->aimed = 0;
     this->unk2AA8 = 0;
     this->unk2AE0 = 0;
     this->evadeRolled = 0;
@@ -484,7 +484,7 @@ int BattleUnit::ResetTurn(BattleServices& services)
 // swd32.exe 0x00478A70
 i16 BattleUnit::Retarget(i16 value)
 {
-    this->unk2AB4 = 1;
+    this->aimed = 1;
     this->unk29A2 = static_cast<u16>(value);
     this->gauge = 0;
     return value;
@@ -840,7 +840,7 @@ int BattleUnit::SetGuarding(int value)
 }
 
 // swd32.exe 0x0047D880
-int BattleUnit::ActFlag1() const
+int BattleUnit::AllAtOnce() const
 {
     return static_cast<int>((this->command.actionFlags >> 1) & 1);
 }
@@ -859,9 +859,9 @@ i16 BattleUnit::ActSpeed() const
 }
 
 // swd32.exe 0x0047D8D0
-int BattleUnit::ActFlag0() const
+int BattleUnit::TargetsAll() const
 {
-    return static_cast<int>(this->command.actionFlags & UnitCommand::UnkAction1);
+    return static_cast<int>(this->command.actionFlags & UnitCommand::TargetsAll);
 }
 
 // swd32.exe 0x0047D8E0
@@ -2192,7 +2192,7 @@ void BattleUnit::Reset(BattleServices& services)
     this->unk2AA8 = 0;
     this->unk2AAC = 0;
     this->unk2AB0 = 0;
-    this->unk2AB4 = 0;
+    this->aimed = 0;
     this->defeated = 0;
     this->outline = 0;
     this->charging = 0;
@@ -3347,7 +3347,7 @@ void BattleUnit::DrawTrail(
 // (queuedActions cleared). Each act, mirrored by the facing, shakes on its line for its shake frames (its y from
 // kShakeOffsets), then flies it (one step more a frame, doubling while speeding) with its trail; at the line's end its
 // impact act (if any) plays to its end within the frame (the original runs the whole node again until it waits), the
-// node is done and, unless the command is UnkAction1 or the impact is negative, the hit lands on `target`. Done nodes
+// node is done and, unless the command is TargetsAll or the impact is negative, the hit lands on `target`. Done nodes
 // are freed. A shaking node takes the arrival of the node before it (the original's first is uninitialised).
 int BattleUnit::RunQueuedActions(BattleServices& services, BattleUnit& target, i32 action)
 {

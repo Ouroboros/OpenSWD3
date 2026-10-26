@@ -742,7 +742,7 @@ TEST_CASE("battle state: the slot records are wiped with 0xFF bytes")
         CHECK_EQ(record.targetCount, -1);
         CHECK_EQ(record.kind, 0xFFFF);
         CHECK_EQ(record.unk0A, 0xFFFF);
-        CHECK_EQ(record.unk18, -1);
+        CHECK_EQ(record.allAtOnce, -1);
     }
 }
 

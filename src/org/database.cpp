@@ -193,7 +193,7 @@ bool Database::LoadSkill(SkillScript& skill, u16 id)
                 break;
 
             case SkillOpcode::SetUnkFlag1:
-                skill.flags |= SkillScript::UnkFlag1;
+                skill.flags |= SkillScript::TargetsAll;
                 break;
 
             case SkillOpcode::Unk16:
@@ -218,7 +218,7 @@ bool Database::LoadSkill(SkillScript& skill, u16 id)
                 break;
 
             case SkillOpcode::SetUnkFlag2:
-                skill.flags |= SkillScript::UnkFlag2;
+                skill.flags |= SkillScript::AllAtOnce;
                 break;
 
             case SkillOpcode::Unk1E:

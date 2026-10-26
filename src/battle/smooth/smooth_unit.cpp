@@ -621,7 +621,7 @@ bool UnitFrame::IdleAdvance(BattleServices& services, int paused, IdleView& view
         act.action = kWeakAction;
     }
 
-    if (unit.commandFlags != 0 && unit.unk2AB4 == 1 && unit.unk2AC8 == 1)
+    if (unit.commandFlags != 0 && unit.aimed == 1 && unit.unk2AC8 == 1)
     {
         if (unit.autoControl == 1)
         {
@@ -2676,7 +2676,7 @@ int UnitFrame::QueuedAdvance(BattleServices& services, BattleUnit& target, i32 a
         ++unit.landedActions;
         line = LineWalker{};
 
-        if ((unit.command.actionFlags & UnitCommand::UnkAction1) == 0 && impact.id >= 0)
+        if ((unit.command.actionFlags & UnitCommand::TargetsAll) == 0 && impact.id >= 0)
         {
             target.RaiseFlag26B8();
             i16 spirit = 0;

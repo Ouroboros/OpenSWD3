@@ -587,9 +587,9 @@ int Game::FightTalkOrder()
 
         if (battle.aimTarget > kLastEnemy)
         {
-            battle.unk53BFD0 = 1;
+            battle.gathersParty = 1;
             battle.aimTarget -= BattleState::FirstRoleUnit;
-            battle.pendingOrders[static_cast<std::size_t>(unit - BattleState::FirstRoleUnit)].unk00 = 1;
+            battle.pendingOrders[static_cast<std::size_t>(unit - BattleState::FirstRoleUnit)].atParty = 1;
         }
 
         this->battleRoles[static_cast<std::size_t>(unit - BattleState::FirstRoleUnit)].SetTarget(1);
@@ -784,7 +784,7 @@ int Game::FightTalkCommand(int command)
         }
         else
         {
-            battle.pendingOrders[static_cast<std::size_t>(unit - BattleState::FirstRoleUnit)].unk00 = 1;
+            battle.pendingOrders[static_cast<std::size_t>(unit - BattleState::FirstRoleUnit)].atParty = 1;
             battle.InsertSlotRecord(1, unit, 0);
         }
     }
@@ -1116,9 +1116,9 @@ int Game::FightTalkSkill()
 
         if (target > kLastEnemy)
         {
-            battle.unk53BFD0 = 1;
+            battle.gathersParty = 1;
             target -= BattleState::FirstRoleUnit;
-            battle.pendingOrders[role].unk00 = 1;
+            battle.pendingOrders[role].atParty = 1;
         }
 
         battle.aimTarget = target + 1;
@@ -1130,13 +1130,13 @@ int Game::FightTalkSkill()
         battle.pendingOrders[role].unk0C = static_cast<u16>(actor.ActSpeed());
         battle.pendingOrders[role].unk0E = 0;
 
-        if (actor.ActFlag1() == 1)
+        if (actor.AllAtOnce() == 1)
         {
             battle.unk53BFF0 = 1;
-            battle.pendingOrders[role].unk08 = 1;
+            battle.pendingOrders[role].allAtOnce = 1;
         }
 
-        if (actor.ActFlag0() == 1)
+        if (actor.TargetsAll() == 1)
         {
             battle.unk53BF88 = 1;
         }
@@ -2480,9 +2480,10 @@ int Game::FightTalkMisc(u16 command)
 
             if (battle.aimTarget > kLastEnemy)
             {
-                battle.unk53BFD0 = 1;
+                battle.gathersParty = 1;
                 battle.aimTarget -= BattleState::FirstRoleUnit;
-                battle.pendingOrders[static_cast<std::size_t>(battle.turnUnit - BattleState::FirstRoleUnit)].unk00 = 1;
+                battle.pendingOrders[static_cast<std::size_t>(battle.turnUnit - BattleState::FirstRoleUnit)].atParty =
+                    1;
             }
 
             this->battleRoles[static_cast<std::size_t>(battle.turnUnit - BattleState::FirstRoleUnit)].SetTarget(1);

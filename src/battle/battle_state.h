@@ -32,19 +32,19 @@ struct BattleSlotRecord
     i32 targetCount = 0;  // +0x04 the units its order hits (BattleState::sweepTotal)
     u16 kind = 0;         // +0x08
     u16 unk0A = 0;        // +0x0A
-    i32 unk0C = 0;        // +0x0C
+    i32 atParty = 0;      // +0x0C 1: its order is at the party (PendingOrder::atParty)
     i32 unk10 = 0;        // +0x10
-    i32 unk14 = 0;        // +0x14
-    i32 unk18 = 0;        // +0x18
+    i32 targetsAll = 0;   // +0x14 1: its order hits every unit of its side (PendingOrder::targetsAll)
+    i32 allAtOnce = 0;    // +0x18 1: all of them at once (PendingOrder::allAtOnce)
 };
 
 // The order a party unit chose (0x14 bytes, ten at 0x00520E90), taken into its slot record by InsertSlotRecord.
 struct PendingOrder
 {
-    i32 unk00 = 0;  // +0x00 to the record's unk0C
-    i32 unk04 = 0;  // +0x04 to unk14
-    i32 unk08 = 0;  // +0x08 to unk18
-    u16 unk0C = 0;  // +0x0C to unk0A
+    i32 atParty = 0;     // +0x00 1: at the party (the role aimed at, or every role with targetsAll), else the enemies
+    i32 targetsAll = 0;  // +0x04 1: every unit of the side (BattleUnit::TargetsAll)
+    i32 allAtOnce = 0;   // +0x08 1: hit at once, not one after another (BattleUnit::AllAtOnce)
+    u16 unk0C = 0;       // +0x0C to unk0A
     u16 unk0E = 0;
     i32 targetCount = 0;  // +0x10 the units it hits, counted as they are gathered (to targetCount)
 };
@@ -228,9 +228,9 @@ public:
     std::array<i32, Party::Roles> roleListScrolls =  // 0x0052544C by role: its roleListScroll
         {};  // 0x0052544C..0x00525458 per party role: the scroll of its list (ScrollListBack)
     std::array<PendingOrder, RoleUnits> pendingOrders = {};  // 0x00520E90
-    i32 unk53BF80 = 0;  // cleared when a party unit's order is taken (InsertSlotRecord)
-    i32 unk53BFD0 = 0;
-    i16 unk53BF46 = 0;  // cleared when a stagger ends (HurtFrame)
+    i32 unk53BF80 = 0;     // cleared when a party unit's order is taken (InsertSlotRecord)
+    i32 gathersParty = 0;  // 0x0053BFD0 1: a sweep order chosen at the party (cleared by any queued order or action)
+    i16 unk53BF46 = 0;     // cleared when a stagger ends (HurtFrame)
     i16 unk53BF48 = 0;
     u16 unk53BF28 = 0;  // non-zero: an enemy does not choose a command with UnkAction1000 (ChooseCommand)
     std::array<i32, 0x12> unk4FF0BC = {};
@@ -317,7 +317,7 @@ public:
     // The turns (0x00464CC0, 0x0045ADF0, 0x0045AA00).
     i32 turnCommand = 0;  // 0x0053BCE8 the order of the turn under way
     i32 unk53BF60 = 0;
-    i32 unk53BF64 = 0;
+    i32 roleActing = 0;  // 0x0053BF64 1: a party role is acting (RoleActFrame)
     i32 unk53BF74 = 0;
     i32 retargeted = 0;                         // 0x0053C010 set when a role turns to another enemy (RetargetRoles)
     std::array<i32, Units> turnTaken = {};      // 0x0053AF38 per unit, set when it takes the turn
@@ -337,7 +337,7 @@ public:
     std::array<u16, Units> walkLineCalls = {};  // 0x004FDF94 the calls of WalkLine
     // The draw order around the acting unit (SortDrawOrderAround).
     u8 unk53C4C0 = 0;
-    i32 unk53AE7C = 0;
+    i32 atParty = 0;  // 0x0053AE7C the acting unit's slot record: atParty
     i32 unk53AE80 = 0;
     i32 orderSorted = 0;  // 0x0053C040 set once the order is sorted around the acting unit
     // The push of a hit (Game::PushUnits).
@@ -384,9 +384,9 @@ public:
     i32 unk53AF34 = 0;
     i32 sweepTotal = 0;  // 0x0053AE74 the units a sweep is to hit
     u16 unk53AE78 = 0;
-    i32 unk53AE84 = 0;
-    i32 unk53AE88 = 0;
-    u16 unk53BF4A = 0;  // a unit's place read for the debug gauge and the menu
+    i32 targetsAll = 0;  // 0x0053AE84 the acting unit's slot record: targetsAll
+    i32 allAtOnce = 0;   // 0x0053AE88 the acting unit's slot record: allAtOnce
+    u16 unk53BF4A = 0;   // a unit's place read for the debug gauge and the menu
     u16 unk53BF4E = 0;
     i32 hoverScrollPart = 0;    // 0x0053BDA0 the part of the scroll bar under the pointer (1..4)
     i32 frameMilliseconds = 1;  // 0x004A75E8 the milliseconds of a frame (the debug overlay shows 1000 / it)

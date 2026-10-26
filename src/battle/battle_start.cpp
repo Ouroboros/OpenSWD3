@@ -176,9 +176,9 @@ void Game::StartBattle(u16 number)
     for (BattleSlotRecord& record : battle.slotRecords)
     {
         record.unit = -1;
-        record.unk18 = 0;
-        record.unk0C = 0;
-        record.unk14 = 0;
+        record.allAtOnce = 0;
+        record.atParty = 0;
+        record.targetsAll = 0;
         record.unk0A = 0;
     }
 

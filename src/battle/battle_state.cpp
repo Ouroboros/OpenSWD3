@@ -174,8 +174,8 @@ void BattleState::StartFieldFade(int red, int green, int blue, int toRed, int to
 
 // swd32.exe 0x0045EE70: `unit` put at place `at` among the records (the records from there to the first free one move
 // down a place). Kind 1 (a party unit) at -1 goes to the first free record, and takes its pending order (cleared, as
-// are unk53BF80 and unk53BFD0). The original counts from 0 when no record is free, puts a kind 1 unit placed past the
-// first free record at place 0, and moves the last record past the array when only it was free.
+// are unk53BF80 and gathersParty). The original counts from 0 when no record is free, puts a kind 1 unit placed past
+// the first free record at place 0, and moves the last record past the array when only it was free.
 void BattleState::InsertSlotRecord(int kind, i32 unit, int at)
 {
     auto& records = this->slotRecords;
@@ -234,16 +234,16 @@ void BattleState::InsertSlotRecord(int kind, i32 unit, int at)
     if (unit >= BattleState::FirstRoleUnit)
     {
         PendingOrder& order = this->pendingOrders[static_cast<std::size_t>(unit - BattleState::FirstRoleUnit)];
-        record.unk14 = order.unk04;
-        record.unk0C = order.unk00;
-        record.unk18 = order.unk08;
+        record.targetsAll = order.targetsAll;
+        record.atParty = order.atParty;
+        record.allAtOnce = order.allAtOnce;
         record.unk0A = order.unk0C;
         record.targetCount = order.targetCount;
         order = PendingOrder{};
     }
 
     this->unk53BF80 = 0;
-    this->unk53BFD0 = 0;
+    this->gathersParty = 0;
 }
 
 // The slot records filled with 0xFF bytes (inline in the original, by 0x0045ADF0, 0x0045AA00 and others).
@@ -454,10 +454,10 @@ void BattleState::ClearActing()
     this->sweepTotal = 0;
     this->unk53AE78 = 0;
     this->slideBackPicture = 0;
-    this->unk53AE7C = 0;
+    this->atParty = 0;
     this->unk53AE80 = 0;
-    this->unk53AE84 = 0;
-    this->unk53AE88 = 0;
+    this->targetsAll = 0;
+    this->allAtOnce = 0;
 }
 
 // The word at 0x004FE5CA + 2 * `index` that 0x0045FC60 reads as the accessory kind of menu command `index` (4..7):

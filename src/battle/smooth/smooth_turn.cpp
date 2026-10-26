@@ -945,7 +945,7 @@ void TurnFrame::DrawTargetTagAdvance(int x, int y, Scene& scene)
     // Without a current unit (the auto battle) the original reads the order before the first: taken as not set.
     const bool partyOrder =
         battle.currentUnit >= BattleState::FirstRoleUnit &&
-        battle.pendingOrders[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)].unk00 == 1;
+        battle.pendingOrders[static_cast<std::size_t>(battle.currentUnit - BattleState::FirstRoleUnit)].atParty == 1;
 
     if (partyOrder || battle.unk53BF88 == 1 || battle.aimTarget <= 0 ||
         battle.aimTarget > static_cast<i32>(battle.enemyCount))

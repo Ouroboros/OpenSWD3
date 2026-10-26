@@ -1006,7 +1006,7 @@ int BattleRole::ChargeOnTarget(BattleServices& services, BattleUnit& target)
 // swd32.exe 0x00474BA0: one frame of the role's swarm spell (magic act in slot act 8); 1 once it is over. The magic
 // act's target bits play the effect in the recoil act; once it strikes or follows up, every third frame (glowLevel
 // counting) one more act (the cast act, action unk2F0C; at most 8 queued) flies from a point around the role
-// (SwarmOffsetX / Y) to 0x28 above the target (a UnkAction2 command aims at 0, 0), shaking 0x34 frames, speeding, with
+// (SwarmOffsetX / Y) to 0x28 above the target (an AllAtOnce command aims at 0, 0), shaking 0x34 frames, speeding, with
 // a trail, and sound kSwarmSound plays. The queued acts run each frame; when they are all gone and the magic act waits,
 // it ends.
 int BattleRole::SwarmSpellFrame(BattleServices& services, BattleUnit& target)
