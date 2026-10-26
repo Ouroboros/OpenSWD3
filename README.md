@@ -29,7 +29,7 @@
 ## 安装与运行
 
 1. 准备好原版游戏目录，例如 `E:\Game\swd3`。
-2. 解压后得到 `OpenSWD3` 文件夹，里面有 `swd3r.exe`、`asset` 文件夹和设置文件 `swd3r.toml`。可以整个放在任意位置，也可以把里面的东西放进游戏目录。
+2. 从 [Releases](https://github.com/Ouroboros/OpenSWD3/releases/latest) 下载最新版的压缩包，解压后得到 `OpenSWD3` 文件夹，里面有 `swd3r.exe`、`asset` 文件夹和设置文件 `swd3r.toml`。可以整个放在任意位置，也可以把里面的东西放进游戏目录。
 3. 如果没有放进游戏目录，用记事本打开 `swd3r.toml`，在 `[paths]` 里写上游戏目录：
 
    ```toml
