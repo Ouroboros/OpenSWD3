@@ -580,7 +580,7 @@ void TurnFrame::DrawThrowListAdvance(int x, int y, int cursor, int top, Scene& s
                 FillMode::Gradient,
                 scene);
             battle.listCursor = next;
-            battle.unk53BFB8 = 1;
+            battle.choiceReady = 1;
         }
 
         font.SetBackground(TextFont::NoBackground);
@@ -695,7 +695,7 @@ void TurnFrame::DrawRefineListAdvance(int x, int y, int cursor, Scene& scene)
                     scene);
                 font.DrawText(game.drawSurface, columnX, rowY, name, battle.lightColor, TextFont::BoldOutline);
                 font.SetBackground(TextFont::NoBackground);
-                battle.unk53BFB8 = 1;
+                battle.choiceReady = 1;
                 battle.listCursor = piece == 1 ? object + 1 : object;
 
                 if (battle.roleListEntries == 0)
@@ -818,7 +818,7 @@ void TurnFrame::DrawSpecialListAdvance(int x, int y, int cursor, Scene& scene)
                     FillMode::Gradient,
                     scene);
                 font.SetBackground(TextFont::NoBackground);
-                battle.unk53BFB8 = 1;
+                battle.choiceReady = 1;
                 battle.specialCursor = index;
             }
 
@@ -1222,7 +1222,7 @@ void TurnFrame::DrawSpellListAdvance(int x, int y, int cursor, int top, Scene& s
                 TextFont::BoldOutline
             );
             font.SetBackground(TextFont::NoBackground);
-            battle.unk53BFB8 = 1;
+            battle.choiceReady = 1;
             battle.specialCursor = index;
         }
 
@@ -1348,7 +1348,7 @@ void TurnFrame::DrawItemListAdvance(int x, int y, int cursor, int top, Scene& sc
                     FillMode::Gradient,
                     scene);
                 battle.listCursor = index;
-                battle.unk53BFB8 = 1;
+                battle.choiceReady = 1;
                 Box(game.painter,
                     0,
                     kDescriptionTop,
@@ -2007,7 +2007,7 @@ void TurnFrame::DrawBattleDebugAdvance(Scene& scene)
                 {battle.unk53AF68, static_cast<i32>(battle.darkenUnit), game.fightTalk.battleRuns}
             )
         );
-        text(kDebugStateX, kDebugMenuY, WinFormat(kMenuDebugLine, {battle.result, battle.unk53BFBC}));
+        text(kDebugStateX, kDebugMenuY, WinFormat(kMenuDebugLine, {battle.result, battle.mouseMode}));
         text(
             kDebugStateX,
             kDebugCountsY,

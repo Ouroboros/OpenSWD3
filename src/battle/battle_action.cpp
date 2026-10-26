@@ -115,7 +115,7 @@ constexpr u16 kOrderPrepared = 0x8000;  // BattleState::enemyOrders
 constexpr u16 kOrderSpell = 0x4000;
 constexpr int kTimingX = 0x140;  // RoleActionFrame command 0x1A: the timing bar
 constexpr int kTimingY = 0xC8;
-constexpr i32 kTimingPressed = 1;  // BattleState::unk53BDA4
+constexpr i32 kTimingPressed = 1;  // BattleState::timingPress
 constexpr i32 kTimingTaken = 0x8000;
 constexpr i32 kTimingKept = 0xFFF;
 constexpr u16 kTimingDone = 0x8000;
@@ -123,7 +123,7 @@ constexpr u16 kTimingSound = 0x2C;
 constexpr u32 kLowWord = 0xFFFF;
 constexpr u32 kHighWord = 0xFFFF0000;
 constexpr u16 kTimingStart = 1;
-constexpr i32 kTimerStarted = static_cast<i32>(0x80000000u);  // BattleState::unk53BDAC
+constexpr i32 kTimerStarted = static_cast<i32>(0x80000000u);  // BattleState::timerAttack
 constexpr i32 kTimerPressed = 1;
 constexpr int kTimerSeconds = 5;
 constexpr int kTimerFlag = 0x4B;
@@ -1234,7 +1234,7 @@ int Game::ControlFrame(BattleRole& unit, int role, int target)
 }
 
 // Command 0x1A of RoleActionFrame (inline in the original): the timing bar runs while the role holds still
-// (kComboStill once the needle starts); a press (unk53BDA4) takes the timing: a hit with the needle on the mark
+// (kComboStill once the needle starts); a press (timingPress) takes the timing: a hit with the needle on the mark
 // (timingHit) sounds and frees the role, otherwise the next attack repeats (numberFont's low word). Each attack that
 // lands holds the role again; a defeat holds the enemy and ends the bar (kTimingDone), as does the bar's end without a
 // press.
@@ -1256,27 +1256,27 @@ int Game::TimingAttackFrame(BattleRole& unit, int target)
         unit.ClearStatus(kComboStill);
         unit.SetCommand(kAfterAction);
         hud.timingHit = 0;
-        battle.unk53C024 = 0;
+        battle.timingBarShown = 0;
         setLow(hud.numberFont, 0);
         setLow(hud.timingCounter, 0);
     };
 
-    battle.unk53C024 = 1;
+    battle.timingBarShown = 1;
 
     if ((static_cast<u32>(hud.timingCounter) & kLowWord) == kTimingStart)
     {
         unit.SetStatus(kComboStill);
     }
 
-    if (hud.DrawTimingBar(kTimingX, kTimingY) == 1 && (battle.unk53BDA4 & kTimingTaken) == 0)
+    if (hud.DrawTimingBar(kTimingX, kTimingY) == 1 && (battle.timingPress & kTimingTaken) == 0)
     {
         end();
         return 0;
     }
 
-    if ((battle.unk53BDA4 & kTimingPressed) != 0)
+    if ((battle.timingPress & kTimingPressed) != 0)
     {
-        battle.unk53BDA4 = kTimingTaken;
+        battle.timingPress = kTimingTaken;
 
         if ((hud.numberFont & kLowWord) == 0)
         {
@@ -1299,12 +1299,12 @@ int Game::TimingAttackFrame(BattleRole& unit, int target)
         return 0;
     }
 
-    battle.unk53BDA4 &= kTimingKept;
+    battle.timingPress &= kTimingKept;
     battle.hitLanded = 1;
     battle.lastEnemyHit = static_cast<u16>(target);
     battle.slotTargets[static_cast<std::size_t>(target)] = target;
     battle.unk53BFC0 = 0;
-    battle.unk53C024 = 0;
+    battle.timingBarShown = 0;
 
     if (battle.unk53AF68 == 0 && enemy.Damage(services, battle.hitDamage, 0, 0) == 1)
     {
@@ -1381,7 +1381,7 @@ int Game::AccessoryBuffFrame(BattleRole& unit, int target, int command)
 }
 
 // Command 0x1F of RoleActionFrame (inline in the original): a five-second timer (StartTimer) runs over the enemy
-// (its place in unk53BF50); game flag 0x4B (the timer's end) ends the command; each press (unk53BDAC) hits the enemy
+// (its place in unk53BF50); game flag 0x4B (the timer's end) ends the command; each press (timerAttack) hits the enemy
 // with the role's hit (its digits) and a defeat clears game flag 0x4A and ends it.
 int Game::TimerAttackFrame(BattleRole& unit, int target)
 {
@@ -1390,9 +1390,9 @@ int Game::TimerAttackFrame(BattleRole& unit, int target)
     BattleEnemy& enemy = this->battleEnemies[static_cast<std::size_t>(target)];
     battle.result = 0;
 
-    if (battle.unk53BDAC == 0)
+    if (battle.timerAttack == 0)
     {
-        battle.unk53BDAC = kTimerStarted;
+        battle.timerAttack = kTimerStarted;
         this->StartTimer(0, kTimerSeconds, 0, 1);
         u16 x = 0;
         u16 y = 0;
@@ -1405,20 +1405,20 @@ int Game::TimerAttackFrame(BattleRole& unit, int target)
     if (this->state.GameFlag(kTimerFlag))
     {
         this->state.ClearGameFlag(kTimerFlag);
-        battle.unk53BDAC = 0;
+        battle.timerAttack = 0;
         battle.unk53BF58 = 0;
         battle.darkenUnit = -1;
         return 1;
     }
 
-    if ((battle.unk53BDAC & kTimerPressed) == 0)
+    if ((battle.timerAttack & kTimerPressed) == 0)
     {
         return 0;
     }
 
     this->audio.PlaySound(kTimerSound, this->config.soundVolume);
     this->battleHud.ResetEffectAt();
-    battle.unk53BDAC = kTimerStarted;
+    battle.timerAttack = kTimerStarted;
     battle.unk53BF58 = 1;
     battle.hitDamage = unit.HitDamage(services, enemy, battle.spiritDamage, battle.staminaDamage);
     enemy.RaiseFlag26B8();
@@ -1430,7 +1430,7 @@ int Game::TimerAttackFrame(BattleRole& unit, int target)
         this->state.ClearGameFlag(kTimerDefeatFlag);
         this->RoleDefeated(target);
         battle.hitDamage = 0;
-        battle.unk53BDAC = 0;
+        battle.timerAttack = 0;
         battle.darkenUnit = -1;
         return 1;
     }
