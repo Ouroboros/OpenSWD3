@@ -367,7 +367,8 @@ function show() {
   const kind = [...item.tabs.map(at => DATA.tabs[at]), ...item.slots].filter((name, at, all) =>
     all.indexOf(name) === at).join('・');
   // A shop sells at the price and buys at 60% of it (none without a price).
-  const rows = [['價格', item.price ? `${item.price} 銀　賣出 ${Math.floor(item.price * 60 / 100)} 銀` : '無法買賣']];
+  // The number the cheat dialog adds the item by.
+  const rows = [['編號', item.id], ['價格', item.price ? `${item.price} 銀　賣出 ${Math.floor(item.price * 60 / 100)} 銀` : '無法買賣']];
 
   // Who can wear it (the equipment menu checks the role bits; the item and battle lists read only the low bits).
   if (item.slots.length) {
