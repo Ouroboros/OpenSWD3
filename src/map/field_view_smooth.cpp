@@ -234,7 +234,7 @@ void FieldView::PaintBetween(Surface& out)
         fineY[index] = place[1];
         this->placesKey.push_back(fineX[index]);
         this->placesKey.push_back(fineY[index]);
-        this->placesKey.push_back(this->RoleStopping(index) ? 1 : 0);
+        this->placesKey.push_back(this->RoleStopping(index) || this->RoleTurning(index) ? 1 : 0);
     }
 
     // The effect elements the last game frame drew, placed like the roles (on the map) or on the screen.
@@ -280,7 +280,8 @@ void FieldView::PaintBetween(Surface& out)
     std::array<i32, GameState::Roles> roleX = {};
     std::array<i32, GameState::Roles> roleY = {};
 
-    // A role on a step that stops it is drawn with the act it had where the step started (CaptureRoleSteps).
+    // A role on a step that stops it is drawn with the act it had where the step started, a follower turning on its
+    // tile with that of its first turn there (CaptureRoleSteps).
     std::vector<std::pair<std::size_t, ActState>> roleActs;
 
     for (std::size_t index = 0; index < GameState::Roles; ++index)
@@ -288,7 +289,7 @@ void FieldView::PaintBetween(Surface& out)
         roleX[index] = state.roles[index].x;
         roleY[index] = state.roles[index].y;
 
-        if (this->RoleStopping(index))
+        if (this->RoleStopping(index) || this->RoleTurning(index))
         {
             roleActs.emplace_back(index, state.roles[index].act);
             state.roles[index].act = this->roleMotions[index].act;

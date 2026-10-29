@@ -336,6 +336,8 @@ private:
         u32 frame = 0;
         bool stops = false;
         bool frozen = false;
+        bool turning =
+            false;  // a walking follower turned on its tile: drawn with `act`, its first turn's, until it steps
         ActState act;
     };
 
@@ -364,6 +366,7 @@ private:
     void RoleTick(std::size_t index);
     bool RoleOnStep(std::size_t index) const;
     bool RoleStopping(std::size_t index) const;
+    bool RoleTurning(std::size_t index) const;
     i32 StepsToEnd(std::size_t index, const RolePlace& from) const;
     std::array<i32, 2> MotionShown(const RoleMotion& step) const;
     void ArriveFollower(std::size_t index, std::size_t move, u8 direction);

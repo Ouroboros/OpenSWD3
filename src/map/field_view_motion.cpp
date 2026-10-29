@@ -18,6 +18,20 @@ i32 Sign(i32 value)
     return (value > 0) - (value < 0);
 }
 
+// The follower record (Scene::followerMoves) of role `index`, or nullptr.
+const MoveRecord* FollowerMoveOf(const Scene& view, std::size_t index)
+{
+    for (u32 slot = 1; slot < static_cast<u32>(view.followerCount) && slot < view.followerMoves.size(); ++slot)
+    {
+        if (view.followerMoves[slot].role == index)
+        {
+            return &view.followerMoves[slot];
+        }
+    }
+
+    return nullptr;
+}
+
 }  // namespace
 
 // The end of the map's frame (0x004120B0) for the controlled role on a tile: its cells and trail follow its step and
@@ -348,6 +362,12 @@ bool FieldView::RoleStopping(std::size_t index) const
            this->roleMotions[index].elapsed < this->roleMotions[index].length;
 }
 
+// Whether role `index` is a follower drawn turning on its tile, with the act of its first turn there.
+bool FieldView::RoleTurning(std::size_t index) const
+{
+    return this->RoleOnStep(index) && this->roleMotions[index].turning;
+}
+
 // Whether role `index` is drawn by its motion (still where the frames last left it).
 bool FieldView::RoleOnStep(std::size_t index) const
 {
@@ -404,9 +424,10 @@ void FieldView::KeepRolePlaces()
 // (a step drawn there already stands at once). Any other role drawn behind (held while between tiles, the frames put
 // it on the tile ahead) gains at most 1/kCatchUpShare of its step on each step, so that it catches up over a few steps
 // at a pace near its own. A role the frame held for an event, or turned or changed the action of without moving it, has
-// stopped: it stays drawn where it is (where the frame moved it on too) until the frames move it again; one the frame
-// did not move goes on as it is drawn. One that came, went or changed, or is drawn more than kFarSteps tiles from where
-// the frame left it (put there), is shown where it is, as are all after a gap in the frames or on another map.
+// stopped: it stays drawn where it is (where the frame moved it on too) until the frames move it again, but for a
+// walking follower turned with its next step set, which walks on; one the frame did not move goes on as it is drawn.
+// One that came, went or changed, or is drawn more than kFarSteps tiles from where the frame left it (put there), is
+// shown where it is, as are all after a gap in the frames or on another map.
 void FieldView::CaptureRoleSteps(bool continuous)
 {
     Game& owner = this->game;
@@ -441,6 +462,51 @@ void FieldView::CaptureRoleSteps(bool continuous)
         const bool held = (role.flags & Role::Held) != 0 && !from.held;
         const bool turned = role.act.direction != from.act.direction || role.act.action != from.act.action;
 
+        const MoveRecord* followerMove = FollowerMoveOf(owner.scene, index);
+
+        // The rebuild: a walking follower its frame turned on a tile, its next step set (RolePath::Follow faces it
+        // along the step before its act's delay lets it take it, a frame later than a step straight on), walks on: it
+        // is drawn from where it is to the end of that step over the frames to the step and as many again (what is
+        // left of the step it is on, then the next), cutting the corner at about its pace, facing the new way.
+        const bool walksOn = !moved && !held && followerMove != nullptr && role.act.action == from.act.action &&
+                             (followerMove->step & MoveRecord::Done) == 0 &&
+                             (followerMove->stepX != 0 || followerMove->stepY != 0) &&
+                             static_cast<i32>(role.act.delay) < RoleStepMostFrames;
+
+        if (walksOn)
+        {
+            // Turned again on the same tile (its path's first step flips as the leader's trail moves on): the drawing
+            // keeps its first turn, its act going on while the role faces that way.
+            if (tracked && step.turning)
+            {
+                if (role.act.direction == step.act.direction)
+                {
+                    step.act = role.act;
+                }
+
+                continue;
+            }
+
+            step = RoleMotion{
+                .active = true,
+                .targetX = role.x,
+                .targetY = role.y,
+                .fromX = shown[0],
+                .fromY = shown[1],
+                .toX = (role.x + followerMove->stepX) * MotionFine,
+                .toY = (role.y + followerMove->stepY) * MotionFine,
+                .length = 2 * (static_cast<i32>(role.act.delay) + 1) * interval,
+                .elapsed = 0,
+                .frame = owner.gameFrames,
+                .stops = false,
+                .frozen = false,
+                .turning = true,
+                .act = role.act,
+            };
+
+            continue;
+        }
+
         if (held || (!moved && turned))
         {
             step = RoleMotion{
@@ -470,6 +536,12 @@ void FieldView::CaptureRoleSteps(bool continuous)
 
         if (!moved)
         {
+            // A turning follower faced its first turn's way again: its act goes on.
+            if (tracked && step.turning && role.act.direction == step.act.direction)
+            {
+                step.act = role.act;
+            }
+
             continue;
         }
 
