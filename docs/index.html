@@ -413,7 +413,8 @@ function route() {
     return;
   }
 
-  const source = detail ? `${view}#${encodeURIComponent(detail)}` : view;
+  // The page gets the address's query (?sound=off) with what it opens on.
+  const source = `${view}${location.search}${detail ? `#${encodeURIComponent(detail)}` : ''}`;
 
   if (!frames[name]) {
     const frame = document.createElement('iframe');
@@ -460,7 +461,27 @@ addEventListener('hashchange', route);
 // A page shown here tells what it shows (kept in the address in place) or asks for another (a new address: going
 // back returns to the first).
 addEventListener('message', event => {
-  const { open, shown, detail } = event.data || {};
+  const { open, shown, detail, sound } = event.data || {};
+
+  // A page's sound switch kept in the address and handed to the other pages.
+  if (typeof sound === 'boolean') {
+    const params = new URLSearchParams(location.search);
+
+    if (sound) {
+      params.delete('sound');
+    } else {
+      params.set('sound', 'off');
+    }
+
+    const search = params.toString();
+    history.replaceState(null, '', `${location.pathname}${search ? `?${search}` : ''}${location.hash}`);
+    Object.values(frames).forEach(frame => {
+      if (frame.contentWindow !== event.source) {
+        frame.contentWindow.postMessage({ sound }, '*');
+      }
+    });
+    return;
+  }
 
   if (typeof detail !== 'string') {
     return;
