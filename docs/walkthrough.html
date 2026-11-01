@@ -84,7 +84,8 @@ h1 {
 
 .layout {
   display: grid;
-  grid-template-columns: 110px 250px 1fr;
+  grid-template-columns: 290px 1fr;
+  grid-template-rows: 40px 1fr;
   gap: 0 14px;
   margin-top: 8px;
   flex: 1;
@@ -98,35 +99,36 @@ h1 {
 }
 
 .tabs {
+  grid-column: 1 / span 2;
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding-top: 10px;
-  margin-right: -14px;
-  overflow-y: auto;
-  scrollbar-width: none;
+  gap: 2px;
+  padding-left: 12px;
+  margin-bottom: -3px;
   z-index: 1;
 }
 
 .tab {
   font-family: var(--kai);
-  font-size: 19px;
-  padding: 5px 12px 5px 10px;
+  font-size: 20px;
+  min-width: 64px;
+  height: 40px;
+  line-height: 38px;
+  padding: 0 12px;
   color: #6d5a3c;
-  background: linear-gradient(90deg, #b8a27a, #d9c9a3);
+  background: linear-gradient(180deg, #d9c9a3, #b8a27a);
   border: 1px solid #8a6d3b;
-  border-right: none;
-  border-radius: 6px 0 0 6px;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
   cursor: pointer;
   user-select: none;
   text-align: center;
   white-space: nowrap;
 }
 
-.tab.chosen { color: #1e1406; background: linear-gradient(90deg, #d6b45e, #f6e3a6); border-color: var(--gold-dark);
+.tab.chosen { color: #1e1406; background: linear-gradient(180deg, #f6e3a6, #d6b45e); border-color: var(--gold-dark);
   font-weight: bold; }
-.tab.found { color: #3a2a10; background: linear-gradient(90deg, #cdb88a, #eadcb6); border-color: var(--gold-dark);
-  box-shadow: inset 4px 0 0 var(--gold-dark); }
+.tab.found { color: #3a2a10; background: linear-gradient(180deg, #eadcb6, #cdb88a); border-color: var(--gold-dark);
+  box-shadow: inset 0 4px 0 var(--gold-dark); }
 
 .list {
   min-height: 0;
