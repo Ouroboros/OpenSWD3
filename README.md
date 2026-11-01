@@ -6,6 +6,11 @@
 
 本项目不含任何游戏资料，需要你已有原版游戏。
 
+对应的原版版本：
+
+- 主程序：DVD 版 `swd3.exe`，2000 年 6 月编译，程序内的版本字串是 `v1.02DVD`，游戏附带的说明称为「DVD更新版 (1.03)」。
+- 游戏资料：用 DVD 版的资料。CD 版装上大宇官网的 1.02 更新后，仍有 6 个资料文件和 DVD 版不同（`TALK1.DAT`、`TALK3.DAT`、`TALK4.DAT`、`MAPS.DAT`、`FIGTALK.dat`、`all_magic.act`），没有测试过。
+
 主页：<https://ouroboros.github.io/OpenSWD3/>
 
 ## 和原版相比
