@@ -293,8 +293,29 @@ int Game::BattleFrame()
     this->fieldView.DrawRoleHeads();
     this->talk.Draw();
     this->battleMessages.DrawResistancePanel();
-    this->fieldView.DrawTimer(kTimerX, kTimerY, 0);
-    this->fieldView.DrawTimer(kSecondTimerX, kTimerY, 1);
+
+    {
+        // The rebuild's smooth battle (deviations.md): the timers' digits in the frame's scene, standing where they are
+        // between game frames (drawn at once without smooth motion, as the original draws them).
+        smooth::Scene scene;
+        smooth::PictureSteps steps;
+
+        auto add = [this, &steps](const Picture& picture, int left, int top)
+        {
+            smooth::PictureStep step;
+            step.picture = smooth::RefOf(this->archive, &picture);
+            step.x = left;
+            step.y = top;
+            step.mode = Painter::Copy;
+            steps.push_back(std::move(step));
+        };
+
+        this->fieldView.ForTimerPictures(kTimerX, kTimerY, 0, add);
+        this->fieldView.ForTimerPictures(kSecondTimerX, kTimerY, 1, add);
+        smooth::Scene::Still still(scene);
+        scene.Add(std::move(steps));
+        scene.Show(this->battleServices);
+    }
 
     if (this->state.GameFlag(kQuitFlag))
     {

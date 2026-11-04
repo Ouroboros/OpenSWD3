@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <span>
 #include <string_view>
@@ -156,6 +157,9 @@ public:
     void DrawSpotlight();
     void DrawRipples();
     void DrawTimer(int x, int y, int which);
+    // The pictures DrawTimer draws, each handed to `each` with its place (the digits' act stepped as DrawTimer steps
+    // it).
+    void ForTimerPictures(int x, int y, int which, const std::function<void(const Picture&, int, int)>& each);
     void FillCellMark(int x, int y, int width, int height, int color);
     void MarkCells(u32 mask, int color, int offsetX, int offsetY, int inset);
     void PanCamera();

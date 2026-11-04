@@ -194,6 +194,23 @@ void FieldView::DrawSprites()
 // under flag 0x4A) in frames as [h]m:ss with the digits of act 0x232C, unless flag 0x4C hides it
 void FieldView::DrawTimer(int x, int y, int which)
 {
+    Painter& painter = this->game.painter;
+    this->ForTimerPictures(
+        x,
+        y,
+        which,
+        [&painter](const Picture& picture, int left, int top)
+        {
+            painter.SetSource(picture.data.data());
+            painter.DrawPicture(left, top, picture.width, picture.height, Painter::Copy);
+        }
+    );
+}
+
+// The rebuild (part of 0x004308C0): the digits of DrawTimer, each handed to `each` instead of drawn, so that the smooth
+// battle keeps them in its frame (deviations.md).
+void FieldView::ForTimerPictures(int x, int y, int which, const std::function<void(const Picture&, int, int)>& each)
+{
     Game& owner = this->game;
     const GameState& state = owner.state;
 
@@ -213,7 +230,6 @@ void FieldView::DrawTimer(int x, int y, int which)
     }
 
     Scene& view = owner.scene;
-    Painter& painter = owner.painter;
     int seconds = (which != 0 ? view.secondTimerFrames : view.timerFrames) / kFramesPerSecond;
 
     if (seconds < 0)
@@ -226,7 +242,7 @@ void FieldView::DrawTimer(int x, int y, int which)
     digits.direction = 0;
     int at = x;
 
-    auto draw = [&owner, &painter, &digits, &at, y](int action)
+    auto draw = [&owner, &digits, &at, &each, y](int action)
     {
         digits.action = action;
         owner.acts.Run(digits);
@@ -234,8 +250,7 @@ void FieldView::DrawTimer(int x, int y, int which)
 
         if (picture != nullptr)
         {
-            painter.SetSource(picture->data.data());
-            painter.DrawPicture(at, y, picture->width, picture->height, Painter::Copy);
+            each(*picture, at, y);
             at += picture->width;
         }
     };
