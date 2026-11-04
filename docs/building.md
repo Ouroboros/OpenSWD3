@@ -132,3 +132,15 @@ Windows 版测试在 Windows 中运行 `build\windows\swd3_tests.exe`。
 scripts/format.sh        # clang-format
 scripts/check_style.sh   # 命名与写法检查
 ```
+
+## 更新記錄页
+
+主页的「更新記錄」`docs/changelog.html` 由根目录的 `CHANGELOG.md` 生成：
+
+```sh
+python3 scripts/changelog/build.py CHANGELOG.md docs/changelog.html move.wav
+```
+
+- `CHANGELOG.md`：「## 日期」开始一天（新的在前），段内「### 新功能」「### 修正」「### 网站」，每条「- 」一项。只收玩家看得到的改动。
+- `move.wav`：游戏 `all.snd` 第 46 号音效（菜单移动光标的声音），可以省略，省略时页面没有音效。
+- 主页里打开的地址是 `#changelog`，方向键、PageUp/PageDown、Home/End 滚动；`#changelog/2026-11-05` 滚动到那一天。

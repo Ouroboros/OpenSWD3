@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>更新記錄</title>
+<style>
+:root {
+  --gold: #c9a24a;
+  --gold-dark: #7a5a1c;
+  --gold-light: #f2d27a;
+  --text: #e9dcb8;
+  --dim: #b9a67a;
+  --panel: rgba(14, 10, 4, 0.94);
+  --ink: #7a1f12;
+  --kai: "BiauKai", "DFKai-SB", "標楷體", "KaiTi", "STKaiti", "Kaiti TC", serif;
+  --ming: "PMingLiU", "MingLiU", "新細明體", "Songti TC", "Noto Serif TC", "Noto Serif CJK TC", serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; height: 100%; overflow: hidden; }
+
+body {
+  font-family: var(--ming);
+  color: var(--text);
+  background:
+    radial-gradient(ellipse at 20% 10%, rgba(255, 250, 230, 0.55), transparent 55%),
+    radial-gradient(ellipse at 80% 85%, rgba(120, 90, 50, 0.35), transparent 60%),
+    radial-gradient(ellipse at 60% 40%, rgba(90, 70, 40, 0.25), transparent 50%),
+    repeating-linear-gradient(90deg, rgba(110, 60, 20, 0.08) 0 1px, transparent 1px 72px),
+    linear-gradient(160deg, #e8dcc0 0%, #d6c39c 45%, #c4ab7d 100%);
+}
+
+.book {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1180px;
+  height: 870px;
+  padding: 12px 12px 8px;
+  display: flex;
+  flex-direction: column;
+  transform-origin: 0 0;
+}
+
+.top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  border-top: 2px solid rgba(122, 60, 20, 0.45);
+  background: repeating-linear-gradient(90deg, rgba(122, 60, 20, 0.35) 0 1px, transparent 1px 54px);
+  height: 64px;
+  flex: none;
+  padding: 0 12px 4px 6px;
+}
+
+h1 {
+  margin: 0;
+  font-family: var(--kai);
+  font-size: 44px;
+  letter-spacing: 6px;
+  color: var(--ink);
+  text-shadow: 2px 2px 0 rgba(255, 240, 210, 0.6), 0 0 6px rgba(122, 31, 18, 0.25);
+  font-weight: bold;
+}
+
+.sound {
+  margin: 0 auto 6px 6px;
+  height: 34px;
+  padding: 0 12px;
+  font-family: var(--kai);
+  font-size: 18px;
+  color: #3b2a12;
+  background: linear-gradient(180deg, #e8d9b0, #c9b285);
+  border: 1px solid rgba(122, 60, 20, 0.6);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.sound.off { color: #8a7a5c; background: rgba(255, 248, 228, 0.5); }
+
+.frame {
+  background: var(--panel);
+  border: 3px double var(--gold);
+  box-shadow: inset 0 0 0 1px var(--gold-dark), 0 0 0 1px #3a2a10, 2px 3px 8px rgba(40, 25, 5, 0.55);
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  margin-top: 8px;
+  padding: 14px 8px 12px 24px;
+}
+
+.page .body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; padding: 4px 14px 10px 0;
+  scrollbar-color: var(--gold-dark) #120e06; font-size: 18px; line-height: 31px; }
+.page h2 { font-family: var(--kai); font-size: 32px; line-height: 44px; font-weight: normal; color: #fff2c8;
+  margin: 22px 16px 4px 0; padding-bottom: 4px; border-bottom: 1px solid var(--gold-dark); }
+.page section:first-child h2 { margin-top: 0; }
+.page h3 { font-family: var(--kai); font-size: 23px; font-weight: normal; color: var(--gold-light); margin: 14px 0 2px; }
+.page p { margin: 2px 0 6px; }
+.page ul { margin: 0 0 6px; padding-left: 26px; }
+.page li { margin: 0; }
+.page li::marker { color: var(--gold); }
+
+.hint { flex: none; margin-top: 6px; font-size: 13px; color: #5a4524; text-align: right; }
+</style>
+</head>
+<body>
+<div class="book">
+  <div class="top">
+    <button class="sound" id="sound" type="button"></button>
+    <h1>更新記錄</h1>
+  </div>
+  <div class="frame page"><div class="body" id="body"><section id="2026-11-05"><h2>2026-11-05</h2><h3>网站</h3><ul><li>主页新增「更新記錄」，按日期列出每次的改动。</li></ul></section><section id="2026-11-03"><h2>2026-11-03</h2><h3>新功能</h3><ul><li>「顯示設定」里「地圖填滿」移到「平滑畫面」下面。</li></ul></section><section id="2026-11-01"><h2>2026-11-01</h2><h3>网站</h3><ul><li>写明对应的原版：2000 年 6 月编译的 DVD 版主程序（版本字串 v1.02DVD，游戏附带的说明称为「DVD更新版 (1.03)」）。CD 版装上大宇官网的 1.02 更新后，仍有 6 个资料文件和 DVD 版不同，能否运行没有测试过。</li><li>煉妖大全的版面与神魔異事錄对齐。</li><li>流程攻略的篇章页签改为横排放在上面。</li></ul></section><section id="2026-10-30"><h2>2026-10-30</h2><h3>修正</h3><ul><li>平滑画面下，队伍里跟随的角色转弯时会停一下再起步，有时还会左右来回扭头。</li></ul></section><section id="2026-10-29"><h2>2026-10-29</h2><h3>网站</h3><ul><li>物品大全、神魔異事錄、煉妖大全、流程攻略：选到列表的第一条或最后一条时，列表滚到顶或底；按 Home、End 直接选第一条、最后一条。</li><li>以上页面在列表中移动时播放游戏的光标音效，搜索框旁有「音效」开关。</li></ul></section><section id="2026-10-28"><h2>2026-10-28</h2><h3>网站</h3><ul><li>物品大全显示每件物品的编号，就是作弊对话框「加入」时要填的编号。</li></ul></section><section id="2026-10-27"><h2>2026-10-27</h2><h3>网站</h3><ul><li>主页的目录与标题改为繁体。</li><li>流程攻略按游戏脚本改正牛魔王的出现条件，补全洛阳道观四楼的六支签。</li></ul></section><section id="2026-10-26"><h2>2026-10-26</h2><h3>修正</h3><ul><li>战斗中角色的生命超过 9999 时报图档错误，之后接连弹出错误窗口。</li><li>全体回复（如真夢娃娃）有时只加一个人（原版问题）。</li><li>用数字键选指令后，攻击打向不存在的敌人、角色走出画面。</li><li>平滑画面下，角色快走到终点时会站着往前滑一段。</li></ul><h3>网站</h3><ul><li>新增流程攻略：按篇章和地图列出流程、宝箱、隐藏物品、支线、偷窃与灵契，系列任务单独列出；物品名、怪物名可以点开物品大全、神魔異事錄。</li><li>主页新增「角色屬性」，说明各项属性在战斗里的作用与上限。</li><li>物品大全补上活物与召唤物品，并显示战斗用物品（召唤物、投掷武器、符）的伤害。</li><li>神魔異事錄改为显示战斗中的实际数值：撒旦、蚩尤的生命，以及 BOSS 的攻击与敏捷。</li><li>主页的设置说明改为带注释的设置文件例子；安装步骤加上下载地址。</li></ul></section><section id="2026-10-25"><h2>2026-10-25</h2><h3>新功能</h3><ul><li>大地图上跑步的速度提高到和城镇里一样。</li></ul><h3>修正</h3><ul><li>有客串角色或护卫参战时，鼠标经过角色面板会崩溃。</li><li>上一场战斗没打出的连击和暴击会带到下一场（原版问题）。</li><li>平滑画面下，NPC 对话时会倒退半格，对话后起步、转弯时倒着或侧着滑，停下转身时还继续往前滑。</li><li>道具提示不再标出只扣物品的机关和走不到的对话点。</li></ul><h3>网站</h3><ul><li>新增主页，介绍与原版的差别、安装、设置和隐藏秘籍。</li><li>新增物品大全：按游戏的分类列出全部物品的图片、价格、加成、抗力和取得方法，可以搜索。</li><li>新增煉妖大全：列出法宝祭坛能炼出的全部结果和每种结果的配方。</li><li>神魔異事錄、物品大全、煉妖大全都在主页里打开，名字可以互相点开；网址记住所选的项目。</li></ul></section><section id="2026-10-24"><h2>2026-10-24</h2><h3>新功能</h3><ul><li>地图全景再次打开时，保持上次的缩放。</li></ul><h3>修正</h3><ul><li>偷竊成功的消息显示成乱码。</li><li>平滑画面下，剧情里的角色有时走偏、事件卡住，或停下后仍是走路的样子；平滑画面改为只改画面，角色的走位与原版完全一致。</li><li>宽地图下，沙丘等地图在镜头移动时出现横向拖尾。</li></ul><h3>网站</h3><ul><li>新增神魔異事錄网页：按游戏图鉴的分类列出怪物的数值、隐藏属性、招式、偷竊与掉落，另收录图鉴没有的对手，可以搜索。</li></ul></section><section id="2026-10-23"><h2>2026-10-23</h2><h3>新功能</h3><ul><li>「設定」新增「戰鬥設定」→「自動連擊」：自动战斗时，戴着「連擊」饰品（武聖手鐲、姜公膽）且体力够的角色自动使用「連擊」。</li><li>窗口最小化时暂停声音，恢复后接着播放（原版恢复后直到换曲都没有音乐）。</li><li>道具提示也标出还没打开的罐子、宝箱和给银币的地方。</li><li>商店里按住 Shift 再按左右键，数量直接减到 0 或加到最多。</li></ul><h3>修正</h3><ul><li>宽地图下播放地图影片时画面割裂，切回地图时黑一下。</li><li>平滑画面下，有瀑布雾气等动画的地图出现格子状的马赛克。</li><li>角色走路速度不对，部分剧情因此跳过一段对话。</li><li>选全体敌人时，目标光标偏到敌人脚下；平滑画面下光标会跳动。</li><li>道具提示把旅店等收费的地方当成给银币。</li><li>平滑画面下，剧情里的角色有时走出画面、事件卡住。</li></ul></section><section id="2026-10-22"><h2>2026-10-22</h2><h3>新功能</h3><ul><li>地图上按 Tab 打开全景大地图，标出主角位置和各出入口通往的地方，可以缩放、拖动。</li><li>状态页显示隐藏属性：閃躲、異常、默契、反應和绝技点；武器说明显示成长带来的伤害加成；装备页显示武器熟练和护驾辨识的次数。</li></ul><h3>修正</h3><ul><li>存档界面刚打开时就选存档，之后按键和鼠标都没反应（原版问题）。</li><li>带剧情对话的战斗，每次行动后全场停顿一下。</li><li>平滑画面下，战斗中剧情平移的画面一顿一顿。</li><li>平滑画面下，半透明对话框下面的角色画错位置。</li><li>道具提示也显示在鼠标不变手形、只能面对它按键调查的地方。</li><li>宽地图下，山洞里的聚光灯偏离主角。</li></ul></section><section id="2026-10-21"><h2>2026-10-21</h2><h3>新功能</h3><ul><li>地图上看不见的隐藏道具可以显示提示箭头（「顯示設定」→「道具提示」，默认关闭）。</li><li>输入名字时可以用 Ctrl+V 粘贴。</li><li>战斗中按 P 截图，和地图截图一样存到游戏目录的 ScrnShot 文件夹（原版存到 c:\snap，没有这个文件夹就不存）。</li></ul><h3>修正</h3><ul><li>宽地图下，地图比画面窄时剧情移镜头卡住（人骨佛堂）。</li><li>宽地图下，某些窗口大小时剧情移镜头停不下来，一直移到黑屏。</li><li>宽地图下，剧情画面里的动画位置偏移（如酒馆剧情里倒地士兵头上的星星）。</li><li>在剧情触发区域里跑步，脚步变快。</li><li>和某些角色对话时游戏卡住不动。</li><li>烈火術的伤害数字在火焰动画一开始就出现，改为动画结束时出现（原版资料问题）。</li><li>平滑画面下，NPC 被挡住后卡在半格不动。</li></ul></section><section id="2026-10-20"><h2>2026-10-20</h2><p>发布 download。以下是发布之后当天的改动。</p><h3>新功能</h3><ul><li>用键盘操作时隐藏鼠标指针，菜单不再跟着鼠标位置走；动一下鼠标或按鼠标键就恢复。</li><li>标题画面「讀取」每次都定位到最新的存档。</li></ul><h3>修正</h3><ul><li>用输入法输入名字时，汉字会变成别的字（如「古月聖」变成「古川」）；输入法候选窗改为出现在输入框旁边。</li><li>第一个角色取名「燕赤霞」后打开菜单会崩溃（原版问题）。</li></ul></section></div></div>
+  <div class="hint">↑↓ PageUp / PageDown 捲動　Home / End 首尾</div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+
+// The game's cursor sound, played by the switch unless the address says ?sound=off. The switch keeps its state in
+// the address (and in the home page's, which hands it to every page it shows).
+const MOVE_SOUND = "data:audio/wav;base64,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";
+const MOVE_VOLUME = 0.6;
+let soundOn = new URLSearchParams(location.search).get('sound') !== 'off';
+
+function beep() {
+  if (MOVE_SOUND && soundOn) {
+    const sound = new Audio(MOVE_SOUND);
+    sound.volume = MOVE_VOLUME;
+    sound.play().catch(() => {});
+  }
+}
+
+function setSound(on, tell) {
+  soundOn = on;
+  const params = new URLSearchParams(location.search);
+
+  if (on) {
+    params.delete('sound');
+  } else {
+    params.set('sound', 'off');
+  }
+
+  const search = params.toString();
+  history.replaceState(null, '', `${location.pathname}${search ? `?${search}` : ''}${location.hash}`);
+  $('sound').textContent = on ? '音效　開' : '音效　關';
+  $('sound').classList.toggle('off', !on);
+
+  if (tell && window.parent !== window) {
+    window.parent.postMessage({ sound: on }, '*');
+  }
+}
+
+$('sound').addEventListener('click', event => {
+  setSound(!soundOn, true);
+  beep();
+  event.currentTarget.blur();
+});
+
+addEventListener('message', event => {
+  if (typeof (event.data || {}).sound === 'boolean' && event.source === window.parent) {
+    setSound(event.data.sound, false);
+  }
+});
+
+document.addEventListener('keydown', event => {
+  const body = $('body');
+  const page = body.clientHeight - 40;
+  const keys = {
+    ArrowUp: () => { body.scrollTop -= 40; },
+    ArrowDown: () => { body.scrollTop += 40; },
+    PageUp: () => { body.scrollTop -= page; },
+    PageDown: () => { body.scrollTop += page; },
+    Home: () => { body.scrollTop = 0; },
+    End: () => { body.scrollTop = body.scrollHeight; },
+  };
+
+  if (keys[event.key]) {
+    keys[event.key]();
+    event.preventDefault();
+  }
+});
+
+// The book keeps its size: scaled whole to fit the window, centred.
+function fit() {
+  const book = document.querySelector('.book');
+  const scale = Math.min(innerWidth / book.offsetWidth, innerHeight / book.offsetHeight);
+  const left = (innerWidth - book.offsetWidth * scale) / 2;
+  const top = (innerHeight - book.offsetHeight * scale) / 2;
+  book.style.transform = `translate(${left}px, ${top}px) scale(${scale})`;
+}
+
+function addressed() {
+  try {
+    return decodeURIComponent(location.hash.slice(1));
+  } catch {
+    return '';
+  }
+}
+
+// A day named in the address (changelog.html#2026-11-05) is scrolled to.
+function showNamed(text = addressed()) {
+  const section = text ? document.getElementById(text) : null;
+  $('body').scrollTop = section ? section.offsetTop - $('body').offsetTop : 0;
+}
+
+setSound(soundOn, false);
+addEventListener('resize', fit);
+addEventListener('hashchange', () => showNamed());
+fit();
+showNamed();
+</script>
+</body>
+</html>
