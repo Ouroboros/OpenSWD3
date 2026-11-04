@@ -36,7 +36,8 @@ def main():
             days[-1]['blocks'].append(['p', html.escape(line.strip())])
 
     body = ''.join(
-        f'<section id="{html.escape(day["date"])}"><h2>{html.escape(day["date"])}</h2>{blocks(day["blocks"])}</section>'
+        f'<section id="{html.escape(day["date"])}"><h2><a class="date" href="#{html.escape(day["date"])}" '
+        f'title="連到這一天">{html.escape(day["date"])}</a></h2>{blocks(day["blocks"])}</section>'
         for day in days
     )
     page = TEMPLATE.replace('<!--BODY-->', body)
@@ -168,6 +169,9 @@ h1 {
 .page h2 { font-family: var(--kai); font-size: 32px; line-height: 44px; font-weight: normal; color: #fff2c8;
   margin: 22px 16px 4px 0; padding-bottom: 4px; border-bottom: 1px solid var(--gold-dark); }
 .page section:first-child h2 { margin-top: 0; }
+.page h2 .date { color: inherit; text-decoration: none; cursor: pointer; }
+.page h2 .date:hover { color: var(--gold-light); }
+.page h2 .date:hover::after { content: " #"; }
 .page h3 { font-family: var(--kai); font-size: 23px; font-weight: normal; color: var(--gold-light); margin: 14px 0 2px; }
 .page p { margin: 2px 0 6px; }
 .page ul { margin: 0 0 6px; padding-left: 26px; }
@@ -275,6 +279,29 @@ function showNamed(text = addressed()) {
   const section = text ? document.getElementById(text) : null;
   $('body').scrollTop = section ? section.offsetTop - $('body').offsetTop : 0;
 }
+
+// The day shown kept in the address (and in the home page's, which shows this page beside its menu) in place.
+function keepPlace(detail) {
+  history.replaceState(null, '', `${location.pathname}${location.search}#${encodeURIComponent(detail)}`);
+
+  if (window.parent !== window) {
+    window.parent.postMessage({ shown: 'changelog', detail }, '*');
+  }
+}
+
+// A day's date links to that day.
+$('body').addEventListener('click', event => {
+  const date = event.target.closest('.date');
+
+  if (!date) {
+    return;
+  }
+
+  event.preventDefault();
+  const day = date.closest('section').id;
+  keepPlace(day);
+  showNamed(day);
+});
 
 setSound(soundOn, false);
 addEventListener('resize', fit);
