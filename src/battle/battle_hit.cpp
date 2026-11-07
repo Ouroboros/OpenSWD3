@@ -1894,7 +1894,22 @@ void Game::EnemyPickTarget(BattleEnemy& unit, int enemy)
         return;
     }
 
-    if (static_cast<i32>(battle.enemyCount) - battle.enemiesGone == 1)
+    auto mayAimEnemy = [this, enemy](i32 index)
+    {
+        return !this->battleEnemies[static_cast<std::size_t>(index)].IsDefeated() && index != enemy;
+    };
+
+    // The rebuild: an enemy no other enemy is left for (the others put away by the battle talk's DefeatedMark, which
+    // enemiesGone does not count) aims at a role as the last one standing does; the original draws for ever
+    // (deviations.md).
+    bool otherLeft = false;
+
+    for (u32 index = 0; index < battle.enemyCount && !otherLeft; ++index)
+    {
+        otherLeft = mayAimEnemy(static_cast<i32>(index));
+    }
+
+    if (static_cast<i32>(battle.enemyCount) - battle.enemiesGone == 1 || !otherLeft)
     {
         randomRole();
         return;
@@ -1912,8 +1927,7 @@ void Game::EnemyPickTarget(BattleEnemy& unit, int enemy)
             battle.enemyTarget = static_cast<i32>(this->random.Below(battle.enemyCount));
         }
 
-        if (!this->battleEnemies[static_cast<std::size_t>(battle.enemyTarget)].IsDefeated() &&
-            battle.enemyTarget != enemy)
+        if (mayAimEnemy(battle.enemyTarget))
         {
             break;
         }

@@ -33,6 +33,7 @@ constexpr u32 kNoTimeout = 0xFFFF;
 constexpr u16 kWindowSpeed = 2;
 constexpr i16 kTalkAction = 0x24;
 constexpr i32 kLastEnemy = 7;
+constexpr u16 kAimNone = 0x8000;      // BattleUnit::GetWord29A2: the role aims at no enemy
 constexpr u16 kOrderForced = 0x8000;  // BattleState::enemyOrders
 constexpr int kEnemySlot = 2;
 constexpr int kHangDraws = 0x10000;
@@ -933,6 +934,13 @@ int Game::FightTalkMarks(bool set)
         }
     }
 
+    // The rebuild: the enemies the talk puts away (DefeatedMark) are left by what aims at them, as a defeated one is
+    // (RetargetRoles); the original kept the aims on them (deviations.md).
+    if (unit >= 0 && unit <= kLastEnemy && (marks & BattleUnit::DefeatedMark) != 0)
+    {
+        this->LeaveHiddenEnemies();
+    }
+
     talk.cursor += 3 * sizeof(u16);
 
     if (set)
@@ -945,6 +953,60 @@ int Game::FightTalkMarks(bool set)
     this->BattleFrame();
     talk.battleRuns = 1;
     return 1;
+}
+
+// The rebuild: what aims at an enemy the battle talk put away (DefeatedMark) turns to the first enemy standing, as
+// RetargetRoles turns the roles from a defeated one: the roles' aims (each dropping its hit on the enemy put away) and
+// the target of a role turn at the enemies. With none standing (the talk puts enemies away before it shows the ones
+// that take their place) the aims are kept for its next marks.
+void Game::LeaveHiddenEnemies()
+{
+    BattleState& battle = this->battleState;
+    const auto count = static_cast<i32>(battle.enemyCount);
+    i32 standing = -1;
+
+    for (i32 other = 0; other < count && standing < 0; ++other)
+    {
+        if (!this->battleEnemies[static_cast<std::size_t>(other)].IsDefeated())
+        {
+            standing = other;
+        }
+    }
+
+    if (standing < 0)
+    {
+        return;
+    }
+
+    auto hidden = [this, count](i32 enemy)
+    {
+        return enemy >= 0 && enemy < count && this->battleEnemies[static_cast<std::size_t>(enemy)].StatusBit13() == 1;
+    };
+
+    for (u32 index = 0; index < battle.roleCount; ++index)
+    {
+        BattleRole& role = this->battleRoles[index];
+        const u16 aim = role.GetWord29A2();
+
+        if ((aim & kAimNone) != 0 || !hidden(aim))
+        {
+            continue;
+        }
+
+        role.ClearWord29A2();
+        this->battleEnemies[aim].DecreaseHits();
+        role.Retarget(static_cast<i16>(standing));
+        battle.retargeted = 1;
+    }
+
+    const i32 turnRole = battle.turnUnit - BattleState::FirstRoleUnit;
+    const bool atEnemies = turnRole >= 0 && turnRole < static_cast<i32>(battle.pendingOrders.size()) &&
+                           battle.pendingOrders[static_cast<std::size_t>(turnRole)].atParty == 0;
+
+    if (atEnemies && hidden(battle.aimTarget - 1))
+    {
+        battle.aimTarget = standing + 1;
+    }
 }
 
 // Command 0x10 of FightTalkFrame (inline in the original): the talk jumps to the place in the third word the count

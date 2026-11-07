@@ -515,6 +515,7 @@ private:
     int FightTalkLift();
     int FightTalkAllDone();
     int FightTalkMarks(bool set);
+    void LeaveHiddenEnemies();
     int FightTalkRepeat();
     int FightTalkRandomJump();
     int FightTalkShift();
