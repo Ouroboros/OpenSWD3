@@ -3,10 +3,13 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
+#include <chrono>
+#include <cstdio>
 #include <cstring>
 #include <limits>
 #include <string_view>
 
+#include "core/log.h"
 #include "platform/audio_decoder.h"
 #include "platform/file_system.h"
 
@@ -101,6 +104,12 @@ bool LoadRiff(const u8* image, std::vector<i16>& pcm)
 AudioDevice::~AudioDevice()
 {
     this->CloseOutput();
+
+    // A decoding gives its voice what it decoded through the device: each is over before the device goes.
+    for (const std::shared_future<void>& decoding : this->decodings)
+    {
+        decoding.wait();
+    }
 }
 
 bool AudioDevice::OpenOutput()
@@ -220,34 +229,85 @@ bool AudioDevice::LoadCompressed(const VoiceHandle& voice, const u8* data, std::
     return true;
 }
 
+// The stream's file read and decoded on a thread of its own (a whole piece of music takes 20 to 200 ms, which the game
+// thread would stand still for): its start first (StartSeconds, a few milliseconds), then the whole. Until the start is
+// in the voice is silent.
 VoiceHandle AudioDevice::OpenStream(const std::u8string& path)
 {
-    std::vector<u8> data;
+    constexpr std::size_t kStartSamples = static_cast<std::size_t>(kMixRate) * kMixChannels * AudioDevice::StartSeconds;
+    const std::u8string file = ResolvePath(path);
+    std::FILE* opened = OpenSharedFile(file, "rb");
 
-    if (!ReadSharedFile(ResolvePath(path), data))
+    if (opened == nullptr)
     {
         this->lastError = "Cannot open stream file";
         return nullptr;
     }
 
-    auto pcm = std::make_shared<std::vector<i16>>();
-
-    if (!DecodeAudio(data.data(), data.size(), *pcm))
-    {
-        this->lastError = "Cannot decode stream file";
-        return nullptr;
-    }
-
+    std::fclose(opened);
     VoiceHandle voice = this->CreateVoice();
-    voice->pcm = pcm;
+    std::lock_guard<std::recursive_mutex> lock(this->mutex);
+    const u32 stream = ++this->streams;
+    voice->stream = stream;
+
+    auto decode = [this, file, stream, weak = std::weak_ptr<AudioVoice>(voice)]
+    {
+        std::vector<u8> data;
+        auto start = std::make_shared<std::vector<i16>>();
+        bool whole = false;
+
+        if (!ReadSharedFile(file, data) || !DecodeAudioStart(data.data(), data.size(), kStartSamples, *start, whole))
+        {
+            LogError(u8"stream %s cannot be decoded", file);
+            this->Deliver(weak, stream, std::make_shared<std::vector<i16>>());
+            return;
+        }
+
+        this->Deliver(weak, stream, start);
+
+        if (whole)
+        {
+            return;
+        }
+
+        auto all = std::make_shared<std::vector<i16>>();
+        DecodeAudio(data.data(), data.size(), *all);
+        this->Deliver(weak, stream, all);
+    };
+
+    std::erase_if(
+        this->decodings,
+        [](const std::shared_future<void>& decoding)
+        {
+            return decoding.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+        }
+    );
+    voice->decoding = std::async(std::launch::async, decode).share();
+    this->decodings.push_back(voice->decoding);
     return voice;
+}
+
+void AudioDevice::Deliver(
+    const std::weak_ptr<AudioVoice>& voice,
+    u32 stream,
+    std::shared_ptr<const std::vector<i16>> pcm
+)
+{
+    std::lock_guard<std::recursive_mutex> lock(this->mutex);
+    const VoiceHandle held = voice.lock();
+
+    if (held != nullptr && held->stream == stream)
+    {
+        held->pcm = std::move(pcm);
+    }
 }
 
 void AudioDevice::Start(const VoiceHandle& voice)
 {
     std::lock_guard<std::recursive_mutex> lock(this->mutex);
 
-    if (voice->pcm == nullptr)
+    // A stream still decoding starts silent.
+    if (voice->pcm == nullptr && !voice->decoding.valid())
     {
         return;
     }
@@ -296,7 +356,17 @@ void AudioDevice::SetLoops(const VoiceHandle& voice, int loops)
 
 void AudioDevice::Position(const VoiceHandle& voice, int& totalMilliseconds, int& currentMilliseconds)
 {
-    std::lock_guard<std::recursive_mutex> lock(this->mutex);
+    std::unique_lock<std::recursive_mutex> lock(this->mutex);
+
+    // The length of a stream still decoding is known once the whole of it is in (it gives it under the lock).
+    if (voice->decoding.valid())
+    {
+        const std::shared_future<void> decoding = voice->decoding;
+        lock.unlock();
+        decoding.wait();
+        lock.lock();
+    }
+
     const std::size_t frames = voice->pcm != nullptr ? voice->pcm->size() / kMixChannels : 0;
     totalMilliseconds = static_cast<int>(frames * kMillisecondsPerSecond / kMixRate);
     currentMilliseconds = static_cast<int>(voice->frame * kMillisecondsPerSecond / kMixRate);
@@ -328,7 +398,16 @@ void AudioDevice::Mix(std::vector<i16>& out, int frames)
 
     for (const VoiceHandle& voice : this->playing)
     {
-        if (voice->status != VoiceStatus::Playing || voice->pcm == nullptr)
+        if (voice->status != VoiceStatus::Playing)
+        {
+            continue;
+        }
+
+        // A stream whose start (or the rest of it) is still decoding waits where it is, silent.
+        const bool decoding =
+            voice->decoding.valid() && voice->decoding.wait_for(std::chrono::seconds(0)) != std::future_status::ready;
+
+        if (voice->pcm == nullptr)
         {
             continue;
         }
@@ -343,6 +422,11 @@ void AudioDevice::Mix(std::vector<i16>& out, int frames)
         {
             if (voice->frame >= total)
             {
+                if (decoding)
+                {
+                    break;
+                }
+
                 if (voice->loops == 1 || total == 0)
                 {
                     voice->status = VoiceStatus::Done;

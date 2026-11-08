@@ -105,11 +105,12 @@ void AppendConverted(SwrContext* resampler, const u8** input, int inputSamples, 
     pcm.resize(start + static_cast<std::size_t>(produced > 0 ? produced : 0) * kMixChannels);
 }
 
-}  // namespace
-
-bool DecodeAudio(const u8* data, std::size_t size, std::vector<i16>& pcm)
+// The file decoded into `pcm` up to `samples` samples (0: all of it); `whole` tells whether the file ended first, the
+// decoder and the resampler then drained (a start cut short is left undrained: it is the start of the whole).
+bool Decode(const u8* data, std::size_t size, std::size_t samples, std::vector<i16>& pcm, bool& whole)
 {
     pcm.clear();
+    whole = false;
     MemoryReader reader(data, size);
     constexpr int kBufferSize = 0x8000;
     auto* ioBuffer = static_cast<u8*>(av_malloc(kBufferSize));
@@ -159,6 +160,7 @@ bool DecodeAudio(const u8* data, std::size_t size, std::vector<i16>& pcm)
                 if (configured == 0 && swr_init(resampler) == 0)
                 {
                     decoded = true;
+                    whole = true;
 
                     while (av_read_frame(format, packet) >= 0)
                     {
@@ -168,11 +170,20 @@ bool DecodeAudio(const u8* data, std::size_t size, std::vector<i16>& pcm)
                         }
 
                         av_packet_unref(packet);
+
+                        if (samples != 0 && pcm.size() >= samples)
+                        {
+                            whole = false;
+                            break;
+                        }
                     }
 
-                    avcodec_send_packet(codec, nullptr);
-                    drain();
-                    AppendConverted(resampler, nullptr, 0, pcm);
+                    if (whole)
+                    {
+                        avcodec_send_packet(codec, nullptr);
+                        drain();
+                        AppendConverted(resampler, nullptr, 0, pcm);
+                    }
                 }
             }
         }
@@ -191,6 +202,19 @@ bool DecodeAudio(const u8* data, std::size_t size, std::vector<i16>& pcm)
     }
 
     return decoded;
+}
+
+}  // namespace
+
+bool DecodeAudio(const u8* data, std::size_t size, std::vector<i16>& pcm)
+{
+    bool whole = false;
+    return Decode(data, size, 0, pcm, whole);
+}
+
+bool DecodeAudioStart(const u8* data, std::size_t size, std::size_t samples, std::vector<i16>& pcm, bool& whole)
+{
+    return Decode(data, size, samples, pcm, whole);
 }
 
 bool ConvertPcm(const u8* data, std::size_t bytes, int channels, int rate, int bits, std::vector<i16>& pcm)

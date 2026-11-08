@@ -1,5 +1,6 @@
 #pragma once
 
+#include <future>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -34,6 +35,10 @@ struct AudioVoice
     int volume = MaxLevel;
     int pan = CenterPan;
     VoiceStatus status = VoiceStatus::Done;
+    // A stream (OpenStream) is decoded on a thread of its own: `pcm` takes its start, then the whole of it; `decoding`
+    // is ready once the whole is in. `stream` tells the stream the decoding is for (0 for a sample).
+    u32 stream = 0;
+    std::shared_future<void> decoding;
 };
 
 using VoiceHandle = std::shared_ptr<AudioVoice>;
@@ -45,6 +50,8 @@ class AudioDevice
 public:
     // Mixer channels Miles reports (DIG_MIXER_CHANNELS); the game uses this minus 8, at most 16.
     static constexpr int MixerChannels = 64;
+    // The start of a stream decoded before the rest (OpenStream), in seconds.
+    static constexpr std::size_t StartSeconds = 5;
 
     AudioDevice() = default;
     ~AudioDevice();
@@ -83,12 +90,17 @@ private:
     static void Feed(void* user, SDL_AudioStream* stream, int additional, int total);
     void Attach(const VoiceHandle& voice);
     void Detach(const VoiceHandle& voice);
+    // The decoded `pcm` of stream `stream` given to its voice, when the voice still plays that stream.
+    void Deliver(const std::weak_ptr<AudioVoice>& voice, u32 stream, std::shared_ptr<const std::vector<i16>> pcm);
 
     std::recursive_mutex mutex;
     SDL_AudioStream* output = nullptr;
     std::vector<VoiceHandle> playing;
     std::vector<i32> mix;
     std::string lastError;
+    u32 streams = 0;  // the streams opened
+    // The decodings of the streams still running, waited for as the device goes (they are destroyed first).
+    std::vector<std::shared_future<void>> decodings;
 };
 
 }  // namespace swd3
