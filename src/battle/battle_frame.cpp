@@ -2,12 +2,15 @@
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 #include <span>
+#include <string>
 
 #include "battle/battle_items.h"
 #include "battle/smooth/smooth_draw.h"
 #include "battle/smooth/smooth_messages.h"
 #include "core/format.h"
+#include "core/log.h"
 #include "crt/msvc.h"
 #include "game/screenshot.h"
 #include "platform/display.h"
@@ -163,9 +166,79 @@ int Game::BattleFrame()
         battle.keysUnit = battle.currentUnit;
     }
 
+    // Diagnostics (battle menu)
+    auto menuDiag = [&](const char* where)
+    {
+        if constexpr (BuildOptions::Diagnostics)
+        {
+            static std::string last;
+            const std::string now = std::format(
+                "current={} state={} menu={} aim={} autoAim={} auto={} turn={} turnCommand={} b8={} bc={} "
+                "taken={},{},{},{}",
+                battle.currentUnit,
+                battle.result,
+                battle.menuCommand,
+                battle.aimTarget,
+                battle.autoTarget,
+                battle.autoBattle,
+                battle.turnUnit,
+                battle.turnCommand,
+                battle.choiceReady,
+                battle.mouseMode,
+                battle.turnTaken[BattleState::FirstRoleUnit],
+                battle.turnTaken[BattleState::FirstRoleUnit + 1],
+                battle.turnTaken[BattleState::FirstRoleUnit + 2],
+                battle.turnTaken[BattleState::FirstRoleUnit + 3]
+            );
+
+            if (now != last)
+            {
+                LogDiagnostic(u8"MENUDIAG frame=%u %s %s", this->battleFramesRun, where, now.c_str());
+                last = now;
+            }
+        }
+    };
+
+    // Diagnostics (battle menu)
+    if constexpr (BuildOptions::Diagnostics)
+    {
+        static constexpr std::array<std::pair<Button, const char*>, 10> kWatched = {{
+            {Button::Escape, "Esc"},
+            {Button::Space, "Space"},
+            {Button::Enter, "Enter"},
+            {Button::MouseLeft, "MouseL"},
+            {Button::MouseRight, "MouseR"},
+            {Button::KeyA, "A"},
+            {Button::Left, "Left"},
+            {Button::Right, "Right"},
+            {Button::Up, "Up"},
+            {Button::Down, "Down"},
+        }};
+
+        std::string pressed;
+
+        for (const auto& [button, name] : kWatched)
+        {
+            const ButtonState& state = this->controls.At(button);
+
+            if (state.press != 0)
+            {
+                pressed += std::format(" {}({}/{})", name, state.press, state.heldFrames);
+            }
+        }
+
+        if (!pressed.empty())
+        {
+            LogDiagnostic(u8"MENUDIAG frame=%u keys%s", this->battleFramesRun, pressed.c_str());
+        }
+    }
+
+    menuDiag("before");  // Diagnostics (battle menu)
     this->MouseHover();
     this->BattleKeys();
+    menuDiag("keys");  // Diagnostics (battle menu)
     this->AutoBattleTurn();
+    menuDiag("auto");  // Diagnostics (battle menu)
     this->MeasureUnits();
     battle.SortDrawOrder();
     const int keys = this->BattleDebugKeys();
@@ -389,6 +462,7 @@ int Game::BattleFrame()
         battle.snapNext = 0;
     }
 
+    menuDiag("end");  // Diagnostics (battle menu)
     return battle.frameResult;
 }
 

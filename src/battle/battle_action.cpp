@@ -4,6 +4,7 @@
 #include <type_traits>
 
 #include "core/format.h"
+#include "core/log.h"
 #include "platform/display.h"
 
 namespace swd3
@@ -1667,6 +1668,20 @@ void Game::RoleOrderFrame(BattleRole& unit, int role)
     PendingOrder& order = battle.pendingOrders[at];
     const bool automatic = unit.autoControl != 0 || unit.guestControl != 0;
 
+    // Diagnostics (auto combo)
+    auto logTaken = [&]
+    {
+        LogDiagnostic(
+            u8"role %d takes command %d at %d (auto battle %d) extra=%u critical=%u",
+            role,
+            battle.turnTaken[at + static_cast<std::size_t>(BattleState::FirstRoleUnit)],
+            battle.aimTarget,
+            battle.autoBattle,
+            static_cast<u32>(unit.extraAttacks),
+            static_cast<u32>(unit.critical)
+        );
+    };
+
     auto taken = [&battle]
     {
         battle.unk53BF60 = 0;
@@ -1690,6 +1705,7 @@ void Game::RoleOrderFrame(BattleRole& unit, int role)
 
             aimed.SetAC0(0);
             unit.SetAD4(0);
+            logTaken();  // Diagnostics (auto combo)
 
             if (unit.SetCommand(battle.turnTaken[at + static_cast<std::size_t>(BattleState::FirstRoleUnit)]) == 1)
             {
@@ -1722,6 +1738,8 @@ void Game::RoleOrderFrame(BattleRole& unit, int role)
             battle.aiTarget = 1;
             return;
         }
+
+        logTaken();  // Diagnostics (auto combo)
 
         if (unit.SetCommand(battle.turnTaken[at + static_cast<std::size_t>(BattleState::FirstRoleUnit)]) == 1)
         {
@@ -1847,6 +1865,15 @@ void Game::RoleTakeOrder(BattleRole& unit, int role)
     }
 
     const i32 command = battle.turnTaken[static_cast<std::size_t>(role + BattleState::FirstRoleUnit)];
+    // Diagnostics (auto combo)
+    LogDiagnostic(
+        u8"role %d takes command %d (auto battle %d) extra=%u critical=%u",
+        role,
+        command,
+        battle.autoBattle,
+        static_cast<u32>(unit.extraAttacks),
+        static_cast<u32>(unit.critical)
+    );
 
     if (unit.SetCommand(command) != 1)
     {

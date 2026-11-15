@@ -2,6 +2,7 @@
 #include "battle/smooth/smooth_turn.h"
 #include "core/fault.h"
 #include "core/format.h"
+#include "core/log.h"
 #include "crt/msvc.h"
 #include "font/text_font.h"
 #include "game/game.h"
@@ -1136,6 +1137,19 @@ bool Game::AutoCombo(i32 unit)
             return accessory.data.actionKind == kAimedCommand15;
         }
     );
+
+    // Diagnostics (auto combo)
+    if constexpr (BuildOptions::Diagnostics)
+    {
+        LogDiagnostic(
+            u8"auto combo of unit %d: wears=%d can=%d stamina=%d",
+            unit,
+            wears ? 1 : 0,
+            role.CanUseAccessory(kAimedCommand15),
+            static_cast<i32>(role.roleRecord->stamina)
+        );
+    }
+
     return wears && role.CanUseAccessory(kAimedCommand15) == 1;
 }
 
@@ -1154,6 +1168,14 @@ void Game::AutoBattleTurn()
 
     battle.turnCommand = 1;
     battle.turnTaken[static_cast<std::size_t>(battle.currentUnit)] = 1;
+
+    // Diagnostics (auto combo)
+    LogDiagnostic(
+        u8"auto turn of unit %d: remembered aim %d, menu command %d",
+        battle.currentUnit,
+        battle.autoTarget,
+        battle.menuCommand
+    );
 
     if (battle.autoTarget == -1)
     {
@@ -3679,6 +3701,18 @@ void Game::ConfirmCommand()
     }
 
     i32 command = battle.menuCommand;
+    // Diagnostics (auto combo)
+    LogDiagnostic(
+        u8"COMBODIAG confirm command: unit=%d menu=%d kind=%d auto=%d mouse=%d",
+        battle.currentUnit,
+        command,
+        command >= kFirstAccessoryMenuCommand &&
+                static_cast<std::size_t>(command - kFirstAccessoryMenuCommand) < battle.commandKinds.size()
+            ? static_cast<i32>(battle.commandKinds[static_cast<std::size_t>(command - kFirstAccessoryMenuCommand)])
+            : -1,
+        battle.autoBattle,
+        this->input.KeyboardInUse() ? 0 : 1
+    );
     battle.choiceReady = 0;
     battle.unk53BF88 = 0;
     battle.unk53BFF0 = 0;
@@ -3946,6 +3980,15 @@ void Game::ConfirmTarget()
         battle.choiceReady = battle.mouseMode == 0 ? 1 : 0;
         return;
     }
+
+    // Diagnostics (auto combo)
+    LogDiagnostic(
+        u8"COMBODIAG confirm target: unit=%d menu=%d auto=%d aim=%d",
+        battle.currentUnit,
+        battle.menuCommand,
+        battle.autoBattle,
+        battle.aimTarget
+    );
 
     // The rebuild's auto combo (deviations.md): an attack aimed in the auto battle by a role that can use 連擊 (the
     // aim may have been opened by the auto battle's key before the role's turn came).
@@ -4979,6 +5022,15 @@ void Game::BattleKeys()
         {
             // The rebuild's auto combo (deviations.md): the first aimed attack with 連擊 when it can.
             const i32 command = this->AutoCombo(unit) ? kAimedCommand15 : 1;
+            // Diagnostics (auto combo)
+            LogDiagnostic(
+                u8"auto battle started: unit=%d current=%d turn=%d state=%d command=%d",
+                unit,
+                battle.currentUnit,
+                battle.turnUnit,
+                battle.result,
+                command
+            );
             battle.mouseMode = 0;
             battle.autoBattle = 1;
             battle.turnCommand = command;

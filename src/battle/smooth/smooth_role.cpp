@@ -12,6 +12,7 @@
 #include "battle/smooth/smooth_projector.h"
 #include "battle/smooth/smooth_unit.h"
 #include "config/config.h"
+#include "core/log.h"
 #include "core/words.h"
 #include "draw/painter.h"
 #include "org/database.h"
@@ -391,6 +392,16 @@ int RoleFrame::AttackAdvance(BattleServices& services, BattleUnit& target, int s
     role.unk2AB0 = 0;
     role.fadedIn = 0;
     role.stage = 0;
+
+    // Diagnostics (auto combo)
+    LogDiagnostic(
+        u8"COMBODIAG attack over: role %d critical=%d extra=%u repeat=%d commandA=%u",
+        static_cast<i32>(role.actId),
+        battle.criticalAttack,
+        static_cast<u32>(role.extraAttacks),
+        (role.accessoryCommands & kRepeatAttack) != 0 ? 1 : 0,
+        static_cast<u32>(role.commandA)
+    );
 
     if (battle.criticalAttack == 0)
     {
