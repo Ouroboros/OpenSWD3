@@ -115,13 +115,13 @@ void RoleControl::Approach(Role& player, Role& other, u32 index, bool walking)
     );
 }
 
-// swd32.exe 0x00402F80: the keys of the map. The debug keys (story flag 0x52, turned on in debug mode with Ctrl,
-// right Shift, Home and End): F12 or Ctrl+S / Ctrl+L the save and load screens, Ctrl+F9 skipping texts, Ctrl+Q
-// quitting, Ctrl+F1..F3 the debug lines, cells and flag 0x14, Tab with keypad + / - the map's speed, F4 the cheat
-// dialog, F7 1000 gold, F6 ten of every item. Key slot 16 toggles running. Then, when the controlled role stands
-// still and no menu is open: Space and Enter move the talk windows on (or close the choices); Space talks to the
-// role in front, Enter opens the menu; the arrows move the role (or the choice): a step slides along walls, runs into
-// map regions and roles with events, scrolls the camera or moves the role alone, and may meet enemies.
+// swd32.exe 0x00402F80: the keys of the map. The debug keys (in debug mode; the original also wanted story flag 0x52,
+// turned on with right Ctrl, right Shift, Home and End): F12 or Ctrl+S / Ctrl+L the save and load screens, Ctrl+F9
+// skipping texts, Ctrl+Q quitting, Ctrl+F1..F3 the debug lines, cells and flag 0x14, Tab with keypad + / - the map's
+// speed, F4 the cheat dialog, F7 1000 gold, F6 ten of every item. Key slot 16 toggles running. Then, when the
+// controlled role stands still and no menu is open: Space and Enter move the talk windows on (or close the choices);
+// Space talks to the role in front, Enter opens the menu; the arrows move the role (or the choice): a step slides along
+// walls, runs into map regions and roles with events, scrolls the camera or moves the role alone, and may meet enemies.
 void RoleControl::ControlPlayer()
 {
     Game& owner = this->game;
@@ -136,13 +136,17 @@ void RoleControl::ControlPlayer()
     int stepX = 0;
     int stepY = 0;
 
-    if (owner.config.debugMode == 1 && input.IsKeyDown(Input::RightControl) && input.IsKeyDown(Input::RightShift) &&
-        input.IsKeyDown(Input::Home) && input.IsKeyDown(Input::End))
-    {
-        state.SetGameFlag(GameState::DebugKeys);
-    }
-
-    if (state.GameFlag(GameState::DebugKeys))
+    // The rebuild: the debug keys go by the settings' debug mode alone (deviations.md). The original turned them on
+    // with the keys below, keeping story flag 0x52 in the save, and looked at that flag:
+    //
+    // if (owner.config.debugMode == 1 && input.IsKeyDown(Input::RightControl) && input.IsKeyDown(Input::RightShift) &&
+    //     input.IsKeyDown(Input::Home) && input.IsKeyDown(Input::End))
+    // {
+    //     state.SetGameFlag(GameState::DebugKeys);
+    // }
+    //
+    // if (state.GameFlag(GameState::DebugKeys))
+    if (owner.config.debugMode == 1)
     {
         const bool idle = leader.id == Role::NoId && view.talkWindows == nullptr;
 
