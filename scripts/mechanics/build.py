@@ -71,9 +71,12 @@ def blocks(rows):
             out.append(f'<li>{content}</li>')
         elif kind == 'tr':
             if not open_kind:
-                out.append('<table class="wide">' if len(content) > WIDE_COLUMNS else '<table>')
+                wide = len(content) > WIDE_COLUMNS
+                out.append('<table class="wide">' if wide else '<table>')
                 open_kind = 'tr'
-                out.append('<tr>' + ''.join(f'<th>{cell}</th>' for cell in content) + '</tr>')
+                # A wide table's heads take their number ("天神 0") on a line of its own.
+                heads = [cell.replace(' ', '<br>', 1) if wide else cell for cell in content]
+                out.append('<tr>' + ''.join(f'<th>{cell}</th>' for cell in heads) + '</tr>')
             else:
                 out.append('<tr>' + ''.join(f'<td>{cell}</td>' for cell in content) + '</tr>')
         else:
