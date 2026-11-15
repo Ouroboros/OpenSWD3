@@ -6,15 +6,13 @@
 <title>遊戲機制</title>
 <style>
 :root {
-  --gold: #a89048;
-  --gold-dark: #6a5420;
-  --gold-light: #f0e848;
-  --text: #c8b888;
-  --dim: #988a62;
-  --panel: #100f08;
-  --panel-list: #181010;
-  --ink: #3a2008;
-  --jade-light: #a8d890;
+  --gold: #c9a24a;
+  --gold-dark: #7a5a1c;
+  --gold-light: #f2d27a;
+  --text: #e9dcb8;
+  --dim: #b9a67a;
+  --panel: rgba(14, 10, 4, 0.94);
+  --ink: #7a1f12;
   --kai: "BiauKai", "DFKai-SB", "標楷體", "KaiTi", "STKaiti", "Kaiti TC", serif;
   --ming: "PMingLiU", "MingLiU", "新細明體", "Songti TC", "Noto Serif TC", "Noto Serif CJK TC", serif;
 }
@@ -27,12 +25,11 @@ body {
   font-family: var(--ming);
   color: var(--text);
   background:
-    radial-gradient(ellipse at 15% 20%, rgba(255, 220, 150, 0.45), transparent 50%),
-    radial-gradient(ellipse at 85% 80%, rgba(110, 50, 10, 0.4), transparent 55%),
-    radial-gradient(ellipse at 50% 55%, rgba(150, 80, 20, 0.25), transparent 45%),
-    radial-gradient(ellipse at 5% 90%, rgba(90, 40, 10, 0.35), transparent 40%),
-    repeating-linear-gradient(90deg, rgba(90, 40, 10, 0.12) 0 1px, transparent 1px 80px),
-    linear-gradient(160deg, #e0b070 0%, #cc9450 45%, #b07834 100%);
+    radial-gradient(ellipse at 20% 10%, rgba(255, 250, 230, 0.55), transparent 55%),
+    radial-gradient(ellipse at 80% 85%, rgba(120, 90, 50, 0.35), transparent 60%),
+    radial-gradient(ellipse at 60% 40%, rgba(90, 70, 40, 0.25), transparent 50%),
+    repeating-linear-gradient(90deg, rgba(110, 60, 20, 0.08) 0 1px, transparent 1px 72px),
+    linear-gradient(160deg, #e8dcc0 0%, #d6c39c 45%, #c4ab7d 100%);
 }
 
 .book {
@@ -51,8 +48,8 @@ body {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  border-top: 2px solid rgba(255, 230, 180, 0.5);
-  background: repeating-linear-gradient(90deg, rgba(255, 230, 180, 0.3) 0 1px, transparent 1px 80px);
+  border-top: 2px solid rgba(122, 60, 20, 0.45);
+  background: repeating-linear-gradient(90deg, rgba(122, 60, 20, 0.35) 0 1px, transparent 1px 54px);
   height: 64px;
   flex: none;
   padding: 0 12px 4px 6px;
@@ -64,7 +61,7 @@ h1 {
   font-size: 44px;
   letter-spacing: 6px;
   color: var(--ink);
-  text-shadow: 2px 2px 0 rgba(255, 230, 180, 0.45), 0 0 8px rgba(255, 230, 180, 0.35);
+  text-shadow: 2px 2px 0 rgba(255, 240, 210, 0.6), 0 0 6px rgba(122, 31, 18, 0.25);
   font-weight: bold;
 }
 
@@ -83,64 +80,39 @@ h1 {
 .tabs {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
   padding-top: 10px;
-  margin-right: -20px;
+  margin-right: -14px;
   z-index: 1;
 }
 
 .tab {
   font-family: var(--kai);
   font-size: 19px;
-  padding: 6px 19px 6px 12px;
-  color: #2c3410;
-  background: linear-gradient(90deg, #5c7034, #889c58);
-  --edge: #b89838;
-  border: 1px solid #000;
+  padding: 5px 12px 5px 10px;
+  color: #6d5a3c;
+  background: linear-gradient(90deg, #b8a27a, #d9c9a3);
+  border: 1px solid #8a6d3b;
   border-right: none;
-  border-radius: 10px 0 0 10px;
-  box-shadow: inset 0 0 0 2px var(--edge);
+  border-radius: 6px 0 0 6px;
   cursor: pointer;
   user-select: none;
   text-align: center;
   white-space: nowrap;
 }
 
-.tab.chosen {
-  color: #181800;
-  background: linear-gradient(90deg, #b8d050, #eef488);
-  --edge: #b07818;
-  font-weight: bold;
-}
+.tab.chosen { color: #1e1406; background: linear-gradient(90deg, #d6b45e, #f6e3a6); border-color: var(--gold-dark);
+  font-weight: bold; }
 
 .layout .page { z-index: 2; }
 .page .body > section { display: none; }
 .page .body > section.chosen { display: block; }
 
-/* The bright corner marks of the game's frames, inside the frame line. */
 .frame {
-  --corner: linear-gradient(var(--gold-light), var(--gold-light));
-  --fill: var(--panel);
-  background:
-    var(--corner) left top / 9px 3px no-repeat,
-    var(--corner) left top / 3px 9px no-repeat,
-    var(--corner) right top / 9px 3px no-repeat,
-    var(--corner) right top / 3px 9px no-repeat,
-    var(--corner) left bottom / 9px 3px no-repeat,
-    var(--corner) left bottom / 3px 9px no-repeat,
-    var(--corner) right bottom / 9px 3px no-repeat,
-    var(--corner) right bottom / 3px 9px no-repeat,
-    var(--fill);
-  background-origin: padding-box;
-  border: 2px solid var(--gold);
-  box-shadow: inset 0 0 0 1px #000, 0 0 0 1px #000;
-  position: relative;
+  background: var(--panel);
+  border: 3px double var(--gold);
+  box-shadow: inset 0 0 0 1px var(--gold-dark), 0 0 0 1px #3a2a10, 2px 3px 8px rgba(40, 25, 5, 0.55);
 }
-
-
-
-
-
 
 .page { display: flex; flex-direction: column; min-height: 0; padding: 14px 8px 12px 24px; }
 
@@ -149,7 +121,7 @@ h1 {
   font-family: var(--kai);
   font-size: 32px;
   line-height: 44px;
-  color: #f0e0a8;
+  color: #fff2c8;
   border-bottom: 1px solid var(--gold-dark);
   margin-right: 16px;
   padding-bottom: 4px;
@@ -163,7 +135,7 @@ h1 {
   overflow-y: auto;
   scrollbar-gutter: stable;
   padding: 4px 14px 10px 0;
-  scrollbar-color: var(--gold) #000;
+  scrollbar-color: var(--gold-dark) #120e06;
   font-size: 18px;
   line-height: 31px;
 }
@@ -172,17 +144,13 @@ h1 {
   font-family: var(--kai);
   font-size: 30px;
   font-weight: normal;
-  color: #f0e0a8;
+  color: #fff2c8;
   margin: 22px 16px 4px 0;
   padding-bottom: 4px;
   border-bottom: 1px solid var(--gold-dark);
 }
 
 .page .body > section > h2 { margin-top: 4px; }
-
-.page h2 .date { color: inherit; text-decoration: none; cursor: pointer; }
-.page h2 .date:hover { color: var(--gold-light); }
-.page h2 .date:hover::after { content: " #"; color: var(--gold); }
 
 .page h3 { font-family: var(--kai); font-size: 23px; font-weight: normal; color: var(--gold-light); margin: 14px 0 2px; }
 .page p { margin: 2px 0 6px; }
@@ -191,21 +159,17 @@ h1 {
 .page ol li::marker { font-size: 16px; }
 .page li::marker { color: var(--gold); }
 
-
-
-
-
 .page table { width: calc(100% - 16px); border-collapse: collapse; margin: 6px 0 12px; font-size: 17px; line-height: 27px; }
-.page th, .page td { text-align: left; vertical-align: top; padding: 6px 10px; border-bottom: 1px solid rgba(168, 144, 72, 0.35); }
-.page th { font-family: var(--kai); font-size: 19px; font-weight: normal; color: var(--gold-light); background: rgba(168, 144, 72, 0.18); white-space: nowrap; }
-.page td:first-child { white-space: nowrap; color: #f0e0a8; }
+.page th, .page td { text-align: left; vertical-align: top; padding: 6px 10px; border-bottom: 1px solid rgba(201, 162, 74, 0.35); }
+.page th { font-family: var(--kai); font-size: 19px; font-weight: normal; color: var(--gold-light); background: rgba(201, 162, 74, 0.18); white-space: nowrap; }
+.page td:first-child { white-space: nowrap; color: #fff2c8; }
 .page td:first-child:nth-last-child(2) { width: 8em; }  /* two columns: the same first column, the tables line up */
 .page table.wide { font-size: 15px; line-height: 22px; }
 .page table.wide th, .page table.wide td { padding: 4px 3px; text-align: center; white-space: nowrap; }
 .page table.wide th { font-size: 15px; }
 .page table.wide td:first-child, .page table.wide th:first-child { text-align: left; padding-left: 6px; }
 
-.hint { flex: none; margin-top: 6px; font-size: 13px; color: #3a2008; text-align: right; }
+.hint { flex: none; margin-top: 6px; font-size: 13px; color: #5a4524; text-align: right; }
 </style>
 </head>
 <body>
