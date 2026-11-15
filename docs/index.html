@@ -484,7 +484,7 @@ addEventListener('message', event => {
   }
 
   if (VIEWS[open]) {
-    location.hash = `${open}/${encodeURIComponent(detail)}`;
+    location.hash = detail ? `${open}/${encodeURIComponent(detail)}` : open;
   }
 });
 route();

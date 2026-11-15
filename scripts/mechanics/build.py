@@ -1,7 +1,8 @@
 """scripts/mechanics/build.py <mechanics.md> <out.html>: the game mechanics page (docs/mechanics.html), silent.
 
 mechanics.md: "## 標題 {#id}" starts a section (its link name), "### " a heading, "- " a list item, "| … |" table rows
-(the first row the header, the "|---|" row skipped); other lines are paragraphs. `code` spans are kept.
+(the first row the header, the "|---|" row skipped); other lines are paragraphs. `code` spans are kept;
+[text](view) links another page of the site (altar: altar.html), opened beside the home page's menu when shown there.
 """
 import html
 import re
@@ -9,8 +10,9 @@ import sys
 
 
 def inline(text):
-    """A line as HTML: escaped, `code` spans kept."""
-    return re.sub(r'`([^`]+)`', r'<code>\1</code>', html.escape(text))
+    """A line as HTML: escaped, `code` spans kept, [text](view) a link to the view's page."""
+    text = re.sub(r'`([^`]+)`', r'<code>\1</code>', html.escape(text))
+    return re.sub(r'\[([^\]]+)\]\(([a-z]+)\)', r'<a class="view" href="\2.html" data-view="\2">\1</a>', text)
 
 
 def cells(line):
@@ -246,6 +248,7 @@ h1 {
 .page li > ul, .page li > ol { margin: 0 0 2px; padding-left: 24px; }
 .page ol li::marker { font-size: 16px; }
 .page li::marker { color: var(--gold); }
+.page a.view { color: var(--gold-light); }
 
 .page table { width: calc(100% - 16px); border-collapse: collapse; margin: 6px 0 12px; font-size: 17px; line-height: 27px; }
 .page th, .page td { text-align: left; vertical-align: top; padding: 6px 10px; border-bottom: 1px solid rgba(201, 162, 74, 0.35); }
@@ -360,6 +363,24 @@ $('tabs').addEventListener('click', event => {
   if (tab) {
     choose(tabs.indexOf(tab));
   }
+});
+
+// A link to another page: the home page shows it beside its menu (going back returns here); alone it opens itself.
+document.addEventListener('click', event => {
+  const link = event.target.closest('a.view');
+
+  if (!link) {
+    return;
+  }
+
+  event.preventDefault();
+
+  if (window.parent !== window) {
+    window.parent.postMessage({ open: link.dataset.view, detail: '' }, '*');
+    return;
+  }
+
+  location.href = `${link.dataset.view}.html${location.search}`;
 });
 
 addEventListener('resize', fit);
