@@ -8,7 +8,8 @@
       "binaryDir": "${sourceDir}/build/linux",
       "toolchainFile": "${sourceDir}/cmake/toolchain-linux-x64-clang.cmake",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "SWD3_DIAGNOSTICS": "ON"
       }
     },
     {
@@ -18,7 +19,8 @@
       "binaryDir": "${sourceDir}/build/windows",
       "toolchainFile": "${sourceDir}/cmake/toolchain-windows-x64-clang-cl.cmake",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "SWD3_DIAGNOSTICS": "ON"
       }
     },
     {
@@ -28,7 +30,8 @@
       "binaryDir": "${sourceDir}/build/linux-i386",
       "toolchainFile": "${sourceDir}/cmake/toolchain-linux-i386-clang.cmake",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "SWD3_DIAGNOSTICS": "ON"
       }
     },
     {
@@ -38,7 +41,8 @@
       "binaryDir": "${sourceDir}/build/windows-x86",
       "toolchainFile": "${sourceDir}/cmake/toolchain-windows-x86-clang-cl.cmake",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "SWD3_DIAGNOSTICS": "ON"
       }
     }
   ],

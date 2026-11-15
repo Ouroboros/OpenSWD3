@@ -1,0 +1,11 @@
+#pragma once
+
+// The options the build was configured with (CMakeLists.txt makes build/<preset>/generated/core/build_options.h from
+// src/core/build_options.h.in).
+namespace swd3::BuildOptions
+{
+
+// SWD3_DIAGNOSTICS: the diagnostic logs (LogDiagnostic) and the code that gathers them are built in.
+inline constexpr bool Diagnostics = @SWD3_DIAGNOSTICS_VALUE@;
+
+}  // namespace swd3::BuildOptions

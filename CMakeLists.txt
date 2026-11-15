@@ -56,6 +56,16 @@ find_package(SDL3 CONFIG REQUIRED COMPONENTS SDL3-static)
 include(cmake/FFmpegStatic.cmake)
 add_library(swd3_core STATIC ${SWD3_SOURCES})
 target_include_directories(swd3_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
+# The diagnostic logs (LogDiagnostic) are built in only on request: the development presets turn them on, the
+# packages leave them out.
+option(SWD3_DIAGNOSTICS "Build the diagnostic logs (LogDiagnostic)" OFF)
+if(SWD3_DIAGNOSTICS)
+    set(SWD3_DIAGNOSTICS_VALUE true)
+else()
+    set(SWD3_DIAGNOSTICS_VALUE false)
+endif()
+configure_file(src/core/build_options.h.in "${CMAKE_CURRENT_BINARY_DIR}/generated/core/build_options.h" @ONLY)
+target_include_directories(swd3_core PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/generated")
 # toml++ (header only, fetched by scripts/deps/fetch.sh) for swd3r.toml; errors are returned, not thrown.
 set(SWD3_TOMLPP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/src/tomlplusplus")
 if(NOT EXISTS "${SWD3_TOMLPP_DIR}/toml.hpp")

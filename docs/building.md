@@ -98,6 +98,8 @@ bash scripts/build_linux.sh --test     # 编完运行单元测试
 
 32 位版本使用 `windows-x86`（产物在 `build/windows-x86/`）与 `linux-i386`（产物在 `build/linux-i386/`）预设。所有预设都是 `RelWithDebInfo`。
 
+CMake 选项 `SWD3_DIAGNOSTICS` 决定是否编入诊断日志（`LogDiagnostic` 与只为它收集数据的代码）。默认关；上面的预设都打开，供日常开发使用；`package.bat` 关闭，发布的版本不含诊断代码。开关写在编译时生成的 `build/<预设>/generated/core/build_options.h`（由 `src/core/build_options.h.in` 生成），代码里用 `BuildOptions::Diagnostics` 判断。
+
 在 Windows 上直接编译并打包：
 
 ```bat

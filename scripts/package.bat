@@ -41,7 +41,7 @@ cmake -S "%ROOT%" -B "%BUILD%" -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo ^
     -DCMAKE_C_COMPILER="%LLVM%/clang-cl.exe" -DCMAKE_CXX_COMPILER="%LLVM%/clang-cl.exe" ^
     -DCMAKE_LINKER="%LLVM%/lld-link.exe" -DCMAKE_AR="%LLVM%/llvm-lib.exe" ^
     -DCMAKE_RC_COMPILER="%LLVM%/llvm-rc.exe" -DCMAKE_MT="%LLVM%/llvm-mt.exe" ^
-    -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded || exit /b 1
+    -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DSWD3_DIAGNOSTICS=OFF || exit /b 1
 cmake --build "%BUILD%" --target swd3r || exit /b 1
 rem The settings template beside the program built, unless one is there already (one changed there is kept).
 if not exist "%BUILD%\swd3r.toml" copy /y "%ROOT%\swd3r.toml" "%BUILD%\" >nul || exit /b 1

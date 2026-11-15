@@ -4,6 +4,7 @@
 #include <string>
 #include <string_view>
 
+#include "core/build_options.h"
 #include "core/format.h"
 
 namespace swd3
@@ -88,6 +89,16 @@ template <typename... Args>
 void LogDebug(const LogFormat& format, const Args&... args)
 {
     Log(LogLevel::Debug, format, args...);
+}
+
+// A diagnostic log (at the debug level): built in only with SWD3_DIAGNOSTICS (BuildOptions::Diagnostics).
+template <typename... Args>
+void LogDiagnostic(const LogFormat& format, const Args&... args)
+{
+    if constexpr (BuildOptions::Diagnostics)
+    {
+        Log(LogLevel::Debug, format, args...);
+    }
 }
 
 template <typename... Args>
